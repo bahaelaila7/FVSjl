@@ -294,4 +294,75 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test FVSjl.rd_slp(3.9f0,  rd.xxinf, rd.yyinf, 3) === 5.0f0    # exactly XX(2)
         @test FVSjl.rd_slp(50.0f0, rd.xxinf, rd.yyinf, 3) === 40.0f0   # above XX(3) → YY(3)
     end
+
+    # -------------------------------------------------------------------------
+    # Chunk 0b-3 — the per-cycle mortality kernel (rd/rdmort.f + rd/rdsum.f).
+    # Golden entry/exit state captured from the LIVE relinked FVSkt oracle: a
+    # single-.o instrumentation swap of rdmort.f dumped every record's PROBI/PROPI
+    # entry state and RRKILL/RDKILL/PROPI exit state for all 10 cycles of the
+    # turnkey scenario (RRType 3 Armillaria, RRInit 0 10 10 20 0.1 10 3, SArea 100;
+    # the instrumented .sum stayed byte-identical to FVSkt_clean). Driving
+    # rd_mort_kernel! with the oracle's ENTRY state reproduced every EXIT value
+    # bit-exact across the full run — 270 records, 254 nonzero-kill, 0 mismatches.
+    # This testset asserts the complete CYCLE-1 block (ISTEP=2 ⇒ slots (1,1) initial
+    # infection from rdsetp, (2,1) RDINSD inside-patch aging, (2,2) RDINF new
+    # infection). The upstream chain that BUILDS the (2,*) entry slots and the RDEND
+    # step that makes RRKILL .sum-visible are later sub-chunks — see the port report.
+    # -------------------------------------------------------------------------
+    @testset "RD mortality kernel (rdmort/rdsum) — bit-exact vs live FVSkt" begin
+        G1_ISP = Int[7, 3, 5, 2, 2, 4, 2, 7, 3, 2, 3, 3, 4, 4, 3, 4, 3, 7, 3, 7, 4, 3, 8, 8, 8, 8, 4]
+        G1_DBH = Float32[11.5, 0.107423656, 6.5, 7.9, 8.0, 6.2, 8.4, 9.5, 4.0, 8.2, 1.2, 1.9, 0.1, 5.3, 10.0, 6.1, 12.7, 9.6, 10.4, 8.5, 10.9, 9.4, 3.2, 0.1, 5.8, 5.0, 6.6]
+        G1_PROBI_11 = Float32[42.053104, 248.74669, 23.009193, 21.24667, 20.718824, 61.908543, 18.792587, 61.62352, 82.915565, 19.720476, 82.915565, 82.915565, 292.04102, 84.71928, 20.269703, 63.954964, 12.567242, 60.346382, 18.740484, 76.9761, 20.030003, 22.93991, 128.7465, 128.7465, 93.56012, 125.89451, 54.631878]
+        G1_PROPI_11 = Float32[0.08, 0.1, 0.08, 0.12, 0.14, 0.14, 0.08, 0.1, 0.12, 0.04, 0.08, 0.04, 0.14, 0.08, 0.16, 0.12, 0.2, 0.1, 0.04, 0.2, 0.14, 0.0139999995, 0.06, 0.08, 0.08, 0.08, 0.04]
+        G1_PROBI_21 = Float32[7.3682227, 17.767488, 25.147968, 11.330256, 12.265579, 81.90156, 11.054939, 11.137711, 66.64456, 10.967106, 24.348478, 29.870813, 22.45291, 89.70798, 42.717327, 86.674324, 31.521011, 8.642616, 40.65856, 10.926502, 39.378014, 50.524006, 33.259735, 6.001759, 66.046585, 73.94884, 79.15031]
+        G1_PROPI_21 = Float32[-0.6544206, -0.45166653, -0.60440654, -0.6084938, -0.6205581, -0.6337918, -0.61797094, -0.5690732, -0.62119454, -0.64291286, -0.6099856, -0.58321816, -0.5647853, -0.63445, -0.65258735, -0.6492604, -0.62875396, -0.62178385, -0.6483234, -0.65945894, -0.60518396, -0.64650244, -0.5804697, -0.4810371, -0.62053853, -0.6275188, -0.6224158]
+        G1_PROBI_22 = Float32[1.8139817, 73.60012, 2.8390431, 0.9609802, 0.93710595, 18.722614, 0.84998286, 2.6581614, 24.533373, 0.891951, 24.533373, 24.533373, 88.320145, 25.62112, 5.9974766, 19.3415, 3.718443, 2.6030712, 5.545005, 3.3204024, 6.0575476, 6.7875476, 24.533371, 24.533371, 17.828411, 23.989906, 16.521976]
+        G1_PROPI_22 = Float32[0.05, 0.04, 0.06, 0.03, 0.02, 0.02, 0.08, 0.04, 0.05, 0.03, 0.03, 0.03, 0.04, 0.06, 0.06, 0.04, 0.03, 0.05, 0.04, 0.02, 0.04, 0.04, 0.03, 0.02, 0.06, 0.03, 0.04]
+        G1_RRKILL = Float32[0.0, 340.11432, 25.848236, 0.0, 0.0, 80.63116, 0.0, 0.0, 174.09349, 0.0, 131.79742, 137.31975, 402.8141, 200.04837, 20.269703, 83.29646, 0.0, 0.0, 0.0, 76.9761, 26.087551, 0.0, 186.53961, 159.28163, 111.388535, 149.88441, 71.153854]
+        G1_APROPI_11 = Float32[0.20396695, 58.187775, 1.2067606, 0.64941174, 0.6632558, 1.5517648, 0.58000004, 0.24851489, 1.6852175, 0.55136365, 5.2799997, 3.3242106, 83.340004, 1.7071187, 0.8392453, 1.552836, 0.74135345, 0.24705881, 0.6945455, 0.36483517, 0.9747827, 0.734, 1.7219319, 53.26182, 1.0388069, 1.1757792, 1.3733336]
+        G1_APROPI_21 = Float32[-0.5304537, 57.6361, 0.5223541, -0.07908207, -0.09730226, 0.777973, -0.117970906, -0.42055836, 0.94402283, -0.13154915, 4.5900145, 2.7009926, 82.63522, 0.9926687, 0.026658043, 0.78357553, -0.08740053, -0.474725, 0.006222132, -0.49462375, 0.22959876, 0.07349758, 1.0814621, 52.700783, 0.3382683, 0.46826038, 0.7109177]
+        G1_APROPI_22 = Float32[0.17396696, 58.127773, 1.1867608, 0.55941176, 0.5432558, 1.4317648, 0.58000004, 0.18851486, 1.6152174, 0.54136366, 5.23, 3.3142107, 83.240005, 1.6871188, 0.73924536, 1.4728359, 0.57135344, 0.19705881, 0.6945455, 0.18483518, 0.8747828, 0.76000005, 1.691932, 53.201817, 1.0188068, 1.1257793, 1.3733336]
+        PAREA3 = 11.662223f0
+
+        n = 27; istep = 2
+        rd = FVSjl.RootDiseaseState()
+        rd.minrr = Int32(3); rd.maxrr = Int32(3); rd.irhab = Int32(1)
+        rd.parea[3] = PAREA3
+        probi = zeros(Float32, n, istep, 2)
+        propi = zeros(Float32, n, istep, 2)
+        for i in 1:n
+            probi[i,1,1] = G1_PROBI_11[i]; propi[i,1,1] = G1_PROPI_11[i]
+            probi[i,2,1] = G1_PROBI_21[i]; propi[i,2,1] = G1_PROPI_21[i]
+            probi[i,2,2] = G1_PROBI_22[i]; propi[i,2,2] = G1_PROPI_22[i]
+        end
+        rrkill = zeros(Float32, n); rdkill = zeros(Float32, n)
+        FVSjl.rd_mort_kernel!(rd, probi, propi, rrkill, rdkill,
+                              G1_DBH, G1_ISP, istep, 10.0f0)
+
+        for i in 1:n
+            @test rrkill[i] === G1_RRKILL[i]          # killed infected TPA (RRKILL)
+            @test rdkill[i] === G1_RRKILL[i]          # RDKILL == RRKILL within a cycle
+            @test propi[i,1,1] === G1_APROPI_11[i]    # aged proportion-of-roots-infected
+            @test propi[i,2,1] === G1_APROPI_21[i]
+            @test propi[i,2,2] === G1_APROPI_22[i]
+            # a killed slot has its PROBI zeroed; a survivor keeps it unchanged
+            @test probi[i,1,1] === (G1_APROPI_11[i] < FVSjl.RD_PKILLS[Int(rd.irtspc[G1_ISP[i]]), 3] ? G1_PROBI_11[i] : 0.0f0)
+        end
+
+        # rd/rdsum.f — PROBIT is the per-record sum over all (IT,IP) slots.
+        probit = zeros(Float32, n)
+        FVSjl.rd_sum!(probit, probi, istep)
+        for i in 1:n
+            @test probit[i] === probi[i,1,1] + probi[i,1,2] + probi[i,2,1] + probi[i,2,2]
+        end
+
+        # TAREA ≤ 0 (no disease area) ⇒ kernel is a no-op that only zeroes RDKILL.
+        rd0 = FVSjl.RootDiseaseState(); rd0.minrr = Int32(3); rd0.maxrr = Int32(3)
+        rd0.parea .= 0.0f0
+        p2 = copy(probi); pr2 = copy(propi); rk = fill(9.0f0, n); rd2 = fill(9.0f0, n)
+        FVSjl.rd_mort_kernel!(rd0, p2, pr2, rk, rd2, G1_DBH, G1_ISP, istep, 10.0f0)
+        @test p2 == probi && pr2 == propi        # untouched
+        @test all(==(0.0f0), rd2)                # RDKILL zeroed
+        @test all(==(9.0f0), rk)                 # RRKILL accumulator left alone
+    end
 end

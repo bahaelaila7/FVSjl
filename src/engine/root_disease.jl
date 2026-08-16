@@ -841,6 +841,114 @@ function rd_in_end!(rd::RootDiseaseState)
 end
 
 # -----------------------------------------------------------------------------
+# Per-cycle mortality kernel (rd/rdmort.f + rd/rdsum.f) — Chunk 0b-3.
+#
+# RDMORT ages the infected root systems of every live host record through one FVS
+# cycle and kills the record's infected TPA (into RRKILL/RDKILL) once the modeled
+# proportion of infected roots reaches the species' lethal threshold PKILLS. It is
+# the FIRST .sum-visible WRD effect (RDEND later applies RRKILL to WK2 mortality).
+#
+# Ported faithfully from rd/rdmort.f and validated BIT-EXACT (0-ULP) against the
+# LIVE relinked FVSkt oracle: a single-.o instrumentation swap of rdmort.f dumped
+# every record's PROBI/PROPI entry state and RRKILL/RDKILL/PROPI exit state for all
+# 10 cycles of the turnkey scenario (RRType 3 Armillaria, RRInit 0 10 10 20 0.1 10 3,
+# SArea 100; the instrumented .sum stayed byte-identical to FVSkt_clean). Driving the
+# kernel with the oracle's dumped entry state reproduces every exit value bit-exact.
+#
+# SCOPE BOUNDARY (see the port report): this is the mortality KERNEL. The ENTRY state
+# it consumes is produced upstream by the full RDCNTL spread chain (RDINSD inside-patch
+# aging into slot IT=ISTEP,IP=1 + RDINF new-infection into slot IT=ISTEP,IP=2, driven
+# by RDSPRD/RDAREA center growth), and the RRKILL it produces is applied to the .sum by
+# RDEND/RDGROW downstream — those remain later sub-chunks. RDSTP/RDSSIZ stump-list
+# bookkeeping (feeds next cycle's RDSHRK, not the RRKILL signal) is likewise deferred.
+# -----------------------------------------------------------------------------
+
+# rd/rdinit.f spore-model per-disease defaults (no spore centers in the turnkey path,
+# so SPPROP stays 0 ⇒ the HABSP spore multiplier is identically 1). Kept as the faithful
+# defaults; the SPORE keyword that changes them is a later chunk.
+const RD_SPPROP0 = 0.0f0
+const RD_SPYTK0  = 3.0f0
+
+"""
+    rd_sum!(probit, probi, istep)
+
+Port of rd/rdsum.f: `PROBIT(I) = Σ_{IT=1..ISTEP, IP=1..2} PROBI(I,IT,IP)` — the total
+infected TPA per record, summed over all time-slots and both infection pathways.
+"""
+function rd_sum!(probit::Vector{Float32}, probi::Array{Float32,3}, istep::Int)
+    nrec = size(probi, 1)
+    @inbounds for i in 1:nrec
+        s = 0.0f0
+        for it in 1:istep, ip in 1:2
+            s += probi[i, it, ip]
+        end
+        probit[i] = s
+    end
+    return probit
+end
+
+"""
+    rd_mort_kernel!(rd, probi, propi, rrkill, rdkill, dbh, isp, istep, fint;
+                    spprop, spytk)
+
+Port of the rd/rdmort.f per-record body. Mutates `probi` (killed slots zeroed) and
+`propi` (aged), accumulates the killed infected TPA into `rrkill`/`rdkill` (both are
+the same running total within a cycle; `rdkill` is zeroed here per RDMORT, `rrkill`
+is the cycle accumulator zeroed by RDMN2). Returns `rdkill`.
+
+Faithful to rd/rdmort.f:
+  YTKILL = RDSLP(DBH) then, if > XMINKL, scaled by HABSP·RRPSWT (+XMINKL);
+  CURAGE = PROPI·YTKILL/PKILLS; PROPI ← (CURAGE+FINT)·PKILLS/YTKILL;
+  when PROPI ≥ PKILLS the slot's PROBI is killed (added to RRKILL/RDKILL, then zeroed).
+HABSP = HABFAC(base,IDI,IRHAB)·(SPPROP·SPYTK + (1−SPPROP)). IDI = MAXRR unless the
+annosus case (MAXRR<3) selects it by IDITYP(base). Non-host records (IDI≤0) skip.
+"""
+function rd_mort_kernel!(rd::RootDiseaseState,
+                         probi::Array{Float32,3}, propi::Array{Float32,3},
+                         rrkill::Vector{Float32}, rdkill::Vector{Float32},
+                         dbh::AbstractVector{<:Real}, isp::AbstractVector{<:Integer},
+                         istep::Int, fint::Real;
+                         spprop::Float32 = RD_SPPROP0, spytk::Float32 = RD_SPYTK0)
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); irhab = Int(rd.irhab)
+    irt = rd.irtspc; xxinf = rd.xxinf; yyinf = rd.yyinf; nninf = Int(rd.nninf)
+    fintf = Float32(fint)
+    nrec = length(dbh)
+
+    fill!(rdkill, 0.0f0)                          # rdmort.f DO 150 (RDKILL zeroed)
+
+    tarea = 0.0f0                                 # rdmort.f DO 410
+    @inbounds for idi in minrr:maxrr
+        tarea += rd.parea[idi]
+    end
+    (tarea <= 0.0f0 || nrec == 0) && return rdkill
+
+    hmul = spprop * spytk + (1.0f0 - spprop)      # spore time-to-death multiplier
+    @inbounds for i in 1:nrec
+        ksp = Int(isp[i]); ksp == 0 && continue
+        base = Int(irt[ksp])
+        idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+        idi <= 0 && continue                      # non-host: skip (rdmort GOTO 500)
+        habsp = RD_HABFAC[base, idi, irhab] * hmul
+        pk = RD_PKILLS[base, idi]
+        xmk = rd.xminkl[idi]
+        for it in 1:istep, ip in 1:2
+            probi[i, it, ip] <= 0.0f0 && continue
+            ytk = rd_slp(Float32(dbh[i]), xxinf, yyinf, nninf)
+            if ytk > xmk
+                ytk = (ytk - xmk) * habsp * RD_RRPSWT[base] + xmk
+            end
+            curage = propi[i, it, ip] * ytk / pk
+            propi[i, it, ip] = (curage + fintf) * pk / ytk
+            propi[i, it, ip] < pk && continue     # not yet lethal
+            rrkill[i] += probi[i, it, ip]
+            rdkill[i] += probi[i, it, ip]
+            probi[i, it, ip] = 0.0f0
+        end
+    end
+    return rdkill
+end
+
+# -----------------------------------------------------------------------------
 # Engine seams (rd/rdmn1.f, rd/rdmn2.f, rd/rdtreg.f) — wired GATED + INERT.
 # The per-cycle mortality/spread/growth-loss bodies are Chunk 0 (pending); until
 # then these are no-ops, so a stand with no RD keyword is byte-identical and a
@@ -879,13 +987,23 @@ end
 """
     root_disease_treg!(s, fint)
 
-gradd.f RDTREG seam (each cycle, after growth). The main per-cycle RD driver:
-Chunk 0 will run RDCNTL (RDSETP→spread→RDMORT) + RDEND (→WK2 mortality) + RDGROW
-(growth loss) + RDINOC. Inert until then.
+gradd.f RDTREG seam (each cycle, after growth). The main per-cycle RD driver
+(RDCNTL: RDINUP→RDJUMP→RDSHRK→RDSPRD→RDZERO→RDAREA→RDINF→RDMORT, then RDEND→WK2
+mortality + RDGROW growth loss + RDINOC).
+
+Chunk 0b-3 ported and bit-exact-validated the RDMORT+RDSUM mortality KERNEL
+(`rd_mort_kernel!`/`rd_sum!`) against the live oracle for all 10 cycles. The seam
+stays INERT here because two adjoining sub-chunks remain: (a) the upstream RDCNTL
+spread chain (RDINSD inside-patch aging + RDINF new-infection, driven by
+RDSPRD/RDAREA center growth) that BUILDS the per-record entry state the kernel
+consumes, and (b) RDEND, which APPLIES RRKILL to the WK2 mortality that makes it
+.sum-visible. Wiring `rd_mort_kernel!` without those would neither run correctly
+(no entry state) nor change the .sum (no RDEND), so it is deliberately not called
+until (a)+(b) land. The no-RD/RD inert-seam guarantee (0b-2) is thus preserved.
 """
 function root_disease_treg!(s::StandState, fint::Real)
     rd = s.root_disease
     (rd_active(rd) && rd.iroot != 0) || return nothing
-    # Chunk 0 (pending): the reduced RDCNTL→RDMORT mortality path.
+    # Kernel ready (rd_mort_kernel!); driver + RDEND application are the next sub-chunks.
     return nothing
 end
