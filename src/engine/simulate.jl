@@ -31,6 +31,7 @@ function setup_growth!(s::StandState)
     apply_voleqnum_overrides!(s)         # VOLEQNUM — user overrides of those equation ids (cubic only)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
+    root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
@@ -497,6 +498,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing)
     compute_density!(s)
+    root_disease_mn2!(s, fint)           # WRD grincr.f RDMN2 seam (cycle start) — inert unless an RDIN block is active
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
@@ -580,6 +582,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
     s.variant isa BritishColumbia && dm_tregro!(s, round(Int, fint))
+    root_disease_treg!(s, fint)          # WRD gradd.f RDTREG seam (post-growth) — inert unless an RDIN block is active
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
     # then GRADD's FMKILL sets WK2(I)=MAX(WK2(I),FIRKIL(I)) (fmkill.f:86) — a tree dies from
     # whichever is LARGER, density/background MORTS or fire, NOT both summed. The old code ran

@@ -891,6 +891,11 @@ abstract type AbstractClimateState end
 # `nothing` until a MISTOE/NEWSPRED keyword activates it — inert for every non-DM run.
 abstract type AbstractMistletoeState end
 
+# Forward declaration for the Western Root Disease (WRD) state; concrete
+# `RootDiseaseState` is in engine/root_disease.jl (included after this file).
+# `nothing` until an RDIN keyword activates it — inert for every non-RD run.
+abstract type AbstractRootDiseaseState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -909,6 +914,7 @@ mutable struct StandState{V<:AbstractVariant}
     econ::Union{EconState,Nothing}
     climate::Union{AbstractClimateState,Nothing}
     mistletoe::Union{AbstractMistletoeState,Nothing}   # BC NEWSPRED/NISI spatial DM (#196); nothing until MISTOE/NEWSPRED
+    root_disease::Union{AbstractRootDiseaseState,Nothing}  # Western Root Disease (WRD); nothing until RDIN
 end
 
 """
@@ -925,6 +931,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing,
     )
 end
