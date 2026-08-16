@@ -223,11 +223,25 @@ RA(JSPC=13) and RW(ISPC=17) use their own forms (op_dgf_dds_ra / handled in dgf!
     return dds
 end
 
+# op/blkdat.f DATA SIGMAR — per-species pooled DG residual SD (SIGMAR VALUES for SF,SS,DF,RC,WH,RA ×0.75 already folded).
+const OP_DG_SIGMAR = Float32[
+    0.3428,0.4390,0.4390,0.3960,0.3102,0.3769,0.4275,0.3931,0.4842,0.4842,
+    0.3690,0.3222,0.5494,0.5494,0.3222,0.2679,0.6178,0.3625,0.3402,0.3751,
+    0.5107,0.3328,0.5357,0.5357,0.5357,0.5357,0.5357,0.2360,0.5357,0.4842,
+    0.4842,0.4842,0.4842,0.5357,0.5357,0.5357,0.5357,0.5357,0.5357]
+# op/dgf.f DATA OBSERV(20) — the underlying-model observation count per JSPC group. op/dgf.f DGCONS sets
+# ATTEN(JSPC)=OBSERV(JSPC); dgdriv.f reads ATTEN(ISPC) ⇒ effectively ATTEN[sp]=OBSERV[sp] for sp≤20, else 0.
+const OP_DG_OBSERV = Float32[
+    622.,1487.,747.,1467.,596.,2482.,11563.,1192.,4293.,2848.,
+    475.,78.,1369.,220.,112.,759.,542.,502.,2144.,8928.]
+
 """
     op_dgcons!(s)
 
 op/dgf.f ENTRY DGCONS over the stand — fill `s.calib.dg_const[ispc]` = DGCON for every FVS-native
-species (op_dgcon). ORGANON species (GF/DF/…) are grown by the NWO engine; their dg_const is inert.
+species (op_dgcon), and `s.calib.atten[ispc]` = ATTEN (dgf.f:543 ATTEN(JSPC)=OBSERV(JSPC) ⇒ ATTEN[sp]=
+OBSERV[sp] for sp≤20, else 0) for the large-tree DG calibration empirical-Bayes prior. ORGANON species
+(GF/DF/…) are grown by the NWO engine; their dg_const is inert (but ATTEN still feeds calibration).
 """
 function op_dgcons!(s::StandState)
     c = s.calib; p = s.plot
@@ -237,6 +251,7 @@ function op_dgcons!(s::StandState)
         si = ispc <= length(p.sp_site_index) ? p.sp_site_index[ispc] : 0f0
         si <= 0f0 && (si = 1f0)
         c.dg_const[ispc] = op_dgcon(ispc, ifor, elev, slope, asp, si)
+        c.atten[ispc] = ispc <= 20 ? OP_DG_OBSERV[ispc] : 0f0
     end
     return s
 end

@@ -530,6 +530,16 @@ mutable struct Calibration
     organon_acalib::Matrix{Float32}  # OC ORGANON PREPARE calibration ACALIB(3,18) (row 1=HT/HDCALIB, 2=CR/CRCALIB,
                                      # 3=DG/DGCALIB), loaded once at setup by oc_organon_prepare! (oc/cratet.f:393-401);
                                      # all-1.0 for non-OC / no-big-6. HTGRO2 consumes row 1; SWO growth ignores 2/3.
+    # OP (Olympic) per-tree ORGANON stash for the COOPERATING hooks (op/dgdriv.f): diameter_growth!(::Olympic)
+    # runs the ORGANON EXECUTE once and stashes IORG/HGRO/CR2/MORTEXP here; height_growth!/crown_ratio_update!/
+    # mortality! consume them (HGRO for IORG=1, CR2 for IORG=1, MORTEXP for ALL trees when ORGANON ran). Sized
+    # to t.n and refilled each diameter_growth! call; empty ⇒ ORGANON did not run this cycle. OP has no tripling
+    # (ICL4=0) so per-index alignment across the cycle's hooks is stable.
+    op_iorg::Vector{Int32}
+    op_hgro::Vector{Float32}
+    op_cr2::Vector{Float32}
+    op_mortexp::Vector{Float32}
+    op_org_ran::Bool                 # true ⇒ ORGANON EXECUTE ran this cycle (SMORMT>0 ⇒ MORTEXP-for-all in mortality!)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -538,7 +548,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP),
     zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[],   # ht_dbh_aa=0, iabflg=1, calib_dbh empty
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # dg_dsq, dg_ccf (EM), sm_const (BM)
-    ones(Float32, 3, 18))                                             # organon_acalib (OC) — default all-1.0
+    ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
+    Int32[], Float32[], Float32[], Float32[], false)                 # OP ORGANON per-tree stash (empty until diameter_growth!)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
