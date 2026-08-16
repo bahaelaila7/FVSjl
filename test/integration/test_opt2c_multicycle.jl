@@ -14,9 +14,12 @@
 # REGENT small-tree height/diameter for D<XMAX, blended by XWT); crown_ratio_update! (op/crown.f Weibull +
 # ORGANON CR2); mortality! (op/morts.f ORGANON MORTEXP-for-all).
 #
-# VALIDATED BIT-EXACT: cycle 0 (1990) 9/9, cycle 1 (1995) 9/9, cycle 2 (2000) 8/9. The one cycle-2
-# residual is BdFt (jl 12405 vs 12427, 0.18%) — an accumulated board-foot volume difference in the
-# largest trees; documented as `@test_broken`.
+# VALIDATED BIT-EXACT: cycle 0 (1990), cycle 1 (1995), AND cycle 2 (2000) — ALL 9 .sum columns, every
+# cycle. OP is DGSD=0/ICL4=0 (fully deterministic), so this is a TRUE bit-exact match (no cornered
+# straddle). The final cycle-2 residual (board-foot of the broken-top DF tree 19) was root-caused via
+# the FVSop g16 BFTOPK/BLMVOL DEBUG dumps to the merch-top bark: BLM `MTOPP=TOPD·BARK` must use
+# BRATIO(D_start) (vols.f:150, the stashed `vol_bark`), not the grown-DBH bark — the 0.001 difference
+# flipped the last Scribner log (16ft/dib4 → 14ft/dib5). Fixed in volume.jl.
 # =============================================================================
 using Test
 using FVSjl
@@ -53,12 +56,10 @@ const F = FVSjl
         @test r1.topht == 71 && round(r1.qmd; digits = 1) == 6.0
         @test r1.cuft == 2256 && r1.mcuft == 1745 && r1.bdft == 9249
 
-        # --- cycle 2 (2000): 8/9 bit-exact ---
+        # --- cycle 2 (2000): BIT-EXACT, all 9 columns ---
         @test r2.year == 2000
         @test r2.tpa == 470 && r2.ba == 120 && r2.sdi == 256 && r2.ccf == 154
         @test r2.topht == 69 && round(r2.qmd; digits = 1) == 6.8
-        @test r2.cuft == 2988 && r2.mcuft == 2419
-        # KNOWN RESIDUAL: cycle-2 board-foot (accumulated large-tree BdFt), jl 12405 vs 12427.
-        @test_broken r2.bdft == 12427
+        @test r2.cuft == 2988 && r2.mcuft == 2419 && r2.bdft == 12427
     end
 end
