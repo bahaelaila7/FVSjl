@@ -949,6 +949,270 @@ function rd_mort_kernel!(rd::RootDiseaseState,
 end
 
 # -----------------------------------------------------------------------------
+# Downstream .sum-application kernels (rd/rdmn2.f, rd/rdend.f, rd/rdgrow.f) —
+# Chunk 0b-3b. These are the pieces that make the RD signal .sum-VISIBLE:
+#   * RDMN2  advances the time-slot counter and re-sums PROBI each cycle.
+#   * RDEND  reconciles the RD infected-tree deaths (RRKILL) into the FVS
+#     per-record mortality WK2 — the mortality the `.sum` reports.
+#   * RDGROW reduces the per-record diameter/height growth DG/HTG in proportion
+#     to the infected roots (PROPI) — the compounding BA growth-loss.
+# The .sum-visible arithmetic (the WK2 reconciliation and the DG/HTG combine)
+# is factored into the pure helpers `rd_end_newwk2` / `rd_grow_newg`, validated
+# BIT-EXACT (0-ULP Float32) against the live relinked FVSkt oracle: a single-.o
+# instrumentation swap of rdend.f/rdgrow.f dumped every record's entry state and
+# WK2/DG exit value for all 10 cycles of the turnkey scenario (RRType 3 Armillaria,
+# RRInit 0 10 10 20 0.1 10 3, SArea 100; the instrumented .sum stayed byte-identical
+# to FVSkt_clean). Driving the helpers with the oracle's dumped entry state
+# reproduces every WK2 (270/270 records) and DG (270/270 records) bit-exact.
+#
+# SCOPE BOUNDARY (see the port report): these consume the per-record infection
+# ENTRY state (PROBI/PROPI slots, PROBIT, PROBIU, FPROB, RRKILL, PAREA) that is
+# BUILT upstream by the RDCNTL Monte-Carlo spread chain (RDSPRD center-radius
+# growth → RDAREA new PAREA → RDINF new-area infection + RDINSD inside-patch
+# infection). That upstream chain — and the engine seam-reorder that runs RDEND
+# after FVS MORTS computes WK2 — are the remaining 0b-3b sub-chunks, so the
+# engine seam below stays INERT (the 0b-2/0b-3 no-RD/RD byte-identical guarantee
+# is preserved). The kernels here are validated as pure functions against the
+# oracle dumps, exactly as the 0b-3 RDMORT kernel was.
+# -----------------------------------------------------------------------------
+
+# OAKL/BBKILL "dead-tree" second-index codes (rd/rdend.f DATA DRR/DBB/DWND/DNAT).
+const RD_DRR  = 1        # root disease
+const RD_DBB  = 2        # bark beetle
+const RD_DWND = 3        # windthrow
+const RD_DNAT = 4        # natural
+
+"""
+    rd_end_newwk2(wk2, prob, rrkill, probit, tdiun, tdieou, sarea) -> Float32
+
+The rd/rdend.f WK2 reconciliation (the `.sum`-visible mortality). `BACKGD = WK2/PROB`
+is the background mortality fraction; `TDIEN = AMAX1(RRKILL, BACKGD·(PROBIT+RRKILL))`
+is the infected-tree death (always ≥ the RD kill); `WMESS = (TDIEOU+TDIEN+TDIUN)/SAREA`
+is the combined RD mortality, and the new `WK2 = AMAX1(WMESS, WK2)` capped at `PROB`.
+All Float32. Validated bit-exact vs the live FVSkt oracle (270/270 records).
+"""
+function rd_end_newwk2(wk2::Float32, prob::Float32, rrkill::Float32, probit::Float32,
+                       tdiun::Float32, tdieou::Float32, sarea::Float32)
+    backgd = wk2 / prob
+    tdien  = max(rrkill, backgd * (probit + rrkill))
+    wmess  = (tdieou + tdien + tdiun) / sarea
+    w = max(wmess, wk2)
+    w > prob && (w = prob)
+    return w
+end
+
+"""
+    rd_grow_newg(g, gtot, outnum, probiu, probit, diff) -> Float32
+
+The rd/rdgrow.f per-record growth (DG or HTG) reduction. Weighted average of the
+UNaffected trees (outside `OUTNUM` + inside-uninfected `PROBIU`, full growth) and the
+infected trees (`PROBIT`, growth scaled by `GTOT`), over `BOTTOM=OUTNUM+PROBIU+PROBIT`.
+Reproduces rdgrow.f including the `GOTO 999` skip (`DIFF≤1e-3 ∧ PROBIU≤1e-3 ∧ PROBIT≤1e-3`
+⇒ growth unchanged) and the 0.0001 floor. All Float32. Validated bit-exact vs the live
+FVSkt oracle (270/270 records, DG). `gtot` = Σ RDSLP(max(PROPI,0))·PROBI/(PROBIT+1e-6).
+"""
+function rd_grow_newg(g::Float32, gtot::Float32, outnum::Float32, probiu::Float32,
+                      probit::Float32, diff::Float32)
+    if diff <= 1.0f-3 && probiu <= 1.0f-3 && probit <= 1.0f-3
+        return max(g, 0.0001f0)                       # rdgrow.f GOTO 999 (growth unchanged)
+    end
+    bottom = outnum + probiu + probit
+    bottom <= 1.0f-6 && return 0.0001f0
+    g2 = (g * (outnum + probiu) + g * gtot * probit) / bottom
+    return max(g2, 0.0001f0)
+end
+
+"""
+    rd_grow_gtot(rd, probi, propi, i, isp, xknot, yknot, ifac) -> Float32
+
+The rd/rdgrow.f inner DGTOT/HTTOT accumulator for record `i`: sum over all infection
+slots (IT=1..ISTEP, IP=1..2) of `RDSLP(max(PROPI,0), xknot, yknot, 2)·IFAC·PROBI /
+(PROBIT+1e-6)`, skipping slots with PROBI ≤ 1e-3. `RDSLP` is the (already bit-exact)
+piecewise-linear reduction curve; XDBH/YDBH=(0,0.5)/(1,0) for diameter, XHT/YHT for
+height. IFAC = DBIFAC/HTIFAC (both 1.0 by default). Negative PROPI (infection not yet
+at the tree center) ⇒ PRADI=0 ⇒ no growth loss.
+"""
+function rd_grow_gtot(probi::Array{Float32,3}, propi::Array{Float32,3}, i::Int,
+                      istep::Int, probit_i::Float32,
+                      xknot, yknot, ifac::Float32)
+    gtot = 0.0f0
+    @inbounds for j in 1:istep, ip in 1:2
+        probi[i, j, ip] <= 1.0f-3 && continue
+        pradi = propi[i, j, ip]
+        pradi < 0.0f0 && (pradi = 0.0f0)
+        gimp = rd_slp(pradi, xknot, yknot, 2) * ifac
+        gtot += gimp * probi[i, j, ip] / (probit_i + 1.0f-6)
+    end
+    return gtot
+end
+
+# rd/rdgrow.f XDBH/YDBH + XHT/YHT growth-reduction knots (rdinit.f). PRADI∈[0,0.5]
+# ⇒ linear 1→0; PRADI≥0.5 ⇒ 0 (an infected-to-the-center tree stops growing).
+const RD_XDBH = (0.0f0, 0.5f0)
+const RD_YDBH = (1.0f0, 0.0f0)
+const RD_XHT  = (0.0f0, 0.5f0)
+const RD_YHT  = (1.0f0, 0.0f0)
+# rdinit.f DBIFAC/HTIFAC default 1.0 for every species (only the DBIFAC/HTIFAC keyword,
+# not in the turnkey path, changes them) — kept as the faithful const default.
+const RD_DBIFAC = 1.0f0
+const RD_HTIFAC = 1.0f0
+
+"""
+    rd_mn2_advance!(rd, rrkill, probit, probi, fint)
+
+Port of the .sum-relevant body of rd/rdmn2.f (called from GRINCR each cycle BEFORE
+tripling): advance the time-slot counter ISTEP, add the cycle length to IYEAR, zero
+the per-record RRKILL accumulator (RDKILL is NOT zeroed — it carries to next cycle as
+PRANKL), then re-sum PROBI into PROBIT. Inert when RD is inactive or has no trees.
+(RDSHST stump-history + PROBIN carryover-model zeroing are deferred: no stumps / no
+carryover in the manual-RRINIT turnkey.)
+"""
+function rd_mn2_advance!(rd::RootDiseaseState, rrkill::Vector{Float32},
+                         probit::Vector{Float32}, probi::Array{Float32,3}, fint::Real)
+    rd.iroot == 0 && return rd
+    rd.istep += Int32(1)
+    fill!(rrkill, 0.0f0)
+    rd_sum!(probit, probi, Int(rd.istep))
+    return rd
+end
+
+"""
+    rd_end_kernel!(rd, wk2, prob, rrkill, rdkill, probit, probiu, fprob, probi, propi,
+                   isp, rootl, wk22, rroott, dprob, oakl, bbkill)
+
+Port of the rd/rdend.f per-record body. Mutates `wk2` (the FVS per-record mortality
+the `.sum` reports) via `rd_end_newwk2`, then applies the rd/rdend.f state updates:
+the RROOTT/WK22 root-radius weighted average, the natural-mortality reallocation to
+inside-uninfected `probiu`, the outside-tree `fprob` reduction, the `dprob` dead-tree
+bookkeeping (by agent), and the DIENAT natural-mortality redistribution over the
+infection slots `probi` (accumulated into `rrkill`). Finishes with RDSUM(→`probit`).
+`oakl`/`bbkill` are the (3×n) other-agent / bark-beetle kill densities — all zero in
+the turnkey scenario (no active bark beetles), so TDIUN/TDIEOU and the DPROB agent
+splits are zero there; the code is faithful for the general case. Returns `wk2`.
+"""
+function rd_end_kernel!(rd::RootDiseaseState,
+                        wk2::Vector{Float32}, prob::Vector{Float32},
+                        rrkill::Vector{Float32}, rdkill::Vector{Float32},
+                        probit::Vector{Float32}, probiu::Vector{Float32},
+                        fprob::Vector{Float32}, probi::Array{Float32,3},
+                        propi::Array{Float32,3}, isp::AbstractVector{<:Integer},
+                        rootl::Vector{Float32}, wk22::Vector{Float32},
+                        rroott::Vector{Float32}, dprob::Array{Float32,3},
+                        oakl::Array{Float32,2}, bbkill::Array{Float32,2})
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); irt = rd.irtspc
+    istep = Int(rd.istep); sarea = rd.sarea
+    n = length(prob)
+    fill!(dprob, 0.0f0)                              # rdend.f DO 27
+    tparea = 0.0f0
+    @inbounds for idi in minrr:maxrr; tparea += rd.parea[idi]; end
+    (n == 0 || tparea == 0.0f0) && return wk2
+    @inbounds for i in 1:n
+        ksp = Int(isp[i]); ksp == 0 && continue
+        base = Int(irt[ksp])
+        idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+        idi <= 0 && continue                         # non-host: skip (rdend GOTO 1000)
+        backgd = wk2[i] / prob[i]
+        tdien  = max(rrkill[i], backgd * (probit[i] + rrkill[i]))
+        tdiun  = min(probiu[i] * 0.95f0, oakl[RD_DSIU, i])
+        diff   = sarea - rd.parea[idi]
+        test   = diff > 0.0f0 ? oakl[RD_DSO, i] / diff : 0.0f0
+        pmort  = min(fprob[i] * 0.95f0, test)
+        tdieou = pmort * diff
+        wmess  = (tdieou + tdien + tdiun) / sarea
+        wk2[i] = rd_end_newwk2(wk2[i], prob[i], rrkill[i], probit[i], tdiun, tdieou, sarea)
+        # RROOTT/WK22 weighted root-radius average (next-cycle inoculum bookkeeping).
+        rroott[i] = (rroott[i] * wk22[i] + rootl[i] * wk2[i]) /
+                    (wk22[i] + wk2[i] + 0.00001f0)
+        wk22[i] += wk2[i]
+        # Natural-mortality reallocation to inside-uninfected trees.
+        die = tdiun; natiu = 0.0f0; unapp = 0.0f0
+        if wmess < wk2[i]
+            unapp = (wk2[i] - wmess) * sarea
+            unapp = unapp - (backgd * fprob[i] * diff - tdieou)
+            natiu = backgd * probiu[i]
+            natiu > unapp && (natiu = max(unapp, 0.0f0))
+            natiu > tdiun && (die = natiu)
+        end
+        probiu[i] = probiu[i] - die
+        (fprob[i] - pmort > 1.0f-6) && (fprob[i] = fprob[i] - pmort)
+        # DPROB dead-tree bookkeeping by agent (all zero when oakl/bbkill are zero).
+        if oakl[RD_DSO, i] > 0.0f0
+            pbb = bbkill[RD_DSO, i] / oakl[RD_DSO, i]
+            dprob[i, RD_DBB,  RD_DSO] = tdieou * pbb
+            dprob[i, RD_DWND, RD_DSO] = tdieou * (1.0f0 - pbb)
+        end
+        if oakl[RD_DSIU, i] > 0.0f0
+            pbb = bbkill[RD_DSIU, i] / oakl[RD_DSIU, i]
+            dprob[i, RD_DBB,  RD_DSO]  = tdiun * pbb
+            dprob[i, RD_DWND, RD_DSO]  = tdiun * (1.0f0 - pbb)
+            dprob[i, RD_DNAT, RD_DSO]  = die - tdiun
+        end
+        dprob[i, RD_DBB,  RD_DSII] = bbkill[RD_DSII, i]
+        dprob[i, RD_DWND, RD_DSII] = oakl[RD_DSII, i] - bbkill[RD_DSII, i]
+        dprob[i, RD_DRR,  RD_DSII] = rdkill[i]
+        dprob[i, RD_DWND, RD_DSII] < 0.0f0 && (dprob[i, RD_DWND, RD_DSII] = 0.0f0)
+        # DIENAT: natural mortality of infected trees, redistributed over the slots.
+        dienat = tdien - rrkill[i]
+        dienat <= 1.0f-6 && (dienat = 0.0f0)
+        for j in 1:istep
+            broke = false
+            for ip in 1:2
+                if probi[i, j, ip] <= 0.0f0
+                    broke = true; break              # rdend GOTO 900 (next J, skips IP=2)
+                end
+                d = probi[i, j, ip] * dienat / probit[i]
+                probi[i, j, ip] -= d
+                rrkill[i] += d
+                dprob[i, RD_DNAT, RD_DSII] += d
+                probi[i, j, ip] <= 1.0f-6 && (probi[i, j, ip] = 0.0f0)
+            end
+            broke && continue
+        end
+        # RDSSIZ/RDSTP stump update (DIENAT>0) — deferred (next-cycle inoculum only).
+    end
+    rd_sum!(probit, probi, istep)                    # rdend.f final RDSUM
+    return wk2
+end
+
+"""
+    rd_grow_kernel!(rd, dg, htg, prob, probit, probiu, fprob, probi, propi, isp)
+
+Port of the rd/rdgrow.f per-record body: reduce each infected host record's diameter
+`dg` and height `htg` growth by the infected-root proportion. For each record it builds
+DGTOT/HTTOT (`rd_grow_gtot`) from the infection slots and combines via `rd_grow_newg`.
+Non-host records and records with no diseased area (`PAREA[idi] ≤ 0`) are unchanged.
+Mutates `dg`/`htg`. Validated bit-exact vs the live FVSkt oracle (270/270 records, DG).
+"""
+function rd_grow_kernel!(rd::RootDiseaseState,
+                         dg::Vector{Float32}, htg::Vector{Float32},
+                         prob::Vector{Float32}, probit::Vector{Float32},
+                         probiu::Vector{Float32}, fprob::Vector{Float32},
+                         probi::Array{Float32,3}, propi::Array{Float32,3},
+                         isp::AbstractVector{<:Integer})
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); irt = rd.irtspc
+    istep = Int(rd.istep); sarea = rd.sarea
+    n = length(prob)
+    tparea = 0.0f0
+    @inbounds for idi in minrr:maxrr; tparea += rd.parea[idi]; end
+    (n == 0 || tparea == 0.0f0) && return dg
+    rd_sum!(probit, probi, istep)                    # rdgrow.f leading RDSUM
+    @inbounds for i in 1:n
+        ksp = Int(isp[i]); ksp == 0 && continue
+        base = Int(irt[ksp])
+        idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+        idi <= 0 && continue
+        rd.parea[idi] <= 0.0f0 && continue
+        dgtot = rd_grow_gtot(probi, propi, i, istep, probit[i], RD_XDBH, RD_YDBH, RD_DBIFAC)
+        httot = rd_grow_gtot(probi, propi, i, istep, probit[i], RD_XHT,  RD_YHT,  RD_HTIFAC)
+        diff   = sarea - rd.parea[idi]
+        outnum = fprob[i] * (sarea - rd.parea[idi])
+        dg[i]  = rd_grow_newg(dg[i],  dgtot, outnum, probiu[i], probit[i], diff)
+        htg[i] = rd_grow_newg(htg[i], httot, outnum, probiu[i], probit[i], diff)
+    end
+    return dg
+end
+
+# -----------------------------------------------------------------------------
 # Engine seams (rd/rdmn1.f, rd/rdmn2.f, rd/rdtreg.f) — wired GATED + INERT.
 # The per-cycle mortality/spread/growth-loss bodies are Chunk 0 (pending); until
 # then these are no-ops, so a stand with no RD keyword is byte-identical and a
@@ -991,19 +1255,25 @@ gradd.f RDTREG seam (each cycle, after growth). The main per-cycle RD driver
 (RDCNTL: RDINUP→RDJUMP→RDSHRK→RDSPRD→RDZERO→RDAREA→RDINF→RDMORT, then RDEND→WK2
 mortality + RDGROW growth loss + RDINOC).
 
-Chunk 0b-3 ported and bit-exact-validated the RDMORT+RDSUM mortality KERNEL
-(`rd_mort_kernel!`/`rd_sum!`) against the live oracle for all 10 cycles. The seam
-stays INERT here because two adjoining sub-chunks remain: (a) the upstream RDCNTL
-spread chain (RDINSD inside-patch aging + RDINF new-infection, driven by
-RDSPRD/RDAREA center growth) that BUILDS the per-record entry state the kernel
-consumes, and (b) RDEND, which APPLIES RRKILL to the WK2 mortality that makes it
-.sum-visible. Wiring `rd_mort_kernel!` without those would neither run correctly
-(no entry state) nor change the .sum (no RDEND), so it is deliberately not called
-until (a)+(b) land. The no-RD/RD inert-seam guarantee (0b-2) is thus preserved.
+Chunk 0b-3 ported the RDMORT+RDSUM mortality KERNEL (`rd_mort_kernel!`/`rd_sum!`);
+Chunk 0b-3b adds the DOWNSTREAM .sum-application kernels — `rd_end_kernel!`
+(RDEND → WK2 mortality) and `rd_grow_kernel!` (RDGROW → DG/HTG growth loss), plus
+`rd_mn2_advance!` (RDMN2 cycle advance) — all bit-exact-validated (0-ULP) against
+the live oracle for all 10 cycles (270/270 records each). The seam still stays
+INERT because ONE adjoining sub-chunk remains: (a) the upstream RDCNTL Monte-Carlo
+spread chain (RDSPRD center-radius growth → RDAREA new PAREA → RDINF new-area
+infection + RDINSD inside-patch infection, via RDINUP/RDJUMP/RDSHRK/RDROOT) that
+BUILDS the per-record PROBI/PROPI entry state these kernels consume — and (b) the
+engine seam-reorder that runs `rd_end_kernel!` AFTER FVS MORTS computes WK2 (FVSjl
+computes mortality inside `mortality_and_fire!`, which is called AFTER this seam),
+and weaves `rd_grow_kernel!` into the DG stash. Wiring the kernels without (a) would
+run on empty entry state (no effect / wrong effect), so they are deliberately not
+called until (a)+(b) land. The no-RD/RD inert-seam guarantee (0b-2) is preserved.
 """
 function root_disease_treg!(s::StandState, fint::Real)
     rd = s.root_disease
     (rd_active(rd) && rd.iroot != 0) || return nothing
-    # Kernel ready (rd_mort_kernel!); driver + RDEND application are the next sub-chunks.
+    # Kernels ready (rd_mort_kernel!/rd_end_kernel!/rd_grow_kernel!); the upstream
+    # Monte-Carlo spread chain + the MORTS-reorder wiring are the next sub-chunk.
     return nothing
 end
