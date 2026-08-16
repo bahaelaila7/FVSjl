@@ -115,41 +115,40 @@ end
     return (x, y)
 end
 
-"""
-    svs_render_cycle0(s; msg="Inventory conditions") -> String
+# --- SVS object (SVDATA.F77 /SVOBJ/): one visualization stem. IS2F is the tree-record pointer
+#     (remapped by SVTRIP on tripling / SVRMOV on removal); (x,y)=XSLOC/YSLOC persist across cycles.
+mutable struct SVSObj
+    species::Int          # ISP snapshot (fixed; the remapped record is always the same species)
+    is2f::Int             # IS2F: tree-record index this object represents (0 ⇒ removed)
+    x::Float32            # XSLOC(ISVOBJ)
+    y::Float32            # YSLOC(ISVOBJ)
+end
 
-Produce the byte content of the cycle-0 SVS picture file (`<stem>_001.svs`) for the current
-(inventory) stand: run SVGTPL(IPLGEM=0)+SVESTB(integer)+SVGTPT placement — advancing the SVS
-random stream (seeded here from the main stream at the SVSTART seam) — then write the SVOUT
-header and the live-tree (IOBJTP=1) object records. Pure w.r.t. files; the caller writes it.
-
-Requires `s` at the inventory state (post `setup_growth!`/`compute_volumes!`, pre-growth) so
-DBH/HT/PCT(ICR)/PROB/ITRE/BA match the live SVSTART seam. Chunk-0 assumptions (asserted):
-IPLGEM=0, integer TPA. Non-integer PROB or IPLGEM≠0 → later chunks.
 """
-function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory conditions")::String
+    svs_place_objects(s) -> Vector{SVSObj}
+
+SVSTART inventory placement (cycle-0): SVGTPL(IPLGEM=0)+SVESTB(integer)+SVGTPT, advancing the SVS
+random stream (seeded here from the main stream at the SVSTART seam). Returns the persistent SVS
+object list (IOBJTP=1 live green trees) in placement order — the array whose (x,y) survives every
+later cycle while IS2F is remapped by tripling/removal. Chunk assumptions (asserted): IPLGEM=0,
+integer TPA. `s` must be at the inventory state (post `setup_growth!`/`compute_volumes!`, pre-growth).
+"""
+function svs_place_objects(s::StandState)::Vector{SVSObj}
     t = s.trees
-    p = s.plot
-    @assert Int(s.control.svs_iplgem) == 0 "svs chunk 0: only IPLGEM=0 supported"
+    @assert Int(s.control.svs_iplgem) == 0 "svs: only IPLGEM=0 supported"
 
     # --- SVSTART seed: SVS stream starts at the MAIN stream's current s0 (svstart.f:50) ---
     svs_seed!(s.rng)
 
-    # --- SVGTPL (IPLGEM=0): one square acre per subplot; subplot ids ignored for placement ---
-    side = _SVS_SIDE_IMPERIAL          # imperial (IMETRIC=0)
+    side = _SVS_SIDE_IMPERIAL          # imperial (IMETRIC=0); one square acre per subplot
 
-    ba  = p.basal_area
-    el  = p.elevation
-
-    # object list: (species_index, record_index, x, y) in placement order
-    objs = Tuple{Int,Int,Float32,Float32}[]
-
+    objs = SVSObj[]
     # --- SVESTB (integer path): NTOADD(i) = ifix(PROB(i)); FRACAD≡0 ⇒ no lottery START draw ---
     for i in 1:t.n
         prob = t.tpa[i]
         ntoadd = trunc(Int, prob)                         # IFIX(PROB) with NOBTS=0
-        # chunk-0 guard: integer TPA. A fractional remainder means the lottery path (chunk 1) is needed.
-        @assert abs(prob - ntoadd) < 1f-4 "svs chunk 0: non-integer TPA on record $i (PROB=$prob) needs the lottery (chunk 1)"
+        # integer-TPA guard. A fractional remainder means the lottery path (chunk 1) is needed.
+        @assert abs(prob - ntoadd) < 1f-4 "svs: non-integer TPA on record $i (PROB=$prob) needs the lottery (chunk 1)"
         diai = t.dbh[i] * _SVS_DIAI_FACTOR                # stem radius (ft)
         itre = t.plot_id[i]
         for _ in 1:ntoadd
@@ -158,18 +157,14 @@ function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory condi
             while true
                 (x, y) = _svgtpt_rect(s.rng, 0f0, side, 0f0, side)
                 # SVOBOL overlap reject vs already-placed live objects on the SAME subplot (svestb.f:323-348).
-                # Chunk-0 stems are sub-foot radii on a 208-ft square ⇒ this never rejects (0 retries,
-                # verified: every object consumes exactly 2 svrann draws). Ported faithfully for later reuse.
                 overlap = false
-                dobj = 0
-                for (spj, recj, xj, yj) in objs
-                    t.plot_id[recj] == itre || continue
-                    rj = t.dbh[recj] * _SVS_DIAI_FACTOR
-                    if _svs_circles_overlap(x, y, diai, xj, yj, rj)
+                for o in objs
+                    t.plot_id[o.is2f] == itre || continue
+                    rj = t.dbh[o.is2f] * _SVS_DIAI_FACTOR
+                    if _svs_circles_overlap(x, y, diai, o.x, o.y, rj)
                         overlap = true
                         break
                     end
-                    dobj += 1
                 end
                 if overlap
                     ncks += 1
@@ -178,14 +173,66 @@ function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory condi
                 end
                 break
             end
-            push!(objs, (Int(t.species[i]), i, x, y))
+            push!(objs, SVSObj(Int(t.species[i]), i, x, y))
         end
     end
+    return objs
+end
 
-    # --- SVOUT: header (svout.f:243-258) + live-tree object records (svout.f:429-440) ---
+"""
+    svs_svtrip!(objs, nlive)
+
+SVTRIP (svtrip.f): update the object→record pointers for record tripling. FVS TRIPLE splits every
+live base record `i` (1..`nlive`) into (central=i, upper=nlive+2i-1, lower=nlive+2i); this mirrors
+svtrip.f, distributing the NR objects that pointed at base `i` as ⌊0.6·NR+0.5⌋ to central, then
+⌊0.625·rem+0.5⌋ to upper, the rest to lower (identical to triple_records!'s .60/.25/.15 TPA split).
+(x,y) are untouched. No-op for a base with ≤1 object (svtrip.f:44). Faithful to the physical
+`nlive+2i-1 / nlive+2i` append order in triple_records! (diameter_growth.jl).
+"""
+function svs_svtrip!(objs::Vector{SVSObj}, nlive::Integer)
+    for i in 1:nlive
+        itr = (i, nlive + 2i - 1, nlive + 2i)             # (central, upper, lower) — TRIPLE layout
+        # count NR = live objects currently pointing at base record i (svtrip.f:40-42)
+        nr = 0
+        for o in objs
+            o.is2f == i && (nr += 1)
+        end
+        nr <= 1 && continue
+        nrt1 = trunc(Int, nr * 0.6f0 + 0.5f0)             # IFIX(FLOAT(NR)*.6+.5)
+        nrt2 = max(0, trunc(Int, (nr - nrt1) * 0.625f0 + 0.5f0))
+        nrt3 = max(0, nr - nrt1 - nrt2)
+        nrt2 <= 0 && continue                             # svtrip.f:52
+        nrt = (nrt1, nrt2, nrt3)
+        slot = 1; ntoc = nrt1
+        for o in objs
+            o.is2f == i || continue
+            o.is2f = itr[slot]
+            ntoc -= 1
+            if ntoc == 0
+                slot += 1
+                slot > 3 && break
+                ntoc = nrt[slot]
+                ntoc == 0 && break
+            end
+        end
+    end
+    return objs
+end
+
+"""
+    svs_picture(objs, s; year, msg) -> String
+
+Format one SVS picture (SVOUT header svout.f:243-258 + live-tree object records svout.f:429-440)
+from the persistent object list `objs` and the CURRENT tree state `s.trees`. Each object is emitted
+with its (remapped) record's DBH/HT/ICR/crown-width and its persistent (x,y). Removed objects
+(IS2F=0) are skipped (svout.f:391 `I.GT.0`).
+"""
+function svs_picture(objs::Vector{SVSObj}, s::StandState; year::Integer,
+                     msg::AbstractString)::String
+    t = s.trees; p = s.plot
+    ba = p.basal_area; el = p.elevation
     io = IOBuffer()
     stand = strip(String(p.stand_id))
-    year  = current_cycle_year(s)
     print(io, "#TITLE Stand=", stand, " Year=", _svs_i4(year), " ", msg, "\n")
     print(io, "#TREEFORM WEST.TRF\n")     # western cluster
     print(io, "#FORMAT 2\n")
@@ -193,16 +240,28 @@ function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory condi
     print(io, "#UNITS ENGLISH\n")
     print(io, ";                  trcl  stus             fang\n")
     print(io, ";species        tr#  |crcl|   dbh   ht lang |edia crd  cr    crd  cr    crd  cr    crd  cr ex mk  xloc    yloc  z\n")
-
-    for (sp, rec, x, y) in objs
-        sp2  = rpad(rstrip(String(s.species.code2[sp])), 2)   # SPCD: 2-char, left-justified
+    for o in objs
+        o.is2f == 0 && continue           # svout.f:391 I=IS2F(ISVOBJ); IF (I.GT.0)
+        rec  = o.is2f
+        sp2  = rpad(rstrip(String(s.species.code2[o.species])), 2)   # SPCD: 2-char, left-justified
         icr  = abs(t.crown_pct[rec])
         xicr = Float32(icr) * 0.01f0
-        cw   = kt_crown_width(sp, t.dbh[rec], t.height[rec], Float32(t.crown_pct[rec]), ba, el)
+        cw   = kt_crown_width(o.species, t.dbh[rec], t.height[rec],
+                              Float32(t.crown_pct[rec]), ba, el)      # CW=CRWDTH(I)
         crad = cw / 2f0
-        _svs_write_tree!(io, sp2, rec, t.dbh[rec], t.height[rec], crad, xicr, x, y)
+        _svs_write_tree!(io, sp2, rec, t.dbh[rec], t.height[rec], crad, xicr, o.x, o.y)
     end
     return String(take!(io))
+end
+
+"""
+    svs_render_cycle0(s; msg="Inventory conditions") -> String
+
+Cycle-0 inventory picture (SVSTART seam): place objects then format. Kept for the chunk-0 test.
+"""
+function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory conditions")::String
+    objs = svs_place_objects(s)
+    return svs_picture(objs, s; year = current_cycle_year(s), msg = msg)
 end
 
 # --- SVOUT format 30 for IOBJTP=1 (svout.f:429-431/439):
@@ -255,6 +314,71 @@ function svs_write_cycle0_files(stem::AbstractString, s::StandState;
         print(io, "\"Stand=", stand, " Year=", _svs_i4(year), " ", msg, "\" \"", basename(picfile), "\"\n")
     end
     return picfile
+end
+
+"""
+    svs_project!(stem, s; fint=10f0) -> Vector{String}
+
+Full multi-cycle SVS data path for the standard projection: mirror the engine's SVS seams —
+SVSTART (fvs.f:333, inventory picture), GRINCR (grincr.f:277, `IF ICYC>1` "Beginning of cycle"
+picture) each later cycle, and MAIN (fvs.f:453, "End of projection") — driving `grow_cycle!`
+between them and remapping the persistent object list through SVTRIP on every tripling cycle.
+
+Writes `<stem>_NNN.svs` for each picture and the accumulated `<stem>_index.svs` (`#TREELISTINDEX`
++ one line per picture). Returns the picture-file paths. `s` must be at the inventory state
+(post `setup_growth!`/`compute_volumes!`, pre-growth). Cycle count comes from the keyword schedule
+(`s.control`); tripling fires only for the first ICL4 cycles, exactly as the engine decides it.
+"""
+function svs_project!(stem::AbstractString, s::StandState; fint::Float32 = 10f0)
+    t = s.trees
+    stand = strip(String(s.plot.stand_id))
+    ncyc  = Int(s.control.ncycle)
+
+    # --- SVSTART (cyc0 inventory picture) ---
+    objs   = svs_place_objects(s)
+    index  = Tuple{Int,String,String}[]     # (year, msg, picfile-basename)
+    pics   = String[]
+    imageno = 1
+    picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
+    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
+                                                     msg = "Inventory conditions")); end
+    push!(pics, picfile)
+    push!(index, (current_cycle_year(s), "Inventory conditions", basename(picfile)))
+
+    # --- projection loop (mirrors fvs.f: for ICYC=1..NUMCYCLE) ---
+    for icyc in 1:ncyc
+        # GRINCR seam (grincr.f:277): IF ICYC>1 emit "Beginning of cycle" BEFORE growing this cycle.
+        if icyc > 1
+            imageno += 1
+            picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
+            open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
+                                                             msg = "Beginning of cycle")); end
+            push!(pics, picfile)
+            push!(index, (current_cycle_year(s), "Beginning of cycle", basename(picfile)))
+        end
+        # grow one cycle; TRIPLE (if it fired) split every live base record → remap the objects.
+        nlive_pre = t.n
+        grow_cycle!(s; fint = fint)
+        compute_volumes!(s)
+        t.n > nlive_pre && svs_svtrip!(objs, nlive_pre)   # tripling appended records ⇒ SVTRIP
+    end
+
+    # --- MAIN seam (fvs.f:453): "End of projection" picture ---
+    imageno += 1
+    picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
+    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
+                                                     msg = "End of projection")); end
+    push!(pics, picfile)
+    push!(index, (current_cycle_year(s), "End of projection", basename(picfile)))
+
+    # --- accumulated _index.svs ---
+    open(string(stem, "_index.svs"), "w") do io
+        print(io, "#TREELISTINDEX\n")
+        for (yr, msg, pf) in index
+            print(io, "\"Stand=", stand, " Year=", _svs_i4(yr), " ", msg, "\" \"", pf, "\"\n")
+        end
+    end
+    return pics
 end
 
 "Format a Float64 with exactly `d` fractional digits (round-half-away, like Fortran F edit)."
