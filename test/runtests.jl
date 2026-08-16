@@ -29,6 +29,7 @@ using FVSjl
     include("integration/test_opt01_cyc0.jl") # OP chunk 3: opt01 cyc0 .sum (density+volume) bit-exact vs live FVSop
     include("integration/test_svs_chunk0.jl") # SVS chunk 0: cyc0 .svs object list bit-exact vs live FVSkt
     include("integration/test_svs_multicycle.jl") # SVS multi-cycle: end-of-projection + begin-cycle pictures vs live FVSkt
+    include("integration/test_svs_snag.jl") # SVS mortality→snag: standing-dead aging + display bit-exact vs live FVSkt
     include("integration/test_treedata.jl")# C1: .tre parser vs Oracle A
     include("integration/test_keyword.jl") # C1: keyword lexer vs Oracle A
     include("integration/test_io_formats.jl")# C1b: CSV/format-agnostic round-trips

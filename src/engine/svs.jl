@@ -264,19 +264,21 @@ function svs_render_cycle0(s::StandState; msg::AbstractString = "Inventory condi
     return svs_picture(objs, s; year = current_cycle_year(s), msg = msg)
 end
 
-# --- SVOUT format 30 for IOBJTP=1 (svout.f:429-431/439):
+# --- SVOUT format 30 (svout.f:429-431/439) — shared by live trees (IOBJTP=1) and snags (IOBJTP=2):
 #     (A,T16,I5,I3,2I2,F6.1,F6.0,I2,I4,I2,4(F6.1,1X,F4.2),2I2,2F8.2,I2)
-#     A=SPCD  I5=tree#  I3=class(0)  I2 I2=(0,IPS=1)  F6.1=DBH  F6.0=HT  I2=lean(0)  I4=dir(0)
+#     A=SPCD  I5=tree#  I3=class(ITC)  I2 I2=(0,IPS)  F6.1=DBH  F6.0=HT  I2=lean(0)  I4=dir(IDIR)
 #     I2=edia(0)  4×(F6.1 crownRad, 1X, F4.2 crownRatio)  I2 I2=(ex=1,mk=0)  F8.2 F8.2=xloc,yloc  I2=z(0)
+# Live trees pass itc=0/ips=1/idir=0; standing snags pass their status-mapped class (98/94/…), ips=1, idir=0.
 function _svs_write_tree!(io::IO, sp2::AbstractString, rec::Integer, dbh::Float32, ht::Float32,
-                          crad::Float32, xicr::Float32, x::Float32, y::Float32)
+                          crad::Float32, xicr::Float32, x::Float32, y::Float32;
+                          itc::Integer = 0, ips::Integer = 1, idir::Integer = 0)
     print(io, rpad(sp2, 15))                       # A + T16 (SPCD in cols 1-2, next field at col 16)
     print(io, _svs_i(rec, 5))                      # I5 tree#
-    print(io, _svs_i(0, 3))                        # I3 tree class
-    print(io, _svs_i(0, 2), _svs_i(1, 2))          # crown class, plant status (IPS=1)
+    print(io, _svs_i(itc, 3))                      # I3 tree class (0 live; 98/94/… snag)
+    print(io, _svs_i(0, 2), _svs_i(ips, 2))        # crown class, plant status (IPS)
     print(io, _svs_f(dbh, 6, 1))                   # F6.1 dbh
     print(io, _svs_f0(ht, 6))                      # F6.0 ht (trailing '.')
-    print(io, _svs_i(0, 2), _svs_i(0, 4), _svs_i(0, 2))   # lean, felling dir, small-end dia
+    print(io, _svs_i(0, 2), _svs_i(idir, 4), _svs_i(0, 2))   # lean, felling dir, small-end dia
     for _ in 1:4
         print(io, _svs_f(crad, 6, 1), " ", _svs_f(xicr, 4, 2))   # 4×(crown radius, crown ratio)
     end
@@ -379,6 +381,137 @@ function svs_project!(stem::AbstractString, s::StandState; fint::Float32 = 10f0)
         end
     end
     return pics
+end
+
+# =============================================================================
+# SVS snag data path (mortality → standing-dead snag), KT non-fire path.
+#
+# Ported from:
+#   common/SVDEAD.F77   — the SVS snag list (per dead-slot IDEAD)
+#   base/svsnage.f      (SVSNAGE)  — snag aging: crown-diameter decay, crown-ratio, FMSNGHT
+#                                    height loss, FMSNGDK hard→soft decay, status progression
+#   fire/vbase/fmsnght.f(FMSNGHT)  — KT falls to CASE DEFAULT (western): per-year top-breakage loss
+#   fire/vbase/fmsngdk.f(FMSNGDK)  — KT CASE DEFAULT: years-since-death to become a soft snag
+#   {kt}/fmvinit.f      — KT snag params (HTR1/HTR2/HTXSFT, per-species HTX & DECAYX)
+#   vbase/svout.f:445-540 (SVOUT)  — snag object emission: status→display class, SNCRDI/2, SNCRTO
+#
+# SCOPE (this sub-chunk): the standing-dead (FALLDIR=-1), non-fire, non-salvage snag DISPLAY +
+# AGING, validated bit-exact vs the LIVE FVSkt snag record (measured via an instrumented svout.f
+# dump on kt2c cyc2). The mortality object-SELECTION (svrmov.f) + snag CREATION (svsnad.f) + the
+# engine SVMORT seam (gradd.f:164, cycle-start dims, pre-tripling record set) are the NEXT sub-chunk.
+# =============================================================================
+
+# --- SVDEAD.F77: one SVS snag record (a dead-slot IDEAD). Dims are frozen at death; SVSNAGE ages them.
+mutable struct SVSSnag
+    sp::Int          # ISNSP    — species sequence number
+    odia::Float32    # ODIA     — DBH at death (frozen)
+    olen::Float32    # OLEN     — height at death (frozen reference for crown-ratio + height loss)
+    sngdia::Float32  # SNGDIA   — current snag diameter (standing ⇒ = ODIA)
+    snglen::Float32  # SNGLEN   — current snag length (height-loss-aged)
+    crndia::Float32  # CRNDIA   — crown diameter at death (CRWDTH)
+    crnrto::Float32  # CRNRTO   — crown ratio at death (ICR), percent
+    iyrcod::Int      # IYRCOD   — year of tree death
+    istatus::Int     # ISTATUS  — status code (1 green,2 red,3 hard-grey,4 soft-grey,5/6 burn,90-92 WWPB)
+    falldir::Float32 # FALLDIR  — fall direction (-1 ⇒ standing)
+    oidtre::Int      # OIDTRE   — source tree id
+end
+
+# KT snag height/decay params ({kt}/fmvinit.f). HTX/DECAYX indexed by KT species 1..11
+# (1 WP 2 WL 3 DF 4 GF 5 WH 6 RC 7 LP 8 ES 9 AF 10 PP 11 MH). All four HTX(sp,1:4) share one value.
+const _KT_SNAG_HTR1   = 0.0228f0
+const _KT_SNAG_HTR2   = 0.01f0
+const _KT_SNAG_HTXSFT = 2.0f0
+const _KT_SNAG_HTX    = (0.9f0,0.9f0,0.9f0,1.1f0,1.1f0,1.1f0,1.1f0,1.1f0,1.1f0,1.0f0,1.0f0)
+const _KT_SNAG_DECAYX = (1.1f0,1.1f0,1.1f0,0.9f0,0.9f0,0.9f0,0.9f0,0.9f0,0.9f0,1.0f0,1.0f0)
+
+# FMSNGHT KT CASE DEFAULT (fmsnght.f:153-160), one year: shrink snag height by the top-breakage rate.
+# `ihard` picks HTINDX1/SFTMULT=1 (hard) vs HTINDX2/SFTMULT=HTXSFT (soft); regime = htcurr vs 0.5·htd.
+function _kt_fmsnght(sp::Integer, htd::Float32, htcurr::Float32, ihard::Bool)::Float32
+    htx = _KT_SNAG_HTX[sp]
+    sftmult = ihard ? 1f0 : _KT_SNAG_HTXSFT
+    htnew = htcurr > 0.5f0*htd ?
+        htcurr*(1f0 - _KT_SNAG_HTR1*htx*sftmult) :
+        htcurr*(1f0 - _KT_SNAG_HTR2*htx*sftmult)
+    htnew < 1.5f0 && (htnew = 0f0)                     # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
+    return htnew
+end
+
+# FMSNGDK KT CASE DEFAULT (fmsngdk.f): years-since-death for a snag of diameter `d` to become soft.
+_kt_fmsngdk(sp::Integer, d::Float32, xmod::Float32)::Float32 =
+    (1.24f0*_KT_SNAG_DECAYX[sp]*d + 13.82f0*_KT_SNAG_DECAYX[sp])*xmod
+
+"""
+    svsnage_standing!(sn, iyear, ilyear, xmod) -> (sndi, snht, sncrdi, sncrto)
+
+SVSNAGE (svsnage.f) for a STANDING (FALLDIR=-1), non-fire, non-salvage snag: age `sn` to `iyear`
+and return the display diameter / height / crown-diameter / crown-ratio(%). Mirrors svsnage.f:
+crown diameter decays 0.90/yr (`CRNDIA·0.90^ITIDIF`); crown ratio uses the PRE-height-loss length
+(`(OLEN/SNGLEN)·(CRNRTO·.01−1)+1`, ×100, ICYC>0 branch); the year loop (svsnage.f:330-404) applies
+one FMSNGHT height loss + status progression (green/red→red<2yr else hard-grey) + FMSNGDK hard→soft
+per year from `max(ilyear+1, iyrcod+1)` to `iyear`. Standing snags keep their death diameter.
+"""
+function svsnage_standing!(sn::SVSSnag, iyear::Integer, ilyear::Integer, xmod::Float32)
+    itidif = iyear > sn.iyrcod ? iyear - sn.iyrcod : 0
+    snht = sn.snglen                                   # svsnage.f:102 (pre-loss length)
+    sndi = sn.sngdia
+    sncrdi = sn.crndia * 0.9f0^itidif                  # svsnage.f:104
+    # crown ratio (ICYC>0 branch, svsnage.f:108-110) uses the PRE-loss SNHL length
+    if snht > 0.5f0
+        sncrto = ((sn.olen/snht)*(sn.crnrto*0.01f0 - 1f0) + 1f0)*100f0
+    else
+        sncrto = 0f0
+    end
+    (sncrto <= 0f0 || sncrdi <= 0f0) && (sncrdi = 0f0; sncrto = 0f0)
+    # up-to-date? (svsnage.f:127)
+    (iyear <= ilyear || itidif <= 0) && return (sndi, snht, sncrdi, sncrto)
+    # standing height-loss + status-progression loop (svsnage.f:330-404), FALLDIR=-1
+    for icuryr in max(ilyear+1, sn.iyrcod+1):iyear
+        ihard = sn.istatus != 4
+        snht = _kt_fmsnght(sn.sp, sn.olen, sn.snglen, ihard)
+        sn.snglen = snht
+        if sn.istatus == 1 || sn.istatus == 2         # CASE(1,2): green/red hard snags
+            sn.istatus = itidif < 2 ? 2 : 3
+        end
+        if sn.istatus != 4                            # FMSNGDK hard→soft (svsnage.f:398-403)
+            dktime = _kt_fmsngdk(sn.sp, sn.sngdia, xmod)
+            (icuryr - sn.iyrcod) >= dktime && (sn.istatus = 4)
+        end
+    end
+    sn.sngdia = sn.odia; sndi = sn.odia                # svsnage.f:411 — standing ⇒ no diameter change
+    return (sndi, snht, sncrdi, sncrto)
+end
+
+# SVOUT standing-snag status → display tree-class ITC (svout.f:505-540, FALLDIR=-1 branch).
+function svs_snag_class(istatus::Integer)::Int
+    istatus == 2  && return 98    # red tree (recently dead standing)
+    istatus == 3  && return 94    # hard grey snag
+    istatus == 4  && return 94    # soft grey snag
+    istatus == 5  && return 97    # recently burned
+    istatus == 6  && return 96    # older burned grey
+    istatus == 90 && return 90
+    istatus == 91 && return 91
+    istatus == 92 && return 92
+    return 0                      # status 1 is a never-displayed check state (svout.f:511)
+end
+
+"""
+    svs_write_snag!(io, sn, s, rec; iyear, ilyear=iyear-1, xmod=1f0)
+
+Emit one standing-snag object record (SVOUT IOBJTP=2 branch): age `sn` via `svsnage_standing!`,
+map its status to the display class, and write the fmt-30 record with `tree# = rec` (the IS2F dead
+slot), DBH=SNDI, HT=SNHT, crown radius=SNCRDI/2, crown ratio=SNCRTO·.01, at the snag's (x,y).
+A snag aged to SNHT ≤ 0 is dropped (svout.f:485). Returns true if emitted.
+"""
+function svs_write_snag!(io::IO, sn::SVSSnag, s::StandState, rec::Integer, x::Float32, y::Float32;
+                         iyear::Integer, ilyear::Integer = iyear - 1, xmod::Float32 = 1f0)::Bool
+    (sndi, snht, sncrdi, sncrto) = svsnage_standing!(sn, iyear, ilyear, xmod)
+    snht <= 0f0 && return false
+    sp2  = rpad(rstrip(String(s.species.code2[sn.sp])), 2)
+    itc  = svs_snag_class(sn.istatus)
+    crad = sncrdi / 2f0
+    xicr = sncrto * 0.01f0
+    _svs_write_tree!(io, sp2, rec, sndi, snht, crad, xicr, x, y; itc = itc, ips = 1, idir = 0)
+    return true
 end
 
 "Format a Float64 with exactly `d` fractional digits (round-half-away, like Fortran F edit)."
