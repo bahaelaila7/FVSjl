@@ -515,6 +515,40 @@ function rd_slp(x::Float32, xx, yy, n::Int)
 end
 
 """
+    rd_root(dbh, ht, proot, rslop, sdislp, yincpt, oldtpa, grospc, ormsqd, ba) -> Float32
+
+Port of rd/rdroot.f: the live-tree ROOT RADIUS (feet), the first routine of the
+RDTREG/RDCNTL spread chain (called per record from rd/rdtreg.f DO-1001). Deterministic
+(consumes no RD random draws).
+
+The SDI EFFECT (`SDINEW = (OLDTPA/GROSPC)·(ORMSQD/10)^1.605`; `EFFECT = SDISLP·SDINEW
++ YINCPT`, clamped to [0.5, 1.5]) scales the species-typical root radius. Trees ≥ 3.5"
+DBH use `EFFECT·RSLOP·PROOT·DBH/12`; sub-3.5" trees use a height/BA allometry
+(`exp(0.61157·ln HT + 0.04032·ln BA − 0.80815)·EFFECT`), falling back to 0.01 when HT
+or BA is zero. `PROOT`/`RSLOP` are the per-base-RD-species tables (rd/rdblk1kt.f),
+indexed `IRTSPC(ISP)` by the caller. All arithmetic in Float32 (matches the FVS REAL
+path; g16 bit-exact, incl. the `^1.605` / exp / log rounding).
+"""
+function rd_root(dbh::Float32, ht::Float32, proot::Float32, rslop::Float32,
+                 sdislp::Float32, yincpt::Float32, oldtpa::Float32,
+                 grospc::Float32, ormsqd::Float32, ba::Float32)::Float32
+    sdinew = (oldtpa / grospc) * (ormsqd / 10.0f0)^1.605f0
+    effect = sdinew > 0.0f0 ? sdislp * sdinew + yincpt : 1.0f0
+    effect = min(effect, 1.5f0)
+    effect = max(effect, 0.5f0)
+    if dbh < 3.5f0
+        ans = 0.01f0
+        if ht != 0.0f0 && ba != 0.0f0
+            ans = exp(0.61157f0 * log(ht) + 0.04032f0 * log(ba) - 0.80815f0)
+            ans = ans * effect
+        end
+        return ans
+    else
+        return effect * rslop * proot * dbh / 12.0f0
+    end
+end
+
+"""
     rd_iprp!(rd, s, noplot, pran)
 
 Port of rd/rdiprp.f: compute the per-record infected proportion `PROPN` for the
