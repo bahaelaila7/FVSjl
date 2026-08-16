@@ -117,11 +117,17 @@ end
 
 # --- SVS object (SVDATA.F77 /SVOBJ/): one visualization stem. IS2F is the tree-record pointer
 #     (remapped by SVTRIP on tripling / SVRMOV on removal); (x,y)=XSLOC/YSLOC persist across cycles.
+#     iobjtp mirrors IOBJTP: 1 = live green tree (is2f→tree record), 2 = standing snag
+#     (is2f→dead-slot IDEAD, displayed as tree#, with `snag` holding the frozen SVSSnag), 0 = removed.
 mutable struct SVSObj
     species::Int          # ISP snapshot (fixed; the remapped record is always the same species)
-    is2f::Int             # IS2F: tree-record index this object represents (0 ⇒ removed)
+    is2f::Int             # IS2F: tree-record index (live) or dead-slot IDEAD (snag); 0 ⇒ removed
     x::Float32            # XSLOC(ISVOBJ)
     y::Float32            # YSLOC(ISVOBJ)
+    iobjtp::Int           # IOBJTP: 1 live, 2 standing snag, 0 removed
+    snag::Any             # the frozen SVSSnag when iobjtp==2 (nothing otherwise)
+    SVSObj(species::Integer, is2f::Integer, x::Real, y::Real) =
+        new(Int(species), Int(is2f), Float32(x), Float32(y), 1, nothing)
 end
 
 """
@@ -195,7 +201,7 @@ function svs_svtrip!(objs::Vector{SVSObj}, nlive::Integer)
         # count NR = live objects currently pointing at base record i (svtrip.f:40-42)
         nr = 0
         for o in objs
-            o.is2f == i && (nr += 1)
+            (o.iobjtp == 1 && o.is2f == i) && (nr += 1)
         end
         nr <= 1 && continue
         nrt1 = trunc(Int, nr * 0.6f0 + 0.5f0)             # IFIX(FLOAT(NR)*.6+.5)
@@ -205,7 +211,7 @@ function svs_svtrip!(objs::Vector{SVSObj}, nlive::Integer)
         nrt = (nrt1, nrt2, nrt3)
         slot = 1; ntoc = nrt1
         for o in objs
-            o.is2f == i || continue
+            (o.iobjtp == 1 && o.is2f == i) || continue
             o.is2f = itr[slot]
             ntoc -= 1
             if ntoc == 0
@@ -219,6 +225,208 @@ function svs_svtrip!(objs::Vector{SVSObj}, nlive::Integer)
     return objs
 end
 
+# Expand a per-parent cycle-start snapshot `snap` (length `nlive_pre`) to the post-growth record set
+# (length `N`). If TRIPLE fired (N==3·nlive_pre), each parent i seeds central=i, upper=nlive+2i-1,
+# lower=nlive+2i (triple_records! layout) with the SAME cycle-start value (children copy the parent).
+# Untripled (N==nlive_pre) ⇒ passthrough.
+function _svs_expand(snap::AbstractVector{T}, nlive_pre::Integer, N::Integer)::Vector{T} where {T}
+    out = Vector{T}(undef, N)
+    if N == nlive_pre
+        @inbounds for i in 1:N; out[i] = snap[i]; end
+    else                                            # tripled
+        @inbounds for i in 1:nlive_pre
+            out[i] = snap[i]
+            out[nlive_pre + 2i - 1] = snap[i]
+            out[nlive_pre + 2i]     = snap[i]
+        end
+    end
+    return out
+end
+
+"""
+    svs_mortality_snags!(objs, s, snap, iyoftd, ndead) -> Int
+
+The SVS mortality→snag seam (gradd.f:164 SVMORT(0,WK2,·) → svmort.f → svrmov.f → svsnad.f), KT
+normal-mortality (ISWTCH=2), standing-dead (FALLDIR=-1), non-fire path. Runs AFTER `grow_cycle!` +
+`svs_svtrip!` for a cycle, on the post-tripling record set, reconstructing the oracle SVMORT inputs
+from the cycle-start snapshot and the engine's per-record mortality:
+
+  * PROB(r)   = `t.tpa[r] + t.mort_pa[r]`   (cycle-start TPA, pre-mortality — bit-exact vs FVS)
+  * REMOVE(r) = `t.mort_pa[r]`              (WK2 periodic mortality)
+  * DBH/HT/ICR/CRWDTH(r) = cycle-start dims (`snap`, tripled-expanded; snag freezes these)
+
+Ports SVRMOV faithfully: NOBTS per record (live objects) → integer NTOADD=IFIX(PROB−REMOVE)+FRACAD
+→ the per-plot fractional-add lottery (RDPSRT-descending on SCORE=ISP·1000+DBH, cumulative RMVSUM,
+systematic sampling with ONE `svrann!` draw per qualifying plot) → NTORMV=NOBTS−NTOADD → the
+deficit reassignment (same-species, DBH-within-25%, RDPSRT-neighbour search) → ONE `svrann!` draw
+per record with NTORMV>0 (SCORE, consumed but unused on the mortality path) → object removal in
+object order (IOBJTP→0) → SVSNAD enough-room snag creation (frozen dims, ISTATUS=1, IYRCOD=iyoftd,
+FALLDIR=−1). Converts each removed object in place to a standing snag (iobjtp=2, is2f=IDEAD).
+
+The two svrann draw points keep the SVS stream byte-synced with the oracle (verified: draws #17/#18/#19
+= 0.4955/0.1365/0.2479). `ndead` is the running dead-slot counter (Ref); returns snags created.
+Gated on SUM(REMOVE)>0 (svmort.f:125) — a mortality-free cycle draws nothing. Single SVS plot per
+inventory (ISVINV assert) — the multi-subplot lottery is a later chunk.
+"""
+function svs_mortality_snags!(objs::Vector{SVSObj}, s::StandState,
+                              snap::NamedTuple, iyoftd::Integer,
+                              ndead::Base.RefValue{Int})::Int
+    t = s.trees
+    N = t.n
+    nlp = snap.nlive_pre
+    # --- reconstruct the oracle SVMORT per-record inputs on the post-tripling set ---
+    prob   = Vector{Float32}(undef, N)
+    remove = Vector{Float32}(undef, N)
+    @inbounds for r in 1:N
+        remove[r] = t.mort_pa[r]
+        prob[r]   = t.tpa[r] + t.mort_pa[r]
+    end
+    # SUM>0 gate (svmort.f:125): no mortality ⇒ SVRMOV not called ⇒ no draws.
+    sumrmv = 0f0; @inbounds for r in 1:N; sumrmv += remove[r]; end
+    sumrmv > 0f0 || return 0
+    dbh   = _svs_expand(snap.dbh, nlp, N)
+    ht    = _svs_expand(snap.ht,  nlp, N)
+    icr   = _svs_expand(snap.icr, nlp, N)
+    cw    = _svs_expand(snap.cw,  nlp, N)
+    isp   = Int[Int(t.species[r]) for r in 1:N]           # species (unchanged by growth)
+    itre  = Int[Int(t.plot_id[r]) for r in 1:N]           # subplot id
+    @assert length(unique(itre)) == 1 || maximum(itre) == 1 "svs snag #2: multi-subplot lottery is a later chunk"
+
+    # --- NOBTS: live objects per record (svrmov.f:138-147) ---
+    nobts = zeros(Int, N)
+    for o in objs
+        (o.iobjtp == 1 && o.is2f > 0) || continue
+        nobts[o.is2f] += 1
+    end
+    # --- integer NTOADD + FRACAD (svrmov.f:151-183) ---
+    ntoadd = zeros(Int, N)
+    fracad = zeros(Float32, N)
+    @inbounds for i in 1:N
+        xm = prob[i] - remove[i]
+        if xm >= 0f0
+            (xm + 1f0 > 0f0) && (ntoadd[i] = trunc(Int, xm))     # IFIX(XM)
+            fracad[i] = xm - Float32(ntoadd[i])
+            fracad[i] < 0.00001f0 && (fracad[i] = 0f0)
+        else
+            fracad[i] = 0f0
+        end
+    end
+    score = Float32[Float32(isp[i]) * 1000f0 + dbh[i] for i in 1:N]
+
+    # --- per-plot fractional-add lottery (svrmov.f:198-294): one svrann! per qualifying plot ---
+    nplot = maximum(itre)
+    for iplt in 1:nplot
+        ntrplt = Int32[i for i in 1:N if itre[i] == iplt]         # records on this plot (record order)
+        n = length(ntrplt)
+        n == 0 && continue
+        sub = Float32[score[Int(r)] for r in ntrplt]              # RDPSRT(N,SCORE,NTRPLT,.FALSE.) — descending
+        subord = collect(Int32, 1:n)
+        _rdpsrt!(sub, subord; lseq = false)
+        sorted = Int[Int(ntrplt[Int(subord[k])]) for k in 1:n]    # record indices, descending score
+        # cumulative RMVSUM in sorted order (svrmov.f:230-240)
+        rmvsum = zeros(Float32, N)
+        i1 = sorted[1]; rmvsum[i1] = fracad[i1]
+        for k in 2:n
+            i = sorted[k]; rmvsum[i] = fracad[i] + rmvsum[i1]; i1 = i
+        end
+        rmvsum[sorted[end]] == 0f0 && continue                   # no fractional removal (svrmov.f:244)
+        nta  = 0; for r in ntrplt; nta += ntoadd[Int(r)]; end     # svrmov.f:248-251
+        wrmv = 0f0; for r in ntrplt; wrmv += remove[Int(r)]; end  # WPP(IPLT)
+        ppp  = 0f0; for r in ntrplt; ppp  += prob[Int(r)];   end  # PPP(IPLT)
+        toadd = ppp - wrmv - Float32(nta)                        # svrmov.f:260
+        toadd < 0.001f0 && continue                              # svrmov.f:263
+        itoadd = trunc(Int, toadd + 0.5f0)
+        xint   = rmvsum[sorted[end]] / toadd
+        x      = svrann!(s.rng)                                  # <<< RNGA draw (svrmov.f:266)
+        start  = xint * x
+        xprev  = 0f0; iadd = 0
+        for k in 1:n                                             # svrmov.f:276-292
+            i = sorted[k]
+            if start > xprev && start < rmvsum[i]
+                start += xint
+                ntoadd[i] += 1
+                iadd += 1
+                xprev = rmvsum[i]
+                iadd >= itoadd && break
+            else
+                xprev = rmvsum[i]
+            end
+        end
+    end
+
+    # --- NTORMV (svrmov.f:298-300) ---
+    ntormv = Int[nobts[i] - ntoadd[i] for i in 1:N]
+    # --- deficit reassignment (svrmov.f:337-486, ISWTCH=2: no add-tree branch) ---
+    nt2 = collect(Int32, 1:N)
+    _rdpsrt!(copy(score), nt2; lseq = true)                     # RDPSRT(ITRN,SCORE,NTRPLT,.TRUE.) — descending
+    for kk in 1:N
+        i = Int(nt2[kk])
+        ntormv[i] < 0 || continue
+        idel = -1; ibot = 0; itop = 0
+        while true
+            (itop + ibot == 2) && break                         # svrmov.f:350
+            if idel < 0
+                idel = -idel
+                (idel + kk > N) && (itop = 1)
+                itop == 1 && continue
+            else
+                idel = -(idel + 1)
+                (idel + kk < 1) && (ibot = 1)
+                ibot == 1 && continue
+            end
+            ii = Int(nt2[kk + idel])                            # candidate (svrmov.f:370)
+            ntormv[ii] < 1 && continue                          # needs surplus (svrmov.f:388)
+            isp[ii] == isp[i] || continue                       # same species (svrmov.f:392)
+            (min(dbh[ii], dbh[i]) < max(dbh[ii], dbh[i]) * 0.75f0) && continue  # DBH within 25% (svrmov.f:396)
+            ntormv[ii] -= 1; ntormv[i] += 1                     # svrmov.f:406-407
+            ntormv[i] < 0 && continue                           # still deficit ⇒ keep searching
+            break
+        end
+    end
+
+    # --- one svrann! per record with NTORMV>0 (svrmov.f:491-498): SCORE, unused on the mort path ---
+    @inbounds for ii in 1:N
+        ntormv[ii] > 0 && svrann!(s.rng)                        # <<< RNGB draw
+    end
+
+    # --- removal loop (svrmov.f:502-544, ISWTCH=2 ELSE branch): objects in object order ---
+    torem = Tuple{SVSObj,Int}[]
+    for o in objs
+        (o.iobjtp == 1 && o.is2f > 0) || continue
+        isi = o.is2f
+        ntormv[isi] > 0 || continue
+        o.iobjtp = 0                                            # IOBJTP=0 (removed → snag)
+        ntormv[isi] -= 1
+        push!(torem, (o, isi))                                  # ISNADD, in object order
+    end
+    isempty(torem) && return 0
+
+    # --- SVSNAD enough-room branch (svsnad.f:151-301): create standing-dead snags. Open dead-slots
+    #     (increasing IDEAD) are filled from the END of ISNADD backward (svsnad.f:162 NSNGS-ISNAG),
+    #     so the last-removed object gets the smallest IDEAD. Standing (FALLDIR=-1), ISTATUS=1. ---
+    ns = length(torem)
+    for k in 1:ns
+        (o, isi) = torem[ns - k + 1]                            # reversed fill order
+        ndead[] += 1
+        idead = ndead[]
+        sn = SVSSnag(isp[isi],           # ISNSP
+                     dbh[isi],           # ODIA
+                     ht[isi],            # OLEN
+                     dbh[isi],           # SNGDIA (= ODIA, standing)
+                     ht[isi],            # SNGLEN
+                     cw[isi],            # CRNDIA (CRWDTH)
+                     icr[isi],           # CRNRTO (ICR)
+                     Int(iyoftd),        # IYRCOD = IY(ITCYC+1)-1
+                     1,                  # ISTATUS = 1 (green; ages to 2=red next SVSNAGE year)
+                     -1f0,               # FALLDIR = -1 (standing)
+                     Int(isi))           # OIDTRE (source record; unused for standing display)
+        o.iobjtp = 2
+        o.snag   = sn
+        o.is2f   = idead                                        # displayed tree# = IDEAD (svsnad.f:296)
+    end
+    return ns
+end
+
 """
     svs_picture(objs, s; year, msg) -> String
 
@@ -228,7 +436,7 @@ with its (remapped) record's DBH/HT/ICR/crown-width and its persistent (x,y). Re
 (IS2F=0) are skipped (svout.f:391 `I.GT.0`).
 """
 function svs_picture(objs::Vector{SVSObj}, s::StandState; year::Integer,
-                     msg::AbstractString)::String
+                     msg::AbstractString, ilyear::Integer = year - 1)::String
     t = s.trees; p = s.plot
     ba = p.basal_area; el = p.elevation
     io = IOBuffer()
@@ -241,6 +449,12 @@ function svs_picture(objs::Vector{SVSObj}, s::StandState; year::Integer,
     print(io, ";                  trcl  stus             fang\n")
     print(io, ";species        tr#  |crcl|   dbh   ht lang |edia crd  cr    crd  cr    crd  cr    crd  cr ex mk  xloc    yloc  z\n")
     for o in objs
+        o.iobjtp == 0 && continue         # removed object (svout.f:391 I=IS2F; IF I.GT.0)
+        if o.iobjtp == 2                   # standing snag (SVOUT IOBJTP=2 branch)
+            svs_write_snag!(io, o.snag::SVSSnag, s, o.is2f, o.x, o.y;
+                            iyear = year, ilyear = ilyear, xmod = 1f0)
+            continue
+        end
         o.is2f == 0 && continue           # svout.f:391 I=IS2F(ISVOBJ); IF (I.GT.0)
         rec  = o.is2f
         sp2  = rpad(rstrip(String(s.species.code2[o.species])), 2)   # SPCD: 2-char, left-justified
@@ -341,37 +555,55 @@ function svs_project!(stem::AbstractString, s::StandState; fint::Float32 = 10f0)
     index  = Tuple{Int,String,String}[]     # (year, msg, picfile-basename)
     pics   = String[]
     imageno = 1
+    invyear = current_cycle_year(s)
+    ilyear  = invyear                        # ILYEAR: year of the last-written picture (SVOUT updates it)
+    ndead   = Ref(0)                         # NDEAD: running SVS dead-slot (IDEAD) counter
     picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
-    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
-                                                     msg = "Inventory conditions")); end
+    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = invyear,
+                                                     msg = "Inventory conditions", ilyear = ilyear)); end
     push!(pics, picfile)
-    push!(index, (current_cycle_year(s), "Inventory conditions", basename(picfile)))
+    push!(index, (invyear, "Inventory conditions", basename(picfile)))
 
     # --- projection loop (mirrors fvs.f: for ICYC=1..NUMCYCLE) ---
     for icyc in 1:ncyc
         # GRINCR seam (grincr.f:277): IF ICYC>1 emit "Beginning of cycle" BEFORE growing this cycle.
         if icyc > 1
             imageno += 1
+            byear = current_cycle_year(s)
             picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
-            open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
-                                                             msg = "Beginning of cycle")); end
+            open(picfile, "w") do io; write(io, svs_picture(objs, s; year = byear,
+                                                             msg = "Beginning of cycle", ilyear = ilyear)); end
             push!(pics, picfile)
-            push!(index, (current_cycle_year(s), "Beginning of cycle", basename(picfile)))
+            push!(index, (byear, "Beginning of cycle", basename(picfile)))
+            ilyear = byear
         end
-        # grow one cycle; TRIPLE (if it fired) split every live base record → remap the objects.
+        # Snapshot cycle-START dims for the SVMORT seam (the snag freezes these; the lottery/deficit
+        # search use DBH). Captured BEFORE grow_cycle! grows the records; expanded to the tripled set.
         nlive_pre = t.n
+        ba = s.plot.basal_area; el = s.plot.elevation
+        snap = (nlive_pre = nlive_pre,
+                dbh = Float32[t.dbh[i]        for i in 1:nlive_pre],
+                ht  = Float32[t.height[i]     for i in 1:nlive_pre],
+                icr = Float32[Float32(t.crown_pct[i]) for i in 1:nlive_pre],
+                cw  = Float32[kt_crown_width(Int(t.species[i]), t.dbh[i], t.height[i],
+                                             Float32(t.crown_pct[i]), ba, el) for i in 1:nlive_pre])
+        iyoftd = current_cycle_year(s) + round(Int, fint) - 1   # IYOFTD = IY(ITCYC+1)-1 (death year)
+        # grow one cycle; TRIPLE (if it fired) split every live base record → remap the objects.
         grow_cycle!(s; fint = fint)
         compute_volumes!(s)
         t.n > nlive_pre && svs_svtrip!(objs, nlive_pre)   # tripling appended records ⇒ SVTRIP
+        # SVMORT seam (gradd.f:164): mortality→standing-snag object selection + creation.
+        svs_mortality_snags!(objs, s, snap, iyoftd, ndead)
     end
 
     # --- MAIN seam (fvs.f:453): "End of projection" picture ---
     imageno += 1
+    eyear = current_cycle_year(s)
     picfile = string(stem, "_", lpad(string(imageno), 3, '0'), ".svs")
-    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = current_cycle_year(s),
-                                                     msg = "End of projection")); end
+    open(picfile, "w") do io; write(io, svs_picture(objs, s; year = eyear,
+                                                     msg = "End of projection", ilyear = ilyear)); end
     push!(pics, picfile)
-    push!(index, (current_cycle_year(s), "End of projection", basename(picfile)))
+    push!(index, (eyear, "End of projection", basename(picfile)))
 
     # --- accumulated _index.svs ---
     open(string(stem, "_index.svs"), "w") do io
