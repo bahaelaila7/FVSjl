@@ -72,6 +72,7 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     prkill::Vector{Float32}   # infected trees/acre in diseased area (RRINIT fld3)
     prun::Vector{Float32}     # uninfected trees/acre in diseased area (RRINIT fld4)
     rrincs::Vector{Float32}   # initial proportion of roots infected (RRINIT fld5)
+    rrnew::Vector{Float32}    # mean proportion roots infected for a NEW infection (rdinit RRNEW)
     lparea::Vector{Bool}      # PAREA set by keyword (do not default to 0.25·SAREA)
     lonect::Vector{Int32}     # 0 unassigned / 1 stand-is-one-center / 2 multiplot
     ipcflg::Vector{Int32}     # 0 random centers / 1 centers read explicitly
@@ -149,6 +150,7 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.prkill = fill(0.5f0, n)          # rdinit PRKILL=0.5
     rd.prun   = fill(0.5f0, n)          # rdinit PRUN=0.5
     rd.rrincs = fill(0.1f0, n)          # rdinit RRINCS=0.1
+    rd.rrnew  = Float32[0.001, 0.001, 0.05, 0.05]   # rdinit RRNEW (Annosus 0.001; Armillaria/Phellinus 0.05)
     rd.lparea = fill(false, n)
     rd.lonect = fill(Int32(0), n)
     rd.ipcflg = fill(Int32(0), n)
@@ -497,6 +499,11 @@ const RD_PKILLS = reshape(RD_PKILLS_FLAT, RD_ITOTSP, RD_ITOTRR)      # PKILLS(ks
 # RRPSWT (rd/rdinit.f) defaults to 1.0 for every species; only the RRPSWT keyword
 # (not in the chunk-0b-2 turnkey path) changes it, so the const default is faithful here.
 const RD_RRPSWT = ones(Float32, RD_ITOTSP)
+
+# rd/rdinit.f TEMP5 — PCOLO(ksp,idi): proportion of roots colonized after tree death
+# (used by the RDSPRD spread simulation when an infection reaches the lethal radius).
+const RD_PCOLO_FLAT = Float32[0.8f0, 0.95f0, 0.95f0, 0.9f0, 0.9f0, 1.0f0, 0.75f0, 0.95f0, 0.9f0, 0.75f0, 0.9f0, 0.8f0, 0.9f0, 0.95f0, 0.9f0, 0.9f0, 0.9f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.8f0, 1.0f0, 0.0f0, 0.95f0, 0.75f0, 0.9f0, 0.95f0, 0.0f0, 0.86f0, 0.75f0, 0.0f0, 0.9f0, 0.95f0, 0.95f0, 0.95f0, 0.9f0, 0.95f0, 0.95f0, 0.0f0, 0.8f0, 0.95f0, 0.95f0, 0.9f0, 0.9f0, 1.0f0, 0.75f0, 0.95f0, 0.9f0, 0.75f0, 0.9f0, 0.8f0, 0.9f0, 0.95f0, 0.9f0, 0.9f0, 0.9f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.8f0, 1.0f0, 0.0f0, 0.95f0, 0.75f0, 0.9f0, 0.95f0, 0.0f0, 0.86f0, 0.75f0, 0.0f0, 0.9f0, 0.95f0, 0.95f0, 0.95f0, 0.9f0, 0.95f0, 0.95f0, 0.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 1.0f0, 0.8f0, 0.6f0, 0.3f0, 0.85f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.75f0, 0.65f0, 0.8f0, 0.6f0, 0.3f0, 0.85f0, 0.3f0, 0.85f0, 0.8f0, 0.8f0, 0.75f0, 0.65f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0]
+const RD_PCOLO = reshape(RD_PCOLO_FLAT, RD_ITOTSP, RD_ITOTRR)   # PCOLO(ksp,idi)
 
 """
     rd_slp(x, xx, yy, n) -> Float32
@@ -1244,6 +1251,371 @@ function rd_grow_kernel!(rd::RootDiseaseState,
         htg[i] = rd_grow_newg(htg[i], httot, outnum, probiu[i], probit[i], diff)
     end
     return dg
+end
+
+# -----------------------------------------------------------------------------
+# UPSTREAM Monte-Carlo spread chain (rd/rdsprd.f + rd/rdrate.f + rd/rdinf.f) —
+# Chunk 0b-3d. These are the per-cycle routines (called from RDCNTL) that BUILD
+# the per-record PROBI/PROPI entry state which the already-ported downstream
+# kernels (RDMORT/RDEND/RDGROW) consume:
+#   * RDSPRD runs an explicit small-stand Monte-Carlo simulation of disease
+#     spread and returns the per-Monte spread rate MCRATE + its mean RRRATE.
+#   * RDRATE distributes the Monte-Carlo rates across the disease centers into
+#     the per-center RRATES (and recomputes RRRATE from the applied rates).
+#   * RDINF converts a newly-infected AREA (from center growth) into equivalent
+#     infected TPA per host record, drawing the initial root-infection proportion
+#     PROPI(I,ISTEP,2)=RDRANP(RRNEW) and adding PROBI(I,ISTEP,2)/PROBIU(I).
+# All three are the RD-RNG consumers of the cycle: per the g16 trace, RDINSD then
+# RDSPRD then RDINF (RDINF = exactly 1 RDRANP per host record). Validated by
+# DUMP-REPLAY against the live relinked FVSkt oracle: a single-.o instrumentation
+# swap of rdsprd.f/rdrate.f/rdinf.f dumped each routine's full ENTRY state + the
+# RD-RNG S0 consumption for all 10 cycles of the turnkey scenario (RRType 3
+# Armillaria, RRInit 0 10 10 20 0.1 10 3, SArea 100; the instrumented .sum stayed
+# byte-identical to FVSkt_clean). Replaying the dumped entry state reproduces
+# MCRATE/RRRATE/RRATES (===) and the exact draw counts (SPRD 1510, INF 27 for
+# cycle 1). The RD RNG (rd_rann!/rd_ranp!) is kept faithful — never FFI'd.
+#
+# SCOPE BOUNDARY: these consume the per-record FFPROB/DBH/ROOTL/HABSP list and the
+# center PAREA/RRATES state that RDCNTL/RDTREG assemble each cycle (via RDROOT for
+# ROOTL, RDOAGM for FFPROB, RDAREA for PAREA, the DO-300 center-radius growth for
+# PCENTS). The remaining upstream piece before the engine seam can go live is
+# RDINSD (the inside-patch MC, the biggest RNG consumer) plus the RDCNTL glue that
+# threads ISCT/IND1/FFPROB/AREANU between them; the seam therefore stays INERT.
+# -----------------------------------------------------------------------------
+
+"""
+    rd_sprd!(rd, idi; nmont, irsnyr, nrstep, irstyp, rrsfrn, pint, fint,
+             rrsare, rrsdim, xminkl, dbh, rootl, ffprob, ksp, habsp, rrpswt)
+        -> (mcrate::Vector{Float32}, rrrate::Float32)
+
+Port of the rd/rdsprd.f Monte-Carlo spread-rate model (the pre-RDRATE result).
+Runs `nmont` independent simulations of disease spread through a small explicit
+stand of trees selected in proportion to the outside-center density `ffprob`, and
+returns the per-Monte spread rate `mcrate` (ft/yr) and its mean `rrrate`.
+
+Faithful to rd/rdsprd.f for the reduced turnkey path (`irstyp==0` random spacing,
+`EFFSDI≡1`, `UPDATE=UPLTD=1`, `YTKX=1`): the RD-RNG draw ORDER is reproduced
+exactly — per Monte: one `rd_rann!` per host record in the tree-selection loop,
+then two `rd_rann!` per placed tree (x,y), then per timestep one `rd_rann!` per
+baseline-infection test + one per infected pal-contact test + one per
+update-limited internal-spread increment. Records are supplied in the ISCT/IND1
+species-sorted processing order; `ksp` indexes the per-species coefficient tables
+via `rd.irtspc`. `habsp`/`rrpswt` are the per-record time-to-death multipliers
+assembled upstream (RDCNTL). Validated bit-exact (mcrate ===, draw-count ==) vs
+the live FVSkt oracle. Does not consume `parea`/`sarea` directly — the caller has
+already reduced them into `rrsare`/`rrsdim`.
+"""
+function rd_sprd!(rd::RootDiseaseState, idi::Int;
+                  nmont::Int, irsnyr::Int, nrstep::Int, irstyp::Int,
+                  rrsfrn::Float32, pint::Real, fint::Real,
+                  rrsare::Float32, rrsdim::Float32, xminkl::Float32,
+                  dbh::AbstractVector{Float32}, rootl::AbstractVector{Float32},
+                  ffprob::AbstractVector{Float32}, ksp::AbstractVector{<:Integer},
+                  habsp::AbstractVector{Float32}, rrpswt::AbstractVector{Float32})
+    irt = rd.irtspc; xxinf = rd.xxinf; yyinf = rd.yyinf; nninf = Int(rd.nninf)
+    rpint = Float32(pint); fintf = Float32(fint); nrf = Float32(nrstep)
+    nrec = length(ffprob)
+    NMAX = 50
+    # local per-simulation arrays (Fortran DIMENSION 50)
+    rrsdbh = zeros(Float32, NMAX); rrsrad = zeros(Float32, NMAX)
+    irssp  = zeros(Int, NMAX);     ytk    = zeros(Float32, NMAX)
+    trurad = zeros(Float32, NMAX); rkills = zeros(Float32, NMAX)
+    xrrs   = zeros(Float32, NMAX); yrrs   = zeros(Float32, NMAX)
+    distnc = zeros(Float32, NMAX, NMAX)
+    sick   = zeros(Int, NMAX);     sine   = zeros(Float32, NMAX)
+    numpal = zeros(Int, NMAX);     idpal  = zeros(Int, NMAX, NMAX)
+    radnow = zeros(Float32, NMAX); radnew = zeros(Float32, NMAX)
+    ifix(v) = trunc(Int, v)
+
+    mcrate = zeros(Float32, nmont)
+    rrrate = 0.0f0
+    @inbounds for _jt in 1:nmont
+        # --- select trees for the simulated area (rdsprd.f DO 100/90/80) ---
+        ntrees = 0
+        for k in 1:nrec
+            ffprob[k] == 0.0f0 && continue
+            rrsmen = ffprob[k] * rrsare
+            numtre = ifix(rrsmen)
+            ptre   = rrsmen - Float32(numtre)
+            r      = rd_rann!(rd)
+            r <= ptre && (numtre += 1)
+            numtre == 0 && continue
+            for _kk in 1:numtre
+                ntrees += 1
+                if ntrees > NMAX
+                    ntrees = NMAX
+                    break                         # rdsprd.f GOTO 90 (next record)
+                end
+                rrsdbh[ntrees] = dbh[k]
+                rrsrad[ntrees] = rootl[k]
+                irssp[ntrees]  = k                 # store record index (ksp via ksp[k])
+                y0 = rd_slp(dbh[k], xxinf, yyinf, nninf)
+                ytk[ntrees] = (y0 - xminkl) * habsp[k] * rrpswt[k] + xminkl
+            end
+        end
+        ntrees == 0 && (mcrate[_jt] = 0.0f0; continue)
+
+        # --- root radius crowding + kill radius (DO 105); EFFSDI≡1, YTKX=1 ---
+        for i in 1:ntrees
+            trurad[i] = rrsrad[i]                   # * EFFSDI(=1)
+            base = Int(irt[ksp[irssp[i]]])
+            rkills[i] = trurad[i] * RD_PKILLS[base, idi]
+            # ytk[i] = 1 * ytk[i]  (YTKX=1)
+        end
+
+        # --- tree positions (DO 150, random branch irstyp != 1) ---
+        for it in 1:ntrees
+            xrrs[it] = rd_rann!(rd) * rrsdim
+            yrrs[it] = rd_rann!(rd) * rrsdim
+        end
+
+        # --- pairwise distances (DO 205/200) ---
+        for i in 1:ntrees, j in (i+1):ntrees
+            d = sqrt((xrrs[i]-xrrs[j])^2 + (yrrs[i]-yrrs[j])^2)
+            distnc[i,j] = d; distnc[j,i] = d
+        end
+
+        # --- (re)initialize tree variables (DO 210) ---
+        for i in 1:ntrees
+            sick[i] = 0; radnow[i] = -trurad[i]; radnew[i] = -trurad[i]
+            numpal[i] = 0; sine[i] = 0.0f0
+        end
+
+        # --- find contact-trees / pals (DO 225/220) ---
+        for i in 1:ntrees, j in (i+1):ntrees
+            if trurad[i] + trurad[j] >= distnc[i,j]
+                numpal[i] += 1; idpal[i, numpal[i]] = j
+                numpal[j] += 1; idpal[j, numpal[j]] = i
+            end
+        end
+
+        # --- spread simulation over time steps (DO 300) ---
+        room = 1; jyears = 0
+        for irstep in 1:irsnyr
+            if room > 0
+                jyears += nrstep
+                for in_ in 1:ntrees
+                    kk = irssp[in_]                 # record index
+                    base = Int(irt[ksp[kk]])
+                    if radnow[in_] < rkills[in_]
+                        pnsp = RD_PNINF[base, idi]
+                        # baseline infection test
+                        if sick[in_] == 0 && yrrs[in_] <= trurad[in_]
+                            r = rd_rann!(rd)
+                            pnin = irstep == 1 ? pnsp : 1.0f0 - (1.0f0 - pnsp)^(nrf/rpint)
+                            if r <= pnin
+                                sick[in_] = 1; radnew[in_] = -yrrs[in_]; sine[in_] = 1.0f0
+                            end
+                        end
+                        # infection by contact with spreading neighbours
+                        if irstep > 1 && (sick[in_] == 0 || radnow[in_] < 0.0f0)  # UPDATE=1,UPLTD=1
+                            for ii in 1:numpal[in_]
+                                it = idpal[in_, ii]
+                                if radnow[it] > 0.0f0
+                                    if radnew[in_] < -(distnc[it,in_] - radnow[it])
+                                        r = rd_rann!(rd)
+                                        pnin = 1.0f0 - (1.0f0 - pnsp)^(nrf/fintf)
+                                        if r <= pnin
+                                            sick[in_] = 1
+                                            radnew[in_] = -(distnc[it,in_] - radnow[it])
+                                            if distnc[in_,it] > 0.0f0
+                                                sine[in_] = (yrrs[in_]-yrrs[it]) / distnc[it,in_]
+                                            else
+                                                sine[in_] = 1.0f0
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if radnew[in_] > 0.0f0                # UPLTD==1
+                                irstp = ifix(rd_rann!(rd) * nrf)
+                                irstp == nrstep && (irstp = nrstep - 1)
+                                radnew[in_] = Float32(irstp) * rrsrad[in_] *
+                                              RD_PKILLS[base, idi] / ytk[in_]
+                            end
+                        end
+                        # spread rot through infected roots
+                        if sick[in_] == 1
+                            radnew[in_] += nrf * rrsrad[in_] * RD_PKILLS[base, idi] / ytk[in_]
+                            if radnew[in_] >= rkills[in_]
+                                radnew[in_] = RD_PCOLO[base, idi] * trurad[in_]
+                            end
+                        end
+                        (yrrs[in_] + radnew[in_]) > rrsdim && (room = 0)
+                    end
+                end
+            end
+            if room > 0
+                for i in 1:ntrees; radnow[i] = radnew[i]; end
+            end
+        end
+
+        # --- maximum spread of infection (DO 330) → MCRATE ---
+        ydmax = 0.0f0; yforwd = 0.0f0
+        for in_ in 1:ntrees
+            if sick[in_] > 0
+                if radnow[in_] > 0.0f0
+                    yforwd = yrrs[in_] + radnow[in_]
+                elseif sine[in_] > 0.0f0
+                    yforwd = yrrs[in_] - (sine[in_] * (-radnow[in_]))
+                end
+                yforwd > ydmax && (ydmax = yforwd)
+            end
+        end
+        if room > 0
+            mcrate[_jt] = ydmax / Float32(jyears)
+        else
+            mcrate[_jt] = jyears > nrstep ? ydmax / Float32(jyears - nrstep) :
+                                            rrsdim / Float32(jyears)
+        end
+        rrrate += mcrate[_jt]
+    end
+    rrrate /= Float32(nmont)
+    return mcrate, rrrate
+end
+
+"""
+    rd_rate!(mcrate, ncents, nscen, rrates, shcent2, icensp) -> (rrates_out, rrrate)
+
+Port of rd/rdrate.f: distribute the Monte-Carlo spread rates `mcrate` (length
+`nsim = length(mcrate)`) across the `ncents` disease centers, returning the updated
+per-center rate vector `rrates_out` (length `ncents`) and the mean applied rate
+`rrrate`. `GCENTS = ncents - nscen` non-shrinking centers receive rates: when
+`GCENTS ≤ nsim` each center is the average of `nsim/GCENTS` consecutive Monte
+rates; otherwise each Monte rate is applied to one-or-more centers. Zero rates are
+floated to the top and, via the `IPNT` pointer built from `shcent2`/`rrates`/
+`icensp`, assigned to shrinking / previously-zero / spore centers. Faithful REAL
+(Float32) arithmetic. Validated bit-exact vs the live FVSkt oracle.
+"""
+function rd_rate!(mcrate::AbstractVector{Float32}, ncents::Int, nscen::Int,
+                  rrates::AbstractVector{Float32}, shcent2::AbstractVector{Float32},
+                  icensp::AbstractVector{<:Integer})
+    nsim  = length(mcrate)
+    rout  = Float32.(collect(rrates[1:ncents]))
+    gcents = ncents - nscen
+    gcents <= 0 && return rout, 0.0f0
+
+    rra  = zeros(Float32, 100)
+    ipnt = collect(1:100)
+    lzero = false
+    rem   = 0.0f0
+    k = 1
+    if gcents <= nsim
+        div = Float32(nsim) / (Float32(gcents) + 1.0f-9)
+        for i in 1:gcents
+            num = trunc(Int, div + rem)
+            rem = div + rem - Float32(num)
+            for _j in 1:num
+                rra[i] += mcrate[k]
+                k += 1
+                k > nsim && (num = _j)
+            end
+            rra[i] = rra[i] / (Float32(num) + 1.0f-9)
+            (!lzero && rra[i] == 0.0f0) && (lzero = true)
+        end
+    else
+        i = 1
+        div = Float32(gcents) / Float32(nsim)
+        while true
+            num = trunc(Int, div + rem)
+            rem = div + rem - Float32(num)
+            for _j in 1:num
+                rra[i] = mcrate[k]
+                i += 1
+                (!lzero && rra[i] == 0.0f0) && (lzero = true)
+            end
+            k = min(nsim, k + 1)
+            i <= gcents || break
+        end
+    end
+
+    if lzero
+        # bubble the zeros to the top (other values stay unsorted) — DO 350/300
+        for i in 1:gcents
+            if rra[i] == 0.0f0
+                for j in i:-1:2
+                    if rra[j-1] > 0.0f0
+                        rra[j], rra[j-1] = rra[j-1], rra[j]
+                    else
+                        break
+                    end
+                end
+            end
+        end
+        # pointer array: shrinking centers to bottom, zero/spore to top — DO 450
+        for i in 1:ncents
+            if shcent2[i] > 0.0f0
+                for j in i:ncents-1
+                    ipnt[j] = ipnt[j+1]
+                end
+                ipnt[ncents] = i
+            elseif rout[i] == 0.0f0 && icensp[i] == 0
+                for j in i:-1:2
+                    ipnt[j] = ipnt[j-1]
+                end
+                ipnt[1] = i
+            end
+        end
+    end
+
+    trr = 0.0f0
+    for i in 1:gcents
+        rout[ipnt[i]] = rra[i]
+        trr += rra[i]
+    end
+    rrrate = trr / (Float32(gcents) + 1.0f-9)
+    return rout, rrrate
+end
+
+"""
+    rd_inf_pnsp(rd, ksp, idi, fint, pint) -> Float32
+
+The rd/rdinf.f per-species probability-of-infection `PNSP`:
+`PNSP = 1 - (1-PNINF(base,idi))^(FINT/PINT)`, then modified for the spore-initiated
+fraction `PNSP *= SPPROP·SPTRAN + (1-SPPROP)`. `base = irtspc(ksp)`. Float32.
+"""
+function rd_inf_pnsp(rd::RootDiseaseState, ksp::Integer, idi::Int, fint::Real, pint::Real;
+                     spprop::Float32 = RD_SPPROP0, sptran::Float32 = 0.5f0)
+    base = Int(rd.irtspc[ksp])
+    pnsp = 1.0f0 - (1.0f0 - RD_PNINF[base, idi])^(Float32(fint)/Float32(pint))
+    return pnsp * (spprop * sptran + (1.0f0 - spprop))
+end
+
+"""
+    rd_inf_kernel!(rd, idi, areanu, ksp, fprob, probi_in, probiu_in; fint, pint, sptran)
+        -> (propi, probi_out, probiu_out)
+
+Port of the rd/rdinf.f per-record body: convert a newly-infected area `areanu`
+(acres, from disease-center growth) into equivalent infected TPA. For each host
+record with `fprob > 0` (supplied in ISCT/IND1 order) it draws the initial
+root-infection proportion `PROPI(I,ISTEP,2) = RDRANP(RRNEW(idi))` from the RD
+stream, then adds `ADDINF = areanu·fprob·PNSP` to the infected TPA and
+`areanu·fprob·(1-PNSP)` to the inside-uninfected TPA. Reproduces the exact draw
+sequence (1 `rd_ranp!` per processed host record). The OAKL/RDMREC dead-tree
+re-bookkeeping is skipped when OAKL≡0 (BBCLEAR + no windthrow). Validated bit-exact
+(=== outputs, draw-count == records) vs the live FVSkt oracle. Returns the parallel
+output vectors in processing order.
+"""
+function rd_inf_kernel!(rd::RootDiseaseState, idi::Int, areanu::Float32,
+                        ksp::AbstractVector{<:Integer}, fprob::AbstractVector{Float32},
+                        probi_in::AbstractVector{Float32}, probiu_in::AbstractVector{Float32};
+                        fint::Real, pint::Real, sptran::Float32 = 0.5f0)
+    n = length(fprob)
+    propi     = zeros(Float32, n)
+    probi_out = copy(collect(probi_in))
+    probiu_out = copy(collect(probiu_in))
+    areanu <= 0.0f0 && return propi, probi_out, probiu_out
+    rrnew = rd.rrnew[idi]
+    @inbounds for k in 1:n
+        fprob[k] <= 0.0f0 && continue             # rdinf.f FPROB(I) .LE. 0 → GOTO 400 (no draw)
+        pnsp   = rd_inf_pnsp(rd, ksp[k], idi, fint, pint; sptran = sptran)
+        nuinsd = areanu * fprob[k]
+        addinf = nuinsd * pnsp
+        propi[k]      = rd_ranp!(rd, rrnew)        # PROPI(I,ISTEP,2)
+        probi_out[k]  = probi_in[k]  + addinf
+        probiu_out[k] = probiu_in[k] + nuinsd * (1.0f0 - pnsp)
+    end
+    return propi, probi_out, probiu_out
 end
 
 # -----------------------------------------------------------------------------
