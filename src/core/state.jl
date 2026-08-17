@@ -951,6 +951,12 @@ abstract type AbstractMpbState end
 # run. Stand-level; the defoliation effect seam is deferred, so no engine seam.
 abstract type AbstractWsbweState end
 
+# Forward declaration for the COVER understory/canopy-cover REPORT extension (covr/
+# vcovr); concrete `CoverState` is in engine/cover.jl. `nothing` until the COVER
+# keyword schedules activity 900. Report-only (no tree-record write, no RNG) ⇒ INERT
+# for growth/mortality — a COVER run projects the tree byte-identically.
+abstract type AbstractCoverState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -976,6 +982,7 @@ mutable struct StandState{V<:AbstractVariant}
     wwpb::Union{AbstractWwpbState,Nothing}             # Westwide Pine Beetle (WWPB) model; nothing until BMIN (stand-level output block; inert)
     mpb::Union{AbstractMpbState,Nothing}               # Mountain Pine Beetle (LPMPB) model; nothing until MPB (Cole rate-of-loss mortality seam)
     wsbwe::Union{AbstractWsbweState,Nothing}           # Western Spruce Budworm (WSBWE) defoliation model; nothing until WSBW (stand-level; inert reader, effect seam deferred)
+    cover::Union{AbstractCoverState,Nothing}           # COVER understory/canopy-cover REPORT extension; nothing until COVER (report-only, INERT for growth/mort)
 end
 
 """
@@ -992,6 +999,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
