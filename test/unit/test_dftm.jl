@@ -133,6 +133,91 @@ END
     end
 
     # -------------------------------------------------------------------------
+    # DFTM chunk 1 — LIVE g16 dump-replay vs the relinked FVSie_dftm oracle on a
+    # DENSE DF/GF host stand (10 DF + 8 GF, DFTMGO L=T, INSCYC forced 5-yr cycle).
+    # Goldens = Float32 hex from stderr TRANSFER dumps added to the pristine
+    # dftm/{tmotpr,dftmgo,tmbmas}.o for the relink (the instrumented .sum is
+    # byte-identical to the clean relink; scratchpad/dftm/ovr/). These UPGRADE the
+    # TMOTPR formula golden to a live oracle golden and add the DFTMGO gate + the
+    # TMBMAS method-2 biomass goldens. All DETERMINISTIC (no TMRANN draw).
+    # -------------------------------------------------------------------------
+    @testset "TMOTPR method 1 — LIVE PROTBK dump-replay (FVSie_dftm, bit-exact)" begin
+        # Two DFTMGO/TMCOUP calls on the dense stand; identical topo/tmashd/elev/
+        # slope/aspect, differing BA/RELDEN/RELDSP/TPROB. IN: elev slope aspect
+        # topo tmashd ba relden reldsp3 reldsp4 tprob ; OUT PROTBK.
+        for (inhex, gold) in (
+            (("42080000","3E99999A","40AFEDE4","3F800000","417EE148",
+              "42900001","42A6272F","422F4FD0","421CFE8E","42C2FBF0"), "3F464F97"),
+            (("42080000","3E99999A","40AFEDE4","3F800000","417EE148",
+              "42AB60CA","42BA5334","42419DA3","423308C6","42B57FF4"), "3F4DB2B7"),
+        )
+            elev, slope, aspect, topo, tmashd, ba, relden, reldsp3, reldsp4, tprob =
+                _fromhex.(inhex)
+            p = _F.dftm_otpr(1, topo, tmashd; elev = elev, slope = slope, aspect = aspect,
+                             relden = relden, reldsp3 = reldsp3, reldsp4 = reldsp4,
+                             tprob = tprob, ba = ba, has_df = true)
+            @test _hex(p) == gold          # bit-exact vs live oracle PROTBK
+        end
+    end
+
+    @testset "DFTMGO host-threshold gate — CNTDF/CNTGF dump-replay (bit-exact)" begin
+        # Per-record host PROB (trees/acre) in IND1 order, from DBGGODF/DBGGOGF.
+        dfp = _fromhex.(("4093DA38","4056CD2A","402E9B5F","40DFFF5C","410A80DF",
+                         "40B75025","408210B3","404868AC","411D11A4","401A4C03"))
+        gfp = _fromhex.(("40BD0B95","4077AC52","4101CD8C","40416294","409C4546",
+                         "40E17C01","4065EB69","40335832"))
+        g = _F.dftm_go_gate(collect(dfp), collect(gfp); ldf = true, lgf = true, nclas = (20, 20))
+        @test _hex(g.cntdf) == "424E0DC2"   # Σ DF PROB = 51.5134, serial add
+        @test _hex(g.cntgf) == "421CF227"   # Σ GF PROB = 39.2365
+        @test g.idf == 10 && g.igf == 8
+        @test g.naclas == (10, 8)           # MIN(count, NCLAS)
+        @test g.ldf && g.lgf && g.l         # both hosts go
+        # NODFRUN drops DF; a no-GF stand with DF-only still goes on DF.
+        gdf = _F.dftm_go_gate(Float32[], collect(dfp); ldf = false, lgf = true, nclas = (20, 20))
+        @test !gdf.ldf && gdf.lgf && gdf.l && gdf.naclas == (0, 10)
+        # below-threshold host (Σ<0.01) drops out; empty ⇒ no go.
+        @test _F.dftm_go_gate(Float32[], Float32[]).l == false
+    end
+
+    @testset "TMBMAS method 2 — FBIOMS/PCNEWF dump-replay (bit-exact / ≤1 ULP)" begin
+        # DBGBMAS2 rows: IS ISP | slope aspect ba tprob relden dbh ht dgi cr pct | FBIOMS PCNEWF.
+        rows = split(strip("""
+        1 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 414FFE05 4291D1B4 3F5DD840 3EA3D70A 421F878D 4364E18B 41F2DB66
+        2 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 416CB1A5 429994A9 3F301710 3EA8F5C3 428689B2 438276F4 41EADF32
+        3 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 418BB9F6 42A5B651 3FA2AB30 3EA8F5C3 42B188B2 439970E9 420145DD
+        4 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 413CC8C5 428D1ECB 3FC7A5C8 3EAE147B 41B60A30 43510607 420A0550
+        5 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 412E2166 42859F16 3FD0FC24 3EB33333 41846AE0 4345A521 420DBEEB
+        6 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 41491916 429144A2 3FAE1468 3EA8F5C3 420BA686 435CC33F 42070412
+        7 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 41654016 4298D001 3F936470 3EAE147B 427A600F 437C4945 4203414E
+        8 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 41859D62 42A316EE 3FBCDD38 3EAE147B 42A6F071 4392D15A 4208E148
+        9 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 410C7930 426FF218 3F2D07E8 3EA3D70A 409A1FC4 43237A47 41D14398
+        10 3 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 4192FC29 42A8E5B8 3F986248 3EA8F5C3 42BBE4F3 43A1BDCB 41F9DE38
+        11 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 415712B7 42903299 400F01F0 3EB851EC 423AB501 43C80000 41700000
+        12 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 415CB289 4293F527 3F39E3D0 3EAE147B 424D740E 43C17A71 41700000
+        13 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 4120B5E6 427960C2 3F74A470 3EA8F5C3 41206AF2 438372C3 41700000
+        14 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 4180BA9C 429F7867 3F7F9560 3EAE147B 429BD1C4 43C80000 418352E6
+        15 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 415CCB84 42937F0A 3FD2C780 3EB851EC 42652161 43C80000 41700000
+        16 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 413F17FB 4288877B 3FE39B10 3EB33333 41E93899 43BCD74A 41700000
+        17 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 417BBF1A 429CCB54 3FCB1AB8 3EB33333 4291DC13 43C80000 418411E4
+        18 4 3E99999A 40AFEDE4 42AB60CA 42B57FF4 42BA5334 41935F28 42A6F58E 400DCD04 3EB33333 42C80000 43C80000 41B7B81C
+        """), '\n')
+        maxfb = 0; maxpn = 0
+        for row in rows
+            t = split(strip(row))
+            isp = parse(Int, t[2])
+            slope, aspect, ba, tprob, relden, dbh, ht, dgi, cr, pct = _fromhex.(Tuple(t[3:12]))
+            gfb, gpn = _fromhex(t[13]), _fromhex(t[14])
+            fb, pn = isp == 3 ?
+                _F.dftm_bmas2_df(slope, aspect, ba, tprob, relden, dbh, ht, dgi, cr, pct) :
+                _F.dftm_bmas2_gf(slope, aspect, ba, tprob, relden, dbh, ht, dgi, cr, pct)
+            maxfb = max(maxfb, _ulps(fb, gfb)); maxpn = max(maxpn, _ulps(pn, gpn))
+        end
+        # DF FBIOMS + all PCNEWF bit-exact; GF FBIOMS `exp` carries ≤1-ULP straddle.
+        @test maxfb <= 1
+        @test maxpn == 0
+    end
+
+    # -------------------------------------------------------------------------
     # TMINIT (tminit{,ec,em,so,tt}.f) defaults + variant IGFCOD crosswalk.
     # -------------------------------------------------------------------------
     @testset "TMINIT defaults + IGFCOD crosswalk" begin
