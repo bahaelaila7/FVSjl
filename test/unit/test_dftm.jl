@@ -6,10 +6,12 @@
 #
 # VALIDATED HERE (dump-replay, 0 ULP): DFTMOD DPCENT (17 non-empty classes + the
 # empty-GF-class NaN reset); TMCOUP T/ITAB, WK2, DG, HTG (no-top-kill), top-kill
-# class-1 leader-loss + class-2 crown PCKILL/HTGLOS.  NOT yet dump-replayed (draft
-# code present in dftm.jl, engine-inert): GARBEL/GRCLAS classification (Z2/Z3/Z4 +
-# ISC sector pointers) and the full TMRANN-stream ordering (RANLARVA egg draws +
-# per-tree PRTOPK), plus the INSCYC engine hook + simulate.jl coupling seam.
+# class-1 leader-loss + class-2 crown PCKILL/HTGLOS; GARBEL/GRCLAS classification
+# (the RDPSRT-sorted pointer + ISC sector pointers incl. the empty class 11,9 and
+# the cross-block underflow 10,11 + Z4/Z2/Z3, all 18 classes); and the full
+# TMRANN-stream ordering (TMBCHL vs pristine driver; the RANLARVA egg X7 in JCLAS2
+# order; the DO-380 per-tree PRTOPK + K≥2 RANDOM).  STILL engine-inert (no
+# simulate.jl seam wires DFTM): the INSCYC hook + the gated coupling seam remain.
 #
 # DOCTRINE: DFTM ships nowhere (every FVS*_buildDir links the base/exdftm.f
 # no-op stub), so a numeric oracle is a RELINK (dftm/*.o swapped for exdftm.o —
@@ -433,6 +435,131 @@ END
         pckill = _F.DFTM_TKBOT[2] + rnd * (_F.DFTM_TKTOP[2] - _F.DFTM_TKBOT[2])
         @test _ulps(pckill, _fromhex("3D0B9E73")) == 0
         @test _ulps(crown * pckill, _fromhex("3F732E8A")) == 0
+    end
+
+    # -------------------------------------------------------------------------
+    # GARBEL/GRCLAS/GRPSUM/IQRSRT classification (garbel.f/grclas.f) — LIVE
+    # dump-replay, BIT-EXACT.  Goldens = instrumented FVSie_dftm (tmcoup.f DBGA_*
+    # hex, dense.key): the DF then GF GARBEL calls over the global IPT pointer,
+    # each on its species sub-block, producing the sorted pointer, the class
+    # sector pointers ISC, and the per-class Z4=ΣPROB / Z2 (weighted PCNEWF) /
+    # Z3 (weighted FBIOMS).  The GF block reproduces the EMPTY class (ISC 11,9 —
+    # start>end) and the cross-block sector UNDERFLOW (ISC 10,11, reaching into
+    # the DF block's sorted tail) bit-exactly via the shared global gipt.
+    # -------------------------------------------------------------------------
+    @testset "GARBEL/GRCLAS classification (garbel.f) — dump-replay bit-exact" begin
+        # per-record PROB PCNEWF FBIOMS (record index 1..18), from DBGA_REC.
+        recs = split(strip("""
+        1 4093DA38 41F2DB66 4364E18B
+        2 4056CD2A 41EADF32 438276F4
+        3 402E9B5F 420145DD 439970E9
+        4 40DFFF5C 420A0550 43510607
+        5 410A80DF 420DBEEB 4345A521
+        6 40B75025 42070412 435CC33F
+        7 408210B3 4203414E 437C4945
+        8 404868AC 4208E148 4392D15A
+        9 411D11A4 41D14398 43237A47
+        10 401A4C03 41F9DE38 43A1BDCB
+        11 40BD0B95 41700000 43C80000
+        12 4077AC52 41700000 43C17A71
+        13 4101CD8C 41700000 438372C3
+        14 40416294 418352E6 43C80000
+        15 409C4546 41700000 43C80000
+        16 40E17C01 41700000 43BCD74A
+        17 4065EB69 418411E4 43C80000
+        18 40335832 41B7B81C 43C80000
+        """), '\n')
+        prob = zeros(Float32, 18); pcnewf = zeros(Float32, 18); fbioms = zeros(Float32, 18)
+        for l in recs
+            t = split(strip(l)); i = parse(Int, t[1])
+            prob[i] = _fromhex(t[2]); pcnewf[i] = _fromhex(t[3]); fbioms[i] = _fromhex(t[4])
+        end
+        # golden sorted IPT (DBGA_IPT), ISC (DBGA_ISC, global), Z4/Z2/Z3 (DBGB_ICN).
+        gipt_gold = Int[8,3,10,7,5,4,6,2,1,9, 18,17,14,15,11,12,16,13]
+        isc_gold = [(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10),
+                    (11,9),(10,11),(12,12),(13,13),(14,15),(16,16),(17,17),(18,18)]
+        zg = split(strip("""
+        1 404868AC 4208E148 4392D15A
+        2 402E9B5F 420145DD 439970E9
+        3 401A4C03 41F9DE39 43A1BDCB
+        4 408210B3 4203414E 437C4945
+        5 410A80DF 420DBEEB 4345A521
+        6 40DFFF5C 420A0550 43510607
+        7 40B75025 42070412 435CC33F
+        8 4056CD2A 41EADF32 438276F4
+        9 4093DA38 41F2DB67 4364E18B
+        10 411D11A4 41D14398 43237A47
+        11 00000000 00000000 00000000
+        12 4149E7B0 41CB9768 43580048
+        13 4065EB69 418411E4 43C80000
+        14 40416294 418352E6 43C80000
+        15 412CA86E 41700000 43C7FFFF
+        16 4077AC52 41700000 43C17A71
+        17 40E17C01 41700000 43BCD74A
+        18 4101CD8C 41700000 438372C3
+        """), '\n')
+        z4g = Float32[]; z2g = Float32[]; z3g = Float32[]
+        for l in zg
+            t = split(strip(l)); push!(z4g, _fromhex(t[2])); push!(z2g, _fromhex(t[3])); push!(z3g, _fromhex(t[4]))
+        end
+        # NACLAS=(10,8) ⇒ nrecs==nclas per block ⇒ method-1 identity (NCL2=0), plus the gap-bubble
+        # empty/underflow artifact.  WEIGHT default (1,1); TMPN1 0.5.  IND1 = identity 1..18.
+        gipt = Int32.(collect(1:18))
+        z4d, z2d, z3d, isc1d, isc2d, kd = _F.dftm_garbel(gipt, 1, 10, prob, pcnewf, fbioms;
+            w1 = 1.0f0, w2 = 1.0f0, nclas = 10, pn1 = 0.5f0)
+        z4f, z2f, z3f, isc1f, isc2f, kf = _F.dftm_garbel(gipt, 11, 8, prob, pcnewf, fbioms;
+            w1 = 1.0f0, w2 = 1.0f0, nclas = 8, pn1 = 0.5f0)
+        @test kd == 0 && kf == 0
+        @test Int.(gipt) == gipt_gold                 # RDPSRT-sorted pointer, both blocks
+        isc_out = Vector{Tuple{Int,Int}}(undef, 18)
+        for i in 1:10; isc_out[i] = (isc1d[i], isc2d[i]); end               # DF offset 0
+        for i in 1:8;  isc_out[10+i] = (isc1f[i] + 10, isc2f[i] + 10); end  # GF offset ISCT(IGFCOD,1)-1=10
+        @test isc_out == isc_gold                      # sector pointers incl. empty (11,9) + underflow (10,11)
+        z4o = vcat(z4d[1:10], z4f[1:8]); z2o = vcat(z2d[1:10], z2f[1:8]); z3o = vcat(z3d[1:10], z3f[1:8])
+        maxz = 0
+        for i in 1:18
+            maxz = max(maxz, _ulps(z4o[i], z4g[i]), _ulps(z2o[i], z2g[i]), _ulps(z3o[i], z3g[i]))
+        end
+        @test maxz == 0                                # Z4/Z2/Z3 bit-exact, all 18 classes
+    end
+
+    # -------------------------------------------------------------------------
+    # Full TMRANN-stream ordering (tmcoup.f) — LIVE dump-replay, BIT-EXACT.
+    # Goldens = instrumented FVSie_dftm: a per-draw tmrann.f dump (DBGRNG, 98
+    # draws) + a standalone gfortran driver over pristine dftm/tmbchl.f.  The DFTM
+    # stream on the dense stand is: 18 RANLARVA egg TMBCHL draws (IEGTYP=1) in
+    # descending-DBH JCLAS2 order (draws 1-78, w/ rejections) BEFORE DFTMOD, then
+    # the DO-380 per-tree PRTOPK (+ the K≥2 crown-truncation RANDOM) in class×IPT
+    # order (draws 79-98).  Never FFI'd — Julia's own dftm_rand!/dftm_tmbchl!.
+    # -------------------------------------------------------------------------
+    @testset "TMRANN stream — RANLARVA eggs + per-tree PRTOPK (dump-replay bit-exact)" begin
+        # (1) TMBCHL standalone vs pristine dftm/tmbchl.f driver (seed 55329):
+        #     TMBCHL(9,2)×3 then TMBCHL(11,3)×3.
+        d = _F.dftm_defaults!(_F.InlandEmpire())
+        bchl = vcat([_F.dftm_tmbchl!(d, 9.0f0, 2.0f0) for _ in 1:3],
+                    [_F.dftm_tmbchl!(d, 11.0f0, 3.0f0) for _ in 1:3])
+        bg = ("40E14C34","40BE097C","411037CC","41503684","4158E341","4194BE64")
+        @test all(_hex(bchl[i]) == bg[i] for i in 1:6)
+
+        # (2) Whole-stand RANLARVA egg allocation X7 (dftm_alloc_eggs! → dftm_tmbchl!),
+        #     drawn in JCLAS2 (descending class DBH) order from a fresh seed 55329.
+        jclas2 = Int[3,2,1,8,4,9,7,6,5,10, 14,13,16,15,11,17,12,18]
+        iz6    = Int[1,1,1,1,1,1,1,1,1,1, 2,2,2,2,2,2,2,2]
+        x7gold = ("411037CC","40BE097C","40E14C34","412B422C","411C728E","41081FCC",
+                  "4116C770","412579AE","4160FDDB","40C7D5C6","410B5200","415F715D",
+                  "417C2A91","412A6EF0","41116C52","40C8B8BC","41514E52","4147426F")
+        d2 = _F.dftm_defaults!(_F.InlandEmpire())
+        x7 = _F.dftm_alloc_eggs!(d2, iz6, jclas2, 9.0f0, 2.0f0, 11.0f0, 3.0f0)
+        @test all(_hex(x7[i]) == x7gold[i] for i in 1:18)   # egg counts bit-exact, all classes
+
+        # (3) The eggs consume EXACTLY draws 1-78; the next 20 raw draws must be the
+        #     DO-380 topkill stream (draws 79-98, incl. the K=2 RANDOM at draw 82).
+        stream = ("3F5296BB","3F25B9DE","3E9B5800","3EAE860F","3F71ACDA","3F0B199E",
+                  "3E7B7239","3BFE8F63","3F10EF5A","3EA41399","3BA367BE","3F4FDFD7",
+                  "3EE0FCD1","3EF61041","3EA5337D","3F6BB11E","3F393140","3EA0A271",
+                  "3C8AE2A7","3F713212")
+        after = ntuple(_ -> _hex(_F.dftm_rand!(d2)), 20)
+        @test after == stream                                # stream ordering + count bit-exact
     end
 
     # -------------------------------------------------------------------------

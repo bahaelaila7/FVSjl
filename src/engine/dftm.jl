@@ -642,12 +642,17 @@ end
 #   * dftm_tree_defol / dftm_mortality / dftm_dgloss / dftm_htgloss_notopkill /
 #     dftm_topkill (K1 leader; K2 crown PCKILL/HTGLOS) — BIT-EXACT (0 ULP).
 #       Test: test_dftm.jl "TMCOUP damage functions".
-#   * NOT yet dump-replayed (engine-inert draft below — no simulate.jl seam wires
-#     any of DFTM, so these can't affect a projection): dftm_garbel/_grclas/
-#     _grpsum/_iqrsrt classification (Z2/Z3/Z4 + ISC), dftm_tmbchl/_alloc_eggs
-#     RNG-coupling, and the full TMRANN-stream ordering (RANLARVA + per-tree
-#     PRTOPK).  These + the INSCYC hook + the gated simulate.jl seam are the
-#     remaining DFTM work (see the DFTM handoff memory note).
+#   * dftm_garbel/_grclas/_grpsum/_iqrsrt classification — BIT-EXACT (0 ULP): the
+#     RDPSRT-sorted pointer, the ISC sector pointers (incl. the empty class 11,9
+#     and the cross-block sector underflow 10,11), and Z4/Z2/Z3, all 18 classes.
+#       Test: test_dftm.jl "GARBEL/GRCLAS classification".
+#   * dftm_tmbchl / dftm_alloc_eggs + the full TMRANN-stream ordering — BIT-EXACT
+#     (0 ULP): TMBCHL vs the pristine driver; the RANLARVA egg X7 in JCLAS2 order
+#     (draws 1-78); and the DO-380 per-tree PRTOPK + K≥2 RANDOM continuation
+#     (draws 79-98).  Test: test_dftm.jl "TMRANN stream".
+#   * STILL engine-inert (no simulate.jl seam wires DFTM into a projection): the
+#     INSCYC cycle-forcing hook + the gated TMCOUP coupling seam + the end-to-end
+#     .sum-DELTA are the remaining DFTM work (see the DFTM handoff memory note).
 # =============================================================================
 # The upper (regional, module S(0)) + lower (per tree-class, module S(1)) coupled
 # G/F/Y state equations of Overton–Colbert–White, integrated over the FVS 5-year
