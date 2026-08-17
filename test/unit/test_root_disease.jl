@@ -127,11 +127,56 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test rd.bbclear == true && rd.lbbon == false
     end
 
-    @testset "engine seam is inert (Chunk-0 mortality pending)" begin
-        out_ctrl = FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum)
-        out_rd   = FVSjl.run_keyfile(rd_key;   variant = v, output = :sum)
-        # header (-999) carries a wall-clock timestamp; compare the data rows only
-        @test _datarows(out_ctrl) == _datarows(out_rd)
+    # -------------------------------------------------------------------------
+    # WRD 0b-3e — the LIVE engine seam, end-to-end. The RD driver (rd_control! +
+    # rd_end_apply! + rd_grow_apply!) is woven into grow_cycle!, so a stand WITH an
+    # active RDIN block now applies root-disease mortality + growth-loss visible in
+    # the .sum, while a no-RD stand stays byte-identical (the inert-seam guarantee).
+    # Validated at the .sum DELTA level (rd.key − ctrl.key) vs the live FVSkt oracle:
+    #   printf "rd.key\n" | /workspace/.ktwork/FVSkt_clean   (RRType 3 Armillaria,
+    #   RRInit 0 10 10 20 0.1 10 3, SArea 100, stand S248112, 27 recs, 10 cyc).
+    # FVSjl's KT baseline straddles the oracle absolute (a pre-existing #206 OLDRN
+    # growth straddle), so the DELTA is compared, cornered within ±2 of the oracle.
+    # -------------------------------------------------------------------------
+    @testset "engine seam is LIVE — no-RD byte-identical (inert-seam guarantee)" begin
+        # A stand with no RDIN block has root_disease === nothing ⇒ every seam is a
+        # no-op ⇒ its .sum is byte-identical to the pre-RD KT baseline (golden here).
+        CTRL_TPA = Int[536, 448, 380, 332, 296, 264, 237, 212, 191, 175, 159]
+        CTRL_BA  = Int[77, 99, 123, 146, 167, 180, 187, 193, 201, 209, 216]
+        out_ctrl = _datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum))
+        for (k, row) in enumerate(out_ctrl)
+            f = split(row)
+            @test parse(Int, f[3]) == CTRL_TPA[k]
+            @test parse(Int, f[4]) == CTRL_BA[k]
+        end
+        # Seam functions are pure no-ops when root_disease === nothing (no throw).
+        s0 = nothing
+        for st in FVSjl.each_stand(ctrl_key; variant = v); s0 = st; break; end
+        @test s0.root_disease === nothing
+        @test FVSjl.root_disease_setup!(s0) === nothing
+        @test FVSjl.root_disease_mn2!(s0, 10.0f0) === nothing
+        @test FVSjl.root_disease_treg!(s0, 10.0f0) === nothing
+    end
+
+    @testset "engine seam is LIVE — WRD .sum DELTA vs oracle (cornered)" begin
+        # Oracle rd−ctrl delta (both FVSkt_clean); the thing FVSjl must reproduce.
+        ORA_dTPA = Int[0, -2, -4, -4, -3, -2, -2, -2, -2, -1, -2]
+        ORA_dBA  = Int[0, -2, -3, -5, -4, -5, -5, -6, -7, -7, -9]
+        bc = split.(_datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum)))
+        br = split.(_datarows(FVSjl.run_keyfile(rd_key;   variant = v, output = :sum)))
+        @test length(bc) == length(br) == 11
+        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:11]
+        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:11]
+        # WRD signal is LIVE (rd ≠ ctrl): mortality + BA growth-loss both present.
+        @test dtpa != zeros(Int, 11)
+        @test dba[end] <= -6            # 2090 BA loss (oracle −9; cornered)
+        @test dtpa[end] <= -1           # 2090 TPA loss (oracle −2; cornered)
+        # Per-cycle delta reproduces the oracle delta bit-exact-or-CORNERED (±2,
+        # the #206 OLDRN serial-correlation growth straddle on the rounded .sum).
+        for k in 1:11
+            @test abs(dtpa[k] - ORA_dTPA[k]) <= 2
+            @test abs(dba[k]  - ORA_dBA[k])  <= 2
+        end
     end
 
     # -------------------------------------------------------------------------
