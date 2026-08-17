@@ -174,28 +174,48 @@ end
 # COLMOD (colmod.f) — deterministic Cole epidemic loop. VALIDATED GREEN 10/10.
 # -----------------------------------------------------------------------------
 """
-    mpb_colmod(start, numyrs; ibouse, prnoin, currmr, icyc, use_curr) -> GREEN::Matrix{Float32}(numyrs,10)
+    mpb_colmod(start, numyrs; ibouse, zinmor, prnoin, icyc, lcurmr, linvmr, currmr, greinf) -> GREEN::Matrix{Float32}(numyrs,10)
 
 FVS `COLMOD` (default IBOUSE=0, single-cycle ELSE branch): initial
-`DEAD(1,i)=START·ZINMOR(i)` is done by the caller-supplied `dead1` OR, in the
-default ELSE branch, here as `START·zinmor`. For K=2..NUMYRS (while
+`DEAD(1,i)=START·ZINMOR(i)`, `GREEN(1,i)=START−DEAD(1,i)`. For K=2..NUMYRS (while
 TDEAD(K-1)>5e-4 and TGREEN(K-1)>5e-4): `DEAD(K,J)=GREEN(K-1,J)·(1−PNEW^DEAD(K-1,J))`
 with `PNEW=PRNOIN(J)` (IBOUSE=0). Returns the full GREEN(year,class) matrix.
 
-The `use_curr` (ICYC==1 with LCURMR/LINVMR) branch — DEAD(1,i)=GREINF(i)+CURRMR(i)
-using the inventoried/inferred GREINF — is DEFERRED (faithful stub; needs the
-MPBDAM inventory reader). The default path passes `use_curr=false`.
+The CURRMORT/INVMORT ICYC=1 branch (colmod.f:93-99, active when
+`icyc==1 && (lcurmr||linvmr)`): DEAD(1,i)=GREINF(i)+CURRMR(i), GREEN(1,i)=START−GREINF(i)
+where GREINF is bumped up to `START·ZINMOR−CURRMR` when the natural initial mortality
+exceeds the observed infested+current, then capped at START. `greinf` is treated as
+read-only (a local copy is mutated, mirroring the COLCOM array). CURRMR comes from the
+CURRMORT keyword; GREINF comes from MPBDAM inventory damage/severity codes (DAMCDS) which
+the FVSjl treelist does NOT carry, so on loadable stands `greinf` is all-zero — and with
+`currmr` also zero the branch is byte-identical to the default (verified: INVMORT with no
+damage == MPBSTART). Supplying nonzero `currmr` (CURRMORT keyword) or synthetic `greinf`
+exercises the divergent path (unit-tested against the FVSie_lpmpb oracle golden).
 """
 function mpb_colmod(start::Vector{Float32}, numyrs::Int; ibouse::Int=0,
-                    zinmor::Vector{Float32}=MPB_ZINMOR0, prnoin::Vector{Float32}=MPB_PRNOIN0)
+                    zinmor::Vector{Float32}=MPB_ZINMOR0, prnoin::Vector{Float32}=MPB_PRNOIN0,
+                    icyc::Int=0, lcurmr::Bool=false, linvmr::Bool=false,
+                    currmr::Vector{Float32}=zeros(Float32,10),
+                    greinf::Vector{Float32}=zeros(Float32,10))
     numyrs < 1 && (numyrs = 1)
     DEAD  = zeros(Float32, numyrs, 10)
     GREEN = zeros(Float32, numyrs, 10)
     TDEAD  = zeros(Float32, numyrs)
     TGREEN = zeros(Float32, numyrs)
+    use_curr = (icyc == 1 && (lcurmr || linvmr))
+    gi = use_curr ? copy(greinf) : greinf     # COLCOM GREINF is mutated in place
     @inbounds for i in 1:10
-        DEAD[1,i]  = start[i] * zinmor[i]
-        GREEN[1,i] = start[i] - DEAD[1,i]
+        if use_curr
+            if start[i] * zinmor[i] > gi[i] + currmr[i]
+                gi[i] = start[i] * zinmor[i] - currmr[i]
+            end
+            gi[i] > start[i] && (gi[i] = start[i])
+            DEAD[1,i]  = gi[i] + currmr[i]
+            GREEN[1,i] = start[i] - gi[i]
+        else
+            DEAD[1,i]  = start[i] * zinmor[i]
+            GREEN[1,i] = start[i] - DEAD[1,i]
+        end
         TDEAD[1]  += DEAD[1,i]
         TGREEN[1] += GREEN[1,i]
     end
@@ -310,6 +330,75 @@ Lazy-seeds `S0=ORSEED` (default 55329) the first time — MPBINT seeds it direct
 end
 
 # -----------------------------------------------------------------------------
+# MPOTPR (mpotpr.f) — deterministic MPB outbreak PROBABILITY (RANSTART path).
+# -----------------------------------------------------------------------------
+# glibc single-precision expf — matches gfortran REAL EXP() bit-exact. The Fortran
+# MPOTPR expression is all-REAL, so the transcendental is expf, not exp(::Float64).
+@inline _mpb_expf(x::Float32)::Float32 = ccall(:expf, Float32, (Float32,), x)
+
+"""
+    mpb_mpotpr(pbalpp, relden, reldsp_lp, a45dbh, cntlp, istdt, icyc, iy) -> Float32
+
+FVS `MPOTPR`: the probability of a mountain-pine-beetle outbreak, used only by the
+RANSTART branch of MPBGO. `PROTBK=0` unless ALL minimum conditions hold (at/after the
+RANSTART start date; average DBH of ≥4.5″ LP ≥6.0; ≥25% of stand BA is LP; ≥20% of
+stand relative-density (CCF) is LP; ≥40 LP TPA). Otherwise the logistic
+`1/(1+exp(9.583 − 0.08967·(X·RELDEN)))` with `X=min(PBALPP,0.8)` and `RELDEN` the
+stand relative density (total CCF). `icyc` is the 1-based FVS cycle, `iy` its calendar
+year, `istdt` the RANSTART start date (≤40 ⇒ cycle number, >40 ⇒ calendar year).
+VALIDATED bit-exact (Float32) 5/5 vs FVSie_lpmpb dump-replay.
+"""
+function mpb_mpotpr(pbalpp::Float32, relden::Float32, reldsp_lp::Float32,
+                    a45dbh::Float32, cntlp::Float32, istdt::Int, icyc::Int, iy::Int)::Float32
+    protbk = 0.0f0
+    if (istdt <= 40 && icyc < istdt) || (istdt > 40 && iy < istdt)
+        return protbk
+    end
+    a45dbh < 6.0f0 && return protbk
+    pbalpp < 0.25f0 && return protbk
+    relden <= 0.0f0 && return protbk                 # guard the RELDSP/RELDEN divide
+    (reldsp_lp / relden) < 0.20f0 && return protbk
+    cntlp < 40.0f0 && return protbk
+    x = pbalpp
+    x > 0.8f0 && (x = 0.8f0)
+    protbk = 1.0f0 / (1.0f0 + _mpb_expf(9.583f0 - 0.08967f0 * (x * relden)))
+    return protbk
+end
+
+"""
+    mpb_lp_ccf(s, idxlp) -> Float32
+
+Lodgepole share of the stand relative density (FVS `RELDSP(IDXLP)`): the same per-tree
+crown-competition factor `stand_ccf` sums for `RELDEN`, summed over lodgepole records
+only. Used for the MPOTPR ≥20%-LP minimum-condition gate. Dispatches to the variant's
+per-tree CCF exactly as `stand_ccf` does (CR via the crown-width→area path).
+"""
+function mpb_lp_ccf(s::StandState, idxlp::Int)::Float32
+    t = s.trees; ccf = 0.0f0
+    @inbounds for i in 1:t.n
+        Int(t.species[i]) == idxlp || continue
+        d = t.dbh[i]; p = t.tpa[i]
+        c = if s.variant isa InlandEmpire;          ie_tree_ccf(idxlp, d)
+            elseif s.variant isa Kootenai;           kt_tree_ccf(idxlp, d)
+            elseif s.variant isa EasternMontana;     em_tree_ccf(idxlp, d)
+            elseif s.variant isa Utah;               ut_tree_ccf(idxlp, d)
+            elseif s.variant isa BlueMountains;      bm_tree_ccf(idxlp, d)
+            elseif s.variant isa CentralIdaho;       ci_tree_ccf(idxlp, d)
+            elseif s.variant isa Teton;              tt_tree_ccf(idxlp, d)
+            elseif s.variant isa EastCascades;       ec_tree_ccf(idxlp, d)
+            elseif s.variant isa SouthCentralOregon; so_tree_ccf(idxlp, d, t.height[i])
+            elseif s.variant isa CentralRockies
+                cw = cr_crown_width(idxlp, d, Int(s.plot.model_type))
+                d > 0.1f0 ? 0.001803f0 * cw * cw : 0.001f0
+            else
+                0.0f0
+            end
+        ccf += c * p
+    end
+    return ccf
+end
+
+# -----------------------------------------------------------------------------
 # IDXLP — the FVS species number of lodgepole pine for a lpmpb-linked variant.
 # -----------------------------------------------------------------------------
 """
@@ -370,9 +459,13 @@ meets the MPBER minimum condition. When it fires it bins the cycle-start lodgepo
 and distributes the class PRKILL to the per-record mortality (COLMRT). Byte-identical
 when no outbreak fires.
 
-DEFAULT deterministic path only (LPOPDY=false, IBOUSE from keyword, no CURRMORT).
-The LPOPDY population-dynamics path (MPBDRV/MPBMOD) and the CURRMORT/INVMORT ICYC=1
-branch are DEFERRED. RANSTART (LRANST) would gate on `mpb_rand! < PROTBK` first.
+Outbreak-decision paths handled (MPBGO): the deterministic MANUAL/MPBSTART schedule
+(OPFIND 555 ⇒ fire), the CURRMORT/INVMORT auto-cycle-1 schedule (ICYC=1 GREINF branch in
+COLMOD), and RANSTART (LRANST) — which draws `mpb_rand! < PROTBK` (PROTBK from MPOTPR,
+scaled by PRBSCL, or EPIPRB when LEPI), drawing once per eligible cycle so the RNG stream
+stays in sync with the oracle. The LPOPDY population-dynamics path (MPBDRV/MPBMOD) stays
+DEFERRED (early-return). IBOUSE from the keyword. GREINF (live inventory-attack) is 0 on
+loadable stands (no treelist damage codes); CURRMR is the CURRMORT keyword.
 """
 function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     m = s.mpb
@@ -380,7 +473,6 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     m.lpopdy && return nothing                             # population-dynamics path deferred
     idxlp = mpb_idxlp(s.variant)
     idxlp == 0 && return nothing
-    mpb_outbreak_due(m, s) || return nothing               # OPFIND(555): outbreak scheduled?
     t = s.trees; n = t.n
     n == 0 && return nothing
     lpidx = Int[i for i in 1:n if Int(t.species[i]) == idxlp]
@@ -392,14 +484,33 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     @inbounds for i in 1:n
         ba += MPB_BAF * t.dbh[i] * t.dbh[i] * old_tpa[i]
     end
+    # MPBGO: MPBER minimum conditions (L=NOERR). If not met, no outbreak AND no draw.
     r = mpb_er(lp_dbh, lp_tpa, ba)
-    r.noer || return nothing                               # minimum conditions not met
-    # RANSTART stochastic inclusion (stub — deterministic MANUAL is the validated path).
-    # if m.lranst && !mpb_outbreak_scheduled_by_user ... mpb_rand!(m) < protbk || return nothing
+    r.noer || return nothing
+    # MPBGO label-100 decision. MPBYR==0 in the COL path, so the choice is: a user-scheduled
+    # outbreak this cycle (OPFIND 555, MANSTART/MPBSTART/CURRMORT) fires deterministically;
+    # otherwise the RANSTART branch draws MPRANN once and fires when X < PROTBK*PRBSCL.
+    fire = false
+    if mpb_outbreak_due(m, s)                              # OPFIND(555): NTODO>0
+        fire = true
+    elseif m.lranst
+        icyc = Int(s.control.cycle) + 1
+        iy   = Int(cycle_year_at(s.control, Int(s.control.cycle)))
+        relden    = s.plot.relative_density               # RELDEN (stand CCF)
+        reldsp_lp = mpb_lp_ccf(s, idxlp)                   # RELDSP(IDXLP)
+        protbk = m.lepi ? m.epiprb :
+                 mpb_mpotpr(r.pbalpp, relden, reldsp_lp, r.a45dbh, r.cntlp,
+                            Int(m.istdt), icyc, iy) * m.prbscl
+        x = mpb_rand!(m)                                   # MPRANN draw — advance RNG each eligible cycle
+        fire = x < protbk
+    end
+    fire || return nothing
     start = mpb_coldbh_start(lp_dbh, lp_tpa)               # COLDBH
     numyrs = min(Int(m.mpmxyr), round(Int, fint)); numyrs > 10 && (numyrs = 10)
     numyrs < 1 && (numyrs = 1)
-    green = mpb_colmod(start, numyrs; ibouse=Int(m.ibouse), zinmor=m.zinmor, prnoin=m.prnoin)  # COLMOD
+    icyc = Int(s.control.cycle) + 1                        # 1-based FVS ICYC (CURRMORT branch fires at ICYC==1)
+    green = mpb_colmod(start, numyrs; ibouse=Int(m.ibouse), zinmor=m.zinmor, prnoin=m.prnoin,
+                       icyc=icyc, lcurmr=m.lcurmr, linvmr=m.linvmr, currmr=m.currmr)  # COLMOD
     prkill = mpb_prkill(start, @view green[numyrs, :])     # COLMRT PRKILL
     mpb_colmrt!(t, old_tpa, lpidx, lp_dbh, lp_tpa, prkill) # COLMRT apply
     return nothing
