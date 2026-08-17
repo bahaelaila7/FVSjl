@@ -335,6 +335,7 @@ include("engine/dftm.jl")                 # Douglas-fir Tussock Moth (DFTM) — 
 include("engine/wpbr.jl")                 # White Pine Blister Rust (WPBR) — chunk 0: keyword reader + BRANN RNG + defaults (inert seam)
 include("engine/lpmpb.jl")                # Mountain Pine Beetle (LPMPB) — keyword reader + deterministic Cole rate-of-loss core (bit-exact) + gated mortality seam
 include("engine/wsbwe.jl")                # Western Spruce Budworm (WSBWE) — beachhead: BWERAN RNG (bit-exact) + WSBW keyword reader (inert; defoliation effect seam deferred)
+include("engine/cover.jl")                # COVER understory/canopy-cover REPORT extension (covr/vcovr) — beachhead: CVCW crown-area dump-replay bit-exact; report path deferred (report-only, no RNG, INERT)
 include("engine/wwpb.jl")                 # Westwide Pine Beetle (WWPB) — beachhead: BMIN output-block reader + BMRANN RNG + defaults (inert; PPE outbreak driver absent)
 include("engine/climate.jl")
 include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
