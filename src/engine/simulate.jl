@@ -654,6 +654,16 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     if !tripled && s.wpbr !== nothing && (s.wpbr::WpbrState).active
         wpbr_brtreg!(s, fint, old_tpa)
     end
+    # WWPB (Westwide Pine Beetle, wwpb/*.f): NO per-cycle seam is wired here, by
+    # design. Unlike DFB/DFTM/WPBR, WWPB is a landscape Parallel-Processing-
+    # Extension model whose outbreak driver (BMDRV from ALSTD2) and FVS mortality
+    # hand-back (BMKILL/WK2 from PPMAIN) live in the PPE spatial multi-stand
+    # harness — which is ABSENT from this FVS tree (no sourceList compiles wwpb/*.f;
+    # every variant links the base/exbm.f no-op stub). The only reachable WWPB
+    # entry, the stand-level BMIN output block (kw_wwpbin! → s.wwpb), merely
+    # schedules .bm* report activities and applies no mortality. A WwpbState is
+    # therefore inert: a stand with a BMIN block projects byte-identically to one
+    # without. A real seam awaits a future port of the PPE harness.
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).

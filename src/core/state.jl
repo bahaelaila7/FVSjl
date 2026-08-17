@@ -932,6 +932,13 @@ abstract type AbstractDftmState end
 # seam wired yet).
 abstract type AbstractWpbrState end
 
+# Forward declaration for the Westwide Pine Beetle (WWPB) model state; concrete
+# `WwpbState` is in engine/wwpb.jl (included after this file). `nothing` until a
+# BMIN keyword block activates it — inert for every non-WWPB run. WWPB is a PPE
+# landscape model whose outbreak driver is absent from this tree, so only the
+# stand-level BMIN output block is reachable (and faithfully inert); no seam wired.
+abstract type AbstractWwpbState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -954,6 +961,7 @@ mutable struct StandState{V<:AbstractVariant}
     dfb::Union{AbstractDfbState,Nothing}               # Douglas-fir Beetle (DFB) impact model; nothing until DFBEETLE
     dftm::Union{AbstractDftmState,Nothing}             # Douglas-fir Tussock Moth (DFTM) defoliator model; nothing until DFTM
     wpbr::Union{AbstractWpbrState,Nothing}             # White Pine Blister Rust (WPBR) canker model; nothing until BRUST
+    wwpb::Union{AbstractWwpbState,Nothing}             # Westwide Pine Beetle (WWPB) model; nothing until BMIN (stand-level output block; inert)
 end
 
 """
@@ -970,6 +978,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
