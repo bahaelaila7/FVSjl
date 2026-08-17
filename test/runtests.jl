@@ -80,6 +80,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_spleave.jl")      # C3: SPLEAVE/LEAVESP leave-species-during-thin vs Fortran
     include("integration/test_fertiliz.jl")     # C3: FERTILIZE/FFERT fertilizer growth response vs Fortran
     include("integration/test_tcondmlt.jl")     # C3: TCONDMLT tree-condition cut weight vs Fortran
+    include("integration/test_bc_dmntrd.jl")    # #196: BC NEWSPRED DMNTRD crown-third remap + tripling DMR carry
     include("integration/test_tfixarea.jl")     # C2: TFIXAREA fixed-plot-area expansion vs Fortran
     include("integration/test_cuteff.jl")       # C3: CUTEFF default cutting efficiency vs Fortran
     include("integration/test_managed.jl")      # C3: MANAGED → DGF planted/managed growth term vs Fortran
