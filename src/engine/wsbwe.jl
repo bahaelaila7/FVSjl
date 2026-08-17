@@ -84,10 +84,14 @@ const WSBWE_SEED0 = 55329.0f0   # bweran.f DATA S0/55329D0/ (every bwebk<v>.f)
 # glibc via ccall. (Measured: 0/60000 mismatch vs gfortran; native Julia log/exp
 # mismatched 16k/60k.) This is NOT an RNG FFI — the BWERAN LCG stays pure Julia.
 # -----------------------------------------------------------------------------
-# wsbwe_apply! LIVE switch. false = INERT (byte-identical): the deterministic feeder + BWEPDM
-# kernels are dump-replay bit-exact in isolation, but the LIVE end-to-end apply has a residual
-# feeder faithfulness gap (out-of-range PEDDS/XD → DG NaN) to root-cause vs the oracle first.
-const WSBWE_APPLY_LIVE = false
+# wsbwe_apply! LIVE switch. true = the manual-DEFOL effect path is active (EM host). The feeder is
+# end-to-end bit-exact vs FVSem_wsbwe (per-year AVPRBO/PEDDS/PEHTG/AVYRMX match the DAM/PDMPE golden)
+# after two faithful glue fixes (see wsbwe_apply!): (1) OLDTPA/ORMSQD = DENSE's TPROB/RMSQD
+# (grincr.f:281/285), NOT the stale s.plot.old_tpa/old_qmd (0 at cycle 1 ⇒ ALOG(0)/÷0 ⇒ NaN foliage);
+# (2) the DEFOL species field is SPDECD-decoded (bwein.f:519) — an alpha "DF"/"ES"/"AF" → species
+# index, not read as a raw 0 (which defoliated ALL hosts once per record ⇒ triple defoliation).
+# End-to-end host_defol .sum DELTA is bit-exact-or-cornered by the EM #206 growth straddle.
+const WSBWE_APPLY_LIVE = true
 
 const WSBWE_LIBM = "libm.so.6"
 @inline wsbwe_log(x::Float32) = ccall((:logf, WSBWE_LIBM), Float32, (Float32,), x)
@@ -242,7 +246,14 @@ function kw_wsbwe!(s::StandState, rec, kr::KeywordReader)
         elseif k == "DEFOL"                  # opt 8 — MANUAL defoliation (deterministic activation)
             w.ldefol = true
             idt  = r.present[1] ? Float32(trunc(r.values[1])) : 1.0f0
-            spp  = r.present[2] ? Float32(r.values[2]) : 0.0f0
+            # SPDECD (bwein.f:519 `CALL SPDECD(2,IS,...)`): the species field is an ALPHA code
+            # ("DF"/"ES"/"AF") or a numeric species index — decode it to the FVS species SEQUENCE
+            # index IS, NOT read as a raw number (a raw `r.values[2]` on alpha "DF" is 0, which
+            # `spc<=0` treats as ALL hosts, so each of DF/ES/AF defoliates every host → the host
+            # gets defoliated 3× ⇒ 0.15³ retained-biomass instead of 0.15). IS==0/-999 ⇒ 0 (ALL),
+            # matching `IF (IS.EQ.-999.OR.IS.EQ.0) ARRAY(2)=0.0`. A nonhost IS (IBWSPM==7) is left
+            # for the feeder's `is1>6` skip (bwein.f GOTO 10), same defoliation outcome.
+            spp  = Float32(species_selector(s, length(r.fields) >= 2 ? r.fields[2] : ""))
             crn  = (r.present[3] && r.values[3] <= 15.0f0) ? Float32(r.values[3]) : 0.0f0
             new  = r.present[4] ? Float32(r.values[4]) : 0.0f0
             y1   = r.present[5] ? Float32(r.values[5]) : 0.0f0
@@ -816,14 +827,9 @@ function wsbwe_apply!(s::StandState, old_tpa, fint)
     ww = w::WsbweState
     ww.lbudl && return nothing                 # BUDLITE/GENDEFOL deferred
     s.variant isa EasternMontana || return nothing   # only EM host coeffs ported+validated
-    # INERT GATE — the deterministic feeder + BWEPDM per-tree kernels below are dump-replay
-    # BIT-EXACT vs FVSem_wsbwe (isolated cycle-1, 81 trees), but wiring them LIVE end-to-end
-    # exposed integration bugs the isolated replay missed: two glue reads were fixed (IY(ICYC)
-    # via cycle_year_at, IFINT via the fint arg), but a residual FEEDER faithfulness gap remains —
-    # on a full multi-cycle host run the feeder/BWERNP produce out-of-range PEDDS/XD that drive
-    # DG negative (sqrt→NaN) and crown<0, which the oracle never does. That must be root-caused
-    # against the oracle (measure PEDDS/AVYRMX per cycle vs bwe_dam.txt) before this fires live.
-    # Until then apply! is INERT (byte-identical). See scratchpad/wsbwe/HANDOFF.md.
+    # LIVE gate (const, normally true). The feeder is now end-to-end bit-exact vs FVSem_wsbwe after
+    # the two faithful fixes below (OLDTPA/ORMSQD=TPROB/RMSQD, and SPDECD species decode). Kept as a
+    # switch for A/B byte-identity proofs. See scratchpad/wsbwe/HANDOFF.md.
     WSBWE_APPLY_LIVE || return nothing
     ibwspm = WSBWE_IBWSPM_EM; ibiomp = WSBWE_IBIOMP_EM
     t = s.trees; ns = t.n
@@ -836,11 +842,29 @@ function wsbwe_apply!(s::StandState, old_tpa, fint)
     hashost || return nothing
     # stand scalars
     elev   = s.plot.elevation
-    oldtpaS= s.plot.old_tpa
-    ormsqd = s.plot.old_qmd
+    # OLDTPA/ORMSQD — grincr.f:281/285 set these to the CURRENT cycle-start stand density
+    # (OLDTPA=TPROB, ORMSQD=RMSQD) via DENSE (dense.f:182/250): TPROB=ΣP over all trees,
+    # RMSQD=sqrt(ΣD²·P/TPROB). These are what BWEBMS (bwebmsem.f:124/130) reads. They are NOT
+    # `s.plot.old_tpa`/`old_qmd` (the PREVIOUS-cycle stored scalars — 0 at cycle 1, which drove
+    # ALOG(0)=-Inf and D/0=+Inf ⇒ NaN foliage biomass). P = cycle-start tpa = the `old_tpa` arg
+    # (t.tpa at cycle start, pre-MORTS), matching DENSE's PROB(I). Bit-exact to the oracle
+    # (589.6528/5.1449676 vs FVSem_wsbwe OLDTPA/ORMSQD).
+    tprob = 0.0f0; tsumd2 = 0.0f0
+    @inbounds for i in 1:ns
+        p = Float32(old_tpa[i]); tprob += p; tsumd2 += t.dbh[i]*t.dbh[i]*p
+    end
+    oldtpaS = tprob
+    ormsqd  = tprob > 0.0f0 ? sqrt(tsumd2/tprob) : 0.0f0
     fintf  = Float32(fint)
     ifint  = round(Int, Float64(fint))                  # IFINT — cycle length in yr (the fint arg; s.plot.forecast_interval is 0 here)
     iy_st  = Int(cycle_year_at(s.control, Int(s.control.cycle))) # IY(ICYC) — s.control.cycle is 0-based
+    # BWEGO (bwego.f:88): `CALL OPFIND(1,2151,I); LDEFOL=I.GT.0` — the manual-DEFOL gate fires ONLY
+    # in a cycle that actually has a DEFOL activity scheduled within its year window [IY(ICYC),
+    # IY(ICYC)+IFINT-1]. Without this, apply! runs (and draws the damage RNG) every cycle after the
+    # outbreak, where the oracle never calls BWECUP — non-faithful and it consumes the RNG stream.
+    # A byte-identical no-op on any cycle with no scheduled DEFOL year (must precede any RNG draw).
+    lastyr_cyc = iy_st + ifint - 1
+    any(d -> (iy_st <= Int(trunc(d[1])) <= lastyr_cyc), ww.defol_sched) || return nothing
     # --- FEEDER ---
     (PRBIO, PEDDS, PEHTG, AVYRMX, IFHOST) = wsbwe_feeder(ww, ns,
         t.species, t.height, t.dbh, t.diam_growth, t.crown_pct, t.tpa,
