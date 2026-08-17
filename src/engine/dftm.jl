@@ -374,6 +374,70 @@ function dftm_go_gate(df_probs::AbstractVector{Float32}, gf_probs::AbstractVecto
 end
 
 # -----------------------------------------------------------------------------
+# INSCYC (inscyc.f) — force a TMBASE (5-yr) outbreak cycle into the schedule.
+# -----------------------------------------------------------------------------
+"""
+    dftm_inscyc!(iy, ncyc, ifint, icyc, ibound; lchfnt = true) -> (ncyc', ifint', ispot)
+
+FVS `INSCYC` (inscyc.f): insert a cycle boundary `ibound` years after the start of
+cycle `icyc` (1-based, matching FVS `ICYC`), so the DFTM outbreak cycle is exactly
+`TMBASE`(=`ibound`=5) years long. Mutates the 1-based year array `iy` (length ≥
+`ncyc'+1`) IN PLACE and returns the new cycle count, the reset `ifint` (when
+`lchfnt`, `= IY(ICYC+1)−IY(ICYC)`), and `ispot` (the inserted subscript, 0 when a
+boundary already sat at the target year or the target lies at/beyond the last
+cycle so nothing was inserted). The FVS `OPCYCL`/`OPCSET`/`PPECYC` option-scheduler
+calls are omitted (PPECYC is the linked no-op stub `LOK=.TRUE.`; the jl schedule is
+the `iy` array itself). Faithful line-by-line port of inscyc.f's STEP1-5.
+
+Golden (dense.key, ICYC=2, IBOUND=5): IY 1990 2000 2010 2020 2030 2040 (ncyc 5) →
+1990 2000 2005 2010 2020 2030 2040 (ncyc 6), ISPOT=3, IFINT 5.
+"""
+function dftm_inscyc!(iy::Vector{Int}, ncyc::Int, ifint::Int, icyc::Int, ibound::Int;
+                      lchfnt::Bool = true)
+    iylast = ncyc + 1
+    target = iy[icyc] + ibound
+    # STEP1: find ISPOT (the first cycle whose year exceeds the target).
+    ispot = 0
+    i = icyc
+    branch = :insert                     # :insert (label 20) / :exists (200) / :extend (100)
+    while i <= iylast
+        ispot = i
+        if iy[i] > target
+            branch = :insert; break
+        elseif iy[i] == target
+            branch = :exists; break
+        end
+        i += 1
+    end
+    i > iylast && (branch = :extend)     # DO 10 fell through: target beyond the last cycle
+    if branch == :exists                 # label 200 — boundary already present
+        ispot = 0
+    elseif branch == :extend             # label 100 — extend the last cycle to the target
+        i1 = ncyc
+        iy[i1 + 1] = iy[icyc] + ibound
+    else                                 # label 20 — make room and insert
+        ncyc += 1
+        iylast = ncyc + 1
+        # STEP3: shift the tail up one slot (DO 30, with the trailing post-loop copy).
+        ii = 0
+        while true
+            i2 = (ncyc - ii) - 1
+            iy[iylast - ii] = iy[iylast - ii - 1]
+            ii += 1
+            i2 >= ispot || break
+        end
+        iy[iylast - ii] = iy[iylast - ii - 1]
+        # STEP4: drop in the inserted boundary.
+        iy[ispot] = iy[icyc] + ibound
+    end
+    # STEP5: reset IFINT to the (possibly new) current cycle length.
+    if lchfnt
+        ifint = iy[icyc + 1] - iy[icyc]
+    end
+    return (ncyc, ifint, ispot)
+end
+
+# -----------------------------------------------------------------------------
 # TMBMAS (tmbmas.f) IBMTYP=2 — DETERMINISTIC Hatch–Mika foliage-biomass regressions.
 # -----------------------------------------------------------------------------
 # Method 2 is the only fully deterministic IBMTYP (1/3/4 draw TMBCHL normal errors
@@ -642,12 +706,23 @@ end
 #   * dftm_tree_defol / dftm_mortality / dftm_dgloss / dftm_htgloss_notopkill /
 #     dftm_topkill (K1 leader; K2 crown PCKILL/HTGLOS) — BIT-EXACT (0 ULP).
 #       Test: test_dftm.jl "TMCOUP damage functions".
-#   * NOT yet dump-replayed (engine-inert draft below — no simulate.jl seam wires
-#     any of DFTM, so these can't affect a projection): dftm_garbel/_grclas/
-#     _grpsum/_iqrsrt classification (Z2/Z3/Z4 + ISC), dftm_tmbchl/_alloc_eggs
-#     RNG-coupling, and the full TMRANN-stream ordering (RANLARVA + per-tree
-#     PRTOPK).  These + the INSCYC hook + the gated simulate.jl seam are the
-#     remaining DFTM work (see the DFTM handoff memory note).
+#   * dftm_garbel/_grclas/_grpsum/_iqrsrt classification — BIT-EXACT (0 ULP): the
+#     RDPSRT-sorted pointer, the ISC sector pointers (incl. the empty class 11,9
+#     and the cross-block sector underflow 10,11), and Z4/Z2/Z3, all 18 classes.
+#       Test: test_dftm.jl "GARBEL/GRCLAS classification".
+#   * dftm_tmbchl / dftm_alloc_eggs + the full TMRANN-stream ordering — BIT-EXACT
+#     (0 ULP): TMBCHL vs the pristine driver; the RANLARVA egg X7 in JCLAS2 order
+#     (draws 1-78); and the DO-380 per-tree PRTOPK + K≥2 RANDOM continuation
+#     (draws 79-98).  Test: test_dftm.jl "TMRANN stream".
+#   * dftm_inscyc! (inscyc.f) cycle-forcing transform — VALIDATED (golden IY
+#     schedule 1990 2000 2005 2010 2020 2030 2040, ISPOT/IFINT).  Ported as a
+#     pure function; NOT yet called by the engine.
+#       Test: test_dftm.jl "INSCYC cycle-forcing".
+#   * STILL engine-inert (no simulate.jl seam wires DFTM into a projection): the
+#     gated TMCOUP coupling seam (predict-phase DFTMGO+TMBMAS → gradd TMCOUP) that
+#     calls dftm_inscyc!/dftm_garbel/dftm_alloc_eggs!/dftmod!/the damage fns in
+#     order, and the end-to-end .sum-DELTA, are the remaining DFTM work (see the
+#     DFTM handoff memory note).
 # =============================================================================
 # The upper (regional, module S(0)) + lower (per tree-class, module S(1)) coupled
 # G/F/Y state equations of Overton–Colbert–White, integrated over the FVS 5-year
