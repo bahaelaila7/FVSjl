@@ -664,6 +664,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # schedules .bm* report activities and applies no mortality. A WwpbState is
     # therefore inert: a stand with a BMIN block projects byte-identically to one
     # without. A real seam awaits a future port of the PPE harness.
+    # LPMPB (Mountain Pine Beetle, lpmpb/*.f): stand-level Cole rate-of-loss
+    # mortality (MPBGO→MPBCUP→COLDRV, gradd.f:63). Inert (byte-identical) unless an
+    # MPB block is active, a scheduled outbreak (OPFIND 555) is due this cycle, the
+    # variant has a lodgepole host, and the stand meets the MPBER minimum condition.
+    if !tripled && s.mpb !== nothing && (s.mpb::MpbState).active
+        mpb_apply!(s, old_tpa, fint)
+    end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
