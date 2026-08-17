@@ -307,6 +307,143 @@ function dftm_otpr(iprbmt::Integer, topo::Float32, tmashd::Float32;
 end
 
 # -----------------------------------------------------------------------------
+# DFTMGO (dftmgo.f) — per-cycle outbreak host-threshold gate (deterministic).
+# -----------------------------------------------------------------------------
+"""
+    dftm_go_gate(df_probs, gf_probs; ldf, lgf, nclas) -> NamedTuple
+
+FVS `DFTMGO` host-presence gate (dftmgo.f, statements 60–210), the DETERMINISTIC
+tail of the per-cycle outbreak decision that runs AFTER the ITMETH start test has
+already committed to an outbreak. Given the DF and GF host `PROB` (trees/acre)
+records — in FVS `IND1`/`ISCT` order — it decides whether the tussock-moth model
+can actually run on each host and how many DFTM tree-classes to build:
+
+* `IDF` = number of Douglas-fir records (`ISCT(IDFCOD,2)-ISCT(IDFCOD,1)+1`); 0 when
+  the species is absent (`ISCT(IDFCOD,1)==0`).
+* `CNTDF` = Σ`PROB` over the DF records (serial add in record order — bit-exact).
+* `LDF` stays on only if it was requested (not `NODFRUN`), the species is present,
+  `NCLAS(1)>0`, and `CNTDF ≥ 0.01`; otherwise it drops to `.FALSE.` (stmt 90).
+* Grand fir mirrors this with `IGFCOD`/`NCLAS(2)`/`CNTGF`.
+* `L = LDF .OR. LGF` — the overall go/no-go (a false `L` is the "outbreak can not
+  be simulated" warning). `NACLAS(k) = MIN(count, NCLAS(k))` when host k is on.
+
+DETERMINISTIC (no TMRANN draw): validated by g16 dump-replay against the relinked
+`FVSie_dftm` (`DBGGO*` dumps). NOT engine-wired — awaits the DFTMGO/TMBMAS/TMCOUP
+seam that supplies the per-record host `PROB` from the FVSjl treelist.
+"""
+function dftm_go_gate(df_probs::AbstractVector{Float32}, gf_probs::AbstractVector{Float32};
+                      ldf::Bool = true, lgf::Bool = true,
+                      nclas::Tuple{<:Integer,<:Integer} = (20, 20))
+    idf = 0; cntdf = 0.0f0; ldf_out = ldf
+    if ldf
+        if isempty(df_probs)                     # ISCT(IDFCOD,1) == 0
+            ldf_out = false
+        else
+            idf = length(df_probs)               # I2 - I1 + 1
+            if nclas[1] <= 0 || idf < 1
+                ldf_out = false
+            else
+                @inbounds for p in df_probs; cntdf += p; end
+                cntdf < 0.01f0 && (ldf_out = false)
+            end
+        end
+    else
+        ldf_out = false
+    end
+    igf = 0; cntgf = 0.0f0; lgf_out = lgf
+    if lgf
+        if isempty(gf_probs)
+            lgf_out = false
+        else
+            igf = length(gf_probs)
+            if nclas[2] <= 0 || igf < 1
+                lgf_out = false
+            else
+                @inbounds for p in gf_probs; cntgf += p; end
+                cntgf < 0.01f0 && (lgf_out = false)
+            end
+        end
+    else
+        lgf_out = false
+    end
+    l = ldf_out || lgf_out
+    naclas1 = ldf_out ? min(idf, Int(nclas[1])) : 0
+    naclas2 = lgf_out ? min(igf, Int(nclas[2])) : 0
+    return (cntdf = cntdf, cntgf = cntgf, idf = idf, igf = igf,
+            naclas = (naclas1, naclas2), ldf = ldf_out, lgf = lgf_out, l = l)
+end
+
+# -----------------------------------------------------------------------------
+# TMBMAS (tmbmas.f) IBMTYP=2 — DETERMINISTIC Hatch–Mika foliage-biomass regressions.
+# -----------------------------------------------------------------------------
+# Method 2 is the only fully deterministic IBMTYP (1/3/4 draw TMBCHL normal errors
+# off the TMRANN stream). It assigns per host tree the nominal-branch foliage
+# biomass FBIOMS (grams) and the %-new-foliage PCNEWF, feeding DFTMOD/TMCOUP.
+# `dgi` = DG·SCALDG, the 10-yr-scaled diameter increment (SCALDG = 10/period);
+# `cr` = ICR/100 (crown ratio 0–1); `pct` = the tree's BA percentile (PCT).
+# Equations from Hatch & Mika (Univ. of Idaho, 1978). Float32 throughout.
+
+"""
+    dftm_bmas2_df(slope, aspect, ba, tprob, relden, dbh, ht, dgi, cr, pct) -> (fbioms, pcnewf)
+
+Douglas-fir branch of `TMBMAS` method 2 (tmbmas.f, stmt 8). FBIOMS clamped to
+[91,400] g; PCNEWF (×100) clamped to [11,42] %.
+"""
+@inline function dftm_bmas2_df(slope::Float32, aspect::Float32, ba::Float32,
+        tprob::Float32, relden::Float32, dbh::Float32, ht::Float32,
+        dgi::Float32, cr::Float32, pct::Float32)::NTuple{2,Float32}
+    fb = 195.20482f0 -
+         249.78151f0 * slope -
+         99.368f0    * slope * cos(aspect) -
+         129.92132f0 * slope * sin(aspect) +
+         22.0528f0   * dbh -
+         2.14018f0   * ht +
+         79.4349f0   * cr -
+         0.62932f0   * ba
+    fb > 400.0f0 && (fb = 400.0f0)
+    fb < 91.0f0  && (fb = 91.0f0)
+    pn = 0.49738f0 +
+         0.08057f0  * slope +
+         0.27017f0  * slope * cos(aspect) +
+         0.32162f0  * slope * sin(aspect) +
+         0.03936f0  * log(pct * (0.31830989f0 * atan(((relden / 100.0f0) - 1.5f0) / 1.7f0) + 0.5f0)) -
+         0.0043258f0 * ht +
+         0.077044f0 * dgi -
+         0.078413f0 * tprob / 100.0f0 +
+         0.0048268f0 * (tprob * tprob / 10000.0f0)
+    pn *= 100.0f0
+    pn > 42.0f0 && (pn = 42.0f0)
+    pn < 11.0f0 && (pn = 11.0f0)
+    return (fb, pn)
+end
+
+"""
+    dftm_bmas2_gf(slope, aspect, ba, tprob, relden, dbh, ht, dgi, cr, pct) -> (fbioms, pcnewf)
+
+Grand/white-fir branch of `TMBMAS` method 2 (tmbmas.f, stmt 18). FBIOMS is an
+exponential in DBH/HT/DGI clamped to [125,400] g; PCNEWF (×100) clamped to
+[15,47] %. `ba`/`tprob` are unused here (kept for a uniform DF/GF signature). The
+`exp` may carry a documented ≤1-ULP transcendental straddle vs gfortran's `expf`.
+"""
+@inline function dftm_bmas2_gf(slope::Float32, aspect::Float32, ba::Float32,
+        tprob::Float32, relden::Float32, dbh::Float32, ht::Float32,
+        dgi::Float32, cr::Float32, pct::Float32)::NTuple{2,Float32}
+    fb = exp(4.70244f0 + 0.15833f0 * dbh - 0.01429f0 * ht + 0.17778f0 * dgi)
+    fb > 400.0f0 && (fb = 400.0f0)
+    fb < 125.0f0 && (fb = 125.0f0)
+    pn = 0.1269f0 -
+         0.017636f0 * log(pct * (0.31830989f0 * atan(((relden / 100.0f0) - 1.5f0) / 1.7f0) + 0.5f0)) +
+         0.037998f0 * dbh -
+         0.0062929f0 * ht +
+         0.49115f0  * cr -
+         0.59622f0  * slope
+    pn *= 100.0f0
+    pn > 47.0f0 && (pn = 47.0f0)
+    pn < 15.0f0 && (pn = 15.0f0)
+    return (fb, pn)
+end
+
+# -----------------------------------------------------------------------------
 # kw_dftmin! (dftmin.f) — DFTM keyword-block reader (keywds.f option 7).
 # -----------------------------------------------------------------------------
 """
