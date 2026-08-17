@@ -107,3 +107,117 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     end
     return s
 end
+
+# =============================================================================
+# em_cwcalc — EM forest-grown crown width (base/cwidth.f -> cwcalc.f, IWHO=0; the
+# western Bechtold/Crookston/Donnelly crown-width library).  EM is Region 1 =>
+# KODFOR<601 => BF=1 and the Region-6 forest-BF section is skipped (GO TO 10).
+# EMMAP maps FVS EM species 1..19 -> a 5-char CWEQN (FIA code + eqn#).  This is the
+# CRWDTH array that COVER's CVCW reads (NOT the em_tree_ccf CCF polynomial above,
+# which is the separate CCF path).  Reuses the shared CR kernels (_cr_r6m2 / _cr_bech1
+# / _cr_bech2 / _cr_hopkins) plus the R1 (Crookston Region-1) and pure-power helpers
+# below.  Math faithful to gfortran: fpow/fexp/flog + left-to-right op order; the
+# Hopkins point is the shared WESTERN one.  Dump-replay bit-exact vs FVSem_g16 (all 15
+# EM CWEQN forms, incl. small-tree scaling + juniper D>=25 plateau).
+# REPORTING-ONLY (COVER); INERT for growth/mortality/CCF/volume.
+# =============================================================================
+const _EM_CWMAP = ("10105","07303","20203","11301","07204","06602","10803","09303",
+                   "01903","12203","74902","74605","74705","74902","74902","74902",
+                   "37506","26405","74902")
+
+# Transcendentals routed DIRECTLY through glibc libm (logf/expf/powf), like WSBWE — the
+# gfortran-16 oracle's REAL*4 EXP/LOG/** resolve to these, so this is bit-exact vs
+# FVSem_g16 (verified 353/353).  The core/fmath shim is built by a *different* gfortran and
+# is ~1 ULP off here, so it is intentionally NOT used on this crown-width path.
+const _EMCW_LIBM = "libm.so.6"
+@inline _emcw_log(x::Float32) = ccall((:logf, _EMCW_LIBM), Float32, (Float32,), x)
+@inline _emcw_exp(x::Float32) = ccall((:expf, _EMCW_LIBM), Float32, (Float32,), x)
+@inline _emcw_pow(x::Float32, y::Float32) = ccall((:powf, _EMCW_LIBM), Float32, (Float32,Float32), x, y)
+
+# Crookston Region-1 form: mult*EXP(c0 + ccl*ln(CL) + cd*ln(Dm) + ch*ln(H) + cba*ln(BAREA)).
+# Only the ln(D) term floors to `dfloor`; CL/H/BAREA use actual values.  Small-tree scale
+# ×(D/dfloor).  Terms with a 0 coefficient add +0 (bit-exact no-op).
+@inline function _em_r1(mult::Float32, c0::Float32, ccl::Float32, cd::Float32, ch::Float32,
+                        cba::Float32, dfloor::Float32, cap::Float32,
+                        d::Float32, h::Float32, cl::Float32, barea::Float32)::Float32
+    dm = d >= dfloor ? d : dfloor
+    v = mult * _emcw_exp(c0 + ccl*_emcw_log(cl) + cd*_emcw_log(dm) + ch*_emcw_log(h) + cba*_emcw_log(barea))
+    d < dfloor && (v *= d / dfloor)
+    v > cap && (v = cap)
+    return v
+end
+
+# Pure power form a*D^b (Crookston R6 model-1 07204, Donnelly 37506).  OMIND=1 scaling.
+@inline function _em_powf(a::Float32, b::Float32, cap::Float32, d::Float32)::Float32
+    dm = d >= 1f0 ? d : 1f0
+    v = a * _emcw_pow(dm, b)
+    d < 1f0 && (v *= d)
+    v > cap && (v = cap)
+    return v
+end
+
+# Crookston R6 model 2: a·D^b·H^c·CL^dd·(BAREA+1)^e·EXP(EL)^f (BF=1).  OMIND=1 small-tree
+# scaling; EL∈[ello,elhi].  e=0/f=0 → the factor is ^0 = ×1.0 (bit-exact no-op).
+@inline function _em_r6m2(a::Float32, b::Float32, c::Float32, dd::Float32, e::Float32, f::Float32,
+                          d::Float32, h::Float32, cl::Float32, ba1::Float32, el::Float32,
+                          ello::Float32, elhi::Float32, cap::Float32)::Float32
+    elc = el < ello ? ello : (el > elhi ? elhi : el)
+    dm = d >= 1f0 ? d : 1f0
+    cw = a * _emcw_pow(dm, b) * _emcw_pow(h, c) * _emcw_pow(cl, dd) *
+         _emcw_pow(ba1, e) * _emcw_pow(_emcw_exp(elc), f)
+    d < 1f0 && (cw *= d)
+    cw > cap && (cw = cap)
+    return cw
+end
+
+# Bechtold 2004 model 1: a + b·D (MIND=5 small-tree scaling).
+@inline function _em_bech1(a::Float32, b::Float32, d::Float32, cap::Float32)::Float32
+    dm = d >= 5f0 ? d : 5f0
+    cw = a + b * dm
+    d < 5f0 && (cw *= d / 5f0)
+    cw > cap && (cw = cap)
+    return cw
+end
+
+# Bechtold 2004 model 2: a + b·D + c·D² + crc·CR + hic·HI.  HI∈[hlo,hhi]; MIND=5 small-tree
+# scaling; optional D≥25 plateau (dcap25).
+@inline function _em_bech2(a::Float32, b::Float32, c::Float32, crc::Float32, hic::Float32,
+                           d::Float32, cr::Float32, hi::Float32, hlo::Float32, hhi::Float32,
+                           cap::Float32, dcap25::Bool)::Float32
+    hv = hi < hlo ? hlo : (hi > hhi ? hhi : hi)
+    dm = d >= 5f0 ? d : 5f0
+    cw = a + b * dm + c * dm * dm + crc * cr + hic * hv
+    d < 5f0 && (cw *= d / 5f0)
+    (dcap25 && d >= 25f0) && (cw = a + b * 25f0 + c * 25f0 * 25f0 + crc * cr + hic * hv)
+    cw > cap && (cw = cap)
+    return cw
+end
+
+function em_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
+                   el::Float32, hi::Float32)::Float32
+    (1 <= sp <= 19) || return 0.5f0
+    barea <= 1f0 && (barea = 1f0)          # cwcalc.f: IF(BAREA.LE.1.) BAREA=1.
+    cl  = cr * h * 0.01f0                   # CL = CR*H*0.01
+    ba1 = barea + 1f0
+    eqn = _EM_CWMAP[sp]
+    cw = if eqn == "10105";     _em_r6m2(2.2354f0,0.66680f0,-0.11658f0,0.16927f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,40f0)
+    elseif eqn == "74605";      _em_r6m2(4.7961f0,0.64167f0,-0.18695f0,0.18581f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,45f0)
+    elseif eqn == "74705";      _em_r6m2(4.4327f0,0.41505f0,-0.23264f0,0.41477f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,56f0)
+    elseif eqn == "26405";      _em_r6m2(3.7854f0,0.54684f0,-0.12954f0,0.16151f0,0.03047f0,-0.00561f0, d,h,cl,ba1,el,10f0,79f0,45f0)
+    elseif eqn == "07303";      _em_r1(1.02478f0,0.99889f0,0.19422f0,0.59423f0,-0.09078f0,-0.02341f0, 1f0,40f0, d,h,cl,barea)
+    elseif eqn == "20203";      _em_r1(1.01685f0,1.48372f0,0.27378f0,0.49646f0,-0.18669f0,-0.01509f0, 1f0,80f0, d,h,cl,barea)
+    elseif eqn == "10803";      _em_r1(1.03992f0,1.58777f0,0.30812f0,0.64934f0,-0.38964f0,0f0, 0.7f0,40f0, d,h,cl,barea)
+    elseif eqn == "09303";      _em_r1(1.02687f0,1.28027f0,0.2249f0,0.47075f0,-0.15911f0,0f0, 0.1f0,40f0, d,h,cl,barea)
+    elseif eqn == "01903";      _em_r1(1.02886f0,1.01255f0,0.30374f0,0.37093f0,-0.13731f0,0f0, 0.1f0,30f0, d,h,cl,barea)
+    elseif eqn == "12203";      _em_r1(1.02687f0,1.49085f0,0.1862f0,0.68272f0,-0.28242f0,0f0, 2f0,46f0, d,h,cl,barea)
+    elseif eqn == "07204";      _em_powf(2.2586f0,0.68532f0,33f0, d)
+    elseif eqn == "37506";      _em_powf(5.8980f0,0.4841f0,25f0, d)
+    elseif eqn == "11301";      _em_bech1(4.0181f0,0.8528f0, d,25f0)
+    elseif eqn == "06602";      _em_bech2(-4.1599f0,1.3528f0,-0.0233f0,0.0633f0,-0.0423f0, d,cr,hi,-37f0,19f0,29f0,true)
+    elseif eqn == "74902";      _em_bech2(4.1687f0,1.5355f0,0f0,0f0,0.1275f0, d,cr,hi,-26f0,-2f0,35f0,false)
+    else 0f0 end
+    # cwcalc.f final CRWDTH clamp (after label 9000).
+    cw < 0.5f0 && (cw = 0.5f0)
+    cw > 99.9f0 && (cw = 99.9f0)
+    return cw
+end
