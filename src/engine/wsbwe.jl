@@ -270,3 +270,123 @@ function kw_wsbwe!(s::StandState, rec, kr::KeywordReader)
     end
     return nothing
 end
+
+# =============================================================================
+# DEFOLIATION EFFECT KERNEL (deterministic payload math) — DUMP-REPLAY VALIDATED
+# bit-exact vs the instrumented live oracle FVSem_wsbwe (single-.o swap of bwedam/
+# bwepdm, Float32-hex TRANSFER dump; instrumented .sum byte-identical to the clean
+# relink). Host stand = DF/ES/AF-relabelled emt01, sustained 85/80/70/60% DEFOL
+# 1990-1999 (crashes TPA 536→52 by 2000). See scratchpad/wsbwe/GOLDENS.md.
+#
+# These two kernels are the arithmetic core of the DEFOL path's growth-loss and
+# mortality. They are pure Float32 and reproduce gfortran's `**`/EXP bit-exactly.
+# The SURROUNDING chain that feeds them — BWESIT foliage biomass (BWEBMS/BWEADV),
+# BWEAGE aging + PRBIO, BWEDAM AVPRBO/CUMDEF accumulation, and BWEPDM's per-tree
+# application (which draws the damage RNG via BWERNP/BWEBET + topkill) — is the
+# NEXT chunk (see HANDOFF.md "NEXT CHUNKS"); until it is ported the seam below is
+# gated INERT.
+# -----------------------------------------------------------------------------
+
+# BWEDAM host-indexed small-tree height-growth coeff (STHTGR, bwedam.f:52); classes
+# 1=WF 2=DF 3=GF 4=AF 5=ES 6=WL. (Used by the small-tree Ferguson HTG branch.)
+const WSBWE_STHTGR = Float32[-2.3661, -2.4757, -2.0008, -2.3661, -2.9171, 0.0]
+
+"""
+    wsbwe_rdds(avprbo_whole, rddsm1) -> Float32
+
+FVS `BWEDAM` proportional diameter-growth (DDS) multiplier — Nichols (1984/88)
+model (bwedam.f:184). `avprbo_whole` = average whole-tree proportion of retained
+biomass; `rddsm1` = last-period RDDS carry (1.0 at outbreak start). Capped at 1.0.
+Pure Float32. VALIDATED 90/90 bit-exact vs FVSem_wsbwe (bwedam dump-replay).
+"""
+@inline function wsbwe_rdds(avprbo_whole::Float32, rddsm1::Float32)::Float32
+    r = 0.083861f0 * (avprbo_whole * 100.0f0)^(0.4725f0 + 0.07f0 * rddsm1) *
+        rddsm1^0.3241f0
+    return r > 1.0f0 ? 1.0f0 : r
+end
+
+"""
+    wsbwe_rhtg(avprbo_top, rhtgm1) -> Float32
+
+FVS `BWEDAM` proportional height-growth multiplier for MEDIUM/LARGE trees — Nichols
+model (bwedam.f:188). `avprbo_top` = average top-third proportion of retained
+biomass; `rhtgm1` = last-period RHTG carry (1.0 at outbreak start). Capped at 1.0.
+Pure Float32. VALIDATED 90/90 bit-exact vs FVSem_wsbwe. (Small trees use the
+Ferguson `exp(STHTGR*(1-AVPRBO_top))` branch instead — see WSBWE_STHTGR.)
+"""
+@inline function wsbwe_rhtg(avprbo_top::Float32, rhtgm1::Float32)::Float32
+    r = 0.193013f0 * (avprbo_top * 100.0f0)^(0.3814f0 - 0.0212f0 * rhtgm1) *
+        rhtgm1^0.5509f0
+    return r > 1.0f0 ? 1.0f0 : r
+end
+
+# BWEPDM Marsden logistic MORTALITY coefficients (bwepdm.f B0..B7), host-indexed.
+const WSBWE_B0 = Float32[46.27900, 57.75010, 46.27900, 46.27900, 57.75010, 57.75010]  # intercept
+const WSBWE_B1 = Float32[-1.80810, -2.28210, -1.80810, -1.80810, -2.28210, -2.28210]  # elev
+const WSBWE_B2 = Float32[0.01930, 0.02430, 0.01930, 0.01930, 0.02430, 0.02430]        # elev^2
+const WSBWE_B3 = Float32[0.00550, 0.0, 0.00550, 0.00550, 0.0, 0.0]                     # point BA
+const WSBWE_B4 = Float32[-0.00808, -0.00793, -0.00808, -0.00808, -0.00793, -0.00793]  # host BA
+const WSBWE_B5 = Float32[0.57450, 0.92870, 0.57450, 0.57450, 0.92870, 0.92870]        # missing-fol top
+const WSBWE_B6 = Float32[-0.24050, -0.22330, -0.24050, -0.24050, -0.22330, -0.22330]  # topkill cat
+const WSBWE_B7 = Float32[-0.09640, -0.13180, -0.09640, -0.09640, -0.13180, -0.13180]  # MFT*MFM
+
+"""
+    wsbwe_mort_pr(ih, elev, pntba, pnthba, mft, mfm, ktk) -> Float32
+
+FVS `BWEPDM` probability-of-mortality logistic (bwepdm.f:640) — Marsden analysis of
+Hostetler's data. `ih`=host class 1..6; `elev`=stand elevation (hundred-ft, FVS
+`ELEV`); `pntba`/`pnthba`=point total / host basal area; `mft`/`mfm`=missing-foliage
+top/middle category (0..10, from PRBIO); `ktk`=topkill category (0..10). Returns 0
+when either missing-foliage category is 0 (bwepdm.f:645 guard). Pure Float32.
+VALIDATED 81/81 bit-exact vs FVSem_wsbwe (bwepdm dump-replay). This is the SURVIVAL/
+mortality probability BEFORE the period-scaling `PR**IBWYR·(1-BASE)**FA` and the
+background-rate `max(BASE,PR)` composition (both deterministic; ported in the next
+chunk with the per-tree WK2 application).
+"""
+@inline function wsbwe_mort_pr(ih::Integer, elev::Float32, pntba::Float32,
+                               pnthba::Float32, mft::Float32, mfm::Float32,
+                               ktk::Float32)::Float32
+    (mft > 0.0f0 && mfm > 0.0f0) || return 0.0f0
+    e = WSBWE_B0[ih] + (WSBWE_B1[ih] * elev) + (WSBWE_B2[ih] * elev * elev) +
+        (WSBWE_B3[ih] * pntba) + (WSBWE_B4[ih] * pnthba) + (WSBWE_B5[ih] * mft) +
+        (WSBWE_B6[ih] * ktk) + (WSBWE_B7[ih] * mft * mfm)
+    return 1.0f0 / (1.0f0 + exp(e))
+end
+
+# -----------------------------------------------------------------------------
+# BWEGO gate + wsbwe_apply! seam (mirrors the DFB LDFBGO / MPB seam). Currently
+# INERT: the effect payload above is validated but the FOLIAGE→PRBIO→PEDDS/PEHTG
+# feeder chain + BWEPDM per-tree application are DEFERRED, so apply! early-returns
+# (byte-identical projection). Wire this exactly like the mpb seam in simulate.jl.
+# -----------------------------------------------------------------------------
+"""
+    wsbwe_go(w) -> Bool
+
+FVS `BWEGO` per-cycle gate (bwego.f) for the MANUAL-DEFOL branch: fires when a WSBW
+block is active with `LDEFOL` and at least one DEFOL activity is scheduled. The
+`LCALBW/LBUDL` regional-outbreak (BUDLITE) branch is deferred (returns false).
+"""
+@inline wsbwe_go(w::WsbweState)::Bool =
+    w.active && w.ldefol && !isempty(w.defol_sched)
+
+"""
+    wsbwe_apply!(s, old_tpa, fint)
+
+FVS `BWECUP` seam (gradd.f:108 `IF (IPMODI==1 .AND. LBWEGO) CALL BWECUP`). Mirrors
+`dfb_apply!`/`mpb_apply!`. DEFERRED/INERT: early-returns on a non-active state, on
+the BUDLITE/GENDEFOL branch (`lbudl`; that stochastic path is the chunk AFTER this
+one), and — once the feeder chain is ported — on a stand with no budworm host. The
+deterministic payload kernels (`wsbwe_rdds`/`wsbwe_rhtg`/`wsbwe_mort_pr`) are
+validated bit-exact; the BWESIT→BWEAGE→BWEDAM foliage/PRBIO feeder and the BWEPDM
+per-tree WK2/DG/HTG/topkill application (which draws the damage RNG) are the next
+chunk (HANDOFF.md). Until they land this returns `nothing`, so a WSBW-scheduled
+stand projects .sum-byte-identically to no-WSBW (proven via the live oracle:
+off ≡ stock, and DEFOL-on-non-host ≡ off).
+"""
+function wsbwe_apply!(s::StandState, old_tpa, fint)
+    w = s.wsbwe
+    (w === nothing || !(w::WsbweState).active) && return nothing
+    (w::WsbweState).lbudl && return nothing   # BUDLITE/GENDEFOL deferred (step 5)
+    # DEFERRED feeder + per-tree application — see HANDOFF.md "NEXT CHUNKS".
+    return nothing
+end
