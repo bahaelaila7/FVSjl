@@ -728,9 +728,12 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
             Int32[1,2,3,4,5,6,7,8,9,10,11,22,23,36,33,26,38,19,24,30,30,18,17]
         @test length(FVSjl.RD_IRTSPC_IE) == 23                 # IE MAXSP
         @test FVSjl.rd_irtspc_for(FVSjl.InlandEmpire()) === FVSjl.RD_IRTSPC_IE
+        # KT is the base-default user: no explicit method, falls to RD_IRTSPC_KT
+        # (rd/rdblk1.f). NOTE the base rdblk1.f comment says "NI, CI, KT", but the
+        # CI *variant* actually links its own rdblk1ci.f (distinct IRTSPC) — see
+        # the 13-variant golden testset below; CI dispatches to RD_IRTSPC_CI.
         @test FVSjl.rd_irtspc_for(FVSjl.Kootenai())     === FVSjl.RD_IRTSPC_KT
-        # base NI/CI/KT default for any other variant (rd/rdblk1.f)
-        @test FVSjl.rd_irtspc_for(FVSjl.CentralIdaho()) === FVSjl.RD_IRTSPC_KT
+        @test FVSjl.rd_irtspc_for(FVSjl.CentralIdaho()) === FVSjl.RD_IRTSPC_CI
         # KT crosswalk unchanged by the refactor (bit-exact guarantee)
         @test FVSjl.RD_IRTSPC_KT == Int32[1,2,3,4,5,6,7,8,9,10,30]
     end
@@ -822,6 +825,255 @@ TREEDATA
         for k in 1:11
             @test abs(dtpa[k] - IE_ORA_dTPA[k]) <= 2
             @test abs(dba[k]  - IE_ORA_dBA[k])  <= 2
+        end
+    end
+
+    # -------------------------------------------------------------------------
+    # WRD extended to the remaining 13 base-rd variants (bc bm ci cr ec em nc pn
+    # so tt ut wc ws). The ONLY variant-specific RD block-data is IRTSPC (each
+    # rd/rdblk1<v>.f DATA IRTSPC); the host tables HABFAC/PNINF/PKILLS/IDITYP/
+    # PCOLO/RRPSWT (rd/rdinit.f) are byte-identical across all 15 base-rd variants
+    # (md5 7e6ea38e… verified on all 13 buildDir rdinit.f). length(IRTSPC)==MAXSP.
+    # Goldens transcribed byte-for-byte from each linked bin/FVS<v>_buildDir/
+    # rdblk1<v>.f; ca/ak/oc/op are OUT OF SCOPE (different, non-base rd model).
+    # -------------------------------------------------------------------------
+    @testset "RD per-variant IRTSPC goldens (13 remaining variants)" begin
+        # (variant, const, MAXSP, expected DATA IRTSPC from rdblk1<v>.f)
+        golden = [
+          (FVSjl.BritishColumbia(),    FVSjl.RD_IRTSPC_BC, 15,
+             Int32[1,2,3,4,5,6,7,8,9,10,40,19,24,3,40]),
+          (FVSjl.BlueMountains(),      FVSjl.RD_IRTSPC_BM, 18,
+             Int32[1,2,3,4,11,26,7,8,9,10,22,23,38,34,19,24,17,18]),
+          (FVSjl.CentralIdaho(),       FVSjl.RD_IRTSPC_CI, 19,
+             Int32[1,2,3,4,5,6,7,8,9,10,22,38,19,26,40,23,24,17,18]),
+          (FVSjl.CentralRockies(),     FVSjl.RD_IRTSPC_CR, 38,
+             Int32[9,21,3,4,13,11,6,2,33,23,7,33,10,22,1,26,20,8,25,19,
+                   24,24,18,29,18,29,29,40,26,26,26,26,33,33,33,10,17,18]),
+          (FVSjl.EastCascades(),       FVSjl.RD_IRTSPC_EC, 32,
+             Int32[1,2,3,16,6,4,7,8,9,10,5,11,38,22,39,13,36,34,26,40,
+                   40,40,40,40,40,19,40,40,40,40,17,18]),
+          (FVSjl.EasternMontana(),     FVSjl.RD_IRTSPC_EM, 19,
+             Int32[22,2,3,23,36,26,7,8,9,10,18,19,24,24,24,24,18,17,18]),
+          (FVSjl.Klamath(),            FVSjl.RD_IRTSPC_NC, 12,
+             Int32[27,12,3,13,30,14,29,32,15,10,18,35]),
+          (FVSjl.PacificNorthwest(),   FVSjl.RD_IRTSPC_PN, 39,
+             Int32[16,13,4,9,15,8,39,34,14,8,7,31,12,1,10,3,35,6,5,11,
+                   40,40,40,40,40,19,40,40,26,36,22,37,38,40,40,40,40,40,40]),
+          (FVSjl.SouthCentralOregon(), FVSjl.RD_IRTSPC_SO, 33,
+             Int32[1,12,3,13,11,14,7,8,15,10,26,4,9,16,39,22,2,6,5,38,
+                   40,40,40,19,24,40,40,40,40,40,40,17,18]),
+          (FVSjl.Teton(),              FVSjl.RD_IRTSPC_TT, 18,
+             Int32[22,23,3,33,20,19,7,8,9,10,26,26,40,40,24,40,17,18]),
+          (FVSjl.Utah(),               FVSjl.RD_IRTSPC_UT, 24,
+             Int32[22,23,3,13,20,19,7,8,9,10,33,26,18,33,26,26,33,24,24,40,40,40,17,18]),
+          (FVSjl.WestCascades(),       FVSjl.RD_IRTSPC_WC, 39,
+             Int32[16,13,4,9,15,40,39,34,14,8,7,31,12,1,10,3,35,6,5,11,
+                   40,40,40,40,40,19,40,40,26,36,22,37,38,40,40,40,40,40,40]),
+          (FVSjl.WestSierra(),         FVSjl.RD_IRTSPC_WS, 43,
+             Int32[12,3,13,28,14,31,15,10,7,22,1,33,16,37,37,37,23,10,37,37,33,3,
+                   35,11,26,26,26,29,29,29,29,29,29,32,32,19,40,40,40,40,40,17,18]),
+        ]
+        for (v, arr, n, expect) in golden
+            @test arr == expect                          # rdblk1<v>.f DATA IRTSPC
+            @test length(arr) == n                       # == variant MAXSP
+            @test FVSjl.rd_irtspc_for(v) === arr          # dispatch wired
+            @test arr != FVSjl.RD_IRTSPC_KT               # every one differs from base
+        end
+        @test length(golden) == 13
+        # base KT/IE dispatch is unchanged by the 13 new methods (no regression)
+        @test FVSjl.rd_irtspc_for(FVSjl.Kootenai())     === FVSjl.RD_IRTSPC_KT
+        @test FVSjl.rd_irtspc_for(FVSjl.InlandEmpire())  === FVSjl.RD_IRTSPC_IE
+        @test FVSjl.RD_IRTSPC_KT == Int32[1,2,3,4,5,6,7,8,9,10,30]
+    end
+
+    # -------------------------------------------------------------------------
+    # LIVE .sum-DELTA validation of the new dispatch on a representative subset
+    # with DISTINCT IRTSPC (CR: 38-sp radically-reordered Rockies; BM: 18-sp
+    # eastside; NC/Klamath: 12-sp westside fully-remapped). Oracle rd−ctrl deltas
+    # captured from the live relinked FVS<v>_clean (links rdblk1<v>.f) on the
+    # variant's own S248112 reference stand: RRType 3 (Armillaria), RRInit
+    # 0 10 10 20 0.1 10 3, SArea 100, same head/tre for ctrl and rd (ctrl strips
+    # the RDIN block). Compared as the DELTA (the FVSjl absolute baseline straddles
+    # the oracle per the #206 OLDRN self-thin straddle, which cancels in rd−ctrl).
+    # -------------------------------------------------------------------------
+    _wrd_head(title, stdinfo) = """
+SCREEN
+NOAUTOES
+NOTRIPLE
+STATS
+STDIDENT
+S248112  $title
+DESIGN                                        11.0       1.0
+$stdinfo
+INVYEAR       1990.0
+NUMCYCLE        10.0
+TREEFMT
+(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,
+T52,I2,T66,5I1,T54,7I1,T75,F3.0)
+TREEDATA
+"""
+    function _wrd_delta(v, tre, stdinfo)
+        d  = mktempdir()
+        ck = joinpath(d, "c.key"); rk = joinpath(d, "r.key")
+        write(ck, _wrd_head("RD CONTROL", stdinfo) * "ECHOSUM\nPROCESS\nSTOP\n")
+        write(rk, _wrd_head("RD ACTIVE ", stdinfo) * _RDIN_BLOCK * "ECHOSUM\nPROCESS\nSTOP\n")
+        write(joinpath(d, "c.tre"), tre)
+        write(joinpath(d, "r.tre"), tre)
+        bc = split.(_datarows(FVSjl.run_keyfile(ck; variant = v, output = :sum)))
+        br = split.(_datarows(FVSjl.run_keyfile(rk; variant = v, output = :sum)))
+        n  = min(length(bc), length(br))
+        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:n]
+        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:n]
+        return dtpa, dba
+    end
+
+    # Central Rockies reference stand (crt01.tre — S248112 in CR species).
+    CR_TRE = """
+   1      248112       0101   011PP 11510   0734   00111     0  0
+   2      248112       0101   031AS 001     0026   00222     0  0
+   3      248112       0102   011WP 06523   0308   00111     0  0
+   4      248112       0102   011ES 07906   0753   00111     0  0
+   5      248112       0102   018ES 346            10322     0  0
+   6      248112       0103   011ES 08007   0633   96222     0 56
+   7      248112       0103   011WF 06220   0385   00111     0  0
+   8      248112       0103   011ES 084       54   00111     0  0
+   9      248112       0103   011PP 09511   0603   00111     0  0
+  10      248112       0104   011AS 040     0203   00111    50  0
+  11      248112       0104   011ES 08212   0655   50111     0  0
+  12      248112       0105   011AS 012     0116   00222    42  0
+  13      248112       0105   011AS 019     0135   00222    47  0
+  14      248112       0105   016PP 072            11322     0  0
+  15      248112       0105   031WF 001     0037   00222     0  0
+  16      248112       0105   011WF 05309   0277   00111     0  0
+  17      248112       0106   011AS 10010   0654   00111     0  0
+  18      248112       0106   011WF 06112   0388   00111     0  0
+  19      248112       0106   011AS 12716   0674   00111     0  0
+  20      248112       0107                          800
+  21      248112       0108   011PP 09605   0603   00222     0  0
+  22      248112       0108   011AS 10409   0555   97222     0 49
+  23      248112       0108   011PP 085       03   00111     0  0
+  24      248112       0109   011WF 10910   0657   00111     0  0
+  25      248112       0109   011AS 09418   0604   00111     0  0
+  26      248112       0110   011ES 03206   0175   00222    32  0
+  27      248112       0110   011ES 001     0027   00222     0  0
+  28      248112       0110   011ES 05810   0287   00111     0  0
+  29      248112       0110   011ES 05010   0253   00111    37  0
+  30      248112       0111   011WF 06614   0307   00111     0  0
+"""
+    @testset "CR WRD .sum DELTA vs FVScr_clean (rdblk1cr.f; cornered ±2)" begin
+        # oracle rd−ctrl from live /workspace/.crwork/FVScr_clean (10 cyc, 11 rows)
+        CR_ORA_dTPA = [0,-16,-24,-10,-6,-7,11,18, 7, 5, 4]
+        CR_ORA_dBA  = [0, -4, -9,-10,-10,-11,-6,-2,-1,-1,-2]
+        dtpa, dba = _wrd_delta(FVSjl.CentralRockies(), CR_TRE,
+                               "STDINFO          303    001010      60.0     315.0      30.0      88.0")
+        @test length(dtpa) == 11
+        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on CR
+        @test minimum(dba) <= -9                     # disease BA loss (oracle −11)
+        for k in 1:11
+            @test abs(dtpa[k] - CR_ORA_dTPA[k]) <= 2
+            @test abs(dba[k]  - CR_ORA_dBA[k])  <= 2
+        end
+    end
+
+    # Blue Mountains reference stand (bmt01.tre — S248112 in BM species).
+    BM_TRE = """
+   1      248112       0101   011LP 11510   0734   00111     0  0
+   2      248112       0101   031DF 001     0026   00222     0  0
+   3      248112       0102   011WH 06523   0308   00111     0  0
+   4      248112       0102   011WL 07906   0753   00111     0  0
+   5      248112       0102   018WL 346            10322     0  0
+   6      248112       0103   011WL 08007   0633   96222     0 56
+   7      248112       0103   011WF 06220   0385   00111     0  0
+   8      248112       0103   011WL 084       54   00111     0  0
+   9      248112       0103   011LP 09511   0603   00111     0  0
+  10      248112       0104   011DF 040     0203   00111    50  0
+  11      248112       0104   011WL 08212   0655   50111     0  0
+  12      248112       0105   011DF 012     0116   00222    42  0
+  13      248112       0105   011DF 019     0135   00222    47  0
+  14      248112       0105   016LP 072            11322     0  0
+  15      248112       0105   031WF 001     0037   00222     0  0
+  16      248112       0105   011WF 05309   0277   00111     0  0
+  17      248112       0106   011DF 10010   0654   00111     0  0
+  18      248112       0106   011WF 06112   0388   00111     0  0
+  19      248112       0106   011DF 12716   0674   00111     0  0
+  20      248112       0107                          800
+  21      248112       0108   011LP 09605   0603   00222     0  0
+  22      248112       0108   011DF 10409   0555   97222     0 49
+  23      248112       0108   011LP 085       03   00111     0  0
+  24      248112       0109   011WF 10910   0657   00111     0  0
+  25      248112       0109   011DF 09418   0604   00111     0  0
+  26      248112       0110   011ES 03206   0175   00222    32  0
+  27      248112       0110   011ES 001     0027   00222     0  0
+  28      248112       0110   011ES 05810   0287   00111     0  0
+  29      248112       0110   011ES 05010   0253   00111    37  0
+  30      248112       0111   011WF 06614   0307   00111     0  0
+"""
+    @testset "BM WRD .sum DELTA vs FVSbm_clean (rdblk1bm.f; cornered ±2)" begin
+        # oracle rd−ctrl from live /workspace/.bmwork/FVSbm_clean (weak but exact signal)
+        BM_ORA_dTPA = [0,0, 0,3,3,3,3,4,4,4,4]
+        BM_ORA_dBA  = [0,0,-1,0,-1,-1,-1,-1,-1,-1,-1]
+        dtpa, dba = _wrd_delta(FVSjl.BlueMountains(), BM_TRE,
+                               "STDINFO        614.0       12.      60.0     315.0      30.0      45.0")
+        @test length(dtpa) == 11
+        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on BM
+        @test maximum(dtpa) >= 3                      # RD self-thin shift present
+        for k in 1:11
+            @test abs(dtpa[k] - BM_ORA_dTPA[k]) <= 2
+            @test abs(dba[k]  - BM_ORA_dBA[k])  <= 2
+        end
+    end
+
+    # Klamath (VARACD NC) reference stand (nctree.tre — S248112 in NC species; 5-yr cyc).
+    NC_TRE = """
+   1      248112       0101   011SP 11510   0734   00111     0  0
+   2      248112       0101   031DF 001     0026   00222     0  0
+   3      248112       0102   011RF 06523   0308   00111     0  0
+   4      248112       0102   011SP 07906   0753   00111     0  0
+   5      248112       0102   018SP 346            10322     0  0
+   6      248112       0103   011SP 08007   0633   96222     0 56
+   7      248112       0103   011WF 06220   0385   00111     0  0
+   8      248112       0103   011SP 084       54   00111     0  0
+   9      248112       0103   011SP 09511   0603   00111     0  0
+  10      248112       0104   011DF 040     0203   00111    50  0
+  11      248112       0104   011SP 08212   0655   50111     0  0
+  12      248112       0105   011DF 012     0116   00222    42  0
+  13      248112       0105   011DF 019     0135   00222    47  0
+  14      248112       0105   016SP 072            11322     0  0
+  15      248112       0105   031WF 001     0037   00222     0  0
+  16      248112       0105   011WF 05309   0277   00111     0  0
+  17      248112       0106   011DF 10010   0654   00111     0  0
+  18      248112       0106   011WF 06112   0388   00111     0  0
+  19      248112       0106   011DF 12716   0674   00111     0  0
+  20      248112       0107                          800
+  21      248112       0108   011SP 09605   0603   00222     0  0
+  22      248112       0108   011DF 10409   0555   97222     0 49
+  23      248112       0108   011SP 085       03   00111     0  0
+  24      248112       0109   011WF 10910   0657   00111     0  0
+  25      248112       0109   011DF 09418   0604   00111     0  0
+  26      248112       0110   011RF 03206   0175   00222    32  0
+  27      248112       0110   011RF 001     0027   00222     0  0
+  28      248112       0110   011RF 05810   0287   00111     0  0
+  29      248112       0110   011RF 05010   0253   00111    37  0
+  30      248112       0111   011WF 06614   0307   00111     0  0
+"""
+    @testset "NC WRD .sum DELTA vs FVSnc_clean (rdblk1nc.f; live + early-cornered)" begin
+        # oracle rd−ctrl from live /workspace/.ncwork/FVSnc_clean (5-yr cyc, 11 rows).
+        # NC's ABSOLUTE baseline straddles the oracle in the LATE cycles (the #206
+        # OLDRN/RDPSRT self-thin realization shifts phase once the disease has thinned
+        # the dense stand), so the rd−ctrl delta only corners tightly in the pre-
+        # divergence window (rows 2:6, through 2015). Full-run liveness is still
+        # asserted (this is a baseline straddle, NOT an RD defect).
+        NC_ORA_dTPA = [0,-10,-14,-20,-25,-28,-10,-2,-5,-5,21]
+        NC_ORA_dBA  = [0, -1, -3, -7,-11,-15,-13,-13,-14,-16,-2]
+        dtpa, dba = _wrd_delta(FVSjl.Klamath(), NC_TRE,
+                               "STDINFO        505.0       84.      60.0     315.0      30.0      45.0")
+        @test length(dtpa) == 11
+        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on NC
+        @test minimum(dba) <= -9                     # strong disease BA loss (oracle −16)
+        @test all(dba[k] <= 0 for k in 2:11)          # disease only removes BA
+        for k in 2:6                                   # pre-divergence window
+            @test abs(dtpa[k] - NC_ORA_dTPA[k]) <= 3
+            @test abs(dba[k]  - NC_ORA_dBA[k])  <= 5
         end
     end
 
