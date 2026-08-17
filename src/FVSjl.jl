@@ -333,6 +333,7 @@ include("engine/root_disease.jl")        # Western Root Disease (WRD) — Chunk 
 include("engine/dfb.jl")                  # Douglas-fir Beetle (DFB) — beachhead: keyword reader + deterministic routines (inert seam)
 include("engine/dftm.jl")                 # Douglas-fir Tussock Moth (DFTM) — chunk 0: keyword reader + TMRANN RNG + TMOTPR (inert seam)
 include("engine/wpbr.jl")                 # White Pine Blister Rust (WPBR) — chunk 0: keyword reader + BRANN RNG + defaults (inert seam)
+include("engine/wwpb.jl")                 # Westwide Pine Beetle (WWPB) — beachhead: BMIN output-block reader + BMRANN RNG + defaults (inert; PPE outbreak driver absent)
 include("engine/climate.jl")
 include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
 include("io/fia_translate.jl")           # raw FIADB (PLOT/COND/TREE/…) → FVS-ready records
