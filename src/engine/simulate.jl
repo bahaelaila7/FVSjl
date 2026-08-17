@@ -34,6 +34,7 @@ function setup_growth!(s::StandState)
     compute_density!(s)
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
+    dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
@@ -574,6 +575,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # diameter_growth! overwrites diam_growth. Without it WK1=0 ⇒ the Hamilton G collapses to the DGT floor ⇒
     # RIP over-predicts ⇒ over-kill. (KT/IE/TT use the post-update snapshot at :527, which misses cycle-1's measured DG.)
     s.variant isa BritishColumbia && (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
+    # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
+    # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
+    # (no-op, byte-identical) unless a DFTM block is active and an outbreak is due.
+    dftm_predict!(s)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
@@ -629,6 +635,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         dfb_win!(s, old_tpa)               # DFBWIN windthrow (gradd.f:72) — WK2 windthrow kill + OKILL feed, BEFORE DFBDRV
         dfb_apply!(s, old_tpa, fint)       # DFBDRV (gradd.f:74)
         s.dfb.okill = 0.0f0                # DFBMRT clears OKILL each cycle; guard leaks if DFBDRV early-returns
+    end
+    # DFTM tmcoup.f (GARBEL→DFTMOD→mortality+growth-loss+top-kill) gated by DFTMGO: on a scheduled
+    # tussock-moth outbreak, raise host WK2 mortality and reduce DG/HTG + apply top-kill. FVS calls
+    # TMCOUP in GRADD after MORTS/MISTOE (gradd.f:103), so this sits after the DFB block on the
+    # non-tripled cycle stand, reading cycle-start old_tpa. Inert (byte-identical) unless a DFTM block
+    # is active and dftm_predict! armed the coupling this cycle.
+    if !tripled && s.dftm !== nothing && s.dftm.active
+        dftm_apply!(s, old_tpa, fint)      # TMCOUP (gradd.f:103)
     end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
