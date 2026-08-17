@@ -135,4 +135,48 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test rows(min_key)   == base       # WSBW/DAMAGE/END only ⇒ byte-identical
         @test rows(wsbwe_key)  == base       # full WSBW block ⇒ still byte-identical (inert)
     end
+
+    # --- DEFOLIATION EFFECT KERNEL goldens (dump-replay validated bit-exact vs the
+    # instrumented live oracle FVSem_wsbwe on a heavy DF/ES/AF host stand under
+    # sustained 85/80/70/60% DEFOL; see scratchpad/wsbwe/GOLDENS.md). Each golden is
+    # (inputs Float32-hex → output Float32-hex) captured from bwedam/bwepdm dumps. ---
+    _f(h) = reinterpret(Float32, parse(UInt32, h; base = 16))
+
+    @testset "BWEDAM Nichols growth-loss RDDS/RHTG (bit-exact, 90/90 full-run)" begin
+        # (avprbo_top, avprbo_whole, rddsm1, rhtgm1) → (rdds, rhtg)
+        for (a1, a2, r1, h1, rd, rh) in (
+            ("3E199998","3E199998","3F800000","3F800000","3EBA93DE","3F030E28"), # yr1 carry=1
+            ("3E199998","3E199997","3F800000","3F800000","3EBA93DC","3F030E28"),
+            ("3E199998","3E199998","3EBA93DE","3F030E28","3E6E7E17","3EBA67EF"), # yr2 carry≠1
+            ("3E199998","3E199998","3EBA93DC","3F030E28","3E6E7E15","3EBA67EF"))
+            @test _hexw(_FW.wsbwe_rdds(_f(a2), _f(r1))) == rd
+            @test _hexw(_FW.wsbwe_rhtg(_f(a1), _f(h1))) == rh
+        end
+    end
+
+    @testset "BWEPDM Marsden mortality-prob logistic (bit-exact, 81/81 full-run)" begin
+        # (ih, elev, pntba, pnthba, mft, mfm, ktk) → pr
+        for (ih, el, pb, hb, mft, mfm, ktk, pr) in (
+            (2,"42580000","400A809A","400A809A","41200000","41200000","00000000","3E402809"), # DF
+            (2,"42580000","3FAE5663","3FAE5663","41200000","41200000","00000000","3E3F2A59"),
+            (5,"42580000","400A809A","400A809A","41200000","41200000","00000000","3E402809"), # ES
+            (4,"42580000","3FDB330C","3FDB330C","41200000","41200000","00000000","3E879871")) # AF
+            @test _hexw(_FW.wsbwe_mort_pr(ih, _f(el), _f(pb), _f(hb),
+                                          _f(mft), _f(mfm), _f(ktk))) == pr
+        end
+        # bwepdm.f:645 guard — zero missing-foliage ⇒ PR=0
+        @test _FW.wsbwe_mort_pr(2, _f("42580000"), _f("400A809A"), _f("400A809A"),
+                                0.0f0, 5.0f0, 0.0f0) == 0.0f0
+    end
+
+    @testset "wsbwe_go gate (BWEGO manual-DEFOL branch) + apply! inert" begin
+        w = _FW.wsbwe_defaults!()
+        @test _FW.wsbwe_go(w) == false                 # not active
+        w.active = true; w.ldefol = true
+        @test _FW.wsbwe_go(w) == false                 # active+ldefol but no schedule
+        push!(w.defol_sched, (1990f0,3f0,0f0,85f0,80f0,70f0,60f0))
+        @test _FW.wsbwe_go(w) == true                  # LDEFOL + scheduled ⇒ fires
+        w.ldefol = false; w.lbudl = true
+        @test _FW.wsbwe_go(w) == false                 # BUDLITE branch deferred
+    end
 end
