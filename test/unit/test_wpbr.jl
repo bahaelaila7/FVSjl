@@ -1,9 +1,10 @@
 # White Pine Blister Rust (WPBR) canker model — keyword reader (brin.f, "BRUST"
 # keyword, keywds.f option 75) + the BRANN Lehmer/MINSTD RNG + the BRINIT/BRBLKD
-# defaults (chunk 0). Engine-inert: no simulate.jl seam wires WPBR into a
+# defaults (chunk 0) PLUS the canker generation/growth/status/mortality MATH
+# kernels (dynamics chunk). Engine-inert: no simulate.jl seam wires WPBR into a
 # projection, so a BRUST-present stand projects BYTE-IDENTICALLY to one without.
 #
-# VALIDATED HERE (bit-exact, 0 ULP):
+# VALIDATED HERE (bit-exact, 0 ULP unless noted):
 #   * BRANN  — the pristine brann.f MINSTD LCG (seed 55329) → 6-draw stream, and
 #     the BRNSED reseed semantics (even→forced-odd, LSET=false reset-to-SS).
 #     Goldens from scratchpad/wpbr/driver_brann.f (gfortran-16 over the exact
@@ -13,6 +14,12 @@
 #   * BRINIT/BRBLKD defaults + the variant BRSPM host-species map (IE/SO/CR/base).
 #   * The brin.f keyword reader populating s.wpbr (parse-correctness).
 #   * The INERT-seam A/B: a full BRUST block ⇒ .sum byte-identical to no BRUST.
+#   * DYNAMICS kernels — dump-replay vs the relinked+g16-instrumented FVSie_wpbr
+#     oracle (HEX goldens, so 0 ULP): BRSETP BRGD/BRHTBC init, BRGI/BRSTAR GI+
+#     TSTARG (GI ≤1 ULP on one libm-powf edge, report-only), BRTARG RI + BRIBA,
+#     BRECAN RITEM/TNEWC/PLI/NUMTIM + canker placement TOUT/PLETH, BRCGRO bole
+#     girdle growth + status→kill. Fed the oracle's own hex inputs (equal-inputs
+#     dump-replay); the end-to-end .sum-DELTA is cornered by the IE #206 straddle.
 #
 # DOCTRINE: WPBR ships nowhere (every FVS*_buildDir links the base/exbrus.f no-op
 # stub), so a numeric oracle is a RELINK (wpbr/*.o swapped for exbrus.o — recipe
@@ -178,5 +185,121 @@ const _WPBR_MIN = "BRUST\nEND\n"
         base = rows(ctrl_key)
         @test rows(min_key)  == base       # BRUST/END only ⇒ byte-identical
         @test rows(wpbr_key) == base       # full BRUST block ⇒ still byte-identical (inert seam)
+    end
+end
+
+# =============================================================================
+# WPBR dynamics kernels — dump-replay BIT-EXACT vs the relinked (+g16-instrumented)
+# FVSie_wpbr oracle on the IE goldens stand (S248112, RUSTINDX 0.05, 3 WP hosts +
+# 2 DF). Goldens are the oracle's REAL*4 values printed in HEX (Z8 edit descriptor,
+# scratchpad/wpbr/instr2.py → unit 66; the instrumented .sum stays byte-identical
+# to the clean relink), so every golden round-trips to the exact IEEE Float32 bit
+# pattern (an F-format decimal is under-precise for large magnitudes → 1-ULP
+# artifacts). Inputs are fed to the Julia kernels from the SAME oracle hex, so this
+# validates the deterministic init + index + canker generation/growth/status math
+# on EQUAL INPUTS, 0 ULP. The end-to-end .sum-DELTA is CORNERED by the IE #206
+# growth straddle (MEASURED — FVSjl-off already ≠ FVSie_wpbr-off on this stand), so
+# the dump-replay here is the doctrine-valid check; no engine seam is wired (inert).
+# =============================================================================
+_fhw(h) = reinterpret(Float32, parse(UInt32, h; base = 16))   # hex string → Float32
+@testset "WPBR dynamics kernels — dump-replay bit-exact HEX (FVSie_wpbr, 0 ULP)" begin
+
+    # ULP distance between two Float32 (for the one report-only libm-powf edge).
+    _ulps(a, b) = abs(Int(reinterpret(Int32, Float32(a))) - Int(reinterpret(Int32, Float32(b))))
+
+    @testset "BRSETP per-tree init (BRGD ground-diam + BRHTBC crown-base, cm)" begin
+        # HSETP goldens: (HT, DBH, ICR) → hex(BRGD), hex(BRHTBC)
+        @test _hexw(_FW.wpbr_brgd(65, 12)) == "42015D1B"
+        @test _hexw(_FW.wpbr_brgd(50,  8)) == "41AFB401"
+        @test _hexw(_FW.wpbr_brgd(73, 15)) == "4220A13F"
+        @test _hexw(_FW.wpbr_brhtbc(65, 35)) == "44A0F8F6"
+        @test _hexw(_FW.wpbr_brhtbc(50, 35)) == "4477A667"
+        @test _hexw(_FW.wpbr_brhtbc(73, 35)) == "44B4C8D6"
+        # BRGD floored at BRDBH only when BRHT<1.14 m (HT<3.74 ft) makes the ratio blow up
+        @test _FW.wpbr_brgd(3, 20) == Float32(20 * 2.54f0)
+    end
+
+    @testset "BRGI growth index + BRSTAR sum-target (GI, TSTARG)" begin
+        # HTARG cyc0 goldens: iiag=60 (stand age), hht = HT·0.3048.
+        # TSTARG is bit-exact; GI matches ≤1 ULP — the McDonald `base**(-2.071822)`
+        # is an openlibm-vs-glibc powf 1-ULP edge (r4). GI is REPORT-ONLY (AVGGI),
+        # NOT in the BRECAN/BRCGRO mortality path, so it never reaches the .sum.
+        g1, t1 = _FW.wpbr_brgi(60, Float32(65 * 0.3048f0))
+        @test _hexw(g1) == "41820533" && _hexw(t1) == "463995D7"
+        g2, t2 = _FW.wpbr_brgi(60, Float32(50 * 0.3048f0))
+        @test _hexw(g2) == "4173D70A" && _hexw(t2) == "462A0637"
+        g4, t4 = _FW.wpbr_brgi(60, Float32(73 * 0.3048f0))
+        @test _ulps(g4, _fhw("41921034")) <= 1 && _hexw(t4) == "4659855B"
+        @test _FW.wpbr_brstar(19.812f0) > 0.0f0
+        # GI clamps: old + short → 15.24 floor; young + tall → 38.10 cap
+        gs, _ = _FW.wpbr_brgi(400, 0.1f0); @test gs == 15.24f0
+        gt, _ = _FW.wpbr_brgi(2, 60f0);    @test gt == 38.10f0
+    end
+
+    @testset "BRTARG per-tree RI + BRIBA basal-area rust index" begin
+        # RI = RIDEF·RESIST(sp,stock)·RIAF; golden path RI = 0.05·1·1
+        @test _FW.wpbr_ri(0.05f0, 1.0f0, 1.0f0) == 0.05f0
+        @test _FW.wpbr_ri(0.05f0, 0.33f0, 1.0f0) == Float32(0.05f0 * 0.33f0)
+        # HIBA cyc0 golden: BA=0x41A00001, RIBPRP=(0.2,0.3,0.5), RSF=(2.3,1,0.64) → RIDEF
+        @test _hexw(_FW.wpbr_briba(_fhw("41A00001"), (0.2f0, 0.3f0, 0.5f0),
+                                   (2.3f0, 1.0f0, 0.64f0))) == "3BEF9CBE"
+    end
+
+    @testset "BRECAN expected-canker probabilities (RITEM, TNEWC, PLI, NUMTIM)" begin
+        # HECAN cyc1 trees 1,2,4 (inputs HITE/SSTAR from oracle hex), DFACT=0.33, RI=0.05
+        r1 = _FW.wpbr_brecan_probs(_fhw("41BF2B6E"), 0.05f0, _fhw("44042CF7"), 0.33f0)
+        @test _hexw(r1[1]) == "3C234CED" && _hexw(r1[2]) == "40A8A0B2"
+        @test _hexw(r1[3]) == "3F5A9DBB" && r1[4] == 6
+        r2 = _FW.wpbr_brecan_probs(_fhw("41A2A13D"), 0.05f0, _fhw("43BBFBC6"), 0.33f0)
+        @test _hexw(r2[1]) == "3CD52967" && _hexw(r2[2]) == "411C86E3"
+        @test _hexw(r2[3]) == "3F66AE78" && r2[4] == 10
+        r4 = _FW.wpbr_brecan_probs(_fhw("41D2B193"), 0.05f0, _fhw("441A61AF"), 0.33f0)  # >25 m ⇒ RI·0.1
+        @test _hexw(r4[1]) == "3BA3D70B" && _hexw(r4[2]) == "40459BC2"
+        @test _hexw(r4[3]) == "3F4887E2" && r4[4] == 4
+    end
+
+    @testset "BRECAN canker placement (TOUT distance-out + PLETH lethality)" begin
+        # HPLAC cyc1 tree1 canker1: SSTHT/CRLEN/TUP from oracle hex → TOUT, PLETH
+        tout, pleth = _FW._wpbr_tout_pleth(_fhw("41A1C36C"), _fhw("4430EDC0"), _fhw("44EFDD40"))
+        @test _hexw(tout) == "41B77909" && _hexw(pleth) == "3F1B8E61"
+        # far-out canker (2nd HPLAC line, power-law PLETH branch) stays ≥0
+        _, pl2 = _FW._wpbr_tout_pleth(_fhw("41A1C36C"), _fhw("4430EDC0"), _fhw("44CE9E86"))
+        @test _hexw(pl2) == "3D0C601D" && pl2 >= 0.0f0
+    end
+
+    @testset "BRCGRO bole-canker girdle growth + status→kill" begin
+        # HCGBO record2 cyc1 first grown year: GIRAMT/GROBOL from oracle hex, GIRD 0→
+        @test _hexw(_FW._wpbr_girdle_update(0.0f0, _fhw("40CC3238"), _fhw("400B9771"))) == "4208B917"
+        # cap at 100
+        @test _FW._wpbr_girdle_update(90.0f0, 6.38113f0, 6.38113f0) == 100.0f0
+        # status classification (shared BRCGRO/BRCSTA): a fully-girdled bole canker
+        # below the base of crown kills the tree (code 7 — the CGKIL golden event).
+        th = (exht = 6.0f0 * 30.48f0, htmin = 3.0f0 * 2.54f0, exdmin = 3.0f0 * 2.54f0,
+              girmax = 50.0f0, girmrt = 100.0f0, outnld = 24.0f0 * 2.54f0, outdst = 6.0f0 * 2.54f0)
+        # gird=100 (≥GIRMRT), up below crown (≤htbcr) ⇒ 7 kill
+        @test _FW.wpbr_canker_status(0.0f0, 200.0f0, 100.0f0, 30.0f0;
+              exht = th.exht, htmin = th.htmin, exdmin = th.exdmin, girmax = th.girmax,
+              girmrt = th.girmrt, htbcr = 400.0f0, phtst = 300.0f0, outnld = th.outnld, outdst = th.outdst) == 7
+        # gird=100 but up above crown ⇒ 5 top-kill
+        @test _FW.wpbr_canker_status(0.0f0, 500.0f0, 100.0f0, 30.0f0;
+              exht = th.exht, htmin = th.htmin, exdmin = th.exdmin, girmax = th.girmax,
+              girmrt = th.girmrt, htbcr = 400.0f0, phtst = 300.0f0, outnld = th.outnld, outdst = th.outdst) == 5
+        # small bole canker (gird≤GIRMAX, in excise window) ⇒ 3 excisable
+        @test _FW.wpbr_canker_status(0.0f0, 100.0f0, 10.0f0, 30.0f0;
+              exht = th.exht, htmin = th.htmin, exdmin = th.exdmin, girmax = th.girmax,
+              girmrt = th.girmrt, htbcr = 400.0f0, phtst = 300.0f0, outnld = th.outnld, outdst = th.outdst) == 3
+        # far-out branch canker ⇒ 1 non-lethal
+        @test _FW.wpbr_canker_status(200.0f0, 100.0f0, 0.0f0, 30.0f0;
+              exht = th.exht, htmin = th.htmin, exdmin = th.exdmin, girmax = th.girmax,
+              girmrt = th.girmrt, htbcr = 400.0f0, phtst = 300.0f0, outnld = th.outnld, outdst = th.outdst) == 1
+    end
+
+    @testset "BRANN stream starts clean at the first BRECAN draw (seed 55329)" begin
+        # BRINIT resets BRS0→BRSS=55329; BRSTYP (default stock) + BRCREM (no prune/
+        # excise) draw NOTHING, so the run's first BRANN is BRECAN tree1 year1.
+        # Oracle ECAND cyc1 tree1 J=1 = 0.433025181 = first draw from 55329 = 3EDDB57A.
+        w = _FW.wpbr_defaults!(_FW.InlandEmpire())
+        @test _hexw(_FW.wpbr_rand!(w)) == _G_BRANN[1]
+        @test _FW.wpbr_rand!(w) == _fhw("3F5AB21B")   # 2nd draw = ECAND canker up-position
     end
 end
