@@ -871,6 +871,10 @@ function run_keyfile(keypath::AbstractString;
                        hrvcarbon_collect = hc_rows)
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
+        # COVER report (CVOUT): "CANOPY COVER STATISTICS" table, appended after the .sum
+        # rows (report-only; never touches .sum/tree). Gated on the COVER activity 900.
+        (s.cover !== nothing && s.cover.active) &&
+            cover_report(s.cover, out, String(sid), mid, strip(s.control.title))
         csv_stands === nothing || push!(csv_stands, (String(sid), mid, strip(s.control.title), rows))
         if has_db
             case += 1

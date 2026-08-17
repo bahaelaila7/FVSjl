@@ -209,6 +209,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     end
     cum_rem_merch = 0f0
     prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
+    cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
     for c in 0:ncyc
         compute_forest_type!(s)
@@ -223,6 +224,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # COVER report-only accumulator (CVCNOP): the canopy statistics of the start-of-cycle
+        # (pre-thin) stand at year r.year → slot IP1=c+1. Gated on the COVER activity 900.
+        if s.cover !== nothing && s.cover.active
+            compute_density!(s)
+            c == 0 && (cover_year0 = Int(r.year))
+            cover_fint = cycle_period_at(s.control, c == 0 ? 0 : c - 1)
+            cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+        end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
         # (fire kill + snag booking + consumption) but BEFORE UPDATE grows the stand. For a non-fire cycle
         # that phase equals the cycle-top, pre-growth stand (sampled here). For a SIMFIRE cycle the row

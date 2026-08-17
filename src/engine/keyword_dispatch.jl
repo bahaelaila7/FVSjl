@@ -2445,6 +2445,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "BRUST";    kw_brin!(s, rec, kr)      # White Pine Blister Rust block (keywds.f opt 75; PRUNE/EXCISE/RUSTINDX/BRSEED/CANKDATA/… → s.wpbr; INERT — no engine seam wired yet)
         elseif kw == "MPB";      kw_mpbin!(s, rec, kr)      # Mountain Pine Beetle block (keywds.f 'MPB'; MPBSTART/POPDYN/INITMORT/QVALUES/… → s.mpb + gated Cole rate-of-loss mortality seam)
         elseif kw == "WSBW";     kw_wsbwe!(s, rec, kr)      # Western Spruce Budworm block (keywds.f opt 8 'WSBW'; DEFOL/GENDEFOL/OBSCHED/DAMAGE/… → s.wsbwe; INERT — defoliation effect seam deferred)
+        elseif kw == "COVER";    kw_coverin!(s, rec, kr)    # COVER understory/canopy-cover block (keywds.f opt 46 → CVIN; CANOPY/SHRUBS/COVER/… → s.cover; REPORT-ONLY, INERT for growth/mort)
         elseif kw == "BMIN";     kw_wwpbin!(s, rec, kr)     # Westwide Pine Beetle stand-level block (keywds.f opt 126; MAINOUT/TREEOUT/BKPOUT/VOLOUT/END → s.wwpb; INERT — output-only, PPE outbreak driver absent)
         elseif kw == "MISTOE";   kw_mistoe!(s, rec)        # BC NEWSPRED/NISI dwarf-mistletoe (#196): activate DM extension
         elseif kw == "NEWSPRED"; kw_newspred!(s, rec)      #   use the NISI spatial spread model (misin.f opt 12)
