@@ -714,4 +714,115 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test FVSjl.rd_powi(0.5f0, 3) === 0.125f0
     end
 
+    # -------------------------------------------------------------------------
+    # WRD on a SECOND variant — Inland Empire (IE). The ONLY variant-specific RD
+    # block-data is the IRTSPC host-species crosswalk (rd/rdblk1<v>.f); the host
+    # tables HABFAC/PNINF/PKILLS/IDITYP/PCOLO (rd/rdinit.f) are byte-identical
+    # across variants (verified: FVSie_buildDir/rdinit.f == FVSkt_buildDir/rdinit.f).
+    # `rd_irtspc_for(variant)` dispatches; `kw_rdin!` selects it per stand.
+    # Oracle = live relinked /workspace/.iework/FVSie_clean (links rdblk1ie.f).
+    # -------------------------------------------------------------------------
+    @testset "RD per-variant IRTSPC dispatch (rdblk1ie.f golden)" begin
+        # rd/rdblk1ie.f DATA IRTSPC (IE 23 species → base RD species; MM,PB→OTH=30).
+        @test FVSjl.RD_IRTSPC_IE ==
+            Int32[1,2,3,4,5,6,7,8,9,10,11,22,23,36,33,26,38,19,24,30,30,18,17]
+        @test length(FVSjl.RD_IRTSPC_IE) == 23                 # IE MAXSP
+        @test FVSjl.rd_irtspc_for(FVSjl.InlandEmpire()) === FVSjl.RD_IRTSPC_IE
+        @test FVSjl.rd_irtspc_for(FVSjl.Kootenai())     === FVSjl.RD_IRTSPC_KT
+        # base NI/CI/KT default for any other variant (rd/rdblk1.f)
+        @test FVSjl.rd_irtspc_for(FVSjl.CentralIdaho()) === FVSjl.RD_IRTSPC_KT
+        # KT crosswalk unchanged by the refactor (bit-exact guarantee)
+        @test FVSjl.RD_IRTSPC_KT == Int32[1,2,3,4,5,6,7,8,9,10,30]
+    end
+
+    # An IE stand whose species (LM,MH,PM,PY,WB → base RD 23,11,33,38,22) index the
+    # IE-SPECIFIC IRTSPC entries KT never reaches (KT's 11-elem table would be an
+    # out-of-range index) — so this exercises the new dispatch, not just shared 1–10.
+    IE_TRE = """
+   1      248112       0101   011PM 11510   0734   00111     0  0
+   2      248112       0101   031DF 001     0026   00222     0  0
+   3      248112       0102   011WB 06523   0308   00111     0  0
+   4      248112       0102   011LM 07906   0753   00111     0  0
+   5      248112       0102   018LM 346            10322     0  0
+   6      248112       0103   011LM 08007   0633   96222     0 56
+   7      248112       0103   011PY 06220   0385   34111     0  02
+   8      248112       0103   011LM 084       54   00111     0  0
+   9      248112       0103   011PM 09511   0603   00111     0  0
+  10      248112       0104   011DF 040     0203   00111    50  0
+  11      248112       0104   011PY 08212   0655   50111     0  0
+  12      248112       0105   011DF 012     0116   00222    42  0
+  13      248112       0105   011DF 019     0135   00222    47  0
+  14      248112       0105   016PM 072            11322     0  0
+  15      248112       0105   031PY 001     0037   34222     0  05
+  16      248112       0105   011GF 05309   0277   00111     0  0
+  17      248112       0106   011DF 10010   0654   00111     0  0
+  18      248112       0106   011GF 06112   0388   00111     0  0
+  19      248112       0106   011DF 12716   0674   00111     0  0
+  20      248112       0107                          800
+  21      248112       0108   011PM 09605   0603   00222     0  0
+  22      248112       0108   011DF 10409   0555   97222     0 49
+  23      248112       0108   011PM 085       03   00111     0  0
+  24      248112       0109   011GF 10910   0657   00111     0  0
+  25      248112       0109   011DF 09418   0604   00111     0  0
+  26      248112       0110   011PY 03206   0175   00222    32  0
+  27      248112       0110   011MH 001     0027   00222     0  0
+  28      248112       0110   011MH 05810   0287   00111     0  0
+  29      248112       0110   011MH 05010   0253   00111    37  0
+  30      248112       0111   011GF 06614   0307   00111     0  0
+"""
+    ie_head(title) = """
+SCREEN
+NOAUTOES
+NOTRIPLE
+STATS
+STDIDENT
+S248112IE $title
+DESIGN                                        11.0       1.0
+STDINFO        118.0     570.0      60.0     315.0      30.0      34.0
+INVYEAR       1990.0
+NUMCYCLE        10.0
+TREEFMT
+(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,
+T52,I2,T66,5I1,T54,7I1,T75,F3.0)
+TREEDATA
+"""
+    iedir = mktempdir()
+    ie_ctrl = joinpath(iedir, "iectrl.key")
+    ie_rd   = joinpath(iedir, "ierd.key")
+    write(ie_ctrl, ie_head("RD CONTROL") * "ECHOSUM\nPROCESS\nSTOP\n")
+    write(ie_rd,   ie_head("RD ACTIVE ") * _RDIN_BLOCK * "ECHOSUM\nPROCESS\nSTOP\n")
+    write(joinpath(iedir, "iectrl.tre"), IE_TRE)
+    write(joinpath(iedir, "ierd.tre"),   IE_TRE)
+    ie = FVSjl.InlandEmpire()
+
+    @testset "IE RDIN reader selects the IE host crosswalk" begin
+        rd = nothing
+        for s in FVSjl.each_stand(ie_rd; variant = ie); rd = s.root_disease; break; end
+        @test rd !== nothing
+        @test rd.irtspc == FVSjl.RD_IRTSPC_IE        # per-variant dispatch wired in kw_rdin!
+        @test length(rd.irtspc) == 23
+        @test FVSjl.rd_active(rd) == true
+        @test rd.maxrr == 3                          # RRTYPE 3 (Armillaria)
+    end
+
+    @testset "IE engine seam is LIVE — WRD .sum DELTA vs FVSie oracle (cornered)" begin
+        # Oracle rd−ctrl delta captured from live /workspace/.iework/FVSie_clean on
+        # this exact IE stand (rdblk1ie.f linked; RRType 3, RRInit 0 10 10 20 0.1 10 3,
+        # SArea 100, 10 cyc). FVSjl's IE baseline straddles the oracle absolute (#206
+        # OLDRN growth straddle), so the DELTA is compared, cornered within ±2.
+        IE_ORA_dTPA = Int[0, -5, -5, -4, -2, -3, -1, -2, -1, -1,  0]
+        IE_ORA_dBA  = Int[0, -3, -5, -7, -8, -9, -10, -11, -12, -13, -15]
+        bc = split.(_datarows(FVSjl.run_keyfile(ie_ctrl; variant = ie, output = :sum)))
+        br = split.(_datarows(FVSjl.run_keyfile(ie_rd;   variant = ie, output = :sum)))
+        @test length(bc) == length(br) == 11
+        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:11]
+        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:11]
+        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on IE
+        @test dba[end] <= -12                        # 2090 BA loss (oracle −15; cornered)
+        for k in 1:11
+            @test abs(dtpa[k] - IE_ORA_dTPA[k]) <= 2
+            @test abs(dba[k]  - IE_ORA_dBA[k])  <= 2
+        end
+    end
+
 end
