@@ -2442,6 +2442,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "RDIN";     kw_rdin!(s, rec, kr)      # Western Root Disease (WRD) block (RRTYPE/RRINIT/SAREA/… → s.root_disease)
         elseif kw == "DFB";      kw_dfbin!(s, rec, kr)     # Douglas-fir Beetle block (keywds.f opt 100; MANSTART/MANSCHED/OLENGTH/EXYRMORT/… → s.dfb + gated DFBDRV mortality seam)
         elseif kw == "DFTM";     kw_dftmin!(s, rec, kr)    # Douglas-fir Tussock Moth block (keywds.f opt 7; REPORT/NUMCLASS/MANSTART/RANSCHED/PROBMETH/… → s.dftm; INERT — no engine seam wired yet)
+        elseif kw == "BRUST";    kw_brin!(s, rec, kr)      # White Pine Blister Rust block (keywds.f opt 75; PRUNE/EXCISE/RUSTINDX/BRSEED/CANKDATA/… → s.wpbr; INERT — no engine seam wired yet)
         elseif kw == "MISTOE";   kw_mistoe!(s, rec)        # BC NEWSPRED/NISI dwarf-mistletoe (#196): activate DM extension
         elseif kw == "NEWSPRED"; kw_newspred!(s, rec)      #   use the NISI spatial spread model (misin.f opt 12)
         elseif kw == "DMAUTO";   kw_dmauto!(s, rec)        #   spatial autocorrelation decay (DMALPHA/DMBETA)
