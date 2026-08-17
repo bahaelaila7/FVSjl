@@ -35,6 +35,7 @@ function setup_growth!(s::StandState)
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
+    wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
@@ -643,6 +644,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # is active and dftm_predict! armed the coupling this cycle.
     if !tripled && s.dftm !== nothing && s.dftm.active
         dftm_apply!(s, old_tpa, fint)      # TMCOUP (gradd.f:103)
+    end
+    # WPBR wpbr/brtreg.f (BRTREG, gradd.f:126): after MORTS/MISTOE (and the DFB/DFTM
+    # couplers), grow this cycle's blister-rust cankers and impose canker mortality —
+    # a fully girdled bole canker sets WK2=PROB·0.99999 (t.tpa override), a top-kill
+    # canker lowers ITRUNC/NORMHT and reduces the crown. Per-record canker state
+    # persists across cycles in w.recs. Non-fire, non-tripled path only; inert
+    # (byte-identical) unless a BRUST block is active with a host pine present.
+    if !tripled && s.wpbr !== nothing && (s.wpbr::WpbrState).active
+        wpbr_brtreg!(s, fint, old_tpa)
     end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from

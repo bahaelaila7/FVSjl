@@ -100,6 +100,45 @@ function wpbr_brspm(variant)
 end
 
 """
+    WpbrRec
+
+Persistent per-tree-record WPBR state (the FVS `BRCOM` per-tree arrays, dimensioned
+by tree record: `BRAGE`/`BRGD`/`BRHTBC`/`RI`/`GI`/`TSTARG`/`ESTCAN`/`UPMARK`/`BRPB`/
+`ISTOTY`/`IBRSTAT`/`ITCAN`/`ILCAN`, plus the `(10,·)` canker arrays `DUP`/`DOUT`/
+`GIRDL`/`ISTCAN`). One `WpbrRec` per host tree record, keyed in `WpbrState.recs` by
+the record's stable `(plot_id, tree_id)` identity so it rides through mortality
+compaction (FVS keeps BR arrays aligned to the physical slot via BRTDEL/BRCMPR;
+keying by identity is the equivalent that survives FVSjl's copy_tree! compaction).
+Cankers 1..`ilcan` are the active/tracked lethal cankers (max `WPBR_MAXCAN`=10).
+"""
+mutable struct WpbrRec
+    brage::Float32             # BRAGE — tree age (accumulates 1/yr in BRTREG)
+    brgd::Float32              # BRGD — ground diameter (cm); BRUPDT += DG·2.54/cyc
+    brhtbc::Float32            # BRHTBC — height to base of crown (cm), monotone up
+    ri::Float32                # RI — per-tree rust index
+    gi::Float32                # GI — McDonald growth index (m)
+    tstarg::Float32            # TSTARG — cumulative sum-target (needles·10³)
+    estcan::Float32            # ESTCAN — expected cankers this cycle
+    upmark::Float32            # UPMARK — lowest top-kill canker height (cm); 1e5=none
+    brpb::Float32              # BRPB — blister-rust mortality accumulator
+    istoty::Int32              # ISTOTY — stock type (1..4; 5=planted pending BRSTYP)
+    ibrstat::Int32             # IBRSTAT — tree infection status (0 clean,1 inf,4,7 dead,9 escape)
+    itcan::Int32               # ITCAN — running total cankers (lethal+non)
+    ilcan::Int32               # ILCAN — count of tracked (potentially-lethal) cankers
+    dup::Vector{Float32}       # DUP(10) — canker distance up (cm)
+    dout::Vector{Float32}      # DOUT(10) — canker distance out on branch (cm); 0=bole
+    girdl::Vector{Float32}     # GIRDL(10) — bole-canker girdle %
+    istcan::Vector{Int32}      # ISTCAN(10) — canker status code (−1 removed,0..7)
+end
+
+const WPBR_MAXCAN = 10         # ILCAN array bound (BRCOM canker dimension)
+
+WpbrRec() = WpbrRec(0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 1f5, 0f0,
+                    Int32(0), Int32(0), Int32(0), Int32(0),
+                    zeros(Float32, WPBR_MAXCAN), zeros(Float32, WPBR_MAXCAN),
+                    zeros(Float32, WPBR_MAXCAN), zeros(Int32, WPBR_MAXCAN))
+
+"""
     WpbrState
 
 White Pine Blister Rust model state — the FVS `BRCOM`/`DPCOM`/`RIBES` commons
@@ -164,6 +203,13 @@ mutable struct WpbrState <: AbstractWpbrState
     # --- scheduled activities (OPNEW) recorded for the future engine seam ---
     # each entry = (idt, iact, prms) — NOT acted on in the inert chunk.
     activities::Vector{Tuple{Int,Int,Vector{Float32}}}
+    # --- per-cycle BRTREG engine seam (live) ---
+    recs::Dict{Tuple{Int32,Int32},WpbrRec}   # persistent per-record canker state, keyed by identity
+    setup_done::Bool                          # BRSETP per-tree init has run
+    thprob::NTuple{2,Float32}                 # THPROB — total host TPA per BR species (BRSTAT)
+    tretn::NTuple{2,Float32}                  # TRETN — infected host TPA per BR species (BRECAN/BRSTAT)
+    tbrhmr::NTuple{2,Float32}                 # TBRHMR — cumulative BR historical mortality per BR species
+    pitca::NTuple{2,Float32}                  # PITCA — proportion of host trees infected per BR species
 end
 
 # NBRSP host-species count (parameter in BRCOM.F77).
@@ -210,6 +256,9 @@ function wpbr_defaults!(variant)
         Int32(55), Int32(56), Int32(57),        # icin, idtout, idcout
         "(I7,1X,I1,1X,F3.0,1X,F5.1,1X,F5.1,1X,F4.0,1X,F4.0)",   # icfmt
         Tuple{Int,Int,Vector{Float32}}[],       # activities
+        Dict{Tuple{Int32,Int32},WpbrRec}(),     # recs
+        false,                                   # setup_done
+        (0f0, 0f0), (0f0, 0f0), (0f0, 0f0), (0f0, 0f0),  # thprob, tretn, tbrhmr, pitca
     )
 end
 
@@ -737,4 +786,351 @@ function wpbr_canker_status(out::Real, up::Real, gird::Real, dnewcm::Real;
     else                                            # too close to bole — treat as bole excise test
         return (u <= _wf(exht) && u >= _wf(htmin) && d >= _wf(exdmin)) ? 3 : 4
     end
+end
+
+# =============================================================================
+# WPBR engine seam — BRSETP per-tree init + BRTREG per-cycle driver.
+# -----------------------------------------------------------------------------
+# Wires the validated canker kernels into the FVS cycle. FVS calls BRSETP once
+# from MAIN (fvs.f:351) to seed the per-tree BR arrays, then BRTREG each cycle
+# from GRADD (gradd.f:126, after MORTS/MISTOE — the DFB/DFTM seam neighborhood)
+# to age cankers, generate/grow them, and apply canker mortality (BRCGRO sets
+# WK2=PROB·0.99999 for a killed tree) + top-kill (ITRUNC/NORMHT/ICR via BRCRED).
+#
+# The seam is BRUST-keyword-gated (w.active) and a no-host stand does nothing, so
+# a run without a BRUST block — or with no 5-needle-pine host — is BYTE-IDENTICAL.
+# Per-record canker state persists in `w.recs` keyed by (plot_id, tree_id), which
+# rides FVSjl's copy_tree! compaction the way FVS's BRTDEL/BRCMPR keep the BR
+# arrays aligned to the physical slot.
+#
+# NOTE ON VALIDATION: the FVSjl growth trajectory straddles the FVS oracle on the
+# goldens stand (#206 OLDRN; FVSjl-off 2040 TPA 29 vs FVSie_wpbr-off 25), so the
+# end-to-end WPBR .sum-DELTA is CORNERED. The doctrine-valid check is dump-replay:
+# feed the oracle's per-cycle pre-BRTREG state (incl. the BRANN RNG state) into
+# `wpbr_brtreg!` and reproduce the WK2 kill bit-for-bit (test_wpbr.jl).
+# =============================================================================
+
+# Host-species record blocks, in FVS BRTREG order: species outer (ascending FVS
+# species code among BR hosts), trees inner in IND1 order (sort_key-ascending
+# physical lineage). Returns a Vector of (br_index, Vector{record}) pairs.
+function _wpbr_host_blocks(s::StandState, w::WpbrState)
+    t = s.trees; n = t.n
+    blocks = Tuple{Int,Vector{Int}}[]
+    nsp = length(w.brspm)
+    for sp in 1:nsp
+        w.brspm[sp] == 0 && continue
+        recs = Int[i for i in 1:n if Int(t.species[i]) == sp]
+        isempty(recs) && continue
+        sort!(recs; by = i -> t.sort_key[i])
+        push!(blocks, (w.brspm[sp], recs))
+    end
+    return blocks
+end
+
+# Fetch (creating + BRSETP-initializing on first sight) the persistent WpbrRec for
+# tree record `i`. FVS BRSETP seeds BRGD/BRHTBC/BRAGE/ISTOTY once per record from MAIN;
+# a record first seen mid-run (regen/tripling, absent under NOTRIPLE/NOAUTOES) is
+# seeded here identically.
+function _wpbr_rec!(s::StandState, w::WpbrState, i::Int)::WpbrRec
+    t = s.trees
+    key = (t.plot_id[i], t.tree_id[i])
+    r = get(w.recs, key, nothing)
+    r !== nothing && return r
+    r = WpbrRec()
+    _wpbr_brsetp_rec!(r, s, i)
+    w.recs[key] = r
+    return r
+end
+
+# BRSETP (brsetp.f) per-record initialization: ground diameter, height-to-crown,
+# age default, stock-type default (5 = planted-pending; BRSTYP finalizes to 1 when
+# no STOCK mix). BRGI/BRSTAR/RI (BRTARG) are seeded lazily on first BRTREG year.
+function _wpbr_brsetp_rec!(r::WpbrRec, s::StandState, i::Int)
+    t = s.trees
+    ht = t.height[i]; dbh = t.dbh[i]; icr = Int(t.crown_pct[i])
+    r.brgd   = wpbr_brgd(ht, dbh)
+    r.brhtbc = wpbr_brhtbc(ht, icr)
+    age = t.birth_age[i]
+    r.brage  = age > 0f0 ? age : Float32(s.plot.stand_age)
+    r.istoty = Int32(5)                      # BRESTB default → BRSTYP assigns
+    r.ibrstat = Int32(0)
+    r.upmark = 1f5
+    return r
+end
+
+"""
+    wpbr_setup!(s)
+
+FVS `BRSETP` (fvs.f:351) — one-time per-tree WPBR init after the tree list is read.
+Seeds every host record's `WpbrRec` (BRGD/BRHTBC/BRAGE/stock type) and runs `BRSTYP`
+(stock-type finalization). Inert (no-op) unless a BRUST block is active and ≥1 host
+pine is present. Called from `setup_growth!`.
+"""
+function wpbr_setup!(s::StandState)
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
+    t = s.trees; t.n == 0 && return nothing
+    for (_, recs) in _wpbr_host_blocks(s, w)
+        for i in recs
+            _wpbr_rec!(s, w, i)
+        end
+    end
+    _wpbr_brstyp!(s, w)
+    w.setup_done = true
+    return nothing
+end
+
+# BRSTYP (brstyp.f) — assign stock types. Default proportions PRPSTK(i,1)=1 ⇒ every
+# planted-pending (5) record becomes stock 1 (wild), no BRANN draws. The random-mix
+# path (a STOCK keyword with fractional proportions) is not exercised by the shipped
+# host maps here; recorded as a faithful no-op for the default case.
+function _wpbr_brstyp!(s::StandState, w::WpbrState)
+    for (_, recs) in _wpbr_host_blocks(s, w)
+        for i in recs
+            r = _wpbr_rec!(s, w, i)
+            r.istoty == 5 && (r.istoty = Int32(1))
+        end
+    end
+    return nothing
+end
+
+# BRECAN (brecan.f) for one tree-year. Draws the BRANN stream in FVS order and
+# appends new cankers to the record's canker arrays. `dfact_sp` = DFACT(br,ISTOTY).
+# Returns the expected-canker count (ESTCAN increment); mutates `r` and `w` RNG.
+function _wpbr_brecan_step!(w::WpbrState, r::WpbrRec, brhnu::Float32, sstar::Float32,
+                            sstht::Float32, dfact_sp::Float32, pimax::Float32, bri::Int,
+                            prob::Float32)
+    # Clean-tree escape / infection bookkeeping (only fires for IBRSTAT==0).
+    if r.ibrstat == 0
+        if w.pitca[bri] < pimax
+            r.ibrstat = Int32(1)
+            w.tretn = _wpbr_settuple(w.tretn, bri, w.tretn[bri] + prob)
+        else
+            r.ibrstat = Int32(9); r.estcan = 0f0; r.itcan = Int32(0)
+            return 0f0
+        end
+    end
+    (ritem, tnewc, pli, numtim) = wpbr_brecan_probs(brhnu, r.ri, sstar, dfact_sp)
+    crlen = wpbr_crlen(sstht, r.brhtbc)
+    @inbounds for _ in 1:numtim
+        xbran = wpbr_rand!(w)
+        if pli >= xbran
+            r.itcan += Int32(1)
+            xup = wpbr_rand!(w)
+            (tup, tout, pleth) = wpbr_canker_place(sstht, crlen, xup)
+            xb = wpbr_rand!(w)
+            if r.ilcan < WPBR_MAXCAN
+                r.ilcan += Int32(1)
+                ic = Int(r.ilcan)
+                r.dout[ic]  = (pleth >= xb) ? 0f0 : tout
+                r.dup[ic]   = tup
+                r.girdl[ic] = 0f0
+                r.istcan[ic] = Int32(0)
+            end
+        end
+    end
+    return tnewc                                   # EXPC = TNEWC
+end
+
+# BRCGRO (brcgro.f) for one tree-year over the NLCAN pre-existing cankers. Grows/
+# inactivates cankers (drawing BRANN per active canker), classifies status, and on a
+# lethal canker returns the kill/top-kill effect. `prob` = PROB(K) (cycle-start TPA).
+# Returns (wk2, killed, topkill, itrunc, normht) where wk2>0 ⇒ this record is killed.
+function _wpbr_brcgro_step!(w::WpbrState, r::WpbrRec, prob::Float32, prop::Float32,
+                            brht::Float32, brhtg::Float32, brdg::Float32, nlcan::Int,
+                            hnew::Float32, dnew::Float32, htj::Float32,
+                            itrunc0::Int, normht0::Int, bri::Int)
+    brgrth = w.brgrth[bri, Int(r.istoty)]; bogrth = w.bogrth[bri, Int(r.istoty)]
+    ratinv1 = w.ratinv[1]; ratinv2 = w.ratinv[2]
+    exht = w.htmax[2]; dnewcm = _wf(dnew * 2.54f0)
+    htbcr = r.brhtbc
+    htmin = w.htmin; exdmin = w.exdmin; girmax = w.girmax; girmrt = w.girmrt
+    outnld = w.outnld; outdst = w.outdst; brpi = w.brpi
+    prht = w.htmax[1]; phtst = _wf(w.htprpr * _wf(hnew * 30.48f0)); phtst > prht && (phtst = prht)
+    potst = _wf(12f0 * 2.54f0)
+    htgprp = _wf(_wf(brhtg * prop) * 100f0)
+    brhyr = _wf(_wf(brht * 100f0) + htgprp)
+    dgprop = _wf(brdg * prop)
+    brgdy = _wf(r.brgd + dgprop)
+    bcl = _wf(brhyr - htbcr)
+    itrunc = itrunc0; normht = normht0; killed = false; topkill = false; wk2 = 0f0
+    @inbounds for ncan in 1:nlcan
+        jcstat = Int(r.istcan[ncan]); up = r.dup[ncan]; out = r.dout[ncan]; gird = r.girdl[ncan]
+        if jcstat != -1
+            if up > r.upmark || up > brhyr
+                r.istcan[ncan] = Int32(-1); jcstat = -1
+            elseif out > 0f0 && up < htbcr
+                if out <= potst
+                    out = 0f0; r.dout[ncan] = 0f0; gird = 0f0; r.girdl[ncan] = 0f0
+                else
+                    r.istcan[ncan] = Int32(-1); jcstat = -1
+                end
+            end
+        end
+        (0 <= jcstat <= 4) || continue
+        xran = wpbr_rand!(w)
+        if out > 0f0 && xran < ratinv1
+            r.istcan[ncan] = Int32(-1); continue
+        elseif out == 0f0 && xran < ratinv2
+            r.istcan[ncan] = Int32(-1); continue
+        end
+        if out > 0f0                                      # branch canker: grow inward
+            out = _wf(out - _wf(brgrth - _wf(0.5f0 * dgprop)))
+            out < 0f0 && (out = 0f0); r.dout[ncan] = out
+        else                                              # bole canker: girdle growth
+            giramt = wpbr_bole_giramt(brpi, brgdy, hnew, up)
+            gird = wpbr_bole_grow(gird, giramt, bogrth, dgprop, brpi)
+            r.girdl[ncan] = gird
+        end
+        st = wpbr_canker_status(out, up, gird, dnewcm;
+                                exht = exht, htmin = htmin, exdmin = exdmin, girmax = girmax,
+                                girmrt = girmrt, htbcr = htbcr, phtst = phtst,
+                                outnld = outnld, outdst = outdst)
+        r.istcan[ncan] = Int32(st)
+        if st == 5                                        # top-kill
+            if up < r.upmark
+                r.upmark = up
+                itrunc = Int(trunc(_wf(_wf(_wf(up / 30.48f0) * 100f0) + 1f0)))
+                normht <= 0 && (normht = Int(trunc(_wf(_wf(htj * 100f0) + 0.5f0))))
+                topkill = true
+            end
+            rcl = _wf(up - htbcr); pctrem = _wf(_wf(rcl / bcl) * 100f0)
+            if pctrem <= 25f0
+                wk2 = _wf(prob * 0.99999f0); r.brpb = _wf(r.brpb + prob)
+                w.tbrhmr = _wpbr_settuple(w.tbrhmr, bri, w.tbrhmr[bri] + prob)
+                r.istcan[ncan] = Int32(7); r.ibrstat = Int32(7)
+                killed = true
+                return (wk2, killed, topkill, itrunc, normht)
+            end
+        elseif st == 7                                    # tree kill (canker below crown)
+            if up <= htbcr
+                wk2 = _wf(prob * 0.99999f0); r.brpb = _wf(r.brpb + prob)
+                w.tbrhmr = _wpbr_settuple(w.tbrhmr, bri, w.tbrhmr[bri] + prob)
+                r.ibrstat = Int32(7)
+                killed = true
+                return (wk2, killed, topkill, itrunc, normht)
+            end
+        end
+    end
+    return (wk2, killed, topkill, itrunc, normht)
+end
+
+@inline function _wpbr_settuple(tp::NTuple{2,Float32}, i::Int, v::Float32)
+    i == 1 ? (v, tp[2]) : (tp[1], v)
+end
+
+"""
+    wpbr_brtreg!(s, fint, old_tpa)
+
+FVS `BRTREG` (brtreg.f, gradd.f:126) — the per-cycle WPBR driver. For each host
+species (outer), each year of the cycle (middle), each host record (inner, IND1
+order), it ages cankers, calls `BRECAN` (new cankers) and `BRCGRO` (grow + realize
+mortality), threading the single BRANN stream in FVS order. A record whose canker
+girdles it (BRCGRO status 5/7) is killed: `WK2 = PROB·0.99999`, applied as a t.tpa
+OVERRIDE; top-kill sets ITRUNC/NORMHT and reduces the crown (BRCRED). Cankers persist
+in `w.recs` for next cycle; BRUPDT grows each record's ground diameter at cycle end.
+
+`old_tpa` is the cycle-start TPA (FVS PROB, pre-MORTS). Inert unless BRUST is active
+with hosts present.
+"""
+function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
+    t = s.trees; n = t.n; n == 0 && return nothing
+    w.setup_done || wpbr_setup!(s)
+    blocks = _wpbr_host_blocks(s, w)
+    isempty(blocks) && return nothing
+    ifint = max(1, Int(round(fint)))
+
+    # THPROB / PITCA (BRSTAT, condensed): total + infected host TPA per BR species.
+    thprob = [0f0, 0f0]
+    for (bri, recs) in blocks
+        for i in recs
+            r = _wpbr_rec!(s, w, i)
+            r.ibrstat == 7 && continue
+            thprob[bri] += old_tpa[i]
+        end
+    end
+    w.thprob = (thprob[1], thprob[2])
+    pitca = [0f0, 0f0]
+    for bri in 1:2
+        d = thprob[bri] + w.tbrhmr[bri]
+        d > 0f0 && (pitca[bri] = min((w.tretn[bri] + w.tbrhmr[bri]) / d, 0.999f0))
+    end
+    w.pitca = (pitca[1], pitca[2])
+    pimax = _wf(1f0 - exp(_wf(-(_wf(100f0 / _wf(1f0 + _wf(100f0 * w.dfact[1, 1])))))))
+
+    for (bri, recs) in blocks
+        for K in 1:ifint
+            prop = _wf(Float32(K) / Float32(ifint))
+            for i in recs
+                r = _wpbr_rec!(s, w, i)
+                r.brage += 1f0
+                nlcan = Int(r.ilcan)
+                brdg = _wf(t.diam_growth[i] * 2.54f0)
+                K == 1 && (r.estcan = 0f0)
+                (r.ibrstat == 7 || r.ibrstat == 77) && continue
+                # RI(J) = RIDEF·RESIST(sp,stock)·RIAF (goldens: 0.05·1·1)
+                r.ri = wpbr_ri(w.ridef, w.resist[bri, Int(r.istoty)], w.riaf[bri])
+                htj = t.height[i]; htgj = t.ht_growth[i]; dbhj = t.dbh[i]; dgj = t.diam_growth[i]
+                icrj = Int(t.crown_pct[i]); itrunc0 = Int(t.trunc[i]); normht0 = Int(t.norm_ht[i])
+                hnew = _wf(htj + _wf(htgj * prop))
+                dnew = _wf(dbhj + _wf(dgj * prop))
+                if itrunc0 == 0
+                    brht = _wf(htj * 0.3048f0); brhin = _wf(htgj * 0.3048f0)
+                    brhnu = _wf(brht + brhin); brhtol = brht
+                    stht = _wf(brhtol + _wf(brhin * prop))
+                else
+                    brht = _wf(_wf(Float32(itrunc0) / 100f0) * 0.3048f0); brhin = 0f0
+                    brhnu = brht; stht = brht
+                end
+                cratio = _wf(Float32(icrj) / 100f0)
+                htbc = _wf(_wf(hnew * 30.48f0) * _wf(1f0 - cratio))
+                r.brhtbc < htbc && (r.brhtbc = htbc)
+                iiag = Int(trunc(r.brage))
+                (gibr, _tb) = wpbr_brgi(iiag, stht)
+                r.gi = gibr
+                star = wpbr_brstar(stht)
+                r.tstarg = _wf(r.tstarg + star)
+                r.ibrstat == 9 && continue
+                expc = _wpbr_brecan_step!(w, r, brhnu, star, stht,
+                                          w.dfact[bri, Int(r.istoty)], pimax, bri, old_tpa[i])
+                r.estcan = _wf(r.estcan + expc)
+                if nlcan > 0
+                    (wk2, killed, topkill, itr, nht) =
+                        _wpbr_brcgro_step!(w, r, old_tpa[i], prop, brht, brhin, brdg, nlcan,
+                                           hnew, dnew, htj, itrunc0, normht0, bri)
+                    if topkill
+                        t.trunc[i] = Int32(itr); t.norm_ht[i] = Int32(nht)
+                        _wpbr_brcred!(t, i)
+                    end
+                    if killed
+                        nt = old_tpa[i] - wk2; nt < 0f0 && (nt = 0f0)
+                        t.tpa[i] = nt
+                    end
+                end
+            end
+        end
+    end
+    # BRUPDT (brupdt.f): grow each host record's ground diameter for next cycle.
+    for (_, recs) in blocks
+        for i in recs
+            r = _wpbr_rec!(s, w, i)
+            r.brgd = _wf(r.brgd + _wf(t.diam_growth[i] * 2.54f0))
+        end
+    end
+    return nothing
+end
+
+# BRCRED (brcred.f): reduce a top-killed tree's crown ratio from NORMHT/ITRUNC.
+function _wpbr_brcred!(t::TreeList, i::Int)
+    (t.trunc[i] == 0 || t.norm_ht[i] <= 0) && return nothing
+    iccr = Int(t.crown_pct[i])
+    hn = Float32(t.norm_ht[i]) / 100f0
+    hd = _wf(hn - _wf(Float32(t.trunc[i]) / 100f0))
+    cl = _wf(_wf(_wf(Float32(iccr) / 100f0) * hn) - hd)
+    iici = Int(trunc(_wf(_wf(_wf(cl * 100f0) / hn) + 0.5f0)))
+    iici < 5 && (iici = 5); iici > 95 && (iici = 95)
+    t.crown_pct[i] = Int32(iici)
+    return nothing
 end
