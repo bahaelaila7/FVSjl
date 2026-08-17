@@ -103,6 +103,67 @@ const _NUMYRS = 10
     end
 end
 
+# --- RANSTART: MPOTPR outbreak probability (mpotpr.f) + the MPRANN inclusion draw.
+# Goldens are the g16 instrumented FVSie_lpmpb dump for lp_ran.key (MPB/RANSTART 1/DEBUG),
+# 5 cycles on the IE lodgepole host. Each cycle: MPOTPR reads stand stats → PROTBK, then
+# one MPRANN draw. RELDSP(IDXLP)==RELDEN on this pure-lodgepole stand. ---
+@testset "LPMPB — RANSTART MPOTPR probability (bit-exact vs FVSie_lpmpb)" begin
+    # (pbalpp, relden, reldsp_lp, a45dbh, cntlp, istdt, icyc, iy, PROTBK-golden)
+    mpo = [
+        ("3F7FFFFE","428794CB","428794CB","4135B128","42C2FBF0",1,1,1990,"3C10C78E"),
+        ("3F800000","429413C2","429413C2","414CC9B9","42AD8EC1",1,2,2000,"3C61867A"),
+        ("3F800000","42997F34","42997F34","415FA1B7","429B2614",1,3,2010,"3C888E27"),
+        ("3F800000","42993A03","42993A03","41726CCA","4286FC50",1,4,2020,"3C87427C"),
+        ("3F800001","4295C866","4295C866","418179C1","426BE526",1,5,2030,"3C6F8B89"),
+    ]
+    for (pb,rd,rl,a4,cn,istdt,icyc,iy,g) in mpo
+        p = _F.mpb_mpotpr(_f(pb), _f(rd), _f(rl), _f(a4), _f(cn), istdt, icyc, iy)
+        @test _hex(p) == g
+    end
+    # minimum-condition gates → PROTBK = 0
+    @test _F.mpb_mpotpr(_f("3F800000"), _f("428794CB"), _f("428794CB"), 5.5f0,  100.0f0, 1, 1, 1990) == 0f0  # A45DBH<6
+    @test _F.mpb_mpotpr(0.20f0,         _f("428794CB"), _f("428794CB"), 8.0f0,  100.0f0, 1, 1, 1990) == 0f0  # PBALPP<0.25
+    @test _F.mpb_mpotpr(_f("3F800000"), 100.0f0,        10.0f0,         8.0f0,  100.0f0, 1, 1, 1990) == 0f0  # RELDSP/RELDEN<0.2
+    @test _F.mpb_mpotpr(_f("3F800000"), _f("428794CB"), _f("428794CB"), 8.0f0,   30.0f0, 1, 1, 1990) == 0f0  # CNTLP<40
+    @test _F.mpb_mpotpr(_f("3F800000"), _f("428794CB"), _f("428794CB"), 8.0f0,  100.0f0, 5, 1, 1990) == 0f0  # ICYC<ISTDT
+end
+
+# MPRANN (mprann.f) — the LPMPB LCG seeded 55329, drawn once per RANSTART-eligible cycle.
+@testset "LPMPB — MPRANN draw sequence (seed 55329)" begin
+    m = _F.mpb_defaults!()
+    for g in ("3EDDB57A","3F5AB21B","3F630A07","3F2734C9","3EF4FB2C")
+        @test _hex(_F.mpb_rand!(m)) == g
+    end
+end
+
+# CURRMORT / INVMORT ICYC=1 GREINF branch (colmod.f:93-99). Golden = instrumented
+# FVSie_lpmpb dump for lp_curr.key (CURRMORT classes 3-7 = 2,5,10,3,1). GREINF=0 on the
+# loadable stand (no treelist damage codes); CURRMR is the keyword. Classes 4-7 diverge
+# from the default epidemic; classes 8-9 (CURRMR=0) stay at the default GREEN/PRKILL.
+@testset "LPMPB — CURRMORT GREINF branch (bit-exact vs FVSie_lpmpb)" begin
+    st   = _F.mpb_coldbh_start(_LP_DBH, _LP_TPA)
+    gdef = _F.mpb_colmod(st, _NUMYRS)                            # default epidemic (no CURRMORT)
+    currmr = Float32[0,0,2,5,10,3,1,0,0,0]
+    gc = _F.mpb_colmod(st, _NUMYRS; icyc=1, lcurmr=true, currmr=currmr)
+    pc = _F.mpb_prkill(st, @view gc[_NUMYRS, :])
+    Gc = Dict(4=>"4123BE78",5=>"41250985",6=>"4022B3FC",7=>"3DD0597F",8=>"36C6E3D7",9=>"3DCF7CEC")
+    Pc = Dict(4=>"3DDAF637",5=>"3F2F6F66",6=>"3F62D378",7=>"3F7E6380",8=>"3F7FFFF8",9=>"3F75C794")
+    for c in 4:9
+        @test _hex(gc[_NUMYRS, c]) == Gc[c]
+        @test _hex(pc[c]) == Pc[c]
+    end
+    # GREINF=0 AND CURRMR=0 (INVMORT with no inventory damage) ⇒ byte-identical to default.
+    g0 = _F.mpb_colmod(st, _NUMYRS; icyc=1, linvmr=true)         # currmr defaults to zeros
+    for c in 1:10
+        @test _hex(g0[_NUMYRS, c]) == _hex(gdef[_NUMYRS, c])
+    end
+    # ICYC≠1 ⇒ default branch even with LCURMR (CURRMORT only auto-fires cycle 1).
+    g2 = _F.mpb_colmod(st, _NUMYRS; icyc=2, lcurmr=true, currmr=currmr)
+    for c in 1:10
+        @test _hex(g2[_NUMYRS, c]) == _hex(gdef[_NUMYRS, c])
+    end
+end
+
 # --- inert-seam guarantee: a stand with no MPB block is unchanged; a stand that
 # parses an MPB block but whose variant/host/schedule doesn't fire projects
 # byte-identically (mirror the DFB/DFTM/WPBR inert-seam tests). ---
