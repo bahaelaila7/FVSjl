@@ -671,6 +671,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     if !tripled && s.mpb !== nothing && (s.mpb::MpbState).active
         mpb_apply!(s, old_tpa, fint)
     end
+    # WSBWE (Western Spruce Budworm, wsbwe/*.f): stand-level defoliation model
+    # (BWEGO→BWEDR→BWEDAM/BWEDIE, grincr.f:414 / gradd.f:108). The keyword reader is
+    # ported and INERT; the defoliation → growth-loss/mortality effect seam is
+    # deferred (see scratchpad/wsbwe/HANDOFF.md), so no per-cycle apply is wired.
+    # WSBWE's oracle relinks and RUNS stand-level (unlike PPE-gated WWPB), so the
+    # effect seam is later dump-replay-validatable vs FVS<v>_wsbwe.
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
