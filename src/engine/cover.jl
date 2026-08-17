@@ -139,37 +139,21 @@ function _cover_spmap(varcode::AbstractString)
     return nothing
 end
 
-# CRWDTH source (base/cwidth.f → CWCALC).  FVS fills the CRWDTH array — read verbatim
-# by CVCW — from the *variant's* forest-grown crown-width equation (IWHO=0, actual CR,
-# stand BA), NOT the generic open-grown CCF crown.  em/ccfcal.f MODE=2 coefficients
-# (Paine-Hann / NI form), indexed by EM species 1..19.  Verified bit-close to FVSem_g16
-# CRWDTH (cvcw_g16_dump.txt) — tree1 sp7 dbh11.5 ht73 cr35 → 12.676 vs dump 12.674.
-const _CV_EM_B1 = Float32[1.02478,1.02478,1.01685,1.03992,1.02886,1.03992,1.03992,1.02687,1.02886,1.02687,1.02460,1.03597,1.02460,1.02460,1.02460,1.02460,1.03597,1.03992,1.02460]
-const _CV_EM_B2 = Float32[0.99889,0.99889,1.48372,1.58777,1.01255,1.58777,1.58777,1.28027,1.01255,1.49085,1.35223,1.46111,1.35223,1.35223,1.35223,1.35223,1.46111,1.58777,1.35223]
-const _CV_EM_B3 = Float32[0.19422,0.19422,0.27378,0.30812,0.30374,0.30812,0.30812,0.22490,0.30374,0.18620,0.24844,0.26289,0.24844,0.24844,0.24844,0.24844,0.26289,0.30812,0.24844]
-const _CV_EM_B4 = Float32[0.59423,0.59423,0.49646,0.64934,0.37093,0.64934,0.64934,0.47075,0.37093,0.68272,0.41212,0.18779,0.41212,0.41212,0.41212,0.41212,0.18779,0.64934,0.41212]
-const _CV_EM_B5 = Float32[-0.09078,-0.09078,-0.18669,-0.38964,-0.13731,-0.38964,-0.38964,-0.15911,-0.13731,-0.28242,-0.10436,0.0,-0.10436,-0.10436,-0.10436,-0.10436,0.0,-0.38964,-0.10436]
-const _CV_EM_B6 = Float32[-0.02341,-0.02341,-0.01509,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.03539,0.0,0.03539,0.03539,0.03539,0.03539,0.0,0.0,0.03539]
+# CRWDTH source (base/cwidth.f → CWCALC).  FVS fills the CRWDTH array — read verbatim by
+# CVCW — from the *variant's* forest-grown crown-width equation (IWHO=0, actual CR, stand
+# BA).  For EM this is the western CWCALC crown-width library `em_cwcalc`
+# (variants/easternmontana/crown.jl), dump-replay bit-exact vs FVSem_g16.
 
-# em/ccfcal.f MODE=2 forest-grown crown width for one tree (ISPC=EM species, JCR=ICR%).
-@inline function _cover_crwdth_em(ispc::Int, d::Float32, h::Float32, jcr::Int, ba::Float32)
-    jcr <= 0 && return 0.0f0
-    cl = Float32(jcr) * h * 0.01f0
-    barea = ba
-    (barea <= 0.0f0 || cl <= 0.0f0 || h <= 0.0f0 || d <= 0.0f0) && return 0.0f0
-    barea <= 1.0f0 && (barea = 1.0f0)
-    cw = _CV_EM_B1[ispc]*exp(_CV_EM_B2[ispc] + _CV_EM_B3[ispc]*log(cl) +
-                             _CV_EM_B4[ispc]*log(d) + _CV_EM_B5[ispc]*log(h) +
-                             _CV_EM_B6[ispc]*log(barea))
-    cw > 99.9f0 && (cw = 99.9f0)
-    return cw
-end
-
-# Dispatch the CRWDTH source by variant.  EM only for the current beachhead; other
-# variants need their own ccfcal MODE=2 / CWCALC crown width (later chunks).
+# Dispatch the CRWDTH source by variant.  EM = the western CWCALC crown-width library
+# (em_cwcalc, base/cwidth.f→cwcalc.f IWHO=0, all 15 EM CWEQN forms) — dump-replay bit-exact
+# vs FVSem_g16.  Other variants need their own CWCALC map (later chunks).
 @inline function _cover_crwdth(s::StandState, ispc::Int, d::Float32, h::Float32,
                                jcr::Int, ba::Float32)
-    s.variant isa EasternMontana && return _cover_crwdth_em(ispc, d, h, jcr, ba)
+    if s.variant isa EasternMontana
+        el = s.plot.elevation                                   # EL = ELEV (100's of ft)
+        hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)  # western Hopkins
+        return em_cwcalc(ispc, d, h, Float32(jcr), ba, el, hi)  # CR = FLOAT(ICR)
+    end
     return 0.0f0
 end
 

@@ -151,3 +151,39 @@ end
     @test bad <= 1            # 239/240 hex-exact; 1 PROXHT value @1-ULP (accumulated PAREA)
     @test ulpmax <= 1
 end
+
+# ---- em_cwcalc: western CWCALC forest-grown crown width (base/cwidth.f→cwcalc.f, IWHO=0) ----
+# Dump cols: sp CWEQN Dhex Hhex CRhex BAREAhex CLhex HIhex ELhex CWhex HILAThex HILONGhex ELEVhex
+_cw_h2f(s) = reinterpret(Float32, parse(UInt32, s, base=16))
+function _cover_replay_cwcalc(path)
+    n = 0; exact = 0; ulp1 = 0; bad = 0
+    for ln in eachline(path)
+        isempty(strip(ln)) && continue
+        f = split(strip(ln))
+        sp = parse(Int, f[1])
+        D = _cw_h2f(f[3]); H = _cw_h2f(f[4]); CR = _cw_h2f(f[5]); BAREA = _cw_h2f(f[6])
+        CWd = _cw_h2f(f[10]); HILAT = _cw_h2f(f[11]); HILONG = _cw_h2f(f[12]); ELEV = _cw_h2f(f[13])
+        hi = FVSjl._cr_hopkins(HILAT, HILONG, ELEV)   # HILONG already = -abs(TLONG)
+        cw = FVSjl.em_cwcalc(sp, D, H, CR, BAREA, ELEV, hi)
+        n += 1
+        if reinterpret(UInt32, cw) == reinterpret(UInt32, CWd)
+            exact += 1
+        else
+            d = abs(Int(reinterpret(UInt32, cw)) - Int(reinterpret(UInt32, CWd)))
+            d == 1 ? (ulp1 += 1) : (bad += 1)
+        end
+    end
+    return (n, exact, ulp1, bad)
+end
+
+@testset "COVER — em_cwcalc western crown-width dump-replay (EM, bit-exact vs FVSem_g16)" begin
+    # emt01/em_cov inventory + grown trees — all Crookston Region-1 (eqn 03).
+    n1, e1, u1, b1 = _cover_replay_cwcalc(joinpath(_COVER_HERE, "cover_em_cwcalc_emcov_g16_dump.txt"))
+    @test n1 == 353
+    @test e1 == 353 && u1 == 0 && b1 == 0
+    # synthetic stand exercising ALL 15 EM CWEQN forms (Bechtold M1/M2, Crookston R1/R6-M1/M2,
+    # Donnelly) + small-tree scaling (D<5 Bechtold, D<1 power) + juniper D≥25 plateau.
+    n2, e2, u2, b2 = _cover_replay_cwcalc(joinpath(_COVER_HERE, "cover_em_cwcalc_g16_dump.txt"))
+    @test n2 == 353
+    @test e2 == 353 && u2 == 0 && b2 == 0
+end
