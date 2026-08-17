@@ -316,6 +316,9 @@ include("variants/olympic/organon_hook_op.jl")                # OP COOPERATING d
 include("variants/olympic/crown.jl")                          # OP crown ratio (op/crown.f Weibull + op/dubscr.f) cooperating with ORGANON CR2 — multi-cycle
 include("variants/olympic/mortality.jl")                      # OP mortality (op/morts.f: ORGANON MORTEXP-for-all when ORGANON ran) — multi-cycle
 include("variants/olympic/small_tree_growth.jl")              # OP small-tree (op/regent.f) guarded no-op (S248112 all large trees) — multi-cycle
+include("variants/ontario/ontario.jl")                        # ON (Ontario) variant singleton + registration (MAXSP 72, metric, Penner growth) — BEACHHEAD
+include("variants/ontario/dg_coefficients.jl")                # ON Penner DG coeff arrays (35 eqns) + OSPMAP 72→35 + LQUAL AGS/UGS — dump-replay verified
+include("variants/ontario/diameter_growth.jl")                # ON Penner large-tree DGF: on_penner_dds VALIDATED 8/8 DDS bit-exact vs FVSon_g16 (dgf! stand-context pending full engine)
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

@@ -27,6 +27,7 @@ using FVSjl
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_wsbwe.jl")          # WSBWE beachhead: BWERAN RNG seed 55329 bit-exact vs pristine wsbwe/bweran.f + WSBW keyword reader (keywds.f opt 8) + INERT seam
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
+    include("unit/test_ontario.jl")        # ON (Ontario) beachhead: Penner large-tree DGF (annual diameter-increment, on/dgf.f) dump-replay bit-exact vs FVSon_g16
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
