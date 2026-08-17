@@ -193,6 +193,8 @@ mutable struct MistletoeState <: AbstractMistletoeState
     newspr::Matrix{Float32}            # (tree, crownthird 1:3) new SPREAD accumulator (DMADLV→DMOTHR→DMCYCL)
     newint::Matrix{Float32}            # (tree, crownthird 1:3) new INTENSIFICATION accumulator
     brkpnt::Matrix{Float32}            # (tree, BPCNT 1:4) crown-third breakpoints in MESH units (DMFBRK)
+    pbrkpt::Matrix{Float32}            # (tree, BPCNT 1:4) PREVIOUS-cycle breakpoints — DMNTRD remap source
+    ntdn::Bool                         # NTDn (DMCOM): false until the first DMTREG entry; gates DMNTRD to cyc≥2
     idmshp::Vector{Int32}              # per-tree crown shape 1:5 (DMSHAP Fisher discriminant)
     dmrdmx::Array{Float32,3}           # (tree, MESH band 1:MXHT, {RADIUS=1,VOLUME=2}) crown frustum geometry (DMSUM)
     sf::Matrix{Float32}                # (DMR-diff 0:6 → 1:7, ring 1:MXTHRX) autocorrelation scaling (DMINIT/DMAUTO)
@@ -205,7 +207,8 @@ MistletoeState() = MistletoeState(false, false, false, 1.0f0, -999f0, -999f0, 1.
                                   copy(DM_DMDMR), copy(DM_OPAQ),
                                   Int32[], Array{Float32,3}(undef, 0, DM_CRTHRD, DM_NPOOL),
                                   Matrix{Float32}(undef, 0, DM_CRTHRD), Matrix{Float32}(undef, 0, DM_CRTHRD),
-                                  Matrix{Float32}(undef, 0, DM_BPCNT), Int32[],
+                                  Matrix{Float32}(undef, 0, DM_BPCNT),
+                                  Matrix{Float32}(undef, 0, DM_BPCNT), false, Int32[],
                                   Array{Float32,3}(undef, 0, DM_MXHT, 2),
                                   Matrix{Float32}(undef, 7, DM_MXTHRX),
                                   55329.0, 55329.0, 0)
@@ -284,11 +287,31 @@ function dm_cw!(s::StandState)
     return s
 end
 
+# TRIPLING / regen DMR carry (base triple.f:110-111 MISGET/MISPUT): each new offspring record
+# (appended at nold+1..n by triple_records! / regen) inherits its PARENT's DMR — jl's copy_tree!
+# already propagated it into t.dmr — so re-sync ms.dmr for the appended records. Their DMINF pools
+# stay ZERO (MISPUT loads BrkPnt/PBrkPt/DMINF from DMKLDG, a COMMON scratch never populated ⇒ all
+# zero; MISPUTZ likewise zeros them), so an offspring enters DMFINF classification at the parent's
+# DMR but contributes NO source infection until it accumulates its own spread — the exact FVS state.
+@inline function _dm_triple_carry!(ms::MistletoeState, t, nold::Int)
+    @inbounds for i in (nold + 1):t.n
+        ms.dmr[i] = t.dmr[i]
+    end
+    return ms
+end
+
 function _dm_ensure_capacity!(ms::MistletoeState, n::Int)
     old = length(ms.dmr)
     if old < n
         d = zeros(Int32, n); @inbounds d[1:old] .= ms.dmr; ms.dmr = d
         inf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL); @inbounds inf[1:old, :, :] .= ms.dminf; ms.dminf = inf
+    end
+    # pbrkpt is PERSISTENT across cycles (holds last cycle's breakpoints for DMNTRD), so preserve
+    # existing rows + zero-fill the new (tripled/regen) records — MISPUTZ zeros PBRKPT for offspring,
+    # which makes DMNTRD skip them (Σpbrkpt==0) on the cycle they are created (correct: no remap yet).
+    if size(ms.pbrkpt, 1) != n
+        pb = zeros(Float32, n, DM_BPCNT); m = min(size(ms.pbrkpt, 1), n)
+        @inbounds pb[1:m, :] .= @view ms.pbrkpt[1:m, :]; ms.pbrkpt = pb
     end
     size(ms.newspr, 1) == n || (ms.newspr = zeros(Float32, n, DM_CRTHRD))
     size(ms.newint, 1) == n || (ms.newint = zeros(Float32, n, DM_CRTHRD))
@@ -669,7 +692,75 @@ const BC_MIS_PMC = reshape(Float32[
 # faithful MISFIT list should gate which species can be infected. (2) MISDGF — the per-(species,DMR)
 # DG growth-multiplier that scales source seed-production `Level`; held at 1.0 (neutral) pending the
 # BC ADGP extraction (same table that drives the C6 growth payoff). Engine-INERT until C6 validated.
-# DMNTRD (multi-cycle crown-third infection remap) is gated off on the first entry — TODO for cyc≥2.
+# --- DMNTRD (dmntrd.f) — the multi-cycle crown-third infection REMAP. Height + crown recede/grow as
+# each tree is projected, but DM infections are FIXED on branches (they do not move within the crown).
+# So each cycle the per-(crown-third × life-history pool) DMINF loads must be re-binned onto the MOVED
+# crown-third breakpoints: new uninfected crown appears at the top, crown death removes the lower margin.
+# By locating where each PREVIOUS breakpoint now lies among the CURRENT breakpoints, the infection density
+# is re-apportioned. GATED to cyc≥2 (ms.ntdn) — the first DMTREG entry has no previous breakpoint yet
+# (dmtreg.f:261). Uses ms.pbrkpt (last cycle's BrkPnt) vs the current ms.brkpnt (dm_fbrk! this cycle).
+# `Mult` scales density down as the crown ENLARGES (fixed infection count spread over more crown). BC has
+# no biocontrol pools (DMINF_BC unported/zero) so only the DMINF DEAD_BC pools (1:DM_NPOOL) are remapped.
+# Deterministic (no RNG). A tripled/regen record has pbrkpt≡0 ⇒ Σpbrkpt==0 ⇒ it is skipped (no remap the
+# cycle it is born — MISPUTZ zeros its PBRKPT), exactly as the Fortran GOTO 100 divide-by-zero guard.
+function dm_ntrd!(s::StandState)
+    ms = s.mistletoe
+    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    t = s.trees; n = t.n
+    n == 0 && return s
+    TINY = 1.0f-25
+    oldval = zeros(Float32, DM_CRTHRD, DM_NPOOL)
+    newval = zeros(Float32, DM_CRTHRD, DM_NPOOL)
+    pb = ms.pbrkpt; bp = ms.brkpnt; inf = ms.dminf
+    @inbounds for u in 1:n
+        # Compressed/newborn record ⇒ previous breakpoints all zero ⇒ remap meaningless (÷0 guard).
+        x = 0f0
+        for i in 1:DM_CRTHRD
+            x += pb[u, i]
+        end
+        x == 0f0 && continue
+        # Mult ≈ crown-growth density scalar: oldCrownLen / newCrownLen (top − bottom breakpoint).
+        mult = (pb[u, 1] - pb[u, DM_BPCNT]) / (bp[u, 1] - bp[u, DM_BPCNT])
+        for i in 1:DM_CRTHRD, v in 1:DM_NPOOL
+            oldval[i, v] = inf[u, i, v] * mult
+            newval[i, v] = 0f0
+        end
+        # For each OLD breakpoint i, find the NEW crown third k=j in which it now lies (k=0 ⇒ outgrown).
+        for i in 1:DM_CRTHRD
+            k = 0
+            for j in 1:DM_CRTHRD
+                if (pb[u, i] <= bp[u, j]) && (pb[u, i] > bp[u, j+1])
+                    k = j
+                    break
+                end
+            end
+            if k > 0
+                if pb[u, i+1] >= bp[u, k+1]
+                    for v in 1:DM_NPOOL
+                        newval[k, v] += oldval[i, v]
+                    end
+                else
+                    wt = (pb[u, i] - bp[u, k+1]) / (pb[u, i] - pb[u, i+1])
+                    for v in 1:DM_NPOOL
+                        oldval[i, v] > TINY && (newval[k, v] += oldval[i, v] * wt)
+                    end
+                    if k < DM_CRTHRD
+                        for v in 1:DM_NPOOL
+                            oldval[i, v] > TINY && (newval[k+1, v] += oldval[i, v] * (1f0 - wt))
+                        end
+                    end
+                end
+            end
+        end
+        for i in 1:DM_CRTHRD, v in 1:DM_NPOOL
+            inf[u, i, v] = newval[i, v]
+        end
+    end
+    return s
+end
+
+# DMNTRD (multi-cycle crown-third infection remap) runs on cyc≥2 (ms.ntdn); the tripling seam carries
+# the parent's DMR to offspring (MISPUT), pools zeroed (MISPUTZ / DMKLDG=0), remapped next cycle.
 function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     ms = s.mistletoe
     (ms === nothing || !(ms.active || ms.newmod)) && return s
@@ -677,8 +768,10 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     n == 0 && return s
     species = t.species; prob = t.tpa            # PROB = trees/acre expansion factor
     maxsp = Int(maximum(@view species[1:n]))
+    nold = length(ms.dmr)                        # DM record count BEFORE this cycle's growth
     _dm_ensure_capacity!(ms, n)                  # the treelist can GROW between cycles (tripling/regen)
                                                  # since dm_init! sized the DM arrays — track current n
+    _dm_triple_carry!(ms, t, nold)              # tripling/regen offspring inherit parent's DMR (MISPUT)
 
     # --- SETUP (DMTREG:239-298) ---
     dm_cw!(s)                                    # DMMTRX→DMCW: fill the crown WIDTH (r6crwd.f) — FVS's
@@ -687,6 +780,13 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     dm_rdmx!(s)                                  # DMMTRX → ms.dmrdmx (crown frustum radius/volume)
     dm_fbrk!(s)                                  # DMFBRK → ms.brkpnt (crown-third breakpoints)
     shade = dm_fshd!(ms, species, prob, n)       # DMFSHD → per-MESH-band shade field
+    # DMNTRD (dmtreg.f:261): on cyc≥2, remap the DMINF pools onto the moved crown-third breakpoints
+    # (ms.pbrkpt→ms.brkpnt); the first entry has no previous breakpoint, so just arm the flag.
+    if ms.ntdn
+        dm_ntrd!(s)
+    else
+        ms.ntdn = true
+    end
     fill!(ms.newspr, 0f0); fill!(ms.newint, 0f0) # zero the spread/intensification accumulators
     ptr, index = dm_finf(s)                      # DMFINF → per-(species,DMR) pointer/index
     isct, ind1 = dm_species_index(species, n)    # ISCT/IND1 species grouping
@@ -789,6 +889,14 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     # (ie_dm_growth_loss! / ie_dm_mortality_combine!, now gated for BC) read to apply DG loss + kill.
     @inbounds for i in 1:n
         t.dmr[i] = ms.dmr[i]
+    end
+    # Cycle complete — map the current breakpoints into PBrkPt before the next growth cycle moves them,
+    # so next cycle's DMNTRD re-bins the infection against THIS cycle's crown geometry (dmtreg.f:512-518).
+    if size(ms.pbrkpt, 1) != n
+        ms.pbrkpt = zeros(Float32, n, DM_BPCNT)
+    end
+    @inbounds for i in 1:n, v in 1:DM_BPCNT
+        ms.pbrkpt[i, v] = ms.brkpnt[i, v]
     end
     return s
 end
@@ -1049,6 +1157,8 @@ function dm_init!(s::StandState)
     ms.newspr = zeros(Float32, n, DM_CRTHRD)
     ms.newint = zeros(Float32, n, DM_CRTHRD)
     ms.brkpnt = zeros(Float32, n, DM_BPCNT)
+    ms.pbrkpt = zeros(Float32, n, DM_BPCNT)   # no previous cycle yet ⇒ DMNTRD skipped on the first DMTREG
+    ms.ntdn = false                           # NTDn: first DMTREG entry skips DMNTRD, then sets it true
     ms.idmshp = zeros(Int32, n)
     ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2)
     dm_compute_sf!(ms)
