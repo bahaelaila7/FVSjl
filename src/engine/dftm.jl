@@ -167,6 +167,13 @@ mutable struct DftmState <: AbstractDftmState
     # --- TMRANN LCG state (COMMON in tmrann.f) ---
     rng_s0::Float64      # S0 — current generator state (double, exact mod)
     rng_ss::Float32      # SS — the reseed default (TMRNSD LSET=false resets to it)
+    # --- per-cycle predict→gradd carry (the TMBMAS→TMCOUP seam handoff) ---
+    cyc_go::Bool                 # LTMGO — an outbreak fired in THIS cycle's predict phase (DFTMGO)
+    cyc_ldf::Bool                # LDF after DFTMGO host-threshold gate (may drop below the keyword request)
+    cyc_lgf::Bool                # LGF after DFTMGO host-threshold gate
+    cyc_naclas::NTuple{2,Int32}  # NACLAS — actual DF/GF class counts this cycle (MIN0(count, NCLAS))
+    cyc_fbioms::Vector{Float32}  # FBIOMS — per-record nominal-branch foliage biomass (TMBMAS, record-indexed)
+    cyc_pcnewf::Vector{Float32}  # PCNEWF — per-record %-new-foliage (TMBMAS, record-indexed)
 end
 
 """
@@ -195,6 +202,8 @@ function dftm_defaults!(variant)
         copy(DFTM_B0_DEFAULT), copy(DFTM_R0_DEFAULT), copy(DFTM_B1_DEFAULT),
         Int32[],                                # mansched_years
         Float64(DFTM_DEFAULT_SEED), DFTM_DEFAULT_SEED,     # rng_s0, rng_ss
+        false, true, true, (Int32(0), Int32(0)),          # cyc_go, cyc_ldf, cyc_lgf, cyc_naclas
+        Float32[], Float32[],                             # cyc_fbioms, cyc_pcnewf
     )
 end
 
@@ -1528,4 +1537,399 @@ function dftm_topkill!(d::DftmState, itab::Int, dpmax::Float32, ht::Float32, htg
         htg = htg - htgloss
     end
     return (ht, htg, icri, normht, itrunc, jtrunk, pckill, tkill, htgloss)
+end
+
+# =============================================================================
+# TMCOUP driver seam (tmcoup.f) — compose the validated pieces into the coupler.
+# =============================================================================
+# The individual kernels above are each LIVE dump-replay bit-exact vs the
+# instrumented FVSie_dftm oracle (dense.key). `dftm_couple!` is the pure numeric
+# TMCOUP DRIVER that composes them in the exact tmcoup.f order (GARBEL DF→GF →
+# JCLAS2 avg-DBH RDPSRT → ICOND fill + RANLARVA eggs → DFTMOD → DO-320 mortality
+# → DO-430 top-kill/DG-loss), threading ONE `DftmState` TMRANN stream. It mutates
+# the per-record damage arrays (WK2/DG/HTG/HT/ICR/IMC/NORMHT/ITRUNC/KUTKOD) in
+# place, faithfully reproducing the class-sector double-processing of the empty
+# and cross-block-underflow classes (a record swept into an overflowing sector is
+# damaged twice, the second pass chaining the first's output — the tmcoup.f
+# behaviour the dense GF block exercises). Plain-array signature so the whole
+# driver is dump-replayed against the oracle's cycle-2 DBGC_TRE treelist.
+# =============================================================================
+
+# RDPSRT a class-index block `jclas2[lo:hi]` into DESCENDING avg-DBH (`wk3`) order,
+# the tmcoup.f `CALL RDPSRT(NACLAS(k), WK3, JCLAS2(..), .FALSE.)`. `wk3` is indexed
+# by class index; an empty class carries a NaN key (0/0 avg) sorted by the same
+# unstable Scowen partition FVS uses (NaN comparisons false throughout).
+@inline function _dftm_jclas2_sort!(jclas2::Vector{Int}, wk3::Vector{Float32}, lo::Int, hi::Int)
+    m = hi - lo + 1
+    m < 2 && return jclas2
+    key = Float32[wk3[jclas2[lo + k - 1]] for k in 1:m]
+    perm = Int32.(collect(1:m))
+    _rdpsrt!(key, perm; lseq = false)
+    block = Int[jclas2[lo + Int(perm[k]) - 1] for k in 1:m]
+    @inbounds for k in 1:m; jclas2[lo + k - 1] = block[k]; end
+    return jclas2
+end
+
+"""
+    dftm_couple!(d, gipt, isct, naclas, prob, wk2, dbh, ht, dg, htg, icr, pct, normht,
+                 itrunc, imc, kutkod, fbioms, pcnewf; fint, weight, tmpn1, iegtyp,
+                 dfegg, gfegg, dfregg, gfregg, ldf, lgf, itmslv, tmdefl) -> wk2
+
+The FVS `TMCOUP` driver (tmcoup.f), composed from the validated kernels. `gipt` is
+the global species-sorted record pointer (IND1, mutated in place by GARBEL); `isct`
+is the MAXSP×2 per-species sector table (ISCT); the remaining vectors are indexed by
+RECORD number (1..ITRN). On entry `wk2` holds the background periodic mortality
+(FVS `WK2`, = old PROB − surviving PROB); on return it holds the DFTM mortality
+`PROB·PRMORT` for every host record in a class (≥ the background). `dg`/`htg` are the
+CURRENT-cycle increments (reduced in place); `ht`/`icr`/`normht`/`itrunc`/`imc`/
+`kutkod` are updated for top-kill/live-cull/salvage. Threads the `d` TMRANN stream
+through the RANLARVA egg allocation (DO-170) and the DO-380 per-tree top-kill draws
+— NEVER FFI'd. Returns `wk2`.
+"""
+function dftm_couple!(d::DftmState,
+        gipt::Vector{Int32}, isct::AbstractMatrix{<:Integer}, naclas::NTuple{2,Int},
+        prob::Vector{Float32}, wk2::Vector{Float32},
+        dbh::Vector{Float32}, ht::Vector{Float32}, dg::Vector{Float32}, htg::Vector{Float32},
+        icr::Vector{Int32}, pct::Vector{Float32}, normht::Vector{Int32}, itrunc::Vector{Int32},
+        imc::Vector{Int32}, kutkod::Vector{Int32}, fbioms::Vector{Float32}, pcnewf::Vector{Float32};
+        fint::Float32, weight::NTuple{2,Float32} = (1.0f0, 1.0f0), tmpn1::Float32 = 0.5f0,
+        iegtyp::Int = 1,
+        dfegg::NTuple{3,Float32} = (11.0f0, 9.0f0, 7.0f0),
+        gfegg::NTuple{3,Float32} = (15.0f0, 10.0f0, 7.0f0),
+        dfregg::NTuple{3,Float32} = (9.0f0, 2.0f0, 0.0f0),
+        gfregg::NTuple{3,Float32} = (11.0f0, 3.0f0, 0.0f0),
+        ldf::Bool = true, lgf::Bool = true,
+        itmslv::Int = 0, tmdefl::Float32 = 50.0f0)
+    idfcod = Int(d.idfcod); igfcod = Int(d.igfcod)
+    ifin = naclas[1] + naclas[2]
+    ifin < 1 && return wk2
+    isc1 = zeros(Int, ifin); isc2 = zeros(Int, ifin); iz6 = zeros(Int, ifin)
+    z4 = zeros(Float32, ifin); z2 = zeros(Float32, ifin); z3 = zeros(Float32, ifin)
+    # --- GARBEL DF then GF over the shared global gipt (offset LOCAL sectors → GLOBAL) ---
+    if ldf && naclas[1] > 0
+        i1 = Int(isct[idfcod, 1]); nrec = Int(isct[idfcod, 2]) - i1 + 1
+        z4d, z2d, z3d, isc1d, isc2d, _ = dftm_garbel(gipt, i1, nrec, prob, pcnewf, fbioms;
+            w1 = weight[1], w2 = weight[2], nclas = naclas[1], pn1 = tmpn1)
+        @inbounds for i in 1:naclas[1]
+            isc1[i] = isc1d[i] + i1 - 1; isc2[i] = isc2d[i] + i1 - 1; iz6[i] = 1
+            z4[i] = z4d[i]; z2[i] = z2d[i]; z3[i] = z3d[i]
+        end
+    end
+    if lgf && naclas[2] > 0
+        base = naclas[1]
+        i1 = Int(isct[igfcod, 1]); nrec = Int(isct[igfcod, 2]) - i1 + 1
+        z4f, z2f, z3f, isc1f, isc2f, _ = dftm_garbel(gipt, i1, nrec, prob, pcnewf, fbioms;
+            w1 = weight[1], w2 = weight[2], nclas = naclas[2], pn1 = tmpn1)
+        @inbounds for i in 1:naclas[2]
+            isc1[base+i] = isc1f[i] + i1 - 1; isc2[base+i] = isc2f[i] + i1 - 1; iz6[base+i] = 2
+            z4[base+i] = z4f[i]; z2[base+i] = z2f[i]; z3[base+i] = z3f[i]
+        end
+    end
+    # --- JCLAS2: sort classes to descending avg class DBH, per species block (DO-150 + RDPSRT) ---
+    wk3 = zeros(Float32, ifin); jclas2 = collect(1:ifin)
+    @inbounds for i in 1:ifin
+        adbh = 0.0f0; sprob = 0.0f0
+        for j in isc1[i]:isc2[i]
+            ip = Int(gipt[j]); adbh += dbh[ip] * prob[ip]; sprob += prob[ip]
+        end
+        wk3[i] = adbh / sprob                     # 0/0 = NaN for an empty class (faithful)
+    end
+    _dftm_jclas2_sort!(jclas2, wk3, 1, naclas[1])
+    naclas[2] > 0 && _dftm_jclas2_sort!(jclas2, wk3, naclas[1] + 1, ifin)
+    # --- DFMEAN/GFMEAN: between-outbreak larval-density draws (tmcoup.f:357-381) ---
+    # ZZ1 (DF) is drawn only when DFREGG(3)≥0.001 (else stays 0, the -fno-automatic static
+    # zero); ZZ2 (GF) is then drawn independently when GFREGG(3)≥0.001 and correlated via ZZ1+ZZ2.
+    zz1 = 0.0f0
+    dfmean = dfregg[1]
+    if dfregg[3] >= 0.001f0
+        while true
+            zz1 = dftm_tmbchl!(d, 0.0f0, 1.0f0)
+            dfmean = dfregg[1] + dfregg[3] * zz1
+            dfmean < 0.001f0 || break
+        end
+    end
+    gfmean = gfregg[1]
+    if gfregg[3] >= 0.001f0
+        zz2 = dftm_tmbchl!(d, 0.0f0, 0.1f0)
+        gfmean = gfregg[1] + gfregg[3] * (zz1 + zz2)
+        gfmean < 0.001f0 && (gfmean = 0.0f0)
+    end
+    # --- DO-170: fill the ICOND class arrays; assign eggs in JCLAS2 (descending-DBH) order ---
+    x5 = zeros(Float32, ifin); x6 = zeros(Float32, ifin); x7 = zeros(Float32, ifin)
+    z5 = ones(Float32, ifin)
+    @inbounds for i in 1:ifin
+        x5[i] = z2[i] * z3[i] / 100.0f0
+        x6[i] = z3[i] - x5[i]
+    end
+    if iegtyp == 2                                  # DETLARVA: deterministic by DBH-class third
+        degg = (dfegg, gfegg)
+        @inbounds for ii in 1:ifin
+            i = jclas2[ii]
+            nacl = iz6[i] == 2 ? naclas[2] : naclas[1]
+            left = iz6[i] == 2 ? ii - naclas[1] : ii
+            num = ((left * 3 - 1) ÷ nacl) + 1
+            x7[i] = iz6[i] == 2 ? gfegg[num] : dfegg[num]
+        end
+    else                                            # RANLARVA: TMBCHL draws off the DFTM stream
+        x7 = dftm_alloc_eggs!(d, iz6, jclas2, dfmean, dfregg[2], gfmean, gfregg[2])
+    end
+    # --- DFTMOD: integrate the population dynamics → per-class DPCENT + G19OUT ---
+    g = dftm_integ(iz6, z2, z3, x5, x6, x7, z4, z5,
+                   d.b0, d.r0, d.b1)
+    dftmod!(g)
+    # --- DO-320: per-class tree-defoliation class (ITAB) + DFTM mortality WK2 ---
+    itabsv = zeros(Int, ifin); tsave = zeros(Float32, ifin)
+    @inbounds for i in 1:ifin
+        dpmax = g.dpcent[i, 1]; (g.dpcent[i, 2] > dpmax) && (dpmax = g.dpcent[i, 2])
+        g19max = g.g19out[i, 1]; (g.g19out[i, 2] > g19max) && (g19max = g.g19out[i, 2])
+        (t, itab) = dftm_tree_defol(dpmax, g19max, iz6[i])
+        itabsv[i] = itab; tsave[i] = t
+        for j in isc1[i]:isc2[i]
+            ip = Int(gipt[j])
+            wk2[ip] = dftm_mortality(itab, dpmax, prob[ip], wk2[ip])   # wk2[ip] enters as PROB·PRNORM
+        end
+    end
+    # --- DO-430 / DO-380: per-tree top-kill (RNG), height/diameter-growth loss, crown/cull ---
+    salkod = Float32(73)
+    @inbounds for i in 1:ifin
+        dpmax = g.dpcent[i, 1]; (g.dpcent[i, 2] > dpmax) && (dpmax = g.dpcent[i, 2])
+        itab = itabsv[i]; t = tsave[i]
+        for j in isc1[i]:isc2[i]
+            ip = Int(gipt[j])
+            icri = icr[ip] < 0 ? -icr[ip] : icr[ip]
+            cbase = ht[ip] * Float32(100 - Int(icri)) / 100.0f0
+            (ht2, htg2, _, nh, it, jtrunk, _, _, _) =
+                dftm_topkill!(d, itab, dpmax, ht[ip], htg[ip], Int(icr[ip]),
+                              Int(normht[ip]), Int(itrunc[ip]), fint)
+            ht[ip] = ht2; htg[ip] = htg2
+            normht[ip] = Int32(nh); itrunc[ip] = Int32(it)
+            # DG loss (DO-430): DGLOSS = DG·(1 − RGLOSS(ITAB)), capped at DG.
+            (dgnew, _) = dftm_dgloss(itab, dg[ip]); dg[ip] = dgnew
+            # Recompute crown ratio for the (possibly reduced) HT; classify live culls; sign ICR on top-kill.
+            cr100 = (1.0f0 - cbase / ht[ip]) * 100.0f0
+            icnew = trunc(Int, cr100 + 0.5f0)
+            (itrunc[ip] > 0 && itrunc[ip] < 1700) && (imc[ip] = Int32(3))
+            icnew < 5 && (imc[ip] = Int32(3); icnew = 5)
+            icr[ip] = Int32(icnew)
+            (jtrunk == 1 && icr[ip] > 0) && (icr[ip] = -icr[ip])
+            htg[ip] < 0.0f0 && (htg[ip] = 0.0f0)
+            (itmslv == 1 && t >= tmdefl) && (kutkod[ip] = Int32(round(Int, salkod)))
+        end
+    end
+    return wk2
+end
+
+# =============================================================================
+# Engine seam (simulate.jl): DFTMGO predict-phase gate + TMBMAS biomass (grincr),
+# and the TMCOUP coupling (gradd). Gated on a DFTM block + a due MANSCHED outbreak;
+# byte-identical (no-op) otherwise. Mirrors the DFB seam placement/gating.
+# =============================================================================
+
+"""
+    dftm_outbreak_due(d, s) -> Bool
+
+Whether a MANSCHED regional-outbreak activity is due THIS cycle — the `OPGET2(810)`
+window test in `DFTMGO` (dftmgo.f:71-93). Mirrors OPNEW/OPCYCL date matching: a
+`MANSCHED` integer `IDT ≤ MAXCYC` is a 1-based FVS CYCLE number (fires when the FVS
+cycle equals it, i.e. jl cycle `IDT−1`); `IDT ≥ 1000` is a calendar year in this
+cycle's window. Only the MANSTART deterministic path (`itmeth==1`, `itmsch==1`) is
+wired; RANSCHED/RANSTART/CRTSTART auto-scheduling remain report-only.
+"""
+function dftm_outbreak_due(d::DftmState, s::StandState)::Bool
+    (d.itmeth == 1 && d.itmsch == 1) || return false      # MANSTART + MANSCHED only
+    isempty(d.mansched_years) && return false
+    fvscyc = Int(s.control.cycle) + 1                       # FVS ICYC (1-based)
+    cs = current_cycle_year(s)
+    ce = cycle_year_at(s.control, Int(s.control.cycle) + 1); ce <= cs && (ce = cs + 1)
+    @inbounds for m in d.mansched_years
+        mi = Int(m)
+        (0 < mi <= MAXCYC) && mi == fvscyc && return true  # cycle number
+        (mi >= 1000) && (cs <= mi < ce) && return true      # calendar year in window
+    end
+    return false
+end
+
+"""
+    _dftm_species_blocks(s) -> (gipt, isct)
+
+Build the global species-sorted record pointer `gipt` (FVS `IND1`) and the MAXSP×2
+per-species sector table `isct` (`ISCT`) over the current live records, grouped by
+species in ascending record order (the FVS species-major traversal). Local to the
+DFTM seam so it neither perturbs nor depends on `scratch.idx1`, and so the DF and GF
+GARBEL sub-blocks (and the cross-block sector underflow they can produce) index the
+same global pointer the oracle's `IPT` does.
+"""
+function _dftm_species_blocks(s::StandState)
+    t = s.trees; n = t.n
+    gipt = Int32[]; sizehint!(gipt, n)
+    isct = zeros(Int, MAXSP, 2)
+    for sp in 1:MAXSP
+        start = length(gipt) + 1
+        recs = Int[i for i in 1:n if Int(t.species[i]) == sp]
+        isempty(recs) && continue
+        sort!(recs; by = i -> t.sort_key[i])               # FVS LNKCHN/TRIPLE within-species order
+        append!(gipt, Int32.(recs))
+        isct[sp, 1] = start; isct[sp, 2] = length(gipt)
+    end
+    return (gipt, isct)
+end
+
+# SCALDG (tmbmas.f:54-56): 10 / (prior FVS cycle length). At the outbreak cycle
+# (FVS ICYC ≥ 2 ⇒ jl cycle ≥ 1) this is 10/(IY(ICYC)−IY(ICYC−1)).
+@inline function _dftm_scaldg(s::StandState)::Float32
+    cyc = Int(s.control.cycle)
+    cyc < 1 && return 10.0f0 / Float32(max(1, round(Int, s.control.year)))   # ICYC==1 ⇒ ICL6 length
+    len = Int(s.control.cycle_year[cyc + 1]) - Int(s.control.cycle_year[cyc])
+    len < 1 && (len = round(Int, s.control.year))
+    return 10.0f0 / Float32(len)
+end
+
+"""
+    dftm_predict!(s) -> Bool
+
+FVS `DFTMGO`+`TMBMAS` predict-phase seam (grincr.f:402/424), called BEFORE the
+diameter-growth driver (so `t.diam_growth` still holds the PRIOR cycle's increment
+that TMBMAS's `DGI = DG·SCALDG` reads). No-op unless a DFTM block is active and a
+MANSCHED outbreak is due this cycle. When it fires it runs the DFTMGO host-threshold
+gate, and — if the outbreak can be simulated (`L`) — computes the IBMTYP=2 foliage
+biomass/percent-new-foliage per host record (`dftm_bmas2_df/_gf`), caching them plus
+the go-gate `NACLAS`/`LDF`/`LGF` on `s.dftm` for the gradd TMCOUP seam. Returns
+`cyc_go` (whether the coupling will run this cycle). IBMTYP≠2 methods (which draw
+`TMBCHL` off the stream) are not yet wired; the seam stays inert for them.
+"""
+function dftm_predict!(s::StandState)::Bool
+    d = s.dftm
+    (d === nothing || !d.active) && return false
+    d.cyc_go = false
+    dftm_outbreak_due(d, s) || return false
+    d.ibmtyp == 2 || return false                          # only the deterministic biomass path is wired
+    t = s.trees; n = t.n
+    n == 0 && return false
+    idfcod = Int(d.idfcod); igfcod = Int(d.igfcod)
+    (_, isct) = _dftm_species_blocks(s)
+    # DFTMGO host-threshold gate over the DF/GF PROB in ISCT order.
+    df_probs = isct[idfcod,1] == 0 ? Float32[] :
+               Float32[t.tpa[i] for i in 1:n if Int(t.species[i]) == idfcod]
+    gf_probs = isct[igfcod,1] == 0 ? Float32[] :
+               Float32[t.tpa[i] for i in 1:n if Int(t.species[i]) == igfcod]
+    g = dftm_go_gate(df_probs, gf_probs; ldf = d.ldf, lgf = d.lgf,
+                     nclas = (Int(d.nclas[1]), Int(d.nclas[2])))
+    g.l || return false                                    # outbreak can not be simulated
+    d.cyc_ldf = g.ldf; d.cyc_lgf = g.lgf
+    d.cyc_naclas = (Int32(g.naclas[1]), Int32(g.naclas[2]))
+    # TMBMAS IBMTYP=2 — nominal-branch foliage biomass + %new for each host record.
+    p = s.plot
+    slope = p.slope; aspect = p.aspect; ba = p.basal_area; relden = p.relative_density
+    tprob = 0.0f0; @inbounds for i in 1:n; tprob += t.tpa[i]; end
+    scaldg = _dftm_scaldg(s)
+    fb = zeros(Float32, n); pn = zeros(Float32, n)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i])
+        (sp == idfcod || sp == igfcod) || continue
+        (sp == idfcod && !g.ldf) && continue
+        (sp == igfcod && !g.lgf) && continue
+        cr = Float32(t.crown_pct[i]) / 100.0f0
+        dgi = t.diam_growth[i] * scaldg
+        f, q = sp == idfcod ?
+            dftm_bmas2_df(slope, aspect, ba, tprob, relden, t.dbh[i], t.height[i], dgi, cr, t.crown_ratio[i]) :
+            dftm_bmas2_gf(slope, aspect, ba, tprob, relden, t.dbh[i], t.height[i], dgi, cr, t.crown_ratio[i])
+        fb[i] = f; pn[i] = q
+    end
+    d.cyc_fbioms = fb; d.cyc_pcnewf = pn
+    d.cyc_go = true
+    return true
+end
+
+"""
+    dftm_apply!(s, old_tpa, fint)
+
+FVS `TMCOUP` coupling seam (gradd.f:103), wired into the FVSjl mortality path just
+after the DFB block (both are gradd insect couplers running on the non-tripled cycle
+stand, reading the cycle-start `old_tpa`/DBH and the just-computed MORTS `WK2`). No-op
+unless `dftm_predict!` fired this cycle (`cyc_go`). When it fires it builds the global
+species pointer, seeds the DFTM `WK2` with the background periodic mortality
+(`old_tpa − t.tpa`), runs `dftm_couple!` (classification → DFTMOD → mortality + growth
+loss + top-kill), and writes the results back: the raised host `WK2` reduces `t.tpa`,
+and the reduced `DG`/`HTG` + truncated `HT`/`NORMHT`/`ITRUNC` + revised `ICR`/`IMC`
+feed the DBH/HT update that follows. Threads the DFTM `TMRANN` stream through `s.dftm`
+— NEVER FFI'd.
+"""
+function dftm_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
+    d = s.dftm
+    (d === nothing || !d.active || !d.cyc_go) && return nothing
+    t = s.trees; n = t.n
+    n == 0 && return nothing
+    (length(d.cyc_fbioms) == n && length(d.cyc_pcnewf) == n) || return nothing
+    naclas = (Int(d.cyc_naclas[1]), Int(d.cyc_naclas[2]))
+    (naclas[1] + naclas[2] < 1) && return nothing
+    (gipt, isct) = _dftm_species_blocks(s)
+    prob = Float32[old_tpa[i] for i in 1:n]
+    wk2  = Float32[old_tpa[i] - t.tpa[i] for i in 1:n]     # background periodic mortality (MORTS WK2)
+    dbh  = Float32[t.dbh[i] for i in 1:n]
+    ht   = Float32[t.height[i] for i in 1:n]
+    dg   = Float32[t.diam_growth[i] for i in 1:n]
+    htg  = Float32[t.ht_growth[i] for i in 1:n]
+    pct  = Float32[t.crown_ratio[i] for i in 1:n]          # FVS PCT (BA percentile)
+    icr  = Int32[t.crown_pct[i] for i in 1:n]              # FVS ICR (crown ratio %)
+    normht = Int32[t.norm_ht[i] for i in 1:n]
+    itrunc = Int32[t.trunc[i] for i in 1:n]
+    imc  = Int32[t.mort_code[i] for i in 1:n]
+    kutkod = Int32[t.cut_code[i] for i in 1:n]
+    fbioms = copy(d.cyc_fbioms); pcnewf = copy(d.cyc_pcnewf)
+    dftm_couple!(d, gipt, isct, naclas, prob, wk2, dbh, ht, dg, htg, icr, pct, normht,
+                 itrunc, imc, kutkod, fbioms, pcnewf;
+                 fint = Float32(fint), weight = d.weight, tmpn1 = d.tmpn1, iegtyp = Int(d.iegtyp),
+                 dfegg = d.dfegg, gfegg = d.gfegg, dfregg = d.dfregg, gfregg = d.gfregg,
+                 ldf = d.cyc_ldf, lgf = d.cyc_lgf, itmslv = Int(d.itmslv), tmdefl = d.tmdefl)
+    @inbounds for i in 1:n
+        nt = old_tpa[i] - wk2[i]; nt < 0.0f0 && (nt = 0.0f0)
+        t.tpa[i] = nt
+        t.diam_growth[i] = dg[i]; t.ht_growth[i] = htg[i]; t.height[i] = ht[i]
+        t.crown_pct[i] = icr[i]; t.mort_code[i] = imc[i]
+        t.norm_ht[i] = normht[i]; t.trunc[i] = itrunc[i]; t.cut_code[i] = kutkod[i]
+    end
+    d.cyc_go = false                                        # one outbreak coupling per cycle
+    return nothing
+end
+
+"""
+    dftm_schedule!(s)
+
+FVS `DFTMGO`→`INSCYC` cycle-forcing at run setup (inscyc.f, dftmgo.f:220). On a
+deterministic MANSTART+MANSCHED outbreak with hosts present, force the outbreak cycle
+to the `TMBASE`(=5)-year base period by inserting a boundary 5 years after the
+outbreak cycle's start (unless the cycle is already within ±1 of TMBASE, per the
+`ITMSCH==1` guard at dftmgo.f:216). Mutates `control.cycle_year`/`ncycle_eff` in place.
+No-op unless a DFTM block is active with a MANSCHED cycle in range and ≥1 host present.
+"""
+function dftm_schedule!(s::StandState)
+    d = s.dftm
+    (d === nothing || !d.active) && return nothing
+    (d.itmeth == 1 && d.itmsch == 1) || return nothing      # MANSTART + MANSCHED only
+    isempty(d.mansched_years) && return nothing
+    t = s.trees; n = t.n
+    idfcod = Int(d.idfcod); igfcod = Int(d.igfcod)
+    hasdf = d.ldf && any(Int(t.species[i]) == idfcod for i in 1:n)
+    hasgf = d.lgf && any(Int(t.species[i]) == igfcod for i in 1:n)
+    (hasdf || hasgf) || return nothing
+    c = s.control
+    ncyc = Int(c.ncycle_eff); ncyc < 1 && (ncyc = Int(c.ncycle))
+    tmbase = 5
+    changed = false
+    for m in d.mansched_years
+        mi = Int(m)
+        icyc = (0 < mi <= MAXCYC) ? mi : 0                  # 1-based FVS cycle number (else calendar → runtime)
+        (icyc < 1 || icyc > ncyc) && continue
+        ifint = Int(c.cycle_year[icyc + 1]) - Int(c.cycle_year[icyc])
+        (d.itmsch == 1 && abs(ifint - tmbase) <= 1) && continue   # already ~TMBASE ⇒ no insert (dftmgo.f:216)
+        target = Int(c.cycle_year[icyc]) + tmbase           # INSCYC boundary = IY(ICYC)+TMBASE
+        # INSCYC's mid-run cycle-boundary insertion is exactly a CYCLEAT boundary (a new boundary
+        # strictly inside the run, splitting the outbreak cycle to TMBASE years). Register it as one so
+        # build_cycle_schedule! (which write_sum_file re-runs) re-inserts it idempotently, rather than
+        # mutating cycle_year in place (which that recompute would wipe). Faithful to inscyc.f's pure insert.
+        (target <= Int(c.cycle_year[1]) || target in c.cycleat_years) && continue
+        push!(c.cycleat_years, Int32(target)); changed = true
+    end
+    changed && build_cycle_schedule!(s)                     # refresh IY/ncycle_eff for the seam gating
+    return nothing
 end

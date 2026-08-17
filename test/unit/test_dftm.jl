@@ -563,6 +563,185 @@ END
     end
 
     # -------------------------------------------------------------------------
+    # TMCOUP DRIVER SEAM (dftm_couple!) — the WHOLE coupler composition, LIVE
+    # cycle-2 dump-replay BIT-EXACT.  Goldens = instrumented FVSie_dftm (dense.key):
+    #   * DBGIN_TRE — the pre-DFTM per-record entry state (WK2 background / HT / HTG /
+    #     DBH / DG / PCT / PROB in hex, + IMC/ICR/NORMHT/ITRUNC), captured at TMCOUP
+    #     entry (gradd, after MORTS/DGDRIV/HTGF, before UPDATE);
+    #   * DBGA_REC — the TMBMAS per-record FBIOMS/PCNEWF (biomass predict);
+    #   * DBGC_TRE — the FINAL per-record treelist after TMCOUP (IMC/ICR/NORMHT/
+    #     ITRUNC + WK2/HT/HTG/DBH/DG in hex).
+    # Driving dftm_couple! with the oracle's exact cycle-2 entry state must reproduce
+    # DBGC_TRE for all 18 records — proving the driver ORDER/PLUMBING (GARBEL DF→GF,
+    # JCLAS2 avg-DBH RDPSRT incl. the NaN empty class, ICOND fill + RANLARVA egg
+    # allocation, DFTMOD, DO-320 mortality, DO-430 top-kill/DG-loss) AND the
+    # class-sector double-processing of the empty/cross-block-underflow classes is
+    # exact.  This is the engine-seam validation the individual kernels don't cover.
+    # -------------------------------------------------------------------------
+    @testset "TMCOUP driver seam (dftm_couple!) — cycle-2 dump-replay bit-exact" begin
+        # DBGIN_TRE: I IMC ICR NORMHT ITRUNC WK2 HT HTG DBH DG PCT PROB (7 hex reals)
+        din = split(strip("""
+        1   1  32   0       0 3E645B51 4291D1B4 40809BFC 414FFE05 3F07AEA0 421F878D 4093DA38
+        2   1  33   0       0 3E3BB828 429994A9 407A7153 416CB1A5 3F16F7F0 428689B2 4056CD2A
+        3   1  33   0       0 3D882AB8 42A5B651 40678DEB 418BB9F6 3F1A8830 42B188B2 402E9B5F
+        4   1  34   0       0 3E20BBF2 428D1ECB 408D15DA 413CC8C5 3F1BCCD0 41B60A30 40DFFF5C
+        5   1  35   0       0 3E3E412E 42859F16 40A2AA2B 412E2166 3F5244F0 41846AE0 410A80DF
+        6   1  33   0       0 3E21083A 429144A2 40831D82 41491916 3F097B10 420BA686 40B75025
+        7   1  34   0       0 3E06B42E 4298D001 4074C17E 41654016 3F074990 427A600F 408210B3
+        8   1  34   0       0 3D7DC302 42A316EE 407809BE 41859D62 3F30F390 42A6F071 404868AC
+        9   1  32   0       0 3F3CD668 426FF218 4098F5D7 410C7930 3EDAFB30 409A1FC4 411D11A4
+        10  1  33   0       0 3D7E3C85 42A8E5B8 404D241D 4192FC29 3EE98C00 42BBE4F3 401A4C03
+        11  1  36   0       0 3D98A52A 42903299 4094809F 415712B7 3F17C850 423AB501 40BD0B95
+        12  1  34   0       0 3E62EB71 4293F527 408F0AA0 415CB289 3F0A8110 424D740E 4077AC52
+        13  1  33   0       0 3EDE2C8F 427960C2 408B46AC 4120B5E6 3EE18F20 41206AF2 4101CD8C
+        14  1  34   0       0 3DEB41F2 429F7867 40893653 4180BA9C 3F04CFA0 429BD1C4 40416294
+        15  1  36   0       0 3DCC037F 42937F0A 40B2EA9A 415CCB84 3F849640 42652161 409C4546
+        16  1  35   0       0 3E0AFF28 4288877B 409C0239 413F17FB 3F26FCB0 41E93899 40E17C01
+        17  1  35   0       0 3D930773 429CCB54 409EB718 417BBF1A 3F477BB0 4291DC13 4065EB69
+        18  1  35   0       0 3CFFC31C 42A6F58E 409F2177 41935F28 3F59F7C0 42C80000 40335832
+        """), '\n')
+        # DBGA_REC: I PROB PCNEWF FBIOMS
+        arec = split(strip("""
+        1 4093DA38 41F2DB66 4364E18B
+        2 4056CD2A 41EADF32 438276F4
+        3 402E9B5F 420145DD 439970E9
+        4 40DFFF5C 420A0550 43510607
+        5 410A80DF 420DBEEB 4345A521
+        6 40B75025 42070412 435CC33F
+        7 408210B3 4203414E 437C4945
+        8 404868AC 4208E148 4392D15A
+        9 411D11A4 41D14398 43237A47
+        10 401A4C03 41F9DE38 43A1BDCB
+        11 40BD0B95 41700000 43C80000
+        12 4077AC52 41700000 43C17A71
+        13 4101CD8C 41700000 438372C3
+        14 40416294 418352E6 43C80000
+        15 409C4546 41700000 43C80000
+        16 40E17C01 41700000 43BCD74A
+        17 4065EB69 418411E4 43C80000
+        18 40335832 41B7B81C 43C80000
+        """), '\n')
+        # DBGC_TRE expected: I IMC ICR NORMHT ITRUNC WK2 HT HTG DBH DG
+        dexp = split(strip("""
+        8   1  34   0       0 3F957706 42A316EE 404CEFA2 41859D62 3EC95EE7
+        3   1  33   0       0 3E6D7724 42A5B651 40446B89 418BB9F6 3EC84601
+        10  1  32   0       0 3E51D803 42A6FF5B 4010587A 4192FC29 3E9756A0
+        7   1  34   0       0 4019D756 4298D001 4043EFFE 41654016 3E51F74A
+        5   1  35   0       0 41022A5E 42859F16 408221BC 412E2166 3EA32B42
+        4   1  34   0       0 40D28349 428D1ECB 4061BC90 413CC8C5 3E71CD3C
+        6   1  33   0       0 40AC4712 429144A2 4051C8D0 41491916 3E555EBE
+        2   1  33   0       0 3FFE1130 429994A9 404B09D2 416CB1A5 3E6A4D9A
+        1   1  32   0       0 408AF3A2 4291D1B4 404DC660 414FFE05 3E529424
+        9   1  32   0       0 41139D05 426FF218 404EB708 410C7930 3DD56E6D
+        18  1  35   0       0 3E1B870E 42A6F58E 4086689D 41935F28 3F08E23E
+        17  1  35   0       0 3E1E1E43 429CCB54 408A34E5 417BBF1A 3F1C9823
+        14  1  34   0       0 3E04384F 429F7867 4075F32A 4180BA9C 3ED0836A
+        15  1  36   0       0 3E3789D5 42937F0A 40A23DAE 415CCB84 3F502956
+        11  1  36   0       0 3E4F33EC 42903299 4086A960 415712B7 3EEE4C6A
+        12  1  34   0       0 3E62EB71 4293F527 4083206F 415CB289 3ED97397
+        16  1  35   0       0 3E94AD25 4288877B 40799D28 413F17FB 3F0315B8
+        13  1  33   0       0 3EDE2C8F 427960C2 4079FCF1 4120B5E6 3EB1105B
+        """), '\n')
+        n = 18
+        prob=zeros(Float32,n); wk2=zeros(Float32,n); dbh=zeros(Float32,n); ht=zeros(Float32,n)
+        dg=zeros(Float32,n); htg=zeros(Float32,n); pct=zeros(Float32,n)
+        icr=zeros(Int32,n); imc=ones(Int32,n); normht=zeros(Int32,n); itrunc=zeros(Int32,n)
+        kutkod=zeros(Int32,n); fbioms=zeros(Float32,n); pcnewf=zeros(Float32,n)
+        for l in din
+            t = split(strip(l)); i = parse(Int, t[1])
+            imc[i]=parse(Int32,t[2]); icr[i]=parse(Int32,t[3]); normht[i]=parse(Int32,t[4]); itrunc[i]=parse(Int32,t[5])
+            wk2[i]=_fromhex(t[6]); ht[i]=_fromhex(t[7]); htg[i]=_fromhex(t[8]); dbh[i]=_fromhex(t[9])
+            dg[i]=_fromhex(t[10]); pct[i]=_fromhex(t[11]); prob[i]=_fromhex(t[12])
+        end
+        for l in arec
+            t = split(strip(l)); i = parse(Int, t[1]); pcnewf[i]=_fromhex(t[3]); fbioms[i]=_fromhex(t[4])
+        end
+        d = _F.dftm_defaults!(_F.InlandEmpire())     # seed 55329, IBMTYP def; set method-2 + RANLARVA
+        d.active = true; d.ibmtyp = Int32(2); d.iegtyp = Int32(1)
+        gipt = Int32.(collect(1:18))                 # dense IND1 = identity
+        isct = zeros(Int, _F.MAXSP, 2)
+        isct[3,1]=1; isct[3,2]=10; isct[4,1]=11; isct[4,2]=18   # ISCT: DF (1,10), GF (11,18)
+        _F.dftm_couple!(d, gipt, isct, (10,8), prob, wk2, dbh, ht, dg, htg, icr, pct, normht,
+            itrunc, imc, kutkod, fbioms, pcnewf; fint=5.0f0, weight=(1.0f0,1.0f0), tmpn1=0.5f0,
+            iegtyp=1, ldf=true, lgf=true, itmslv=0, tmdefl=50.0f0)
+        maxu = 0; badint = 0
+        for l in dexp
+            t = split(strip(l)); i = parse(Int, t[1])
+            (imc[i]==parse(Int,t[2]) && icr[i]==parse(Int,t[3]) &&
+             normht[i]==parse(Int,t[4]) && itrunc[i]==parse(Int,t[5])) || (badint += 1)
+            maxu = max(maxu, _ulps(wk2[i], _fromhex(t[6])), _ulps(ht[i], _fromhex(t[7])),
+                       _ulps(htg[i], _fromhex(t[8])), _ulps(dbh[i], _fromhex(t[9])),
+                       _ulps(dg[i], _fromhex(t[10])))
+        end
+        @test badint == 0     # IMC/ICR/NORMHT/ITRUNC exact, all 18 records
+        @test maxu == 0       # WK2/HT/HTG/DBH/DG bit-exact, all 18 records — whole TMCOUP composition
+    end
+
+    # -------------------------------------------------------------------------
+    # DFTM engine seam end-to-end (simulate.jl): a scheduled MANSTART/MANSCHED
+    # tussock-moth outbreak fires through the LIVE cycle loop — DFTMGO+INSCYC forces
+    # the TMBASE 5-yr outbreak cycle (a NEW boundary appears) and TMCOUP raises the
+    # host mortality + growth loss.  The .sum-DELTA vs the relinked FVSie_dftm oracle
+    # is CORNERED by the documented IE #206 OLDRN growth straddle (the pre-DFTM cyc-2
+    # stand differs; the coupling math itself is the bit-exact dump-replay above), so
+    # here we assert the qualitative seam behaviour: the outbreak cycle is inserted
+    # and the host TPA collapses.  A DFTM block WITHOUT a MANSCHED outbreak stays
+    # byte-identical to no DFTM (the inert-seam guarantee, also covered below).
+    # -------------------------------------------------------------------------
+    @testset "DFTM engine seam — MANSCHED outbreak fires + INSCYC (live cycle loop)" begin
+        v = FVSjl.InlandEmpire()
+        dir2 = mktempdir()
+        tre = """
+   1      248112       0101   011DF 12016   0654   00111     0  0
+   2      248112       0101   011DF 14018   0704   00111     0  0
+   3      248112       0102   011DF 16020   0754   00111     0  0
+   4      248112       0102   011DF 10012   0604   00111     0  0
+   5      248112       0103   011DF 09011   0554   00111     0  0
+   6      248112       0103   011DF 11014   0634   00111     0  0
+   7      248112       0104   011DF 13017   0684   00111     0  0
+   8      248112       0104   011DF 15019   0734   00111     0  0
+   9      248112       0105   011DF 08010   0504   00111     0  0
+  10      248112       0105   011DF 17021   0774   00111     0  0
+  11      248112       0106   011GF 11013   0604   00111     0  0
+  12      248112       0106   011GF 13016   0664   00111     0  0
+  13      248112       0107   011GF 09011   0524   00111     0  0
+  14      248112       0107   011GF 15018   0714   00111     0  0
+  15      248112       0108   011GF 12014   0634   00111     0  0
+  16      248112       0108   011GF 10012   0574   00111     0  0
+  17      248112       0109   011GF 14017   0684   00111     0  0
+  18      248112       0109   011GF 16019   0724   00111     0  0
+"""
+        write(joinpath(dir2, "dn.tre"), tre)
+        head = _dftm_head("DFTM SEAM  ")   # SCREEN/NOAUTOES/NOTRIPLE/… INVYEAR 1990 NUMCYCLE 5
+        onblk  = "DFTM\nMANSTART\nMANSCHED           2\nBIOMASS            2\nEND\n"
+        write(joinpath(dir2, "dn_on.key"),  head * onblk * "ECHOSUM\nPROCESS\nSTOP\n")
+        write(joinpath(dir2, "dn_off.key"), head *          "ECHOSUM\nPROCESS\nSTOP\n")
+        cp(joinpath(dir2, "dn.tre"), joinpath(dir2, "dn_on.tre"))
+        cp(joinpath(dir2, "dn.tre"), joinpath(dir2, "dn_off.tre"))
+        yr_tpa(key) = begin
+            rows = filter(l -> !startswith(l, "-999") && !isempty(strip(l)),
+                          split(strip(FVSjl.run_keyfile(key; variant = v, output = :sum)), '\n'))
+            [(parse(Int, split(r)[1]), parse(Int, split(r)[3])) for r in rows]  # (year, TPA)
+        end
+        off = yr_tpa(joinpath(dir2, "dn_off.key"))
+        on  = yr_tpa(joinpath(dir2, "dn_on.key"))
+        offyears = first.(off); onyears = first.(on)
+        # INSCYC forces the 5-yr outbreak cycle ⇒ a 2005 boundary the DFTM-off run lacks.
+        @test !(2005 in offyears)
+        @test 2005 in onyears
+        # The outbreak collapses the host TPA in the inserted cycle (>30% drop 2000→2005).
+        tpa2000 = only(t for (y, t) in on if y == 2000)
+        tpa2005 = only(t for (y, t) in on if y == 2005)
+        @test tpa2005 < 0.7 * tpa2000
+        # Inert seam: a DFTM block that schedules NO MANSCHED outbreak is byte-identical to no DFTM.
+        write(joinpath(dir2, "dn_ns.key"), head * "DFTM\nMANSTART\nBIOMASS 2\nEND\n" * "ECHOSUM\nPROCESS\nSTOP\n")
+        cp(joinpath(dir2, "dn.tre"), joinpath(dir2, "dn_ns.tre"); force = true)
+        strip999(key) = filter(l -> !startswith(l, "-999"),
+                               split(strip(FVSjl.run_keyfile(key; variant = v, output = :sum)), '\n'))
+        @test strip999(joinpath(dir2, "dn_ns.key")) == strip999(joinpath(dir2, "dn_off.key"))
+    end
+
+    # -------------------------------------------------------------------------
     # INSCYC (inscyc.f) — force the TMBASE (5-yr) outbreak cycle into the
     # schedule.  Integer cycle-year math ⇒ bit-exact.  Golden = the dense.key
     # DFTMGO run ("INSCYC:IY= 1990 2000 2005 2010 2020 2030 2040", ISPOT=3,
