@@ -203,7 +203,7 @@ END
         d = _F.dfb_defaults!(); d.active = true     # EXPCTD 6.0, EXSTDV 2.0 (defaults)
         badf9 = reinterpret(Float32, 0x41B78CB8)    # DF ≥9″ basal area, cycle 2
         ba9   = reinterpret(Float32, 0x42824F2E)    # stand ≥9″ basal area
-        dfkill = _F.dfb_mod(d, badf9, ba9, 4)       # NUMYRS = min(ILENTH 4, IFINT 10)
+        dfkill = _F.dfb_mod(d, badf9, ba9, 4, 2)    # NUMYRS = min(ILENTH 4, IFINT 10); ICYC 2 (new-outbreak)
         @test _hex(dfkill) == "412518D2"            # = 10.31856; BACHLO uniform branch (no log)
     end
 
@@ -269,5 +269,162 @@ END
         r2000_fire = fire[findfirst(r -> startswith(r, "2000"), fire)]
         @test ctrl[1] == fire[1]                    # 1990 inventory/first-cycle row identical
         @test mort(r2000_fire) > mort(r2000_ctrl)   # DFB adds Douglas-fir mortality at cycle 2
+    end
+
+    # =========================================================================
+    # ACTIVATION MODES — dump-replay BIT-EXACT vs relinked FVSie_dfb g16 oracle
+    # (scratchpad/dfb/mrun; instrumented DFBGO/DFBSCH/DFBMOD/DFBMRT/DFBWIN, each
+    #  instrumented .sum verified byte-identical to the clean relink first).
+    # =========================================================================
+    _fh(h) = reinterpret(Float32, parse(UInt32, h; base = 16))
+    _fd(i) = reinterpret(Float32, UInt32(i & 0xffffffff))
+
+    @testset "RANSTART (ISMETH=2) inclusion draw precedes BACHLO (bit-exact)" begin
+        # RANSTART + MANSCHED 2 + STOPROB 0.9: the DFBGO inclusion draw consumes the FIRST 56457
+        # uniform (3EE23A99 < PROTBK 0.9 ⇒ fires), so DFBMOD's BACHLO starts at the SECOND uniform
+        # ⇒ DFKILL 4116B301, distinct from the MANSTART value 412518D2.
+        d = _F.dfb_defaults!(); d.active = true; d.ismeth = Int32(2); d.lepi = true; d.epiprb = 0.9f0
+        rand1 = _F.dfb_rand!(d)
+        @test _hex(rand1) == "3EE23A99"             # inclusion draw = first uniform
+        @test rand1 < d.epiprb                       # < PROTBK ⇒ stand included
+        dfkill = _F.dfb_mod(d, _fh("41B78CB8"), _fh("42824F2E"), 4, 2)
+        @test _hex(dfkill) == "4116B301"            # BACHLO from the SECOND uniform (order proven)
+    end
+
+    @testset "RANSCHED (IDBSCH=2) DFBSCH auto-scheduler (bit-exact schedule + stream)" begin
+        # DFBSCH walks the DFBRAN stream seeded at ORSEED (55329, NOT +1128), IWAIT 10, DBEVNT 0.2,
+        # IPAST 1980, a 10-cycle 1990-start run ⇒ regional outbreaks in cycles 2,3,4,6,7,8,9.
+        rs = replace(_dfb_head("IE RANSCHED"), "NUMCYCLE         5.0" => "NUMCYCLE        10.0") *
+             "DFB\nMANSTART\nRANSCHED          10       0.2    1980\nEND\n" *
+             "ECHOSUM\nPROCESS\nSTOP\n"
+        rs_key = joinpath(dir, "ie_ransched.key"); write(rs_key, rs)
+        cp(joinpath(dir, "shared.tre"), joinpath(dir, "ie_ransched.tre"))
+        sched = Int[]
+        for s in FVSjl.each_stand(rs_key; variant = vie)
+            FVSjl.setup_growth!(s)
+            sched = copy(s.dfb.scheduled_cycles); break
+        end
+        @test sched == [2, 3, 4, 6, 7, 8, 9]
+        # cycle-loop DFKILL (MANSTART, no inclusion draw) — the continuous 56457 BACHLO stream across
+        # all 7 outbreaks, each on the oracle's per-cycle BADF9/BA9.
+        d = _F.dfb_defaults!(); d.active = true
+        stream = (("41B78CB8","42824F2E","412518D2"), ("418F5603","42F894F8","405C41FF"),
+                  ("418DA1B2","431B769B","3FE122C0"), ("419FEA8A","434C315E","405D8B99"),
+                  ("41C64A72","435F4FF0","40124B29"), ("41C22339","4368AA76","40480C6D"),
+                  ("41AF7072","43734D1E","4001A775"))
+        for (b9, ba9, gk) in stream
+            @test _hex(_F.dfb_mod(d, _fh(b9), _fh(ba9), 4, 2)) == gk
+        end
+    end
+
+    @testset "CUROUTBK (LINPRG, ICYC=1) in-progress outbreak (bit-exact both branches)" begin
+        badf9 = _fh("41800000"); ba9 = _fh("42000000")   # DFBER stats at ICYC 1 (BADF9=16, BA9=32)
+        # User-entered kill (PREKLL 30, IYOUT 2): DFKILL = 30/PERDD[2] − 30 = 30/0.8 − 30 = 7.5 (no RNG)
+        dp = _F.dfb_defaults!(); dp.active = true; dp.linprg = true; dp.iyout = Int32(2); dp.prekll = 30.0f0
+        @test _hex(_F.dfb_mod(dp, badf9, ba9, 4, 1)) == "40F00000"    # 7.5
+        # From-treelist (PREKLL 0 ⇒ BACHLO branch): DFKILL = BACHLO·(BADF9/BA9)·4·(1−PERDD[2])
+        dl = _F.dfb_defaults!(); dl.active = true; dl.linprg = true; dl.iyout = Int32(2); dl.prekll = 0.0f0
+        @test _hex(_F.dfb_mod(dl, badf9, ba9, 4, 1)) == "403B88CA"    # 2.930224
+        # LINPRG only fires on ICYC==1 — a later cycle takes the new-outbreak branch.
+        dn = _F.dfb_defaults!(); dn.active = true; dn.linprg = true; dn.iyout = Int32(2); dn.prekll = 30.0f0
+        @test _hex(_F.dfb_mod(dn, badf9, ba9, 4, 2)) != "40F00000"
+        # IYOUT > 4 ⇒ outbreak assumed over ⇒ DFKILL 0.
+        do_ = _F.dfb_defaults!(); do_.active = true; do_.linprg = true; do_.iyout = Int32(5); do_.prekll = 30.0f0
+        @test _F.dfb_mod(do_, badf9, ba9, 4, 1) == 0.0f0
+    end
+
+    @testset "DFBINV pre-killed-DF count (dfbinv.f)" begin
+        d = _F.dfb_defaults!(); d.active = true; d.linv = true
+        _F.dfb_inv!(d, Float32[])            # iet01: no DFB damage codes ⇒ PREKLL unchanged (0)
+        @test d.prekll == 0.0f0
+        _F.dfb_inv!(d, Float32[3.0f0, 4.5f0, 2.5f0])   # Σ PROB of killed DF records
+        @test d.prekll == 10.0f0
+        d2 = _F.dfb_defaults!(); d2.active = true      # LINV false (user gave PREKLL) ⇒ no-op
+        _F.dfb_inv!(d2, Float32[3.0f0])
+        @test d2.prekll == 0.0f0
+    end
+
+    @testset "DFBWIN windthrow (dfbwin.f) — kernel + OKILL feed (bit-exact)" begin
+        # iet01 cyc2 full stand (27 live records) from the g16 DFBWIN dump: I,ISPI,PCT,HT,DBH,PROB,WK2b.
+        WIN = [(1,7,1119210546,1117877413,1095866914,1084716091,1053093848),
+               (2,3,992607519,1082526874,1037796845,1112320969,1102856148),
+               (3,5,1108081999,1108731464,1090940957,1099257460,1063429521),
+               (4,2,1111305449,1118653018,1091240733,1092373894,1073282560),
+               (5,2,1110452554,1116795530,1091219158,1091890631,1074073580),
+               (6,10,1102348489,1113970676,1089803754,1099802463,1069448681),
+               (7,2,1112240853,1094780366,1092024129,1091656165,1068281880),
+               (8,7,1116317357,1116082629,1093168176,1088932695,1064544642),
+               (9,3,1090223644,1107611434,1084304310,1104328881,1080096000),
+               (10,10,1115853198,1118608378,1092367331,1092909410,1060967812),
+               (11,3,1065181732,1100647408,1075523441,1104087967,1080141181),
+               (12,3,1075623039,1102701166,1079909662,1104910773,1075730756),
+               (13,10,1050871516,1093665869,1065589502,1115918648,1099112584),
+               (14,4,1106145794,1108698973,1090575191,1103788637,1066268547),
+               (15,3,1118691207,1117363663,1095229746,1088677193,1050562142),
+               (16,4,1109643741,1111079147,1090973995,1100471752,1064440242),
+               (17,3,1120403456,1117349834,1097476229,1082958596,1046349065),
+               (18,7,1116802856,1116125866,1093434164,1088892147,1062009165),
+               (19,3,1117350273,1115834110,1094797156,1087345794,1053009369),
+               (20,7,1114888355,1116024156,1092130717,1091515150,1067464313),
+               (21,4,1119859102,1117466134,1096447846,1086357050,1047992817),
+               (22,3,1118048466,1116931406,1094944876,1090607048,1051132307),
+               (23,10,1084041142,1108467784,1083304300,1104593652,1077544873),
+               (24,8,1010687048,1091342318,1050562592,1101698042,1087550763),
+               (25,8,1099945859,1109481731,1088702288,1101384742,1067844392),
+               (26,8,1096104728,1108316722,1087670175,1105248895,1069920153),
+               (27,4,1113946836,1109600721,1092083438,1099102310,1059924626)]
+        species = Int[r[2] for r in WIN]
+        pct  = Float32[_fd(r[3]) for r in WIN]; ht  = Float32[_fd(r[4]) for r in WIN]
+        dbh  = Float32[_fd(r[5]) for r in WIN]; prob = Float32[_fd(r[6]) for r in WIN]
+        wk2  = Float32[_fd(r[7]) for r in WIN]
+        df9kil, telig = _F.dfb_win_kernel!(species, dbh, ht, prob, pct, wk2,
+                                           _F._DFB_IFVSSP_IE, 80.0f0, 20.0f0, 0.8f0, 0.0f0, 3, 23)
+        @test _hex(telig)  == "41F6CA95"           # TELIG 30.848917
+        @test _hex(df9kil) == "412E5589"           # DF9KIL = OKILL 10.895883
+        # eligible (PCT≥80, HT>20) WK2 after windthrow: DF recs 15/17/22, GF 21, LP 1.
+        gold = Dict(1 => 1071438053, 15 => 1081956374, 17 => 1075708295,
+                    21 => 1086232353, 22 => 1083113028)
+        for (I, gw) in gold
+            k = findfirst(r -> r[1] == I, WIN)
+            @test wk2[k] == _fd(gw)
+        end
+        # OKILL feeds DFBMOD: DFKILL = BACHLO·(BADF9/BA9)·4 + OKILL = 10.31856 + 10.895883 = 21.214.
+        dm = _F.dfb_defaults!(); dm.active = true; dm.okill = df9kil
+        @test _hex(_F.dfb_mod(dm, _fh("41B78CB8"), _fh("42824F2E"), 4, 2)) == "41A9B72E"
+    end
+
+    @testset "DFBMRT windthrow-add path (OKILL>0, bit-exact)" begin
+        # The 8 iet01 cyc2 Douglas-fir records: (DBH, PROB, incoming-WK2, final-WK2). Eligible windthrow
+        # WK2 for 15/17/22 (hex), background for 2/9/11/12/19 (decimal). DFKILL 21.214 (with OKILL).
+        recs = (("3DDB85ED","424CABC9",1102856148,"41BC3FD4"), ("40A12BB6","41D2B8B1",1080096000,"4060F500"),
+                ("401B2F71","41CF0B9F",1080141181,"4061A57D"), ("405E1D1E","41DB99B5",1075730756,"401E5944"),
+                ("4147E132","40E3E549",0x407D5816,"40E3E549"), ("416A2885","408CA304",0x401E0187,"408CA304"),
+                ("41414764","40CF9482",1053009369,"40AD36DB"), ("4143886C","410157C8",0x408EFE44,"410157C8"))
+        n = length(recs)
+        df_dbh = Float32[_fh(r[1]) for r in recs]; df_tpa = Float32[_fh(r[2]) for r in recs]
+        wk2in  = Float32[_fd(r[3]) for r in recs]
+        old_tpa = copy(df_tpa)
+        t = (tpa = Float32[old_tpa[i] - wk2in[i] for i in 1:n],)
+        _F.dfb_mrt!(t, old_tpa, collect(1:n), df_dbh, df_tpa, _fh("41A9B72E"), _fh("41B78CB8"), false, 10.895883f0)
+        for i in 1:n
+            @test t.tpa[i] == old_tpa[i] - _fh(recs[i][4])   # surviving TPA = PROB − WK2(windthrow+DFB)
+        end
+    end
+
+    @testset "DFBWIN/RANSCHED seams INERT when nothing is scheduled in range" begin
+        # WINDTHR 99 (out of the 5-cycle run) ⇒ no windthrow; MANSCHED 99 disables the default
+        # RANSCHED auto-scheduler (IDBSCH defaults to 2) and its outbreak is out of range ⇒ inert.
+        win_never = _dfb_head("IE WIN NEVER") *
+                    "DFB\nMANSTART\nMANSCHED          99\nWINDTHR           99\nEND\n" *
+                    "ECHOSUM\nPROCESS\nSTOP\n"
+        wn_key = joinpath(dir, "ie_winnever.key"); write(wn_key, win_never)
+        cp(joinpath(dir, "shared.tre"), joinpath(dir, "ie_winnever.tre"))
+        @test ierows(ie_ctrl) == ierows(wn_key)
+        # RANSCHED with DBEVNT 0 ⇒ no outbreak ever scheduled ⇒ byte-identical to control.
+        rs_never = _dfb_head("IE RSCH NONE") *
+                   "DFB\nMANSTART\nRANSCHED          10       0.0    1980\nEND\n" * "ECHOSUM\nPROCESS\nSTOP\n"
+        rn_key = joinpath(dir, "ie_rschnone.key"); write(rn_key, rs_never)
+        cp(joinpath(dir, "shared.tre"), joinpath(dir, "ie_rschnone.tre"))
+        @test ierows(ie_ctrl) == ierows(rn_key)
     end
 end

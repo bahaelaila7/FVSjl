@@ -19,8 +19,11 @@
 #                           Ported as `dfb_prb`.
 #   * DFBIND  (dfbind.f)  — DETERMINISTIC: DBH → size class 1..20. `dfb_ind`.
 #   * DFBMOD  (dfbmod.f)  — STOCHASTIC: DFKILL = BACHLO(EXPCTD,EXSTDV,DFBRAN)*…
-#                           (a normal draw). NOT yet ported.
+#                           (a normal draw) + the CUROUTBK/LINPRG in-progress branch. `dfb_mod`.
 #   * DFBMRT  (dfbmrt.f)  — applies DFKILL to WK2 (mortality). Depends on DFBMOD.
+#   * DFBSCH  (dfbsch.f)  — RANSCHED regional-outbreak auto-scheduler. `dfb_schedule!`.
+#   * DFBWIN  (dfbwin.f)  — WINDTHR windthrow mortality + OKILL feed. `dfb_win!`/`dfb_win_kernel!`.
+#   * DFBINV  (dfbinv.f)  — CUROUTBK pre-killed-DF count from the treelist. `dfb_inv!`.
 #   * DFBRAN  (dfbran.f)  — the model's OWN Lehmer/MINSTD LCG (NOT the FVS ZRAND
 #                           stream): S1 = mod(16807·S0, 2147483647); u = S1/2^31.
 #                           seed default ORSEED = 55329. Entries DFBNSD/DFBGSD/
@@ -32,18 +35,22 @@
 #                           BM, CI, CR, EC, IE, PN, TT, UT (+ generic dfblkd.f).
 #                           Every other variant links the base/exdfb.f NO-OP stub.
 #
-# BEACHHEAD SCOPE (this chunk): the keyword reader (gated, inert — no engine seam)
-# + the four DETERMINISTIC routines (DFBIND/DFBDBH/DFBER/DFBPRB), validated
-# bit-exact (Float32) against an instrumented g16 build of the pristine Fortran
-# (test/engine/test_dfb.jl replays scratchpad/dfb/dfb_golden.txt).
+# SCOPE (complete): the keyword reader + the deterministic routines + the full mortality path
+# (DFBRAN/BACHLO/DFBMOD/DFBMRT) + all outbreak-activation modes — MANSTART/MANSCHED, RANSTART
+# (stochastic stand inclusion), RANSCHED (DFBSCH auto-scheduler), CUROUTBK (LINPRG in-progress
+# outbreak + DFBINV), and DFBWIN (windthrow). Every numeric path is validated BIT-EXACT (Float32)
+# by dump-replay against a relinked FVSie_dfb g16 oracle (scratchpad/dfb; instrumented .sum
+# byte-identical to the clean relink first), plus a PN variant-sweep smoke A/B. The end-to-end
+# .sum-DELTA is CORNERED by the documented IE growth straddle (the DFB math is exact on equal
+# inputs; the absolute BADF9/BA9/PCT/HT the modes read scale with the straddling cyc-1 growth).
 #
 # DETERMINISTIC vs STOCHASTIC split:
-#   DETERMINISTIC (dump-replay bit-exact): DFBIND, DFBDBH(START), DFBER(BA9,
-#       BADF9, A45DBH, PBADF4, LMIN), DFBPRB(PROTBK), and the MANSTART/MANSCHED
-#       outbreak gate.
-#   STOCHASTIC (RNG realization, .sum-DELTA straddle): the RANSTART inclusion
-#       draw (DFBGO), the DFKILL magnitude (DFBMOD via BACHLO→DFBRAN), and
-#       RANSCHED regional scheduling. These are the NEXT chunks.
+#   DETERMINISTIC (dump-replay bit-exact): DFBIND, DFBDBH(START), DFBER(BA9, BADF9, A45DBH, PBADF4,
+#       LMIN), DFBPRB(PROTBK), the MANSTART/MANSCHED gate, DFBSCH's schedule, DFBWIN's windthrow
+#       kill, and the CUROUTBK user-PREKLL branch.
+#   STOCHASTIC (DFBRAN realization, .sum-DELTA straddle): the RANSTART inclusion draw (DFBGO,
+#       precedes BACHLO), the DFKILL magnitude (DFBMOD via BACHLO→DFBRAN), the CUROUTBK BACHLO
+#       branch, and RANSCHED's regional scheduling draws (seeded at ORSEED, not +1128).
 #
 # Float32 discipline: DFB's Fortran is REAL (Float32). Every arithmetic result
 # here is Float32 so the port is bit-identical to the oracle. The 0.005454154
@@ -52,14 +59,19 @@
 # =============================================================================
 
 const DFB_BAF = 0.005454154f0   # basal-area factor: BA = DFB_BAF·DBH²·TPA (dfber.f/dfbmrt.f)
+# PERDD (dfblkd*.f) — cumulative fraction of the 4-year outbreak's kill realized by outbreak-year
+# IYOUT. Identical across every DFB-linked variant (a model constant, not variant data). Used by the
+# CUROUTBK/LINPRG in-progress-outbreak branch of DFBMOD (1-based; IYOUT ∈ 1..4).
+const DFB_PERDD = (0.30f0, 0.80f0, 0.95f0, 1.00f0)
 
 """
     DfbState
 
 Douglas-fir Beetle model state (FVS `DFBCOM`). Populated by `kw_dfbin!` and
 seeded with the `DFBINT` defaults by `dfb_defaults!`. `active` mirrors `LDFBON`
-(set true as soon as any DFBEETLE sub-keyword is read). No per-cycle engine seam
-is wired yet, so a DfbState-carrying stand still projects byte-identically.
+(set true as soon as any DFB sub-keyword is read). The per-cycle engine seams
+(`dfb_win!`/`dfb_apply!`) and the pre-loop `dfb_setup!` are gated on `active`, so
+a stand without a DFB block projects byte-identically.
 """
 mutable struct DfbState <: AbstractDfbState
     active::Bool        # LDFBON  — DFB model is in use
@@ -84,10 +96,14 @@ mutable struct DfbState <: AbstractDfbState
     prekll::Float32     # PREKLL  — TPA already killed before model start (CUROUTBK/treelist)
     linprg::Bool        # LINPRG  — CUROUTBK: outbreak in progress at start
     linv::Bool          # LINV    — mortality-in-progress data comes from the treelist
-    # scheduled manual outbreaks (MANSCHED IDT) — recorded here; the OPNEW/OPFIND
-    # activity-scheduler seam (activity code 2209) is a later chunk.
+    # scheduled manual outbreaks (MANSCHED IDT, OPNEW activity 2209) — matched by dfb_outbreak_due.
     mansched_years::Vector{Int32}
-    windthr_years::Vector{Int32}   # WINDTHR IDT (activity 2210), likewise deferred
+    windthr_years::Vector{Int32}   # WINDTHR IDT (activity 2210) — matched by dfb_activity_due (DFBWIN)
+    # RANSCHED (IDBSCH=2): the auto-scheduled regional-outbreak cycles (1-based FVS ICYC),
+    # computed once before the cycle loop by DFBSCH (dfbsch.f) from the DFBRAN stream seeded at
+    # ORSEED (NOT +1128). Empty on the MANSCHED path (mansched_years is used instead).
+    scheduled_cycles::Vector{Int}
+    scheduled::Bool                # DFBSCH has run for this stand (idempotent guard)
     # DFBRAN Lehmer/MINSTD state (dfbran.f COMMON /DFRCOM/ S0). NaN until the first draw, when it is
     # seeded to ORSEED+1128 — the DFBSCH end-of-routine reset (dfbsch.f:180, TSEED=ORSEED+1128D0;
     # DFBCSD) that FVS applies once before the cycle loop. On the MANSTART/MANSCHED path DFBMOD's
@@ -127,6 +143,8 @@ function dfb_defaults!()
         false,          # linv
         Int32[],        # mansched_years
         Int32[],        # windthr_years
+        Int[],          # scheduled_cycles (RANSCHED)
+        false,          # scheduled
         NaN,            # rng_s0 (DFBRAN S0) — lazy-seeded to ORSEED+1128 on first draw
     )
 end
@@ -299,14 +317,34 @@ end
 # DFBMOD (dfbmod.f) — projected DF trees/ac killed this outbreak (the NEW-outbreak path).
 # -----------------------------------------------------------------------------
 """
-    dfb_mod(d, badf9, ba9, numyrs) -> Float32 (DFKILL)
+    dfb_mod(d, badf9, ba9, numyrs, icyc) -> Float32 (DFKILL)
 
-FVS `DFBMOD`, the `.ELSE.` (new-outbreak, not LINPRG) branch:
+FVS `DFBMOD`. New-outbreak (`.ELSE.`) branch:
 `DFKILL = BACHLO(EXPCTD,EXSTDV,DFBRAN)·(BADF9/BA9)·NUMYRS + OKILL`, redrawn while `< 0`.
-`NUMYRS` is INTEGER promoted to REAL in the product; the LINPRG/PREKLL in-progress-outbreak
-paths (CUROUTBK) are not wired here. Float32, left-to-right associativity as the Fortran.
+
+CUROUTBK in-progress-outbreak branch (`LINPRG .AND. ICYC == 1`, dfbmod.f:74):
+`NUMYRS = NUMYRS − IYOUT` (recomputed but unused in the kill), then
+* `IYOUT > 4` → `DFKILL = 0` (outbreak assumed over);
+* `PREKLL ≤ 0` (mortality unknown / from the treelist) → redraw-while-<0
+  `DFKILL = BACHLO(EXPCTD,EXSTDV)·(BADF9/BA9)·4.0·(1 − PERDD[IYOUT])`;
+* `PREKLL > 0` (user-entered kill) → deterministic `DFKILL = PREKLL/PERDD[IYOUT] − PREKLL`.
+
+`NUMYRS` is INTEGER promoted to REAL; Float32 with left-to-right associativity as the Fortran.
 """
-function dfb_mod(d::DfbState, badf9::Float32, ba9::Float32, numyrs::Int)::Float32
+function dfb_mod(d::DfbState, badf9::Float32, ba9::Float32, numyrs::Int, icyc::Int)::Float32
+    if d.linprg && icyc == 1
+        iyout = Int(d.iyout)
+        iyout > 4 && return 0.0f0                     # outbreak too long: assumed over
+        p = @inbounds DFB_PERDD[iyout]                # IYOUT ∈ 1..4
+        if d.prekll <= 0.0f0
+            @inbounds while true
+                dfkill = dfb_bachlo(d.expctd, d.exstdv, d) * (badf9 / ba9) * 4.0f0 * (1.0f0 - p)
+                dfkill >= 0.0f0 && return dfkill
+            end
+        else
+            return d.prekll / p - d.prekll           # deterministic — no DFBRAN draw
+        end
+    end
     @inbounds while true
         dfkill = dfb_bachlo(d.expctd, d.exstdv, d) * (badf9 / ba9) * Float32(numyrs) + d.okill
         dfkill >= 0.0f0 && return dfkill
@@ -375,6 +413,266 @@ function dfb_idfspc(variant)::Int
 end
 
 # -----------------------------------------------------------------------------
+# DFBWIN windthrow tables (dfblkd<v>.f) — shared WINSUC + per-variant IFVSSP crosswalk.
+# -----------------------------------------------------------------------------
+# WINSUC: the DFB model's 39 species-susceptibility-to-windthrow values (identical in every
+# dfblkd<v>.f — a model constant, indexed by the DFB species number via IFVSSP).
+const DFB_WINSUC = Float32[
+    0.028, 0.083, 0.056, 0.139, 0.111, 0.111, 0.028, 0.139, 0.139, 0.056,
+    0.111, 0.042, 0.139, 0.111, 0.056, 0.098, 0.028, 0.056, 0.056, 0.139,
+    0.139, 0.0,   0.0,   0.056, 0.139, 0.0,   0.028, 0.056, 0.0,   0.042,
+    0.056, 0.0,   0.0,   0.111, 0.056, 0.056, 0.0,   0.0,   0.139,
+]
+# IFVSSP: FVS-species → DFB-species crosswalk (into WINSUC). Per-variant (dfblkd<v>.f). ROWDOM is
+# 80.0 for every species in every variant, MWINHT the DFBINT default 20.0 — carried as scalars.
+const _DFB_IFVSSP_IE = Int[1,2,3,4,5,6,7,8,9,10,11,22,23,36,33,26,38,19,24,30,30,18,17]
+const _DFB_IFVSSP_PN = Int[16,13,4,9,15,8,39,34,14,8,7,31,12,1,10,3,35,6,5,11,18,18,
+                           18,18,32,19,24,29,26,36,22,37,38,18,30,18,30,30,30]
+"""
+    dfb_ifvssp(variant) -> Vector{Int} | nothing
+
+The FVS-species → DFB-species (WINSUC) crosswalk for a DFB-linked variant (dfblkd<v>.f `IFVSSP`).
+Only IE and PN are tabled here (the two windthrow-validated variants); returns `nothing` elsewhere,
+which keeps DFBWIN inert for a variant whose table has not been ported.
+"""
+function dfb_ifvssp(variant)
+    variant isa InlandEmpire     && return _DFB_IFVSSP_IE
+    variant isa PacificNorthwest && return _DFB_IFVSSP_PN
+    return nothing
+end
+
+# -----------------------------------------------------------------------------
+# DFBWIN (dfbwin.f) — Douglas-fir Beetle windthrow: WK2 windthrow mortality + OKILL feed.
+# -----------------------------------------------------------------------------
+"""
+    dfb_win_kernel!(species, dbh, ht, prob, pct, wk2, ifvssp, rowdom, mwinht, crash, thresh, idfspc, maxsp)
+        -> (df9kil, telig)
+
+FVS `DFBWIN` (dfbwin.f) numeric core, on the scheduled-windthrow cycle. A tree record is *eligible*
+when `PCT ≥ ROWDOM(=80)` and `HT > MWINHT(=20)`. Accumulating over the FVS species blocks
+(`ISPI = 1..MAXSP`, in species-major / ascending-record order = IND1): `SPCNUM` = present species,
+`TOTSUC` = Σ WINSUC(IFVSSP(ISPI)) over present species, `ELIGBL(ISPI)` = Σ eligible PROB. If total
+eligible `TELIG ≥ THRESH(=MINDEN)` a windthrow fires: per species the eligible proportion killed is
+`PRPMRT = CRASH·WINSUC/(TOTSUC/SPCNUM)` capped at 0.95 (the `ELIGBL` factor cancels), each eligible
+record's `WK2 += PROB·PRPMRT` (capped at `PROB−1e-6`), and `DF9KIL` sums the Douglas-fir (`IDFSPC`)
+`WK2` for `DBH ≥ 9`. Returns `(DF9KIL, TELIG)`; mutates `wk2`. All Float32, accumulation in FVS order.
+"""
+function dfb_win_kernel!(species::AbstractVector{<:Integer}, dbh::AbstractVector{Float32},
+                         ht::AbstractVector{Float32}, prob::AbstractVector{Float32},
+                         pct::AbstractVector{Float32}, wk2::AbstractVector{Float32},
+                         ifvssp::AbstractVector{<:Integer}, rowdom::Float32, mwinht::Float32,
+                         crash::Float32, thresh::Float32, idfspc::Int, maxsp::Int)
+    n = length(species)
+    eligbl = zeros(Float32, maxsp)
+    totsuc = 0.0f0
+    spcnum = 0.0f0
+    elig(i) = (pct[i] >= rowdom) & (ht[i] > mwinht)
+    @inbounds for sp in 1:maxsp                       # DO 300 ISPI=1,MAXSP (species-major, IND1 order)
+        present = false
+        for i in 1:n
+            species[i] == sp || continue
+            present = true
+            elig(i) && (eligbl[sp] += prob[i])
+        end
+        if present                                    # ISCT(ISPI,1) > 0
+            spcnum += 1.0f0
+            totsuc += DFB_WINSUC[ifvssp[sp]]
+        end
+    end
+    telig = 0.0f0
+    @inbounds for sp in 1:maxsp                        # DO 400: TELIG = Σ ELIGBL
+        telig += eligbl[sp]
+    end
+    df9kil = 0.0f0
+    if telig >= thresh                                 # windthrow occurs
+        avg = totsuc / spcnum
+        @inbounds for sp in 1:maxsp                     # DO 600 ISPI=1,MAXSP
+            prp = 0.0f0
+            if eligbl[sp] > 0.0f0
+                prp = crash * DFB_WINSUC[ifvssp[sp]] / avg   # ELIGBL cancels in PRPMRT
+                prp > 0.95f0 && (prp = 0.95f0)
+            end
+            for i in 1:n                                # DO 500 J=I1,I2 (IND1 order)
+                species[i] == sp || continue
+                elig(i) || continue
+                w = wk2[i] + prob[i] * prp
+                (prob[i] - w < 1.0f-6) && (w = prob[i] - 1.0f-6)
+                wk2[i] = w
+                (sp == idfspc && dbh[i] >= 9.0f0) && (df9kil += w)   # DF ≥9″ windthrown
+            end
+        end
+    end
+    return (df9kil, telig)
+end
+
+"""
+    dfb_win!(s, old_tpa)
+
+FVS `DFBWIN` engine seam (gradd.f:72, BEFORE `DFBDRV`), wired into the FVSjl mortality path just
+ahead of `dfb_apply!`. No-op unless a DFB block is active, a `WINDTHR` event is scheduled this cycle,
+and the variant has an IFVSSP table. When it fires it computes the windthrow kill (`dfb_win_kernel!`)
+over the current stand — `WK2` seeded from the background mortality (`old_tpa − t.tpa`), `PCT` from
+`t.crown_ratio`, `HT`/`DBH`/`PROB` current — writes the raised `WK2` back to `t.tpa`, and (when a
+regional outbreak is active this cycle and ≥1 large DF blew down) sets `OKILL = DF9KIL` so the
+following `dfb_apply!` runs the windthrow-add DFBMOD/DFBMRT path. Byte-identical when no windthrow
+is due. The end-to-end `.sum`-DELTA is CORNERED by the IE growth straddle (the cyc-2 PCT/HT/DBH the
+windthrow reads scale with cyc-1 growth); the windthrow math itself is bit-exact on equal inputs.
+"""
+function dfb_win!(s::StandState, old_tpa::Vector{Float32})
+    d = s.dfb
+    (d === nothing || !d.active) && return nothing
+    dfb_activity_due(d.windthr_years, s) || return nothing    # OPFIND(2210): windthrow scheduled?
+    idfspc = dfb_idfspc(s.variant)
+    idfspc == 0 && return nothing
+    ifvssp = dfb_ifvssp(s.variant)
+    ifvssp === nothing && return nothing                      # variant table not ported ⇒ inert
+    t = s.trees; n = t.n
+    n == 0 && return nothing
+    maxsp = length(ifvssp)
+    species = Int[Int(t.species[i]) for i in 1:n]
+    dbh  = Float32[t.dbh[i] for i in 1:n]
+    ht   = Float32[t.height[i] for i in 1:n]
+    prob = Float32[old_tpa[i] for i in 1:n]                    # PROB
+    pct  = Float32[t.crown_ratio[i] for i in 1:n]             # PCT (stand BA percentile)
+    wk2  = Float32[old_tpa[i] - t.tpa[i] for i in 1:n]        # WK2 = background periodic mortality
+    crash  = d.prpwin                                          # PRMS(1) = PRPWIN
+    thresh = d.minden                                          # PRMS(2) = MINDEN
+    df9kil, telig = dfb_win_kernel!(species, dbh, ht, prob, pct, wk2, ifvssp,
+                                    80.0f0, d.mwinht, crash, thresh, idfspc, maxsp)
+    telig >= thresh || return nothing                          # no windthrow (reschedule; MINDEN>0 edge)
+    @inbounds for i in 1:n                                     # apply the raised WK2 to the surviving TPA
+        nt = old_tpa[i] - wk2[i]
+        nt < 0.0f0 && (nt = 0.0f0)
+        t.tpa[i] = nt
+    end
+    # OKILL: only when a regional outbreak is active this cycle (DFBGO) and ≥1 large DF blew down.
+    (df9kil >= 1.0f0 && dfb_outbreak_due(d, s)) && (d.okill = df9kil)
+    return nothing
+end
+
+"""
+    dfb_activity_due(years, s) -> Bool
+
+OPFIND date-match for a DFB activity list (`years` = the scheduled IDT dates): `IDT == 0` every
+cycle; `0 < IDT < 1000` a 1-based cycle; `IDT ≥ 1000` a calendar year in this cycle's window. Shared
+by the MANSCHED outbreak gate and the WINDTHR event.
+"""
+function dfb_activity_due(years::AbstractVector{<:Integer}, s::StandState)::Bool
+    isempty(years) && return false
+    fvscyc = Int(s.control.cycle) + 1
+    cyc0 = Int(s.control.cycle)
+    cs = cycle_year_at(s.control, cyc0)
+    ce = cycle_year_at(s.control, cyc0 + 1); ce <= cs && (ce = cs + 1)
+    @inbounds for m in years
+        mi = Int(m)
+        mi == 0 && return true
+        (0 < mi < 1000) && mi == fvscyc && return true
+        (mi >= 1000) && (cs <= mi < ce) && return true
+    end
+    return false
+end
+
+# -----------------------------------------------------------------------------
+# DFBSCH (dfbsch.f) — RANSCHED auto-scheduler: draw the regional-outbreak cycles.
+# -----------------------------------------------------------------------------
+"""
+    dfb_schedule!(d, c)
+
+FVS `DFBSCH` (dfbsch.f), called once from MAIN (fvs.f:143) BEFORE the cycle loop. On the RANSCHED
+path (`IDBSCH == 2`) it walks the DFBRAN stream — seeded at `ORSEED` (the DFBINT/blockdata seed,
+NOT the `+1128` cycle-loop seed) — treating each draw as one calendar year and scheduling a regional
+outbreak (OPNEW activity 2208) whenever `RAND ≤ DBEVNT`. Between outbreaks it waits `IWAIT` years
+plus the `NYR` draws it took to hit the probability, snaps the outbreak to the enclosing FVS cycle
+(the cycle year ≤ the drawn year), and continues until the next outbreak would fall past
+`IY(NCYC)+10` or the schedule reaches the final cycle. The resulting 1-based cycle numbers are the
+regional-outbreak cycles `DFBGO`'s OPFIND then matches. `DFBSCH` ends by resetting the seed to
+`ORSEED+1128` (dfbsch.f:180) — modelled here by leaving `d.rng_s0` lazy-seeded to `ORSEED+1128`, so
+the cycle-loop draws are stream-identical whether or not scheduling consumed draws. On MANSCHED the
+loop is skipped (only the seed reset applies) so this is a no-op there.
+"""
+function dfb_schedule!(d::DfbState, c)
+    d.scheduled = true
+    d.idbsch == Int32(2) || return nothing         # only RANSCHED walks the stream (else: seed reset only)
+    empty!(d.scheduled_cycles)
+    ncyc = Int(c.ncycle); ncyc < 1 && (ncyc = 1)
+    iy(k) = Int(cycle_year_at(c, k - 1))            # IY(k), 1-based Fortran subscript
+    invyr  = iy(1)
+    ifinyr = iy(ncyc) + 10
+    iwait  = Int(d.iwait)
+    dbevnt = d.dbevnt
+    iprev  = Int(d.ipast)
+    i1     = 1
+    s0     = Float64(d.orseed)                       # DFBSCH start seed = ORSEED (no +1128)
+    @inbounds while true                             # label 100
+        nyr = 0
+        found = false
+        while true                                   # label 200
+            s1 = rem(16807.0 * s0, 2147483647.0); s0 = s1
+            rand = Float32(s1 / 2147483648.0)        # DFBRAN
+            if rand <= dbevnt                        # GOTO 400: outbreak year found
+                found = true; break
+            end
+            nyr += 1
+            (iprev + iwait + nyr) >= ifinyr && return nothing   # past the run end (GOTO 1000)
+            nyr < 100 || return nothing              # DBEVNT too small: warning + exit
+        end
+        found || return nothing
+        next = iprev + iwait + nyr                   # label 400
+        next < invyr && (next = invyr)
+        iprev = next
+        i = i1                                        # find enclosing cycle: first IY(I) > NEXT
+        while i <= ncyc && iy(i) <= next
+            i += 1
+        end
+        iyi = i - 1
+        push!(d.scheduled_cycles, iyi)               # OPNEW(2208) at IY(IYI) ⇒ regional outbreak in cycle IYI
+        i1 = iyi
+        iyi >= ncyc && return nothing
+    end
+end
+
+"""
+    dfb_inv!(d, killed_tpa)
+
+FVS `DFBINV` (dfbinv.f), called once from MAIN (fvs.f:174) before the cycle loop. When CUROUTBK
+requested the in-progress kill be taken from the tree list (`LINV`, no user PREKLL), it sums the
+TPA (PROB) of the Douglas-fir records read in as recently DFB-killed — the trees `DAMCDS`/`DFBDAM`
+flagged (damage code 3, severity ≥ 3, tree-history 6/7 ⇒ IMC 7) — into `PREKLL`. `killed_tpa` is
+that list of per-record TPA. FVSjl's tree reader does not carry DFB damage/tree-history codes, so on
+every currently-loadable stand this list is empty and `PREKLL` stays 0 (the DFBMOD `PREKLL ≤ 0`
+BACHLO branch) — bit-exact with the oracle on iet01 (no DFB damage codes). The summation itself is
+ported and unit-tested against synthetic records so the arithmetic is faithful when a reader ever
+supplies the codes. No-op unless `LINV`.
+"""
+function dfb_inv!(d::DfbState, killed_tpa::AbstractVector{Float32})
+    d.linv || return nothing
+    isempty(killed_tpa) && return nothing
+    acc = 0.0f0
+    @inbounds for p in killed_tpa                    # DFBINV: PREKLL = Σ PROB(IPT(II)), in order
+        acc += p
+    end
+    d.prekll = acc
+    return nothing
+end
+
+"""
+    dfb_setup!(s)
+
+FVS `DFBSCH`/`DFBINV` seam (fvs.f:143/174), wired into `setup_growth!` after the cycle schedule
+(`IY`) is built. Inert unless a DFB block is active; runs the RANSCHED auto-scheduler and the
+CUROUTBK pre-killed-DF inventory count once per stand. Idempotent.
+"""
+function dfb_setup!(s::StandState)
+    d = s.dfb
+    (d === nothing || !d.active || d.scheduled) && return nothing
+    dfb_schedule!(d, s.control)
+    # DFBINV: FVSjl's treelist carries no DFB damage/tree-history codes, so the killed-DF list is
+    # empty and PREKLL stays 0 (matches the oracle on stands without DFB damage codes).
+    dfb_inv!(d, Float32[])
+    return nothing
+end
+
+# -----------------------------------------------------------------------------
 # DFBGO outbreak gate (dfbgo.f) — MANSTART/MANSCHED deterministic path.
 # -----------------------------------------------------------------------------
 """
@@ -387,18 +685,10 @@ matching (`_compute_due`): `IDT == 0` = every cycle; `0 < IDT < 1000` = a 1-base
 [start,end) window contains it). A single MANSCHED thus fires in exactly one cycle (OPDONE).
 """
 function dfb_outbreak_due(d::DfbState, s::StandState)::Bool
-    isempty(d.mansched_years) && return false
-    fvscyc = Int(s.control.cycle) + 1                       # FVS ICYC (1-based)
-    cyc0 = Int(s.control.cycle)
-    cs = cycle_year_at(s.control, cyc0)
-    ce = cycle_year_at(s.control, cyc0 + 1); ce <= cs && (ce = cs + 1)
-    @inbounds for m in d.mansched_years
-        mi = Int(m)
-        mi == 0 && return true
-        (0 < mi < 1000) && mi == fvscyc && return true
-        (mi >= 1000) && (cs <= mi < ce) && return true
-    end
-    return false
+    # RANSCHED (IDBSCH=2): the DFBSCH-computed regional-outbreak cycles.
+    (Int(s.control.cycle) + 1) in d.scheduled_cycles && return true
+    # MANSCHED (IDBSCH=1): the user-scheduled OPNEW(2209) dates.
+    return dfb_activity_due(d.mansched_years, s)
 end
 
 # -----------------------------------------------------------------------------
@@ -448,7 +738,8 @@ function dfb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     # NUMYRS = min(ILENTH, IFINT) capped at 10; IFINT is the cycle length in years (fint).
     numyrs = min(Int(d.ilenth), round(Int, fint))
     numyrs > 10 && (numyrs = 10)
-    dfkill = dfb_mod(d, r.badf9, r.ba9, numyrs)              # DFBMOD (DFBDBH's START not needed here)
+    icyc = Int(s.control.cycle) + 1                          # FVS ICYC (1-based) — CUROUTBK fires only ICYC==1
+    dfkill = dfb_mod(d, r.badf9, r.ba9, numyrs, icyc)        # DFBMOD (DFBDBH's START not needed here)
     dfb_mrt!(t, old_tpa, dfidx, df_dbh, df_tpa, dfkill, r.badf9, d.lbamod, d.okill)  # DFBMRT
     d.okill = 0.0f0                                          # DFBMRT clears OKILL
     return nothing

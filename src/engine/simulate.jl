@@ -33,6 +33,7 @@ function setup_growth!(s::StandState)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
+    dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
@@ -625,7 +626,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # cycle stand, reading cycle-start old_tpa/DBH. Inert (no-op, byte-identical) unless a DFB block is
     # active and an outbreak is due this cycle.
     if !tripled && s.dfb !== nothing && s.dfb.active
-        dfb_apply!(s, old_tpa, fint)
+        dfb_win!(s, old_tpa)               # DFBWIN windthrow (gradd.f:72) — WK2 windthrow kill + OKILL feed, BEFORE DFBDRV
+        dfb_apply!(s, old_tpa, fint)       # DFBDRV (gradd.f:74)
+        s.dfb.okill = 0.0f0                # DFBMRT clears OKILL each cycle; guard leaks if DFBDRV early-returns
     end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
