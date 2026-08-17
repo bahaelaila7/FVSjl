@@ -1618,6 +1618,127 @@ function rd_inf_kernel!(rd::RootDiseaseState, idi::Int, areanu::Float32,
     return propi, probi_out, probiu_out
 end
 
+"""
+    rd_insd!(rd, idi, rriare, rridim, parea, irinit, itrn, ninsim,
+             ksp, rootl, probiu, probi, propi; fint, pint, sptran) -> (rrninf, polp)
+
+Port of the rd/rdinsd.f inside-patch infection Monte-Carlo (the reduced turnkey
+path: `ninsim==1`, and NO stumps — PROBD≡0, verified for cycle 1 where inoculum is
+purely live-infected roots). It is the FIRST RD-RNG consumer of the cycle and the
+biggest. For each simulation it (1) selects live-infected inoculum sources — one
+`rd_rann!` per (record, slot) with `PROPI > 0`, radius `ROOTL·PROPI`; (2) places
+each inoculum at a random (x,y) — two `rd_rann!` each; (3) for every uninfected
+host record throws `NUMTRE = min(IRINIT/ITRN, INT(PROBIU))` trial trees — two
+`rd_rann!` each — and tallies root-contact overlaps to get the average infection
+probability `AVGINF`, accumulating `RRNINF += PROBIU·AVGINF` and the mean
+before-center overlap into `POLP` (`PROPI(I,ISTEP,1) = -POLP` downstream, a NEGATIVE
+proportion flagging "before center"). The RD-RNG draw ORDER (selection → placement
+→ contact) is reproduced exactly. `ksp` indexes `rd.irtspc`; `idi` is the disease.
+Validated by dump-replay vs the live FVSkt oracle: RRNINF/POLP === per record AND
+exact RD-RNG final S0 (cycle 1: 7949 draws = 27 selection + 62 placement + 7860
+contact). Returns the raw (pre-`/NINSIM`) accumulators. The stump branch (PROBD/
+ROOTD) activates once prior-cycle mortality creates stumps — a later sub-chunk.
+"""
+# gfortran `REAL**INTEGER` (_gfortran_pow_r4_i4) integer-power: right-to-left binary
+# exponentiation squaring the base in Float32 each step. Matches the RDINSD `(1-PNSP)
+# **ITROLP` rounding bit-exact (Julia's generic `^` associates differently on Float32).
+@inline function rd_powi(x::Float32, n::Integer)
+    n == 0 && return 1.0f0
+    b = x; r = 1.0f0; m = Int(n)
+    while true
+        (m & 1) == 1 && (r *= b)
+        m >>= 1
+        m == 0 && break
+        b *= b
+    end
+    return r
+end
+
+function rd_insd!(rd::RootDiseaseState, idi::Int, rriare::Float32, rridim::Float32,
+                  parea::Float32, irinit::Int, itrn::Int, ninsim::Int,
+                  ksp::AbstractVector{<:Integer}, rootl::AbstractVector{Float32},
+                  probiu::AbstractVector{Float32}, probi::Array{Float32,3},
+                  propi::Array{Float32,3}; fint::Real, pint::Real, sptran::Float32 = 0.5f0)
+    n = length(ksp); istep = size(probi, 2)
+    rrninf = zeros(Float32, n); polp = zeros(Float32, n)
+    (itrn == 0 || parea == 0.0f0) && return rrninf, polp
+
+    @inbounds for _sim in 1:ninsim
+        # --- select live-infected inoculum sources (DO 100/95/90/85/80) ---
+        rrirad = Float32[]
+        irincs = 0
+        capped = false
+        for k in 1:n
+            for it in 1:istep, ip in 1:2
+                pp = propi[k, it, ip]
+                pp <= 0.0f0 && continue
+                rrimen = probi[k, it, ip] * rriare / (parea + 1.0f-6)
+                rrimen == 0.0f0 && continue
+                numtre = trunc(Int, rrimen)
+                ptre   = rrimen - Float32(numtre)
+                r      = rd_rann!(rd)
+                r < ptre && (numtre += 1)          # rdinsd.f: R .LT. PTRE
+                numtre <= 0 && continue
+                for _kk in 1:numtre
+                    irincs += 1
+                    if irincs > RD_IRRTRE
+                        irincs = RD_IRRTRE; capped = true; break
+                    end
+                    push!(rrirad, rootl[k] * pp)
+                end
+                capped && break
+            end
+            capped && break
+        end
+        # stumps (DO 605/600): none in the turnkey cycle-1 path (PROBD≡0) — skipped.
+        irincs == 0 && continue
+
+        # --- place inoculum randomly (DO 650) ---
+        xrri = Vector{Float32}(undef, irincs); yrri = Vector{Float32}(undef, irincs)
+        for it in 1:irincs
+            xrri[it] = rd_rann!(rd) * rridim
+            yrri[it] = rd_rann!(rd) * rridim
+        end
+
+        # --- infect uninfected trees by simulated contact (DO 1000/900/800/750) ---
+        numtre_base = trunc(Int, Float32(irinit) / (Float32(itrn) + 1.0f-6))
+        for k in 1:n
+            pnsp = rd_inf_pnsp(rd, ksp[k], idi, fint, pint; sptran = sptran)
+            numtre = numtre_base
+            Float32(numtre) > probiu[k] && (numtre = trunc(Int, probiu[k]))
+            numtre <= 0 && continue
+            numolp = 0; disolp = 0.0f0; pniolp = 0.0f0
+            rl = rootl[k]
+            for _it in 1:numtre
+                xtry = rd_rann!(rd) * rridim
+                ytry = rd_rann!(rd) * rridim
+                itrolp = 0
+                for in_ in 1:irincs
+                    dist = sqrt((xtry - xrri[in_])^2 + (ytry - yrri[in_])^2)
+                    dist > (rrirad[in_] + rl) && continue
+                    itrolp += 1
+                    overlp = rrirad[in_] + rl - dist
+                    overlp > rl && (overlp = rl)
+                    disolp += overlp
+                end
+                if itrolp > 0
+                    pniolp += rd_powi(1.0f0 - pnsp, itrolp)
+                else
+                    pniolp += 1.0f0
+                end
+                numolp += itrolp
+            end
+            avginf = 1.0f0 - (pniolp / (Float32(numtre) + 1.0f-6))
+            rrninf[k] += probiu[k] * avginf
+            numolp <= 0 && continue
+            temp = 1.0f0 - (disolp / Float32(numolp)) / (rl + 1.0f-6)
+            temp <= 0.0f0 && (temp = -0.001f0)
+            polp[k] += temp
+        end
+    end
+    return rrninf, polp
+end
+
 # -----------------------------------------------------------------------------
 # Engine seams (rd/rdmn1.f, rd/rdmn2.f, rd/rdtreg.f) — wired GATED + INERT.
 # The per-cycle mortality/spread/growth-loss bodies are Chunk 0 (pending); until
