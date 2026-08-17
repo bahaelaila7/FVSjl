@@ -619,6 +619,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
        s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
         rd_end_apply!(s.root_disease, s, old_tpa)
     end
+    # DFB dfb/dfbdrv.f (DFBDBH→DFBMOD→DFBMRT) gated by DFBGO: on a cycle with a scheduled Douglas-fir
+    # Beetle outbreak, raise the large-DF WK2 mortality to MAX(background, DFKILL). FVS calls DFBDRV in
+    # GRADD after MORTS has set WK2 (gradd.f:74), so this sits with the RD seam, on the non-tripled
+    # cycle stand, reading cycle-start old_tpa/DBH. Inert (no-op, byte-identical) unless a DFB block is
+    # active and an outbreak is due this cycle.
+    if !tripled && s.dfb !== nothing && s.dfb.active
+        dfb_apply!(s, old_tpa, fint)
+    end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).

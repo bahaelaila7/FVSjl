@@ -88,6 +88,11 @@ mutable struct DfbState <: AbstractDfbState
     # activity-scheduler seam (activity code 2209) is a later chunk.
     mansched_years::Vector{Int32}
     windthr_years::Vector{Int32}   # WINDTHR IDT (activity 2210), likewise deferred
+    # DFBRAN Lehmer/MINSTD state (dfbran.f COMMON /DFRCOM/ S0). NaN until the first draw, when it is
+    # seeded to ORSEED+1128 — the DFBSCH end-of-routine reset (dfbsch.f:180, TSEED=ORSEED+1128D0;
+    # DFBCSD) that FVS applies once before the cycle loop. On the MANSTART/MANSCHED path DFBMOD's
+    # BACHLO is the only DFBRAN consumer, so lazy-seeding at first draw is stream-identical.
+    rng_s0::Float64
 end
 
 """
@@ -122,6 +127,7 @@ function dfb_defaults!()
         false,          # linv
         Int32[],        # mansched_years
         Int32[],        # windthr_years
+        NaN,            # rng_s0 (DFBRAN S0) — lazy-seeded to ORSEED+1128 on first draw
     )
 end
 
@@ -237,7 +243,219 @@ function dfb_prb(a45dbh::Float32, pbadf4::Float32, badf9::Float32, ba9::Float32)
 end
 
 # -----------------------------------------------------------------------------
-# kw_dfbin! (dfbin.f) — DFBEETLE keyword-block reader (initre option 100)
+# DFBRAN (dfbran.f) — the DFB model's own double-precision Lehmer/MINSTD LCG.
+# -----------------------------------------------------------------------------
+"""
+    dfb_rand!(d) -> Float32
+
+FVS `DFBRAN`: `S1 = DMOD(16807·S0, 2147483647)`; `SEL = REAL(S1 / 2147483648)`; `S0 = S1`.
+`S0`/`S1` are DOUBLE (COMMON /DFRCOM/), so the modular step is exact integer arithmetic; only
+the returned uniform `SEL` is truncated to Float32. Lazy-seeds `S0 = ORSEED + 1128` the first
+time (the DFBSCH end reset, dfbsch.f:180). NEVER FFI'd — a faithful reimplementation.
+"""
+@inline function dfb_rand!(d::DfbState)::Float32
+    isnan(d.rng_s0) && (d.rng_s0 = Float64(d.orseed) + 1128.0)   # DFBSCH: S0 = ORSEED + 1128
+    s1 = rem(16807.0 * d.rng_s0, 2147483647.0)                   # DMOD (exact, values < 2^31)
+    d.rng_s0 = s1
+    return Float32(s1 / 2147483648.0)                            # SEL = REAL(S1 / 2^31)
+end
+
+# -----------------------------------------------------------------------------
+# BACHLO (base/bachlo.f) — normal draw via Batchelor composite rejection, over DFBRAN.
+# -----------------------------------------------------------------------------
+"""
+    dfb_bachlo(xbar, stdev, d) -> Float32
+
+FVS `BACHLO(XBAR,STDEV,DFBRAN)`: a Batchelor composite-rejection normal draw consuming three
+DFBRAN uniforms per attempt. Returns `XBAR` when `STDEV ≤ 0`. In the common `U ≤ 2/3` (uniform)
+branch the RETURNED variate `X = 1.5·U` carries NO transcendental, so the draw is bit-exact
+regardless of the platform `log`; `log` only enters the accept/reject test `Y = −ln(R1) ≤ Z`
+and the `U > 2/3` exponential branch. Float32 throughout to mirror the REAL Fortran.
+"""
+function dfb_bachlo(xbar::Float32, stdev::Float32, d::DfbState)::Float32
+    stdev <= 0.0f0 && return xbar
+    @inbounds while true
+        u  = dfb_rand!(d)
+        r1 = dfb_rand!(d)
+        r2 = dfb_rand!(d)
+        local x::Float32, z::Float32
+        if u <= (2.0f0 / 3.0f0)
+            x = 1.5f0 * u
+            z = 0.5f0 * x * x
+        else
+            zz = 3.0f0 * u - 2.0f0
+            zz < 0.001f0 && continue                # GOTO 10: redraw all three
+            x = 1.0f0 - 0.5f0 * log(zz)             # ALOG
+            z = 0.5f0 * (x - 2.0f0)^2
+        end
+        y = -log(r1)                                # −ALOG(R1)
+        y <= z && continue                          # reject → GOTO 10
+        r2 >= 0.5f0 && (x = -x)
+        return x * stdev + xbar
+    end
+end
+
+# -----------------------------------------------------------------------------
+# DFBMOD (dfbmod.f) — projected DF trees/ac killed this outbreak (the NEW-outbreak path).
+# -----------------------------------------------------------------------------
+"""
+    dfb_mod(d, badf9, ba9, numyrs) -> Float32 (DFKILL)
+
+FVS `DFBMOD`, the `.ELSE.` (new-outbreak, not LINPRG) branch:
+`DFKILL = BACHLO(EXPCTD,EXSTDV,DFBRAN)·(BADF9/BA9)·NUMYRS + OKILL`, redrawn while `< 0`.
+`NUMYRS` is INTEGER promoted to REAL in the product; the LINPRG/PREKLL in-progress-outbreak
+paths (CUROUTBK) are not wired here. Float32, left-to-right associativity as the Fortran.
+"""
+function dfb_mod(d::DfbState, badf9::Float32, ba9::Float32, numyrs::Int)::Float32
+    @inbounds while true
+        dfkill = dfb_bachlo(d.expctd, d.exstdv, d) * (badf9 / ba9) * Float32(numyrs) + d.okill
+        dfkill >= 0.0f0 && return dfkill
+    end
+end
+
+# -----------------------------------------------------------------------------
+# DFBMRT (dfbmrt.f) — distribute DFKILL to WK2 over the DF records with DBH ≥ 9 (DCLAS ≥ 5).
+# -----------------------------------------------------------------------------
+"""
+    dfb_mrt!(t, old_tpa, dfidx, df_dbh, df_tpa, dfkill, badf9, lbamod, okill)
+
+FVS `DFBMRT` (no-windthrow, OKILL≤0 path is the max-combine; OKILL>0 adds). For each Douglas-fir
+record (`dfidx` in IND1 order, `df_dbh`/`df_tpa` the cycle-start DBH/PROB) with `dfb_ind(DBH) ≥ 5`
+(DBH ≥ 9″): `TAMORT = DFKILL·(D·P/SUMDBH)` (DBH method, default) or `DFKILL·BA/BADF9` (BA method,
+MORTDIS), capped at `P`; `WK2 = OKILL>0 ? WK2+TAMORT : max(WK2,TAMORT)`, then capped at `PROB`.
+`WK2` is the current periodic mortality (`old_tpa − t.tpa`); the record's TPA is written back as
+`old_tpa − WK2`. Records with DBH < 9″ are untouched (byte-identical). SUMDBH accumulates in IND1
+order (Float32). Mutates `t.tpa` (and `t.mort_pa`).
+"""
+function dfb_mrt!(t, old_tpa::AbstractVector{Float32}, dfidx::AbstractVector{<:Integer},
+                  df_dbh::AbstractVector{Float32}, df_tpa::AbstractVector{Float32},
+                  dfkill::Float32, badf9::Float32, lbamod::Bool, okill::Float32)
+    sumdbh = 0.0f0
+    if !lbamod
+        @inbounds for k in eachindex(dfidx)
+            df_dbh[k] >= 9.0f0 && (sumdbh += df_tpa[k] * df_dbh[k])
+        end
+    end
+    @inbounds for k in eachindex(dfidx)
+        dd = df_dbh[k]
+        dfb_ind(dd) < 5 && continue                 # DCLAS < 5 (DBH < 9″): no DFB kill
+        j = dfidx[k]; p = df_tpa[k]
+        tamort = lbamod ? dfkill * (DFB_BAF * dd * dd * p) / badf9 :
+                          dfkill * (dd * p / sumdbh)
+        tamort > p && (tamort = p)
+        wk2 = old_tpa[j] - t.tpa[j]                 # current MORTS periodic mortality
+        if okill > 0.0f0
+            wk2 += tamort                           # windthrow: add DFB to windthrow kill
+        elseif tamort > wk2
+            wk2 = tamort                            # else take the greater of DFB / background
+        end
+        wk2 > old_tpa[j] && (wk2 = old_tpa[j])      # WK2 > PROB → PROB
+        t.tpa[j] = old_tpa[j] - wk2
+        t.tpa[j] < 0.0f0 && (t.tpa[j] = 0.0f0)
+    end
+    return nothing
+end
+
+# -----------------------------------------------------------------------------
+# DFB variant gate — the FVS species number of Douglas-fir (dfblkd<v>.f IDFSPC).
+# -----------------------------------------------------------------------------
+"""
+    dfb_idfspc(variant) -> Int
+
+The FVS species index of Douglas-fir for a DFB-linked variant (dfblkd<v>.f `IDFSPC`): 3 for
+BC/BM/CI/CR/EC/IE/TT/UT, 16 for PN. `0` (no DF species / DFB not linked) for every other variant,
+which keeps the DFB seam inert there.
+"""
+function dfb_idfspc(variant)::Int
+    (variant isa BritishColumbia || variant isa BlueMountains || variant isa CentralIdaho ||
+     variant isa CentralRockies || variant isa EastCascades || variant isa InlandEmpire ||
+     variant isa Teton || variant isa Utah) && return 3
+    variant isa PacificNorthwest && return 16
+    return 0
+end
+
+# -----------------------------------------------------------------------------
+# DFBGO outbreak gate (dfbgo.f) — MANSTART/MANSCHED deterministic path.
+# -----------------------------------------------------------------------------
+"""
+    dfb_outbreak_due(d, s) -> Bool
+
+Whether a regional DFB outbreak activity (MANSCHED's code-2209, scheduled by dfbin.f option 9 at
+date `IDT`) is due this cycle — the OPFIND(2208/2209) test in `DFBGO`. Mirrors OPNEW/OPCYCL date
+matching (`_compute_due`): `IDT == 0` = every cycle; `0 < IDT < 1000` = a 1-based CYCLE number
+(fires when the FVS cycle equals it); `IDT ≥ 1000` = a calendar year (fires in the cycle whose
+[start,end) window contains it). A single MANSCHED thus fires in exactly one cycle (OPDONE).
+"""
+function dfb_outbreak_due(d::DfbState, s::StandState)::Bool
+    isempty(d.mansched_years) && return false
+    fvscyc = Int(s.control.cycle) + 1                       # FVS ICYC (1-based)
+    cyc0 = Int(s.control.cycle)
+    cs = cycle_year_at(s.control, cyc0)
+    ce = cycle_year_at(s.control, cyc0 + 1); ce <= cs && (ce = cs + 1)
+    @inbounds for m in d.mansched_years
+        mi = Int(m)
+        mi == 0 && return true
+        (0 < mi < 1000) && mi == fvscyc && return true
+        (mi >= 1000) && (cs <= mi < ce) && return true
+    end
+    return false
+end
+
+# -----------------------------------------------------------------------------
+# DFBDRV seam (dfbdrv.f: DFBDBH→DFBMOD→DFBMRT), gated by DFBGO — called from the grow/mortality
+# path (gradd.f:74) right after MORTS has set WK2, on the non-tripled cycle stand.
+# -----------------------------------------------------------------------------
+"""
+    dfb_apply!(s, old_tpa, fint)
+
+The DFB cycle driver + gate (FVS `DFBGO` → `GRADD` `IF (LDFBGO) CALL DFBDRV`), wired into the
+FVSjl mortality path. No-op unless a `DFB` block is active AND a regional outbreak is due this
+cycle (MANSTART deterministic gate) AND the stand meets the minimum DF condition (`DFBER` LMIN).
+When it fires it computes `DFKILL` (`dfb_mod`) from the cycle-start DF statistics (`dfb_er` on
+`old_tpa`/cycle-start DBH) and distributes it to the per-record mortality (`dfb_mrt!`), raising
+`t.tpa` reductions on the large Douglas-fir. Byte-identical when no outbreak fires.
+
+MANSTART (ISMETH=1) is the validated deterministic path; RANSTART (ISMETH=2) draws a DFBRAN
+inclusion test against the stand-outbreak probability (stochastic) before DFKILL.
+"""
+function dfb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
+    d = s.dfb
+    (d === nothing || !d.active) && return nothing
+    dfb_outbreak_due(d, s) || return nothing                 # OPFIND(2208/2209): outbreak scheduled?
+    idfspc = dfb_idfspc(s.variant)
+    idfspc == 0 && return nothing                            # DFB not linked for this variant
+    t = s.trees; n = t.n
+    n == 0 && return nothing
+    # DF records in ascending record index (IND1 species-block order); cycle-start DBH/PROB.
+    dfidx = Int[i for i in 1:n if Int(t.species[i]) == idfspc]
+    isempty(dfidx) && return nothing
+    all_dbh = Float32[t.dbh[i] for i in 1:n]
+    df_dbh  = Float32[t.dbh[i] for i in dfidx]
+    df_tpa  = Float32[old_tpa[i] for i in dfidx]
+    # PLOT BA (stand basal area) from the cycle-start PROB.
+    ba = 0.0f0
+    @inbounds for i in 1:n
+        ba += DFB_BAF * all_dbh[i] * all_dbh[i] * old_tpa[i]
+    end
+    r = dfb_er(all_dbh, old_tpa, df_dbh, df_tpa, ba)         # DFBER: BA9/BADF9/A45DBH/PBADF4/LMIN
+    r.lmin || return nothing                                 # minimum outbreak conditions not met
+    r.ba9 <= 0.0f0 && return nothing                         # guard the BADF9/BA9 division
+    # ISMETH=2 (RANSTART) stochastic stand-inclusion test, mirroring DFBGO's DFBRAN draw < PROTBK.
+    if d.ismeth == 2
+        protbk = d.lepi ? d.epiprb : dfb_prb(r.a45dbh, r.pbadf4, r.badf9, r.ba9)
+        dfb_rand!(d) < protbk || return nothing
+    end
+    # NUMYRS = min(ILENTH, IFINT) capped at 10; IFINT is the cycle length in years (fint).
+    numyrs = min(Int(d.ilenth), round(Int, fint))
+    numyrs > 10 && (numyrs = 10)
+    dfkill = dfb_mod(d, r.badf9, r.ba9, numyrs)              # DFBMOD (DFBDBH's START not needed here)
+    dfb_mrt!(t, old_tpa, dfidx, df_dbh, df_tpa, dfkill, r.badf9, d.lbamod, d.okill)  # DFBMRT
+    d.okill = 0.0f0                                          # DFBMRT clears OKILL
+    return nothing
+end
+
+# -----------------------------------------------------------------------------
+# kw_dfbin! (dfbin.f) — DFB keyword-block reader (initre option 100)
 # -----------------------------------------------------------------------------
 """
     kw_dfbin!(s, rec, kr)
@@ -285,7 +503,11 @@ function kw_dfbin!(s::StandState, rec, kr::KeywordReader)
         elseif k == "RANSTART"            # option 6
             d.ismeth = Int32(2)
         elseif k == "RANNSEED"            # option 7
-            d.orseed = Float32(r.values[1])
+            if r.present[1]
+                seed = Float32(r.values[1])
+                seed % 2.0f0 == 0.0f0 && (seed += 1.0f0)   # DFBNSD: force an ODD seed
+                d.orseed = seed
+            end
         elseif k == "RANSCHED"            # option 8
             d.idbsch = Int32(2)
             r.present[1] && (d.iwait  = Int32(trunc(Int, r.values[1])))

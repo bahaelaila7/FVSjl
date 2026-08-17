@@ -72,13 +72,28 @@ T52,I2,T66,5I1,T54,7I1,T75,F3.0)
 TREEDATA
 """
 const _DFB_BLOCK = """
-DFBEETLE
+DFB
 MANSTART
 MANSCHED           1
 OLENGTH            6
 EXYRMORT         8.0       3.0
 MORTDIS
 STOPROB          0.4
+END
+"""
+# DFB block that fires an outbreak in cycle 2 (MANSCHED 2 → FVS ICYC 2), MANSTART deterministic gate,
+# defaults for EXYRMORT (6.0/2.0) — the exact configuration of the dump-replay golden below.
+const _DFB_FIRE = """
+DFB
+MANSTART
+MANSCHED           2
+END
+"""
+# DFB block scheduled beyond the 5-cycle run (MANSCHED 99) — no outbreak fires, so the seam is inert.
+const _DFB_NEVER = """
+DFB
+MANSTART
+MANSCHED          99
 END
 """
 
@@ -141,7 +156,7 @@ END
     cp(joinpath(dir, "shared.tre"), joinpath(dir, "dfb.tre"))
     v = FVSjl.Kootenai()   # engine-of-convenience: the DFB seam is variant-independent & inert
 
-    @testset "DFBEETLE keyword reader populates s.dfb (dfbin.f)" begin
+    @testset "DFB keyword reader populates s.dfb (dfbin.f)" begin
         d = nothing
         for s in FVSjl.each_stand(dfb_key; variant = v)
             d = s.dfb
@@ -169,14 +184,90 @@ END
         @test d.lbamod == false && d.lepi == false && d.linprg == false
     end
 
-    @testset "INERT seam — DFBEETLE block leaves the .sum byte-identical" begin
-        # No per-cycle DFB engine seam is wired yet, so a stand carrying an active
-        # DfbState must project byte-identically to the same stand without DFB.
-        sumrows(key) = filter(l -> !startswith(l, "-999"),
-                              split(strip(FVSjl.run_keyfile(key; variant = v, output = :sum)), '\n'))
-        ctrl = sumrows(ctrl_key)
-        dfb  = sumrows(dfb_key)
-        @test !isempty(ctrl)
-        @test ctrl == dfb
+    # -------------------------------------------------------------------------
+    # DFBRAN + BACHLO + DFBMOD + DFBMRT — dump-replay BIT-EXACT vs a relinked
+    # FVSie_dfb g16 oracle (dfb/*.o swapped for the exdfb.o no-op; iet01 stand,
+    # DFB MANSTART + MANSCHED 2, cycle-2 outbreak).  The golden hex constants are
+    # that oracle's stderr dump verbatim (scratchpad/dfb): the DFBRAN stream from
+    # the DFBSCH-reset seed ORSEED+1128 = 56457, DFBMOD's DFKILL, and DFBMRT's
+    # per-record TAMORT.  Every bit must reproduce.
+    # -------------------------------------------------------------------------
+    @testset "DFBRAN Lehmer stream (bit-exact vs g16 oracle, seed 56457)" begin
+        d = _F.dfb_defaults!(); d.active = true    # orseed 55329 ⇒ lazy-seed 56457
+        for g in ("3EE23A99", "3E6A6620", "3E56B516")
+            @test _hex(_F.dfb_rand!(d)) == g
+        end
+    end
+
+    @testset "DFBMOD DFKILL (bit-exact vs g16 oracle)" begin
+        d = _F.dfb_defaults!(); d.active = true     # EXPCTD 6.0, EXSTDV 2.0 (defaults)
+        badf9 = reinterpret(Float32, 0x41B78CB8)    # DF ≥9″ basal area, cycle 2
+        ba9   = reinterpret(Float32, 0x42824F2E)    # stand ≥9″ basal area
+        dfkill = _F.dfb_mod(d, badf9, ba9, 4)       # NUMYRS = min(ILENTH 4, IFINT 10)
+        @test _hex(dfkill) == "412518D2"            # = 10.31856; BACHLO uniform branch (no log)
+    end
+
+    @testset "DFBMRT per-record TAMORT + WK2 (bit-exact vs g16 oracle)" begin
+        # The 8 iet01 Douglas-fir records at cycle 2 (IND1 order): (DBHhex, PROBhex, TAMORThex|nothing).
+        recs = (("3DDB85ED","424CABC9",nothing), ("40A12BB6","41D2B8B1",nothing),
+                ("401B2F71","41CF0B9F",nothing), ("405E1D1E","41DB99B5",nothing),
+                ("4147E132","40E3E549","4031CDC0"), ("416A2885","408CA304","40008AB8"),
+                ("41414764","40CF9482","401C9AF1"), ("4143886C","410157C8","40456FE1"))
+        df_dbh = Float32[reinterpret(Float32, parse(UInt32, r[1]; base=16)) for r in recs]
+        df_tpa = Float32[reinterpret(Float32, parse(UInt32, r[2]; base=16)) for r in recs]
+        dfkill = reinterpret(Float32, 0x412518D2)
+        badf9  = reinterpret(Float32, 0x41B78CB8)
+        n = length(recs)
+        old_tpa = copy(df_tpa)
+        t = (tpa = copy(df_tpa),)          # WK2_before = 0 (t.tpa == old_tpa) ⇒ WK2_after = TAMORT
+        _F.dfb_mrt!(t, old_tpa, collect(1:n), df_dbh, df_tpa, dfkill, badf9, false, 0.0f0)
+        # Compare the SURVIVING TPA the engine stores (old_tpa − TAMORT). Recovering WK2 as
+        # old_tpa − t.tpa would lose a ULP (Float32 catastrophic cancellation), so assert the
+        # stored t.tpa against old_tpa − TAMORT_gold — how DFBMRT applies WK2 to PROB.
+        for k in 1:n
+            if recs[k][3] === nothing
+                @test t.tpa[k] == old_tpa[k]   # DBH < 9″ (DCLAS < 5): untouched
+            else
+                tamort = reinterpret(Float32, parse(UInt32, recs[k][3]; base=16))
+                @test t.tpa[k] == old_tpa[k] - tamort   # WK2 == TAMORT, bit-exact
+            end
+        end
+    end
+
+    # -------------------------------------------------------------------------
+    # End-to-end DFB engine seam (InlandEmpire, IDFSPC=3): a scheduled outbreak
+    # kills large Douglas-fir (.sum-visible extra MORT at the outbreak cycle),
+    # while an out-of-range schedule leaves the projection byte-identical.
+    # (The absolute .sum-DELTA vs the oracle is CORNERED by the documented IE
+    #  cycle-1 growth/mortality straddle — DFKILL scales with the stand's own
+    #  cycle-start BADF9/BA9 — so this asserts the seam's behaviour, not a match.)
+    # -------------------------------------------------------------------------
+    vie = FVSjl.InlandEmpire()
+    ie_ctrl = joinpath(dir, "ie_ctrl.key")
+    ie_fire = joinpath(dir, "ie_fire.key")
+    ie_never = joinpath(dir, "ie_never.key")
+    write(ie_ctrl,  _dfb_head("IE CONTROL ") * "ECHOSUM\nPROCESS\nSTOP\n")
+    write(ie_fire,  _dfb_head("IE DFB FIRE") * _DFB_FIRE  * "ECHOSUM\nPROCESS\nSTOP\n")
+    write(ie_never, _dfb_head("IE DFB NEVR") * _DFB_NEVER * "ECHOSUM\nPROCESS\nSTOP\n")
+    for k in ("ie_ctrl", "ie_fire", "ie_never")
+        cp(joinpath(dir, "shared.tre"), joinpath(dir, "$k.tre"))
+    end
+    ierows(key) = filter(l -> !startswith(l, "-999"),
+                         split(strip(FVSjl.run_keyfile(key; variant = vie, output = :sum)), '\n'))
+
+    @testset "DFB seam INERT when no outbreak is scheduled in range" begin
+        @test ierows(ie_ctrl) == ierows(ie_never)   # MANSCHED 99 never fires ⇒ byte-identical
+    end
+
+    @testset "DFB outbreak fires — extra Douglas-fir mortality is .sum-visible" begin
+        ctrl = ierows(ie_ctrl); fire = ierows(ie_fire)
+        @test ctrl != fire                          # the outbreak changes the projection
+        # cycle-1 (1990 row) is unchanged (outbreak is scheduled for cycle 2 = the 2000 row);
+        # the 2000-row mortality (field 25, the MOR column) must be strictly greater with DFB on.
+        mort(row) = parse(Int, split(row)[25])
+        r2000_ctrl = ctrl[findfirst(r -> startswith(r, "2000"), ctrl)]
+        r2000_fire = fire[findfirst(r -> startswith(r, "2000"), fire)]
+        @test ctrl[1] == fire[1]                    # 1990 inventory/first-cycle row identical
+        @test mort(r2000_fire) > mort(r2000_ctrl)   # DFB adds Douglas-fir mortality at cycle 2
     end
 end

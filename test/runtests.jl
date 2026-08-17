@@ -20,7 +20,7 @@ using FVSjl
     include("unit/test_growth.jl")         # C3: DG calibration + HTGF + cycle loop
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_root_disease.jl")   # WRD Chunk −1: RDIN reader + rdinit defaults + inert seam vs live FVSkt
-    include("unit/test_dfb.jl")            # DFB beachhead: DFBIND/DFBDBH/DFBER/DFBPRB bit-exact vs g16 + reader + inert seam
+    include("unit/test_dfb.jl")            # DFB: DFBIND/DFBDBH/DFBER/DFBPRB + DFBRAN/BACHLO/DFBMOD/DFBMRT bit-exact vs relinked FVSie_dfb g16 + gated DFBDRV mortality seam
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
