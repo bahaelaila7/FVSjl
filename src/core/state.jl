@@ -939,6 +939,12 @@ abstract type AbstractWpbrState end
 # stand-level BMIN output block is reachable (and faithfully inert); no seam wired.
 abstract type AbstractWwpbState end
 
+# Forward declaration for the Mountain Pine Beetle (LPMPB) model state; concrete
+# `MpbState` is in engine/lpmpb.jl (included after this file). `nothing` until an
+# MPB keyword block activates it — inert for every non-LPMPB run. Stand-level Cole
+# rate-of-loss mortality; gated `mpb_apply!` seam fires only on a scheduled outbreak.
+abstract type AbstractMpbState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -962,6 +968,7 @@ mutable struct StandState{V<:AbstractVariant}
     dftm::Union{AbstractDftmState,Nothing}             # Douglas-fir Tussock Moth (DFTM) defoliator model; nothing until DFTM
     wpbr::Union{AbstractWpbrState,Nothing}             # White Pine Blister Rust (WPBR) canker model; nothing until BRUST
     wwpb::Union{AbstractWwpbState,Nothing}             # Westwide Pine Beetle (WWPB) model; nothing until BMIN (stand-level output block; inert)
+    mpb::Union{AbstractMpbState,Nothing}               # Mountain Pine Beetle (LPMPB) model; nothing until MPB (Cole rate-of-loss mortality seam)
 end
 
 """
@@ -978,6 +985,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end

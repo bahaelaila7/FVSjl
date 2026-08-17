@@ -24,6 +24,7 @@ using FVSjl
     include("unit/test_dftm.jl")           # DFTM chunk 0: TMRANN RNG + TMOTPR + dftmin.f keyword reader bit-exact vs pristine dftm/*.f + INERT seam
     include("unit/test_wpbr.jl")           # WPBR chunk 0: BRANN RNG + brin.f keyword reader + BRINIT defaults bit-exact vs pristine wpbr/*.f + INERT seam
     include("unit/test_wwpb.jl")           # WWPB beachhead: BMRANN RNG + bmin.f BMIN output-block reader + BMINIT defaults bit-exact vs pristine wwpb/*.f + INERT seam (PPE outbreak driver absent)
+    include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
