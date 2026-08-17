@@ -1,20 +1,28 @@
 # ACTIVE GOAL — Western FVS variant cluster + extensions rollout (FVSjl)
 
 ## ★★★ CURRENT DIRECTIVE (USER, 2026-08-17) — supersedes ALL "stream"/"USER-gated #196" framing below
-**WRD + SVS(visualization) + OP are COMPLETE and merged to kt-variant-port (HEAD 8139b42d).** So is #196 BC NEWSPRED
-(already in-tree + closed-cornered; its ONLY open code item is DMNTRD, item 1 below). This session (2026-08-16/17):
-13 validated `--no-ff` merges 7486edca→8139b42d — SVS snag#2 (kt2c bit-exact tree#/class/dbh/x/y) + the full WRD
-`rd/` port live end-to-end across ALL 15 base-rd/ variants (RD suite 1159/1159, rd−ctrl .sum DELTA bit-exact-or-cornered
-vs each FVS<v>_clean, no-RD byte-identical). OP loose-end closed prior session.
+**WRD + SVS(visualization) + OP are COMPLETE and merged to kt-variant-port (now HEAD e085af59).** So is #196 BC NEWSPRED
+(closed-cornered; DMNTRD done → 0 deferred items). Insect/pathogen rollout well underway (see progress below).
 
-**NEW USER ROADMAP (2026-08-17) — work in THIS ORDER, autonomously, chunk by chunk (doctrine unchanged):**
-  1. **DMNTRD** — port `canada/newmist/dmntrd.f` (202 ln): the deferred cyc≥2 crown-third / tripled-offspring
-     infection remap inside NEWSPRED (#196). Currently gated off (`src/variants/britishcolumbia/newspred.jl:672`;
-     per-copy DMINF→tripled-offspring propagation TODO :250-255). Closes #196 to zero deferred items.
-  2. **Insect / pathogen event-extension family (~267 f, currently keyword-parsed as NO-OPs in FVSjl = true feature
-     gap).** Pilot ONE end-to-end first, then fan out: `dfb/`(29 Douglas-fir Beetle, smallest) → `dftm/`(31 DF
-     Tussock Moth) → `wpbr/`(43 White Pine Blister Rust) → `wwpb/`(53 Westwide Pine Beetle) → `lpmpb/`(54 Mtn Pine
-     Beetle) → `wsbwe/`(57 W. Spruce Budworm). (Ambiguous small dirs `acd/`(25), `strp/`(21, budworm-linkage) TBD.)
+**CHECKPOINT 2026-08-17 (HEAD e085af59) — for container-restart continuity.** Durable state: git (LPMPB `74935cd7`
++ WSBWE `e085af59` merged this session), oracles in `/workspace/.{v}work/`, scratchpad preserved to
+`/workspace/FVSjl/scratchpad/{lpmpb,wsbwe,dfb,dftm,wpbr}` (the `/tmp` scratchpad is ephemeral), memory
+`fvsjl-wrd-svs-op-rollout`. Working tree clean; no agents in flight.
+
+**USER ROADMAP (2026-08-17) — work in THIS ORDER, autonomously, chunk by chunk (doctrine unchanged) — PROGRESS:**
+  1. **DMNTRD** — ✓ DONE (bc-dmntrd → merge, #196 fully closed, 0 deferred).
+  2. **Insect / pathogen event-extension family (~267 f, keyword-no-ops in FVSjl = feature gap).** Progress:
+     - `dfb/` (Douglas-fir Beetle) — ✓ COMPLETE end-to-end (all activation modes, bit-exact-or-cornered).
+     - `dftm/` (DF Tussock Moth) — ✓ COMPLETE end-to-end (ODE integrator + TMCOUP seam).
+     - `wpbr/` (White Pine Blister Rust) — ✓ COMPLETE end-to-end (canker dynamics + BRTREG seam).
+     - `lpmpb/` (Mtn Pine Beetle) — ✓ deterministic Cole rate-of-loss core BIT-EXACT vs FVSie_lpmpb; seam wired
+       (inert; end-to-end .sum-DELTA expected cornered by #206). Deferred: CURRMORT/RANSTART/LPOPDY (scratchpad/lpmpb/HANDOFF.md).
+     - `wsbwe/` (W. Spruce Budworm) — ◐ BEACHHEAD MERGED (BWERAN RNG bit-exact + WSBW reader inert; stand-level
+       oracle FVSem_wsbwe relinks+runs). **← RESUME HERE: the defoliation EFFECT kernel** (IBWSPM host tables →
+       DEFOL scheduling on a heavy true-fir/spruce host → BWEDAM/BWEDIE mortality → BWEGO seam → BUDLITE last;
+       recipe scratchpad/wsbwe/HANDOFF.md).
+     - `wwpb/` (Westwide Pine Beetle) — ◐ BEACHHEAD only; END-TO-END PPE-BLOCKED (outbreak driver needs the absent
+       PPE landscape harness). DEFERRED — porting the PPE harness is a USER decision (like #196). Do NOT start it autonomously.
   3. **COVER understory** — `covr/`(11)+`vcovr/`(3)+`pg/`(14): shrub cover / browse / understory veg. (The 36 src
      "COVER" refs = the base crown-cover REPORT, NOT this model.)
   4. **ON (Ontario) variant** — `canada/on/` (own Penner growth model; BC is the only ported Canada variant).
