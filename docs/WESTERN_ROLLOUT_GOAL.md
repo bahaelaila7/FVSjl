@@ -1,5 +1,28 @@
 # ACTIVE GOAL — Western FVS variant cluster + extensions rollout (FVSjl)
 
+## ★★★ CURRENT DIRECTIVE (USER, 2026-08-17) — supersedes ALL "stream"/"USER-gated #196" framing below
+**WRD + SVS(visualization) + OP are COMPLETE and merged to kt-variant-port (HEAD 8139b42d).** So is #196 BC NEWSPRED
+(already in-tree + closed-cornered; its ONLY open code item is DMNTRD, item 1 below). This session (2026-08-16/17):
+13 validated `--no-ff` merges 7486edca→8139b42d — SVS snag#2 (kt2c bit-exact tree#/class/dbh/x/y) + the full WRD
+`rd/` port live end-to-end across ALL 15 base-rd/ variants (RD suite 1159/1159, rd−ctrl .sum DELTA bit-exact-or-cornered
+vs each FVS<v>_clean, no-RD byte-identical). OP loose-end closed prior session.
+
+**NEW USER ROADMAP (2026-08-17) — work in THIS ORDER, autonomously, chunk by chunk (doctrine unchanged):**
+  1. **DMNTRD** — port `canada/newmist/dmntrd.f` (202 ln): the deferred cyc≥2 crown-third / tripled-offspring
+     infection remap inside NEWSPRED (#196). Currently gated off (`src/variants/britishcolumbia/newspred.jl:672`;
+     per-copy DMINF→tripled-offspring propagation TODO :250-255). Closes #196 to zero deferred items.
+  2. **Insect / pathogen event-extension family (~267 f, currently keyword-parsed as NO-OPs in FVSjl = true feature
+     gap).** Pilot ONE end-to-end first, then fan out: `dfb/`(29 Douglas-fir Beetle, smallest) → `dftm/`(31 DF
+     Tussock Moth) → `wpbr/`(43 White Pine Blister Rust) → `wwpb/`(53 Westwide Pine Beetle) → `lpmpb/`(54 Mtn Pine
+     Beetle) → `wsbwe/`(57 W. Spruce Budworm). (Ambiguous small dirs `acd/`(25), `strp/`(21, budworm-linkage) TBD.)
+  3. **COVER understory** — `covr/`(11)+`vcovr/`(3)+`pg/`(14): shrub cover / browse / understory veg. (The 36 src
+     "COVER" refs = the base crown-cover REPORT, NOT this model.)
+  4. **ON (Ontario) variant** — `canada/on/` (own Penner growth model; BC is the only ported Canada variant).
+
+Turnkey/oracle recipes carry over: g16 single-.o-swap dump-replay (instrumented .sum byte-identical before trusting),
+per-chunk verify-by-run on the MERGED tree, block-on-signal via a foreground-blocking Bash wait (NOT idle stop-hook
+cycling — user-corrected). Off-switch STILL the USER's call. Full audit + status: memory fvsjl-wrd-svs-op-rollout.
+
 ## Mission (user-cemented 2026-08-03; re-anchored 2026-08-05)
 "Work unattended until ALL extensions for the variants implemented so far are ported and validated. Do a full
 FVS-ready FIA sweep as well. Do NOT stop." Port + validate the WESTERN FVS variant cluster and all extensions,
