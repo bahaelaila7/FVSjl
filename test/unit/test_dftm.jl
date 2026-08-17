@@ -563,6 +563,23 @@ END
     end
 
     # -------------------------------------------------------------------------
+    # INSCYC (inscyc.f) — force the TMBASE (5-yr) outbreak cycle into the
+    # schedule.  Integer cycle-year math ⇒ bit-exact.  Golden = the dense.key
+    # DFTMGO run ("INSCYC:IY= 1990 2000 2005 2010 2020 2030 2040", ISPOT=3,
+    # IFINT=5) with ICYC=2, IBOUND=TMBASE=5.
+    # -------------------------------------------------------------------------
+    @testset "INSCYC cycle-forcing (inscyc.f) — golden IY schedule" begin
+        iy = [1990, 2000, 2010, 2020, 2030, 2040, 0]   # ncyc=5 (+1 growth slot)
+        (nc, fi, sp) = _F.dftm_inscyc!(iy, 5, 10, 2, 5)
+        @test iy[1:nc+1] == [1990, 2000, 2005, 2010, 2020, 2030, 2040]
+        @test nc == 6 && fi == 5 && sp == 3            # NCYC+1, IFINT=5, inserted at subscript 3
+        # a boundary already at the target year ⇒ no insertion (ISPOT 0, unchanged).
+        iy2 = [1990, 2000, 2005, 2010, 2020, 0]
+        (nc2, _, sp2) = _F.dftm_inscyc!(iy2, 5, 5, 2, 5)
+        @test sp2 == 0 && nc2 == 5 && iy2[1:6] == [1990, 2000, 2005, 2010, 2020, 0]
+    end
+
+    # -------------------------------------------------------------------------
     # TMINIT (tminit{,ec,em,so,tt}.f) defaults + variant IGFCOD crosswalk.
     # -------------------------------------------------------------------------
     @testset "TMINIT defaults + IGFCOD crosswalk" begin
