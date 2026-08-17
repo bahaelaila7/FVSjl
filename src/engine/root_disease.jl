@@ -502,6 +502,21 @@ const RD_PNINF_FLAT = Float32[0.4f0, 0.4f0, 0.4f0, 0.5f0, 0.5f0, 0.0f0, 0.4f0, 0
 const RD_PKILLS_FLAT = Float32[0.6f0, 0.9f0, 0.9f0, 0.8f0, 0.8f0, 1.0f0, 0.5f0, 0.9f0, 0.8f0, 0.5f0, 0.8f0, 0.6f0, 0.8f0, 0.9f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.6f0, 1.0f0, 0.0f0, 0.9f0, 0.5f0, 0.75f0, 0.9f0, 0.0f0, 1.0f0, 0.5f0, 0.0f0, 0.7f0, 0.8f0, 0.8f0, 0.8f0, 0.7f0, 0.8f0, 0.8f0, 1.0f0, 0.6f0, 0.9f0, 0.9f0, 0.8f0, 0.8f0, 1.0f0, 0.5f0, 0.9f0, 0.8f0, 0.5f0, 0.8f0, 0.6f0, 0.8f0, 0.9f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.6f0, 1.0f0, 0.0f0, 0.9f0, 0.5f0, 0.75f0, 0.9f0, 0.0f0, 1.0f0, 0.5f0, 0.0f0, 0.7f0, 0.8f0, 0.8f0, 0.8f0, 0.7f0, 0.8f0, 0.8f0, 1.0f0, 0.3f0, 1.0f0, 0.8f0, 0.8f0, 0.8f0, 0.75f0, 0.3f0, 0.75f0, 0.8f0, 0.3f0, 0.8f0, 0.3f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.3f0, 0.8f0, 0.8f0, 0.75f0, 0.8f0, 0.3f0, 0.3f0, 0.8f0, 0.75f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 0.8f0, 1.0f0, 0.85f0, 0.75f0, 0.8f0, 0.6f0, 0.8f0, 0.85f0, 0.85f0, 0.65f0, 0.6f0, 0.85f0, 0.8f0, 0.85f0, 0.6f0, 0.8f0, 0.6f0, 0.6f0, 0.85f0, 0.8f0, 0.8f0, 0.65f0, 0.6f0, 0.85f0, 0.85f0, 0.8f0, 0.65f0, 0.8f0, 0.6f0, 0.8f0, 0.8f0, 0.8f0, 0.85f0, 0.8f0, 0.8f0, 0.85f0, 0.85f0, 0.8f0, 0.85f0, 0.85f0, 0.6f0, 1.0f0]
 const RD_IDITYP = Int32[1, 2, 2, 2, 2, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 2, 1, 0, 0, 2, 1, 1, 1, 0, 2, 1, 1, 2, 0, 1, 1, 0, 1, 2, 2, 2, 1, 1, 2, 0]
 const RD_IRTSPC_KT = Int32[1,2,3,4,5,6,7,8,9,10,30]
+# rdblk1ie.f IRTSPC — Inland Empire 23-species → base-RD-species crosswalk.
+# IE species order: WP WL DF GF WH RC LP ES AF PP MH WB LM LL PI JU PY AS CO MM PB OH OS.
+# MM(20) and PB(21) have no RD host ⇒ mapped to RD "Other" (30). The host tables
+# (HABFAC/PNINF/PKILLS/IDITYP/PCOLO in rd/rdinit.f) are byte-identical across
+# variants — only this IRTSPC index differs (verified: IE vs KT rdinit.f identical).
+const RD_IRTSPC_IE = Int32[1,2,3,4,5,6,7,8,9,10,11,22,23,36,33,26,38,19,24,30,30,18,17]
+
+"""
+    rd_irtspc_for(variant) -> Vector{Int32}
+
+Per-variant IRTSPC host-species crosswalk dispatch (the ONLY variant-specific RD
+block-data; rd/rdblk1<v>.f). Default = the base NI/CI/KT table (rd/rdblk1.f).
+"""
+rd_irtspc_for(::AbstractVariant) = RD_IRTSPC_KT
+rd_irtspc_for(::InlandEmpire)    = RD_IRTSPC_IE
 const RD_HABFAC = reshape(RD_HABFAC_FLAT, RD_ITOTSP, RD_ITOTRR, 2)   # HABFAC(ksp,idi,ihab)
 const RD_PNINF  = reshape(RD_PNINF_FLAT,  RD_ITOTSP, RD_ITOTRR)      # PNINF(ksp,idi)
 const RD_PKILLS = reshape(RD_PKILLS_FLAT, RD_ITOTSP, RD_ITOTRR)      # PKILLS(ksp,idi)
@@ -783,6 +798,7 @@ BBCLEAR, END (RRDOUT/BBOUT recognized no-ops). Populates `s.root_disease`.
 function kw_rdin!(s::StandState, rec, kr::KeywordReader)
     s.root_disease === nothing && (s.root_disease = RootDiseaseState())
     rd = s.root_disease
+    rd.irtspc = copy(rd_irtspc_for(s.variant))  # rdblk1<v>.f — per-variant host crosswalk
     rd.iroot = Int32(1)                     # rdin.f: entry sets IROOT=1
 
     while true
