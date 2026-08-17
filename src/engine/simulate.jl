@@ -611,6 +611,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
     # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
     (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf)
+    # WRD rd/rdend.f: reconcile the RD infected-tree kill (RRKILL) with FVS's just-applied
+    # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
+    # MORTS time (GRINCR MORTS → GRADD RDTREG/RDEND). Non-fire, non-tripled RD path only;
+    # gated so a no-RD stand is byte-identical (root_disease === nothing ⇒ no-op).
+    if !tripled && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+       s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+        rd_end_apply!(s.root_disease, s, old_tpa)
+    end
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
@@ -626,6 +634,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
+    # WRD rd/rdgrow.f (+ tail rd/rdinoc.f decay): reduce the per-record DG/HTG by the infected-
+    # root proportion, on the PRE-DBH-update increments (FVS RDGROW runs in RDTREG before UPDATE,
+    # after RDEND). Non-tripled RD path only; no-RD stand is byte-identical (no-op).
+    if !tripled && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+       s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+        rd_grow_apply!(s.root_disease, s, fint)
+    end
     # Per-record cycle-start CFV (tripled records inherit the originals' cycle-0 vol).
     n = t.n
     old_cfv2 = Float32[t.cuft_vol[i] for i in 1:n]

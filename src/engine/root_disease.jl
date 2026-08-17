@@ -117,6 +117,13 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     probl::Vector{Float32}    # PROBL(I) = PROB(I)
     propn::Vector{Float32}    # PROPN(I)      per-record infected proportion (rdiprp)
 
+    # ---- per-cycle driver working state (RDDriver; lazily built at LSTART) ----
+    #   Holds the 3-D PROBI/PROPI, PROBIT, FFPROB, ROOTL, RRKILL, the per-center
+    #   RRATES, the stump lists (PROBDA/DBHDA/ROOTDA), and the RDEND/RDGROW carry
+    #   arrays. Typed `Any` so the struct need not forward-declare RDDriver.
+    driver::Any               # ::Union{Nothing,RDDriver}
+    icyc::Int32               # RD cycle counter (FVS ICYC; 0 at LSTART, +1 per grow cycle)
+
     RootDiseaseState() = rd_init_defaults!(new())
 end
 
@@ -181,6 +188,8 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.propi  = Float32[]
     rd.probl  = Float32[]
     rd.propn  = Float32[]
+    rd.driver = nothing
+    rd.icyc   = Int32(0)
     return rd
 end
 
@@ -1139,7 +1148,9 @@ function rd_end_kernel!(rd::RootDiseaseState,
                         propi::Array{Float32,3}, isp::AbstractVector{<:Integer},
                         rootl::Vector{Float32}, wk22::Vector{Float32},
                         rroott::Vector{Float32}, dprob::Array{Float32,3},
-                        oakl::Array{Float32,2}, bbkill::Array{Float32,2})
+                        oakl::Array{Float32,2}, bbkill::Array{Float32,2};
+                        probda = nothing, dbhda = nothing, rootda = nothing,
+                        dbh = nothing, driver = nothing)
     minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); irt = rd.irtspc
     istep = Int(rd.istep); sarea = rd.sarea
     n = length(prob)
@@ -1209,7 +1220,12 @@ function rd_end_kernel!(rd::RootDiseaseState,
             end
             broke && continue
         end
-        # RDSSIZ/RDSTP stump update (DIENAT>0) — deferred (next-cycle inoculum only).
+        # RDSSIZ/RDSTP stump update: natural mortality of infected trees (DIENAT>0)
+        # feeds next cycle's inoculum (rdend.f:248). Active only when the driver +
+        # stump arrays are supplied (the live seam); the pure-function tests omit them.
+        if dienat > 0.0f0 && driver !== nothing
+            rd_stp!(rd, driver, ksp, Float32(dbh[i]), rootl[i], dienat)
+        end
     end
     rd_sum!(probit, probi, istep)                    # rdend.f final RDSUM
     return wk2
@@ -1658,7 +1674,9 @@ function rd_insd!(rd::RootDiseaseState, idi::Int, rriare::Float32, rridim::Float
                   parea::Float32, irinit::Int, itrn::Int, ninsim::Int,
                   ksp::AbstractVector{<:Integer}, rootl::AbstractVector{Float32},
                   probiu::AbstractVector{Float32}, probi::Array{Float32,3},
-                  propi::Array{Float32,3}; fint::Real, pint::Real, sptran::Float32 = 0.5f0)
+                  propi::Array{Float32,3}; fint::Real, pint::Real, sptran::Float32 = 0.5f0,
+                  probd::Union{Nothing,AbstractMatrix{Float32}} = nothing,
+                  rootd::Union{Nothing,AbstractMatrix{Float32}} = nothing)
     n = length(ksp); istep = size(probi, 2)
     rrninf = zeros(Float32, n); polp = zeros(Float32, n)
     (itrn == 0 || parea == 0.0f0) && return rrninf, polp
@@ -1690,7 +1708,29 @@ function rd_insd!(rd::RootDiseaseState, idi::Int, rriare::Float32, rridim::Float
             end
             capped && break
         end
-        # stumps (DO 605/600): none in the turnkey cycle-1 path (PROBD≡0) — skipped.
+        # --- select infected dead trees / stumps (rdinsd.f DO 605/600) ---
+        # RRIMEN = PROBD(irrsp,i,j)·RRIARE/(PAREA+1e-6); one rd_rann! per (i,j) with
+        # PROBD>0, radius ROOTD(irrsp,i,j). PROBD≡0 at cycle 1 (no stumps) ⇒ no draws;
+        # cyc2+ stumps (from RDMORT/RDEND, RDINUP-averaged) add inoculum here.
+        if probd !== nothing && !capped
+            for i in 1:2, j in 1:5
+                rrimen = probd[i, j] * rriare / (parea + 1.0f-6)
+                rrimen == 0.0f0 && continue
+                numtre = trunc(Int, rrimen)
+                ptre   = rrimen - Float32(numtre)
+                r      = rd_rann!(rd)
+                r < ptre && (numtre += 1)
+                numtre <= 0 && continue
+                for _kk in 1:numtre
+                    irincs += 1
+                    if irincs > RD_IRRTRE
+                        irincs = RD_IRRTRE; capped = true; break
+                    end
+                    push!(rrirad, rootd[i, j])
+                end
+                capped && break
+            end
+        end
         irincs == 0 && continue
 
         # --- place inoculum randomly (DO 650) ---
@@ -1739,11 +1779,500 @@ function rd_insd!(rd::RootDiseaseState, idi::Int, rriare::Float32, rridim::Float
     return rrninf, polp
 end
 
+# =============================================================================
+# WRD 0b-3e — the per-cycle DRIVER (rd/rdtreg.f + rd/rdcntl.f) + stump lifecycle
+# (rd/rdstp.f, rd/rdssiz.f, rd/rdinup.f, rd/rdinoc.f) + the LIVE engine seam.
+#
+# `rd_control!` composes the already-validated kernels into one per-cycle driver
+# matching the RDTREG→RDCNTL call order for the manual-RRINIT turnkey (MINRR=MAXRR,
+# IRSPTY=1, IRIPTY=1, LONECT=0, INFLAG=0, IRSTYP=0, no bark beetles/windthrow):
+#
+#   RDTREG: FPROB (outside density) · ROOTL (rd_root) · RDOAGM (FFPROB min-carry;
+#           OAKL≡0) · RDCNTL{ DO525 RDINUP+RDINSD · DO75 RDSPRD+RDRATE · DO300
+#           grow-centers+RDZERO+RDAREA+RDINF · RDMORT(+RDSTP stumps) } · RDSUM
+#   [seam] RDEND (→ WK2 mortality, at FVS MORTS time) · RDGROW (→ DG/HTG) · RDINOC
+#
+# The deterministic no-op routines for this scenario are faithfully skipped:
+# RDTIM/RDJUMP (outputs unused w/o a cut), RDPUSH (no PSTUMP), RDSHST (windthrow-
+# only), RDSHRK (NSCEN≡0), the carryover model (INFLAG≡0), and RDOAGM's BB/wind
+# (BBCLEAR + no windthrow ⇒ OAKL≡0). Validated end-to-end at the .sum DELTA level
+# vs the live FVSkt oracle (rd.key − ctrl.key), cornered within the #206 straddle.
+# =============================================================================
+
+# rd/rdinit.f ISPS (wood type 1=resinous/2=non) + RSLOP (root-radius slope);
+# PROOT≡1.0 (rdinit.f:504). Base-RD-species indexed (via IRTSPC).
+const RD_ISPS = Int32[1, 1, 1, 2, 2, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2,
+                      2, 1, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 2, 1, 1, 2, 2, 2, 2, 2]
+const RD_RSLOP = Float32[14.26, 14.26, 14.26, 14.26, 14.5, 9.35, 14.26, 14.26, 14.26, 14.26,
+                         14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26,
+                         14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26,
+                         14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26, 14.26]
+const RD_PROOT = 1.0f0
+# rd/rdinit.f DECFN/YRSITF/RSITFN (idi,i,j) stump-decay coefficients + DSFAC.
+# Column-major (idi fastest) exactly as the Fortran DATA fills TEMP1/2/3.
+const RD_DECFN  = reshape(Float32[0.02212,0.02212,0.0,0.0,  1.2032,1.2032,1.6045,1.2834,
+                                  0.02212,0.02212,0.03214,0.03214,  1.2032,1.2032,1.1459,0.9167],
+                          RD_ITOTRR, 2, 2)                         # DECFN(idi,i,j)
+const RD_YRSITF = reshape(Float32[2.0,2.0,1.1111,1.1111,  0.0,0.0,0.0,0.0,
+                                  2.0,2.0,0.5556,0.5556,   0.0,0.0,6.6667,6.6667],
+                          RD_ITOTRR, 2, 2)                         # YRSITF(idi,i,j)
+const RD_RSITFN = reshape(Float32[0.166667,0.166667,0.297,0.2377,  0.0,0.0,0.0,0.0],
+                          RD_ITOTRR, 2)                            # RSITFN(idi,i)
+const RD_DSFAC  = Float32[1.0, 0.75]
+const RD_SPYTK  = 3.0f0
+const RD_SPTRAN = 0.5f0
+const RD_ISTEP_MAX = 41                        # rd/RDARRY.F77 PROBI(IRRTRE,41,2)
+
+# rd/rdssiz.f — stump size class from DBH vs STCUT breakpoints.
+@inline function _rd_ssiz(a::Float32, stcut)
+    @inbounds for j in 2:5
+        (a < stcut[j-1] || a > stcut[j]) && continue
+        return j - 1
+    end
+    return 5
+end
+
+# rd/rdstp.f — add DEN infected stumps of record ISP (dbh, live root radius RTD)
+# to the PROBDA/DBHDA/ROOTDA stump lists (weighted-average DBHDA/ROOTDA). ISTFLG=0
+# ⇒ idi is the record's disease type. Shared by RDMORT (RDKILL) and RDEND (DIENAT).
+function rd_stp!(rd::RootDiseaseState, d,
+                 isp::Integer, dbh::Float32, rtd::Float32, den::Float32)
+    den <= 0.0f0 && return
+    base = Int(rd.irtspc[isp])
+    maxrr = Int(rd.maxrr)
+    idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+    idi <= 0 && return
+    ist = max(1, Int(rd.istep))
+    is  = Int(RD_ISPS[base])
+    isl = _rd_ssiz(dbh, rd.stcut)
+    rotd = rtd * RD_PCOLO[base, idi]
+    old  = d.probda[idi, is, isl, ist]
+    tst  = old + den
+    @inbounds begin
+        d.dbhda[idi, is, isl, ist]  = ((d.dbhda[idi, is, isl, ist]  * old) + (dbh  * den)) / tst
+        d.rootda[idi, is, isl, ist] = ((d.rootda[idi, is, isl, ist] * old) + (rotd * den)) / tst
+        d.probda[idi, is, isl, ist] = old + den
+    end
+    return
+end
+
+"""
+    RDDriver
+
+The per-cycle working state for the WRD driver — the 3-D PROBI/PROPI (record order),
+PROBIT/PROBIU/FPROB/FFPROB/ROOTL, RRKILL/RDKILL, per-center RRATES, the stump lists
+(PROBDA/DBHDA/ROOTDA/DECRAT/JRAGED + the RDINUP-averaged PROBD/DBHD/ROOTD), and the
+RDEND carry arrays (WK22/RROOTT/DPROB + the all-zero OAKL/BBKILL). Sized to the tree
+list at `rd_build_driver!`; rebuilt if the record count changes (COMCUP).
+"""
+mutable struct RDDriver
+    n::Int
+    probi::Array{Float32,3}
+    propi::Array{Float32,3}
+    probit::Vector{Float32}
+    probiu::Vector{Float32}
+    fprob::Vector{Float32}
+    ffprob::Matrix{Float32}       # (n,2)
+    rootl::Vector{Float32}
+    rrkill::Vector{Float32}
+    rdkill::Vector{Float32}
+    wk22::Vector{Float32}
+    rroott::Vector{Float32}
+    rrates::Matrix{Float32}       # (ITOTRR,100)
+    rrrate::Vector{Float32}       # (ITOTRR)
+    areanu::Vector{Float32}       # (ITOTRR)
+    shcent::Array{Float32,3}      # (ITOTRR,100,3)
+    nscen::Vector{Int32}          # (ITOTRR)
+    icensp::Matrix{Int32}         # (ITOTRR,100)
+    probda::Array{Float32,4}      # (ITOTRR,2,5,41)
+    dbhda::Array{Float32,4}
+    rootda::Array{Float32,4}
+    decrat::Array{Float32,4}
+    jraged::Array{Int32,4}
+    probd::Array{Float32,3}       # (ITOTRR,2,5)
+    dbhd::Array{Float32,3}
+    rootd::Array{Float32,3}
+    oakl::Matrix{Float32}         # (3,n) — all zero (no bark beetles/windthrow)
+    bbkill::Matrix{Float32}
+    dprob::Array{Float32,3}       # (n,4,3)
+end
+
+# Build the driver from the LSTART per-record state (rd.probi/propi/probiu/fprob are
+# in record order; slot (1,1) holds the initial infection). PROBIT via RDSUM.
+function rd_build_driver!(rd::RootDiseaseState, n::Int)
+    R = RD_ITOTRR; S = RD_ISTEP_MAX
+    d = RDDriver(n,
+        zeros(Float32, n, S, 2), zeros(Float32, n, S, 2),
+        zeros(Float32, n), zeros(Float32, n), zeros(Float32, n),
+        zeros(Float32, n, 2), zeros(Float32, n),
+        zeros(Float32, n), zeros(Float32, n), zeros(Float32, n), zeros(Float32, n),
+        zeros(Float32, R, 100), zeros(Float32, R), zeros(Float32, R),
+        zeros(Float32, R, 100, 3), zeros(Int32, R), zeros(Int32, R, 100),
+        zeros(Float32, R, 2, 5, S), zeros(Float32, R, 2, 5, S), zeros(Float32, R, 2, 5, S),
+        zeros(Float32, R, 2, 5, S), zeros(Int32, R, 2, 5, S),
+        zeros(Float32, R, 2, 5), zeros(Float32, R, 2, 5), zeros(Float32, R, 2, 5),
+        zeros(Float32, 3, n), zeros(Float32, 3, n), zeros(Float32, n, 4, 3))
+    @inbounds for i in 1:min(n, length(rd.probi))
+        d.probi[i, 1, 1] = rd.probi[i]
+        d.propi[i, 1, 1] = rd.propi[i]
+        d.probiu[i]      = rd.probiu[i]
+        d.fprob[i]       = rd.fprob[i]
+    end
+    rd_sum!(d.probit, d.probi, Int(rd.istep))
+    return d
+end
+
+# Host records (idi>0) in FVS ISCT/IND1 processing order: species ascending, stable
+# within species by record index. The RD-RNG consumers (RDINSD/RDSPRD/RDINF) walk
+# this order; the non-RNG kernels (RDMORT/RDEND/RDGROW) are order-independent.
+function _rd_host_order(rd::RootDiseaseState, s::StandState)
+    t = s.trees; maxrr = Int(rd.maxrr); irt = rd.irtspc
+    order = Int[]
+    @inbounds for i in 1:t.n
+        ksp = Int(t.species[i]); ksp == 0 && continue
+        base = Int(irt[ksp])
+        idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+        idi <= 0 && continue
+        push!(order, i)
+    end
+    sort!(order; by = i -> (Int(t.species[i]), i))
+    return order
+end
+
+# rd/rdinup.f — weighted-average the per-timestep stump lists into PROBD/DBHD/ROOTD.
+function rd_inup!(rd::RootDiseaseState, d::RDDriver, idi::Int)
+    istep = Int(rd.istep)
+    @inbounds for i in 1:2, j in 1:5
+        pd = 0.0f0; db = 0.0f0; rt = 0.0f0
+        for k in 1:istep
+            p = d.probda[idi, i, j, k]
+            p <= 0.0f0 && continue
+            pd += p
+            db += d.dbhda[idi, i, j, k]  * p
+            rt += d.rootda[idi, i, j, k] * p
+        end
+        d.probd[idi, i, j] = pd
+        d.dbhd[idi, i, j]  = db / (pd + 1.0f-6)
+        d.rootd[idi, i, j] = rt / (pd + 1.0f-6)
+    end
+    return
+end
+
+# rd/rdzero.f — remove centers whose radius shrank to ≤0.01 (never fires when
+# every center grows; ported faithfully). Compacts PCENTS/RRATES/SHCENT/ICENSP.
+function rd_zero_centers!(rd::RootDiseaseState, d::RDDriver, idi::Int)
+    P = rd.pcents
+    icent = Int(rd.ncents[idi])
+    @inbounds for icen in icent:-1:1
+        P[idi, icen, 3] > 0.01f0 && continue
+        rd.ncents[idi] -= Int32(1)
+        d.shcent[idi, icen, 2] > 0.0f0 && (d.nscen[idi] -= Int32(1))
+        for jcen in icen:icent-1
+            for k in 1:3
+                P[idi, jcen, k] = P[idi, jcen+1, k]
+                d.shcent[idi, jcen, k] = d.shcent[idi, jcen+1, k]
+            end
+            d.icensp[idi, jcen] = d.icensp[idi, jcen+1]
+            d.rrates[idi, jcen] = d.rrates[idi, jcen+1]
+        end
+        if Int(rd.ncents[idi]) == icent - 1
+            d.icensp[idi, icent] = Int32(0); d.rrates[idi, icent] = 0.0f0
+            for k in 1:3
+                P[idi, icent, k] = 0.0f0; d.shcent[idi, icent, k] = 0.0f0
+            end
+        end
+    end
+    return
+end
+
+# rd/rdinoc.f (LICALL=.FALSE.) — decay the stump root radius each cycle.
+function rd_inoc_decay!(rd::RootDiseaseState, d::RDDriver, fint::Real)
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); istep = Int(rd.istep)
+    jint0 = trunc(Int, Float32(fint))
+    @inbounds for idi in minrr:maxrr, i in 1:2, j in 1:5, k in 1:istep
+        (d.probda[idi,i,j,k] == 0.0f0 || d.dbhda[idi,i,j,k] == 0.0f0) && continue
+        jint = jint0
+        dbhda = d.dbhda[idi,i,j,k]
+        rotsit = RD_RSITFN[idi,1] * dbhda + RD_RSITFN[idi,2]
+        d.rootda[idi,i,j,k] < rotsit && (d.rootda[idi,i,j,k] = rotsit)
+        jrsit = dbhda <= 12.0f0 ?
+            trunc(Int, RD_YRSITF[idi,1,1]*dbhda + RD_YRSITF[idi,2,1]) :
+            trunc(Int, RD_YRSITF[idi,1,2]*dbhda + RD_YRSITF[idi,2,2])
+        if d.jraged[idi,i,j,k] <= 0
+            if d.decrat[idi,i,j,k] <= 0.0f0
+                d.decrat[idi,i,j,k] = dbhda <= 12.0f0 ?
+                    (RD_DECFN[idi,1,1]*d.rootda[idi,i,j,k] + RD_DECFN[idi,2,1]) / RD_DSFAC[i] :
+                    (RD_DECFN[idi,1,2]*d.rootda[idi,i,j,k] + RD_DECFN[idi,2,2]) / RD_DSFAC[i]
+                droots = d.rootda[idi,i,j,k] - rotsit
+                tminlf = Float32(jrsit) + droots / d.decrat[idi,i,j,k]
+                tminlf < rd.xminlf[idi] &&
+                    (d.decrat[idi,i,j,k] = droots / (rd.xminlf[idi] - Float32(jrsit)))
+            end
+            rtodec = d.decrat[idi,i,j,k] * Float32(jint)
+            rtrem  = d.rootda[idi,i,j,k] - rtodec
+            if rtrem < rotsit
+                rtodec = d.rootda[idi,i,j,k] - rotsit
+                rtodec < 0.0f0 && (rtodec = 0.0f0)
+                d.jraged[idi,i,j,k] = jint - trunc(Int, rtodec / d.decrat[idi,i,j,k])
+                rtrem = rotsit
+            end
+            d.rootda[idi,i,j,k] = rtrem
+        else
+            d.jraged[idi,i,j,k] += jint
+        end
+        if d.jraged[idi,i,j,k] > jrsit
+            d.probda[idi,i,j,k] = 0.0f0; d.dbhda[idi,i,j,k] = 0.0f0
+            d.jraged[idi,i,j,k] = Int32(0); d.rootda[idi,i,j,k] = 0.0f0
+        end
+    end
+    return
+end
+
+"""
+    rd_control!(rd, s, fint)
+
+Port of the per-cycle RDTREG→RDCNTL spread chain (up to and including RDMORT), for
+the manual-RRINIT turnkey. Reads the stand's PRE-growth DBH/HT (FVS runs RDTREG in
+GRADD before UPDATE) and the stand aggregates (OLDTPA/GROSPC/ORMSQD/BA). Produces the
+per-record RRKILL + the aged PROBI/PROPI/PROBIU/FPROB the downstream RDEND/RDGROW
+(`rd_end_apply!`/`rd_grow_apply!`) consume. Advances the RD RNG stream (RDINSD then
+RDSPRD then RDINF). Mutates `rd.driver`.
+"""
+function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
+    t = s.trees; p = s.plot; n = t.n
+    d = rd.driver::RDDriver
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr)
+    irt = rd.irtspc; irhab = Int(rd.irhab); istep = Int(rd.istep)
+    sarea = rd.sarea; fintf = Float32(fint); pint = 10.0f0
+    idi = maxrr                                   # single-disease turnkey (MINRR=MAXRR)
+    rd.irrsp = Int32(idi)
+
+    # TPAREA gate (RDTREG).
+    tparea = 0.0f0
+    @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
+    (tparea == 0.0f0 || n == 0) && return
+
+    # --- FPROB: outside-center density (RDTREG DO 843) ---
+    diffv = sarea - rd.parea[idi]
+    @inbounds for i in 1:n
+        ksp = Int(t.species[i]); ksp == 0 && continue
+        base = Int(irt[ksp]); di = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+        di <= 0 && continue
+        if diffv >= 1.0f-6
+            fp = (t.tpa[i] * sarea - d.probiu[i] - d.probit[i]) / diffv
+            fp <= 1.0f-6 && (fp = 0.0f0)
+            d.fprob[i] = fp
+        else
+            d.fprob[i] = 0.0f0
+        end
+    end
+
+    # --- ROOTL: live-tree root radius (RDTREG DO 1001, rd_root) ---
+    yincpt = (rd.sdislp == 0.0f0 || rd.sdnorm == 0.0f0) ? 1.0f0 : 1.0f0 - (rd.sdnorm * rd.sdislp)
+    rd.yincpt = yincpt
+    # RDROOT stand aggregates (PLOT.F77 OLDTPA/ORMSQD/BA/GROSPC). FVSjl's compute_density!
+    # does not populate old_tpa/old_qmd, so derive them from the (pre-growth) tree list:
+    # OLDTPA = Σ TPA, ORMSQD = quadratic mean diameter (matches the g16 RDROOT dump).
+    tpa_sum = 0.0f0; dsq_sum = 0.0f0
+    @inbounds for i in 1:n
+        tpa_sum += t.tpa[i]; dsq_sum += t.tpa[i] * t.dbh[i] * t.dbh[i]
+    end
+    oldtpa = tpa_sum
+    ormsqd = tpa_sum > 0.0f0 ? sqrt(dsq_sum / tpa_sum) : 0.0f0
+    grospc = p.gross_space; ba = p.basal_area
+    @inbounds for i in 1:n
+        ksp = Int(t.species[i]); ksp == 0 && (d.rootl[i] = 0.0f0; continue)
+        base = Int(irt[ksp])
+        d.rootl[i] = rd_root(t.dbh[i], t.height[i], RD_PROOT, RD_RSLOP[base],
+                             rd.sdislp, yincpt, oldtpa, grospc, ormsqd, ba)
+    end
+
+    # --- RDOAGM: FFPROB min-carry (cyc1 = FPROB; else min(FFPROB2,FPROB)); OAKL≡0 ---
+    icyc = Int(rd.icyc)
+    @inbounds for i in 1:n
+        dff = d.fprob[i] - d.ffprob[i, 2]
+        d.ffprob[i, 1] = (dff <= 1.0f-4 || icyc == 1) ? d.fprob[i] : d.ffprob[i, 2]
+        d.ffprob[i, 2] = d.fprob[i]
+    end
+    fill!(d.oakl, 0.0f0); fill!(d.bbkill, 0.0f0)
+    rd_sum!(d.probit, d.probi, istep)
+
+    order = _rd_host_order(rd, s)
+    m = length(order)
+
+    # ==== RDCNTL DO 525 — RDINUP + RDINSD (inside-patch infection) ====
+    rd_inup!(rd, d, idi)
+    if rd.parea[idi] != 0.0f0 && m > 0
+        smbi = 0.0f0; smiu = 0.0f0
+        @inbounds for i in order; smbi += d.probit[i]; smiu += d.probiu[i]; end
+        dennew = (smiu + smbi) / rd.parea[idi]
+        @inbounds for i in 1:2, j in 1:5
+            dennew += d.probd[idi, i, j] / (rd.parea[idi] + 1.0f-9)
+        end
+        if dennew > 0.0f0
+            rriare = 100.0f0 / (dennew + 1.0f-9)          # RRGEN(idi,9)=100
+            rridim = sqrt(rriare) * 208.7f0
+            ksp_o   = Int[Int(t.species[i]) for i in order]
+            rootl_o = Float32[d.rootl[i] for i in order]
+            probiu_o = Float32[d.probiu[i] for i in order]
+            probi_o = zeros(Float32, m, RD_ISTEP_MAX, 2); propi_o = zeros(Float32, m, RD_ISTEP_MAX, 2)
+            @inbounds for (kk, i) in enumerate(order), it in 1:istep, ip in 1:2
+                probi_o[kk, it, ip] = d.probi[i, it, ip]
+                propi_o[kk, it, ip] = d.propi[i, it, ip]
+            end
+            rrninf, polp = rd_insd!(rd, idi, rriare, rridim, rd.parea[idi],
+                                    10 * MAXTRE, n, 1, ksp_o, rootl_o, probiu_o,
+                                    probi_o, propi_o; fint = fintf, pint = pint,
+                                    sptran = RD_SPTRAN,
+                                    probd = @view(d.probd[idi, :, :]),
+                                    rootd = @view(d.rootd[idi, :, :]))
+            # rdinsd.f DO 1050: apply averaged results (NINSIM=1).
+            @inbounds for (kk, i) in enumerate(order)
+                rrninf[kk] <= 1.0f-4 && continue
+                nk = rrninf[kk]                              # /NINSIM (=1)
+                pl = polp[kk]
+                d.probiu[i] -= nk; d.probiu[i] < 0.0f0 && (d.probiu[i] = 0.0f0)
+                d.probi[i, istep, 1] += nk
+                d.propi[i, istep, 1] = -pl
+            end
+            rd_sum!(d.probit, d.probi, istep)
+        end
+    end
+
+    # ==== RDCNTL DO 75 — RDSPRD + RDRATE (spread rate per center) ====
+    ncents = Int(rd.ncents[idi])
+    gcents = ncents - Int(d.nscen[idi])
+    if rd.lonect[idi] != 1 && gcents > 0 && rd.parea[idi] != 0.0f0 && (sarea - rd.parea[idi]) > 1.0f-3
+        newden = 0.0f0
+        @inbounds for i in order; newden += d.ffprob[i, 1]; end
+        rrsare = 20.0f0 / (newden + 1.0f-9)                 # RRGEN(idi,2)=20, IRSTYP=0
+        if newden > 0.0f0
+            rrsdim = sqrt(rrsare) * 208.7f0
+            ksp_o   = Int[Int(t.species[i]) for i in order]
+            dbh_o   = Float32[t.dbh[i] for i in order]
+            rootl_o = Float32[d.rootl[i] for i in order]
+            ffp_o   = Float32[d.ffprob[i, 1] for i in order]
+            habsp_o = Float32[RD_HABFAC[Int(irt[Int(t.species[i])]), idi, irhab] for i in order]
+            rrps_o  = ones(Float32, m)
+            mcrate, _ = rd_sprd!(rd, idi; nmont = 10, irsnyr = 20, nrstep = 5, irstyp = 0,
+                                 rrsfrn = 1.0f0, pint = pint, fint = fintf,
+                                 rrsare = rrsare, rrsdim = rrsdim, xminkl = rd.xminkl[idi],
+                                 dbh = dbh_o, rootl = rootl_o, ffprob = ffp_o, ksp = ksp_o,
+                                 habsp = habsp_o, rrpswt = rrps_o)
+            rout, rrate = rd_rate!(mcrate, ncents, Int(d.nscen[idi]),
+                                   @view(d.rrates[idi, 1:ncents]),
+                                   @view(d.shcent[idi, 1:ncents, 2]),
+                                   @view(d.icensp[idi, 1:ncents]))
+            @inbounds for i in 1:ncents; d.rrates[idi, i] = rout[i]; end
+            d.rrrate[idi] = rrate
+        end
+    end
+
+    # ==== RDCNTL DO 300 — grow centers, RDZERO, RDAREA, AREANU, RDINF ====
+    @inbounds for i in 1:ncents
+        rd.pcents[idi, i, 3] > 0.0f0 && (rd.pcents[idi, i, 3] += d.rrates[idi, i] * fintf)
+    end
+    rd_zero_centers!(rd, d, idi)
+    rd_area!(rd, false)                                     # recompute PAREA from grown radii
+    areanu = rd.parea[idi] - rd.ooarea[idi]
+    rd.parea[idi] <= 0.0f0 && (rd.parea[idi] = 0.0f0)
+    areanu <= 0.0f0 && (areanu = 0.0f0)
+    rd.ooarea[idi] = rd.parea[idi]
+    d.areanu[idi] = areanu
+    if areanu > 0.0f0 && m > 0
+        ksp_o   = Int[Int(t.species[i]) for i in order]
+        fprob_o = Float32[d.fprob[i] for i in order]
+        pin_o   = Float32[d.probi[i, istep, 2] for i in order]
+        piu_o   = Float32[d.probiu[i] for i in order]
+        propi_new, probi_new, probiu_new =
+            rd_inf_kernel!(rd, idi, areanu, ksp_o, fprob_o, pin_o, piu_o;
+                           fint = fintf, pint = pint, sptran = RD_SPTRAN)
+        @inbounds for (kk, i) in enumerate(order)
+            d.propi[i, istep, 2] = propi_new[kk]
+            d.probi[i, istep, 2] = probi_new[kk]
+            d.probiu[i]          = probiu_new[kk]
+        end
+    end
+
+    # ==== RDMORT (+ RDSTP stump creation) ====
+    isp_rec = Int[Int(t.species[i]) for i in 1:n]
+    dbh_rec = Float32[t.dbh[i] for i in 1:n]
+    rd_mort_kernel!(rd, d.probi, d.propi, d.rrkill, d.rdkill, dbh_rec, isp_rec, istep, fintf)
+    @inbounds for i in 1:n
+        d.rdkill[i] > 0.0f0 && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
+    end
+    rd_sum!(d.probit, d.probi, istep)
+    return
+end
+
+"""
+    rd_end_apply!(rd, s, old_tpa)
+
+Port of rd/rdend.f applied at FVS MORTS time: reconcile the RD infected-tree kill
+(RRKILL) with the FVS per-record background mortality (`WK2 = old_tpa − t.tpa`, since
+`mortality!` has already applied it), then re-apply the RD-adjusted WK2 to `t.tpa`.
+Updates the driver PROBIU/FPROB/PROBI/PROBIT (natural-mortality reallocation) that
+RDGROW reads, and creates DIENAT stumps. `old_tpa` is the cycle-start PROB (record
+order). Gated: only the non-tripled, non-fire turnkey path calls this.
+"""
+function rd_end_apply!(rd::RootDiseaseState, s::StandState, old_tpa::Vector{Float32})
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); istep = Int(rd.istep)
+    tparea = 0.0f0
+    @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
+    (n == 0 || tparea == 0.0f0) && return
+    prob = Vector{Float32}(undef, n); wk2 = Vector{Float32}(undef, n)
+    @inbounds for i in 1:n
+        prob[i] = old_tpa[i]
+        wk2[i]  = old_tpa[i] - t.tpa[i]                    # MORTS kill already applied
+    end
+    isp_rec = Int[Int(t.species[i]) for i in 1:n]
+    dbh_rec = Float32[t.dbh[i] for i in 1:n]
+    # rd_end_kernel! mutates wk2 + driver PROBIU/FPROB/PROBI/PROBIT; OAKL/BBKILL≡0.
+    rd_end_kernel!(rd, wk2, prob, d.rrkill, d.rdkill, d.probit, d.probiu, d.fprob,
+                   d.probi, d.propi, isp_rec, d.rootl, d.wk22, d.rroott, d.dprob,
+                   d.oakl, d.bbkill; probda = d.probda, dbhda = d.dbhda, rootda = d.rootda,
+                   dbh = dbh_rec, driver = d)
+    @inbounds for i in 1:n
+        t.tpa[i] = old_tpa[i] - wk2[i]
+        t.tpa[i] < 0.0f0 && (t.tpa[i] = 0.0f0)
+    end
+    return
+end
+
+"""
+    rd_grow_apply!(rd, s, stash)
+
+Port of rd/rdgrow.f + the tail rd/rdinoc.f decay, applied to the stashed DG/HTG right
+before the DBH/HT update. Reduces each infected host record's diameter and height
+growth by the infected-root proportion (post-RDEND PROBIU/FPROB/PROBIT), then decays
+the stump root radii for next cycle. Mutates `t.diam_growth`/`t.ht_growth`.
+"""
+function rd_grow_apply!(rd::RootDiseaseState, s::StandState, fint::Real)
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr)
+    tparea = 0.0f0
+    @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
+    if !(n == 0 || tparea == 0.0f0)
+        isp_rec = Int[Int(t.species[i]) for i in 1:n]
+        dg  = Float32[t.diam_growth[i] for i in 1:n]
+        htg = Float32[t.ht_growth[i]   for i in 1:n]
+        rd_grow_kernel!(rd, dg, htg, Float32[t.tpa[i] for i in 1:n], d.probit, d.probiu,
+                        d.fprob, d.probi, d.propi, isp_rec)
+        @inbounds for i in 1:n
+            t.diam_growth[i] = dg[i]
+            t.ht_growth[i]   = htg[i]
+        end
+    end
+    rd_inoc_decay!(rd, d, fint)                            # rd/rdinoc.f (.FALSE.)
+    return
+end
+
 # -----------------------------------------------------------------------------
-# Engine seams (rd/rdmn1.f, rd/rdmn2.f, rd/rdtreg.f) — wired GATED + INERT.
-# The per-cycle mortality/spread/growth-loss bodies are Chunk 0 (pending); until
-# then these are no-ops, so a stand with no RD keyword is byte-identical and a
-# stand WITH an RD keyword parses/initializes but applies no mortality yet.
+# Engine seams (rd/rdmn1.f, rd/rdmn2.f, rd/rdtreg.f) — wired GATED + LIVE.
+# A stand with no RD keyword is byte-identical (s.root_disease === nothing ⇒
+# every seam early-returns). A stand WITH an active RDIN block runs the full
+# per-cycle mortality/spread/growth-loss driver, .sum-visible.
 # -----------------------------------------------------------------------------
 
 """
@@ -1755,52 +2284,72 @@ Chunk 0 will call the ported RDSETP here (center placement + initial infection).
 function root_disease_setup!(s::StandState)
     rd = s.root_disease
     rd_active(rd) || return nothing
-    # Chunk 0b-2: RDSETP → RDCLOC/RDAREA (center placement) + RDIPRP + per-record
-    # PROBI/PROBIU/FPROB/PROPI + RDINOC(true). Sets the initial-infection state; the
-    # per-cycle mortality driver (RDMORT/RDGROW) that makes this .sum-visible is 0b-3.
+    # RDSETP → RDCLOC/RDAREA (center placement) + RDIPRP + per-record PROBI/PROBIU/
+    # FPROB/PROPI + RDINOC(true) — the initial-infection state (LSTART, ISTEP=1).
     rd_setp!(rd, s)
+    rd.driver = rd_build_driver!(rd, s.trees.n)     # 3-D PROBI/PROPI + stump lists
+    rd.icyc = Int32(0)
     return nothing
 end
 
 """
     root_disease_mn2!(s, fint)
 
-grincr.f RDMN2 seam (each cycle, before tripling). Advances the time-slot counter.
-Inert (no mortality) until Chunk 0.
+grincr.f RDMN2 seam (each cycle, before tripling). Advances the time-slot counter
+ISTEP, zeroes the RRKILL accumulator, and re-sums PROBIT (rd/rdmn2.f). Live when RD
+is active. RDSHST (windthrow stump history) is inert here (no windthrow).
 """
 function root_disease_mn2!(s::StandState, fint::Real)
     rd = s.root_disease
     (rd_active(rd) && rd.iroot != 0) || return nothing
-    # Chunk 0 (pending): ISTEP+=1; IYEAR+=fint; zero RRKILL; RDSUM; RDSHST.
+    d = rd.driver
+    d === nothing && return nothing
+    s.trees.n == 0 && return nothing
+    rd.icyc += Int32(1)
+    # rebuild the driver if the record count changed (COMCUP dropped PROB≤1e-5 records)
+    d.n == s.trees.n || (d = rd.driver = _rd_resize_driver!(rd, d, s.trees.n))
+    rd_mn2_advance!(rd, d.rrkill, d.probit, d.probi, fint)
     return nothing
 end
 
 """
     root_disease_treg!(s, fint)
 
-gradd.f RDTREG seam (each cycle, after growth). The main per-cycle RD driver
-(RDCNTL: RDINUP→RDJUMP→RDSHRK→RDSPRD→RDZERO→RDAREA→RDINF→RDMORT, then RDEND→WK2
-mortality + RDGROW growth loss + RDINOC).
-
-Chunk 0b-3 ported the RDMORT+RDSUM mortality KERNEL (`rd_mort_kernel!`/`rd_sum!`);
-Chunk 0b-3b adds the DOWNSTREAM .sum-application kernels — `rd_end_kernel!`
-(RDEND → WK2 mortality) and `rd_grow_kernel!` (RDGROW → DG/HTG growth loss), plus
-`rd_mn2_advance!` (RDMN2 cycle advance) — all bit-exact-validated (0-ULP) against
-the live oracle for all 10 cycles (270/270 records each). The seam still stays
-INERT because ONE adjoining sub-chunk remains: (a) the upstream RDCNTL Monte-Carlo
-spread chain (RDSPRD center-radius growth → RDAREA new PAREA → RDINF new-area
-infection + RDINSD inside-patch infection, via RDINUP/RDJUMP/RDSHRK/RDROOT) that
-BUILDS the per-record PROBI/PROPI entry state these kernels consume — and (b) the
-engine seam-reorder that runs `rd_end_kernel!` AFTER FVS MORTS computes WK2 (FVSjl
-computes mortality inside `mortality_and_fire!`, which is called AFTER this seam),
-and weaves `rd_grow_kernel!` into the DG stash. Wiring the kernels without (a) would
-run on empty entry state (no effect / wrong effect), so they are deliberately not
-called until (a)+(b) land. The no-RD/RD inert-seam guarantee (0b-2) is preserved.
+gradd.f RDTREG seam (each cycle, after growth increments, on the PRE-growth DBH — FVS
+runs RDTREG in GRADD before UPDATE). Runs the full per-cycle spread chain
+(`rd_control!`: FPROB/ROOTL/RDOAGM → RDCNTL RDINSD/RDSPRD/RDRATE/RDAREA/RDINF/RDMORT),
+producing RRKILL + the aged PROBI/PROPI. The downstream RDEND (→ WK2 mortality) runs
+at FVS MORTS time via `rd_end_apply!`, and RDGROW (→ DG/HTG) via `rd_grow_apply!`
+just before the DBH update — both woven into `grow_cycle!`.
 """
 function root_disease_treg!(s::StandState, fint::Real)
     rd = s.root_disease
     (rd_active(rd) && rd.iroot != 0) || return nothing
-    # Kernels ready (rd_mort_kernel!/rd_end_kernel!/rd_grow_kernel!); the upstream
-    # Monte-Carlo spread chain + the MORTS-reorder wiring are the next sub-chunk.
+    rd.driver === nothing && return nothing
+    rd_control!(rd, s, fint)
     return nothing
+end
+
+# COMCUP compaction of the driver: FVS does not compress the RD arrays for the
+# manual-RRINIT path (RDRDEL is treelist-only), so a dropped record desyncs. Best-
+# effort guard — copy the overlapping record prefix from the old driver (stumps carry
+# through unchanged). For the turnkey no record reaches PROB≤1e-5 within 10 cycles, so
+# this never fires there; it exists so an unrelated stand cannot crash the seam.
+function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int)
+    d = rd_build_driver!(rd, n)
+    m = min(n, old.n)
+    @inbounds for i in 1:m
+        for it in 1:RD_ISTEP_MAX, ip in 1:2
+            d.probi[i,it,ip] = old.probi[i,it,ip]; d.propi[i,it,ip] = old.propi[i,it,ip]
+        end
+        d.probit[i] = old.probit[i]; d.probiu[i] = old.probiu[i]; d.fprob[i] = old.fprob[i]
+        d.ffprob[i,1] = old.ffprob[i,1]; d.ffprob[i,2] = old.ffprob[i,2]
+        d.rootl[i] = old.rootl[i]; d.wk22[i] = old.wk22[i]; d.rroott[i] = old.rroott[i]
+    end
+    d.rrates .= old.rrates; d.rrrate .= old.rrrate; d.areanu .= old.areanu
+    d.shcent .= old.shcent; d.nscen .= old.nscen; d.icensp .= old.icensp
+    d.probda .= old.probda; d.dbhda .= old.dbhda; d.rootda .= old.rootda
+    d.decrat .= old.decrat; d.jraged .= old.jraged
+    d.probd .= old.probd; d.dbhd .= old.dbhd; d.rootd .= old.rootd
+    return d
 end
