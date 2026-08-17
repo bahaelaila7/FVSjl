@@ -17,12 +17,13 @@
      - `wpbr/` (White Pine Blister Rust) — ✓ COMPLETE end-to-end (canker dynamics + BRTREG seam).
      - `lpmpb/` (Mtn Pine Beetle) — ✓ deterministic Cole rate-of-loss core BIT-EXACT vs FVSie_lpmpb; seam wired
        (inert; end-to-end .sum-DELTA expected cornered by #206). Deferred: CURRMORT/RANSTART/LPOPDY (scratchpad/lpmpb/HANDOFF.md).
-     - `wsbwe/` (W. Spruce Budworm) — ◐ BEACHHEAD MERGED (BWERAN RNG bit-exact + WSBW reader inert; stand-level
-       oracle FVSem_wsbwe relinks+runs). **← RESUME HERE: the defoliation EFFECT kernel** (IBWSPM host tables →
-       DEFOL scheduling on a heavy true-fir/spruce host → BWEDAM/BWEDIE mortality → BWEGO seam → BUDLITE last;
-       recipe scratchpad/wsbwe/HANDOFF.md).
+     - `wsbwe/` (W. Spruce Budworm) — ✓ manual-DEFOL COMPLETE END-TO-END LIVE (WSBWE_APPLY_LIVE=true; 2000
+       ΔTPA −476 = oracle −476 bit-exact, cornered by EM #206; feeder root-caused: OLDTPA/ORMSQD=DENSE TPROB/RMSQD,
+       DEFOL species SPDECD-decoded, BWEGO OPFIND gate). Deferred sub-paths: BUDLITE/GENDEFOL stochastic (needs
+       weather fort.40) + non-EM host-coef variants (BC/BM/CI/EC/SO/TT).
      - `wwpb/` (Westwide Pine Beetle) — ◐ BEACHHEAD only; END-TO-END PPE-BLOCKED (outbreak driver needs the absent
        PPE landscape harness). DEFERRED — porting the PPE harness is a USER decision (like #196). Do NOT start it autonomously.
+     ⇒ Insect/pathogen family: 5 of 6 models core-or-fully complete (only WWPB PPE-deferred). Item 2 substantially done.
   3. **COVER understory** — `covr/`(11)+`vcovr/`(3)+`pg/`(14): shrub cover / browse / understory veg. (The 36 src
      "COVER" refs = the base crown-cover REPORT, NOT this model.)
   4. **ON (Ontario) variant** — `canada/on/` (own Penner growth model; BC is the only ported Canada variant).
