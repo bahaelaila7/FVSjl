@@ -509,14 +509,68 @@ const RD_IRTSPC_KT = Int32[1,2,3,4,5,6,7,8,9,10,30]
 # variants — only this IRTSPC index differs (verified: IE vs KT rdinit.f identical).
 const RD_IRTSPC_IE = Int32[1,2,3,4,5,6,7,8,9,10,11,22,23,36,33,26,38,19,24,30,30,18,17]
 
+# ---------------------------------------------------------------------------
+# Remaining WRD variants (rd/rdblk1<v>.f DATA IRTSPC, transcribed byte-for-byte
+# from each variant's linked rdblk1 in bin/FVS<v>_buildDir). Each variant's RD
+# block-data differs from the base in EXACTLY the IRTSPC host-species crosswalk;
+# the host tables HABFAC/PNINF/PKILLS/IDITYP/PCOLO/RRPSWT (rd/rdinit.f) are
+# byte-identical across ALL 15 base-rd variants (md5 7e6ea38e… verified for the
+# 13 buildDir rdinit.f). length(IRTSPC) == that variant's MAXSP.
+# ---------------------------------------------------------------------------
+# rdblk1bc.f — British Columbia, MAXSP=15
+const RD_IRTSPC_BC = Int32[1,2,3,4,5,6,7,8,9,10,40,19,24,3,40]
+# rdblk1bm.f — Blue Mountains, MAXSP=18
+const RD_IRTSPC_BM = Int32[1,2,3,4,11,26,7,8,9,10,22,23,38,34,19,24,17,18]
+# rdblk1ci.f — Central Idaho, MAXSP=19
+const RD_IRTSPC_CI = Int32[1,2,3,4,5,6,7,8,9,10,22,38,19,26,40,23,24,17,18]
+# rdblk1cr.f — Central Rockies, MAXSP=38
+const RD_IRTSPC_CR = Int32[9,21,3,4,13,11,6,2,33,23,7,33,10,22,1,26,20,8,25,19,
+                           24,24,18,29,18,29,29,40,26,26,26,26,33,33,33,10,17,18]
+# rdblk1ec.f — East Cascades, MAXSP=32
+const RD_IRTSPC_EC = Int32[1,2,3,16,6,4,7,8,9,10,5,11,38,22,39,13,36,34,26,40,
+                           40,40,40,40,40,19,40,40,40,40,17,18]
+# rdblk1em.f — Eastern Montana, MAXSP=19
+const RD_IRTSPC_EM = Int32[22,2,3,23,36,26,7,8,9,10,18,19,24,24,24,24,18,17,18]
+# rdblk1nc.f — Klamath (VARACD NC), MAXSP=12
+const RD_IRTSPC_NC = Int32[27,12,3,13,30,14,29,32,15,10,18,35]
+# rdblk1pn.f — Pacific Northwest, MAXSP=39
+const RD_IRTSPC_PN = Int32[16,13,4,9,15,8,39,34,14,8,7,31,12,1,10,3,35,6,5,11,
+                           40,40,40,40,40,19,40,40,26,36,22,37,38,40,40,40,40,40,40]
+# rdblk1so.f — South-Central Oregon / NE California, MAXSP=33
+const RD_IRTSPC_SO = Int32[1,12,3,13,11,14,7,8,15,10,26,4,9,16,39,22,2,6,5,38,
+                           40,40,40,19,24,40,40,40,40,40,40,17,18]
+# rdblk1tt.f — Teton, MAXSP=18
+const RD_IRTSPC_TT = Int32[22,23,3,33,20,19,7,8,9,10,26,26,40,40,24,40,17,18]
+# rdblk1ut.f — Utah, MAXSP=24
+const RD_IRTSPC_UT = Int32[22,23,3,13,20,19,7,8,9,10,33,26,18,33,26,26,33,24,24,40,40,40,17,18]
+# rdblk1wc.f — West Cascades, MAXSP=39 (same as PN except FVS-sp 6 → RD 40 not 8)
+const RD_IRTSPC_WC = Int32[16,13,4,9,15,40,39,34,14,8,7,31,12,1,10,3,35,6,5,11,
+                           40,40,40,40,40,19,40,40,26,36,22,37,38,40,40,40,40,40,40]
+# rdblk1ws.f — West Sierra Nevada, MAXSP=43
+const RD_IRTSPC_WS = Int32[12,3,13,28,14,31,15,10,7,22,1,33,16,37,37,37,23,10,37,37,33,3,
+                           35,11,26,26,26,29,29,29,29,29,29,32,32,19,40,40,40,40,40,17,18]
+
 """
     rd_irtspc_for(variant) -> Vector{Int32}
 
 Per-variant IRTSPC host-species crosswalk dispatch (the ONLY variant-specific RD
 block-data; rd/rdblk1<v>.f). Default = the base NI/CI/KT table (rd/rdblk1.f).
 """
-rd_irtspc_for(::AbstractVariant) = RD_IRTSPC_KT
-rd_irtspc_for(::InlandEmpire)    = RD_IRTSPC_IE
+rd_irtspc_for(::AbstractVariant)     = RD_IRTSPC_KT
+rd_irtspc_for(::InlandEmpire)        = RD_IRTSPC_IE
+rd_irtspc_for(::BritishColumbia)     = RD_IRTSPC_BC
+rd_irtspc_for(::BlueMountains)       = RD_IRTSPC_BM
+rd_irtspc_for(::CentralIdaho)        = RD_IRTSPC_CI
+rd_irtspc_for(::CentralRockies)      = RD_IRTSPC_CR
+rd_irtspc_for(::EastCascades)        = RD_IRTSPC_EC
+rd_irtspc_for(::EasternMontana)      = RD_IRTSPC_EM
+rd_irtspc_for(::Klamath)             = RD_IRTSPC_NC
+rd_irtspc_for(::PacificNorthwest)    = RD_IRTSPC_PN
+rd_irtspc_for(::SouthCentralOregon)  = RD_IRTSPC_SO
+rd_irtspc_for(::Teton)               = RD_IRTSPC_TT
+rd_irtspc_for(::Utah)                = RD_IRTSPC_UT
+rd_irtspc_for(::WestCascades)        = RD_IRTSPC_WC
+rd_irtspc_for(::WestSierra)          = RD_IRTSPC_WS
 const RD_HABFAC = reshape(RD_HABFAC_FLAT, RD_ITOTSP, RD_ITOTRR, 2)   # HABFAC(ksp,idi,ihab)
 const RD_PNINF  = reshape(RD_PNINF_FLAT,  RD_ITOTSP, RD_ITOTRR)      # PNINF(ksp,idi)
 const RD_PKILLS = reshape(RD_PKILLS_FLAT, RD_ITOTSP, RD_ITOTRR)      # PKILLS(ksp,idi)
