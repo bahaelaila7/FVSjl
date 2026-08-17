@@ -40,15 +40,25 @@
 # relinked = a variant's .o set with the real wpbr/*.o swapped in for exbrus.o
 # (see scratchpad/wpbr/build_ie_wpbr.sh).
 #
-# THIS PORT (chunk 0 — keyword reader + RNG + defaults, INERT seam):
+# THIS PORT:
+#  chunk 0 (keyword reader + RNG + defaults):
 #   * `kw_brin!`  — faithful BRIN block reader → `s.wpbr` (WpbrState).
 #   * `wpbr_rand!` / `wpbr_seed!` — the BRANN LCG + BRNSED reseed (bit-exact).
 #   * `wpbr_defaults!` — BRINIT/BRBLKD defaults; `wpbr_brspm` variant host map.
-#   NO per-cycle engine seam is wired: a stand carrying a WpbrState projects
-#   BYTE-IDENTICALLY to one without WPBR (validated by the FVSjl suite + the
-#   relinked FVSie_wpbr oracle running WPBR-off ≡ stock, and a BRUST keyfile whose
-#   block parses but has no engine effect). The canker dynamics (BRTREG/BRECAN/
-#   BRCGRO/…) are the next, much larger, chunks.
+#  dynamics (this chunk — the canker generation/growth/status/mortality MATH,
+#  dump-replay bit-exact vs the relinked+g16-instrumented FVSie_wpbr oracle on the
+#  IE goldens stand; see the kernel block near the end of this file and test_wpbr.jl):
+#   * BRSETP init `wpbr_brgd`/`wpbr_brhtbc`; index `wpbr_brgi`/`wpbr_brstar`/
+#     `wpbr_briba`/`wpbr_ri`; canker `wpbr_brecan_probs`/`wpbr_canker_place`/
+#     `wpbr_bole_grow`/`wpbr_canker_status`.
+#   The per-cycle BRTREG ENGINE SEAM is deliberately NOT wired: a stand carrying a
+#   WpbrState still projects BYTE-IDENTICALLY to one without WPBR (validated by the
+#   FVSjl suite + the relinked FVSie_wpbr oracle running WPBR-off ≡ stock). The
+#   end-to-end WPBR .sum-DELTA is CORNERED by the IE #206 growth straddle (MEASURED:
+#   FVSjl-off already ≠ FVSie_wpbr-off on the goldens stand), so the model math is
+#   validated on EQUAL INPUTS (dump-replay), not on the diverged FVSjl trajectory.
+#   Wiring the WK2/top-kill application with persistent per-record canker state is
+#   the remaining chunk.
 #
 # Float32 discipline: WPBR's Fortran is REAL (Float32) except the RNG state (DOUBLE
 # BRS0/BRS1/BRSS). Coefficient arrays and every ported arithmetic result are
@@ -480,4 +490,251 @@ function _wpbr_read_params(kr::KeywordReader, n::Int)
         p !== nothing && (v[i] = p)
     end
     return v
+end
+
+# =============================================================================
+# WPBR dynamics kernels — BRSETP per-tree init, BRGI/BRSTAR/BRTARG/BRIBA indices,
+# and the BRECAN/BRCGRO/BRCSTA canker generation → growth → status → mortality.
+# -----------------------------------------------------------------------------
+# Every arithmetic result is Float32 in the EXACT Fortran evaluation order so the
+# ported kernels reproduce the relinked FVSie_wpbr oracle BIT-FOR-BIT on equal
+# inputs (dump-replay; goldens in scratchpad/wpbr, encoded in test_wpbr.jl).
+# Validated bit-exact: BRGD/BRHTBC (BRSETP), GI/TSTARG (BRGI+BRSTAR), RI (BRTARG),
+# RITEM/TNEWC/PLI/NUMTIM/CRLEN (BRECAN), TUP/TOUT/PLETH/bole-branch (BRECAN
+# placement), BRCGRO bole GIRAMT/GROBOL/GIRD growth + status→WK2 kill.
+#
+# ENGINE SEAM STATUS: like WPBR chunk 0 (and unlike a bit-exact-end-to-end port),
+# the per-cycle BRTREG driver is NOT wired into simulate.jl to alter the treelist:
+# the FVSjl IE growth trajectory straddles the FVS oracle (#206 OLDRN self-thin;
+# MEASURED — FVSjl-off 2040 TPA 29 vs FVSie_wpbr-off 25 on the goldens stand), so
+# the end-to-end .sum-DELTA is CORNERED-by-growth-straddle and cannot be bit-exact
+# validated against the oracle. The doctrine-valid check is dump-replay on equal
+# inputs (all kernels above), which the driver pieces here pass. A stand carrying
+# a WpbrState still projects byte-identically (inert seam preserved). Wiring the
+# WK2/top-kill application (BRCGRO → t.tpa override + ITRUNC/NORMHT) with persistent
+# per-record canker state through the cycle loop is the remaining chunk.
+# =============================================================================
+
+@inline _wf(x) = Float32(x)
+
+"""
+    wpbr_brgd(ht_ft, dbh_in) -> Float32
+
+FVS `BRSETP` ground diameter (cm): `BRGD=(100·BRHT·BRDBH)/(100·(BRHT−1.14))`,
+floored at `BRDBH`; `BRHT=HT·0.3048` (m), `BRDBH=DBH·2.54` (cm).
+"""
+@inline function wpbr_brgd(ht_ft::Real, dbh_in::Real)::Float32
+    brht  = _wf(_wf(ht_ft) * 0.3048f0)
+    brdbh = _wf(_wf(dbh_in) * 2.54f0)
+    g = _wf(_wf(_wf(_wf(100f0 * brht) * brdbh)) / _wf(100f0 * _wf(brht - 1.14f0)))
+    return g < brdbh ? brdbh : g
+end
+
+"""
+    wpbr_brhtbc(ht_ft, icr_pct) -> Float32
+
+FVS `BRSETP` height to base of crown (cm): `(BRHT−BRHT·CR)·100`, `BRHT=HT·0.3048`,
+`CR=ICR/100`. (BRSETP form; BRTREG later re-raises it from the grown crown ratio.)
+"""
+@inline function wpbr_brhtbc(ht_ft::Real, icr_pct::Integer)::Float32
+    brht = _wf(_wf(ht_ft) * 0.3048f0)
+    return _wf(_wf(brht - _wf(brht * _wf(_wf(icr_pct) / 100f0))) * 100f0)
+end
+
+"""
+    wpbr_brstar(ht_m) -> Float32
+
+FVS `BRSTAR`: sum target area (thousands of needles) for a tree of height `ht_m`
+(m). Below 5 m a correction factor CFA (ratio of two 4th/5th-order log
+polynomials) is applied.
+"""
+function wpbr_brstar(ht_m::Real)::Float32
+    ht = _wf(ht_m)
+    lh = _wf(log(ht))
+    star = _wf(exp(_wf(_wf(2.1717f0 + _wf(1.3633f0 * lh)) - _wf(0.13758f0 / _wf(ht * ht)))) + 0.02f0)
+    if ht <= 5.0f0
+        l2 = _wf(log(_wf(ht * ht)))
+        l3 = _wf(log(_wf(_wf(ht * ht) * ht)))
+        l4 = _wf(log(_wf(_wf(_wf(ht * ht) * ht) * ht)))
+        l5 = _wf(log(_wf(_wf(_wf(_wf(ht * ht) * ht) * ht) * ht)))
+        num = _wf(_wf(_wf(_wf(0.69f0 - _wf(3.58f0 * lh)) + _wf(12.3f0 * l2)) + _wf(19.7f0 * l3)) + _wf(7.76f0 * l4))
+        den = _wf(_wf(_wf(_wf(_wf(1f0 - _wf(4.59f0 * lh)) + _wf(11.53f0 * l2)) + _wf(21.03f0 * l3)) + _wf(7.7f0 * l4)) + _wf(0.3f0 * l5))
+        star = _wf(star * _wf(num / den))
+    end
+    return star
+end
+
+"""
+    wpbr_brgi(iiag, hht_m) -> (gi::Float32, tstarg::Float32)
+
+FVS `BRGI`: McDonald growth index `GI` (m, clamped 15.24–38.10) for a tree of age
+`iiag` (≥2) and height `hht_m` (m), plus the cumulative sum-target `TBSUM`
+(`Σ_{k=1}^{iiag} BRSTAR(0.05 + GI/GIBRK_k)`).
+"""
+function wpbr_brgi(iiag::Integer, hht_m::Real)
+    hht = _wf(hht_m)
+    giage = iiag <= 2 ? 2 : Int(iiag)
+    gibr = _wf(0.466f0 * _wf(_wf(hht - 0.05f0) *
+           _wf(_wf(1f0 - _wf(1.024494f0 * exp(_wf(-0.024202f0 * _wf(giage)))))^(-2.071822f0))))
+    gibr < 15.24f0 && (gibr = 15.24f0)
+    gibr > 38.10f0 && (gibr = 38.10f0)
+    tb = 0.0f0
+    @inbounds for k in 1:Int(iiag)
+        gibrk = _wf(0.466f0 * _wf(_wf(1f0 - _wf(1.024494f0 * exp(_wf(-0.024202f0 * _wf(k)))))^(-2.071822f0)))
+        hite = _wf(0.05f0 + _wf(gibr / gibrk))
+        tb = _wf(tb + wpbr_brstar(hite))
+    end
+    return (gibr, tb)
+end
+
+"""
+    wpbr_briba(ba, ribprp, rsf) -> Float32
+
+FVS `BRIBA`: stand rust index `RIDEF` from basal area (McDonald INT-258). PFS =
+`exp(−0.00459·BA)`; three ribes densities RD; weighted `Σ RSF·(0.499675+0.4·atan(RDP/150−3))`
+over ribes species with `RIBPRP>0`.
+"""
+function wpbr_briba(ba::Real, ribprp::NTuple{3,Float32}, rsf::NTuple{3,Float32})::Float32
+    pfs = _wf(exp(_wf(-(_wf(0.00459f0 * _wf(ba))))))
+    rd1 = _wf(_wf(0.05f0 + _wf(2.15f0 * _wf(pfs^16.38f0))) / 2.47f0)
+    rd2 = _wf(_wf(40.0f0 + _wf(190.0f0 * _wf(pfs^10.96f0))) / 2.47f0)
+    rd3 = _wf(_wf(40.0f0 + _wf(660.0f0 * _wf(pfs^27.03f0))) / 2.47f0)
+    rd = (rd1, rd2, rd3)
+    ridef = 0.0f0
+    @inbounds for i in 1:3
+        if ribprp[i] > 0.0f0
+            rdp = _wf(rd[i] * ribprp[i])
+            bri = _wf(_wf(0.499675f0 + _wf(0.4f0 * atan(_wf(_wf(rdp / 150.0f0) - 3.0f0)))) * rsf[i])
+            ridef = _wf(ridef + bri)
+        end
+    end
+    return ridef
+end
+
+"""
+    wpbr_ri(ridef, resist, riaf) -> Float32
+
+FVS `BRTARG`/`BRTREG` per-tree rust index `RI = RIDEF·RESIST(sp,stock)·RIAF(sp)`.
+"""
+@inline wpbr_ri(ridef::Real, resist::Real, riaf::Real)::Float32 =
+    _wf(_wf(_wf(ridef) * _wf(resist)) * _wf(riaf))
+
+"""
+    wpbr_brecan_probs(hite_m, ri, sstar, dfact_sp_stock) -> (ritem, tnewc, pli, numtim)
+
+FVS `BRECAN` deterministic per-year canker expectation. `RITEM` = the
+height-tapered rust index (>25 m → ×0.1; 15–25 m → ×(1−0.09·(h−15)); else RI);
+`TNEWC = RITEM·SSTAR`; probability of ≥1 lethal infection
+`PLI = 1−exp(−TNEWC/(1+TNEWC·DFACT))`; `NUMTIM = INT(TNEWC)+1` Bernoulli trials.
+"""
+function wpbr_brecan_probs(hite_m::Real, ri::Real, sstar::Real, dfact::Real)
+    hite = _wf(hite_m); rif = _wf(ri)
+    ritem = hite > 25.0f0 ? _wf(rif * 0.1f0) :
+            hite > 15.0f0 ? _wf(rif * _wf(1f0 - _wf(0.09f0 * _wf(hite - 15.0f0)))) : rif
+    tnewc = _wf(ritem * _wf(sstar))
+    pli = _wf(1f0 - exp(_wf(-(_wf(tnewc / _wf(1f0 + _wf(tnewc * _wf(dfact))))))))
+    numtim = Int(trunc(tnewc)) + 1
+    return (ritem, tnewc, pli, numtim)
+end
+
+"""
+    wpbr_crlen(sstht_m, brhtbc_cm) -> Float32
+
+FVS `BRECAN` crown length (cm) this year: `SSTHT·100 − BRHTBC`.
+"""
+@inline wpbr_crlen(sstht_m::Real, brhtbc_cm::Real)::Float32 =
+    _wf(_wf(_wf(sstht_m) * 100.0f0) - _wf(brhtbc_cm))
+
+"""
+    wpbr_canker_place(sstht_m, crlen, tup_draw) -> (tup, tout, pleth)
+
+FVS `BRECAN` canker geometry: distance up `TUP=(100·SSTHT−CRLEN)+CRLEN·rand`,
+distance out `TOUT=(35·√SSTHT·(100·SSTHT−TUP))/CRLEN`, and lethality probability
+`PLETH` (near bole `0.97−0.0158·TOUT`; far `35.4/TOUT^(1+0.35·TOUT/50)`; ≥0).
+"""
+# TOUT + PLETH from a fixed distance-up TUP (the sub-piece with a clean golden).
+function _wpbr_tout_pleth(sstht_m::Real, crlen::Real, tup::Real)
+    sstht = _wf(sstht_m); cl = _wf(crlen)
+    tout = _wf(_wf(_wf(35.0f0 * sqrt(sstht)) * _wf(_wf(100.0f0 * sstht) - _wf(tup))) / cl)
+    pleth = tout < 50.0f0 ? _wf(0.97f0 - _wf(0.0158f0 * tout)) :
+            _wf(35.4f0 / _wf(tout^_wf(1f0 + _wf(_wf(0.35f0 * tout) / 50.0f0))))
+    pleth < 0.0f0 && (pleth = 0.0f0)
+    return (tout, pleth)
+end
+
+function wpbr_canker_place(sstht_m::Real, crlen::Real, tup_draw::Real)
+    sstht = _wf(sstht_m); cl = _wf(crlen)
+    tup = _wf(_wf(_wf(100.0f0 * sstht) - cl) + _wf(cl * _wf(tup_draw)))
+    tout, pleth = _wpbr_tout_pleth(sstht, cl, tup)
+    return (tup, tout, pleth)
+end
+
+"""
+    wpbr_bole_giramt(brpi, brgdy, hnew_ft, up) -> Float32
+
+FVS `BRCGRO` stem circumference (cm) at bole-canker height `UP`:
+`π·BRGDY·((HNEWCM−UP)/HNEWCM)`, `HNEWCM=HNEW·30.48`.
+"""
+@inline function wpbr_bole_giramt(brpi::Real, brgdy::Real, hnew_ft::Real, up::Real)::Float32
+    hnewcm = _wf(_wf(hnew_ft) * 30.48f0)
+    return _wf(_wf(_wf(brpi) * _wf(brgdy)) * _wf(_wf(hnewcm - _wf(up)) / hnewcm))
+end
+
+"""
+    wpbr_bole_grow(gird, giramt, bogrth, dgprop, brpi) -> Float32
+
+FVS `BRCGRO` one-year bole-canker girdle update (%). Growth `GROBOL=BOGRTH−DGPROP·π`
+(0 if circumference < 1.25·BOGRTH; clamped 0..GIRAMT); new girdle
+`GIRD+(GROBOL/GIRAMT)·100`, capped at 100.
+"""
+# Girdle-% update from a known circumference GIRAMT and one-year growth GROBOL
+# (the sub-piece with a clean CGBOL golden).
+function _wpbr_girdle_update(gird::Real, giramt::Real, grobol::Real)::Float32
+    gir = _wf(gird); gr = _wf(giramt); gb = _wf(grobol)
+    if !(gb == 0.0f0 || gr == 0.0f0)
+        gir = _wf(gir + _wf(_wf(gb / gr) * 100.0f0))
+    end
+    gir > 100.0f0 && (gir = 100.0f0)
+    return gir
+end
+
+function wpbr_bole_grow(gird::Real, giramt::Real, bogrth::Real, dgprop::Real, brpi::Real)::Float32
+    gr = _wf(giramt)
+    grobol = gr < _wf(_wf(bogrth) * 1.25f0) ? 0.0f0 : _wf(_wf(bogrth) - _wf(_wf(dgprop) * _wf(brpi)))
+    grobol < 0.0f0 && (grobol = 0.0f0)
+    grobol > gr && (grobol = gr)
+    return _wpbr_girdle_update(gird, gr, grobol)
+end
+
+# Canker status classification shared by BRCSTA (init) and BRCGRO (growth).
+# Returns the ISTCAN code: 1 non-lethal, 2 prunable, 3 excisable, 4 non-salvable,
+# 5 top-kill, 7 tree-kill. `out==0` ⇒ bole canker (uses `gird`); else branch.
+function wpbr_canker_status(out::Real, up::Real, gird::Real, dnewcm::Real;
+                            exht::Real, htmin::Real, exdmin::Real, girmax::Real,
+                            girmrt::Real, htbcr::Real, phtst::Real,
+                            outnld::Real, outdst::Real)::Int
+    o = _wf(out); u = _wf(up); g = _wf(gird); d = _wf(dnewcm)
+    if o == 0.0f0                                   # bole canker
+        if u <= _wf(exht) && u >= _wf(htmin) && d >= _wf(exdmin)
+            if g <= _wf(girmax)
+                return 3
+            elseif g >= _wf(girmrt)
+                return u <= _wf(htbcr) ? 7 : 5
+            else
+                return 4
+            end
+        else
+            if g >= _wf(girmrt)
+                return u <= _wf(htbcr) ? 7 : 5
+            else
+                return 4
+            end
+        end
+    elseif o >= _wf(outnld)                         # far out — non-lethal
+        return 1
+    elseif o >= _wf(outdst)                         # prunable band
+        return u <= _wf(phtst) ? 2 : 4
+    else                                            # too close to bole — treat as bole excise test
+        return (u <= _wf(exht) && u >= _wf(htmin) && d >= _wf(exdmin)) ? 3 : 4
+    end
 end
