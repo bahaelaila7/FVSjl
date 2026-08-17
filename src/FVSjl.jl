@@ -330,6 +330,7 @@ include("engine/species_translation.jl")
 include("engine/treeinput.jl")
 include("engine/keyword_dispatch.jl")
 include("engine/root_disease.jl")        # Western Root Disease (WRD) — Chunk −1 infra + reader + inert seam
+include("engine/dfb.jl")                  # Douglas-fir Beetle (DFB) — beachhead: keyword reader + deterministic routines (inert seam)
 include("engine/climate.jl")
 include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
 include("io/fia_translate.jl")           # raw FIADB (PLOT/COND/TREE/…) → FVS-ready records

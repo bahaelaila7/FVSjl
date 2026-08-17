@@ -915,6 +915,11 @@ abstract type AbstractMistletoeState end
 # `nothing` until an RDIN keyword activates it — inert for every non-RD run.
 abstract type AbstractRootDiseaseState end
 
+# Forward declaration for the Douglas-fir Beetle (DFB) impact-model state; concrete
+# `DfbState` is in engine/dfb.jl (included after this file). `nothing` until a
+# DFBEETLE keyword activates it — inert for every non-DFB run (no engine seam wired yet).
+abstract type AbstractDfbState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -934,6 +939,7 @@ mutable struct StandState{V<:AbstractVariant}
     climate::Union{AbstractClimateState,Nothing}
     mistletoe::Union{AbstractMistletoeState,Nothing}   # BC NEWSPRED/NISI spatial DM (#196); nothing until MISTOE/NEWSPRED
     root_disease::Union{AbstractRootDiseaseState,Nothing}  # Western Root Disease (WRD); nothing until RDIN
+    dfb::Union{AbstractDfbState,Nothing}               # Douglas-fir Beetle (DFB) impact model; nothing until DFBEETLE
 end
 
 """
@@ -950,6 +956,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
