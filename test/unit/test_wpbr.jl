@@ -87,6 +87,12 @@ const _WPBR_BLOCK = join([
 # A BRUST block that only names the extension (all defaults) — inert-seam A/B.
 const _WPBR_MIN = "BRUST\nEND\n"
 
+# A NON-host stand (Douglas-fir only, no 5-needle pine) — the seam must stay inert.
+const _WPBR_TRE_NOHOST = """
+   3      248112       0102   011DF 11014   0634   00111     0  0
+   5      248112       0103   011DF 09011   0524   00111     0  0
+"""
+
 @testset "White Pine Blister Rust (WPBR) — keyword reader + BRANN RNG + defaults" begin
 
     @testset "BRANN Lehmer stream (bit-exact vs pristine brann.f, seed 55329)" begin
@@ -167,8 +173,10 @@ const _WPBR_MIN = "BRUST\nEND\n"
     end
 
     # -------------------------------------------------------------------------
-    # INERT seam: a BRUST-present stand must project byte-identically to a stand
-    # with no BRUST keyword (no per-cycle engine seam is wired yet).
+    # INERT seam: with the BRTREG driver now LIVE, the inert guarantee narrows to
+    # the cases FVS itself leaves untouched — NO BRUST block, or a BRUST block on a
+    # stand with NO 5-needle-pine host. Those MUST be .sum byte-identical. On a host
+    # stand the seam ENGAGES (canker mortality), so it must DIFFER (proves live).
     # -------------------------------------------------------------------------
     ctrl_key = joinpath(dir, "ctrl.key")
     min_key  = joinpath(dir, "min.key")
@@ -181,10 +189,21 @@ const _WPBR_MIN = "BRUST\nEND\n"
     rows(key) = filter(l -> !startswith(l, "-999"),
                        split(strip(FVSjl.run_keyfile(key; variant = v, output = :sum)), '\n'))
 
-    @testset "WPBR seam is INERT (.sum byte-identical with/without a BRUST block)" begin
+    # Non-host stand (DF only, no WP/5-needle pine): the seam must stay inert.
+    nohost_ctrl = joinpath(dir, "nhctrl.key"); nohost_br = joinpath(dir, "nhbr.key")
+    write(nohost_ctrl, _wpbr_head("WPBR NHC   ") * "ECHOSUM\nPROCESS\nSTOP\n")
+    write(nohost_br,   _wpbr_head("WPBR NHB   ") * _WPBR_BLOCK * "ECHOSUM\nPROCESS\nSTOP\n")
+    for k in ("nhctrl", "nhbr")
+        write(joinpath(dir, "$k.tre"), _WPBR_TRE_NOHOST)
+    end
+
+    @testset "WPBR inert seam (no-BRUST / non-host byte-identical) + live on host" begin
         base = rows(ctrl_key)
-        @test rows(min_key)  == base       # BRUST/END only ⇒ byte-identical
-        @test rows(wpbr_key) == base       # full BRUST block ⇒ still byte-identical (inert seam)
+        # Non-host: a full BRUST block over a DF-only stand ⇒ byte-identical.
+        @test rows(nohost_br) == rows(nohost_ctrl)
+        # Host stand: the BRTREG driver engages (canker mortality) ⇒ .sum DIFFERS.
+        @test rows(min_key)  != base
+        @test rows(wpbr_key) != base
     end
 end
 
@@ -302,4 +321,130 @@ _fhw(h) = reinterpret(Float32, parse(UInt32, h; base = 16))   # hex string → F
         @test _hexw(_FW.wpbr_rand!(w)) == _G_BRANN[1]
         @test _FW.wpbr_rand!(w) == _fhw("3F5AB21B")   # 2nd draw = ECAND canker up-position
     end
+end
+
+# =============================================================================
+# BRTREG engine-seam DUMP-REPLAY: drive `wpbr_brtreg!` with the relinked+g16
+# FVSie_wpbr oracle's OWN cycle-5 pre-BRTREG state (per-tree HT/HTG/DBH/DG/ICR +
+# canker arrays + the BRANN RNG state BRS0), and reproduce the oracle's WK2 kill
+# BIT-FOR-BIT. Proves the per-cycle driver plumbing (loop order, persistent canker
+# arrays, BRECAN→BRCGRO RNG threading, WK2 override) on EQUAL INPUTS — the same
+# equal-inputs discipline as the kernel goldens, now over the whole driver. On the
+# goldens stand (S248112, RUSTINDX 0.05, 3 WP hosts) the oracle kills exactly ONE
+# record (J=2, a small WP) in cycle 5 via a 100%-girdle bole canker: 2040 TPA 25→17.
+# Goldens (scratchpad/wpbr/cyc5_entry.txt) are the oracle's REAL*4 values printed
+# E22.15 from an instrumented BRTREG/BRANN (the instrumented .sum stays byte-
+# identical to the clean relink). The end-to-end FVSjl .sum-DELTA is CORNERED by
+# the IE #206 OLDRN growth straddle (FVSjl-off 2040 TPA 29 vs oracle 25), so the
+# driver is validated by this equal-inputs replay, not the diverged trajectory.
+# =============================================================================
+
+# Oracle cyc5 pre-BRTREG dump. BRENTRY: ICYC IFINT BRS0 RIDEF DFACT(1,1) PIMAX.
+# BRTREE: ICYC J IDTREE ISP ISTOTY IBRSTAT ITCAN ILCAN ITRUNC NORMHT ICR  HT HTG
+#   DBH DG BRAGE BRGD BRHTBC GI RI UPMARK PROB. BRCANK: ICYC J idx ISTCAN DUP DOUT GIRDL.
+const _WPBR_CYC5 = """
+BRENTRY 5 10 0.653777984000000E+09 0.500000007450581E-01 0.330000013113022E+00 0.947196424007416E+00
+BRTREE 5 1 1 1 1 4 188 6 0 0 36 0.117869018554688E+03 0.940866851806641E+01 0.199350147247314E+02 0.115207290649414E+01 0.100000000000000E+03 0.517702827453613E+02 0.229929443359375E+04 0.203762645721436E+02 0.500000007450581E-01 0.100000000000000E+05 0.429923582077026E+01
+BRCANK 5 1 1 4 0.236811474609375E+04 0.000000000000000E+00 0.286859912872314E+02
+BRCANK 5 1 2 4 0.262641650390625E+04 0.000000000000000E+00 0.000000000000000E+00
+BRCANK 5 1 3 4 0.188039135742188E+04 0.000000000000000E+00 0.159145011901855E+02
+BRCANK 5 1 4 4 0.236882446289062E+04 0.000000000000000E+00 0.287206211090088E+02
+BRCANK 5 1 5 4 0.246744238281250E+04 0.315794086456299E+01 0.000000000000000E+00
+BRCANK 5 1 6 4 0.245393505859375E+04 0.562245607376099E+01 0.000000000000000E+00
+BRTREE 5 2 2 1 1 4 225 7 0 0 35 0.106670486450195E+03 0.926816749572754E+01 0.147564039230347E+02 0.882512092590332E+00 0.100000000000000E+03 0.385063552856445E+02 0.211335546875000E+04 0.184376525878906E+02 0.500000007450581E-01 0.100000000000000E+05 0.893949127197266E+01
+BRCANK 5 2 1 4 0.238844726562500E+04 0.000000000000000E+00 0.660300598144531E+02
+BRCANK 5 2 2 4 0.138490576171875E+04 0.000000000000000E+00 0.291405544281006E+02
+BRCANK 5 2 3 4 0.278320092773438E+04 0.448529815673828E+01 0.000000000000000E+00
+BRCANK 5 2 4 4 0.205591552734375E+04 0.000000000000000E+00 0.513570251464844E+02
+BRCANK 5 2 5 4 0.256037353515625E+04 0.452950592041016E+02 0.000000000000000E+00
+BRCANK 5 2 6 4 0.200679663085938E+04 0.000000000000000E+00 0.477698135375977E+02
+BRCANK 5 2 7 4 0.292860229492188E+04 0.000000000000000E+00 0.000000000000000E+00
+BRTREE 5 4 4 1 1 4 163 9 0 0 35 0.121854072570801E+03 0.956030464172363E+01 0.219337730407715E+02 0.131321144104004E+01 0.100000000000000E+03 0.571352310180664E+02 0.241417285156250E+04 0.210661277770996E+02 0.500000007450581E-01 0.100000000000000E+05 0.280066823959351E+01
+BRCANK 5 4 1 4 0.216140380859375E+04 0.000000000000000E+00 0.219249248504639E+02
+BRCANK 5 4 2 4 0.256521142578125E+04 0.000000000000000E+00 0.233020057678223E+02
+BRCANK 5 4 3 4 0.227844482421875E+04 0.000000000000000E+00 0.473407478332520E+02
+BRCANK 5 4 4 4 0.212445263671875E+04 0.000000000000000E+00 0.566627197265625E+02
+BRCANK 5 4 5 4 0.212692919921875E+04 0.000000000000000E+00 0.402009429931641E+02
+BRCANK 5 4 6 4 0.261743017578125E+04 0.000000000000000E+00 0.416312179565430E+02
+BRCANK 5 4 7 4 0.289893774414062E+04 0.000000000000000E+00 0.263323211669922E+02
+BRCANK 5 4 8 4 0.295437670898438E+04 0.000000000000000E+00 0.538181571960449E+02
+BRCANK 5 4 9 4 0.294876025390625E+04 0.465787544250488E+02 0.000000000000000E+00
+"""
+
+@testset "WPBR BRTREG seam — dump-replay reproduces the oracle cyc5 kill (bit-exact)" begin
+    pf(x) = parse(Float32, x)
+    trees = Dict{Int,Any}(); curJ = 0
+    brentry = String[]
+    for l in split(strip(_WPBR_CYC5), '\n')
+        f = split(l)
+        if f[1] == "BRENTRY"
+            brentry = String.(f)
+        elseif f[1] == "BRTREE"
+            J = parse(Int, f[3]); trees[J] = (fields = String.(f), cankers = Vector{Vector{String}}()); curJ = J
+        elseif f[1] == "BRCANK"
+            push!(trees[curJ].cankers, String.(f))
+        end
+    end
+    BRS0 = parse(Float64, brentry[4]); RIDEF = pf(brentry[5]); DFACT11 = pf(brentry[6])
+
+    dir = mktempdir()
+    write(joinpath(dir, "replay.tre"), _WPBR_TRE)
+    rkey = joinpath(dir, "replay.key")
+    write(rkey, _wpbr_head("WPBR RPLY  ") * "BRUST\nRUSTINDX       0.05\nEND\n" *
+          "ECHOSUM\nPROCESS\nSTOP\n")
+
+    s = nothing
+    for st in FVSjl.each_stand(rkey; variant = FVSjl.InlandEmpire()); s = st; break; end
+    t = s.trees; w = s.wpbr
+    @test w !== nothing && w.active
+
+    # Inject the oracle's cyc5 pre-BRTREG state (tree fields + canker arrays + BRS0).
+    w.brs0 = BRS0; w.ridef = RIDEF; w.dfact[1, 1] = DFACT11; w.dfact[2, 1] = DFACT11
+    w.riaf[1] = 1f0; w.riaf[2] = 1f0; w.rimeth = Int32(0); w.setup_done = true
+    empty!(w.recs)
+    old_tpa = Float32[t.tpa[i] for i in 1:t.n]
+    slot = Dict(Int(t.tree_id[i]) => i for i in 1:t.n)
+    for (J, tr) in trees
+        f = tr.fields
+        sl = slot[J]
+        t.crown_pct[sl] = Int32(parse(Int, f[12])); t.trunc[sl] = Int32(parse(Int, f[10]))
+        t.norm_ht[sl] = Int32(parse(Int, f[11]))
+        t.height[sl] = pf(f[13]); t.ht_growth[sl] = pf(f[14]); t.dbh[sl] = pf(f[15])
+        t.diam_growth[sl] = pf(f[16]); t.tpa[sl] = pf(f[23]); old_tpa[sl] = pf(f[23])
+        r = FVSjl.WpbrRec()
+        r.brage = pf(f[17]); r.brgd = pf(f[18]); r.brhtbc = pf(f[19]); r.gi = pf(f[20])
+        r.ri = pf(f[21]); r.istoty = Int32(parse(Int, f[6])); r.ibrstat = Int32(parse(Int, f[7]))
+        r.itcan = Int32(parse(Int, f[8])); r.ilcan = Int32(parse(Int, f[9])); r.upmark = pf(f[22])
+        for c in tr.cankers    # ICYC J idx ISTCAN DUP DOUT GIRDL
+            ic = parse(Int, c[4])
+            r.dup[ic] = pf(c[6]); r.dout[ic] = pf(c[7]); r.girdl[ic] = pf(c[8])
+            r.istcan[ic] = Int32(parse(Int, c[5]))
+        end
+        w.recs[(t.plot_id[sl], t.tree_id[sl])] = r
+    end
+
+    # Drive the seam for exactly cycle 5 (IFINT=10) — reproduces the oracle's BRTREG.
+    brs0_start = w.brs0
+    FVSjl.wpbr_brtreg!(s, 10, old_tpa)
+
+    # (1) The single WK2 kill on J=2 (small WP): t.tpa = PROB − PROB·0.99999, BIT-EXACT.
+    sl2 = slot[2]; prob2 = old_tpa[sl2]
+    @test t.tpa[sl2] === prob2 - prob2 * 0.99999f0          # WK2 = PROB·0.99999 override
+    # (2) Only J=2 dies; the other two WP hosts are untouched (matches oracle 2040 25→17).
+    @test t.tpa[slot[1]] === old_tpa[slot[1]]
+    @test t.tpa[slot[4]] === old_tpa[slot[4]]
+    # (3) The killing canker: bole canker 1 girdled to exactly 100% (status 7), and the
+    #     BRHTBC/UPMARK the oracle recorded at the kill.
+    r2 = w.recs[(t.plot_id[sl2], t.tree_id[sl2])]
+    @test r2.ibrstat == 7 && r2.istcan[1] == 7
+    @test r2.girdl[1] == 100.0f0
+    @test r2.upmark === 2388.4473f0                         # oracle UPMARK at kill (cm)
+    @test r2.brhtbc === 2205.166f0                          # oracle BRHTBC at kill (cm)
+    # (4) The BRANN stream is bit-aligned: the driver consumes EXACTLY the oracle's 653
+    #     cyc5 draws (a divergent canker-generation branch would change the count).
+    ndraw = 0; st = brs0_start
+    while abs(st - w.brs0) > 0.5 && ndraw < 100000
+        st = rem(16807.0 * st, 2147483647.0); ndraw += 1
+    end
+    @test ndraw == 653
 end
