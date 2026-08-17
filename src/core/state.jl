@@ -945,6 +945,12 @@ abstract type AbstractWwpbState end
 # rate-of-loss mortality; gated `mpb_apply!` seam fires only on a scheduled outbreak.
 abstract type AbstractMpbState end
 
+# Forward declaration for the Western Spruce Budworm (WSBWE) defoliation model
+# state; concrete `WsbweState` is in engine/wsbwe.jl (included after this file).
+# `nothing` until a WSBW keyword block activates it — inert for every non-WSBWE
+# run. Stand-level; the defoliation effect seam is deferred, so no engine seam.
+abstract type AbstractWsbweState end
+
 mutable struct StandState{V<:AbstractVariant}
     variant::V
     coef::SpeciesCoefficients         # variant coefficients (loaded once from CSV)
@@ -969,6 +975,7 @@ mutable struct StandState{V<:AbstractVariant}
     wpbr::Union{AbstractWpbrState,Nothing}             # White Pine Blister Rust (WPBR) canker model; nothing until BRUST
     wwpb::Union{AbstractWwpbState,Nothing}             # Westwide Pine Beetle (WWPB) model; nothing until BMIN (stand-level output block; inert)
     mpb::Union{AbstractMpbState,Nothing}               # Mountain Pine Beetle (LPMPB) model; nothing until MPB (Cole rate-of-loss mortality seam)
+    wsbwe::Union{AbstractWsbweState,Nothing}           # Western Spruce Budworm (WSBWE) defoliation model; nothing until WSBW (stand-level; inert reader, effect seam deferred)
 end
 
 """
@@ -985,6 +992,6 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
         Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
-        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
+        DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end
