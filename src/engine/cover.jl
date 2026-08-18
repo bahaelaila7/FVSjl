@@ -462,6 +462,7 @@ function cover_accumulate!(cv::CoverState, s::StandState, year::Integer, year0::
     proxht = zeros(Float32, 16); volxht = zeros(Float32, 16)
     cfbxht = zeros(Float32, 16); crxht  = zeros(Float32, 16)
     sd2xht = zeros(Float32, 16)          # SD2XHT: Σ DBH² by top-height class (for CVCLAS)
+    trsh   = zeros(Float32, 11)          # TRSH: trees/ac by SHTRHT height threshold (shrub-conifer table)
     htmax  = 0.0f0; htmin = 999.0f0
     sdiam = 0.0f0
 
@@ -491,6 +492,17 @@ function cover_accumulate!(cv::CoverState, s::StandState, year::Integer, year0::
         dds < 0.0001f0 && (dds = 0.0001f0)
         trfbms = _cover_cvcbms2(ispi, dbh, ht, cl_b, rd, dds, tpa)
 
+        # --- SHRUB-SMALL CONIFER COMPETITION tree tally (cvsum.f DO 300, LBROW): bin HT
+        #     into the 11 SHTRHT thresholds (cumulated after the loop). Report-only. ---
+        if cv.lbrow
+            hm1 = -1.0f0
+            @inbounds for ih in 1:11
+                hc = _CVSUM_SHTRHT[ih]
+                (ht > hm1 && ht <= hc) && (trsh[ih] += prob)
+                hm1 = hc
+            end
+        end
+
         # --- CVSUM: bin this tree into 10-ft height classes (canopy path) ---
         _cover_cvsum_tree!(txht, crxht, proxht, volxht, cfbxht,
                            ishap, cw, dbh, ht, icr, prob, trfbms)
@@ -516,8 +528,13 @@ function cover_accumulate!(cv::CoverState, s::StandState, year::Integer, year0::
 
     # ---- SHRUB half (CVBROW→CVSUM shrub→CVCLAS); report-only -------------------------
     if cv.lbrow
+        # cumulate trsh from the top (cvsum.f DO 399: TRSH[j] += TRSH[j+1]) so each column
+        # J = trees/ac with HT greater than SHTRHT[J-1] (display heights 0.0,0.5,…,20.0).
+        @inbounds for j in 10:-1:1
+            trsh[j] += trsh[j+1]
+        end
         _cover_shrub_cycle!(cv, s, Int(year), Int(year0), ba, avh, iage, rmsqd,
-                            crxht, sd2xht, htmax, htmin)
+                            crxht, sd2xht, htmax, htmin, trsh)
     end
     return cv
 end
@@ -527,7 +544,7 @@ end
 function _cover_shrub_cycle!(cv::CoverState, s::StandState, year::Int, year0::Int,
                              ba::Float32, avh::Float32, iage::Int, rmsqd::Float32,
                              crxht::Vector{Float32}, sd2xht::Vector{Float32},
-                             htmax::Float32, htmin::Float32)
+                             htmax::Float32, htmin::Float32, trsh::Vector{Float32})
     idist = cv.idist
     # SAGE: time since disturbance.  Start value from card (−1 ⇒ stand age), floored at 3.
     sstart = cv.sage0 < 0.0f0 ? Float32(iage) : cv.sage0
@@ -567,7 +584,7 @@ function _cover_shrub_cycle!(cv::CoverState, s::StandState, year::Int, year0::In
 
     push!(cv.shrub_rows, ShrubRow(year, sage, cyc.pgt0, ss.clow, ss.cmed, ss.ctall,
                                   cyc.totlcv, ss.asht, ss.tallsh, sbmass, twigs, istage,
-                                  ss.issp, ss.scv, ss.sht, ss.spb, ss.scov))
+                                  ss.issp, ss.scv, ss.sht, ss.spb, ss.scov, trsh))
     return cv
 end
 
@@ -629,6 +646,8 @@ function cover_report(cv::CoverState, io::IO, stand_id::AbstractString,
     end  # has_canopy
     has_shrub && _cover_shrub_stats(cv, io, stand_id, mgmt_id, title)
     has_sum   && _cover_summary(cv, io, stand_id, mgmt_id, title)
+    # SHRUB-SMALL CONIFER COMPETITION follows the summary on the same page (cvout.f 9090).
+    (has_sum && cv.lbrow && !isempty(cv.shrub_rows)) && _cover_shrub_conifer(cv, io)
     return io
 end
 
@@ -1378,6 +1397,7 @@ struct ShrubRow
     istage::Int
     issp::Vector{Int}; scv::Vector{Float32}; sht::Vector{Float32}; spb::Vector{Float32}
     scov::Vector{Float32}
+    trsh::Vector{Float32}   # trees/ac by SHTRHT height threshold (SHRUB-SMALL CONIFER COMPETITION)
 end
 
 # Recover the raw ICL5 habitat CODE (e.g. 260) used by cvbrow.f as the default IHTYPE.
@@ -1528,6 +1548,35 @@ function _cover_summary(cv::CoverState, io::IO, stand_id, mgmt_id, title)
             _place!(buf, 125, string(_cv_ifix(cr.tretot)))
         end
         println(io, rstrip(String(buf)))
+    end
+    println(io, "-"^126)
+    return io
+end
+
+# CVOUT SHRUB-SMALL CONIFER COMPETITION table (cvout.f 9090/9092/9094).  Emitted after
+# the CANOPY AND SHRUBS SUMMARY (same page, no header), gated on the shrub model (LBROW)
+# and KODE≠3.  Per-cycle rows with TIMESD (sage) ≤ 40 only (ITHN=1 pre-thin).  Report-only.
+function _cover_shrub_conifer(cv::CoverState, io::IO)
+    println(io); println(io)
+    println(io, "-"^45, "  SHRUB-SMALL CONIFER COMPETITION  ", "-"^46)
+    println(io)
+    println(io, " "^30, "SHRUB COVER -- TOTAL COVER OF SHRUBS GREATER THAN HEIGHT")
+    println(io, " "^30, "TREES/ACRE  -- TOTAL NUMBER OF TREES PER ACRE GREATER THAN HEIGHT")
+    println(io)
+    println(io, "-"^126)
+    println(io, " "^56, "  HEIGHT (FEET)")
+    println(io, "YEAR", " "^24, "0.0    0.5    1.0    2.0    3.0    4.0    5.0    ",
+            "7.5   10.0   15.0   20.0")
+    println(io, "-"^126)
+    for r in cv.shrub_rows
+        r.sage > 40.0f0 && continue
+        l1 = lpad(r.year, 4) * "        SHRUB COVER "
+        l2 = "            TREES/ACRE  "
+        @inbounds for j in 1:11
+            l1 *= lpad(_cv_ifix(r.scov[j]), 7)
+            l2 *= lpad(_cv_ifix(r.trsh[j]), 7)
+        end
+        println(io, l1); println(io, l2); println(io)
     end
     println(io, "-"^126)
     return io
