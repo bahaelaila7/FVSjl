@@ -107,6 +107,33 @@ for ln in eachline("/workspace/.iework/lpmpb/run/fort.780")
     end
 end
 
+# --- GRCLAS class-avg DBH (CLASS,2) + SURFLP surface (surfce.f/surflp.f) ---
+surflp(d::Float32) = d > 5.0f0 ? 8.835f0*d - 40.82f0 : d*0.672f0
+avgDBH = zeros(Float32, NCL1); SURF = zeros(Float32, NCL1)
+for c in 1:NCL1
+    acc = 0.0f0
+    for jj in MP1[c]:MP2[c]; i = IPT[jj]; acc += DBH[i]*PROB[i]; end
+    avgDBH[c] = CLSPROB[c] > 1.0f-30 ? acc/CLSPROB[c] : 0.0f0
+    SURF[c] = surflp(avgDBH[c])
+end
+function compare_surf()
+    ok = true
+    orc = Dict{Int,Tuple{String,String}}()
+    for ln in eachline("/workspace/.iework/lpmpb/run/fort.783")
+        p = split(ln); p[1]=="SURF" || continue
+        orc[parse(Int,p[2])] = (uppercase(p[3]), uppercase(p[4]))
+    end
+    println("\n--- SURFCE (GRCLAS avg-DBH + SURFLP) ---")
+    for c in 1:NCL1
+        jd = uppercase(string(reinterpret(UInt32, avgDBH[c]), base=16, pad=8))
+        js = uppercase(string(reinterpret(UInt32, SURF[c]),   base=16, pad=8))
+        od, os = get(orc, c, ("",""))
+        m = (jd==od && js==os); ok &= m
+        println("SURF $c avgDBH jl=$jd orc=$od  surf jl=$js orc=$os  $(m ? "ok" : "XX")")
+    end
+    println(ok ? "*** SURFCE BIT-EXACT (avg-DBH + LP surface) ***" : "!!! SURFCE MISMATCH")
+end
+
 function compare()
     println("NACLAS jl=$NCL1 oracle=$NCLAS")
     ok = (NCL1 == NCLAS); memok = true; hexok = true
@@ -123,3 +150,4 @@ function compare()
             "\n!!! MISMATCH  count=$ok mem=$memok prob=$hexok")
 end
 compare()
+compare_surf()

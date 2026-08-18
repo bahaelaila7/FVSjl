@@ -50,7 +50,14 @@ LPMPB payload — large, multi-turn.
   `trunc(Int,·)`. (2) GARBEL's PROB arg is the REAL tree PROB array, NOT the WK3 work array passed as `P`.
 - RDPSRT sort order was bit-exact on FIRST try (distinct phloem-driven P ⇒ tie-break moot); a plain descending
   sort matches. GRPSUM sqrt/divides in Float32 match gfortran (IEEE correctly-rounded sqrt).
-- NEXT sub-chunks (dep-order): SURFCE (surface/attack model, 123 ln) → MPBMOD core (808 ln stochastic brood-
-  dynamics + betin/forw/back/gamma beta-dist, emerg emergence) → wire mpb_apply! LPOPDY branch (drop early-return)
-  → end-to-end lp_popdy .sum (target 89→0). Oracle FVSie_lpmpb_g @/workspace/.iework/lpmpb (instr/ has garbel+mpbdrv
-  dumps to fort.780/781/782; .sum byte-identical to clean verified).
+## PROGRESS 2026-08-18 (sub-chunk 3 — SURFCE surface areas)
+- **SURFCE — BIT-EXACT** (extends validate_garbel.jl, vs fort.783): all-10 class avg-DBH + LP surface + SNOHST.
+- Spec (surfce.f/surflp.f/grclas.f): SNOHST = Σ over non-LP host trees (WP/WL/DF/PP by MPBSPM) of SUR5·PROB
+  (SUR5≥0), per-species SUR/SUR5 = fns of ln(DBH),ln(HT),CFV,HT — this stand is all-LP ⇒ SNOHST=0.
+  SURF(I)=SURFLP(CLASS(I,2)) where CLASS(I,2)=GRCLAS PROB-weighted class-avg DBH = Σ(DBH·PROB)/Σ PROB;
+  SURFLP(d)= d≤5 ? d·0.672 : 8.835·d−40.82. IE map (mpblkdie.f): IDXWP1/WL2/DF3/LP7/PP10.
+- NEXT sub-chunk (THE BIG ONE): MPBMOD core (808 ln stochastic brood-dynamics + betin/forw/back/gamma beta-dist,
+  emerg emergence, own MINSTD LCG seed 55329) → then WK2 mortality output (per-class SURVIV) → wire mpb_apply!
+  LPOPDY branch (drop early-return) → end-to-end lp_popdy .sum (target 89→0). Oracle FVSie_lpmpb_g
+  @/workspace/.iework/lpmpb (instr/ dumps fort.780 GARBEL / 781 inputs / 782 sortP+M1 / 783 SURFCE; .sum byte-
+  identical to clean verified). Attributes fed to MPBMOD: SNOHST, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH.
