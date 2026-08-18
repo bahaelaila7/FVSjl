@@ -123,3 +123,23 @@ TAFIT, BETIN, FORW, BACK, PQSML, MPBGAM. All params dumped from the oracle (fort
   Attributes into MPBMOD: SNOHST=0, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH. Oracle FVSie_lpmpb_g
   @/workspace/.iework/lpmpb (instr/ dumps fort.780 GARBEL/781 inputs/782 sortP+M1/783 SURFCE/784 mortality target;
   .sum byte-identical to clean verified). BETIN pulls FORW/BACK/PQSML/DGAMMA (incomplete-beta pkg, DOUBLE).
+
+
+## ★★★ MPBMOD YEAR-LOOP PORTED + EPIDEMIC REPRODUCED 2026-08-18 (validate_mpbmod.jl)
+The full deterministic MPBMOD year-loop is ported in Julia (LGO path; LAGG/LREP/LPS/LDC=F) and RUNS the epidemic:
+- yr1 per-increment AD builds 0→5.097 MATCHING the oracle exactly; yr1 BY=1912.432 = oracle 1912.432 (exact at print prec).
+- The epidemic collapses LP: ΣTREES 97→96→92→81→53→14→0 (TOTAL KILL by yr6), BY 1912→6858→22358→47690→40294→10016.
+- 2 bugs fixed while debugging: (1) fort.785 'G' parse off-by-one (DST/EXODUS swapped → B0 blew up); (2) top-level
+  soft-scope on B1INC accumulator → wrapped the sim in run_mpbmod() (function scope).
+- RESIDUAL (the ONE remaining item): the oracle retains tiny survivors in the 3 smallest-DBH classes (8,9,10:
+  ~3e-7 / 1.3e-5 / 9.4e-4 TPA); my port over-kills them to 0 due to a small multi-year BY drift (yr2 6858 vs 6853
+  ~0.08%, compounding). Candidate causes: (a) gfortran computes PIODEN=B1INC/E1 in Float32 THEN widens to DOUBLE
+  (my port divides in Float64); (b) AGG=TREES*BETIN done in DOUBLE then rounded to REAL (my port Float32*Float32);
+  (c) BETIN 1.56e-8. Fix = tighten those to gfortran's exact Float32/Float64 operation order.
+- ★ BUT the over-kill is ~0.001 TPA TOTAL (classes 8+9+10 survivors) out of ~89 LP TPA — almost certainly BELOW the
+  .sum's integer-TPA rounding. ⇒ **the DEFINITIVE test is the end-to-end .sum, not the tail-class survivors.**
+- **NEXT**: wire the LPOPDY branch into FVSjl (mpb_apply! — drop the early-return; run phloem→GARBEL→SURFCE→MPBMOD→
+  WK2(I)=PROB(I)-1e-6 or PROB(I)*(1-SURVIV) via the mpbdrv loop) and run the end-to-end lp_popdy .sum vs FVSie_lpmpb
+  (target 89→0). If the .sum is bit-exact, LPOPDY is DONE (tail survivors round away). If not, tighten the Float32/
+  Float64 op-order above. All the ported+validated pieces live in scratchpad/lpmpb/: validate_phloem.jl, validate_garbel.jl
+  (GARBEL+SURFCE), validate_betin.jl + betin_pkg.jl, validate_mpbmod.jl.
