@@ -1067,6 +1067,12 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     _ec_dg = s.variant isa EastCascades      # EC bark = wc_bratio — DDS→DG conversion watchpoint (from the start)
                                              # linear fallback floors 0.80 vs wc_bratio ~0.83-0.90 ⇒ d_ib understated
     _ca_dg = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — SAME class: linear-0.80 floor
+    _on_dg = s.variant isa Ontario           # ON bark = on_bratio (canada/on/bratio.f, metric H/D). dgdriv.f:201
+                                             # D=DBH·BRATIO(ISPC,DBH,HT) uses the ORIGINAL DBH (NOT the grown D that
+                                             # dgf.f:362 used to form DDS) — the DDS→DG round-trip watchpoint: the
+                                             # linear fallback (bark_a/bark_b=0) would floor to 0.80 vs on_bratio's
+                                             # ~0.91-0.96, understating d_ib ⇒ over-high DG. dgf! formed WK2 with
+                                             # on_bratio, so this conversion MUST use on_bratio too (same family).
     _so_dg = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path) — DDS→DG conversion
                                              # understated d_ib ⇒ same DDS gave a LARGER DG ⇒ cat01 ~+6% BA/cyc over-growth
                                              # ⇒ DDS→DG (sqrt(d_ib²+DDS)−d_ib) OVER-predicts ~2%/tree ⇒ the multi-cycle
@@ -1190,6 +1196,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                    _pn_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    (_ec_dg || _ca_dg) ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    _so_dg ? so_bratio(sd, Int(sp), t.dbh[i]) :
+                   _on_dg ? on_bratio(Int(sp), t.dbh[i], t.height[i]) :   # dgdriv.f:201 BRATIO(ISPC,DBH,HT), original DBH
                    _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length

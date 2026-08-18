@@ -179,3 +179,27 @@ function dgf!(s::StandState, ::Ontario)
     end
     return s
 end
+
+"""
+    on_dgcons!(s::StandState)
+
+Ontario DG constants (canada/on/dgf.f ENTRY DGCONS, called from RCON at LSTART). ON's DGCONS is
+trivial (like NE/CS): DGCON=0, SMCON=0, ATTEN=OBSERV(count) per species — the Penner large-tree
+model (`dgf!`) reads its coefficients directly; there is no site-dependent DGCON. Bark is applied
+per-tree via `on_bratio` in the shared DDS->DG driver, so `bark_a`/`bark_b` stay 0 (inert).
+
+COR: the DG calibration (dgdriv.f LSTART: SIGMAR/OBSERV/VARDG serial-correlation) is a downstream
+chunk; with no measured past growth the calibration COR is 0, the cyc0 value the shared driver
+already produces (`dg_cor_goal` defaults to 0 => `dg_cor`=0). ATTEN is stored for that future pass.
+"""
+function on_dgcons!(s::StandState)
+    c = s.calib
+    @inbounds for sp in 1:MAXSP
+        base = (sp >= 1 && sp <= length(ON_OSPMAP)) ? ON_OSPMAP[sp] : 0
+        c.atten[sp] = base > 0 ? Float32(ON_OBSERV[base]) : 1f0
+        c.dg_cor[sp] = 0f0
+        c.dg_cor_goal[sp] = 0f0
+    end
+    c.bark_a .= 0f0; c.bark_b .= 0f0
+    return s
+end

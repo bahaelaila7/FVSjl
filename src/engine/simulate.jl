@@ -212,6 +212,13 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)     # op/dgdriv.f LSTART large-tree DG COR (SIGMAR/OBSERV/
                                           # PSIGSQ=0.0898, op_bratio in BOTH the backdating AND the TERM bark).
                                           # WF COR = +0.03379 bit-exact vs live FVSop_clean (op2c_dbg.out:344).
+    elseif s.variant isa Ontario
+        on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
+                                          # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
+        # NOTE: the ON DG calibration (dgdriv.f LSTART SIGMAR/OBSERV/VARDG serial-correlation → COR, VARDG) is a
+        # downstream chunk. With no measured past growth the calibration COR=0 (the cyc0 value the shared driver
+        # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
+        # it; the VARDG-driven tripled-record spread + multi-cycle COR attenuation land with that chunk.
     end
     return s
 end
