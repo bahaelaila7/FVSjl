@@ -470,11 +470,19 @@ loadable stands (no treelist damage codes); CURRMR is the CURRMORT keyword.
 function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     m = s.mpb
     (m === nothing || !m.active) && return nothing
-    m.lpopdy && return nothing                             # population-dynamics path deferred
     idxlp = mpb_idxlp(s.variant)
     idxlp == 0 && return nothing
     t = s.trees; n = t.n
     n == 0 && return nothing
+    # LPOPDY population-dynamics path (MPBDRV/MPBMOD epidemic) — fires on a scheduled outbreak.
+    if m.lpopdy
+        mpb_outbreak_due(m, s) || return nothing          # MPBSTART/MANUAL schedule (OPFIND 555)
+        lpidx = Int[i for i in 1:n if Int(t.species[i]) == idxlp]
+        isempty(lpidx) && return nothing
+        ta = 2.099609f0                                   # TEMP: captured MPGR resistance; MPGR port pending
+        mpb_lpopdy!(t, old_tpa, lpidx, ta, s.plot.elevation, m.forlat)
+        return nothing
+    end
     lpidx = Int[i for i in 1:n if Int(t.species[i]) == idxlp]
     isempty(lpidx) && return nothing
     lp_dbh = Float32[t.dbh[i] for i in lpidx]

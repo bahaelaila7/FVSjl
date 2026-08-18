@@ -352,3 +352,38 @@ function mpb_pmslp(xx::Float32, x::Vector{Float32}, y::Vector{Float32})::Float32
     end
     return y[n]
 end
+
+# -----------------------------------------------------------------------------
+# mpb_lpopdy! — the live LPOPDY seam (MPBDRV): phloem → GARBEL → SURFCE → MPBMOD → WK2 mortality.
+# Called from mpb_apply! when m.lpopdy and an outbreak is due this cycle. `ta` is the aggregation
+# threshold (MPGR resistance); `lpidx` are the LP tree record indices; mutates t.tpa.
+# -----------------------------------------------------------------------------
+function mpb_lpopdy!(t, old_tpa::AbstractVector{Float32}, lpidx::Vector{Int},
+                     ta::Float32, elev::Float32, forlat::Float32)
+    nlp = length(lpidx)
+    nlp == 0 && return nothing
+    dbh = Float32[t.dbh[i] for i in lpidx]
+    ht  = Float32[t.height[i] for i in lpidx]
+    dg  = Float32[t.diam_growth[i] for i in lpidx]
+    prob = Float32[old_tpa[i] for i in lpidx]
+    xpt = Float32[mpb_phloem_xpt(dbh[k], dg[k], ht[k]) for k in 1:nlp]
+    mp1, mp2, ipt, clsprob, avgdbh, avgxpt = mpb_garbel(dbh, xpt, prob, 10)
+    surf = Float32[mpb_surflp(avgdbh[c]) for c in 1:length(mp1)]
+    efelev = mpb_efelev(elev); eflat = mpb_eflat(forlat)
+    surv = mpb_mpbmod(copy(clsprob), surf, avgdbh, avgxpt, ta, efelev, eflat)
+    # per-class SURVIV = survivors/pre; per tree WK2 = max(current, PROB·(1-SURVIV)); cap PROB-1e-6.
+    for c in 1:length(mp1)
+        surviv = clsprob[c] > 0.0f0 ? surv[c]/clsprob[c] : 0.0f0
+        dead = 1.0f0 - surviv
+        for jj in mp1[c]:mp2[c]
+            j = lpidx[ipt[jj]]                     # tree record index
+            prob_j = old_tpa[j]
+            wk2 = prob_j * dead
+            cur = old_tpa[j] - t.tpa[j]            # current period mortality already applied
+            wk2 < cur && (wk2 = cur)               # WK2=max(WK2, current)
+            (prob_j - wk2 < 1.0f-6) && (wk2 = prob_j - 1.0f-6)
+            t.tpa[j] = prob_j - wk2
+        end
+    end
+    return nothing
+end
