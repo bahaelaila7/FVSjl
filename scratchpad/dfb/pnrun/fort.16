@@ -1,0 +1,600 @@
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- PACIFIC NW COAST PROGNOSIS             RV:20260401    08-17-2026  04:55:08
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY INPUT
+
+KEYWORD FILE NAME: pndfb.key
+----------------------------------------------------------------------------------------------------------------------------------
+KEYWORD    PARAMETERS:
+--------   -----------------------------------------------------------------------------------------------------------------------
+
+SCREEN     SUMMARY TABLE WILL BE PRINTED TO DATA SET REFERENCE NUMBER     6 AS RUN PROGRESSES.
+
+NOAUTOES   TALLIES AND INGROWTH WILL NOT BE ADDED AUTOMATICALLY.
+           NO SPROUTING WILL BE SIMULATED.
+
+NOTRIPLE
+
+STATS      STATISTICAL DESCRIPTION OF INPUT DATA WILL BE PROVIDED; CONFIDENCE LIMITS AT 0.05 LEVEL.
+
+STDIDENT
+           STAND ID= S248112                            PNT01 DFB ON                                                           
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           SEE "OPTIONS SELECTED BY DEFAULT" FOR FINAL DESIGN VALUES.
+
+           PLANT ASSOCIATION CODE USED IN THIS PROJECTION IS CHS133  
+
+STDINFO    FOREST-LOCATION CODE=     612; HABITAT TYPE= 40; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)=  7.0; REFERENCE CODE=     ; ECOREGION=           ; STAND ORIGIN= 0
+
+INVYEAR    INVENTORY YEAR= 1990
+
+NUMCYCLE   NUMBER OF CYCLES= 10
+
+TREEFMT 
+          (T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,       
+          T52,I2,T66,5I1,T54,7I1,T75,F3.0)                                                
+
+TREEDATA   DATA SET REFERENCE NUMBER=  2
+
+DFB        DOUGLAS-FIR BEETLE OPTIONS:
+
+MANSTART   STAND IS INCLUDED IN ALL REGIONAL OUTBREAKS.
+
+MANSCHED   DATE/CYCLE=     2; REGIONAL OUTBREAKS SCHEDULED BY USER.
+
+END        END OF DOUGLAS-FIR BEETLE OPTIONS.
+
+ECHOSUM    SUMMARY OUTPUT WILL BE WRITTEN TO FILE REFERENCED BY NUMBER  4
+
+PROCESS    PROCESS THE STAND.
+
+********   FVS09 WARNING:  PLOT COUNTS DO NOT MATCH DATA ON THE DESIGN RECORD; DESIGN RECORD DATA USED.
+                            PLOT COUNT=  11; NONSTOCKABLE COUNT=   0
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY DEFAULT
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           STAND ATTRIBUTES ARE CALCULATED PER ACRE OF STOCKABLE AREA.  STAND STATISTICS
+           IN SUMMARY TABLE ARE MULTIPLIED BY 0.909 TO INCLUDE TOTAL STAND AREA.
+
+STDINFO    FOREST-LOCATION CODE=     612; HABITAT TYPE= 40; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)=  7.0;  REFERENCE CODE=     ; ECOREGION=           
+
+SPECIES      SF      WF      GF      AF      RF      SS      NF      YC      IC      ES
+SDI MAX      950     950     950     950     950     950     950     950     950     950
+
+SPECIES      LP      JP      SP      WP      PP      DF      RW      RC      WH      MH
+SDI MAX      950     950     950     950     950     950     950     950     950     950
+
+SPECIES      BM      RA      WA      PB      GC      AS      CW      WO      WJ      LL
+SDI MAX      950     950     950     950     950     950     950     950     950     950
+
+SPECIES      WB      KP      PY      DG      HT      CH      WI      __      OT
+SDI MAX      950     950     950     950     950     950     950     950     950
+
+*NOTE -- AT LEAST ONE DEFAULT MAXIMUM SDI EXCEEDED THE FOREST DEFAULT MAXIMUM. FOREST DEFAULT MAXIMUM OF  950. USED.
+          YOU MAY NEED TO SPECIFICALLY RESET VALUES FOR THESE SPECIES USING THE SDIMAX KEYWORD.
+
+                                  NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS
+SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT 
+------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- 
+  SF    616BEHW011  616BEHW011   WF    616BEHW015  616BEHW015   GF    616BEHW017  616BEHW017   AF    616BEHW019  616BEHW019
+  RF    616BEHW020  616BEHW020   SS    616BEHW098  616BEHW098   NF    616BEHW022  616BEHW022   YC    616BEHW042  616BEHW042
+  IC    616BEHW081  616BEHW081   ES    616BEHW093  616BEHW093   LP    616BEHW108  616BEHW108   JP    616BEHW116  616BEHW116
+  SP    616BEHW117  616BEHW117   WP    616BEHW119  616BEHW119   PP    616BEHW122  616BEHW122   DF    F00FW2W202  F00FW2W202
+  RW    616BEHW211  616BEHW211   RC    616BEHW242  616BEHW242   WH    F03FW2W263  F03FW2W263   MH    616BEHW264  616BEHW264
+  BM    616BEHW312  616BEHW312   RA    NVBM240351  NVBM240351   WA    616BEHW352  616BEHW352   PB    616BEHW375  616BEHW375
+  GC    616BEHW431  616BEHW431   AS    616BEHW746  616BEHW746   CW    616BEHW747  616BEHW747   WO    616BEHW815  616BEHW815
+  WJ    616BEHW064  616BEHW064   LL    616BEHW072  616BEHW072   WB    616BEHW101  616BEHW101   KP    616BEHW103  616BEHW103
+  PY    616BEHW231  616BEHW231   DG    616BEHW492  616BEHW492   HT    616BEHW500  616BEHW500   CH    616BEHW768  616BEHW768
+  WI    616BEHW920  616BEHW920   __    616BEHW000  616BEHW000   OT    616BEHW999  616BEHW999
+
+SITECODE   SITE INDEX INFORMATION:
+            SF=  139.;  WF=   98.;  GF=   98.;  AF=  139.;  RF=   98.;  SS=   98.;  NF=  139.;  YC=  139.; IC=  139.
+            ES=  139.;  LP=   98.;  JP=  139.;  SP=  139.;  WP=  139.;  PP=  139.;  DF=   98.;  RW=  139.; RC=   98.
+            WH=   98.;  MH=   28.;  BM=  104.;  RA=   49.;  WA=   90.;  PB=  209.;  GC=   97.;  AS=  104.; CW=  118.
+            WO=   96.;  WJ=   32.;  LL=   98.;  WB=   97.;  KP=  139.;  PY=   35.;  DG=   83.;  HT=   35.; CH=   70.
+            WI=   70.;  __=  139.;  OT=  139.
+           SITE SPECIES=DF CODE=   16
+
+INVENTORY POINT CROSS REFERENCE (FVS SEQUENTIAL POINT NUMBER = POINT NUMBER AS ENTERED IN THE INPUT DATA):
+  1=     101;   2=     102;   3=     103;   4=     104;   5=     105;   6=     106;   7=     107;   8=     108;   9=     109
+ 10=     110;  11=     111
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+                                                     ACTIVITY SCHEDULE
+
+STAND ID= S248112                       MGMT ID= NONE     PNT01 DFB ON                                                           
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  PARAMETERS:
+-----  ----  ---------  --------  ----  ------------------------------------------------------------------------------------------
+
+   1   1990
+
+   2   2000
+               DFB      MANSCHED  2000
+
+   3   2010
+   4   2020
+   5   2030
+   6   2040
+   7   2050
+   8   2060
+   9   2070
+  10   2080
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CALIBRATION STATISTICS:
+
+
+                                                 LP    DF    PP    SP    WF    ES
+                                                ----  ----  ----  ----  ----  ----
+
+NUMBER OF RECORDS PER SPECIES                      5     8     1     5     6     4
+
+NUMBER OF RECORDS CODED AS RECENT MORTALITY        1     0     0     0     0     0
+
+NUMBER OF RECORDS WITH MISSING HEIGHTS             1     0     0     0     0     0
+
+NUMBER OF RECORDS WITH BROKEN OR DEAD TOPS         0     1     0     1     0     0
+
+NUMBER OF RECORDS WITH MISSING CROWN RATIOS        0     0     0     0     0     0
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE DIAMETER INCREMENT MODEL                       3     4     1     3     5     2
+
+RATIO OF STANDARD ERRORS
+(INPUT DBH GROWTH DATA : MODEL)                 1.00  1.00  1.00  1.00  1.22  1.00
+
+WEIGHT GIVEN TO THE INPUT GROWTH DATA WHEN
+DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED    0.00  0.00  0.00  0.00  0.91  0.00
+
+INITIAL SCALE FACTORS FOR THE
+DBH INCREMENT MODEL                             1.00  1.00  1.00  1.00  0.57  1.00
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE SMALL TREE HEIGHT INCREMENT MODEL             0     3     0     0     0     1
+
+INITIAL SCALE FACTORS FOR THE SMALL TREE
+HEIGHT INCREMENT MODEL                          1.00  1.00  1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS WITH MISTLETOE                   0     0     0     0     0     0
+
+
+        GENERAL SPECIES SUMMARY FOR THE CRUISE (PER ACRE)
+
+  SPECIES             TREES       BASAL AREA       CUBIC FEET       BOARD FEET       ABOVE GROUND BIOMASS       ABOVE GROUND CARBON
+-----------------------------------------------------------------------------------------------------------------------------------
+ WF  =  WF            161.7             18.2            469.6           735.1                         0.0                       0.0
+ ES  =  ES            101.0              8.8            140.4             0.0                         0.0                       0.0
+ LP  =  LP             28.9             14.5            515.3          2415.1                         0.0                       0.0
+ SP  =  SP             40.5             14.5            310.6          1488.8                         0.0                       0.0
+ PP  =  PP             15.8              3.6             65.5             0.0                         0.0                       0.0
+ DF  =  DF            188.1             17.7            376.0          1406.1                         0.0                       0.0
+
+
+                  DISTRIBUTION OF STAND ATTRIBUTES AMONG SAMPLE POINTS
+
+                              STANDARD  COEFF OF SAMPLE             95%           SAMPLING ERROR IN
+CHARACTERISTIC          MEAN DEVIATION VARIATION   SIZE     CONFIDENCE  LIMITS    PERCENT     UNITS
+----------------   --------- --------- --------- ------ ----------------------    -----------------
+TREES/ACRE            536.05    528.43      0.99     11    180.95       891.15      66.2      355.1
+BASAL AREA/ACRE        77.39     45.38      0.59     11     46.89       107.89      39.4       30.5
+CUBIC FEET/ACRE      1877.38   1138.86      0.61     11   1112.08      2642.68      40.8      765.3
+BOARD FEET/ACRE      6045.09   5580.23      0.92     11   2295.24      9794.94      62.0     3749.9
+ABVGRD BIOMASS/ACRE     0.00      0.00
+ABVGRD CARB/ACRE        0.00      0.00
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- PACIFIC NW COAST PROGNOSIS             RV:20260401    08-17-2026  04:55:08
+
+STAND ID: S248112                       MGMT ID: NONE     PNT01 DFB ON
+
+
+                                        STAND COMPOSITION (BASED ON STOCKABLE AREA)
+--------------------------------------------------------------------------------------------------------------------------
+                            PERCENTILE POINTS IN THE
+                     DISTRIBUTION OF STAND ATTRIBUTES BY DBH      TOTAL/ACRE
+        STAND       -----------------------------------------      OF STAND         DISTRIBUTION OF STAND ATTRIBUTES BY
+YEAR  ATTRIBUTES      10     30     50     70     90    100       ATTRIBUTES       SPECIES AND 3 USER-DEFINED SUBCLASSES
+----  -----------   ------ ------ ------ ------ ------ ------   --------------  ------------------------------------------
+                                 (DBH IN INCHES)
+
+
+
+1990  TREES           0.1    0.1    3.2    6.1    8.5    12.7     590. TREES     35.% DF1,  30.% WF1,  19.% ES1,   8.% SP1
+      VOLUME:  
+        TOTAL         5.8    6.6    8.5    9.6   11.5    12.7    2065. CUFT      27.% LP1,  25.% WF1,  20.% DF1,  17.% SP1
+        MERCH         8.0    9.4    9.6   10.9   11.5    12.7    1327. CUFT      42.% LP1,  24.% DF1,  22.% SP1,  12.% WF1
+        CUBIC SAW    12.7   12.7   12.7   12.7   12.7    12.7       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.0    8.5    9.6   10.9   11.5    12.7    6650. BDFT      40.% LP1,  25.% SP1,  23.% DF1,  12.% WF1
+
+
+      ACCRETION       5.3    6.5    8.0    9.6   10.9    12.7     146. CUFT/YR   29.% WF1,  28.% DF1,  14.% LP1,  11.% PP1
+      MORTALITY       6.1    7.9    8.2    9.5   10.4    12.7      12. CUFT/YR   44.% LP1,  33.% SP1,  10.% WF1,   7.% DF1
+
+
+
+2000  TREES           0.6    1.5    5.3    7.3   11.0    15.3     534. TREES     34.% DF1,  31.% WF1,  19.% ES1,   7.% SP1
+      VOLUME:  
+        TOTAL         6.4    7.7   10.5   11.5   13.5    15.3    3405. CUFT      27.% WF1,  24.% DF1,  21.% LP1,  14.% SP1
+        MERCH         7.4    9.6   10.8   12.1   13.5    15.3    2762. CUFT      27.% WF1,  26.% LP1,  23.% DF1,  16.% SP1
+        CUBIC SAW    15.3   15.3   15.3   15.3   15.3    15.3       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.4    9.6   10.8   12.1   13.5    15.3   14225. BDFT      27.% WF1,  26.% LP1,  22.% DF1,  16.% SP1
+
+
+      ACCRETION       6.4    7.4   10.5   11.0   12.8    15.3     204. CUFT/YR   34.% WF1,  22.% DF1,  14.% PP1,  14.% SP1
+      MORTALITY       9.0   10.5   12.7   13.5   15.3    15.3      39. CUFT/YR   65.% DF1,  16.% LP1,  11.% SP1,   4.% WF1
+
+
+
+2010  TREES           1.3    3.3    5.7    8.4   14.0    18.0     477. TREES     32.% DF1,  31.% WF1,  20.% ES1,   8.% SP1
+      VOLUME:  
+        TOTAL         7.7    8.9   11.5   14.5   15.4    18.0    5055. CUFT      32.% WF1,  20.% DF1,  17.% LP1,  14.% SP1
+        MERCH         7.8    9.1   11.5   14.5   15.4    18.0    4586. CUFT      34.% WF1,  19.% LP1,  17.% DF1,  14.% SP1
+        CUBIC SAW    18.0   18.0   18.0   18.0   18.0    18.0       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.8    9.1   11.5   14.5   15.4    18.0   23638. BDFT      35.% WF1,  20.% LP1,  17.% DF1,  13.% SP1
+
+
+      ACCRETION       5.7    8.4   11.5   14.5   15.4    18.0     248. CUFT/YR   31.% WF1,  25.% DF1,  18.% PP1,  13.% SP1
+      MORTALITY       5.7   10.1   10.9   11.5   14.0    18.0      20. CUFT/YR   37.% LP1,  26.% SP1,  16.% DF1,  12.% WF1
+
+
+
+2020  TREES           1.9    5.1    8.1   10.1   15.6    20.6     431. TREES     31.% WF1,  31.% DF1,  21.% ES1,   8.% SP1
+      VOLUME:  
+        TOTAL         8.1   10.1   12.1   16.5   19.3    20.6    7338. CUFT      32.% WF1,  22.% DF1,  13.% SP1,  13.% PP1
+        MERCH         8.9   10.4   12.6   17.0   19.3    20.6    6773. CUFT      35.% WF1,  19.% DF1,  15.% PP1,  14.% SP1
+        CUBIC SAW    20.6   20.6   20.6   20.6   20.6    20.6       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.9   10.4   14.0   17.0   19.3    20.6   36395. BDFT      35.% WF1,  19.% DF1,  15.% PP1,  14.% SP1
+
+
+      ACCRETION       7.6    9.6   11.5   16.5   19.3    20.6     276. CUFT/YR   32.% WF1,  31.% DF1,  14.% SP1,  13.% PP1
+      MORTALITY       5.7   10.1   11.8   12.6   16.5    20.6      26. CUFT/YR   31.% LP1,  24.% SP1,  23.% DF1,  11.% WF1
+
+
+
+2030  TREES           2.3    6.4    9.2   11.6   18.1    23.8     391. TREES     32.% WF1,  30.% DF1,  21.% ES1,   8.% SP1
+      VOLUME:  
+        TOTAL         9.2   11.5   13.8   18.1   22.1    23.8    9832. CUFT      33.% WF1,  24.% DF1,  13.% PP1,  13.% SP1
+        MERCH        10.7   11.6   14.9   19.5   22.1    23.8    8958. CUFT      35.% WF1,  22.% DF1,  15.% PP1,  14.% SP1
+        CUBIC SAW    23.8   23.8   23.8   23.8   23.8    23.8       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        11.0   11.6   15.1   19.5   22.1    23.8   48921. BDFT      35.% WF1,  22.% DF1,  15.% PP1,  13.% SP1
+
+
+      ACCRETION       9.2   11.5   15.1   19.5   22.1    23.8     301. CUFT/YR   34.% DF1,  27.% WF1,  17.% PP1,  15.% SP1
+      MORTALITY       6.4   11.3   12.4   14.9   19.5    23.8      36. CUFT/YR   30.% LP1,  29.% DF1,  22.% SP1,   9.% WF1
+
+
+
+2040  TREES           2.7    7.8   11.2   13.0   20.1    27.0     354. TREES     31.% WF1,  28.% DF1,  22.% ES1,   8.% SP1
+      VOLUME:  
+        TOTAL        10.8   12.8   15.5   22.3   24.3    27.0   12484. CUFT      32.% WF1,  26.% DF1,  14.% PP1,  13.% SP1
+        MERCH        11.2   12.8   15.5   22.3   24.3    27.0   11814. CUFT      34.% WF1,  25.% DF1,  15.% PP1,  14.% SP1
+        CUBIC SAW    27.0   27.0   27.0   27.0   27.0    27.0       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        11.2   13.0   16.2   22.3   24.3    27.0   66787. BDFT      33.% WF1,  26.% DF1,  17.% PP1,  13.% SP1
+
+
+      ACCRETION      10.8   12.8   16.2   23.3   24.3    27.0     285. CUFT/YR   35.% DF1,  28.% WF1,  19.% PP1,  13.% SP1
+      MORTALITY       7.8   11.2   13.0   15.5   23.3    27.0      50. CUFT/YR   33.% DF1,  28.% LP1,  20.% SP1,   8.% WF1
+
+
+
+2050  TREES           6.0    8.6   12.2   14.0   24.4    30.1     320. TREES     31.% WF1,  27.% DF1,  24.% ES1,   9.% SP1
+      VOLUME:  
+        TOTAL        11.7   13.9   15.9   24.4   26.2    30.1   14831. CUFT      32.% WF1,  28.% DF1,  15.% PP1,  13.% SP1
+        MERCH        12.2   13.9   18.5   24.4   26.2    30.1   13964. CUFT      33.% WF1,  27.% DF1,  17.% PP1,  14.% SP1
+        CUBIC SAW    30.1   30.1   30.1   30.1   30.1    30.1       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        12.2   14.0   18.5   25.3   26.2    30.1   80646. BDFT      33.% WF1,  27.% DF1,  18.% PP1,  13.% SP1
+
+
+      ACCRETION      12.2   14.0   18.5   25.3   26.2    30.1     264. CUFT/YR   35.% DF1,  28.% WF1,  19.% PP1,  14.% SP1
+      MORTALITY       8.6   11.7   13.7   15.9   26.2    30.1      63. CUFT/YR   36.% DF1,  27.% LP1,  18.% SP1,   9.% PP1
+
+
+
+2060  TREES           6.3    9.2   13.7   14.7   26.3    32.3     297. TREES     33.% WF1,  24.% DF1,  24.% ES1,   9.% SP1
+      VOLUME:  
+        TOTAL        12.7   14.6   20.3   26.3   27.7    32.3   16843. CUFT      32.% WF1,  29.% DF1,  16.% PP1,  13.% SP1
+        MERCH        12.9   14.6   20.3   26.3   27.7    32.3   16135. CUFT      33.% WF1,  28.% DF1,  17.% PP1,  13.% SP1
+        CUBIC SAW    32.3   32.3   32.3   32.3   32.3    32.3       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        12.9   14.7   20.3   27.1   27.7    32.3   95505. BDFT      33.% WF1,  28.% DF1,  19.% PP1,  12.% SP1
+
+
+      ACCRETION      12.9   14.7   16.9   26.3   27.7    32.3     287. CUFT/YR   33.% WF1,  33.% DF1,  16.% PP1,  14.% SP1
+      MORTALITY       9.2   12.7   14.2   20.3   27.7    32.3      69. CUFT/YR   36.% DF1,  26.% LP1,  18.% SP1,  10.% PP1
+
+
+
+2070  TREES           6.5   10.8   15.2   16.8   27.9    34.1     277. TREES     35.% WF1,  25.% ES1,  22.% DF1,   9.% SP1
+      VOLUME:  
+        TOTAL        13.8   15.2   21.6   27.9   29.0    34.1   19019. CUFT      33.% WF1,  29.% DF1,  16.% PP1,  13.% SP1
+        MERCH        13.8   15.2   21.6   27.9   29.0    34.1   18356. CUFT      34.% WF1,  28.% DF1,  17.% PP1,  13.% SP1
+        CUBIC SAW    34.1   34.1   34.1   34.1   34.1    34.1       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        13.8   16.3   21.6   28.8   29.0    34.1  111519. BDFT      33.% WF1,  28.% DF1,  18.% PP1,  13.% SP1
+
+
+      ACCRETION      13.8   16.3   21.7   28.8   29.0    34.1     231. CUFT/YR   33.% DF1,  29.% WF1,  20.% PP1,  14.% SP1
+      MORTALITY      10.2   13.7   16.3   21.7   29.0    34.1      75. CUFT/YR   35.% DF1,  22.% LP1,  20.% SP1,  12.% PP1
+
+
+
+2080  TREES           6.7   11.1   15.5   19.6   29.4    36.2     259. TREES     37.% WF1,  26.% ES1,  21.% DF1,   9.% SP1
+      VOLUME:  
+        TOTAL        14.4   17.1   22.4   29.4   30.3    36.2   20579. CUFT      34.% WF1,  29.% DF1,  17.% PP1,  13.% SP1
+        MERCH        14.4   17.1   22.4   29.4   30.3    36.2   19867. CUFT      35.% WF1,  29.% DF1,  17.% PP1,  13.% SP1
+        CUBIC SAW    36.2   36.2   36.2   36.2   36.2    36.2       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        14.4   17.1   22.4   30.2   30.3    36.2  123058. BDFT      34.% WF1,  29.% DF1,  19.% PP1,  13.% SP1
+
+
+      ACCRETION      14.4   15.9   19.6   25.5   30.3    36.2     260. CUFT/YR   35.% WF1,  34.% DF1,  20.% SP1,   8.% PP1
+      MORTALITY      11.7   14.4   19.6   24.5   30.2    36.2      77. CUFT/YR   31.% DF1,  22.% SP1,  18.% LP1,  17.% PP1
+
+
+
+2090  TREES           7.0   11.4   16.6   21.1   31.0    37.9     245. TREES     38.% WF1,  27.% ES1,  19.% DF1,   9.% SP1
+      VOLUME:  
+        TOTAL        15.0   17.6   23.3   31.0   32.1    37.9   22407. CUFT      35.% WF1,  30.% DF1,  16.% PP1,  13.% SP1
+        MERCH        15.0   17.6   23.3   31.0   32.1    37.9   21851. CUFT      36.% WF1,  28.% DF1,  16.% PP1,  13.% SP1
+        CUBIC SAW    37.9   37.9   37.9   37.9   37.9    37.9       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        15.2   17.7   23.3   31.0   32.1    37.9  137207. BDFT      35.% WF1,  29.% DF1,  18.% PP1,  13.% SP1
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- PACIFIC NW COAST PROGNOSIS             RV:20260401    08-17-2026  04:55:08
+
+STAND ID: S248112                       MGMT ID: NONE     PNT01 DFB ON
+
+
+------------------------------------------------------------------------------------------------------------------------------
+                     ATTRIBUTES OF SELECTED SAMPLE TREES                 ADDITIONAL STAND ATTRIBUTES (BASED ON STOCKABLE AREA)
+      -----------------------------------------------------------------  -----------------------------------------------------
+      INITIAL                           LIVE   PAST DBH  BASAL   TREES          QUADRATIC   TREES    BASAL  TOP HEIGHT  CROWN
+      TREES/A            DBH    HEIGHT  CROWN   GROWTH   AREA     PER    STAND   MEAN DBH    PER     AREA     LARGEST   COMP
+YEAR   %TILE  SPECIES (INCHES)  (FEET)  RATIO  (INCHES)  %TILE    ACRE   AGE     (INCHES)    ACRE   (SQFT/A) 40/A (FT)  FACTOR
+----  ------- ------- -------- -------- ------ --------- ------- ------  -----  ---------   ------ --------- --------- -------
+
+1990                                          ( 10 YRS)
+
+        10     WF1       0.10     3.00    65     0.00      0.0   90.00
+        30     DF1       0.10     2.00    55     0.00      0.0   90.00
+        50     ES1       3.20    17.00    45     0.60      3.0   30.00
+        70     WF1       6.10    38.00    75     1.20     24.8   19.71
+        90     LP1       8.50    43.08    25     1.22     62.4   10.15
+       100     DF1      12.70    67.00    35     1.60    100.0    4.55
+                                                                          60       5.1      590.      85.       63.4    125.4
+
+2000                                          ( 10 YRS)
+
+        10     WF1       0.60     6.50    59     0.45      0.1   77.61
+        30     DF1       1.48    12.90    50     1.28      0.9   76.41
+        50     ES1       3.80    24.95    41     0.54      5.3   28.57
+        70     WF1       7.39    57.02    68     1.17     30.9   19.18
+        90     LP1       9.41    51.21    28     0.82     42.2    8.95
+       100     DF1      15.33    82.25    39     2.31    100.0    4.50
+                                                                          70       6.5      534.     125.       76.9    169.0
+
+2010                                          ( 10 YRS)
+
+        10     WF1       1.29     9.32    53     0.62      0.4   65.33
+        30     DF1       3.27    23.84    45     1.61      2.8   66.40
+        50     ES1       4.39    34.66    37     0.54      5.9   27.36
+        70     WF1       8.87    76.50    61     1.34     34.0   18.78
+        90     LP1      10.12    59.10    31     0.64     41.1    7.89
+       100     DF1      17.98    95.58    43     2.33    100.0    2.71
+                                                                          80       8.0      477.     165.       74.6    201.1
+
+2020                                          ( 10 YRS)
+
+        10     WF1       1.86    11.54    48     0.51      0.5   53.19
+        30     DF1       4.69    33.57    41     1.27      3.5   52.94
+        50     ES1       5.06    47.74    33     0.60      5.2   26.32
+        70     WF1      10.35    88.93    55     1.34     39.8   18.49
+        90     LP1      10.55    71.70    34     0.38     41.8    6.99
+       100     DF1      20.64   106.87    47     2.33    100.0    2.68
+                                                                          90       9.5      431.     214.       71.7    239.0
+
+2030                                          ( 10 YRS)
+
+        10     WF1       2.34    13.35    43     0.44      0.5   41.79
+        30     DF1       6.36    45.15    37     1.48      5.4   41.54
+        50     ES1       5.41    62.97    30     0.31      2.0   25.44
+        70     WF1      11.52    93.51    50     1.05     31.2   18.28
+        90     LP1      11.27    88.40    31     0.65     26.3    6.20
+       100     DF1      22.93   116.82    51     2.01     95.1    2.66
+                                                                         100      11.3      391.     270.       82.4    279.7
+
+2040                                          ( 10 YRS)
+
+        10     WF1       2.73    15.78    39     0.35      0.4   30.61
+        30     DF1       7.79    57.80    33     1.27      7.0   31.88
+        50     ES1       5.64    63.07    27     0.21      1.8   24.65
+        70     WF1      12.42    97.89    45     0.82     24.3   18.10
+        90     LP1      11.64    93.08    28     0.33     19.5    5.16
+       100     DF1      25.58   125.28    49     2.31     94.7    2.63
+                                                                         110      12.9      354.     319.       92.0    312.6
+
+2050                                          ( 10 YRS)
+
+        10     WF1       3.05    19.20    35     0.29      0.3   20.60
+        30     DF1       8.56    70.68    30     0.68      6.1   23.69
+        50     ES1       5.97    65.40    24     0.30      1.6   23.90
+        70     WF1      13.01   100.47    41     0.54     22.4   17.92
+        90     LP1      12.14    93.18    25     0.45     14.3    3.96
+       100     DF1      27.61   132.54    46     1.77     94.2    2.60
+                                                                         120      14.3      320.     356.      100.7    333.5
+
+2060                                          ( 10 YRS)
+
+        10     WF1       3.59    23.42    32     0.49      0.4   19.53
+        30     DF1       9.21    74.88    27     0.58      5.4   16.37
+        50     ES1       6.35    65.50    23     0.34      1.7   23.23
+        70     WF1      13.97   104.60    37     0.86     22.1   17.74
+        90     LP1      12.46    95.01    23     0.29     10.1    2.77
+       100     DF1      29.76   138.80    44     1.88     93.9    2.58
+                                                                         130      15.4      297.     385.      110.1    348.1
+
+2070                                          ( 10 YRS)
+
+        10     WF1       3.97    29.31    29     0.35      0.4   18.63
+        30     DF1      10.24    74.98    24     0.90      4.7   10.60
+        50     ES1       6.51    67.72    22     0.15      1.7   22.62
+        70     WF1      15.24   108.94    35     1.15     28.4   17.56
+        90     LP1      12.89    95.11    22     0.38      8.8    1.76
+       100     DF1      31.76   144.22    42     1.74     93.8    2.55
+                                                                         140      16.6      277.     418.      118.5    364.8
+
+2080                                          ( 10 YRS)
+
+        10     WF1       4.20    36.55    26     0.21      0.4   17.83
+        30     DF1      10.89    84.53    22     0.58      4.3    6.39
+        50     ES1       6.73    67.82    22     0.20      1.7   22.04
+        70     WF1      15.86   112.81    34     0.56     27.0   17.39
+        90     LP1      13.11    96.53    21     0.20      7.9    1.02
+       100     DF1      33.98   148.97    41     1.93     93.4    2.53
+                                                                         150      17.6      259.     436.      126.2    371.7
+
+2090                                          ( 10 YRS)
+
+        10     WF1       4.40    44.12    23     0.18      0.4   17.09
+        30     DF1      11.51    89.48    23     0.54      6.6    3.70
+        50     ES1       7.01    69.86    22     0.25      1.6   21.50
+        70     WF1      16.66   116.31    33     0.73     26.2   17.22
+        90     LP1      13.32    96.63    20     0.19      7.2    0.56
+       100     DF1      36.16   153.16    40     1.89     93.2    2.50
+                                                                         160      18.6      245.     464.      133.3    386.5
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- PACIFIC NW COAST PROGNOSIS             RV:20260401    08-17-2026  04:55:08
+
+STAND ID: S248112                       MGMT ID: NONE     PNT01 DFB ON
+
+
+
+                                         SUMMARY STATISTICS (PER ACRE OR STAND BASED ON TOTAL STAND AREA)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+                      START OF SIMULATION PERIOD                       REMOVALS               AFTER TREATMENT     GROWTH THIS PERIOD
+         --------------------------------------------------- ----------------------------- ---------------------  ------------------   MAI  ------
+         NO OF              TOP      TOTAL MERCH SAWLG MERCH NO OF TOTAL MERCH SAWLG MERCH              TOP  RES  PERIOD ACCRE MORT   MERCH FOR SS
+YEAR AGE TREES  BA  SDI CCF HT  QMD  CU FT CU FT CU FT BD FT TREES CU FT CU FT CU FT BD FT  BA  SDI CCF HT   QMD  YEARS   PER  YEAR   CU FT TYP ZT
+---- --- ----- --- ---- --- --- ---- ----- ----- ----- ----- ----- ----- ----- ----- ----- --- ---- --- --- ----  ------ ---- -----   ----- ------
+1990  60   536  77  184 114  63  5.1  1877  1206     0  6045     0     0     0     0     0  77  184 114  63  5.1      10  132    11    20.1 201 23
+2000  70   485 113  245 154  77  6.5  3096  2511     0 12932     0     0     0     0     0 113  245 154  77  6.5      10  186    36    35.9 201 12
+2010  80   434 150  300 183  75  8.0  4596  4169     0 21489     0     0     0     0     0 150  300 183  75  8.0      10  226    18    52.1 201 12
+2020  90   392 195  364 217  72  9.5  6671  6157     0 33087     0     0     0     0     0 195  364 217  72  9.5      10  251    24    68.4 201 12
+2030 100   355 245  429 254  82 11.3  8938  8144     0 44474     0     0     0     0     0 245  429 254  82 11.3      10  274    33    81.4 201 11
+2040 110   322 290  482 284  92 12.9 11349 10740     0 60716     0     0     0     0     0 290  482 284  92 12.9      10  259    45    97.6 201 11
+2050 120   291 324  516 303 101 14.3 13483 12695     0 73314     0     0     0     0     0 324  516 303 101 14.3      10  240    57   105.8 201 11
+2060 130   270 350  541 316 110 15.4 15312 14668     0 86822     0     0     0     0     0 350  541 316 110 15.4      10  261    63   112.8 201 11
+2070 140   251 380  570 332 119 16.6 17290 16688     0101381     0     0     0     0     0 380  570 332 119 16.6      10  210    68   119.2 201 11
+2080 150   236 397  582 338 126 17.6 18708 18061     0111871     0     0     0     0     0 397  582 338 126 17.6      10  236    70   120.4 201 11
+2090 160   223 422  605 351 133 18.6 20370 19865     0124734     0     0     0     0     0 422  605 351 133 18.6       0    0     0   124.2 201 11
+
+NOTE: 11 LINES OF SUMMARY DATA HAVE BEEN WRITTEN TO THE FILE REFERENCED BY LOGICAL UNIT  4
+
+
+
+
+                                                     ACTIVITY SUMMARY 
+
+STAND ID= S248112                       MGMT ID= NONE     PNT01 DFB ON                                                           
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  ACTIVITY DISPOSITION  PARAMETERS:
+-----  ----  ---------  --------  ----  --------------------  --------------------------------------------------------------------
+
+   1   1990
+
+   2   2000
+               DFB      MANSCHED  2000  DONE IN 2000
+
+   3   2010
+   4   2020
+   5   2030
+   6   2040
+   7   2050
+   8   2060
+   9   2070
+  10   2080
+----------------------------------------------------------------------------------------------------------------------------------
+                                                                                                                                     
+                                                                                                                                     
+             DOUGLAS-FIR BEETLE MORTALITY                                                                                            
+ ----------------------------------------------------------                                                                          
+ YEAR OF THE OUTBREAK             :  2000                                                                                            
+ PROJECTED MORTALITY (TREES/ACRE) :   9.0                                                                                            
+                                                                                                                                     
+              TOTAL         DF          DF          DF                                                                               
+            TREES/ACRE  TREES/ACRE  TREES/ACRE  CU/FT VOL                                                                            
+ DBH CLASS    ALIVE       ALIVE       KILLED       LOST                                                                              
+ ---------  ----------  ----------  ----------  ----------                                                                           
+    1 -  3     204.5       102.4         0.0         0.0                                                                             
+    3 -  5      54.8        26.3         0.0         0.0                                                                             
+    5 -  7     102.2        27.3         0.0         0.0                                                                             
+    7 -  9      54.2         0.0         0.0         0.0                                                                             
+    9 - 11      70.5         0.0         0.0         0.0                                                                             
+   11 - 13      31.4        10.6         4.8       114.8                                                                             
+   13 - 15       4.4         4.4         2.3        64.1                                                                             
+   15 - 17       2.7         2.7         1.8        66.0                                                                             
+   17 - 19       0.0         0.0         0.0         0.0                                                                             
+   19 - 21       0.0         0.0         0.0         0.0                                                                             
+   21 - 23       0.0         0.0         0.0         0.0                                                                             
+   23 - 25       0.0         0.0         0.0         0.0                                                                             
+   25 - 27       0.0         0.0         0.0         0.0                                                                             
+   27 - 29       0.0         0.0         0.0         0.0                                                                             
+   29 - 31       0.0         0.0         0.0         0.0                                                                             
+   31 - 33       0.0         0.0         0.0         0.0                                                                             
+   33 - 35       0.0         0.0         0.0         0.0                                                                             
+   35 - 37       0.0         0.0         0.0         0.0                                                                             
+   37 - 39       0.0         0.0         0.0         0.0                                                                             
+   39 - 40+      0.0         0.0         0.0         0.0                                                                             
+             ----------  ----------  ----------  ----------                                                                          
+               524.6       173.6         9.0       244.9                                                                             
+                                                                                                                                     
+                                                                                                                                     
+               DOUGLAS-FIR BEETLE IN DOUGLAS-FIR             VERSION 1.0                                                             
+                                                                                                                                     
+ STAND ID:  S248112                   ; MANAGEMENT ID:  NONE                                                                         
+                                                                                                                                     
+ *============================================================================*                                                      
+ *---> Note:  The combined insect and pathogen models (in one executable) <---*                                                      
+ *---> should NOT be used without close consultation with the forest's    <---*                                                      
+ *---> pathologist and entomologist.  Because of the potential for more   <---*                                                      
+ *---> than one insect and/or pathogen acting on the same tree species,   <---*                                                      
+ *---> the interpretation of the results of the combined model can be     <---*                                                      
+ *---> inaccurate without appropriate model knowledge and/or experience.  <---*                                                      
+ *============================================================================*                                                      
+                                                                                                                                     
+---------------------- DOUGLAS-FIR BEETLE ACTIVITY SUMMARY -----------------------                                                   
+                                                                                                                                     
+-------- CYCLE --------        YEAR OF           CONDITIONAL          WAS THERE AN                                                   
+NUMBER            YEARS     REGIONAL DFB        PROBABILITY          OUTBREAK IN                                                     
+                               OUTBREAK       OF STAND OUTBREAK       THIS STAND                                                     
+----------------------------------------------------------------------------------                                                   
+                                                                                                                                     
+  1         1990 - 2000                             0.000                 NO                                                         
+  2         2000 - 2010          2000               0.000                 YES                                                        
+  3         2010 - 2020                             0.000                 NO                                                         
+  4         2020 - 2030                             0.000                 NO                                                         
+  5         2030 - 2040                             0.296                 NO                                                         
+  6         2040 - 2050                             0.301                 NO                                                         
+  7         2050 - 2060                             0.322                 NO                                                         
+  8         2060 - 2070                             0.347                 NO                                                         
+  9         2070 - 2080                             0.349                 NO                                                         
+ 10         2080 - 2090                             0.352                 NO                                                         

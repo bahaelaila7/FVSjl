@@ -1,0 +1,360 @@
+establishment :estab RNG fidelity (D10) vs live FVSsn: Error During Test at /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_estab_rng_d10.jl:44
+  Got exception outside of a @test
+  MethodError: no method matching (::var"#_bn_snapshot##0#_bn_snapshot##1"{Vector{Int64}, Dict{Int64, Any}})(::StandState{Southern}, ::Int64, ::Int64, ::Int64)
+  The function `#_bn_snapshot##0` exists, but no method is defined for this combination of argument types.
+  
+  Closest candidates are:
+    (::var"#_bn_snapshot##0#_bn_snapshot##1")(::Any, ::Any, ::Any)
+     @ Main /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_estab_rng_d10.jl:30
+  
+  Stacktrace:
+    [1] write_sum_file(io::IOBuffer, s::StandState{Southern}; period::Int64, stand_id::String, mgmt_id::String, sample_wt::Nothing, variant::String, date::String, time::String, header::Bool, collect_rows::Nothing, cycle_hook::var"#_bn_snapshot##0#_bn_snapshot##1"{Vector{Int64}, Dict{Int64, Any}}, compute_collect::Nothing, cutlist_collect::Nothing, carbon_collect::Nothing, potfire_collect::Nothing, hrvcarbon_collect::Nothing)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/io/summary.jl:225
+    [2] _bn_snapshot(years::Vector{Int64})
+      @ Main /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_estab_rng_d10.jl:38
+    [3] macro expansion
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_estab_rng_d10.jl:49 [inlined]
+    [4] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+    [5] top-level scope
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_estab_rng_d10.jl:45
+    [6] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:307
+    [7] top-level scope
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/runtests.jl:15
+    [8] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+    [9] macro expansion
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/runtests.jl:109 [inlined]
+   [10] include(mod::Module, _path::String)
+      @ Base ./Base.jl:306
+   [11] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:317
+   [12] _start()
+      @ Base ./client.jl:550
+FIA-ready database reader (DATABASE/DSNIN): Error During Test at /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_fia_reader.jl:41
+  Got exception outside of a @test
+  SQLiteException("unable to open database file")
+  Stacktrace:
+    [1] sqliteerror(args::Ptr{SQLite.C.sqlite3})
+      @ SQLite /workspace/.julia_depot/packages/SQLite/Usndx/src/SQLite.jl:36
+    [2] SQLite.DB(f::String)
+      @ SQLite /workspace/.julia_depot/packages/SQLite/Usndx/src/SQLite.jl:73
+    [3] load_fia_stand!(s::StandState{LakeStates}, dbpath::SubString{String}, standsql::String, treesql::String)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/io/fia_database.jl:424
+    [4] kw_database!(s::StandState{LakeStates}, rec::KeywordRecord, kr::KeywordReader)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/keyword_dispatch.jl:1632
+    [5] process_keywords!(s::StandState{LakeStates}, kr::KeywordReader, base_path::String)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/keyword_dispatch.jl:2372
+    [6] initialize!(s::StandState{LakeStates}, kr::KeywordReader, base_path::String; inherited_format::String)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/init.jl:96
+    [7] initialize!
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/init.jl:72 [inlined]
+    [8] each_stand(keypath::String; variant::LakeStates, faithful::Bool)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/init.jl:134
+    [9] each_stand
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/init.jl:125 [inlined]
+   [10] run_keyfile(keypath::String; variant::LakeStates, output::Nothing, faithful::Bool, period::Int64, date::String, time::String)
+      @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/simulate.jl:784
+   [11] macro expansion
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_fia_reader.jl:62 [inlined]
+   [12] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+   [13] top-level scope
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/integration/test_fia_reader.jl:47
+   [14] include(mapexpr::Function, mod::Module, _path::String)
+      @ Base ./Base.jl:307
+   [15] top-level scope
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/runtests.jl:15
+   [16] macro expansion
+      @ ~/.julia/juliaup/julia-1.12.7+0.x64.linux.gnu/share/julia/stdlib/v1.12/Test/src/Test.jl:1777 [inlined]
+   [17] macro expansion
+      @ /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/runtests.jl:133 [inlined]
+   [18] include(mod::Module, _path::String)
+      @ Base ./Base.jl:306
+   [19] exec_options(opts::Base.JLOptions)
+      @ Base ./client.jl:317
+   [20] _start()
+      @ Base ./client.jl:550
+Test Summary:                                                                                      |  Pass  Error  Broken  Total     Time
+FVSjl                                                                                              | 40375      2     111  40488  3m55.5s
+  parameters                                                                                       |     6                     6     0.4s
+  StandState construction & faithful defaults                                                      |    20                    20     1.4s
+  RNG bit-exactness (RANN LCG = FVS algorithm)                                                     |     9                     9     0.0s
+  thread independence (no shared state)                                                            |     3                     3     0.0s
+  species table shapes & anchors (loaded from CSV)                                                 |    11                    11     0.0s
+  species resolution (direct + SPCTRN crosswalk)                                                   |    11                    11     0.1s
+  init_blockdata! applies SN defaults                                                              |     8                     8     0.0s
+  crown_width families (value-identity vs baked library)                                           |     8                     8     0.1s
+  FORTYP classifies snt01 as mixed upland hardwoods (520)                                          |     8                     8     6.7s
+  DGF coefficient tables (loaded from CSV)                                                         |     3                     3     0.0s
+  ecological-unit → physiographic group                                                            |     8                     8     0.0s
+  dgf! runs on snt01 and is finite/sane                                                            |     3                     3     0.2s
+  DG calibration COR vs Oracle A                                                                   |     4              1      5     0.9s
+  height growth (HTGF) — per-tree HTG vs the 3-decimal reference                                   |     6                     6     0.1s
+  cycle loop runs and grows the stand                                                              |     3                     3     9.5s
+  SDIMAX (SDICAL) — exact internal pin (live via .sum)                                             |     1                     1     0.0s
+  density mortality (Pretzsch) — Zeide dia0 + activation                                           |     3                     3     0.0s
+  mortality reduces TPA in the right regime                                                        |     2                     2     0.0s
+  Western Root Disease (WRD) — Chunk −1                                                            |  1159                  1159  2m11.8s
+  Douglas-fir Beetle (DFB) — beachhead                                                             |   117                   117     0.3s
+  DVEE (R9 Gevorkiantz) volume vs live stamp                                                       |    13                    13     0.1s
+  IE ESTOCK P(stocking) — task #143 chunk A1                                                       |     7                     7     0.0s
+  IE ESNSPE P(#species) — task #143 chunk A2a                                                      |     4                     4     0.1s
+  IE ESPADV P(advance species) — task #143 chunk A2b                                               |    11                    11     0.1s
+  IE ESPXCS P(excess species) — task #143 chunk A2b                                                |    10                    10     0.0s
+  IE ESRANN establishment LCG — task #143 chunk A2c                                                |     4                     4     0.0s
+  IE OCURHT habitat occupancy — task #143                                                          |     5                     5     0.1s
+  IE AUTOES species selection END-TO-END — task #143 chunk A2c                                     |     3                     3     0.0s
+  IE AUTOES multi-plot seed chain — task #143 chunk A2c                                            |     7                     7     0.0s
+  IE AUTOES per-plot ITPP — task #143 chunk A2c                                                    |     2                     2     0.0s
+  IE AUTOES per-plot species selection — task #143 chunk A2c                                       |     7                     7     0.1s
+  IE AUTOES total ingrowth — task #143 chunk A2c                                                   |     2                     2     0.0s
+  IE AUTOES full per-species tally — task #143 chunk A2c                                           |    10                    10     0.0s
+  IE AUTOES seed0 from ESSS + self-contained tally — task #143 chunk A2c                           |     3                     3     0.0s
+  IE ESADVH advance-regen height — task #143 chunk A2c                                             |     6                     6     0.0s
+  IE ESDLAY germination delay — task #143 chunk A2c                                                |     2                     2     0.1s
+  IE ESPSUB P(subsequent species) — task #143 chunk A2c                                            |    10                    10     0.1s
+  IE AUTOES ICHOI adv/subs dispatch — task #143 chunk A2c                                          |     1                     1     0.1s
+  IE AUTOES advance-height integration — task #143 chunk A2c                                       |     6                     6     0.1s
+  IE AUTOES subsequent + excess heights — task #143 chunk A2c                                      |     3                     3     0.0s
+  IE ESTPP trees-per-plot — task #143 chunk A2c                                                    |     1                     1     0.0s
+  IE AUTOES scheduler (esnutr.f) — task #143 chunk A3                                              |     2                     2     0.1s
+  IE AUTOES ESTAB index derivation (esplt2.f/estab.f) — task #143 chunk A3e                        |    10                    10     0.0s
+  IE AUTOES full compose from stand inputs (ie_autoes_run) — task #143 chunk A3e                   |    12                    12     0.0s
+  OC C2 — ORGANON PREPARE TMPCAL calibration (bit-exact vs live oracle)                            |    59                    59     0.3s
+  OC C2 — DF↔PP ORGANON site-index conversion (oc/sitset.f:181-189)                                |     2                     2     0.1s
+  OC C2 — WF/ES species crosswalk (vie/spctrn.f ASPT col 20)                                       |     4                     4     0.0s
+  OC C4b — ORGANON HTGRO2 minor-species height growth (bit-exact vs live oracle)                   |     6                     6     0.0s
+  OC C8b — ORGANON PREPARE dubbing + ACALIB into growth (bit-exact vs live oracle)                 |     4                     4     0.1s
+  OP ORGANON NWO engine (S248112)                                                                  |    38                    38     0.8s
+  OP FVS-native DGF/HTGF (S248112, non-ORGANON species)                                            |    41                    41     0.2s
+  OP site-index fan (S248112, forest 708 / habitat 40)                                             |    11                    11     0.2s
+  OP BLM volume per-tree (S248112 cyc0, vs instrumented FVSop_dbg)                                 |    81                    81     0.1s
+  OP opt01 cyc0 .sum bit-exact (S248112 vs FVSop_clean)                                            |    13                    13     2.9s
+  SVS chunk 0 — cyc0 object list bit-exact vs live FVSkt                                           |     6                     6     0.2s
+  SVS multi-cycle — end-of-projection + begin-cycle pictures vs live FVSkt                         |   190                   190     0.6s
+  SVS snag — standing-dead aging + display bit-exact vs live FVSkt (measured)                      |     9                     9     0.0s
+  Fortran FORMAT parser                                                                            |     6                     6     0.0s
+  tree records match Oracle A (snt01.tre)                                                          |     4                     4     0.9s
+  keyword lexer vs Oracle A                                                                        |     4                     4     1.2s
+  CSV trees: lossless round-trip                                                                   |     3                     3     0.5s
+  format-agnostic loader: .tre and .csv agree                                                      |     1                     1     0.0s
+  YAML keywords: lossless round-trip + format-agnostic loader                                      |     6                     6     3.3s
+  reverse translation: modern → legacy round-trips                                                 |     6                     6     0.4s
+  translate_io picks direction by extension                                                        |     3                     3     0.1s
+  semantic stand YAML (format: fvs-stand) unravels to canonical keyword order                      |     8                     8     0.7s
+  semantic multi-stand + raw_keywords escape hatch                                                 |     9                     9     0.2s
+  multi-scenario example: FVSjl form-invariant + .key conversion has REWIND                        |     4                     4     1.6s
+  YAML `variant:` field selects the model (explicit arg overrides)                                 |     9                     9     0.0s
+  output format: .sum (default) vs CSV — flag + YAML `output_format:`                              |    12                    12     0.5s
+  D19 — inline TREEDATA records (sn.key, no external .tre)                                         |    10                    10     0.1s
+  inline TREEDATA without -999 stops at next keyword                                               |     3                     3     0.1s
+  DBS FVS_Summary table vs Fortran                                                                 |    56                    56     0.6s
+  DBS FVS_TreeList table — per-tree aggregates vs .sum                                             |    14                    14     0.5s
+  C6 DBS — FVS_Compute table (COMPUTDB)                                                            |     4              2      6     0.5s
+  C6 DBS — FVS_InvReference table                                                                  |    24                    24     0.4s
+  C6 DBS — FVS_CutList table (CUTLIST)                                                             |     8                     8     0.5s
+  initialize! snt01 stand 1: keyword state                                                         |     9                     9     0.0s
+  tree attributes: crown conversion + known species                                                |     5                     5     0.0s
+  cycle-0 density stats — BIT-EXACT vs live .sum (stand 1)                                         |     9                     9     0.0s
+  species loading matches Oracle A (custom format)                                                 |     2                     2     0.7s
+  snt01 .sum cycle-0 (bit-exact start-state) + cycle-1 tracking                                    |    20                    20     0.1s
+  no silently-ignored keywords in the canonical SN scenarios (anti-silent-gap guard)               |     2                     2     0.0s
+  net01 (NE) cycle-0 stand state — bit-exact vs FVSne oracle                                       |    14                    14     3.1s
+  net01 (NE) cycle-1 growth — vs live FVSne (stand 1, unthinned)                                   |     6                     6     5.2s
+  net01 (NE) thinning-keyword breadth — vs live FVSne + header variant                             |    18                    18     0.9s
+  net01 (NE) stand-2 THINDBH multi-cycle BA — vs live FVSne (audit A1, badist fix)                 |    18                    18     0.0s
+  net01 (NE) multi-species cycle-0 volume — vs live FVSne (audit A2)                               |     7                     7     0.1s
+  net01 (NE) site-index 40/75 dependence — vs live FVSne (audit A2 breadth)                        |    12                    12     0.0s
+  net01 (NE) 30-species 5-cycle growth — BIT-EXACT vs live FVSne (audit A2 breadth)                |    12                    12     0.0s
+  net01 (NE) ESSUBH establishment base height — bit-exact vs live FVSne                            |     4                     4     0.0s
+  net01 (NE) stand-3 shelterwood + stand-5 BARE — vs live FVSne (audit A1 breadth)                 |    17                    17     0.0s
+  net01 (NE) FULL keyfile end-to-end (5 stands incl. FFE) — vs live FVSne (audit A1)               |     4                     4     0.1s
+  NE IFOR=3 Allegheny HT-DBH override — vs live FVSne                                              |    10                    10     0.0s
+  NE R9 merch-cubic topwood (sawtimber-sized, no sawlog) — vs live FVSne .trl                      |    10                    10     0.0s
+  NE 15-species diverse stand, 3 cycles — vs live FVSne (broadening)                               |    12                    12     0.1s
+  NE cross-forest merch rules (IFOR 1/4/5) — vs live FVSne (broadening)                            |     9                     9     0.1s
+  NE dense 20-tree stand, 4 cycles (SDI mortality + BAL) — vs live FVSne (broadening)              |    15                    15     0.0s
+  NE thinning + sprouting (THINBBA + AUTOES) — vs live FVSne (broadening)                          |     3                     3     0.1s
+  NE aspen (sp49) suckering — vs live FVSne (broadening)                                           |     2                     2     0.0s
+  NE FFE/SIMFIRE on 15 species — vs live FVSne (broadening)                                        |     4                     4     0.0s
+  NE establishment PLANT diverse hardwoods — vs live FVSne (broadening)                            |    16                    16     0.0s
+  NE establishment PLANT 8 diverse species (soft+hard) — vs live FVSne (broadening)                |    15                    15     0.0s
+  NE mid-cycle SIMFIRE fires in its containing cycle — vs live FVSne (broadening)                  |     8                     8     0.0s
+  CS cst01 cycle-0 stand columns (vs live FVScs)                                                   |    15                    15     3.0s
+  CS cst01 cycle-1 growth (vs live FVScs)                                                          |    10                    10     5.0s
+  CS cst01 multi-cycle projection (vs live FVScs, 10 cycles)                                       |    19                    19     0.2s
+  CS cst01 BARE-GROUND-PLANT establishment (vs live FVScs)                                         |    70                    70     0.9s
+  CS cst01 thinning prescriptions BIT-EXACT (vs live FVScs)                                        |    19                    19     0.4s
+  CS stump sprouting (SPROUT + clearcut, vs live FVScs)                                            |     7                     7     0.1s
+  LS lst01 cycle-0 stand columns (vs live FVSls)                                                   |    10                    10     3.2s
+  LS lst01 cycle-1 growth spine (vs live FVSls)                                                    |     6                     6     5.2s
+  LS FFE fire behavior + mortality (vs live FVSls)                                                 |    15                    15     0.6s
+  LS snag Stand-Dead carbon (SNAGINIT + fire, vs live FVSls)                                       |     4                     4     0.8s
+  LS BARE-plant establishment (vs live FVSls)                                                      |     5                     5     0.0s
+  LS post-fire stump sprouting (vs live FVSls)                                                     |     3                     3     0.1s
+  CS all-species coverage (96 species, vs live FVScs)                                              |   112                   112     0.2s
+  NE all-species coverage (107 species, vs live FVSne)                                             |   560                   560     0.1s
+  SN all-species coverage (90 species, vs live FVSsn)                                              |   548             12    560     0.1s
+  LS all-species coverage (67 species, vs live FVSls)                                              |   336                   336     0.0s
+  SN snt01 — full multi-stand reference scenarios (vs live FVSsn)                                  |    56                    56     0.5s
+  NE net01 — full multi-stand reference scenarios (vs live FVSne)                                  |    51                    51     0.1s
+  CS cst01 — full multi-stand reference scenarios (vs live FVScs)                                  |    51                    51     0.1s
+  LS lst01 — full multi-stand reference scenarios (vs live FVSls)                                  |    51                    51     0.3s
+  LS site-productivity sweep — deterministic growth BIT-EXACT (vs live FVSls)                      |    40                    40     0.1s
+  R8 Clark COEFFSO%DIB17 — cypress/green-ash merch volume (D7) vs live FVSsn                       |    15                    15     0.3s
+  SIMFIRE date-default + multi-fire scheduling (D9) vs live FVSsn                                  |    11              1     12     0.1s
+  COMPRESS still triples its own cycle (merch volume) vs live FVSsn                                |     6                     6     0.0s
+  GROWTH FINT≠5 measurement period (D2) vs live FVSsn                                              |     9                     9     0.2s
+  R8 International ¼" board (D11) vs live FVSsn                                                    |     5                     5     0.2s
+  multi-cycle regression vs Fortran-oracle golden                                                  |   339             11    350     0.4s
+  CUTS coverage (decision-flow gap tracker)                                                        |    17                    17     0.3s
+  REGEN / establishment coverage (ESTAB gap tracker)                                               |    10                    10     0.0s
+  multi-point establishment (NPTIDS>1, estab.f nn-loop)                                            |     4                     4     0.0s
+  Fort Bragg (forest 701) volume coverage                                                          |     8                     8     0.0s
+  multi-stand driver (each_stand) — snt01 5 stands                                                 |    16                    16     0.0s
+  full multi-cycle driver (run_keyfile) — snt01                                                    |    36                    36     0.2s
+  multi-stand .sum parity vs Fortran (run_keyfile, all 5 stands)                                   |    51                    51     0.2s
+  REGENT small-tree HCOR calibration vs Fortran                                                    |     8                     8     0.0s
+  growth/mortality multipliers (MULTS) vs Fortran                                                  |   184              4    188     0.1s
+  size cap (TREESZCP / SIZCAP) vs Fortran                                                          |    50              4     54     0.2s
+  FIXDG / FIXHTG one-shot scalers vs Fortran                                                       |   136                   136     0.1s
+  HTGSTOP / TOPKILL top damage vs Fortran                                                          |   116                   116     0.1s
+  FIXMORT forced mortality vs Fortran                                                              |   215              1    216     0.1s
+  CRNMULT crown multiplier vs Fortran                                                              |    56                    56     0.1s
+  SPGROUP species groups vs Fortran                                                                |   135                   135     0.1s
+  NOTRIPLE / NUMTRIP tripling control vs Fortran                                                   |    92                    92     0.2s
+  TIMEINT cycle calendar vs Fortran                                                                |    34              2     36     0.1s
+  COMPUTE event-monitor variables vs Fortran                                                       |    37              2     39     0.2s
+  VOLUME merch-standard override vs Fortran                                                        |    27                    27     0.1s
+  volume defect keywords vs Fortran                                                                |   122                   122     0.3s
+  per-tree DEFECT input vs Fortran                                                                 |    36                    36     0.1s
+  VOLEQNUM cubic equation override vs Fortran                                                      |    49                    49     0.1s
+  BFVOLUME board-foot override (+Region-8) vs Fortran                                              |    59                    59     0.1s
+  MINHARV minimum-harvest gate vs Fortran                                                          |    39                    39     0.2s
+  SPLEAVE leave-species during thin vs Fortran                                                     |    68                    68     0.1s
+  FERTILIZE growth response vs Fortran                                                             |    59              2     61     0.2s
+  TCONDMLT condition-weighted thin vs Fortran                                                      |   116                   116     0.2s
+  TCONDMLT point weights (PBAWT/PCCFWT/PTPAWT) are inert — matches live FVS                        |    10                    10     0.0s
+  BC DMNTRD crown-third infection remap (dmntrd.f)                                                 |    22                    22     0.1s
+  BC tripling / regen offspring DMR propagation (MISPUT)                                           |     5                     5     0.3s
+  BC NEWSPRED YSM DMNTRD trajectory (cornered vs oracle DM dump)                                   |     4                     4     0.6s
+  TFIXAREA fixed-plot-area expansion vs Fortran                                                    |    68                    68     0.1s
+  CUTEFF default cutting efficiency vs Fortran                                                     |    48                    48     0.1s
+  MANAGED → DGF planted growth term                                                                |    46                    46     0.3s
+  BAMAX → SDImax self-thinning cap                                                                 |    47                    47     0.2s
+  SDIMAX → per-species SDImax + self-thinning bounds                                               |    41                    41     0.2s
+  RANNSEED → reseed main RNG stream                                                                |    40                    40     0.2s
+  COMPRESS keyword recognition + scheduling                                                        |     4                     4     0.0s
+  COMPRESS algorithm — record clustering + merge                                                   |    28                    28     0.2s
+  SSTAGE — structural-stage class vs Fortran                                                       |    39              2     41     1.2s
+  single-canopy-tree structure-stage (NTREES≤1 cover branch) vs live FVS                           |    12                    12     0.0s
+  Stand Carbon Report — Jenkins live pools vs live Fortran                                         |    22                    22     0.2s
+  Stand Carbon Report — FFE fuel driver across grown cycles                                        |    19                    19     0.1s
+  Stand Carbon Report — .out writer (CARBREPT) byte-exact vs Fortran                               |     9                     9     0.2s
+  Stand Carbon Report — LIVE pools bit-exact on a bit-exact-growth FFE stand (carbon_snt)          |    30              1     31     0.3s
+  Stand Carbon Report — SNAGPSFT soft-snag DDW bit-exact (soft CWD1 cone-split, fmcwd LOHT(1)=1.0) |     5                     5     0.2s
+  Stand Carbon Report — NE fire + carbon (SIMFIRE+CARBREPT, snag height-loss HTX=1.0)              |    32              2     34     1.0s
+  Stand Carbon Report — emitted by the LIVE run_keyfile path (CARBREPT integration)                |    12                    12     0.6s
+  CARBCALC=0 FFE-fuel live carbon method (live-validated)                                          |    17              3     20     0.1s
+  FVS_Carbon DBS table writer (dbsfmcrpt.f schema + round-trip)                                    |     7                     7     0.2s
+  FVS_Fuels DBS table — loadings grounded in validated DDW/Floor + round-trip (dbsfuels.f)         |     7                     7     0.2s
+  FVS_SnagSum DBS table — snag density by hard/soft × DBH class (dbsfmssnag.f)                     |     7                     7     0.2s
+  FVS_Down_Wood_Vol/Cov DBS tables — volume & cover from validated cwd (dbsfmdwvol/cov.f)          |     6                     6     0.3s
+  potential_fire — dual-scenario surface fire behavior (FVS_PotFire core, fmpofl.f)                |     7                     7     0.0s
+  FVS_Hrv_Carbon — harvested-wood-products carbon fate (fmscut.f/fmchrvout.f, FAPROP)              |    10              1     11     0.2s
+  FVS_PotFire DBS table — potential fire report + writer (fmpofl.f / dbsfmpf.f)                    |    10                    10     0.2s
+  FVS_BurnReport DBS table — captured from a SIMFIRE event (dbsfmburn.f)                           |    17                    17     0.6s
+  Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)                |     4                     4     0.0s
+  Snag falldown — age-aware Stand-Dead tracks the Fortran (carbon_snt, deaths-spreading fix)       |     4                     4     0.0s
+  SNAGBRK keyword — snag height-loss reduces the bole (fmin.f:504, opt 10; FMSNGHT)                |     4                     4     0.0s
+  SnagSum hard→soft split — true-YRDEAD classification tracks live (carbon_snt, #28/3b)            |     9                     9     0.1s
+  SNAGDCAY keyword — per-species DECAYX override (fmin.f:633, opt 11; live-validated)              |     5                     5     0.0s
+  FFE fire-cycle carbon report — POST-fire phase + released (FMCRBOUT/FMBURN order, #28)           |     6              2      8     0.1s
+┌ Warning: MORTMSB field out of range — alternate mortality disabled (defaults restored).
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/keyword_dispatch.jl:182
+┌ Warning: MORTMSB field out of range — alternate mortality disabled (defaults restored).
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/engine/keyword_dispatch.jl:182
+┌ Warning: MORTMSB: additional mortality target (2.4 TPA) exceeds the TPA in the DBH class (2.0); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.3 TPA) exceeds the TPA in the DBH class (2.0); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.3 TPA) exceeds the TPA in the DBH class (1.9); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.2 TPA) exceeds the TPA in the DBH class (1.8); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.1 TPA) exceeds the TPA in the DBH class (1.7); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.1 TPA) exceeds the TPA in the DBH class (1.7); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (2.0 TPA) exceeds the TPA in the DBH class (1.6); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+┌ Warning: MORTMSB: additional mortality target (1.9 TPA) exceeds the TPA in the DBH class (1.5); alternate mortality cancelled this cycle.
+└ @ FVSjl /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/src/variants/southern/mortality.jl:430
+ERROR: LoadError: Some tests did not pass: 40375 passed, 0 failed, 2 errored, 111 broken.
+in expression starting at /workspace/FVSjl/.claude/worktrees/agent-ad1f48f043a0892cc/test/runtests.jl:14
+  FFE fire stand (fire_early SIMFIRE) vs Fortran baseline                                          |                    1      1     0.0s
+  MOISTURE keyword + FLAG(1) carry gate vs Fortran baseline                                        |    25                    25     0.0s
+  FUELMODL forced fuel model vs Fortran baseline                                                   |    23                    23     0.0s
+  FUELTRET fuel-bed depth adjustment vs Fortran baseline                                           |    23                    23     0.0s
+  DEFULMOD custom fuel model vs Fortran baseline                                                   |    23                    23     0.0s
+  crown-debris TFALL — foliage 1 yr (redcedar 3) + woody by class/size (fmvinit.f:1017-1058)       |     7                     7     0.0s
+  B1 flame/scorch — BurnReport vs live FVS (fmfint.f:541 0.45·(byram/60)^0.46)                     |     4              1      5     0.0s
+  GROWTH keyword — recognition + parameter capture                                                 |     5                     5     0.1s
+  GROWTH IDG=1 — past-DBH field + BRATIO bark correction vs live Fortran                           |    39                    39     0.0s
+  GROWTH FINT — input measurement-period scaling vs live Fortran                                   |    39                    39     0.0s
+  GROWTH FINTH — height-measurement-period scaling vs live Fortran                                 |    40                    40     0.0s
+  NOTRE FINT/FINTM dead-record inflation (notre.f:122-124) vs Fortran                              |    17                    17     0.0s
+  DGSTDEV → DGSD stochastic-DG bound                                                               |    40                    40     0.1s
+  NOCALIB → disable DG self-calibration                                                            |    41                    41     0.1s
+  SERLCORR → ARMA(1,1) DGSCOR phi/theta                                                            |    42                    42     0.1s
+  RESETAGE → rebase stand age                                                                      |    18                    18     0.1s
+  SDICALC → SDI method + thresholds                                                                |    41                    41     0.1s
+  CCADJ → recognized .sum-inert no-op (SN)                                                         |     3                     3     0.1s
+  CYCLEAT → extra cycle boundary (non-uniform schedule)                                            |    44                    44     0.1s
+  READCOR / REUSCOR growth corrections                                                             |    63                    63     0.1s
+  SETSITE → scheduled mid-run site change                                                          |    69                    69     0.1s
+  NOHTDREG → HT-DBH (LHTDRG) calibration control                                                   |     7                     7     0.0s
+  NOHTDREG calibration dub vs live FVS (cratet.f HT-DBH fit)                                       |     7              1      8     0.1s
+  MORTMSB alternate mortality (mature-stand breakup)                                               |   130              2    132     0.3s
+  SPROUT per-species/DBH-range multiplier table                                                    |   118                   118     0.2s
+  establishment regen crown ratio uses PCCF (stand CCF), not 0                                     |    20              1     21     0.3s
+  establishment :estab RNG fidelity (D10) vs live FVSsn                                            |            1              1     2.3s
+  THINPRSC residual-fragment deletion (D14) vs live FVSsn                                          |    26                    26     0.1s
+  fire FMEFF RANN save-restore (D15) vs live FVSsn                                                 |    16                    16     0.5s
+  MCFDLN form-model coefficients                                                                   |     5                     5     0.1s
+  sprout sub-routines (NSPREC/SPRTHT/ESSPRT)                                                       |    33                    33     0.1s
+  ESUCKR stump-sprout regeneration vs Fortran                                                      |    80                    80     0.1s
+  cycle-number-dated thin fires in the matching cycle                                              |     5                     5     0.1s
+  Jenkins tree biomass (FMCBIO)                                                                    |     9                     9     0.0s
+  FFE species properties (fmvinit.f / fmcrow.f ISPMAP)                                             |    18                    18     0.0s
+  crown biomass by size class (FMCROWE) — structural                                               |    27                    27     0.0s
+  FFE surface fuel loading (FMCBA / FUINI / FULIV)                                                 |    17                    17     0.0s
+  FFE forest-type classifier (FMSNFT)                                                              |     8                     8     0.0s
+  FFE per-cycle fuel/cover update (FMCBA)                                                          |     6              1      7     0.1s
+  fire mortality (FMEFF) + bark thickness (FMBRKT)                                                 |    60                    60     0.1s
+  Rothermel surface fire (FMFINT)                                                                  |    40              1     41     0.2s
+  FFE fire driver (FMBURN/FMEFF)                                                                   |    14                    14     0.1s
+  standing live-tree carbon (FMCRBOUT)                                                             |     8                     8     0.0s
+  dead + total stand carbon pools (FMCRBOUT)                                                       |    11                    11     0.0s
+  FMCWD surface-fuel decay                                                                         |     9                     9     0.0s
+  FFE crown-lift rate X (FMSDIT)                                                                   |     7                     7     0.0s
+  snag falldown + decay (FMSFALL)                                                                  |    27                    27     0.1s
+  LS snag dynamics (FMSFALL new-equation + FMSNGHT height loss)                                    |     8                     8     0.0s
+  fire fuel consumption (FMCONS)                                                                   |    15                    15     0.2s
+  ECON discounting / present value (eccalc.f)                                                      |   109                   109     0.7s
+  long-run COMCUP zero-PROB record deletion (dense_long, 30 cycles)                                |     4              1      5     0.0s
+  event monitor — algebraic condition evaluator                                                    |     9                     9     0.0s
+  event monitor — snt01 stand 2 IF/THEN fires the THINDBH block                                    |     5                     5     0.0s
+  event monitor — BSDI is the Reineke SDIBC, not the BA                                            |     3                     3     0.0s
+  event monitor — NO/YES constants + TIME step function (algkey/algevl/evtstv)                     |    11                    11     0.0s
+  event monitor — ** exponentiation (algcmp.f:103, algevl.f:339)                                   |     7                     7     0.0s
+  SN keyword-coverage drop-in vs FVSsn                                                             |    38             37     75     0.3s
+  YML/CSV ↔ .key/.tre conversion tool                                                              |    30                    30     0.1s
+  parallel == serial (bit-identical), all variants                                                 |     4                     4     4.0s
+  Pillar-2 — grow_cycle! per-cycle allocation floor (per variant)                                  |     8                     8     0.2s
+  Pillar-4 — hot-path entry type-stability (per variant)                                           |     8                     8     0.3s
+  keyword-isolation coverage vs live (NE/CS/LS)                                                    | 31531             12  31543     0.8s
+  FIA-ready database reader (DATABASE/DSNIN)                                                       |            1              1     0.2s
+RNG of the outermost testset: Random.Xoshiro(0xd1a125d0bcbf70c3, 0x8077cb1f20c4ec16, 0xff70a46534d0b7d7, 0x96d6ec5bcd2ecd9b, 0x701c33aac3696b75)

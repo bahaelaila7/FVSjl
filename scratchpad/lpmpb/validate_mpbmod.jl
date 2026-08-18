@@ -101,13 +101,13 @@ while true
             BOLD[IG] = B1 + B2
             B1INC += B1; B3INC += B3; B3SUM[IG] += B3
         end
-        PIODEN = Float64(B1INC)/Float64(E1)
+        PIODEN = Float64(B1INC/E1)                 # gfortran: REAL division then widen to DOUBLE
         XX = 1.0 - exp(-PIODEN)
         for I in 1:NACLAS
             AGG[I,INC] = 0.0f0
             DTA = Float64(TA); DSMTA = Float64(SURF[I]) - DTA + 1.0
             if XX != 0.0 && DSMTA > 0.0
-                AGG[I,INC] = TREES[I]*Float32(betin(DTA, DSMTA, XX))
+                AGG[I,INC] = Float32(Float64(TREES[I])*betin(DTA, DSMTA, XX))  # REAL·DOUBLE→DOUBLE then round
             end
             TREES[I] -= AGG[I,INC]
         end

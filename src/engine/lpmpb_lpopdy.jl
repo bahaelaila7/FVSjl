@@ -56,7 +56,7 @@ function _lpo_mpbgam(xx::Float64)::Float64
             term *= zz; zz += 1.0
         end
         rz2 = 1.0/zz^2
-        dlgam = (zz-0.5)*log(zz) - zz + 0.9189385332046727 - log(term) +
+        dlgam = (zz-0.5)*log(zz) - zz + Float64(0.9189385332046727f0) - log(term) +
             (1.0/zz)*(0.8333333333333333e-1 - (rz2*(0.2777777777777777e-2 +
             (rz2*(0.7936507936507936e-3 - (rz2*(0.5952380952380952e-3)))))))
     end
@@ -292,13 +292,13 @@ function mpb_mpbmod(trees0::Vector{Float32}, surf::Vector{Float32}, diam::Vector
                 bold[ig] = b1 + b2
                 b1inc += b1; b3inc += b3; b3sum[ig] += b3
             end
-            pioden = Float64(b1inc)/Float64(e1)
+            pioden = Float64(b1inc/e1)
             xx = 1.0 - exp(-pioden)
             for I in 1:naclas
                 agg[I,INC] = 0.0f0
                 dta = Float64(ta); dsmta = Float64(surf[I]) - dta + 1.0
                 if xx != 0.0 && dsmta > 0.0
-                    agg[I,INC] = trees[I]*Float32(mpb_betin(dta, dsmta, xx))
+                    agg[I,INC] = Float32(Float64(trees[I])*mpb_betin(dta, dsmta, xx))
                 end
                 trees[I] -= agg[I,INC]
             end

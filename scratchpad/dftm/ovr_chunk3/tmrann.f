@@ -1,0 +1,25 @@
+      SUBROUTINE TMRANN(SEL)
+      IMPLICIT NONE
+C     Instrumented: dump every draw (hex) with a sequence counter.
+      REAL SEL,SS,SEED
+      LOGICAL LSET
+      INTEGER NDRAW
+      DOUBLE PRECISION S0,S1
+      DATA S0/55329D0/,SS/55329./,NDRAW/0/
+      S1=DMOD(16807D0*S0,2147483647D0)
+      SEL=S1/2147483648D0
+      S0=S1
+      NDRAW=NDRAW+1
+      WRITE(0,'(A,I6,1X,Z8.8)') 'DBGRNG ',NDRAW,TRANSFER(SEL,1)
+      RETURN
+      ENTRY TMRNSD (LSET,SEED)
+      IF (LSET) GOTO 10
+      SEED=SS
+      S0=SEED
+      RETURN
+   10 CONTINUE
+      IF (AMOD(SEED,2.0).EQ.0.) SEED=SEED+1
+      SS=SEED
+      S0=SEED
+      RETURN
+      END

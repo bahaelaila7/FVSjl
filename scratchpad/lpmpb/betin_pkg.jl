@@ -17,7 +17,7 @@ function mpbgam(xx::Float64)::Float64
             term *= zz; zz += 1.0
         end
         rz2 = 1.0/zz^2
-        dlgam = (zz-0.5)*log(zz) - zz + 0.9189385332046727 - log(term) +
+        dlgam = (zz-0.5)*log(zz) - zz + Float64(0.9189385332046727f0) - log(term) +
             (1.0/zz)*(0.8333333333333333e-1 - (rz2*(0.2777777777777777e-2 +
             (rz2*(0.7936507936507936e-3 - (rz2*(0.5952380952380952e-3)))))))
     end

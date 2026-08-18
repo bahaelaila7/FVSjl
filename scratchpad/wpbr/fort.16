@@ -1,0 +1,387 @@
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- INLAND EMPIRE EXPANDED                 RV:20260401    08-17-2026  09:38:41
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY INPUT
+
+KEYWORD FILE NAME: ie_riba.key
+----------------------------------------------------------------------------------------------------------------------------------
+KEYWORD    PARAMETERS:
+--------   -----------------------------------------------------------------------------------------------------------------------
+
+SCREEN     SUMMARY TABLE WILL BE PRINTED TO DATA SET REFERENCE NUMBER     6 AS RUN PROGRESSES.
+
+NOAUTOES   TALLIES AND INGROWTH WILL NOT BE ADDED AUTOMATICALLY.
+           STOCKADJ IS SET TO ZERO, AND NO SPROUTING WILL BE SIMULATED.
+
+NOTRIPLE
+
+STATS      STATISTICAL DESCRIPTION OF INPUT DATA WILL BE PROVIDED; CONFIDENCE LIMITS AT 0.05 LEVEL.
+
+STDIDENT
+           STAND ID= S248112                            IE WPBR RIBA                                                           
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           SEE "OPTIONS SELECTED BY DEFAULT" FOR FINAL DESIGN VALUES.
+
+********   FVS03 WARNING:  FOREST CODE INDICATES THE GEOGRAPHIC LOCATION IS OUTSIDE THE RANGE OF THE MODEL.  DEFAULT CODE IS USED.
+
+********   FOREST CODE USED IN THIS PROJECTION IS 118
+
+           HABITAT TYPE WILL BE MAPPED TO 570 FOR THIS PROJECTION.
+
+STDINFO    FOREST-LOCATION CODE=     118; HABITAT TYPE=570; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)= 34.0; REFERENCE CODE=     ; ECOREGION=           ; STAND ORIGIN= 0
+
+INVYEAR    INVENTORY YEAR= 1990
+
+NUMCYCLE   NUMBER OF CYCLES=  5
+
+TREEFMT 
+          (T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,       
+          T52,I2,T66,5I1,T54,7I1,T75,F3.0)                                                
+
+TREEDATA   DATA SET REFERENCE NUMBER=  2
+
+BRUST      BLISTER RUST KEYWORDS:
+
+RUSTINDX   STAND RUST INDEX INITIALLY SET TO 0.05000;
+           RUST INDEX WILL BE CALCULATED FROM BASAL AREA EACH CYCLE AND APPLIED TO ALL TREES.
+           RIBES SPECIES PROPORTIONS OF POPULATION WHICH WILL BE USED FOR RUST INDEX CALCULATION ARE:
+              RIBES H. = 0.20;  RIBES L. = 0.30;  RIBES V. = 0.50
+
+END        END OF BLISTER RUST KEYWORDS
+
+ECHOSUM    SUMMARY OUTPUT WILL BE WRITTEN TO FILE REFERENCED BY NUMBER  4
+
+PROCESS    PROCESS THE STAND.
+
+********   FVS09 WARNING:  PLOT COUNTS DO NOT MATCH DATA ON THE DESIGN RECORD; DESIGN RECORD DATA USED.
+                            PLOT COUNT=   3; NONSTOCKABLE COUNT=   0
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY DEFAULT
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           STAND ATTRIBUTES ARE CALCULATED PER ACRE OF STOCKABLE AREA.  STAND STATISTICS
+           IN SUMMARY TABLE ARE MULTIPLIED BY 0.909 TO INCLUDE TOTAL STAND AREA.
+
+STDINFO    FOREST-LOCATION CODE=     118; HABITAT TYPE=570; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)= 34.0;  REFERENCE CODE=     ; ECOREGION=           
+
+SPECIES      WP      WL      DF      GF      WH      RC      LP      ES      AF      PP
+SDI MAX      841     841     841     841     841     841     841     841     841     841
+
+SPECIES      MH      WB      LM      LL      PM      RM      PY      AS      CO      MM
+SDI MAX      841     841     841     841     841     841     841     841     841     841
+
+SPECIES      PB      OH      OS
+SDI MAX      841     841     841
+
+                                  NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS
+SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT 
+------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- 
+  WP    I00FW2W119  I00FW2W119   WL    I00FW2W073  I00FW2W073   DF    I00FW2W202  I00FW2W202   GF    I00FW2W017  I00FW2W017
+  WH    I00FW2W260  I00FW2W260   RC    I00FW2W242  I00FW2W242   LP    I00FW2W108  I00FW2W108   ES    I00FW2W093  I00FW2W093
+  AF    I00FW2W019  I00FW2W019   PP    I00FW2W122  I00FW2W122   MH    I00FW2W260  I00FW2W260   WB    I00FW2W012  I00FW2W012
+  LM    I00FW2W073  I00FW2W073   LL    I00FW2W019  I00FW2W019   PM    102DVEW106  102DVEW106   RM    102DVEW106  102DVEW106
+  PY    616BEHW231  616BEHW231   AS    102DVEW746  102DVEW746   CO    102DVEW740  102DVEW740   MM    200DVEW746  200DVEW746
+  PB    101DVEW375  101DVEW375   OH    200DVEW746  200DVEW746   OS    I00FW2W260  I00FW2W260
+
+SITECODE   SITE INDEX INFORMATION:
+            WP=    0.;  WL=    0.;  DF=    0.;  GF=    0.;  WH=    0.;  RC=    0.;  LP=    0.;  ES=    0.; AF=    0.
+            PP=    0.;  MH=    0.;  WB=    0.;  LM=   43.;  LL=    0.;  PM=   16.;  RM=   13.;  PY=   43.; AS=   60.
+            CO=   98.;  MM=   60.;  PB=   60.;  OH=   98.;  OS=    0.
+           SITE SPECIES=DF CODE=    3
+
+INVENTORY POINT CROSS REFERENCE (FVS SEQUENTIAL POINT NUMBER = POINT NUMBER AS ENTERED IN THE INPUT DATA):
+  1=     101;   2=     102;   3=     103;   4=       0;   5=       0;   6=       0;   7=       0;   8=       0;   9=       0
+ 10=       0;  11=       0
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+                                                     ACTIVITY SCHEDULE
+
+STAND ID= S248112                       MGMT ID= NONE     IE WPBR RIBA                                                           
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  PARAMETERS:
+-----  ----  ---------  --------  ----  ------------------------------------------------------------------------------------------
+
+   1   1990
+   2   2000
+   3   2010
+   4   2020
+   5   2030
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CALIBRATION STATISTICS:
+
+
+                                                 WP    DF
+                                                ----  ----
+
+NUMBER OF RECORDS PER SPECIES                      3     2
+
+NUMBER OF RECORDS WITH MISSING HEIGHTS             0     0
+
+NUMBER OF RECORDS WITH BROKEN OR DEAD TOPS         0     0
+
+NUMBER OF RECORDS WITH MISSING CROWN RATIOS        0     0
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE DIAMETER INCREMENT MODEL                       3     2
+
+RATIO OF STANDARD ERRORS
+(INPUT DBH GROWTH DATA : MODEL)                 1.00  1.00
+
+WEIGHT GIVEN TO THE INPUT GROWTH DATA WHEN
+DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED    0.00  0.00
+
+INITIAL SCALE FACTORS FOR THE
+DBH INCREMENT MODEL                             1.00  1.00
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE SMALL TREE HEIGHT INCREMENT MODEL             0     0
+
+INITIAL SCALE FACTORS FOR THE SMALL TREE
+HEIGHT INCREMENT MODEL                          1.00  1.00
+
+NUMBER OF RECORDS WITH MISTLETOE                   0     0
+
+
+        GENERAL SPECIES SUMMARY FOR THE CRUISE (PER ACRE)
+
+  SPECIES             TREES       BASAL AREA       CUBIC FEET       BOARD FEET       ABOVE GROUND BIOMASS       ABOVE GROUND CARBON
+-----------------------------------------------------------------------------------------------------------------------------------
+ WP  =  WP             18.0             10.9            281.7           976.9                         0.0                       0.0
+ DF  =  DF             13.7              7.3            158.4           659.8                         0.0                       0.0
+
+
+                  DISTRIBUTION OF STAND ATTRIBUTES AMONG SAMPLE POINTS
+
+                              STANDARD  COEFF OF SAMPLE             95%           SAMPLING ERROR IN
+CHARACTERISTIC          MEAN DEVIATION VARIATION   SIZE     CONFIDENCE  LIMITS    PERCENT     UNITS
+----------------   --------- --------- --------- ------ ----------------------    -----------------
+TREES/ACRE             31.75     57.61      1.81     11      0.00        70.47     121.9       38.7
+BASAL AREA/ACRE        18.18     32.81      1.80     11      0.00        40.23     121.3       22.0
+CUBIC FEET/ACRE       440.13    818.60      1.86     11      0.00       990.21     125.0      550.1
+BOARD FEET/ACRE      1636.77   3010.67      1.84     11      0.00      3659.90     123.6     2023.1
+ABVGRD BIOMASS/ACRE     0.00      0.00
+ABVGRD CARB/ACRE        0.00      0.00
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- INLAND EMPIRE EXPANDED                 RV:20260401    08-17-2026  09:38:41
+
+STAND ID: S248112                       MGMT ID: NONE     IE WPBR RIBA
+
+
+                                        STAND COMPOSITION (BASED ON STOCKABLE AREA)
+--------------------------------------------------------------------------------------------------------------------------
+                            PERCENTILE POINTS IN THE
+                     DISTRIBUTION OF STAND ATTRIBUTES BY DBH      TOTAL/ACRE
+        STAND       -----------------------------------------      OF STAND         DISTRIBUTION OF STAND ATTRIBUTES BY
+YEAR  ATTRIBUTES      10     30     50     70     90    100       ATTRIBUTES       SPECIES AND 3 USER-DEFINED SUBCLASSES
+----  -----------   ------ ------ ------ ------ ------ ------   --------------  ------------------------------------------
+                                 (DBH IN INCHES)
+
+
+
+1990  TREES           8.0    8.0    9.0   11.0   12.0    15.0      35. TREES     57.% WP1,  43.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL         8.0    9.0   11.0   12.0   15.0    15.0     484. CUFT      64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+        MERCH         8.0    9.0   11.0   12.0   15.0    15.0     406. CUFT      62.% WP1,  38.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    15.0   15.0   15.0   15.0   15.0    15.0       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.0    9.0   11.0   12.0   15.0    15.0    1800. BDFT      60.% WP1,  40.% DF1,   0.% ---,   0.% ---
+
+
+      ACCRETION       8.0    9.0   11.0   12.0   15.0    15.0      29. CUFT/YR   64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+      MORTALITY       8.0    9.0   11.0   12.0   15.0    15.0       2. CUFT/YR   66.% WP1,  34.% DF1,   0.% ---,   0.% ---
+
+
+
+2000  TREES           9.5    9.5   11.1   12.2   13.7    16.8      33. TREES     56.% WP1,  44.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL         9.5   11.1   12.2   13.7   16.8    16.8     744. CUFT      64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+        MERCH         9.5   11.1   12.2   13.7   16.8    16.8     651. CUFT      63.% WP1,  37.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    16.8   16.8   16.8   16.8   16.8    16.8       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         9.5   11.1   12.2   13.7   16.8    16.8    3086. BDFT      64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+
+
+      ACCRETION       9.5   11.1   12.2   13.7   16.8    16.8      42. CUFT/YR   64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+      MORTALITY       9.5   11.1   12.2   13.7   16.8    16.8       4. CUFT/YR   68.% WP1,  32.% DF1,   0.% ---,   0.% ---
+
+
+
+2010  TREES          11.8   11.8   12.7   15.0   15.8    18.7      31. TREES     56.% WP1,  44.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL        11.8   12.7   15.0   15.8   18.7    18.7    1123. CUFT      64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+        MERCH        11.8   12.7   15.0   15.8   18.7    18.7     988. CUFT      63.% WP1,  37.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    18.7   18.7   18.7   18.7   18.7    18.7       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        11.8   12.7   15.0   15.8   18.7    18.7    5082. BDFT      64.% WP1,  36.% DF1,   0.% ---,   0.% ---
+
+
+      ACCRETION      11.8   12.7   15.0   15.8   18.7    18.7      46. CUFT/YR   67.% WP1,  33.% DF1,   0.% ---,   0.% ---
+      MORTALITY      11.8   12.7   15.0   15.8   18.7    18.7       4. CUFT/YR   67.% WP1,  33.% DF1,   0.% ---,   0.% ---
+
+
+
+2020  TREES          13.5   13.5   14.2   16.9   17.8    20.5      30. TREES     56.% WP1,  44.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL        13.5   14.2   16.9   17.8   20.5    20.5    1542. CUFT      65.% WP1,  35.% DF1,   0.% ---,   0.% ---
+        MERCH        13.5   14.2   16.9   17.8   20.5    20.5    1381. CUFT      65.% WP1,  35.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    20.5   20.5   20.5   20.5   20.5    20.5       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        13.5   14.2   16.9   17.8   20.5    20.5    7510. BDFT      65.% WP1,  35.% DF1,   0.% ---,   0.% ---
+
+
+      ACCRETION      13.5   14.2   16.9   17.8   20.5    20.5      47. CUFT/YR   68.% WP1,  32.% DF1,   0.% ---,   0.% ---
+      MORTALITY      13.5   13.5   14.2   17.8   20.5    20.5       6. CUFT/YR   67.% WP1,  33.% DF1,   0.% ---,   0.% ---
+
+
+
+2030  TREES          14.8   14.8   15.4   18.7   19.9    21.9      29. TREES     56.% WP1,  44.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL        14.8   15.4   18.7   19.9   21.9    21.9    1943. CUFT      66.% WP1,  34.% DF1,   0.% ---,   0.% ---
+        MERCH        14.8   15.4   18.7   19.9   21.9    21.9    1773. CUFT      65.% WP1,  35.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    21.9   21.9   21.9   21.9   21.9    21.9       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        14.8   15.4   18.7   19.9   21.9    21.9   10077. BDFT      66.% WP1,  34.% DF1,   0.% ---,   0.% ---
+
+
+      ACCRETION      14.8   14.8   15.4   19.9   19.9    21.9      30. CUFT/YR   63.% WP1,  37.% DF1,   0.% ---,   0.% ---
+      MORTALITY      15.4   21.9   21.9   21.9   21.9    21.9      45. CUFT/YR   92.% WP1,   8.% DF1,   0.% ---,   0.% ---
+
+
+
+2040  TREES          15.7   15.7   16.4   19.5   21.1    23.3      25. TREES     50.% WP1,  50.% DF1,   0.% ---,   0.% ---
+      VOLUME:  
+        TOTAL        15.7   16.4   16.4   19.5   21.1    23.3    1802. CUFT      58.% WP1,  42.% DF1,   0.% ---,   0.% ---
+        MERCH        15.7   16.4   19.5   19.5   21.1    23.3    1656. CUFT      58.% WP1,  42.% DF1,   0.% ---,   0.% ---
+        CUBIC SAW    23.3   23.3   23.3   23.3   23.3    23.3       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH        15.7   16.4   19.5   21.1   21.1    23.3    9459. BDFT      59.% WP1,  41.% DF1,   0.% ---,   0.% ---
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- INLAND EMPIRE EXPANDED                 RV:20260401    08-17-2026  09:38:41
+
+STAND ID: S248112                       MGMT ID: NONE     IE WPBR RIBA
+
+
+------------------------------------------------------------------------------------------------------------------------------
+                     ATTRIBUTES OF SELECTED SAMPLE TREES                 ADDITIONAL STAND ATTRIBUTES (BASED ON STOCKABLE AREA)
+      -----------------------------------------------------------------  -----------------------------------------------------
+      INITIAL                           LIVE   PAST DBH  BASAL   TREES          QUADRATIC   TREES    BASAL  TOP HEIGHT  CROWN
+      TREES/A            DBH    HEIGHT  CROWN   GROWTH   AREA     PER    STAND   MEAN DBH    PER     AREA     LARGEST   COMP
+YEAR   %TILE  SPECIES (INCHES)  (FEET)  RATIO  (INCHES)  %TILE    ACRE   AGE     (INCHES)    ACRE   (SQFT/A) 40/A (FT)  FACTOR
+----  ------- ------- -------- -------- ------ --------- ------- ------  -----  ---------   ------ --------- --------- -------
+
+1990                                          ( 10 YRS)
+
+        10     WP1       8.00    50.00    35     1.00     20.0   11.46
+        30     WP1       8.00    50.00    35     1.00     20.0   11.46
+        50     DF1       9.00    52.00    35     1.10     40.0    9.05
+        70     DF1      11.00    63.00    35     1.40     60.0    6.06
+        90     WP1      12.00    65.00    35     1.40     80.0    5.09
+       100     WP1      15.00    73.00    35     1.90    100.0    3.26
+                                                                          60      10.2       35.      20.       57.1     18.7
+
+2000                                          ( 10 YRS)
+
+        10     WP1       9.51    66.70    34     1.45     20.4   10.59
+        30     WP1       9.51    66.70    34     1.45     20.4   10.59
+        50     DF1      11.11    65.18    33     1.83     43.6    8.80
+        70     DF1      12.20    71.76    33     1.04     61.6    5.67
+        90     WP1      13.71    78.40    35     1.65     81.0    4.84
+       100     WP1      16.82    86.41    35     1.76    100.0    3.14
+                                                                          70      11.9       33.      26.       70.7     23.0
+
+2010                                          ( 10 YRS)
+
+        10     WP1      11.79    82.76    35     2.20     22.2    9.80
+        30     WP1      11.79    82.76    35     2.20     22.2    9.80
+        50     DF1      12.71    74.82    31     1.39     44.8    8.56
+        70     DF1      14.96    82.88    32     2.40     64.1    5.30
+        90     WP1      15.77    92.29    36     1.99     82.8    4.60
+       100     WP1      18.68    99.34    35     1.79    100.0    3.02
+                                                                          80      14.0       31.      33.       83.6     27.2
+
+2020                                          ( 10 YRS)
+
+        10     WP1      13.47    95.60    35     1.62     22.9    9.49
+        30     WP1      13.47    95.60    35     1.62     22.9    9.49
+        50     DF1      14.24    83.62    30     1.32     45.0    8.18
+        70     DF1      16.86    91.54    31     1.64     64.8    5.23
+        90     WP1      17.82   105.43    36     1.97     83.7    4.45
+       100     WP1      20.53   111.53    35     1.78    100.0    2.91
+                                                                          90      15.7       30.      41.       94.6     31.4
+
+2030                                          ( 10 YRS)
+
+        10     WP1      14.76   106.67    35     1.24     22.6    8.94
+        30     WP1      14.76   106.67    35     1.24     22.6    8.94
+        50     DF1      15.41    91.09    29     1.02     44.0    7.78
+        70     DF1      18.65    99.39    30     1.56     64.5    5.07
+        90     WP1      19.94   117.87    36     2.04     84.4    4.30
+       100     WP1      21.93   121.85    35     1.35    100.0    2.80
+                                                                         100      17.3       29.      47.      104.3     34.6
+
+2040                                          ( 10 YRS)
+
+        10     WP1      15.67   115.94    35     0.88     26.1    8.18
+        30     WP1      15.67   115.94    35     0.88     26.1    8.18
+        50     DF1      16.43    97.80    29     0.89     51.6    7.25
+        70     DF1      19.49   104.97    30     0.72     75.8    4.91
+        90     WP1      21.13   127.28    39     1.15    100.0    4.17
+       100     WP1      23.30   131.41    35     1.31    100.0    0.00
+                                                                         110      17.7       25.      42.      110.3     31.3
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- INLAND EMPIRE EXPANDED                 RV:20260401    08-17-2026  09:38:41
+
+STAND ID: S248112                       MGMT ID: NONE     IE WPBR RIBA
+
+
+
+                                         SUMMARY STATISTICS (PER ACRE OR STAND BASED ON TOTAL STAND AREA)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+                      START OF SIMULATION PERIOD                       REMOVALS               AFTER TREATMENT     GROWTH THIS PERIOD
+         --------------------------------------------------- ----------------------------- ---------------------  ------------------   MAI  ------
+         NO OF              TOP      TOTAL MERCH SAWLG MERCH NO OF TOTAL MERCH SAWLG MERCH              TOP  RES  PERIOD ACCRE MORT   MERCH FOR SS
+YEAR AGE TREES  BA  SDI CCF HT  QMD  CU FT CU FT CU FT BD FT TREES CU FT CU FT CU FT BD FT  BA  SDI CCF HT   QMD  YEARS   PER  YEAR   CU FT TYP ZT
+---- --- ----- --- ---- --- --- ---- ----- ----- ----- ----- ----- ----- ----- ----- ----- --- ---- --- --- ----  ------ ---- -----   ----- ------
+1990  60    32  18   33  17  57 10.2   440   369     0  1637     0     0     0     0     0  18   33  17  57 10.2      10   26     2     6.2 999 55
+2000  70    30  23   40  21  71 11.9   677   592     0  2805     0     0     0     0     0  23   40  21  71 11.9      10   38     3     8.5 999 55
+2010  80    28  30   49  25  84 14.0  1020   898     0  4620     0     0     0     0     0  30   49  25  84 14.0      10   41     3    11.2 201 14
+2020  90    27  37   57  29  95 15.7  1402  1255     0  6828     0     0     0     0     0  37   57  29  95 15.7      10   42     6    13.9 201 14
+2030 100    26  43   63  31 104 17.3  1766  1612     0  9161     0     0     0     0     0  43   63  31 104 17.3      10   28    41    16.1 241 14
+2040 110    22  38   56  28 110 17.7  1638  1505     0  8599     0     0     0     0     0  38   56  28 110 17.7       0    0     0    13.7 201 14
+
+NOTE:  6 LINES OF SUMMARY DATA HAVE BEEN WRITTEN TO THE FILE REFERENCED BY LOGICAL UNIT  4
+
+
+
+                                   *  *  *  WHITE PINE BLISTER RUST MODEL: Version 1.2  *  *  *
+                                         Stand Summary Statistics for Blister Rust Hosts
+STAND ID: S248112                       MGMT ID: NONE     IE WPBR RIBA
+-----------------------------------------------------------------------------------------------------------------------------------
+WPBR HOST: WP                                                  PROPORTION
+                                               AVERAGE         TREES/ACRE
+               AVERAGE                      CANKERS/TREE       INF W/CANKS             NUMBER OF TREES/ACRE (HOST PINE ONLY)
+       ------------------------  STAND  --------------------   -----------  -------------------------------------------------------
+       GROWTH    RUST      SUM    DEV                                               NON                   NON
+YEAR    INDEX   INDEX    TARGET  FACTOR    ALL   LETH    EXP    ALL  LETH   CLEAN  LETH  PRUNE  EXCISE   SALV  TOPKILL  DEAD  TOTAL
+-----------------------------------------------------------------------------------------------------------------------------------
+1990  54.4078 0.007312 12226.78  0.3300   0.00   0.00   0.00   0.00  0.00     20.    0.     0.      0.     0.       0.    0.    20.
+2000  55.0980 0.007312 15277.62  0.3300   9.53   3.63  12.95   1.00  0.84      0.    3.     0.      0.    15.       0.    0.    20.
+2010  57.2250 0.005714 21963.60  0.3300  13.59   3.56   4.01   1.00  1.00      0.    0.     0.      0.    17.       0.    0.    20.
+2020  60.7194 0.004499 30307.27  0.3300  16.07   3.74   3.90   1.00  1.00      0.    0.     0.      0.    17.       0.    0.    20.
+2030  63.8537 0.003897 40229.07  0.3300  18.31   3.46   3.97   1.00  1.00      0.    0.     0.      0.    16.       0.    0.    20.
+2040  68.1381 0.003784 51135.16  0.3300  21.64   4.65   4.06   1.00  1.00      0.    0.     0.      0.    12.       0.    3.    20.

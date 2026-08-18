@@ -1,0 +1,524 @@
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY INPUT
+
+KEYWORD FILE NAME: em_cov
+----------------------------------------------------------------------------------------------------------------------------------
+KEYWORD    PARAMETERS:
+--------   -----------------------------------------------------------------------------------------------------------------------
+
+SCREEN     SUMMARY TABLE WILL BE PRINTED TO DATA SET REFERENCE NUMBER     6 AS RUN PROGRESSES.
+
+NOAUTOES   TALLIES AND INGROWTH WILL NOT BE ADDED AUTOMATICALLY.
+           STOCKADJ IS SET TO ZERO, AND NO SPROUTING WILL BE SIMULATED.
+
+STATS      STATISTICAL DESCRIPTION OF INPUT DATA WILL BE PROVIDED; CONFIDENCE LIMITS AT 0.05 LEVEL.
+
+STDIDENT
+           STAND ID= S248112                            EM COVER TEST                                                          
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           SEE "OPTIONS SELECTED BY DEFAULT" FOR FINAL DESIGN VALUES.
+
+           HABITAT TYPE MAPPED TO 260 FOR THIS PROJECTION.
+
+STDINFO    FOREST-LOCATION CODE=     112; HABITAT TYPE=260; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)= 54.0; REFERENCE CODE=     ; ECOREGION=           ; STAND ORIGIN= 0
+
+INVYEAR    INVENTORY YEAR= 1990
+
+NUMCYCLE   NUMBER OF CYCLES=  2
+
+COVER      COVER OPTIONS:  
+           DATE/CYCLE=    1
+           DATA SET REFERENCE NUMBER = 16
+
+CANOPY     CANOPY MODEL CALCULATIONS: TREE CROWN WIDTH, CROWN SHAPE, AND FOLIAGE BIOMASS
+
+SHRUBS     SHRUB MODEL OPTIONS:  
+           TIME SINCE DISTURBANCE =   3.0 YEARS
+
+COVER      COVER OPTIONS:  
+           DATE/CYCLE=    1
+           DATA SET REFERENCE NUMBER = 16
+
+END        END COVER OPTIONS
+
+TREEFMT 
+          (T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,       
+          T52,I2,T66,5I1,T54,7I1,T75,F3.0)                                                
+
+TREEDATA   DATA SET REFERENCE NUMBER=  2
+
+
+           NOTE: INPUT SPECIES CODE (L       )WAS SET TO (WL  ) FOR THIS PROJECTION.
+           NOTE: INPUT SPECIES CODE (OT      )WAS SET TO (OS  ) FOR THIS PROJECTION.
+           NOTE: INPUT SPECIES CODE (S       )WAS SET TO (ES  ) FOR THIS PROJECTION.
+
+ECHOSUM    SUMMARY OUTPUT WILL BE WRITTEN TO FILE REFERENCED BY NUMBER  4
+
+PROCESS    PROCESS THE STAND.
+
+********   FVS09 WARNING:  PLOT COUNTS DO NOT MATCH DATA ON THE DESIGN RECORD; DESIGN RECORD DATA USED.
+                            PLOT COUNT=  11; NONSTOCKABLE COUNT=   0
+----------------------------------------------------------------------------------------------------------------------------------
+
+                                                OPTIONS SELECTED BY DEFAULT
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+DESIGN     BASAL AREA FACTOR=   40.0; INVERSE OF FIXED PLOT AREA=  300.0; BREAK DBH=    5.0
+           NUMBER OF PLOTS=    11; NON-STOCKABLE PLOTS=     1; STAND SAMPLING WEIGHT=    11.00000
+           PROPORTION OF STAND CONSIDERED STOCKABLE=  0.909
+           STAND ATTRIBUTES ARE CALCULATED PER ACRE OF STOCKABLE AREA.  STAND STATISTICS
+           IN SUMMARY TABLE ARE MULTIPLIED BY 0.909 TO INCLUDE TOTAL STAND AREA.
+
+STDINFO    FOREST-LOCATION CODE=     112; HABITAT TYPE=260; AGE=   60; ASPECT AZIMUTH IN DEGREES= 315.; SLOPE=  30.%
+           ELEVATION(100'S FEET)= 54.0;  REFERENCE CODE=     ; ECOREGION=           
+
+SPECIES      WB      WL      DF      LM      LL      RM      LP      ES      AF      PP
+SDI MAX      696     696     696     696     696     696     696     696     696     696
+
+SPECIES      GA      AS      CW      BA      PW      NC      PB      OS      OH
+SDI MAX      696     696     696     696     696     696     696     696     696
+
+                                  NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS
+SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT SPECIES  CUBIC FOOT BOARD FOOT 
+------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- ------- ----------- ---------- 
+  WB    I00FW2W012  I00FW2W012   WL    I00FW2W073  I00FW2W073   DF    I00FW2W202  I00FW2W202   LM    I00FW2W073  I00FW2W073
+  LL    I00FW2W019  I00FW2W019   RM    102DVEW106  102DVEW106   LP    I00FW2W108  I00FW2W108   ES    I00FW2W093  I00FW2W093
+  AF    I00FW2W019  I00FW2W019   PP    I00FW2W122  I00FW2W122   GA    101DVEW740  101DVEW740   AS    102DVEW746  102DVEW746
+  CW    102DVEW740  102DVEW740   BA    101DVEW740  101DVEW740   PW    102DVEW740  102DVEW740   NC    102DVEW740  102DVEW740
+  PB    101DVEW375  101DVEW375   OS    I00FW2W260  I00FW2W260   OH    200DVEW746  200DVEW746
+
+SITECODE   SITE INDEX INFORMATION:
+            WB=   60.;  WL=   60.;  DF=   51.;  LM=   35.;  LL=   35.;  RM=   10.;  LP=   80.;  ES=   78.; AF=   80.
+            PP=   80.;  GA=   62.;  AS=   50.;  CW=   62.;  BA=   62.;  PW=   62.;  NC=   62.;  PB=   50.; OS=   60.
+            OH=   62.
+           SITE SPECIES=DF CODE=    3
+
+INVENTORY POINT CROSS REFERENCE (FVS SEQUENTIAL POINT NUMBER = POINT NUMBER AS ENTERED IN THE INPUT DATA):
+  1=     101;   2=     102;   3=     103;   4=     104;   5=     105;   6=     106;   7=     107;   8=     108;   9=     109
+ 10=     110;  11=     111
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+                                                     ACTIVITY SCHEDULE
+
+STAND ID= S248112                       MGMT ID= NONE     EM COVER TEST                                                          
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  PARAMETERS:
+-----  ----  ---------  --------  ----  ------------------------------------------------------------------------------------------
+
+   1   1990
+               COVR     COVER     1990
+               COVR     COVER     1990
+
+   2   2000
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CALIBRATION STATISTICS:
+
+
+                                                 LP    DF    PP    WL    ES
+                                                ----  ----  ----  ----  ----
+
+NUMBER OF RECORDS PER SPECIES                      5     8     7     5     4
+
+NUMBER OF RECORDS CODED AS RECENT MORTALITY        1     0     0     0     0
+
+NUMBER OF RECORDS WITH MISSING HEIGHTS             1     0     0     0     0
+
+NUMBER OF RECORDS WITH BROKEN OR DEAD TOPS         0     1     0     1     0
+
+NUMBER OF RECORDS WITH MISSING CROWN RATIOS        0     0     0     0     0
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE DIAMETER INCREMENT MODEL                       3     4     6     3     2
+
+RATIO OF STANDARD ERRORS
+(INPUT DBH GROWTH DATA : MODEL)                 1.00  1.00  3.40  1.00  1.00
+
+WEIGHT GIVEN TO THE INPUT GROWTH DATA WHEN
+DBH GROWTH MODEL SCALE FACTORS WERE COMPUTED    0.00  0.00  0.75  0.00  0.00
+
+INITIAL SCALE FACTORS FOR THE
+DBH INCREMENT MODEL                             1.00  1.00  1.27  1.00  1.00
+
+NUMBER OF RECORDS AVAILABLE FOR SCALING
+THE SMALL TREE HEIGHT INCREMENT MODEL             0     3     0     0     1
+
+INITIAL SCALE FACTORS FOR THE SMALL TREE
+HEIGHT INCREMENT MODEL                          1.00  1.00  1.00  1.00  1.00
+
+NUMBER OF RECORDS WITH MISTLETOE                   0     0     0     0     0
+
+
+        GENERAL SPECIES SUMMARY FOR THE CRUISE (PER ACRE)
+
+  SPECIES             TREES       BASAL AREA       CUBIC FEET       BOARD FEET       ABOVE GROUND BIOMASS       ABOVE GROUND CARBON
+-----------------------------------------------------------------------------------------------------------------------------------
+ WL  =  WL             40.5             14.5            353.9          1657.6                         0.0                       0.0
+ DF  =  DF            188.1             17.7            366.7          1540.2                         0.0                       0.0
+ LP  =  LP             28.9             14.5            444.4          1797.4                         0.0                       0.0
+ ES  =  ES            101.0              8.8            111.2             0.0                         0.0                       0.0
+ PP  =  PP            177.5             21.8            360.6           392.8                         0.0                       0.0
+
+
+                  DISTRIBUTION OF STAND ATTRIBUTES AMONG SAMPLE POINTS
+
+                              STANDARD  COEFF OF SAMPLE             95%           SAMPLING ERROR IN
+CHARACTERISTIC          MEAN DEVIATION VARIATION   SIZE     CONFIDENCE  LIMITS    PERCENT     UNITS
+----------------   --------- --------- --------- ------ ----------------------    -----------------
+TREES/ACRE            536.05    528.43      0.99     11    180.95       891.15      66.2      355.1
+BASAL AREA/ACRE        77.39     45.38      0.59     11     46.89       107.89      39.4       30.5
+CUBIC FEET/ACRE      1636.82   1056.73      0.65     11    926.71      2346.93      43.4      710.1
+BOARD FEET/ACRE      5388.07   4640.12      0.86     11   2269.97      8506.18      57.9     3118.1
+ABVGRD BIOMASS/ACRE     0.00      0.00
+ABVGRD CARB/ACRE        0.00      0.00
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT ID: NONE     EM COVER TEST
+
+
+                                        STAND COMPOSITION (BASED ON STOCKABLE AREA)
+--------------------------------------------------------------------------------------------------------------------------
+                            PERCENTILE POINTS IN THE
+                     DISTRIBUTION OF STAND ATTRIBUTES BY DBH      TOTAL/ACRE
+        STAND       -----------------------------------------      OF STAND         DISTRIBUTION OF STAND ATTRIBUTES BY
+YEAR  ATTRIBUTES      10     30     50     70     90    100       ATTRIBUTES       SPECIES AND 3 USER-DEFINED SUBCLASSES
+----  -----------   ------ ------ ------ ------ ------ ------   --------------  ------------------------------------------
+                                 (DBH IN INCHES)
+
+
+
+1990  TREES           0.1    0.1    3.2    6.1    8.5    12.7     590. TREES     35.% DF1,  33.% PP1,  19.% ES1,   8.% WL1
+      VOLUME:  
+        TOTAL         5.8    7.9    8.5    9.6   11.5    12.7    1800. CUFT      27.% LP1,  22.% DF1,  22.% PP1,  22.% WL1
+        MERCH         7.9    8.5    9.5   10.4   11.5    12.7    1164. CUFT      35.% LP1,  29.% DF1,  28.% WL1,   8.% PP1
+        CUBIC SAW    12.7   12.7   12.7   12.7   12.7    12.7       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         7.9    8.2    9.5   10.4   11.5    12.7    5927. BDFT      33.% LP1,  31.% WL1,  29.% DF1,   7.% PP1
+ UPHT           1   5.82331324      0.823313057    
+ UPHT           1   5.82331324      0.823313057    
+ UPHT           1   5.82331324      0.823313057    
+ UPHT           1   2.90410471      0.904104710    
+ UPHT           1   2.90410471      0.904104710    
+ UPHT           1   2.90410471      0.904104710    
+ UPHT           1   4.24064493       2.24064493    
+ UPHT           1   4.24064493       2.24064493    
+ UPHT           1   4.24064493       2.24064493    
+ UPHT           1   5.93667078       2.93667078    
+ UPHT           1   5.93667078       2.93667078    
+ UPHT           1   5.93667078       2.93667078    
+
+
+      ACCRETION       5.3    6.2    7.9    9.5   10.9    12.7      51. CUFT/YR   45.% PP1,  17.% DF1,  17.% LP1,  13.% WL1
+      MORTALITY       6.2    8.0    8.5    9.6   11.5    12.7       4. CUFT/YR   32.% LP1,  26.% WL1,  21.% DF1,  18.% PP1
+
+
+
+2000  TREES           0.1    0.6    3.9    7.2    9.0    13.5     579. TREES     35.% DF1,  33.% PP1,  19.% ES1,   7.% WL1
+      VOLUME:  
+        TOTAL         6.7    8.4    8.9   10.2   12.4    13.5    2271. CUFT      27.% PP1,  25.% LP1,  21.% DF1,  20.% WL1
+        MERCH         7.9    8.6   10.0   10.6   12.4    13.5    1654. CUFT      30.% LP1,  25.% PP1,  23.% DF1,  21.% WL1
+        CUBIC SAW    13.5   13.5   13.5   13.5   13.5    13.5       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.0    8.5   10.0   10.6   12.4    13.5    8264. BDFT      29.% LP1,  25.% PP1,  23.% WL1,  23.% DF1
+ UPHT           2   6.68090439      0.857591271    
+ UPHT           2   6.68090439      0.857591271    
+ UPHT           2   6.68090439      0.857591271    
+ UPHT           2   6.66724110      0.843927801    
+ UPHT           2   6.66724110      0.843927801    
+ UPHT           2   6.66724110      0.843927801    
+ UPHT           2   6.65326405      0.829950571    
+ UPHT           2   6.65326405      0.829950571    
+ UPHT           2   6.65326405      0.829950571    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   3.72363114      0.819526434    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   6.34756088       2.10691595    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+ UPHT           2   8.74369049       2.80701971    
+
+
+      ACCRETION       6.6    7.5    8.5   10.1   12.4    13.5      57. CUFT/YR   46.% PP1,  17.% DF1,  16.% LP1,  12.% WL1
+      MORTALITY       7.3    8.5    9.0   10.3   12.3    13.5       5. CUFT/YR   30.% LP1,  24.% WL1,  23.% PP1,  20.% DF1
+
+
+
+2010  TREES           0.1    1.0    4.6    8.2   10.0    14.4     568. TREES     35.% DF1,  33.% PP1,  19.% ES1,   7.% WL1
+      VOLUME:  
+        TOTAL         7.7    8.9    9.6   10.9   13.7    14.4    2789. CUFT      31.% PP1,  23.% LP1,  20.% DF1,  18.% WL1
+        MERCH         8.3    9.2   10.0   11.2   13.8    14.4    2170. CUFT      32.% PP1,  25.% LP1,  21.% DF1,  19.% WL1
+        CUBIC SAW    14.4   14.4   14.4   14.4   14.4    14.4       0. CUFT       0.% ---,   0.% ---,   0.% ---,   0.% ---
+        MERCH         8.4    9.2   10.2   11.2   13.8    14.4   10931. BDFT      30.% PP1,  26.% LP1,  22.% DF1,  20.% WL1
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT ID: NONE     EM COVER TEST
+
+
+------------------------------------------------------------------------------------------------------------------------------
+                     ATTRIBUTES OF SELECTED SAMPLE TREES                 ADDITIONAL STAND ATTRIBUTES (BASED ON STOCKABLE AREA)
+      -----------------------------------------------------------------  -----------------------------------------------------
+      INITIAL                           LIVE   PAST DBH  BASAL   TREES          QUADRATIC   TREES    BASAL  TOP HEIGHT  CROWN
+      TREES/A            DBH    HEIGHT  CROWN   GROWTH   AREA     PER    STAND   MEAN DBH    PER     AREA     LARGEST   COMP
+YEAR   %TILE  SPECIES (INCHES)  (FEET)  RATIO  (INCHES)  %TILE    ACRE   AGE     (INCHES)    ACRE   (SQFT/A) 40/A (FT)  FACTOR
+----  ------- ------- -------- -------- ------ --------- ------- ------  -----  ---------   ------ --------- --------- -------
+
+1990                                          ( 10 YRS)
+
+        10     PP1       0.10     3.00    65     0.00      0.0   90.00
+        30     DF1       0.10     2.00    55     0.00      0.0   90.00
+        50     ES1       3.20    17.00    45     0.60      3.0   30.00
+        70     PP1       6.10    38.00    75     1.20     24.8   19.71
+        90     LP1       8.50    59.04    25     0.52     62.4   10.15
+       100     DF1      12.70    67.00    35     1.60    100.0    4.55
+                                                                          60       5.1      590.      85.       63.4    106.7
+
+2000                                          ( 10 YRS)
+
+        10     PP1       0.56     5.94    59     0.41      0.1   88.33
+        30     DF1       0.10     2.90    50     0.00      0.0   88.27
+        50     ES1       3.80    18.94    50     0.58      2.8   29.75
+        70     PP1       7.46    42.51    68     1.21     30.2   19.33
+        90     LP1       9.01    62.68    28     0.49     64.9    9.89
+       100     DF1      13.32    71.43    39     0.54     99.0    4.44
+                                                                          70       5.8      579.     105.       67.9    123.2
+
+2010                                          ( 10 YRS)
+
+        10     PP1       0.98     8.74    53     0.37      0.3   86.70
+        30     DF1       0.10     3.72    45     0.00      0.0   86.58
+        50     ES1       4.41    20.94    47     0.58      3.0   29.49
+        70     PP1       8.61    46.84    61     1.03     32.6   18.96
+        90     LP1       9.52    66.34    31     0.49     54.8    9.63
+       100     DF1      13.93    75.77    42     0.53     96.6    4.34
+                                                                          80       6.4      568.     126.       72.2    139.5
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT ID: NONE     EM COVER TEST
+
+
+
+                                         SUMMARY STATISTICS (PER ACRE OR STAND BASED ON TOTAL STAND AREA)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+                      START OF SIMULATION PERIOD                       REMOVALS               AFTER TREATMENT     GROWTH THIS PERIOD
+         --------------------------------------------------- ----------------------------- ---------------------  ------------------   MAI  ------
+         NO OF              TOP      TOTAL MERCH SAWLG MERCH NO OF TOTAL MERCH SAWLG MERCH              TOP  RES  PERIOD ACCRE MORT   MERCH FOR SS
+YEAR AGE TREES  BA  SDI CCF HT  QMD  CU FT CU FT CU FT BD FT TREES CU FT CU FT CU FT BD FT  BA  SDI CCF HT   QMD  YEARS   PER  YEAR   CU FT TYP ZT
+---- --- ----- --- ---- --- --- ---- ----- ----- ----- ----- ----- ----- ----- ----- ----- --- ---- --- --- ----  ------ ---- -----   ----- ------
+1990  60   536  77  184  97  63  5.1  1637  1058     0  5388     0     0     0     0     0  77  184  97  63  5.1      10   47     4    17.6 221 23
+2000  70   526  96  218 112  68  5.8  2065  1504     0  7513     0     0     0     0     0  96  218 112  68  5.8      10   52     5    21.5 221 23
+2010  80   517 114  250 127  72  6.4  2535  1972     0  9937     0     0     0     0     0 114  250 127  72  6.4       0    0     0    24.6 221 13
+
+NOTE:  3 LINES OF SUMMARY DATA HAVE BEEN WRITTEN TO THE FILE REFERENCED BY LOGICAL UNIT  4
+
+
+
+
+                                                     ACTIVITY SUMMARY 
+
+STAND ID= S248112                       MGMT ID= NONE     EM COVER TEST                                                          
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+CYCLE  DATE  EXTENSION  KEYWORD   DATE  ACTIVITY DISPOSITION  PARAMETERS:
+-----  ----  ---------  --------  ----  --------------------  --------------------------------------------------------------------
+
+   1   1990
+               COVR     COVER     1990  DONE IN 1990
+               COVR     COVER     1990  DONE IN 1990
+
+   2   2000
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT CODE: NONE   EM COVER TEST                                                          
+
+
+
+---------------------------------------------------  CANOPY COVER STATISTICS  ----------------------------------------------------
+                                                    (BASED ON STOCKABLE AREA)
+
+                                                -------------------------------
+                                                 ATTRIBUTE BY 10' HEIGHT CLASS
+                                                -------------------------------
+
+                           TREES -- TREES PER ACRE
+                           COVER -- PERCENTAGE OF CANOPY COVER CONTRIBUTED BY TREES IN HEIGHT CLASS
+                            AREA -- CROWN PROFILE AREA (SQ.FT. PER ACRE)
+                          VOLUME -- CROWN VOLUME (CU.FT. PER ACRE X 100)
+                         BIOMASS -- FOLIAGE BIOMASS (LBS. PER ACRE)
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+                                                     STAND HEIGHT CLASS
+            0.0-  10.1-  20.1-  30.1-  40.1-  50.1-  60.1-  70.1-  80.1-  90.1- 100.1- 110.1- 120.1- 130.1- 140.1- 150.1+
+YEAR       10.0'  20.0'  30.0'  40.0'  50.0'  60.0'  70.0'  80.0'  90.0' 100.0' 110.0' 120.0' 130.0' 140.0' 150.0'          TOTAL
+----------------------------------------------------------------------------------------------------------------------------------
+1990
+    TREES    220    120    111     39      0     41     40     17      0      0      0      0      0      0      0      0     590
+    COVER      2      8     17      7      0     10     11      4      0      0      0      0      0      0      0      0      46
+     AREA   1557  11106  10042   4018   6035   8825   3121    472      0      0      0      0      0      0      0      0   45177
+   VOLUME     52    708    683    298    539    756    233     26      0      0      0      0      0      0      0      0    3296
+  BIOMASS    282   1455   1454    354    629    952    224     16      0      0      0      0      0      0      0      0    5367
+
+2000
+    TREES    216     89     58     81     38      7     63     27      0      0      0      0      0      0      0      0     579
+    COVER      2      6      7     17      8      3     15      9      0      0      0      0      0      0      0      0      51
+     AREA   1237   9119  13197   6662   6235  10215   5609    996      0      0      0      0      0      0      0      0   53271
+   VOLUME     32    556   1040    524    567    975    454     66      0      0      0      0      0      0      0      0    4213
+  BIOMASS    284   1274   2185    627    494    914    361     41      0      0      0      0      0      0      0      0    6181
+
+2010
+    TREES    213     58     87     79     37      0     50     39      5      0      0      0      0      0      0      0     568
+    COVER      3      4     10     19      9      0     14     13      2      0      0      0      0      0      0      0      55
+     AREA   1545   5683  14090   9704   7086  10751   8393   2154     15      0      0      0      0      0      0      0   59422
+   VOLUME     38    295   1162    824    627   1105    760    160      0      0      0      0      0      0      0      0    4971
+  BIOMASS    319    800   2527   1127    555    926    579    108      0      0      0      0      0      0      0      0    6941
+
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT CODE: NONE   EM COVER TEST                                                          
+
+
+
+------------------------------------------------------  SHRUB STATISTICS  -------------------------------------------------------
+                                                    (BASED ON STOCKABLE AREA)
+
+                   LOW SPECIES (0-1.7 FT)        MEDIUM SPECIES (1.7-7 FT)         TALL SPECIES (7+ FT)
+                -----------------------------   ---------------------------     --------------------------
+                ARUV:ARCTOSTAPHYLOS UVA-URSI    LONI:LONICERA SPP.              ACGL:ACER GLABRUM         
+                BERB:BERBERIS SPP.              MEFE:MENZIESIA FERRUGINEA       ALSI:ALNUS SINUATA        
+                LIBO:LINNAEA BOREALIS           PHMA:PHYSOCARPUS MALVACEUS      AMAL:AMELANCHIER ALNIFOLIA
+                PAMY:PACHISTIMA MYRSINITES      RIBE:RIBES SPP.                 CESA:CEANOTHUS SANGUINEUS 
+                SPBE:SPIRAEA BETULIFOLIA        ROSA:ROSA SPP.                  CEVE:CEANOTHUS VELUTINUS  
+                VASC:VACCINIUM SCOPARIUM        RUPA:RUBUS PARVIFLORUS          COST:CORNUS STOLONIFERA   
+                CARX:CAREX SPP.                 SHCA:SHEPHERDIA CANADENSIS      HODI:HOLODISCUS DISCOLOR  
+                                                SYMP:SYMPHORICARPOS SPP.        PREM:PRUNUS EMARGINATA    
+                                                VAME:VACCINIUM MEMBRANACEUM     PRVI:PRUNUS VIRGINIANA    
+                                                XETE:XEROPHYLLUM TENAX          SALX:SALIX SPP.           
+                                                FERN:FERNS                      SAMB:SAMBUCUS SPP.        
+                                                COMB:OTHER SHRUBS COMBINED      SORB:SORBUS SPP.          
+
+                        --------------------------------------------------------------------------------
+                         ATTRIBUTES OF THE FIRST THREE SPECIES WITH GREATEST COVER IN EACH HEIGHT GROUP
+                                    (ALL OTHERS WITHIN GROUP COMBINED INTO CATEGORY "OTHR")
+                        --------------------------------------------------------------------------------
+                                 COVER -- SPECIES COVER 
+                                HEIGHT -- AVERAGE SPECIES HEIGHT (FEET)  
+                                  PROB -- SPECIES PROBABILITY OF OCCURRENCE 
+
+YEAR                     LOW SPECIES             MEDIUM SPECIES             TALL SPECIES           USER-SELECTED INDICATOR SPECIES
+----               ----------------------    ----------------------    ----------------------    ----------------------------------
+
+1990
+SPECIES            SPBE  CARX  VASC  OTHR    MEFE  VAME  PHMA  OTHR    ACGL  AMAL  PREM  OTHR
+  COVER             2.9   0.1   0.1   0.0    13.4   5.9   2.8   8.0     1.9   0.4   0.1   0.4
+ HEIGHT             1.4   0.5   0.7   0.8     3.2   1.8   2.9   2.2     4.8   3.8   5.2   3.5
+   PROB            20.9   0.7   0.6   0.3    79.6  23.9  11.4  56.1    20.0   4.4   0.9   7.6
+
+2000
+SPECIES            SPBE  CARX  VASC  OTHR    MEFE  PHMA  VAME  OTHR    AMAL  ACGL  SALX  OTHR
+  COVER             2.8   2.6   1.8   0.1     9.2   4.7   2.5   4.4     0.5   0.5   0.4   0.6
+ HEIGHT             1.3   0.5   0.8   1.7     3.4   3.2   1.7   2.5     4.5   4.9   6.1   4.2
+   PROB            19.8  13.3   8.4   0.9    47.2  18.5  12.9  32.8     5.3   5.1   2.0   7.3
+
+2010
+SPECIES            CARX  VASC  SPBE  OTHR    MEFE  PHMA  VAME  OTHR    AMAL  SALX  ACGL  OTHR
+  COVER             4.1   3.5   2.5   0.1     6.6   3.5   1.8   3.5     0.4   0.4   0.3   0.5
+ HEIGHT             0.5   0.9   1.3   1.7     3.3   3.1   1.7   2.5     4.2   5.9   4.5   4.3
+   PROB            20.5  14.5  18.3   0.9    38.6  18.1  10.8  28.1     4.8   2.7   3.6   6.0
+
+
+
+     FOREST VEGETATION SIMULATOR     VERSION FS2026.1 -- EASTERN MONTANA PROGNOSIS              RV:20260401    08-17-2026  20:12:12
+
+STAND ID: S248112                       MGMT CODE: NONE   EM COVER TEST                                                          
+
+
+
+------------------------------------------------  CANOPY AND SHRUBS SUMMARY  -------------------------------------------------
+                                                  (BASED ON STOCKABLE AREA)
+
+
+
+                         -------- DEFINITIONS OF SUCCESSIONAL STAGE CODES USED IN OUTPUT --------
+                         1: RECENT DISTURBANCE                 6: TALL SHRUB WITH MOSTLY CONIFERS
+                         2: LOW SHRUB                          7: SAPLING TIMBER
+                         3: MEDIUM SHRUB                       8: POLE TIMBER
+                         4: TALL SHRUB WITH NO CONIFERS        9: MATURE TIMBER
+                         5: TALL SHRUB WITH FEW CONIFERS      10: OLD-GROWTH TIMBER
+
+
+         ------------------- UNDERSTORY ATTRIBUTES -------------------         ------------ OVERSTORY ATTRIBUTES -------------
+         TIME     PROB.   -----SHRUB COVER----  AVG.    DORMANT                                                 SUM OF        
+         SINCE    (SHRUB                        SHRUB   SHRUB    TWIGS  SUCC.  STAND  TOP     CANOPY   FOLIAGE  STEM    NUMBER
+         DISTURB. COV>0)  LOW  MED TALL TOTAL   HEIGHT  BIOMASS  (NO./  STAGE  AGE    HEIGHT   COVER   BIOMASS  DIAMS.   OF   
+DATE     (YEARS)   (%)    (%)  (%)  (%)  (%)    (FEET)  (LB/AC)  SQFT)  CODE   (YRS)  (FEET)    (%)    (LB/AC)  (FEET)  STEMS 
+------------------------------------------------------------------------------------------------------------------------------
+1990          3     79      3   30    3   36      2.6        0     0.0     8     60     63      46       5367     185     590
+2000         13     76      7   21    2   30      2.6        0     0.0     8     70     68      51       6181     209     579
+2010         23     71     10   15    2   27      2.2        0     0.0     8     80     72      55       6941     230     568
+------------------------------------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------  SHRUB-SMALL CONIFER COMPETITION  ----------------------------------------------
+
+                              SHRUB COVER -- TOTAL COVER OF SHRUBS GREATER THAN HEIGHT
+                              TREES/ACRE  -- TOTAL NUMBER OF TREES PER ACRE GREATER THAN HEIGHT
+
+------------------------------------------------------------------------------------------------------------------------------
+                                                          HEIGHT (FEET)
+YEAR                        0.0    0.5    1.0    2.0    3.0    4.0    5.0    7.5   10.0   15.0   20.0
+------------------------------------------------------------------------------------------------------------------------------
+1990        SHRUB COVER      36     36     36     25     16      2      0      0      0      0      0
+            TREES/ACRE      590    590    590    470    380    380    369    369    369    309    249
+
+2000        SHRUB COVER      30     27     26     18     17      2      0      0      0      0      0
+            TREES/ACRE      579    579    579    579    491    491    461    362    362    333    274
+
+2010        SHRUB COVER      27     23     20     13     12      2      1      0      0      0      0
+            TREES/ACRE      568    568    568    568    568    482    482    442    356    327    298
+
+------------------------------------------------------------------------------------------------------------------------------

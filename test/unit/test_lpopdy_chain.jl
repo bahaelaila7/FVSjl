@@ -21,7 +21,7 @@ _fhex(x::Float32) = uppercase(string(reinterpret(UInt32, x), base=16, pad=8))
             worst = max(worst, r != 0 ? abs(got-r)/abs(r) : abs(got-r)); n += 1
         end
         @test n == 30
-        @test worst < 1.0e-7          # matches to 1.56e-8 (MPBGAM Stirling residual; sufficient for total-kill)
+        @test worst == 0.0            # BIT-EXACT (Fortran single-precision Stirling constant matched)
     end
 
     # --- load per-tree inputs (inputs.txt: IN i DBH XPT WK3 PROB) ---
