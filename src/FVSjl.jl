@@ -320,6 +320,9 @@ include("variants/ontario/ontario.jl")                        # ON (Ontario) var
 include("variants/ontario/dg_coefficients.jl")                # ON Penner DG coeff arrays (35 eqns) + OSPMAP 72→35 + LQUAL AGS/UGS — dump-replay verified
 include("variants/ontario/diameter_growth.jl")                # ON Penner large-tree DGF: on_penner_dds VALIDATED 8/8 DDS bit-exact vs FVSon_g16 (dgf! stand-context pending full engine)
 include("variants/ontario/species.jl")                        # ON species block-data (72 JSP + FIA/PLANTS crosswalk) + load_species_coefficients! + SPCTRN column
+include("variants/ontario/site_coefficients.jl")              # ON SICOEF1/2 (72×72) + BAMAX1 site-index fan coefficients (canada/on/sitset.f DATA)
+include("variants/ontario/site_index.jl")                     # ON site_setup! (canada/on/sitset.f + forkod.f): SITEAR fan + SDIDEF + LONT top-height — dump-replay bit-exact
+include("variants/ontario/crown.jl")                          # ON crown_ratio_update! (canada/on/crown.f, shared TWIGS NC-125 kernel) — crown model dump-replay verified
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")

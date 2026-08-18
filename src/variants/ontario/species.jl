@@ -8,6 +8,13 @@
 
 const ON_RNG_SEED = 55329.0f0
 
+# ON tree-record FORMAT (canada/on/blkdat.f:42-44 TREFMT) — WIDER than the SN default
+# (F5.1 DBH / 2F5.1 HT&HTG vs the SN F4.1/2F3.0), so an inline TREEDATA record's DBH and
+# height land in the correct columns. Without this the shared DEFAULT_TREE_FORMAT misreads
+# ON .tre records (heights → 0, spurious top-kill).
+const ON_TREE_FORMAT =
+    "(I4,T1,I7,F6.0,I1,A3,F5.1,F4.1,2F5.1,F5.1,I1,3(I2,I2),2I1,I2,2I3,2I1,F3.0)"
+
 function init_blockdata!(s::StandState, v::Ontario)
     sd = s.species
     alpha = s.coef.code_alpha; fia = s.coef.code_fia; plants = s.coef.code_plants
@@ -22,7 +29,7 @@ function init_blockdata!(s::StandState, v::Ontario)
         sd.code2[i] = String(rstrip(first(sd.class_codes[i, 1], 2)))
     end
 
-    s.control.tree_format = DEFAULT_TREE_FORMAT
+    s.control.tree_format = ON_TREE_FORMAT
     s.control.year = 10.0f0             # IFINT (grinit.f:238)
     s.control.growth_fint = 10.0f0
     s.control.zeide_sdi = false         # ON LZEIDE=.FALSE. (grinit.f:183) — Reineke/Stage SDI

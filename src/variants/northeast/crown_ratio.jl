@@ -14,7 +14,14 @@
 # CS shares NE's TWIGS crown model (cs/crown.f ≡ ne/crown.f modulo the BCR4 sign, which CS
 # data folds in as a negated `crown_bcr4` so the same `exp(bcr4·d)` kernel reproduces CS's
 # `exp(-BCR4·d)`). One method serves both eastern variants.
-function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates,LakeStates}; fint::Float32 = 10f0,
+function crown_ratio_update!(s::StandState, ::Union{Northeast,CentralStates,LakeStates}; kwargs...)
+    return _twigs_crown_update!(s; kwargs...)
+end
+
+# The shared TWIGS NC-125 crown kernel (ne/cs/ls/canada-on crown.f). Variant-agnostic — it reads
+# BCR1..4 from the per-species coefficient dict, so it serves ON (canada/on/crown.f) verbatim too.
+# ON's crown.f is the same model; the Ontario method (variants/ontario/crown.jl) dispatches here.
+function _twigs_crown_update!(s::StandState; fint::Float32 = 10f0,
                              crown_sdi::Float32 = -1f0, relden_override::Float32 = -1f0,
                              ba_override::Float32 = -1f0, lstart::Bool = false)
     t = s.trees; sd = s.coef.species; n = t.n

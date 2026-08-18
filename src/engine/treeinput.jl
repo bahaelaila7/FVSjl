@@ -77,9 +77,10 @@ function load_trees!(s::StandState, trepath::AbstractString; kr = nothing)
         end
     end
 
-    # BC (metric variant) `.tre` DBH/DG are cm, HT/HTG are m — convert to US units on input
-    # (metric/base/intree.f:302-306). US-FIA DB ingest stays imperial (metric defaults false there).
-    return ingest_tree_records!(s, records; metric = s.variant isa BritishColumbia)
+    # BC and ON (metric variants) `.tre` DBH/DG are cm, HT/HTG are m — convert to US units on
+    # input (metric/base/intree.f:302-306). US-FIA DB ingest stays imperial (metric defaults false).
+    return ingest_tree_records!(s, records; metric = s.variant isa BritishColumbia ||
+                                                     s.variant isa Ontario)
 end
 
 """
