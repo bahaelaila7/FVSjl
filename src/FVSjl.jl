@@ -326,6 +326,7 @@ include("variants/ontario/crown.jl")                          # ON crown_ratio_u
 include("variants/ontario/height_growth.jl")                  # ON large-tree HTG (canada/on/htgf.f + htont.f Penner diameter-height): on_htont + height_growth! — dump-replay bit-exact (HTNOW/HT10/HTG/BA10/QMD10)
 include("variants/ontario/small_tree_growth.jl")              # ON REGENT (canada/on/regent.f): small_tree_growth! — no-op-validated (all-large-tree ont01; D>=XMX=4.72" skip)
 include("variants/ontario/mortality.jl")                      # ON MORTS (canada/on/morts.f + varmrt.f): mortality! — Penner max-SDI/MSB density + 4-group background + Penner individual-tree VARMRT
+include("variants/ontario/volume.jl")                         # ON volume (canada/on vols.f+varvol.f METHC=8 + volont.f ZAK/HONER + Mowraski cull): compute_volumes_on! — per-tree GTV/GMV/NMV dump-replay bit-exact vs FVSon_g16
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
