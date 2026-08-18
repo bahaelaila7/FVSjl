@@ -439,14 +439,22 @@ const WSBWE_IBIOMP_TT = Int[1,4,3,11,8,11,7,8,9,10,11,11,11,11,11,11,11,11] # bw
 const WSBWE_IBWSPM_BM = Int[7,7,2,3,7,7,7,5,4,7,7,7,7,7,7,7,7,7]           # bwebkbm.f DATA IBWSPM
 const WSBWE_IBIOMP_BM = Int[1,2,3,4,5,11,7,8,9,10,11,11,11,6,11,11,11,11]  # bwebmsbm.f DATA IBIOMP
 
+# --- SO (SouthCentralOregon) block data (bwebkso.f / bwebmsso.f). MAXSP=33. Hosts:
+# sp3=DF(2), sp4=WF(1), sp8=ES(5), sp12=GF(3), sp13=AF(4), sp17=WL(6) — adds WF (class 1)
+# and WL (class 6). Host-class tables + biomass coeffs identical to EM (verified).
+const WSBWE_IBWSPM_SO = Int[7,7,2,1,7,7,7,5,7,7,7,3,4,7,7,7,6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7]  # bwebkso.f
+const WSBWE_IBIOMP_SO = Int[1,1,3,4,5,6,7,8,3,10,11,4,9,9,3,1,2,6,5,11,11,11,11,11,11,11,11,11,11,11,11,11,11] # bwebmsso.f
+
 # Per-variant host/biomass dispatch (mirrors the insect-model `mpb_idxlp`/`dfb_idfspc`
 # per-variant dispatch). A variant is WSBWE-host-supported iff it returns non-nothing.
-wsbwe_ibwspm_for(v) = v isa EasternMontana ? WSBWE_IBWSPM_EM :
-                      v isa Teton          ? WSBWE_IBWSPM_TT :
-                      v isa BlueMountains   ? WSBWE_IBWSPM_BM : nothing
-wsbwe_ibiomp_for(v) = v isa EasternMontana ? WSBWE_IBIOMP_EM :
-                      v isa Teton          ? WSBWE_IBIOMP_TT :
-                      v isa BlueMountains   ? WSBWE_IBIOMP_BM : nothing
+wsbwe_ibwspm_for(v) = v isa EasternMontana    ? WSBWE_IBWSPM_EM :
+                      v isa Teton             ? WSBWE_IBWSPM_TT :
+                      v isa BlueMountains      ? WSBWE_IBWSPM_BM :
+                      v isa SouthCentralOregon ? WSBWE_IBWSPM_SO : nothing
+wsbwe_ibiomp_for(v) = v isa EasternMontana    ? WSBWE_IBIOMP_EM :
+                      v isa Teton             ? WSBWE_IBIOMP_TT :
+                      v isa BlueMountains      ? WSBWE_IBIOMP_BM :
+                      v isa SouthCentralOregon ? WSBWE_IBIOMP_SO : nothing
 const WSBWE_BINT2  = Float32[2.666072,1.756537,2.705866,3.115084,2.654572,3.059351,2.622505,3.300852,3.060169,2.452492,2.622505]
 const WSBWE_BINT12 = Float32[-1.94951,-4.73762,-2.05828,-2.43200,-4.17456,-2.24876,-3.13488,-2.93508,-1.60998,-2.74410,-2.63387]
 const WSBWE_BCL12  = Float32[1.22023,1.98479,1.25837,1.60270,2.00749,1.37600,1.62368,1.96125,1.32649,1.58171,1.35092]

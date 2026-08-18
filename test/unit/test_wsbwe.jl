@@ -172,9 +172,15 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test _FW.WSBWE_IBWSPM_BM == Int[7,7,2,3,7,7,7,5,4,7,7,7,7,7,7,7,7,7]
         @test _FW.WSBWE_IBIOMP_BM == Int[1,2,3,4,5,11,7,8,9,10,11,11,11,6,11,11,11,11]
         @test (_FW.WSBWE_IBWSPM_BM[3], _FW.WSBWE_IBWSPM_BM[4], _FW.WSBWE_IBWSPM_BM[8], _FW.WSBWE_IBWSPM_BM[9]) == (2, 3, 5, 4)  # DF/GF/ES/AF
+        # SO (SouthCentralOregon, MAXSP=33): adds WF(class1)+WL(class6) hosts; tables/biomass==EM.
+        @test _FW.wsbwe_ibwspm_for(_FW.SouthCentralOregon()) === _FW.WSBWE_IBWSPM_SO
+        @test _FW.wsbwe_ibiomp_for(_FW.SouthCentralOregon()) === _FW.WSBWE_IBIOMP_SO
+        @test length(_FW.WSBWE_IBWSPM_SO) == 33 && length(_FW.WSBWE_IBIOMP_SO) == 33
+        @test (_FW.WSBWE_IBWSPM_SO[3], _FW.WSBWE_IBWSPM_SO[4], _FW.WSBWE_IBWSPM_SO[8],
+               _FW.WSBWE_IBWSPM_SO[12], _FW.WSBWE_IBWSPM_SO[13], _FW.WSBWE_IBWSPM_SO[17]) == (2,1,5,3,4,6)  # DF/WF/ES/GF/AF/WL
         @test _FW.wsbwe_ibwspm_for(_FW.InlandEmpire()) === nothing    # unsupported variant → inert
-        # end-to-end .sum-DELTA validated in the main loop: TT 2000 ΔTPA -478 = FVStt_wsbwe -478
-        # (bit-exact); BM 2000 ΔTPA -480 vs FVSbm_wsbwe -481 (within-straddle); multi-cycle cornered
-        # by each variant's #206 growth straddle — the oracles aren't available to the unit suite.
+        # end-to-end .sum-DELTA validated in the main loop against relinked FVS<v>_wsbwe oracles:
+        # TT 2000 ΔTPA -478 = -478 (bit-exact); BM -480 vs -481; SO -476 vs -482 (DEFOL'd stand
+        # matches exactly, the delta divergence is each variant's off-run #206 baseline straddle).
     end
 end
