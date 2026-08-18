@@ -59,8 +59,14 @@ of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model erro
 4. **ON DG calibration** — `dgdriv.f` LSTART SIGMAR/OBSERV/VARDG → COR + the VARDG-driven tripled-record
    OLDRN spread (the multi-cycle #206 straddle; the multi-cycle `.sum` is already cornered-by-inheritance
    without it, as every western variant is).
-5. The sub-12cm REGENT branch (htcalc NC128 + ONHTDBH + htdbh Wykoff dubbing) — needs a small-tree/regen
-   ON validation stand (ont01 is all-large).
+5. ~~The sub-12cm REGENT branch~~ — ✅ PORTED (chunk 11): `small_tree_growth!(::Ontario)` = the full
+   `regent.f` sub-12cm chain — **ONSTHG** (onsthg.f Penner-2010 small-tree height, bit-exact), HTMAX gate
+   (`_on_htcalc_htmax`), [XMIN,XMAX] blend, Wykoff/Curtis-Arney HT→DBH dubbing (`_on_htdbh_dbh`,
+   HT1/HT2/IWYKCA/SNALL/SNDBAL), DGSM blend, DGBND, DIAM floor; all multipliers proven =1. Validated on a
+   built small-tree stand (ont_sm) vs FVSon_regdump: ONSTHG bit-exact, deterministic HTGR bit-exact where
+   xwt=0. Residual (~1.6% HTG on xwt>0 records) is inherited from the large-tree HTG/DG for sub-12cm
+   records (upstream `diameter_growth!`, jl DG ~0.0249 vs oracle ~0.0233) — a separate small-tree large-DGF
+   follow-on, not a REGENT error. Recipe: scratchpad/on/REGENT_HANDOFF.md.
 6. ON SPCTRN crosswalk targets (native-coded input already works via `resolve_species`).
 
 **ON's core FVS projection (growth, mortality, volume) is bit-exact-or-cornered end-to-end vs FVSon_g16
