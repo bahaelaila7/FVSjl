@@ -153,4 +153,20 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test _hexw(_FW.wsbwe_bernp(w, 0.85f0, 0.06f0)) == "3F609607"   # AVDEF (2 BWERAN draws)
         @test _hexw(_FW.wsbwe_rand!(w))                 == "3F630A07"   # topkill BWERAN (draw #3)
     end
+
+    @testset "Per-variant host/biomass dispatch (EM + TT)" begin
+        # TT (Teton, MAXSP=18): IBWSPM/IBIOMP from bwebktt.f/bwebmstt.f. Hosts (IBWSPM<7)
+        # at sp3=DF(2)/sp8=ES(5)/sp9=AF(4) — same host classes as EM. Host-class tables +
+        # ICVOPT=2 biomass coeffs are identical to EM (only these two maps differ).
+        @test _FW.wsbwe_ibwspm_for(_FW.EasternMontana()) === _FW.WSBWE_IBWSPM_EM
+        @test _FW.wsbwe_ibwspm_for(_FW.Teton())          === _FW.WSBWE_IBWSPM_TT
+        @test _FW.wsbwe_ibiomp_for(_FW.Teton())          === _FW.WSBWE_IBIOMP_TT
+        @test _FW.WSBWE_IBWSPM_TT == Int[7,7,2,7,7,7,7,5,4,7,7,7,7,7,7,7,7,7]
+        @test _FW.WSBWE_IBIOMP_TT == Int[1,4,3,11,8,11,7,8,9,10,11,11,11,11,11,11,11,11]
+        @test length(_FW.WSBWE_IBWSPM_TT) == 18                       # TT MAXSP
+        @test (_FW.WSBWE_IBWSPM_TT[3], _FW.WSBWE_IBWSPM_TT[8], _FW.WSBWE_IBWSPM_TT[9]) == (2, 5, 4)  # DF/ES/AF
+        @test _FW.wsbwe_ibwspm_for(_FW.InlandEmpire()) === nothing    # unsupported variant → inert
+        # end-to-end .sum-DELTA validated in the main loop (2000 ΔTPA -478 = FVStt_wsbwe -478,
+        # bit-exact; multi-cycle cornered by TT #206) — the oracle isn't available to the unit suite.
+    end
 end
