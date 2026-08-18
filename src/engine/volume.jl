@@ -543,6 +543,37 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa Ontario
+        # canada/on grinit.f + sitset.f merch defaults. grinit seeds TOPD=BFTOPD=10cm·CMtoIN,
+        # STMP=BFSTMP=30cm·CMtoFT, DBHMIN=BFMIND=0 (ONMTD is DATA MAXSP*0.0). sitset then fills the
+        # zero DBHMIN/BFMIND (TOPD/BFTOPD stay 10cm since they are >0): softwoods (ISPC≤14 or >68)
+        # DBHMIN=5, BFMIND=9, BFTOPD=7.6; hardwoods key on IFOR (SELECT CASE, DBHMIN 5/6, BFMIND 9/11,
+        # BFTOPD 7.6/9.6) — for ont01 IFOR=9 = CASE DEFAULT → DBHMIN=5, BFMIND=11, BFTOPD=9.6. ON has
+        # NO Scribner-cubic (SCF) merch standard, so mirror the cubic values into the scf_* slots
+        # (unused until the ON volume kernel — htont/varvol/cubrds/nbolt — lands as a later chunk).
+        cmToIn = 0.3937f0; cmToFt = 0.0328084f0
+        topd = 10.0f0 * cmToIn                       # 3.937"  (grinit, sitset leaves >0 untouched)
+        stmp = 30.0f0 * cmToFt                       # 0.984252 ft (cubic == board stump)
+        ifor = Int(s.plot.forest_idx)
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            sw = (j <= 14 || j > 68)                 # sitset softwood test (ISPC.LE.14 .OR .GT.68)
+            hw4042 = (40 <= j <= 42)
+            dbhmin = sw ? 5.0f0 :
+                     ifor == 2 ? (hw4042 ? 6.0f0 : 5.0f0) :
+                     ifor == 6 ? 6.0f0 : 5.0f0
+            bfmind = sw ? 9.0f0 :
+                     ifor == 2 ? (hw4042 ? 11.0f0 : 9.0f0) :
+                     ifor == 5 ? (hw4042 ? 9.0f0 : 11.0f0) : 11.0f0
+            bftopd = sw ? 7.6f0 :
+                     ifor == 2 ? (hw4042 ? 9.6f0 : 7.6f0) :
+                     ifor == 5 ? 7.6f0 : 9.6f0
+            c.sp_dbh_min[j]    = dbhmin; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = stmp
+            c.sp_bf_dbhmin[j]  = bfmind; c.sp_bf_topd[j]  = bftopd; c.sp_bf_stump[j] = stmp
+            c.sp_scf_dbhmin[j] = dbhmin; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = stmp
+        end
+        c.merch_init = true
+        return s
+    end
     sd = s.coef.species
     @inbounds for j in 1:length(c.sp_dbh_min)
         c.sp_scf_dbhmin[j] = sd[:scf_min_dbh][j]
