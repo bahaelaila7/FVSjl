@@ -68,3 +68,14 @@ const ON_OSPMAP = Int[
 
 # LQUAL: FVS species carrying an AGS/UGS quality code (eqn -> eqn+1 when IMC==1). dgf.f DATA LQUAL.
 const ON_LQUAL_SPP = Set([15,19,20,24,25,26,28,34])
+
+# OBSERV: per-EQUATION observation count (canada/on/dgf.f DATA OBSERV, 35 equations). DGCONS loads
+# ATTEN(sp)=OBSERV(OSPMAP(sp)) as the Bayesian prior-observation weight for DG calibration.
+const ON_OBSERV = Int[
+ 13692, 5314, 4954,92648,31572,
+  4879, 1883, 4591,56172, 9139,
+   830, 6281,  601,  613,26739,
+ 26739,  741,  741,  508, 1453,
+  4394,  595,  740, 3971, 3971,
+   269,  269,  284,  934,  934,
+   115,  259,  274,  274,11183]

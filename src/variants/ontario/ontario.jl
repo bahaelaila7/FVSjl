@@ -39,5 +39,5 @@ variant_code(::Ontario) = "ON"
 nspecies(::Ontario) = 72
 htg_period(::Ontario) = 10f0   # CONFIRM vs canada/on/grinit.f IFINT/YR before relying on this
 
-# const ON_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "ontario"))
-# coefficients(::Ontario) = cached_coefficients(() -> load_species_coefficients(ON_DATADIR), "ON")
+const ON_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "ontario"))
+coefficients(::Ontario) = cached_coefficients(() -> load_species_coefficients(ON_DATADIR), "ON")

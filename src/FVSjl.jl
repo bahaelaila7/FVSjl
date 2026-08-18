@@ -319,6 +319,7 @@ include("variants/olympic/small_tree_growth.jl")              # OP small-tree (o
 include("variants/ontario/ontario.jl")                        # ON (Ontario) variant singleton + registration (MAXSP 72, metric, Penner growth) — BEACHHEAD
 include("variants/ontario/dg_coefficients.jl")                # ON Penner DG coeff arrays (35 eqns) + OSPMAP 72→35 + LQUAL AGS/UGS — dump-replay verified
 include("variants/ontario/diameter_growth.jl")                # ON Penner large-tree DGF: on_penner_dds VALIDATED 8/8 DDS bit-exact vs FVSon_g16 (dgf! stand-context pending full engine)
+include("variants/ontario/species.jl")                        # ON species block-data (72 JSP + FIA/PLANTS crosswalk) + load_species_coefficients! + SPCTRN column
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
