@@ -323,6 +323,7 @@ include("variants/ontario/species.jl")                        # ON species block
 include("variants/ontario/site_coefficients.jl")              # ON SICOEF1/2 (72×72) + BAMAX1 site-index fan coefficients (canada/on/sitset.f DATA)
 include("variants/ontario/site_index.jl")                     # ON site_setup! (canada/on/sitset.f + forkod.f): SITEAR fan + SDIDEF + LONT top-height — dump-replay bit-exact
 include("variants/ontario/crown.jl")                          # ON crown_ratio_update! (canada/on/crown.f, shared TWIGS NC-125 kernel) — crown model dump-replay verified
+include("variants/ontario/height_growth.jl")                  # ON large-tree HTG (canada/on/htgf.f + htont.f Penner diameter-height): on_htont + height_growth! — dump-replay bit-exact (HTNOW/HT10/HTG/BA10/QMD10)
 
 # --- io ---------------------------------------------------------------------
 include("io/treedata.jl")
