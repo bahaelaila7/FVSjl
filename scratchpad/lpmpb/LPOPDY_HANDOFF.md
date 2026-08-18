@@ -75,6 +75,38 @@ LPMPB payload — large, multi-turn.
   TREES−=AGG (attacked) then re-add survivors; TRKILL/TKYR/TM accumulate kill; brood B3; percentages; loop until
   epidemic ends; CLASS(I,IMPROB)=TREES(I) (survivors). Then MPBDRV: SURVIV(I)=CLASS(I,IMPROB)/SURVIV_pre;
   WK2(I)=max(WK2(I), PROB(I)·(1−SURVIV(class))) — the mortality output (DFB-style max-combine, cap PROB−1e-6).
+## ★★★ MPBMOD FULLY READ + ALL PARAMETERS CAPTURED 2026-08-18 (fort.785) — port is now fully specified
+Entire LPOPDY chain read: MPBDRV, phloem, GARBEL, GRCLAS, SURFCE, SURFLP, MPBMOD (all 808 ln), EMERG, PERCNT, PMSLP,
+TAFIT, BETIN, FORW, BACK, PQSML, MPBGAM. All params dumped from the oracle (fort.785, lp_popdy, IE):
+- **Scalars**: NG=2, INCRS=10, IB=1, MPMXYR=10, NACLAS=10. CE=1.0, EXCON=640.0 (acres), SQFTPA=43560.0, STRBUG=500.0
+  (init beetles), STRP=0.95 (init P), SEXRAT=0.66, HS=1.0, CF1=CF2=0.01, CF3=0.5, TAFAC=1.7, TAMIN=1.7, TAMAX=3.0,
+  **TA=2.099609** (=RESIST via PMSLP(PGR,PGRX,TAY,5) clamped [TAMIN,TAMAX]; LCRES=T; PGR from MPGR — capture TA directly),
+  AMP1=1200.0, AMP2=600.0, CRITAD=1.5, ELEV=34.0 (hundreds-ft), FORLAT=44.0, EFELEV=1.0, EFLAT=1.00019(=4.667−.08333·44),
+  EPS=1.0D-6, BMIN=1.0D-10 (mpbint.f), BETTER=[1.0,4.0], KEYMPB=[2,3,0,0,0,0,0,0,1], IMPROB=1.
+- **Genotype arrays** (NG=2): DST=[3000.0, 500.0] (flight dist), EXODUS=[0.27588, 0.008926] (=1−exp(−CE·DST²/(EXCON·SQFTPA))).
+- **Switches**: LGO=T (actual sim from start since NEPIYR≤0 ⇒ skip 3-try TA calibration), LCRES=T, **LAGG=LREP=LPS=LDC=F**
+  ⇒ ALL pheromone/spray/direct-control paths INERT (AGGPH/REPL/PSPK/PSDL/PSPF/PSE1/PSE3/DCPF/DCPK unused). Big simplification.
+- **Per-class inputs** (fort.785 'C' recs, all match GARBEL/SURFCE): TREES(I)=CLASS(I,1)=ΣPROB, SURF(I), DIAM(I)=CLASS(I,2)
+  =avgDBH, PHLOEM(I)=CLASS(I,3)=avgXPT. Derived: SEXDBH(I)=0.918−0.0168·DIAM(I); EFPHLM(I)=max(0,16.67·PHLOEM(I)−0.667).
+- **MPBMOD year-loop** (LGO=T path, no partial-epidemic branch): BY=STRBUG, P=STRP. Repeat years (MPBYR++) until BY<1
+  or MPBYR≥MPMXYR: GENO=[P,1−P]; GTEB=BY; TEB=BY·GENO. EMERGENCE loop INC=1..NINC(=INCRS+1=11): E1=Σ SURF·TREES;
+  E3/EF3/TAGG from prior-inc AGG·AMP (AMP(KK)=max(0,AMP1−AMP2·AD(KK)·(1−SEXRAT))); RHO1=ΣTREES; E2=OS−(E1+E3)+SNOHST
+  (OS=Σ SURF·TREES [+SADLPP if LGO]); EFFS=E1+E2+EF3; RHO3=TAGG/SQFTPA, RHO2=max(0,TPROB−TAGG−RHO1)/SQFTPA,
+  RHO1/=SQFTPA; BNEW=EMERG(BY,INC−1,INCRS); GENOTYPE loop IG: B0=GENO·BNEW+BOLD; EXLOSS=B0·EXODUS; B0−=EXLOSS;
+  B1=B0·E1/EFFS,B2=B0·E2/EFFS,B3=B0·EF3/EFFS; FMi=exp(−CFi·2·√RHOi·DST²/DST(1)) (0 if arg≤−80); Bi−=Bi·FMi;
+  BOLD=B1+B2; sums B1INC,B3INC,B3SUM. PIODEN=B1INC/E1; XX=1−exp(−PIODEN); AGG(I,INC)=TREES(I)·BETIN(TA,SURF(I)−TA+1,XX)
+  [if XX≠0 & DSMTA>0]; TREES−=AGG; AD(KK)+=AMP(KK)·B3INC/EF3. PRODUCTIVITY loop INC: EGGS=630·(1−exp(−0.117·AD));
+  PSURV=1−exp(−AD·.04328) [·6.812·exp(−1.191·√AD) if AD≥2.595]; YOUNG=EGGS·PSURV·EFELEV·EFLAT·EFPHLM(I);
+  if AD<CRITAD → strip-kill (TREES+=AGG, AGG=0) else TM(I)+=AGG; SKILL=SURF·AGG; BY+=YOUNG·SKILL·HS·SEXDBH(I).
+  Update P from B3SUM (NG≠3 ⇒ P=(B3SUM(1)/B3ALL)²). CLASS(I,IMPROB)=TREES(I). Terminate.
+- **BETIN pkg** (DOUBLE): BETIN(a,b,x)=regularized incomplete beta via BACK (backward continued fraction, EPS/BMIN
+  convergence) + FORW (forward recurrence) + PQSML (series, ·MPBGAM(p+q)/(MPBGAM(p)·MPBGAM(q))); MPBGAM=exp(Stirling
+  log-gamma, shift arg to ≥18 by TERM-multiply). Restrictions a,b>0, 0≤x≤1. Route DEXP/DLOG via glibc for bit-exact.
+- **NEXT (the coding)**: write src/engine/lpmpb LPOPDY module: BETIN pkg + EMERG(state C)/PERCNT/PMSLP + MPBMOD year-loop;
+  dump-replay a mid-epidemic TREES(I)/AGG/BNEW/BY snapshot from the oracle (add a per-year dump to instr/mpbmod.f) to
+  validate the loop; then wire mpb_apply! LPOPDY branch (drop early-return) → WK2(I)=PROB−1e-6 via the mpbdrv loop →
+  end-to-end lp_popdy .sum (target 89→0). All params above are exact (fort.785); mortality target in fort.784.
+
 ## ★★ MORTALITY-TARGET FINDING 2026-08-18 (fort.784 dump — MASSIVELY simplifies the validation)
 - For lp_popdy: MPBYR=0, NEPIYR=0 (single initial epidemic call, NACLAS=10). The post-MPBMOD class survivors
   CLASS(I,IMPROB)_after are ALL denormal-tiny (~1e-11 … 1e-16) ⇒ **the epidemic wipes out ~ALL lodgepole pine.**
