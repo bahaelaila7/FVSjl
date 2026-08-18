@@ -290,6 +290,11 @@ basal area, average dominant height (AVH), and per-point basal area (PTBAA).
 function compute_density!(s::StandState)
     s.plot.basal_area = stand_ba(s)
     s.plot.avg_height = stand_top_height(s)
+    # RMSQD (stand quadratic mean diameter, inches) — DENSE computes it into COMMON; ON's Penner
+    # dgf! (ontario/diameter_growth.jl) reads it as `p.qmd*ON_INtoCM`. No other variant reads
+    # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
+    # Ontario to keep the shared density path byte-identical for every other variant.
+    s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
     point_basal_area!(s)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)

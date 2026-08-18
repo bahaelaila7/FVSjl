@@ -344,7 +344,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
-        write_sum_row(io, r; metric = s.variant isa BritishColumbia)
+        write_sum_row(io, r; metric = s.variant isa BritishColumbia || s.variant isa Ontario)
         collect_rows === nothing || push!(collect_rows, r)
     end
     return io
@@ -364,7 +364,8 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     dt(x) = trunc(Int, x + 0.5f0)
     # Metric variants (BC, Canada) report the .sum per HECTARE in metric units (metric/vbase/disply.f):
     # TPA·HAtoACR, BA·FT2pACRtoM2pHA, SDI·HAtoACR, TopHt→m, QMD→cm, volumes→m³/ha; CCF is dimensionless.
-    met  = s.variant isa BritishColumbia
+    # Metric per-hectare reporting: BC and Ontario (canada, via metric/vbase/disply.f + sumout.f).
+    met  = s.variant isa BritishColumbia || s.variant isa Ontario
     fha  = met ? 2.471f0     : 1f0    # per-area (trees, SDI) acre→ha
     fba  = met ? 0.2295643f0 : 1f0    # ft²/ac → m²/ha
     fht  = met ? 0.3048f0    : 1f0    # ft → m
