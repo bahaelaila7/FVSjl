@@ -424,6 +424,21 @@ const WSBWE_RELFY = reshape(Float32[
  0.05,0.05,1.0,1.0, 0.15,0.15,1.0,1.0, 0.20,0.20,1.0,1.0], (4,9))
 # BWEBMS EM (bwebmsem.f) — ICVOPT=2 (DDS model)
 const WSBWE_IBIOMP_EM = Int[1,2,3,4,2,11,7,8,9,10,11,11,11,11,11,11,11,11,11]
+
+# --- TT (Teton) block data (bwebktt.f / bwebmstt.f). TT MAXSP=18. Hosts (IBWSPM<7):
+# sp3=DF(class2), sp8=ES(class5), sp9=AF(class4) — same host classes as EM. The host-
+# class-indexed tables (PRCRN3/THEOFL/RELFX/RELFY) and the ICVOPT=2 biomass coeff arrays
+# (BINT2/BINT12/BCL12/…) are IDENTICAL to EM (verified vs bwebmstt.f); only IBWSPM (species
+# → host class) and IBIOMP (species → biomass eqn) differ per variant.
+const WSBWE_IBWSPM_TT = Int[7,7,2,7,7,7,7,5,4,7,7,7,7,7,7,7,7,7]           # bwebktt.f DATA IBWSPM
+const WSBWE_IBIOMP_TT = Int[1,4,3,11,8,11,7,8,9,10,11,11,11,11,11,11,11,11] # bwebmstt.f DATA IBIOMP
+
+# Per-variant host/biomass dispatch (mirrors the insect-model `mpb_idxlp`/`dfb_idfspc`
+# per-variant dispatch). A variant is WSBWE-host-supported iff it returns non-nothing.
+wsbwe_ibwspm_for(v) = v isa EasternMontana ? WSBWE_IBWSPM_EM :
+                      v isa Teton          ? WSBWE_IBWSPM_TT : nothing
+wsbwe_ibiomp_for(v) = v isa EasternMontana ? WSBWE_IBIOMP_EM :
+                      v isa Teton          ? WSBWE_IBIOMP_TT : nothing
 const WSBWE_BINT2  = Float32[2.666072,1.756537,2.705866,3.115084,2.654572,3.059351,2.622505,3.300852,3.060169,2.452492,2.622505]
 const WSBWE_BINT12 = Float32[-1.94951,-4.73762,-2.05828,-2.43200,-4.17456,-2.24876,-3.13488,-2.93508,-1.60998,-2.74410,-2.63387]
 const WSBWE_BCL12  = Float32[1.22023,1.98479,1.25837,1.60270,2.00749,1.37600,1.62368,1.96125,1.32649,1.58171,1.35092]
@@ -826,12 +841,13 @@ function wsbwe_apply!(s::StandState, old_tpa, fint)
     (w === nothing || !(w::WsbweState).active) && return nothing
     ww = w::WsbweState
     ww.lbudl && return nothing                 # BUDLITE/GENDEFOL deferred
-    s.variant isa EasternMontana || return nothing   # only EM host coeffs ported+validated
-    # LIVE gate (const, normally true). The feeder is now end-to-end bit-exact vs FVSem_wsbwe after
+    ibwspm = wsbwe_ibwspm_for(s.variant)             # per-variant host-class map (EM, TT ported+validated)
+    ibwspm === nothing && return nothing             # unsupported variant → inert
+    ibiomp = wsbwe_ibiomp_for(s.variant)
+    # LIVE gate (const, normally true). The feeder is end-to-end bit-exact vs FVS<v>_wsbwe after
     # the two faithful fixes below (OLDTPA/ORMSQD=TPROB/RMSQD, and SPDECD species decode). Kept as a
     # switch for A/B byte-identity proofs. See scratchpad/wsbwe/HANDOFF.md.
     WSBWE_APPLY_LIVE || return nothing
-    ibwspm = WSBWE_IBWSPM_EM; ibiomp = WSBWE_IBIOMP_EM
     t = s.trees; ns = t.n
     ns <= 0 && return nothing
     # host present?
