@@ -176,6 +176,36 @@ function _cover_replay_cwcalc(path)
     return (n, exact, ulp1, bad)
 end
 
+# ---- SHRUB-SMALL CONIFER COMPETITION: TRSH trees/ac by height threshold ----
+# TRSH bins each tree's HT into the 11 SHTRHT thresholds then cumulates from the top
+# (cvsum.f DO 300 + DO 399). Reconstruct the cyc-0 tally from the committed cvshap (HT)
+# and cvcw (PROB) dumps and check IFIX(.5+TRSH) == the FVSem_g16 em_cov.out cyc-0 row.
+@testset "COVER — SHRUB-SMALL CONIFER TRSH trees/ac (EM cyc0 bit-exact vs em_cov.out)" begin
+    ht = Dict{Int,Float32}(); prob = Dict{Int,Float32}()
+    for ln in eachline(joinpath(_COVER_HERE, "cover_cvshap_g16_dump.txt"))
+        startswith(ln, "CVSHAP") || continue
+        f = split(ln); parse(Int, f[2]) == 0 || continue         # icyc 0 only
+        ht[parse(Int, f[3])] = _cover_parse_e22(f[7])
+    end
+    for ln in eachline(joinpath(_COVER_HERE, "cover_cvcw_g16_dump.txt"))
+        startswith(ln, "CVCWTREE") || continue
+        f = split(ln); parse(Int, f[2]) == 0 || continue         # icyc 0 only
+        prob[parse(Int, f[3])] = _cover_parse_e22(f[6])
+    end
+    @test !isempty(ht) && length(ht) == length(prob)
+    shtrht = Float32[0.5,1.0,2.0,3.0,4.0,5.0,7.5,10.0,15.0,20.0,400.0]
+    trsh = zeros(Float32, 11)
+    for i in sort(collect(keys(ht)))
+        h = ht[i]; p = prob[i]; hm1 = -1.0f0
+        for j in 1:11
+            hc = shtrht[j]; (h > hm1 && h <= hc) && (trsh[j] += p); hm1 = hc
+        end
+    end
+    for j in 10:-1:1; trsh[j] += trsh[j+1]; end
+    io = [FVSjl._cv_ifix(trsh[j]) for j in 1:11]
+    @test io == [590,590,590,470,380,380,369,369,369,309,249]     # em_cov.out 1990 TREES/ACRE
+end
+
 @testset "COVER — em_cwcalc western crown-width dump-replay (EM, bit-exact vs FVSem_g16)" begin
     # emt01/em_cov inventory + grown trees — all Crookston Region-1 (eqn 03).
     n1, e1, u1, b1 = _cover_replay_cwcalc(joinpath(_COVER_HERE, "cover_em_cwcalc_emcov_g16_dump.txt"))
