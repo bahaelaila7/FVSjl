@@ -38,3 +38,16 @@ end
         break
     end
 end
+
+@testset "ON FORTYP/size/stock classification bit-exact vs FVSon_g16 (cyc0 .sum 125/1/1)" begin
+    # stkval.f (Arner-2001 VBASE) + fortyp.f decision tree; ON was missing the TAB2/TAB3/FTYPE data
+    # (stocking_coeffs / fia_stocking_map / forest_type_codes — the base eastern tables, ON is in the
+    # no-western-redefine VARACD CASE). With them wired the cyc0 .sum classification columns match.
+    for s in _F.each_stand("scratchpad/on/ont01.key"; variant=_F.Ontario(), faithful=true)
+        _F.notre!(s); _F.setup_growth!(s)
+        @test Int(s.plot.forest_type)    == 125   # red pine
+        @test Int(s.plot.size_class)     == 1     # sawtimber
+        @test Int(s.plot.stocking_class) == 1     # overstocked
+        break
+    end
+end
