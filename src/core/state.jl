@@ -571,9 +571,12 @@ mutable struct Density
     mort_slope::Float32          # Pretzsch self-thinning line slope             (SLPMRT)
     mort_intercept::Float32      # Pretzsch self-thinning line intercept         (CEPMRT)
     tpa_mort::Float32            # last cycle's surviving over-threshold TPA      (TPAMRT)
+    mort_ibasp::Int32            # ON only: persisted index of the species with the most BA (IBASP,
+                                 # canada/on/morts.f) — resets the ON self-thinning line when the
+                                 # dominant species changes. Default 0 (inert for all other variants).
 end
 Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE),
-                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0)
+                    zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
 
 # ---------------------------------------------------------------------------
 # OutputState — COMMON /OUTCOM/ + /SUMTAB/ : summary table & output controls
