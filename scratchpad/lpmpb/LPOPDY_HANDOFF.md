@@ -56,8 +56,27 @@ LPMPB payload — large, multi-turn.
   (SUR5≥0), per-species SUR/SUR5 = fns of ln(DBH),ln(HT),CFV,HT — this stand is all-LP ⇒ SNOHST=0.
   SURF(I)=SURFLP(CLASS(I,2)) where CLASS(I,2)=GRCLAS PROB-weighted class-avg DBH = Σ(DBH·PROB)/Σ PROB;
   SURFLP(d)= d≤5 ? d·0.672 : 8.835·d−40.82. IE map (mpblkdie.f): IDXWP1/WL2/DF3/LP7/PP10.
-- NEXT sub-chunk (THE BIG ONE): MPBMOD core (808 ln stochastic brood-dynamics + betin/forw/back/gamma beta-dist,
-  emerg emergence, own MINSTD LCG seed 55329) → then WK2 mortality output (per-class SURVIV) → wire mpb_apply!
-  LPOPDY branch (drop early-return) → end-to-end lp_popdy .sum (target 89→0). Oracle FVSie_lpmpb_g
-  @/workspace/.iework/lpmpb (instr/ dumps fort.780 GARBEL / 781 inputs / 782 sortP+M1 / 783 SURFCE; .sum byte-
-  identical to clean verified). Attributes fed to MPBMOD: SNOHST, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH.
+## MPBMOD SCOPING 2026-08-18 (the centerpiece — 808 ln, DETERMINISTIC ⇒ bit-exact target, NOT cornered)
+- **KEY FINDING: MPBMOD calls NO RNG** (grep ran1/random/iseed = none; tafit.f "ran" is "RANGE" in a comment).
+  ⇒ the whole LPOPDY population dynamics is a DETERMINISTIC year-by-year epidemic simulation → validate BIT-EXACT
+  via dump-replay (no #206 cornering). The only "beta-dist" is BETIN = the incomplete-beta CDF (deterministic).
+- **Helper leaves** (all in lpmpb/, port bottom-up, dump-replay each):
+  - `EMERG(BY,T,INCRS)` (28 ln) emergence increment: T=0 → C=1/2^INCRS; else C=C·(INCRS−T+1)/T; EMERG=BY·C.
+    ⚠ C is a DOUBLE local with NO SAVE but the build is `-fno-automatic` ⇒ C is STATIC/persists across calls in
+    the emergence loop. In jl carry C as explicit state threaded through the INC loop (do NOT re-init per call).
+  - `PERCNT(v,base)` = |base|≥1e-30 ? 100·v/base : 0.   `PMSLP(xx,x,y,n)` = piecewise-linear interp, flat-extrapolate.
+  - `BETIN(a,b,x)` (78 ln, DOUBLE PRECISION) = regularized incomplete beta I_x(a,b) via continued fraction — the
+    numerically sensitive one; port in Float64, match glibc. Used as AGG(I,INC)=TREES(I)·BETIN(DTA,DSMTA,XX).
+  - `TAFIT` (90 ln) threshold-of-aggregation fit (solves a curve, picks root in range). `GENO`,`EXLOSS`,`AMP` = the
+    genotype/flight-loss/attack-mult arrays (likely block-data or simple fns — read next).
+  - `PTSYM/PTGRP/EVSET4` = graphics/event output → NO-OP in jl (MPBGRF path; verify they don't mutate WK2).
+- **MPBMOD flow** (main driver): year loop over epidemic; per year: RESIST=PMSLP(...); TREES(I)=CLASS(I,IMPROB);
+  emergence BNEW=EMERG; genotype brood B0(IG)=GENO·BNEW+BOLD; aggregation attack AGG=TREES·BETIN(DTA,DSMTA,XX);
+  TREES−=AGG (attacked) then re-add survivors; TRKILL/TKYR/TM accumulate kill; brood B3; percentages; loop until
+  epidemic ends; CLASS(I,IMPROB)=TREES(I) (survivors). Then MPBDRV: SURVIV(I)=CLASS(I,IMPROB)/SURVIV_pre;
+  WK2(I)=max(WK2(I), PROB(I)·(1−SURVIV(class))) — the mortality output (DFB-style max-combine, cap PROB−1e-6).
+- **NEXT**: read the MPBMOD main driver 140-808 fully + GENO/EXLOSS/AMP/TAFIT/BETIN; port helpers leaf-up (EMERG/
+  PERCNT/PMSLP/BETIN dump-replay), then the year-loop (dump TREES(I)/AGG/BNEW per year for replay), then wire
+  mpb_apply! LPOPDY branch (drop early-return), validate end-to-end lp_popdy .sum (target 89→0). Attributes into
+  MPBMOD: SNOHST=0, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH. Oracle FVSie_lpmpb_g @/workspace/.iework/lpmpb
+  (instr/ dumps fort.780 GARBEL / 781 inputs / 782 sortP+M1 / 783 SURFCE; .sum byte-identical to clean verified).
