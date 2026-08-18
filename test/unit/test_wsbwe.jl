@@ -186,8 +186,15 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test length(_FW.WSBWE_IBWSPM_CI) == 19 && length(_FW.WSBWE_IBIOMP_CI) == 19
         @test (_FW.WSBWE_IBWSPM_CI[3], _FW.WSBWE_IBWSPM_CI[4], _FW.WSBWE_IBWSPM_CI[8],
                _FW.WSBWE_IBWSPM_CI[9]) == (2, 3, 5, 4)                # DF/GF/ES/AF host classes
+        # EC (East Cascades, MAXSP=32): sp3=DF(2), sp6=GF(3), sp8=ES(5), sp9=AF(4); coeffs==EM.
+        @test _FW.wsbwe_ibwspm_for(_FW.EastCascades()) === _FW.WSBWE_IBWSPM_EC
+        @test _FW.wsbwe_ibiomp_for(_FW.EastCascades()) === _FW.WSBWE_IBIOMP_EC
+        @test length(_FW.WSBWE_IBWSPM_EC) == 32 && length(_FW.WSBWE_IBIOMP_EC) == 32
+        @test (_FW.WSBWE_IBWSPM_EC[3], _FW.WSBWE_IBWSPM_EC[6], _FW.WSBWE_IBWSPM_EC[8],
+               _FW.WSBWE_IBWSPM_EC[9]) == (2, 3, 5, 4)                # DF/GF/ES/AF host classes
         # end-to-end .sum-DELTA validated in the main loop against relinked FVS<v>_wsbwe oracles:
         # TT 2000 ΔTPA -478 = -478 (bit-exact); BM -480 vs -481; SO -476 vs -482; CI heavy-DEFOL host
-        # stand 1990→2000 TPA 536→52 = oracle 52 (BIT-EXACT cyc1 kill), multi-cycle within ±2 (cornered).
+        # stand 1990→2000 TPA 536→52 = oracle 52 (BIT-EXACT cyc1 kill), multi-cycle ±2; EC 536→52 = 52
+        # (BIT-EXACT cyc1 kill), multi-cycle ±1 (both cornered post-DEFOL #206 growth straddle).
     end
 end

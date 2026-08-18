@@ -451,17 +451,24 @@ const WSBWE_IBIOMP_SO = Int[1,1,3,4,5,6,7,8,3,10,11,4,9,9,3,1,2,6,5,11,11,11,11,
 const WSBWE_IBWSPM_CI = Int[7,7,2,3,7,7,7,5,4,7,7,7,7,7,7,7,7,7,7]           # bwebkci.f DATA IBWSPM
 const WSBWE_IBIOMP_CI = Int[1,2,3,4,5,6,7,8,9,10,1,11,11,11,11,4,11,11,11]   # bwebmsci.f DATA IBIOMP
 
+# EC (East Cascades, MAXSP=32): sp3=DF(2), sp6=GF(3), sp8=ES(5), sp9=AF(4). biomass +
+# host-defol coeffs byte-identical to EM (verified) ⇒ clean host-class swap.
+const WSBWE_IBWSPM_EC = Int[7,7,2,7,7,3,7,5,4,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7]  # bwebkec.f
+const WSBWE_IBIOMP_EC = Int[1,2,3,4,6,4,7,8,9,10,5,5,11,1,3,4,2,6,11,11,11,11,11,11,11,11,11,11,11,11,11,11] # bwebmsec.f
+
 # Per-variant host/biomass dispatch (mirrors the insect-model `mpb_idxlp`/`dfb_idfspc`
 # per-variant dispatch). A variant is WSBWE-host-supported iff it returns non-nothing.
 wsbwe_ibwspm_for(v) = v isa EasternMontana    ? WSBWE_IBWSPM_EM :
                       v isa Teton             ? WSBWE_IBWSPM_TT :
                       v isa BlueMountains      ? WSBWE_IBWSPM_BM :
                       v isa CentralIdaho       ? WSBWE_IBWSPM_CI :
+                      v isa EastCascades       ? WSBWE_IBWSPM_EC :
                       v isa SouthCentralOregon ? WSBWE_IBWSPM_SO : nothing
 wsbwe_ibiomp_for(v) = v isa EasternMontana    ? WSBWE_IBIOMP_EM :
                       v isa Teton             ? WSBWE_IBIOMP_TT :
                       v isa BlueMountains      ? WSBWE_IBIOMP_BM :
                       v isa CentralIdaho       ? WSBWE_IBIOMP_CI :
+                      v isa EastCascades       ? WSBWE_IBIOMP_EC :
                       v isa SouthCentralOregon ? WSBWE_IBIOMP_SO : nothing
 const WSBWE_BINT2  = Float32[2.666072,1.756537,2.705866,3.115084,2.654572,3.059351,2.622505,3.300852,3.060169,2.452492,2.622505]
 const WSBWE_BINT12 = Float32[-1.94951,-4.73762,-2.05828,-2.43200,-4.17456,-2.24876,-3.13488,-2.93508,-1.60998,-2.74410,-2.63387]
