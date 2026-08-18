@@ -43,3 +43,24 @@ Dump-replay: port full chain → run jl on ont_sm → compare per-tree HTG(K)/DG
 (the RNG ±0.1 makes it stochastic; inject the oracle's BACHLO draws or match the RNG stream to get bit-exact,
 same as htont/mortality VARMRT). Then end-to-end ont_sm .sum cyc0 (TPA/QMD/TopHt). Multicycle 339/11 must hold
 (ON-gated). This is a LARGE multi-routine chunk — ONSTHG + HTCALC-mode9 + REGENT blend + DGBND + coeff tables.
+
+## FINAL de-risk (all coefficients sourced — implementation is a mechanical SN-template clone)
+The SN `src/variants/southern/small_tree_growth.jl` is the template — ON's regent.f is the SAME
+base/regent.f. Clone it into `small_tree_growth!(::Ontario)` swapping:
+- XMIN=3.15, XMAX=4.72 (have ON_REG_XMIN/XMAX), REGYR=10.0.
+- **Simplifications (all sourced): con=1 (RHCON=1 regent.f:624 non-calibrated, HCOR=0), HGADJ=1
+  (regent.f:75 MAXSP*1), XRHGRO=XRDGRO=1 (MULTS default), SCALE=FNT/REGYR=10/10=1, SCALE2=YR/FNT=1,
+  DGMX=DGMAX*SCALE=5.0 (regent.f:76), GMOD=1 (balmod.f ON).** So HTGR = ONSTHG*10, then XWT-blend, random, SIZCAP.
+- Height increment: **ONSTHG** (onsthg.f — port the 6 DATA arrays B00/B01/B02/BSI/BBAL/B95[28] + OSPMAP[72];
+  HM=max(.05,HT*.3048),LHM=log,SIM=SI*.3048,BALM=BAL*.2295643; HTG=Σ; clamp[-5,5];exp;clamp[.0001,B95];*3.28084;
+  BAL=BA*(100-PCT)*.01; *YRS=10; glibc logf/expf ccall). Replaces SN's htcalc_incr.
+- htmax gate: `_on_htcalc_htmax` (HAVE, volume.jl). If htmax-h≤1 → HTGR=0.1.
+- HTDBH (H→D) `_on_htdbh_dbh(sp,h)`: IWYKCA(sp)==0 → `(HT2/(log(H-4.5)-HT1))-1`; else Curtis-Arney
+  (SNALL P2/P3/P4, htdbh.f:342-353); then `D=max(D,SNDBAL(sp))`. Coeffs: HT1 blkdat.f:276, HT2 blkdat.f:290,
+  IWYKCA htdbh.f:306, SNALL htdbh.f (P2/P3/P4), SNDBAL htdbh.f:293 (all 72; SNALL only for IWYKCA=1 spp).
+- bark: on_bratio(sp,d,h). DGBND: `dg=min(dg, 6*exp(-0.03*min(dbh,150)))`, floor 0 (dgbnd.f).
+- DIAM floor (rgntsw.f:90): `DIAM=[0.3,0.3,0.2, 0.3×11, 0.2×54, 0.3×4]` (72). `if dbh+dg<DIAM → dg=DIAM-dbh`.
+- DGSM chain identical to SN `_regent_dg` (DDS=DGSM*(2*bark*d+DGSM)*scale2; DGSM=sqrt((d*bark)^2+DDS)-bark*d).
+Then wire small_tree_growth!(::Ontario) (drop the error). Validate: jl per-tree HTG(K)/DG(K) hex vs fort.773
+base records (random ±0.1 is RNG-stream — deterministic part bit-exact, random = #206 straddle) + ont_sm .sum cyc0.
+Every coefficient has a source line above — NO remaining unknowns.
