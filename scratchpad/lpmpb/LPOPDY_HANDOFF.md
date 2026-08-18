@@ -25,3 +25,17 @@ LPMPB payload — large, multi-turn.
    early-return). MEASURE BOTH SIDES per cycle (isolated dump-replay misses glue/feeder bugs).
 3. Validate end-to-end lp_popdy .sum-DELTA vs FVSie_lpmpb (cornered per #206 where stochastic).
    multicycle 339/11 must hold (LPOPDY only fires under a POPDYN keyword ⇒ additive/inert otherwise).
+
+## PROGRESS 2026-08-18 (sub-chunk 1 of the port)
+- **Phloem model — BIT-EXACT 18/18** (scratchpad/lpmpb/validate_phloem.jl vs FVSie_lpmpb_ph fort.779).
+  MPBDRV lines 106-116: DDS5=(2·DBH·DG+DG²)/2; BAI5=DDS5·0.7853982; XPT=exp(-3.17152+.12591·ln(BAI5)+
+  .50932·ln(DBH)-.0077·HT) for BAI5>1e-4 (else 0). glibc expf/logf.
+- MPBDRV FLOW (the LPOPDY driver): (1) MPGR if MPBYR==0 (growth ratio); (2) phloem XPT per LP tree [DONE];
+  (3) GARBEL classify LP trees into NACLAS classes by PROB (garbel.f); (4) SURFCE (surface model); (5) MPBMOD
+  (808 ln stochastic brood-dynamics core — the big one); (6) per-class SURVIV=CLASS(I,IMPROB)/SURVIV_pre;
+  (7) WK2(I)=max(WK2(I), PROB(I)·(1-SURVIV(class))), cap PROB-1e-6 = the mortality output (DFB-style max-combine).
+- Instrument recipe: `bash build_ie_lpmpb_persist.sh <instr-dir> <out>` single-.o swaps into the ieobj set;
+  instrumented .sum VERIFIED byte-identical to clean (fort.779 phloem dump inert). Run with
+  `FVSie_lpmpb --keywordfile=lp_popdy.key` in a dir with lp_popdy.tre.
+- NEXT sub-chunks (dep-order): GARBEL classifier → SURFCE → MPBMOD core (+ betin/forw/back/gamma beta-dist,
+  emerg emergence) → wire mpb_apply! LPOPDY branch (drop early-return) → end-to-end lp_popdy .sum (target 89→0).
