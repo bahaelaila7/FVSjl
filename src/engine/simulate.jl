@@ -215,6 +215,10 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Ontario
         on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
                                           # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
+        compute_density!(s)               # current-stand density (BA) for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
+                                          # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
+                                          # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.
         # NOTE: the ON DG calibration (dgdriv.f LSTART SIGMAR/OBSERV/VARDG serial-correlation → COR, VARDG) is a
         # downstream chunk. With no measured past growth the calibration COR=0 (the cyc0 value the shared driver
         # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
