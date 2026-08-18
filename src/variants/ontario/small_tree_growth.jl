@@ -25,11 +25,14 @@
 # bit-exact** — per-tree HTG(annual) hex matches for both the exp(-5)-clamped dense case and the
 # computed case; and the deterministic HTGR matches bit-exact on records where the [XMIN,XMAX] blend
 # does not consume the large-tree HTG (D≤XMIN ⇒ xwt=0). On records with xwt>0 the blended HTGR
-# inherits a ~1.6% residual from `height_growth!`/`diameter_growth!`'s large-tree HTG/DG for the SAME
-# sub-12cm records (jl DG ~0.0249 vs oracle ~0.0233) — an UPSTREAM small-tree large-DGF detail set
-# before REGENT runs, NOT a REGENT error (a separate follow-on). ont_sm is a degenerate super-dense
-# synthetic stand (BA >1000 m²/ha) built to exercise the branch; ont01 (all-large) → REGENT no-op,
-# so multicycle 339/11 + ontario suite are byte-identical. Recipe: scratchpad/on/REGENT_HANDOFF.md.
+# inherits a ~1.6% residual from the large-tree HTG/DG for the SAME sub-12cm records — and that is the
+# accepted **#206 OLDRN straddle, NOT a bug**: the large-tree Penner DDS/DIAGR are BIT-EXACT for these
+# small trees (on_penner_dds fed the oracle's inputs → DDS+DIAGR hex match), so the large-tree DG
+# (jl ~0.0249 vs oracle ~0.0233, consistent-sign) differs only by the DGSD=2.0 OLDRN serial-corr draw
+# `DG=√(D²+exp(WK2+OLDRN)·SCALE)−D` — the same cornered class as every western variant's cyc1. ont_sm
+# is a degenerate super-dense synthetic stand (BA >1000 m²/ha) built to exercise the branch; ont01
+# (all-large) → REGENT no-op, so multicycle 339/11 + ontario suite are byte-identical. Recipe:
+# scratchpad/on/REGENT_HANDOFF.md.
 # =============================================================================
 
 include("_regent_data.jl")
