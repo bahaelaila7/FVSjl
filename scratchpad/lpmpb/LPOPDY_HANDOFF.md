@@ -75,8 +75,19 @@ LPMPB payload — large, multi-turn.
   TREES−=AGG (attacked) then re-add survivors; TRKILL/TKYR/TM accumulate kill; brood B3; percentages; loop until
   epidemic ends; CLASS(I,IMPROB)=TREES(I) (survivors). Then MPBDRV: SURVIV(I)=CLASS(I,IMPROB)/SURVIV_pre;
   WK2(I)=max(WK2(I), PROB(I)·(1−SURVIV(class))) — the mortality output (DFB-style max-combine, cap PROB−1e-6).
-- **NEXT**: read the MPBMOD main driver 140-808 fully + GENO/EXLOSS/AMP/TAFIT/BETIN; port helpers leaf-up (EMERG/
-  PERCNT/PMSLP/BETIN dump-replay), then the year-loop (dump TREES(I)/AGG/BNEW per year for replay), then wire
-  mpb_apply! LPOPDY branch (drop early-return), validate end-to-end lp_popdy .sum (target 89→0). Attributes into
-  MPBMOD: SNOHST=0, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH. Oracle FVSie_lpmpb_g @/workspace/.iework/lpmpb
-  (instr/ dumps fort.780 GARBEL / 781 inputs / 782 sortP+M1 / 783 SURFCE; .sum byte-identical to clean verified).
+## ★★ MORTALITY-TARGET FINDING 2026-08-18 (fort.784 dump — MASSIVELY simplifies the validation)
+- For lp_popdy: MPBYR=0, NEPIYR=0 (single initial epidemic call, NACLAS=10). The post-MPBMOD class survivors
+  CLASS(I,IMPROB)_after are ALL denormal-tiny (~1e-11 … 1e-16) ⇒ **the epidemic wipes out ~ALL lodgepole pine.**
+- ⇒ SURVIV(class)=after/before ≈ 0 for every class ⇒ DEAD≈1 ⇒ per-tree the mortality-cap ALWAYS fires:
+  **WK2(I) = PROB(I) − 1e-6** (exact; verified tree18 PROB 403758B4 → WK2 403758B0). This IS the "89→0" collapse.
+- mpbdrv.f:198-208 mortality loop: X=PROB(I)·DEAD; WK2(I)=max(WK2(I),X); if PROB(I)−WK2(I)<1e-6 → WK2(I)=PROB(I)−1e-6.
+  Since SURVIV<3.6e-7 (=1e-6/PROB) for all classes, PROB−X<1e-6 ⇒ the cap dominates ⇒ WK2=PROB−1e-6 REGARDLESS of the
+  exact tiny survivor. ⇒ **end-to-end .sum is bit-exact as long as the ported MPBMOD drives each class survival <~3.6e-7**
+  (robust to ULP-level survivor differences — do NOT need BETIN's continued fraction matched to the last bit).
+- The full per-tree WK2 target is in /workspace/.iework/lpmpb/run/fort.784 (EPI/CLPOP/SURV/WK2 records).
+- **NEXT**: port MPBMOD faithfully (year-loop epidemic → total kill) enough to drive SURVIV→~0; the leaf helpers
+  (EMERG/PERCNT/PMSLP/TAFIT/BETIN) + GENO/EXLOSS/AMP/coeff block-data support it. Then wire mpb_apply! LPOPDY branch
+  (drop early-return) applying WK2(I)=PROB(I)−1e-6 via the mpbdrv loop, validate end-to-end lp_popdy .sum (target 89→0).
+  Attributes into MPBMOD: SNOHST=0, SURF(class), CLASS(I,1)=ΣPROB, CLASS(I,2)=avgDBH. Oracle FVSie_lpmpb_g
+  @/workspace/.iework/lpmpb (instr/ dumps fort.780 GARBEL/781 inputs/782 sortP+M1/783 SURFCE/784 mortality target;
+  .sum byte-identical to clean verified). BETIN pulls FORW/BACK/PQSML/DGAMMA (incomplete-beta pkg, DOUBLE).
