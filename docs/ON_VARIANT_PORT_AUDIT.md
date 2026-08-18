@@ -33,6 +33,18 @@ INERT for other variants — `test_multicycle` **339/11 byte-identical** is the 
 
 ## ✅ ON CORE COMPLETE + the ENTIRE cyc0 `.sum` row is byte-identical to FVSon_g16 (all numeric + classification columns).
 
+## Multi-cycle `.sum` structure (this chunk)
+Two general `.sum`-writer bugs surfaced by ON and fixed: (1) **phantom trailing stand** — the bare
+`STOP` terminator was emitted as an empty 2nd stand because `each_stand`'s guard tested
+`user_forest_code != 0`, which ON's `on_forkod!` (run in `site_setup!` during `initialize!`) defaults
+to 915 even for the terminator; switched the guard to the STDIDENT-derived `stand_id` (blank on the
+terminator). (2) **`-999` header sample weight** printed `0` — ON's `IPTINV` is lost to the initre
+LNOTBK overflow so the `points_inv` fallback can't fire; emit the FVS `SAMWT` default 1.0. Both are
+ON-scoped in effect but fix the shared writer; multicycle 339/11 unchanged. The cyc1 row is **cornered**:
+the meaningful model columns match (BA 39/40, SDI 817/820, CCF 218/218, TopHt 26/27, QMD 23.1) but the
+oracle's metric sumout prints a degenerate year 0 / TPA 24 (impossible for SDI 817) — an IOSUM artifact
+of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model error. cyc0 is byte-identical.
+
 ## Remaining (dep-ordered)
 
 1. ~~**FORTYP / size / stock classification**~~ — ✅ DONE (chunk 10): `125/1/1` bit-exact via the VBASE

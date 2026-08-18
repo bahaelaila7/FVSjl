@@ -134,8 +134,11 @@ function each_stand(keypath::AbstractString;
         reason = initialize!(s, kr, base; inherited_format = fmt)
         fmt = s.control.tree_format                # may have been set by a TREEFMT keyword
         # A bare STOP/EOF after the last stand's PROCESS is the run terminator, not a
-        # stand: no STDINFO ran, no trees, no establishment. Don't emit a phantom stand.
-        real = s.plot.user_forest_code != 0 || s.trees.n > 0 || s.estab.active
+        # stand: no STDIDENT/STDINFO ran, no trees, no establishment. Don't emit a phantom
+        # stand. Signal = a non-blank stand_id (every real stand carries a STDIDENT); the
+        # terminator has none. (NOT user_forest_code — ON's forkod defaults it to 915 in
+        # site_setup! even for the empty terminator, which would resurrect the phantom.)
+        real = !isempty(strip(s.plot.stand_id)) || s.trees.n > 0 || s.estab.active
         real && push!(stands, s)
         reason in (:stop, :eof) && break
     end

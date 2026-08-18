@@ -216,6 +216,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # is the non-stockable expansion used for per-acre normalization below; SAMWT is the
     # stand's sampling weight, which FVS prints in the -999 header — e.g. 11, not 1.1.)
     sw = sample_wt === nothing ? s.plot.sample_weight : sample_wt
+    # FVS SAMWT default is 1.0 (a blank DESIGN sample-weight field ⇒ 1.0). When the points_inv
+    # fallback can't fire — e.g. ON's DESIGN IPTINV is lost to the initre LNOTBK overflow, so
+    # points_inv is 0 — sample_weight stays 0; emit the 1.0 default so the header matches FVS.
+    sw <= 0f0 && (sw = 1f0)
     if header
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end
