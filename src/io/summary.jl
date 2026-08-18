@@ -160,6 +160,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
+    # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
+    # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
+    # INT(IOSUM·FT3pACRtoM3pHA) [m³/ha]. grow_cycle! returns the imperial per-area accretion/mortality.
+    # Ontario-gated (see vtot): imperial variants keep the raw integer; BC is left on its validated path.
+    _acc_mort(x) = (iv = trunc(Int, x + 0.5f0);
+                    s.variant isa Ontario ? trunc(Int, Float32(iv) * 0.0699713f0) : iv)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
     # FFE Stand Carbon Report (CARBREPT): carbon_on gates only the REPORT-row collection. The per-cycle
@@ -336,8 +342,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
                              fuel_period = fire_this_cycle ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing)   # advances cycle
-            r.accretion = trunc(Int, gr.accretion + 0.5)
-            r.mortality = trunc(Int, gr.mortality + 0.5)
+            r.accretion = _acc_mort(gr.accretion)
+            r.mortality = _acc_mort(gr.mortality)
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
             end
@@ -389,6 +395,12 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         @inbounds for i in 1:t.n
             acc += fld[i] * t.tpa[i]
         end
+        # FVS builds the ON .sum volume in TWO rounding stages: disply.f stores the IMPERIAL per-area
+        # integer IOSUM(k)=INT(O..CUR(7)/GROSPC+0.5), then sumout.f prints INT(IOSUM(k)·metricfactor)
+        # m³/ha. Fusing them (one round of acc/g·fvol) flips the reported m³/ha by ±1 on knife-edge rows.
+        # Ontario-gated: BC's cornered garbage-height fixture is validated on the one-stage path, so leave
+        # it (and every imperial variant, where fvol=1 makes the two stages identical) untouched.
+        s.variant isa Ontario && return trunc(Int, Float32(dt(acc / g)) * fvol)
         return dt(acc / g * fvol)
     end
     # Year/age come from the cycle-boundary schedule (IY, build_cycle_schedule!): the calendar
@@ -421,7 +433,11 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,
         cuft = vtot(:cuft_vol), mcuft = mcuft,
-        scuft = met ? 0 : vtot(:saw_cuft_vol), bdft = met ? 0 : vtot(:bdft_vol),
+        # ON metric .sum reports NMV (Mowraski net merch, IOSUM 6) in the board column via
+        # bdft_vol; BC leaves board 0 ("not computed in this variant"). Both keep merch (IOSUM 5)
+        # 0 at inventory (metric vols.f never loads the MCFV summary array — the shared `met` quirk).
+        scuft = met ? 0 : vtot(:saw_cuft_vol),
+        bdft = (s.variant isa Ontario) ? vtot(:bdft_vol) : (met ? 0 : vtot(:bdft_vol)),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
         period = period, mai = mai,
         accretion = trunc(Int, fvol * accretion + 0.5), mortality = trunc(Int, fvol * mortality + 0.5),

@@ -720,6 +720,7 @@ function compute_volumes!(s::StandState)
     s.variant isa SouthCentralOregon && return compute_volumes_so!(s) # SO = R6 Behre 616BEHW + INGY FW2 (so/formcl.f) — chunk 8
     s.variant isa OregonCoast && return compute_volumes_oc!(s)     # OC = BLM Behre-taper cubic (blmvol/blmtap) — chunk C10a; board-foot C10b
     s.variant isa Olympic && return compute_volumes_op!(s)         # OP = BLM Behre-taper cubic+board (blmvol/blmtap, reuse OC) — chunk 2
+    s.variant isa Ontario && return compute_volumes_on!(s)        # ON = canada ZAK/HONER (volont.f) total+merch cubic + Mowraski NMV
     s.variant isa InlandEmpire && return compute_volumes!(s, InlandEmpire())
     s.variant isa BritishColumbia && return compute_volumes!(s, BritishColumbia())   # BC Kozak taper (total cubic)
     s.control.merch_init || init_merch_standards!(s)
