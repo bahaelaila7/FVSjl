@@ -316,6 +316,14 @@ function stand_ccf(s::StandState)
             ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
         end
         return ccf
+    elseif s.variant isa Ontario
+        # ON CCF = ccfcal.f (LS form) → cwcalc.f open-grown crown WIDTH (IWHO=1, CR=90) via the
+        # ISPC→US-code (JSP2) remap, then 0.001803·CW²·P. HI needs stand lat/long/elev.
+        lat = p.latitude; long = p.longitude; elev = p.elevation
+        @inbounds for i in 1:t.n
+            ccf += on_tree_ccf(Int(t.species[i]), t.dbh[i], lat, long, elev) * t.tpa[i]
+        end
+        return ccf
     elseif s.variant isa BritishColumbia
         # BC CCF is the same direct per-species polynomial (bc/ccfcal.f MODE=1); bc_tree_ccf folds in ×P.
         @inbounds for i in 1:t.n

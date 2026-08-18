@@ -591,7 +591,8 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     # 7.0 field → common ELEV 0.229659. Downstream BC code recovers metres via ELEV·100·FTtoM. Other
     # variants store the raw field (hundreds of feet). Without this the V2 DGCON elevation term is ~30× off.
     if rec.present[6] && v[6] > 0f0
-        p.elevation = s.variant isa BritishColumbia ? v[6] * 3.28084f0 / 100f0 : v[6]
+        p.elevation = (s.variant isa BritishColumbia || s.variant isa Ontario) ?
+                      v[6] * 3.28084f0 / 100f0 : v[6]   # ON metric STDINFO elev (m → hundreds of ft)
     end
     if rec.present[9]
         org = nint(v[9])
@@ -614,6 +615,14 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p.latitude  == 0f0 && (p.latitude  = lat0)
     p.longitude == 0f0 && (p.longitude = long0)
     p.elevation == 0f0 && (p.elevation = elev0)
+    # ON forkod.f: a zeroed/unrecognized forest (ont01's location field is lost to the initre LNOTBK
+    # overflow) resolves to the US Superior default (KODFOR 915/916) → TLAT=46.78, TLONG=92.11,
+    # ELEV=16 (hundreds of ft) if still unset. Feeds the Hopkins index for hardwood open-grown crowns.
+    if s.variant isa Ontario
+        p.latitude  == 0f0 && (p.latitude  = 46.78f0)
+        p.longitude == 0f0 && (p.longitude = 92.11f0)
+        p.elevation == 0f0 && (p.elevation = 16f0)
+    end
     return
 end
 

@@ -14,17 +14,23 @@
 # =============================================================================
 
 const _SUM_ROW_FMT = Printf.Format(
-    "%4d%4d%6d%4d%5d%4d%4d%5.1f" *
-    "%6d%6d%6d%6d%6d%6d%6d%6d%6d" *
-    "%4d%5d%4d%4d%5.1f  %6d%5d%6d  %6.1f %3d %1d%1d\n")
+    "%s%s%s%s%s%s%s%5.1f" *
+    "%s%s%s%s%s%s%s%s%s" *
+    "%s%s%s%s%5.1f  %s%s%s  %6.1f %s %s%s\n")
+
+# Fortran `Iw` integer edit: right-justified in width `w`, but ALL `w` chars become `*` when the
+# value (incl. any sign) doesn't fit — exactly what gfortran prints on integer overflow (e.g. a CCF
+# ≥10000 in the sumout.f I4 field ⇒ `****`). Byte-identical to `%wd` for values that fit, so the
+# integer columns pre-format through this before the `%s`-based row FORMAT below.
+@inline _fi(x::Integer, w::Int) = (s = string(x); length(s) <= w ? lpad(s, w) : "*"^w)
 
 # METRIC variants (BC, Canada/ON) use metric/vbase/sumout.f, whose row FORMAT 20 writes 7I6 volume
 # integers (IOSUM 4-10 = total, merch, board, remTrees, remTotal, remMerch, remBoard) — it DROPS the
 # sawlog cubic (scuft) + removed-sawlog columns the imperial 9I6 carries. Same leading/trailing fields.
 const _SUM_ROW_FMT_METRIC = Printf.Format(
-    "%4d%4d%6d%4d%5d%4d%4d%5.1f" *
-    "%6d%6d%6d%6d%6d%6d%6d" *
-    "%4d%5d%4d%4d%5.1f  %6d%5d%6d  %6.1f %3d %1d%1d\n")
+    "%s%s%s%s%s%s%s%5.1f" *
+    "%s%s%s%s%s%s%s" *
+    "%s%s%s%s%5.1f  %s%s%s  %6.1f %s %s%s\n")
 
 """
     SummaryRow
@@ -49,20 +55,20 @@ function write_sum_row(io::IO, r::SummaryRow; metric::Bool = false)
         # metric/vbase/sumout.f FORMAT 20: 7I6 volume block (total, merch, board, remTrees, remTotal,
         # remMerch, remBoard) — DROP the imperial-only sawlog columns scuft + rem_scuft.
         Printf.format(io, _SUM_ROW_FMT_METRIC,
-            r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, r.qmd,
-            r.cuft, r.mcuft, r.bdft,
-            r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_bdft,
-            r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, r.at_qmd,
-            r.period, r.accretion, r.mortality, r.mai,
-            r.fortype, r.sizecls, r.stockcls)
+            _fi(r.year,4), _fi(r.age,4), _fi(r.tpa,6), _fi(r.ba,4), _fi(r.sdi,5), _fi(r.ccf,4), _fi(r.topht,4), r.qmd,
+            _fi(r.cuft,6), _fi(r.mcuft,6), _fi(r.bdft,6),
+            _fi(r.rem_tpa,6), _fi(r.rem_cuft,6), _fi(r.rem_mcuft,6), _fi(r.rem_bdft,6),
+            _fi(r.at_ba,4), _fi(r.at_sdi,5), _fi(r.at_ccf,4), _fi(r.at_topht,4), r.at_qmd,
+            _fi(r.period,6), _fi(r.accretion,5), _fi(r.mortality,6), r.mai,
+            _fi(r.fortype,3), _fi(r.sizecls,1), _fi(r.stockcls,1))
     else
         Printf.format(io, _SUM_ROW_FMT,
-            r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht, r.qmd,
-            r.cuft, r.mcuft, r.scuft, r.bdft,
-            r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_scuft, r.rem_bdft,
-            r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, r.at_qmd,
-            r.period, r.accretion, r.mortality, r.mai,
-            r.fortype, r.sizecls, r.stockcls)
+            _fi(r.year,4), _fi(r.age,4), _fi(r.tpa,6), _fi(r.ba,4), _fi(r.sdi,5), _fi(r.ccf,4), _fi(r.topht,4), r.qmd,
+            _fi(r.cuft,6), _fi(r.mcuft,6), _fi(r.scuft,6), _fi(r.bdft,6),
+            _fi(r.rem_tpa,6), _fi(r.rem_cuft,6), _fi(r.rem_mcuft,6), _fi(r.rem_scuft,6), _fi(r.rem_bdft,6),
+            _fi(r.at_ba,4), _fi(r.at_sdi,5), _fi(r.at_ccf,4), _fi(r.at_topht,4), r.at_qmd,
+            _fi(r.period,6), _fi(r.accretion,5), _fi(r.mortality,6), r.mai,
+            _fi(r.fortype,3), _fi(r.sizecls,1), _fi(r.stockcls,1))
     end
     return io
 end
