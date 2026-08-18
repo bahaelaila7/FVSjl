@@ -15,18 +15,25 @@
      - `dfb/` (Douglas-fir Beetle) — ✓ COMPLETE end-to-end (all activation modes, bit-exact-or-cornered).
      - `dftm/` (DF Tussock Moth) — ✓ COMPLETE end-to-end (ODE integrator + TMCOUP seam).
      - `wpbr/` (White Pine Blister Rust) — ✓ COMPLETE end-to-end (canker dynamics + BRTREG seam).
-     - `lpmpb/` (Mtn Pine Beetle) — ✓ deterministic Cole rate-of-loss core BIT-EXACT vs FVSie_lpmpb; seam wired
-       (inert; end-to-end .sum-DELTA expected cornered by #206). Deferred: CURRMORT/RANSTART/LPOPDY (scratchpad/lpmpb/HANDOFF.md).
-     - `wsbwe/` (W. Spruce Budworm) — ✓ manual-DEFOL COMPLETE END-TO-END LIVE (WSBWE_APPLY_LIVE=true; 2000
-       ΔTPA −476 = oracle −476 bit-exact, cornered by EM #206; feeder root-caused: OLDTPA/ORMSQD=DENSE TPROB/RMSQD,
-       DEFOL species SPDECD-decoded, BWEGO OPFIND gate). Deferred sub-paths: BUDLITE/GENDEFOL stochastic (needs
-       weather fort.40) + non-EM host-coef variants (BC/BM/CI/EC/SO/TT).
+     - `lpmpb/` (Mtn Pine Beetle) — ✓ Cole rate-of-loss core BIT-EXACT + RANSTART (MPOTPR) + CURRMORT/INVMORT
+       GREINF DONE (test 126/126). Deferred: LPOPDY population-dynamics (~1050 ln) + live-inventory damage-code plumbing.
+     - `wsbwe/` (W. Spruce Budworm) — ✓ manual-DEFOL LIVE END-TO-END on **EM + TT + BM + SO** (4 host variants;
+       per-variant IBWSPM/IBIOMP dispatch; each ΔTPA bit-exact-or-cornered vs its FVS<v>_wsbwe oracle). Deferred:
+       CI/EC (own host-class tables + biomass coeffs, not a clean swap) + BC (metric); BUDLITE/GENDEFOL (needs weather).
      - `wwpb/` (Westwide Pine Beetle) — ◐ BEACHHEAD only; END-TO-END PPE-BLOCKED (outbreak driver needs the absent
        PPE landscape harness). DEFERRED — porting the PPE harness is a USER decision (like #196). Do NOT start it autonomously.
-     ⇒ Insect/pathogen family: 5 of 6 models core-or-fully complete (only WWPB PPE-deferred). Item 2 substantially done.
-  3. **COVER understory** — `covr/`(11)+`vcovr/`(3)+`pg/`(14): shrub cover / browse / understory veg. (The 36 src
-     "COVER" refs = the base crown-cover REPORT, NOT this model.)
-  4. **ON (Ontario) variant** — `canada/on/` (own Penner growth model; BC is the only ported Canada variant).
+     ⇒ Insect/pathogen family: 5 of 6 models core-or-fully complete (only WWPB PPE-deferred). Item 2 done.
+  3. **COVER understory** — ✓ BOTH halves emit bit-exact primary output for EM end-to-end vs FVSem_g16: CANOPY COVER
+     STATISTICS (TREES/COVER/VOLUME, via CVCW/CVSHAP/CVCBMS/CVSUM + em_cwcalc crown-width 353/353) + SHRUB STATISTICS
+     + CANOPY-AND-SHRUBS-SUMMARY + SHRUB-SMALL CONIFER COMPETITION (via CVBROW/CVSCON/CVCLAS). Report-only, no relink.
+     Deferred refinements (need FVSjl calibration-phase/treelist plumbing, not COVER bugs): canopy BIOMASS DDS-timing,
+     CVBCAL calibration, height-imputation, non-EM CWMAPs.
+  4. **ON (Ontario) variant** — ◐ IN PROGRESS, LARGE multi-session (own Penner growth model). 5 chunks merged, each
+     bit-exact vs the newly-built /workspace/.onwork/FVSon_g16: Penner DGF core 8/8 + DGF-engine-wired (cyc0 WK2 8/8)
+     + species table/translation + coefficients + DDS→DG on_bratio + site_setup!(SITEAR/SDIDEF 72/72) + crown(TWIGS) +
+     metric tree-input + DESIGN-plot-count(initre LNOTBK-overflow)/QMD/merch ⇒ **cyc0 stand row BIT-EXACT**. Remaining:
+     CCF(cwcalc.f) + height_growth!(htont.f, cycle-1 blocker) + mortality!(morts.f) + volume + DG-calibration. Full
+     audit: docs/ON_VARIANT_PORT_AUDIT.md.
 
 Turnkey/oracle recipes carry over: g16 single-.o-swap dump-replay (instrumented .sum byte-identical before trusting),
 per-chunk verify-by-run on the MERGED tree, block-on-signal via a foreground-blocking Bash wait (NOT idle stop-hook
