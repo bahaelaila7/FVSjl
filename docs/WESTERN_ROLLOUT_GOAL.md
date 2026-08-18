@@ -28,12 +28,14 @@
      + CANOPY-AND-SHRUBS-SUMMARY + SHRUB-SMALL CONIFER COMPETITION (via CVBROW/CVSCON/CVCLAS). Report-only, no relink.
      Deferred refinements (need FVSjl calibration-phase/treelist plumbing, not COVER bugs): canopy BIOMASS DDS-timing,
      CVBCAL calibration, height-imputation, non-EM CWMAPs.
-  4. **ON (Ontario) variant** — ◐ IN PROGRESS, LARGE multi-session (own Penner growth model). 5 chunks merged, each
-     bit-exact vs the newly-built /workspace/.onwork/FVSon_g16: Penner DGF core 8/8 + DGF-engine-wired (cyc0 WK2 8/8)
-     + species table/translation + coefficients + DDS→DG on_bratio + site_setup!(SITEAR/SDIDEF 72/72) + crown(TWIGS) +
-     metric tree-input + DESIGN-plot-count(initre LNOTBK-overflow)/QMD/merch ⇒ **cyc0 stand row BIT-EXACT**. Remaining:
-     CCF(cwcalc.f) + height_growth!(htont.f, cycle-1 blocker) + mortality!(morts.f) + volume + DG-calibration. Full
-     audit: docs/ON_VARIANT_PORT_AUDIT.md.
+  4. **ON (Ontario) variant** — ◐ CORE COMPLETE (growth+mortality+VOLUME end-to-end), LARGE multi-session. 8 bit-exact
+     chunks vs the newly-built /workspace/.onwork/FVSon_g16: Penner DGF core 8/8 + DGF-wired (WK2 8/8) + species/
+     coefficients/DDS→DG + site_setup!(SITEAR/SDIDEF 72/72) + crown(TWIGS) + metric input + DESIGN(initre LNOTBK-overflow)/
+     QMD/merch + height_growth!(htont 8/8) + mortality!(morts Penner max-SDI/VARMRT) + compute_volumes!(volont ZAK/HONER/
+     Mowraski 29/29) ⇒ **run_keyfile(ont01;Ontario()) completes cyc0→cyc1 with the full cyc0 `.sum` ALL columns bit-exact**
+     (TPA/BA/QMD/TopHt + cuft/mcuft/bdft + accr/mort); cyc1 cornered by the DGSD=2.0 #206 straddle. Remaining = non-growth
+     refinements only: FORTYP/size/stock classification (999/55 vs 125/11), CCF rendering (cwcalc.f crown-width), un-
+     exercised method-6/broken-top vol paths, DG-calibration OLDRN spread. Full audit: docs/ON_VARIANT_PORT_AUDIT.md.
 
 Turnkey/oracle recipes carry over: g16 single-.o-swap dump-replay (instrumented .sum byte-identical before trusting),
 per-chunk verify-by-run on the MERGED tree, block-on-signal via a foreground-blocking Bash wait (NOT idle stop-hook
