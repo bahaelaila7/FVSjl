@@ -37,5 +37,20 @@ LPMPB payload — large, multi-turn.
 - Instrument recipe: `bash build_ie_lpmpb_persist.sh <instr-dir> <out>` single-.o swaps into the ieobj set;
   instrumented .sum VERIFIED byte-identical to clean (fort.779 phloem dump inert). Run with
   `FVSie_lpmpb --keywordfile=lp_popdy.key` in a dir with lp_popdy.tre.
-- NEXT sub-chunks (dep-order): GARBEL classifier → SURFCE → MPBMOD core (+ betin/forw/back/gamma beta-dist,
-  emerg emergence) → wire mpb_apply! LPOPDY branch (drop early-return) → end-to-end lp_popdy .sum (target 89→0).
+## PROGRESS 2026-08-18 (sub-chunk 2 — GARBEL classifier)
+- **GARBEL — BIT-EXACT** (scratchpad/lpmpb/validate_garbel.jl vs FVSie_lpmpb_g fort.780/781/782):
+  NACLAS=10 + all-10 class membership + class-PROB hex reproduce the oracle exactly on the 18-LP-tree stand.
+- Spec (lpmpb/garbel.f + mpbdrv.f call): KEYMPB=`2,3,6*0,1` ⇒ active attrs A1=DBH (BETTER wt 1.0), A2=XPT/phloem
+  (wt 4.0); IMP=KEY(9)=1 ⇒ PROB → CLAS col 1. NACLAS=MIN(ILP,NCLASS)=min(18,10)=10. PN1=0.5.
+  Chain: GRPSUM standardize each attr (ML mean/stdev, P += wt·(x-ave)/stdv) → RDPSRT descending sort of IPT by P
+  → method-1 NCL1=5 max-diff class boundaries (bubble-keep the NC1=4 largest diffs, IQRSRT ascending) → method-2
+  split the NCL2=5 largest classes → sector pointers MPISC → CLAS(I,1)=Σ PROB over class members.
+- **TWO faithful-port bugs found+fixed**: (1) `NCL1 = NCLAS*PN1+.5` is a Fortran REAL→INTEGER assignment that
+  TRUNCATES toward zero (5.5→5); Julia `round(Int,5.5)`=6 (banker's) created a spurious 6th class ⇒ use
+  `trunc(Int,·)`. (2) GARBEL's PROB arg is the REAL tree PROB array, NOT the WK3 work array passed as `P`.
+- RDPSRT sort order was bit-exact on FIRST try (distinct phloem-driven P ⇒ tie-break moot); a plain descending
+  sort matches. GRPSUM sqrt/divides in Float32 match gfortran (IEEE correctly-rounded sqrt).
+- NEXT sub-chunks (dep-order): SURFCE (surface/attack model, 123 ln) → MPBMOD core (808 ln stochastic brood-
+  dynamics + betin/forw/back/gamma beta-dist, emerg emergence) → wire mpb_apply! LPOPDY branch (drop early-return)
+  → end-to-end lp_popdy .sum (target 89→0). Oracle FVSie_lpmpb_g @/workspace/.iework/lpmpb (instr/ has garbel+mpbdrv
+  dumps to fort.780/781/782; .sum byte-identical to clean verified).
