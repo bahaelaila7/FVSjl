@@ -433,12 +433,20 @@ const WSBWE_IBIOMP_EM = Int[1,2,3,4,2,11,7,8,9,10,11,11,11,11,11,11,11,11,11]
 const WSBWE_IBWSPM_TT = Int[7,7,2,7,7,7,7,5,4,7,7,7,7,7,7,7,7,7]           # bwebktt.f DATA IBWSPM
 const WSBWE_IBIOMP_TT = Int[1,4,3,11,8,11,7,8,9,10,11,11,11,11,11,11,11,11] # bwebmstt.f DATA IBIOMP
 
+# --- BM (Blue Mountains) block data (bwebkbm.f / bwebmsbm.f). MAXSP=18. Hosts: sp3=DF(2),
+# sp4=GF(3), sp8=ES(5), sp9=AF(4). Host-class tables (PRCRN3/THEOFL/RELFX/RELFY) AND the
+# ICVOPT=2 biomass coeff arrays are IDENTICAL to EM (verified) — only IBWSPM/IBIOMP differ.
+const WSBWE_IBWSPM_BM = Int[7,7,2,3,7,7,7,5,4,7,7,7,7,7,7,7,7,7]           # bwebkbm.f DATA IBWSPM
+const WSBWE_IBIOMP_BM = Int[1,2,3,4,5,11,7,8,9,10,11,11,11,6,11,11,11,11]  # bwebmsbm.f DATA IBIOMP
+
 # Per-variant host/biomass dispatch (mirrors the insect-model `mpb_idxlp`/`dfb_idfspc`
 # per-variant dispatch). A variant is WSBWE-host-supported iff it returns non-nothing.
 wsbwe_ibwspm_for(v) = v isa EasternMontana ? WSBWE_IBWSPM_EM :
-                      v isa Teton          ? WSBWE_IBWSPM_TT : nothing
+                      v isa Teton          ? WSBWE_IBWSPM_TT :
+                      v isa BlueMountains   ? WSBWE_IBWSPM_BM : nothing
 wsbwe_ibiomp_for(v) = v isa EasternMontana ? WSBWE_IBIOMP_EM :
-                      v isa Teton          ? WSBWE_IBIOMP_TT : nothing
+                      v isa Teton          ? WSBWE_IBIOMP_TT :
+                      v isa BlueMountains   ? WSBWE_IBIOMP_BM : nothing
 const WSBWE_BINT2  = Float32[2.666072,1.756537,2.705866,3.115084,2.654572,3.059351,2.622505,3.300852,3.060169,2.452492,2.622505]
 const WSBWE_BINT12 = Float32[-1.94951,-4.73762,-2.05828,-2.43200,-4.17456,-2.24876,-3.13488,-2.93508,-1.60998,-2.74410,-2.63387]
 const WSBWE_BCL12  = Float32[1.22023,1.98479,1.25837,1.60270,2.00749,1.37600,1.62368,1.96125,1.32649,1.58171,1.35092]
