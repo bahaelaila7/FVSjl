@@ -179,8 +179,15 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test (_FW.WSBWE_IBWSPM_SO[3], _FW.WSBWE_IBWSPM_SO[4], _FW.WSBWE_IBWSPM_SO[8],
                _FW.WSBWE_IBWSPM_SO[12], _FW.WSBWE_IBWSPM_SO[13], _FW.WSBWE_IBWSPM_SO[17]) == (2,1,5,3,4,6)  # DF/WF/ES/GF/AF/WL
         @test _FW.wsbwe_ibwspm_for(_FW.InlandEmpire()) === nothing    # unsupported variant → inert
+        # CI (Central Idaho, MAXSP=19): sp3=DF(2), sp4=GF(3), sp8=ES(5), sp9=AF(4). biomass +
+        # host-defol coeffs byte-identical to EM (verified) ⇒ clean IBWSPM/IBIOMP swap.
+        @test _FW.wsbwe_ibwspm_for(_FW.CentralIdaho()) === _FW.WSBWE_IBWSPM_CI
+        @test _FW.wsbwe_ibiomp_for(_FW.CentralIdaho()) === _FW.WSBWE_IBIOMP_CI
+        @test length(_FW.WSBWE_IBWSPM_CI) == 19 && length(_FW.WSBWE_IBIOMP_CI) == 19
+        @test (_FW.WSBWE_IBWSPM_CI[3], _FW.WSBWE_IBWSPM_CI[4], _FW.WSBWE_IBWSPM_CI[8],
+               _FW.WSBWE_IBWSPM_CI[9]) == (2, 3, 5, 4)                # DF/GF/ES/AF host classes
         # end-to-end .sum-DELTA validated in the main loop against relinked FVS<v>_wsbwe oracles:
-        # TT 2000 ΔTPA -478 = -478 (bit-exact); BM -480 vs -481; SO -476 vs -482 (DEFOL'd stand
-        # matches exactly, the delta divergence is each variant's off-run #206 baseline straddle).
+        # TT 2000 ΔTPA -478 = -478 (bit-exact); BM -480 vs -481; SO -476 vs -482; CI heavy-DEFOL host
+        # stand 1990→2000 TPA 536→52 = oracle 52 (BIT-EXACT cyc1 kill), multi-cycle within ±2 (cornered).
     end
 end
