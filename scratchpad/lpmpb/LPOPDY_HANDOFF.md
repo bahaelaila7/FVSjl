@@ -143,3 +143,26 @@ The full deterministic MPBMOD year-loop is ported in Julia (LGO path; LAGG/LREP/
   (target 89→0). If the .sum is bit-exact, LPOPDY is DONE (tail survivors round away). If not, tighten the Float32/
   Float64 op-order above. All the ported+validated pieces live in scratchpad/lpmpb/: validate_phloem.jl, validate_garbel.jl
   (GARBEL+SURFCE), validate_betin.jl + betin_pkg.jl, validate_mpbmod.jl.
+
+## ★★★ ENGINE-INTEGRATION SPEC 2026-08-18 — fully specified, turnkey (all params resolved)
+The entire LPOPDY computational chain is ported+validated in scratchpad; the remaining work is wiring it into
+src/engine/lpmpb.jl `mpb_apply!` (replace `m.lpopdy && return nothing` at line 473). Everything needed:
+- **Constants (mpbint.f defaults, hardcode)**: INCRS=10, BETTER=[1,4], NCLASS=10, AMP1=1200, AMP2=600, IBACK=4,
+  CE=1, CF1=CF2=0.01, CF3=0.5, CRITAD=1.5, NG=2, TAFAC=1.7, HS=1, MPMXYR=10, DST=[3000,500,500], STRP=0.95,
+  PCTCO=65, FORLAT=44, TAMIN=1.7, TAMAX=3.0, TATOL=0.2, STRBUG=500, EXCON=640, SEXRAT init=0.66 (mpb block),
+  EPS=1e-6, BMIN=1e-10, KEYMPB=[2,3,0,0,0,0,0,0,1], IMPROB=1, PN1=0.5, SQFTPA=43560.
+- **TA (resistance)**: TA=clamp(PMSLP(PGR, PGRX, TAY, 5), TAMIN, TAMAX) where PGRX=[0,.7,1,1.3,1.5],
+  TAY=[2.0,2.1,2.4,2.7,3.0]. PGR from MPGR (mpgr.f): over LP trees with PCT≥PCTCO(65), PGR=Σ(FDG/ODG·PROB)/ΣPROB
+  where FDG=current DG, ODG=prior-cycle DG on yr basis (MPSVDG saves prior DG into XPT before DGDRIV;
+  ODDS=ODG·(2·D2−ODG)·SCALE, D2=DBH·bratio(7), ODG=D2−√(D2²−ODDS)); if NPGR≤2 → PGR=0.9. lp_popdy: TA=2.0996 (PGR≈0.7).
+  ⚠ MPGR needs the PRIOR cycle's DG — thread it on the MPB state (like XPT save). For cyc1, MPSVDG saves current DG.
+- **Stand-derived**: ELEV (s.plot.elevation, hundreds-ft) → EFELEV=clamp(2.62−0.027·ELEV,0,1); FORLAT=m.forlat →
+  EFLAT=clamp(4.667−0.08333·FORLAT,0,1.5). EXCON=stand area (640 default). Per-tree DBH/HT/TPA(=PROB)/DG from t.
+- **The chain** (all validated in scratchpad, translate verbatim): (1) phloem XPT per LP tree (validate_phloem.jl);
+  (2) GARBEL classify → NACLAS classes (validate_garbel.jl: GRPSUM/RDPSRT/method-1+2/GRCLAS); (3) SURFCE surface
+  (validate_garbel.jl surflp+grclas avg-DBH; SNOHST from non-LP hosts via MPBSPM — 0 if all-LP); (4) MPBMOD year-loop
+  (validate_mpbmod.jl run_mpbmod, LGO path, LAGG/LREP/LPS/LDC=F) → per-class survivors CLASS(I,IMPROB); (5) mortality:
+  SURVIV(J)=survivors/ΣPROB_pre; per tree WK2(I)=max(WK2(I), PROB·(1−SURVIV(class))), cap: if PROB−WK2<1e-6 →
+  WK2=PROB−1e-6. Apply WK2 as the MPB mortality (like mpb_colmrt!).  BETIN pkg = betin_pkg.jl.
+- **VALIDATE**: end-to-end lp_popdy .sum vs FVSie_lpmpb (target 89→0). The tail-class ~0.001 TPA over-kill should
+  round away in the integer-TPA .sum. multicycle 339/11 must hold (LPOPDY only fires under POPDYN ⇒ additive/inert).
