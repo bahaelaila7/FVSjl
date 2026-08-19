@@ -597,6 +597,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
     # (no-op, byte-identical) unless a DFTM block is active and an outbreak is due.
     dftm_predict!(s)
+    # MPSVDG (mpgr.f): save the pre-growth DG for the LPOPDY MPGR resistance, BEFORE diameter_growth!
+    # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
+    s.mpb !== nothing && mpb_svdg!(s)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).

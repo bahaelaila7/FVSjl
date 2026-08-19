@@ -103,6 +103,8 @@ mutable struct MpbState <: AbstractMpbState
     # scheduled MANUAL/MPBSTART outbreak cycles/dates (OPNEW activity 555) — matched by mpb_outbreak_due.
     outbreak_years::Vector{Int32}
     rng_s0::Float64         # MPRANN COMMON S0 — NaN until first draw, then seeded to ORSEED.
+    odg::Vector{Float32}    # MPSVDG (mpgr.f) — the pre-growth DG per tree record, saved each cycle
+                            # BEFORE diameter_growth! overwrites diam_growth; MPGR's ODG for the TA resistance.
 end
 
 """
@@ -134,7 +136,22 @@ function mpb_defaults!()
         zeros(Float32, 10),   # currmr
         Int32[],        # outbreak_years
         NaN,            # rng_s0 (MPRANN S0) — lazy-seeded to ORSEED on first draw
+        Float32[],      # odg (MPSVDG pre-growth DG save)
     )
+end
+
+"""
+    mpb_svdg!(s) — MPSVDG (mpgr.f ENTRY): save the pre-growth DG per tree record into `m.odg`
+before `diameter_growth!` overwrites `diam_growth` with the projected DG. Called at grow-cycle
+start when an LPOPDY MPB block is active; MPGR later uses this as ODG for the TA resistance.
+"""
+function mpb_svdg!(s::StandState)
+    m = s.mpb
+    (m === nothing || !m.active || !m.lpopdy) && return nothing
+    t = s.trees; n = t.n
+    resize!(m.odg, n)
+    @inbounds for i in 1:n; m.odg[i] = t.diam_growth[i]; end
+    return nothing
 end
 
 # -----------------------------------------------------------------------------
@@ -479,10 +496,24 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
         mpb_outbreak_due(m, s) || return nothing          # MPBSTART/MANUAL schedule (OPFIND 555)
         lpidx = Int[i for i in 1:n if Int(t.species[i]) == idxlp]
         isempty(lpidx) && return nothing
-        # TA = aggregation threshold (MPGR resistance). The MPGR+PMSLP algorithm is ported
-        # (mpb_mpgr / mpb_lpopdy_ta in lpmpb_lpopdy.jl); wiring it live needs the MPSVDG measured-DG
-        # save. For lp_popdy MPGR yields 2.099609 — used directly until that plumbing lands.
-        ta = 2.099609f0
+        # TA = aggregation threshold from the MPGR periodic-growth-ratio resistance (mpgr.f + mpbmod.f:228).
+        # FDG = the just-computed projected DG; ODG = the pre-growth DG saved by mpb_svdg! (MPSVDG); the
+        # PCTCO≥65 dominance gate uses t.crown_ratio (FVS PCT). SCALE = YR/NPYR (=1 at the 10-yr basis).
+        # VALIDATED vs FVSie_lpmpb mpgr dump (lp_popdy): NPGR=7, ODG, PROB, SUMP all BIT-EXACT; the TA
+        # differs (jl 2.121 vs live 2.100) ONLY because FDG (the projected DG) carries the #206 OLDRN
+        # serial-corr straddle (IE DGSD=2.0) — cornered, and the epidemic outcome is robust to it (.sum bit-exact).
+        ta = if isempty(m.odg)
+            LPO_TAFAC                                       # no saved DG ⇒ TA defaults to TAFAC
+        else
+            fdg = Float32[t.diam_growth[i] for i in lpidx]
+            odg = Float32[m.odg[i] for i in lpidx]
+            prob = Float32[old_tpa[i] for i in lpidx]
+            pct  = Float32[t.crown_ratio[i] for i in lpidx]
+            dbh  = Float32[t.dbh[i] for i in lpidx]
+            bark = Float32[bark_ratio(s.calib.bark_a, s.calib.bark_b, t.species[i], t.dbh[i]) for i in lpidx]
+            pgr  = mpb_mpgr(fdg, odg, prob, pct, bark, dbh; scale = 1.0f0)
+            mpb_lpopdy_ta(pgr)
+        end
         mpb_lpopdy!(t, old_tpa, lpidx, ta, s.plot.elevation, m.forlat)
         return nothing
     end
