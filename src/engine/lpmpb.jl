@@ -479,7 +479,10 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
         mpb_outbreak_due(m, s) || return nothing          # MPBSTART/MANUAL schedule (OPFIND 555)
         lpidx = Int[i for i in 1:n if Int(t.species[i]) == idxlp]
         isempty(lpidx) && return nothing
-        ta = 2.099609f0                                   # TEMP: captured MPGR resistance; MPGR port pending
+        # TA = aggregation threshold (MPGR resistance). The MPGR+PMSLP algorithm is ported
+        # (mpb_mpgr / mpb_lpopdy_ta in lpmpb_lpopdy.jl); wiring it live needs the MPSVDG measured-DG
+        # save. For lp_popdy MPGR yields 2.099609 — used directly until that plumbing lands.
+        ta = 2.099609f0
         mpb_lpopdy!(t, old_tpa, lpidx, ta, s.plot.elevation, m.forlat)
         return nothing
     end

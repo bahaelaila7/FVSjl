@@ -389,3 +389,44 @@ function mpb_lpopdy!(t, old_tpa::AbstractVector{Float32}, lpidx::Vector{Int},
     end
     return nothing
 end
+
+# -----------------------------------------------------------------------------
+# MPGR (mpgr.f) — periodic growth ratio → aggregation threshold TA (resistance).
+# PGR = Σ(FDG/ODG·PROB)/ΣPROB over LP trees with PCT ≥ PCTCO(65); if NPGR≤2 → PGR=0.9.
+# FDG = current (projected) DG, ODG = prior/inventory DG rescaled to a yr basis. Then
+# TA = clamp(PMSLP(PGR, PGRX, TAY), TAMIN, TAMAX). Bark = BRATIO(7) inside-bark factor.
+#
+# ⚠ NOT yet wired into mpb_apply! (TA is hardcoded to the captured MPGR value 2.099609 for the
+# lp_popdy stand). Wiring it live needs: (1) a MpbState scratch to save each LP tree's MEASURED
+# DG (t.diam_growth at input) BEFORE grow_cycle!'s diameter_growth! (simulate.jl:600) overwrites
+# it with the projected DG — the MPSVDG-equivalent (mpgr.f:120 ENTRY MPSVDG, saved into XPT);
+# (2) the per-tree PCT (BA-percentile-in-larger-trees) for the PCTCO≥65 dominance gate; (3) NPYR
+# (last cycle's measurement period) + SCALE=YR/NPYR. The lp_popdy MPGR result is TA=2.0996 (PGR≈0.697).
+# -----------------------------------------------------------------------------
+const LPO_PCTCO = 65.0f0
+
+"MPGR periodic growth ratio (mpgr.f:60-98): PGR over dominant LP trees; fdg/odg/prob/pct per LP tree."
+function mpb_mpgr(fdg::Vector{Float32}, odg::Vector{Float32}, prob::Vector{Float32},
+                  pct::Vector{Float32}, bark::Vector{Float32}, dbh::Vector{Float32};
+                  scale::Float32 = 1.0f0)::Float32
+    sump = 0.0f0; avrat = 0.0f0; npgr = 0
+    @inbounds for i in eachindex(fdg)
+        pct[i] < LPO_PCTCO && continue
+        npgr += 1
+        prb = prob[i]; sump += prb
+        d2 = dbh[i]*bark[i]                       # inside-bark DBH
+        og = odg[i]
+        odds = og*(2.0f0*d2 - og)*scale           # old DDS on yr basis
+        x = d2*d2 - odds
+        ogy = x > 1.0f-6 ? d2 - sqrt(x) : 0.0f0   # ODG on yr basis
+        ogy > 0.0f0 && (avrat += fdg[i]/ogy*prb)
+    end
+    npgr <= 2 && return 0.9f0                      # mpgr.f:53 (≤2 selected LPP)
+    return avrat/sump
+end
+
+"TA aggregation threshold from PGR (mpbmod.f:228-231): PMSLP(PGR,PGRX,TAY) clamped [TAMIN,TAMAX]."
+@inline function mpb_lpopdy_ta(pgr::Float32)::Float32
+    ta = mpb_pmslp(pgr, LPO_PGRX, LPO_TAY)
+    ta < LPO_TAMIN ? LPO_TAMIN : (ta > LPO_TAMAX ? LPO_TAMAX : ta)
+end
