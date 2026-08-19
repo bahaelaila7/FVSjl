@@ -1,6 +1,34 @@
 # ACTIVE GOAL — Western FVS variant cluster + extensions rollout (FVSjl)
 
-## ★★★ CURRENT DIRECTIVE (USER, 2026-08-17) — supersedes ALL "stream"/"USER-gated #196" framing below
+## ★★★★ CURRENT DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — supersedes the 2026-08-17 directive below
+**"cache your work, after restart do full ON port" = roadmap option (A).** All prior roadmap items (DMNTRD, the
+insect/pathogen family incl. LPMPB now COMPLETE, COVER, ON-core) are done-or-cornered; the bounded backlog is
+exhausted (see the 2026-08-19 note in item 4 + the LPMPB item). **After the container restart, START the FULL ON
+(Ontario) 72-species port** — ON is currently bit-exact-or-cornered only on the 8-species inline `ont01`
+(docs/ON_VARIANT_PORT_AUDIT.md, 8 chunks); the full port validates all 72 species against REAL Ontario database
+stands. **Dep-order entry point:**
+  1. **Resolve the gcc-16 `dbstreesin` SQLite SEGFAULT** (same isoc23-shim×SQLite-C class as BC) — either a gcc-15
+     rebuild of `canada/on/` (→ a DB-capable `FVSon` oracle) OR an inline-`.tre` harness that emits ≥1 real
+     multi-species Ontario stand. This unblocks the 64 species `ont01` never exercises (only PW/SW/MH/BE/SB/CE/PJ/BF).
+  2. Validate Penner DGF / `htont` / `morts` / `volont` **per-species** across the full `OSPMAP` vs `FVSon_g16`
+     (coefficient tables already cover 72/35/27 but are un-A/B'd beyond the 8).
+  3. **maple/beech HYBRID growth** (`dgf.f:402 LHYBRID` is hard-disabled, NOT ported) — port if real stands exercise it.
+  4. broken-top `CFTOPK`/`BFTOPK` + method-5 Gevorkiantz / method-6 R9CLARK volume paths (no `ont01` exercise).
+  5. ON DG calibration `dgdriv.f` LSTART SIGMAR/OBSERV/VARDG→COR (the multi-cycle #206 OLDRN straddle, already
+     cornered-by-inheritance like every western variant).
+Doctrine UNCHANGED: bit-exact-or-cornered per chunk by RUNNING `/workspace/.onwork/FVSon_g16`; MEASURE (g16 single-.o
+dump-replay, instrumented `.sum` byte-identical first); glibc libm `ccall` for Float32 transcendentals; every chunk
+additive/INERT (`test_multicycle` 339/11 byte-identical is the hard gate). LARGE multi-session, like OC/OP ORGANON.
+
+**CHECKPOINT 2026-08-19 (HEAD `8ccfb95d`, kt-variant-port, tree CLEAN) — container-restart continuity.** Full suite
+41148 pass / 0 fail / 0 error / 75 broken; multicycle 339/11. This session's commits: LPMPB LPOPDY+damage-codes
+(ec695940→7482301e), western FORTYP national-CSV fix (6b5896cd)+test (db5157a1), ON classification e2e test
+(e768f923), goal-doc+hook de-stale (23ff45e8/8ccfb95d). Durable: oracles `/workspace/.onwork/` (FVSon_g16 + clean +
+{dgf,cw,wki,reg}dump + g16obj + build_g16_on.sh); scratchpad `/workspace/FVSjl/scratchpad/on/` (ont01/ont_sm
+keyfiles+.tre, instr/, replay_*.jl, REGENT_HANDOFF.md, VALIDATION_*.md); src/variants/ontario/; audit
+docs/ON_VARIANT_PORT_AUDIT.md; memory `fvsjl-wrd-svs-op-rollout`.
+
+## ★★★ PRIOR DIRECTIVE (USER, 2026-08-17) — superseded by the 2026-08-19 directive above
 **WRD + SVS(visualization) + OP are COMPLETE and merged to kt-variant-port (now HEAD e085af59).** So is #196 BC NEWSPRED
 (closed-cornered; DMNTRD done → 0 deferred items). Insect/pathogen rollout well underway (see progress below).
 
