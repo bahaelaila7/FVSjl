@@ -27,7 +27,7 @@ function _bn_snapshot(years)
                           variant = F.Southern())
         F.notre!(s); F.setup_growth!(s)
         io = IOBuffer()
-        hook = (st, yr, per) -> begin
+        hook = (st, yr, per, cyc) -> begin      # cycle_hook signature is (s, year, per, cycle) since eec98f1f
             if Int(yr) in years
                 t = st.trees
                 lp = sort([t.dbh[i] for i in 1:t.n if t.species[i] == 13 && t.tpa[i] > 0f0])
