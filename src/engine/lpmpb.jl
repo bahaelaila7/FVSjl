@@ -203,11 +203,12 @@ The CURRMORT/INVMORT ICYC=1 branch (colmod.f:93-99, active when
 where GREINF is bumped up to `START·ZINMOR−CURRMR` when the natural initial mortality
 exceeds the observed infested+current, then capped at START. `greinf` is treated as
 read-only (a local copy is mutated, mirroring the COLCOM array). CURRMR comes from the
-CURRMORT keyword; GREINF comes from MPBDAM inventory damage/severity codes (DAMCDS) which
-the FVSjl treelist does NOT carry, so on loadable stands `greinf` is all-zero — and with
-`currmr` also zero the branch is byte-identical to the default (verified: INVMORT with no
-damage == MPBSTART). Supplying nonzero `currmr` (CURRMORT keyword) or synthetic `greinf`
-exercises the divergent path (unit-tested against the FVSie_lpmpb oracle golden).
+CURRMORT keyword; GREINF comes from the treelist MPB damage codes (dampro.f→MPBDAM: a tree is
+successfully attacked when any (agent,severity) pair == (2,3); mpsdlp.f sums live infested PROB
+into GREINF by COLIND class). `mpb_apply!` builds `greinf` from `t.damage` when `linvmr` — the
+cycle-1 mortality delta matches the FVSie_lpmpb oracle (test_lpmpb_damage.jl). The dead/recent-
+mortality tree → CURRMR split (mpsdlp.f:500, GROSPC/FINT-adjusted) is not yet separated out;
+loadable-stand attacked trees are live. CURRMORT keyword `currmr` still drives the other branch.
 """
 function mpb_colmod(start::Vector{Float32}, numyrs::Int; ibouse::Int=0,
                     zinmor::Vector{Float32}=MPB_ZINMOR0, prnoin::Vector{Float32}=MPB_PRNOIN0,
@@ -551,8 +552,23 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     numyrs = min(Int(m.mpmxyr), round(Int, fint)); numyrs > 10 && (numyrs = 10)
     numyrs < 1 && (numyrs = 1)
     icyc = Int(s.control.cycle) + 1                        # 1-based FVS ICYC (CURRMORT branch fires at ICYC==1)
+    # INVMORT (LINVMR): GREINF (infested TPA per COLIND size class) from the treelist MPB damage codes.
+    # dampro.f→MPBDAM flags a tree as successfully attacked when any (agent,severity) pair == (2,3);
+    # mpsdlp.f sums live infested PROB into GREINF(ISIZ). (Dead/recent-mortality trees feed CURRMR — not
+    # yet split out; loadable-stand attacked trees are live.) t.damage carries the 3 agent/severity pairs.
+    greinf = zeros(Float32, 10)
+    if m.linvmr
+        @inbounds for k in 1:length(lpidx)
+            i = lpidx[k]
+            attacked = (t.damage[1, i] == 2 && t.damage[2, i] == 3) ||
+                       (t.damage[3, i] == 2 && t.damage[4, i] == 3) ||
+                       (t.damage[5, i] == 2 && t.damage[6, i] == 3)
+            attacked || continue
+            greinf[mpb_colind(lp_dbh[k])] += lp_tpa[k]
+        end
+    end
     green = mpb_colmod(start, numyrs; ibouse=Int(m.ibouse), zinmor=m.zinmor, prnoin=m.prnoin,
-                       icyc=icyc, lcurmr=m.lcurmr, linvmr=m.linvmr, currmr=m.currmr)  # COLMOD
+                       icyc=icyc, lcurmr=m.lcurmr, linvmr=m.linvmr, currmr=m.currmr, greinf=greinf)  # COLMOD
     prkill = mpb_prkill(start, @view green[numyrs, :])     # COLMRT PRKILL
     mpb_colmrt!(t, old_tpa, lpidx, lp_dbh, lp_tpa, prkill) # COLMRT apply
     return nothing
