@@ -7,9 +7,16 @@
 # /equation maps, the valid FIA type codes) come from data/<variant>/*.csv via
 # `coef.stock_b0/b1`, `coef.fia_group/fia_stock_eq`, `coef.forest_type_codes`.
 #
-# `compute_forest_type!` sets `plot.forest_type` (IFORTP), which the diameter-growth
-# model reads for its forest-type coefficient term. Stand size/stocking class
-# (ISZCL/ISTCL) is not needed for the type code and is omitted.
+# `compute_forest_type!` sets `plot.forest_type` (IFORTP, read by the diameter-growth model's
+# forest-type coefficient term) and also `plot.size_class`/`plot.stocking_class` (ISZCL/ISTCL),
+# which `write_sum_row` emits as the trailing .sum classification columns.
+#
+# ⚠ SCOPE (measured 2026-08-19): these trailing .sum columns (FORTYP/SIZ/STK) are NOT on the
+# validated path — the multicycle golden checks only tpa/ba/sdi/qmd/tcuft, and only SN has a
+# fortype unit test (=520). Some western/synthetic stands classify to the 999 unclassified
+# default where the live oracle emits a real code (e.g. IE lp_popdy: jl 999 vs live 281 lodgepole);
+# this is COSMETIC (report-only, does not affect growth/volume parity) and shared across variants,
+# not an ON-only gap. Making these columns oracle-exact cluster-wide is a separate, lower-priority pass.
 # =============================================================================
 
 # Normalize an FIA species-code string to its integer code (blank/0/out-of-range
