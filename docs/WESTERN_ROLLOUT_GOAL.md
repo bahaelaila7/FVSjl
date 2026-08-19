@@ -15,8 +15,11 @@
      - `dfb/` (Douglas-fir Beetle) — ✓ COMPLETE end-to-end (all activation modes, bit-exact-or-cornered).
      - `dftm/` (DF Tussock Moth) — ✓ COMPLETE end-to-end (ODE integrator + TMCOUP seam).
      - `wpbr/` (White Pine Blister Rust) — ✓ COMPLETE end-to-end (canker dynamics + BRTREG seam).
-     - `lpmpb/` (Mtn Pine Beetle) — ✓ Cole rate-of-loss core BIT-EXACT + RANSTART (MPOTPR) + CURRMORT/INVMORT
-       GREINF DONE (test 126/126). Deferred: LPOPDY population-dynamics (~1050 ln) + live-inventory damage-code plumbing.
+     - `lpmpb/` (Mtn Pine Beetle) — ✓ COMPLETE. Cole rate-of-loss core BIT-EXACT + RANSTART (MPOTPR) + CURRMORT/INVMORT
+       GREINF + **LPOPDY population-dynamics DONE 2026-08-19** (ec695940→7482301e: BETIN incomplete-beta bit-exact,
+       MPBMOD epidemic bit-exact incl OS-constant + glibc Float64 exp, MPGR/PMSLP resistance TA wired live, mpb_apply!
+       branch end-to-end mortality collapse) + **live-inventory damage-code plumbing DONE** (7482301e: INVMORT treelist
+       MPB damage-code GREINF, cycle-1 mortality delta bit-exact vs FVSie_lpmpb). test_lpopdy_chain + test_lpmpb_damage.
      - `wsbwe/` (W. Spruce Budworm) — ✓ manual-DEFOL LIVE END-TO-END on **EM + TT + BM + SO** (4 host variants;
        per-variant IBWSPM/IBIOMP dispatch; each ΔTPA bit-exact-or-cornered vs its FVS<v>_wsbwe oracle). Deferred:
        CI/EC (own host-class tables + biomass coeffs, not a clean swap) + BC (metric); BUDLITE/GENDEFOL (needs weather).
@@ -35,9 +38,12 @@
      Mowraski 29/29) + **CCF (28af93ef): open-grown crown width cwcalc.f IWHO=1 8/8 bit-exact → .sum CCF/AT_CCF ****
      (ISPC→US-code JSP2 remap + forkod US-Superior lat/long + metric STDINFO elev + _fi Fortran I4-overflow render)**
      ⇒ **run_keyfile(ont01;Ontario()) cyc0 `.sum` row bit-exact through CCF** (TPA/BA/QMD/TopHt+CCF+cuft/mcuft/bdft+
-     accr/mort); cyc1 cornered by the DGSD=2.0 #206 straddle. Remaining = classification only: FORTYP/size/stock
-     (999/55 vs 125/11), un-exercised method-6/broken-top vol paths, DG-calibration OLDRN spread, PCCF/regen when
-     small-tree lands. ontario 190/190; multicycle 339/11. Full audit: docs/ON_VARIANT_PORT_AUDIT.md.
+     accr/mort); cyc1 cornered by the DGSD=2.0 #206 straddle. **FORTYP/size/stock — DONE 2026-08-19 (bit-exact 125/1/1
+     = row tail "125 11"; the old "999/55" was STALE); now regression-tested (e768f923, test/fixtures/ontario/ +
+     test_ontario_sum_classification.jl — first end-to-end ON .sum test).** ⇒ ON cyc0 `.sum` row now bit-exact THROUGH
+     classification, not just through CCF. Remaining = un-exercised paths only: method-6/broken-top vol, DG-calibration
+     OLDRN spread, PCCF/regen when small-tree lands. ontario suite green (+2 new .sum-classification assertions);
+     full suite 41148 pass / 0 fail / 0 error / 75 broken; multicycle 339/11. Full audit: docs/ON_VARIANT_PORT_AUDIT.md.
 
 Turnkey/oracle recipes carry over: g16 single-.o-swap dump-replay (instrumented .sum byte-identical before trusting),
 per-chunk verify-by-run on the MERGED tree, block-on-signal via a foreground-blocking Bash wait (NOT idle stop-hook
