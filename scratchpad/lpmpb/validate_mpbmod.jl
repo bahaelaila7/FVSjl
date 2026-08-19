@@ -56,15 +56,15 @@ AD  = zeros(Float32, NINC)
 AMP = zeros(Float32, NINC)
 BOLD = zeros(Float32, NG)
 
+OS = 0.0f0                                     # computed ONCE at entry (mpbmod.f:236-243), constant across years
+for I in 1:NACLAS; OS += SURF[I]*TREES[I]; end
+OS += SADLPP
 while true
     MPBYR += 1
     Q = 1.0f0 - Pp
     GENO = NG == 3 ? Float32[Pp*Pp, 2*Pp*Q, Q*Q] : Float32[Pp, Q]
     B3SUM = zeros(Float32, NG)
     fill!(BOLD, 0.0f0)
-    OS = 0.0f0
-    for I in 1:NACLAS; OS += SURF[I]*TREES[I]; end
-    OS += SADLPP                              # LGO
     fill!(AGG, 0.0f0); fill!(AD, 0.0f0); fill!(AMP, 0.0f0)
     est = EmergState(0.0)
     # ---- EMERGENCE loop ----

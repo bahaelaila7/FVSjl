@@ -250,14 +250,16 @@ function mpb_mpbmod(trees0::Vector{Float32}, surf::Vector{Float32}, diam::Vector
     bold = zeros(Float32, LPO_NG)
     ec = Ref(0.0)                                # EMERG persistent C (the -fno-automatic static)
     emerg(byv, t) = (t == 0 ? (ec[] = 1.0/2.0^LPO_INCRS) : (ec[] = ec[]*(LPO_INCRS - t + 1)/t); byv*Float32(ec[]))
+    # OS (total live surface) is computed ONCE at MPBMOD entry from the initial CLASS(I,IMPROB)
+    # (mpbmod.f:236-243, before the annual loop) — CONSTANT across the epidemic years, NOT recomputed.
+    os = 0.0f0
+    for I in 1:naclas; os += surf[I]*trees[I]; end
+    os += sadlpp
     while true
         mpbyr += 1
         q = 1.0f0 - pp
         geno = LPO_NG == 3 ? Float32[pp*pp, 2*pp*q, q*q] : Float32[pp, q]
         b3sum = zeros(Float32, LPO_NG); fill!(bold, 0.0f0)
-        os = 0.0f0
-        for I in 1:naclas; os += surf[I]*trees[I]; end
-        os += sadlpp
         fill!(agg, 0.0f0); fill!(ad, 0.0f0); fill!(amp, 0.0f0)
         for INC in 1:ninc
             inc1 = INC - 1
@@ -293,7 +295,7 @@ function mpb_mpbmod(trees0::Vector{Float32}, surf::Vector{Float32}, diam::Vector
                 b1inc += b1; b3inc += b3; b3sum[ig] += b3
             end
             pioden = Float64(b1inc/e1)
-            xx = 1.0 - exp(-pioden)
+            xx = 1.0 - ccall((:exp, "libm.so.6"), Float64, (Float64,), -pioden)  # glibc DEXP
             for I in 1:naclas
                 agg[I,INC] = 0.0f0
                 dta = Float64(ta); dsmta = Float64(surf[I]) - dta + 1.0

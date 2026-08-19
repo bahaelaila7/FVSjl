@@ -69,8 +69,13 @@ _fhex(x::Float32) = uppercase(string(reinterpret(UInt32, x), base=16, pad=8))
         surf = Float32[mpb_surflp(avgdbh[c]) for c in 1:length(mp1)]
         trees0 = copy(clsprob)
         surv = mpb_mpbmod(trees0, surf, avgdbh, avgxpt, P["TA"], P["EFELEV"], P["EFLAT"])
-        # every class driven below the 3.6e-7 mortality-cap threshold (survival ratio ~0)
-        maxratio = maximum(abs.(surv ./ clsprob))
-        @test maxratio < 3.6e-7
+        # per-class survivors CLASS(I,IMPROB) after the epidemic — BIT-EXACT vs oracle CLPOP
+        orc = Float32[]
+        for ln in eachline(joinpath(_FX, "mortality.txt"))
+            t = split(ln); t[1] == "CLPOP" || continue; push!(orc, _h2f(t[4]))
+        end
+        for c in 1:length(mp1)
+            @test _fhex(surv[c]) == _fhex(orc[c])
+        end
     end
 end
