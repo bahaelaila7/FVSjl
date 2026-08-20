@@ -66,10 +66,18 @@ REMAINING (fire-intensity refinement, the 206-vs-266):
       keyword CRASHES FVSoc). Likely a crown_pct(CR)/tree-state detail feeding oc_cwcalc, or the
       BAREA=1-vs-actual choice (jl uses the CA cyc1 BAREA=1 clamp; UNVERIFIED for OC — check where OC
       calls CRWDTH: load-time like NC/CA, or post-BA like WC).
-  (b) **Fire behavior** — trace SIMFIRE 2003 → fmcfir fireline-intensity → flame length → scorch height →
-      fmeff mortality; instrument FVSoc_clean fmburn/fmcfir/fmeff, A/B the scorch + per-species kill.
-      A 23% mortality gap is larger than a 10% fuel error alone ⇒ suspect an additional fire-behavior
-      detail (moisture, wind, the SIMFIRE severity, or the fuel-model selection fmcfmd).
+  (b) **CROWN FIRE — the smoking gun.** The oracle 2003 FUEL CONSUMPTION report shows **CRWNG=1 (active
+      crown fire)** — it kills 126/166 of the 5-10" class + ALL small + 27/66 of 10-20" (killed BA 62.6,
+      1463 cuft). jl under-kills ⇒ it likely computes a SURFACE fire (misses the crown-fire initiation
+      threshold). Crown-fire init depends on surface fireline intensity (∝ fuel load) × canopy base height
+      × foliar moisture. So the fuel gap (a) may CASCADE: under-loaded surface fuel → intensity below the
+      crowning threshold → surface-only fire → the 206-vs-266 under-kill. Fixing the fuel may trip crowning.
+  (c) **DKRT decay (chunk 2b, UNPORTED) — the 2003 fuel state.** Dead fuel is init at cyc0 then DECAYS 10yr
+      to the fire. Oracle 2003 ALL FUELS = LITT 0.00/DUFF 3.5/0-3" 0.6/>3" 2.7 (vs 1993 0.60/15.7/3.7/9.2).
+      OC's R6-Oregon DKRT rates (fmcba.f:610-655: 0.076/0.019 base ×DKRADJ(CAHMC,CAWMD habitat)) are NOT
+      ported — jl uses the generic FFE decay. COMPARE jl's per-cycle ALL FUELS to the oracle's (dump the
+      dead pool each cycle) to see if the 2003 pre-fire fuel diverges ⇒ then port the OC DKRT/DKRADJ.
+      Sequence: fix (a) PERCOV + (c) DKRT ⇒ correct 2003 fuel ⇒ (b) crowning trips ⇒ mortality matches.
 ## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
 
 ## DOCTRINE
