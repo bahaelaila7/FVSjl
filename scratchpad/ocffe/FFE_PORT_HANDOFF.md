@@ -70,15 +70,28 @@ Debug at the 2003 event: jl byram=1189.9 → flame=1.78ft → scorch=4.7ft, at w
     70) is a what-if diagnostic, not the actual fire. jl uses the right weather.
   • **The DKRT decay is .sum-INERT here** (9cce8d0b): with the correct OC decay the 2003 mortality is still
     206. So the surface-fuel decay is not the lever either (still correct OC physics for fuel-limited stands).
-  ⇒ **The under-kill = the SURFACE byram (fuel intensity):** jl's byram=1189.9 gives flame 1.78/scorch 4.7,
-    slightly too weak to kill the 266. Two candidate levers, both chunk-2 fuel precision:
-    (a) **PERCOV precision** — jl 49.8 vs oracle ~47.6 ⇒ the ~10% LITT/shrub gap ⇒ lower surface load ⇒
-        lower byram. Pin exact PERCOV by INSTRUMENTING oc/fmcba.f (WRITE PERCOV; g16 single-.o — FMDEBUG
-        keyword CRASHES FVSoc). Likely a crown_pct(CR)/tree-state detail in oc_cwcalc or BAREA=1-vs-actual.
-    (b) **fmcfmd fuel-model selection** — the oracle weights models 6(62%)/10(38%) at 2003; if jl's
-        select_fuel_models picks weaker models, byram drops hard (discrete, high-leverage). DUMP jl's
-        selected (fm,weight) at 2003 and A/B vs the oracle's "6 62 10 38" (POTENTIAL FIRE REPORT tail).
-    Get the oracle's actual-fire flame/byram (instrument fmburn/fmfint at wind=10) as the exact target.
+  • **fmcfmd fuel-model selection — FIXED (440549bc).** jl fell to the generic SN selection (models 8/9,
+    byram 1189.9); oc/fmcfmd.f is BYTE-IDENTICAL to ca/fmcfmd.f ⇒ routed OC → ca_select_fuel_models. jl now
+    picks model 6, byram 1189.9→**7374.8** (6×), 2003 mortality 206→210, 2008 residual TPA 126→118. But the
+    oracle blends 6(62%)/**10(38%)** — the missing hotter model-10 (kills the LARGE trees = the volume
+    mortality) is weighted by the CWHR dynamic model on the LARGE down-wood load.
+  ⇒ **REMAINING (210 vs 266) = the LARGE-DOWN-WOOD fuel accounting — TRACED to a two-sided bug:**
+    At the 2003 fire, jl's fire samples `fire_smlg=(0.13, ~0)` (the fire's SMALL/LARGE basis, fuel_model.jl:150)
+    while `_small_large_fuel(s.fire)` (the accumulated cwd pool) = **(4.44, 10.51)**. The oracle's 2003 >3"
+    load is ~2.7. So BOTH sides are wrong:
+    (a) **fire_smlg stash timing** — the fire samples ~0 large wood. The stash (summary.jl:339 at cycle start;
+        re-stash simulate.jl:557 post-cuts, gated `fuel_period!==nothing` which IS set on fire cycles) captures
+        the pool BEFORE `fmburn!→fmcba!` accumulates it to 10.51. summary.jl:192-197 documents this exact class
+        ("ffe_fuel_update!+fire_smlg SKIPPED ⇒ fire samples ~empty pool ⇒ under-fire"). Find why the OC re-stash
+        lands on the pre-accumulation pool (fmcba! inside fmburn! vs the stash point).
+    (b) **large-down-wood OVER-accumulation** — jl's accumulated pool 10.51 is ~4× the oracle's 2.7. Even if
+        (a) is fixed to use the accum, jl would then OVER-kill. The over-accumulation is the crown-debris
+        (CWD2B fall) / snag-fall contribution over 1993→2003 (the DKRT decay 9cce8d0b is correct OC physics but
+        can't offset a 4× surplus). Compare jl's per-cycle >3" load to the oracle ALL FUELS (ocffe_oracle_fuels.txt:
+        oracle >3" 9.2→8.4→2.7→...) to find where jl diverges.
+    Sequence: fix (b) so the accumulated >3" tracks the oracle (~2.7 at 2003), then (a) so fire_smlg reflects
+    it ⇒ CWHR blends model 10 in ⇒ byram rises ⇒ large-tree kill ⇒ mortality → 266. PERCOV precision (jl 49.8
+    vs ~47.6, the cyc0 LITT/shrub ~10%) is a smaller secondary lever on top.
 ## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
 
 ## DOCTRINE
