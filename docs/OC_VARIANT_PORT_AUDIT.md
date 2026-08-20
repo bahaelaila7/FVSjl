@@ -616,3 +616,28 @@ gap is the volume columns (currently 0) → **C10**.
 - `src/variants/variant.jl` (OC registration line)
 - `src/FVSjl.jl` (OC includes)
 - `docs/OC_ORGANON_PORT_PLAN.md`, `docs/OC_VARIANT_PORT_AUDIT.md` (new)
+
+## 2026-08-20 — OC multi-cycle GROWTH: real ~1% height-growth carry residual (localized, NOT yet at bar)
+
+Ran the oct01 stand-1 growth control (S248112, 10 cycles, growth-only, REWIND-truncated) vs the LIVE
+RELINKED /workspace/.ocwork/FVSoc_clean:
+  • cyc0 (1990): bit-exact (TCF/MCF/BF 1894/1144/5881).
+  • cyc1 (1995): STATE still bit-exact (504/88/202/2254/1574/8244) but the ACCRETION/MORT split already
+    differs (accr 111→106, mort 20→21) — a symptom of a slightly different internal growth/mort
+    decomposition that nets out at 1995 but not later.
+  • cyc2+ (2000..): real drift. At 2000, **TPA 475/475 and BA 221/221 are BIT-EXACT** (same survival,
+    same diameter) yet **TCF 2707→2682 (−0.9%), CCF 79→76** differ ⇒ identical DBH, lower volume+crown
+    ⇒ the trees are slightly SHORTER in jl. So the residual is in **ORGANON SWO HEIGHT GROWTH's
+    multi-cycle carry** (height/crown state fed forward), NOT mortality (TPA matches) or diameter (BA
+    matches). By cyc3+ TPA drifts ±1-2 downstream (crown→density→mortality feedback). End-state 2040
+    TCF 8227→8201 (−0.3%), TPA 308→305.
+
+This is DGSD=0 (deterministic) so it SHOULD be bit-exact; the ~1% is a real residual, larger than the
+cornered-NINT class. Matches the OC-agent's flagged open follow-on ("a multi-cycle OC stand for the
+mortality-init carry A1MAX/NO/RD0" + HTGRO2 carry). Distinct from OP, which is bit-exact-or-cornered
+multi-cycle (test_op_multicycle_sum) — OP=NWO, OC=SWO, different ORGANON height model.
+
+NEXT OC chunk (measure-don't-infer): build an instrumented FVSoc_clean ORGANON height dump (g16
+single-.o swap on the organon/htgro path, per-tree per-cycle HT), replay jl's OC height increment
+cycle-by-cycle to find where the carry diverges. Bounded-but-real ORGANON investigation. NOT locked as
+a bit-exact test yet (would fail); characterized here as the localized lead.
