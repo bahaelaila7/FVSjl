@@ -76,6 +76,23 @@ end
     return d
 end
 
+"HTDBH forward (canada/on/htdbh.f MODE=0, D→H): Wykoff or Curtis-Arney. Used to dub missing/broken-top
+heights (cratet.f, LHTDRG=.FALSE. all ON species ⇒ always the default-coefficient curve). No DB floor
+(htdbh.f:356 applies it only for MODE≠0)."
+@inline function _on_htdbh_height(sp::Int, d::Float32)::Float32
+    if ON_REG_IWYKCA[sp] == 0                                  # Wykoff (htdbh.f:334)
+        return on_expf(ON_REG_HT1[sp] + ON_REG_HT2[sp] / (d + 1f0)) + 4.5f0
+    else                                                       # Curtis-Arney (htdbh.f:336-341)
+        p2 = ON_REG_SNALL_P2[sp]; p3 = ON_REG_SNALL_P3[sp]
+        p4 = ON_REG_SNALL_P4[sp]; db = ON_REG_SNDBAL[sp]
+        if d >= 3f0
+            return 4.5f0 + p2 * on_expf(-p3 * on_powf(d, p4))
+        else
+            return ((4.5f0 + p2 * on_expf(-p3 * on_powf(3f0, p4)) - 4.51f0) * (d - db) / (3f0 - db)) + 4.51f0
+        end
+    end
+end
+
 "DGBND (canada/on/dgbnd.f): cap DG at 6·exp(-0.03·DBH) (DBH≤150), floor 0."
 @inline function _on_dgbnd(dbh::Float32, dg::Float32)::Float32
     d = dbh > 150f0 ? 150f0 : dbh

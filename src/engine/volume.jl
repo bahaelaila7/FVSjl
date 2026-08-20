@@ -373,6 +373,10 @@ function dub_missing_heights!(s::StandState)
             # value OVERRIDDEN by HTDBH MODE=0 (`.NOT.LHTDRG .OR. (LHTDRG.AND.IABFLG==1)` ⇒ always TRUE here),
             # so the HTDBH MODE=0 curve IS the dub. (Native-uncalibrated → P2=0 ⇒ H=4.5, faithful to cratet.)
             ws_htdbh_height(0, Int(sp), d)
+        elseif s.variant isa Ontario
+            # on/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (Wykoff/Curtis-Arney) default-coefficient
+            # dub. Reaches here for missing / broken-top heights (which drop the measured H).
+            _on_htdbh_height(Int(sp), d)
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end
