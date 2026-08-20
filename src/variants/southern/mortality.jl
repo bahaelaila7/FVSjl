@@ -562,7 +562,9 @@ end
 @inline _snag_dbhcl(d::Float32)::Int = d >= 36f0 ? 19 : trunc(Int, d / 2f0 + 1f0)
 
 function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0)
-    (s.fire === nothing || !s.fire.active) && return s
+    # ORGANON variants (OC/OP) port growth+vol only — no SN snag/biomass coeffs (:v2t/:dkr_cls); skip FFE
+    # snag-booking when they are absent (FFE for those variants is a separate unported extension).
+    (s.fire === nothing || !s.fire.active || !haskey(s.coef.species, :v2t)) && return s
     t = s.trees; coef = s.coef; yr = current_cycle_year(s)
     # FVS dates ordinary-mortality snags at YRDEAD = IY(ICYC+1)−1 = cycle-END−1 (fmkill.f:140), used for the
     # hard→soft DKTIME classification. jl's `year` (the fall-clock) stays cycle-START (tuned to the bit-exact
