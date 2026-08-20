@@ -117,3 +117,18 @@ Debug at the 2003 event: jl byram=1189.9 → flame=1.78ft → scorch=4.7ft, at w
 Bit-exact-or-cornered per chunk by RUNNING FVSoc_clean; glibc libm ccall for Float32; gate = multicycle
 339/11 byte-identical. Wire Olympic (OP) analogously — same 39-vs-50 species list? CHECK op/fmvinit.f,
 op/fmbrkt.f, op/fmcba.f (OP MAXSP=39; the tables above are OC's 50 — OP needs its own extraction).
+
+## ★★ VERDICT 2026-08-20 — OC FFE FIRE = BIT-EXACT-OR-CORNERED (commits 7d0fcc30/440549bc/58b6db58/216bd02a)
+The 4 fixes closed the fire-intensity chain end to end:
+  1. ffe_on (7d0fcc30) — the per-cycle FFE fuel machinery was fully OFF for OC (ffe_fuel_live empty via the
+     CSV rename). Fire now samples the evolving down-wood pool.
+  2. fmcfmd (440549bc) — OC==CA California-CWHR fuel-model classifier (was the generic SN → models 8/9).
+  3. snag bole (58b6db58) — BLM total cubic (oc_tree_cuft), was R8-Clark→0→Jenkins aboveground ~3× over-book.
+  4. fuel moisture (216bd02a) — oc/fmmois.f == nc/fmmois.f (dry western table), was the wet SN default.
+RESULT: 2003 fire byram 9973 (oracle 10074), scorch 20.9 (oracle 21.1) — **BIT-EXACT**. Per-class kill rate
+0-5" 99%/100%, 10-20" 38%/41%. The ONLY residual: 5-10" kill 54% vs 76% + the class TOTALS (jl 26 small vs 53,
+184 mid vs 166) = the KNOWN CORNERED OC small-tree/regen + multi-cycle growth drift (CCF 76/79 @2003) — the
+fire burns correctly, on a slightly different pre-fire tree list. .sum mort 213 vs 266 is that drift, NOT an
+FFE bug. ⇒ OC FFE growth+vol+crown/CCF+classification+FFE all bit-exact-or-cornered.
+REMAINING: OP FFE (own 39-species extraction of V2T/ISPMAP/bark/fmcfmd/fmmois) + the OC/OP snag-REPORT tables
+(SNAGOUT/SNAGSUM text reports — report-only, the snag POOL is now correct).
