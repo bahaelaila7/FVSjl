@@ -66,6 +66,19 @@ of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model erro
   (ON_ITM_MAP→MB0..7, ON_MSB_MAP→SDI, ON_BKG_MAP→PMSC); ont_lite end-to-end TPA agrees ±1 NINT across 72
   species. Per-tree WK2 stays the accepted #206 VARMRT geometric-progression knife-edge (1-ULP cornered,
   as on ont01) — not separately dump-validated but the map-completeness rules out the partial-table class.
+- **Missing/broken-top height dub — CRASH FIXED** `7ae8b604`: any ON stand with a tree lacking a
+  measured height (or a broken top, which drops it) crashed (dub_missing_heights! → generic
+  _htdbh_height → KeyError :htdbh_p2). Ported the forward _on_htdbh_height (htdbh.f MODE=0) + wired an
+  Ontario branch. Validated end-to-end on ont_mh (all heights blanked): jl completes, cyc0 .sum VOLUME
+  columns bit-identical to oracle (heights drive volume). test_ontario_missing_height (4/4).
+- **broken-top VOLUME reduction (CFTOPK) — SCOPED, jl HAS cftopk/bftopk** (Olympic/KT/BM use them;
+  self-contained Behre taper) but NOT yet wired for ON: the CFTOPK wiring attempt (norm_ht taper →
+  cftopk → Mowraski) DIVERGED from the oracle on synthetic broken-top stands (jl board 1991 vs oracle
+  266), and those synthetic all-broken stands are DEGENERATE (oracle overflows ****** / the instrumented
+  voldump NaNs). REVERTED as unvalidated (doctrine: commit only validated). Needs a REALISTIC broken-top
+  stand (a few broken trees among normal, ideally real Ontario data) to A/B the Mowraski-vs-CFTOPK order
+  before wiring. jl currently runs broken-top stands (no crash) but computes full-height volume.
+
 ⇒ **Full-species growth+volume is bit-exact-or-cornered across all 72.** Remaining = un-exercised alt paths
 only: broken-top CFTOPK/BFTOPK + method-5/6 vol (need a broken-top stand), DG-calibration dgdriv.f LSTART
 spread (#206 cornered-by-inheritance, like every western variant).
