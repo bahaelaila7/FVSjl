@@ -82,8 +82,18 @@ of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model erro
   from Olympic/KT/BM should a non-degenerate broken-top corpus ever appear.)
 
 ⇒ **Full-species growth+volume is bit-exact-or-cornered across all 72.** Remaining = un-exercised alt paths
-only: broken-top CFTOPK/BFTOPK + method-5/6 vol (need a broken-top stand), DG-calibration dgdriv.f LSTART
-spread (#206 cornered-by-inheritance, like every western variant).
+only: DG-calibration dgdriv.f LSTART spread (#206 cornered-by-inheritance, like every western variant).
+**broken-top vol RESOLVED (oracle-degenerate/jl-correct, see below); method-5/6 vol NON-ISSUE — grinit.f:148-149
+sets METHB(I)=METHC(I)=8 for ALL 72 ON species, so the Gevorkiantz(5)/R9CLARK(6) branches are DEAD CODE in ON's
+default configuration (never reached; jl already has 5/6 for LS/NE should a keyword override ever arrive).**
+
+## ⇒ ON FULL-SPECIES PORT COMPLETE-TO-BAR (2026-08-20)
+Growth (DGF+htont) + volume (cubic ZAK/HONER + Mowraski net-merch) + crown/CCF + FORTYP/size/stock classification
+are **bit-exact-or-cornered across all 72 species** (5 kernels dump-replay-validated), crash-free (missing/broken-top
+height dub fixed), with every "remaining" path resolved: mortality structurally complete + cornered-at-bar, HYBRID a
+faithful non-gap, broken-top oracle-degenerate, method-5/6 dead-code. The ONLY open residual is the DG-calibration
+LSTART multi-cycle OLDRN spread — the accepted #206 cornered class every western variant carries. ON now sits at the
+same completion bar as CR/KT/IE/EM/BM/TT/UT/CI/BC.
 Instrumented oracles built + preserved (scratchpad/on/instr/{htgf,vols}.f); goldens test/fixtures/ontario/
 ont_all_{dgfdump,htdump,voldump,cwdump}.txt; tests test_ontario_allspecies_{dgf,htg,vol,cw}.jl. multicycle
 339/11 throughout. NOTE: the ont_all *aggregate* .sum overflows fixed fields (72 sp × GROSPC too dense) —
