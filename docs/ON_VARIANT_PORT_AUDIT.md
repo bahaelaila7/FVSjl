@@ -45,6 +45,24 @@ the meaningful model columns match (BA 39/40, SDI 817/820, CCF 218/218, TopHt 26
 oracle's metric sumout prints a degenerate year 0 / TPA 24 (impossible for SDI 817) — an IOSUM artifact
 of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model error. cyc0 is byte-identical.
 
+## Full 72-species validation (2026-08-20, USER directive — full ON port)
+
+`ont01` exercises only 8 of 72 species. A 72-tree stand `ont_all` (one tree/species, 25 cm/18 m — inline
+`.tre`, sidesteps the gcc-16 DB-read segfault) drives per-species dump-replay of every shipped kernel:
+- **DGF** `on_penner_dds` — **216/216 bit-exact** (72 sp × 3 subcycles) vs FVSon_g16 dgf dump. `cb0cfd41`.
+- **htont** `on_htont` — HTNOW+HT10 **72/72 each** vs FVSon_htdump (instrumented htgf.f unit 773). `81fb0c74`.
+- **cubic volume** `on_zakvol`/`on_honer` — VN+VM **70/70** vs FVSon_voldump (vols.f unit 774). `fa1b154d`.
+- **open-grown crown width (CCF)** — **REAL BUG FIXED** `81e31837`: only the 8 ont01 species had cwcalc.f
+  IWHO=1 equations wired; the other 64 returned CW=0 ⇒ .sum CCF ~8× too low. Populated ON_CW_OPEN (68
+  JSP2→open-CWEQ, verbatim from cwcalc.f) + ON_CW_EQS (50 eqns, coefficients = eastern crown lib). Now
+  **70/70 bit-exact** vs FVSon_cwdump (cwcalc.f unit 772); end-to-end ont_lite CCF overflows matching oracle.
+Instrumented oracles built + preserved (scratchpad/on/instr/{htgf,vols}.f); goldens test/fixtures/ontario/
+ont_all_{dgfdump,htdump,voldump,cwdump}.txt; tests test_ontario_allspecies_{dgf,htg,vol,cw}.jl. multicycle
+339/11 throughout. NOTE: the ont_all *aggregate* .sum overflows fixed fields (72 sp × GROSPC too dense) —
+per-kernel dump-replay is the validation vehicle; a sparse ont_lite (prob 2.0) renders in-range and is
+bit-exact-or-cornered (±1 NINT #206) end-to-end. Remaining full-species: mortality (morts, expect 1-ULP
+cornered), board-foot + Mowraski net-merch, maple/beech HYBRID (verify non-gap: dgf.f:402 LHYBRID=.FALSE.).
+
 ## Remaining (dep-ordered)
 
 1. ~~**FORTYP / size / stock classification**~~ — ✅ DONE (chunk 10): `125/1/1` bit-exact via the VBASE
