@@ -749,3 +749,23 @@ slightly IMPROVED (2000 SDI 85→86 vs oracle 87) and stays RESOLVED-CORNERED (H
 Combined with OP (already faithful) ⇒ BOTH ORGANON variants' small-tree growth is validated-correct. The
 only remaining OC/OP item is the FFE extension (USER-gated like NC FFE). HCOR height-calib is inert here
 (only GF ~+1.9%, sub-NINT on the .sum; the height smhtgf already matches within ±0.08ft).
+
+## 2026-08-20 — USER "do all user-gated" sweep: WWPB PPE oracle-blocked; OC/OP FFE scoped
+
+USER greenlit ALL user-gated efforts ([[feedback-do-all-user-gated]]). Findings:
+
+WWPB PPE — ORACLE-BLOCKED (measured, memory fvsjl-wwpb-ppe-oracle-blocked): no live outbreak oracle exists
+or is soundly buildable. NO sourceList links wwpb/; all variants use the base/exbm.f NO-OP stub; 0 wwpb/*.o;
+the PPE main-driver framework (PPMAIN/ALSTD2/SPLAEX/GPNEW) is ABSENT from the tree (only archive/PPEcommons/
+headers + metric/ppbase/ 7 support files + the wwpb/ model source exist). Reconstructing the harness ⇒ jl
+validated vs my own reconstruction, not real FVS ⇒ unsound. Beachhead (BMIN reader + BMRANN RNG,
+golden-validated) is the ceiling. Same hard-block class as the ON full-DB validation.
+
+OC/OP FFE — TRACTABLE (live oracle exists: FVSoc/FVSop link FFE, 120 fmcba/fmcros refs; oct01/opt01 bundle
+an FFE-TEST stand). GAP: the ORGANON species tables are minimal (growth+vol only, 4 cols) and lack the FFE
+per-species coefficients jl's shared FFE reads via coef.species: :dbh_min (crown-biomass merch gate), :v2t
+(crown-biomass V2T, rescaled /2000), the species→crown-biomass-group map (SPILS/ISPMAP analogue), + fuel-model
+& snag coeffs. PLAN (like NC FFE): extract OC/OP FFE block-data (fmvinit.f V2T, fmcbcoe, ISPMAP, dbh_min +
+fuel/snag) from the buildDir → populate OC/OP coef.species FFE columns → run the FFE-TEST stand through
+FVSoc_clean/FVSop_clean for the .sum+carbon/fuel target → validate bit-exact-or-cornered, chunk by chunk
+(crown-biomass/CCF → fuel loadings → fire behavior → mortality). ACTIVE next chunk.
