@@ -41,6 +41,7 @@ using FVSjl
     include("unit/test_ontario_allspecies_cw.jl")    # ON full-port: open-grown crown width (on_open_crown_width) bit-exact across ALL 72 species vs FVSon_cwdump (fixes CCF)
     include("unit/test_ontario_allspecies_mow.jl")   # ON full-port: Mowraski net-merch cull (on_mowraski) bit-exact across ALL 72 species vs FVSon_mowdump
     include("unit/test_ontario_missing_height.jl")  # ON full-port: missing/broken-top height dub crash fix (_on_htdbh_height) + bit-exact volume vs FVSon_g16
+    include("unit/test_ontario_database_reader.jl") # ON DATABASE reader: metric cm->in/m->ft conversion (was BC-only gate; ON DB was ~2.5x off)
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc

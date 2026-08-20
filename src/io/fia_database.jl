@@ -86,8 +86,8 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     if _fia_present(d, "ELEVFT")
         p.elevation = _fia_f32(d, "ELEVFT", 0f0) * 0.01f0
     elseif _fia_present(d, "ELEVATION")
-        if s.variant isa BritishColumbia
-            p.elevation = _fia_f32(d, "ELEVATION", 0f0) * 3.280839895f0 / 100f0   # m → hundreds of ft
+        if s.variant isa BritishColumbia || s.variant isa Ontario
+            p.elevation = _fia_f32(d, "ELEVATION", 0f0) * 3.280839895f0 / 100f0   # m → hundreds of ft (BC/ON metric DB)
         else
             p.elevation = _fia_f32(d, "ELEVATION", p.elevation)
         end
@@ -382,11 +382,14 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
         raw_slo[pid] = _fia_present(d, "SLOPE")  ? _fia_f32(d, "SLOPE", 0f0) * 0.01f0     : 0f0
         raw_asp[pid] = _fia_present(d, "ASPECT") ? _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0 : 0f0
     end
-    # Metric-variant DATABASE input (BC): the FVS_TreeInit DB is METRIC (cm DBH, m HT, trees/ha).
+    # Metric-variant DATABASE input (BC + ON): the FVS_TreeInit DB is METRIC (cm DBH, m HT, trees/ha).
     # Convert cm→in / m→ft on ingest exactly as the inline/.tre path (treeinput.jl:82); the trees/ha→
-    # trees/acre expansion is applied just below (metric-DB only). Gated on BC ⇒ US-FIA sweeps unchanged.
-    res = ingest_tree_records!(s, recs; metric = s.variant isa BritishColumbia)
-    if s.variant isa BritishColumbia
+    # trees/acre expansion is applied just below (metric-DB only). Gated on the metric variants ⇒ US-FIA
+    # sweeps unchanged. (ON was missing here — an Ontario DB previously ingested cm as inches, ~2.5× off,
+    # the same class as the BC bug 42eb555.)
+    metric_db = s.variant isa BritishColumbia || s.variant isa Ontario
+    res = ingest_tree_records!(s, recs; metric = metric_db)
+    if metric_db
         # DB TREE_COUNT (PROB) is per-HECTARE; FVS's metric expansion yields per-acre (via the metric
         # plot area). notre! here multiplies by the design factor only, so pre-scale the raw PROB
         # per-ha→per-acre (× ACRtoHA) so the expanded internal TPA is per-acre like every other variant.
