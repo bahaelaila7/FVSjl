@@ -38,6 +38,7 @@ using FVSjl
     include("unit/test_ontario_allspecies_dgf.jl")   # ON full-port: Penner large-tree DGF (on_penner_dds) bit-exact across ALL 72 species vs FVSon_g16 (72-tree ont_all stand)
     include("unit/test_ontario_allspecies_htg.jl")   # ON full-port: Penner diameter-height (on_htont) bit-exact across ALL 72 species vs FVSon_htdump
     include("unit/test_ontario_allspecies_vol.jl")   # ON full-port: cubic volume (on_zakvol/on_honer) bit-exact across ALL 72 species vs FVSon_voldump
+    include("unit/test_ontario_allspecies_cw.jl")    # ON full-port: open-grown crown width (on_open_crown_width) bit-exact across ALL 72 species vs FVSon_cwdump (fixes CCF)
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
