@@ -721,3 +721,14 @@ Both ORGANON variants (OC + OP) are multi-cycle bit-exact-or-cornered. Remaining
 FAITHFULNESS refinements that do NOT change the cornered .sum verdict: small-tree DBH-from-height (HTDBH,
 tn15 dbh 0.1 vs 0.5 — few, low-volume) + HCOR small-tree height calibration (only GF, ~+1.9%) + wiring
 Olympic's small-tree path. The FFE extension remains USER-gated (like NC FFE).
+
+## 2026-08-20 — OP (Olympic) small-tree path is ALREADY FAITHFUL (measured; "wire Olympic" CLOSED)
+
+Measured OP opt01 stand-1 (= same S248112 stand as OC) seedling heights+DBH at cyc1 vs the live FVSop_clean
+TREELIST: jl tn2 DF (0.574, 7.398) vs oracle (0.6, 7.4); jl tn15 GF (0.321, 4.848) vs oracle (0.3, 4.9) —
+BOTH MATCH (height AND DBH). So OP does NOT have the OC seedling-over-growth bug: OP's op_htg_default (op/
+htgf.f) grows these seedlings faithfully (the OP/NWO oracle uses the large-tree-style htgf for them — h 2.0→
+7.4 — NOT the regent-suppressed path OC/SWO uses, h 2.0→3.8; same stand, different variant small-tree model,
+and jl matches EACH). ⇒ NO Olympic small-tree port needed — the "wire Olympic" follow-on is CLOSED. Both
+OC (regent-ported) and OP (op_htg_default) small-tree HEIGHTS are now validated-correct vs their oracles.
+The only remaining OC small-tree residual is the DBH-from-height calibration coupling (low-pri, .sum-cornered).
