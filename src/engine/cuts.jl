@@ -124,7 +124,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     end
     # FFE harvested-wood-products: bucket this removed tree's merch biomass into the FATE accumulator
     # (FMSCUT) for the FVS_Hrv_Carbon report. Merch biomass = merch cuft × V2T × removed TPA (FFE method).
-    if s.fire !== nothing && s.fire.active
+    # Needs the SN-style biomass coefficients (:v2t, decay class); variants whose coefficients omit them
+    # (e.g. OC ORGANON, no FFE/biomass port) skip the FFE carbon/fuels accounting (inert for the .sum).
+    if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
         mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
         accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
         # ACTIVITY FUELS (FMSCUT, fmscut.f:88-96): the cut tree's CROWN slash → the surface fuel bed, for ANY
@@ -173,8 +175,10 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             end
         end
     end
-    # ESTUMP cut log (sprouting species only, when sprouting is on)
-    (s.control.lsprut && coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
+    # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define
+    # no :is_sprouting column (e.g. OC ORGANON — hardwood sprouting is not ported) have no sprouters.
+    (s.control.lsprut && haskey(s.coef.species, :is_sprouting) &&
+     coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
     push!(s.control.cut_log,
           (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
