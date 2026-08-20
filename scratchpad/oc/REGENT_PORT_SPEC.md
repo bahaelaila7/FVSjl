@@ -76,3 +76,33 @@ This is why the port is a focused unit, not a quick height-equation drop-in. Ord
 (2) port smhtgf + the LSTART HCOR calibration to match HCOR bit-exact;
 (3) port the increment wrapper (CON/XWT/SCALE) + DBH-from-height (HK≤4.5 trivial; HK>4.5 via HTDBH);
 (4) wire into organon_hook.jl (route D<XMAX IORG=0), A/B tn2/tn15 vs oc_or_trl.pkl, then whole .sum.
+
+## ✅ MEASURED 2026-08-20 (DEBUG works via `--keywordfile=`, NOT stdin-pipe) — port fully de-risked
+Ran `/workspace/.ocwork/FVSoc_clean --keywordfile=oc_rdbg.key` (scoped `DEBUG 1 1 / REGENT / END`) → the main
+`.out` is written and carries the REGENT dump (saved: scratchpad/oc/oc_regent_dump.out + oc_regent_targets.txt).
+⚠ the stdin-pipe run mode does NOT open the main .out — use --keywordfile= for any DEBUG capture.
+
+GROUND TRUTH (oct01 stand-1 cyc0, per-tree HTGR,HTGRR,CON):
+  • RHCON=1.0 all species (confirmed). ZZRAN=0, XRHGRO=1.0, SCALE=1.0 (DGSD=0, no HTGMULT, fint=5).
+  • **DF (ISPC=7) small trees: CON=1.0000** ⇒ HTGRR=HTGR=1.8110 (D=0.1,H=2.0) — matches oracle .trl tn2 +1.8.
+    So the DF/non-GF small-tree path needs NO calibration ⇒ validate smhtgf+wrapper bit-exact from these alone.
+  • **GF (ISPC=4): CON=1.0189** (HCOR(GF)=ln(1.0189)=0.01872) — the ONLY calibrated species here. HTGRR=2.1049,
+    HTGR=2.1445. GF calibrated because it had ≥NCALHT(5) measured-height trees; DF did not (or its ratio=1).
+  • XWT=0 for D≤XMN(2) (pure small-tree); the large-tree htgf estimate for tree13 GF = 9.0522 = EXACTLY jl's
+    current wrong value (confirms the routing bug).
+
+HCOR CALIBRATION ALGORITHM (regent.f:405-500, ratio estimator — port it for generality):
+  per species with LHTCAL(sp) AND ≥NCALHT(=5) obs: for each tree with DBH<5.0 and measured HTG (H = H−HTG(I)
+  if IHTG<2, exclude H<0.01): EDH=SMHTGF(...)·RHCON; TERM=HTG(I)·SCALE3 (SCALE3=REGYR/FINTH); SNX+=EDH·PROB;
+  SNY+=TERM·PROB. Then CORNEW=SNY/SNX (mean-ratio observed/predicted), HCOR=ln(CORNEW), clamp CORNEW∈[0.0821,
+  12.1825] else CORNEW=1/HCOR=0. Needs: LHTCAL(sp), NCALHT=5, PROB(tree), the OBSERVED HTG(I) (inventory
+  height increment — the plumbing to get), IREF(sp) species-reference grouping, SITEAR. This IS the
+  [[fvsjl-ie-regent-hcor-calibration]] trap. For THIS stand only GF calibrates (~+1.9%); a port that starts
+  with HCOR=0 everywhere is bit-exact on DF/BR/others immediately and ~2% off on GF until the calibration lands.
+
+IMPLEMENTATION ORDER (everything now measured — zero unknowns):
+  1. port smhtgf (5 eqs) → unit-test DF D0.1H2.0→1.8110, GF→2.1049 (get exact BA/BAL/SI/RELHT/CR from jl hook).
+  2. port the regent height wrapper (CON=exp(HCOR), XWT blend, SCALE) + DBH-from-height (HK≤4.5 trivial; HK>4.5
+     via HTDBH) → route D<XMAX IORG=0 trees to it in organon_hook.jl (+ Olympic).
+  3. validate DF trees bit-exact vs .trl (HCOR=0 path). 4. port the ratio-estimator HCOR calibration → GF exact.
+  5. whole oct01 stand-1 .sum bit-exact-or-cornered; re-confirm OP + multicycle 339/11.

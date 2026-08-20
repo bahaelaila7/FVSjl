@@ -1,0 +1,82 @@
+NPLT=S248112                   ,  I=    9,  ISPC=  7,  H=  15.0,  DBH=  4.0,  ICR   25,  PCT=   5.5,  RELDEN=  81.8
+NPLT=S248112                   ,  I=   11,  ISPC=  7,  H=   6.8,  DBH=  1.2,  ICR   55,  PCT=   0.3,  RELDEN=  81.8
+NPLT=S248112                   ,  I=   12,  ISPC=  7,  H=   8.3,  DBH=  1.9,  ICR   45,  PCT=   0.9,  RELDEN=  81.8
+NPLT=S248112                   ,  I=   23,  ISPC= 22,  H=  13.8,  DBH=  3.2,  ICR   45,  PCT=   2.6,  RELDEN=  81.8
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            1          12   11.5000000       1.00000000       73.0000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            2           7  0.100000001       0.00000000       2.00000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            3          18   6.50000000       2.29999995       30.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            4          16   7.90000010      0.600000024       75.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            5          16   8.00000000      0.699999988       63.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            6           4   6.19999981       2.00000000       38.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            7          16   8.39999962       1.06680346       5.00000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            8          12   9.50000000       1.10000002       60.0000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            9           7   4.00000000      0.704799414       20.0000000       5.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           10          16   8.19999981       1.20000005       65.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           11           7   1.20000005      0.854885101       11.0000000       4.19999981               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           12           7   1.89999998      0.893381596       13.0000000       4.69999981               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           13           4  0.100000001       0.00000000       3.00000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           14           4   5.30000019      0.899999976       27.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           15           7   10.0000000       1.00000000       65.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           16           4   6.09999990       1.20000005       38.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           17           7   12.6999998       1.60000002       67.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           18          12   9.60000038      0.500000000       60.0000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           19           7   10.3999996      0.899999976       55.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           20          12   8.50000000      0.390020847       53.3233566       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           21           4   10.8999996       1.00000000       65.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           22           7   9.39999962       1.79999995       60.0000000       0.00000000               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           23          22   3.20000005      0.600000024       17.0000000       3.20000005               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           24          22  0.100000001       0.00000000       2.00000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           25          22   5.80000019       1.00000000       28.0000000       0.00000000               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           26          22   5.00000000       1.00000000       25.0000000       3.70000005               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           27           4   6.59999990       1.39999998       30.0000000       0.00000000               1
+IN REGENT HTGR,HTGRR,CON =     2.1445    2.1049    1.0189
+IN REGENT 9985 FORMAT    0.0000      2.1445      9.0522       13     13
+IN REGENT 9986 FORMAT AX,BX,ISPC,HK BARK,XRDGRO,DK,DKK= 
+ IN REGENT ISPC=           4  D=  0.100000001      XDWT=   0.00000000      DKK=  0.100000001      DK=  0.464872181      BARK=  0.800000012      DGSM=  0.291897714      DGLT=   3.91189009E-03  DGSM FINAL=  0.291897714    
+IN REGENT, I=  13,  ISPC=  4  CUR HT=   3.00,  HT INC= 2.1445,  NEW HT=   5.14,  CUR DBH=   0.10000,  DBH INC= 0.2919
+IN REGENT HTGR,HTGRR,CON =     1.8110    1.8110    1.0000
+IN REGENT 9985 FORMAT    0.0000      1.8110      8.7312        2      2
+IN REGENT, I=   2,  ISPC=  7  CUR HT=   2.00,  HT INC= 1.8110,  NEW HT=   3.81,  CUR DBH=   0.10381,  DBH INC= 0.0000
+IN REGENT HTGR,HTGRR,CON =     3.2006    3.2006    1.0000
+IN REGENT 9985 FORMAT    1.0000      3.2006      4.6317       11     11
+IN REGENT 9986 FORMAT AX,BX,ISPC,HK BARK,XRDGRO,DK,DKK= 
+ IN REGENT ISPC=           7  D=   1.20000005      XDWT=   1.00000000      DKK=   1.49052334      DK=   2.34016776      BARK=  0.901816547      DGSM=  0.766223311      DGLT=  0.397388697      DGSM FINAL=  0.397388697    
+IN REGENT, I=  11,  ISPC=  7  CUR HT=  11.00,  HT INC= 4.6317,  NEW HT=  15.63,  CUR DBH=   1.20000,  DBH INC= 0.3974
+IN REGENT HTGR,HTGRR,CON =     3.2394    3.2394    1.0000
+IN REGENT 9985 FORMAT    1.0000      3.2394      4.1422       12     12
+IN REGENT 9986 FORMAT AX,BX,ISPC,HK BARK,XRDGRO,DK,DKK= 
+ IN REGENT ISPC=           7  D=   1.89999998      XDWT=   1.00000000      DKK=   1.85740280      DK=   2.61724305      BARK=  0.897429466      DGSM=  0.681903005      DGLT=  0.379150987      DGSM FINAL=  0.379150987    
+IN REGENT, I=  12,  ISPC=  7  CUR HT=  13.00,  HT INC= 4.1422,  NEW HT=  17.14,  CUR DBH=   1.90000,  DBH INC= 0.3792
+IN REGENT HTGR,HTGRR,CON =     2.6968    2.6968    1.0000
+IN REGENT 9985 FORMAT    0.6000      2.6968      3.1717       23     23
+IN REGENT, I=  23,  ISPC= 22  CUR HT=  17.00,  HT INC= 2.9817,  NEW HT=  19.98,  CUR DBH=   3.20000,  DBH INC= 0.3620
+IN REGENT HTGR,HTGRR,CON =     1.3880    1.3880    1.0000
+IN REGENT 9985 FORMAT    0.0000      1.3880      1.5238       24     24
+IN REGENT, I=  24,  ISPC= 22  CUR HT=   2.00,  HT INC= 1.3880,  NEW HT=   3.39,  CUR DBH=   0.10339,  DBH INC= 0.0000
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            1          12   11.5000000      0.452486992       73.0000000       6.90931177               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            2           7  0.103810966       0.00000000       2.00000000       1.81096208               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            3          18   6.50000000      0.842940331       30.0000000       7.63209057               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            4          16   7.90000010      0.549349308       75.0000000       7.93844604               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            5          16   8.00000000      0.560866356       63.0000000       7.46358156               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            6           4   6.19999981      0.572994709       38.0000000       6.61204052               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            7          16   8.39999962      0.725750923       5.00000000       3.30617332               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            8          12   9.50000000      0.363151550       60.0000000       6.18312168               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=            9           7   4.00000000      0.315805197       20.0000000       4.01161718               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           10          16   8.19999981      0.847153664       65.0000000       7.95189667               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           11           7   1.20000005      0.397388697       11.0000000       4.63173914               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           12           7   1.89999998      0.379150987       13.0000000       4.14218187               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           13           4  0.100000001      0.291897714       3.00000000       2.14453197               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           14           4   5.30000019      0.699193954       27.0000000       6.91816378               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           15           7   10.0000000      0.646102905       65.0000000       8.19135380               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           16           4   6.09999990      0.887078285       38.0000000       7.68001223               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           17           7   12.6999998      0.698161125       67.0000000       8.17547035               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           18          12   9.60000038      0.363639832       60.0000000       6.18312168               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           19           7   10.3999996      0.799394608       55.0000000       7.73073769               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           20          12   8.50000000      0.363285065       53.3233566       6.40921259               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           21           4   10.8999996       1.17589283       65.0000000       8.28855324               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           22           7   9.39999962      0.613262177       60.0000000       8.03187656               1
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           23          22   3.20000005      0.362005711       17.0000000       2.98170137               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           24          22  0.103388034       0.00000000       2.00000000       1.38802993               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           25          22   5.80000019      0.632921219       28.0000000       4.42495155               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           26          22   5.00000000      0.288723946       25.0000000       2.93764663               0
+  LEAVING REGENT I,ISP,DBH,DG,HT,HTG,IORG=           27           4   6.59999990      0.841947556       30.0000000       7.04308367               1
