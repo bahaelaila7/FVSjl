@@ -732,3 +732,20 @@ htgf.f) grows these seedlings faithfully (the OP/NWO oracle uses the large-tree-
 and jl matches EACH). ⇒ NO Olympic small-tree port needed — the "wire Olympic" follow-on is CLOSED. Both
 OC (regent-ported) and OP (op_htg_default) small-tree HEIGHTS are now validated-correct vs their oracles.
 The only remaining OC small-tree residual is the DBH-from-height calibration coupling (low-pri, .sum-cornered).
+
+## 2026-08-20 — OC small-tree DBH-from-height COMPLETE (HTDBH Curtis/Arney; NO calibration needed)
+
+The DBH-from-height "calibration coupling" was a MISDIAGNOSIS: LHTDRG(sp) defaults .FALSE. (no HTGROW
+keyword in oct01), so regent's DBH-from-height uses the DEFAULT **HTDBH (Curtis/Arney CURARN)** model — NOT
+the BX/AX+AA-calibration path (that only applies under HTGROW). Ported htdbh.f MODE=1 (CURARN P2/P3/P4 +
+SPLINE) as oc_hd_diam; DBH += DGSM directly (measured live 9987 DBH-INC = DGSM, not DGSM/bark); SCALE2 =
+YR(5)/FINT (=1 ⇒ the √ is an identity for a 5-yr cycle). VALIDATED vs the live regent dump + TREELIST:
+HTDBH(DF,HK=15.63)=2.341 = dump DK 2.34; per-tree cyc1 DBH now tracks the oracle within ±0.1" (print
+rounding): tn15 GF 0.5/0.4, tn2 DF cyc2-5 0.6-1.4 (was +2.2" off). Wired in organon_hook.jl (D<DGMIN IORG=0
+trees). No regression: multicycle 339/11, OC regent test (now asserts HEIGHT+DBH) green; the OC .sum
+slightly IMPROVED (2000 SDI 85→86 vs oracle 87) and stays RESOLVED-CORNERED (HG_SWO CCH tie-break).
+
+⇒ **OC small-tree path now FULLY FAITHFUL (height via smhtgf + DBH via HTDBH)**, both validated per-tree.
+Combined with OP (already faithful) ⇒ BOTH ORGANON variants' small-tree growth is validated-correct. The
+only remaining OC/OP item is the FFE extension (USER-gated like NC FFE). HCOR height-calib is inert here
+(only GF ~+1.9%, sub-NINT on the .sum; the height smhtgf already matches within ±0.08ft).

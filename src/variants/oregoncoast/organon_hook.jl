@@ -97,11 +97,15 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
                   htg_large
             t.ht_growth[i] = htg
             t.height[i] += htg
-            # (REGENT DBH-from-height is a follow-on COUPLED to the inventory H-D calibration: measured
-            # (live 9987) the DBH-INC = DGSM (added directly, not /bark), but the DK=diam(HK) uses the
-            # CALIBRATED intercept AA(sp)/IABFLG(sp), not the raw HT1(sp) — e.g. DF tree DK=2.34 at HK=15.6
-            # needs AX≈6.7 vs HT1(7)=5.31. So it needs the cratet H-D calibration ported first, like HCOR.
-            # Small-tree DBH keeps the large-tree DDS meanwhile (~0.5in seedling lag); OC .sum stays cornered.)
+            # REGENT DBH-from-height: trees with DBH < DGMIN(sp) derive DBH growth from the H-D function
+            # (regent.f:305; DGMIN≤D<XMAX keeps the large-tree DBH). DBH += DGSM directly (measured live
+            # 9987 DBH-INC = DGSM); DK/DKK from HTDBH (Curtis/Arney, LHTDRG=.FALSE. default). Large-tree
+            # part of the XWT blend = dg/bark. SCALE2 = YR(5)/FINT (=1 for a 5-yr cycle).
+            if is_regen && d0 < OC_REG_DGMIN[sp]
+                newd = oc_regent_dbh(sp, d0, h_old, htg, bark, dg/bark, 5f0/fint)
+                t.diam_growth[i] = newd - d0
+                t.dbh[i] = newd
+            end
         end
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
         # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).

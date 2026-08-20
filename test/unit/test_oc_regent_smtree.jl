@@ -39,20 +39,22 @@ end
     if !isfile(key)
         @test_skip "oregoncoast small-tree fixture not present"
     else
-        heights = cd(fx) do
-            snaps = Dict{Int,Float32}()
+        state = cd(fx) do
+            snaps = Dict{Int,Tuple{Float32,Float32}}()
             for s in F.each_stand("ocgro.key"; variant = F.variant_from_code("OC"))
                 F.notre!(s); F.setup_growth!(s); F.compute_volumes!(s)
                 hook = (st, yr, pl, cy) -> (cy == 1 && foreach(
-                    i -> (snaps[Int(st.trees.tree_id[i])] = st.trees.height[i]), 1:st.trees.n))
+                    i -> (snaps[Int(st.trees.tree_id[i])] = (st.trees.dbh[i], st.trees.height[i])), 1:st.trees.n))
                 io = IOBuffer(); F.write_sum_file(io, s; variant = "OC", cycle_hook = hook)
                 break
             end
             snaps
         end
-        # tn2 (DF seedling): live cyc1 height 3.80; the bug gave 10.7. Must be within a NINT of 3.80.
-        @test haskey(heights, 2) && abs(heights[2] - 3.80f0) < 0.15f0
-        # tn15 (GF seedling): live cyc1 height 5.10 (was 12.1).
-        @test haskey(heights, 15) && abs(heights[15] - 5.10f0) < 0.15f0
+        # HEIGHT (smhtgf): tn2 (DF seedling) live cyc1 h=3.80 (bug gave 10.7); tn15 (GF) h=5.10 (was 12.1).
+        @test haskey(state, 2)  && abs(state[2][2]  - 3.80f0) < 0.15f0
+        @test haskey(state, 15) && abs(state[15][2] - 5.10f0) < 0.15f0
+        # DBH-from-height (HTDBH Curtis/Arney): tn15 GF cyc1 live d=0.5 (the bug gave d=2.3 via /bark;
+        # the raw-HT1 formula gave 1.3). Must track the oracle within a NINT.
+        @test haskey(state, 15) && abs(state[15][1] - 0.5f0) < 0.15f0
     end
 end
