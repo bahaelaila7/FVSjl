@@ -75,23 +75,27 @@ Debug at the 2003 event: jl byram=1189.9 → flame=1.78ft → scorch=4.7ft, at w
     picks model 6, byram 1189.9→**7374.8** (6×), 2003 mortality 206→210, 2008 residual TPA 126→118. But the
     oracle blends 6(62%)/**10(38%)** — the missing hotter model-10 (kills the LARGE trees = the volume
     mortality) is weighted by the CWHR dynamic model on the LARGE down-wood load.
-  ⇒ **REMAINING (210 vs 266) = the LARGE-DOWN-WOOD fuel accounting — TRACED to a two-sided bug:**
-    At the 2003 fire, jl's fire samples `fire_smlg=(0.13, ~0)` (the fire's SMALL/LARGE basis, fuel_model.jl:150)
-    while `_small_large_fuel(s.fire)` (the accumulated cwd pool) = **(4.44, 10.51)**. The oracle's 2003 >3"
-    load is ~2.7. So BOTH sides are wrong:
-    (a) **fire_smlg stash timing** — the fire samples ~0 large wood. The stash (summary.jl:339 at cycle start;
-        re-stash simulate.jl:557 post-cuts, gated `fuel_period!==nothing` which IS set on fire cycles) captures
-        the pool BEFORE `fmburn!→fmcba!` accumulates it to 10.51. summary.jl:192-197 documents this exact class
-        ("ffe_fuel_update!+fire_smlg SKIPPED ⇒ fire samples ~empty pool ⇒ under-fire"). Find why the OC re-stash
-        lands on the pre-accumulation pool (fmcba! inside fmburn! vs the stash point).
-    (b) **large-down-wood OVER-accumulation** — jl's accumulated pool 10.51 is ~4× the oracle's 2.7. Even if
-        (a) is fixed to use the accum, jl would then OVER-kill. The over-accumulation is the crown-debris
-        (CWD2B fall) / snag-fall contribution over 1993→2003 (the DKRT decay 9cce8d0b is correct OC physics but
-        can't offset a 4× surplus). Compare jl's per-cycle >3" load to the oracle ALL FUELS (ocffe_oracle_fuels.txt:
-        oracle >3" 9.2→8.4→2.7→...) to find where jl diverges.
-    Sequence: fix (b) so the accumulated >3" tracks the oracle (~2.7 at 2003), then (a) so fire_smlg reflects
-    it ⇒ CWHR blends model 10 in ⇒ byram rises ⇒ large-tree kill ⇒ mortality → 266. PERCOV precision (jl 49.8
-    vs ~47.6, the cyc0 LITT/shrub ~10%) is a smaller secondary lever on top.
+  • **ROOT FIXED (7d0fcc30): `ffe_on` was FALSE for OC ⇒ the ENTIRE per-cycle FFE fuel machinery was OFF.**
+    `ffe_on` (summary.jl:200) gates ffe_fuel_update! (snag-fall + CWD2B crown-debris + litter/woody + decay
+    + the fire_smlg stash) on `!isempty(ffe_fuel_live)` OR a variant allowlist. OC's live-fuel CSV is
+    `fire_fuel_covtype_live.csv` (renamed to dodge the reserved `fire_fuel_live.csv`), so ffe_fuel_live is
+    empty ⇒ OC fell through ⇒ ffe_on=false ⇒ the down-wood pool never evolved and the fire sampled a ~empty
+    fire_smlg. Added OregonCoast to the allowlist (like Klamath/EC/SO). ⇒ the "two-sided fire_smlg/over-accum"
+    hypothesis above is SUPERSEDED — the accum was never ~10.5 at the *stash*, it was ~0 because the machinery
+    was off; enabling it makes fire_smlg=(4.09, **14.44**) large wood (was ~0), the CWHR blends model 10:
+    **6(47%)/10(53%)** [oracle 6(62%)/10(38%)], byram→7690, **scorch 4.7→17.6 ft**.
+  ⇒ **REMAINING (fire kills 144 TPA vs oracle ~189; .sum mort 210 vs 266) = fmeff per-class + pre-fire drift.**
+    Per-class kill (jl vs oracle): 0-5" 23.6/26 (91%) vs 53/53; 5-10" 96.6/**184** (53%) vs 126/**166** (76%);
+    10-20" 23.8/63 (38%) vs 27/66 (41%). TWO components:
+    (a) **pre-fire stand STRUCTURE differs** — jl has 26 small (0-5") trees vs oracle 53, and 184 mid (5-10")
+        vs 166. That is the KNOWN OC small-tree/regen + multi-cycle growth drift (CCF 76/79 @2003, cornered in
+        [[fvsjl-oc-organon-blm-volume]]) — different trees to burn. Fewer small trees + more mid = downstream
+        of the cornered growth, not an FFE bug.
+    (b) **5-10" crown-scorch kill RATE 53% vs 76%** — with scorch 17.6 jl kills fewer mid trees. Likely their
+        crown bases sit above the scorch (jl 5-10" heights/crown-ratios carry the same growth/crown drift), or
+        an fmeff crown-volume-scorched / bark-cambium detail. NEXT: instrument FVSoc_clean fmburn/fmeff for the
+        ACTUAL-fire scorch height + per-tree crown base at 2003, A/B vs jl's 17.6 + crown bases; if jl's scorch
+        and crown bases match, the kill-rate gap is the cornered crown-ratio drift; else port the fmeff detail.
 ## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
 
 ## DOCTRINE
