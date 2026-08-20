@@ -641,3 +641,28 @@ NEXT OC chunk (measure-don't-infer): build an instrumented FVSoc_clean ORGANON h
 single-.o swap on the organon/htgro path, per-tree per-cycle HT), replay jl's OC height increment
 cycle-by-cycle to find where the carry diverges. Bounded-but-real ORGANON investigation. NOT locked as
 a bit-exact test yet (would fail); characterized here as the localized lead.
+
+## 2026-08-20 (cont'd) — ROOT-CAUSED: OC/OP missing the REGENT small-tree height model (measure-don't-infer)
+
+The ~1% multi-cycle drift above is NOT large-tree ORGANON — it is the FVS-native SMALL-TREE height model.
+Measured per-tree via the oracle TREELIST (.trl) vs jl (write_sum_file cycle_hook capturing tree_id→HT;
+harness in scratchpad/oc/):
+  • cyc0 all 27 trees bit-exact. cyc1: LARGE trees bit-exact (tn1/17/24 dH~0.01) but the SUB-BREAST-
+    HEIGHT seedlings blow out — **tn2 (DF, dbh 0.1, h 2.0): oracle→3.8 vs jl→10.7 (+6.9ft); tn15 (GF,
+    h 3.0): oracle→5.1 vs jl→12.1 (+7.0ft)**. jl grows seedlings ~7ft too tall in one cycle.
+  • ROOT: `oc/regent.f` (578 ln) is OC's small-tree model — "the height increment model is applied to
+    trees LESS THAN 4 [ft] tall and LESS THAN 4 INCHES DBH; diameter is assigned from a height-diameter
+    function." tn2/tn15 are <4ft ⇒ the oracle grows them with REGENT. jl routes ALL IORG=0 trees to the
+    LARGE-tree `oc_htgf_native` (organon_hook.jl:86) with NO size gate, and `small_tree_growth!(::Oregon
+    Coast/::Olympic)` is a NO-OP (organon_hook.jl:132) ⇒ seedlings get the large-tree HTGF (POTHTG·XMOD
+    ≈9ft for a fast-site seedling) instead of the gentle REGENT height-age increment (~1.8ft).
+  • The over-tall seedlings then perturb the height-based competition (CCH/relht) feeding the large-tree
+    increment ⇒ large trees run ~0.15ft short by cyc2 ⇒ the TCF/CCF .sum deficit (BA/TPA bit-exact).
+
+⇒ **NEXT OC/OP CHUNK (concrete): port `oc/regent.f` (small-tree height-age + H-D diameter assignment,
+following the established regent.jl pattern used by BM/IE/KT/TT/UT/CR/CA/BC) and wire it into the OC/OP
+ORGANON growth hook — route trees with H<4ft (and DBH<4") to it instead of oc_htgf_native.** VALIDATION
+VEHICLE (ready): the oracle .trl per-tree HT (scratchpad/oc/oc_or_trl.pkl) vs jl's cycle_hook capture —
+target = tn2/tn15 HT bit-exact at cyc1, then the whole .sum bit-exact-or-cornered multi-cycle. Same
+model likely applies to OP (Olympic) sub-4ft trees; OP's ref stand happened to have fewer/less-divergent
+seedlings so it read bit-exact-or-cornered, but OP should get the same regent wiring.
