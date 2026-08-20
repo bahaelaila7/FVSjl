@@ -93,31 +93,33 @@ const OC_REG_DIAM = Float32[
 @inline oc_hd_diam(sp::Int, h::Float32)::Float32 = OC_HD_HT2[sp]/(flog(h - 4.5f0) - OC_HD_HT1[sp]) - 1.0f0
 
 """
-    oc_regent_dbh(sp, d, h, htg, bark, dg_large) -> new_dbh
+    oc_regent_dbh(sp, d, h, htg, bark, dg_large_out, scale2) -> new_dbh
 
 regent.f small-tree DBH-from-height for a tree with DBH < DGMIN(sp). HK = H+HTG. If HK≤4.5 the tree stays
-sub-breast-height (DBH = D + 0.001·HK). Else DBH is derived from the H-D function: DK=diam(HK),
-DKK=diam(H) (=D if H≤4.5), DGSM=(DK−DKK)·BARK → DDS scaled to 10-yr → DGSM=√((D·BARK)²+DDS)−D·BARK, then
-blended with the large-tree DG via XDWT (D<1.5 ⇒ pure small-tree). `dg_large` is the inside-bark large-tree
-increment. Floored at DIAM(sp). DGSD=0 ⇒ deterministic (regent.f ZZRAN=0).
+sub-breast-height (DBH = D + 0.001·HK). Else DBH grows by DGSM: DK=diam(HK), DKK=diam(H) (=D if H≤4.5),
+DGSM=(DK−DKK)·BARK·XRDGRO → DDS=DGSM·(2·BARK·D+DGSM)·SCALE2 → DGSM=√((D·BARK)²+DDS)−D·BARK, then blended
+with the large-tree DG via XDWT (D<1.5 ⇒ pure small-tree). The final DBH increment is added DIRECTLY
+(update.f `DBH += DG`, measured: live 9987 DBH-INC = DGSM, NOT DGSM/bark). `dg_large_out` = the large-tree
+OUTSIDE-bark DBH increment (jl's dg/bark). `scale2` = YR/FINT (=1 for a 5-yr cycle: the √ is then an
+identity). Floored at DIAM(sp). DGSD=0 ⇒ deterministic (regent.f ZZRAN=0).
 """
 @inline function oc_regent_dbh(sp::Int, d::Float32, h::Float32, htg::Float32,
-                               bark::Float32, dg_large::Float32)::Float32
+                               bark::Float32, dg_large_out::Float32, scale2::Float32)::Float32
     hk = h + htg
     hk <= 4.5f0 && return d + 0.001f0*hk
     dk  = oc_hd_diam(sp, hk)
     dkk = h <= 4.5f0 ? d : oc_hd_diam(sp, h)
-    dgsm = (dk - dkk)*bark                       # ·XRDGRO(1)
+    dgsm = (dk - dkk)*bark                        # ·XRDGRO(1)
     dgsm < 0f0 && (dgsm = 0f0)
-    dds = dgsm*(2.0f0*bark*d + dgsm)*2.0f0        # SCALE2 = YR/FNT = 10/5
+    dds = dgsm*(2.0f0*bark*d + dgsm)*scale2
     dgsm = sqrt((d*bark)*(d*bark) + dds) - bark*d
     dgsm < 0f0 && (dgsm = 0f0)
     xmn = OC_REG_XMIN[sp]
     xdwt = (sp == 23 || sp == 50) ?
            (d <= xmn ? 0f0 : clamp((d - xmn)/(OC_REG_DGMIN[sp] - xmn), 0f0, 1f0)) :
            (d <= 1.5f0 ? 0f0 : (d >= 3.0f0 ? 1.0f0 : (d - 1.5f0)/1.5f0))
-    dg = dgsm*(1f0 - xdwt) + dg_large*xdwt        # inside-bark increment
-    newd = d + dg/bark
+    dg = dgsm*(1f0 - xdwt) + dg_large_out*xdwt     # final DBH increment (added directly)
+    newd = d + dg
     newd < OC_REG_DIAM[sp] && (newd = OC_REG_DIAM[sp])
     return newd
 end
