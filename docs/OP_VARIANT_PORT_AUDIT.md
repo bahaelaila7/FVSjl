@@ -234,3 +234,26 @@ branch (CRATET) yet, and the ORGANON PREPARE height-dub is not wired into `setup
 The two dubbed heights the oracle uses (DF tree → 66.31 via ORGANON PRDHT, LP tree → 62.39 via op
 HTDBH) are exactly this missing piece. Given site-fan + volume are bit-exact on correct inputs, the
 remaining gap to a bit-exact cyc0 `.sum` is the chunk-3 CRATET/PREPARE + per-cycle growth driver.
+
+## 2026-08-20 — END-TO-END multi-cycle .sum validation (S248112 UNTHINNED CONTROL, opt01 stand 1)
+
+Ran the OP stand-1 growth control (10 cycles) end-to-end and diffed EVERY .sum column vs the LIVE
+RELINKED oracle `/workspace/.opwork/FVSop_clean` (doctrine oracle), both default-TRIPLE and NOTRIPLE
+(identical output — the stand does not trigger tripling divergence):
+
+- **cyc0-3 (1990..2005): every column BIT-IDENTICAL** — TPA/BA/SDI/CCF/TopHt/QMD, total cubic (1472),
+  **merch cubic (972)** and **board-foot (5003)**. ORGANON growth is DGSD=0 deterministic ⇒ a true
+  bit-exact match, not a cornered one.
+- **Production-save artifact isolated:** the *production* `opt01.sum.save` (header `RV:20260401`,
+  2026-04-15) shows merch/bdft = **931/4797** (−4.3%). jl reproduces the RELINKED oracle's 972/5003
+  exactly, NOT the production save ⇒ the −4.3% is a **production-binary-vs-g16-relink NVEL(BLM)
+  library artifact**, not a jl gap. (Per doctrine: validate vs the relinked oracle → jl is correct.)
+- **cyc4 (2010): growth + total cubic (4814) still bit-exact**; merch/bdft drift <0.4% (4114→4106) —
+  **merch-log-bucking DIB-class rounding discreteness** (`oc_blmgdib!`/`oc_scrib` round a log's
+  inside-bark diameter class differently at specific DBH). Accepted cornered class.
+- **cyc5+ :** raw TPA stays bit-exact every cycle; a single density-aggregate field picks up ±1 NINT
+  (internal continuous value straddling the .5 print boundary). Cornered print-straddle.
+
+⇒ **OP multi-cycle growth + total-cubic volume = BIT-EXACT; merch/bdft = CORNERED (sub-0.4% bucking
+discreteness)** vs the relinked oracle. This is the DGSD=0 multi-cycle chunk (b). Regression-locked by
+`test/unit/test_op_multicycle_sum.jl` + `test/fixtures/olympic/opgro.{key,tre}` + `opgro_oracle.rows`.
