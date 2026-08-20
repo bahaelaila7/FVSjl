@@ -54,6 +54,7 @@ fm_mois_table(::EasternMontana) = _FM_MOIS_IE
 fm_mois_table(::BlueMountains) = _FM_MOIS_IE
 fm_mois_table(::CentralIdaho) = _FM_MOIS_IE
 fm_mois_table(::Klamath) = _FM_MOIS_NC          # nc/fmmois.f (cond-1 1hr=0.03, cond-4==cond-3)
+fm_mois_table(::OregonCoast) = _FM_MOIS_NC      # oc/fmmois.f == nc/fmmois.f (BYTE-IDENTICAL); OC fell to the wet SN default
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """
