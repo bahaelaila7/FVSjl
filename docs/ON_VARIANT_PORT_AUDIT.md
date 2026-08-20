@@ -138,3 +138,17 @@ Instrument a scratch copy of `canada/on/{dgf,dgdriv,sitset,crown,htont}.f` with 
 `scratchpad/on/` (`build_g16_on.sh`, `dgf_dump.f`/`dgdriv_wki.f`/`link_wki.sh`, `validate_*.jl`).
 
 **Status: ON is a large multi-session variant — 5 chunks done + ~5 remaining, each bit-exact.**
+
+
+## DATABASE reader (2026-08-20, USER item-1)
+- **FIX (e7a38a9d): ON DATABASE metric conversion.** fia_database.jl gated cm→in/m→ft + per-ha→per-acre on
+  `isa BritishColumbia` only ⇒ Ontario DBs ingested ~2.5× off (BC-bug class). Generalized to BC||ON (BEC
+  habitat gate stays BC-only — ON uses forkod). Validated jl reads a 25cm/18m ON DB as 9.842in/59.06ft
+  (= inline/oracle-validated), runs end-to-end. test_ontario_database_reader 4/4; multicycle 339/11.
+- **Oracle FVSon DATABASE segfault — CHARACTERIZED as a deep gcc-16 toolchain bug, NOT fixed.** Reproduced
+  (FVSon_g16/FVSon_dbsys both SIGSEGV in sqlite3_column_count(stmtset[*dbnum]) inside dbstreesin, before the
+  routine body; resists print-probes ⇒ arg/ABI-level). Linking the SYSTEM libsqlite3 (FVSon_dbsys) does NOT
+  fix it ⇒ it's the fvsqlite3.c statement-management / Fortran-C interop under gcc-16, not the sqlite engine.
+  Only gcc-16 is available (no gcc-15). ⇒ jl's ON DB reader validated against the INLINE path instead (which
+  IS oracle-validated). No real Ontario DB data exists, so the DG-calibration-on-real-data goal is
+  data-blocked regardless; the reader-correctness goal (the actual value) is achieved.
