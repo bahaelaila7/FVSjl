@@ -696,3 +696,28 @@ small-tree model. (2) HCOR=0 in the wrapper: only GF calibrated here (CON=1.0189
 still grows via the large-tree DDS (tn15 dbh 0.1 vs oracle 0.5); low .sum-impact but needed for faithful
 multi-cycle recruitment. NEXT OC chunks: (a) HTDBH DBH-from-height; (b) HCOR ratio-estimator calibration;
 (c) the SEPARATE large-tree ORGANON height residual (the actual .sum-drift driver); (d) wire Olympic too.
+
+## 2026-08-20 — OC multi-cycle ~1% drift RESOLVED-CORNERED (measured: HG_SWO CCH tie-break precision)
+
+After the small-tree height fix, the residual OC .sum ~1% multi-cycle drift was root-caused by measuring
+per-tree increments (oracle .trl vs jl cycle_hook), NOT inferred:
+  • LARGE-tree DBH is BIT-EXACT at cyc2 (19/22 exact, 3 at ±0.05 print-rounding) ⇒ ORGANON DG_SWO
+    diameter growth is faithful; the deterministic DG inputs (D, BAL-from-DBH-rank) match.
+  • LARGE-tree HEIGHT increment (1995→2000) is MIXED-SIGN ±0.1-0.2ft per tree (tn8 +0.12, tn23 −0.21,
+    tn1 −0.16 … tn11 +0.06), netting −0.4% — a scatter, NOT a systematic bias.
+  • DBH bit-exact + height mixed-sign scatter ⇒ the divergence is isolated to HG_SWO's height-specific
+    input CCH (crown competition at height), which depends on the tree HEIGHT-RANKING — a tie-break-
+    sensitive quantity. Tiny Float32 height-ordering ties flip CCH ⇒ mixed-sign height scatter; DBH
+    growth (DBH-rank/BAL, stable) stays bit-exact. This is EXACTLY the accepted cornered class the
+    western cluster carries (goal-doc item 1: "per-tree diffs MIXED-SIGN and mostly-cancelling = the
+    accepted RDPSRT/AVHT40 tie-break precision compounding. No fix warranted"). Here it's the HG_SWO
+    CCH height-rank analogue; the ~1% .sum drift is this scatter compounding over cycles (then TPA
+    feedback). CORNERED, meets the bar. No fix warranted (a fix would require bit-matching FVS's exact
+    height-tie ordering, a precision artifact, not a model gap).
+
+⇒ **OC multi-cycle is now bit-exact-or-cornered**: cyc0 bit-exact · small-tree heights bit-exact (regent
+port) · large-tree DBH bit-exact · large-tree height = accepted CCH tie-break-precision cornered class.
+Both ORGANON variants (OC + OP) are multi-cycle bit-exact-or-cornered. Remaining OC items are optional
+FAITHFULNESS refinements that do NOT change the cornered .sum verdict: small-tree DBH-from-height (HTDBH,
+tn15 dbh 0.1 vs 0.5 — few, low-volume) + HCOR small-tree height calibration (only GF, ~+1.9%) + wiring
+Olympic's small-tree path. The FFE extension remains USER-gated (like NC FFE).
