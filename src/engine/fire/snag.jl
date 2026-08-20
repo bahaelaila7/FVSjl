@@ -513,6 +513,8 @@ function ffe_seed_input_snags!(s::StandState)
             mcuft = cr_snag_bole_cuft(s, sp, d, h)   # CR NATCRS total cubic (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
+        elseif s.variant isa OregonCoast
+            mcuft = oc_tree_cuft(sp, d, h)   # OC BLM total cubic (R8-Clark returns 0 for 'B…' vol_eq ⇒ Jenkins over-book)
         else
             prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
                 ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
@@ -681,6 +683,11 @@ function ffe_add_snaginit!(s::StandState)
             mcuft = cr_snag_bole_cuft(s, sp, d, h); tcuft = mcuft
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # NC total cubic (bole==fall==TCF)
+        elseif s.variant isa OregonCoast
+            # OC vol_eq are BLM Behre codes ('B…') ⇒ _R8CLARK_VOL returns 0 ⇒ the snag bole was 0 ⇒ the fall
+            # fell back to the full Jenkins ABOVEGROUND (crown+bole) ⇒ ~8× too much large down-wood (the NE-class
+            # bug). oc/fmsvol.f LMERCH=.FALSE. ⇒ the snag bole + CWD1 fall are the BLM TOTAL cubic (bole==fall==TCF).
+            mcuft = oc_tree_cuft(sp, d, h); tcuft = mcuft
         else
             prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
                 ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])

@@ -548,6 +548,11 @@ fire=FIRKIL + regular=WK2−FIRKIL).
         # NC vol_eq are EMPTY (NVEL WO2W/DVE) ⇒ _R8CLARK_VOL returns 0 ⇒ snag bole collapses to the cone
         # floor ⇒ the >3" down-wood pool shrinks. Use NC's total cubic (FMSVOL TCF), matching compute_volumes_nc!.
         return nc_snag_bole_cuft(s, sp, d, h)
+    elseif s.variant isa OregonCoast
+        # OC vol_eq are BLM Behre 'B…' codes ⇒ _R8CLARK_VOL returns 0 ⇒ the snag bole was 0 ⇒ the fall fell back
+        # to the full Jenkins ABOVEGROUND ⇒ ~2-3× too much large down-wood (over-heated the fuel model → cool fire).
+        # oc/fmsvol.f LMERCH=.FALSE. ⇒ BLM TOTAL cubic, matching compute_volumes_oc!.
+        return oc_tree_cuft(sp, d, h)
     else
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
