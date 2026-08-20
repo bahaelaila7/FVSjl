@@ -1,0 +1,27 @@
+ON (Ontario) variant — FULL-SPECIES PORT COMPLETE-TO-BAR (2026-08-20)
+
+Growth + volume + crown/CCF + classification bit-exact-or-cornered across ALL 72 species (not just
+the 8-species ont01), validated by per-species dump-replay vs freshly-built instrumented FVSon oracles:
+  • Penner DGF (on_penner_dds)        216/216 bit-exact   (FVSon_dgfdump)
+  • htont height (on_htont)            72/72   bit-exact   (FVSon_htdump)
+  • cubic volume (on_zakvol/on_honer)  70/70   bit-exact   (FVSon_voldump)
+  • open-grown crown width / CCF       70/70   bit-exact   (FVSon_cwdump)   [BUG FIXED: 64 sp were CW=0]
+  • Mowraski net-merch (on_mowraski)   70/70   bit-exact   (FVSon_mowdump)
+
+Two real bugs found + fixed via full-species validation:
+  • crown-width/CCF ~8× low (64 species had no open-grown eqn wired)          — 81e31837
+  • crash on ANY missing/broken-top height (KeyError :htdbh_p2)               — 7ae8b604
+
+Every "remaining" path resolved:
+  • mortality — species→group maps all 72-len & in-range; ont_lite ±1 NINT ⇒ cornered-at-bar
+  • maple/beech HYBRID — faithful non-gap (dgf.f:402 LHYBRID hard-disabled)
+  • broken-top volume — oracle-degenerate/jl-correct (oracle CFTOPK NaNs total-cubic on ZAK trees)
+  • method-5/6 volume — dead code (grinit.f:148-149 all species METHC=8)
+
+Only open residual = DG-calibration dgdriv.f LSTART multi-cycle OLDRN spread (#206 cornered-by-
+inheritance, DGSD=2.0) — the SAME accepted cornered class every western variant carries.
+
+Regression tests: test_ontario_allspecies_{dgf,htg,vol,cw,mow}.jl + test_ontario_missing_height.jl +
+test_ontario_sum_classification.jl. Goldens test/fixtures/ontario/. multicycle 339/11; full suite green.
+Oracles /workspace/.onwork/ (+build_g16_on.sh); instrumented sources scratchpad/on/instr/.
+Audit: docs/ON_VARIANT_PORT_AUDIT.md.
