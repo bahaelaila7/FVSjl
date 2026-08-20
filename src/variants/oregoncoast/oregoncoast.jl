@@ -44,7 +44,14 @@ htg_period(::OregonCoast) = 5f0     # /CONTRL/ YR = 5 (oc FINT=5) — ORGANON's 
 
 const OC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "oregoncoast"))
 
-coefficients(::OregonCoast) = cached_coefficients(() -> load_species_coefficients(OC_DATADIR), "OC")
+coefficients(::OregonCoast) = cached_coefficients("OC") do
+    c = load_species_coefficients(OC_DATADIR)
+    # FFE crown-biomass columns (the ORGANON growth CSV lacks them): fmvinit.f V2T (raw lb/cuft; the
+    # shared crown_biomass applies /2000) + the BLM merch DBH gate. See oregoncoast/ffe_coefficients.jl.
+    haskey(c.species, :v2t)     || (c.species[:v2t]     = copy(OC_FFE_V2T))
+    haskey(c.species, :dbh_min) || (c.species[:dbh_min] = fill(OC_FFE_DBHMIN, 50))
+    c
+end
 
 # SITSET (oc/sitset.f) — fan a per-species site index to species not assigned one by keyword, plus
 # the R5/R6-adjusted SDImax (SDIDEF) defaults. In OC the site index and SDImax feed ONLY the ORGANON

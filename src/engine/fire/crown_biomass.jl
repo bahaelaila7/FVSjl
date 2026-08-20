@@ -136,7 +136,9 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa PacificNorthwest ? Int(PN_ISPMAP[sp]) :
             s.variant isa CentralCalifornia ? Int(CA_ISPMAP[sp]) :
             s.variant isa EastCascades ? Int(EC_ISPMAP[sp]) :
-            s.variant isa SouthCentralOregon ? Int(SO_ISPMAP[sp]) : Int(coef_col(coef, :ls_spi)[sp])
+            s.variant isa SouthCentralOregon ? Int(SO_ISPMAP[sp]) :
+            (s.variant isa OregonCoast || s.variant isa Olympic) ? Int(OC_FFE_ISPMAP[sp]) :
+            Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     dbhmin = coef_col(coef, :dbh_min)[sp]
@@ -174,6 +176,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa WestSierra ? ws_htdbh_height(0, Int(sp), dmin) :        # WS Curtis-Arney (ws/htdbh.f MODE=0)
                s.variant isa WestCascades ? wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), dmin) :  # WC forest-dependent (wc/htdbh.f)
                s.variant isa SouthCentralOregon ? so_htdbh_height(Int(s.plot.forest_idx), Int(sp), dmin) :  # SO forest-fanned Curtis (so/htdbh.f)
+               (s.variant isa OregonCoast || s.variant isa Olympic) ? oc_htdbh_height(Int(sp), dmin) :  # OC/OP Curtis-Arney (oc/htdbh.f MODE=0)
                _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).

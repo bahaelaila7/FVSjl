@@ -32,3 +32,14 @@ ISPMAP for CR, SO_ISPMAP for SO, :ls_spi for LS), + fuel-model & snag coeffs.
   4. Snag dynamics (SNAGINIT/SNAGOUT) → the standing-wood tables.
   Mind the westside-FFE bark_intercept crash [[fvsjl-westside-ffe-bark-intercept-crash]] (POWER-bark ports
   need :bark_intercept). Same crown-biomass/CCF-first order that landed CA/EC/WS/SO FFE.
+
+## PROGRESS 2026-08-20 — crown-biomass wired; FFE past fmcba; next blocker = a SEPARATE OC CCF NaN
+Wired the crown-biomass chunk (c4b60172 coeffs + this): included ffe_coefficients.jl; injected :v2t/:dbh_min
+into coefficients(::OregonCoast); added the OregonCoast||Olympic branch to crown_biomass.jl (ISPMAP +
+oc_htdbh_height MODE=0, reusing organon_cratet's). RESULT: the FFE stand now runs PAST fmcba! + crown-biomass
+(was the :dbh_min crash). No regression: multicycle 339/11, OC regent + OP multicycle tests pass, ocmin CCF=63.
+⚠ NEXT BLOCKER (SEPARATE, pre-existing, NOT FFE): the FFE-TEST stand (STDINFO forest 711, vs ocmin's 708)
+NaNs in stand_ccf (summary.jl:392) — the SAME NaN with the FFE keywords STRIPPED, so it's an OC crown-width
+bug on forest 711, surfaced by the FFE stand, independent of the FFE port. FIX THAT (forkod(711) → OC
+crown-width) FIRST, then the FFE stand runs and the crown-biomass/CCF FFE chunk validates vs ocffe_oracle.sum,
+then fuel → fire → snag.

@@ -108,6 +108,8 @@ const OC_HD_SPLINE = Float32[
     return h >= hatz ? fexp(flog((flog(h - 4.5f0) - flog(p2))/(-p3)) / p4) :
                        ((h - 4.51f0)*(z - 0.3f0))/(hatz - 4.51f0) + 0.3f0
 end
+# (oc_htdbh_height MODE=0 — height from DBH — is defined in organon_cratet.jl and reused by the FFE
+#  crown-biomass small-unmerch floor; the crown_biomass.jl OC branch calls it.)
 
 """
     oc_regent_dbh(sp, d, h, htg, bark, dg_large_out, scale2) -> new_dbh
