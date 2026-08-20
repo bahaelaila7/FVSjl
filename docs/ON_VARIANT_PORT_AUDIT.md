@@ -56,6 +56,19 @@ of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model erro
   IWHO=1 equations wired; the other 64 returned CW=0 ⇒ .sum CCF ~8× too low. Populated ON_CW_OPEN (68
   JSP2→open-CWEQ, verbatim from cwcalc.f) + ON_CW_EQS (50 eqns, coefficients = eastern crown lib). Now
   **70/70 bit-exact** vs FVSon_cwdump (cwcalc.f unit 772); end-to-end ont_lite CCF overflows matching oracle.
+- **Mowraski net-merch cull** `on_mowraski` — **70/70 bit-exact** (ont_big 50cm, all pass board gate) vs
+  FVSon_mowdump (volont.f MOWRASKI entry unit 775). `ab6c981b`.
+- **maple/beech HYBRID — CONFIRMED FAITHFUL NON-GAP** (not a missing feature): dgf.f:402 unconditionally
+  `LHYBRID=.FALSE.` ("Temporarily disable the hybrid model for BlueSource 09-Mar-2022") ⇒ the hybrid block
+  (dgf.f:406-543) never runs; jl correctly does not port it. Proven by the DGF replay: the maple/beech
+  species (MH/MB/SM/RM/SV/BM/IW) pass 216/216 bit-exact via the base Penner path.
+- **Mortality — STRUCTURALLY COMPLETE + cornered-at-bar**: every species→group map is 72-length & in-range
+  (ON_ITM_MAP→MB0..7, ON_MSB_MAP→SDI, ON_BKG_MAP→PMSC); ont_lite end-to-end TPA agrees ±1 NINT across 72
+  species. Per-tree WK2 stays the accepted #206 VARMRT geometric-progression knife-edge (1-ULP cornered,
+  as on ont01) — not separately dump-validated but the map-completeness rules out the partial-table class.
+⇒ **Full-species growth+volume is bit-exact-or-cornered across all 72.** Remaining = un-exercised alt paths
+only: broken-top CFTOPK/BFTOPK + method-5/6 vol (need a broken-top stand), DG-calibration dgdriv.f LSTART
+spread (#206 cornered-by-inheritance, like every western variant).
 Instrumented oracles built + preserved (scratchpad/on/instr/{htgf,vols}.f); goldens test/fixtures/ontario/
 ont_all_{dgfdump,htdump,voldump,cwdump}.txt; tests test_ontario_allspecies_{dgf,htg,vol,cw}.jl. multicycle
 339/11 throughout. NOTE: the ont_all *aggregate* .sum overflows fixed fields (72 sp × GROSPC too dense) —
