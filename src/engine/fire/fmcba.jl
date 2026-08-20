@@ -75,7 +75,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _pn_fm = s.variant isa PacificNorthwest      # PN CRWDTH via pn_cwcalc (same WCMAP; forest 612 SIUSLAW BF)
     _ec_fm = s.variant isa EastCascades          # EC CRWDTH via ec_cwcalc (ECMAP Crookston R6; forest 608 OKANOGAN BF)
     _so_fm = s.variant isa SouthCentralOregon     # SO CRWDTH via so_cwcalc (SOMAP Crookston R6; forest 601 DESCHUTES BF)
-    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm
+    _oc_fm = s.variant isa OregonCoast            # OC CRWDTH via oc_cwcalc (OCMAP Crookston R6/R1; forest 711 BLM Medford→610 Rogue River BF)
+    _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
     # accumulated ⇒ the R6-Crookston BAREA term hits cwcalc.f:859 `IF(BAREA.LE.1.) BAREA=1.` (BA=0→1).
@@ -85,7 +86,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # WC differs from NC/WS/CA: its CRWDTH (wc/cwcalc.f) is computed AFTER the stand BA is accumulated, so
     # the Crookston BAREA term uses the actual FFE stand BA (~85 on wct01), NOT the BAREA=1 load-time clamp.
     # MEASURED vs FVSwc_clean cyc0: WF CW 10.31 needs (BA+1)^e with BA≈85 (BA=1 gives 8.74). So WC uses _cr_ba.
-    _nc_ba = ((_nc_fm || _ws_fm || _ca_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
+    _nc_ba = ((_nc_fm || _ws_fm || _ca_fm || _oc_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     @inbounds for i in 1:t.n
@@ -102,6 +103,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # PN R6 Crookston (pn/cwcalc.f; forest-612 BF)
              _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
              _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
+             _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -117,7 +119,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # (nc/fmcba.f:298-310): RDPSRT the per-species BA descending → ICT; COVCA(1..2)=ICT(1..2); COVCAWT(j)=
     # FMTBA(ICT(j))/Σ_{i=1,2}FMTBA(ICT(i)). COVTYP is ICT(1) when its BA>0.001 (faithful RDPSRT tie-break).
     covca = (0, 0); covcawt = (0f0, 0f0)
-    if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia
+    if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa OregonCoast
         ict = collect(1:nsp)
         rdpsrt!(nsp, tba, ict, true)                     # descending indirect sort on tba → ICT
         covtyp = tba[ict[1]] > 0.001f0 ? Int32(ict[1]) : Int32(0)
@@ -186,6 +188,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa Klamath && (fs.flive = nc_live_fuel_loading(covca, covcawt, fs.percov))   # top-2 (nc/fmcba.f:369-378)
     s.variant isa WestSierra && (fs.flive = ws_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ws/fmcba.f:519-533)
     s.variant isa CentralCalifornia && (fs.flive = ca_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (ca/fmcba.f)
+    s.variant isa OregonCoast && (fs.flive = oc_live_fuel_loading(covca, covcawt, fs.percov))  # top-2 (oc/fmcba.f ORGANON 50-sp)
     s.variant isa WestCascades && (fs.flive = wc_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (wc/fmcba.f:476-480)
     s.variant isa PacificNorthwest && (fs.flive = pn_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (pn/fmcba.f)
     s.variant isa EastCascades && (fs.flive = ec_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (ec/fmcba.f)
@@ -208,6 +211,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa Klamath ? nc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (nc/fmcba.f:421-431)
                   s.variant isa WestSierra ? ws_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (ws/fmcba.f:587-597)
                   s.variant isa CentralCalifornia ? ca_dead_fuel_loading(covca, covcawt, fs.percov) :
+                  s.variant isa OregonCoast ? oc_dead_fuel_loading(covca, covcawt, fs.percov) :  # top-2 (oc/fmcba.f ORGANON 50-sp)
                   s.variant isa WestCascades ? wc_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (wc/fmcba.f:528-533)
                   s.variant isa PacificNorthwest ? pn_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (pn/fmcba.f)
                   s.variant isa EastCascades ? ec_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (ec/fmcba.f)
