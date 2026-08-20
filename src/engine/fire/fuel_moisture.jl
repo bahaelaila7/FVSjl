@@ -55,6 +55,11 @@ fm_mois_table(::BlueMountains) = _FM_MOIS_IE
 fm_mois_table(::CentralIdaho) = _FM_MOIS_IE
 fm_mois_table(::Klamath) = _FM_MOIS_NC          # nc/fmmois.f (cond-1 1hr=0.03, cond-4==cond-3)
 fm_mois_table(::OregonCoast) = _FM_MOIS_NC      # oc/fmmois.f == nc/fmmois.f (BYTE-IDENTICAL); OC fell to the wet SN default
+# WC/PN/OP (op==wc==pn==ie/fmmois.f, BYTE-IDENTICAL) — all fell to the wet SN default (a latent bug: their FFE
+# fires ran ~25% too cool, the OC class). The R6-westside moisture is the IE-family dry table.
+fm_mois_table(::WestCascades) = _FM_MOIS_IE
+fm_mois_table(::PacificNorthwest) = _FM_MOIS_IE
+fm_mois_table(::Olympic) = _FM_MOIS_IE
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """
