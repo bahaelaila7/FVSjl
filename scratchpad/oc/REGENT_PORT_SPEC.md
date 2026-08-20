@@ -61,3 +61,18 @@ cycle_hook (see the harness that made oc_jl_trl.txt). TARGET: tn2/tn15 HT bit-ex
 oct01 stand-1 .sum bit-exact-or-cornered multi-cycle (currently ~1% drift). Then re-confirm OP opt01 still
 bit-exact-or-cornered (test_op_multicycle_sum) + multicycle 339/11. MIND THE TRAPS:
 [[fvsjl-ls-regent-stalehtgr-fix]] [[fvsjl-ie-regent-hcor-calibration]] [[fvsjl-ci-regent-xwt-height-blend]].
+
+## ⚠ HCOR CALIBRATION IS LIVE FOR THIS STAND — the trap must be ported (2026-08-20)
+HCOR(sp) defaults 0.0 (regent.f:409) ⇒ CON=RHCON=1.0 — BUT regent.f:493 sets `HCOR(sp)=ALOG(CORNEW)` in the
+LSTART calibration branch (regent.f ~400-506) whenever the stand has measured-height small trees. oct01
+stand-1 HAS them (tn10 h20, tn12 h11, tn13 h13 are measured sub-4"-ish trees), so **HCOR is almost certainly
+non-zero here** ⇒ a port that assumes CON=1.0 will NOT be bit-exact on tn2/tn15. The full port therefore
+MUST include the regent LSTART small-tree height calibration (observed-vs-predicted small-tree height → CORNEW
+→ HCOR=ln(CORNEW)), exactly the [[fvsjl-ie-regent-hcor-calibration]] / [[fvsjl-ls-regent-hcor-fix]] trap that
+bit the IE/LS regent ports. MEASURE it: build a scoped-DEBUG REGENT (or g16 single-.o regent.f dump) to read
+the live HCOR(sp) per species, then port the calibration to reproduce it before validating the increment.
+This is why the port is a focused unit, not a quick height-equation drop-in. Order for the port session:
+(1) instrument regent.f → dump live HCOR(sp) + per-tree HTGRR/HTGR for oct01 stand-1 cyc0;
+(2) port smhtgf + the LSTART HCOR calibration to match HCOR bit-exact;
+(3) port the increment wrapper (CON/XWT/SCALE) + DBH-from-height (HK≤4.5 trivial; HK>4.5 via HTDBH);
+(4) wire into organon_hook.jl (route D<XMAX IORG=0), A/B tn2/tn15 vs oc_or_trl.pkl, then whole .sum.
