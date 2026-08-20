@@ -202,7 +202,8 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     end
 
     # CA (ca/fmcfmd.f + cwhr.f) — California CWHR, CA CWHRFMD 11×18 + 50-species forest-type; reuses _ca_cwhr.
-    if s.variant isa CentralCalifornia
+    # OC (oc/fmcfmd.f) is BYTE-IDENTICAL to ca/fmcfmd.f (same CWHR classifier, CWHRFMD matrix, 50-species map).
+    if s.variant isa CentralCalifornia || s.variant isa OregonCoast
         return ca_select_fuel_models(s, mois, sm, lg)
     end
 

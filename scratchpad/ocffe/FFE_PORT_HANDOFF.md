@@ -60,24 +60,25 @@ FIRST END-TO-END .sum (ocffe_jl.sum vs ocffe_oracle.sum):
   • **1993 (cyc0) BIT-EXACT** — every column. • 2003 SIMFIRE mortality **206 vs oracle 266** (jl
     under-kills) = the open FFE gap. • pre-fire CCF 76 vs 79 = the KNOWN OC ORGANON multi-cycle growth
     drift (documented in [[fvsjl-oc-organon-blm-volume]], NOT FFE). • cyc1 accretion col 105 vs 110.
-REMAINING (fire-intensity refinement, the 206-vs-266):
-  (a) **PERCOV precision** — jl 49.8 vs oracle ~47.6 ⇒ LITT 0.54/0.60 + SHRUB 0.53/0.57 (~10%). Pin the
-      exact oracle PERCOV by INSTRUMENTING oc/fmcba.f (WRITE after PERCOV; g16 single-.o rebuild — FMDEBUG
-      keyword CRASHES FVSoc). Likely a crown_pct(CR)/tree-state detail feeding oc_cwcalc, or the
-      BAREA=1-vs-actual choice (jl uses the CA cyc1 BAREA=1 clamp; UNVERIFIED for OC — check where OC
-      calls CRWDTH: load-time like NC/CA, or post-BA like WC).
-  (b) **CROWN FIRE — the smoking gun.** The oracle 2003 FUEL CONSUMPTION report shows **CRWNG=1 (active
-      crown fire)** — it kills 126/166 of the 5-10" class + ALL small + 27/66 of 10-20" (killed BA 62.6,
-      1463 cuft). jl under-kills ⇒ it likely computes a SURFACE fire (misses the crown-fire initiation
-      threshold). Crown-fire init depends on surface fireline intensity (∝ fuel load) × canopy base height
-      × foliar moisture. So the fuel gap (a) may CASCADE: under-loaded surface fuel → intensity below the
-      crowning threshold → surface-only fire → the 206-vs-266 under-kill. Fixing the fuel may trip crowning.
-  (c) **DKRT decay (chunk 2b, UNPORTED) — the 2003 fuel state.** Dead fuel is init at cyc0 then DECAYS 10yr
-      to the fire. Oracle 2003 ALL FUELS = LITT 0.00/DUFF 3.5/0-3" 0.6/>3" 2.7 (vs 1993 0.60/15.7/3.7/9.2).
-      OC's R6-Oregon DKRT rates (fmcba.f:610-655: 0.076/0.019 base ×DKRADJ(CAHMC,CAWMD habitat)) are NOT
-      ported — jl uses the generic FFE decay. COMPARE jl's per-cycle ALL FUELS to the oracle's (dump the
-      dead pool each cycle) to see if the 2003 pre-fire fuel diverges ⇒ then port the OC DKRT/DKRADJ.
-      Sequence: fix (a) PERCOV + (c) DKRT ⇒ correct 2003 fuel ⇒ (b) crowning trips ⇒ mortality matches.
+REMAINING (the 206-vs-266) — **FULLY TRACED 2026-08-20 to SURFACE-fire intensity (NOT crown fire).**
+Debug at the 2003 event: jl byram=1189.9 → flame=1.78ft → scorch=4.7ft, at wind=10/temp=50/fmois=1.
+  • **The fire is SURFACE, both sides.** Oracle POTENTIAL FIRE REPORT 2003 = type "S" (torch index 56 >
+    wind 20; crown index 47.5 > 20). My earlier "CRWNG=1 = crown fire" read was WRONG. jl's crown-fire
+    path (now wired, 69141cdb) correctly returns crb=0 (surface). Crown fire is a RED HERRING.
+  • **jl's WEATHER is CORRECT.** FVS `SIMFIRE 2003 10.00 1 50.0` explicitly sets wind=10/fmois=1/temp=50
+    (fmin.f:326-336 defaults 20/1/70, overridden by fields 2/3/4). The report's SEVERE col (wind 20/temp
+    70) is a what-if diagnostic, not the actual fire. jl uses the right weather.
+  • **The DKRT decay is .sum-INERT here** (9cce8d0b): with the correct OC decay the 2003 mortality is still
+    206. So the surface-fuel decay is not the lever either (still correct OC physics for fuel-limited stands).
+  ⇒ **The under-kill = the SURFACE byram (fuel intensity):** jl's byram=1189.9 gives flame 1.78/scorch 4.7,
+    slightly too weak to kill the 266. Two candidate levers, both chunk-2 fuel precision:
+    (a) **PERCOV precision** — jl 49.8 vs oracle ~47.6 ⇒ the ~10% LITT/shrub gap ⇒ lower surface load ⇒
+        lower byram. Pin exact PERCOV by INSTRUMENTING oc/fmcba.f (WRITE PERCOV; g16 single-.o — FMDEBUG
+        keyword CRASHES FVSoc). Likely a crown_pct(CR)/tree-state detail in oc_cwcalc or BAREA=1-vs-actual.
+    (b) **fmcfmd fuel-model selection** — the oracle weights models 6(62%)/10(38%) at 2003; if jl's
+        select_fuel_models picks weaker models, byram drops hard (discrete, high-leverage). DUMP jl's
+        selected (fm,weight) at 2003 and A/B vs the oracle's "6 62 10 38" (POTENTIAL FIRE REPORT tail).
+    Get the oracle's actual-fire flame/byram (instrument fmburn/fmfint at wind=10) as the exact target.
 ## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
 
 ## DOCTRINE
