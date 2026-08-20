@@ -53,9 +53,24 @@ indexes by COVTYP = dominant SPECIES, blended est↔init by canopy cover. Needs 
 HERB 0.21, SHRUB 0.57, SURF TOTAL 29.9. Validate by instrumenting jl to dump STFUEL/FLIVE at cyc0 (no .sum
 until fire behavior ports). Needs: ALGSLP helper + OC fmcba branch reading the 3 new CSVs + PERCOV.
 
-## CHUNK 3 — fire behavior (SIMFIRE/PotFIRE → fmburn/fmcfir) → the 2003 fire-mortality .sum row.
-## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns.
-Only after 3+4 does the FFE stand run to completion → first end-to-end .sum diff vs ocffe_oracle.sum.
+## CHUNK 3 — RUNS END-TO-END ✅ (fbfba49f). cyc0 .sum BIT-EXACT; fire-mortality gap = refinement.
+Three fixes cleared the fmburn path: fire_fuel_models.csv (standard Anderson-13, variant-independent);
+is_sprouting (blkdat.f ISPSPE {24,26-48,50}); bio_group/biogrp = Jenkins BIOGRP (fmcblk.f), NOT ISPMAP.
+FIRST END-TO-END .sum (ocffe_jl.sum vs ocffe_oracle.sum):
+  • **1993 (cyc0) BIT-EXACT** — every column. • 2003 SIMFIRE mortality **206 vs oracle 266** (jl
+    under-kills) = the open FFE gap. • pre-fire CCF 76 vs 79 = the KNOWN OC ORGANON multi-cycle growth
+    drift (documented in [[fvsjl-oc-organon-blm-volume]], NOT FFE). • cyc1 accretion col 105 vs 110.
+REMAINING (fire-intensity refinement, the 206-vs-266):
+  (a) **PERCOV precision** — jl 49.8 vs oracle ~47.6 ⇒ LITT 0.54/0.60 + SHRUB 0.53/0.57 (~10%). Pin the
+      exact oracle PERCOV by INSTRUMENTING oc/fmcba.f (WRITE after PERCOV; g16 single-.o rebuild — FMDEBUG
+      keyword CRASHES FVSoc). Likely a crown_pct(CR)/tree-state detail feeding oc_cwcalc, or the
+      BAREA=1-vs-actual choice (jl uses the CA cyc1 BAREA=1 clamp; UNVERIFIED for OC — check where OC
+      calls CRWDTH: load-time like NC/CA, or post-BA like WC).
+  (b) **Fire behavior** — trace SIMFIRE 2003 → fmcfir fireline-intensity → flame length → scorch height →
+      fmeff mortality; instrument FVSoc_clean fmburn/fmcfir/fmeff, A/B the scorch + per-species kill.
+      A 23% mortality gap is larger than a 10% fuel error alone ⇒ suspect an additional fire-behavior
+      detail (moisture, wind, the SIMFIRE severity, or the fuel-model selection fmcfmd).
+## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
 
 ## DOCTRINE
 Bit-exact-or-cornered per chunk by RUNNING FVSoc_clean; glibc libm ccall for Float32; gate = multicycle
