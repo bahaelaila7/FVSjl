@@ -29,3 +29,10 @@ const OC_FFE_ISPMAP = Int32[
 
 # OC BLM merchantable DBH min (sitset.f BLM; also OC's sp_dbh_min) = the crown-biomass merch gate.
 const OC_FFE_DBHMIN = 7.0f0
+
+# ESTUMP sprout-species filter (blkdat.f DATA ISPSPE): OC species that resprout after top-kill/fire —
+# pacific yew (24), all oaks (26-33), the hardwoods (34-48), and redwood (50). is_sprouting = 1 else 0.
+const OC_FFE_SPROUT = let v = zeros(Float32, 50)
+    for sp in (24, 26,27,28,29,30,31,32,33, 34,35,36,37,38,39,40,41,42,43,44,45,46,47,48, 50); v[sp] = 1f0; end
+    v
+end

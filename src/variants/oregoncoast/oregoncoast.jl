@@ -48,8 +48,9 @@ coefficients(::OregonCoast) = cached_coefficients("OC") do
     c = load_species_coefficients(OC_DATADIR)
     # FFE crown-biomass columns (the ORGANON growth CSV lacks them): fmvinit.f V2T (raw lb/cuft; the
     # shared crown_biomass applies /2000) + the BLM merch DBH gate. See oregoncoast/ffe_coefficients.jl.
-    haskey(c.species, :v2t)     || (c.species[:v2t]     = copy(OC_FFE_V2T))
-    haskey(c.species, :dbh_min) || (c.species[:dbh_min] = fill(OC_FFE_DBHMIN, 50))
+    haskey(c.species, :v2t)          || (c.species[:v2t]          = copy(OC_FFE_V2T))
+    haskey(c.species, :dbh_min)      || (c.species[:dbh_min]      = fill(OC_FFE_DBHMIN, 50))
+    haskey(c.species, :is_sprouting) || (c.species[:is_sprouting] = copy(OC_FFE_SPROUT))  # ESTUMP sprout filter (blkdat.f ISPSPE)
     c
 end
 
