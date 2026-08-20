@@ -131,7 +131,7 @@ const _OC_FM_BARK_B1 = Float32[
     variant isa PacificNorthwest && return dbh * _PN_FM_BARK_B1[Int(sp)]   # pn/fmbrkt.f
     variant isa EastCascades && return dbh * _EC_FM_BARK_B1[Int(sp)]       # ec/fmbrkt.f
     variant isa SouthCentralOregon && return dbh * _SO_FM_BARK_B1[Int(sp)] # so/fmbrkt.f
-    (variant isa OregonCoast || variant isa Olympic) && return dbh * _OC_FM_BARK_B1[Int(sp)]  # oc/fmbrkt.f
+    variant isa OregonCoast && return dbh * _OC_FM_BARK_B1[Int(sp)]  # oc/fmbrkt.f (OP=39sp, separate port)
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf

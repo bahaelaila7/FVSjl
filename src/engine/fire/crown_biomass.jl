@@ -137,7 +137,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa CentralCalifornia ? Int(CA_ISPMAP[sp]) :
             s.variant isa EastCascades ? Int(EC_ISPMAP[sp]) :
             s.variant isa SouthCentralOregon ? Int(SO_ISPMAP[sp]) :
-            (s.variant isa OregonCoast || s.variant isa Olympic) ? Int(OC_FFE_ISPMAP[sp]) :
+            s.variant isa OregonCoast ? Int(OC_FFE_ISPMAP[sp]) :   # OP FFE = separate 39-sp port
             Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
@@ -224,7 +224,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa WestCascades ? wc_bratio(coef.species[:bark1][Int(sp)], coef.species[:bark2][Int(sp)], Int(coef.species[:bark_imap][Int(sp)]), d) :  # WC bark (wc/bratio.f POWER/linear)
              s.variant isa PacificNorthwest ? wc_bratio(coef.species[:bark1][Int(sp)], coef.species[:bark2][Int(sp)], Int(coef.species[:bark_imap][Int(sp)]), d) :  # PN bark (pn/bratio.f, shared wc_bratio)
              s.variant isa SouthCentralOregon ? so_bratio(coef.species, Int(sp), d) :  # SO bark (so/bratio.f 3-path)
-             (s.variant isa OregonCoast || s.variant isa Olympic) ? oc_bratio(Int(sp), d) :  # OC/OP ORGANON bark (oc/dgdriv.f BRATIO, clamp [0.80,0.99])
+             s.variant isa OregonCoast ? oc_bratio(Int(sp), d) :  # OC ORGANON bark (oc/dgdriv.f BRATIO, clamp [0.80,0.99]); OP FFE needs its own 39-sp tables
+
              (s.variant isa Kootenai || s.variant isa EasternMontana ||
               s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
