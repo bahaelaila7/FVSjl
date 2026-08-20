@@ -224,6 +224,7 @@ include("variants/oregoncoast/organon_cratet.jl")    # OC setup height dubbing (
 include("variants/oregoncoast/organon_dgf.jl")       # OC FVS-native Wykoff DGF for IORG=0 trees (oc/dgf.f + DGCONS + forkod) — chunk C9
 include("variants/oregoncoast/organon_htgf.jl")      # OC FVS-native HTGF for IORG=0 trees (oc/htgf.f + findag + htcalc) — chunk C9 step 4
 include("variants/oregoncoast/organon_volume.jl")    # OC BLM cubic volume (blmvol/blmtap/formcl BLM711) — chunk C10a
+include("variants/oregoncoast/small_tree_growth.jl") # OC/OP REGENT small-tree height+DBH (regent.f+smhtgf.f) for D<XMAX IORG=0 trees
 
 # --- southeastalaska (AK) — Region-10 Wykoff DDS (Zeide SDI), 23 species, permafrost DG modifier; chunk 0 beachhead ---
 include("variants/southeastalaska/southeastalaska.jl") # AK singleton + registration (MAXSP 23, Wykoff DDS, Zeide SDI)

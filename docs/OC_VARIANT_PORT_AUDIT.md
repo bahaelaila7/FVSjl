@@ -676,3 +676,23 @@ ZZRAN=0 ⇒ the inventory small-tree path is FULLY DETERMINISTIC ⇒ bit-exact a
 (replaces both height AND diameter for D<XMAX IORG=0 trees — jl currently grows their DBH via the large-tree
 DDS, wrong; regent derives DBH from the H-D function) and carries the documented regent trap history
 (HCOR calibration, XWT blend, stale-HTGR) — land it as a focused unit with per-tree .trl A/B, not a rush.
+
+## 2026-08-20 — REGENT small-tree HEIGHT model PORTED + validated (seedling +7ft bug FIXED)
+
+Ported oc/smhtgf.f (5 height-age equations by MAPSP) + the regent.f height wrapper (CON=exp(HCOR),
+XWT XMN/XMX blend, SCALE; DGSD=0 ⇒ ZZRAN=0 deterministic) as src/variants/oregoncoast/small_tree_growth.jl,
+and wired organon_hook.jl to route IORG=0 trees with DBH<XMAX(sp) to it (was: all IORG=0 → large-tree
+oc_htgf_native, which drops RELHT suppression when PCCF<100 and over-grew seedlings ~7ft/cycle).
+VALIDATED vs the live FVSoc_clean scoped-DEBUG REGENT dump + TREELIST: DF firs eq bit-exact (HTGRR=1.8110);
+per-tree cyc1 heights now within ±0.08ft of the oracle (tn2 DF 3.80 vs 3.81, tn15 GF 5.10 vs 5.10 — WAS
++6.9/+7.0ft off). No regression: multicycle 339/11, OP tests pass, OC .sum NINT-neutral. Test
+test_oc_regent_smtree + fixtures/oregoncoast/.
+
+⚠ FINDINGS: (1) fixing the seedling heights did NOT resolve the OC .sum ~1% multi-cycle drift — the
+earlier "over-tall seedlings perturb CCH → large trees short" hypothesis is REFUTED. The ~1% drift is a
+SEPARATE LARGE-tree ORGANON height residual (large trees ~0.15ft short by cyc2), independent of the
+small-tree model. (2) HCOR=0 in the wrapper: only GF calibrated here (CON=1.0189, ~+1.9%), a follow-on.
+(3) DBH-from-height (HTDBH Curtis/Arney, htdbh.f CURARN coeffs in hand) NOT yet wired — small-tree DBH
+still grows via the large-tree DDS (tn15 dbh 0.1 vs oracle 0.5); low .sum-impact but needed for faithful
+multi-cycle recruitment. NEXT OC chunks: (a) HTDBH DBH-from-height; (b) HCOR ratio-estimator calibration;
+(c) the SEPARATE large-tree ORGANON height residual (the actual .sum-drift driver); (d) wire Olympic too.
