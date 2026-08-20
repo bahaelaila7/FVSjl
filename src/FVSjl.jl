@@ -316,6 +316,7 @@ include("variants/olympic/site_index.jl")                     # OP site-index fa
 include("variants/olympic/volume.jl")                         # OP BLM Behre-taper cubic+board volume (blmvol/blmtap, reuse OC) — chunk 2
 include("variants/olympic/organon_hook_op.jl")                # OP COOPERATING driver: op_organon_prepare! (LSTART) + diameter_growth!(::Olympic) (DGDRIV: dgf!+ORGANON fold→WK2→DG) — multi-cycle
 include("variants/olympic/crown.jl")                          # OP crown ratio (op/crown.f Weibull + op/dubscr.f) cooperating with ORGANON CR2 — multi-cycle
+include("variants/olympic/ffe_coefficients.jl")               # OP FFE per-species coeffs (V2T/ISPMAP/dbh_min/sprout) — FFE chunk 1
 include("variants/olympic/mortality.jl")                      # OP mortality (op/morts.f: ORGANON MORTEXP-for-all when ORGANON ran) — multi-cycle
 include("variants/olympic/small_tree_growth.jl")              # OP small-tree (op/regent.f) guarded no-op (S248112 all large trees) — multi-cycle
 include("variants/ontario/ontario.jl")                        # ON (Ontario) variant singleton + registration (MAXSP 72, metric, Penner growth) — BEACHHEAD

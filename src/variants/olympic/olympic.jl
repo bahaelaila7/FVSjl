@@ -48,7 +48,13 @@ const OP_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "olympi
 # op species table (op/blkdat.f JSP/FIAJSP/PLNJSP, 39 species) + op/bratio.f bark. Chunk 1 carries
 # the code columns + bark; the full merch/htdbh/crown/site coefficient columns are follow-ons (the
 # FVS-native DGF/HTGF port uses its own hard-coded op/dgf.f + op/htgf.f tables, not this dict).
-coefficients(::Olympic) = cached_coefficients(() -> load_species_coefficients(OP_DATADIR), "OP")
+coefficients(::Olympic) = cached_coefficients("OP") do
+    c = load_species_coefficients(OP_DATADIR)
+    # FFE columns not in fire_species_props.csv: dbh_min (BLM merch gate = 7) + is_sprouting (blkdat.f ISPSPE).
+    haskey(c.species, :dbh_min)      || (c.species[:dbh_min]      = fill(OP_FFE_DBHMIN, 39))
+    haskey(c.species, :is_sprouting) || (c.species[:is_sprouting] = copy(OP_FFE_SPROUT))
+    c
+end
 
 # op/sitset.f site-index fan — the full ECOCLS/SICHG/HTCALC Region-6 chain (incl. the DF(16)↔WH(19)
 # Nigh-1995 conversion) is ported in site_index.jl, which defines `site_setup!(::Olympic)`.
