@@ -84,17 +84,22 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
             pt = Int(t.plot_id[i])
             pccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
             si = s.plot.sp_site_index[sp]
-            htg_large = oc_htgf_native(sp, t.height[i], t.crown_pct[i], s.plot.avg_height, pccf, si)
+            h_old = t.height[i]
+            htg_large = oc_htgf_native(sp, h_old, t.crown_pct[i], s.plot.avg_height, pccf, si)
             # REGENT: trees with DBH < XMAX(sp) use the small-tree height-age model (SMHTGF), not the
             # large-tree HTGF (which drops RELHT suppression when PCCF<100). DGSD=0 ⇒ deterministic.
             # HCOR (small-tree height calibration) is 0 here; the ratio-estimator calibration is a
             # follow-on (only affects species with ≥5 measured-height small trees). See small_tree_growth.jl.
-            htg = (1 <= sp <= 50 && t.dbh[i] < OC_REG_XMAX[sp]) ?
-                  oc_regent_htg(sp, t.dbh[i], t.height[i], t.crown_pct[i], t.crown_ratio[i],
+            is_regen = 1 <= sp <= 50 && d0 < OC_REG_XMAX[sp]
+            htg = is_regen ?
+                  oc_regent_htg(sp, d0, h_old, t.crown_pct[i], t.crown_ratio[i],
                                 s.plot.basal_area, s.plot.avg_height, si, 0f0, htg_large) :
                   htg_large
             t.ht_growth[i] = htg
             t.height[i] += htg
+            # (REGENT DBH-from-height is a follow-on: oc_regent_dbh overshoots to the asymptotic H-D
+            # diameter DK — the SCALE2/DG-application needs measurement vs the live regent 9987 DBH-INC
+            # dump before wiring. Small-tree DBH keeps the large-tree DDS meanwhile; .sum stays cornered.)
         end
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
         # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).

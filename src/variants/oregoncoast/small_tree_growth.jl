@@ -69,6 +69,59 @@ regent.f passes it). One of 5 equations selected by MAPSP(sp): 1=pines 2=firs(in
     return htgr < 0.1f0 ? 0.1f0 : htgr
 end
 
+# blkdat.f HT1/HT2 = the BX/AX Wykoff height-diameter coefficients (regent DBH-from-height). grinit.f sets
+# IABFLG(sp)=1 for all ⇒ AX=HT1(sp); LHTDRG(sp)=.FALSE. ⇒ this BX/AX path is used (NOT the Curtis/Arney HTDBH).
+const OC_HD_HT1 = Float32[
+    4.7874,5.2052,4.7874,5.2180,5.2973,5.2973,5.3076,4.7874,4.7874,4.7874,
+    4.6843,4.8358,4.7874,4.7874,5.1419,5.3371,5.2649,5.3820,4.7874,4.6236,
+    4.7874,4.7874,5.3401,4.7874,4.7874,4.6618,4.6618,4.6618,4.6618,3.8314,
+    4.4907,4.6618,4.6618,4.6618,4.6618,4.6618,4.4809,4.6618,4.6618,4.6618,
+    4.6618,4.6618,4.6618,4.6618,4.6618,4.6618,4.6618,4.6618,4.6618,5.3401]
+const OC_HD_HT2 = Float32[
+    -7.3170,-20.1443,-7.3170,-14.8682,-17.2042,-17.2042,-14.4740,-7.3170,-7.3170,-7.3170,
+    -6.5516,-9.2077,-7.3170,-7.3170,-19.8143,-19.3151,-15.5907,-20.4097,-7.3170,-13.0049,
+    -7.3170,-7.3170,-15.9354,-7.3170,-7.3170,-8.3312,-8.3312,-8.3312,-8.3312,-4.8221,
+    -7.7030,-8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-7.5989,-8.3312,-8.3312,-8.3312,
+    -8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-8.3312,-15.9354]
+# regent.f DATA DIAM — the minimum DBH floor for small/regenerated trees.
+const OC_REG_DIAM = Float32[
+    0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.5, 0.5,0.4,0.5,0.5,0.5,0.5,0.3,0.5,0.5,0.5,
+    0.3,0.3,0.3,0.3,0.3,0.2,0.2,0.2,0.2,0.2, 0.2,0.2,0.2,0.3,0.1,0.1,0.2,0.1,0.3,0.4,
+    0.2,0.2,0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3]
+
+"regent.f BX/AX height-diameter: DBH at height `h` (h>4.5). AX=HT1(sp) (IABFLG=1), BX=HT2(sp)."
+@inline oc_hd_diam(sp::Int, h::Float32)::Float32 = OC_HD_HT2[sp]/(flog(h - 4.5f0) - OC_HD_HT1[sp]) - 1.0f0
+
+"""
+    oc_regent_dbh(sp, d, h, htg, bark, dg_large) -> new_dbh
+
+regent.f small-tree DBH-from-height for a tree with DBH < DGMIN(sp). HK = H+HTG. If HK≤4.5 the tree stays
+sub-breast-height (DBH = D + 0.001·HK). Else DBH is derived from the H-D function: DK=diam(HK),
+DKK=diam(H) (=D if H≤4.5), DGSM=(DK−DKK)·BARK → DDS scaled to 10-yr → DGSM=√((D·BARK)²+DDS)−D·BARK, then
+blended with the large-tree DG via XDWT (D<1.5 ⇒ pure small-tree). `dg_large` is the inside-bark large-tree
+increment. Floored at DIAM(sp). DGSD=0 ⇒ deterministic (regent.f ZZRAN=0).
+"""
+@inline function oc_regent_dbh(sp::Int, d::Float32, h::Float32, htg::Float32,
+                               bark::Float32, dg_large::Float32)::Float32
+    hk = h + htg
+    hk <= 4.5f0 && return d + 0.001f0*hk
+    dk  = oc_hd_diam(sp, hk)
+    dkk = h <= 4.5f0 ? d : oc_hd_diam(sp, h)
+    dgsm = (dk - dkk)*bark                       # ·XRDGRO(1)
+    dgsm < 0f0 && (dgsm = 0f0)
+    dds = dgsm*(2.0f0*bark*d + dgsm)*2.0f0        # SCALE2 = YR/FNT = 10/5
+    dgsm = sqrt((d*bark)*(d*bark) + dds) - bark*d
+    dgsm < 0f0 && (dgsm = 0f0)
+    xmn = OC_REG_XMIN[sp]
+    xdwt = (sp == 23 || sp == 50) ?
+           (d <= xmn ? 0f0 : clamp((d - xmn)/(OC_REG_DGMIN[sp] - xmn), 0f0, 1f0)) :
+           (d <= 1.5f0 ? 0f0 : (d >= 3.0f0 ? 1.0f0 : (d - 1.5f0)/1.5f0))
+    dg = dgsm*(1f0 - xdwt) + dg_large*xdwt        # inside-bark increment
+    newd = d + dg/bark
+    newd < OC_REG_DIAM[sp] && (newd = OC_REG_DIAM[sp])
+    return newd
+end
+
 """
     oc_regent_htg(sp, d, h, crown_pct, pct, ba, avh, hcor, htg_large) -> HTG
 
