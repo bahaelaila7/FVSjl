@@ -37,6 +37,7 @@ using FVSjl
     include("unit/test_ontario_sum_classification.jl")# ON: cyc0 .sum row bit-exact vs FVSon_g16 through FORTYP/size/stock (metric stkval; row tail 125 11)
     include("unit/test_ontario_allspecies_dgf.jl")   # ON full-port: Penner large-tree DGF (on_penner_dds) bit-exact across ALL 72 species vs FVSon_g16 (72-tree ont_all stand)
     include("unit/test_ontario_allspecies_htg.jl")   # ON full-port: Penner diameter-height (on_htont) bit-exact across ALL 72 species vs FVSon_htdump
+    include("unit/test_ontario_allspecies_vol.jl")   # ON full-port: cubic volume (on_zakvol/on_honer) bit-exact across ALL 72 species vs FVSon_voldump
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
