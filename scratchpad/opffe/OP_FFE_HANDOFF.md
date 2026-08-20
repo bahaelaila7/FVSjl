@@ -34,13 +34,16 @@ Each is the OP-39 analogue of the committed OC fix:
      → data/olympic/fire_fuel_covtype_*.csv (NON-reserved names!). op/cwcalc.f OPMAP → op_cwcalc (forest 708→
      606 Mt Hood BF). Check: OP is R6 westside — op/fmcfmd.f likely == wc/pn (FIRE-VPN), NOT ca-CWHR; op/fmmois.f
      likely == the western/NC dry table. VERIFY by diff vs FVSwc/FVSpn/FVSnc buildDir.
-  4. **fmcfmd** (like 440549bc): `diff op/fmcfmd.f {wc,pn,nc,ca}/fmcfmd.f` → route Olympic to the matching
-     jl selector (wc_select_fuel_models if == wc/pn; else ca/nc). Add Olympic to the select_fuel_models dispatch.
+  4. **fmcfmd — RESOLVED: OP has its OWN WS-CWHR classifier (NOT a byte-match to CA/WC/PN/NC).** op/fmcfmd.f
+     header: "COVER TYPE (THIS ALGORITHM BASED ON WS-FFE CWHR)". So it's the California-CWHR FAMILY (like WS/CA/
+     NC) but with OP's OWN CWHRFMD matrix + 39-species forest-type map + XPTS. NEEDS ITS OWN op_select_fuel_models
+     (mirror ws_select_fuel_models/ca_select_fuel_models but extract op/fmcfmd.f's DATA: CWHRFMD, the forest-type
+     classifier CASE, XPTS breakpoints). This is the HARDEST OP chunk (not a 1-line reuse like OC→CA).
   5. **snag bole = BLM total cubic** (like 58b6db58): add Olympic branch (op_tree_cuft — the OP analogue of
      oc_tree_cuft; OP uses BLMVOL too) to ALL THREE snag paths (ffe_add_snaginit!, ffe_seed_input_snags!,
      mortality.jl). The R8-Clark else → 0 → Jenkins over-book is the same trap.
-  6. **fuel moisture** (like 216bd02a): `diff op/fmmois.f nc/fmmois.f` → fm_mois_table(::Olympic) = the matching
-     table (probably _FM_MOIS_NC or a new _FM_MOIS_OP). The wet SN default is WRONG (byram ~25% low).
+  6. **fuel moisture — DONE (a02c9393): fm_mois_table(::Olympic) = _FM_MOIS_IE** (op==wc==pn==ie/fmmois.f
+     BYTE-IDENTICAL, verified). Same commit ALSO fixed the LATENT WC/PN bug (they fell to the wet SN default).
   7. **ffe_on** (like 7d0fcc30): add Olympic to the summary.jl:200 allowlist (its live-fuel CSV will be
      fire_fuel_covtype_live.csv → ffe_fuel_live empty, same as OC).
   8. **is_sprouting/BIOGRP/DKRT** as needed (op/fmcba.f DKRADJ — check OP forest 708 R6 branch + ITYPE habitat).
