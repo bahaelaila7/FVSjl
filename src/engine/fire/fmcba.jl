@@ -24,6 +24,16 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     t = s.trees; coef = s.coef
+    # FFE is an UNPORTED extension for the ORGANON variants (OregonCoast/Olympic): their species carry
+    # no FFE crown-biomass / fuel-coefficient tables in `coef.species` (they hold sp_dbh_min in CONTROL,
+    # for volume gating, not `:dbh_min` in coef). Fail with an actionable message rather than a cryptic
+    # KeyError deep in the fuel loop below. Growth+volume for these variants is unaffected (FFE only
+    # activates under FMIn/SIMFIRE/… keywords). See memory fvsjl-oc-organon-blm-volume.
+    if !haskey(coef.species, :dbh_min)
+        error("FFE (Fire & Fuels Extension) is not ported for the $(nameof(typeof(s.variant))) " *
+              "variant: its ORGANON species carry no FFE crown-biomass/fuel coefficients. Remove the " *
+              "FFE keywords (FMIn/SIMFIRE/SNAGINIT/…) from this stand, or run growth+volume only.")
+    end
     nsp = length(coef_col(coef, :dbh_min))            # MAXSP
 
     # live herb/shrub fuels are re-set every year. NE (ne/fmcba.f:68) uses a flat constant
