@@ -1,0 +1,25 @@
+OP (Olympic, ORGANON NWO) variant — GROWTH + VOLUME COMPLETE-TO-BAR (2026-08-20)
+
+Bit-exact-or-cornered vs the live relinked /workspace/.opwork/FVSop_clean, at cyc0 AND multi-cycle.
+
+GROWTH + VOLUME (validated):
+  • ORGANON NWO engine (DG/HG/CR/MORT)         38/38 bit-exact vs FVSop_clean (test_op_organon_nwo)
+  • FVS-native large-tree DGF/HTGF (non-ORGANON) 41/41 bit-exact (test_op_native_growth)
+  • BLM Behre cubic + merch + board volume      per-tree bit-exact (test_op_site_and_volume, reuses OC BLM)
+  • DGSD=0 multi-cycle .sum (S248112, 10 cyc)   cyc0-3 EVERY column bit-identical to RELINKED FVSop_clean
+                                                incl merch 972 / bdft 5003; cyc4+ merch <0.4% (log-bucking
+                                                DIB-class rounding) cornered — 9594d0a7 (test_op_multicycle_sum)
+
+  ★ Production-save artifact isolated: the checked-in opt01.sum.save (production binary, RV:20260401)
+    shows merch/bdft 931/4797 (−4.3%); jl matches the RELINKED oracle (972/5003) EXACTLY, not the
+    production save ⇒ the −4.3% is a production-vs-g16-relink NVEL(BLM) library artifact, NOT a jl gap.
+
+SMALL-TREE PATH — ALREADY FAITHFUL (measured; NO port needed):
+  • op_htg_default grows seedlings faithfully (OP/NWO uses the htgf path, not the regent-suppressed
+    OC/SWO path); tn2 DF (0.574,7.398)=oracle (0.6,7.4), tn15 GF (0.321,4.848)=(0.3,4.9) — fde4cd69
+
+REMAINING (USER-gated, NOT a growth/volume gap):
+  • FFE (Fire & Fuels Extension) — unported for the ORGANON variants (legible capability error, 39a95b1b).
+    USER decision, like NC FFE.
+
+Detail: docs/OC_VARIANT_PORT_AUDIT.md · memory fvsjl-oc-organon-blm-volume.

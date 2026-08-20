@@ -1,0 +1,30 @@
+OC (OregonCoast, ORGANON SWO) variant — GROWTH + VOLUME COMPLETE-TO-BAR (2026-08-20)
+
+Bit-exact-or-cornered vs the live relinked /workspace/.ocwork/FVSoc_clean, at cyc0 AND multi-cycle.
+
+GROWTH + VOLUME (validated):
+  • ORGANON SWO DGF/HGRO/CR/MORT core         cyc0 bit-exact (ocmin/oct01; HTGRO2 6/6, PREPARE/ACALIB 4/4)
+  • BLM Behre cubic + merch + Scribner volume  C10 bit-exact both cycles (organon_volume.jl)
+  • FORTYP/STRCLS classification               201/23 = oracle (national-stocking CSV)
+  • DGSD=0 multi-cycle                          large-tree DBH bit-exact; large-tree height cornered
+                                               (HG_SWO CCH tie-break precision = accepted RDPSRT/AVHT40
+                                               class, measured mixed-sign ±0.1-0.2ft) — d05158fd
+
+SMALL-TREE PATH — FULLY FAITHFUL (validated per-tree vs live regent dump + TREELIST):
+  • HEIGHT via smhtgf.f (5 height-age eqs)     tn2 DF 3.80/3.81, tn15 GF 5.10/5.10 (was +7ft over) — 34ab12b9
+  • DBH via htdbh.f (Curtis/Arney CURARN)       tracks oracle within ±0.1" (was +2.2" off) — 7f2eddaa
+    (LHTDRG=.FALSE. default ⇒ HTDBH, NOT the BX/AX+AA-calibration path; DBH += DGSM measured)
+
+Real bugs found + fixed:
+  • seedlings routed to large-tree HTGF (drops RELHT suppression when PCCF<100) ⇒ +7ft/cyc — 34ab12b9
+  • cut-log/mortality read absent SN sprout/biomass coeffs (:is_sprouting/:v2t) ⇒ crash — 0e16ff5d/7dfe7cee
+
+Non-gaps confirmed by measurement:
+  • orgvol — the oracle routes VOLEQ 'B'→BLMVOL for the ref species; jl's BLM Behre IS the target
+  • HCOR small-tree height calibration — inert here (only GF ~+1.9%, sub-NINT; smhtgf already ±0.08ft)
+
+REMAINING (USER-gated, NOT a growth/volume gap):
+  • FFE (Fire & Fuels Extension) — unported for the ORGANON variants (no crown-biomass coeffs; a legible
+    capability error is raised — 39a95b1b). A dedicated port, like NC FFE. USER decision.
+
+Detail: docs/OC_VARIANT_PORT_AUDIT.md · memory fvsjl-oc-organon-blm-volume.
