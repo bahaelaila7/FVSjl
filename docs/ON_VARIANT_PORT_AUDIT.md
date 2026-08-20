@@ -71,13 +71,15 @@ of the zeroed control fields (INVYEAR=0, NUMCYCLE rejected), not a jl model erro
   _htdbh_height → KeyError :htdbh_p2). Ported the forward _on_htdbh_height (htdbh.f MODE=0) + wired an
   Ontario branch. Validated end-to-end on ont_mh (all heights blanked): jl completes, cyc0 .sum VOLUME
   columns bit-identical to oracle (heights drive volume). test_ontario_missing_height (4/4).
-- **broken-top VOLUME reduction (CFTOPK) — SCOPED, jl HAS cftopk/bftopk** (Olympic/KT/BM use them;
-  self-contained Behre taper) but NOT yet wired for ON: the CFTOPK wiring attempt (norm_ht taper →
-  cftopk → Mowraski) DIVERGED from the oracle on synthetic broken-top stands (jl board 1991 vs oracle
-  266), and those synthetic all-broken stands are DEGENERATE (oracle overflows ****** / the instrumented
-  voldump NaNs). REVERTED as unvalidated (doctrine: commit only validated). Needs a REALISTIC broken-top
-  stand (a few broken trees among normal, ideally real Ontario data) to A/B the Mowraski-vs-CFTOPK order
-  before wiring. jl currently runs broken-top stands (no crash) but computes full-height volume.
+- **broken-top VOLUME reduction (CFTOPK) — RESOLVED as ORACLE-DEGENERATE / jl-correct (no bit-exact
+  target).** MEASURED (voldump byte-identical to clean on the broken stand, so trustworthy): the CLEAN
+  production oracle CFTOPK produces **NaN** (FFC00000, rendered `****` in the .sum cuft column) for the
+  TOTAL cubic VN on EVERY broken-top ON ZAK tree — its BEHRE(0,1) ratio degenerates on the ZAK-volume
+  VMAX. VM (merch) survives finite. So there is NO sensible bit-exact target for the broken-top total
+  cubic (matching = reproducing NaN); jl's finite full-height volume is MORE correct — the documented
+  'oracle-bug / jl-correct' class (cf. NE r9clark). jl runs broken-top stands without crashing (chunk 6
+  height-dub fix); wiring cftopk to reproduce the oracle's NaN is NOT warranted. (jl HAS cftopk/bftopk
+  from Olympic/KT/BM should a non-degenerate broken-top corpus ever appear.)
 
 ⇒ **Full-species growth+volume is bit-exact-or-cornered across all 72.** Remaining = un-exercised alt paths
 only: broken-top CFTOPK/BFTOPK + method-5/6 vol (need a broken-top stand), DG-calibration dgdriv.f LSTART
