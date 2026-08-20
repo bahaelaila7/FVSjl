@@ -110,6 +110,14 @@ const _SO_FM_BARK_B1 = Float32[
     0.062, 0.026, 0.024, 0.044, 0.044, 0.062, 0.029, 0.041, 0.045, 0.044,
     0.044, 0.063, 0.044]
 
+# oc/fmbrkt.f (FOFEM v5.0, Reinhardt et al. 2000) — OC/OP share the ORGANON species list (MAXSP=50).
+const _OC_FM_BARK_B1 = Float32[
+    0.081, 0.060, 0.035, 0.046, 0.039, 0.039, 0.063, 0.035, 0.040, 0.030,
+    0.030, 0.028, 0.063, 0.030, 0.068, 0.072, 0.035, 0.063, 0.030, 0.033,
+    0.025, 0.025, 0.081, 0.025, 0.063, 0.050, 0.024, 0.033, 0.059, 0.029,
+    0.030, 0.043, 0.034, 0.024, 0.036, 0.026, 0.060, 0.045, 0.062, 0.042,
+    0.041, 0.052, 0.033, 0.044, 0.044, 0.041, 0.025, 0.026, 0.030, 0.081]
+
 @inline function fire_bark_thickness(coef::SpeciesCoefficients, sp::Integer, dbh::Float32,
                                      variant::AbstractVariant = Southern())::Float32
     variant isa CentralRockies && return dbh * _CR_FM_BARK_B1[Int(sp)]   # cr/fmbrkt.f
@@ -123,6 +131,7 @@ const _SO_FM_BARK_B1 = Float32[
     variant isa PacificNorthwest && return dbh * _PN_FM_BARK_B1[Int(sp)]   # pn/fmbrkt.f
     variant isa EastCascades && return dbh * _EC_FM_BARK_B1[Int(sp)]       # ec/fmbrkt.f
     variant isa SouthCentralOregon && return dbh * _SO_FM_BARK_B1[Int(sp)] # so/fmbrkt.f
+    (variant isa OregonCoast || variant isa Olympic) && return dbh * _OC_FM_BARK_B1[Int(sp)]  # oc/fmbrkt.f
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf
