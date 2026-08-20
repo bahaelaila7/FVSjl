@@ -91,12 +91,27 @@ Debug at the 2003 event: jl byram=1189.9 → flame=1.78ft → scorch=4.7ft, at w
         vs 166. That is the KNOWN OC small-tree/regen + multi-cycle growth drift (CCF 76/79 @2003, cornered in
         [[fvsjl-oc-organon-blm-volume]]) — different trees to burn. Fewer small trees + more mid = downstream
         of the cornered growth, not an FFE bug.
-    (b) **5-10" crown-scorch kill RATE 53% vs 76%** — with scorch 17.6 jl kills fewer mid trees. Likely their
-        crown bases sit above the scorch (jl 5-10" heights/crown-ratios carry the same growth/crown drift), or
-        an fmeff crown-volume-scorched / bark-cambium detail. NEXT: instrument FVSoc_clean fmburn/fmeff for the
-        ACTUAL-fire scorch height + per-tree crown base at 2003, A/B vs jl's 17.6 + crown bases; if jl's scorch
-        and crown bases match, the kill-rate gap is the cornered crown-ratio drift; else port the fmeff detail.
+    (b) **5-10" crown-scorch kill RATE 53% vs 76%** — the fire is slightly too COOL. MEASURED (relink_oc.sh +
+        instrumented fmburn/fmdyn, oracle sources restored pristine):
+          • oracle actual-fire **SCH=21.1** vs jl 17.6; oracle **FLAME=4.75** vs jl 4.2; oracle BYRAM(/min)
+            ~10074 vs jl 7690. So jl's fire IS ~25-30% cooler — a REAL fire-intensity residual, not just drift.
+          • oracle FMDYN **SM=3.3 / LG=8.08** vs jl **4.09 / 14.44** ⇒ jl OVER-ACCUMULATES large down-wood
+            ~1.8×. That pushes the CWHR dynamic weighting toward the COOLER model 10 (jl 53% vs oracle 38%),
+            LOWERING byram (model 6 is the hotter one here). So over-accum → cooler fire → fewer 5-10" kills.
+          • **Decay is CORRECT** (not the cause): oracle fmcba ITYPE=**46**, TEMP=**2**/MOIST=**2** = my mesic
+            DKRADJ(2,2,K)=(1,1.7,1) assumption (9cce8d0b) — VERIFIED right.
+          • ROOT = **snag-fall over-adds**. jl large-pool trajectory GROWS (1993 9.08→end 11.67→14.63) while
+            the oracle's DECLINES (8.72→8.08→7.59). Sub-step breakdown (yr1): start 9.08 → **snag-fall +0.94**
+            → decay −0.42 → cwd2b +0 → woody +0.04 (net +0.56/yr). The SNAGINIT-snag bole-to-down-wood
+            (update_snags!/FMSNAG) books ~0.94/yr large wood; the oracle's nets negative. NEXT: A/B jl's snag
+            pool (count/bole/fall-rate) vs the oracle STANDING WOOD DEAD >3" trajectory (ALL FUELS cols 12-13:
+            snags 2.8→... ) — the SNAGINIT parse (`SNAGINIT 10. 11. 50. 40. 2. 50.`), FALLX fall rate, or the
+            snag bole cuft→tons booking is over-transferring. Fix that ⇒ lg→~8 ⇒ model 6 weighted like the
+            oracle ⇒ byram/scorch → 21 ⇒ 5-10" kill → 76% ⇒ .sum mortality → 266.
+    (a2) The pre-fire stand STRUCTURE also differs (jl 26 small vs 53, 184 mid vs 166) = cornered OC growth/
+         regen drift (CCF 76/79) — a secondary contributor once (b) is closed.
 ## CHUNK 4 — snag dynamics (SNAGINIT/SNAGOUT) → STANDING WOOD columns (cyc0 snag already bit-exact in .sum).
+  ⚠ Chunk-4 snag-fall accounting is now ON the critical path (it over-feeds the down-wood the fire samples).
 
 ## DOCTRINE
 Bit-exact-or-cornered per chunk by RUNNING FVSoc_clean; glibc libm ccall for Float32; gate = multicycle
