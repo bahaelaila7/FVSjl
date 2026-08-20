@@ -666,3 +666,13 @@ VEHICLE (ready): the oracle .trl per-tree HT (scratchpad/oc/oc_or_trl.pkl) vs jl
 target = tn2/tn15 HT bit-exact at cyc1, then the whole .sum bit-exact-or-cornered multi-cycle. Same
 model likely applies to OP (Olympic) sub-4ft trees; OP's ref stand happened to have fewer/less-divergent
 seedlings so it read bit-exact-or-cornered, but OP should get the same regent wiring.
+
+## 2026-08-20 (cont'd) — REGENT port fully specced (turnkey), deterministic path confirmed
+
+Read oc/regent.f + smhtgf.f + htdbh.f in full and wrote scratchpad/oc/REGENT_PORT_SPEC.md — a turnkey spec
+(all 5 smhtgf equations, the CON=RHCON·exp(HCOR) calibration, XWT XMN/XMX blend, SCALE, HK≤4.5-vs-HTDBH DBH
+assignment, coefficient sources, wiring plan, validation vehicle). KEY: OC/OP are DGSD=0 ⇒ regent.f:234
+ZZRAN=0 ⇒ the inventory small-tree path is FULLY DETERMINISTIC ⇒ bit-exact achievable. The port is entangled
+(replaces both height AND diameter for D<XMAX IORG=0 trees — jl currently grows their DBH via the large-tree
+DDS, wrong; regent derives DBH from the H-D function) and carries the documented regent trap history
+(HCOR calibration, XWT blend, stale-HTGR) — land it as a focused unit with per-tree .trl A/B, not a rush.
