@@ -93,8 +93,31 @@ const _FM_DKR_CR = Float32[
     0.5    0.225   0.225   0.225      # 10 litter (cr/fmvinit.f:99)
     0.002  0.0009  0.0009  0.0009     # 11 duff (cr/fmvinit.f:100)
 ]
+# Oregon Coast R6-Oregon decay rates (oc/fmcba.f:610-671, Kim Mellen-McLean CWD model, forest 711 = R6 Oregon
+# KODFOR≥600 branch). Base DKRT by size×decay-class (small woody 1-3" = 0.076/0.081/0.090/0.113; large 4-9" =
+# 0.019/0.025/0.033/0.058; litter 0.5; duff 0.002), then ×DKRADJ(TEMP,MOIST,K) habitat adjustment. Applied at
+# the FFE stand's default ecoclass CWC221 = a MESIC Douglas-fir site ⇒ TEMP=2/MOIST=2 ⇒ DKRADJ(2,2,K) = (1,
+# 1.7, 1) for K=1(size≤3)/2(size4-5)/3(size≥6) — so the 3-12" classes decay ×1.7. (Exact per-stand ITYPE→
+# CAHMC/CAWMD habitat resolution is a refinement; the mesic default fits the CWC221 reference stand.) The SN
+# default `_FM_DKR` (woody 0.07-0.11) decayed OC's LARGE down-wood ~4-6× too fast ⇒ under-loaded 2003 surface
+# fuel ⇒ the fire under-carried. Same class as the CR/NC DKR fixes above.
+const _FM_DKR_OC = Float32[
+    0.076  0.081  0.090  0.113     # 1  (<0.25")   K=1 ×1.0
+    0.076  0.081  0.090  0.113     # 2  (0.25-1")  K=1 ×1.0
+    0.076  0.081  0.090  0.113     # 3  (1-3")     K=1 ×1.0
+    0.0323 0.0425 0.0561 0.0986    # 4  (3-6")     K=2 ×1.7
+    0.0323 0.0425 0.0561 0.0986    # 5  (6-12")    K=2 ×1.7
+    0.019  0.025  0.033  0.058     # 6  (12-20")   K=3 ×1.0
+    0.019  0.025  0.033  0.058     # 7  (20-35")   K=3 ×1.0
+    0.019  0.025  0.033  0.058     # 8  (35-50")   K=3 ×1.0
+    0.019  0.025  0.033  0.058     # 9  (>50")     K=3 ×1.0
+    0.5    0.5    0.5    0.5        # 10 litter (not habitat-adjusted; fmcba.f DO I=1,9)
+    0.002  0.002  0.002  0.002     # 11 duff
+]
+
 # Variant-default DKR: SN uses `_FM_DKR`; LS/NE/CS/CR use their own faithful tables (…/fmvinit.f).
 _fm_dkr_default(::AbstractVariant) = _FM_DKR
+_fm_dkr_default(::OregonCoast) = _FM_DKR_OC      # oc/fmcba.f R6-Oregon DKRT × DKRADJ(mesic CWC221)
 _fm_dkr_default(::LakeStates) = _FM_DKR_LS
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
 _fm_dkr_default(::CentralStates) = _FM_DKR_CS
