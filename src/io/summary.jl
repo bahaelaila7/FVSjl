@@ -199,7 +199,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # (Unlike WC/PN/CA/WS whose crown fire dominates and masks the fuel-model weights, EC's is a SURFACE fire.)
     ffe_on = s.fire !== nothing && s.fire.active &&
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
-              s.variant isa SouthCentralOregon || s.variant isa OregonCoast)   # OC live fuel is in fire_fuel_covtype_live.csv (non-reserved name) ⇒ ffe_fuel_live empty
+              s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)

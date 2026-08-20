@@ -391,6 +391,7 @@ include("../data/klamath/fire/ffe_fuel.jl")              # NC FFE FULIVE/FULIVI/
 include("../data/westsierra/fire/ffe_fuel.jl")           # WS FFE FULIVE/FULIVI/FUINIE/FUINII (43-species top-2 cover-type; reuses _cr_algslp2)
 include("../data/centralcalifornia/fire/ffe_fuel.jl")    # CA FFE FULIVE/FULIVI/FUINIE/FUINII (50-species top-2 cover; reuses _cr_algslp2)
 include("../data/oregoncoast/fire/ffe_fuel.jl")          # OC FFE FUINIE/FUINII/FULIVE/FULIVI (50-species ORGANON top-2 cover; reuses _cr_algslp2)
+include("../data/olympic/fire/ffe_fuel.jl")              # OP FFE FUINIE/FUINII/FULIVE/FULIVI (39-species NWO top-2 cover) + op_cwcalc
 include("../data/westcascades/fire/ffe_fuel.jl")         # WC FFE FULIVE/FULIVI/FUINIE/FUINII (39-species SINGLE cover-type) + wc_cwcalc
 include("../data/pacificnorthwest/fire/ffe_fuel.jl")     # PN FFE FULIVE/FULIVI/FUINIE/FUINII (39-species SINGLE cover-type) + pn_cwcalc (forest-612 BF)
 include("../data/eastcascades/fire/ffe_fuel.jl")         # EC FFE FULIVE/FULIVI/FUINIE/FUINII (32-species SINGLE cover-type) + ec_cwcalc (forest-608 BF) + ec_moist
