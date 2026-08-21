@@ -1226,7 +1226,28 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     est.idsdat == Int32(-9999) && (est.idsdat = Int32(inv_year - 20))
     icyc = Int(s.control.cycle) + 1
     itrn = s.trees.n
-    fire, _ntally = ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year)
+    # User-scheduled TALLY/TALLYONE/TALLYTWO (esin.f 16/11/12; esnutr.f:163-252): a 427/428/429 whose date falls in
+    # THIS cycle's window [year,next_year) and is not stale (KDT+1-IDSDAT ≤ 20) forces a tally, overriding the
+    # automatic AUTOES rules. NTALLY = IACTK-427 collapsed to {1 (TALLY/TALLYONE), 2 (TALLYTWO continuation)}. The
+    # strict window fires each scheduled tally exactly once; the automatic 20-yr continuation (rule 2) then handles
+    # its 2nd pass. The ESTAB-END 427 sits at inv-20 (stale, >20yr) so it is correctly skipped — no regression.
+    kdt = next_year - 1
+    sched_fire = false; sched_ntally = 0
+    for a in s.control.schedule
+        (a.icflag == 427 || a.icflag == 428 || a.icflag == 429) || continue
+        ay = Int(a.year)
+        idt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay   # cycle-number → this cycle's year; else calendar
+        (year <= idt < next_year && (kdt + 1 - idt) <= 20) || continue
+        est.idsdat = Int32(idt)
+        # NTALLY=IACTK-427 ⇒ 1 for TALLY/TALLYONE; TALLYTWO(429)=2 ONLY if a prior TALLYONE(428) at an earlier
+        # date exists, else it collapses to 1 (esnutr.f:204-210). Standalone TALLYTWO ≡ a single tally.
+        sched_ntally = (a.icflag == 429 && any(b -> b.icflag == 428 && Int(b.year) < ay, s.control.schedule)) ? 2 : 1
+        est.ntally = Int32(sched_ntally)
+        sched_fire = true
+        break
+    end
+    fire, _ntally = sched_fire ? (true, sched_ntally) :
+        ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year)
     est.last_xtes = 0f0                       # consume the removal fraction (one cycle only)
     fire || return false
     year in est.years_done && return false

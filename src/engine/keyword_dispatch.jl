@@ -1584,6 +1584,15 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # Stockability adjustment — multiplier on the establishment stocking probability
             # PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Applied in ie_autoes_run.
             s.estab.stoadj = r.present[1] ? Float32(r.values[1]) : 1f0
+        elseif k == "TALLY" || k == "TALLYONE" || k == "TALLYTWO"
+            # esin.f opt 16/11/12: schedule a user establishment tally at a date. IACTK 427/428/429; esnutr.f:180
+            # NTALLY = IACTK-427 → TALLY/TALLYONE tally#1, TALLYTWO tally#2 (continuation). Field 1 = date (a cycle
+            # number if <1000). Honored in ie_autoes_schedule! within the KDT+1-IDSDAT≤20 staleness window.
+            if r.present[1]
+                ic = k == "TALLY" ? Int32(427) : (k == "TALLYONE" ? Int32(428) : Int32(429))
+                yr = nint(r.values[1])
+                push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
+            end
         end
         # other establishment keywords (SPECMULT/HTADJ/TALLY/…) not yet ported — skipped
     end
