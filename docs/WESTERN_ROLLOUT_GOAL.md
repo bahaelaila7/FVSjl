@@ -1,6 +1,29 @@
 # ACTIVE GOAL — Western FVS variant cluster + extensions rollout (FVSjl)
 
-## ★★★★ CURRENT DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — ✓ SATISFIED 2026-08-20/21; backlog EXHAUSTED
+## ★★★★★ CURRENT DIRECTIVE (USER, 2026-08-21) — FINISH PORTING EVERYTHING; DON'T STOP-AND-ASK
+**"continue till you finish porting everything according to the doctrine" + "you know exactly what I will tell
+you, don't stop and wait."** The prior "backlog exhausted → surface the long tail to USER" posture is SUPERSEDED:
+the USER has greenlit grinding the ENTIRE remaining long tail to completion, autonomously, per doctrine (bit-exact-
+or-cornered per chunk vs the live relinked oracle; MEASURE; commit ONLY validated chunks; gate 339/11 byte-identical).
+DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work continuously, commit each validated chunk.
+
+**The remaining surface (all niche; the CORE simulator — every variant + every major extension — is DONE):**
+  1. **ESTAB-packet keyword options** (memory `fvsjl-establishment-keyword-options`). WIRED already: STOCKADJ
+     (bit-exact `eddf8dc2`), RESETAGE, AUTALLY/NOAUTALY, INGROW/NOINGROW, THRSHOLD, PLANT/NATURAL/SPROUT/NOSPROUT.
+     STILL UNWIRED: TALLY/TALLYONE/TALLYTWO, ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO,
+     OUTPUT, PASSALL, SPECMULT, HTADJ. **.sum-visible ones (TALLY/ADDTREES/site-prep — change established COUNT)
+     validate via the STOCKADJ harness (IE fixture + FVSie_clean); .sum-INVISIBLE ones (SPECMULT species-mix, HTADJ
+     seedling-height) need a PER-TREE TREELIST A/B (FVS_TreeList DBS table).**
+  2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
+     (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
+  3. **AK permafrost** — PFCON keyword + SDICAL/SDICLS (per-point Zeide-SDI PRD) + SEAMRT + R10 vol; needs an
+     interior-AK reproducer vs FVSak.
+  4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40), ON method-6/broken-top vol, COVER CVBCAL.
+  5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
+     as done for WWPB). Note as un-portable, not a gap.
+Off-switch (`touch docs/WESTERN_ROLLOUT_COMPLETE`) remains the USER's call.
+
+## ★★★★ PRIOR DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — ✓ SATISFIED 2026-08-20/21; backlog EXHAUSTED
 **"cache your work, after restart do full ON port" = roadmap option (A) — ✓ DONE.** The full ON port COMPLETED
 2026-08-20 (`cd3845b4` done-flag + `docs/ON_VARIANT_PORT_COMPLETE`): all 72 species bit-exact-or-cornered — DGF
 `on_penner_dds` 216/216, `htont` 72/72, cubic vol `on_zakvol/on_honer` 70/70, open-crown CW/CCF 70/70 (real bug
