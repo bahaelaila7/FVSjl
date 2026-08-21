@@ -1,24 +1,22 @@
 # ACTIVE GOAL — Western FVS variant cluster + extensions rollout (FVSjl)
 
-## ★★★★ CURRENT DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — supersedes the 2026-08-17 directive below
-**"cache your work, after restart do full ON port" = roadmap option (A).** All prior roadmap items (DMNTRD, the
-insect/pathogen family incl. LPMPB now COMPLETE, COVER, ON-core) are done-or-cornered; the bounded backlog is
-exhausted (see the 2026-08-19 note in item 4 + the LPMPB item). **After the container restart, START the FULL ON
-(Ontario) 72-species port** — ON is currently bit-exact-or-cornered only on the 8-species inline `ont01`
-(docs/ON_VARIANT_PORT_AUDIT.md, 8 chunks); the full port validates all 72 species against REAL Ontario database
-stands. **Dep-order entry point:**
-  1. **Resolve the gcc-16 `dbstreesin` SQLite SEGFAULT** (same isoc23-shim×SQLite-C class as BC) — either a gcc-15
-     rebuild of `canada/on/` (→ a DB-capable `FVSon` oracle) OR an inline-`.tre` harness that emits ≥1 real
-     multi-species Ontario stand. This unblocks the 64 species `ont01` never exercises (only PW/SW/MH/BE/SB/CE/PJ/BF).
-  2. Validate Penner DGF / `htont` / `morts` / `volont` **per-species** across the full `OSPMAP` vs `FVSon_g16`
-     (coefficient tables already cover 72/35/27 but are un-A/B'd beyond the 8).
-  3. **maple/beech HYBRID growth** (`dgf.f:402 LHYBRID` is hard-disabled, NOT ported) — port if real stands exercise it.
-  4. broken-top `CFTOPK`/`BFTOPK` + method-5 Gevorkiantz / method-6 R9CLARK volume paths (no `ont01` exercise).
-  5. ON DG calibration `dgdriv.f` LSTART SIGMAR/OBSERV/VARDG→COR (the multi-cycle #206 OLDRN straddle, already
-     cornered-by-inheritance like every western variant).
-Doctrine UNCHANGED: bit-exact-or-cornered per chunk by RUNNING `/workspace/.onwork/FVSon_g16`; MEASURE (g16 single-.o
+## ★★★★ CURRENT DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — ✓ SATISFIED 2026-08-20/21; backlog EXHAUSTED
+**"cache your work, after restart do full ON port" = roadmap option (A) — ✓ DONE.** The full ON port COMPLETED
+2026-08-20 (`cd3845b4` done-flag + `docs/ON_VARIANT_PORT_COMPLETE`): all 72 species bit-exact-or-cornered — DGF
+`on_penner_dds` 216/216, `htont` 72/72, cubic vol `on_zakvol/on_honer` 70/70, open-crown CW/CCF 70/70 (real bug
+fixed: 64 species returned CW=0 ⇒ CCF 8× low), Mowraski net-merch 70/70 — validated per-species via dump-replay on
+the 72-tree inline `ont_all` stand vs freshly-instrumented `FVSon_g16` oracles (the DB SEGFAULT was characterized as
+a gcc-16×SQLite interop bug, NOT fixed, and worked around via the inline harness since no real ON DB data exists).
+ON-DB reader metric fix (`e7a38a9d`, item 1). Residual = the DG-calib LSTART #206 straddle, cornered-by-inheritance
+like every western variant. ⇒ ON now sits at the CR/KT/IE/…/BC bar. **Every prior roadmap item — DMNTRD, the
+insect/pathogen family (DFB/DFTM/WPBR/LPMPB/WSBWE + WWPB, WWPB COMPLETE end-to-end 2026-08-21), COVER, OC/OP ORGANON
+growth+vol+FFE, and now full ON + ON-DB — is done-or-cornered. THE USER-GATED BACKLOG IS EXHAUSTED.** What remains
+is only optional lower-priority refinement (COVER CVBCAL/non-EM CWMAPs, WSBWE weather-dependent BUDLITE/GENDEFOL,
+ON method-6/broken-top un-exercised vol paths) — surface to USER, do NOT sink unbounded autonomous effort without a
+fresh greenlight. Off-switch (`touch docs/WESTERN_ROLLOUT_COMPLETE`) remains the USER's call.
+Doctrine UNCHANGED: bit-exact-or-cornered per chunk by RUNNING the live relinked oracle; MEASURE (g16 single-.o
 dump-replay, instrumented `.sum` byte-identical first); glibc libm `ccall` for Float32 transcendentals; every chunk
-additive/INERT (`test_multicycle` 339/11 byte-identical is the hard gate). LARGE multi-session, like OC/OP ORGANON.
+additive/INERT (`test_multicycle` 339/11 byte-identical is the hard gate).
 
 **CHECKPOINT 2026-08-19 (HEAD `8ccfb95d`, kt-variant-port, tree CLEAN) — container-restart continuity.** Full suite
 41148 pass / 0 fail / 0 error / 75 broken; multicycle 339/11. This session's commits: LPMPB LPOPDY+damage-codes
