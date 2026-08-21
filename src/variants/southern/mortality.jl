@@ -553,6 +553,8 @@ fire=FIRKIL + regular=WK2−FIRKIL).
         # to the full Jenkins ABOVEGROUND ⇒ ~2-3× too much large down-wood (over-heated the fuel model → cool fire).
         # oc/fmsvol.f LMERCH=.FALSE. ⇒ BLM TOTAL cubic, matching compute_volumes_oc!.
         return oc_tree_cuft(sp, d, h)
+    elseif s.variant isa Olympic
+        return op_tree_cuft(sp, d, h)   # OP BLM total cubic (op/fmsvol.f LMERCH=F)
     else
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
