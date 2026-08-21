@@ -127,3 +127,23 @@ CHUNK 3b (bmcgrf) done + BIT-EXACT. NEXT dependency chain for the outbreak:
     PBKILL from BKP (stochastic, BMRANN). Then the harness (BMSETP/PPMAIN/GP-scheduler/SPLA) + BMKILL handback + seam.
 Driver-golden recipe: scratchpad/wwpb/driver_bmcgrf.f is the reusable template (INCLUDE the wwpb/*.F77 + ie/common
 PRGPRM + archive/PPEcommons PPEPRM; set the BMCOM inputs; CALL; print Z8.8; route Float32 exp/pow via glibc).
+
+## CONTINUATION (2026-08-21) — the BMISTD stochastic kill kernel + BMCBET beta dist
+CHUNK 3g (bmatct_single) done. NEXT chain = the actual beetle kills:
+  • BMCBET (bmcbet.f) — beta-distribution weights BETA(NSCL) over size classes, keyed on ABETA (a function of
+    BKP/acre). **DEPENDS on ALNGAM (log-gamma, AS245) + BETAIN (incomplete beta, AS63) which are ABSENT from the
+    tree** (only DECLARED `REAL ALNGAM, BETAIN` in bmcbet.f — like the PPE harness, reconstruct-category). FVSjl's
+    LPMPB mpb_betin (betin.f AS-package, Float64) is a DIFFERENT algorithm ⇒ not bit-identical. APPROACH: port the
+    canonical AS245 alngam + AS63 betain in BOTH Julia and as Fortran stubs, then driver-validate BMCBET's OWN
+    weight-computation logic bit-exact (jl vs Fortran-with-same-stubs) — the AS functions are the shared
+    reconstruction (documented; no pristine oracle exists for them). ABETA rules (bmistd.f:199-204):
+    BKP>6→15; ≤6&>3.6→2.5+4.46·(BKP−3.6); ≤3.6&≥1.6→1.2+0.65·(BKP−1.6); <1.6→1. B=2.0 fixed. BETA(i)=BETAIN(x_i)−
+    BETAIN(x_{i-1}) over [MINSIZE−0.5, MAXSIZE+0.5]; BETA init 1e-5.
+  • BMISTD (bmistd.f) — STOCHASTIC (BMRANN=wwpb_rand!) kill allocation: SPRAY reduce → find MXISIZ/ISIZ1/ABETA →
+    BMCBET → special-tree kills (BMRANN loop) → "group-kill" (deterministic bulk, DO 555 while TOTKL>2·MXISIZ) →
+    "individual-kill" (BMRANN loop, DO 888) → PBKILL proportion→TPA + dead-wood. Fills PBKILL/PITCH/STRIP/FINAL.
+    The exact BMRANN call order is load-bearing. SAREA from SPLAAR (single-stand = the FVS stand area). Driver-
+    validatable (seed the RNG, set TREE/BKP/GRF/MSBA/SPCLT, compare PBKILL/PITCH/STRIP/FINAL) once BMCBET lands.
+  • Then BMKILL (bmkill.f) TPBK→WK2 handback, BMSETP/PPMAIN single-stand harness, simulate.jl seam.
+Doctrine note: BMCBET/AS-functions are reconstruct-category (source absent, like the harness — USER-approved);
+every other kernel so far is bit-exact-vs-pristine. BMISTD's logic IS bit-exact-vs-pristine given the same BETA.
