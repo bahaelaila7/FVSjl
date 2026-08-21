@@ -63,6 +63,11 @@ mutable struct ClimateState <: AbstractClimateState
     # computed. Rescales the viability→survival curve for present low-viability species so they don't over-die in
     # early cycles (clmorts.f:91-98). Persisted across cycles.
     spcalib::Vector{Float32}
+    # Per-species climate mortality RATES from the last apply_climate_mort! (10-yr, for the FVS_Climate report):
+    # spmort1 = viability FYRMORT (clmorts.f:103 SPMORT1); spmort2 = transfer-distance DMORT, TPA-weighted per
+    # species (clmorts.f:223/266 SPMORT2). Populated each cycle so climate_report emits the APPLIED values.
+    spmort1::Vector{Float32}
+    spmort2::Vector{Float32}
 end
 
 """
@@ -342,10 +347,13 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
     end
     # (1) Per-species viability FYRMORT (clmorts.f:79-126) — the SPMORT1/FYRMORT loop, presence-calibrated.
     fy = zeros(Float32, ns)
+    fill!(c.spmort1, 0f0); fill!(c.spmort2, 0f0)               # reset the report accumulators this cycle
     @inbounds for sp in 1:ns
         xv, _ = species_vscore(cd, c.plant_symbols[sp], ty)   # raw viability at THISYR
-        _, fy[sp] = clim_mort_rates(clim_survival_cal(xv, c.spcalib[sp]), fi, c.mortmult[sp])
+        sm1, fym = clim_mort_rates(clim_survival_cal(xv, c.spcalib[sp]), fi, c.mortmult[sp])
+        fy[sp] = fym; c.spmort1[sp] = sm1                     # 10-yr SPMORT1 (report) + fint-yr FYRMORT (applied)
     end
+    sp2wts = zeros(Float32, ns)                                # SPWTS = Σ DBH²·PROB per species (BA weight)
     # (2) Climate-transfer-distance DMORT (clmorts.f:133-237). LDMORT gate = all DE* + the
     # climate columns present (clmorts.f:133-138). CTHISYR = current-year climate metrics.
     A(sym, yr) = algslp(yr, cd.years, view(cd.attrs, :, ix[sym]))
@@ -373,7 +381,9 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
             d6 = de6 > 0f0 ? (ct6 - A(:map, by) * A(:dd5, by) / 1000f0) / de6 : 1f0
             dm = (d1 + d2 + d3 + d4 + d5 + d6) / 6f0 - 1.1f0
             dm = clamp(dm, 0f0, 5.9f0)
-            dm = 0.9f0 * (1f0 - exp(-dm^2.5f0))               # transfer-distance mortality curve
+            dm = 0.9f0 * (1f0 - exp(-dm^2.5f0))               # transfer-distance mortality curve (10-yr rate)
+            xw = t.dbh[i] * t.dbh[i] * pr                      # X = DBH²·PROB (clmorts.f:222 BA weight)
+            c.spmort2[sp] += dm * clmrtmlt2 * xw; sp2wts[sp] += xw   # SPMORT2 accum (10-yr, report)
             surv = 1f0 - dm                                    # → survival, then FINT-yr rate
             surv = surv > 1f-5 ? clamp(exp(log(surv) / 10f0)^fi, 0f0, 1f0) : 0f0
             dmr = (1f0 - surv) * clmrtmlt2                     # back to mortality rate ·CLMRTMLT2
@@ -386,6 +396,9 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
             sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
             fy[sp] > killed[i] / pr && (killed[i] = pr * fy[sp])
         end
+    end
+    @inbounds for sp in 1:ns                                   # SPMORT2 = BA-weighted mean (clmorts.f:264-268)
+        c.spmort2[sp] = sp2wts[sp] > 1f-4 ? c.spmort2[sp] / sp2wts[sp] : 0f0
     end
     return s
 end
@@ -507,6 +520,126 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
         s.estab.active = true    # activate the ESTAB packet so establish! processes the scheduled NATURAL regen
     end
     return s
+end
+
+# Default AutoEstb params (clinit.f:40-42) — clauestb computes the POTESTAB report with these even when NO
+# AUTOESTB keyword is present (LAESTB only gates the actual establishment, not the report).
+const _CL_AESNTREES = 500f0
+const _CL_NESPECIES = 4
+const _CL_AESTOCK   = 40f0
+
+"""
+    climate_report(s; report_year, fint) -> Vector of per-species NamedTuples
+
+The Climate-FVS Viability-and-Effects report (clauestb.f:178-207 → DBSCLSUM / FVS_Climate table). One row per
+species passing the importance filter `SPIMP>0.05 || SPVIAB>0.4` (with a viability column). Computed at the
+POST-growth stand state, sampling climate at `report_year + fint/2` (THISYR = IY(ICYC)+FINT/2, clgmult.f:81).
+FVS labels the row with the cycle-START year but the data reflects the post-growth tree list + mid-cycle climate,
+so callers collect this right AFTER `grow_cycle!` passing the pre-advance cycle year as `report_year`. Mort rates
+(spmort1/spmort2) are READ from the ClimateState (populated by apply_climate_mort! during the just-run cycle) so
+they match the APPLIED mortality exactly. Fields (dbsclsum.f order): sp, viab, ba, tpa, mort1, mort2, gmult
+(Σtreemult·prob/Σprob), sitgm (xgsite^clgrowmult), mxden, potestab.
+"""
+function climate_report(s::StandState; report_year::Real, fint::Real)
+    c = s.climate
+    (c === nothing || !c.active) && return NamedTuple[]
+    cd = c.data; ix = c.indices; t = s.trees; ns = length(c.plant_symbols)
+    ty = Float32(report_year) + Float32(fint) / 2f0
+    A(sym, yr) = algslp(yr, cd.years, view(cd.attrs, :, ix[sym]))
+    smi(yr) = (g = A(:gsp, yr); g > 0f0 ? A(:dd5, yr) / g : 0f0)
+    have_grow = !(ix[:mtcm] == 0 || ix[:mmin] == 0 || ix[:dd0] == 0 || ix[:d100] == 0 ||
+                  ix[:dd5] == 0 || ix[:gsp] == 0)
+    xgsite = ix[:pSite] > 0 ? clim_xgsite(A(:pSite, ty), A(:pSite, Float32(c.inv_year))) : 1f0
+    mtcm_now = have_grow ? A(:mtcm, ty) : 0f0; mmin_now = have_grow ? A(:mmin, ty) : 0f0
+    smi_now = have_grow ? smi(ty) : 0f0
+    spba = zeros(Float32, ns); sptpa = zeros(Float32, ns)
+    gm_num = zeros(Float32, ns); gm_wt = zeros(Float32, ns)
+    spviab = ones(Float32, ns); vscore = ones(Float32, ns)
+    @inbounds for sp in 1:ns
+        spviab[sp], vscore[sp] = species_vscore(cd, c.plant_symbols[sp], ty)
+    end
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]; d <= 0f0 && continue
+        sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+        pr = t.tpa[i]
+        spba[sp]  += d * d * pr * 0.005454154f0
+        sptpa[sp] += pr
+        if have_grow
+            by = ty - t.birth_age[i]
+            xdf = leites_xdf(mtcm_now, A(:mtcm, by))
+            xwl = leites_xwl(mmin_now, A(:mmin, by), A(:dd0, by))
+            xpp = leites_xpp(smi_now, smi(by), A(:d100, by))
+            xr  = clim_xrelgr(c.plant_symbols[sp], xdf, xpp, xwl)
+            _, tm = clim_treemult(xgsite, xr, vscore[sp], c.growmult[sp])
+            gm_num[sp] += tm * pr; gm_wt[sp] += pr
+        end
+    end
+    icyc = max(1, Int(s.control.cycle))
+    mxden = 1f0
+    if icyc > 1
+        clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
+        mxden = clim_maxden_mult(s, ty, clmx)
+    end
+    potestab = _climate_potestab(s, c, cd, ty, fint, icyc)
+    tba = sum(spba); ttpa = sum(sptpa)
+    spimp = zeros(Float32, ns)
+    @inbounds for sp in 1:ns
+        b = tba > 0f0 ? spba[sp] / tba : 0f0
+        p = ttpa > 0f0 ? sptpa[sp] / ttpa : 0f0
+        spimp[sp] = b + p
+    end
+    si = sum(spimp); si > 0f0 && (spimp ./= si)
+    out = NamedTuple[]
+    @inbounds for sp in 1:ns
+        (spimp[sp] > 0.05f0 || spviab[sp] > 0.4f0) && (findfirst(==(c.plant_symbols[sp]), cd.labels) !== nothing) || continue
+        gm = gm_wt[sp] > 0f0 ? gm_num[sp] / gm_wt[sp] : 1f0
+        push!(out, (sp = sp, viab = spviab[sp], ba = spba[sp], tpa = sptpa[sp],
+                    mort1 = c.spmort1[sp], mort2 = c.spmort2[sp], gmult = gm,
+                    sitgm = xgsite^c.growmult[sp], mxden = mxden, potestab = potestab[sp]))
+    end
+    return out
+end
+
+# POTESTAB(I) per species (clauestb.f:80-113). Uses the AutoEstb activity params if present, else the clinit.f
+# defaults (AESNTREES=500, NESPECIES=4, AESTOCK=40) — clauestb computes the REPORT with those regardless of LAESTB.
+function _climate_potestab(s::StandState, c, cd, ty::Real, fint::Real, icyc::Integer)::Vector{Float32}
+    ns = length(c.plant_symbols); pot = zeros(Float32, ns)
+    aesntrees = _CL_AESNTREES; nespecies = _CL_NESPECIES; aestock = _CL_AESTOCK
+    @inbounds for e in c.autoestb                                   # latest AutoEstb event overrides the defaults
+        e[1] <= icyc && (aestock = e[2]; aesntrees = e[3]; nespecies = e[4])
+    end
+    t = s.trees
+    xmax = stand_sdimax(s)
+    if icyc > 1
+        clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
+        xmax *= clim_maxden_mult(s, Float32(ty), clmx)
+    end
+    rmsqd = max(5f0, stand_qmd(s))
+    tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)
+    tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
+    ptrees = tmaxtrs > 1f0 ? clamp(2f0 - 4f0 * (tprob / tmaxtrs), 0f0, 1f0) : 1f0
+    (ptrees * aesntrees > 0f0) || return pot
+    sc = fill(-1f0, ns)                                            # −1 = no viability column (INDXSPECIES=0 gate)
+    @inbounds for sp in 1:ns
+        findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
+        sc[sp] = species_vscore(cd, c.plant_symbols[sp], Float32(ty))[1]
+    end
+    order = sortperm(sc; rev = true)
+    nspec = 0; for sp in order; sc[sp] < 0.4f0 && break; nspec += 1; end
+    nspec == 0 && return pot
+    nspec > nespecies && (nspec = round(Int, nespecies))
+    top = order[1:nspec]
+    @inbounds for sp in top; sc[sp] = clamp(-1f0 + 2.5f0 * sc[sp], 0f0, 1f0); end
+    ttoadd = sc[top[1]] > 0.8f0 ? aesntrees : aesntrees * sc[top[1]]
+    ssum = 0f0; @inbounds for sp in top; ssum += sc[sp]; end
+    ssum > 0.001f0 || return pot
+    tprob > tmaxtrs * aestock * 0.01f0 && return pot
+    @inbounds for sp in top
+        xx = ptrees * ttoadd * (sc[sp] / ssum)
+        xx <= 1f0 && (xx = 0f0)
+        pot[sp] = xx
+    end
+    return pot
 end
 
 """

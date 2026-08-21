@@ -164,7 +164,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
                         carbon_collect::Union{Nothing,Vector} = nothing,
                         potfire_collect::Union{Nothing,Vector} = nothing,
-                        hrvcarbon_collect::Union{Nothing,Vector} = nothing)
+                        hrvcarbon_collect::Union{Nothing,Vector} = nothing,
+                        climate_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
     # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
@@ -354,6 +355,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                              ffe_init_period = ffe_defer_init ? per : nothing)   # advances cycle
             r.accretion = _acc_mort(gr.accretion)
             r.mortality = _acc_mort(gr.mortality)
+            # Climate-FVS report (clauestb.f/DBSCLSUM): collected POST-growth, labeled with the cycle-START year,
+            # viability sampled at report_year+fint/2 — the offset FVS uses (see climate_report). c.spmort1/2 were
+            # just populated by grow_cycle!'s apply_climate_mort!.
+            climate_collect === nothing || (s.climate !== nothing && s.climate.active) &&
+                push!(climate_collect, (Int(r.year), climate_report(s; report_year = Int(r.year), fint = per)))
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
             end

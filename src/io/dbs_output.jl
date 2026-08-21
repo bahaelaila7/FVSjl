@@ -276,6 +276,43 @@ function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_Climate schema (dbsclsum.f:33-48) — Climate-FVS per-species Viability-and-Effects report.
+const _FVS_CLIMATE_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Climate(
+  CaseID text not null, StandID text not null, Year Int null,
+  SpeciesFVS text null, SpeciesPLANTS text null, SpeciesFIA text null,
+  Viability real null, BA real null, TPA real null, ViabMort real null, dClimMort real null,
+  GrowthMult real null, SiteMult real null, MxDenMult real null, AutoEstbTPA real null)"""
+
+"""
+    write_dbs_climate!(dbpath, caseid, standid, rows, coef) -> dbpath
+
+Write the Climate-FVS per-species Viability-and-Effects report to the `FVS_Climate` DBS table (dbsclsum.f,
+CLIMREDB toggle). `rows` is the `(year, report_vector)` collection, where each `report_vector` is a
+`climate_report` result (one NamedTuple per reported species); `coef` supplies the FVS/PLANTS/FIA species codes.
+"""
+function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, rows::AbstractVector, coef)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_CLIMATE_CREATE)
+        ins = "INSERT INTO FVS_Climate VALUES (" * join(fill("?", 15), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, rep) in rows
+            for r in rep
+                sp = r.sp
+                DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                    strip(coef.code_alpha[sp]), strip(coef.code_plants[sp]), strip(coef.code_fia[sp]),
+                    Float64(r.viab), Float64(r.ba), Float64(r.tpa), Float64(r.mort1), Float64(r.mort2),
+                    Float64(r.gmult), Float64(r.sitgm), Float64(r.mxden), Float64(r.potestab)))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Down_Wood_Vol schema (dbsfmdwvol.f:61-79) — down-wood volume (cuft/ac) by DBH bin × hard/soft.
 const _FVS_DWDVOL_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Vol(

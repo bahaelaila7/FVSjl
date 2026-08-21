@@ -1503,7 +1503,8 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
-                                 grow_events, mort_events, autoestb_events, mxden_events, Float32[])
+                                 grow_events, mort_events, autoestb_events, mxden_events,
+                                 Float32[], zeros(Float32, ns), zeros(Float32, ns))
     end
     return s
 end
@@ -1661,6 +1662,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_treelist = true
         elseif k == "COMPUTDB"
             s.control.dbs_compute = true
+        elseif k == "CLIMREDB"
+            s.control.dbs_climate = true
         end
     end
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
