@@ -58,6 +58,11 @@ mutable struct ClimateState <: AbstractClimateState
     # MxDenMlt (climate max-density weight CLMXDENMULT, clmaxden.f) events = (cycle, weight). Scales the
     # SDI-max XMAX by MXDENMLT = 1+(XX−1)·weight; latest event with cycle ≤ icyc supplies the weight (dflt 1).
     mxden::Vector{Tuple{Int,Float32}}
+    # SPCALIB — the first-cycle species-presence calibration (clmorts.f:57-75). Set once at ICYC=1: for a species
+    # PRESENT in the inventory, SPCALIB = viab@IY(ICYC)·0.9; for an absent species, −1 (signal). Empty = not yet
+    # computed. Rescales the viability→survival curve for present low-viability species so they don't over-die in
+    # early cycles (clmorts.f:91-98). Persisted across cycles.
+    spcalib::Vector{Float32}
 end
 
 """
@@ -274,6 +279,24 @@ branch, clmorts.f:95-97, is a first-cycle refinement — chunk C, needs the pres
 @inline clim_survival(xv::Real)::Float32 = algslp(xv, _CLM_VS, _CLM_SR)
 
 """
+    clim_survival_cal(xv, spcalib) -> Float32
+
+10-yr survival with the first-cycle presence-calibration (clmorts.f:91-98). `spcalib` is the species'
+SPCALIB value. If it is −1 (species absent from the inventory) or > 0.5 (present and consistent with its
+viability), use the basic survival curve. Otherwise (present but low-viability) rescale the viability knots
+by `2·max(0.1, spcalib)` — a more forgiving curve so a naturally-low-viability resident isn't over-killed.
+"""
+@inline function clim_survival_cal(xv::Real, spcalib::Real)::Float32
+    (spcalib == -1f0 || spcalib > 0.5f0) && return algslp(xv, _CLM_VS, _CLM_SR)
+    x = Float32(spcalib) < 0.1f0 ? 0.1f0 : Float32(spcalib)
+    lo = _CLM_VS[1] * x * 2f0; hi = _CLM_VS[2] * x * 2f0     # rescaled viability knots (SR = 0..1)
+    v = Float32(xv)
+    v <= lo && return 0f0
+    v >= hi && return 1f0
+    return (v - lo) / (hi - lo)
+end
+
+"""
     clim_mort_rates(x, fint, mult) -> (spmort1, fyrmort)
 
 Climate mortality from 10-yr survival `x` (clmorts.f:103-120): `spmort1 = (1−x)·mult` (10-yr, for
@@ -301,11 +324,27 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
     (c === nothing || !c.active) && return s
     cd = c.data; ix = c.indices; t = s.trees; ns = length(c.plant_symbols)
     ty = Float32(thisyr); fi = Float32(fint)
-    # (1) Per-species viability FYRMORT (clmorts.f:79-126) — the SPMORT1/FYRMORT loop.
+    # (0) First-cycle presence calibration (clmorts.f:57-75): once, set SPCALIB from INVENTORY presence.
+    # Sampled at IY(ICYC) = cycle-START (ty − fint/2), ·0.9 for present species, −1 for absent. Persisted.
+    if isempty(c.spcalib)
+        c.spcalib = fill(-1f0, ns)
+        present = falses(ns)
+        @inbounds for i in 1:t.n
+            (t.dbh[i] > 0f0 && t.tpa[i] > 0f0) || continue
+            sp = Int(t.species[i]); (1 <= sp <= ns) && (present[sp] = true)
+        end
+        startyr = ty - fi / 2f0
+        @inbounds for sp in 1:ns
+            present[sp] || continue
+            findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
+            c.spcalib[sp] = species_vscore(cd, c.plant_symbols[sp], startyr)[1] * 0.9f0
+        end
+    end
+    # (1) Per-species viability FYRMORT (clmorts.f:79-126) — the SPMORT1/FYRMORT loop, presence-calibrated.
     fy = zeros(Float32, ns)
     @inbounds for sp in 1:ns
         xv, _ = species_vscore(cd, c.plant_symbols[sp], ty)   # raw viability at THISYR
-        _, fy[sp] = clim_mort_rates(clim_survival(xv), fi, c.mortmult[sp])
+        _, fy[sp] = clim_mort_rates(clim_survival_cal(xv, c.spcalib[sp]), fi, c.mortmult[sp])
     end
     # (2) Climate-transfer-distance DMORT (clmorts.f:133-237). LDMORT gate = all DE* + the
     # climate columns present (clmorts.f:133-138). CTHISYR = current-year climate metrics.

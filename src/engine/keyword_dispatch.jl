@@ -1503,7 +1503,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
-                                 grow_events, mort_events, autoestb_events, mxden_events)
+                                 grow_events, mort_events, autoestb_events, mxden_events, Float32[])
     end
     return s
 end
