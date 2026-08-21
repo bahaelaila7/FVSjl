@@ -153,3 +153,35 @@ down-wood StandDead falldown is separately validated, but the STANDING-snag_summ
 report itself (fall-down/decay of the snag_summary), a focused FFE-snag-model dive — NOT the trivial DBS wiring
 (verified) nor a mere timing alignment. The emission recipe + FMSOUT aggregation formula + SNAGSUDB wiring are all in
 hand and drop in once the snag_summary fall-down is bit-exact-or-cornered on a validated-FFE variant.
+
+## ★ RESUME HANDOFF 2026-08-21 (container restart) — OC oracle A/B is SET UP; run the jl side next
+PPE landscape harness DONE + committed (cccf01b4) — unrelated, that item is closed.
+DBS FVS_SnagDet: switched the A/B fixture from IE (FFE unvalidated) to **OC (FFE bit-exact-or-cornered)** per the
+recipe's own caveat. Oracle emission WORKS on OC:
+  - Keyfile: `/workspace/.ocwork/ocsnag.key` (+ `ocsnag.tre`), also in `scratchpad/ocffe/`. Derived from
+    ocffe_full.key: added FFE `SNAGSUM`+`SNAGOUT` and a DBS output block (DSNOUT ocsnag_oracle.db / SUMMARY /
+    SNAGSUDB / SNAGOUDB / END). Bare TREEDATA (auto-reads <base>.tre).
+  - RUN VIA: `./FVSoc_clean --keywordfile=ocsnag.key` (NOT stdin; stdin gave STOP 10 +
+    all-zero .sum = trees didn't load).
+  - Oracle DB `ocsnag_oracle.db` (also copied to scratchpad/ocffe/): **FVS_SnagSum 12 rows, FVS_SnagDet 379 rows.**
+  - sqlite3 CLI is ABSENT — read via Julia `using SQLite, DBInterface` (DataFrames NOT in the project; iterate rows).
+  - Oracle FVS_SnagSum hard densities (soft_total=0 all cycles; classes are CUMULATIVE ≥SNPRCL(c), so hTot=h1):
+    1993 h1=55.26 · 1998 92.99 · 2003 264.90 · 2008 51.01 · 2013 8.67 · 2018 9.66 · 2023 9.25 · 2028 8.07 ·
+    2033 6.87 · 2038 6.01 · 2043 5.30 · 2048 4.71  (REALISTIC fall-down — NOT monotone; a clean bit-exact target.)
+
+jl side matches this structure EXACTLY: `snag_summary(s)` (src/engine/fire/snag.jl:424) returns
+`(hard=7-tuple, soft=7-tuple)` where slots 1-6 = CUMULATIVE density `d≥_FM_SNPRCL[c]` and slot 7 = total — the same
+cumulative semantics as FVS_SnagSum. `_FM_SNPRCL` (recipe open-item (a)) is ALREADY resolved in jl. So:
+
+NEXT STEP (immediate, ~2 min): run jl OC on `scratchpad/ocffe/ocffe_full.key` capturing `snag_summary(s)` each cycle
+(instrument simulate.jl's FFE report point at simulate.jl:916 / summary.jl:268, or a per-cycle callback), and A/B the
+hard/soft cumulative densities vs the oracle table above.
+  - IF bit-exact-or-cornered on OC ⇒ the snag MODEL is faithful ⇒ port `write_dbs_snagdet!` (pure serialization; full
+    aggregation spec already extracted from fmsout.f in this doc: (species IDC, JYR=IYR−yrdead+1 clamp 1..100, JCL by
+    SNPRCL), density-weighted Ht/DBH, summed Vol, normalize by TOTN). Resolve the last open lookup: SNVOLH/SNVOLS
+    volume definition vs jl SnagList fields (bolevol vs a computed cubic — check against oracle FVS_SnagDet
+    Current_Vol_Hard/Soft, which are INT()-truncated). Then wire SNAGOUDB toggle + A/B FVS_SnagDet column-by-column.
+  - IF jl snag densities diverge from the oracle on OC ⇒ it's a snag-MODEL divergence (like the prior EM monotone
+    finding); characterize + corner, do NOT force the serialization to a divergent target.
+Doctrine: commit write_dbs_snagdet! ONLY if the OC A/B is bit-exact-or-cornered. Same two-block recipe reusable for
+FVS_StrClass / FVS_CanProfile / FVS_Climate afterward.
