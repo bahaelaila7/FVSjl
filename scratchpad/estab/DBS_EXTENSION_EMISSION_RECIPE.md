@@ -141,3 +141,15 @@ ALIGN jl's snag-report cycle labeling with FMSOUT's (report the cycle's projecte
 which SnagSum/SnagDet track the oracle cornered. That timing-alignment (in the carb_rows collection point / the
 write_dbs_snagsum! year field) is the executable next step — a focused fix, then the reverted SNAGSUDB wiring + the
 SnagDet serializer (FMSOUT formula above) drop in and validate cornered on EM/CA/CR/WS/SO/WC (a validated-FFE variant).
+
+## CORRECTION 2026-08-21 — the snag divergence is a real FFE fall-down gap, NOT just timing (my prior refine over-claimed)
+Re-reading the actual EM FFE FVS_SnagSum numbers: jl's hard snags ACCUMULATE monotonically (2000 H10.8 → 2010 H21.46
+→ 2020 H26.46) while the oracle's stay ~FLAT (1990 H14.76 → 2000 H17.38 → 2010 H15.97). A one-cycle timing shift does
+NOT reconcile them (jl-shifted 10.8/21.46/26.46 vs oracle 14.76/17.38/15.97 — jl monotone-rising vs oracle flat). So
+jl's EM FFE STANDING-snag report retains snags that the oracle SHEDS (fall-down) — a genuine FFE snag fall-rate/decay
+divergence in the snag_summary (current-standing) computation, deeper than the wiring or a labeling offset. (The
+down-wood StandDead falldown is separately validated, but the STANDING-snag_summary density evidently isn't.)
+⇒ HONEST STATE: the DBS snag tables (FVS_SnagSum/SnagDet) are blocked on validating the per-variant FFE STANDING-snag
+report itself (fall-down/decay of the snag_summary), a focused FFE-snag-model dive — NOT the trivial DBS wiring
+(verified) nor a mere timing alignment. The emission recipe + FMSOUT aggregation formula + SNAGSUDB wiring are all in
+hand and drop in once the snag_summary fall-down is bit-exact-or-cornered on a validated-FFE variant.
