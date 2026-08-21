@@ -54,7 +54,12 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      VOLUME (MCuFt 732/BdFt 2417 exact) + SEAMRT mortality (10/10, TPA exact); multi-cycle = the cornered self-thin/
      DGSCOR straddle.** ⇒ item 3's full subsystem list (PFCON/SDICAL/SDICLS/SEAMRT/R10) confirmed bit-exact-or-cornered,
      not just "present". scratchpad/estab/AK_PERMAFROST_CONFIRMATION.md.
-  4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40), ON method-6/broken-top vol, COVER CVBCAL.
+  4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40 = external-data-blocked), COVER CVBCAL
+     (calibration refinement, primary output already bit-exact). **ON method-6/broken-top vol = confirmed NON-GAP
+     2026-08-21** (not a remaining item): jl volume.jl documents ON's default METHC=METHB=8 (ZAK/HONER via volont.f);
+     method 6 = R9CLARK/NATCRS which ON never selects (dead-code, all-METHC=8), and broken-top vol is oracle-degenerate
+     (clean CFTOPK=NaN, jl-correct, NE-r9clark class) per the ON completion. So item 4's real remainder = WSBWE-weather
+     (external dep) + COVER-CVBCAL (refinement) only.
   5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
      as done for WWPB). Note as un-portable, not a gap.
 Off-switch (`touch docs/WESTERN_ROLLOUT_COMPLETE`) remains the USER's call.
