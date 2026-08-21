@@ -1136,7 +1136,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
-                       point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[])
+                       point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
+                       stoadj::Real = 1f0)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1147,8 +1148,13 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # ~1.6 logit → PROB1 0.55 vs the real 0.88). REGT = TIME, SQREGT = √TIME (measured, stand4_estock_inputs.txt).
     pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
-    # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579); esb_shift = ESB-ESB1 (inventory calibration, cyc1/2).
-    prob1 = 1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))
+    # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579-580); esb_shift = ESB-ESB1 (inventory calibration).
+    # STOADJ = the STOCKADJ keyword multiplier (default 1.0 ⇒ inert). estab.f:578 clamps STOADJ≥0.001 before the
+    # multiply. NOTE: STOADJ<0.0001 (STOCKADJ 0.0, as NATURAL implies) takes a SEPARATE estab.f branch (GO TO
+    # 137/229/163 — no stocking model) which jl reaches via its scheduled-NATURAL path, NOT this tally; so the
+    # ≈0 case is out of scope for this multiply. The clamp keeps any positive keyword value faithful.
+    sa = Float32(stoadj); sa < 0.001f0 && (sa = 0.001f0)
+    prob1 = (1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))) * sa
     # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
     # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
     # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,
@@ -1312,7 +1318,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
-                      point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]))
+                      point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
+                      stoadj = est.stoadj)      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")

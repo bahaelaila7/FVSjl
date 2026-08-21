@@ -653,9 +653,12 @@ mutable struct Establishment
     es_nstore::Vector{Int32}    # per-plot stocked tree count (NSTORE, estab.f:685) from the prior tally in this
                                 # disturbance sequence; a continuation books only the increment ITPP-NSTORE.
     es_pnn::Vector{Float32}     # per-plot prior PROB1 (PNN, estab.f:953); old trees get the increment PROB1-PNN.
+    stoadj::Float32             # STOCKADJ keyword (esnutr.f IACTK 440 STOADJ): multiplier on the establishment
+                                # stocking probability PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Default
+                                # 1.0 (inert); NATURAL implies STOADJ=0.0 (esin.f:1230). Set inside the ESTAB packet.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[])
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0)
 
 mutable struct DbsState
     enabled::Bool

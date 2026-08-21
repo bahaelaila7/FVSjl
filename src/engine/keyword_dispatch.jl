@@ -1580,8 +1580,12 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             end
         elseif k == "NOSPROUT"                                # esin.f opt 27: disable sprouting
             s.control.lsprut = false
+        elseif k == "STOCKADJ"                                # esnutr.f IACTK 440: STOADJ = PRMS(1)
+            # Stockability adjustment — multiplier on the establishment stocking probability
+            # PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Applied in ie_autoes_run.
+            s.estab.stoadj = r.present[1] ? Float32(r.values[1]) : 1f0
         end
-        # other establishment keywords (TALLY/…) not yet ported — skipped
+        # other establishment keywords (SPECMULT/HTADJ/TALLY/…) not yet ported — skipped
     end
     # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
     # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.
