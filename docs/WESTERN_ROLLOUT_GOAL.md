@@ -49,7 +49,11 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      cornered** — cyc0 bit-exact (669/118), 2000 off-baseline TPA bit-exact (471); the on−off TPA delta matches the
      oracle in sign+scale (jl +119/+79/+75/+61/+51 vs oracle +158/+71/+64/+56/+37; permafrost slows DG ⇒ less
      self-thinning ⇒ more survivors). Residual = the cornered multi-cycle self-thin realization. akt01 is coastal so
-     the path is inert THERE, but the ported LPERM/PFMOD is now proven live+correct. scratchpad/estab/AK_PERMAFROST_CONFIRMATION.md.
+     the path is inert THERE, but the ported LPERM/PFMOD is now proven live+correct. **AK END-TO-END also CONFIRMED
+     (171740bd): coastal akt01 jl(AK) vs FVSak_clean — cyc0 .sum bit-exact-or-±1-NINT across ALL columns incl R10
+     VOLUME (MCuFt 732/BdFt 2417 exact) + SEAMRT mortality (10/10, TPA exact); multi-cycle = the cornered self-thin/
+     DGSCOR straddle.** ⇒ item 3's full subsystem list (PFCON/SDICAL/SDICLS/SEAMRT/R10) confirmed bit-exact-or-cornered,
+     not just "present". scratchpad/estab/AK_PERMAFROST_CONFIRMATION.md.
   4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40), ON method-6/broken-top vol, COVER CVBCAL.
   5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
      as done for WWPB). Note as un-portable, not a gap.
