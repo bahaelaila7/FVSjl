@@ -591,3 +591,15 @@ growth/.sum/gate unaffected — DEFERRED (deep, niche).** Four turns of measurem
 validated code chunk emerged (the two candidate fixes — SNAGINIT-timing and the d>=1 filter — were both DISPROVEN as
 the cause). Pivot recommendation: the snag subsystem is a characterize-and-defer sink; the higher-value remaining tail
 is elsewhere (StrClass DBS, or accept the DBS-snag tables as cornered on this timing divergence).
+
+## ★★ FVS_StrClass — DONE 2026-08-21 (4e4c27e5): bit-exact-or-cornered vs FVSoc_clean + a real OC crown-width fix
+Ported write_dbs_strclass! (46-col schema, 3 strata × 13 + Year/Removal_Code/Number_of_Strata/Total_Cover/
+Structure_Class) + Control.dbs_strclass + STRCLSDB DATABASE-block keyword + before/after-thin collect (cd 0/1) in
+write_sum_file + simulate.jl write. jl's structure_report already had the per-stratum data. KEYFILE: STRCLASS (main
+kw, triggers SSTAGE) + DATABASE{DSNOUT, STRCLSDB} — and NO stray `End` when there's no FMIN/ESTAB block open (that
+was an exit-20). **Found+FIXED a real gap:** _ss_strata dispatched only CR→cr_cwcalc / SO→so_cwcalc; OC fell to the
+generic crown_width → ~0 cover → wrong strata/DBHNOM/dominant-species. Added OregonCoast→oc_cwcalc (also fixes the OC
+structure_class fmcba/fuel-models read). A/B (OC 30-tree ocstr.key): cyc0(1993)+1998+2008 ALL 43 cols BIT-EXACT;
+residuals only at 2003 DBHNOM(~1%) + 2013 ht/cover(±1-NINT) = cornered OC growth straddle. 382/387 cells bit-exact,
+test 19/19, gate 339/11. Recipe reminder: the FVS_StrClass DBH column is the RAW Float32 DBHNOM (stricter than the
+rounded .out report) — a good A/B discriminator. Remaining DBS: BM/DM/RD blocked; SnagDet DEFERRED (snag-list model).
