@@ -174,3 +174,18 @@ are bit-exact-vs-pristine. NEXT (the only remaining biology→FVS + orchestratio
 Note: many bmdrv sub-calls (bmpher/bmaph/bmpstc/bmsalv/bmsani/bmsmgt mgmt, bmobb/bmdfol other-agents, bmfire/bmfmrt
 fire, bmcwin windthrow, bmlite lightning, bmagdw aging) are OPTIONAL for a minimal outbreak — their inputs are 0/off
 by default (no fire/wind/mgmt keywords) ⇒ the minimal chain is bmsdit→bmcgrf→bmcbkp→bmcnum→bmatct→bmistd→bmmort→bmkill.
+
+
+## CHUNK 3j DONE — BMKILL handback BIT-EXACT ⇒ full biology↔FVS bridge complete
+bmkill! (WK2 handback) validated bit-exact (driver_bmkill.f) on both the kill case + the PROB-bound case. ⇒ bmsdit!
+(FVS→BM) + 10 beetle kernels + bmkill! (BM→FVS) all bit-exact. REMAINING = ONLY the orchestration (no more per-tree
+biology):
+  • BMSETP + PPMAIN single-stand harness (reconstruct — the absent outer layer): per FVS cycle, bmsdit!(bridge) →
+    bmdrv per-year loop → bmkill!(handback). For a MINIMAL outbreak (no fire/wind/mgmt keywords) the per-year loop
+    is: bmcgrf! → bmcbkp! → bmcnum! → bmatct_single! → bmistd! → bmmort!(slow). GRF stressors default neutral,
+    OAKILL=0 (no fast agents), so bmmort-fast/bmcwin/bmfire/bmobb/bmdfol/bmqmrt are no-ops.
+  • BMPPIN keyword block: DISPERSE (→IBMYR1 outbreak start year + duration IBMYR2), HOST (→HSPEC, default LP/PP),
+    PBSPEC, RANNSEED. Wire into keyword_dispatch.jl.
+  • simulate.jl landscape seam (single-stand MXSTND=1): call the PPMAIN-equivalent per cycle if a DISPERSE outbreak
+    is active + the year is in [IBMYR1,IBMYR2]; apply the returned WK2 to FVS mortality (pre-tripling, like the other
+    insect seams). ⇒ end-to-end outbreak. Corner the composition (reconstructed harness, per the USER decision).
