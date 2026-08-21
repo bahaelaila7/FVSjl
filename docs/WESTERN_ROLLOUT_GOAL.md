@@ -61,7 +61,16 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      (clean CFTOPK=NaN, jl-correct, NE-r9clark class) per the ON completion. So item 4's real remainder = WSBWE-weather
      (external dep) + COVER-CVBCAL (refinement) only.
   5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
-     as done for WWPB). Note as un-portable, not a gap.
+     as done for WWPB). Note as un-portable, not a gap. **VERIFIED 2026-08-21 (USER asked "why un-portable"):** grep of
+     ForestVegetationSimulator/*.f/*.for finds ZERO `subroutine/program` definitions for PPMAIN/ALSTD/ALSTD2/SPLAEX/PPE.
+     The ONLY surviving PPE artifacts are `archive/PPEcommons/PPEPRM.F77` + `PPEXCM.F77` (COMMON-block *declarations* =
+     variable memory layout, not logic) and `tests/testSetFromFMSC/PPECTEST.RSP` (a test .RSP). So there is no algorithm
+     source to translate — "port faithfully then validate bit-exact" is impossible with absent code. Distinct from every
+     other remaining item (which HAVE source, blocked on fixtures/model-bit-exactness/USER-decision). WWPB precedent: its
+     beetle KERNELS had source (ported bit-exact); only its orchestrator (same PPMAIN/ALSTD2/SPLAEX family) was absent →
+     reconstructed as wwpb_outbreak_cycle!. PPE standalone is all-orchestrator with no in-tree model to anchor a
+     reconstruction to a bit-exact bar ⇒ only a behavior-faithful (NOT oracle-validated) reconstruction is possible = a
+     USER-gated judgment call, not autonomous-portable work.
 Off-switch (`touch docs/WESTERN_ROLLOUT_COMPLETE`) remains the USER's call.
 
 ## ★★★★ PRIOR DIRECTIVE (USER, 2026-08-19, via AskUserQuestion) — ✓ SATISFIED 2026-08-20/21; backlog EXHAUSTED
