@@ -407,3 +407,16 @@ method + verify OC crown_biomass to close it (a separate OC-FFE chunk; the CanPr
 ⇒ TWO DBS tables now DONE (FVS_Climate + FVS_CanProfile). Remaining: SnagDet cornered; BM/DM/RD blocked; StrClass
 44-col heavy needs structure_stage per-stratum exposure. The <x>_report + write_dbs_<x>! + collect-hook pattern is
 proven twice; the only per-table decision is the collection TIMING (pre vs post growth) + the enabling keyword.
+
+## ★ OC canopy_crfill divergence — REFINED 2026-08-21 (it's crown_biomass, NOT the LSW)
+Investigated the OC-FFE canopy bug lead. Read OC fmvinit.f LSW (fire/oc/fmvinit.f:138-320): LSW=TRUE for species
+**1-25 + 50** (26-49 FALSE). So the jl AbstractVariant fallback `sp≤25` is NEARLY RIGHT for OC (misses only sp==50,
+absent from the test stands) — the LSW is NOT the divergence cause. The real gap is OC/ORGANON **crown_biomass ~4×
+LOW**: at the SAME pre-growth timing, oracle 1993 ht12=238.89 vs jl 57.68 (ratio 4.14), and jl spreads crown to
+lower heights (ht 5-7) the oracle lacks (crown-base/crown_pct difference). ⇒ closing OC FVS_CanProfile needs an
+ORGANON crown-biomass fix (crown_biomass(s,sp,...) for the 18 ORGANON species returns ~1/4 the oracle's foliage+
+finewoody) + a crown-base check — a deeper OC-FFE chunk, LATENT (.sum-inert on OC test stands: OC crown fire doesn't
+fire, so canopy_bulk_density only affects the report + the un-triggered crown-fire index). A future OC-FFE session:
+add fm_canopy_lsw(::OregonCoast)=(1≤sp≤25)||sp==50 (source-faithful, tiny) AND dump FVSoc_g16 fmpocr per-tree
+crown-biomass to find the ~4× ORGANON factor. FVS_CanProfile itself is DONE (validated on CR); this OC gap is a
+separate OC-FFE model item, not a CanProfile-port gap.
