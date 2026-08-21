@@ -89,3 +89,25 @@ EXECUTABLE next-session plan:
      recipe above (FMIN/SNAGSUM/SNAGOUT + DBS SNAGOUDB) and jl with the same, diff FVS_SnagDet column-by-column.
   5. Commit ONLY if bit-exact-or-cornered. Same shape for FVS_StrClass (structure_stage.jl has the stage; the
      per-stratum detail — Stratum_N_DBH/Ht/Crown/species — needs jl to expose the strata, a bigger lift).
+
+## FVS_SnagDet — COMPLETE aggregation spec extracted 2026-08-21 (fmsout.f) — port now fully de-risked
+FMSOUT builds the per-(species IDC, deathyear-index JYR, dbhclass JCL 1-6) arrays that DBSFMDSNAG binds:
+  - JYR = IYR − YRDEAD(II) + 1 (years since death, clamp 1..100).  [jl: IYR − SnagList.yrdead[i] + 1]
+  - JCL: DO JCL=1,5 { if DBHS(II) < SNPRCL(JCL+1) → that JCL } else JCL=6.  [SNPRCL = 6 snag-print-class DBH
+    breakpoints — LOOK UP in fmcom/blkdat; jl bins SnagList.dbh[i] the same way]
+  - Density: TOTDS += DENIS (soft) always; if HARD(II) → TOTDH += DENIH (hard) else TOTDS += DENIH.
+    [jl: DENIH=SnagList.den_hard, DENIS=SnagList.den_soft; HARD flag = jl's hard/soft state via yrdead+DKTIME]
+  - Height (density-weighted): TOTHTH += HTIH·DENIH (hard), TOTHTS += HTIS·DENIS (soft; +HTIH·DENIH if !HARD).
+    [jl: HTIH/HTIS = SnagList.htcur]
+  - DBH (density-weighted): TOTDBH += DBHS·(DENIS+DENIH).
+  - Volume (summed): TOTVLH += SNVOLH, TOTVLS += SNVOLS.  [SNVOLH/SNVOLS = the snag CUBIC volume computed just
+    above line 172 — LOOK UP; NOT necessarily jl's SnagList.bolevol (tons biomass) — this is the OPEN risk: confirm
+    the report volume definition matches a jl SnagList field or needs computing]
+  Then NORMALIZE: TOTN=TOTDH+TOTDS; TOTDBH/=TOTN; TOTHTH/=TOTDH; TOTHTS/=TOTDS (guard >0). Emit rows where TOTN>0.
+  DBSFMDSNAG binds: Year=IYR, Species{FVS/PLANTS/FIA}=JSP/PLNJSP/FIAJSP(IDC), DBH_Class=JCL, Death_DBH=TOTDBH,
+  Current_Ht_Hard=TOTHTH, Current_Ht_Soft=TOTHTS, Current_Vol_Hard=INT(TOTVLH), Current_Vol_Soft=INT(TOTVLS),
+  Total_Volume=INT(TOTVLH+TOTVLS), Year_Died=IYR−JYR+1, Density_Hard=TOTDH, Density_Soft=TOTDS, Density_Total=TOTN.
+REMAINING OPEN (2 lookups + 1 fixture): (a) SNPRCL breakpoints, (b) SNVOLH/SNVOLS volume definition vs jl SnagList
+fields, (c) an FFE-bit-exact fixture (AK growth/vol/mort confirmed cyc0 bit-exact 171740bd, but AK FFE snag-model
+bit-exactness is UNVERIFIED — verify jl-vs-oracle FVS_SnagSum first, then SnagDet). With those three resolved the
+serializer is a direct transcription of the formula above.
