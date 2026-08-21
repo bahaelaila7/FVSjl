@@ -269,4 +269,20 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test hx(c.inc[3,1]) == 0x3D6147AD                    # INC(3,·) = INC(1,1)·0.1
         @test hx(c.inc[3,10]) == 0x3D6147AD                   # Ips constant across classes
     end
+
+    @testset "BMCBKP — BKP brood BIT-EXACT vs gfortran-16 driver (bmcbkp.f)" begin
+        # golden: scratchpad/wwpb/driver_bmcbkp.f over the pristine wwpb/bmcbkp.f
+        # (with GPGET2/GPADD stubbed to LOK=false ⇒ the normal, non-bad-year path),
+        # gfortran-16. PBSPEC=1, NBGEN=1, NIBGEN=2, PBKILL(3)=10, PBKILL(5)=5, all
+        # else 0 ⇒ BKP = Σ MSBA·PBKILL·INC(1,·). Float32 hex (Z8.8).
+        hx(x) = reinterpret(UInt32, x)
+        st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v)
+        c = FVSjl.wwpb_init_coeffs(copy(FVSjl.WWPB_UPSIZ_DEFAULT))
+        st.pbkill[3] = 10.0f0; st.pbkill[5] = 5.0f0
+        FVSjl.bmcbkp!(st, w, c; nbgen = 1, nibgen = 2, ipson = false, ipsmin = 2)
+        @test hx(st.bkp)    == 0x41439CF3     # BKP brood from PBKILL
+        @test hx(st.bkpips) == 0x00000000     # no Ips input
+        @test hx(st.oldbkp) == 0x41439CF3     # OLDBKP = BKP (PBSPEC≠3)
+        @test all(st.pbkill[i] == 0.0f0 for i in 1:10)    # PBKILL consumed
+    end
 end

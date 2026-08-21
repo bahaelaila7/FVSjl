@@ -90,6 +90,13 @@ mutable struct WwpbStand
     strike::Vector{Float32}     # STRIKE(NSCL) — lightning-strike proportion
     rvdsc::Vector{Float32}      # RVDSC(NSCL)  — drought rating value
     rvdfol::Vector{Float32}     # RVDFOL(NSCL) — defoliator rating value
+    # --- BKP (beetle-killing-potential / brood) state (bmcbkp.f) ---
+    bkp   ::Float32             # BKP    — stand beetle-killing potential (non-Ips)
+    bkpips::Float32             # BKPIPS — Ips beetle-killing potential
+    oldbkp::Float32             # OLDBKP — BKP before dispersal (feedback ref)
+    final ::Vector{Float32}     # FINAL(3) — last tree killed [bkp used, size class, tpa killed]
+    strip ::Vector{Float32}     # STRIP(NSCL) — strip-attack proportion
+    pslash::Matrix{Float32}     # PSLASH(MXDWHC=2, MXDWSZ=2) — slash colonized by Ips
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -108,6 +115,7 @@ function WwpbStand()
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # sdmr, srr, ssr
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # othatt, topkll, strike
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # rvdsc, rvdfol
+        0.0f0, 0.0f0, 0.0f0, zeros(Float32, 3), zeros(Float32, WWPB_NSCL), zeros(Float32, 2, 2),  # bkp, bkpips, oldbkp, final, strip, pslash
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -361,4 +369,58 @@ function wwpb_init_coeffs(upsiz::Vector{Float32};
         inc[3, i] = inc[1, 1] * 0.1f0
     end
     return (msba = msba, upba = upba, inc = inc)
+end
+
+# -----------------------------------------------------------------------------
+# bmcbkp! (bmcbkp.f) — compute the beetle-killing-potential (BKP, "brood") from
+# last year's kills. NORMAL (non-bad-year) path, PBSPEC≠3: for each size class,
+# BKP += INC(pbspec,isiz)·MSBA·PBKILL (reproduction from filled trees) + the
+# FINAL last-tree term + 0.75·STRIP (strip attacks); zeroes PBKILL/STRIP. Ips
+# BKPIPS from TOPKLL/ALLKLL. Then BKP·=REPRD, BKPIPS·=REPRDI (generation mults
+# from NBGEN/NIBGEN), the LFDBK negative-feedback cap, and the PSLASH·WPBA slash
+# term. OLDBKP=BKP. Faithful to bmcbkp.f. The bad-reproduction-year branch
+# (GPGET2(317) scheduler) is NOT yet wired — LBAD defaults false (the outbreak
+# path); a future BADREP-keyword chunk adds it. Deterministic (no transcendentals).
+# -----------------------------------------------------------------------------
+function bmcbkp!(st::WwpbStand, w::WwpbState, coeffs;
+                 nbgen::Int=1, nibgen::Int=2, ipson::Bool=false, ipsmin::Int=2,
+                 wpba::Vector{Float32}=zeros(Float32, 2), lfdbk::Bool=false, tfdbk::Float32=0.0f0)
+    pbspec = Int(w.pbspec)
+    msba = coeffs.msba; inc = coeffs.inc
+    slinc = 5.0f0
+    reprd  = nbgen  == 1 ? 1.0f0 : nbgen  == 2 ? 1.5f0 : nbgen  == 3 ? 2.0f0 : 2.5f0
+    reprdi = nibgen == 1 ? 1.0f0 : nibgen == 2 ? 1.5f0 : nibgen == 3 ? 2.0f0 : 2.5f0
+    if pbspec == 3
+        reprd != 0.0f0 && (reprdi = reprd)
+        reprd = 0.0f0
+    end
+    @inbounds for isiz in 1:WWPB_NSCL
+        if pbspec != 3
+            if Int(st.final[2]) == isiz
+                st.pbkill[isiz] -= st.final[3]
+                st.pbkill[isiz] < 0.0f0 && (st.pbkill[isiz] = 0.0f0)
+                st.bkp += inc[pbspec, isiz] * st.final[1] * st.final[3]
+                st.final[1] = 0.0f0; st.final[2] = 0.0f0; st.final[3] = 0.0f0
+            end
+            st.bkp += msba[isiz] * st.pbkill[isiz] * inc[pbspec, isiz]
+            st.pbkill[isiz] = 0.0f0
+            st.bkp += msba[isiz] * inc[pbspec, isiz] * 0.75f0 * st.strip[isiz]
+            st.strip[isiz] = 0.0f0
+        end
+        st.bkpips += inc[3, isiz] * st.topkll[isiz] * st.tree[isiz, 1] * msba[ipsmin]
+        st.bkpips += inc[3, isiz] * st.allkll[isiz] * msba[ipsmin]
+        st.allkll[isiz] = 0.0f0
+    end
+    st.bkp    *= reprd
+    st.bkpips *= reprdi
+    if lfdbk && st.bkp > st.oldbkp && st.oldbkp >= tfdbk
+        st.bkp = tfdbk
+    end
+    reprdi *= slinc
+    @inbounds for idtyp in 1:2, idsiz in 1:2
+        st.bkpips += st.pslash[idtyp, idsiz] * wpba[idsiz] * reprdi
+        st.pslash[idtyp, idsiz] = 0.0f0
+    end
+    st.oldbkp = pbspec != 3 ? st.bkp : st.bkpips
+    return st
 end
