@@ -269,3 +269,19 @@ climtest_oracle.db,probe_climrep.jl}) for a future session that takes on the cli
 the whole DBS extension-table long-tail is "needs per-table model-report-timing work + multi-cycle-cornered", not a
 stream of clean bit-exact serializations. The oracle-EMISSION recipe (proven for SnagSum/SnagDet/Climate) is the durable
 reusable asset.
+
+## ★★★ BREAKTHROUGH 2026-08-21 — the DBS-table "divergence" is REPORT-COLLECTION TIMING, jl values are CORRECT
+Settled the FVS_Climate viability discrepancy DEFINITIVELY. Inline PSME(DF) viability knots for S248112: 1990=0.95,
+2030=0.797. The oracle's FVS_Climate row LABELED Year=1990 reports Viability=0.9309 = PSME interpolated at **1995**
+(= 1990 + fint). Sampling jl at 1995 reproduces the oracle's "1990" row BIT-EXACT for EVERY species:
+  DF 0.9309 · WL 0.8584 · PP 0.4335 · GF 0.8869 · LP 0.8412 · ES 0.8818  (all == oracle).
+⇒ **FVS reports the DBS extension tables POST-GROWTH, sampling at the cycle-END year (report_label + fint).** jl's
+per-cycle carbon-collect samples at cycle-START (pre-growth), which is why the naive A/B diverged. jl's underlying
+climate reads are CORRECT — this is a COLLECTION-POINT bug, not a model divergence. The deterministic climate columns
+(Viability/GrowthMult/SiteMult/MxDenMult) are therefore BIT-EXACT-PORTABLE once collected at the post-growth point.
+This also explains the SnagDet timing (FMSOUT post-growth) — though SnagDet ALSO has a snag-dating divergence on top,
+so it still corners; Climate is clean for the deterministic columns (BA/TPA/mort corner multi-cycle on the tree list).
+ACTION: port FVS_Climate collecting per-species at the post-growth cycle-end sampling year (report_year + fint):
+climate_report(s, sample_year) → (SPVIAB,SPBA,SPTPA,SPMORT1,SPMORT2,SPGMULT[=Σtreemult·prob/Σprob],SPSITGM[=xgsite^clgrowmult],
+MXDENMLT,POTESTAB) with the SPIMP>0.05||SPVIAB>0.4 filter (clauestb.f:196); write_dbs_climate! (dbsclsum.f schema);
+wire CLIMREDB toggle. Expect Viability/GM bit-exact, BA/TPA cornered.
