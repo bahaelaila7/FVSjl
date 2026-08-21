@@ -106,6 +106,9 @@ mutable struct WwpbStand
     repphe::Float32             # REPPHE — repellent-pheromone factor (default → 1)
     ssbatk::Float32             # SSBATK — special-tree BA already attacked (0 initially)
     dwphos::Matrix{Float32}     # DWPHOS(2, MXDWHZ=3) — downed/standing host volume for Ips [type, size]
+    # --- kill / dead-wood state (bmistd.f) ---
+    sdwp ::Array{Float32,3}     # SDWP(MXDWPC=3, MXDWHZ+1=4, MXDWAG=5) — standing dead-wood volume pool
+    spray::Float32              # SPRAY — proportion of beetles killed by spraying (default 0)
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -127,6 +130,7 @@ function WwpbStand()
         0.0f0, 0.0f0, 0.0f0, zeros(Float32, 3), zeros(Float32, WWPB_NSCL), zeros(Float32, 2, 2),  # bkp, bkpips, oldbkp, final, strip, pslash
         zeros(Float32, WWPB_NSCL, 2), zeros(Float32, WWPB_NSCL), 0.0f0,  # spclt, pitch, atrphe
         zeros(Float32, 2), zeros(Float32, 2), 0.0f0, 0.0f0, zeros(Float32, 2, 3),  # numer, tfood, repphe, ssbatk, dwphos
+        zeros(Float32, 3, 4, 5), 0.0f0,                   # sdwp, spray
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -387,7 +391,23 @@ function wwpb_init_coeffs(upsiz::Vector{Float32};
     @inbounds for i in 1:WWPB_NSCL
         inc[3, i] = inc[1, 1] * 0.1f0
     end
-    return (msba = msba, upba = upba, inc = inc, wpba = wpba)
+    # L2D (bminit.f:141-158) — living size class → dead-wood host zone (0 if ≤3").
+    l2d = zeros(Int, WWPB_NSCL); jsiz = 1
+    @inbounds for isiz in 1:WWPB_NSCL
+        if Int(upsiz[isiz]) <= 3
+            l2d[isiz] = 0
+        else
+            dif = (upsiz[isiz] - wpsiz[jsiz]) + (upsiz[isiz-1] - wpsiz[jsiz])
+            if upsiz[isiz] <= wpsiz[jsiz]
+                l2d[isiz] = jsiz
+            elseif dif <= 0.0f0
+                l2d[isiz] = jsiz
+            else
+                jsiz += 1; l2d[isiz] = jsiz
+            end
+        end
+    end
+    return (msba = msba, upba = upba, inc = inc, wpba = wpba, l2d = l2d)
 end
 
 # -----------------------------------------------------------------------------
@@ -689,4 +709,213 @@ function bmcbet!(abeta::Float32, minsize::Int, maxsize::Int)::Vector{Float32}
         temp0 = temp1
     end
     return beta
+end
+
+# -----------------------------------------------------------------------------
+# bmistd! (bmistd.f) — the STOCHASTIC within-stand kill allocation: distribute
+# the stand BKP into per-size-class beetle kills (PBKILL), strip-kills (STRIP),
+# and pitch-outs (PITCH), using the beta-distribution size preference (bmcbet!)
+# and the BMRANN random stream (wwpb_rand!) — the exact call order is load-
+# bearing. Phases: SPRAY reduce → MXISIZ/ISIZ1/ABETA → bmcbet! → special-tree
+# kills (BMRANN) → deterministic group-kill (DO 555) → individual-kill (BMRANN,
+# DO 888) → PBKILL proportion→TPA + standing-dead-wood pool. Faithful to
+# bmistd.f. NZERO=1e-6. `sarea` = stand area (acres, from SPLAAR/the FVS stand).
+# -----------------------------------------------------------------------------
+function bmistd!(st::WwpbStand, w::WwpbState, coeffs; sarea::Float32)
+    NZERO = 1.0f-6; NUNIT = 1.0f0 - NZERO
+    msba = coeffs.msba; l2d = coeffs.l2d
+    p = zeros(Float32, WWPB_NSCL)
+    st.bkp = st.bkp * (1.0f0 - st.spray)
+    if st.bkp >= NZERO
+        attp = 1.0f0 / sarea
+        fill!(st.pitch, 0.0f0)
+        mxisiz = 1
+        @inbounds for isiz in WWPB_NSCL:-1:1
+            if st.tree[isiz, 1] > 0.0f0; mxisiz = isiz; break; end
+        end
+        isiz1 = 0
+        @inbounds for i in WWPB_NSCL:-1:1
+            if msba[i] * st.grf[i] <= st.bkp; isiz1 = i; break; end
+        end
+        isiz1 <= 0 && (isiz1 = 1)
+        abeta = 1.0f0
+        if st.bkp > 6.0f0
+            abeta = 15.0f0
+        elseif st.bkp <= 6.0f0 && st.bkp > 3.6f0
+            abeta = 2.5f0 + 4.46f0 * (st.bkp - 3.6f0)
+        elseif st.bkp <= 3.6f0 && st.bkp >= 1.6f0
+            abeta = 1.2f0 + 0.65f0 * (st.bkp - 1.6f0)
+        end
+        st.bkp < 1.6f0 && (abeta = 1.0f0)
+        beta = bmcbet!(abeta, 1, isiz1)
+
+        # ---- special-tree kills ----
+        tbasp = 0.0f0
+        @inbounds for isiz in 1:mxisiz
+            if st.spclt[isiz, 1] * st.tree[isiz, 1] > NZERO
+                tbasp += st.tree[isiz, 1] * st.spclt[isiz, 1] * msba[isiz]
+            end
+        end
+        if tbasp > NZERO
+            x = 0.0f0
+            @inbounds for isiz in 1:mxisiz
+                if st.spclt[isiz, 1] * st.tree[isiz, 1] > NZERO
+                    x += msba[isiz] * st.tree[isiz, 1] * st.spclt[isiz, 1] / tbasp
+                end
+                x > NUNIT && (x = 1.0f0); p[isiz] = x
+            end
+            spkill = 0
+            acres = max(floor(Int, sarea + 0.5f0), 1)
+            while spkill < acres && st.bkp > NZERO && tbasp > NZERO
+                xr = wwpb_rand!(w); isiz = mxisiz
+                @inbounds for i in 1:mxisiz
+                    if xr <= p[i] || i == mxisiz; isiz = i; break; end
+                end
+                host = st.tree[isiz, 1] * (st.spclt[isiz, 1] - st.pbkill[isiz])
+                attprp = attp >= host ? host / st.tree[isiz, 1] : attp / st.tree[isiz, 1]
+                bkpuse = attprp * st.tree[isiz, 1] * msba[isiz]
+                bkpkl = bkpuse * st.grf[isiz]
+                if st.bkp >= bkpkl
+                    st.final[1] = st.bkp < bkpuse ? st.bkp : bkpuse
+                    st.final[2] = Float32(isiz); st.final[3] = attprp * st.tree[isiz, 1]
+                    st.pbkill[isiz] += attprp; spkill += 1
+                    st.bkp -= bkpuse; st.bkp < NZERO && (st.bkp = 0.0f0)
+                    if st.pbkill[isiz] > st.spclt[isiz, 1]
+                        st.pbkill[isiz] = st.spclt[isiz, 1]
+                        tbasp = 0.0f0
+                        @inbounds for i in 1:mxisiz
+                            if st.spclt[i, 1] > st.pbkill[i] && st.tree[i, 1] > NZERO
+                                tbasp += st.tree[i, 1] * msba[i] * (st.spclt[i, 1] - st.pbkill[i])
+                            end
+                        end
+                        tbasp <= NZERO && break
+                        x = 0.0f0
+                        @inbounds for i in 1:mxisiz
+                            if st.spclt[i, 1] > st.pbkill[i] && st.tree[i, 1] > NZERO
+                                x += msba[i] * st.tree[i, 1] * (st.spclt[i, 1] - st.pbkill[i]) / tbasp
+                            end
+                            x > NUNIT && (x = 1.0f0); p[i] = x
+                        end
+                    end
+                else
+                    xf = st.bkp / bkpkl
+                    if xf >= 0.75f0
+                        st.strip[isiz] += attprp * st.tree[isiz, 1]; st.pitch[isiz] += attprp
+                    else
+                        st.pitch[isiz] += attprp
+                        st.final[1] = st.bkp * 0.15f0; st.final[2] = Float32(isiz)
+                        st.final[3] = attprp * st.tree[isiz, 1]
+                    end
+                    st.bkp = 0.0f0
+                end
+            end
+        end
+
+        # ---- random group/individual kills (only if BKP left) ----
+        if st.bkp >= NZERO
+            pscale = zeros(Float32, WWPB_NSCL)
+            @inbounds for isiz in 1:mxisiz
+                pscale[isiz] = msba[isiz] * st.tree[isiz, 1] * (1.0f0 - st.pbkill[isiz]) / st.grf[isiz]
+            end
+            scale = 0.0f0; avklba = 0.0f0
+            @inbounds for isiz in 1:mxisiz
+                scale += beta[isiz] * pscale[isiz]; avklba += beta[isiz] * pscale[isiz] * msba[isiz]
+            end
+            if scale < NZERO
+                st.bkp = 0.0f0
+            else
+                avklba /= scale
+                totkl = st.bkp * sarea / avklba
+                # group-kill
+                while totkl > Float32(2 * mxisiz)
+                    @inbounds for isiz in 1:mxisiz
+                        if beta[isiz] * pscale[isiz] > NZERO
+                            host = st.tree[isiz, 1] * (1.0f0 - st.pbkill[isiz])
+                            sckl = Float32(trunc(totkl * beta[isiz] * pscale[isiz] / scale))
+                            if sckl >= host * sarea
+                                attprp = host / st.tree[isiz, 1]; bkpuse = host * msba[isiz]
+                            else
+                                attprp = sckl / (st.tree[isiz, 1] * sarea); bkpuse = (sckl / sarea) * msba[isiz]
+                            end
+                            st.bkp -= bkpuse; st.pbkill[isiz] += attprp
+                            st.pbkill[isiz] > NUNIT && (st.pbkill[isiz] = 1.0f0)
+                        end
+                    end
+                    @inbounds for isiz in 1:mxisiz
+                        st.pbkill[isiz] >= 1.0f0 && (pscale[isiz] = 0.0f0)
+                    end
+                    scale = 0.0f0; avklba = 0.0f0
+                    @inbounds for isiz in 1:mxisiz
+                        scale += beta[isiz] * pscale[isiz]; avklba += beta[isiz] * pscale[isiz] * msba[isiz]
+                    end
+                    if scale > NZERO
+                        avklba /= scale; totkl = st.bkp * sarea / avklba
+                    else
+                        st.bkp = 0.0f0; totkl = 0.0f0
+                    end
+                end
+                # individual-kill P
+                if scale > NZERO && st.bkp > NZERO
+                    x = 0.0f0
+                    @inbounds for isiz in 1:mxisiz
+                        if beta[isiz] * pscale[isiz] > NZERO
+                            x += beta[isiz] * pscale[isiz] / scale
+                        end
+                        x > NUNIT && (x = 1.0f0); p[isiz] = x
+                    end
+                end
+                while st.bkp > NZERO
+                    if scale <= NZERO; st.bkp = 0.0f0; break; end
+                    xr = wwpb_rand!(w); isiz = mxisiz
+                    @inbounds for i in 1:mxisiz
+                        if xr <= p[i] || i == mxisiz; isiz = i; break; end
+                    end
+                    host = st.tree[isiz, 1] * (1.0f0 - st.pbkill[isiz])
+                    if attp >= host
+                        attprp = host / st.tree[isiz, 1]; bkpuse = host * msba[isiz]
+                    else
+                        attprp = attp / st.tree[isiz, 1]; bkpuse = attp * msba[isiz]
+                    end
+                    bkpkl = bkpuse * st.grf[isiz]
+                    if st.bkp >= bkpkl
+                        st.final[1] = st.bkp < bkpuse ? st.bkp : bkpuse
+                        st.final[2] = Float32(isiz); st.final[3] = attprp * st.tree[isiz, 1]
+                        st.bkp -= bkpuse; st.bkp < NZERO && (st.bkp = 0.0f0)
+                        st.pbkill[isiz] += attprp
+                        if st.pbkill[isiz] > NUNIT
+                            st.pbkill[isiz] = 1.0f0; pscale[isiz] = 0.0f0; scale = 0.0f0
+                            @inbounds for ii in 1:mxisiz; scale += pscale[ii] * beta[ii]; end
+                            if scale > NZERO
+                                x = 0.0f0
+                                @inbounds for ii in isiz:mxisiz
+                                    if beta[ii] * pscale[ii] > NZERO
+                                        x += beta[ii] * pscale[ii] / scale
+                                    end
+                                    x > NUNIT && (x = 1.0f0); p[ii] = x
+                                end
+                            end
+                        end
+                    else
+                        xf = st.bkp / bkpkl
+                        if xf >= 0.75f0
+                            st.strip[isiz] += attprp * st.tree[isiz, 1]; st.pitch[isiz] += attprp
+                        else
+                            st.pitch[isiz] += attprp
+                            st.final[1] = 0.15f0 * st.bkp; st.final[2] = Float32(isiz)
+                            st.final[3] = attprp * st.tree[isiz, 1]
+                        end
+                        st.bkp = 0.0f0
+                    end
+                end
+            end
+        end
+    end
+    # convert PBKILL proportion → TPA + standing dead wood
+    @inbounds for isiz in 1:WWPB_NSCL
+        st.pbkill[isiz] <= 0.0f0 && continue
+        st.pbkill[isiz] *= st.tree[isiz, 1]
+        j = l2d[isiz] + 1; k = max(Int(st.iqptyp[1]), 1)
+        st.sdwp[k, j, 1] += st.pbkill[isiz] * st.tvol[isiz, 1]
+    end
+    return st
 end

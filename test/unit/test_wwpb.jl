@@ -354,4 +354,31 @@ const _WWPB_MIN = "BMIN\nEND\n"
         # AS245 ALNGAM sanity: log Γ(5) = log 24 (exercises the 4≤x<12 branch)
         @test isapprox(FVSjl._wwpb_alngam(5.0f0), log(24.0f0); atol = 1.0f-4)
     end
+
+    @testset "BMISTD — stochastic kill kernel BIT-EXACT vs gfortran-16 (bmistd.f)" begin
+        # golden: scratchpad/wwpb/driver_bmistd.f over pristine bmistd.f+bmcbet.f+
+        # bmrann.f (SPLAAR stubbed), gfortran-16, seed 55329, SAREA=1, GRF=1,
+        # TVOL=10, no special trees. The exact BMRANN stream + bmcbet! + kill
+        # phases must all match. Float32 hex (Z8.8).
+        hx(x) = reinterpret(UInt32, x)
+        mk() = (st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v);
+                c = FVSjl.wwpb_init_coeffs(copy(FVSjl.WWPB_UPSIZ_DEFAULT));
+                for i in 1:10; st.grf[i] = 1.0f0; st.tvol[i,1] = 10.0f0; end;
+                st.iqptyp[1] = 1; (st, w, c))
+        # case A — individual-kill path (BKP=3, trees in 3 & 5) → 3 TPA in class 5
+        stA, wA, cA = mk(); stA.tree[3,1] = 50.0f0; stA.tree[5,1] = 30.0f0; stA.bkp = 3.0f0
+        FVSjl.bmistd!(stA, wA, cA; sarea = 1.0f0)
+        @test hx(stA.pbkill[5]) == 0x40400001    # ≈3.0 TPA killed
+        @test hx(stA.pitch[5])  == 0x3D088889
+        @test hx(stA.bkp)       == 0x00000000
+        @test hx(stA.final[2])  == 0x40A00000    # last kill in size class 5
+        # case B — group-kill path (BKP=40, trees in 3/5/7) → ~19 TPA in class 7
+        stB, wB, cB = mk(); stB.tree[3,1] = 50.0f0; stB.tree[5,1] = 30.0f0; stB.tree[7,1] = 40.0f0
+        stB.bkp = 40.0f0
+        FVSjl.bmistd!(stB, wB, cB; sarea = 1.0f0)
+        @test hx(stB.pbkill[7]) == 0x41980000    # ≈19.0 TPA
+        @test hx(stB.pitch[7])  == 0x3CCCCCCD
+        @test hx(stB.bkp)       == 0x00000000
+        @test hx(stB.final[2])  == 0x40E00000    # last kill in size class 7
+    end
 end
