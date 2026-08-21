@@ -111,3 +111,21 @@ REMAINING OPEN (2 lookups + 1 fixture): (a) SNPRCL breakpoints, (b) SNVOLH/SNVOL
 fields, (c) an FFE-bit-exact fixture (AK growth/vol/mort confirmed cyc0 bit-exact 171740bd, but AK FFE snag-model
 bit-exactness is UNVERIFIED — verify jl-vs-oracle FVS_SnagSum first, then SnagDet). With those three resolved the
 serializer is a direct transcription of the formula above.
+
+## SnagSum/SnagDet REAL blocker isolated 2026-08-21 — it's the FFE snag-REPORT bit-exactness, not the wiring
+Wired SNAGSUDB → new s.control.dbs_snagsum → carb_rows collection + write_dbs_snagsum! (state.jl field +
+keyword_dispatch DATABASE handler + simulate.jl gate). VERIFIED the wiring emits FVS_SnagSum, gate 339/11 held.
+BUT the CONTENTS diverge from the oracle, so per doctrine (commit only validated OUTPUT) the wiring was REVERTED:
+  - **AK FFE is UNPORTED in jl** (fmcba.jl:33 errors: ORGANON species carry no FFE crown-biomass coeffs) — AK cannot
+    be the SnagDet/SnagSum fixture at all.
+  - **EM FFE emits FVS_SnagSum but the snag densities DON'T match** (emt01, 3 cycles):
+      oracle 1990:H14.76  2000:H17.38  2010:H15.97
+      jl     1990:H0.0    2000:H10.80  2010:H21.46  2020:H26.46/S5.51
+    Two divergences: (a) jl reports 0 hard snags at 1990 while the oracle has 14.76 — an INITIAL-SNAG seeding gap (dead
+    trees in emt01.tre / first-cycle mortality timing); (b) jl emits an extra 2020 row = a cycle-LABELING offset (jl's
+    per-cycle carb_rows collection point vs FMSOUT's report timing differ by ~one cycle).
+⇒ The DBS snag tables (FVS_SnagSum AND FVS_SnagDet) are blocked on the per-variant FFE **snag-report** bit-exactness
+(initial-snag seeding + report-timing), NOT on the trivial DBS wiring. FFE FIRE is validated cluster-wide, but the FFE
+snag-DENSITY report is a separate, un-validated sub-output. To land the DBS snag tables: first make the EM (or CA/CR/
+WS/SO/WC) FFE snag report bit-exact vs FVS<v>_clean (align initial-snag seeding + the per-cycle report point), THEN the
+SNAGSUDB/SNAGOUDB wiring (verified trivial here) + the SnagDet serializer (FMSOUT formula recorded above) drop in.
