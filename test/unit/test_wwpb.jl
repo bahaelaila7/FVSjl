@@ -229,4 +229,25 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test st.tpbk[3, 1, 3] ≈ 5.0f0                  # beetle ledger
         @test st.tree[FVSjl.WWPB_NSCL+1, 1] ≈ 85.0f0    # summary recomputed
     end
+
+    @testset "BMCGRF — GRF/GRFSTD/RVDNST BIT-EXACT vs gfortran-16 driver (bmcgrf.f)" begin
+        # golden: scratchpad/wwpb/driver_bmcgrf.f over the pristine wwpb/bmcgrf.f,
+        # gfortran-16. Stand: BAH(icls)=2+1.5·icls, BANH=0.5, RVDSC=0.90, RVDFOL=0
+        # (→1), all other stressors 0, PBSPEC=1, LCDENS=T. Float32 hex (Z8.8).
+        hx(x) = reinterpret(UInt32, x)
+        st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v)
+        basum = 0.0f0
+        for icls in 1:10
+            st.bah[icls] = 2.0f0 + icls*1.5f0; st.banh[icls] = 0.5f0
+            st.grf[icls] = 0.0f0; st.rvdsc[icls] = 0.90f0; st.rvdfol[icls] = 0.0f0
+            basum += st.bah[icls] + st.banh[icls]
+        end
+        st.bah[11] = basum - 0.5f0*10; st.banh[11] = 0.5f0*10
+        oldgrf = zeros(Float32, 10)
+        FVSjl.bmcgrf!(st, w, oldgrf; lcdens = true)
+        @test hx(st.grfstd) == 0x3F71870A     # GRFSTD (= 0.90 · RVDNST)
+        @test hx(st.rvdnst) == 0x3F862E94     # stand-density RV (exp+powf via glibc)
+        @test all(hx(st.grf[i]) == 0x3F666666 for i in 1:10)   # GRF = 0.90 (drought only)
+        @test all(oldgrf[i] == 1.0f0 for i in 1:10)            # OLDGRF from GRF≤0 → 1
+    end
 end

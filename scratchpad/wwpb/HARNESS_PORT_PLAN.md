@@ -57,6 +57,10 @@ Bins the FVS treelist into NSCL=10 DBH size classes × {host=1, nonhost=2}:
 
 ## PORT ORDER (dependency-bottom-up; each kernel driver-validated vs pristine hex)
 0. ✓ RNG wwpb_rand!/seed (done) + BMIN block (done) + defaults (done).
+   ✓ CHUNK 1-2 DONE (215d2b22): wwpb_dbh_class (BMDBHC) + WwpbStand state + bmsdit! (FVS→BM bridge). 57 tests.
+   ✓ CHUNK 3a DONE (3691658c): bmmort! (fast/slow tree decrement + FASTK/TPBK ledgers).
+   → NEXT: the transcendental kernels need gfortran-16 driver-goldens (Float32 exp/logistic bit-exactness):
+     BMFMRT (fire mort logistic), BMCGRF→BMCBKP→BMCNUM (susceptibility/BKP/attractiveness core).
 1. State design: WwpbLandscape Julia struct mirroring BMCOM/BMFCOM/BMPCOM (MXSTND-dim
    arrays; single-stand first). BMDBHC (trivial).
 2. BMSDIT bridge + HSPEC host-species matrix + ISPFLL quality-pool map (from bmblkd*.f).

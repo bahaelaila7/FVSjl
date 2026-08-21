@@ -17,7 +17,13 @@
 # =============================================================================
 
 const WWPB_NSCL = 10                       # BMPRM NSCL — number of DBH size classes
+const WWPB_NUMRV = 9                        # BMPRM NUMRV — number of driving-variable rating values
 const WWPB_PI24 = Float32(3.14159 / (24.0 * 24.0))   # bmsdit.f PI24 = PIE/(24·24), the BA constant
+
+# glibc single-precision transcendentals — match gfortran REAL EXP()/x**y bit-exact
+# (WWPB's Fortran is all-REAL, so the operations are expf/powf, not the Float64 forms).
+@inline _wwpb_expf(x::Float32)::Float32 = ccall((:expf, "libm.so.6"), Float32, (Float32,), x)
+@inline _wwpb_powf(x::Float32, y::Float32)::Float32 = ccall((:powf, "libm.so.6"), Float32, (Float32, Float32), x, y)
 
 # -----------------------------------------------------------------------------
 # BMDBHC (bmdbhc.f) — assign a DBH to a size class from the UPSIZ breakpoints.
@@ -68,6 +74,22 @@ mutable struct WwpbStand
     scorch::Vector{Float32}     # SCORCH(NSCL)      — severely-scorched proportion
     tpbk ::Array{Float32,3}     # TPBK(NSCL,2,3)    — mortality ledger [class,type,{fast,slow,beetle}]
     fastk::Vector{Float32}      # FASTK(3)          — fast-kill totals [TPA, host vol+BA, nonhost BA]
+    # --- GRF / rating-value state (bmcgrf.f) ---
+    grf  ::Vector{Float32}      # GRF(NSCL)         — per-size-class growth-reduction factor
+    grfstd::Float32             # GRFSTD            — BA-weighted stand GRF
+    rvdnst::Float32             # RVDNST            — stand-density rating value
+    bastd::Float32              # BASTD             — total stand BA (host+nonhost)
+    dvrv ::Vector{Float32}      # DVRV(NUMRV=9)     — per-driving-variable rating values
+    # --- stressor inputs (from the DM/RD/rust/other-beetle/lightning/drought/defoliator models;
+    #     0 or 1 when those models are off — a pure beetle outbreak drives via RVDNST) ---
+    sdmr ::Vector{Float32}      # SDMR(NSCL)   — dwarf-mistletoe rating
+    srr  ::Vector{Float32}      # SRR(NSCL)    — root-disease proportion
+    ssr  ::Vector{Float32}      # SSR(NSCL)    — stem-rust proportion
+    othatt::Vector{Float32}     # OTHATT(NSCL) — other-beetle attack proportion
+    topkll::Vector{Float32}     # TOPKLL(NSCL) — Ips top-kill proportion
+    strike::Vector{Float32}     # STRIKE(NSCL) — lightning-strike proportion
+    rvdsc::Vector{Float32}      # RVDSC(NSCL)  — drought rating value
+    rvdfol::Vector{Float32}     # RVDFOL(NSCL) — defoliator rating value
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -82,6 +104,10 @@ function WwpbStand()
         z2(),                                             # oakill
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL + 1), zeros(Float32, WWPB_NSCL),  # pbkill, allkll, scorch
         zeros(Float32, WWPB_NSCL, 2, 3), zeros(Float32, 3),  # tpbk, fastk
+        zeros(Float32, WWPB_NSCL), 1.0f0, 1.0f0, 0.0f0, zeros(Float32, WWPB_NUMRV),  # grf, grfstd, rvdnst, bastd, dvrv
+        zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # sdmr, srr, ssr
+        zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # othatt, topkll, strike
+        zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # rvdsc, rvdfol
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -223,6 +249,84 @@ function bmmort!(st::WwpbStand, slow::Bool)
             st.tpbk[k, 2, 1] += st.oakill[k, 2]
         end
         st.oakill[k, 1] = 0.0f0; st.oakill[k, 2] = 0.0f0
+    end
+    return st
+end
+
+# -----------------------------------------------------------------------------
+# bmcgrf! (bmcgrf.f) — compute the Growth-Reduction Factor (GRF) per host size
+# class by multiplying every stressor rating (DM, root disease, stem rust, other
+# beetles, fire, lightning, drought, defoliators), each floored at 0.01, product
+# floored at 0.01. Then GRFSTD = BA-weighted mean, and the stand-density rating
+# RVDNST = 2 − 1.9/(1 + 9·exp(BASTD·−0.033))^3 (applied to GRFSTD if LCDENS).
+# `oldgrf` receives last year's GRF (for reproduction). Faithful to bmcgrf.f.
+# The one transcendental (exp) + the real power (^3.0) route through glibc.
+# -----------------------------------------------------------------------------
+function bmcgrf!(st::WwpbStand, w::WwpbState, oldgrf::Vector{Float32}; lcdens::Bool=true)
+    pbspec = Int(w.pbspec)
+    fill!(st.dvrv, 0.0f0)
+    @inbounds for icls in 1:WWPB_NSCL
+        oldgrf[icls] = st.grf[icls] > 0.0f0 ? st.grf[icls] : 1.0f0
+        g = 1.0f0
+        bah = st.bah[icls]
+        # DM (SDMR near 0 ⇒ DMR=6)
+        gd = 1.0f0 - (st.sdmr[icls] / 6.5f0); gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[6] += gd * bah
+        # root disease
+        gd = 1.0f0 - st.srr[icls]; gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[7] += gd * bah
+        # stem rust
+        gd = 1.0f0 - st.ssr[icls]; gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[8] += gd * bah
+        # other beetle attacks
+        gd = 1.0f0 - (st.othatt[icls] + st.topkll[icls]); gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[4] += gd * bah
+        # fire (beetle-species-dependent)
+        gd = 1.0f0
+        if pbspec == 1 || pbspec == 2
+            gd = 1.0f0 - 0.5f0 * st.scorch[icls]
+        elseif pbspec == 3
+            gd = 1.0f0 - 0.99f0 * st.scorch[icls]
+        end
+        gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[1] += gd * bah
+        # lightning
+        gd = 1.0f0 - 0.99f0 * st.strike[icls]; gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[2] += gd * bah
+        # drought
+        gd = st.rvdsc[icls]; gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[3] += gd * bah
+        # defoliators (default 1 the first year so GRF ≠ 0)
+        st.rvdfol[icls] <= 0.0f0 && (st.rvdfol[icls] = 1.0f0)
+        gd = st.rvdfol[icls]; gd <= 0.0f0 && (gd = 0.01f0)
+        g *= gd; st.dvrv[5] += gd * bah
+        st.grf[icls] = max(0.01f0, g)
+    end
+
+    total = 0.0f0; st.grfstd = 0.0f0
+    @inbounds for icls in 1:WWPB_NSCL
+        x = st.bah[icls]
+        total += x
+        st.grfstd += st.grf[icls] * x
+    end
+    if total > 1.0f-9
+        st.grfstd /= total
+        @inbounds for idv in 1:WWPB_NUMRV; st.dvrv[idv] /= total; end
+    else
+        st.grfstd = 1.0f0
+        @inbounds for idv in 1:WWPB_NUMRV; st.dvrv[idv] = 1.0f0; end
+    end
+
+    # stand-density rating value RVDNST = 2 − 1.9/(1 + 9·exp(BASTD·−0.033))^3
+    dncf1 = -0.033f0; dncf2 = 3.0f0
+    st.bastd = st.bah[WWPB_NSCL+1] + st.banh[WWPB_NSCL+1]
+    base = 1.0f0 + 9.0f0 * _wwpb_expf(st.bastd * dncf1)
+    st.rvdnst = 2.0f0 - (1.9f0 / _wwpb_powf(base, dncf2))
+    if lcdens
+        st.grfstd *= st.rvdnst
+        st.dvrv[9] = st.rvdnst
+    else
+        st.dvrv[9] = 1.0f0
     end
     return st
 end
