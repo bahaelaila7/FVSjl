@@ -12,12 +12,14 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      STOCKADJ (`eddf8dc2`) + TALLY (`1b9ea7d9`) were CODE-wired but their "bit-exact" validations were **FLAWED —
      measured INERT in jl** on the only fixture (same-code jl A/B byte-identical, Δ=0; oracle Δ=−88/−75/−205/−172).
      RESETAGE/AUTALLY/NOAUTALY/INGROW/NOINGROW/THRSHOLD/PLANT/NATURAL/SPROUT wired; NOINGROW likewise disagrees with
-     the oracle in sign. **ROOT (the real blocker, a #143-class deep-dive): jl's IE AUTOES establishment-INGROWTH
-     under-books vs the oracle on dense stocked stands** (the #143 NSTORE clamp → NEWTPP=max(0,ITPP−NSTORE)=0 books
-     ≈0 ingrowth where the oracle books ~88), so EVERY ingrowth-modulating keyword (STOCKADJ/TALLY/NOINGROW) is
-     inert-on-fixture + UNVALIDATABLE until that divergence converges. Fix needs a dense-IE fixture + oracle per-plot
-     NSTORE/NEWTPP dump (FVSie_g16 instrument-estab.f). The keyword code is faithful+gate-safe (339/11) but NOT
-     validated. STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
+     the oracle in sign. **ROOT — MEASURED (instrumented FVSie_estabdump, estab.f:683 dump): the ORACLE itself
+     books NEWTPP=0 (ZERO new establishment) on this saturated 28000-TPA fixture across all cycles (ITPPnew 1-5 ≪
+     NSTOREold 99); jl MATCHES.** The "jl under-books" guess was REFUTED. This fixture is SATURATED ⇒ establishment is
+     ~0 in BOTH jl and oracle ⇒ the WRONG stand to validate any establishment keyword (they modulate a booking that is
+     0 on both sides; the −88 is a secondary NSTORE/existing-cohort side-effect inside the cornered dense-regime
+     straddle). ⇒ **CORRECT NEXT STEP: an UNDER-STOCKED / recently-disturbed IE fixture where the oracle books
+     NEWTPP>0** (extract a low-TPA IE FIA stand), then A/B the keywords + add the estab.f:581-583 PROB1 clamps jl omits.
+     The keyword code is faithful+gate-safe (339/11) but NOT validated (no fixture yet exercises it). STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
      SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the FVS_TreeList DBS
      table that FVSie_clean would not emit this session — item 2 plumbing).
   2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
