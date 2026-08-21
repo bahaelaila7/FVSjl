@@ -185,3 +185,38 @@ hard/soft cumulative densities vs the oracle table above.
     finding); characterize + corner, do NOT force the serialization to a divergent target.
 Doctrine: commit write_dbs_snagdet! ONLY if the OC A/B is bit-exact-or-cornered. Same two-block recipe reusable for
 FVS_StrClass / FVS_CanProfile / FVS_Climate afterward.
+
+## ★★ FVS_SnagDet OC A/B RESULT 2026-08-21 — CORNERED (blocked on OC FFE snag-report bit-exactness)
+Ran the A/B: jl OC `snag_summary(s)` per cycle (via ocsnag_jl.key = ocffe_full.key + CARBREPT, captured through
+write_sum_file carbon_collect[i][4]) vs oracle FVS_SnagSum/FVS_SnagDet. **The snag DENSITIES DIVERGE** — the DBS
+serializer is de-risked (schema + aggregation spec in hand, jl SnagList carries every field) but CANNOT be validated
+bit-exact because the underlying per-cycle snag pool differs. Do NOT commit write_dbs_snagdet! (doctrine: commit only
+validated output). Precise characterization (measure-don't-infer, the yrDied decomposition is the key tool):
+
+  hTot (total snag density):   Year   Oracle    jl(cyc-start)   jl(cyc-end)
+                               1993    55.26     14.76           75.43
+                               2003   264.90    194.12           38.28
+                               2013     8.67      4.67            3.09
+                               2033     6.87      0.64            0.58
+  Large-snag classes (h2/h3) match closely; the divergence is in the SMALLEST class + its late-cycle fall-down.
+
+ROOT (oracle FVS_SnagDet yrDied decomposition — the oracle's snag-DATING model jl books differently):
+  - Year=1993: yd1988=14.8 (input dead) + **yd1993=40.5** (INVENTORY-YEAR mortality, tiny GF/DF/BR DBH 0.1-0.68).
+    jl's 1993 = 14.76 = EXACTLY the yd1988 subtotal ⇒ jl omits the yd1993 current-cycle mortality cohort at the
+    1993 report point (jl dates ordinary mortality yrdead=cycle-END−1=1997, and its cycle-start report predates the
+    grow_cycle! mortality entirely).
+  - Year=1998: yd1988=10.2, **yd1991=35.8 (= SNAGINIT age-2 snags, 1993−2=1991)**, yd1993=29.4, yd1997=17.6.
+    SNAGINIT snags first surface at 1998 in the oracle, dated 1991; jl adds/dates them differently.
+  - Year=2003: … yd2003=207.5 (SIMFIRE-killed snags).
+  Three distinct snag-input timings (inventory mortality / SNAGINIT age-dating / fire) that jl books on a different
+  schedule ⇒ a deep FFE snag-report + snag-dating model divergence, downstream of & entangled with the KNOWN cornered
+  OC growth/mortality drift (goal-doc: OC .sum mort 213 vs 266 = downstream of cornered growth). NOT a serialization
+  bug and NOT the DBS-writer's fault.
+
+VERDICT: DBS FVS_SnagDet port = CORNERED — serializer ready, blocked on the OC FFE snag-report/dating bit-exactness
+(an FFE-model investigation, not DBS plumbing). Same conclusion the prior session reached on EM, now confirmed
+precisely on the validated-FFE OC variant with the yrDied decomposition. The oracle-EMISSION recipe + serialization
+spec remain valid and reusable IF/when the FFE snag-report timing is made bit-exact. Other DBS tables whose source
+model IS bit-exact (e.g. FVS_StrClass from structure_stage, FVS_Compute already done) are better serialization
+candidates than the snag/fire-derived tables. Artifacts: /workspace/.ocwork/ocsnag*.{key,tre,db},
+scratchpad/ocffe/{ocsnag_jl.key, run_snag_ab.jl}.
