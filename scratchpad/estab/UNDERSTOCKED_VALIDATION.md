@@ -56,3 +56,19 @@ cornered seedling-mortality regime: STOCKADJ>1 boosts EARLY establishment, and t
 extra seedlings (net −251 later) while jl retains them. That downstream seedling self-thin is the same pre-existing
 establishment-MODEL divergence as the ~1-cycle timing shift — NOT the clamp. The estab.f:583 per-plot PNN floor is not
 represented (jl prob1 is a stand-level scalar); inert wherever prob1 >= the plot's PNN.
+
+## MECHPREP / BURNPREP (site prep, esin.f opt 4/5 → ESPRIN 491/493) — INERT, measured 3 scenarios
+Site prep schedules a ZMECH/ZBURN event that sets IPREP → SPRE[iprep] in the establishment tally. Tried on the
+under-stocked establishing stand (753189105290487): (a) MECHPREP/BURNPREP 2019 plain, (b) at inventory, (c)
+post-thin (THINPRSC 2034 0.5) + NOINGROW + site prep at the thin date to isolate the disturbance tally. ORACLE
+delta = 0 at EVERY cycle in all three. Like TALLY, the site-prep modifiers act on a DISTURBANCE-triggered
+establishment tally that the automatic LINGRW/LAUTAL path on these stands does not cleanly expose (the ingrowth
+NSTORE clamp / thres1 gate wash it out). ⇒ no validatable .sum signal on the available IE fixtures; MECHPREP/
+BURNPREP stay UNWIRED (per doctrine — cannot validate ⇒ do not commit). Exposing them would need a stand whose
+DOMINANT establishment is a site-prep-eligible disturbance tally — not constructible from the current fixtures.
+
+## Establishment-keyword item — measured limit (2026-08-21)
+VALIDATED + committed: STOCKADJ (works), NOINGROW/INGROW/AUTALLY/NOAUTALY/THRSHOLD (real bug fixed), PROB1 clamps.
+MEASURED-INERT on all available fixtures (faithful code kept where wired; unwired ones stay unwired): TALLY/TALLYONE/
+TALLYTWO, MECHPREP, BURNPREP. .sum-INVISIBLE (need a per-tree treelist A/B): SPECMULT, HTADJ. Separate model dive:
+the cornered seedling-mortality/timing regime. This is the genuine validatable limit with the current IE fixtures.
