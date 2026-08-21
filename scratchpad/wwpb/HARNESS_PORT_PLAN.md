@@ -1,0 +1,101 @@
+# WWPB synthetic-PPE-harness port plan (USER-approved 2026-08-21)
+
+Goal: an actual end-to-end WWPB (Westwide Pine Beetle) outbreak in FVSjl. Beetle
+kernels port bit-exact vs pristine wwpb/*.f drivers; the thin absent outer layer
+(PPMAIN/ALSTD1/ALSTD2/SPLAEX/SPLAAR/GPGET/GPNEW) is faithfully reconstructed from
+the archive/PPEcommons/*.F77 common-block interfaces. See [[fvsjl-wwpb-ppe-oracle-absent]].
+
+## COMPLETE ARCHITECTURE (mapped 2026-08-21 from pristine wwpb/*.f)
+
+### The PPE call chain (what the absent harness does)
+```
+PPMAIN  (absent — reconstruct)  ── per master cycle:
+  ├─ per stand:  BMSDIT              ← FVS→BM tree BRIDGE (exists, bmsdit.f)
+  ├─ once:       BMDRV               ← per-YEAR outbreak loop (exists, bmdrv.f)
+  └─ per stand:  BMKILL              ← BM→FVS mortality HANDBACK (exists, bmkill.f)
+BMSETP (exists, bmsetp.f) once per cycle BEFORE PPMAIN's stand loop:
+  ├─ GPGET(301,…)  → IBMYR1 outbreak start year (from DISPERSE kw)   [scheduler — reconstruct]
+  ├─ build stand list BMSDIX/BMSTDS, BMSTND count
+  ├─ SPLAEX(…)     → per-stand spatial location+area                 [spatial — reconstruct]
+  └─ LBMSPR = (IRC==0)   ← gates the whole outbreak (bmdrv.f:35 `IF LBMSPR .AND. IBMYR1>0`)
+```
+
+### BMSDIT — FVS→BM tree bridge (bmsdit.f, exists, ground-truth-portable)
+Bins the FVS treelist into NSCL=10 DBH size classes × {host=1, nonhost=2}:
+- per FVS tree I (via species-index ISCT(ISPC,1..2) + IND1(II)): K=BMDBHC(DBH(I));
+  LX = host? via HSPEC(PBSPEC,ISPC). Accumulate BA=DBH²·(π/576)·PROB, TREE+=PROB,
+  HTS+=HT·PROB, CRS+=ICR·PROB, HGS+=HTG·PROB, TVOL+=CFV·PROB into [K, host/nonhost].
+- ISPH(,1/2) = species with max host/nonhost BA; IQPTYP = ISPFLL(ISPH).
+- then HTS/CRS/HGS/TVOL /= TREE (size-class averages). OTPA = initial TREE snapshot.
+- MICYC==2: seed PBKILL/ALLKLL from inventory damage LBMDAM(I).
+
+### BMDBHC — leaf (bmdbhc.f, TRIVIAL): INDEX=1; DO I=1,NSCL-1: if DBH<UPSIZ(I) break; INDEX++.
+
+### BMDRV — per-year loop (bmdrv.f) years IBMYR1..IBMYR2, gated LBMSPR & IBMYR1>0:
+  mgmt: BMPHER,BMAPH,BMPSTC,BMSALV,BMSANI,BMSMGT → BMDRGT(drought,stoch 2 draws)
+  stand-loop-1 {STOCK only}: BMCWIN(windthrow),BMLITE(stoch),BMFIRE→BMFMRT,BMOBB,
+     BMDFOL,BMQMRT,BMMORT(.FALSE. fast),BMCGRF(→OLDGRF),BMCBKP(OLDGRF),BMCNUM
+  BMATCT (landscape attractiveness + BKP redistribution; calls SPLAAR)
+  stand-loop-2 {STOCK only}: BMIPS(stoch, if PBSPEC==3||IPSON) | BMISTD(stoch, fills
+     PBKILL), BMOUT, BMMORT(.TRUE. beetle kills), BMAGDW(age dead-wood pools)
+
+### BMKILL — BM→FVS handback (bmkill.f): TPBK ledger → per-record WK2(I) mortality,
+  bounded PROB(I)−WK2(I) ≥ 1e-6; SDWP/DDWP dead-wood; SVMORT. (feeds FVS growth.)
+
+## RECONSTRUCT (thin outer layer — no pristine source, use archive/PPEcommons/*.F77)
+- **GPGET(act,iyr,…)/GPGET2(act,iyr,maxprm,nprms,prms,mxstnd,scnt,mylst,lok)** — PPE
+  activity scheduler *get*: return scheduled params for activity code (301=DISPERSE,
+  303..323 mgmt, 305 windthrow, 307 qmrt, 308 salv, 310/311 lite/fire…). FVSjl has an
+  Event Monitor; the GP-scheduler is its PPE analogue. Reconstruct a small activity
+  table keyed (activity, year) → PRMS, populated by the BMPPIN keyword block.
+- **GPADD/GPNEW(kode,idt,act,nparms,prms[,j,mylst])** — schedule/reschedule an activity.
+- **SPLAEX(bmstds,bmstnd,mylist,irc)** — load per-stand spatial location; **SPLAAR(istd,
+  area,irc)** — return stand area. Single-stand degenerate: area = stand's EXPAND/acres,
+  location = a single point; IRC=0 ⇒ LBMSPR=T. (spatial dispersal between stands is moot
+  at MXSTND=1 — BMATCT's redistribution self-loops.)
+- **PPMAIN top loop + BMSETP wiring** — reconstruct as an FVSjl landscape seam.
+
+## PORT ORDER (dependency-bottom-up; each kernel driver-validated vs pristine hex)
+0. ✓ RNG wwpb_rand!/seed (done) + BMIN block (done) + defaults (done).
+1. State design: WwpbLandscape Julia struct mirroring BMCOM/BMFCOM/BMPCOM (MXSTND-dim
+   arrays; single-stand first). BMDBHC (trivial).
+2. BMSDIT bridge + HSPEC host-species matrix + ISPFLL quality-pool map (from bmblkd*.f).
+3. Deterministic leaf kernels (driver-validate each): BMFMRT (fire mort logistic),
+   BMQMRT, BMCGRF→BMCBKP→BMCNUM (GRF/BKP/attractiveness), BMMORT (tree decrement),
+   BMCWIN (windthrow), BMOBB, BMDFOL, BMAGDW.
+4. BMATCT (landscape attractiveness; SPLAAR).
+5. Stochastic kernels (exact BMRANN stream + call order): BMDRGT(2), BMLITE(2),
+   BMIPS(1), BMISTD(2). ← the RNG order is load-bearing; MEASURE both sides.
+6. Management: BMPHER/BMAPH/BMPSTC/BMSALV/BMSANI/BMSMGT (scheduler-driven).
+7. BMKILL handback + BMSETP + PPMAIN loop + BMPPIN kw (DISPERSE/HOST/PBSPEC/RANNSEED).
+8. simulate.jl landscape seam; wire mortality into FVS growth; end-to-end single-stand
+   pine-host DISPERSE run. Corner the composition (self-referential harness).
+
+## DRIVER-GOLDEN RECIPE (per kernel, mirrors driver_bmrann.f)
+gfortran-16 -std=legacy -w -fno-automatic -I/workspace/ForestVegetationSimulator/wwpb \
+  -I<variant>/common (PRGPRM) -Iarchive/PPEcommons (PPEPRM) driver_<k>.f wwpb/<k>.f … \
+  set the common-block inputs, CALL <K>, print outputs as Float32 hex (Z8.8). Compare
+  to the Julia port bit-for-bit. Commons all present in wwpb/*.F77 + archive/PPEcommons.
+
+Gate every chunk: multicycle 339/11. Additive/inert until the seam lands.
+
+## FOUNDATIONAL DATA (extracted 2026-08-21)
+- **HSPEC host designations** (bmblkd*.f): shipped DEFAULT = all 0 (no host) — set by the
+  HOST keyword in BMPPIN. The commented "natural" defaults (bmblkdni.f) confirm the model
+  doc: MPB(PBSPEC=1) host = **sp7 LP** (lodgepole); WPB(PBSPEC=2) host = **sp10 PP**
+  (ponderosa); Ips(PBSPEC=3) host = sp7 LP. IE 11-sp order: WP L DF GF WH C LP S AF PP OTH.
+  ⇒ FVSjl: wire HOST kw → HSPEC(pbsp, sp); default the natural LP/PP hosts when DISPERSE
+  is given without HOST.
+- **ISPFLL** (falldown-rate 1fast/2med/3slow, IE 11-sp): /2,3,2,1,2,3,2,1,2,1,2/.
+- **UPSIZ**=/3,6,9,12,15,18,21,25,30,50/, **WPSIZ**=/10,20,60/, **ISCMIN**=/3,3,2/,
+  seed 55329, NBGEN=1, NIBGEN=2, PFSLSH=0.9, IPSON=F/IPSMIN=2/IPSMAX=5. (all in wwpb.jl
+  defaults already except HSPEC/ISPFLL — add those next.)
+- Per-variant bmblkd: bm(generic)/ca/cr/nc/ni/so/wc. NI=IE-family. BA in bmsdit uses
+  π/576 (=PIE/(24·24), PI24) — the FVS BA constant, per-tree DBH²·PI24·PROB.
+
+## CONTINUATION POINT (next session)
+Start step 1-2: add WWPB_HSPEC + WWPB_ISPFLL data + wwpb_dbh_class to wwpb.jl; design the
+WwpbLandscape struct (single-stand MXSTND=1 first); port BMSDIT (the FVS→BM bridge) reading
+FVSjl's treelist (dbh/ht/icr/htg/cfv/prob/species) into the size-class×host/nonhost table;
+unit-test BMDBHC + the binning. THEN step 3 (deterministic kernels, driver-validated).
+All additive/inert (no simulate.jl seam) until step 8 — gate 339/11 must hold each chunk.

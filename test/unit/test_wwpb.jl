@@ -164,4 +164,52 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test rows(min_key)  == base       # BMIN/END only ⇒ byte-identical
         @test rows(wwpb_key) == base       # full BMIN block ⇒ still byte-identical (inert)
     end
+
+    # -------------------------------------------------------------------------
+    # LANDSCAPE model (synthetic PPE harness, USER-approved) — chunk 1-2.
+    # -------------------------------------------------------------------------
+    @testset "BMDBHC — DBH → size class (bmdbhc.f vs UPSIZ breakpoints)" begin
+        up = copy(FVSjl.WWPB_UPSIZ_DEFAULT)     # 3,6,9,12,15,18,21,25,30,50
+        # class k covers [UPSIZ(k-1), UPSIZ(k)); class 1 = <3"; class 10 = ≥30"
+        @test FVSjl.wwpb_dbh_class(up, 0.0)  == 1
+        @test FVSjl.wwpb_dbh_class(up, 2.99) == 1
+        @test FVSjl.wwpb_dbh_class(up, 3.0)  == 2     # DBH<UPSIZ(1)=3 false ⇒ advance
+        @test FVSjl.wwpb_dbh_class(up, 5.99) == 2
+        @test FVSjl.wwpb_dbh_class(up, 6.0)  == 3
+        @test FVSjl.wwpb_dbh_class(up, 29.9) == 9
+        @test FVSjl.wwpb_dbh_class(up, 30.0) == 10    # ≥UPSIZ(9)=30 ⇒ last class
+        @test FVSjl.wwpb_dbh_class(up, 99.0) == 10
+    end
+
+    @testset "BMSDIT — FVS→BM tree bridge (binning + host split + averages)" begin
+        w = FVSjl.wwpb_defaults!(v)             # PBSPEC=1 (MPB) ⇒ host = LP
+        t = FVSjl.TreeList(100)
+        # two LP (host) trees in size class 3 (6-9"): d=7, and one DF (nonhost) d=13 (class 5)
+        function put!(i, sp, d, h, cr, htg, cfv, tpa)
+            t.species[i]=Int32(sp); t.dbh[i]=Float32(d); t.height[i]=Float32(h)
+            t.crown_pct[i]=Int32(cr); t.ht_growth[i]=Float32(htg); t.cuft_vol[i]=Float32(cfv)
+            t.tpa[i]=Float32(tpa)
+        end
+        put!(1, 7,  7.0, 40.0, 50, 1.0,  8.0, 20.0)   # LP host, class 3
+        put!(2, 7,  8.0, 44.0, 40, 1.2, 10.0, 10.0)   # LP host, class 3
+        put!(3, 3, 13.0, 60.0, 55, 0.9, 25.0, 15.0)   # DF nonhost, class 5
+        t.n = 3
+        alpha(sp) = sp == 7 ? "LP" : (sp == 3 ? "DF" : "OT")
+        st = FVSjl.WwpbStand()
+        FVSjl.bmsdit!(st, t, w, alpha)
+        # host TPA lands in class 3 (=30), nonhost in class 5 (=15)
+        @test st.tree[3, 1] ≈ 30.0f0
+        @test st.tree[5, 2] ≈ 15.0f0
+        @test st.tree[FVSjl.WWPB_NSCL+1, 1] ≈ 30.0f0   # host summary slot
+        @test st.tree[FVSjl.WWPB_NSCL+1, 2] ≈ 15.0f0   # nonhost summary slot
+        # TPA-weighted mean height in class 3 = (40·20+44·10)/30
+        @test st.hts[3, 1] ≈ Float32((40.0f0*20 + 44.0f0*10) / 30)
+        # dominant host species = LP(7), nonhost = DF(3)
+        @test st.isph[1] == 7
+        @test st.isph[2] == 3
+        # BA host summary = Σ d²·(π/576)·tpa for the two LP
+        baexp = (7.0f0^2*20 + 8.0f0^2*10) * FVSjl.WWPB_PI24
+        @test st.bah[FVSjl.WWPB_NSCL+1] ≈ baexp
+        @test st.otpa[3, 1] ≈ 30.0f0                   # initial snapshot
+    end
 end
