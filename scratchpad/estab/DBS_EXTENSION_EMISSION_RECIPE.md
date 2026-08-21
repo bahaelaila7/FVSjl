@@ -314,3 +314,22 @@ worth porting for the .sum too) + the POTESTAB/AutoEstb-source resolution. clima
 faithful ⇒ not committed per doctrine); WIP preserved. This is the pattern for ALL the model-report DBS tables:
 the deterministic columns port cleanly at the post-growth midpoint; the model-derived columns need their model piece
 bit-exact first.
+
+## ★ POTESTAB gap RESOLVED + SPCALIB PORTED 2026-08-21 (33290ff0) — FVS_Climate now fully characterized
+POTESTAB=99.44 with NO AutoEstb keyword = the clinit.f:40-42 DEFAULTS: AESNTREES=500, NESPECIES=4, AESTOCK=40.
+clauestb.f runs every cycle when LCLIMATE and computes POTESTAB with those defaults (line 76 `IF PTREES*AESNTREES>0`
+— 500>0 always); LAESTB (set only by an AUTOESTB keyword) gates the ACTUAL establishment, NOT the report. The
+NESPECIES=4 default ⇒ the oracle's 4 rows (DF/GF/ES/MM, the top-4 by viability). FIX for the (reverted) WIP
+_climate_potestab: use AESNTREES=500/NESPECIES=4/AESTOCK=40 when `isempty(c.autoestb)` instead of returning 0.
+
+**SPCALIB (clmorts chunk C) is now PORTED + committed (33290ff0)** — the hard/valuable part. ⇒ FVS_Climate is
+FULLY characterized, every column portable:
+  - Viability / SiteMult / MxDenMult — BIT-EXACT (deterministic, sampled at report_year+fint/2 post-growth).
+  - ViabMort (SPMORT1) — BIT-EXACT via the now-ported SPCALIB (PP series matches oracle all 11 cycles).
+  - dClimMort (SPMORT2) — the transfer-distance DMORT, already ported (apply_climate_mort! ldmort branch).
+  - POTESTAB — via clinit defaults (500/4/40), resolved above.
+  - GrowthMult (vscore>0.99 species) / BA / TPA — CORNERED on the cyc1 growth straddle (accepted).
+REMAINING to ship write_dbs_climate!: re-add climate_report (WIP scratchpad/climate/, + the POTESTAB-default fix),
+add the write_dbs_climate! schema/serializer (dbsclsum.f 15-col), a post-growth climate_collect hook in summary.jl
+(fires right after grow_cycle!, labels with the pre-advance cycle year), and the CLIMREDB DBS-toggle parse. All
+mechanical now that every column is understood + SPCALIB is in src. A future session's clean serialization chunk.
