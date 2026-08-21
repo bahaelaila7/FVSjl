@@ -334,6 +334,10 @@ fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
 # fires (over-scorch → over-kill on aspen-mix SIMFIRE stands) AND dropped the real conifers 29:37.
 fm_canopy_lsw(sp::Integer, ::CentralRockies) = (1 <= sp <= 19) || (29 <= sp <= 37)
 fm_canopy_lsw(sp::Integer, ::BlueMountains) = (1 <= sp <= 14) || sp == 17   # bm LSW softwoods (excl hwd 15/16/18)
+# OC/ORGANON (oc/fmvinit.f:140-451 SELECT CASE): softwoods 1:25 + redwood 50 = LSW TRUE; the hardwoods/oaks
+# 26:49 = FALSE. The AbstractVariant `sp<=25` fallback wrongly dropped redwood (sp50) from the OC canopy
+# profile — a latent under-count of crown fuel on redwood stands (inert on all-conifer non-redwood stands).
+fm_canopy_lsw(sp::Integer, ::OregonCoast) = (1 <= sp <= 25) || sp == 50
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 # PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (sev_wind, sev_temp, mod_wind, mod_temp),
