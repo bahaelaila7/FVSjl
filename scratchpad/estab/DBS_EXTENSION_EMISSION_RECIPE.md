@@ -557,3 +557,22 @@ decay). NOTE the arithmetic doesn't cleanly close (jl 14.76 non-SNAGINIT vs orac
 1993 need identifying (first-cycle mortality booked early?) before a fix. FIX PATH: move the SNAGINIT add ahead of the
 inventory-year snag/carbon report (mind the carbon-push timing), then re-A/B SnagSum grand-total per cycle; expect the
 1993 gap to close and the multi-cycle falldown to be the remaining item. Report-only; growth/.sum unaffected; gate 339/11.
+
+## SNAG-DENSITY bug RE-CHARACTERIZED 2026-08-21 (oracle FVS_SnagDet 1993 species breakdown — corrects the SNAGINIT-late conclusion)
+Queried the oracle's per-species FVS_SnagDet at 1993 (the decisive view). The oracle's 55.26 = 5 cohorts:
+  DF dbhcl1 deathDBH0.68 yrDied1993 densH22.5 · GF 0.1 1993 13.5 · BR 0.1 1993 4.5   ← yrDied=1993 (fresh, tiny-DBH)
+  LP dbhcl1 deathDBH7.2 yrDied1988 densH14.15 · SP dbhcl5 34.6 1988 0.61              ← yrDied=1988 (background)
+**jl's 1993 total (14.76) == EXACTLY the yrDied-1988 background (LP 14.15 + SP 0.61).** jl is MISSING the three
+yrDied=1993 cohorts (DF+GF+BR = 40.5/ac). And there is **NO WB row** (SNAGINIT species) at 1993 ⇒ **SNAGINIT is
+CORRECTLY deferred to 1998** — the summary.jl:294-300 comment was RIGHT; RETRACT the prior "SNAGINIT one cycle late"
+conclusion. THE REAL BUG: the missing cohorts are yrDied=1993 with TINY death-DBH (0.1-0.68") = regeneration/small-
+tree FIRST-CYCLE mortality that **FVS books at the inventory year (yrDied=cycle-START=1993) and includes in the 1993
+snag report**, whereas jl books ordinary mortality at yrdead=cycle-END−1 (=1997, per snag.jl:436) and its 1993 report
+is pre-first-grow ⇒ those snags don't exist yet at jl's 1993 report and carry a different death-year when they do.
+⚠ This also puts TENSION on the memory claim "jl yrdead=cycle-END−1 validated bit-exact" — the oracle's SnagDet
+Year_Died for fresh mortality is the cycle-START (1993), not cycle-END−1 (1997). Either the two mortality classes
+(regen/small-tree vs large-tree) book different YRDEAD, or the earlier hard/soft validation (which only used the
+pulse-era GRAND TOTAL) never exercised the per-cohort death-year. NEXT (for a real fix): dump the oracle FVS_SnagDet
+Year_Died for the LARGE-tree mortality cohorts (later cycles) to see if FVS uses cycle-START uniformly or only for
+regen; then align jl's snag yrdead + the inventory-year report to include first-cycle mortality. Report-only; niche;
+growth/.sum + gate 339/11 unaffected. This is a snag report-timing/yrdead-booking reconciliation, still open.
