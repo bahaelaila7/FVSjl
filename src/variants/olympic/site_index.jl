@@ -118,6 +118,7 @@ function op_sitset!(s::StandState)
 
     # ECOCLS for the stand's plant association (single entry).
     idx = op_habtyp_index(Int(p.habitat_code))
+    p.habitat_input = Int32(idx)   # ITYPE for the FFE FIRE-VPN fuel-model selection (PNFGS→MAPFGS/MAPDRY)
     rsi, rsdimx, iseq = OP_ECOCLS[idx]
     rsdi = min(rsdimx, OP_FORMAX)
 
