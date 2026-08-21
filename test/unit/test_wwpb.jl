@@ -250,4 +250,23 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test all(hx(st.grf[i]) == 0x3F666666 for i in 1:10)   # GRF = 0.90 (drought only)
         @test all(oldgrf[i] == 1.0f0 for i in 1:10)            # OLDGRF from GRF≤0 → 1
     end
+
+    @testset "BMINIT coeffs — MSBA/UPBA/INC BIT-EXACT vs gfortran-16 (bminit.f)" begin
+        # golden: scratchpad/wwpb/driver_bminit.f (verbatim bminit.f MSBA/UPBA/INC
+        # lines), gfortran-16, UPSIZ=3,6,9,12,15,18,21,25,30,50. Float32 hex.
+        hx(x) = reinterpret(UInt32, x)
+        c = FVSjl.wwpb_init_coeffs(copy(FVSjl.WWPB_UPSIZ_DEFAULT))
+        msba = UInt32[0x3C490FD0,0x3DE231CA,0x3E9D145B,0x3F19F01B,0x3F7E7803,
+                      0x3FBE10F3,0x4004BB70,0x4038A7DB,0x4083FD8C,0x410BA051]
+        upba = UInt32[0x3D490FD0,0x3E490FD0,0x3EE231CA,0x3F490FD0,0x3F9D145B,
+                      0x3FE231CA,0x4019F01B,0x405A2A7E,0x409D145B,0x415A2A7E]
+        inc1 = UInt32[0x3F0CCCCC,0x3F59999A,0x3F933333,0x3FB9999A,0x3FE00000,
+                      0x40033333,0x40166666,0x402CCCCC,0x4049999A,0x40800000]
+        @test all(hx(c.msba[i]) == msba[i] for i in 1:10)
+        @test all(hx(c.upba[i]) == upba[i] for i in 1:10)
+        @test all(hx(c.inc[1,i]) == inc1[i] for i in 1:10)
+        @test all(hx(c.inc[2,i]) == inc1[i] for i in 1:10)   # INC(2,·) = INC(1,·)
+        @test hx(c.inc[3,1]) == 0x3D6147AD                    # INC(3,·) = INC(1,1)·0.1
+        @test hx(c.inc[3,10]) == 0x3D6147AD                   # Ips constant across classes
+    end
 end

@@ -18,7 +18,7 @@
 
 const WWPB_NSCL = 10                       # BMPRM NSCL — number of DBH size classes
 const WWPB_NUMRV = 9                        # BMPRM NUMRV — number of driving-variable rating values
-const WWPB_PI24 = Float32(3.14159 / (24.0 * 24.0))   # bmsdit.f PI24 = PIE/(24·24), the BA constant
+const WWPB_PI24 = 3.14159f0 / (24.0f0 * 24.0f0)   # bmsdit.f/bminit.f PI24 = PIE/(24·24), Float32 (PIE=REAL param)
 
 # glibc single-precision transcendentals — match gfortran REAL EXP()/x**y bit-exact
 # (WWPB's Fortran is all-REAL, so the operations are expf/powf, not the Float64 forms).
@@ -329,4 +329,36 @@ function bmcgrf!(st::WwpbStand, w::WwpbState, oldgrf::Vector{Float32}; lcdens::B
         st.dvrv[9] = 1.0f0
     end
     return st
+end
+
+# -----------------------------------------------------------------------------
+# wwpb_init_coeffs (bminit.f) — the size-class BA + brood "increase" coefficients
+# that BMCBKP/BMCNUM/BMISTD consume. MSBA(i)=MID²·(π/576) (BA of the size-class-
+# midpoint DBH); UPBA(i)=UPSIZ(i)²·(π/576); INC(1,i)=RSLOPE·DBHMID+B clamped to
+# REPMAX above DBHMAX, INC(2,i)=INC(1,i), INC(3,i)=INC(1,1)·0.1 [Ips]. Defaults
+# RSLOPE=1/10, REPMAX=4, DBHMAX=36, REPLAC=6 ⇒ B=1−0.6=0.4 (keyword-overridable).
+# Depends only on UPSIZ ⇒ model-level (same for all stands). BIT-EXACT vs
+# gfortran-16 (scratchpad/wwpb/driver_bminit.f). Integer UPSIZ arithmetic where
+# the Fortran uses INTEGER UPSIZ (FLOAT(UPSIZ+LOW), UPSIZ²).
+# -----------------------------------------------------------------------------
+function wwpb_init_coeffs(upsiz::Vector{Float32};
+                          rslope::Float32=Float32(1.0/10.0), repmax::Float32=4.0f0,
+                          dbhmax::Float32=36.0f0, replac::Float32=6.0f0)
+    msba = zeros(Float32, WWPB_NSCL); upba = zeros(Float32, WWPB_NSCL)
+    inc  = zeros(Float32, 3, WWPB_NSCL)
+    b = 1.0f0 - (rslope * replac)
+    @inbounds for i in 1:WWPB_NSCL
+        iu  = Int(upsiz[i])
+        low = i == 1 ? 0 : Int(upsiz[i-1])
+        mid = Float32(iu + low) * 0.5f0
+        msba[i] = mid * mid * WWPB_PI24
+        upba[i] = Float32(iu * iu) * WWPB_PI24
+        dbhmid = Float32(iu + low) / 2.0f0
+        inc[1, i] = dbhmid < dbhmax ? (rslope * dbhmid + b) : repmax
+        inc[2, i] = inc[1, i]
+    end
+    @inbounds for i in 1:WWPB_NSCL
+        inc[3, i] = inc[1, 1] * 0.1f0
+    end
+    return (msba = msba, upba = upba, inc = inc)
 end
