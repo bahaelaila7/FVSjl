@@ -57,3 +57,13 @@ already bit-exact-or-cornered per 9594d0a7). Gate: multicycle 339/11.
 - ffe_on gates the ENTIRE per-cycle fuel machinery — add Olympic or the fire samples an empty pool.
 - The snag bole must be BLM TOTAL cubic (op/fmsvol.f LMERCH=.FALSE.), else R8-Clark→0→Jenkins ~3× over-book.
 - The fuel-moisture table drives byram ~25% — the wet SN default gives a cool fire.
+
+## ★★ PROGRESS 2026-08-21 — OP FFE RUNS END-TO-END, cyc0 BIT-EXACT (chunks 1/2/3 + snag-bole)
+Committed 6bad9bf0 (chunk1 crown-biomass) + 0be47dea (chunk2/3 fuel-loading + op_cwcalc → end-to-end,
+1993 cyc0 BIT-EXACT vs FVSop_clean) + f3133acd (snag-bole = op_tree_cuft). Moisture already done (a02c9393,
+OP=_FM_MOIS_IE). Gate 339/11; OP growth 11/11.
+REMAINING = ONLY chunk 4 (op/fmcfmd fuel-model selection): a 523-line WS-CWHR classifier with OP's OWN
+CWHRFMD matrix + forest-type map + XPTS (NOT a byte-match to CA/WS). jl falls to the generic selection ⇒
+weak models ⇒ low byram ⇒ 2003 fire mortality 224 vs oracle 328 (under-kill). Oracle OP 2003 picks models
+5(51%)/10(49%). Port op_select_fuel_models (extract op/fmcfmd.f DATA CWHRFMD + the forest-type/CWHR CASE +
+XPTS, mirror the ws/ca CWHR path) ⇒ byram up ⇒ mortality → 328 ⇒ OP FFE = bit-exact-or-cornered like OC.
