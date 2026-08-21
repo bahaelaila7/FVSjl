@@ -24,3 +24,15 @@ AK_PERM_SP=(4,5,6,7,13,16-23)). akt_ws.tre + akt_pf_{on,off}.key (PRMFROST 1990 
   is exercised + directionally+scale-correct; a per-tree DDS proof would need FVSak_g16 instrumentation (not built).
 ⇒ Item 3 (AK permafrost) CONFIRMED to the bit-exact-or-cornered bar — the ported LPERM/PFMOD path is live and
 correct, no longer just "present but unexercised."
+
+## AK variant END-TO-END confirmation (SEAMRT mortality + R10 volume) 2026-08-21
+Ran the real coastal akt01 stand (29 trees, LP/WH/YC/RC/SS/MH) through jl(AK) vs FVSak_clean, full .sum:
+- cyc0 (1990) BIT-EXACT-or-±1-NINT across ALL columns: TPA 669/669, BA 118/118, QMD 5.7/5.7, cuft cols
+  242/242·184/184·64/64, **R10 VOLUME TCuFt 2316/2315 (±1 NINT), MCuFt 732/732 EXACT, BdFt 2417/2417 EXACT**,
+  accr 75/73 (±2), **SEAMRT mort 10/10 EXACT**. ⇒ R10 volume (R10D2H/CUR/DVE) + SEAMRT density-mortality CONFIRMED
+  bit-exact at cyc0 (on top of the already-validated large-tree DGF).
+- Multi-cycle (2000-2040): the cornered self-thin/DGSCOR straddle (jl 2010 TPA 578/BA 168 vs oracle 581/171; jl
+  2040 vol 5956 vs 5956) — same #206/OLDRN realization class every variant's multi-cycle tail carries.
+⇒ The AK variant (SoutheastAlaska) is CONFIRMED bit-exact-or-cornered END-TO-END: growth (DGF) + SEAMRT mortality +
+R10 volume at cyc0 bit-exact, multi-cycle cornered; permafrost DG modifier confirmed via the WS A/B above. Item 3's
+full subsystem list (PFCON/SDICAL/SDICLS/SEAMRT/R10) is now confirmed, not just "present".
