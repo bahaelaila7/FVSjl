@@ -420,3 +420,13 @@ fire, so canopy_bulk_density only affects the report + the un-triggered crown-fi
 add fm_canopy_lsw(::OregonCoast)=(1≤sp≤25)||sp==50 (source-faithful, tiny) AND dump FVSoc_g16 fmpocr per-tree
 crown-biomass to find the ~4× ORGANON factor. FVS_CanProfile itself is DONE (validated on CR); this OC gap is a
 separate OC-FFE model item, not a CanProfile-port gap.
+
+## ★★ OC crown-biomass bug FIXED 2026-08-21 (40298123) — the ~4× gap was eastern-vs-western FMCROWE/FMCROWW
+The refined OC-FFE lead is now a validated fix. OC's fmcrow.f (== WC's) routes hardwoods {35,39,40,41,43,44,45,46}
+→ FMCROWE (eastern) and all other species → FMCROWW (western), but jl omitted OregonCoast from the cr_crownw
+dispatch ⇒ ALL OC species used the eastern FMCROWE ⇒ ~4× under-counted conifer crown fuel. Added OregonCoast to
+the cr_crownw path (OC_FFE_ISPMAP already existed; new oc_uses_fmcrowe = the 8 hardwoods). OC cyc0 canopy profile
+0/71 → 62/71 BIT-EXACT (ht12 57.7→253.9 vs 238.9; ht20 exact). OC FFE .sum UNCHANGED (surface fire; crown biomass
+inert on byram/mort). Gate 339/11. Residual 9 crown-base layers = a smaller secondary OC crown-base/crown_pct detail.
+NOTE: **OP (Olympic) is ALSO ORGANON — likely the same bug** (check OP_FFE_ISPMAP + an op_uses_fmcrowe if OP FFE is
+exercised). FVS_CanProfile stays validated on CR (68/68, the clean bit-exact case); OC is now 62/71 (was 0).
