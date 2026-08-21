@@ -246,3 +246,26 @@ extension-table item is thus "cornered-or-heavy-plumbing-for-cornered" — NOT a
 oracle-EMISSION recipe (two-block DATABASE + report keyword + blank toggle) is proven + reusable for any of them.
 Best next candidate if pursued: FVS_Climate (add a per-species climate-report collect vector in the climate apply
 path, mirror write_dbs_carbon!, A/B on IE with a climate fixture) — cyc0-bit-exact deliverable, multi-cycle cornered.
+
+## ★ FVS_Climate PROBE 2026-08-21 — also needs report-timing/sampling work (not a clean serialization either)
+Set up the oracle (fixture EXISTS: /workspace/.iework/climate/clim_iet.key + FVSie_clean): added CLIMREDB (DBS opt 8,
+sets ICLIM) to the DATABASE block → climtest.key emits FVS_Climate (429 rows). Emission spec fully extracted
+(clauestb.f:178-207, called per cycle during climate auto-establishment): one row per species where SPIMP>0.05 OR
+SPVIAB>0.4 (and INDXSPECIES>0), columns SPVIAB(=VSCORE per clgmult.f:117)/SPBA(ΣDBH²·PROB·0.005454154)/SPTPA(ΣPROB)/
+SPMORT1/SPMORT2/SPGMULT(=Σtreemult·PROB/ΣPROB, clgmult.f:243-249)/SPSITGM(=xgsite^clgrowmult)/MXDENMLT/POTESTAB.
+Feasibility gate PASSED — jl computes every piece per-tree (apply_climate_dds! treemult, species_vscore, clim_mort_rates,
+clmaxden, clauestb POTESTAB); the report is a per-species TPA-weighted aggregation of them.
+BUT the cyc0 A/B (probe_climrep.jl) does NOT match the oracle:
+  - Viability: jl DF/PSME raw spviab 0.95 vs oracle 0.9309; WL 0.879 vs 0.8584; every species off ⇒ a viability
+    SAMPLING/transform difference (oracle Viability=VSCORE not raw spviab; jl 0.95>0.5→VSCORE 1.0 ≠ oracle 0.9309 ⇒
+    the two are sampling the CSV viability column at a DIFFERENT year, or a species→PLANTS-column mismatch — needs
+    a clgmult.f VSCORE-year/column trace).
+  - BA/TPA: oracle DF BA=28.82/TPA=157.63 vs jl (pre-growth inventory) 19.45/206.96 ⇒ the oracle's clauestb SPBA/SPTPA
+    are sampled POST-growth (report-timing), like the SnagDet FMSOUT-vs-FMCRBOUT timing.
+  - Filter: WH (TSHE, viab 0.064) appears in jl but not the oracle ⇒ the SPIMP>0.05 importance filter must be ported.
+VERDICT: FVS_Climate = also needs a climate-report-timing + VSCORE-sampling investigation before it can validate — NOT
+a clean cyc0 serialization win. Consistent with SnagDet. Oracle + probe saved (/workspace/.iework/climate/{climtest.key,
+climtest_oracle.db,probe_climrep.jl}) for a future session that takes on the climate-report-timing chunk. ⇒ CONFIRMED:
+the whole DBS extension-table long-tail is "needs per-table model-report-timing work + multi-cycle-cornered", not a
+stream of clean bit-exact serializations. The oracle-EMISSION recipe (proven for SnagSum/SnagDet/Climate) is the durable
+reusable asset.
