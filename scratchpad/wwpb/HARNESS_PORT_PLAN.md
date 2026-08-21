@@ -147,3 +147,14 @@ CHUNK 3g (bmatct_single) done. NEXT chain = the actual beetle kills:
   • Then BMKILL (bmkill.f) TPBK→WK2 handback, BMSETP/PPMAIN single-stand harness, simulate.jl seam.
 Doctrine note: BMCBET/AS-functions are reconstruct-category (source absent, like the harness — USER-approved);
 every other kernel so far is bit-exact-vs-pristine. BMISTD's logic IS bit-exact-vs-pristine given the same BETA.
+
+
+## CHUNK 3h DONE (3001ea02) — CORRECTION: BMCBET is BIT-EXACT, not reconstruct
+The prior note (ALNGAM/BETAIN absent) was WRONG — both AS functions are DEFINED inside bmcbet.f (lines 136 AS245
+log-gamma, 246 AS63 incomplete beta; I'd read only 120 of 323 lines). Ported _wwpb_alngam (AS245) + _wwpb_betain
+(AS63, ACU=0.1e-14) + bmcbet! — BIT-EXACT vs the self-contained pristine bmcbet.f (ABETA 15/1..5 + 2.5/1..8, all
+10 BETA match). ⇒ NINE kernels + AS funcs, ALL bit-exact-vs-pristine (nothing is reconstruct-category after all).
+NEXT: BMISTD — now fully unblocked (has BETA via bmcbet!, BMRANN via wwpb_rand!, MSBA/GRF/TREE/SPCLT). The stochastic
+kill kernel: SPRAY reduce → MXISIZ/ISIZ1/ABETA → bmcbet! → special-tree kills (BMRANN) → group-kill (deterministic
+bulk) → individual-kill (BMRANN) → PBKILL/PITCH/STRIP/FINAL + dead-wood. Driver-validate (seed RNG, set TREE/BKP/
+GRF/MSBA/SPCLT, compare PBKILL/PITCH/STRIP/FINAL). Then BMKILL handback + BMSETP/PPMAIN single-stand + simulate.jl seam.
