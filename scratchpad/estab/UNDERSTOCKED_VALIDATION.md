@@ -32,3 +32,14 @@ jl NOINGROW Δ       0      0   -323   -196   -318   -208    (AFTER the kw_estab
   divergence (not the keyword), same class the ref stands mask. The keywords themselves now modulate
   establishment as the oracle does.
 - Gate: multicycle 339/11 byte-identical (the fix is inert on golden stands — none use NOINGROW-in-ESTAB).
+
+## TALLY (re-validation on the under-stocked fixture) — INERT in the ORACLE, no clean signal
+Tried TALLY at 2019/2024/2034, both with automatic establishment ON and ISOLATED (ESTAB/NOAUTALY/NOINGROW/TALLY):
+the ORACLE delta is 0 at EVERY date and cycle. A user TALLY (esnutr.f 427) does NOT independently book establishment
+on this stand — it modulates the automatic tally's NTALLY/IDSDAT, and the actual establishment still goes through
+NEWTPP=max(0,ITPP-NSTORE), which is 0 once the stand is stocked. Its only .sum-visible effect (the saturated-stand
+-88 the prior 1b9ea7d9 "validation" saw) is the SAME secondary NSTORE side-channel as STOCKADJ, NOT independent
+establishment. ⇒ TALLY's independent effect is not cleanly isolatable on available fixtures; the code
+(kw_estab! pushes ScheduledActivity 427/428/429; honored in ie_autoes_schedule!) is a faithful esnutr.f transcription
++ gate-safe (339/11), KEPT, but has no positive oracle signal to A/B against. This is a keyword whose oracle effect is
+itself marginal/second-order, not a jl gap.
