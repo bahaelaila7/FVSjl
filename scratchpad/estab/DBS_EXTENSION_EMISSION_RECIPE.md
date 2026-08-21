@@ -391,3 +391,19 @@ A/B validates cyc0-exact + OLDRN-cornered; or (b) first fix the OC canopy model 
 biomass). The serializer + wiring are correct + gate-safe; only the OC canopy MODEL blocks the A/B. WIP not kept in
 src (reverted); the whole port is ~40 lines re-appliable from this note. NB canopy_crfill(s) extraction is independently
 useful (canopy_bulk_density + FVS_CanProfile share it).
+
+## ★★★ FVS_CanProfile DONE 2026-08-21 (4e8ff2c7) — 2nd DBS table validated (on CR, not OC)
+The FVS_CanProfile serializer (from the prior note) is now VALIDATED + committed. Two corrections to that note:
+  1. TIMING: FVS_CanProfile reports the PRE-growth cycle-START inventory (fmpocr mode 2 alongside FMPOFL), NOT
+     post-growth. jl collects canopy_crfill BEFORE grow_cycle! (at the potfire_collect point). The oracle's 229.18
+     plateau matches ONLY at pre-growth. ⇒ DBS reports have DIFFERENT timings: Climate=post-growth-midpoint,
+     CanProfile=pre-growth-cycle-start, SnagDet/carbon=post-growth. Determine per-table which.
+  2. VARIANT: validated on CR (crt01 FFE stand + CANFPROF vs FVScr_clean) — cyc0 68/68 BIT-EXACT, multi-cycle
+     cornered on the CR OLDRN straddle. CR has a proper fm_canopy_lsw + validated cr_crown_biomass ⇒ bit-exact
+     canopy_crfill. The OC failure was BOTH the wrong timing AND the OC canopy gap below.
+★ OC-FFE BUG LEAD surfaced: jl's OC canopy_crfill diverges structurally from the oracle (no fm_canopy_lsw(::Oregon
+Coast) ⇒ wrong sp≤25 LSW fallback for the 50-species ORGANON + likely ORGANON crown_biomass ~4× low). Add an OC LSW
+method + verify OC crown_biomass to close it (a separate OC-FFE chunk; the CanProfile port doesn't need it).
+⇒ TWO DBS tables now DONE (FVS_Climate + FVS_CanProfile). Remaining: SnagDet cornered; BM/DM/RD blocked; StrClass
+44-col heavy needs structure_stage per-stratum exposure. The <x>_report + write_dbs_<x>! + collect-hook pattern is
+proven twice; the only per-table decision is the collection TIMING (pre vs post growth) + the enabling keyword.
