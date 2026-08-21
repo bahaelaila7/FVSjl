@@ -220,3 +220,29 @@ spec remain valid and reusable IF/when the FFE snag-report timing is made bit-ex
 model IS bit-exact (e.g. FVS_StrClass from structure_stage, FVS_Compute already done) are better serialization
 candidates than the snag/fire-derived tables. Artifacts: /workspace/.ocwork/ocsnag*.{key,tre,db},
 scratchpad/ocffe/{ocsnag_jl.key, run_snag_ab.jl}.
+
+## ★★ DBS extension-table TRIAGE 2026-08-21 (measured — which of the 7 missing tables are validatable)
+After the SnagDet A/B (cornered), triaged the remaining missing DBS tables by whether their SOURCE MODEL can be
+validated bit-exact-or-cornered (the serializer is the easy part; the target data is the gate):
+  1. **FVS_SnagDet** — CORNERED (this doc above): FFE snag-report/dating diverges even at cyc0 (jl 14.76 vs 55.26).
+  2. **FVS_BM_*** (WWPB, 4 tables) — NO ORACLE: WWPB is the source-absent PPE reconstruction (wwpb_outbreak_cycle!),
+     so there is nothing to A/B against bit-exact. Un-validatable by construction (same class as PPE item 5).
+  3. **FVS_DM_*** (mistletoe/NEWSPRED, 3) — ORACLE DB-CRASH-BLOCKED: FVSbc_clean SIGSEGVs on all DATABASE reads
+     (isoc23-shim × SQLite interop), and NEWSPRED's only corpus case is the YSM DB stand ⇒ no A/B vehicle.
+  4. **FVS_RD_*** (WRD root disease, 3) — jl WRD is linked-but-DORMANT/partial; source model not in the validated set.
+  5. **FVS_StrClass** — 44-col × 3-strata, HEAVILY tree-list-derived (strata by ht/DBH/crown/species-dominance).
+     Would corner on growth drift + stratum-boundary straddle, AND needs jl structure_stage to expose per-stratum
+     detail (DBH, nom/lg/sm ht, crown base/cover, top-2 species, status per stratum) = a big NEW plumbing lift.
+  6. **FVS_CanProfile** (fmpocr DBSFMCANPR) — canopy cover by height; tree-list/crown-derived ⇒ cyc0-exact, multi-
+     cycle cornered; reuses jl's existing canopy-profile machinery but still needs a collection hook + oracle A/B.
+  7. **FVS_Climate** (dbsclsum ICLIM) — the CLEANEST: per-species Viability/GrowthMult/SiteMult/MxDenMult are
+     DETERMINISTIC climate-reader outputs (bit-exact-able); BA/TPA/ViabMort/dClimMort/AutoEstbTPA are tree-list/
+     model-derived (cyc0-exact per the validated Climate-FVS, multi-cycle cornered). jl's climate.jl computes all of
+     these INLINE but does NOT collect them per-species-per-cycle ⇒ needs a collection hook (like carbon_collect) +
+     a CLIMATE-data oracle fixture (CLIMATE kw + climate projection file + DBS CLIMATEDB toggle) + serializer.
+VERDICT: model-derived tables (1-4,6) corner or lack an oracle; the classification/reader tables (5,7) are cyc0-
+exact-at-best but need substantial NEW jl per-cycle collection plumbing for a multi-cycle-cornered result. The DBS
+extension-table item is thus "cornered-or-heavy-plumbing-for-cornered" — NOT a stream of clean bit-exact wins. The
+oracle-EMISSION recipe (two-block DATABASE + report keyword + blank toggle) is proven + reusable for any of them.
+Best next candidate if pursued: FVS_Climate (add a per-species climate-report collect vector in the climate apply
+path, mirror write_dbs_carbon!, A/B on IE with a climate fixture) — cyc0-bit-exact deliverable, multi-cycle cornered.
