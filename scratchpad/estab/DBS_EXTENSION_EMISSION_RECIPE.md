@@ -576,3 +576,18 @@ pulse-era GRAND TOTAL) never exercised the per-cohort death-year. NEXT (for a re
 Year_Died for the LARGE-tree mortality cohorts (later cycles) to see if FVS uses cycle-START uniformly or only for
 regen; then align jl's snag yrdead + the inventory-year report to include first-cycle mortality. Report-only; niche;
 growth/.sum + gate 339/11 unaffected. This is a snag report-timing/yrdead-booking reconciliation, still open.
+
+## SNAG-DENSITY bug — FINAL LOCALIZATION 2026-08-21 (instrumented jl dead partition: ndead=2)
+jl's input-dead partition has ndead=2 (the LP/SP yrDied-1988 background it correctly seeds). The missing 3 oracle
+cohorts at 1993 (DF/GF/BR, sub-inch, yrDied=1993) are **NOT input-dead trees** ⇒ they are FIRST-CYCLE regen/small-
+tree mortality that FVS books at the inventory year and includes in the 1993 snag report. jl books ordinary mortality
+at yrdead=cycle-END−1 and its inventory report is pre-first-grow, so those snags don't exist yet. CONFIRMED SEPARATE
+(latent) unfaithfulness: ffe_seed_input_snags! (snag.jl:499) has `d >= 1f0`, dropping sub-1" INPUT-dead trees — FVS's
+fmsdit.f has NO such DBH filter — but it is INERT on ocsnag (ndead=2, both ≥1") so it is NOT this bug and can't be
+A/B-validated here; left as a documented lead (a faithful-but-gate-risk change to a shared FFE path, needs a stand
+with sub-1" input-dead records to validate). ⇒ **The snag-density bug is a first-cycle-mortality snag report-timing
+reconciliation (FVS surfaces cycle-1 regen/small-tree mortality at the inventory report; jl does not), report-only,
+growth/.sum/gate unaffected — DEFERRED (deep, niche).** Four turns of measurement fully characterize it; no clean
+validated code chunk emerged (the two candidate fixes — SNAGINIT-timing and the d>=1 filter — were both DISPROVEN as
+the cause). Pivot recommendation: the snag subsystem is a characterize-and-defer sink; the higher-value remaining tail
+is elsewhere (StrClass DBS, or accept the DBS-snag tables as cornered on this timing divergence).
