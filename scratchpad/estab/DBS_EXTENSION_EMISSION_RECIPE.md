@@ -333,3 +333,17 @@ REMAINING to ship write_dbs_climate!: re-add climate_report (WIP scratchpad/clim
 add the write_dbs_climate! schema/serializer (dbsclsum.f 15-col), a post-growth climate_collect hook in summary.jl
 (fires right after grow_cycle!, labels with the pre-advance cycle year), and the CLIMREDB DBS-toggle parse. All
 mechanical now that every column is understood + SPCALIB is in src. A future session's clean serialization chunk.
+
+## ★ write_dbs_climate! — remaining pieces precise (2026-08-21)
+Correction to "all mechanical": the ONE remaining non-trivial piece is the dClimMort (SPMORT2) column =
+Σ(DMORT·CLMRTMLT2·X)/SPWTS per species (clmorts.f:165-268) — a per-tree-weighted aggregation of the transfer-
+distance DMORT (tree-list-dependent ⇒ cornered). Cleanest impl: have apply_climate_mort! STORE per-species
+c.spmort1 (clim_mort_rates[1], now SPCALIB-calibrated) + c.spmort2 (the ldmort-branch DMORT aggregated) into new
+ClimateState fields as it runs, then climate_report reads them (avoids duplicating the transfer-distance loop +
+guarantees the report matches the APPLIED mortality). The other columns are done: Viability/SiteMult/MxDenMult
+bit-exact, ViabMort bit-exact (SPCALIB in src 33290ff0), POTESTAB via clinit defaults (500/4/40), BA/TPA/GrowthMult
+cornered. Then: write_dbs_climate! (dbsclsum.f 15-col INSERT), a climate_collect hook in summary.jl firing right
+after grow_cycle! (label=pre-advance cycle year, viab sampled report_year+fint/2), CLIMREDB DBS-toggle parse, and
+the run_keyfile write. A/B via /workspace/.iework/climate/climtest.key (CLIMREDB→429 rows) — deterministic cols
+bit-exact, tree-list cols within the cyc1 straddle. WIP climate_report: scratchpad/climate/climate_report_wip.jl
+(update: mort1→clim_survival_cal(spviab,c.spcalib[sp]); mort2→c.spmort2; POTESTAB defaults when isempty(autoestb)).
