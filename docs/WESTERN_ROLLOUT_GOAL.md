@@ -12,14 +12,17 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      STOCKADJ (`eddf8dc2`) + TALLY (`1b9ea7d9`) were CODE-wired but their "bit-exact" validations were **FLAWED —
      measured INERT in jl** on the only fixture (same-code jl A/B byte-identical, Δ=0; oracle Δ=−88/−75/−205/−172).
      RESETAGE/AUTALLY/NOAUTALY/INGROW/NOINGROW/THRSHOLD/PLANT/NATURAL/SPROUT wired; NOINGROW likewise disagrees with
-     the oracle in sign. **ROOT — MEASURED (instrumented FVSie_estabdump, estab.f:683 dump): the ORACLE itself
-     books NEWTPP=0 (ZERO new establishment) on this saturated 28000-TPA fixture across all cycles (ITPPnew 1-5 ≪
-     NSTOREold 99); jl MATCHES.** The "jl under-books" guess was REFUTED. This fixture is SATURATED ⇒ establishment is
-     ~0 in BOTH jl and oracle ⇒ the WRONG stand to validate any establishment keyword (they modulate a booking that is
-     0 on both sides; the −88 is a secondary NSTORE/existing-cohort side-effect inside the cornered dense-regime
-     straddle). ⇒ **CORRECT NEXT STEP: an UNDER-STOCKED / recently-disturbed IE fixture where the oracle books
-     NEWTPP>0** (extract a low-TPA IE FIA stand), then A/B the keywords + add the estab.f:581-583 PROB1 clamps jl omits.
-     The keyword code is faithful+gate-safe (339/11) but NOT validated (no fixture yet exercises it). STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
+     the oracle in sign. **RESOLVED 2026-08-21 (fcd56a17).** The saturated 28000-TPA fixture was WRONG
+     (FVSie_estabdump proved the oracle books NEWTPP=0 there too ⇒ every keyword inert on both sides). Re-validated on
+     an UNDER-STOCKED IE stand (753189105290487, oracle books NEWTPP up to 4/plot): **STOCKADJ WORKS** (jl Δ−243 ~
+     oracle −241 at the first establishment cycle; the "inert" was purely the saturated-stand artifact). **Found+FIXED
+     a REAL BUG: NOINGROW/INGROW/AUTALLY/NOAUTALY/THRSHOLD were handled only at top-level, but FVS parses them INSIDE
+     the ESTAB packet (esin.f opt 21-25)** — so NOINGROW-in-ESTAB was silently skipped; added the handlers to kw_estab!.
+     NOINGROW now disables ingrowth (jl Δ 0→large-negative, sign+scale matching oracle). Gate 339/11 byte-identical.
+     Residual = jl establishment fires ~1 cycle later than the oracle on under-stocked stands = the cornered
+     seedling-regime establishment-TIMING straddle (a separate, pre-existing establishment-MODEL divergence, not the
+     keyword). Repro scratchpad/estab/UNDERSTOCKED_VALIDATION.md. Still-open here: TALLY re-validate on the
+     under-stocked fixture; add the estab.f:581-583 PROB1 clamps jl omits (inert on this fixture). STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
      SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the FVS_TreeList DBS
      table that FVSie_clean would not emit this session — item 2 plumbing).
   2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
