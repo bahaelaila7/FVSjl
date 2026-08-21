@@ -158,3 +158,19 @@ NEXT: BMISTD — now fully unblocked (has BETA via bmcbet!, BMRANN via wwpb_rand
 kill kernel: SPRAY reduce → MXISIZ/ISIZ1/ABETA → bmcbet! → special-tree kills (BMRANN) → group-kill (deterministic
 bulk) → individual-kill (BMRANN) → PBKILL/PITCH/STRIP/FINAL + dead-wood. Driver-validate (seed RNG, set TREE/BKP/
 GRF/MSBA/SPCLT, compare PBKILL/PITCH/STRIP/FINAL). Then BMKILL handback + BMSETP/PPMAIN single-stand + simulate.jl seam.
+
+
+## CHUNK 3i DONE (e2b64e46) — BMISTD stochastic kill kernel BIT-EXACT ⇒ BEETLE BIOLOGY COMPLETE
+bmistd! validated bit-exact (driver_bmistd.f) on BOTH the individual-kill (BKP=3) AND group-kill (BKP=40) paths —
+PBKILL/PITCH/STRIP/BKP/FINAL all match, the BMRANN stream order is correct. ⇒ ALL 10 beetle kernels + AS245/AS63
+are bit-exact-vs-pristine. NEXT (the only remaining biology→FVS + orchestration):
+  • BMKILL (bmkill.f) — the BM→FVS handback: TPBK ledger → per-record WK2(I) mortality, bounded PROB−WK2≥1e-6;
+    SDWP/DDWP dead-wood; SVMORT. Reads the per-FVS-tree treelist (needs the FVS→BM tree-index map from bmsdit).
+  • BMSETP + PPMAIN single-stand harness (reconstruct thin outer layer): BMSETP gets DISPERSE→IBMYR1, SPLAEX
+    (single point/area, LBMSPR=T), BMSTND=1. PPMAIN loop: per cycle → bmsdit! (bridge) → bmdrv per-year loop
+    (management stubs → bmdrgt drought → stand-loop-1 {bmcwin/bmfire/bmmort-fast/bmcgrf/bmcbkp/bmcnum} → bmatct_single
+    → stand-loop-2 {bmistd → bmmort-slow → bmagdw}) → bmkill handback.
+  • simulate.jl landscape seam (single-stand MXSTND=1); DISPERSE/HOST/PBSPEC keyword block (BMPPIN).
+Note: many bmdrv sub-calls (bmpher/bmaph/bmpstc/bmsalv/bmsani/bmsmgt mgmt, bmobb/bmdfol other-agents, bmfire/bmfmrt
+fire, bmcwin windthrow, bmlite lightning, bmagdw aging) are OPTIONAL for a minimal outbreak — their inputs are 0/off
+by default (no fire/wind/mgmt keywords) ⇒ the minimal chain is bmsdit→bmcgrf→bmcbkp→bmcnum→bmatct→bmistd→bmmort→bmkill.
