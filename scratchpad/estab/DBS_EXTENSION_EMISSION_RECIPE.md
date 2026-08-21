@@ -285,3 +285,32 @@ ACTION: port FVS_Climate collecting per-species at the post-growth cycle-end sam
 climate_report(s, sample_year) → (SPVIAB,SPBA,SPTPA,SPMORT1,SPMORT2,SPGMULT[=Σtreemult·prob/Σprob],SPSITGM[=xgsite^clgrowmult],
 MXDENMLT,POTESTAB) with the SPIMP>0.05||SPVIAB>0.4 filter (clauestb.f:196); write_dbs_climate! (dbsclsum.f schema);
 wire CLIMREDB toggle. Expect Viability/GM bit-exact, BA/TPA cornered.
+
+## ★★ FVS_Climate climate_report VALIDATED (deterministic cols bit-exact) + 2 gaps found 2026-08-21
+Built climate_report(s; report_year, fint) (WIP saved scratchpad/climate/climate_report_wip.jl; validation driver
+scratchpad/climate/validate_climrep.jl) mirroring clauestb.f:178-207 + clgmult.f, collecting POST-grow_cycle! at
+sample year = report_year + fint/2. A/B vs the oracle "1990" row (post-cyc1 state), all 8 species:
+  BIT-EXACT ✓  Viability (WL 0.8584/DF 0.9309/GF 0.8869/LP 0.8412/ES 0.8818/AF 0.7528/PP 0.4335/MM 0.9495 — ALL match),
+               SiteMult (1.0), MxDenMult (1.0).
+  CORNERED ✓   BA/TPA (WL 13.47 vs 13.49, ES 12.08 vs 12.14 — cyc1 growth straddle, expected).
+               GrowthMult: PP 0.7783 EXACT (vscore<0.99 ⇒ deterministic); DF/GF/LP >1.0 (1.0303 vs oracle 1.0) —
+               vscore>0.99 ⇒ ps=MAX(xgsite,xrelgr,vscore) (clgmult.f:222-226 clim_treemult) so gm depends on the
+               per-tree Leites XDF (birthyr) ⇒ tree-list-dependent ⇒ CORNERED like BA/TPA.
+  ⇒ CONFIRMS the timing breakthrough end-to-end: sampling at report_year+fint/2 post-growth reproduces the oracle's
+  deterministic climate columns BIT-EXACT.
+TWO REMAINING GAPS (genuine unported model pieces, NOT serialization — block a faithful write_dbs_climate!):
+  1. **Mort1/Mort2 need the SPCALIB presence-calibration** (clmorts.f:57-75, ICYC=1 branch — SPCALIB(I)=viab·0.9,
+     mortality computed RELATIVE to it ⇒ SPMORT1=0 at cycle 1). jl's apply_climate_mort! computes the RAW FYRMORT
+     (PP M1=0.2217) with NO SPCALIB ⇒ over-reports at cycle 1 (oracle M1=0). This is the "clmorts.f:92-98 first-cycle
+     presence-calibration = chunk C, unported" the climate memory already flagged. Porting SPCALIB fixes the report
+     Mort AND the actual multi-cycle climate mortality (a real, .sum-affecting improvement, not just report-cosmetic).
+  2. **POTESTAB needs an AutoEstb activity** (clauestb.f:76 `IF(PTREES*AESNTREES>0)`; LAESTB set only by an AutoEstb
+     keyword, MYACT=2802). The clim_iet.key CLIMATE block has NO AutoEstb keyword, yet the oracle reports POTESTAB=
+     99.44 for DF/GF/ES/MM ⇒ the oracle has an auto-estab source (default AESNTREES? a keyword form jl isn't parsing?)
+     UNRESOLVED — jl reports 0. Resolve by DEBUG-dumping clauestb (AESNTREES/LAESTB) in the oracle to find where 99.44
+     comes from with no AutoEstb keyword, then match jl's clim_autoestb parsing.
+⇒ FVS_Climate = deterministic core VALIDATED + timing solved; a faithful full-table commit awaits SPCALIB (chunk C,
+worth porting for the .sum too) + the POTESTAB/AutoEstb-source resolution. climate_report reverted from src (partially
+faithful ⇒ not committed per doctrine); WIP preserved. This is the pattern for ALL the model-report DBS tables:
+the deterministic columns port cleanly at the post-growth midpoint; the model-derived columns need their model piece
+bit-exact first.
