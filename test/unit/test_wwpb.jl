@@ -402,4 +402,33 @@ const _WWPB_MIN = "BMIN\nEND\n"
         wk2B = Float32[2.0, 2.0]; FVSjl.bmkill!(stB, wB, mktree(), wk2B, alpha)
         @test hx(wk2B[1]) == 0x41C7FFFF     # 25 − 1e-6 (PROB bound)
     end
+
+    @testset "WWPB outbreak orchestration — end-to-end composition (behavioral)" begin
+        # The reconstructed single-stand PPMAIN/BMDRV loop composing the ten
+        # bit-exact kernels. NOT bit-exact (the outer harness source is absent) —
+        # asserts the composition is COHERENT: seeded inventory damage drives a
+        # multi-year outbreak that produces beetle mortality scaling with the seed.
+        c = FVSjl.wwpb_init_coeffs(copy(FVSjl.WWPB_UPSIZ_DEFAULT))
+        alpha(sp) = sp == 7 ? "LP" : "OT"   # LP = lodgepole, the MPB host
+        mktree() = begin
+            t = FVSjl.TreeList(100)
+            p(i, sp, d, h, cr, htg, cfv, tp) = (t.species[i] = Int32(sp); t.dbh[i] = Float32(d);
+                t.height[i] = Float32(h); t.crown_pct[i] = Int32(cr); t.ht_growth[i] = Float32(htg);
+                t.cuft_vol[i] = Float32(cfv); t.tpa[i] = Float32(tp))
+            p(1, 7, 7.0, 45, 50, 1.0, 8.0, 60); p(2, 7, 13.0, 65, 45, 0.9, 25.0, 40)
+            p(3, 7, 19.0, 80, 40, 0.7, 60.0, 25); t.n = 3; t
+        end
+        runkill(seedtpa) = begin
+            st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v); t = mktree()
+            seed = zeros(Float32, 10); seed[3] = seedtpa
+            FVSjl.wwpb_outbreak_cycle!(st, w, c, t, alpha; sarea = 5.0f0, iyr1 = 1, iyr2 = 5,
+                                       seed_pbkill = seed)
+            wk2 = zeros(Float32, 3); FVSjl.bmkill!(st, w, t, wk2, alpha); sum(wk2)
+        end
+        m0, m8, m20 = runkill(0.0f0), runkill(8.0f0), runkill(20.0f0)
+        @test m0 == 0.0f0            # no seed ⇒ no outbreak (BKP starts at 0)
+        @test m8 > 0.0f0             # seeded damage drives real beetle mortality
+        @test m20 > m8               # bigger seed ⇒ bigger outbreak (monotone)
+        @test m20 < 125.0f0          # bounded by the stand (never over-kills)
+    end
 end

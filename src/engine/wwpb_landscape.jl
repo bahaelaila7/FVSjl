@@ -958,3 +958,37 @@ function bmkill!(st::WwpbStand, w::WwpbState, t, wk2::Vector{Float32}, sp_alpha:
     end
     return wk2
 end
+
+# -----------------------------------------------------------------------------
+# wwpb_outbreak_cycle! — the reconstructed single-stand orchestration (the
+# PPMAIN/BMDRV outer loop, USER-approved; source ABSENT so this is faithful
+# translation, not bit-exact). Runs one FVS cycle's outbreak: load the FVS
+# treelist into the BM size-class table (bmsdit!), then the per-year loop over
+# [iyr1, iyr2] of the bit-exact beetle kernels, then leave the accumulated TPBK
+# ledger for bmkill!. MINIMAL outbreak (no fire/wind/lightning/management/other-
+# agent keywords): the stressor models default neutral — RVDSC=1 (bmdrgt.f:132,
+# "drought model not run"), SDD=0, all others 0 — so the per-year chain is
+# bmcgrf→bmcbkp→bmcnum→bmatct_single→bmistd→bmmort(slow). The outbreak must be
+# SEEDED: BKP starts at 0, so the first year's bmcbkp needs a nonzero PBKILL
+# (inventory beetle-damage, bmsdit.f MICYC==2 LBMDAM) or Outside-World BKPIN
+# (deferred). `seed_pbkill` supplies that initial per-size-class beetle-killed
+# proportion. Deterministic given the BMRANN seed in `w`.
+# -----------------------------------------------------------------------------
+function wwpb_outbreak_cycle!(st::WwpbStand, w::WwpbState, coeffs, t, sp_alpha::Function;
+                              sarea::Float32, iyr1::Int, iyr2::Int, ipson::Bool=false,
+                              seed_pbkill::Union{Nothing,Vector{Float32}}=nothing,
+                              habtyp::Integer=0, slope::Real=0.0)
+    bmsdit!(st, t, w, sp_alpha; habtyp=habtyp, slope=slope)
+    fill!(st.rvdsc, 1.0f0)                      # drought model not run ⇒ RVDSC=1 (neutral)
+    seed_pbkill !== nothing && (st.pbkill .= seed_pbkill)   # inventory-damage seed
+    oldgrf = zeros(Float32, WWPB_NSCL)
+    @inbounds for _iyr in iyr1:iyr2
+        bmcgrf!(st, w, oldgrf)
+        bmcbkp!(st, w, coeffs; ipson=ipson)
+        bmcnum!(st, w, coeffs; ipson=ipson)
+        bmatct_single!(st, w; sdd=0.0f0, ipson=ipson)
+        bmistd!(st, w, coeffs; sarea=sarea)
+        bmmort!(st, true)                        # slow pass: PBKILL→TREE decrement + TPBK ledger
+    end
+    return st
+end
