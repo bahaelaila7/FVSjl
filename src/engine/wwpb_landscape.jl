@@ -538,3 +538,44 @@ function bmcnum!(st::WwpbStand, w::WwpbState, coeffs;
     end
     return st
 end
+
+# -----------------------------------------------------------------------------
+# bmatct_single! (bmatct.f, single-stand OUTOFF degenerate case) — the landscape
+# BKP redistribution collapses to a self-allocation: with one stockable stand and
+# the Outside World off, the between-stand SCORE cancels (PROP=1) and CAREA
+# cancels (NEWBKP=CAREA·BKP then /CAREA), leaving the "how much BKP makes it into
+# the stand" saturation:
+#   BKP = TFOOD·(1 − exp(−ALPHA·BKP/(TFOOD+1e-6))),  ALPHA from drought SDD.
+# Faithful to bmatct.f lines 707-746 for BMSTND=1, OUTOFF=T (verified vs
+# driver_bmatct.f with SPLAAR/SPLALO/SPLADS/GPGET2 stubbed). The exp routes
+# through glibc. The full multi-stand spatial dispersal (SPLADS distances, the
+# Outside-World immigration BKPIN) is a later chunk — moot at MXSTND=1/OUTOFF.
+# -----------------------------------------------------------------------------
+function bmatct_single!(st::WwpbStand, w::WwpbState; sdd::Float32=0.0f0, ipson::Bool=false)
+    pbspec = Int(w.pbspec)
+    alpha = sdd < 0.0f0 ? (0.365f0 - 0.178f0 * sdd) : (0.365f0 - 0.034f0 * sdd)
+    alpha > 0.90f0 && (alpha = 0.90f0)
+    alpha < 0.01f0 && (alpha = 0.01f0)
+    if pbspec != 3
+        nb1 = st.bkp                       # NEWBKP(1) = self BKP (PROP=1, CAREA cancels)
+        nb2 = ipson ? st.bkpips : 0.0f0    # NEWBKP(2) accumulated only when Ips is a DV
+        if nb1 > 0.0f0 && st.tfood[1] > 0.0f0
+            st.bkp = st.tfood[1] * (1.0f0 - _wwpb_expf(-(alpha * nb1 / (st.tfood[1] + 1.0f-6))))
+        else
+            st.bkp = 0.0f0
+        end
+        if nb2 > 0.0f0
+            st.bkpips = st.tfood[2] * (1.0f0 - _wwpb_expf(-(alpha * nb2 / (st.tfood[2] + 1.0f-6))))
+        else
+            st.bkpips = 0.0f0
+        end
+    else
+        nb1 = st.bkpips
+        if nb1 > 0.0f0
+            st.bkpips = st.tfood[1] * (1.0f0 - _wwpb_expf(-(alpha * nb1 / (st.tfood[1] + 1.0f-6))))
+        else
+            st.bkpips = 0.0f0
+        end
+    end
+    return st
+end

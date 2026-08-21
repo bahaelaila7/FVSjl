@@ -324,4 +324,17 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test hx(st.tfood[1]) == 0x42A46405   # BAHG·(BAHG/BAIS)
         @test st.repphe == 1.0f0              # 0 → 1
     end
+
+    @testset "BMATCT — single-stand BKP saturation BIT-EXACT vs gfortran-16 (bmatct.f)" begin
+        # golden: scratchpad/wwpb/driver_bmatct.f over pristine bmatct.f (SPLAAR/
+        # SPLALO/SPLADS/GPGET2 stubbed), gfortran-16, BMSTND=1, OUTOFF=T. The
+        # redistribution collapses to BKP = TFOOD·(1−exp(−ALPHA·BKP/(TFOOD+1e-6))),
+        # ALPHA=0.365 (SDD=0). BKP=100, TFOOD=50 ⇒ 50·(1−exp(−0.73)) ≈ 25.9.
+        hx(x) = reinterpret(UInt32, x)
+        st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v)
+        st.bkp = 100.0f0; st.bkpips = 0.0f0; st.tfood[1] = 50.0f0; st.tfood[2] = 0.0f0
+        FVSjl.bmatct_single!(st, w; sdd = 0.0f0, ipson = false)
+        @test hx(st.bkp)    == 0x41CF3C85     # saturated BKP into the stand
+        @test hx(st.bkpips) == 0x00000000     # NEWBKP(2)=0 ⇒ BKPIPS 0 (no Ips DV)
+    end
 end
