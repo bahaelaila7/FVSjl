@@ -313,6 +313,41 @@ function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
+const _FVS_CANPROFILE_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_CanProfile(
+  CaseID text not null, StandID text not null, Year Int null,
+  Height_m real null, Canopy_Fuel_kg_m3 real null, Height_ft real null, Canopy_Fuel_lbs_acre_ft real null)"""
+
+"""
+    write_dbs_canprofile!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the FFE canopy crown-fuel profile to the `FVS_CanProfile` DBS table (dbsfmcanpr.f, CANFPROF keyword). `rows`
+is the `(year, crfill)` collection where `crfill` is the length-400 `canopy_crfill` vector (lbs/ac-ft by 1-ft
+layer). One row per layer `I` with `crfill[I] > 0`: Height_ft=I, Height_m=I·0.3048, fuel in lbs/ac-ft, and the
+kg/m³ conversion (·0.45359237/(4046.856422·0.3048)).
+"""
+function write_dbs_canprofile!(dbpath::AbstractString, caseid::AbstractString,
+                               standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_CANPROFILE_CREATE)
+        ins = "INSERT INTO FVS_CanProfile VALUES (" * join(fill("?", 7), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        conv = 0.45359237 / (4046.856422 * 0.3048)
+        for (yr, crfill) in rows
+            for i in eachindex(crfill)
+                crfill[i] > 0f0 || continue
+                DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                    i * 0.3048, Float64(crfill[i]) * conv, Float64(i), Float64(crfill[i])))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Down_Wood_Vol schema (dbsfmdwvol.f:61-79) — down-wood volume (cuft/ac) by DBH bin × hard/soft.
 const _FVS_DWDVOL_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Down_Wood_Vol(

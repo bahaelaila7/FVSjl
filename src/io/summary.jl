@@ -165,7 +165,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         carbon_collect::Union{Nothing,Vector} = nothing,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing,
-                        climate_collect::Union{Nothing,Vector} = nothing)
+                        climate_collect::Union{Nothing,Vector} = nothing,
+                        canprof_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
     # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
@@ -283,6 +284,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             compute_density!(s)
             pfr = potential_fire_report(s)
             pfr !== nothing && push!(potfire_collect, (r.year, pfr))
+        end
+        # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
+        # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
+        if canprof_collect !== nothing && s.fire !== nothing && s.fire.active
+            compute_density!(s)
+            push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
         if !last
             # Add the deferred SNAGINIT snags at the start of the first growing cycle (FMMAIN, post-inventory-

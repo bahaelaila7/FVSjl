@@ -2012,6 +2012,8 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.carbon_report_on = true
         elseif k == "POTFIRE" || k == "POTFLAME"           # request the Potential Fire report (fmpofl.f)
             s.control.potfire_report_on = true
+        elseif k == "CANFPROF"                             # FFE Canopy Fuels Profile table (fmin.f opt 47 → ICANPR)
+            s.control.dbs_canprofile = true
         elseif k == "CARBCALC"                             # FLD1 method 0=FFE*/1=Jenkins, FLD2 units 0=US-t/ac*/1=t-ha/2=t-ac
             r.present[1] && (s.control.carbon_method = Int32(clamp(nint(r.values[1]), 0, 1)))
             r.present[2] && (s.control.carbon_units  = Int32(clamp(nint(r.values[2]), 0, 2)))

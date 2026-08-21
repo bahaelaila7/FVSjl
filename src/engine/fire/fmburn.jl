@@ -495,28 +495,25 @@ partial top/bottom layers. Returns: `cbd` = the max 13-ft running mean of CRFILL
 capped at 0.35; `actcbh` = the actual crown base height (ft, lowest layer whose 3-ft running mean ≥ 30
 lbs/ac-ft, −1 if none); `canopy_ht` = effective canopy top (ft); `tcload` = total canopy fuel (lbs/ft²).
 """
-function canopy_bulk_density(s::StandState)
-    fs = s.fire
-    (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
-    t = s.trees
+# The canopy crown-fuel profile CRFILL (fmpocr.f): crown fuel by 1-ft height layer (lbs/ac-ft) — the array both
+# canopy_bulk_density (its running-mean CBD) and the FVS_CanProfile report (DBSFMCANPR) consume. Extracted so the
+# report reuses it; returns a length-400 vector (zeros when no FFE).
+function canopy_crfill(s::StandState)::Vector{Float32}
     NH = 400
-    crfill = zeros(Float32, NH)                         # crown fuel by 1-ft height layer (lbs/ac-ft)
+    crfill = zeros(Float32, NH)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return crfill
+    t = s.trees
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         # Tree-inclusion filter (fmpocr.f:78-80): canopy-softwood species (LSW; hardwoods excluded), crown
-        # ratio > 0 (FMICR), and height > CANMHT. Without it the profile picks up hardwood + understory crown
-        # ⇒ CBD too high / crown base too low (the FVS_PotFire Canopy_Density + crown-fire index error).
+        # ratio > 0 (FMICR), and height > CANMHT.
         h = t.height[i]; h > _FM_CANMHT || continue
         fm_canopy_lsw(Int(t.species[i]), s.variant) || continue
         icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
         xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
-        if get(ENV, "BM_TREE_DEBUG", "") != ""
-            Base.println(stderr, "TREEDBG sp=", Int(t.species[i]), " d=", t.dbh[i], " h=", h,
-                " icr=", Int(round(icr)), " crbot=", crbot, " tpa=", t.tpa[i],
-                " fol=", xv[1], " w1=", xv[2], " crbio=", crbio)
-        end
         crbio > 0f0 || continue
         len = h - crbot; len > 0f0 || continue
         adcrwn = crbio / len                            # uniform density over the crown length (lbs/ac-ft)
@@ -529,6 +526,13 @@ function canopy_bulk_density(s::StandState)
             crfill[j] += adcrwn * adj
         end
     end
+    return crfill
+end
+
+function canopy_bulk_density(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
+    crfill = canopy_crfill(s)                            # crown fuel by 1-ft height layer (lbs/ac-ft)
     tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
     # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
     j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)
