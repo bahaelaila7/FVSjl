@@ -381,4 +381,25 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test hx(stB.bkp)       == 0x00000000
         @test hx(stB.final[2])  == 0x40E00000    # last kill in size class 7
     end
+
+    @testset "BMKILL — BM→FVS mortality handback BIT-EXACT vs gfortran-16 (bmkill.f)" begin
+        # golden: scratchpad/wwpb/driver_bmkill.f over pristine bmkill.f+bmdbhc.f
+        # (OPBISR/SVMORT stubbed), gfortran-16. 2 LP trees, class 3, PROB=25, WK2=2,
+        # OTPA(3,host)=50. Reconciled WK2 = MFAST+MBTL. Float32 hex.
+        hx(x) = reinterpret(UInt32, x)
+        alpha(sp) = sp == 7 ? "LP" : "OT"
+        mktree() = (t = FVSjl.TreeList(10); t.species[1] = 7; t.species[2] = 7;
+                    t.dbh[1] = 7.0f0; t.dbh[2] = 7.0f0; t.tpa[1] = 25.0f0; t.tpa[2] = 25.0f0;
+                    t.n = 2; t)
+        # case A — beetle kill 30/50 of class 3 ⇒ WK2 = min(30/50,1)·25 ≈ 14.99999
+        stA = FVSjl.WwpbStand(); wA = FVSjl.wwpb_defaults!(v)
+        stA.otpa[3,1] = 50.0f0; stA.tpbk[3,1,3] = 30.0f0
+        wk2A = Float32[2.0, 2.0]; FVSjl.bmkill!(stA, wA, mktree(), wk2A, alpha)
+        @test hx(wk2A[1]) == 0x416FFFFF && hx(wk2A[2]) == 0x416FFFFF
+        # case B — TPBK 60 > OTPA 50 ⇒ MBTL clamps to PROB, then PROB−WK2<1e-6 bound
+        stB = FVSjl.WwpbStand(); wB = FVSjl.wwpb_defaults!(v)
+        stB.otpa[3,1] = 50.0f0; stB.tpbk[3,1,3] = 60.0f0
+        wk2B = Float32[2.0, 2.0]; FVSjl.bmkill!(stB, wB, mktree(), wk2B, alpha)
+        @test hx(wk2B[1]) == 0x41C7FFFF     # 25 − 1e-6 (PROB bound)
+    end
 end

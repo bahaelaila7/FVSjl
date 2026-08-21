@@ -919,3 +919,42 @@ function bmistd!(st::WwpbStand, w::WwpbState, coeffs; sarea::Float32)
     end
     return st
 end
+
+# -----------------------------------------------------------------------------
+# bmkill! (bmkill.f) — the BM→FVS mortality HANDBACK. For each FVS tree record,
+# convert the beetle-model per-size-class kill ledger (TPBK) + initial TPA (OTPA)
+# into a per-record mortality and reconcile with the existing FVS mortality WK2:
+#   MFAST/MSLOW/MBTL = min(TPBK(K,type,{1,2,3})/OTPA(K,type), 1)·PROB;  MSUM=sum;
+#   if MSUM>MPRG(=WK2): if MFAST+MBTL<MPRG → MSLOW−=(MSUM−MPRG) else MPRG=MFAST+
+#   MBTL; else the FVS-only excess goes to dead wood (not the tree mortality).
+#   WK2 = MPRG, bounded PROB−WK2 ≥ 1e-6. Faithful to bmkill.f (the SVS/sanitation/
+#   dead-wood-pool bookkeeping — LOKS/BTKL/SDWP DO-200 — is deferred; it does not
+#   change the returned WK2 tree mortality). `wk2` is modified in place.
+# -----------------------------------------------------------------------------
+function bmkill!(st::WwpbStand, w::WwpbState, t, wk2::Vector{Float32}, sp_alpha::Function)
+    pbspec = Int(w.pbspec)
+    upsiz = w.upsiz
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0.0f0 || continue
+        sp = Int(t.species[i])
+        k = wwpb_dbh_class(upsiz, t.dbh[i])
+        lx = wwpb_is_host(pbspec, sp_alpha(sp))
+        ty = lx ? 1 : 2
+        x = st.otpa[k, ty] > 1.0f-9 ? (1.0f0 / st.otpa[k, ty]) : 1.0f9
+        mfast = min(st.tpbk[k, ty, 1] * x, 1.0f0) * t.tpa[i]
+        mslow = min(st.tpbk[k, ty, 2] * x, 1.0f0) * t.tpa[i]
+        mbtl  = min(st.tpbk[k, ty, 3] * x, 1.0f0) * t.tpa[i]
+        msum = mfast + mslow + mbtl
+        mprg = wk2[i]
+        if msum > mprg
+            if (mfast + mbtl) < mprg
+                mslow -= (msum - mprg)
+            else
+                mprg = mfast + mbtl
+            end
+        end
+        wk2[i] = mprg
+        (t.tpa[i] - wk2[i]) < 1.0f-6 && (wk2[i] = t.tpa[i] - 1.0f-6)
+    end
+    return wk2
+end
