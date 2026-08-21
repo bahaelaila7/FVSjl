@@ -61,6 +61,10 @@ Bins the FVS treelist into NSCL=10 DBH size classes × {host=1, nonhost=2}:
    ✓ CHUNK 3a DONE (3691658c): bmmort! (fast/slow tree decrement + FASTK/TPBK ledgers).
    ✓ CHUNK 3b DONE (e569de35): bmcgrf! (GRF/GRFSTD/RVDNST) BIT-EXACT vs gfortran-16 driver (glibc expf/powf).
      Driver-golden recipe PROVEN for transcendental beetle biology. driver_bmcgrf.f reusable template.
+  ✓ CHUNK 3c DONE (68726505): wwpb_init_coeffs (BMINIT MSBA/UPBA/INC) — 31 values BIT-EXACT (driver_bminit.f);
+    also fixed WWPB_PI24 to Float32 (was 1-ULP off) ⇒ bmsdit BA now bit-exact too.
+  ✓ CHUNK 3d DONE (bmcbkp): BKP brood core BIT-EXACT (driver_bmcbkp.f, GPGET2/GPADD stubbed → normal path).
+    ⇒ the GRF→BKP reproduction chain is now bit-exact end-to-end. NEXT: BMCNUM/BMATCT/BMISTD.
    → NEXT: the transcendental kernels need gfortran-16 driver-goldens (Float32 exp/logistic bit-exactness):
      BMFMRT (fire mort logistic), BMCGRF→BMCBKP→BMCNUM (susceptibility/BKP/attractiveness core).
 1. State design: WwpbLandscape Julia struct mirroring BMCOM/BMFCOM/BMPCOM (MXSTND-dim
