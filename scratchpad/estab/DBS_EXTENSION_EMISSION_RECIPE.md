@@ -129,3 +129,15 @@ BUT the CONTENTS diverge from the oracle, so per doctrine (commit only validated
 snag-DENSITY report is a separate, un-validated sub-output. To land the DBS snag tables: first make the EM (or CA/CR/
 WS/SO/WC) FFE snag report bit-exact vs FVS<v>_clean (align initial-snag seeding + the per-cycle report point), THEN the
 SNAGSUDB/SNAGOUDB wiring (verified trivial here) + the SnagDet serializer (FMSOUT formula recorded above) drop in.
+
+## Refinement 2026-08-21 — the snag-report divergence is a REPORT-TIMING offset, not a fundamental blocker
+emt01.tre has NO dead-tree records (col-48 I1 = crown-class codes 3-8, not mortality flags). So the oracle's 14.76
+hard snags at 1990 = the FIRST cycle's PROJECTED mortality, reported by FMSOUT at the cycle-START label; jl reports
+its snags at the cycle-END label (2000) → jl's rows are shifted ~one cycle (hence jl's extra 2020 row and its 1990=0).
+The snag DENSITIES themselves are downstream of each side's mortality, which is the accepted cornered DGSCOR/OLDRN
+straddle — so FVS_SnagSum/SnagDet contents will be CORNERED-matching (like every .sum multi-cycle column), NOT bit-
+exact, which MEETS the doctrine bar. ⇒ the DBS snag tables are NOT fundamentally blocked; the one concrete fix is to
+ALIGN jl's snag-report cycle labeling with FMSOUT's (report the cycle's projected snags at the cycle-start year), after
+which SnagSum/SnagDet track the oracle cornered. That timing-alignment (in the carb_rows collection point / the
+write_dbs_snagsum! year field) is the executable next step — a focused fix, then the reverted SNAGSUDB wiring + the
+SnagDet serializer (FMSOUT formula above) drop in and validate cornered on EM/CA/CR/WS/SO/WC (a validated-FFE variant).
