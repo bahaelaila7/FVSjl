@@ -16,8 +16,11 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      seedling-height) need a PER-TREE TREELIST A/B (FVS_TreeList DBS table).**
   2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
-  3. **AK permafrost** — PFCON keyword + SDICAL/SDICLS (per-point Zeide-SDI PRD) + SEAMRT + R10 vol; needs an
-     interior-AK reproducer vs FVSak.
+  3. **AK permafrost — ✓ ALREADY DONE (goal-doc was STALE, verified 2026-08-21).** kw_permafrost! wires PRMFROST →
+     s.control.permafrost (keyword_dispatch.jl:2395); ak_point_zeide! computes the SDICAL/SDICLS point-Zeide PRD
+     (diameter_growth.jl:79); the full LPERM-branch PFMOD (cap≤1 on / floor≥1 off) + AK_PFCON coeffs are ported;
+     HG permafrost modifier too. Only an interior-AK A/B vs FVSak_g16 to CONFIRM (the code is present + gate-safe;
+     akt01 is coastal so the path is inert there). NOT a porting gap.
   4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40), ON method-6/broken-top vol, COVER CVBCAL.
   5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
      as done for WWPB). Note as un-portable, not a gap.
