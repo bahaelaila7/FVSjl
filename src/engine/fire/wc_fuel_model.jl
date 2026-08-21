@@ -57,6 +57,17 @@ const _PN_MAPDRY = Int[
     return 2                                                     # DFCT: DF,GF,WP + everything else
 end
 
+# OP (Olympic NWO) species→cover-group map — op/fmcfmd.f the ELSE (VARACD≠'WC') branch. Differs from WC in
+# 2 species (SS sp6→SFCT vs WC's ES sp10; sp24→WOCT). The selection RULES are BYTE-IDENTICAL to wc/fmcfmd.f.
+@inline function _op_covgrp(sp::Int)::Int
+    (sp == 1 || sp == 19 || sp == 6 || sp == 18)  && return 1   # SFCT: SF,WH,SS,RC
+    (sp == 20 || sp == 4 || sp == 31)             && return 3   # MHCT: MH,AF,WB
+    sp == 22                                       && return 4   # RACT: RA
+    sp == 11                                       && return 5   # LPCT: LP
+    (sp == 28 || sp == 24 || sp == 25)             && return 6   # WOCT: WO,TO,GC
+    return 2                                                     # DFCT + everything else
+end
+
 """
     wc_select_fuel_models(s, mois, sm, lg) -> Vector{(model, weight)}
 
@@ -71,8 +82,8 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
 
     # PNFGS / PNWET (wc/fmcba.f entry points): habitat forb/grass/shrub + moist flags. PN carries its own
     # 75-code habitat arrays (pn/fmcba.f); WC uses the 139-code arrays. fmcfmd.f logic is shared (identical).
-    _mapfgs = s.variant isa PacificNorthwest ? _PN_MAPFGS : _WC_MAPFGS
-    _mapdry = s.variant isa PacificNorthwest ? _PN_MAPDRY : _WC_MAPDRY
+    _mapfgs = (s.variant isa PacificNorthwest || s.variant isa Olympic) ? _PN_MAPFGS : _WC_MAPFGS  # OP calls PNFGS
+    _mapdry = (s.variant isa PacificNorthwest || s.variant isa Olympic) ? _PN_MAPDRY : _WC_MAPDRY
     icov = (1 <= itype <= length(_mapfgs)) ? _mapfgs[itype] : 0
     lforb  = icov == 1
     lgrass = icov == 0 || icov == 2
@@ -92,7 +103,7 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     @inbounds for sp in 1:nsp
         fmtba[sp] > 0f0 || continue
         stndba += fmtba[sp]
-        ctba[_wc_covgrp(sp)] += fmtba[sp]
+        ctba[(s.variant isa Olympic ? _op_covgrp(sp) : _wc_covgrp(sp))] += fmtba[sp]
     end
 
     # top-2 cover groups by BA (RDPSRT descending), rescaled to sum 1 (wc/fmcfmd.f:213-233).

@@ -215,7 +215,7 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
 
     # PN (pn/fmcfmd.f — BYTE-IDENTICAL to wc/fmcfmd.f) — same FIRE-VPN cover-metagroup selection; only PN's
     # fmcba.f habitat arrays (MAPFGS/MAPDRY) differ, handled inside wc_select_fuel_models by variant.
-    if s.variant isa PacificNorthwest
+    if s.variant isa PacificNorthwest || s.variant isa Olympic   # OP FIRE-VPN == wc/fmcfmd (rules byte-identical; _op_covgrp)
         return wc_select_fuel_models(s, mois, sm, lg)
     end
 
