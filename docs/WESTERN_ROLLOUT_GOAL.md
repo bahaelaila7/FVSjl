@@ -21,10 +21,16 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      NOINGROW now disables ingrowth (jl Δ 0→large-negative, sign+scale matching oracle). Gate 339/11 byte-identical.
      Residual = jl establishment fires ~1 cycle later than the oracle on under-stocked stands = the cornered
      seedling-regime establishment-TIMING straddle (a separate, pre-existing establishment-MODEL divergence, not the
-     keyword). Repro scratchpad/estab/UNDERSTOCKED_VALIDATION.md. Still-open here: TALLY re-validate on the
-     under-stocked fixture; add the estab.f:581-583 PROB1 clamps jl omits (inert on this fixture). STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
-     SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the FVS_TreeList DBS
-     table that FVSie_clean would not emit this session — item 2 plumbing).
+     keyword). Repro scratchpad/estab/UNDERSTOCKED_VALIDATION.md. **TALLY re-validated (7867377d): INERT in the
+     ORACLE at every date on the under-stocked fixture (a user tally books NEWTPP=0 once stocked) — no positive signal
+     to A/B; faithful+gate-safe code kept.** **PROB1 clamps DONE (82eff441): added estab.f:581-582 [0.0001,0.9990] cap
+     — measured a REAL runaway (STOCKADJ 2.0 → jl prob1=1.234>1 uncapped → +588 TPA vs oracle −251; the cap prevents
+     the prob1>1 over-book), gate 339/11, inert on base/0.5/NOINGROW.** REMAINING est-item = the separate cornered
+     **seedling-mortality/timing regime** the STOCKADJ>1 + under-stocked A/Bs surfaced (jl retains extra early
+     establishment the oracle density-mortalizes; jl est fires ~1 cycle later) — a pre-existing establishment-MODEL
+     divergence, NOT the keywords. STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO,
+     OUTPUT, PASSALL, SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the
+     FVS_TreeList DBS table that FVSie_clean would not emit this session — item 2 plumbing).
   2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
   3. **AK permafrost — ✓ ALREADY DONE (goal-doc was STALE, verified 2026-08-21).** kw_permafrost! wires PRMFROST →
