@@ -101,6 +101,11 @@ mutable struct WwpbStand
     spclt ::Matrix{Float32}     # SPCLT(NSCL,2) — proportion of "special" (attractive) trees per class × pass
     pitch ::Vector{Float32}     # PITCH(NSCL)  — pitch-out / strip-kill proportion
     atrphe::Float32             # ATRPHE — proportion of trees with attractant pheromone
+    numer ::Vector{Float32}     # NUMER(2) — scoring-equation numerator (main pest, Ips)
+    tfood ::Vector{Float32}     # TFOOD(2) — total beetle attractive "food"
+    repphe::Float32             # REPPHE — repellent-pheromone factor (default → 1)
+    ssbatk::Float32             # SSBATK — special-tree BA already attacked (0 initially)
+    dwphos::Matrix{Float32}     # DWPHOS(2, MXDWHZ=3) — downed/standing host volume for Ips [type, size]
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -121,6 +126,7 @@ function WwpbStand()
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # rvdsc, rvdfol
         0.0f0, 0.0f0, 0.0f0, zeros(Float32, 3), zeros(Float32, WWPB_NSCL), zeros(Float32, 2, 2),  # bkp, bkpips, oldbkp, final, strip, pslash
         zeros(Float32, WWPB_NSCL, 2), zeros(Float32, WWPB_NSCL), 0.0f0,  # spclt, pitch, atrphe
+        zeros(Float32, 2), zeros(Float32, 2), 0.0f0, 0.0f0, zeros(Float32, 2, 3),  # numer, tfood, repphe, ssbatk, dwphos
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -359,6 +365,14 @@ function wwpb_init_coeffs(upsiz::Vector{Float32};
                           dbhmax::Float32=36.0f0, replac::Float32=6.0f0)
     msba = zeros(Float32, WWPB_NSCL); upba = zeros(Float32, WWPB_NSCL)
     inc  = zeros(Float32, 3, WWPB_NSCL)
+    # WPBA(MXDWSZ=2) — dead-wood-pool BA from WPSIZ breakpoints (bminit.f:128-136); LOW(1)=3.
+    wpsiz = WWPB_WPSIZ_DEFAULT   # 10, 20, 60
+    wpba = zeros(Float32, 2)
+    @inbounds for i in 1:2
+        low = i == 1 ? 3 : Int(wpsiz[i-1])
+        mid = Float32(Int(wpsiz[i]) + low) * 0.5f0
+        wpba[i] = mid * mid * WWPB_PI24
+    end
     b = 1.0f0 - (rslope * replac)
     @inbounds for i in 1:WWPB_NSCL
         iu  = Int(upsiz[i])
@@ -373,7 +387,7 @@ function wwpb_init_coeffs(upsiz::Vector{Float32};
     @inbounds for i in 1:WWPB_NSCL
         inc[3, i] = inc[1, 1] * 0.1f0
     end
-    return (msba = msba, upba = upba, inc = inc)
+    return (msba = msba, upba = upba, inc = inc, wpba = wpba)
 end
 
 # -----------------------------------------------------------------------------
@@ -471,4 +485,56 @@ function bmcspt!(st::WwpbStand, w::WwpbState, isiz::Int, ipass::Int; ipson::Bool
     end
     st.spclt[isiz, ipass] = xsplt
     return xsplt
+end
+
+# -----------------------------------------------------------------------------
+# bmcnum! (bmcnum.f) — numerator of the between-stand "scoring" (attractiveness)
+# equation. For each pass (main pest; +Ips if IPSON): BAIS = total stand BA; per
+# size class compute special trees (bmcspt!) → SPCLT, accumulate SPEC, and above
+# the min attack size class LISCMIN accumulate SPAREA (special BA) and BAHG (host
+# BA). Ips slash adds DWPHOS·WPBA food. Then
+#   NUMER(pass) = (USERA·SPEC + 1)·BAIS·(REPPHE·BAHG + SPAREA + SSBATK)/GRFSTD.
+# Faithful to bmcnum.f. USERA defaults 1 (bminit.f:239); REPPHE→1 if 0. `coeffs`
+# supplies MSBA/WPBA. Deterministic given SPCLT (bmcspt! is deterministic).
+# -----------------------------------------------------------------------------
+function bmcnum!(st::WwpbStand, w::WwpbState, coeffs;
+                 ipson::Bool=false, usera::NTuple{3,Float32}=(1.0f0, 1.0f0, 1.0f0))
+    pbspec = Int(w.pbspec)
+    msba = coeffs.msba; wpba = coeffs.wpba
+    liscmin = (Int(w.iscmin[pbspec]), 0)
+    aspec   = (usera[pbspec], 0.0f0)
+    st.numer[1] = 0.0f0; st.numer[2] = 0.0f0
+    st.tfood[1] = 0.0f0; st.tfood[2] = 0.0f0
+    npass = 1
+    if ipson
+        npass = 2
+        liscmin = (liscmin[1], Int(w.iscmin[3]))
+        aspec   = (aspec[1], usera[3])
+    end
+    @inbounds for ipass in 1:npass
+        bait = st.bah[WWPB_NSCL+1] + st.banh[WWPB_NSCL+1]   # BAIS
+        bait <= 1.0f-6 && continue
+        spec = 0.0f0; bahg = 0.0f0; sparea = 0.0f0
+        lmin = liscmin[ipass]
+        for isiz in 1:WWPB_NSCL
+            bmcspt!(st, w, isiz, ipass; ipson = ipson)
+            sptree = st.tree[isiz, 1] * st.spclt[isiz, ipass]
+            spec += sptree
+            if isiz >= lmin
+                sparea += sptree * msba[isiz]
+                bahg   += st.bah[isiz]
+            end
+        end
+        st.repphe == 0.0f0 && (st.repphe = 1.0f0)
+        if ipass == 2 || pbspec == 3
+            for idsiz in 1:2, idtyp in 1:2
+                st.tfood[ipass] += st.dwphos[idtyp, idsiz] * wpba[idsiz]
+                spec += st.dwphos[idtyp, idsiz]
+            end
+        end
+        st.tfood[ipass] += bahg * (bahg / bait)
+        st.numer[ipass] = (aspec[ipass] * spec + 1.0f0) * bait *
+                          ((st.repphe * bahg) + sparea + st.ssbatk) / st.grfstd
+    end
+    return st
 end

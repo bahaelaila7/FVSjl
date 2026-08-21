@@ -304,4 +304,24 @@ const _WWPB_MIN = "BMIN\nEND\n"
         st.scorch[5] = 1.0f0
         @test hx(FVSjl.bmcspt!(st, w, 5, 1)) == 0x3F800000            # any SP==1 ⇒ 1.0
     end
+
+    @testset "BMCNUM — attractiveness numerator BIT-EXACT vs gfortran-16 (bmcnum.f)" begin
+        # golden: scratchpad/wwpb/driver_bmcnum.f over pristine bmcnum.f+bmcspt.f,
+        # gfortran-16. PBSPEC=1, no special trees, USERA=1, REPPHE→1, SSBATK=0,
+        # GRFSTD=0.8, BAH(i)=2+1.5i, BANH=0.5, TREE=50, ISCMIN(1)=3. Float32 hex.
+        hx(x) = reinterpret(UInt32, x)
+        st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v)
+        c = FVSjl.wwpb_init_coeffs(copy(FVSjl.WWPB_UPSIZ_DEFAULT))
+        basum = 0.0f0
+        for i in 1:10
+            st.bah[i] = 2.0f0 + i*1.5f0; st.banh[i] = 0.5f0; st.tree[i,1] = 50.0f0
+            basum += st.bah[i] + st.banh[i]
+        end
+        st.bah[11] = basum - 0.5f0*10; st.banh[11] = 0.5f0*10
+        st.grfstd = 0.80f0; st.repphe = 0.0f0; st.ssbatk = 0.0f0
+        FVSjl.bmcnum!(st, w, c; ipson = false)
+        @test hx(st.numer[1]) == 0x46455D00   # (1)·BAIS·(BAHG)/GRFSTD, BAHG = Σ BAH[3:10]
+        @test hx(st.tfood[1]) == 0x42A46405   # BAHG·(BAHG/BAIS)
+        @test st.repphe == 1.0f0              # 0 → 1
+    end
 end
