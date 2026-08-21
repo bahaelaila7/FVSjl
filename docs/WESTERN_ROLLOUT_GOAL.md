@@ -31,8 +31,17 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      divergence, NOT the keywords. STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO,
      OUTPUT, PASSALL, SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the
      FVS_TreeList DBS table that FVSie_clean would not emit this session — item 2 plumbing).
-  2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
+  2. **DBS write extension-output tables** — jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
+     **★ UNBLOCKED 2026-08-21 (6704c1a5): the oracle-EMISSION plumbing is cracked** (had stalled 3× — FVS_TreeList,
+     FVS_SnagDet ×2 — on exit-10/20/empty DBs). Recipe (scratchpad/estab/DBS_EXTENSION_EMISSION_RECIPE.md): two
+     DATABASE blocks (DSNout+DSNin+SQL together; toggles in block 2) + BLANK toggle values (2=redirect/rename) + the
+     EXTENSION REPORT keyword that populates the arrays AND sets the year-window gate (for SnagDet: FFE `SNAGOUT`,
+     fmin.f opt 12, distinct from the DBS `SNAGOUDB` toggle and the summary `SNAGSUM`). FVS_SnagDet now emits 66 real
+     rows. Each table = DBS toggle + its report keyword + the two-block structure. jl has the source data (e.g.
+     SnagList, state.jl:677). NEXT: port write_dbs_snagdet! (+ siblings) and A/B — but validate on a variant whose FFE
+     snag model is already bit-exact (OC/CA), NOT IE (IE FFE not in the validated set); each table is a ~15-column
+     serialization chunk.
   3. **AK permafrost — ✓ ALREADY DONE (goal-doc was STALE, verified 2026-08-21).** kw_permafrost! wires PRMFROST →
      s.control.permafrost (keyword_dispatch.jl:2395); ak_point_zeide! computes the SDICAL/SDICLS point-Zeide PRD
      (diameter_growth.jl:79); the full LPERM-branch PFMOD (cap≤1 on / floor≥1 off) + AK_PFCON coeffs are ported;
