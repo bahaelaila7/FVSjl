@@ -66,7 +66,9 @@ Bins the FVS treelist into NSCL=10 DBH size classes × {host=1, nonhost=2}:
   ✓ CHUNK 3d DONE (bmcbkp): BKP brood core BIT-EXACT (driver_bmcbkp.f, GPGET2/GPADD stubbed → normal path).
     ⇒ the GRF→BKP reproduction chain is now bit-exact end-to-end.
   ✓ CHUNK 3e DONE (bmcspt): special-tree proportion BIT-EXACT (measured; overlap correction is DEAD code — JK loop
-    never fires ⇒ SPCLT=clamp(ΣSP,1)). NEXT: BMCNUM (attractiveness, uses SPCLT) → BMATCT (redistribution) → BMISTD (stochastic PBKILL).
+    never fires ⇒ SPCLT=clamp(ΣSP,1)).
+  ✓ CHUNK 3f DONE (bmcnum): attractiveness numerator NUMER/TFOOD BIT-EXACT (driver_bmcnum.f). GRF→BKP→NUMER bit-exact.
+    NEXT: BMATCT (landscape BKP redistribution — single-stand self-loop) → BMISTD (stochastic PBKILL, BMRANN) → harness+seam.
    → NEXT: the transcendental kernels need gfortran-16 driver-goldens (Float32 exp/logistic bit-exactness):
      BMFMRT (fire mort logistic), BMCGRF→BMCBKP→BMCNUM (susceptibility/BKP/attractiveness core).
 1. State design: WwpbLandscape Julia struct mirroring BMCOM/BMFCOM/BMPCOM (MXSTND-dim
