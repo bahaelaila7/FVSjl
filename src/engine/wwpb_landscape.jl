@@ -579,3 +579,114 @@ function bmatct_single!(st::WwpbStand, w::WwpbState; sdd::Float32=0.0f0, ipson::
     end
     return st
 end
+
+# glibc single-precision logf for AS245/AS63 (matches gfortran REAL LOG bit-exact).
+@inline _wwpb_logf(x::Float32)::Float32 = ccall((:logf, "libm.so.6"), Float32, (Float32,), x)
+
+# ALNGAM (bmcbet.f, ALGORITHM AS245 APPL. STATIST. 1989) — log-gamma via rational
+# approximations, single-precision REAL. Faithful port (the AS functions are
+# defined IN bmcbet.f, so this IS bit-exact-validatable). Coefficients verbatim.
+const _WWPB_ALNGAM_R1 = Float32[-2.6668551f0,-2.4438753f1,-2.1969895f1,1.1166754f1,3.1306054f0,6.0777138f-1,1.1940090f1,3.1469011f1,1.5234687f1]
+const _WWPB_ALNGAM_R2 = Float32[-7.8335929f1,-1.4204629f2,1.3751941f2,7.8699492f1,4.1643892f0,4.7066876f1,3.1339921f2,2.6350507f2,4.3340002f1]
+const _WWPB_ALNGAM_R3 = Float32[-2.1215957f5,2.3066151f5,2.7464764f4,-4.0262111f4,-2.2966072f3,-1.1632849f5,-1.4602593f5,-2.4235740f4,-5.7069100f2]
+const _WWPB_ALNGAM_R4 = Float32[2.7919531791f-1,4.9173176105f-1,6.9291059929f-2,3.3503438150f0,6.0124592597f0]
+const _WWPB_ALR2PI = 9.1893853320f-1
+function _wwpb_alngam(xvalue::Float32)::Float32
+    r1 = _WWPB_ALNGAM_R1; r2 = _WWPB_ALNGAM_R2; r3 = _WWPB_ALNGAM_R3; r4 = _WWPB_ALNGAM_R4
+    x = xvalue
+    (x >= 1.0f38 || x <= 0.0f0) && return 0.0f0          # ifault 2 / 1
+    if x < 1.5f0
+        if x < 0.5f0
+            alngam = -_wwpb_logf(x); y = x + 1.0f0
+            y == 1.0f0 && return alngam
+        else
+            alngam = 0.0f0; y = x; x = (x - 0.5f0) - 0.5f0
+        end
+        return alngam + x * ((((r1[5]*y+r1[4])*y+r1[3])*y+r1[2])*y+r1[1]) /
+                            ((((y+r1[9])*y+r1[8])*y+r1[7])*y+r1[6])
+    end
+    if x < 4.0f0
+        y = (x - 1.0f0) - 1.0f0
+        return y * ((((r2[5]*x+r2[4])*x+r2[3])*x+r2[2])*x+r2[1]) /
+                   ((((x+r2[9])*x+r2[8])*x+r2[7])*x+r2[6])
+    end
+    if x < 12.0f0
+        return ((((r3[5]*x+r3[4])*x+r3[3])*x+r3[2])*x+r3[1]) /
+               ((((x+r3[9])*x+r3[8])*x+r3[7])*x+r3[6])
+    end
+    y = _wwpb_logf(x)
+    alngam = x * (y - 1.0f0) - 0.5f0 * y + _WWPB_ALR2PI
+    x > 5.10f6 && return alngam
+    x1 = 1.0f0 / x; x2 = x1 * x1
+    return alngam + x1 * ((r4[3]*x2+r4[2])*x2+r4[1]) / ((x2+r4[5])*x2+r4[4])
+end
+
+# -----------------------------------------------------------------------------
+# AS63 regularized incomplete beta I_x(p,q) (Float32). RECONSTRUCT-category: the
+# WWPB ALNGAM/BETAIN are absent from the tree (only declared in bmcbet.f). Ported
+# as the canonical Applied-Statistics AS63 algorithm, IDENTICAL arithmetic to the
+# Fortran driver stub (scratchpad/wwpb/driver_bmcbet.f) so BMCBET's own logic
+# validates bit-exact; the AS function itself is the shared reconstruction. `beta`
+# = log B(p,q) = lgammaf(p)+lgammaf(q)−lgammaf(p+q).
+# -----------------------------------------------------------------------------
+function _wwpb_betain(x::Float32, p::Float32, q::Float32, beta::Float32)::Float32
+    acu = 0.1f-14
+    (x <= 0.0f0) && return 0.0f0
+    (x >= 1.0f0) && return 1.0f0
+    psq = p + q
+    cx = 1.0f0 - x
+    if p < psq * x
+        xx = cx; cx = x; pp = q; qq = p; indx = true
+    else
+        xx = x; pp = p; qq = q; indx = false
+    end
+    term = 1.0f0; ai = 1.0f0; betain = 1.0f0
+    ns = Int(trunc(qq + cx * psq))
+    rx = xx / cx
+    temp = qq - ai
+    ns == 0 && (rx = xx)
+    while true
+        term = term * temp * rx / (pp + ai)
+        betain = betain + term
+        temp = abs(term)
+        if temp <= acu && temp <= acu * betain
+            break
+        end
+        ai += 1.0f0; ns -= 1
+        if ns >= 0
+            temp = qq - ai
+            ns == 0 && (rx = xx)
+        else
+            temp = psq; psq += 1.0f0
+        end
+    end
+    betain = betain * _wwpb_expf(pp * _wwpb_logf(xx) + (qq - 1.0f0) * _wwpb_logf(cx) - beta) / pp
+    return indx ? (1.0f0 - betain) : betain
+end
+
+# -----------------------------------------------------------------------------
+# bmcbet! (bmcbet.f) — beta-distribution weights BETA(NSCL) over size classes,
+# keyed on ABETA (a=ABETA, b=2). BETA(i) = I_{x_i}(a,b) − I_{x_{i-1}}(a,b) over
+# the mapped interval [MINSIZE−0.5, MAXSIZE+0.5]; classes init 1e-5. The BMCBET
+# wrapper logic is faithful to the pristine routine (RECONSTRUCT only for the
+# absent ALNGAM/BETAIN, shared with the Fortran driver ⇒ bit-exact validation).
+# -----------------------------------------------------------------------------
+function bmcbet!(abeta::Float32, minsize::Int, maxsize::Int)::Vector{Float32}
+    beta = fill(1.0f-5, WWPB_NSCL)
+    a = abeta; b = 2.0f0
+    minx = Float32(minsize) - 0.5f0
+    maxx = Float32(maxsize) + 0.5f0
+    logbeta = _wwpb_alngam(a) + _wwpb_alngam(b) - _wwpb_alngam(a + b)
+    temp0 = 0.0f0
+    @inbounds for i in minsize:maxsize
+        x = ((Float32(i) + 0.5f0) - minx) / (maxx - minx)
+        x <= 0.0f0 && (x = 0.001f0)
+        x == 1.0f0 && (x = 1.0f0 - 0.001f0)
+        (x < 0.0f0 || x > 1.0f0) && return beta
+        (x == 0.0f0 || x == 1.0f0) && return beta
+        temp1 = _wwpb_betain(x, a, b, logbeta)
+        beta[i] = temp1 - temp0
+        temp0 = temp1
+    end
+    return beta
+end

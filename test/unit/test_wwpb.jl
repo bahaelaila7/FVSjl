@@ -337,4 +337,21 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test hx(st.bkp)    == 0x41CF3C85     # saturated BKP into the stand
         @test hx(st.bkpips) == 0x00000000     # NEWBKP(2)=0 ⇒ BKPIPS 0 (no Ips DV)
     end
+
+    @testset "BMCBET — beta-dist weights BIT-EXACT vs gfortran-16 (bmcbet.f AS245+AS63)" begin
+        # golden: scratchpad/wwpb/driver_bmcbet.f over the pristine wwpb/bmcbet.f
+        # (self-contained: ALNGAM AS245 + BETAIN AS63 are defined IN the file),
+        # gfortran-16. Two ABETA/range cases. Float32 hex (Z8.8).
+        hx(x) = reinterpret(UInt32, x)
+        b1 = FVSjl.bmcbet!(15.0f0, 1, 5)      # BKP>6 branch
+        g1 = UInt32[0x2FEA2FEC,0x37342309,0x3B56FEA4,0x3E0CBEB3,0x3F5BF0D6,
+                    0x3727C5AC,0x3727C5AC,0x3727C5AC,0x3727C5AC,0x3727C5AC]
+        @test all(hx(b1[i]) == g1[i] for i in 1:10)
+        b2 = FVSjl.bmcbet!(2.5f0, 1, 8)       # BKP≈3.6 branch, wider range
+        g2 = UInt32[0x3C903FF1,0x3D93F002,0x3E05F726,0x3E3553F9,0x3E4D65DE,
+                    0x3E45E894,0x3E17F108,0x3D75D110,0x3727C5AC,0x3727C5AC]
+        @test all(hx(b2[i]) == g2[i] for i in 1:10)
+        # AS245 ALNGAM sanity: log Γ(5) = log 24 (exercises the 4≤x<12 branch)
+        @test isapprox(FVSjl._wwpb_alngam(5.0f0), log(24.0f0); atol = 1.0f-4)
+    end
 end
