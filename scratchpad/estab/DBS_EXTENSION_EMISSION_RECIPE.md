@@ -452,3 +452,37 @@ stand hit `oc_cwcalc: crown-width equation 21104 (species 50) not yet ported` (o
 So OC redwood is under-ported in the crown-width path — a distinct ORGANON-species gap (redwood = a real OC species).
 The LSW fix is source-faithful + gate-safe + additive/inert on non-redwood stands; full redwood end-to-end A/B is
 blocked until oc_cwcalc gets the sp50 CASE. Noted as the next OC-species lead if redwood coverage is prioritized.
+
+## FVS_SnagDet — FULLY SCOPED 2026-08-21 (aggregation + volume routing pinned; ready to implement)
+Read the complete emit path. dbsfmdsnag.f just serializes precomputed arrays SDBH/SHTH/SHTS/SVLH/SVLS/SDH/SDS
+(species IDC × years-ago JYR × DBH-class JCL 1:6). The REAL aggregation is **fmsout.f:99-208**:
+  Per snag record II (jl SnagList index i), skip if (den_hard+den_soft)≤0 OR dbh<SNPRCL(1)=0:
+  - HARD flag = the SAME hard→soft dktime flip as snag_summary (snag.jl:458-462): age=iyr−1−yrdead ≥ dktime ⇒ SOFT.
+    dktime = (1.24·dcx·d)+(13.82·dcx), dcx = SNAGDCAY override or coef snag_decayx[sp]. (den_soft always soft;
+    den_hard → hard iff NOT flipped, else added to soft.)
+  - JYR = iyr − yrdead + 1 (cap 100); YRLAST = max JYR.  Year_Died col = iyr − JYR + 1 = yrdead.
+  - JCL (NON-cumulative, unlike SnagSum's cumulative ≥): DO JCL=1,5: if dbh < SNPRCL(JCL+1) → that JCL; else 6.
+    SNPRCL = _FM_SNPRCL = (0,12,18,24,30,36).
+  - Accumulate by (sp, JYR, JCL):  TOTDS += den_soft(+den_hard if flipped);  TOTDH += den_hard if hard;
+    TOTHTS += htcur·den_soft(+htcur·den_hard if flipped);  TOTHTH += htcur·den_hard if hard;
+    TOTVLS += vol2ht(htcur)·den_soft(+vol·den_hard if flipped);  TOTVLH += vol2ht(htcur)·den_hard if hard;
+    TOTDBH += dbh·(den_soft+den_hard)   [weight = TOTAL orig density, both parts].
+  - POST (fmsout.f:180-202): TOTDBH /= (TOTDH+TOTDS);  TOTHTH /= TOTDH (0 if TOTDH=0);  TOTHTS /= TOTDS (0 if 0).
+  Emit a row per (sp,JYR,JCL) with TOTDH+TOTDS>0. Columns: DBH_Class=JCL, Death_DBH=TOTDBH, Current_Ht_Hard=TOTHTH,
+  Current_Ht_Soft=TOTHTS, Current_Vol_Hard=TOTVLH, Current_Vol_Soft=TOTVLS, Total_Volume=TOTVLH+TOTVLS,
+  Year_Died=yrdead, Density_Hard=TOTDH, Density_Soft=TOTDS, Density_Total=TOTDH+TOTDS. SpeciesFVS/PLANTS/FIA =
+  coef.code_alpha/code_plants/code_fia[sp] (same as write_dbs_climate!).
+**VOLUME ROUTING PINNED**: FMSVOL (fmsvol.f:129-152) dispatches on METHC(ISPC): 6/10→NATCRS, 5/8→OCFVOL, else→CFVOL.
+initre.f:6365-6367 `DO ISPC=1,MAXSP; METHC=10` ⇒ **OC snags → NATCRS = R9 Clark cubic**, which jl HAS (r9clark_cubic,
+used in snag_bole_carbon for LS/NE). OCFVOL returns 0 for OC (fvsvol.f:569 CASE DEFAULT) — a red herring (never hit
+since METHC=10). vol2ht(xht) = MAX(0.005454154·HTDEAD, TCF) where TCF = NATCRS total cubic of (dbh, HTDEAD) TRUNCATED
+at xht=htcur via CFTOPK when xht<HTDEAD (LTKIL). ocsnag.key has SNAGBRK ⇒ htcur<height ⇒ the CFTOPK truncation + the
+hard/soft-differing-height path ARE exercised (all 4 column groups live). NOTE FVS tracks HTIH (hard) vs HTIS (soft)
+separately; jl has a single htcur per cohort — verify jl's htcur applies to both (likely equal per cohort at default).
+IMPLEMENTATION (next): (1) snagdet_rows(s;iyr) in snag.jl mirroring the above + a _snag_vol2ht(s,i) via NATCRS/
+r9clark_cubic + cftopk (reuse snag_bole_carbon's cftopk setup, grab TCF not MCF); (2) _FVS_SNAGDET_CREATE 17-col +
+write_dbs_snagdet! in dbs_output.jl; (3) snagdet_collect in write_sum_file at the _carb_push point (same iyr/snag
+state as snag_summary); (4) Control.dbs_snagdet + SNAGOUDB in keyword_dispatch (DATABASE block); (5) create+write in
+simulate.jl. VALIDATE column-group by group vs /workspace/.ocwork/ocsnag_oracle.db (FVS_SnagDet, 379 rows, yrs 1993-
+2048): density first (snag_summary already ~bit-exact vs SnagSum ⇒ high confidence), then Death_DBH, then Ht (tests
+FMSNGHT height-loss), then Vol (tests NATCRS+CFTOPK). Corner any column on the OC grown-DBH Float32 straddle per snag_summary.
