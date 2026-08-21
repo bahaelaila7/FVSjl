@@ -353,6 +353,7 @@ include("engine/wsbwe.jl")                # Western Spruce Budworm (WSBWE) — b
 include("engine/cover.jl")                # COVER understory/canopy-cover REPORT extension (covr/vcovr) — beachhead: CVCW crown-area dump-replay bit-exact; report path deferred (report-only, no RNG, INERT)
 include("engine/wwpb.jl")                 # Westwide Pine Beetle (WWPB) — beachhead: BMIN output-block reader + BMRANN RNG + defaults (inert; PPE outbreak driver absent)
 include("engine/wwpb_landscape.jl")       # WWPB landscape model (synthetic PPE harness, USER-approved): BMDBHC + WwpbStand state + BMSDIT FVS→BM bridge (additive/inert until seam)
+include("engine/ppe_landscape.jl")        # PPE (Parallel Processing Extension) multi-stand landscape harness — reconstructed (PPMAIN/ALSTD2/SPLAEX source-absent); area-weighted PPEXCM aggregates over run_keyfile stands (additive/inert)
 include("engine/climate.jl")
 include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
 include("io/fia_translate.jl")           # raw FIADB (PLOT/COND/TREE/…) → FVS-ready records
