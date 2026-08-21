@@ -525,3 +525,23 @@ NOT bit-exact-or-cornered — the A/B surfaced THREE real divergences in jl's un
   jl's multi-cycle ordinary-mortality snag accumulation vs FVS (fmsfall.f falldown + the per-cycle FMSDIT add) using
   the SnagSum GRAND-TOTAL density across ALL cycles (not just the pulse) as the cheaper 1-number-per-cycle A/B, THEN
   return to SnagDet. Reverted commit-free; tree clean, gate 339/11.
+
+## ★★ SNAG-DENSITY BUG MEASURED 2026-08-21 — jl snag_summary is SYSTEMATICALLY LOW (memory "bit-exact" claim WAS FALSE)
+Followed the recommended cheaper diagnostic: FVS_SnagSum grand-total density per cycle, jl vs ocsnag_oracle.db, ALL
+12 cycles. jl UNDER-counts at EVERY cycle (Hard_snags_total, oracle→jl): 1993 55.3→14.8 · 1998 93.0→75.4 · 2003
+264.9→194.1 · 2008 51.0→38.3 · 2013 8.7→4.7 · 2018 9.7→3.1 · 2023 9.2→1.8 · … · 2048 4.7→0.5 (late cycles ~10× low).
+**This CORRECTS the memory/recipe claim that jl snag_summary matched "1993 55.26·2003 264.9·2008 51.0·2013 8.7" — those
+were the ORACLE values; jl actually gives 14.8/194/38/4.7. The "bit-exact" was never a real head-to-head (a
+measure-your-own-fix violation).** LOCALIZED: the gap is ENTIRELY in DBH-class 1 (small, <12"); classes ≥12" are
+BIT-EXACT (1993 oracle 0.61 == jl 0.61 for class2-5). At cyc0 (1993, pre-falldown) the small-snag source is the
+SNAGINIT cohort: keyfile `SNAGINIT 10 11 50 40 2 50` = species10, DBH11, HTDEAD50, HTIH40(pre-broken), age2,
+density=50/ac. jl's ffe_add_snaginit! calls add_snag!(den=50) but the 1993 report shows only 14.76 (factor 0.295) —
+so ~35/ac vanish between creation and the cycle-top report. **NOT tripling** (NOTRIPLE gives identical 14.76). 2 years
+of normal falldown (modrate≈0.046/yr ⇒ ×0.91) can't explain 0.295 (that needs ~26 yr). ⇒ a REAL small-snag
+creation/falldown bug in the SNAGINIT (or pre-broken-snag/height-loss) path — candidates: (a) jl over-applies
+pre-inventory-age falldown while FVS treats the input density as the CURRENT (already-fallen) count; (b) the SNAGBRK
+pre-broken (HTIH<HTDEAD) path drops density; (c) species-10 selector/filter drops the cohort so 14.76 is first-cycle
+mortality only. NEXT DIAGNOSTIC (cheap, decisive): env-gate a print in ffe_add_snaginit! after add_snag! to confirm
+den=50 is created, then a print in update_snags!/snag_summary at the 1993 report to see the density there — isolates
+creation-vs-falldown. This bug gates BOTH FVS_SnagSum AND FVS_SnagDet (and feeds FFE Stand-Dead carbon/CWD), so fix it
+BEFORE re-attempting the SnagDet serialization. Report-only subsystem; growth/.sum unaffected.
