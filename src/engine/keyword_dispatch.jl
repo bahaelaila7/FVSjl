@@ -1593,8 +1593,19 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 yr = nint(r.values[1])
                 push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
             end
+        elseif k == "NOINGROW"                                # esin.f opt 22: disable automatic ingrowth
+            s.estab.lingrw = false                            # (FVS parses these INSIDE the ESTAB packet, not top-level)
+        elseif k == "INGROW"                                  # esin.f opt 21: enable automatic ingrowth
+            s.estab.lingrw = true
+        elseif k == "NOAUTALY"                                # esin.f opt 23: disable automatic tallies
+            s.estab.lautal = false
+        elseif k == "AUTALLY"                                 # esin.f opt 24: enable automatic tallies
+            s.estab.lautal = true
+        elseif k == "THRSHOLD"                                # esin.f opt 25: AUTOES removal-fraction thresholds
+            if r.present[1]; s.estab.thres1 = clamp(Float32(r.values[1]) / 100f0, 0.025f0, 0.950f0); end
+            if r.present[2]; s.estab.thres2 = clamp(Float32(r.values[2]) / 100f0, 0.050f0, 0.975f0); end
         end
-        # other establishment keywords (SPECMULT/HTADJ/TALLY/…) not yet ported — skipped
+        # other establishment keywords (SPECMULT/HTADJ/…) not yet ported — skipped
     end
     # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
     # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.
