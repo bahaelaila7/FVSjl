@@ -992,3 +992,39 @@ function wwpb_outbreak_cycle!(st::WwpbStand, w::WwpbState, coeffs, t, sp_alpha::
     end
     return st
 end
+
+# -----------------------------------------------------------------------------
+# wwpb_apply! — the simulate.jl seam. If a DISPERSE outbreak is active, run one
+# cycle's single-stand outbreak on the cycle-start stand and reconcile the beetle
+# kills with the FVS mortality already applied (mpb_apply!-style), then write the
+# combined mortality back to the treelist. Inert unless w.outbreak (a DISPERSE
+# keyword was read). The composed outbreak is faithful-reconstruction (the outer
+# harness source is absent); every kernel it calls is bit-exact. Called pre-
+# tripling from simulate.jl, like the other insect seams.
+# -----------------------------------------------------------------------------
+function wwpb_apply!(s, old_tpa::Vector{Float32}, fint::Real)
+    w = s.wwpb::WwpbState
+    (w.outbreak && Int(w.iyr1) > 0) || return s
+    t = s.trees
+    t.n > 0 || return s
+    coeffs = wwpb_init_coeffs(w.upsiz)
+    st = WwpbStand()
+    code = s.coef.code_alpha
+    spα(sp::Int) = (1 <= sp <= length(code)) ? code[sp] : ""
+    sarea = s.plot.gross_space > 0.0f0 ? s.plot.gross_space : 1.0f0
+    seed = zeros(Float32, WWPB_NSCL)
+    sc = Int(w.seed_class)
+    (1 <= sc <= WWPB_NSCL) && (seed[sc] = w.seed_tpa)
+    # the beetle model works on the cycle-start stand; save the FVS mortality
+    # already applied, restore cycle-start TPA for the outbreak + bmkill PROB.
+    fvs_mort = Float32[old_tpa[i] - t.tpa[i] for i in 1:t.n]
+    @inbounds for i in 1:t.n; t.tpa[i] = old_tpa[i]; end
+    wwpb_outbreak_cycle!(st, w, coeffs, t, spα; sarea = sarea,
+                         iyr1 = Int(w.iyr1), iyr2 = Int(w.iyr2), seed_pbkill = seed)
+    wk2 = copy(fvs_mort)
+    bmkill!(st, w, t, wk2, spα)                     # PROB = t.tpa (= old_tpa now)
+    @inbounds for i in 1:t.n
+        t.tpa[i] = max(old_tpa[i] - wk2[i], 0.0f0)  # reconciled FVS+beetle mortality
+    end
+    return s
+end

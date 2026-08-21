@@ -165,6 +165,22 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test rows(wwpb_key) == base       # full BMIN block ⇒ still byte-identical (inert)
     end
 
+    @testset "WWPB DISPERSE outbreak fires end-to-end (kills lodgepole)" begin
+        # The DISPERSE keyword activates the reconstructed single-stand outbreak
+        # (wwpb_apply! → wwpb_outbreak_cycle! → bmkill!). On this LP-host stand the
+        # MPB kills lodgepole, so the .sum diverges from the inert BMIN-only run and
+        # shows lower live TPA. End-to-end composition of the ten bit-exact kernels;
+        # the outbreak magnitude is reconstruction, not bit-exact.
+        disp_key = joinpath(dir, "disp.key")
+        write(disp_key, _wwpb_head("WWPB DISP  ") *
+              "BMIN\nDISPERSE         1.0       5.0       3.0      20.0\nEND\n" *
+              "ECHOSUM\nPROCESS\nSTOP\n")
+        cp(joinpath(dir, "shared.tre"), joinpath(dir, "disp.tre"); force = true)
+        base = rows(ctrl_key); disp = rows(disp_key)
+        @test disp != base                                    # the outbreak alters the projection
+        @test parse(Float64, split(disp[end])[3]) < parse(Float64, split(base[end])[3])  # LP killed
+    end
+
     # -------------------------------------------------------------------------
     # LANDSCAPE model (synthetic PPE harness, USER-approved) — chunk 1-2.
     # -------------------------------------------------------------------------

@@ -673,16 +673,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     if !tripled && s.wpbr !== nothing && (s.wpbr::WpbrState).active
         wpbr_brtreg!(s, fint, old_tpa)
     end
-    # WWPB (Westwide Pine Beetle, wwpb/*.f): NO per-cycle seam is wired here, by
-    # design. Unlike DFB/DFTM/WPBR, WWPB is a landscape Parallel-Processing-
-    # Extension model whose outbreak driver (BMDRV from ALSTD2) and FVS mortality
-    # hand-back (BMKILL/WK2 from PPMAIN) live in the PPE spatial multi-stand
-    # harness — which is ABSENT from this FVS tree (no sourceList compiles wwpb/*.f;
-    # every variant links the base/exbm.f no-op stub). The only reachable WWPB
-    # entry, the stand-level BMIN output block (kw_wwpbin! → s.wwpb), merely
-    # schedules .bm* report activities and applies no mortality. A WwpbState is
-    # therefore inert: a stand with a BMIN block projects byte-identically to one
-    # without. A real seam awaits a future port of the PPE harness.
+    # WWPB (Westwide Pine Beetle, wwpb/*.f): the landscape Parallel-Processing-
+    # Extension outbreak. The PPE spatial multi-stand harness (PPMAIN/ALSTD2/SPLAEX)
+    # is ABSENT from this FVS tree, so the outer orchestration is a USER-approved
+    # (2026-08-21) reconstructed single-stand harness (wwpb_outbreak_cycle!); every
+    # beetle kernel it composes is bit-exact vs the pristine wwpb/*.f. INERT unless
+    # a DISPERSE keyword activated the outbreak (w.outbreak) — a BMIN-only stand
+    # still projects byte-identically. wwpb_apply! runs one cycle's outbreak and
+    # reconciles the beetle kills into the FVS mortality (BMKILL/WK2 handback).
+    if !tripled && s.wwpb !== nothing && (s.wwpb::WwpbState).outbreak
+        wwpb_apply!(s, old_tpa, fint)
+    end
     # LPMPB (Mountain Pine Beetle, lpmpb/*.f): stand-level Cole rate-of-loss
     # mortality (MPBGO→MPBCUP→COLDRV, gradd.f:63). Inert (byte-identical) unless an
     # MPB block is active, a scheduled outbreak (OPFIND 555) is due this cycle, the

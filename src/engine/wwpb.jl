@@ -132,6 +132,12 @@ mutable struct WwpbState <: AbstractWwpbState
     # --- BMRANN LCG state (COMMON /BMRNCM/) ---
     rng_s0::Float64                    # BMS0 — current generator state (double, exact mod)
     rng_ss::Float32                    # BMSS — the reseed default (BMRNSD LSET=false resets to it)
+    # --- outbreak activation (DISPERSE, the reconstructed BMPPIN seam) ---
+    outbreak::Bool                     # DISPERSE seen → run the per-cycle outbreak (bmdrv/PPMAIN)
+    iyr1::Int32                        # IBMYR1 — outbreak start year (0 = inactive, bmdrv.f:35 gate)
+    iyr2::Int32                        # IBMYR2 — outbreak end year (= IBMYR1 + duration − 1)
+    seed_class::Int32                  # synthetic inventory-damage seed: size class (BKP starts at 0)
+    seed_tpa::Float32                  # synthetic inventory-damage seed: TPA beetle-killed (kick-off)
 end
 
 """
@@ -151,6 +157,7 @@ function wwpb_defaults!(variant)
         Int32(1),                               # pbspec (MPB)
         copy(WWPB_UPSIZ_DEFAULT), copy(WWPB_ISCMIN_DEFAULT),   # upsiz, iscmin
         Float64(WWPB_DEFAULT_SEED), WWPB_DEFAULT_SEED,         # rng_s0, rng_ss
+        false, Int32(0), Int32(0), Int32(3), 0.0f0,           # outbreak, iyr1, iyr2, seed_class, seed_tpa
     )
 end
 
@@ -240,6 +247,18 @@ function kw_wwpbin!(s::StandState, rec, kr::KeywordReader)
         elseif k == "VOLOUT"                # option 4
             w.lbmvol = true
             push!(w.outreqs, _wwpb_outreq(WWPB_MYACT_VOLOUT, r))
+        elseif k == "DISPERSE"              # activate the outbreak (reconstructed BMPPIN DISPERSE, GPNEW 301)
+            # field1 = start year IBMYR1 (default 0 = this cycle); field2 = duration years
+            # (→ IBMYR2 = IBMYR1 + dur − 1); field3 = seed size class; field4 = seed TPA
+            # (the synthetic inventory-damage kick-off, since BKP starts at 0 and FVSjl
+            # has no PPE Outside-World immigration).
+            w.outbreak = true
+            iyr1 = r.present[1] ? Int32(trunc(Int, r.values[1])) : Int32(1)
+            dur  = r.present[2] ? Int32(trunc(Int, r.values[2])) : Int32(1)
+            w.iyr1 = iyr1
+            w.iyr2 = iyr1 + max(dur, Int32(1)) - Int32(1)
+            r.present[3] && (w.seed_class = Int32(clamp(trunc(Int, r.values[3]), 1, WWPB_NSCL)))
+            r.present[4] && (w.seed_tpa = Float32(r.values[4]))
         else
             # options 6..10 are blank placeholders in bmin.f (GOTO 10); any other
             # token is an unrecognized WWPB sub-keyword (FVS ERRGRO warns, skips).
