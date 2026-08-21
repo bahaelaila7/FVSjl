@@ -285,4 +285,23 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test hx(st.oldbkp) == 0x41439CF3     # OLDBKP = BKP (PBSPEC≠3)
         @test all(st.pbkill[i] == 0.0f0 for i in 1:10)    # PBKILL consumed
     end
+
+    @testset "BMCSPT — special-tree proportion BIT-EXACT vs gfortran-16 (bmcspt.f)" begin
+        # golden: scratchpad/wwpb/driver_bmcspt.f over the pristine wwpb/bmcspt.f,
+        # gfortran-16, PBSPEC=1. MEASURED: the nested overlap correction is dead
+        # code (uninitialized JK loop never fires) ⇒ SPCLT = clamp(Σ SP, 0, 1) with
+        # ==0→0 / ==1→1 short-circuits. Float32 hex.
+        hx(x) = reinterpret(UInt32, x)
+        st = FVSjl.WwpbStand(); w = FVSjl.wwpb_defaults!(v)
+        for i in 1:10; st.tree[i,1] = 100.0f0; end
+        @test hx(FVSjl.bmcspt!(st, w, 1, 1)) == 0x00000000            # all SP=0 ⇒ 0
+        st.pitch[2] = 0.30f0
+        @test hx(FVSjl.bmcspt!(st, w, 2, 1)) == 0x3E99999A            # one SP=0.3 ⇒ 0.3
+        st.pitch[3] = 0.30f0; st.strike[3] = 0.40f0
+        @test hx(FVSjl.bmcspt!(st, w, 3, 1)) == 0x3F333334            # 0.3+0.4=0.7 (NO overlap)
+        st.pitch[4] = 0.20f0; st.strike[4] = 0.30f0; st.scorch[4] = 0.40f0
+        @test hx(FVSjl.bmcspt!(st, w, 4, 1)) == 0x3F666666            # 0.2+0.3+0.4=0.9
+        st.scorch[5] = 1.0f0
+        @test hx(FVSjl.bmcspt!(st, w, 5, 1)) == 0x3F800000            # any SP==1 ⇒ 1.0
+    end
 end

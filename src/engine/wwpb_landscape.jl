@@ -97,6 +97,10 @@ mutable struct WwpbStand
     final ::Vector{Float32}     # FINAL(3) — last tree killed [bkp used, size class, tpa killed]
     strip ::Vector{Float32}     # STRIP(NSCL) — strip-attack proportion
     pslash::Matrix{Float32}     # PSLASH(MXDWHC=2, MXDWSZ=2) — slash colonized by Ips
+    # --- special-tree / attractiveness state (bmcspt.f, bmcnum.f) ---
+    spclt ::Matrix{Float32}     # SPCLT(NSCL,2) — proportion of "special" (attractive) trees per class × pass
+    pitch ::Vector{Float32}     # PITCH(NSCL)  — pitch-out / strip-kill proportion
+    atrphe::Float32             # ATRPHE — proportion of trees with attractant pheromone
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -116,6 +120,7 @@ function WwpbStand()
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # othatt, topkll, strike
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL),  # rvdsc, rvdfol
         0.0f0, 0.0f0, 0.0f0, zeros(Float32, 3), zeros(Float32, WWPB_NSCL), zeros(Float32, 2, 2),  # bkp, bkpips, oldbkp, final, strip, pslash
+        zeros(Float32, WWPB_NSCL, 2), zeros(Float32, WWPB_NSCL), 0.0f0,  # spclt, pitch, atrphe
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -423,4 +428,47 @@ function bmcbkp!(st::WwpbStand, w::WwpbState, coeffs;
     end
     st.oldbkp = pbspec != 3 ? st.bkp : st.bkpips
     return st
+end
+
+# -----------------------------------------------------------------------------
+# bmcspt! (bmcspt.f) — proportion of "special" (beetle-attractive) trees in a
+# size class: pitch-outs, lightning strikes, top-kill/other-attack, scorch,
+# attractant pheromone (MPB/WPB pass 1; other-attack+pheromone for Ips pass 2).
+# MEASURED (scratchpad/wwpb/driver_bmcspt.f, gfortran-16): the Fortran's nested
+# inclusion-exclusion overlap correction (DO 1000..1115) is DEAD CODE — its
+# innermost `DO 1115 JK=JK+1,SPTCNT` never executes (JK uninitialized/≥SPTCNT in
+# the build), so no overlap is subtracted. Effective, bit-exact behavior:
+#   all SP==0 → 0 ;  any SP==1 → 1 ;  else min(Σ SP, 1). Faithful to the RUNNING
+# pristine routine (doctrine: measure, don't infer). Deterministic.
+# -----------------------------------------------------------------------------
+function bmcspt!(st::WwpbStand, w::WwpbState, isiz::Int, ipass::Int; ipson::Bool=false)
+    pbspec = Int(w.pbspec)
+    xsplt = 0.0f0
+    if st.tree[isiz, 1] > 1.0f-9
+        sp = (0.0f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0); sptcnt = 0
+        if pbspec == 1 && ipass == 1
+            sp = (st.pitch[isiz], st.strike[isiz], st.topkll[isiz] + st.othatt[isiz], st.scorch[isiz], st.atrphe); sptcnt = 5
+        elseif pbspec == 2 && ipass == 1
+            sp = (st.pitch[isiz], st.strike[isiz], st.topkll[isiz] + st.othatt[isiz], st.scorch[isiz], st.atrphe); sptcnt = 5
+        elseif pbspec == 3 || ipass == 2
+            sp = (st.othatt[isiz], st.atrphe, 0.0f0, 0.0f0, 0.0f0); sptcnt = 2
+        end
+        topflag = true; botflag = false
+        @inbounds for i in 1:sptcnt
+            sp[i] == 1.0f0 && (topflag = false)
+            sp[i] != 0.0f0 && (botflag = true)
+        end
+        if topflag && botflag
+            @inbounds for ii in 1:sptcnt
+                xsplt += sp[ii]          # overlap-correction inner loops are dead (measured)
+            end
+            xsplt > 1.0f0 && (xsplt = 1.0f0)
+        elseif !botflag
+            xsplt = 0.0f0                # all proportions 0
+        else                             # !topflag ⇒ some proportion == 1
+            xsplt = 1.0f0
+        end
+    end
+    st.spclt[isiz, ipass] = xsplt
+    return xsplt
 end
