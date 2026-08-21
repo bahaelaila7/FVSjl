@@ -51,8 +51,13 @@ docs/ON_VARIANT_PORT_AUDIT.md; memory `fvsjl-wrd-svs-op-rollout`.
      - `wsbwe/` (W. Spruce Budworm) — ✓ manual-DEFOL LIVE END-TO-END on **EM + TT + BM + SO** (4 host variants;
        per-variant IBWSPM/IBIOMP dispatch; each ΔTPA bit-exact-or-cornered vs its FVS<v>_wsbwe oracle). Deferred:
        CI/EC (own host-class tables + biomass coeffs, not a clean swap) + BC (metric); BUDLITE/GENDEFOL (needs weather).
-     - `wwpb/` (Westwide Pine Beetle) — ◐ BEACHHEAD only; END-TO-END PPE-BLOCKED (outbreak driver needs the absent
-       PPE landscape harness). DEFERRED — porting the PPE harness is a USER decision (like #196). Do NOT start it autonomously.
+     - `wwpb/` (Westwide Pine Beetle) — ✓★ COMPLETE end-to-end 2026-08-21 (USER-approved synthetic-PPE-harness build,
+       chunks 3a-3l on kt-variant-port). All 10 beetle kernels (bmsdit/bmmort/bmcgrf/bminit/bmcbkp/bmcspt/bmcnum/bmatct/
+       bmcbet/bmistd) + AS245/AS63 + both bridges (bmsdit in / bmkill out) BIT-EXACT vs pristine wwpb/*.f (per-kernel
+       gfortran-16 driver goldens). Only the outer harness orchestration (PPMAIN/ALSTD2/SPLAEX — source ABSENT from the
+       tree) is faithful reconstruction (wwpb_outbreak_cycle!). The DISPERSE keyword + wwpb_apply! simulate.jl seam run the
+       outbreak END-TO-END in run_keyfile (MPB kills lodgepole, alters the .sum); INERT without DISPERSE; gate 339/11.
+       test_wwpb.jl 100/100. Memory fvsjl-wwpb-ppe-oracle-absent.
      ⇒ Insect/pathogen family: 5 of 6 models core-or-fully complete (only WWPB PPE-deferred). Item 2 done.
   3. **COVER understory** — ✓ BOTH halves emit bit-exact primary output for EM end-to-end vs FVSem_g16: CANOPY COVER
      STATISTICS (TREES/COVER/VOLUME, via CVCW/CVSHAP/CVCBMS/CVSUM + em_cwcalc crown-width 353/353) + SHRUB STATISTICS
