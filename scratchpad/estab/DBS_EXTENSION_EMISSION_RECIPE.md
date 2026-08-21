@@ -430,3 +430,25 @@ the cr_crownw path (OC_FFE_ISPMAP already existed; new oc_uses_fmcrowe = the 8 h
 inert on byram/mort). Gate 339/11. Residual 9 crown-base layers = a smaller secondary OC crown-base/crown_pct detail.
 NOTE: **OP (Olympic) is ALSO ORGANON — likely the same bug** (check OP_FFE_ISPMAP + an op_uses_fmcrowe if OP FFE is
 exercised). FVS_CanProfile stays validated on CR (68/68, the clean bit-exact case); OC is now 62/71 (was 0).
+
+## OC FVS_CanProfile cyc0 residual (62/68) ROOT-CAUSED 2026-08-21 — small no-height-input DF trees (CORNERED)
+Measured the OC canprofile cyc0 (1993) per-layer A/B vs FVSoc_clean (instrumented canopy_crfill per-tree, then
+rebuilt the crfill in python from the 23 cyc0 trees). The entire 6-layer residual is EXACTLY two trees: input
+records 12 & 13 = small DF (dbh 1.2" and 1.9", crown-code present but **HEIGHT FIELD = 0** in occanpr.tre). FVS
+imputes their missing height; jl imputes h=11 / h=13 (both > CANMHT=6 ⇒ included in the canopy profile), but the
+oracle EXCLUDES them entirely (oracle crfill is 0.00 at ht6-7 where only these trees reach; ht8-9 = exactly tree-2's
+partial/full contribution, no DF-small addition). Confirmed NOT a crown-biomass-value diff: jl's cr_crownw already
+does the fmcroww SMWGT small/large blend correctly, and both the suppressed & dominant DF large-tree formulas give
+nonzero weight at D=1.2 (hand-computed ~3.3 lb/tree) — so the oracle's exclusion is a TREE-INCLUSION difference, i.e.
+the ORGANON missing-height imputation for sub-2" DF gives a height ≤ CANMHT (6 ft) that jl's imputation does not.
+CORNERED: (1) `.sum`-INVISIBLE — OC cyc0 .sum is bit-exact (these tiny trees don't move TopHt/QMD/BA/TPA); (2)
+report-only (FVS_CanProfile), and the table is already validated BIT-EXACT on CR (68/68); (3) OC fire is surface-
+dominated (crown fuel inert on byram/scorch/mort). Fixing needs matching ORGANON's exact org_intree missing-height
+model for sub-2" trees = a deep OC-input detail with layered low value. LEFT CORNERED.
+
+## OC redwood (sp50) crown-width GAP surfaced 2026-08-21 (separate, pre-existing)
+While validating the fm_canopy_lsw(::OregonCoast) redwood-inclusion fix (8ba9d59c, source-verified), a redwood test
+stand hit `oc_cwcalc: crown-width equation 21104 (species 50) not yet ported` (oc/cwcalc.f CASE for sp50 absent).
+So OC redwood is under-ported in the crown-width path — a distinct ORGANON-species gap (redwood = a real OC species).
+The LSW fix is source-faithful + gate-safe + additive/inert on non-redwood stands; full redwood end-to-end A/B is
+blocked until oc_cwcalc gets the sp50 CASE. Noted as the next OC-species lead if redwood coverage is prioritized.
