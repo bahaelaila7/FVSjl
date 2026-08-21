@@ -1155,6 +1155,14 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # ≈0 case is out of scope for this multiply. The clamp keeps any positive keyword value faithful.
     sa = Float32(stoadj); sa < 0.001f0 && (sa = 0.001f0)
     prob1 = (1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))) * sa
+    # estab.f:581-582 clamp FTEMP (=PROB1) to [0.0001, 0.9990] AFTER the STOADJ multiply. Critical when STOADJ>1 (or a
+    # high-PN stand) would drive the logistic·STOADJ product past 1 — PROB1 sits in the NSTORE denominator (tpacre/
+    # (prob1·300)), so an uncapped prob1>1 shrinks NSTORE and makes ingrowth OVER-book (measured: STOCKADJ 2.0 → jl
+    # +588 TPA vs oracle −251 before this clamp). estab.f:583 additionally floors FTEMP at the plot's PNN(NCOUNT)+
+    # 0.0001 (existing per-plot stocking prob); jl's prob1 is a stand-level scalar so that per-plot floor isn't
+    # represented here — inert wherever prob1 ≥ the plot's PNN (the usual case; verified on the under-stocked fixture).
+    prob1 < 0.0001f0 && (prob1 = 0.0001f0)
+    prob1 > 0.9990f0 && (prob1 = 0.9990f0)
     # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
     # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
     # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,

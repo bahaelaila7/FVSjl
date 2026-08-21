@@ -43,3 +43,16 @@ establishment. ⇒ TALLY's independent effect is not cleanly isolatable on avail
 (kw_estab! pushes ScheduledActivity 427/428/429; honored in ie_autoes_schedule!) is a faithful esnutr.f transcription
 + gate-safe (339/11), KEPT, but has no positive oracle signal to A/B against. This is a keyword whose oracle effect is
 itself marginal/second-order, not a jl gap.
+
+## estab.f:581-582 PROB1 clamps — ADDED (faithful) + measured a REAL runaway bug
+STOCKADJ 2.0 on the under-stocked fixture: jl prob1 = logistic(0.617)*2 = 1.234 (a probability >1, UNCAPPED). Since
+prob1 sits in the NSTORE denominator (tpacre/(prob1*300)), the uncapped >1 value shrinks NSTORE and makes ingrowth
+OVER-book: jl Δ(STOCKADJ 2.0) = +588/+358/+415/+277 TPA, while the oracle caps FTEMP at 0.9990 (estab.f:582) and
+shows −251/−169/−436. Added `prob1 = clamp(prob1, 0.0001, 0.9990)` (verbatim estab.f:581-582). The clamp bit
+(+588→+462) — jl's prob1 is now capped at 0.999 like the oracle. Gate 339/11 byte-identical; INERT on base/STOCKADJ
+0.5/NOINGROW (their prob1 = 0.617/0.309 < 0.999) so the earlier validations are unchanged.
+RESIDUAL: jl STOCKADJ 2.0 STILL diverges in sign from the oracle (jl +462 vs oracle −251) — but that is the SEPARATE
+cornered seedling-mortality regime: STOCKADJ>1 boosts EARLY establishment, and the oracle then density-mortalizes the
+extra seedlings (net −251 later) while jl retains them. That downstream seedling self-thin is the same pre-existing
+establishment-MODEL divergence as the ~1-cycle timing shift — NOT the clamp. The estab.f:583 per-plot PNN floor is not
+represented (jl prob1 is a stand-level scalar); inert wherever prob1 >= the plot's PNN.
