@@ -501,3 +501,27 @@ the FMSNGHT height-loss). RECOMMENDED next-session split: implement + validate S
 bit-exact-or-cornered first (real, deliverable), then resolve the volume routine (empirical: dump one oracle cohort's
 Current_Vol_Hard / Density_Hard = per-tree vol, back-solve vs CFVOL-Behre and NVEL to identify the routine) and add
 the two volume columns. The full aggregation spec above is exact; only the vol2ht() primitive is open.
+
+## FVS_SnagDet — IMPLEMENTED + A/B'd 2026-08-21 → REVERTED (blocked on jl snag-LIST model divergence, NOT serialization)
+Built the full port (snagdet_rows aggregation faithful to fmsout.f + _snag_vol2ht + write_dbs_snagdet! 17-col +
+SNAGOUDB toggle + Control.dbs_snagdet + write_sum_file snagdet_collect at the carbon/snag-summary timing +
+simulate.jl write) and A/B'd vs /workspace/.ocwork/ocsnag_oracle.db. **The SERIALIZATION is correct but the port is
+NOT bit-exact-or-cornered — the A/B surfaced THREE real divergences in jl's underlying snag LIST, so REVERTED per
+"commit only validated":**
+  1. **Snag ACCUMULATION**: per-year row counts — oracle GROWS 1993=5·2003=30·2013=14·2023=33·2033=47·2048=51 (ongoing
+     mortality snags accumulating as distinct death-year cohorts); jl COLLAPSES to ~4/cycle after 2013 (1993=2·2003=15·
+     2013=6·2018=4·…·2048=4). jl's ordinary-mortality snags don't PERSIST across cycles the way FVS's do (falldown too
+     fast, or few distinct yrdead cohorts survive) ⇒ jl emits 68 rows vs oracle 379, missing 209/256 (sp,yr,yrdied) keys.
+     NOTE the memory's "SnagSum bit-exact" was only the PULSE era (1993-2013, SNAGINIT+fire densities); the post-2013
+     ACCUMULATION era (ongoing mortality) diverges — snag_summary likely diverges there too, just wasn't sampled.
+  2. **Hard HEIGHT** (Current_Ht_Hard): 2/47 match — jl's htcur (SNAGBRK-reduced current height, FMSNGHT) ≠ FVS HTIH.
+  3. **Hard VOLUME** (Current_Vol_Hard): 7/47 — the OC snag volume routine (still unresolved: NATCRS/NVEL vs CFVOL) +
+     the height-loss feed both wrong. (Density_Soft/Ht_Soft/Vol_Soft trivially matched — all 0, snags are hard-only here.)
+  Density_Hard/Total matched 29/47 on the keys jl HAS (the pulse-era cohorts) — so the aggregation logic is right; the
+  DATA (which snags exist, their current heights) is what diverges. ⇒ **SnagDet is blocked on a jl snag-MODEL
+  reconciliation** (ordinary-mortality snag persistence/falldown across cycles + the SNAGBRK height-loss model +
+  the snag volume routine) — a multi-part model port, NOT the ~15-col serialization the earlier notes assumed. The
+  serialization spec above is validated-correct and reusable once the snag list matches. Recommend: FIRST reconcile
+  jl's multi-cycle ordinary-mortality snag accumulation vs FVS (fmsfall.f falldown + the per-cycle FMSDIT add) using
+  the SnagSum GRAND-TOTAL density across ALL cycles (not just the pulse) as the cheaper 1-number-per-cycle A/B, THEN
+  return to SnagDet. Reverted commit-free; tree clean, gate 339/11.
