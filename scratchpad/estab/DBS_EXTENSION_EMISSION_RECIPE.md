@@ -68,3 +68,24 @@ FVS_SnagDet bit-exactness requires the underlying FFE snag MODEL (densities/heig
 bit-exact on the test stand. IE FFE is NOT in the validated-FFE set (OC/CA/EC/WS/SO/WC/NC/eastern are) — so
 validate FVS_SnagDet on a variant whose FFE snags are already bit-exact (e.g. OC or CA), NOT this IE stand.
 The IE stand here only proves the ORACLE-EMISSION recipe; the jl A/B belongs on a validated-FFE variant.
+
+## FVS_SnagDet port — DE-RISKED 2026-08-21 (all pieces in hand, pure serialization)
+Confirmed jl's SnagList (state.jl:677) carries EVERY field the table needs — it is a pure serialization port, NOT
+a model extension:
+  - sp                        → SpeciesFVS/PLANTS/FIA (jl species-code maps)
+  - dbh                       → DBH_Class (1-6 binning) + Death_DBH
+  - den_hard / den_soft       → Density_Hard / Density_Soft / Density_Total
+  - yrdead                    → Year_Died (+ Year = the report cycle)
+  - htcur (current snag ht)   → Current_Ht_Hard / Current_Ht_Soft
+  - bolevol / fallvol         → Current_Vol_Hard / Current_Vol_Soft / Total_Volume
+Write pattern MIRRORS the existing write_dbs_snagsum! (dbs_output.jl:259) — prepare INSERT, loop rows, execute.
+EXECUTABLE next-session plan:
+  1. Read dbsfmdsnag.f:145-210 (the DO JYR/IDC/JCL body) to match the EXACT aggregation: DBH-class thresholds,
+     density-weighting of Current_Ht/Vol, how Death_DBH is a per-class aggregate, the SpeciesFVS/PLANTS/FIA codes.
+  2. Add _FVS_SNAGDET_CREATE (17-col schema, dbsfmdsnag.f:104-121) + write_dbs_snagdet!(dbpath,caseid,standid,rows)
+     aggregating SnagList by (species, DBH_Class, yrdead).
+  3. Wire the SNAGOUDB DBS toggle (keyword_dispatch.jl DATABASE block) → call write_dbs_snagdet! at output.
+  4. A/B on a VALIDATED-FFE variant (OC or CA — IE FFE is not in the validated set): run the oracle with the
+     recipe above (FMIN/SNAGSUM/SNAGOUT + DBS SNAGOUDB) and jl with the same, diff FVS_SnagDet column-by-column.
+  5. Commit ONLY if bit-exact-or-cornered. Same shape for FVS_StrClass (structure_stage.jl has the stage; the
+     per-stratum detail — Stratum_N_DBH/Ht/Crown/species — needs jl to expose the strata, a bigger lift).
