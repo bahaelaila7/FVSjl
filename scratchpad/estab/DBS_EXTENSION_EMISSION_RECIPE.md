@@ -545,3 +545,15 @@ mortality only. NEXT DIAGNOSTIC (cheap, decisive): env-gate a print in ffe_add_s
 den=50 is created, then a print in update_snags!/snag_summary at the 1993 report to see the density there — isolates
 creation-vs-falldown. This bug gates BOTH FVS_SnagSum AND FVS_SnagDet (and feeds FFE Stand-Dead carbon/CWD), so fix it
 BEFORE re-attempting the SnagDet serialization. Report-only subsystem; growth/.sum unaffected.
+
+## SNAG-DENSITY bug SHARPENED 2026-08-21 (instrumented ffe_add_snaginit! + snag_summary, env SNAG_DEBUG)
+Decisive: at the 1993 (inventory) snag report jl's list has **nrec=2, total 14.76, and the SNAGINIT cohort (den=50,
+death-yr 1991) is NOT yet added** — the `SNAGINIT-add den=50` fires AFTER the 1993 report and the cohort first appears
+at 1998 (nrec 2→8). ⇒ **jl adds SNAGINIT one cycle LATE (misses the inventory-year FFE snag report)** — a FFE-init
+ORDER bug: ffe_add_snaginit! runs after the cyc0 carbon/snag report instead of before it (FVS fmsnag.f adds SNAGINIT
+at the first FFE year, BEFORE that year's report). This is the cyc0 gap. The multi-cycle low tail (1998 75 vs 93; late
+~10× low) is a SEPARATE falldown/accumulation divergence stacked on top (the 2 mystery cyc0 records + the fast late
+decay). NOTE the arithmetic doesn't cleanly close (jl 14.76 non-SNAGINIT vs oracle 55.26≈50+5) — the "2 records" at
+1993 need identifying (first-cycle mortality booked early?) before a fix. FIX PATH: move the SNAGINIT add ahead of the
+inventory-year snag/carbon report (mind the carbon-push timing), then re-A/B SnagSum grand-total per cycle; expect the
+1993 gap to close and the multi-cycle falldown to be the remaining item. Report-only; growth/.sum unaffected; gate 339/11.
