@@ -102,7 +102,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # fmcroww.f is byte-identical to CR's, so it routes through cr_crownw with _NC_ISPMAP.
     if (s.variant isa CentralRockies || s.variant isa BlueMountains || s.variant isa Klamath ||
         s.variant isa WestSierra || s.variant isa WestCascades || s.variant isa CentralCalifornia ||
-        s.variant isa PacificNorthwest || s.variant isa EastCascades || s.variant isa SouthCentralOregon) &&
+        s.variant isa PacificNorthwest || s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
+        s.variant isa OregonCoast) &&
        (s.variant isa Klamath ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
           s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) :
@@ -110,6 +111,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
           s.variant isa PacificNorthwest ? pn_uses_fmcrowe(sp) :
           s.variant isa CentralCalifornia ? ca_uses_fmcrowe(sp) :
           s.variant isa EastCascades ? ec_uses_fmcrowe(sp) :
+          s.variant isa OregonCoast ? oc_uses_fmcrowe(sp) :
           s.variant isa SouthCentralOregon ? so_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
         spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] :
                s.variant isa BlueMountains ? _BM_ISPMAP[sp] :
@@ -118,6 +120,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa PacificNorthwest ? PN_ISPMAP[sp] :
                s.variant isa CentralCalifornia ? CA_ISPMAP[sp] :
                s.variant isa EastCascades ? EC_ISPMAP[sp] :
+               s.variant isa OregonCoast ? OC_FFE_ISPMAP[sp] :
                s.variant isa SouthCentralOregon ? SO_ISPMAP[sp] : _NC_ISPMAP[sp]
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as

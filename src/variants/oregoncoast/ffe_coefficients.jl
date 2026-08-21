@@ -27,6 +27,12 @@ const OC_FFE_ISPMAP = Int32[
     21, 21, 17, 5, 44, 23, 10, 17, 56, 29,
     46, 17, 60, 41, 17, 64, 17, 17, 21, 19]
 
+# fmcrow.f:167-171 SELECT CASE (SPIW): OC hardwoods 35,39,40,41,43,44,45,46 use the eastern FMCROWE (Jenkins);
+# every other OC species uses the western FMCROWW (via cr_crownw + OC_FFE_ISPMAP). Wiring OC into the western
+# crown-biomass path — jl previously routed ALL OC species through FMCROWE, ~4× under-counting conifer canopy fuel.
+@inline oc_uses_fmcrowe(sp::Integer) = (sp == 35 || sp == 39 || sp == 40 || sp == 41 ||
+                                        sp == 43 || sp == 44 || sp == 45 || sp == 46)
+
 # OC BLM merchantable DBH min (sitset.f BLM; also OC's sp_dbh_min) = the crown-biomass merch gate.
 const OC_FFE_DBHMIN = 7.0f0
 
