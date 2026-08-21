@@ -189,3 +189,16 @@ biology):
   • simulate.jl landscape seam (single-stand MXSTND=1): call the PPMAIN-equivalent per cycle if a DISPERSE outbreak
     is active + the year is in [IBMYR1,IBMYR2]; apply the returned WK2 to FVS mortality (pre-tripling, like the other
     insect seams). ⇒ end-to-end outbreak. Corner the composition (reconstructed harness, per the USER decision).
+
+
+## CHUNK 3k DONE (12f531dc) — outbreak orchestration RUNS END-TO-END
+wwpb_outbreak_cycle! composes the 10 bit-exact kernels into the single-stand PPMAIN/BMDRV loop. Validated coherent
+(seeded outbreak → mortality scaling with seed, bounded). ⇒ WWPB FUNCTIONALLY COMPLETE. FINAL wiring only:
+  1. BMPPIN keyword block (bmppin.f) in keyword_dispatch.jl: DISPERSE (activate + IBMYR1 start / duration → IBMYR2),
+     HOST (HSPEC override), PBSPEC (beetle selector), RANNSEED (reseed). Store in WwpbState (add fields: active_outbreak,
+     iyr1, iyr2, hspec-override). The DAMAGE seed comes from inventory beetle damage-codes (like the LPMPB damage plumbing).
+  2. simulate.jl seam (replace the STALE no-seam note at 676-685): if !tripled && s.wwpb active-outbreak && year in
+     [iyr1,iyr2] → build WwpbStand + coeffs, wwpb_outbreak_cycle!(...; sarea=stand acres, seed=damage), then
+     wk2=old_tpa−t.tpa; bmkill!; t.tpa=old_tpa−wk2. sp_alpha from coef.code2/class_codes; sarea from EXPAND/plot area.
+  3. First end-to-end run_keyfile with a DISPERSE keyfile on a pine stand ⇒ the outbreak alters the .sum. Corner the
+     composition (reconstructed harness). Gate 339/11 must hold (inert unless a DISPERSE outbreak is active).
