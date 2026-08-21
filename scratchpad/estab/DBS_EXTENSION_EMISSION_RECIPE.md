@@ -347,3 +347,26 @@ after grow_cycle! (label=pre-advance cycle year, viab sampled report_year+fint/2
 the run_keyfile write. A/B via /workspace/.iework/climate/climtest.key (CLIMREDB→429 rows) — deterministic cols
 bit-exact, tree-list cols within the cyc1 straddle. WIP climate_report: scratchpad/climate/climate_report_wip.jl
 (update: mort1→clim_survival_cal(spviab,c.spcalib[sp]); mort2→c.spmort2; POTESTAB defaults when isempty(autoestb)).
+
+## ★★★ FVS_Climate DONE 2026-08-21 (c7e9aeeb) — first missing DBS table ported to a full oracle A/B
+Complete end-to-end: climate_report (POST-grow_cycle! collection at report_year+fint/2 midpoint) + write_dbs_climate!
++ ClimateState.spmort1/spmort2 (from apply_climate_mort!) + Control.dbs_climate/CLIMREDB toggle + post-growth
+climate_collect hook in write_sum_file + the run_keyfile write. Vs FVSie_clean: Viability+ViabMort BIT-EXACT 147/147,
+rest cornered on the DGSD=2.0 OLDRN straddle. test_climate_dbs 13/13, gate 339/11. +2 real bug fixes (SPCALIB 33290ff0,
+POTESTAB no-column ranking). ⚠ FALSE-POSITIVE LESSON: an accidental FVSie_clean run into the jl output db gave a bogus
+"all-columns bit-exact" (oracle-vs-oracle); ALWAYS rm the jl db + verify jl-only rows before an A/B.
+
+## REUSABLE PATTERN for the remaining deterministic-reader DBS tables (proven by FVS_Climate)
+1. Control.dbs_<x> flag + the DBS toggle keyword in kw_database! (the toggle name from dbsin.f's KEYWRD table).
+2. A <x>_report(s; report_year, fint) computing the per-<row> report at the POST-grow_cycle! state, sampling any
+   time-series at report_year+fint/2 (the FVS midpoint); read model-derived per-species/row values FROM state
+   (stored by the model routine that already ran in grow_cycle!) so the report == the applied values.
+3. write_dbs_<x>! (schema from dbs<x>.f) + a <x>_collect hook in write_sum_file right after grow_cycle! (label =
+   pre-advance cycle year) + the run_keyfile write, gated on the Control flag.
+4. A/B on a variant whose underlying MODEL is bit-exact for the table's data; deterministic columns bit-exact,
+   tree-list columns cornered on the OLDRN straddle. Test with a fixture keyfile.
+REMAINING (status): FVS_SnagDet CORNERED (FFE snag-report/dating diverges even at cyc0). FVS_BM_* NO ORACLE (WWPB
+reconstruction). FVS_DM_* DB-CRASH-BLOCKED (NEWSPRED). FVS_RD_* jl-WRD partial. FVS_StrClass 44-col/3-strata heavy +
+needs structure_stage to expose per-stratum detail (all tree-list ⇒ fully cornered). FVS_CanProfile canopy-cover-by-
+height (fmpocr, tree/crown-derived ⇒ fully cornered, needs a canopy-profile collect). ⇒ FVS_Climate was the cleanest
+(2 deterministic columns); the rest are blocked or fully-cornered-tree-list.
