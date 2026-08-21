@@ -42,11 +42,14 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      SnagList, state.jl:677). NEXT: port write_dbs_snagdet! (+ siblings) and A/B — but validate on a variant whose FFE
      snag model is already bit-exact (OC/CA), NOT IE (IE FFE not in the validated set); each table is a ~15-column
      serialization chunk.
-  3. **AK permafrost — ✓ ALREADY DONE (goal-doc was STALE, verified 2026-08-21).** kw_permafrost! wires PRMFROST →
+  3. **AK permafrost — ✓ DONE + CONFIRMED 2026-08-21 (56d8e379).** kw_permafrost! wires PRMFROST →
      s.control.permafrost (keyword_dispatch.jl:2395); ak_point_zeide! computes the SDICAL/SDICLS point-Zeide PRD
-     (diameter_growth.jl:79); the full LPERM-branch PFMOD (cap≤1 on / floor≥1 off) + AK_PFCON coeffs are ported;
-     HG permafrost modifier too. Only an interior-AK A/B vs FVSak_g16 to CONFIRM (the code is present + gate-safe;
-     akt01 is coastal so the path is inert there). NOT a porting gap.
+     (diameter_growth.jl:79); the full LPERM-branch PFMOD (cap≤1 on / floor≥1 off) + AK_PFCON coeffs are ported.
+     **CONFIRMED via a white-spruce (sp5, permafrost) A/B: PRMFROST FIRES and matches FVSak_clean bit-exact-or-
+     cornered** — cyc0 bit-exact (669/118), 2000 off-baseline TPA bit-exact (471); the on−off TPA delta matches the
+     oracle in sign+scale (jl +119/+79/+75/+61/+51 vs oracle +158/+71/+64/+56/+37; permafrost slows DG ⇒ less
+     self-thinning ⇒ more survivors). Residual = the cornered multi-cycle self-thin realization. akt01 is coastal so
+     the path is inert THERE, but the ported LPERM/PFMOD is now proven live+correct. scratchpad/estab/AK_PERMAFROST_CONFIRMATION.md.
   4. **Deferred sub-paths** — WSBWE BUDLITE/GENDEFOL (needs weather fort.40), ON method-6/broken-top vol, COVER CVBCAL.
   5. **PPE outer harness (PPMAIN/ALSTD/SPLAEX)** — SOURCE ABSENT from the tree ⇒ UN-PORTABLE (only reconstructable,
      as done for WWPB). Note as un-portable, not a gap.
