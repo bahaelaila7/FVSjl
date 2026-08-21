@@ -276,6 +276,61 @@ function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_StrClass schema (dbsstrclass.f:128-174) — SSTAGE stand-structure classification: up to 3 height strata,
+# each with DBHNOM / heights / crown base / cover / the two dominant-crown species (FVS/PLANTS/FIA) / status,
+# plus the whole-stand strata count, cover, and structure-class label. Two rows/cycle (Removal_Code 0=before-thin,
+# 1=after-thin). All values come from `structure_report` (validated bit-exact vs the sstage.f `.out` report).
+const _FVS_STRCLASS_STRATUM_COLS = join(
+    ["Stratum_$(k)_DBH real null, Stratum_$(k)_Nom_Ht int null, Stratum_$(k)_Lg_Ht int null, " *
+     "Stratum_$(k)_Sm_Ht int null, Stratum_$(k)_Crown_Base int null, Stratum_$(k)_Crown_Cover int null, " *
+     "Stratum_$(k)_SpeciesFVS_1 text null, Stratum_$(k)_SpeciesFVS_2 text null, " *
+     "Stratum_$(k)_SpeciesPLANTS_1 text null, Stratum_$(k)_SpeciesPLANTS_2 text null, " *
+     "Stratum_$(k)_SpeciesFIA_1 text null, Stratum_$(k)_SpeciesFIA_2 text null, Stratum_$(k)_Status_Code int null"
+     for k in 1:3], ", ")
+const _FVS_STRCLASS_CREATE = "CREATE TABLE IF NOT EXISTS FVS_StrClass(CaseID text not null, StandID text not null, " *
+    "Year int null, Removal_Code int null, " * _FVS_STRCLASS_STRATUM_COLS *
+    ", Number_of_Strata int null, Total_Cover int null, Structure_Class text null)"
+
+"""
+    write_dbs_strclass!(dbpath, caseid, standid, rows, coef) -> dbpath
+
+Write the SSTAGE structure classification to the `FVS_StrClass` DBS table (dbsstrclass.f). `rows` is a
+per-report collection of `(year, removal_code, report)` where `report` is a `structure_report` named tuple.
+Absent species/strata are stored as "--" / 0 (matching the Fortran emitter).
+"""
+function write_dbs_strclass!(dbpath::AbstractString, caseid::AbstractString,
+                             standid::AbstractString, rows::AbstractVector, coef)
+    fia3(x)   = lpad(strip(x), 3, '0')                    # FIAJSP as a 3-char zero-padded code (oracle "017")
+    fvs(i)    = i > 0 ? String(strip(coef.code_alpha[i]))  : "--"
+    plants(i) = i > 0 ? String(strip(coef.code_plants[i])) : "--"
+    fia(i)    = i > 0 ? String(fia3(coef.code_fia[i]))     : "--"
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_STRCLASS_CREATE)
+        ins = "INSERT INTO FVS_StrClass VALUES (" * join(fill("?", 46), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, cd, rep) in rows
+            vals = Any[caseid, standid, Int(yr), Int(cd)]
+            for k in 1:3
+                if k <= length(rep.strata)
+                    st = rep.strata[k]
+                    push!(vals, Float64(st.dbh), round(Int, st.nomht), round(Int, st.lght), round(Int, st.smht),
+                          round(Int, st.crnbase), round(Int, st.cover),
+                          fvs(st.sp1), fvs(st.sp2), plants(st.sp1), plants(st.sp2), fia(st.sp1), fia(st.sp2),
+                          Int(st.status))
+                else
+                    push!(vals, 0.0, 0, 0, 0, 0, 0, "--", "--", "--", "--", "--", "--", 0)
+                end
+            end
+            push!(vals, Int(rep.nstr), round(Int, rep.cover), _SS_CLASS_LABEL[rep.class + 1])
+            DBInterface.execute(stmt, Tuple(vals))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Climate schema (dbsclsum.f:33-48) — Climate-FVS per-species Viability-and-Effects report.
 const _FVS_CLIMATE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Climate(

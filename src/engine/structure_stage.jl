@@ -90,13 +90,15 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     # for CR ⇒ zero cover ⇒ wrong strata/class). Eastern variants keep crown_width. Precompute CR stand inputs.
     _cr_ss = s.variant isa CentralRockies
     _so_ss = s.variant isa SouthCentralOregon    # SO CRWDTH via so_cwcalc (SOMAP Crookston R6, forest-601 BF)
-    _cr_ba = (_cr_ss || _so_ss) ? p.basal_area : 0f0
-    _cr_el = (_cr_ss || _so_ss) ? p.elevation : 0f0
-    _cr_hi = (_cr_ss || _so_ss) ? _cr_hopkins(p.latitude, p.longitude, p.elevation) : 0f0
+    _oc_ss = s.variant isa OregonCoast           # OC/ORGANON CRWDTH via oc_cwcalc (else generic crown_width→0 cover)
+    _cr_ba = (_cr_ss || _so_ss || _oc_ss) ? p.basal_area : 0f0
+    _cr_el = (_cr_ss || _so_ss || _oc_ss) ? p.elevation : 0f0
+    _cr_hi = (_cr_ss || _so_ss || _oc_ss) ? _cr_hopkins(p.latitude, p.longitude, p.elevation) : 0f0
     @inbounds for i in 1:t.n
         t.height[i] > 0f0 && t.tpa[i] > 0f0 || continue
         cw = _cr_ss ? cr_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _so_ss ? so_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _oc_ss ? oc_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              crown_width(co, strip(co.code_alpha[Int(t.species[i])]), t.dbh[i], t.height[i],
                          Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
         pa = Float64(t.tpa[i])                          # PROB (raw, as SSTAGE uses it — NOT /GROSPC)

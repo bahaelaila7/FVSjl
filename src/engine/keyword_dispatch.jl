@@ -1664,6 +1664,9 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_compute = true
         elseif k == "CLIMREDB"
             s.control.dbs_climate = true
+        elseif k == "STRCLSDB"
+            s.control.dbs_strclass = true
+            s.control.strclass_on = true   # the DBS emitter implies the structure calc is on (sstage.f)
         end
     end
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the

@@ -885,13 +885,14 @@ function run_keyfile(keypath::AbstractString;
         hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
         cprof_rows = (s.control.dbs_canprofile && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
         hook = tl_on ? (st, yr, pl, cy) -> push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
                        cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
-                       canprof_collect = cprof_rows)
+                       canprof_collect = cprof_rows, strclass_collect = strcl_rows)
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
         # COVER report (CVOUT): "CANOPY COVER STATISTICS" table, appended after the .sum
@@ -917,6 +918,8 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
+            strcl_rows === nothing ||
+                write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
             if carb_rows !== nothing
                 write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)

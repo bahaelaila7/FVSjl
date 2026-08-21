@@ -263,6 +263,7 @@ mutable struct Control
     dbs_cutlist::Bool                         # DATABASE CUTLIST ⇒ emit the FVS_CutList table          (ICUTLIST)
     dbs_climate::Bool                         # DATABASE CLIMREDB ⇒ emit the FVS_Climate table         (ICLIM)
     dbs_canprofile::Bool                      # FFE CANFPROF keyword ⇒ emit the FVS_CanProfile table   (ICANPR)
+    dbs_strclass::Bool                        # DATABASE STRCLSDB ⇒ emit the FVS_StrClass table        (ISTRCLAS)
     cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle cut-record sink (_log_cut!), else nothing
     strclass_on::Bool                         # STRCLASS keyword ⇒ compute the structural stage each cycle (LCALC)
     strclass_thresh::NTuple{6,Float32}        # STRCLASS thresholds: gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx
@@ -350,7 +351,7 @@ function Control()
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
-        false, false, false, nothing,                           # dbs_cutlist, dbs_climate, dbs_canprofile, cutlist_capture
+        false, false, false, false, nothing,                    # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, cutlist_capture
         false, SS_THRESH_DEFAULT,                               # strclass_on, strclass_thresh (SSTAGE)
         Int32(0), Int32(0), 5f0, 5f0, 5f0,                      # GROWTH: idg, ihtg, fint, finth, fintm (defaults)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff

@@ -166,7 +166,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing,
                         climate_collect::Union{Nothing,Vector} = nothing,
-                        canprof_collect::Union{Nothing,Vector} = nothing)
+                        canprof_collect::Union{Nothing,Vector} = nothing,
+                        strclass_collect::Union{Nothing,Vector} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
     # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
@@ -291,6 +292,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
+        # FVS_StrClass (sstage.f → dbsstrclass.f): the SSTAGE structure classification, BEFORE-thin (Removal_Code
+        # 0) at the cycle-top stand. The AFTER-thin (cd=1) row is captured post-cuts! below (non-last cycles).
+        if strclass_collect !== nothing
+            compute_density!(s)
+            push!(strclass_collect, (Int(r.year), 0, structure_report(s)))
+        end
         if !last
             # Add the deferred SNAGINIT snags at the start of the first growing cycle (FMMAIN, post-inventory-
             # report). They are then present for this cycle's snag falldown + any SIMFIRE, and first surface in
@@ -311,6 +318,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
                 s.control.cutlist_capture = nothing
+            end
+            # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
+            if strclass_collect !== nothing
+                compute_density!(s)
+                push!(strclass_collect, (Int(r.year), 1, structure_report(s)))
             end
             if rem.tpa > 0f0
                 compute_density!(s)
