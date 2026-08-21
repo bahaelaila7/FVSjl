@@ -370,3 +370,24 @@ reconstruction). FVS_DM_* DB-CRASH-BLOCKED (NEWSPRED). FVS_RD_* jl-WRD partial. 
 needs structure_stage to expose per-stratum detail (all tree-list ⇒ fully cornered). FVS_CanProfile canopy-cover-by-
 height (fmpocr, tree/crown-derived ⇒ fully cornered, needs a canopy-profile collect). ⇒ FVS_Climate was the cleanest
 (2 deterministic columns); the rest are blocked or fully-cornered-tree-list.
+
+## ★ FVS_CanProfile 2026-08-21 — serializer TRIVIAL + ready, but blocked on jl's OC canopy-profile MODEL divergence
+Built the full FVS_CanProfile port (write_dbs_canprofile! + canopy_crfill extraction + Control.dbs_canprofile +
+CANFPROF FFE keyword parse + post-growth canprof_collect hook + run_keyfile write) — the serializer is trivial: jl's
+canopy_bulk_density ALREADY builds the exact CRFILL array (crown fuel by 1-ft layer, lbs/ac-ft) that DBSFMCANPR
+serializes; I extracted it as `canopy_crfill(s)`. Emission spec (dbsfmcanpr.f): 1 row per layer I with CRFILL(I)>0 —
+Height_ft=I, Height_m=I·0.3048, fuel lbs/ac-ft, kg/m³=·0.45359237/(4046.856422·0.3048). Oracle enable = FFE keyword
+`CANFPROF` (fmin.f opt 47, sets ICANPR + year window; NO separate DBS toggle). Oracle vehicle /workspace/.ocwork/
+occanpr.key (+.tre) → occanpr_oracle.db (1025 rows). Gate 339/11 held (refactor behavior-preserving).
+BLOCKER — the A/B on OC does NOT validate: jl's OC canopy_crfill diverges STRUCTURALLY from the oracle even at cyc0
+(NOT cornering). 1993: oracle ht8→11.4, ht12→238.9 (plateau); jl ht5-7 present, ht12→57.7 (~4× low, smooth ramp).
+Pre-growth jl profile also diverges ⇒ NOT a timing issue. ROOT (pre-existing OC FFE canopy gap, exposed by this port,
+NOT the serializer): (1) OC has NO `fm_canopy_lsw(::OregonCoast)` method ⇒ falls back to `sp<=25` — wrong LSW
+softwood set for the 50-species ORGANON OC (includes OC hardwoods / excludes conifers 26-50); (2) the ~4× magnitude
+gap also implicates the OC/ORGANON crown_biomass (foliage+½finewoody) feeding adcrwn. ⇒ REVERTED per doctrine
+(commit only validated output). To finish: either (a) validate on a variant WITH a proper fm_canopy_lsw + bit-exact
+FFE canopy (BM `1:14+17` / CR `1:19+29:37` / SN `≤17+88` / NE `≤25`) — its canopy_crfill is bit-exact so the profile
+A/B validates cyc0-exact + OLDRN-cornered; or (b) first fix the OC canopy model (add OC LSW + verify ORGANON crown
+biomass). The serializer + wiring are correct + gate-safe; only the OC canopy MODEL blocks the A/B. WIP not kept in
+src (reverted); the whole port is ~40 lines re-appliable from this note. NB canopy_crfill(s) extraction is independently
+useful (canopy_bulk_density + FVS_CanProfile share it).
