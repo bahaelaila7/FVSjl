@@ -8,12 +8,18 @@ or-cornered per chunk vs the live relinked oracle; MEASURE; commit ONLY validate
 DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work continuously, commit each validated chunk.
 
 **The remaining surface (all niche; the CORE simulator — every variant + every major extension — is DONE):**
-  1. **ESTAB-packet keyword options** (memory `fvsjl-establishment-keyword-options`). WIRED already: STOCKADJ
-     (bit-exact `eddf8dc2`), RESETAGE, AUTALLY/NOAUTALY, INGROW/NOINGROW, THRSHOLD, PLANT/NATURAL/SPROUT/NOSPROUT.
-     STILL UNWIRED: TALLY/TALLYONE/TALLYTWO, ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO,
-     OUTPUT, PASSALL, SPECMULT, HTADJ. **.sum-visible ones (TALLY/ADDTREES/site-prep — change established COUNT)
-     validate via the STOCKADJ harness (IE fixture + FVSie_clean); .sum-INVISIBLE ones (SPECMULT species-mix, HTADJ
-     seedling-height) need a PER-TREE TREELIST A/B (FVS_TreeList DBS table).**
+  1. **ESTAB-packet keyword options** (memory `fvsjl-establishment-keyword-options`). ★★ CORRECTED 2026-08-21:
+     STOCKADJ (`eddf8dc2`) + TALLY (`1b9ea7d9`) were CODE-wired but their "bit-exact" validations were **FLAWED —
+     measured INERT in jl** on the only fixture (same-code jl A/B byte-identical, Δ=0; oracle Δ=−88/−75/−205/−172).
+     RESETAGE/AUTALLY/NOAUTALY/INGROW/NOINGROW/THRSHOLD/PLANT/NATURAL/SPROUT wired; NOINGROW likewise disagrees with
+     the oracle in sign. **ROOT (the real blocker, a #143-class deep-dive): jl's IE AUTOES establishment-INGROWTH
+     under-books vs the oracle on dense stocked stands** (the #143 NSTORE clamp → NEWTPP=max(0,ITPP−NSTORE)=0 books
+     ≈0 ingrowth where the oracle books ~88), so EVERY ingrowth-modulating keyword (STOCKADJ/TALLY/NOINGROW) is
+     inert-on-fixture + UNVALIDATABLE until that divergence converges. Fix needs a dense-IE fixture + oracle per-plot
+     NSTORE/NEWTPP dump (FVSie_g16 instrument-estab.f). The keyword code is faithful+gate-safe (339/11) but NOT
+     validated. STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO, OUTPUT, PASSALL,
+     SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the FVS_TreeList DBS
+     table that FVSie_clean would not emit this session — item 2 plumbing).
   2. **DBS write extension-output tables** — jl writes 15/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
   3. **AK permafrost — ✓ ALREADY DONE (goal-doc was STALE, verified 2026-08-21).** kw_permafrost! wires PRMFROST →
