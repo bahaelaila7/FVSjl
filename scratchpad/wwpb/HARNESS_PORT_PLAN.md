@@ -59,6 +59,8 @@ Bins the FVS treelist into NSCL=10 DBH size classes × {host=1, nonhost=2}:
 0. ✓ RNG wwpb_rand!/seed (done) + BMIN block (done) + defaults (done).
    ✓ CHUNK 1-2 DONE (215d2b22): wwpb_dbh_class (BMDBHC) + WwpbStand state + bmsdit! (FVS→BM bridge). 57 tests.
    ✓ CHUNK 3a DONE (3691658c): bmmort! (fast/slow tree decrement + FASTK/TPBK ledgers).
+   ✓ CHUNK 3b DONE (e569de35): bmcgrf! (GRF/GRFSTD/RVDNST) BIT-EXACT vs gfortran-16 driver (glibc expf/powf).
+     Driver-golden recipe PROVEN for transcendental beetle biology. driver_bmcgrf.f reusable template.
    → NEXT: the transcendental kernels need gfortran-16 driver-goldens (Float32 exp/logistic bit-exactness):
      BMFMRT (fire mort logistic), BMCGRF→BMCBKP→BMCNUM (susceptibility/BKP/attractiveness core).
 1. State design: WwpbLandscape Julia struct mirroring BMCOM/BMFCOM/BMPCOM (MXSTND-dim
@@ -103,3 +105,16 @@ WwpbLandscape struct (single-stand MXSTND=1 first); port BMSDIT (the FVS→BM br
 FVSjl's treelist (dbh/ht/icr/htg/cfv/prob/species) into the size-class×host/nonhost table;
 unit-test BMDBHC + the binning. THEN step 3 (deterministic kernels, driver-validated).
 All additive/inert (no simulate.jl seam) until step 8 — gate 339/11 must hold each chunk.
+
+## CONTINUATION (next session) — the BKP outbreak-dynamics core
+CHUNK 3b (bmcgrf) done + BIT-EXACT. NEXT dependency chain for the outbreak:
+  • BMINIT (bminit.f) — the coefficient SETUP: MSBA(isiz)=MID²·(π/576) [size-class-midpoint BA];
+    INC(1,i)=RSLOPE·DBHMID+B clamped to REPMAX, INC(2,i)=INC(1,i), INC(3,i)=INC(1,1)·0.1 [Ips].
+    RSLOPE/B/REPMAX are keyword/default params (bminit.f). Port this FIRST — bmcbkp/bmcnum/bmistd all read INC/MSBA.
+  • BMCBKP (bmcbkp.f) — BKP "brood" from last year's PBKILL: BKP += MSBA·PBKILL·INC(pbspec,isiz) + STRIP + FINAL;
+    ×REPRD (gen mult from NBGEN). Bad-year branch = GPGET2(317) scheduler stub (LBAD=false default ⇒ normal path).
+    Needs INC/MSBA (BMINIT) + FINAL/STRIP fields + BKP/BKPIPS/OLDBKP + a bad-year table stub. Driver-golden-able.
+  • BMCNUM (bmcnum.f) — attractiveness numerator; BMATCT — landscape BKP redistribution (SPLAAR); BMISTD — fills
+    PBKILL from BKP (stochastic, BMRANN). Then the harness (BMSETP/PPMAIN/GP-scheduler/SPLA) + BMKILL handback + seam.
+Driver-golden recipe: scratchpad/wwpb/driver_bmcgrf.f is the reusable template (INCLUDE the wwpb/*.F77 + ie/common
+PRGPRM + archive/PPEcommons PPEPRM; set the BMCOM inputs; CALL; print Z8.8; route Float32 exp/pow via glibc).
