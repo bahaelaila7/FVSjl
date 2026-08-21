@@ -1,24 +1,38 @@
-# STOCKADJ (ESTAB packet keyword) — bit-exact vs FVSie_clean
+# ESTAB modifier keywords (STOCKADJ / TALLY / NOINGROW) — CORRECTED 2026-08-21: PRIOR VALIDATION WAS FLAWED
 
-esnutr.f IACTK 440: STOADJ = PRMS(1). Applied estab.f:578-580 — clamp STOADJ≥0.001, then
-PROB1 = logistic(PN+ESB-ESB1)·STOADJ (the AUTOES/ESTOCK re-stocking tally). STOADJ<0.0001
-(STOCKADJ 0.0 / NATURAL) takes a SEPARATE estab.f branch (GO TO 137/229/163) reached via
-jl's scheduled-NATURAL path — OUT OF SCOPE for this multiply chunk.
+## What the code does (FAITHFUL transcription — this part is correct)
+- STOCKADJ (esnutr.f IACTK 440): est.stoadj = PRMS(1); ie_autoes_run applies estab.f:578-580 —
+  clamp STOADJ>=0.001, then PROB1 = logistic(PN+ESB-ESB1)*STOADJ. (committed eddf8dc2)
+- TALLY/TALLYONE/TALLYTWO (esin.f 16/11/12): kw_estab! pushes ScheduledActivity(date,427/428/429);
+  ie_autoes_establish! honors a scheduled tally in-window. (committed 1b9ea7d9)
+- NOINGROW (esin.f opt 22): est.lingrw=false; ie_autoes_schedule! path-3 gated on est.lingrw.
+  NOTE also handled only at TOP-LEVEL (keyword_dispatch.jl:2422), NOT inside kw_estab! — so
+  NOINGROW-inside-the-ESTAB-packet (FVS-correct placement) is silently skipped by jl.
 
-Repro: extract_ie.jl builds ie_stockadj.db (stand 12343703010690, 1 stand + 33 trees from
-the FIADB). ie_sa_base.key = ESTAB/END (STOADJ=1 default); ie_sa_050.key = ESTAB/STOCKADJ 0.5/END.
-Both have THINPRSC 2029 (post-thin LAUTAL AUTOES re-stocking = where STOADJ bites).
+## THE FLAW (measured 2026-08-21, definitive clean A/B)
+On the ONLY fixture (dense stand 12343703010690, ~28000 TPA, THINPRSC 2029), a SAME-CODE jl A/B
+(ie_sa_base vs ie_sa_050) is BYTE-IDENTICAL every cycle: Delta(STOCKADJ 0.5 - base) = 0/0/0/0/0/0.
+STOCKADJ is INERT in jl here. The oracle (FVSie_clean) A/B shows Delta = 0/0/-88/-75/-205/-172.
+NOINGROW: jl trace confirms it mechanically disables LINGRW (all paths NONE, itrn frozen) but the
+resulting .sum Delta (0/+35/+140/+227) DISAGREES IN SIGN with the oracle (-88/-75/-205/-172).
 
-Oracle (FVSie_clean, keyfile name on stdin) vs jl (run_keyfile IE) — Δ(sa050−base) live TPA:
-  2007 +0/+0 · 2017 +0/+0 · 2027 −88/−88 · 2037 −75/−75 · 2047 −205/−205 · 2057 −172/−172
-jl baseline TPA also bit-identical to oracle baseline. BIT-EXACT.
+ROOT CAUSE: on this already-stocked dense stand jl's #143 ingrowth clamp books ~0 ingrowth
+(NEWTPP = max(0, ITPP - NSTORE) = 0 because NSTORE >= ITPP), so scaling/disabling the ingrowth
+tally changes nothing in jl. The ORACLE books ~88 ingrowth trees that these keywords modulate.
+=> jl and the oracle DIVERGE on the underlying establishment-ingrowth booking on dense IE stands
+(jl UNDER-books vs oracle). The baseline itself is NOT bit-identical (jl 2027 BA 147 vs oracle 168,
+mort 95 vs 121) — a dense-establishment-regime divergence, NOT the clean baseline the prior doc claimed.
 
-Gate: multicycle 339/11 byte-identical (inert when keyword absent).
+## Status of the prior "bit-exact" claim
+FLAWED. The prior session reported "Delta(sa050-base) 2027 -88/-88, jl matches oracle every cycle"
+and "jl baseline also bit-identical" — BOTH are FALSE (jl Delta is 0; jl baseline diverges). The -88
+was the ORACLE's own delta, erroneously attributed to jl (the jl A/B was evidently never run cleanly).
 
-## TALLY / TALLYONE / TALLYTWO (esin.f 16/11/12) — bit-exact vs FVSie_clean
-esnutr.f:163-252: schedule a user establishment tally at a date; NTALLY=IACTK-427 (TALLY/TALLYONE=1, TALLYTWO=2
-only with a prior TALLYONE else 1). Wired: kw_estab! pushes ScheduledActivity(date,427/428/429); ie_autoes_establish!
-honors a scheduled tally due in [year,next_year) within the KDT+1-IDSDAT≤20 window, overriding the automatic rules.
-The ESTAB-END 427 at inv-20 is stale (>20yr) → correctly dropped, no regression.
-Repro ie_ty_base.key (ESTAB/END) vs ie_ty_t20.key (ESTAB/TALLY 2020/END) on stand 12343703010690. Δ(TALLY 2020−base)
-live TPA: 2027 −88, 2037 −75, 2047 −86, 2057 −198 — jl matches oracle EVERY cycle; jl baseline bit-identical. Gate 339/11.
+## Disposition
+- The KEYWORD CODE (est.stoadj, prob1*sa, TALLY scheduling, est.lingrw gate) is a faithful esnutr.f/
+  estab.f transcription, gate-safe (339/11, inert when keyword absent) — KEPT, would be correct on a
+  stand where jl books ingrowth. NOT independently validated on any available fixture.
+- REAL OPEN ITEM (the actual porting work): jl's IE AUTOES establishment-ingrowth booking diverges
+  from the oracle on dense stocked stands (#143 NSTORE clamp interaction) — a #143-class deep dive
+  needing a dense-IE fixture + oracle per-plot NSTORE/NEWTPP dump. Until that converges, NONE of the
+  ingrowth-modulating ESTAB keywords (STOCKADJ/TALLY/NOINGROW) are validatable on this stand.
