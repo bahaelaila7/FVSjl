@@ -486,3 +486,18 @@ state as snag_summary); (4) Control.dbs_snagdet + SNAGOUDB in keyword_dispatch (
 simulate.jl. VALIDATE column-group by group vs /workspace/.ocwork/ocsnag_oracle.db (FVS_SnagDet, 379 rows, yrs 1993-
 2048): density first (snag_summary already ~bit-exact vs SnagSum ⇒ high confidence), then Death_DBH, then Ht (tests
 FMSNGHT height-loss), then Vol (tests NATCRS+CFTOPK). Corner any column on the OC grown-DBH Float32 straddle per snag_summary.
+
+## FVS_SnagDet VOLUME-column CORRECTION 2026-08-21 (refines the "NATCRS=R9Clark" note above — it was premature)
+Deeper read: NATCRS (fvsvol.f:54+) does NOT compute R9 Clark directly — it calls the National Volume Estimator
+Library (VOLINITNVB/VOLINIT) with VOLEQ=VEQNNC(ISPC), the per-species equation number. So the OC snag volume =
+NVEL(VEQNNC), which may be a Region-6 Behre/DVEE eqn OR Clark depending on the species' VEQNNC — NOT simply jl's
+r9clark_cubic, and DISTINCT from OC's live-tree BLMVOL ('B') path. FURTHER, METHC=10 (→NATCRS) is set in initre.f
+inside the CRUISE/CVOLUME keyword handler; whether it runs for a bare ocsnag.key (else METHC stays grinit's 999 →
+FMSVOL ELSE → CFVOL Behre) is UNCONFIRMED. ⇒ the SnagDet VOLUME columns (Current_Vol_Hard/Soft, Total_Volume) need
+an empirical determination of the OC snag volume routine before they can be made bit-exact — a genuine sub-port
+(CFVOL Behre regression or NVEL-VEQNNC), NOT a trivial reuse. TRACTABLE-NOW columns (no volume routine needed):
+Density_Hard/Soft/Total (snag_summary basis, ~bit-exact vs SnagSum), Death_DBH, Current_Ht_Hard/Soft (jl htcur +
+the FMSNGHT height-loss). RECOMMENDED next-session split: implement + validate SnagDet's density/DBH/height columns
+bit-exact-or-cornered first (real, deliverable), then resolve the volume routine (empirical: dump one oracle cohort's
+Current_Vol_Hard / Density_Hard = per-tree vol, back-solve vs CFVOL-Behre and NVEL to identify the routine) and add
+the two volume columns. The full aggregation spec above is exact; only the vol2ht() primitive is open.
