@@ -66,6 +66,8 @@ mutable struct WwpbStand
     pbkill::Vector{Float32}     # PBKILL(NSCL)      — pine-beetle-killed proportion
     allkll::Vector{Float32}     # ALLKLL(NSCL+1)    — Ips-killed stems
     scorch::Vector{Float32}     # SCORCH(NSCL)      — severely-scorched proportion
+    tpbk ::Array{Float32,3}     # TPBK(NSCL,2,3)    — mortality ledger [class,type,{fast,slow,beetle}]
+    fastk::Vector{Float32}      # FASTK(3)          — fast-kill totals [TPA, host vol+BA, nonhost BA]
     slp  ::Float32              # SLP — stand slope
     habtyp::Int32               # HABTYP — habitat/ecoclass code (fire model)
 end
@@ -79,6 +81,7 @@ function WwpbStand()
         zeros(Int32, 2), zeros(Int32, 2),                 # isph, iqptyp
         z2(),                                             # oakill
         zeros(Float32, WWPB_NSCL), zeros(Float32, WWPB_NSCL + 1), zeros(Float32, WWPB_NSCL),  # pbkill, allkll, scorch
+        zeros(Float32, WWPB_NSCL, 2, 3), zeros(Float32, 3),  # tpbk, fastk
         0.0f0, Int32(0),                                  # slp, habtyp
     )
 end
@@ -168,6 +171,58 @@ function bmsdit!(st::WwpbStand, t, w::WwpbState, sp_alpha::Function;
                 st.hgs[k, ty] = 0.0f0; st.tvol[k, ty] = 0.0f0
             end
         end
+    end
+    return st
+end
+
+# -----------------------------------------------------------------------------
+# bmmort! (bmmort.f) — remove killed trees from the size-class table. Called
+# TWICE per year: SLOW=false (fast agents: windthrow+fire OAKILL) then SLOW=true
+# (beetle PBKILL + slow OAKILL + Ips ALLKLL). Decrements TREE/BAH/BANH, tallies
+# the FASTK + TPBK(,,{fast=1,slow=2,beetle=3}) ledgers. Faithful to bmmort.f DO-800.
+# NOTE OAKILL enters as a PROPORTION and is converted to TPA (×TREE) here, used,
+# then zeroed; PBKILL/ALLKLL persist (zeroed after BKP emerges). Beetles (slow)
+# kill HOST only. Deterministic — no transcendentals.
+# -----------------------------------------------------------------------------
+function bmmort!(st::WwpbStand, slow::Bool)
+    st.bah[WWPB_NSCL+1] = 0.0f0; st.banh[WWPB_NSCL+1] = 0.0f0
+    st.tree[WWPB_NSCL+1, 1] = 0.0f0; st.tree[WWPB_NSCL+1, 2] = 0.0f0
+    @inbounds for k in 1:WWPB_NSCL
+        st.oakill[k, 1] *= st.tree[k, 1]       # proportion → TPA
+        st.oakill[k, 2] *= st.tree[k, 2]
+        if slow
+            prdead = st.tree[k, 1] > 0.0f0 ?
+                (st.pbkill[k] + st.oakill[k, 1] + st.allkll[k]) / st.tree[k, 1] : 0.0f0
+            st.bah[k]     *= (1.0f0 - prdead)
+            st.tree[k, 1] *= (1.0f0 - prdead)
+        else
+            st.fastk[1] += st.oakill[k, 1] + st.oakill[k, 2]
+            st.fastk[2] += st.oakill[k, 1] * st.tvol[k, 1] + st.oakill[k, 2] * st.tvol[k, 2]
+            prdead = st.tree[k, 1] > 0.0f0 ? st.oakill[k, 1] / st.tree[k, 1] : 0.0f0
+            st.fastk[2] += st.bah[k] * prdead
+            st.bah[k]     *= (1.0f0 - prdead)
+            st.tree[k, 1] -= st.oakill[k, 1]
+            prdead = st.tree[k, 2] > 0.0f0 ? st.oakill[k, 2] / st.tree[k, 2] : 0.0f0
+            st.fastk[3] += st.banh[k] * prdead
+            st.banh[k]    *= (1.0f0 - prdead)
+            st.tree[k, 2] -= st.oakill[k, 2]
+        end
+        # constrain to positive, zero BA if trees gone
+        st.bah[k] = max(st.bah[k], 0.0f0); st.banh[k] = max(st.banh[k], 0.0f0)
+        st.tree[k, 1] = max(st.tree[k, 1], 0.0f0); st.tree[k, 2] = max(st.tree[k, 2], 0.0f0)
+        st.tree[k, 1] <= 0.0f0 && (st.bah[k] = 0.0f0)
+        st.tree[k, 2] <= 0.0f0 && (st.banh[k] = 0.0f0)
+        st.bah[WWPB_NSCL+1]  += st.bah[k];  st.banh[WWPB_NSCL+1] += st.banh[k]
+        st.tree[WWPB_NSCL+1, 1] += st.tree[k, 1]; st.tree[WWPB_NSCL+1, 2] += st.tree[k, 2]
+        if slow
+            st.tpbk[k, 1, 3] += st.pbkill[k] + st.allkll[k]
+            st.tpbk[k, 1, 2] += st.oakill[k, 1]
+            st.tpbk[k, 2, 2] += st.oakill[k, 2]
+        else
+            st.tpbk[k, 1, 1] += st.oakill[k, 1]
+            st.tpbk[k, 2, 1] += st.oakill[k, 2]
+        end
+        st.oakill[k, 1] = 0.0f0; st.oakill[k, 2] = 0.0f0
     end
     return st
 end

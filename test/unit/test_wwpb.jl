@@ -212,4 +212,21 @@ const _WWPB_MIN = "BMIN\nEND\n"
         @test st.bah[FVSjl.WWPB_NSCL+1] ≈ baexp
         @test st.otpa[3, 1] ≈ 30.0f0                   # initial snapshot
     end
+
+    @testset "BMMORT — fast/slow tree decrement + ledgers (bmmort.f)" begin
+        st = FVSjl.WwpbStand()
+        st.tree[3, 1] = 100.0f0                         # 100 host TPA in class 3
+        st.bah[3]     = 40.0f0
+        st.oakill[3, 1] = 0.10f0                        # 10% fast (windthrow/fire) kill, as proportion
+        st.pbkill[3]  = 5.0f0                           # 5 TPA beetle kill (already TPA in BMISTD)
+        FVSjl.bmmort!(st, false)                        # FAST pass: remove OAKILL
+        @test st.tree[3, 1] ≈ 90.0f0                    # 100 − 0.10·100
+        @test st.tpbk[3, 1, 1] ≈ 10.0f0                 # fast ledger
+        @test st.fastk[1] ≈ 10.0f0
+        @test st.oakill[3, 1] ≈ 0.0f0                   # zeroed after use
+        FVSjl.bmmort!(st, true)                         # SLOW pass: remove PBKILL (host only)
+        @test st.tree[3, 1] ≈ 85.0f0                    # 90·(1 − 5/90) = 85
+        @test st.tpbk[3, 1, 3] ≈ 5.0f0                  # beetle ledger
+        @test st.tree[FVSjl.WWPB_NSCL+1, 1] ≈ 85.0f0    # summary recomputed
+    end
 end
