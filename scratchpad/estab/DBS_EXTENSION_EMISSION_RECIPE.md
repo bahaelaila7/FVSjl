@@ -782,14 +782,18 @@ inventory-year FVS_TreeList A/B (harness: scratchpad/cwtl_cmp.jl + a per-variant
       without touching CR. Needs a `bf::Float32=1` PARAM added to cr_cwcalc (multiply into each of its ~25 eqn leading
       coefs; CR passes bf=1 ⇒ bit-exact-preserved) — a bounded mechanical refactor, then BM passes its forest-614 /
       SO its forest-601 per-species BF.
-    • **NC/Klamath** — nct01 is **forest 505 = REGION 5**, where cwcalc.f SKIPS the BF and BRANCHES TO R5CRWD (not the
-      R6M2 Crookston models). So nc_cwcalc's R6M2 is the WRONG MODEL for NC (⇒ the ~37% "SP 6.5 vs jl 8.9", far bigger
-      than any BF). NC needs an R5CRWD kernel like WS's ws_r5crwd, NOT a BF fold (confirm via an nct01 TreeList A/B).
-    • **KT/IE/UT/TT/CI/BC/AK** — no cwcalc kernel; need CWMAP + a CWMAP-param generalization of cr_cwcalc.
-  All report-only (not in .sum) ⇒ deferred; each is now precisely scoped. WS (dfc5fbf1) + CA (62f2e532) were the clean
-  wins (WS: R5CRWD no-BF; CA: own-coef BF fold). These kernels pass FFE (crown biomass) + StrClass (strata) because those
-  AGGREGATE crown width; the per-tree TreeList column exposes the forest-BF gaps. NO-KERNEL variants (KT/IE/UT/TT/CI/BC/
-  AK) additionally need the CWMAP + a CWMAP-parameterized generalization of cr_cwcalc (the national eqn library).
+    • **BM DONE (ce7d2d59, 10th)**: cr_cwcalc got the `bf` kwarg; BM passes forest-614 BF. **SO DONE (da37538c, 11th)**:
+      so_cwcalc already had 601 BF — the real gap was a HOPKINS/lat-lon BUG (jl SO lat/lon=0 not grinit's 42/121 ⇒ HI
+      wrong for the 3 Bechtold sp GC/MC/MB); so_grinit! now sets 42/121 (gate-inert on growth). **NC DONE (21e1d1cf,
+      12th)**: forest 505 is R5 ⇒ R5CRWD; nc_r5crwd REUSES ws_r5crwd via an NC→WS FIA-species map (R5CRWD is FIA-keyed,
+      NC's oracle CrWidth == WS's), 29/29, no new coefs. (nc_cwcalc R6M2 stays for the FFE.)
+    • **KT/IE/UT/TT/CI/BC/AK — NOT a clean remap (measured 2026-08-22)**: these interior R1/R4 variants use a DIFFERENT
+      equation FAMILY than CR (IE's IEMAP is '…03' Bechtold/log forms; CR's is '…05' R6M2). Only ~9 of IE's 23 species
+      map to eqns cr_cwcalc already has; the other ~14 need their ie/cwcalc.f eqns PORTED (a national-eqn-library
+      expansion), NOT a BM-style species remap. (BM/SO/NC worked because BM/SO are R6 sharing R6M2, NC is R5 sharing
+      R5CRWD; the R1 interiors share neither.) ⇒ report-only, deferred as a per-variant eqn-port batch.
+  **12 CLEAN WINS DONE**: CR/OC/EM/OP/WC/PN/EC + WS/CA/BM/SO/NC. All report-only (not in .sum). The kernels pass the
+  AGGREGATED FFE/StrClass consumers; the per-tree FVS_TreeList column is the strict test (inventory-yr A/B, cwtl_cmp.jl).
 ★ KEY LESSON: a cwcalc kernel validated via an AGGREGATED consumer (FFE/StrClass) is NOT necessarily per-tree bit-
 exact — the FVS_TreeList column is the strict test. The bit-exact 7 share proper forest-BF handling for their ref
 stand; the 4 excluded omit/mishandle BF. Remaining non-CR western with NO kernel wired (KT/IE/UT/TT/CI/AK/BC + the 4
