@@ -34,6 +34,7 @@ $dbp
 PPBMMAIN
 PPBMTREE
 PPBMVOL
+PPBMBKP
 END
 PROCESS
 STOP
@@ -51,7 +52,7 @@ if "FVS_BM_Main" in tabs
 end
 SQLite.close(db)
 db2 = SQLite.DB(dbp)
-for tb in ("FVS_BM_Tree","FVS_BM_Vol")
+for tb in ("FVS_BM_Tree","FVS_BM_Vol","FVS_BM_BKP")
   n=first(DBInterface.execute(db2,"SELECT COUNT(*) c FROM $tb")).c
   println(tb," rows: ",n)
 end

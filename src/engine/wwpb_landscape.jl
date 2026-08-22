@@ -1047,7 +1047,12 @@ function wwpb_main_report(st::WwpbStand, coeffs)
             BA_San_Remv = 0.0f0, BKP_San_Remv = 0.0f0, TPA_SanRemvLv = 0.0f0,
             TPA_SanRemLvDd = 0.0f0, VolRemSan = 0.0f0, VolRemSalv = 0.0f0,
             tpa_sc = tpa_sc, host_sc = host_sc, tkld_sc = tkld_sc, spcl_sc = spcl_sc,
-            tvol_sc = tvol_sc, hvol_sc = hvol_sc, volk_sc = volk_sc)
+            tvol_sc = tvol_sc, hvol_sc = hvol_sc, volk_sc = volk_sc,
+            # FVS_BM_BKP (bmout.f BKPOUT pass-through): kernel-output BKP state. The
+            # landscape-dispersal terms (SELFBKP/TO_LS/FRM_LS/IN_OW/OUT2OW/PER_SURV) come
+            # from the source-absent PPMAIN orchestrator ⇒ 0 in the single-stand harness.
+            bkp_strp = st.final[1], bkp_strp_sc = st.final[2],
+            bkp_dvrv = copy(st.dvrv), bkp_fastk = copy(st.fastk))
 end
 
 # -----------------------------------------------------------------------------
@@ -1080,7 +1085,7 @@ function wwpb_apply!(s, old_tpa::Vector{Float32}, fint::Real)
                          iyr1 = Int(w.iyr1), iyr2 = Int(w.iyr2), seed_pbkill = seed)
     # PPBMMAIN/PPBMTREE/PPBMVOL: accumulate the per-cycle report (holds the stand summary + per-class
     # vectors) for FVS_BM_Main/Tree/Vol (written at finalize).
-    if s.control.dbs_bm_main || s.control.dbs_bm_tree || s.control.dbs_bm_vol
+    if s.control.dbs_bm_main || s.control.dbs_bm_tree || s.control.dbs_bm_vol || s.control.dbs_bm_bkp
         yr = current_cycle_year(s)
         push!(w.main_rows, (yr, wwpb_main_report(st, coeffs)))
     end

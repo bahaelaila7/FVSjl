@@ -673,6 +673,46 @@ function write_dbs_bm_vol!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_BM_BKP schema (dbs/dbsbmbkp.f) — WWPB BKPOUT beetle-killing-potential detail. 27 cols. The
+# landscape-dispersal columns (SELFBKP/TO_LS/FRM_LS/IN_OW/OUT2OW/PER_SURV) come from the source-absent
+# PPMAIN orchestrator ⇒ 0 in the single-stand reconstruction; the rest are kernel-output BKP state.
+const _FVS_BM_BKP_CREATE = string("CREATE TABLE IF NOT EXISTS FVS_BM_BKP(",
+    "CaseID text not null, StandID text null, Year Int null, ",
+    "OLDBKP real null, NEWBKP real null, SELFBKP real null, TO_LS real null, FRM_LS real null, ",
+    "IN_OW real null, OUT2OW real null, PER_SURV real null, STRPBKP real null, STRP_SC real null, ",
+    "REMBKP real null, RV real null, ",
+    join(("DVRV$(i) real null" for i in 1:9), ", "),
+    ", TPAFAST real null, BAFAST real null, VOLFAST real null)")
+
+"""
+    write_dbs_bm_bkp!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the WWPB BKPOUT beetle-killing-potential detail to `FVS_BM_BKP` (dbs/dbsbmbkp.f, PPBMBKP). Column
+order verbatim from the DBSBMBKP arg list. The 6 landscape-dispersal columns are 0 (single-stand harness).
+"""
+function write_dbs_bm_bkp!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_BM_BKP_CREATE)
+        ins = "INSERT INTO FVS_BM_BKP VALUES (" * join(fill("?", 27), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, r) in rows
+            vals = Any[caseid, standid, Int(yr),
+                Float64(r.PreDispBKP), Float64(r.PostDispBKP),  # OLDBKP, NEWBKP
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,                   # SELFBKP,TO_LS,FRM_LS,IN_OW,OUT2OW,PER_SURV (landscape)
+                Float64(r.bkp_strp), Float64(r.bkp_strp_sc),    # STRPBKP, STRP_SC (FINAL 1/2)
+                0.0, Float64(r.StandRV)]                        # REMBKP (no harvest), RV (=GRFSTD)
+            for i in 1:9; push!(vals, Float64(r.bkp_dvrv[i])); end
+            for i in 1:3; push!(vals, Float64(r.bkp_fastk[i])); end   # TPAFAST,BAFAST,VOLFAST
+            DBInterface.execute(stmt, vals)
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(

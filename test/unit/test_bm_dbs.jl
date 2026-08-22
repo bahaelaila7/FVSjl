@@ -13,7 +13,8 @@
 using Test
 using FVSjl
 using FVSjl: WwpbStand, wwpb_init_coeffs, wwpb_main_report, write_dbs_bm_main!,
-             write_dbs_bm_tree!, write_dbs_bm_vol!, WWPB_UPSIZ_DEFAULT, WWPB_NSCL
+             write_dbs_bm_tree!, write_dbs_bm_vol!, write_dbs_bm_bkp!,
+             WWPB_UPSIZ_DEFAULT, WWPB_NSCL
 using SQLite, DBInterface
 
 # Controlled state identical to golden_bmmain.f: class 3 = 100 host + 20 nonhost, BAH 50, vols 8/6,
@@ -30,6 +31,10 @@ function _bm_controlled_stand()
     st.bah[WWPB_NSCL+1] = 80.0f0            # BAH(3)+BAH(5)
     st.tree[WWPB_NSCL+1, 1] = 140.0f0       # TPAH = host in cl 3 + 5
     st.bastd = 95.0f0; st.grfstd = 1.7f0; st.oldbkp = 12.3f0; st.bkp = 4.2f0
+    # FVS_BM_BKP kernel-output state (pass-through, no aggregation)
+    st.final[1] = 3.3f0; st.final[2] = 4.0f0                       # STRPBKP, STRP_SC
+    for i in 1:9; st.dvrv[i] = Float32(i) * 0.5f0; end             # DVRV1..9
+    st.fastk[1] = 8.0f0; st.fastk[2] = 60.0f0; st.fastk[3] = 900.0f0  # TPAFAST,BAFAST,VOLFAST
     return st
 end
 
@@ -102,6 +107,30 @@ const _BM_GOLDEN = (PreDispBKP = 12.3000002, PostDispBKP = 4.1999998, StandRV = 
                 vl = first(DBInterface.execute(db, "SELECT * FROM FVS_BM_Vol WHERE Year=1990"))
                 @test vl.TV_SC3 == 920.0 && vl.HV_SC3 == 800.0 && vl.VK_SC3 == 56.0
                 @test vl.TV_SC5 == 600.0 && vl.VK_SC5 == 45.0
+            finally
+                SQLite.close(db)
+            end
+        end
+    end
+
+    # FVS_BM_BKP pass-through: kernel-output BKP state mapped verbatim; the 6 landscape-dispersal
+    # columns are 0 in the single-stand reconstruction (source-absent PPMAIN orchestrator).
+    @testset "FVS_BM_BKP pass-through + landscape-zero columns" begin
+        mktempdir() do dir
+            dbp = joinpath(dir, "bmbkp.db")
+            write_dbs_bm_bkp!(dbp, "C", "S", [(1990, rep)])
+            db = SQLite.DB(dbp)
+            try
+                r = first(DBInterface.execute(db, "SELECT * FROM FVS_BM_BKP WHERE Year=1990"))
+                @test isapprox(Float32(r.OLDBKP), 12.3f0; atol = 5.0f-5)
+                @test isapprox(Float32(r.NEWBKP), 4.2f0; atol = 5.0f-5)
+                @test r.STRPBKP == 3.3f0 || isapprox(Float32(r.STRPBKP), 3.3f0; atol = 5.0f-5)
+                @test r.STRP_SC == 4.0 && isapprox(Float32(r.RV), 1.7f0; atol = 5.0f-5)
+                @test r.DVRV1 == 0.5 && r.DVRV9 == 4.5
+                @test r.TPAFAST == 8.0 && r.BAFAST == 60.0 && r.VOLFAST == 900.0
+                # landscape-dispersal columns structurally 0
+                @test r.SELFBKP == 0.0 && r.TO_LS == 0.0 && r.FRM_LS == 0.0
+                @test r.IN_OW == 0.0 && r.OUT2OW == 0.0 && r.PER_SURV == 0.0 && r.REMBKP == 0.0
             finally
                 SQLite.close(db)
             end

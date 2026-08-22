@@ -1695,6 +1695,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_bm_tree = true   # dbsin.f opt 20: IBMTREE ⇒ FVS_BM_Tree per-size-class detail
         elseif k == "PPBMVOL"
             s.control.dbs_bm_vol = true    # dbsin.f opt 22: IBMVOL ⇒ FVS_BM_Vol per-size-class volume
+        elseif k == "PPBMBKP"
+            s.control.dbs_bm_bkp = true    # dbsin.f opt 21: IBMBKP ⇒ FVS_BM_BKP beetle-killing-potential
         end
     end
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the

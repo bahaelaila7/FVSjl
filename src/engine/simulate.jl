@@ -945,6 +945,8 @@ function run_keyfile(keypath::AbstractString;
                     write_dbs_bm_tree!(s.control.dbs_out_file, caseid, String(sid), bm_rows)
                 s.control.dbs_bm_vol &&
                     write_dbs_bm_vol!(s.control.dbs_out_file, caseid, String(sid), bm_rows)
+                s.control.dbs_bm_bkp &&
+                    write_dbs_bm_bkp!(s.control.dbs_out_file, caseid, String(sid), bm_rows)
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
