@@ -773,10 +773,21 @@ inventory-year FVS_TreeList A/B (harness: scratchpad/cwtl_cmp.jl + a per-variant
   minor sp WJ/GC/MC/MB off 0.9-2.6, forest 601 DESCHUTES), CA (SP/LP/PP off — **CONFIRMED forest-610 BF, NOT a coef bug**:
   ca_cwcalc SP eqn-11705 coeffs 3.5930/0.63503/… are byte-identical to cwcalc.f, but cwcalc.f CASE(610 Rogue River)
   applies per-FIASP BF SP=1.048/LP=0.944/PP=0.918/DF+WF=1.0 — jl uses BF=1 ⇒ ~4.6% low SP), NC/Klamath (SP 6.5 vs jl 8.9).
-  ★ FIX for each = extract that variant's ref-forest BF (compact per-FIASP SELECT CASE, ~9-15 sp) + thread the stand's
-  KODFOR into the kernel + BF-multiply. FOREST-SPECIFIC (bit-exact on the ref forest only, like the wired 7); a report-
-  only column ⇒ DEFERRED (needs forest-code plumbing into the cwcalc kernels for marginal value). WS (dfc5fbf1) was the
-  last CLEAN win: R5CRWD has no BF at all. These kernels pass FFE (crown biomass) + StrClass (strata) because those
+  ★★ **CA WIRED 2026-08-22 (62f2e532) — the BF fold needs NO plumbing**: oc_cwcalc/ca_cwcalc FOLD the ref-forest BF
+  straight into the leading coef (BF is a pure scalar on the whole R6M2 expr, applied before the per-eqn cap). CA's
+  cat01 is forest 610 = OC's ref forest ⇒ same BF (SP=1.048/LP=0.944/PP=0.918); folded into ca_cwcalc's SP/LP/PP coefs
+  → 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum. **So the recipe for an OWN-COEFFICIENT kernel is a
+  1-line-per-species coef×BF, no KODFOR plumbing.** REMAINING per-variant, MEASURED 2026-08-22:
+    • **BM/SO** — bm_cwcalc REMAPS to cr_cwcalc (shared CR coeffs: `cr_cwcalc(_BM_TO_CR_CWSP[sp],…)`); can't fold BF
+      without touching CR. Needs a `bf::Float32=1` PARAM added to cr_cwcalc (multiply into each of its ~25 eqn leading
+      coefs; CR passes bf=1 ⇒ bit-exact-preserved) — a bounded mechanical refactor, then BM passes its forest-614 /
+      SO its forest-601 per-species BF.
+    • **NC/Klamath** — nct01 is **forest 505 = REGION 5**, where cwcalc.f SKIPS the BF and BRANCHES TO R5CRWD (not the
+      R6M2 Crookston models). So nc_cwcalc's R6M2 is the WRONG MODEL for NC (⇒ the ~37% "SP 6.5 vs jl 8.9", far bigger
+      than any BF). NC needs an R5CRWD kernel like WS's ws_r5crwd, NOT a BF fold (confirm via an nct01 TreeList A/B).
+    • **KT/IE/UT/TT/CI/BC/AK** — no cwcalc kernel; need CWMAP + a CWMAP-param generalization of cr_cwcalc.
+  All report-only (not in .sum) ⇒ deferred; each is now precisely scoped. WS (dfc5fbf1) + CA (62f2e532) were the clean
+  wins (WS: R5CRWD no-BF; CA: own-coef BF fold). These kernels pass FFE (crown biomass) + StrClass (strata) because those
   AGGREGATE crown width; the per-tree TreeList column exposes the forest-BF gaps. NO-KERNEL variants (KT/IE/UT/TT/CI/BC/
   AK) additionally need the CWMAP + a CWMAP-parameterized generalization of cr_cwcalc (the national eqn library).
 ★ KEY LESSON: a cwcalc kernel validated via an AGGREGATED consumer (FFE/StrClass) is NOT necessarily per-tree bit-
