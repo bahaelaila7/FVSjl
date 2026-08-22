@@ -811,3 +811,13 @@ oracle's input-dead-tree snag density), compounded by the falldown model over ti
 14.76/194 here) — this is the same over-claim my prior SnagDet revert flagged. So FVS_SnagSum + FVS_SnagDet are BLOCKED
 on the jl snag-list MODEL (input-dead→snag booking + falldown), NOT on serialization/emission. Reverted the wiring
 (don't emit non-bit-exact data). The wiring recipe above is preserved for when the snag model is brought bit-exact.
+
+## ★ CORRECTION (2026-08-22): the snag gap is CYCLE-0 MORTALITY booking timing, NOT input-dead/DBH<1
+Yesterday's note attributed the FVS_SnagSum inventory-year gap to input-dead→snag booking (and I test-fixed a `d>=1`
+gate in ffe_seed_input_snags!). WRONG — measured via the oracle 1993 SnagDet per-cohort: jl books the INPUT dead trees
+CORRECTLY (ocsnag has 2 input-dead: SP id5 DBH34.6 dens0.61 + LP id14 DBH7.2 dens14.15 = jl's 14.76). The MISSING ~40/ac
+(oracle 55.26) is DF(deathDBH0.7,22.5)+GF(0.1,13.5)+BR(0.1,4.5) = FIRST-CYCLE MORTALITY (live trees dying in cyc 0),
+which FVS books as snags AT the 1993 inventory report but jl books at cycle-END and reports pre-grow ⇒ absent at 1993
+(matches the standing memory ROOT). The `d>=1` gate was INERT here (both input-dead are DBH≥1) so the fix changed
+nothing — reverted (speculative/unvalidated). ⇒ FVS_SnagSum/SnagDet remain BLOCKED on the cycle-0-mortality snag-booking
+TIMING (a snag/mortality-model divergence, deep), NOT input-dead and NOT serialization. Emission wiring recipe stands.
