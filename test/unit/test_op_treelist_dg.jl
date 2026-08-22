@@ -41,4 +41,9 @@ using SQLite, DBInterface
         @test isapprox(sdg, dg; atol = 0.05)     # bit-exact vs oracle (0.05 = print-rounding slack)
         @test isapprox(shtg, htg; atol = 0.05)
     end
+
+    # CrWidth: OP (ORGANON, westside R6) uses op_cwcalc — real forest-grown crown widths, not the eastern 0.5
+    # default. Full-column A/B vs FVSop_clean is bit-exact (worst |Δ|=0.0); assert real values present + 0.5 floor.
+    allcw = [Float64(r.CrWidth) for r in DBInterface.execute(db, "SELECT CrWidth FROM FVS_TreeList WHERE Year=1990")]
+    @test !isempty(allcw) && maximum(allcw) > 5.0 && all(>=(0.5), allcw)
 end

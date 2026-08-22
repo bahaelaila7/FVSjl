@@ -705,12 +705,21 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     iscr   = s.variant isa CentralRockies
     # CRWDTH forest-grown crown-width dispatch (cwcalc.f): the WESTERN variants that carry a ported per-variant
     # cwcalc (CWMAP + national eqn library + per-forest BF) compute it here — the eastern open-grown crown_width()
-    # returns the 0.5 default for their species. Same dispatch StrClass (structure_stage.jl) and FFE (fmcba.jl) use.
-    isoc   = s.variant isa OregonCoast
-    isem   = s.variant isa EasternMontana
-    # SO (so_cwcalc) is NOT included yet: a full-column A/B on sot01 (forest 601) shows 4 minor species (WJ/GC/MC/MB)
-    # off by 0.9-2.6 — so_cwcalc coefficient/BF gaps for those, a separate per-species audit. CR/OC/EM are bit-exact.
-    usewcw = iscr || isoc || isem
+    # returns the 0.5 default for their species. Same kernels StrClass (structure_stage.jl) and FFE (fmcba.jl) use.
+    # Each was validated bit-exact via a full-column inventory-year FVS_TreeList A/B vs the variant's FVS_clean.
+    wcw_fn = s.variant isa CentralRockies    ? cr_cwcalc :
+             s.variant isa OregonCoast       ? oc_cwcalc :
+             s.variant isa Olympic           ? op_cwcalc :
+             s.variant isa EasternMontana    ? em_cwcalc :
+             s.variant isa WestCascades      ? wc_cwcalc :
+             s.variant isa PacificNorthwest  ? pn_cwcalc :
+             s.variant isa EastCascades      ? ec_cwcalc :
+             nothing
+    # EXCLUDED (their cwcalc kernel is not per-tree bit-exact for the TreeList — validated by full-column A/B):
+    # BM (bm_cwcalc omits the Region-6 forest BF ⇒ ~20% low), SO (4 minor sp WJ/GC/MC/MB off), CA (~5% off), NC/Klamath
+    # (SP-class off). These pass FFE/StrClass (which aggregate crown width) but not the per-tree column; each needs its
+    # own kernel audit (forest-BF + species coeffs) before wiring. So they keep the eastern crown_width (0.5) fallback.
+    usewcw = wcw_fn !== nothing
     # SpeciesFIA: FVS emits the 3-char zero-padded FIA code (FIAJSP). CR's data has 2-digit western codes
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
@@ -722,9 +731,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # cwcalc kernels omit — so the western dispatch clamps here. Tiny seedlings (DBH<1) whose eqn gives <0.5 floor
     # to 0.5, matching the oracle. The eastern crown_width() has its own handling (0.5 default for unknown species).
     _cwidth(sp, d, h, crp) =
-        usewcw ? clamp(iscr ? cr_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi) :
-                       isoc ? oc_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi) :
-                              em_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi), 0.5f0, 99.9f0) :
+        usewcw ? clamp(wcw_fn(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi), 0.5f0, 99.9f0) :
         crown_width(c, s.species.code2[sp], d, h, 90, 1, s.plot.latitude, s.plot.longitude, s.plot.elevation)
     @inbounds for i in 1:t.n
         sp = Int(t.species[i])
