@@ -13,6 +13,21 @@
 # Codes present cover IE/KT/CI (and the shared subset of EM); TT/UT/BC add their own codes
 # as they are validated.  REPORTING-ONLY (FVS_TreeList CrWidth); INERT for growth/vol/CCF.
 # =============================================================================
+# AK equation '08' (Region 10): general product a·D^b·H^ch·CL^ccl·(BAREA+1)^cba·EXP(EL)^cel.
+# D<0.1 ⇒ flat CW=0.5 (NO small-tree ×(D/floor) scaling, unlike the R1/R6 forms).  Absent
+# terms carry a 0 exponent ⇒ ^0 = ×1.0 (bit-exact no-op).  EL clamp [ello,elhi] (wide when
+# the code has no EXP(EL) factor).  Transcendentals via glibc powf/expf (as the EM forms).
+@inline function _cw08(a::Float32, b::Float32, ch::Float32, ccl::Float32, cba::Float32,
+                       cel::Float32, ello::Float32, elhi::Float32, cap::Float32,
+                       d::Float32, h::Float32, cl::Float32, ba1::Float32, el::Float32)::Float32
+    d < 0.1f0 && return 0.5f0
+    elc = el < ello ? ello : (el > elhi ? elhi : el)
+    cw = a * _emcw_pow(d, b) * _emcw_pow(h, ch) * _emcw_pow(cl, ccl) *
+         _emcw_pow(ba1, cba) * _emcw_pow(_emcw_exp(elc), cel)
+    cw > cap && (cw = cap)
+    return cw
+end
+
 function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float32,
                           barea::Float32, el::Float32, hi::Float32)::Float32
     barea <= 1f0 && (barea = 1f0)          # cwcalc.f: IF(BAREA.LE.1.) BAREA=1.
@@ -53,6 +68,17 @@ function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float
     elseif eqn == "31206";      _em_powf(7.5183f0,0.4461f0,30f0, d)
     elseif eqn == "81402";      _em_bech2(0.3309f0,0.8918f0,0f0,0.0510f0,0f0, d,cr,hi,-9.9f9,9.9f9,19f0,false)
     elseif eqn == "10201";      _em_bech1(7.4251f0,0.8991f0, d,25f0)
+    # --- AK-added national codes (R10): R6-model-2 SF/YC/SS/RC, Donnelly RA, and the '08' form ---
+    elseif eqn == "01105";      _em_r6m2(4.4799f0,0.45976f0,-0.10425f0,0.11866f0,0.06762f0,-0.00715f0, d,h,cl,ba1,el,4f0,72f0,33f0)
+    elseif eqn == "04205";      _em_r6m2(3.3756f0,0.45445f0,-0.11523f0,0.22547f0,0.08756f0,-0.00894f0, d,h,cl,ba1,el,16f0,62f0,59f0)
+    elseif eqn == "09805";      _em_r6m2(8.48f0,0.70692f0,-0.38812f0,0.17127f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,50f0)
+    elseif eqn == "24205";      _em_r6m2(6.2382f0,0.29517f0,-0.10673f0,0.23219f0,0.05341f0,-0.00787f0, d,h,cl,ba1,el,1f0,72f0,45f0)
+    elseif eqn == "35106";      _em_powf(7.0806f0,0.4771f0,35f0, d)
+    elseif eqn == "09508";      _cw08(3.391358f0,0.638945f0,-0.395285f0,0.264254f0,0f0,0f0, -9.9f9,9.9f9,16f0, d,h,cl,ba1,el)
+    elseif eqn == "09408";      _cw08(8.515316f0,0.630576f0,-0.867757f0,0.477791f0,0.10021f0,-0.015034f0, 1f0,85f0,40f0, d,h,cl,ba1,el)
+    elseif eqn == "74708";      _cw08(0.790658f0,0.551987f0,0.446434f0,0f0,0f0,-0.048415f0, -9.9f9,9.9f9,56f0, d,h,cl,ba1,el)
+    elseif eqn == "37508";      _cw08(2.725006f0,0.53601f0,0f0,0.196372f0,-0.015305f0,0f0, -9.9f9,9.9f9,53f0, d,h,cl,ba1,el)
+    elseif eqn == "74608";      _cw08(2.386015f0,0.63014f0,-0.147121f0,0.274356f0,0f0,0f0, -9.9f9,9.9f9,48f0, d,h,cl,ba1,el)
     else 0f0 end
     cw < 0.5f0 && (cw = 0.5f0)              # cwcalc.f final CRWDTH clamp [0.5, 99.9]
     cw > 99.9f0 && (cw = 99.9f0)
