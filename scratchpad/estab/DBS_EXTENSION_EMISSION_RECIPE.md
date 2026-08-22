@@ -832,3 +832,19 @@ VALIDATED: cat01_ffe (CA) Fire_Type=PASSIVE bit-exact; ocffe_full (OC, FLAMEADJ)
 emitted. ★ The fire-event DBS tables (BurnReport/Mortality/Consumption) DON'T hit the CUTLIDB/SNAGOUDB emission wall —
 they emit cleanly from BURNREDB/MORTREDB + a DSNout (DATABASE-block-first). NOTE the OTHER BurnReport cols (flame/scorch/
 fuel-weights) + FVS_Mortality carry the KNOWN cornered crown-fire-byram-intensity + OC-growth-drift residuals (not new).
+
+## ★ FVS_Consumption has the WRONG SCHEMA in jl (2026-08-22, found via FFE schema A/B) — needs a fire-effects port
+Systematic schema A/B of ALL FFE DBS tables (CA cat01_ffe, emit via BURNREDB/MORTREDB/CARBREDB/… — no wall) vs
+FVSca_clean: FVS_BurnReport (23, Fire_Type-fixed ✓), FVS_Carbon (14 ✓), FVS_Mortality (22 ✓) all schema-OK. BUT
+**FVS_Consumption is ENTIRELY WRONG**: jl reuses the FVS_Fuels 22-col schema (dbs_output.jl:580 `_FVS_CONSUMPTION_CREATE
+= replace(_FVS_FUELS_CREATE,...)` — Surface_*/Standing_*/Total_Biomass) whereas the REAL FVS_Consumption (dbsfmfuel.f,
+16 data cols) is fuel-CONSUMED-by-size + smoke: Min_Soil_Exp, Litter/Duff_Consumption, Consumption_lt3/ge3/3to6/6to12/
+ge12/Herb_Shrub/Crowns, Total_Consumption, Percent_Consumption_Duff/_ge3, Percent_Trees_Crowning, Smoke_Production_25/10.
+jl HAS the surface consumption-by-size (fmburn.jl:271 `consumed` = fuel_before−after, keys litter/duff/lt3/ge3/s3to6/
+s6to12/ge12/herb/shrub) but LACKS the fire-effects outputs the table also needs: Min_Soil_Exp (60.5 oracle — fmeff.f
+mineral-soil-exposure), Consumption_Crowns (7.57 — crown fuel consumed), Percent_Trees_Crowning (55), Smoke_10 (PM10;
+jl has PM2.5 only). So a bit-exact fix = new 16-col schema + map `consumed`→size cols + Total/percentages + PORT MSE/
+crown-consumption/crowning%/PM10 (fmcons.f/fmeff.f, un-ported). SUBSTANTIAL (a fire-effects port, not a serialization
+rewrite); validation also muddied by the cornered CA fuel-moisture/consumption residual. jl's current FVS_Consumption is
+structurally wrong (latent — nothing validated it). ★ The FFE-DBS schema-A/B is the reusable vehicle that found both
+this + Fire_Type; fire-event tables have NO emission wall.
