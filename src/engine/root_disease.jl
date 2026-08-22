@@ -123,6 +123,7 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     #   arrays. Typed `Any` so the struct need not forward-declare RDDriver.
     driver::Any               # ::Union{Nothing,RDDriver}
     icyc::Int32               # RD cycle counter (FVS ICYC; 0 at LSTART, +1 per grow cycle)
+    sum_rows::Vector{Any}     # RDSUM accumulator: (year, rd_sum_report) per cycle (FVS_RD_Sum / dbsrd.f DBSRD1)
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -190,7 +191,67 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.propn  = Float32[]
     rd.driver = nothing
     rd.icyc   = Int32(0)
+    rd.sum_rows = Any[]
     return rd
+end
+
+# -----------------------------------------------------------------------------
+# rd_sum_report (rd/rdpr.f DBSRD1 aggregation) — the FVS_RD_Sum "1st report":
+# summary statistics for a root-disease area, per active disease type, aggregated
+# from the driver (per-record PROBIU/PROBIT/RDKILL, stump PROBDA/DBHDA, spread
+# RRRATE) + the tree list (CFV/DBH), ALL per-acre-in-disease-area. Reads state
+# post-`rd_end_apply!` — additive, does not touch the WRD kernels. Values are the
+# METRIC form DBSRD1 emits (PAREA·ACRtoHA, RRRATE·FTtoM, /ACRtoHA, ·FT2/FT3pACR…).
+# The 4 new-infection columns (New_Inf_Prp_Ins/Exp/Tot) + Ave_Pct_Root_Inf need
+# the CORINF/EXPINF/PRINF accumulators not yet tracked in jl ⇒ 0 (documented
+# follow-on). Validated bit-exact-or-cornered vs FVSkt_clean (11-row rdsum_oracle).
+# -----------------------------------------------------------------------------
+const _RD_ACRtoHA        = 0.4046945f0    # base/PRGPRM.F77 PARAMETERs
+const _RD_FTtoM          = 0.3048f0
+const _RD_FT2pACRtoM2pHA = 0.2295643f0
+const _RD_FT3pACRtoM3pHA = 0.0699713f0
+const _RD_TYPE_CHAR = ("P", "S", "A", "W") # CHTYPE (rd/rdpr.f DATA CHTYPE/'P','S','A','W'/); idi 3=Armillaria='A'
+
+function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage::Integer)
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    idi = Int(rd.minrr)                                       # single active disease type (KT path)
+    parea = rd.parea[idi]; pinv = 1.0f0 / (parea + 1.0f-9)
+    # stumps (PROBDA/DBHDA over 2 pools × 5 size × up-to-41 age slots)
+    tstmps = 0.0f0; bastpa = 0.0f0
+    istep = max(1, Int(rd.istep))
+    @inbounds for m in 1:istep, k in 1:5, l in 1:2
+        p = d.probda[idi, l, k, m]
+        tstmps += p * pinv
+        dd = d.dbhda[idi, l, k, m]
+        bastpa += p * (3.141593f0 * (dd / 24.0f0)^2) * pinv
+    end
+    # live tree list restricted to the disease area (per-record, 1:1 with trees)
+    tun = 0.0f0; tin = 0.0f0; tdie = 0.0f0; tdvol = 0.0f0; bapa = 0.0f0; cfvpa = 0.0f0
+    @inbounds for i in 1:n
+        tclas = d.probiu[i] + d.probit[i]
+        tun   += d.probiu[i] * pinv
+        tin   += d.probit[i] * pinv
+        tdie  += d.rdkill[i] * pinv
+        tdvol += d.rdkill[i] * t.cuft_vol[i] * pinv
+        bapa  += tclas * (3.14159f0 * (t.dbh[i] / 24.0f0)^2) * pinv
+        cfvpa += tclas * t.cuft_vol[i] * pinv
+    end
+    rrrate = idi <= length(d.rrrate) ? d.rrrate[idi] : 0.0f0
+    ncent  = idi <= length(rd.ncents) ? Int(rd.ncents[idi]) : 0
+    rdtype = 1 <= idi <= 4 ? _RD_TYPE_CHAR[idi] : "A"
+    # DBSRD1 units: rdpr.f emits the METRIC form (·ACRtoHA etc.) only under LMTRIC (BC/ON,
+    # rdinit.f:728 VARACD BC/ON), else the RAW imperial values.
+    m = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
+    conv(x, f) = m ? x * f : x
+    div_(x, f) = m ? x / f : x
+    return (Year = Int(year), Age = Int(iage), RD_Type = rdtype, Num_Centers = ncent,
+            RD_Area = conv(parea, _RD_ACRtoHA), Spread = conv(rrrate, _RD_FTtoM),
+            Stumps = div_(tstmps, _RD_ACRtoHA), Stumps_BA = conv(bastpa, _RD_FT2pACRtoM2pHA),
+            Mort_TPA = div_(tdie, _RD_ACRtoHA), Mort_CuFt = conv(tdvol, _RD_FT3pACRtoM3pHA),
+            UnInf_TPA = div_(tun, _RD_ACRtoHA), Inf_TPA = div_(tin, _RD_ACRtoHA),
+            Ave_Pct_Root_Inf = 0.0f0,                        # PRINF·100 — follow-on (accumulator absent)
+            Live_Merch_CuFt = conv(cfvpa, _RD_FT3pACRtoM3pHA), Live_BA = conv(bapa, _RD_FT2pACRtoM2pHA),
+            New_Inf_Prp_Ins = 0.0f0, New_Inf_Prp_Exp = 0.0f0, New_Inf_Prp_Tot = 0.0f0)  # CORINF/EXPINF — follow-on
 end
 
 # -----------------------------------------------------------------------------
@@ -2359,6 +2420,15 @@ function root_disease_setup!(s::StandState)
     rd_setp!(rd, s)
     rd.driver = rd_build_driver!(rd, s.trees.n)     # 3-D PROBI/PROPI + stump lists
     rd.icyc = Int32(0)
+    # RDSUM: the inventory (1990/icyc=0) FVS_RD_Sum row — RDPR#1 at fvs.f:347, before the cycle
+    # loop (pre-projection: rdkill/probda/rrrate=0 ⇒ Mort/Stumps/Spread=0, Inf/UnInf/BA from the
+    # initial infection). Populate PROBIT (=Σ PROBI) first, as RDPR would.
+    if s.control.dbs_rd_sum
+        d = rd.driver::RDDriver
+        rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))
+        yr = Int(s.control.cycle_year[1]); iage = Int(s.plot.stand_age)
+        push!(rd.sum_rows, (yr, rd_sum_report(rd, s, yr, iage)))
+    end
     return nothing
 end
 

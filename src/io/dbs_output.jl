@@ -713,6 +713,42 @@ function write_dbs_bm_bkp!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_RD_Sum schema (dbs/dbsrd.f DBSRD1) — WRD root-disease area summary (metric, per disease type).
+const _FVS_RD_SUM_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_RD_Sum(
+  CaseID text not null, StandID text null, Year Int null, Age Int null, RD_Type text null,
+  Num_Centers Int null, RD_Area real null, Spread_Ft_per_Year real null, Stumps_per_Acre real null,
+  Stumps_BA real null, Mort_TPA real null, Mort_CuFt real null, UnInf_TPA real null, Inf_TPA real null,
+  Ave_Pct_Root_Inf real null, Live_Merch_CuFt real null, Live_BA real null,
+  New_Inf_Prp_Ins real null, New_Inf_Prp_Exp real null, New_Inf_Prp_Tot real null)"""
+
+"""
+    write_dbs_rd_sum!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the WRD root-disease-area summary to `FVS_RD_Sum` (dbs/dbsrd.f DBSRD1, RDSUM keyword). `rows` is
+the `(year, report)` collection where `report` is a `rd_sum_report` NamedTuple (metric-converted). The
+4 new-infection columns are 0 pending the CORINF/EXPINF/PRINF accumulators (documented follow-on).
+"""
+function write_dbs_rd_sum!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_RD_SUM_CREATE)
+        ins = "INSERT INTO FVS_RD_Sum VALUES (" * join(fill("?", 20), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, r) in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(yr), r.Age, r.RD_Type, r.Num_Centers,
+                Float64(r.RD_Area), Float64(r.Spread), Float64(r.Stumps), Float64(r.Stumps_BA),
+                Float64(r.Mort_TPA), Float64(r.Mort_CuFt), Float64(r.UnInf_TPA), Float64(r.Inf_TPA),
+                Float64(r.Ave_Pct_Root_Inf), Float64(r.Live_Merch_CuFt), Float64(r.Live_BA),
+                Float64(r.New_Inf_Prp_Ins), Float64(r.New_Inf_Prp_Exp), Float64(r.New_Inf_Prp_Tot)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(

@@ -781,6 +781,16 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
+    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
+    # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
+    # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.
+    if !tripled && s.control.dbs_rd_sum && s.root_disease !== nothing &&
+       rd_active(s.root_disease) && s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+        let yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
+            push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+        end
+    end
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
@@ -947,6 +957,10 @@ function run_keyfile(keypath::AbstractString;
                     write_dbs_bm_vol!(s.control.dbs_out_file, caseid, String(sid), bm_rows)
                 s.control.dbs_bm_bkp &&
                     write_dbs_bm_bkp!(s.control.dbs_out_file, caseid, String(sid), bm_rows)
+            end
+            # FVS_RD_Sum (WRD root-disease summary): rows accumulated per cycle after rd_end_apply!.
+            if s.root_disease !== nothing && s.control.dbs_rd_sum && !isempty(s.root_disease.sum_rows)
+                write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows)
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
