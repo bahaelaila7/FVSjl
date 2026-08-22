@@ -936,6 +936,10 @@ function run_keyfile(keypath::AbstractString;
                 s.control.mistprt_on &&
                     write_dbs_dm_szsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
             end
+            # FVS_BM_Main (WWPB MAINOUT): rows accumulated per outbreak cycle in wwpb_apply!.
+            if s.wwpb !== nothing && s.control.dbs_bm_main && !isempty((s.wwpb::WwpbState).main_rows)
+                write_dbs_bm_main!(s.control.dbs_out_file, caseid, String(sid), (s.wwpb::WwpbState).main_rows)
+            end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
             if carb_rows !== nothing

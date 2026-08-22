@@ -1689,6 +1689,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_calibstats = true
         elseif k == "MISRPTS"
             s.control.dbs_mistoe = true    # dbsin.f opt 18: IDM1/IDM2/IDM3 ⇒ FVS_DM_* summary tables
+        elseif k == "PPBMMAIN"
+            s.control.dbs_bm_main = true   # dbsin.f opt 19: IBMMAIN ⇒ FVS_BM_Main WWPB MAINOUT table
         end
     end
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the

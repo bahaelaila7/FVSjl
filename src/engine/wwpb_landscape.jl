@@ -994,6 +994,49 @@ function wwpb_outbreak_cycle!(st::WwpbStand, w::WwpbState, coeffs, t, sp_alpha::
 end
 
 # -----------------------------------------------------------------------------
+# wwpb_main_report (bmout.f MAINOUT DO-20 + IPS-slash loop) — aggregate the
+# end-of-cycle WwpbStand into the FVS_BM_Main "MAINOUT" stand-summary variables
+# that DBSBMMAIN serializes (dbs/dbsbmmain.f). Returns a NamedTuple keyed by the
+# FVS_BM_Main column names. Deterministic given the stand state; the arithmetic
+# is BIT-EXACT vs gfortran-16 bmout.f (scratchpad/wwpb/bmdbs/golden_bmmain.f) on
+# a controlled state. Sanitation columns (BA_San_Remv … VolRemSalv) are 0 unless
+# a WWPB sanitation-harvest keyword ran (MXHRVP path, not yet ported) — matching
+# the oracle, which also emits 0 there absent a sanitation cut. The outbreak
+# STATE feeding this is jl's reconstructed single-stand harness (cornered, like
+# every wwpb_apply! kill), so run_keyfile FVS_BM_Main rows are cornered; the
+# aggregation + serialization themselves are transcription-golden.
+# -----------------------------------------------------------------------------
+function wwpb_main_report(st::WwpbStand, coeffs)
+    msba = coeffs.msba
+    bak_yr = 0.0f0; tpa_yr = 0.0f0; tpak_yr = 0.0f0
+    vol_yr = 0.0f0; volh_yr = 0.0f0; volk_yr = 0.0f0
+    ba_sp = 0.0f0; spcl_tpa = 0.0f0
+    @inbounds for i in 1:WWPB_NSCL
+        tpakll = st.pbkill[i] + st.allkll[i]
+        prophkld = st.tree[i, 1] > 1.0f-6 ? tpakll / st.tree[i, 1] : 0.0f0
+        bak_yr  += st.bah[i] * prophkld
+        tpa_yr  += st.tree[i, 1] + st.tree[i, 2]
+        tpak_yr += tpakll
+        vol_yr  += st.tvol[i, 1] * st.tree[i, 1] + st.tvol[i, 2] * st.tree[i, 2]
+        volh_yr += st.tvol[i, 1] * st.tree[i, 1]
+        volk_yr += tpakll * st.tvol[i, 1]
+        ba_sp   += st.tree[i, 1] * msba[i] * st.spclt[i, 1]
+        spcl_tpa += st.spclt[i, 1] * st.tree[i, 1]
+    end
+    ips_slsh = 0.0f0
+    @inbounds for j in 1:size(st.dwphos, 1), k in 1:size(st.dwphos, 2)
+        ips_slsh += st.dwphos[j, k]
+    end
+    return (PreDispBKP = st.oldbkp, PostDispBKP = st.bkp, StandRV = st.grfstd,
+            StandBA = st.bastd, BAH = st.bah[WWPB_NSCL+1], BA_BtlKld = bak_yr,
+            TPA = tpa_yr, TPAH = st.tree[WWPB_NSCL+1, 1], TPA_BtlKld = tpak_yr,
+            StandVol = vol_yr, VolHost = volh_yr, VolBtlKld = volk_yr,
+            BA_Special = ba_sp, Ips_Slash = ips_slsh, SpclTPA = spcl_tpa,
+            BA_San_Remv = 0.0f0, BKP_San_Remv = 0.0f0, TPA_SanRemvLv = 0.0f0,
+            TPA_SanRemLvDd = 0.0f0, VolRemSan = 0.0f0, VolRemSalv = 0.0f0)
+end
+
+# -----------------------------------------------------------------------------
 # wwpb_apply! — the simulate.jl seam. If a DISPERSE outbreak is active, run one
 # cycle's single-stand outbreak on the cycle-start stand and reconcile the beetle
 # kills with the FVS mortality already applied (mpb_apply!-style), then write the
@@ -1021,6 +1064,11 @@ function wwpb_apply!(s, old_tpa::Vector{Float32}, fint::Real)
     @inbounds for i in 1:t.n; t.tpa[i] = old_tpa[i]; end
     wwpb_outbreak_cycle!(st, w, coeffs, t, spα; sarea = sarea,
                          iyr1 = Int(w.iyr1), iyr2 = Int(w.iyr2), seed_pbkill = seed)
+    # PPBMMAIN: accumulate the MAINOUT stand-summary row for FVS_BM_Main (written at finalize).
+    if s.control.dbs_bm_main
+        yr = current_cycle_year(s)
+        push!(w.main_rows, (yr, wwpb_main_report(st, coeffs)))
+    end
     wk2 = copy(fvs_mort)
     bmkill!(st, w, t, wk2, spα)                     # PROB = t.tpa (= old_tpa now)
     @inbounds for i in 1:t.n

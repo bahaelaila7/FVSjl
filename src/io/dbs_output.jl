@@ -560,6 +560,47 @@ function write_dbs_dm_szsum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_BM_Main schema (dbs/dbsbmmain.f) — WWPB (Westwide Pine Beetle) MAINOUT stand-summary. 23 cols,
+# all values double (no NINT). Column order verbatim from the DBSBMMAIN INSERT (SpclTPA is computed for
+# the .bmn text report but NOT written here). Gated by the PPBMMAIN DATABASE keyword.
+const _FVS_BM_MAIN_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_BM_Main(
+  CaseID text not null, StandID text null, Year Int null,
+  PreDispBKP real null, PostDispBKP real null, StandRV real null, StandBA real null,
+  BAH real null, BA_BtlKld real null, TPA real null, TPAH real null, TPA_BtlKld real null,
+  StandVol real null, VolHost real null, VolBtlKld real null, BA_Special real null, Ips_Slash real null,
+  BA_San_Remv real null, BKP_San_Remv real null, TPA_SanRemvLv real null, TPA_SanRemLvDd real null,
+  VolRemSan real null, VolRemSalv real null)"""
+
+"""
+    write_dbs_bm_main!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the WWPB per-year MAINOUT stand-summary to `FVS_BM_Main` (dbs/dbsbmmain.f, PPBMMAIN keyword). `rows`
+is the `(year, report)` collection where `report` is a `wwpb_main_report` NamedTuple. All 20 model columns
+are doubles; the aggregation is transcription-golden vs bmout.f (the outbreak state feeding it is jl's
+reconstructed harness, so values are cornered per the WWPB bar).
+"""
+function write_dbs_bm_main!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_BM_MAIN_CREATE)
+        ins = "INSERT INTO FVS_BM_Main VALUES (" * join(fill("?", 23), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, r) in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(r.PreDispBKP), Float64(r.PostDispBKP), Float64(r.StandRV), Float64(r.StandBA),
+                Float64(r.BAH), Float64(r.BA_BtlKld), Float64(r.TPA), Float64(r.TPAH), Float64(r.TPA_BtlKld),
+                Float64(r.StandVol), Float64(r.VolHost), Float64(r.VolBtlKld), Float64(r.BA_Special),
+                Float64(r.Ips_Slash), Float64(r.BA_San_Remv), Float64(r.BKP_San_Remv),
+                Float64(r.TPA_SanRemvLv), Float64(r.TPA_SanRemLvDd), Float64(r.VolRemSan), Float64(r.VolRemSalv)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(

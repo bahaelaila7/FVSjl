@@ -138,6 +138,7 @@ mutable struct WwpbState <: AbstractWwpbState
     iyr2::Int32                        # IBMYR2 — outbreak end year (= IBMYR1 + duration − 1)
     seed_class::Int32                  # synthetic inventory-damage seed: size class (BKP starts at 0)
     seed_tpa::Float32                  # synthetic inventory-damage seed: TPA beetle-killed (kick-off)
+    main_rows::Vector{Any}             # PPBMMAIN accumulator: (year, wwpb_main_report) per outbreak cycle
 end
 
 """
@@ -158,6 +159,7 @@ function wwpb_defaults!(variant)
         copy(WWPB_UPSIZ_DEFAULT), copy(WWPB_ISCMIN_DEFAULT),   # upsiz, iscmin
         Float64(WWPB_DEFAULT_SEED), WWPB_DEFAULT_SEED,         # rng_s0, rng_ss
         false, Int32(0), Int32(0), Int32(3), 0.0f0,           # outbreak, iyr1, iyr2, seed_class, seed_tpa
+        Any[],                                                # main_rows (PPBMMAIN)
     )
 end
 
