@@ -1011,17 +1011,29 @@ function wwpb_main_report(st::WwpbStand, coeffs)
     bak_yr = 0.0f0; tpa_yr = 0.0f0; tpak_yr = 0.0f0
     vol_yr = 0.0f0; volh_yr = 0.0f0; volk_yr = 0.0f0
     ba_sp = 0.0f0; spcl_tpa = 0.0f0
+    # per-size-class vectors (bmout.f TREEOUT/VOLOUT), consumed by FVS_BM_Tree/FVS_BM_Vol
+    tpa_sc = zeros(Float32, WWPB_NSCL); host_sc = zeros(Float32, WWPB_NSCL)
+    tkld_sc = zeros(Float32, WWPB_NSCL); spcl_sc = zeros(Float32, WWPB_NSCL)
+    tvol_sc = zeros(Float32, WWPB_NSCL); hvol_sc = zeros(Float32, WWPB_NSCL)
+    volk_sc = zeros(Float32, WWPB_NSCL)
     @inbounds for i in 1:WWPB_NSCL
         tpakll = st.pbkill[i] + st.allkll[i]
         prophkld = st.tree[i, 1] > 1.0f-6 ? tpakll / st.tree[i, 1] : 0.0f0
+        tpa_sc[i]  = st.tree[i, 1] + st.tree[i, 2]
+        host_sc[i] = st.tree[i, 1]
+        tkld_sc[i] = tpakll
+        spcl_sc[i] = st.spclt[i, 1] * st.tree[i, 1]
+        tvol_sc[i] = st.tvol[i, 1] * st.tree[i, 1] + st.tvol[i, 2] * st.tree[i, 2]
+        hvol_sc[i] = st.tvol[i, 1] * st.tree[i, 1]
+        volk_sc[i] = tpakll * st.tvol[i, 1]
         bak_yr  += st.bah[i] * prophkld
-        tpa_yr  += st.tree[i, 1] + st.tree[i, 2]
+        tpa_yr  += tpa_sc[i]
         tpak_yr += tpakll
-        vol_yr  += st.tvol[i, 1] * st.tree[i, 1] + st.tvol[i, 2] * st.tree[i, 2]
-        volh_yr += st.tvol[i, 1] * st.tree[i, 1]
-        volk_yr += tpakll * st.tvol[i, 1]
+        vol_yr  += tvol_sc[i]
+        volh_yr += hvol_sc[i]
+        volk_yr += volk_sc[i]
         ba_sp   += st.tree[i, 1] * msba[i] * st.spclt[i, 1]
-        spcl_tpa += st.spclt[i, 1] * st.tree[i, 1]
+        spcl_tpa += spcl_sc[i]
     end
     ips_slsh = 0.0f0
     @inbounds for j in 1:size(st.dwphos, 1), k in 1:size(st.dwphos, 2)
@@ -1033,7 +1045,9 @@ function wwpb_main_report(st::WwpbStand, coeffs)
             StandVol = vol_yr, VolHost = volh_yr, VolBtlKld = volk_yr,
             BA_Special = ba_sp, Ips_Slash = ips_slsh, SpclTPA = spcl_tpa,
             BA_San_Remv = 0.0f0, BKP_San_Remv = 0.0f0, TPA_SanRemvLv = 0.0f0,
-            TPA_SanRemLvDd = 0.0f0, VolRemSan = 0.0f0, VolRemSalv = 0.0f0)
+            TPA_SanRemLvDd = 0.0f0, VolRemSan = 0.0f0, VolRemSalv = 0.0f0,
+            tpa_sc = tpa_sc, host_sc = host_sc, tkld_sc = tkld_sc, spcl_sc = spcl_sc,
+            tvol_sc = tvol_sc, hvol_sc = hvol_sc, volk_sc = volk_sc)
 end
 
 # -----------------------------------------------------------------------------
@@ -1064,8 +1078,9 @@ function wwpb_apply!(s, old_tpa::Vector{Float32}, fint::Real)
     @inbounds for i in 1:t.n; t.tpa[i] = old_tpa[i]; end
     wwpb_outbreak_cycle!(st, w, coeffs, t, spα; sarea = sarea,
                          iyr1 = Int(w.iyr1), iyr2 = Int(w.iyr2), seed_pbkill = seed)
-    # PPBMMAIN: accumulate the MAINOUT stand-summary row for FVS_BM_Main (written at finalize).
-    if s.control.dbs_bm_main
+    # PPBMMAIN/PPBMTREE/PPBMVOL: accumulate the per-cycle report (holds the stand summary + per-class
+    # vectors) for FVS_BM_Main/Tree/Vol (written at finalize).
+    if s.control.dbs_bm_main || s.control.dbs_bm_tree || s.control.dbs_bm_vol
         yr = current_cycle_year(s)
         push!(w.main_rows, (yr, wwpb_main_report(st, coeffs)))
     end

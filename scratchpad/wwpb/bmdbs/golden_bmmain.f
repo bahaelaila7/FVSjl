@@ -117,4 +117,17 @@ C     ---- bmout MAINOUT DO-20 ----
       WRITE(*,'(A,F16.7)') 'BA_Special ', BA_SP
       WRITE(*,'(A,F16.7)') 'SpclTPA    ', SPCL_TPA
       WRITE(*,'(A,F16.7)') 'Ips_Slash  ', IPS_SLSH
+C     per-size-class arrays for FVS_BM_Tree / FVS_BM_Vol golden (classes 3 and 5)
+      DO 400 ISIZ=1,NSCL
+        TPAKLL = PBKILL(ISIZ) + ALLKLL(ISIZ)
+        TPA_SC = TREE(ISIZ,1) + TREE(ISIZ,2)
+        TVOL_SC = (TVOL(ISIZ,1)*TREE(ISIZ,1) + TVOL(ISIZ,2)*TREE(ISIZ,2))
+        HVOL_SC = TVOL(ISIZ,1)*TREE(ISIZ,1)
+        VOLK_SC = TPAKLL * TVOL(ISIZ,1)
+        IF (ISIZ.EQ.3 .OR. ISIZ.EQ.5) THEN
+          WRITE(*,'(A,I2,5F14.6)') 'SC',ISIZ,TPA_SC,TREE(ISIZ,1),TPAKLL,
+     >       SPCLT(ISIZ)*TREE(ISIZ,1),TVOL_SC
+          WRITE(*,'(A,I2,2F14.6)') 'VL',ISIZ,HVOL_SC,VOLK_SC
+        ENDIF
+  400 CONTINUE
       END

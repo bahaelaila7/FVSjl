@@ -32,6 +32,8 @@ DATABASE
 DSNOUT
 $dbp
 PPBMMAIN
+PPBMTREE
+PPBMVOL
 END
 PROCESS
 STOP
@@ -48,3 +50,9 @@ if "FVS_BM_Main" in tabs
   end
 end
 SQLite.close(db)
+db2 = SQLite.DB(dbp)
+for tb in ("FVS_BM_Tree","FVS_BM_Vol")
+  n=first(DBInterface.execute(db2,"SELECT COUNT(*) c FROM $tb")).c
+  println(tb," rows: ",n)
+end
+SQLite.close(db2)

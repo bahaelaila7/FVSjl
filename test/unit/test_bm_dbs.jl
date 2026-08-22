@@ -13,7 +13,7 @@
 using Test
 using FVSjl
 using FVSjl: WwpbStand, wwpb_init_coeffs, wwpb_main_report, write_dbs_bm_main!,
-             WWPB_UPSIZ_DEFAULT, WWPB_NSCL
+             write_dbs_bm_tree!, write_dbs_bm_vol!, WWPB_UPSIZ_DEFAULT, WWPB_NSCL
 using SQLite, DBInterface
 
 # Controlled state identical to golden_bmmain.f: class 3 = 100 host + 20 nonhost, BAH 50, vols 8/6,
@@ -70,6 +70,38 @@ const _BM_GOLDEN = (PreDispBKP = 12.3000002, PostDispBKP = 4.1999998, StandRV = 
                 @test isapprox(Float32(row.BA_Special), 5.0559969f0; atol = 5.0f-5)
                 @test isapprox(Float32(row.Ips_Slash), 2.25f0; atol = 5.0f-5)
                 @test row.VolRemSalv == 0.0
+            finally
+                SQLite.close(db)
+            end
+        end
+    end
+
+    # FVS_BM_Tree / FVS_BM_Vol per-size-class detail (bmout.f TREEOUT/VOLOUT golden, classes 3 & 5).
+    @testset "FVS_BM_Tree / FVS_BM_Vol per-class vs golden" begin
+        # golden_bmmain.f: SC3 TPA=120 HOST=100 TKLD=7 SPCL=10 TV=920 HV=800 VK=56;
+        #                  SC5 TPA=40 HOST=40 TKLD=3 SPCL=2 TV=600 HV=600 VK=45
+        @test rep.tpa_sc[3] == 120.0f0 && rep.tpa_sc[5] == 40.0f0
+        @test rep.host_sc[3] == 100.0f0 && rep.host_sc[5] == 40.0f0
+        @test rep.tkld_sc[3] == 7.0f0 && rep.tkld_sc[5] == 3.0f0
+        @test rep.spcl_sc[3] == 10.0f0 && rep.spcl_sc[5] == 2.0f0
+        @test rep.tvol_sc[3] == 920.0f0 && rep.tvol_sc[5] == 600.0f0
+        @test rep.hvol_sc[3] == 800.0f0 && rep.hvol_sc[5] == 600.0f0
+        @test rep.volk_sc[3] == 56.0f0 && rep.volk_sc[5] == 45.0f0
+        # zero classes stay zero
+        @test all(rep.tpa_sc[i] == 0.0f0 for i in (1, 2, 4, 6, 7, 8, 9, 10))
+
+        mktempdir() do dir
+            dbp = joinpath(dir, "bmtv.db")
+            write_dbs_bm_tree!(dbp, "C", "S", [(1990, rep)])
+            write_dbs_bm_vol!(dbp, "C", "S", [(1990, rep)])
+            db = SQLite.DB(dbp)
+            try
+                tr = first(DBInterface.execute(db, "SELECT * FROM FVS_BM_Tree WHERE Year=1990"))
+                @test tr.TPA_SC3 == 120.0 && tr.HOST3 == 100.0 && tr.TKLD3 == 7.0
+                @test tr.SPCL3 == 10.0 && tr.SAN3 == 0.0 && tr.SAN10 == 0.0
+                vl = first(DBInterface.execute(db, "SELECT * FROM FVS_BM_Vol WHERE Year=1990"))
+                @test vl.TV_SC3 == 920.0 && vl.HV_SC3 == 800.0 && vl.VK_SC3 == 56.0
+                @test vl.TV_SC5 == 600.0 && vl.VK_SC5 == 45.0
             finally
                 SQLite.close(db)
             end

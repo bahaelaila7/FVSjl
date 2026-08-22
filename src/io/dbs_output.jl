@@ -601,6 +601,78 @@ function write_dbs_bm_main!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_BM_Tree schema (dbs/dbsbmtree.f) — WWPB TREEOUT per-size-class detail: 5 groups × 10 classes
+# (TPA_SC, HOST, TKLD, SPCL, SAN). SAN = sanitation removal (0 absent a harvest keyword).
+_bm_cols(prefix) = join(("$(prefix)$(i) real null" for i in 1:WWPB_NSCL), ", ")
+const _FVS_BM_TREE_CREATE = string("CREATE TABLE IF NOT EXISTS FVS_BM_Tree(",
+    "CaseID text not null, StandID text null, Year Int null, ",
+    _bm_cols("TPA_SC"), ", ", _bm_cols("HOST"), ", ", _bm_cols("TKLD"), ", ",
+    _bm_cols("SPCL"), ", ", _bm_cols("SAN"), ")")
+
+# FVS_BM_Vol schema (dbs/dbsbmvol.f) — WWPB VOLOUT per-size-class detail: 3 groups × 10 classes
+# (TV total vol, HV host vol, VK beetle-killed vol).
+const _FVS_BM_VOL_CREATE = string("CREATE TABLE IF NOT EXISTS FVS_BM_Vol(",
+    "CaseID text not null, StandID text null, Year Int null, ",
+    _bm_cols("TV_SC"), ", ", _bm_cols("HV_SC"), ", ", _bm_cols("VK_SC"), ")")
+
+"""
+    write_dbs_bm_tree!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the WWPB TREEOUT per-size-class detail to `FVS_BM_Tree` (dbs/dbsbmtree.f, PPBMTREE). `rows` is the
+`(year, report)` collection (`report` = a `wwpb_main_report`). Groups TPA_SC/HOST/TKLD/SPCL from the
+per-class report vectors; SAN (sanitation) is 0 absent a harvest keyword.
+"""
+function write_dbs_bm_tree!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_BM_TREE_CREATE)
+        ncol = 3 + 5 * WWPB_NSCL
+        ins = "INSERT INTO FVS_BM_Tree VALUES (" * join(fill("?", ncol), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        san = zeros(Float64, WWPB_NSCL)
+        for (yr, r) in rows
+            vals = Any[caseid, standid, Int(yr)]
+            for v in r.tpa_sc; push!(vals, Float64(v)); end
+            for v in r.host_sc; push!(vals, Float64(v)); end
+            for v in r.tkld_sc; push!(vals, Float64(v)); end
+            for v in r.spcl_sc; push!(vals, Float64(v)); end
+            append!(vals, san)
+            DBInterface.execute(stmt, vals)
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"""
+    write_dbs_bm_vol!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the WWPB VOLOUT per-size-class detail to `FVS_BM_Vol` (dbs/dbsbmvol.f, PPBMVOL). Groups TV/HV/VK
+from the per-class report vectors.
+"""
+function write_dbs_bm_vol!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_BM_VOL_CREATE)
+        ncol = 3 + 3 * WWPB_NSCL
+        ins = "INSERT INTO FVS_BM_Vol VALUES (" * join(fill("?", ncol), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, r) in rows
+            vals = Any[caseid, standid, Int(yr)]
+            for v in r.tvol_sc; push!(vals, Float64(v)); end
+            for v in r.hvol_sc; push!(vals, Float64(v)); end
+            for v in r.volk_sc; push!(vals, Float64(v)); end
+            DBInterface.execute(stmt, vals)
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(
