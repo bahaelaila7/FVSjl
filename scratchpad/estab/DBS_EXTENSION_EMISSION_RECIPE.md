@@ -771,3 +771,16 @@ exact — the FVS_TreeList column is the strict test. The bit-exact 7 share prop
 stand; the 4 excluded omit/mishandle BF. Remaining non-CR western with NO kernel wired (KT/IE/UT/TT/CI/AK/BC + the 4
 excluded) still emit CrWidth=0.5; wiring each = confirm/port its cwcalc kernel then the same one-line dispatch add,
 per-variant A/B-gated. Harness reusable (cwtl_cmp.jl).
+
+## ★ IMPORTANT caveat on the 7-variant CrWidth fix (2026-08-22) — the kernels are FOREST-LIMITED
+Verified (reading wc_cwcalc etc.): every wired cwcalc kernel BAKES IN ONE forest's Region-6 BF (bias factor, [0.9,1.25])
+by folding it into the equation's leading coefficient — e.g. wc_cwcalc = "forest 618 (Willamette)", oc_cwcalc =
+"forest 711→610". So "bit-exact for CR/OC/OP/EM/WC/PN/EC" means bit-exact ON THAT KERNEL'S REFERENCE FOREST — which is
+exactly the forest each variant's reference stand (wct01=618, etc.) sits on, so the regression tests are valid. On a
+DIFFERENT forest the same kernel would be off by the BF ratio (≤25%). The eastern-crown_width fallback it replaces is
+0.5 for EVERY stand, so wiring is a strict improvement regardless; but FULL (all-forest) FVS_TreeList CrWidth bit-
+exactness needs each variant's COMPLETE per-forest BF table (cwcalc.f has ~18 forest CASEs each), folded per equation
+(Float32 assoc: FVS computes a·BF then the eqn, so BF must fold into the leading coef, NOT a post-multiply — that's why
+bm_cwcalc = cr_cwcalc(BM→CR sp) with NO BF is ~10-24% off on forest-614 bmt01, and why a `cr_cwcalc()×BF` would not be
+bit-exact). That per-forest BF port is the large deferred chunk; the 7-variant ref-forest fix is the bounded, validated
+increment shipped. BM/SO/CA/NC remain on the 0.5 fallback (their kernels lack even the ref-forest BF).
