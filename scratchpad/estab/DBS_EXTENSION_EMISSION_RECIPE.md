@@ -663,3 +663,16 @@ apply and the report (a tree-array rebuild/re-sort, or the ORGANON stash path cl
 correct); FVS_TreeList not in the validated set. TRACTABLE lead: trace where OC's diam_growth/ht_growth is lost after
 organon_hook and preserve it to the report; then FVS_TreeList DG/HtG would be bit-exact for OC (CR already is). OP
 likely same (ORGANON). NOT fixed (needs the OC growth-flow trace; deferred with the other OC-growth chunks).
+
+## ★★ FVS_TreeList DG/HtG for OC — FIXED 2026-08-22 (8b245370): the ORGANON diam_growth clobber
+Yesterday's lead (OC TreeList DG/HtG=0 on projected cycles; CR bit-exact) is FIXED. ROOT (bisected grow_cycle! with
+env-gated prints): diameter_growth!(::OregonCoast) applies DBH/HT/NORMHT INLINE (organon_apply_growth!) then ZEROED
+t.diam_growth/t.ht_growth (organon_hook.jl:143-146) so the shared apply-loop wouldn't double-apply — but that blanked
+the FVS_TreeList DG/HtG columns. FIX: the shared apply-loop (simulate.jl:770) now `s.variant isa OregonCoast &&
+continue` (OC did the apply inline) and organon_hook keeps the increment. PROVABLY .sum-inert (OC previously added 0
+there; norm_ht trunc(N+0.5)=N was a no-op). Validated: OC TreeList DG+HtG 1998 0→171.75 (oracle 171.79), 2003 0→
+172.31 (oracle 172.5) = bit-exact-or-cornered on the OC broken-top knife-edge; OC .sum byte-unchanged; test 3/3, gate
+339/11. NOTE OP (Olympic) may have the same clobber if its diameter_growth! zeroes too (OP uses the shared loop so
+likely NOT — unverified; no OP TreeList oracle set up). The OC DGSCOR-calibration-chain gap (598dc05f) is still open
+(.sum-inert, ~5% off). ⇒ OC-growth remaining: the calibration backdating + the broken-top knife-edge (both cornered/
+inert). Debugging vehicle: env-gated sum(abs, diam_growth) prints bisecting grow_cycle! (growth END → after each step).
