@@ -279,6 +279,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
               bakill = get(sp_bak, sp, 0f0), volkill = get(sp_vol, sp, 0f0)))
     end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
+    # FLAMEADJ (fmburn.f:348,413): a user-forced CRBURN (crburn≥0; the default UCRBURN sentinel is -1) or FLMULT
+    # (flmult≠1) makes the fire USER-DEFINED — CFTMP='USER_DEF' overrides the computed crown-fire type.
+    (crburn >= 0f0 || flmult != 1f0) && (fire_type = "USER_DEF")
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
           slope = s.plot.slope, scorch = sch, fire_type = fire_type, models = collect(models), killed = killed, killed_ba = killed_ba,
           killed_vol = killed_vol, released = carbon_released,
