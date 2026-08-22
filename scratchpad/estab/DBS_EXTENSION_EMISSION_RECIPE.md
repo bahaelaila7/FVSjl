@@ -1013,3 +1013,19 @@ down-wood + FVS_Carbon (validated on ocffe_full, which has neither a SNAGINIT in
 tail exercised). ⇒ SnagDet is a MULTI-EFFECT report-only discrepancy, not a single clean fix — needs the FMSNAG
 per-cycle DEBUG dump + a careful down-wood/carbon re-validation, NOT an autonomous blind change. Definitively
 characterized; deferred as a deliberate (non-autonomous) chunk.
+
+### SnagDet ROOT CAUSE CORRECTED (measured, 2026-08-22) — cyc0-mortality-snag report timing, NOT SNAGINIT fall
+The prior "SNAGINIT over-fall" notes are WRONG (retracted). Measured the oracle's OWN FVS_SnagDet at 1993: the
+55.26 hard density is dominated by FRESH cyc0 (1993) TREE-MORTALITY snags — DF DBH0.68 died1993 den22.5, GF DBH0.1
+died1993 den13.5, BR DBH0.1 died1993 den4.5 — plus the pre-inventory seed-input LP DBH7.2 died1988 den14.15. jl's
+1993 FVS_SnagDet has ONLY the seed-input cohorts (LP 14.15 + SP; NO died-1993 mortality cohorts), summing to 14.76.
+⇒ jl does NOT book/report the INVENTORY-CYCLE (1993) tree-mortality snags at the 1993 report point; the oracle does.
+jl catches up by 1998 (both then carry the first-cycle mortality snags ⇒ 1998 matches EXACTLY 92.99). So the 1993
+shortfall = an FFE snag-report SEQUENCING difference (FVS reports the SnagSum/SnagDet at the cycle AFTER its mortality
+runs; jl's carbon/snag collection at 1993 happens BEFORE cyc0 mortality books its snags). The seed-input LP/SP
+cohorts match bit-exact, confirming the snag serialization + seed-input model are correct; the gap is purely WHEN the
+cyc0-mortality snags enter the report. Fix = align the SnagSum/SnagDet collection to post-mortality (matching FVS's
+FMSNAG-after-mortality order) — but the SAME per-cycle collection feeds the VALIDATED FVS_Carbon + down-wood, so
+re-sequencing needs those re-validated. The separate 2013+ long-tail (jl retains fire snags too long) is a distinct
+fall-rate effect. Both report-only; a deliberate FFE-collection-order chunk with carbon/down-wood re-validation, not
+an autonomous blind change. This measurement supersedes the yr=invyr-age / hard-soft-split / SNAGINIT-fall notes above.
