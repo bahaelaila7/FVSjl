@@ -122,6 +122,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     flmult != 1f0 && (flame = oldfl * flmult)
     flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
+    fire_type = "SURFACE"                    # FVS_BurnReport Fire_Type (fmcfir.f CFTMP); crown-fire branch overwrites
     # Crown-fire flame adjustment (fmburn.f:538-543, NE/CR): a passive/active crown fire adds the canopy fuel
     # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
     # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
@@ -138,7 +139,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
-            crb, rfinal, hpa = (s.variant isa Klamath || s.variant isa OregonCoast) ?
+            crb, rfinal, hpa, fire_type = (s.variant isa Klamath || s.variant isa OregonCoast) ?
                   nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind) :  # OC fmcfir.f == nc/fmcfir.f (FM10 path)
                   crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
             # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
@@ -279,7 +280,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
-          slope = s.plot.slope, scorch = sch, models = collect(models), killed = killed, killed_ba = killed_ba,
+          slope = s.plot.slope, scorch = sch, fire_type = fire_type, models = collect(models), killed = killed, killed_ba = killed_ba,
           killed_vol = killed_vol, released = carbon_released,
           clskil = Tuple(clskil), totcls = Tuple(totcls), species_mort = species_mort, consumed = consumed))
     return FireResult(killed, flame, byram, sch, carbon_released)
@@ -416,7 +417,7 @@ function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::
                            ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest})
     oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
     oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
-    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0)      # SURFACE (fmcfir.f:334)
+    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0, "SURFACE")   # SURFACE (fmcfir.f:334) + Fire_Type
     mois = fuel_moisture(fmois, s.variant)
     models = select_fuel_models(s, mois)
     wmult = fire_wind_reduction(s.fire.percov)
@@ -432,15 +433,15 @@ function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::
                   wind = oi * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
     sfrate_act = spr(swind); sfrate_crn = spr(oact); ract = 3.34f0 * sfrate_crn
     if oinit > swind
-        oact > swind && return (0f0, sfrate_act, hpa)          # SURFACE
-        return (1f0, ract, hpa)                                 # COND_CRN
+        oact > swind && return (0f0, sfrate_act, hpa, "SURFACE")   # SURFACE
+        return (1f0, ract, hpa, "COND_CRN")                        # COND_CRN (fmcfir.f:320)
     elseif oact > swind                                         # PASSIVE — Scott&Reinhardt straight-line CFB
         den = sfrate_crn - rinit1
         cfb = den != 0f0 ? (sfrate_act - rinit1) / den : 0f0
         cfb = clamp(cfb, 0f0, 1f0)
-        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa)
+        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa, "PASSIVE")
     else
-        return (1f0, ract, hpa)                                 # ACTIVE
+        return (1f0, ract, hpa, "ACTIVE")                          # ACTIVE
     end
 end
 
@@ -455,7 +456,7 @@ end
 function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32)
     oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
     oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
-    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0)      # SURFACE
+    (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0, "SURFACE")   # SURFACE (fmcfir.f:334) + Fire_Type
     mois = fuel_moisture(fmois, s.variant)
     models = select_fuel_models(s, mois)
     wmult = fire_wind_reduction(s.fire.percov)
@@ -474,8 +475,8 @@ function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmoi
     # fuel model IS still FM10 at this point). This is the fix vs the shared CR/NE path (which used 3.34·selected@oact).
     ract = 3.34f0 * _nc_fm10_spread(s, mois, swind * 0.4f0)
     if oinit > swind
-        oact > swind && return (0f0, sfrate_act, hpa)          # SURFACE
-        return (1f0, ract, hpa)                                 # COND_CRN
+        oact > swind && return (0f0, sfrate_act, hpa, "SURFACE")   # SURFACE
+        return (1f0, ract, hpa, "COND_CRN")                        # COND_CRN (fmcfir.f:320)
     elseif oact > swind                                         # PASSIVE (fmcfir.f:347-359)
         # SFRATE(2) here is recomputed with the SELECTED surface models at OACT1·WMULT — the FM10 model was
         # RESTORED (fmcfir.f:180-195) before the torching-bisection + passive blocks, so this is NOT FM10.
@@ -483,9 +484,9 @@ function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmoi
                          wind = oact * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
         den = sfrate_crn - rinit1
         cfb = den != 0f0 ? clamp((sfrate_act - rinit1) / den, 0f0, 1f0) : 0f0
-        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa)
+        return (cfb, sfrate_act + cfb * (ract - sfrate_act), hpa, "PASSIVE")
     else
-        return (1f0, ract, hpa)                                 # ACTIVE
+        return (1f0, ract, hpa, "ACTIVE")                          # ACTIVE
     end
 end
 

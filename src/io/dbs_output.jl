@@ -505,7 +505,7 @@ CREATE TABLE IF NOT EXISTS FVS_BurnReport(
   One_Hr_Moisture real null, Ten_Hr_Moisture real null, Hundred_Hr_Moisture real null,
   Thousand_Hr_Moisture real null, Duff_Moisture real null, Live_Woody_Moisture real null,
   Live_Herb_Moisture real null, Midflame_Wind real null, Slope int null,
-  Flame_length real null, Scorch_height real null,
+  Flame_length real null, Scorch_height real null, Fire_Type text null,
   FuelModl1 int null, Weight1 real null, FuelModl2 int null, Weight2 real null,
   FuelModl3 int null, Weight3 real null, FuelModl4 int null, Weight4 real null)"""
 
@@ -522,17 +522,18 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_BURNREPORT_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_BurnReport VALUES (" * join(fill("?", 22), ",") * ")")
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_BurnReport VALUES (" * join(fill("?", 23), ",") * ")")
         for b in burns
             m = b.mois                                   # 2×5: dead 1/10/100/1000hr+duff, live woody/herb
             fm = b.models                                # vector of (model, weight); pad to 4
             mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
             ww(i) = i <= length(fm) ? Float64(fm[i][2])*100 : 0.0   # fraction → % (live BurnReport weights are %)
             slp = hasproperty(b, :slope) ? Float64(b.slope)*100 : 0.0  # stand slope 0..1 → % (dbsfmburn.f Slope col)
+            ftype = hasproperty(b, :fire_type) ? String(b.fire_type) : "SURFACE"  # Fire_Type (fmcfir.f CFTMP)
             DBInterface.execute(stmt, (caseid, standid, Int(b.year),
                 Float64(m[1,1])*100, Float64(m[1,2])*100, Float64(m[1,3])*100, Float64(m[1,4])*100,
                 Float64(m[1,5])*100, Float64(m[2,1])*100, Float64(m[2,2])*100,
-                Float64(b.wind), slp, Float64(b.flame), Float64(b.scorch),
+                Float64(b.wind), slp, Float64(b.flame), Float64(b.scorch), ftype,
                 mw(1), ww(1), mw(2), ww(2), mw(3), ww(3), mw(4), ww(4)))
         end
     finally
