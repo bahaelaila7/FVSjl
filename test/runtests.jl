@@ -34,6 +34,7 @@ using FVSjl
     include("unit/test_op_treelist_dg.jl")  # FVS_TreeList DG/HtG for OP: sibling ORGANON (cooperating driver) — confirms OP has NO OC-style clobber, live-tree DG/HtG bit-exact vs FVSop_clean
     include("unit/test_oc_snag_recruit.jl") # OC FFE snag pool: mortality!(::OregonCoast) was a no-op ⇒ ongoing ORGANON mortality never booked as snags; now books t.mort_pa (1998 SnagSum bit-exact vs FVSoc_clean 92.99)
     include("unit/test_ws_crwidth.jl")      # WS FVS_TreeList CrWidth via R5CRWD (ws_r5crwd) — R5 skips forest-BF ⇒ per-tree bit-exact (29/29 vs FVSws_clean), the 8th variant wired past the eastern 0.5 default
+    include("unit/test_ca_crwidth.jl")      # CA FVS_TreeList CrWidth via ca_cwcalc + folded forest-610 BF (SP/LP/PP) — 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum; 9th variant wired
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb
