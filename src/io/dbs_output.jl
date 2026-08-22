@@ -734,8 +734,8 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             0,                                                     # MistCD
             Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
             Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
-            Float64(t.bdft_vol[i]), mdef, bdef, Int(t.trunc[i]),   # BdFt, MDefect, BDefect, TruncHt
-            estht, actpt,                                          # EstHt, ActPt
+            Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
+            estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
             Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
@@ -776,7 +776,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 0,                                         # MistCD
                 Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
-                Float64(t.bdft_vol[i]), mdef, bdef, Int(t.trunc[i]),
+                Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,
                 Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
         end

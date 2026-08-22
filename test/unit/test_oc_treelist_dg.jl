@@ -35,4 +35,12 @@ using SQLite, DBInterface
     # inventory cycle was always populated; the REGRESSION is the projected cycles being 0
     @test dghtg(1998) > 100.0     # oracle ≈ 171.8 (was 0.0 before the fix)
     @test dghtg(2003) > 100.0     # oracle ≈ 172.5 (was 0.0 before the fix)
+
+    # TruncHt (broken-top truncation height) — dbstrls.f emits (ITRUNC+5)/100 in FEET; jl used to emit the
+    # raw ITRUNC in hundredths (100× too large: the id=6 broken-top tree read 5600 vs the oracle's 56). Assert
+    # every TruncHt is feet-scale (< 1000) and the broken-top tree is exactly 56.
+    maxtrunc = maximum(Int(r.TruncHt) for r in DBInterface.execute(db, "SELECT TruncHt FROM FVS_TreeList WHERE Year=1993"))
+    @test maxtrunc < 1000                                            # feet, not hundredths (bug emitted 5600)
+    bt = [Int(r.TruncHt) for r in DBInterface.execute(db, "SELECT TruncHt FROM FVS_TreeList WHERE Year=1993 AND TreeId=6")]
+    @test bt == [56]                                                 # oracle TruncHt for the id=6 broken top
 end
