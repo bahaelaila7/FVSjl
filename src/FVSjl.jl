@@ -152,6 +152,7 @@ include("variants/teton/height_growth.jl")     # TT large-tree height growth (tt
 include("variants/teton/regent.jl")            # TT small-tree growth (tt/regent.f+smhtgf.f+smdgf.f) — chunk 6
 include("variants/teton/mortality.jl")         # TT mortality (tt/morts.f = EM Hamilton form, TT coeffs) — chunk 7
 include("variants/teton/volume.jl")             # TT volume (chunk 8): R4VOL Matney cubic + DVE
+include("variants/teton/crown_width.jl")       # TT FVS_TreeList crown width (national cwcalc.f TTMAP dispatch)
 include("variants/teton/establishment.jl")      # TT establishment clamps (tt/blkdat.f ESCOMN XMIN/HHTMAX)
 
 # --- utah (UT) — Region-4 western Wykoff DDS (Zeide SDI), 24 species, heavy PJ/woodland; chunk 0 scaffold ---
@@ -166,6 +167,7 @@ include("variants/utah/height_growth.jl")      # UT large-tree height (chunk 4):
 include("variants/utah/regent.jl")             # UT small-tree growth (chunk 6): ut/regent.f POTHTG + ht_dbh DG
 include("variants/utah/mortality.jl")          # UT mortality (chunk 7): ut/morts.f uniform Hamilton + SDI self-thin
 include("variants/utah/volume.jl")             # UT volume (chunk 8): MATW r4vol + FW2 + DVEW (reuse)
+include("variants/utah/crown_width.jl")         # UT FVS_TreeList crown width (national cwcalc.f UTMAP dispatch)
 include("variants/utah/establishment.jl")      # UT ESSUBH planted/subsequent base height (ut/essubh.f) — #154
 
 # --- bluemountains (BM) — Region-6 western Wykoff DDS (Stage SDI), 18 species; chunk 0 scaffold ---

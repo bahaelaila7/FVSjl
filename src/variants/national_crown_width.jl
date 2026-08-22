@@ -45,6 +45,14 @@ function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float
     elseif eqn == "01905";      _em_r6m2(5.8827f0,0.51479f0,-0.21501f0,0.17916f0,0.03277f0,-0.00828f0, d,h,cl,ba1,el,10f0,85f0,30f0)
     elseif eqn == "06405";      _em_r6m2(5.1486f0,0.73636f0,-0.46927f0,0.39114f0,-0.05429f0,0f0, d,h,cl,ba1,el,1f0,999f0,36f0)
     elseif eqn == "47502";      _em_bech2(4.0105f0,0.8611f0,0f0,0f0,-0.0431f0, d,cr,hi,-37f0,27f0,29f0,false)
+    # --- TT/UT-added national codes (R6-model-2 DF/ES/LP/WF, Donnelly BI, Bechtold GO/GB) ---
+    elseif eqn == "20205";      _em_r6m2(6.0227f0,0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el,1f0,75f0,80f0)
+    elseif eqn == "09305";      _em_r6m2(6.7575f0,0.55048f0,-0.25204f0,0.19002f0,0f0,-0.00313f0, d,h,cl,ba1,el,1f0,85f0,40f0)
+    elseif eqn == "10805";      _em_r6m2(6.6941f0,0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el,1f0,79f0,40f0)
+    elseif eqn == "01505";      _em_r6m2(5.0312f0,0.53680f0,-0.18957f0,0.16199f0,0.04385f0,-0.00651f0, d,h,cl,ba1,el,2f0,75f0,35f0)
+    elseif eqn == "31206";      _em_powf(7.5183f0,0.4461f0,30f0, d)
+    elseif eqn == "81402";      _em_bech2(0.3309f0,0.8918f0,0f0,0.0510f0,0f0, d,cr,hi,-9.9f9,9.9f9,19f0,false)
+    elseif eqn == "10201";      _em_bech1(7.4251f0,0.8991f0, d,25f0)
     else 0f0 end
     cw < 0.5f0 && (cw = 0.5f0)              # cwcalc.f final CRWDTH clamp [0.5, 99.9]
     cw > 99.9f0 && (cw = 99.9f0)
