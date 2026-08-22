@@ -12,7 +12,7 @@
 
 using Test
 using FVSjl
-using FVSjl: run_keyfile, InlandEmpire, CentralRockies
+using FVSjl: run_keyfile, InlandEmpire, CentralRockies, Utah
 using SQLite, DBInterface
 
 # Oracle cyc0 (1990) values per variant: (stand NamedTuple, species NamedTuple). From FVS{ie,cr}_clean .out.
@@ -26,6 +26,15 @@ const _DM_ORACLE = Dict(
     "CR" => (variant = CentralRockies(),
         st = (Age=60, Stnd_TPA=1729, Stnd_BA=660, Stnd_Vol=14715, Inf_TPA=1110, Inf_BA=358,
               Inf_Vol=7988, Mort_TPA=56, Mort_BA=17, Mort_Vol=387, Inf_TPA_Pct=64, Inf_Vol_Pct=54,
+              Mort_TPA_Pct=3, Mort_Vol_Pct=3, Mean_DMR=2.0, Mean_DMI=3.1),
+        sp = (Spp="DF", Mean_DMR=2.4, Mean_DMI=3.1, Inf_TPA=1110, Mort_TPA=56,
+              Inf_TPA_Pct=75, Mort_TPA_Pct=4, Stnd_TPA_Pct=85)),
+    # UT (own R4VOL volume eqs, own DM-mortality table): all DM-model columns exact; Stnd_Vol +
+    # its downstream Inf_BA carry the small UT cyc0 volume straddle (jl PP cuft_vol ~0.3 ft³/tree off
+    # the oracle) ⇒ those two are cornered (±1.5%), everything else bit-exact.
+    "UT" => (variant = Utah(), vol_cornered = true,
+        st = (Age=60, Stnd_TPA=1729, Stnd_BA=660, Stnd_Vol=14735, Inf_TPA=1110, Inf_BA=368,
+              Inf_Vol=8221, Mort_TPA=56, Mort_BA=18, Mort_Vol=400, Inf_TPA_Pct=64, Inf_Vol_Pct=56,
               Mort_TPA_Pct=3, Mort_Vol_Pct=3, Mean_DMR=2.0, Mean_DMI=3.1),
         sp = (Spp="DF", Mean_DMR=2.4, Mean_DMI=3.1, Inf_TPA=1110, Mort_TPA=56,
               Inf_TPA_Pct=75, Mort_TPA_Pct=4, Stnd_TPA_Pct=85)),
@@ -78,11 +87,14 @@ end
                     @test "FVS_DM_Stnd_Sum" in tabs
                     @test "FVS_DM_Spp_Sum" in tabs
 
+                    vol_corn = get(spec, :vol_cornered, false)
                     st = first(DBInterface.execute(db, "SELECT * FROM FVS_DM_Stnd_Sum WHERE Year=1990"))
                     for (col, val) in pairs(spec.st)
                         got = st[col]
                         if col in (:Mean_DMR, :Mean_DMI)
                             @test round(got, digits = 1) == val
+                        elseif vol_corn && col in (:Stnd_Vol, :Inf_BA, :Inf_Vol_Pct)
+                            @test abs(got - val) <= max(2, 0.015 * val)   # per-variant volume straddle (+ its NINT downstream)
                         else
                             @test got == val
                         end
