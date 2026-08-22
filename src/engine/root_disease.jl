@@ -125,6 +125,8 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     icyc::Int32               # RD cycle counter (FVS ICYC; 0 at LSTART, +1 per grow cycle)
     sum_rows::Vector{Any}     # RDSUM accumulator: (year, rd_sum_report) per cycle (FVS_RD_Sum / dbsrd.f DBSRD1)
     det_rows::Vector{Any}     # RDDETAIL accumulator: (year, rd_det_report) per cycle (FVS_RD_Det / dbsrd.f DBSRD2)
+    corinf::Matrix{Float32}   # CORINF(ITOTRR,2): (1)=new-infected TPA / (2)=exposed TPA inside patch (rdinsd.f)
+    expinf::Matrix{Float32}   # EXPINF(ITOTRR,2): (1)=new-infected / (2)=new TPA by area expansion (rdinf.f); zeroed each report
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -194,6 +196,8 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.icyc   = Int32(0)
     rd.sum_rows = Any[]
     rd.det_rows = Any[]
+    rd.corinf = zeros(Float32, RD_ITOTRR, 2)
+    rd.expinf = zeros(Float32, RD_ITOTRR, 2)
     return rd
 end
 
@@ -247,6 +251,16 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
     conv(x, f) = m ? x * f : x
     div_(x, f) = m ? x / f : x
     prinf_idi, _ = rd_prinf(rd, s)                           # rdcntl.f DO-800 stand-total PRINF(IDI)
+    # New-infection proportions (rdpr.f:220-227): CORE = corridor (inside-patch) new-inf fraction,
+    # EXPAND = area-expansion new-inf fraction, TOTINF = combined. Zeroed after the report (rdpr.f:316-319).
+    cor1 = rd.corinf[idi, 1]; cor2 = rd.corinf[idi, 2]
+    exp1 = rd.expinf[idi, 1]; exp2 = rd.expinf[idi, 2]
+    core   = cor2 > 0.0f0 ? cor1 / cor2 : 0.0f0
+    expand = exp2 > 0.0f0 ? exp1 / exp2 : 0.0f0
+    tot    = exp2 + cor2
+    totinf = tot > 0.0f0 ? (exp1 + cor1) / tot : 0.0f0
+    rd.corinf[idi, 1] = 0.0f0; rd.corinf[idi, 2] = 0.0f0     # rdpr.f:316-319 reset for next interval
+    rd.expinf[idi, 1] = 0.0f0; rd.expinf[idi, 2] = 0.0f0
     return (Year = Int(year), Age = Int(iage), RD_Type = rdtype, Num_Centers = ncent,
             RD_Area = conv(parea, _RD_ACRtoHA), Spread = conv(rrrate, _RD_FTtoM),
             Stumps = div_(tstmps, _RD_ACRtoHA), Stumps_BA = conv(bastpa, _RD_FT2pACRtoM2pHA),
@@ -254,7 +268,7 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
             UnInf_TPA = div_(tun, _RD_ACRtoHA), Inf_TPA = div_(tin, _RD_ACRtoHA),
             Ave_Pct_Root_Inf = 100.0f0 * prinf_idi,          # TPRINF = PRINF(IRRSP)·100 (rdpr.f:241)
             Live_Merch_CuFt = conv(cfvpa, _RD_FT3pACRtoM3pHA), Live_BA = conv(bapa, _RD_FT2pACRtoM2pHA),
-            New_Inf_Prp_Ins = 0.0f0, New_Inf_Prp_Exp = 0.0f0, New_Inf_Prp_Tot = 0.0f0)  # CORINF/EXPINF — follow-on
+            New_Inf_Prp_Ins = core, New_Inf_Prp_Exp = expand, New_Inf_Prp_Tot = totinf)
 end
 
 # rd_prinf (rd/rdcntl.f DO-800) — weighted-average proportion of infected roots.
@@ -1930,6 +1944,8 @@ function rd_inf_kernel!(rd::RootDiseaseState, idi::Int, areanu::Float32,
         propi[k]      = rd_ranp!(rd, rrnew)        # PROPI(I,ISTEP,2)
         probi_out[k]  = probi_in[k]  + addinf
         probiu_out[k] = probiu_in[k] + nuinsd * (1.0f0 - pnsp)
+        rd.expinf[idi, 1] += addinf                # rdinf.f:110 EXPINF(IDI,1) (# trees newly infected)
+        rd.expinf[idi, 2] += nuinsd                # rdinf.f:111 EXPINF(IDI,2) (# new trees in expanded area)
     end
     return propi, probi_out, probiu_out
 end
@@ -2428,12 +2444,14 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
                                     rootd = @view(d.rootd[idi, :, :]))
             # rdinsd.f DO 1050: apply averaged results (NINSIM=1).
             @inbounds for (kk, i) in enumerate(order)
+                rd.corinf[idi, 2] += d.probiu[i]            # rdinsd.f:398 CORINF(IDI,2) += PROBIU (before infection, ALL records)
                 rrninf[kk] <= 1.0f-4 && continue
                 nk = rrninf[kk]                              # /NINSIM (=1)
                 pl = polp[kk]
                 d.probiu[i] -= nk; d.probiu[i] < 0.0f0 && (d.probiu[i] = 0.0f0)
                 d.probi[i, istep, 1] += nk
                 d.propi[i, istep, 1] = -pl
+                rd.corinf[idi, 1] += nk                     # rdinsd.f:415 CORINF(IDI,1) += RRNINF (new infection inside core)
             end
             rd_sum!(d.probit, d.probi, istep)
         end

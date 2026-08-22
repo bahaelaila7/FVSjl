@@ -10,8 +10,9 @@
 # DGSCOR/OLDRN #206 growth straddle (WRD growth is cornered on KT). Two collect-seam subtleties that
 # matter: the row is captured AFTER rd_grow_apply!→rdinoc (decayed stump pool PROBDA) AND after the
 # DBH-UPDATE + compute_volumes! (grown DBH for Live_BA). Ave_Pct_Root_Inf = 100·PRINF(IDI)
-# (rdcntl.f DO-800) is now filled (BIT-EXACT at inventory, cornered later). The 3 new-infection
-# columns (New_Inf_Prp_Ins/Exp/Tot) remain 0 pending the CORINF/EXPINF spread accumulators.
+# (rdcntl.f DO-800) and the 3 new-infection columns (New_Inf_Prp_Ins/Exp/Tot = CORINF/EXPINF,
+# rdinsd.f/rdinf.f) are now filled — ALL 20 columns validated: BIT-EXACT at inventory + first
+# projected cycle(s), cornered later by the #206 WRD growth+spread straddle.
 
 using Test
 using FVSjl
@@ -88,6 +89,8 @@ end
                     @test isapprox(Float32(r.Live_BA), Float32(ba); atol = 0.1f0)
                     # Ave_Pct_Root_Inf = 100·PRINF(IDI) (rdcntl.f DO-800) — BIT-EXACT at inventory
                     @test isapprox(Float32(r.Ave_Pct_Root_Inf), 9.9819f0; atol = 5f-3)
+                    # New-infection proportions = 0 pre-projection (no spread yet)
+                    @test r.New_Inf_Prp_Ins == 0.0 && r.New_Inf_Prp_Exp == 0.0 && r.New_Inf_Prp_Tot == 0.0
                 elseif yr == 2000
                     # first projected cycle: Area/Spread/Mort BIT-EXACT; Stumps/Inf/BA cornered
                     @test isapprox(Float32(r.RD_Area), Float32(area); atol = 5f-3)
@@ -96,6 +99,10 @@ end
                     @test isapprox(Float32(r.Inf_TPA), Float32(inf); rtol = 0.02f0)
                     @test isapprox(Float32(r.Live_BA), Float32(ba); rtol = 0.03f0)
                     @test isapprox(Float32(r.Ave_Pct_Root_Inf), 40.4337f0; rtol = 0.02f0)  # PRINF cornered
+                    # New-infection proportions (CORINF/EXPINF) — BIT-EXACT at the first projected cycle
+                    @test isapprox(Float32(r.New_Inf_Prp_Ins), 0.2515f0; atol = 2f-3)
+                    @test isapprox(Float32(r.New_Inf_Prp_Exp), 0.4683f0; atol = 2f-3)
+                    @test isapprox(Float32(r.New_Inf_Prp_Tot), 0.2941f0; atol = 2f-3)
                 else
                     # later cycles: cornered by the WRD DGSCOR/OLDRN #206 growth+spread straddle
                     @test isapprox(Float32(r.RD_Area), Float32(area); rtol = 0.04f0)
