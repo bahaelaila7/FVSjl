@@ -984,3 +984,18 @@ fall-magnitude and/or the hard→soft DKTIME split to the pre-aged (age-2) cohor
 soft=0 all years). The mechanism is in update_snags!/FMSFALL fall-target + the DKTIME hard→soft flip vs FVS's per-
 cycle single-step fall — NOT the yr assignment. Fix = compare jl update_snags! fall/decay for a known-age cohort vs
 FMSFALL(fmsfall.f) + the DKTIME flip; report-only, shared with validated down-wood/carbon (re-validate). Still open.
+
+### SnagDet mechanism FINAL (2026-08-22, measured): fall-clock × cyc0-report timing (NOT hard/soft split)
+Ruled OUT the hard/soft-split guess: SNAGPSFT in ocsnag.key targets species 1, but the SNAGINIT snag is species 10,
+so add_snag! adds it ALL-HARD at density 50 (psoft=0). The ~3.7× shortfall is update_snags! FALLING the SNAGINIT
+cohort during the inventory/cyc0 annual loop: the fall clock is sn.year = invyr−age = 1991 (< cur=1993), and
+update_snags! (fuel_additions.jl:210, at_year=cur+(k−1)) steps yrs=clamp(eff−sn.year+born_now,0,nyears)=1 each annual
+year ⇒ the age-2 cohort falls every year from the start, so by the 1993 report jl shows 14.76 while the ORACLE reports
+the pre-fall ~50 (FVS reports SNAGINIT at its specified CURRENT density at the init year; the age sets the decay-STATE
++ future clock, and FMSNAG's init-year fall does not knock it down ~3.7×). Fix = suppress/adjust the SNAGINIT cohort's
+fall during its creation/inventory cycle (the user-specified density is the CURRENT standing density, already net of
+its pre-inventory age) — but update_snags! is SHARED with the VALIDATED FFE down-wood + FVS_Carbon (validated on
+ocffe_full which has NO SNAGINIT), so the fix needs the exact FMSNAG init-year semantics + a full OC-FFE
+down-wood/carbon re-validation. Report-only; characterized-not-fixed (not autonomous-safe to touch the shared snag
+fall model blind). ⇒ FINAL DBS status: StrClass ✓ bit-exact-or-cornered, CanProfile ◐ cyc0-correct+cornered-tail,
+SnagDet/SnagSum ✗-open (SNAGINIT fall-timing, report-only), Climate ◐ emitted+cyc0-validated; BM/DM/RD absent.
