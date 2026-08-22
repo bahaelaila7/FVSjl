@@ -729,10 +729,6 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
-    # CR-gated stand inputs for the cycle-0 DEAD-record block below (which calls cr_cwcalc directly).
-    cr_hi  = iscr ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
-    cr_ba  = iscr ? s.plot.basal_area : 0f0
-    cr_el  = iscr ? s.plot.elevation : 0f0
     @inbounds for i in 1:t.n
         sp = Int(t.species[i])
         # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). Western: the forest-grown
@@ -783,7 +779,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
             end
             dbal = Float32(round(Int, dbal))              # NINT(PTBALT(I))
-            cw = cr_cwcalc(sp, dd, t.height[i], Float32(t.crown_pct[i]), cr_ba, cr_el, cr_hi)  # cwcalc.f forest-grown
+            cw = _forest_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])  # cwcalc.f forest-grown + [0.5,99.9] clamp
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
             estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
