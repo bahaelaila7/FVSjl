@@ -796,3 +796,18 @@ DBS toggles are TREELIDB/CUTLIDB not TREELIST/CUTLIST — base dbsin.f differs; 
 main-context CUTLIST+thin — deferred), but the shared/identical binding + TreeList bit-exact validation is conclusive.
 ★ NOTE: main-context TREELIST/CUTLIST (populate arrays) + block TREELIDB/CUTLIDB (redirect) BOTH needed to emit the DB
 table; TREELIDB alone won't (needs the report keyword to fill the arrays).
+
+## ★ FVS_SnagSum/SnagDet: WIRING trivial, but BLOCKED on the jl snag-DENSITY divergence (2026-08-22, measured+reverted)
+Attempted the goal-doc NEXT item (write_dbs_snagsum!/snagdet! + A/B on OC, FFE-bit-exact). The EMISSION wiring is easy
+and was built: add Control.dbs_snagsum/dbs_snagdet, parse SNAGSUDB/SNAGOUDB in kw_database!, widen the run_keyfile
+carb_rows gate to (carbon_report_on || dbs_snagsum) (snag_summary is already carb_rows[·][4]), split the write block
+so carbon/fuels/dwd stay CARBREPT-gated and snagsum writes on dbs_snagsum. FVS_SnagSum then emits 12 rows (schema
+matches dbsfmssnag.f). BUT the A/B vs FVSoc_clean ocsnag_oracle.db FAILS — jl snag density is SYSTEMATICALLY LOW at
+EVERY year, INCLUDING the inventory year (1993 Hard_total jl 14.76 vs oracle 55.26; 2003 194 vs 265; 2013 4.67 vs
+8.67; 2048 0.46 vs 4.71 — the gap widens over time). ★ KEY: the divergence starts at INVENTORY (1993 = the input
+dead-tree → snag booking, BEFORE the cycle-1 SNAGINIT), so it's a snag-INITIALIZATION gap (jl books ~27% of the
+oracle's input-dead-tree snag density), compounded by the falldown model over time — NOT merely falldown.
+★ CORRECTION to a stale memory claim: "jl snag_summary == oracle SnagSum (1993 55.26/2003 264.9)" is FALSE (measured
+14.76/194 here) — this is the same over-claim my prior SnagDet revert flagged. So FVS_SnagSum + FVS_SnagDet are BLOCKED
+on the jl snag-list MODEL (input-dead→snag booking + falldown), NOT on serialization/emission. Reverted the wiring
+(don't emit non-bit-exact data). The wiring recipe above is preserved for when the snag model is brought bit-exact.
