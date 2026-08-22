@@ -113,6 +113,7 @@ include("variants/inlandempire/diameter_growth.jl")  # IE large-tree DDS hooks (
 include("variants/inlandempire/height_growth.jl")    # IE large-tree height growth (ie/htgf.f)
 include("variants/inlandempire/crown_coefficients.jl") # IE crown-ratio tables (ie/crown.f, dumped from live)
 include("variants/inlandempire/crown.jl")            # IE per-tree CCF (ie/ccfcal.f) + crown ratio (ie/crown.f)
+include("variants/inlandempire/crown_width.jl")      # IE FVS_TreeList crown width (national cwcalc.f IEMAP dispatch)
 include("variants/inlandempire/mort_coefficients.jl")# IE mortality Hamilton coefficients (ie/morts.f, dumped)
 include("variants/inlandempire/mortality.jl")        # IE mortality (ie/morts.f) — Hamilton, reuses KT form
 include("variants/inlandempire/mistoe_coefficients.jl") # IE MISTOE (dwarf mistletoe) effect coefficients (mistoe/misintie.f)
