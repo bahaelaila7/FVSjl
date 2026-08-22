@@ -742,3 +742,18 @@ with per-species BF tables for each forest (KODFOR 601-799 Deschutes, 602 Fremon
 gated KODFOR 601..999. So the full bit-exact port = OCMAP + national equation forms {01,02,03,04,05,06,08} + the
 per-forest×species BF calibration tables. Confirms this is a LARGE multi-part port for a report-only column; the
 inventory-year full-column A/B harness remains the reusable validation vehicle when/if it's prioritized.
+
+## ★ CrWidth RESOLVED for OC/EM 2026-08-22 (32a80116) — smaller than scoped: kernels already existed
+The earlier "CrWidth = LARGE per-variant equation port" scoping was PESSIMISTIC. jl ALREADY has the ported+validated
+per-variant cwcalc kernels (oc_cwcalc data/oregoncoast/fire/ffe_fuel.jl, em_cwcalc, so_cwcalc) — StrClass + FFE crown-
+biomass use them bit-exact. The treelist writer just wasn't DISPATCHING to them (used the eastern crown_width→0.5).
+FIX = mirror the StrClass/FFE dispatch (CR/OC/EM → their kernel) + add the cwcalc.f FINAL CLAMP to [0.5,99.9] (its last
+two lines before RETURN, which every jl kernel omits). The clamp was the whole tiny-seedling residual: OC id=15/27
+(DBH 0.1) computed 0.37/0.28 via the correct 01703/09204 equation, then FVS floors to 0.5. VALIDATED: OC 27/27, EM
+bit-exact (0.005 print), CR 14/14, gate 339/11, OC test 8/8.
+SO EXCLUDED: sot01 (forest 601) shows 4 minor species (WJ/GC/MC/MB, DBH 4-6.6) off 0.9-2.6 — so_cwcalc coef/BF gaps,
+a per-species audit (so_cwcalc's StrClass/FFE validation didn't exercise those). The remaining non-CR western variants
+have NO ported cwcalc kernel wired into the treelist yet (WC/PN/EC/CA/WS/AK/OP/KT/IE/BM/TT/UT/CI/BC still emit 0.5) —
+each = the same one-line dispatch add + clamp, GATED on a per-variant bit-exact full-column A/B (many need their
+cwcalc kernel ported first). ★ LESSON: check for an existing validated kernel (StrClass/FFE already used oc_cwcalc)
+before scoping a "large port" — and always add the shared cwcalc.f [0.5,99.9] clamp.
