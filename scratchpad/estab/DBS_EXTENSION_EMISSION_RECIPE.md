@@ -950,3 +950,17 @@ The stratum cover REUSES my CrWidth work — _ss_strata uses oc_cwcalc (else gen
 ⇒ DBS-TABLE STATUS (goal-doc item-2 "missing" list is STALE): FVS_Climate/CanProfile/StrClass/SnagDet all EMITTED;
 SnagDet + StrClass validated bit-exact-or-cornered, CanProfile emitted+cyc0-correct (small-tree cornered tail). Only
 FVS_BM_*/DM_*/RD_* genuinely absent (subsystem-blocked: WWPB-harness/NEWSPRED/dormant-RD).
+
+## FVS_SnagDet / FVS_SnagSum — NOT bit-exact (real report-only discrepancy) 2026-08-22
+CORRECTION to the memory's aspirational "SnagDet SET UP → oracle SnagSum == jl snag_summary": an actual A/B
+(FVSoc_clean ocsnag vs jl, both emit the tables) shows SnagDet/SnagSum are EMITTED but NOT bit-exact. FVS_SnagSum
+aligned BY YEAR: jl hard-density is ~3.7× LOW every year (1993 jl 14.76 vs oracle 55.26; 2003 jl 208 vs 265; soft=0
+both). FVS_SnagDet: jl over-produces cohorts (605 rows vs oracle 379). 1993 is just the SNAGINIT snags (species 10,
+DBH 11, HtDeath 50, CurHt 40, age 2, DENSITY 50 stems/ac, fmin.f:1119 PRMS 1-6) pre-fire, so the discrepancy is in
+the SNAGINIT add / snag_summary aggregation, NOT fire mortality. jl parses the snaginit tuple correctly
+((10,11,50,40,2,50)) and ffe_add_snaginit! adds den=denf=50; snag cohorts are added INSIDE the cycle (carbon.jl:423),
+not at setup, so probing needs a full-cycle step. Candidates: GROSPC=1.1 scaling, the hard-class DBH-bin split, or
+age-2 fall-down applied at init. REPORT-ONLY (FFE snag-detail tables); a real open validation requiring snag-model
+investigation — NOT chased (disproportionate for a report table). ⇒ REVISED DBS-table status: StrClass bit-exact-or-
+cornered ✓, CanProfile emitted+cyc0-correct (small-tree cornered) ◐, SnagDet/SnagSum EMITTED but NOT-bit-exact (~3.7×
+SnagSum, report-only) ✗-open, Climate emitted (cyc0 growth-effect validated) ◐. Only BM/DM/RD genuinely absent.
