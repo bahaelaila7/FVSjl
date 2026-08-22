@@ -154,7 +154,7 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test _hexw(_FW.wsbwe_rand!(w))                 == "3F630A07"   # topkill BWERAN (draw #3)
     end
 
-    @testset "Per-variant host/biomass dispatch (EM + TT)" begin
+    @testset "Per-variant host/biomass dispatch (EM + TT + BM + SO + CI + EC)" begin
         # TT (Teton, MAXSP=18): IBWSPM/IBIOMP from bwebktt.f/bwebmstt.f. Hosts (IBWSPM<7)
         # at sp3=DF(2)/sp8=ES(5)/sp9=AF(4) — same host classes as EM. Host-class tables +
         # ICVOPT=2 biomass coeffs are identical to EM (only these two maps differ).
@@ -178,6 +178,21 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test length(_FW.WSBWE_IBWSPM_SO) == 33 && length(_FW.WSBWE_IBIOMP_SO) == 33
         @test (_FW.WSBWE_IBWSPM_SO[3], _FW.WSBWE_IBWSPM_SO[4], _FW.WSBWE_IBWSPM_SO[8],
                _FW.WSBWE_IBWSPM_SO[12], _FW.WSBWE_IBWSPM_SO[13], _FW.WSBWE_IBWSPM_SO[17]) == (2,1,5,3,4,6)  # DF/WF/ES/GF/AF/WL
+        # CI (Central Idaho, MAXSP=19): DF(2)/GF(3)/ES(5)/AF(4) hosts (bwebkci.f); biomass coeffs
+        # (BINT2/BINT11/BINT12/BCL12/…) byte-identical to EM — clean IBWSPM/IBIOMP swap. VALIDATED
+        # end-to-end vs the relinked FVSci_wsbwe: manual-DEFOL ΔTPA bit-exact-or-cornered (2000 kill
+        # oracle 407 / jl 402; ON-state TPA 52/52 exact; residuals = the CI OFF-baseline growth straddle).
+        @test _FW.wsbwe_ibwspm_for(_FW.CentralIdaho()) === _FW.WSBWE_IBWSPM_CI
+        @test _FW.wsbwe_ibiomp_for(_FW.CentralIdaho()) === _FW.WSBWE_IBIOMP_CI
+        @test _FW.WSBWE_IBWSPM_CI == Int[7,7,2,3,7,7,7,5,4,7,7,7,7,7,7,7,7,7,7]
+        @test _FW.WSBWE_IBIOMP_CI == Int[1,2,3,4,5,6,7,8,9,10,1,11,11,11,11,4,11,11,11]
+        @test (_FW.WSBWE_IBWSPM_CI[3], _FW.WSBWE_IBWSPM_CI[4], _FW.WSBWE_IBWSPM_CI[8], _FW.WSBWE_IBWSPM_CI[9]) == (2, 3, 5, 4)  # DF/GF/ES/AF
+        # EC (East Cascades, MAXSP=32): DF(2)/GF(3 at sp6)/ES(5)/AF(4) hosts (bwebkec.f); biomass==EM.
+        # VALIDATED vs FVSec_wsbwe: manual-DEFOL ΔTPA cornered (2000 kill oracle 332 / jl 328; ON 52/52).
+        @test _FW.wsbwe_ibwspm_for(_FW.EastCascades()) === _FW.WSBWE_IBWSPM_EC
+        @test _FW.wsbwe_ibiomp_for(_FW.EastCascades()) === _FW.WSBWE_IBIOMP_EC
+        @test length(_FW.WSBWE_IBWSPM_EC) == 32 && length(_FW.WSBWE_IBIOMP_EC) == 32
+        @test (_FW.WSBWE_IBWSPM_EC[3], _FW.WSBWE_IBWSPM_EC[6], _FW.WSBWE_IBWSPM_EC[8], _FW.WSBWE_IBWSPM_EC[9]) == (2, 3, 5, 4)  # DF/GF/ES/AF
         @test _FW.wsbwe_ibwspm_for(_FW.InlandEmpire()) === nothing    # unsupported variant → inert
         # CI (Central Idaho, MAXSP=19): sp3=DF(2), sp4=GF(3), sp8=ES(5), sp9=AF(4). biomass +
         # host-defol coeffs byte-identical to EM (verified) ⇒ clean IBWSPM/IBIOMP swap.
