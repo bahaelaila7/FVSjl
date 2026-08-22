@@ -929,11 +929,12 @@ function run_keyfile(keypath::AbstractString;
             strcl_rows === nothing ||
                 write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
             if dm_rows !== nothing && !isempty(dm_rows)
-                # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1). The by-DBH-class FVS_DM_Sz_Sum
-                # (DBSMIS3) is additionally gated by the MISTPRT report keyword — a follow-up (the
-                # write_dbs_dm_szsum! writer + report.dbhclass aggregation are already in place).
+                # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1); the by-DBH-class FVS_DM_Sz_Sum
+                # (DBSMIS3) additionally needs the MISTPRT report keyword (PRTMIS).
                 write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
                 write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef)
+                s.control.mistprt_on &&
+                    write_dbs_dm_szsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)

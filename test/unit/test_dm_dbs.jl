@@ -1,6 +1,6 @@
-# FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum dwarf-mistletoe summary DBS tables (dbs/dbsmis.f DBSMIS2/DBSMIS1,
-# via the misprt.f MISPRT aggregation ported in engine/mistletoe_report.jl), gated by the MISRPTS
-# database keyword. (2026-08-22.)
+# FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum + FVS_DM_Sz_Sum dwarf-mistletoe summary DBS tables (dbs/dbsmis.f
+# DBSMIS2/DBSMIS1/DBSMIS3, via the misprt.f MISPRT aggregation ported in engine/mistletoe_report.jl),
+# gated by the MISRPTS database keyword (Sz_Sum additionally by MISTPRT). (2026-08-22.)
 #
 # VALIDATED BIT-EXACT vs the relinked FVSie_clean / FVScr_clean .out mistletoe tables on a controlled
 # 6-tree stand (3 DF infected DMR 3/4/2, 2 DF uninfected, 1 PP uninfected; damage code 33 = DF
@@ -48,6 +48,9 @@ TREEFMT
 OPEN            55
 $(joinpath(dir, "dm6.tre"))
 TREEDATA          55
+MISTOE
+MISTPRT
+END
 DATABASE
 DSNOUT
 $dbp
@@ -99,6 +102,27 @@ end
 
                     # inventory + 4 cycles = 5 reported rows
                     @test first(DBInterface.execute(db, "SELECT COUNT(*) c FROM FVS_DM_Stnd_Sum")).c == 5
+
+                    # --- By-DBH-class table (DBSMIS3 → FVS_DM_Sz_Sum), gated by MISTPRT; cyc0 = 1990.
+                    # Bit-exact vs the oracle .out DBH-class table (identical IE/CR: TPA-based, shared
+                    # mismrt.f mortality). Non-zero 2-inch classes 3(5-7in)..7(13-15in); trees DBH 6/8/10/12/14.
+                    @test "FVS_DM_Sz_Sum" in tabs
+                    szcols = ("5-7in", "7-9in", "9-11in", "11-13in", "13-15in")
+                    sz_exp = Dict(
+                        "TPA" => (814.87, 286.48, 476.70, 76.39, 74.84),
+                        "INF" => (814.87, 0.0, 220.02, 0.0, 74.84),
+                        "MRT" => (37.51, 0.0, 17.52, 0.0, 1.01),
+                        "DMR" => (3.0, 0.0, 1.85, 0.0, 2.0),
+                        "DMI" => (3.0, 0.0, 4.0, 0.0, 2.0))
+                    for (typ, exp) in sz_exp
+                        row = first(DBInterface.execute(db,
+                            "SELECT * FROM FVS_DM_Sz_Sum WHERE Year=1990 AND Type='$typ'"))
+                        for (c, v) in zip(szcols, exp)
+                            @test round(row[Symbol(c)], digits = 2) == v
+                        end
+                    end
+                    # 5 Type-rows (TPA/INF/MRT/DMR/DMI) per reported year × 5 years = 25 rows
+                    @test first(DBInterface.execute(db, "SELECT COUNT(*) c FROM FVS_DM_Sz_Sum")).c == 25
                 finally
                     SQLite.close(db)
                 end

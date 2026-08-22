@@ -1132,11 +1132,10 @@ function kw_dmauto!(s::StandState, rec)
 end
 
 function kw_mistprt!(s::StandState, rec)
+    s.control.mistprt_on = true                             # misin.f opt 6: PRTMIS ⇒ by-DBH-class DM report (FVS_DM_Sz_Sum)
     if s.variant isa BritishColumbia
-        ms = _dm_state!(s); ms.prtmis = true                # misin.f opt 6: request DM reports
+        ms = _dm_state!(s); ms.prtmis = true
         (length(rec.present) >= 1 && rec.present[1]) && (ms.dmrmin = Float32(rec.values[1]))  # min DMR to report (default 1.0)
-    else
-        push!(s.control.unrecognized_keywords, "MISTPRT")
     end
     return
 end
