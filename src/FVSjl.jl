@@ -75,6 +75,7 @@ include("variants/kootenai/height_growth.jl")        # KT htgf! (exp-form height
 include("variants/kootenai/regent.jl")               # KT regent (chunk 6): kt_regcons! + small_tree_growth!
 include("variants/kootenai/mortality.jl")            # KT mortality (chunk 7): Hamilton MORTS
 include("variants/kootenai/volume.jl")               # KT volume (chunk 8): Region-1 Flewelling FW2
+include("variants/kootenai/crown_width.jl")          # KT FVS_TreeList crown width (national cwcalc.f KTMAP → ie_cwcalc)
 
 # --- inland empire (IE) — 3rd western variant, reuses the KT engine at a discount ---
 include("variants/britishcolumbia/britishcolumbia.jl") # BC singleton + registration (MAXSP 15) — chunk 0 scaffold

@@ -763,6 +763,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa Olympic           ? op_cwcalc :
           s.variant isa EasternMontana    ? em_cwcalc :
           s.variant isa InlandEmpire      ? ie_cwcalc :
+          s.variant isa Kootenai          ? kt_cwcalc :
           s.variant isa WestCascades      ? wc_cwcalc :
           s.variant isa PacificNorthwest  ? pn_cwcalc :
           s.variant isa EastCascades      ? ec_cwcalc :
