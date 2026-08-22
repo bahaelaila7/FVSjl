@@ -33,7 +33,14 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      FVS_TreeList (cihtadj vs cibase: targeted DF +5.0ft = oracle 4.9976/5.0; untargeted WP unchanged to a 0.2% straddle).
      STILL UNWIRED: ADDTREES (external program), MECHPREP/BURNPREP (cornered site-prep est-prob modifiers, no clean
      signal), HABGROUP/MINPLOTS/MAXPLT/PLOTINFO/OUTPUT/PASSALL (report/control-only).
-  2. **DBS write extension-output tables** — jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
+  2. **DBS write extension-output tables** — ★★ 2026-08-22: FVS_DM_* (3) DONE + **FVS_BM_* (WWPB, all 4:
+     Main/Tree/Vol/BKP) DONE** at the WWPB reconstruction bar (3f2fe501/d3208c74/571c469a) — no live oracle
+     (wwpb/ in 0 sourceLists, bmdrv called only by absent PPMAIN), so Main/Tree/Vol validated BIT-EXACT vs a
+     gfortran-16 golden of the real bmout.f arithmetic + BKP=state pass-through (6 landscape cols structurally 0);
+     PPBMMAIN/PPBMTREE/PPBMVOL/PPBMBKP gates, test_bm_dbs.jl 47/47, gate 339/11 [[fvsjl-bm-dbs-tables-no-oracle]].
+     FVS_Climate/CanProfile/StrClass/SnagDet already emitted+validated. **ONLY remaining absent = FVS_RD_* (3) —
+     needs the WRD model ported first (~23k lines unported), NOT a serialization chunk.** Original note below:
+     jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
      **★ UNBLOCKED 2026-08-21 (6704c1a5): the oracle-EMISSION plumbing is cracked** (had stalled 3× — FVS_TreeList,
      FVS_SnagDet ×2 — on exit-10/20/empty DBs). Recipe (scratchpad/estab/DBS_EXTENSION_EMISSION_RECIPE.md): two
