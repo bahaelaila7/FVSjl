@@ -768,10 +768,17 @@ inventory-year FVS_TreeList A/B (harness: scratchpad/cwtl_cmp.jl + a per-variant
   sp/D/H, confound-free). Wired WS→clamp(ws_r5crwd,0.5,99.9) in _forest_crwdth; test_ws_crwidth.jl; gate 339/11.
   ⇒ 8 variants bit-exact. (Separate WS finding: wst01 has an SP height-imputation drift at inventory — jl SP height
   differs from oracle, e.g. 75 vs 27 ft — ORTHOGONAL to CrWidth, a pre-existing WS treelist issue, not caused by this.)
-  NOT per-tree exact (EXCLUDED, keep eastern 0.5 fallback): BM (bm_cwcalc explicitly OMITS the Region-6 forest BF per
-  its own comment ⇒ ~20% low, 15 diffs), SO (4 minor sp WJ/GC/MC/MB off 0.9-2.6), CA (~5% SP-class), NC/Klamath (SP
-  6.5 vs jl 8.9). These kernels pass FFE (crown biomass) + StrClass (strata) because those AGGREGATE crown width; the
-  per-tree TreeList column exposes the forest-BF/species-coef gaps. Each excluded variant = its own kernel audit.
+  NOT per-tree exact (EXCLUDED, keep eastern 0.5 fallback) — ALL 4 = the per-forest BF gap (ROOT-CAUSED 2026-08-22,
+  the coefficients themselves match cwcalc.f): BM (bm_cwcalc OMITS the R6 forest BF ⇒ ~5-20% low, forest 614), SO (4
+  minor sp WJ/GC/MC/MB off 0.9-2.6, forest 601 DESCHUTES), CA (SP/LP/PP off — **CONFIRMED forest-610 BF, NOT a coef bug**:
+  ca_cwcalc SP eqn-11705 coeffs 3.5930/0.63503/… are byte-identical to cwcalc.f, but cwcalc.f CASE(610 Rogue River)
+  applies per-FIASP BF SP=1.048/LP=0.944/PP=0.918/DF+WF=1.0 — jl uses BF=1 ⇒ ~4.6% low SP), NC/Klamath (SP 6.5 vs jl 8.9).
+  ★ FIX for each = extract that variant's ref-forest BF (compact per-FIASP SELECT CASE, ~9-15 sp) + thread the stand's
+  KODFOR into the kernel + BF-multiply. FOREST-SPECIFIC (bit-exact on the ref forest only, like the wired 7); a report-
+  only column ⇒ DEFERRED (needs forest-code plumbing into the cwcalc kernels for marginal value). WS (dfc5fbf1) was the
+  last CLEAN win: R5CRWD has no BF at all. These kernels pass FFE (crown biomass) + StrClass (strata) because those
+  AGGREGATE crown width; the per-tree TreeList column exposes the forest-BF gaps. NO-KERNEL variants (KT/IE/UT/TT/CI/BC/
+  AK) additionally need the CWMAP + a CWMAP-parameterized generalization of cr_cwcalc (the national eqn library).
 ★ KEY LESSON: a cwcalc kernel validated via an AGGREGATED consumer (FFE/StrClass) is NOT necessarily per-tree bit-
 exact — the FVS_TreeList column is the strict test. The bit-exact 7 share proper forest-BF handling for their ref
 stand; the 4 excluded omit/mishandle BF. Remaining non-CR western with NO kernel wired (KT/IE/UT/TT/CI/AK/BC + the 4
