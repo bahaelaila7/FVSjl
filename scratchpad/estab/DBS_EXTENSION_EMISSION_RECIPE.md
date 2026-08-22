@@ -676,3 +676,22 @@ there; norm_ht trunc(N+0.5)=N was a no-op). Validated: OC TreeList DG+HtG 1998 0
 likely NOT — unverified; no OP TreeList oracle set up). The OC DGSCOR-calibration-chain gap (598dc05f) is still open
 (.sum-inert, ~5% off). ⇒ OC-growth remaining: the calibration backdating + the broken-top knife-edge (both cornered/
 inert). Debugging vehicle: env-gated sum(abs, diam_growth) prints bisecting grow_cycle! (growth END → after each step).
+
+## FVS_TreeList: OP (Olympic) verified bit-exact + cycle-0 dead-record cross-variant gap characterized (2026-08-22)
+Following the OC clobber fix (d40fc410), verified OP (f04a2b4b): OP is the sibling ORGANON variant but uses the
+COOPERATING driver (diameter_growth!(::Olympic) FILLS diam_growth, height_growth!(::Olympic) FILLS ht_growth, shared
+apply-loop grows) — so it has NO OC-style clobber. Live-tree ΣDG/ΣHtG bit-exact vs FVSop_clean (optl stand: 1995
+19.05/148.74, 2000 18.46/163.69). test_op_treelist_dg.jl 7/7.
+
+★ CHARACTERIZED (not fixed) — the CYCLE-0 DEAD-RECORD emission in treelist_snapshot (dbs_output.jl:748) is CR-gated;
+the oracle emits the input-dead trees (HISTORY 6-9) at the INVENTORY year with TPA=0/MortPA=expansion/DG=HtG=0. For OP
+the oracle emits 2 such rows (id=5 SP, id=14 LP) at 1990; jl emits 0 (CR-only gate). To generalize bit-exact:
+  • VOLUMES: already bit-exact for OP (compute_volumes! DOES cover the dead partition — SP cuft 312.58/bdft 2109,
+    LP cuft 5.55/bdft 28 all match). The "compute_volumes cover only live" caveat in the gate comment is OC/CR-era.
+  • MISSING: crown-dub of the dead partition. The oracle DUBS PctCr for dead input trees whose .tre crown is BLANK
+    (op2c.tre id=5/id=14 have blank crown → oracle PctCr 13/10); jl leaves dead-partition crown_pct=0. Then CrWidth
+    (needs the dubbed PctCr) + BAPctile (36.58/100.0) are also uncomputed for dead records.
+  • So generalizing = run crown_ratio_update!/DUBSCR on the dead partition + BAPctile for dead + swap cr_cwcalc→the
+    variant crown_width dispatch, ungate from CentralRockies, validate the dead rows bit-exact per variant. REAL
+    per-variant chunk with .sum-regression risk (touches crown init) for 2 inventory-year report-only rows ⇒ deferred.
+    The gate's documented caution stands; this note upgrades it with the exact missing pieces (crown-dub + BAPctile).
