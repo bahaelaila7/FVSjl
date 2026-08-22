@@ -853,3 +853,20 @@ NOT a remaining item. ★ LESSON: a schema A/B must dump the ACTUAL oracle DB, n
 the one under test — the FFE-DBS-table schema varies by build family. Commit 763e4af8's message is superseded by this.
 ★ The FFE-DBS schema-A/B (dump the oracle DB) remains the reusable vehicle that found Fire_Type; fire-event tables have
 NO emission wall.
+
+## ★★ FFE/carbon/structure DBS schema sweep — COMPLETE, ALL jl SCHEMAS MATCH the CA build (2026-08-22)
+Swept every FFE/carbon/structure DBS table jl emits, column-count + byte-diff vs FVSca_buildDir source (= what
+FVSca_clean runs):
+  FVS_BurnReport 23 ✓ (Fire_Type-fixed) · FVS_Carbon 14 ✓ · FVS_Mortality 22 ✓ · FVS_Consumption 22 ✓ (PRAGMA
+  byte-identical, this turn) · FVS_Fuels 22 ✓ · FVS_Down_Wood_Cov 17 ✓ · FVS_Down_Wood_Vol 19 ✓ · FVS_CanProfile 7 ✓ ·
+  FVS_SnagSum 18 ✓ · **FVS_StrClass 46 ✓** (jl 3-species-form stratum cols FVS/PLANTS/FIA == FVSca_buildDir/
+  dbsstrclass.f, which is byte-identical to canonical ./dbsqlite/dbsstrclass.f, 13615 B).
+⇒ NO schema bug in the FFE/carbon/structure DBS family. The only genuinely-missing DBS tables are FVS_SnagDet
+(blocked on the jl snag-mortality-booking-timing model, NOT serialization) + FVS_BM_*/DM_*/RD_* (insect/pathogen
+subsystem output: BM=WWPB-reconstructed, DM=oracle-DB-crash-blocked, RD=unported subsystem). Climate/CanProfile/
+StrClass — the goal-doc "missing" list is STALE; jl HAS all three CREATEs and they match.
+★★ HARD LESSON (doubled this turn): I raised TWO "schema bug" false alarms (FVS_Consumption last turn, FVS_StrClass
+this turn), BOTH from eyeballing an imperfect grep/sed extraction of a CREATE string instead of the ground truth.
+The reliable checks are: (a) dump the actual oracle DB and PRAGMA table_info diff, or (b) byte-diff the build's source
+against canonical. A grep with an anchored regex silently drops continuation-line columns ⇒ under-counts ⇒ phantom
+"jl has wrong/missing columns". NEVER conclude a schema mismatch from a grep column-count; diff or dump.
