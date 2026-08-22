@@ -758,10 +758,16 @@ each = the same one-line dispatch add + clamp, GATED on a per-variant bit-exact 
 cwcalc kernel ported first). ★ LESSON: check for an existing validated kernel (StrClass/FFE already used oc_cwcalc)
 before scoping a "large port" — and always add the shared cwcalc.f [0.5,99.9] clamp.
 
-## ★ CrWidth extended to 7 western variants 2026-08-22 (9ee57c84) — kernel per-tree-exactness varies
+## ★ CrWidth extended to 8 western variants 2026-08-22 (9ee57c84 + WS dfc5fbf1) — kernel per-tree-exactness varies
 Swept all non-CR western variants with a ported cwcalc kernel (ca/ec/nc/op/pn/wc/so/bm + oc/em/cr) via the full-column
 inventory-year FVS_TreeList A/B (harness: scratchpad/cwtl_cmp.jl + a per-variant DATABASE-block-first key). RESULT:
   BIT-EXACT (now WIRED): CR, OC, EM, OP, WC, PN, EC — worst |Δ| 0.0 (PN 0.0036 print).
+  ★★ **WS ADDED 2026-08-22 (dfc5fbf1)** — WS was NOT in the original sweep. WS uses R5CRWD (ws_r5crwd, sp/D/H only),
+  NOT a cwcalc kernel; being Region-5 it SKIPS the forest-BF (the exact layer that blocks BM/SO/CA), so ws_r5crwd is
+  per-tree BIT-EXACT: FVSws_clean wst01 FVS_TreeList 29/29 inventory rows match (function-level A/B on the oracle's own
+  sp/D/H, confound-free). Wired WS→clamp(ws_r5crwd,0.5,99.9) in _forest_crwdth; test_ws_crwidth.jl; gate 339/11.
+  ⇒ 8 variants bit-exact. (Separate WS finding: wst01 has an SP height-imputation drift at inventory — jl SP height
+  differs from oracle, e.g. 75 vs 27 ft — ORTHOGONAL to CrWidth, a pre-existing WS treelist issue, not caused by this.)
   NOT per-tree exact (EXCLUDED, keep eastern 0.5 fallback): BM (bm_cwcalc explicitly OMITS the Region-6 forest BF per
   its own comment ⇒ ~20% low, 15 diffs), SO (4 minor sp WJ/GC/MC/MB off 0.9-2.6), CA (~5% SP-class), NC/Klamath (SP
   6.5 vs jl 8.9). These kernels pass FFE (crown biomass) + StrClass (strata) because those AGGREGATE crown width; the
