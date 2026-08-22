@@ -57,5 +57,11 @@ function so_grinit!(s::StandState)
     s.control.dg_stddev_bound = 2.0f0
     s.rng.s0 = Float64(SO_RNG_SEED); s.rng.ss = SO_RNG_SEED
     fill!(s.control.ht_drag_sp, false)  # so/grinit.f:102 LHTDRG default .FALSE.
+    # so/grinit.f:222-223 default location TLAT=42/TLONG=121 (sot01 carries no LOCATION keyword). Feeds the
+    # Hopkins bioclimatic index used by the Bechtold-2004 crown-width eqns (GC/MC/MB); without it jl's lat/lon=0
+    # gives HI=-323.6 (clamped) vs the oracle's ~-4.4 ⇒ those 3 species' FVS_TreeList CrWidth were off 1-2.6.
+    # Only default when unset (an explicit LOCATION / DB lat-lon wins, as initre.f overrides grinit's default).
+    s.plot.latitude  == 0f0 && (s.plot.latitude  = 42f0)
+    s.plot.longitude == 0f0 && (s.plot.longitude = 121f0)
     return s
 end

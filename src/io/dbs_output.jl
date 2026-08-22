@@ -763,6 +763,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa WestCascades      ? wc_cwcalc :
           s.variant isa PacificNorthwest  ? pn_cwcalc :
           s.variant isa EastCascades      ? ec_cwcalc :
+          s.variant isa SouthCentralOregon ? so_cwcalc :
           nothing
     wcw === nothing &&
         return crown_width(s.coef, s.species.code2[sp], d, h, 90, 1, p.latitude, p.longitude, p.elevation)
