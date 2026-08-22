@@ -643,3 +643,23 @@ ocsnag.tre, whose GF has measured 10-yr DG that the oracle calibrates: COR=1.33)
 NEXT (if OC-growth is prioritized): (a) fix the OC calibration BACKDATING to make CalibStats bit-exact, then (b)
 root-cause the 2003 TopHt height drift. Both are OC-growth chunks (not DBS-table work). Repro: /workspace/.ocwork/
 occal.key (oracle occal_oracle.db has FVS_Summary + FVS_CalibStats). Fixture data captured: OC_DG_SIGMAR values above.
+
+## ★ OC TopHt "drift" ROOT-CAUSED 2026-08-22 — it IS the known cornered knife-edge (walks back yesterday's over-claim)
+Emitted FVS_TreeList from both sides on occal (measured-DG OC stand) and A/B'd per-tree at 2003 (the divergent cycle).
+FINDING: ALL per-tree Ht + DBH MATCH the oracle. The .sum TopHt 79-vs-76 is a **top-40-by-DBH RANKING FLIP**: tree 8
+(a broken-top SP — DBH 10.46 vs oracle 10.39, only Δ0.07", Ht 12.6ft) crosses tree 21 (DBH 10.39, Ht 72.4ft) in the
+DBH sort, so jl's top-40 includes the short-fat tree 8 instead of the tall tree 21 ⇒ TopHt drops ~8ft. A sub-0.1"
+per-tree DG difference on ONE broken-top tree with an outsized aggregate effect = EXACTLY the "OC height CCH-tie-break
+cornered" class the memory already documents. **⇒ OC .sum IS bit-exact-or-cornered; yesterday's "corrects OC bit-exact
+over-claim" (598dc05f) was ITSELF over-stated — the TopHt is the accepted cornered knife-edge, not a new systematic
+bug.** (The OC DGSCOR-calibration-chain gap from yesterday is real but SEPARATE and .sum-inert.)
+
+## ★ FVS_TreeList DG/HtG = 0 — a REAL OC-SPECIFIC report bug (CR bit-exact) 2026-08-22
+While A/B'ing the OC treelist, found jl's FVS_TreeList reports **DG=0 / HtG=0 for ALL trees at every PROJECTED cycle**
+(1998=0 vs oracle 171.8; 2003=0 vs 172.5); only the inventory (1993) is populated (42.6=42.6). **CR is BIT-EXACT**
+(2003 DG+HtG 443.33=443.33) ⇒ the bug is OC-SPECIFIC. OC's organon_hook.jl (76/80/98/106) DOES set t.diam_growth/
+t.ht_growth when applying growth, but they read as 0 at the cycle-start treelist report ⇒ zeroed between the ORGANON
+apply and the report (a tree-array rebuild/re-sort, or the ORGANON stash path clears them). Report-only (DBH/Ht are
+correct); FVS_TreeList not in the validated set. TRACTABLE lead: trace where OC's diam_growth/ht_growth is lost after
+organon_hook and preserve it to the report; then FVS_TreeList DG/HtG would be bit-exact for OC (CR already is). OP
+likely same (ORGANON). NOT fixed (needs the OC growth-flow trace; deferred with the other OC-growth chunks).
