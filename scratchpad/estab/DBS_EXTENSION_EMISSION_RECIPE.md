@@ -964,3 +964,14 @@ age-2 fall-down applied at init. REPORT-ONLY (FFE snag-detail tables); a real op
 investigation — NOT chased (disproportionate for a report table). ⇒ REVISED DBS-table status: StrClass bit-exact-or-
 cornered ✓, CanProfile emitted+cyc0-correct (small-tree cornered) ◐, SnagDet/SnagSum EMITTED but NOT-bit-exact (~3.7×
 SnagSum, report-only) ✗-open, Climate emitted (cyc0 growth-effect validated) ◐. Only BM/DM/RD genuinely absent.
+
+### SnagDet ROOT CAUSE PRECISELY LOCATED 2026-08-22 (fix needs FVS-semantics + FFE re-validation)
+ffe_add_snaginit! (snag.jl:723) sets `yr = invyr − age` (death year = inventory − age), which starts the snag
+FALL/DECAY clock `age` years EARLY. So at the FIRST (init-year) snag_summary, update_snags! applies `age` years of
+fall-down + hard→soft decay to the freshly-added SNAGINIT cohort ⇒ hard density ~3.7× low (jl 14.76 vs oracle's ~full
+55.26; the oracle reports SNAGINIT snags at ~full density at init, the age setting only the decay-STATE/future clock).
+EXACT FIX LOCATION = the yr/fall-clock start for SNAGINIT cohorts. NOT a blind change: yr feeds update_snags! which
+is SHARED with the VALIDATED down-wood + FVS_Carbon (their OC-FFE validation used ocffe_full, NO SNAGINIT, so this
+SNAGINIT-specific over-fall was never exercised). Correct fix requires reading fmsnag.f's SNAGINIT init-fall/decay
+semantics (does age reduce the count at init, or only set DKTIME/future fall?) + re-running the OC FFE down-wood/carbon
+A/B to confirm no regression. Report-only; a bounded but careful chunk, not autonomous-safe without the fmsnag.f read.
