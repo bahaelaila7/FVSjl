@@ -603,3 +603,23 @@ structure_class fmcba/fuel-models read). A/B (OC 30-tree ocstr.key): cyc0(1993)+
 residuals only at 2003 DBHNOM(~1%) + 2013 ht/cover(±1-NINT) = cornered OC growth straddle. 382/387 cells bit-exact,
 test 19/19, gate 339/11. Recipe reminder: the FVS_StrClass DBH column is the RAW Float32 DBHNOM (stricter than the
 rounded .out report) — a good A/B discriminator. Remaining DBS: BM/DM/RD blocked; SnagDet DEFERRED (snag-list model).
+
+## ★★ FVS_CalibStats — DONE 2026-08-22 (c65aa8f4): all-column bit-exact vs FVScr_clean
+Ported the DGSCOR large-tree calibration-stats table (dbscalib.f, CALBSTDB toggle). jl's shared
+calibrate_diameter_growth! (southern/diameter_growth.jl:590-618, the dgdriv.f framework) already computes every
+quantity — captured cal_ntree(=NUMCAL=fn)/cal_stdrat(=STDRAT=SQRT((SVAR/(FN−1))/SIGMAR²))/cal_wci(=WC)/cal_cortem
+(=exp(corv)) into the Calibration struct + write_dbs_calibstats! + Control.dbs_calibstats + CALBSTDB keyword + a
+once-per-stand write (calibration is a setup step, not per-cycle). **KEY: ScaleFactor=CORTEM=exp(COR) at CALIBRATION
+TIME (dgdriv.f:946), NOT exp(final dg_cor)** — jl re-scales dg_cor afterward (CORMLT), so use the captured exp(corv);
+ReadCorMult=exp(log(CORTEM)/WC). A/B vs FVScr_clean (crt01): ALL 9 cols BIT-EXACT (WF n=5, ES n=6); StdErrRatio+WC
+matched first try. Test test_calibstats_dbs.jl 15/15, gate 339/11. Fixture: a minimal 1-cycle CR keyfile + crt01.tre.
+Keyfile: STATS optional; DATABASE{DSNOUT, SUMMARY, CALBSTDB}. **OBSERVATION (not a CalibStats bug): OC/OP (ORGANON)
+emit NO CalibStats rows because jl's OC path uses the ORGANON ACALIB and does NOT run the dgdriv DGSCOR calibration —
+but the OC ORACLE DOES calibrate OC's NON-ORGANON species (e.g. GF n=5) via dgdriv. So jl's OC may be MISSING the
+dgdriv COR for its non-ORGANON species (inert/minor since OC cyc0 .sum is bit-exact — GF a minor species — but a
+latent OC-growth-calibration gap worth a future check). Validated CalibStats on a Wykoff variant (CR) instead.**
+
+## DBS tables STATUS after 2026-08-22: Climate ✓ · CanProfile ✓ · StrClass ✓ · CalibStats ✓ · SnagDet DEFERRED
+(snag-list model) · SnagSum ✓ · BM_*/DM_*/RD_* BLOCKED (no-oracle/DB-crash/WRD-partial) · Regen_Tally/SitePrep/
+Sprouts + Stats_Stand/Species = NOT-YET (need jl establishment-tally / inventory-sampling-stats plumbing) ·
+PotFire_Cond/East, Error, EconSummary = minor/eastern/N-A. The cleanly-tractable report-only tables are now DONE.
