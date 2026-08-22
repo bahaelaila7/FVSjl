@@ -784,3 +784,15 @@ exactness needs each variant's COMPLETE per-forest BF table (cwcalc.f has ~18 fo
 bm_cwcalc = cr_cwcalc(BM→CR sp) with NO BF is ~10-24% off on forest-614 bmt01, and why a `cr_cwcalc()×BF` would not be
 bit-exact). That per-forest BF port is the large deferred chunk; the 7-variant ref-forest fix is the bounded, validated
 increment shipped. BM/SO/CA/NC remain on the 0.5 fallback (their kernels lack even the ref-forest BF).
+
+## ★ FVS_CutList had the SAME TruncHt+CrWidth bugs as TreeList — FIXED 2026-08-22 (b8f2ee8c)
+_cut_record (FVS_CutList builder) carried both TreeList bugs: TruncHt=raw ITRUNC (100×) and CrWidth=t.crown_width[i]
+(=0 for all but BC/sprout — a DIFFERENT wrong source than the treelist dispatch). dbscuts.f binds them IDENTICALLY to
+dbstrls.f (line 237 (ITRUNC+5)/100, line 181 CW=CRWDTH(I)), so the fix = the identical validated correction. Factored
+the crown-width dispatch into shared `_forest_crwdth(s,sp,d,h,crp)` used by BOTH treelist_snapshot + _cut_record (no
+drift); treelist refactor behavior-identical (OC 8/8, CR 14/14 unchanged). jl OC thin now emits CutList TruncHt 5600→56
++ real oc_cwcalc CrWidth (was 0). test_dbs_cutlist 10/10, gate 339/11. Oracle FVS_CutList A/B keyword-blocked (OC build
+DBS toggles are TREELIDB/CUTLIDB not TREELIST/CUTLIST — base dbsin.f differs; CUTLIDB didn't emit the table even with
+main-context CUTLIST+thin — deferred), but the shared/identical binding + TreeList bit-exact validation is conclusive.
+★ NOTE: main-context TREELIST/CUTLIST (populate arrays) + block TREELIDB/CUTLIDB (redirect) BOTH needed to emit the DB
+table; TREELIDB alone won't (needs the report keyword to fill the arrays).
