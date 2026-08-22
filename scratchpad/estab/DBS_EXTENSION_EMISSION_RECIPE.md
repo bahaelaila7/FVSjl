@@ -735,3 +735,10 @@ every column bit-exact at inventory EXCEPT two:
      A national-equation-library + per-variant-CWMAP refactor would fix them all. LARGE mechanical chunk for a
      report-only column (FVS_TreeList CrWidth, not in the .sum) ⇒ scoped, deferred pending its value being worth the
      multi-variant equation port. The full-column A/B harness (inventory-year isolation) is the reusable vehicle.
+
+### CrWidth port effort — larger than the equation library alone (per-forest BF layer)
+cwcalc.f (bin/FVSoc_buildDir) also applies a per-NATIONAL-FOREST adjustment factor BF (crown width = base_eqn × BF),
+with per-species BF tables for each forest (KODFOR 601-799 Deschutes, 602 Fremont, Siskiyou-611, Olympic-800, …),
+gated KODFOR 601..999. So the full bit-exact port = OCMAP + national equation forms {01,02,03,04,05,06,08} + the
+per-forest×species BF calibration tables. Confirms this is a LARGE multi-part port for a report-only column; the
+inventory-year full-column A/B harness remains the reusable validation vehicle when/if it's prioritized.
