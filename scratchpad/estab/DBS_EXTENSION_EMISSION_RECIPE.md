@@ -833,18 +833,23 @@ emitted. ★ The fire-event DBS tables (BurnReport/Mortality/Consumption) DON'T 
 they emit cleanly from BURNREDB/MORTREDB + a DSNout (DATABASE-block-first). NOTE the OTHER BurnReport cols (flame/scorch/
 fuel-weights) + FVS_Mortality carry the KNOWN cornered crown-fire-byram-intensity + OC-growth-drift residuals (not new).
 
-## ★ FVS_Consumption has the WRONG SCHEMA in jl (2026-08-22, found via FFE schema A/B) — needs a fire-effects port
+## ★ FVS_Consumption schema — RETRACTED "wrong" claim; jl schema is CORRECT for the western/CA build (2026-08-22)
 Systematic schema A/B of ALL FFE DBS tables (CA cat01_ffe, emit via BURNREDB/MORTREDB/CARBREDB/… — no wall) vs
-FVSca_clean: FVS_BurnReport (23, Fire_Type-fixed ✓), FVS_Carbon (14 ✓), FVS_Mortality (22 ✓) all schema-OK. BUT
-**FVS_Consumption is ENTIRELY WRONG**: jl reuses the FVS_Fuels 22-col schema (dbs_output.jl:580 `_FVS_CONSUMPTION_CREATE
-= replace(_FVS_FUELS_CREATE,...)` — Surface_*/Standing_*/Total_Biomass) whereas the REAL FVS_Consumption (dbsfmfuel.f,
-16 data cols) is fuel-CONSUMED-by-size + smoke: Min_Soil_Exp, Litter/Duff_Consumption, Consumption_lt3/ge3/3to6/6to12/
-ge12/Herb_Shrub/Crowns, Total_Consumption, Percent_Consumption_Duff/_ge3, Percent_Trees_Crowning, Smoke_Production_25/10.
-jl HAS the surface consumption-by-size (fmburn.jl:271 `consumed` = fuel_before−after, keys litter/duff/lt3/ge3/s3to6/
-s6to12/ge12/herb/shrub) but LACKS the fire-effects outputs the table also needs: Min_Soil_Exp (60.5 oracle — fmeff.f
-mineral-soil-exposure), Consumption_Crowns (7.57 — crown fuel consumed), Percent_Trees_Crowning (55), Smoke_10 (PM10;
-jl has PM2.5 only). So a bit-exact fix = new 16-col schema + map `consumed`→size cols + Total/percentages + PORT MSE/
-crown-consumption/crowning%/PM10 (fmcons.f/fmeff.f, un-ported). SUBSTANTIAL (a fire-effects port, not a serialization
-rewrite); validation also muddied by the cornered CA fuel-moisture/consumption residual. jl's current FVS_Consumption is
-structurally wrong (latent — nothing validated it). ★ The FFE-DBS schema-A/B is the reusable vehicle that found both
-this + Fire_Type; fire-event tables have NO emission wall.
+FVSca_clean: FVS_BurnReport (23, Fire_Type-fixed ✓), FVS_Carbon (14 ✓), FVS_Mortality (22 ✓) all schema-OK.
+**★★ CORRECTION 2026-08-22 (measure-don't-infer caught my own error): the prior "FVS_Consumption is ENTIRELY WRONG"
+was a FALSE ALARM.** It was based on grepping a DIFFERENT FVS build's `dbsfmfuel.f` (the 16-col Min_Soil_Exp+smoke
+Consumption variant that some eastern/other builds emit) and ASSUMING the CA/western build used it too — an inference,
+not a measurement. Dumping the actual `cac_oracle.db` (FVSca_clean) shows the CA build's **FVS_Consumption is
+Fuels-shaped 22-col** (CaseID,StandID,Year, Surface_Litter/Duff/lt3/ge3/3to6/6to12/ge12/Herb/Shrub/Total,
+Standing_Snag_lt3/ge3/Foliage/Live_lt3/Live_ge3/Total, Total_Biomass, Total_Consumed, Biomass_Removed) — the CONSUMED
+counterpart of FVS_Fuels, NOT the MSE/smoke variant. jl's `_FVS_CONSUMPTION_CREATE = replace(_FVS_FUELS_CREATE,...)`
+(dbs_output.jl:580) is **BYTE-IDENTICAL to this oracle schema** (rigorous PRAGMA table_info diff: 22/22 cols, names+order
+match; scratchpad jlcons.db vs cac_oracle.db). So NO schema bug for the ported (western/CA/OC) variants — jl already
+matches. The 16-col MSE/smoke `dbsfmfuel.f` schema is a DIFFERENT build family jl doesn't target; note as a build-variant
+difference, not a gap. VALUES: jl writes `consumed`=fuel_before−after into the size cols + Total_Biomass/Consumed/Removed;
+these are cornered by the CA fire-behavior straddle (same class as the accepted .sum fire-mortality residual — e.g. a
+weak-fire config shows Flame_length 4.67 vs 15.0), so FVS_Consumption = schema-correct + values-cornered = MEETS the bar,
+NOT a remaining item. ★ LESSON: a schema A/B must dump the ACTUAL oracle DB, not grep a source file whose build may not be
+the one under test — the FFE-DBS-table schema varies by build family. Commit 763e4af8's message is superseded by this.
+★ The FFE-DBS schema-A/B (dump the oracle DB) remains the reusable vehicle that found Fire_Type; fire-event tables have
+NO emission wall.
