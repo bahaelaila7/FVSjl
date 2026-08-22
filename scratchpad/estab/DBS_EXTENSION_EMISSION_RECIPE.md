@@ -757,3 +757,17 @@ have NO ported cwcalc kernel wired into the treelist yet (WC/PN/EC/CA/WS/AK/OP/K
 each = the same one-line dispatch add + clamp, GATED on a per-variant bit-exact full-column A/B (many need their
 cwcalc kernel ported first). ★ LESSON: check for an existing validated kernel (StrClass/FFE already used oc_cwcalc)
 before scoping a "large port" — and always add the shared cwcalc.f [0.5,99.9] clamp.
+
+## ★ CrWidth extended to 7 western variants 2026-08-22 (9ee57c84) — kernel per-tree-exactness varies
+Swept all non-CR western variants with a ported cwcalc kernel (ca/ec/nc/op/pn/wc/so/bm + oc/em/cr) via the full-column
+inventory-year FVS_TreeList A/B (harness: scratchpad/cwtl_cmp.jl + a per-variant DATABASE-block-first key). RESULT:
+  BIT-EXACT (now WIRED): CR, OC, EM, OP, WC, PN, EC — worst |Δ| 0.0 (PN 0.0036 print).
+  NOT per-tree exact (EXCLUDED, keep eastern 0.5 fallback): BM (bm_cwcalc explicitly OMITS the Region-6 forest BF per
+  its own comment ⇒ ~20% low, 15 diffs), SO (4 minor sp WJ/GC/MC/MB off 0.9-2.6), CA (~5% SP-class), NC/Klamath (SP
+  6.5 vs jl 8.9). These kernels pass FFE (crown biomass) + StrClass (strata) because those AGGREGATE crown width; the
+  per-tree TreeList column exposes the forest-BF/species-coef gaps. Each excluded variant = its own kernel audit.
+★ KEY LESSON: a cwcalc kernel validated via an AGGREGATED consumer (FFE/StrClass) is NOT necessarily per-tree bit-
+exact — the FVS_TreeList column is the strict test. The bit-exact 7 share proper forest-BF handling for their ref
+stand; the 4 excluded omit/mishandle BF. Remaining non-CR western with NO kernel wired (KT/IE/UT/TT/CI/AK/BC + the 4
+excluded) still emit CrWidth=0.5; wiring each = confirm/port its cwcalc kernel then the same one-line dispatch add,
+per-variant A/B-gated. Harness reusable (cwtl_cmp.jl).
