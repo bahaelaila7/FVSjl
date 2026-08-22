@@ -768,6 +768,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa Teton             ? tt_cwcalc :
           s.variant isa Utah              ? ut_cwcalc :
           s.variant isa SoutheastAlaska   ? ak_cwcalc :
+          s.variant isa BritishColumbia   ? bc_cwcalc :
           s.variant isa WestCascades      ? wc_cwcalc :
           s.variant isa PacificNorthwest  ? pn_cwcalc :
           s.variant isa EastCascades      ? ec_cwcalc :

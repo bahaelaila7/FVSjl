@@ -44,6 +44,7 @@ using FVSjl
     include("unit/test_tt_crwidth.jl")     # TT FVS_TreeList CrWidth via national cwcalc.f TTMAP (+4 codes 20205/09305/10805/31206) — 4000/4000 vs FVStt_clean, 16th variant
     include("unit/test_ut_crwidth.jl")     # UT FVS_TreeList CrWidth via national cwcalc.f UTMAP (+3 codes 01505/81402/10201) — 4000/4000 vs FVSut_clean, 17th variant
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
+    include("unit/test_bc_crwidth.jl")     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb

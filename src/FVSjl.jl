@@ -95,6 +95,7 @@ include("variants/britishcolumbia/mortality.jl")                # BC mortality!(
 include("variants/britishcolumbia/volume.jl")                   # BC total cubic volume (Kozak taper: CFVOL→MIN→LOG) — chunk 8
 include("variants/britishcolumbia/newspred_shd.jl")             # BC NEWSPRED Shd1/ShdPtr encoded trajectory table (#196 C4)
 include("variants/britishcolumbia/newspred.jl")                 # BC NEWSPRED/NISI spatial dwarf-mistletoe (#196) — C1 state+consts (not yet engine-wired)
+include("variants/britishcolumbia/crown_width.jl")           # BC FVS_TreeList crown width (national cwcalc.f BCMAP dispatch)
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax
