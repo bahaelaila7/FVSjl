@@ -935,3 +935,18 @@ foliage XV(0) for small understory DF differs. Disambiguating needs the oracle's
 keyword on column format). Report-only, narrow (2 trees, layers 5-13), not chased further. The (a) ICR-crbot lead is
 consistent with the QMD 5.14/5.10 small-tree straddle ⇒ likely a cornered OC small-tree crown-ratio realization, not a
 CanProfile-kernel bug.
+
+## FVS_StrClass VALIDATED bit-exact-or-cornered 2026-08-22 (OC ocstr)
+FVS_StrClass (SSTAGE stand structural classification, ksstag.f/sstage.f) is EMITTED + VALIDATED — correcting the
+goal-doc's "missing" (jl structure_stage.jl is a full SSTAGE port + write_dbs_strclass! serializer, both wired at
+simulate.jl:927). A/B FVSoc_clean ocstr vs jl: 9 rows, the 8 years 1993-2008 BIT-EXACT across all 46 cols
+(class/nstr/cover/per-stratum DBH/NomHt/LgHt/SmHt/CrownBase/Cover/Sp1/Sp2/Status); only the FINAL cycle 2013 has 3
+fields ±1 NINT (Sm_Ht 8/9, Crown_Cover 63/62, Total_Cover 63/62) = the multi-cycle growth straddle (cornered).
+The stratum cover REUSES my CrWidth work — _ss_strata uses oc_cwcalc (else generic crown_width→0 cover→BG). Class
+"1=SI"/nstr 1/cover 50.2 all match the oracle at cyc0.
+**★ GOTCHA (cost me a false "empty StrClass"): jl's TREEDATA reads the tree file by KEYFILE BASENAME — a keyfile
+/tmp/ocstr_jl.key looks for /tmp/ocstr_jl.tre, NOT the original ocstr.tre. cp the .tre to the jl keyfile's basename
+(or run in-place) or jl reads t.n=0 → every tree-derived table (StrClass/CanProfile/TreeList) is spuriously empty.**
+⇒ DBS-TABLE STATUS (goal-doc item-2 "missing" list is STALE): FVS_Climate/CanProfile/StrClass/SnagDet all EMITTED;
+SnagDet + StrClass validated bit-exact-or-cornered, CanProfile emitted+cyc0-correct (small-tree cornered tail). Only
+FVS_BM_*/DM_*/RD_* genuinely absent (subsystem-blocked: WWPB-harness/NEWSPRED/dormant-RD).
