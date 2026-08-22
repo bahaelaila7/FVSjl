@@ -898,3 +898,26 @@ this turn), BOTH from eyeballing an imperfect grep/sed extraction of a CREATE st
 The reliable checks are: (a) dump the actual oracle DB and PRAGMA table_info diff, or (b) byte-diff the build's source
 against canonical. A grep with an anchored regex silently drops continuation-line columns ⇒ under-counts ⇒ phantom
 "jl has wrong/missing columns". NEVER conclude a schema mismatch from a grep column-count; diff or dump.
+
+## FVS_CanProfile VALIDATION 2026-08-22 — EMITTED (goal-doc "missing" is STALE); narrow cyc0 residual
+The goal-doc item-2 "MISSING: FVS_Climate/FVS_CanProfile/FVS_StrClass/FVS_SnagDet" is STALE — jl WIRES + emits all
+four (simulate.jl:922-934; toggles at keyword_dispatch.jl). Only FVS_BM_*/DM_*/RD_* are genuinely absent (subsystem).
+**FVS_CanProfile A/B (OC, occanpr.key/occanpr_jl.key, FVSoc_clean vs jl run_keyfile):** jl EMITS 1300 rows (⚠ the
+relative `DSNOUT occanpr_jl.db` writes to CWD /workspace/FVSjl, NOT .ocwork — the known relative-DSNOUT trap; read
+the CWD db). CANFPROF (fmin.f opt 47) parsed at keyword_dispatch.jl:2038 → dbs_canprofile; collected in summary.jl:291
+`push!(canprof_collect,(yr,canopy_crfill(s)))`; canopy_crfill = fmpocr.f uniform branch (OC's LBHPP=Weibull is
+Black-Hills-PP-only: CR for 203/207 sp13, IE/EM/KT sp10 — NOT OC).
+- **cyc0 (1993) MATCHES for all layers ≥14 ft** (the main canopy — large trees bit-exact). Residual = 2 SMALL DF
+  (sp7; ht 11/13, dbh 1.2/1.9) that jl includes with crown fuel at 5-13 ft (+31.19 lbs const at 8-11) but the ORACLE
+  EXCLUDES at those layers (oracle layer-8=11.38 = ONLY sp18; jl=40.32 = sp18+2×sp7). NOT crown_biomass (that's
+  shared with the VALIDATED carbon/fuel tables which match) and NOT LSW (OC LSW(7=DF)=.TRUE., fmvinit.f:200) and NOT
+  CANMHT (OC=6.0=jl). ⇒ a **fmpocr-specific small-tree handling difference** (candidate: fire-model tripling fmtrip.f
+  spreading the small trees' fuel differently, or a per-tree fmpocr filter) — needs an FVSoc DEBUG (fmpocr WRITE 10)
+  relink to nail; report-only, NOT chased.
+- Post-fire years (2003+, SIMFIRE 2003) diverge (jl layers 87 vs oracle 65 @2003) = DOWNSTREAM of the cornered OC
+  fire-mortality/crown straddle (the tree list differs post-fire; canprofile is a faithful function of it).
+- jl emits an EXTRA report year (2053; NUMCYCLE 12 → 1993+12×5) the oracle stops before (2048) — a report-year
+  boundary difference.
+⇒ FVS_CanProfile is EMITTED + cyc0-correct for the main canopy; residual = narrow small-tree low-layer + cornered
+post-fire + extra-year. Characterized-not-fixed (report-only, oracle-DEBUG-relink to fully root-cause). Same pattern
+expected for the other emitted tables — validate the CYC0/pre-disturbance rows, not the post-fire tail.
