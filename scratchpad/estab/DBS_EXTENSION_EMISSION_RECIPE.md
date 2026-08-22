@@ -999,3 +999,17 @@ ocffe_full which has NO SNAGINIT), so the fix needs the exact FMSNAG init-year s
 down-wood/carbon re-validation. Report-only; characterized-not-fixed (not autonomous-safe to touch the shared snag
 fall model blind). ⇒ FINAL DBS status: StrClass ✓ bit-exact-or-cornered, CanProfile ◐ cyc0-correct+cornered-tail,
 SnagDet/SnagSum ✗-open (SNAGINIT fall-timing, report-only), Climate ◐ emitted+cyc0-validated; BM/DM/RD absent.
+
+### SnagSum per-year DEFINITIVE (2026-08-22): TWO separate report-only effects, not one bug
+Full per-year Hard_snags_total A/B (jl/oracle ratio) — ocsnag OC:
+  1993 0.267 · 1998 1.000(EXACT) · 2003 0.787 · 2008 0.799 · 2013 1.128 · 2018 1.162 · 2023 1.225 · 2028 1.301
+  · 2033 1.401 · 2038 1.475 · 2043 1.551 · 2048 1.641 (+ jl extra year 2053).
+⇒ (1) INIT TRANSIENT: 1993 jl 14.76 vs 55.26 (SNAGINIT over-fell in the creation/cyc0 annual loop) but 1998 matches
+EXACTLY (92.99) — the SNAGINIT discrepancy self-resolves within one cycle, so it's an init-cycle report-timing/fall
+transient, NOT a persistent model error. (2) LONG-TAIL: 2013+ jl is progressively HIGHER (1.13→1.64×) — jl falls the
+2003-fire snag pulse TOO SLOWLY over long times (a fall-RATE divergence for aged fire snags, separate from the init
+transient). BOTH report-only (SnagSum/SnagDet); both in update_snags!/snag_fall_density, SHARED with the VALIDATED FFE
+down-wood + FVS_Carbon (validated on ocffe_full, which has neither a SNAGINIT init transient nor this 12-cycle fire-snag
+tail exercised). ⇒ SnagDet is a MULTI-EFFECT report-only discrepancy, not a single clean fix — needs the FMSNAG
+per-cycle DEBUG dump + a careful down-wood/carbon re-validation, NOT an autonomous blind change. Definitively
+characterized; deferred as a deliberate (non-autonomous) chunk.
