@@ -138,6 +138,33 @@ mutable struct WsbweState <: AbstractWsbweState
     # OBSCHED user outbreak windows (start,end) years (IOBOPT==3)
     obsched::Vector{Tuple{Int32,Int32}}
     rng_s0::Float64              # BWERAN COMMON S0 — NaN until first draw, then seeded to `dseed`.
+    # --- GENDEFOL / BUDLITE (chunk 1-2 weather VALIDATED bit-exact; chunk 3 BWELIT pending) ---
+    iwsrc::Int32                 # IWSRC — weather source: 1=model, 2=user file, 3=RAWS
+    iobact::Int32                # IOBACT (GENDEFOL field1) — 1=outbreak active this run
+    iyrobl::Int32                # IYROBL/ILOBYR — year last regional outbreak started (GENDEFOL field2)
+    wfname::String               # WEATHER trailing record — the weather stats file name (A40)
+    bweath::Matrix{Float32}      # BWEATH(10,4) mean/sd/min/max for 10 phenology+precip params (bwein.f)
+    # weather-read runtime cursor (bwewea.f IWSRC=2 cyclic read). NaN treedd sentinel = not-yet-read.
+    wx_wlines::Vector{String}    # the weather file's raw lines (name + 10 stat rows), for cyclic reads
+    wx_pos::Int32                # 0-based count of weather-file lines consumed (per-year read cursor)
+    wx_days::NTuple{3,Float32}   # DAYS(1..3) — persist across years (BWEINT static 0; retain on err)
+    wx_dflush::Float32           # DFLUSH — persist (BWEINT static 0)
+    wx_treedd::Float32           # TREEDD — persist (BWEINT init 350.0, bweint.f:324)
+    # --- BUDLITE outbreak state machine (bwego.f/bwedr.f/bweob.f), persistent across cycles ---
+    ob_setup::Bool               # BWEOB has been run (first-outbreak schedule set)
+    lfirst::Bool                 # LFIRST — next BWELIT call starts a new outbreak (seed EGGS)
+    lrego::Bool                  # LREGO — a regional outbreak is active
+    lcalbw::Bool                 # LCALBW — BUDLITE is called this cycle
+    eggs::Float32                # EGGS — budworm eggs carried across years
+    defyrs::Vector{Float32}      # DEFYRS(6) — years of >20% defol per host (this outbreak)
+    iyrst::Int32                 # IYRST — year next/this regional outbreak starts
+    iyrend::Int32                # IYREND — year it ends
+    iyrecv::Int32                # IYRECV — year of full recovery
+    iyrsrc::Int32                # IYRSRC — recovery years after outbreak (BWEINT=6)
+    iobdur::Int32                # IOBDUR — duration counter of current outbreak
+    lowyrs::Int32                # LOWYRS — consecutive low-defol years
+    krecvr::Int32                # KRECVR — recovery-year counter
+    nobdon::Int32                # NOBDON — number of scheduled outbreaks consumed (IOBOPT=3)
 end
 
 """
@@ -164,6 +191,30 @@ function wsbwe_defaults!()
         NTuple{7,Float32}[],
         Tuple{Int32,Int32}[],
         NaN,            # rng_s0
+        Int32(1),       # iwsrc (bwein.f default 1 until WEATHER sets it)
+        Int32(0),       # iobact
+        Int32(0),       # iyrobl
+        "",             # wfname
+        zeros(Float32, 10, 4),   # bweath
+        String[],       # wx_wlines
+        Int32(0),       # wx_pos
+        (0.0f0, 0.0f0, 0.0f0),   # wx_days  (BWEINT static-zero)
+        0.0f0,          # wx_dflush (BWEINT static-zero)
+        350.0f0,        # wx_treedd (BWEINT init 350.0)
+        false,          # ob_setup
+        false,          # lfirst
+        false,          # lrego
+        false,          # lcalbw
+        0.0f0,          # eggs
+        zeros(Float32,6),  # defyrs
+        Int32(0),       # iyrst
+        Int32(0),       # iyrend
+        Int32(1),       # iyrecv (BWEINT=1)
+        Int32(6),       # iyrsrc (BWEINT=6)
+        Int32(0),       # iobdur
+        Int32(0),       # lowyrs
+        Int32(0),       # krecvr
+        Int32(0),       # nobdon
     )
 end
 
@@ -203,6 +254,90 @@ function wsbwe_seed!(w::WsbweState, seed::Real; lset::Bool=true)
         w.rng_s0 = Float64(w.dseed)
     end
     return nothing
+end
+
+# =============================================================================
+# GENDEFOL / BUDLITE weather read (bwein.f BWEATH + bwewea.f per-year) — VALIDATED
+# BIT-EXACT (594/594 values, hex-identical) vs FVSem_wsbwe on gd3.key (staged
+# scratchpad/wsbwe/gendefol/staged/wxtest.jl). Only `synwx.txt` is SYNTHETIC; this
+# read is a FAITHFUL port. IWSRC=2 path (user weather-stats file).
+# -----------------------------------------------------------------------------
+
+# gfortran F7.1 field parse in BN blank mode (blanks ignored) with implied decimal
+# (no '.' in field ⇒ integer / 10). Returns (value, ok); ok=false on a non-numeric
+# field (letters) — which is how line-1 "SYNTHETIC WX STN" produces the ios=5010 read
+# error that makes bwewea RETAIN the prior year's values.
+@inline function wsbwe_f71(fld::AbstractString)
+    s = replace(fld, " " => "")
+    isempty(s) && return (0.0f0, true)
+    if occursin('.', s)
+        v = tryparse(Float32, s); v === nothing && return (0.0f0, false)
+        return (v, true)
+    else
+        iv = tryparse(Int, s); iv === nothing && return (0.0f0, false)
+        return (Float32(iv) / 10.0f0, true)   # implied .1 scale
+    end
+end
+
+# read one FORMAT(5X,10F7.1) record → (vals[10], ok). ok=false stops at the first bad
+# field (gfortran assigns no items on a conversion error).
+function wsbwe_read_rec(line::AbstractString)
+    L = rpad(line, 75)
+    vals = zeros(Float32, 10)
+    @inbounds for i in 1:10
+        c1 = 5 + (i-1)*7 + 1
+        (v, ok) = wsbwe_f71(L[c1:c1+6])
+        ok || return (vals, false)
+        vals[i] = v
+    end
+    return (vals, true)
+end
+
+"""
+    wsbwe_read_bweath!(w, wlines)
+
+FVS `bwein.f:322-327` (IWSRC=2): consume the weather file's name line (A20) + 10 rows of
+`4F8.3` into `BWEATH(10,4)`. Stores the raw lines for the later cyclic per-year read and
+positions the cursor past them (EOF). VALIDATED bit-exact (10×4). `wlines` = the file's
+lines (`readlines(wfname)`); on this fixture = `synwx.txt`.
+"""
+function wsbwe_read_bweath!(w::WsbweState, wlines::Vector{String})
+    w.wx_wlines = wlines
+    nrow = min(10, length(wlines) - 1)
+    @inbounds for i in 1:nrow
+        line = rpad(wlines[i+1], 32)      # FORMAT(4F8.3): 4 fields × 8 cols
+        for j in 1:4
+            c1 = (j-1)*8 + 1
+            fld = replace(line[c1:c1+7], " " => "")
+            v = isempty(fld) ? 0.0f0 : (something(tryparse(Float32, fld), 0.0f0))
+            w.bweath[i, j] = v
+        end
+    end
+    w.wx_pos = Int32(length(wlines))       # cursor at EOF ⇒ first per-year read rewinds
+    return nothing
+end
+
+"""
+    wsbwe_weather_step!(w) -> (DAYS::NTuple{3,Float32}, DFLUSH, TREEDD, WHOTF, WRAIND, WCOLDW)
+
+FVS `bwewea.f` for ONE budworm year, IWSRC=2 branch. Advances the cyclic
+`FORMAT(5X,10F7.1)` read of the weather file (`REWIND` on EOF), retaining prior values on
+a line-1 conversion error (ios=5010). The predation multipliers (WHOTF/WRAIND/WCOLDW and
+WRAINA/B/1/2/3) are all 1.0 on the EM host (block-data means/sd = 0 ⇒ BWEMUL AMULT=1).
+VALIDATED bit-exact (594/594 values incl. the year-1990 error-leftover TREEDD=350).
+"""
+function wsbwe_weather_step!(w::WsbweState)
+    if w.wx_pos >= length(w.wx_wlines)
+        w.wx_pos = Int32(0)               # REWIND
+    end
+    w.wx_pos += Int32(1)
+    (vals, ok) = wsbwe_read_rec(w.wx_wlines[w.wx_pos])
+    if ok
+        w.wx_days   = (vals[1], vals[2], vals[3])
+        w.wx_dflush = vals[5]
+        w.wx_treedd = vals[6]
+    end   # else: retain prior wx_days/wx_dflush/wx_treedd (line-1 error)
+    return (w.wx_days, w.wx_dflush, w.wx_treedd, 1.0f0, 1.0f0, 1.0f0)
 end
 
 # -----------------------------------------------------------------------------
@@ -272,16 +407,29 @@ function kw_wsbwe!(s::StandState, rec, kr::KeywordReader)
             w.lbwpdm = false
         elseif k == "GENDEFOL"               # opt 14 — BUDLITE outbreak (stochastic, needs weather)
             w.lbudl = true
+            # bwein.f:631-647 opt 15: IOBACT=field1 (1=current outbreak active), IYROBL=field2
+            # (year last outbreak started, default ILOBYR). IBWCHK=1 ⇒ read the weather file at END.
+            w.iobact = (r.present[1]) ? Int32(trunc(r.values[1])) : Int32(0)
+            (r.present[2]) && (w.iyrobl = Int32(trunc(r.values[2])))
         elseif k == "OUTBRLOC"               # opt 15
             (r.present[1]) && (w.iobloc = Int32(trunc(r.values[1])))
             if r.present[2]
                 wsbwe_seed!(w, Float32(r.values[2]); lset=true); w.obseed = w.dseed
             end
         elseif k == "RECOVERY"               # opt 16 — under development, no effect
-        elseif k == "WEATHER"                # opt 17 (reads trailing file-name record[s])
+        elseif k == "WEATHER"                # opt 18 (bwein.f:690) reads trailing file-name record[s]
             (r.present[1]) && (w.iwopt = Int32(trunc(r.values[1])))
+            (r.present[4]) && (w.iwsrc = Int32(trunc(r.values[4])))
             if r.present[3]
                 wsbwe_seed!(w, Float32(r.values[3]); lset=true); w.wseed = w.dseed
+            end
+            # trailing supplemental record(s): bwein.f:751/755. IWSRC 2/3 → one A40 file name;
+            # IWSRC 1 → two skipped records. Consumed from the raw keyfile stream (like the Fortran
+            # READ(IREAD,...)), keeping the record numbering in sync.
+            if w.iwsrc == 2 || w.iwsrc == 3
+                w.wfname = String(strip(readline(kr.io))); kr.record_count += 1
+            elseif w.iwsrc == 1
+                readline(kr.io); readline(kr.io); kr.record_count += 2
             end
         elseif k == "NEMULT"                 # opt 18 — natural-enemy multipliers (BUDLITE)
         elseif k == "BWOUTPUT"               # opt 19 — output-table flags
@@ -576,6 +724,273 @@ end
     (ihtc, ihtc*3-2, ihtc*3)
 end
 
+# =============================================================================
+# BUDLITE population/defoliation core (bwelit.f + bwedie.f) — GENDEFOL path.
+# VALIDATED BIT-EXACT (dump-replay vs FVSem_wsbwe on gd3.key): all 5 outbreak
+# years (1990/1991/1992/2007/2008) reproduce FNEW/FOLD1/FOLD2/FREM (216 cells),
+# EGGS, and DEFLYR hex-identical. Block data transcribed verbatim from bwebkem.f /
+# bweint.f (EM). All Float32 transcendentals via glibc (wsbwe_exp/wsbwe_log).
+# =============================================================================
+_g9(a,b,c) = Float32[a,b,c,a,b,c,a,b,c]
+const WSBWE_PHENOL = reshape(Float32[.38,.31,.31, .42,.34,.24, .38,.31,.31, .38,.31,.31, .42,.34,.24, 0,0,0],(3,6))
+const WSBWE_GMAX = reshape(vcat(_g9(79.10f0,67.94f0,60.96f0),_g9(93.77f0,76.07f0,58.49f0),_g9(79.10f0,67.94f0,60.96f0),_g9(79.10f0,67.94f0,60.96f0),_g9(93.77f0,76.07f0,58.49f0),fill(0.0f0,9)),(9,6))
+const WSBWE_GMIN = reshape(vcat(_g9(1.66f0,2.00f0,1.36f0),_g9(5.71f0,5.95f0,6.11f0),_g9(1.66f0,2.00f0,1.36f0),_g9(1.66f0,2.00f0,1.36f0),_g9(5.71f0,5.95f0,6.11f0),fill(1.0f0,9)),(9,6))
+const WSBWE_A1 = reshape(vcat(_g9(-77.484f0,-65.953f0,-59.639f0),_g9(-88.180f0,-70.158f0,-52.378f0),_g9(-77.484f0,-65.953f0,-59.639f0),_g9(-77.484f0,-65.953f0,-59.639f0),_g9(-88.180f0,-70.158f0,-52.378f0),fill(1.0f0,9)),(9,6))
+const WSBWE_A2 = reshape(vcat(_g9(-7.663f0,-8.976f0,-7.345f0),_g9(-6.606f0,-7.549f0,-11.263f0),_g9(-7.663f0,-8.976f0,-7.345f0),_g9(-7.663f0,-8.976f0,-7.345f0),_g9(-6.606f0,-7.549f0,-11.263f0),fill(1.0f0,9)),(9,6))
+const WSBWE_A3 = reshape(vcat(_g9(.02307f0,.02733f0,.02227f0),_g9(.01879f0,.02173f0,.03350f0),_g9(.02307f0,.02733f0,.02227f0),_g9(.02307f0,.02733f0,.02227f0),_g9(.01879f0,.02173f0,.03350f0),fill(1.0f0,9)),(9,6))
+const WSBWE_A4 = reshape(vcat(_g9(79.105f0,67.944f0,60.965f0),_g9(93.768f0,76.070f0,58.492f0),_g9(79.105f0,67.944f0,60.965f0),_g9(79.105f0,67.944f0,60.965f0),_g9(93.768f0,76.070f0,58.492f0),fill(1.0f0,9)),(9,6))
+const WSBWE_EATEN = reshape(Float32[.01066,.256, .0084,.2015, .00894,.2145, .00927,.2225, .0084,.2015, 0,0],(2,6))
+const WSBWE_ECI   = reshape(Float32[.0583,.0437, .0878,.0659, .0583,.0437, .0640,.0480, .0878,.0659, 0,0],(2,6))
+const WSBWE_WASTEDb = Float32[.1,.5]; const WSBWE_WASTO=0.6f0; const WSBWE_OLDMAX=0.30f0
+const WSBWE_AVEAMT = Float32[.3320,.2551,.2760,.2610,.2551,0.0]
+const WSBWE_EGG1 = Float32[2.144,1.868,2.144,2.144,2.144,0.0]
+const WSBWE_EGG2 = Float32[-0.478,3.921,-0.478,-0.478,-0.478,0.0]
+const WSBWE_FRESHC = Float32[4.02,3.54,4.02,3.59,3.84,0.0]
+const WSBWE_FWSURV=0.29f0; const WSBWE_SRATIO=0.5f0; const WSBWE_PMATED=1.0f0
+const WSBWE_EGGDEN=226.0f0; const WSBWE_GPERM2=398.0f0; const WSBWE_ADMORT=0.05f0; const WSBWE_EPMASS=41.7f0
+const WSBWE_SYNCHX=Float32[0,13,16,19,22,35]; const WSBWE_SYNCHY=Float32[0.3,0.8,1.0,1.0,0.8,0.3]
+const WSBWE_RPHEN=Float32[0.9,1.0,0.9,0.9,1.0,1.0]
+const WSBWE_DISPXb=Float32[0.0,0.8,0.9,1.0]; const WSBWE_DISPYb=Float32[0.5,0.0,0.0,0.0]
+const WSBWE_OLDXb=Float32[0.0,0.8,0.9,1.0]; const WSBWE_OLDYb=Float32[0.5,0.0,0.0,0.0]
+const WSBWE_EWTX=Float32[0.0,1.0,1.1,1.2]; const WSBWE_EWTY=Float32[1.0,0.5,0.5,0.5]
+const WSBWE_FOLWTXb=Float32[0.0,1.0,6.0,50.0]; const WSBWE_FOLWTY=Float32[1.0,1.0,0.9,0.9]
+const WSBWE_FOLDVX=Float32[0.0,1.0,6.0,50.0]; const WSBWE_FOLDVY=Float32[1.0,1.0,1.1,1.1]
+const WSBWE_DISPMX=Float32[1000.0,400.0,0.0,0.0]; const WSBWE_DISPMY=Float32[.20,.20,.40,.40]
+const WSBWE_OBPHX=Float32[0.0,1.0,6.0,50.0]
+const WSBWE_OBPHAS=reshape(Float32[0.0,0.13,0.128, 0.0,0.375,0.364],(3,2))
+const WSBWE_DISPDR=Float32[.20,.15,.10,.08,.06,.04,.01,.01,.01]
+const WSBWE_PRATE=Float32[-0.071,-0.071,-0.071,-0.039,-0.039,-0.071,-0.039,-0.039,-0.039]
+const WSBWE_ANT_BD=Float32[.40,.60,.80,.10,.30,.60,.10,.10,.30]
+const WSBWE_STARVX=reshape(Float32[0.0,0.0, 0.1,0.2, 0.15,0.8, 1.0,1.0],(2,4))
+const WSBWE_STARVY=reshape(Float32[.85,0.4, 0.85,0.3, 0.85,0.1, 0.0,0.0],(2,4))
+const WSBWE_DEVEL=0.373f0; const WSBWE_DEVELS=Float32[0.0,0.20,0.69]
+
+# BWELIT per-year mutable scratch (carries the Fortran-static SAVKIL across BWEDIE calls).
+mutable struct WsbweLitCtx
+    BW::Matrix{Float32}; ACTNEW::Matrix{Float32}; SAVKIL::Matrix{Float32}
+    DEFYRS::Vector{Float32}; DAYS::NTuple{3,Float32}
+end
+
+# BWEDIE (bwedie.f): survival for small(1)/large(2) larvae and pupae(3). Mutates ctx.BW;
+# returns (EATFOL, TOTDIE, out14=starvation-deaths). GODISP reset to 0 at entry (faithful).
+function wsbwe_bwedie!(ctx::WsbweLitCtx, istage::Int, ic::Int, ih::Int)
+    BW=ctx.BW; ACTNEW=ctx.ACTNEW
+    STARV=0.0f0; EATFOL=0.0f0; GODISP=0.0f0
+    BW[ic,ih] < 1.0f0 && return (0.0f0,0.0f0,0.0f0)
+    if istage != 3
+        if ACTNEW[ic,ih] < 1.0f0
+            STARV = WSBWE_STARVY[istage,1]
+        else
+            POTCLP = BW[ic,ih]*WSBWE_EATEN[istage,ih]/(1.0f0-WSBWE_WASTEDb[istage])
+            if POTCLP > ACTNEW[ic,ih]
+                BWNEW = ACTNEW[ic,ih]*(1.0f0-WSBWE_WASTEDb[istage])/WSBWE_EATEN[istage,ih]
+                RATIO = 1.0f0; BW[ic,ih]>1.0f0 && (RATIO=BWNEW/BW[ic,ih])
+                sx=Float32[WSBWE_STARVX[istage,k] for k in 1:4]; sy=Float32[WSBWE_STARVY[istage,k] for k in 1:4]
+                STARV = wsbwe_bweslp(RATIO,sx,sy,4)
+                EATFOL = (POTCLP-ACTNEW[ic,ih])*0.5f0
+                EATMAX = ACTNEW[ic,ih]*0.85f0
+                EATFOL>EATMAX && (EATFOL=EATMAX)
+            end
+        end
+    end
+    X=1.0f0
+    FOLQL = wsbwe_bweslp(ctx.DEFYRS[ih],WSBWE_FOLDVX,WSBWE_FOLDVY,4)
+    local Y
+    if istage==1
+        Y=wsbwe_exp(WSBWE_PRATE[ic]*(ctx.DAYS[1]*0.333f0*FOLQL))
+    elseif istage==2
+        Y=wsbwe_exp(WSBWE_PRATE[ic]*ctx.DAYS[2]*FOLQL); ctx.SAVKIL[ic,ih]=Y
+    else
+        Y=wsbwe_exp(WSBWE_PRATE[ic]*(ctx.DAYS[2]+ctx.DAYS[3])); X=ctx.SAVKIL[ic,ih]
+    end
+    PREDKL=BW[ic,ih]*(X-Y)
+    ANTS = PREDKL*WSBWE_ANT_BD[ic]/BW[ic,ih]
+    BIRDS= PREDKL*(1.0f0-WSBWE_ANT_BD[ic])/BW[ic,ih]
+    PARAS=0.0f0
+    if istage != 1
+        OBPHY=Float32[WSBWE_OBPHAS[istage,1],WSBWE_OBPHAS[istage,1],WSBWE_OBPHAS[istage,2],WSBWE_OBPHAS[istage,2]]
+        PARAS=wsbwe_bweslp(ctx.DEFYRS[ih],WSBWE_OBPHX,OBPHY,4)
+    end
+    GODISP=GODISP/BW[ic,ih]      # bwedie.f:217 (=0, arg ignored)
+    STARV>0.99f0 && (STARV=0.99f0); ANTS>0.99f0 && (ANTS=0.99f0)
+    BIRDS>0.99f0 && (BIRDS=0.99f0); PARAS>0.99f0 && (PARAS=0.99f0)
+    GODISP>0.99f0 && (GODISP=0.99f0)
+    DISPI=-wsbwe_log(1.0f0-GODISP); STARVI=-wsbwe_log(1.0f0-STARV)
+    ANTSI=-wsbwe_log(1.0f0-ANTS); BIRDSI=-wsbwe_log(1.0f0-BIRDS); PARASI=-wsbwe_log(1.0f0-PARAS)
+    TOTIR=DISPI+STARVI+ANTSI+BIRDSI+PARASI
+    TOTAM=1.0f0-wsbwe_exp(-TOTIR)
+    TOTDIE=TOTAM*BW[ic,ih]
+    BW[ic,ih]=BW[ic,ih]-TOTDIE
+    out14 = TOTIR>0.0f0 ? TOTDIE*STARVI/TOTIR : 0.0f0
+    return (EATFOL,TOTDIE,out14)
+end
+
+"""
+    wsbwe_bwelit!(FNEW,FOLD1,FOLD2,FREM, EGGS, HOSTST, TREEDD, DFLUSH, DAYS, DEFYRS) -> (EGGSout, DEFLYR, ran)
+
+FVS `BWELIT` (bwelit.f) — one budworm year of BUDLITE population dynamics + defoliation.
+Mutates the foliage arrays FNEW/FOLD1/FOLD2/FREM (9 crown-cells × 6 hosts) in place and
+returns next-year EGGS, the stand-weighted %defoliation DEFLYR, and whether the model ran
+(false = early return: no foliage, or <1 L2 survivor). DEFYRS is mutated in place (host
+outbreak-year counter). VALIDATED bit-exact (216 cells + EGGS + DEFLYR, 5 years).
+"""
+function wsbwe_bwelit!(FNEW,FOLD1,FOLD2,FREM, EGGS::Float32, HOSTST::Float32,
+                       TREEDD::Float32, DFLUSH0::Float32, DAYS::NTuple{3,Float32}, DEFYRS::Vector{Float32};
+                       lfirst::Bool=false)
+    OLDFOL=zeros(Float32,9,6); POTNEW=zeros(Float32,9,6); PEXPAN=zeros(Float32,9,6)
+    ACTNEW=zeros(Float32,9,6); BW=zeros(Float32,9,6)
+    RATNEW=ones(Float32,9,6); FEDOLD=zeros(Float32,9,6); EARLYP=zeros(Float32,9,6)
+    IDONE=zeros(Int,6); SYNCH=zeros(Float32,6); SPOTN=zeros(Float32,6); SACTN=zeros(Float32,6)
+    SAVKIL=zeros(Float32,9,6)
+    DFLUSH=DFLUSH0
+    TOTALO=0.0f0; TOTALN=0.0f0; WTNFOL=0.0f0
+    for ic in 1:9
+        icrown=mod(ic,3); icrown==0 && (icrown=3)
+        for ih in 1:6
+            OLDFOL[ic,ih]=FOLD1[ic,ih]+FOLD2[ic,ih]+FREM[ic,ih]
+            POTNEW[ic,ih]=FNEW[ic,ih]
+            TOTALN+=FNEW[ic,ih]; TOTALO+=OLDFOL[ic,ih]
+            WTNFOL+=POTNEW[ic,ih]*WSBWE_PHENOL[icrown,ih]
+        end
+    end
+    (TOTALN<1.0f0 && TOTALO<1.0f0) && return (EGGS,0.0f0,false)
+    WTNFOL<1.0f0 && return (EGGS,0.0f0,false)
+    # bwelit.f:294 LFIRST — first outbreak year: seed EGGS from foliage + egg density.
+    lfirst && (EGGS = WSBWE_EGGDEN*(TOTALN+TOTALO)/WSBWE_GPERM2)
+    TOTL2S=EGGS*WSBWE_FWSURV     # *WCOLDW(=1)
+    TOTL2S<1.0f0 && return (EGGS,0.0f0,false)
+    ctx=WsbweLitCtx(BW,ACTNEW,SAVKIL,DEFYRS,DAYS)
+    # ---- small larvae (bwelit.f loop 100) ----
+    for ic in 1:9
+        icrown=mod(ic,3); icrown==0 && (icrown=3)
+        for ih in 1:6
+            POTNEW[ic,ih]<1.0f0 && continue
+            POTBW=TOTL2S*(POTNEW[ic,ih]*WSBWE_PHENOL[icrown,ih]/WTNFOL)
+            if IDONE[ih]==0
+                IDONE[ih]=1; DFLUSH=DFLUSH*WSBWE_RPHEN[ih]
+                SYNCH[ih]=wsbwe_bweslp(DFLUSH,WSBWE_SYNCHX,WSBWE_SYNCHY,6)
+            end
+            BW[ic,ih]=POTBW*SYNCH[ih]      # *WRAIND*WHOTF (=1)
+            if ic>=4
+                SHOOTL=WSBWE_A4[ic,ih]+(WSBWE_A1[ic,ih]/(1.0f0+wsbwe_exp(WSBWE_A2[ic,ih]+(WSBWE_A3[ic,ih]*TREEDD))))
+            else
+                Xx=TREEDD*1.1f0
+                SHOOTL=WSBWE_A4[ic,ih]+(WSBWE_A1[ic,ih]/(1.0f0+wsbwe_exp(WSBWE_A2[ic,ih]+(WSBWE_A3[ic,ih]*Xx))))
+            end
+            PEXPAN[ic,ih]=((SHOOTL-WSBWE_GMIN[ic,ih])/(WSBWE_GMAX[ic,ih]-WSBWE_GMIN[ic,ih]))
+            ACTNEW[ic,ih]=POTNEW[ic,ih]*PEXPAN[ic,ih]
+            (EATFOL,DEADL,OUT14)=wsbwe_bwedie!(ctx,1,ic,ih)
+            POTCLP=(BW[ic,ih]*WSBWE_EATEN[1,ih]/(1.0f0-WSBWE_WASTEDb[1]))+EATFOL
+            if POTCLP<=ACTNEW[ic,ih]
+                ACTNEW[ic,ih]-=POTCLP
+            elseif BW[ic,ih]<1.0f0
+                ACTNEW[ic,ih]-=EATFOL; ACTNEW[ic,ih]<0.0f0 && (ACTNEW[ic,ih]=0.0f0)
+            else
+                PRSTRV=OUT14/(OUT14+BW[ic,ih])
+                EATFOL>(ACTNEW[ic,ih]*0.9f0) && (EATFOL=EATFOL*PRSTRV)
+                BWNEW=(ACTNEW[ic,ih]-EATFOL)*(1.0f0-WSBWE_WASTEDb[1])/WSBWE_EATEN[1,ih]
+                BWNEW<0.0f0 && (BWNEW=0.0f0)
+                BW[ic,ih]=BWNEW; ACTNEW[ic,ih]=0.0f0
+            end
+        end
+    end
+    # ---- large-larvae dispersal (loop 120) ----
+    TOTFN=0.0f0; TOTFOL=0.0f0; BWDISP=0.0f0
+    for ic in 1:9, ih in 1:6
+        POTNEW[ic,ih]<1.0f0 && continue
+        ACTNEW[ic,ih]+=((1.0f0-PEXPAN[ic,ih])*POTNEW[ic,ih])
+        POTCLP=BW[ic,ih]*WSBWE_EATEN[2,ih]/(1.0f0-WSBWE_WASTEDb[2])
+        TOTFN+=ACTNEW[ic,ih]*WSBWE_DISPDR[ic]
+        TOTFOL+=(ACTNEW[ic,ih]+OLDFOL[ic,ih])*WSBWE_DISPDR[ic]
+        if POTCLP>ACTNEW[ic,ih]
+            BWNEW=ACTNEW[ic,ih]*(1.0f0-WSBWE_WASTEDb[2])/WSBWE_EATEN[2,ih]
+            RATIO=1.0f0; BW[ic,ih]>=1.0f0 && (RATIO=BWNEW/BW[ic,ih])
+            PDISP=wsbwe_bweslp(RATIO,WSBWE_DISPXb,WSBWE_DISPYb,2)
+            if PDISP>0.0f0
+                d=BW[ic,ih]*PDISP; BWDISP+=d; BW[ic,ih]-=d
+            end
+        end
+    end
+    DISPMR = HOSTST==0.0f0 ? 1.0f0 : wsbwe_bweslp(HOSTST,WSBWE_DISPMX,WSBWE_DISPMY,4)
+    # ---- redistribute + large feeding + defol (loop 140) ----
+    for ic in 1:9, ih in 1:6
+        RATNEW[ic,ih]=1.0f0; FEDOLD[ic,ih]=0.0f0; EARLYP[ic,ih]=0.0f0
+        POTNEW[ic,ih]<1.0f0 && continue
+        if BWDISP>0.0f0
+            DISPIN = TOTFN>1.0f0 ? BWDISP*ACTNEW[ic,ih]*WSBWE_DISPDR[ic]/TOTFN :
+                     (TOTFOL>1.0f0 ? BWDISP*(ACTNEW[ic,ih]+OLDFOL[ic,ih])*WSBWE_DISPDR[ic]/TOTFOL : 0.0f0)
+            BW[ic,ih]+=(DISPIN*(1.0f0-DISPMR))
+        end
+        BW[ic,ih] < 1.0f0 && continue          # bwelit.f:647 GO TO 140 (skip defol)
+        (EATFOL,DEADL,_)=wsbwe_bwedie!(ctx,2,ic,ih)
+        if BW[ic,ih]>=1.0f0                     # bwelit.f:663 GO TO 130 if BW<1 (skip feeding)
+            DEDEAT=(WSBWE_DEVEL*DEADL)*WSBWE_EATEN[2,ih]/(1.0f0-WSBWE_WASTEDb[2])   # SPRDIE=0
+            PRSTRV=DEADL/(DEADL+BW[ic,ih])
+            DEDEAT>(ACTNEW[ic,ih]*0.9f0) && (DEDEAT=DEDEAT*PRSTRV)
+            POTCLP=(BW[ic,ih]*WSBWE_EATEN[2,ih]/(1.0f0-WSBWE_WASTEDb[2]))+DEDEAT
+            if ACTNEW[ic,ih]>POTCLP
+                ACTNEW[ic,ih]-=POTCLP
+            else
+                BWNEW=(ACTNEW[ic,ih]-DEDEAT)*(1.0f0-WSBWE_WASTEDb[2])/WSBWE_EATEN[2,ih]
+                BWNEW<0.0f0 && (BWNEW=0.0f0)
+                ACTNEW[ic,ih]=0.0f0
+                RATNEW[ic,ih]=BWNEW/BW[ic,ih]; RATNEW[ic,ih]>1.0f0 && (RATNEW[ic,ih]=1.0f0)
+                FEDOLD[ic,ih]=wsbwe_bweslp(RATNEW[ic,ih],WSBWE_OLDXb,WSBWE_OLDYb,3)
+                EARLYP[ic,ih]=1.0f0-RATNEW[ic,ih]-FEDOLD[ic,ih]
+                Xn=RATNEW[ic,ih]+EARLYP[ic,ih]+FEDOLD[ic,ih]
+                if Xn!=1.0f0
+                    RATNEW[ic,ih]-=(RATNEW[ic,ih]*(Xn-1.0f0)/Xn)
+                    EARLYP[ic,ih]-=(EARLYP[ic,ih]*(Xn-1.0f0)/Xn)
+                    FEDOLD[ic,ih]-=(FEDOLD[ic,ih]*(Xn-1.0f0)/Xn)
+                end
+            end
+        end
+        # label 130 — defoliation
+        DEFNEW=100.0f0*(1.0f0-(ACTNEW[ic,ih]/POTNEW[ic,ih]))
+        FNEW[ic,ih]=FNEW[ic,ih]*(1.0f0-(DEFNEW/100.0f0))
+        if FEDOLD[ic,ih]!=0.0f0
+            AMOUNT=BW[ic,ih]*FEDOLD[ic,ih]*WSBWE_EATEN[2,ih]/(1.0f0-WSBWE_WASTO)
+            AVAILO=OLDFOL[ic,ih]*WSBWE_OLDMAX
+            local DEFOLD
+            if AMOUNT>=AVAILO
+                BWOLD=AVAILO*(1.0f0-WSBWE_WASTO)/WSBWE_EATEN[2,ih]
+                OLDFOL[ic,ih]=OLDFOL[ic,ih]*(1.0f0-WSBWE_OLDMAX)
+                DEFOLD=100.0f0*WSBWE_OLDMAX
+                Xx=BW[ic,ih]-BWOLD; Xx<0.0f0 && (Xx=BW[ic,ih]); BW[ic,ih]-=Xx
+            else
+                DEFOLD=100.0f0*AMOUNT/OLDFOL[ic,ih]; OLDFOL[ic,ih]-=AMOUNT
+            end
+            FOLD1[ic,ih]*=(1.0f0-(DEFOLD/100.0f0)); FOLD2[ic,ih]*=(1.0f0-(DEFOLD/100.0f0)); FREM[ic,ih]*=(1.0f0-(DEFOLD/100.0f0))
+        end
+        SACTN[ih]+=ACTNEW[ic,ih]; SPOTN[ih]+=POTNEW[ic,ih]
+    end
+    # ---- %defol / DEFYRS / DEFLYR (loop 145) ----
+    SUMPOT=0.0f0; DEFLYR=0.0f0
+    for ih in 1:5
+        DEFOL=0.0f0
+        SPOTN[ih]>0.0f0 && (DEFOL=100.0f0*(SPOTN[ih]-SACTN[ih])/SPOTN[ih])
+        DEFOL>20.0f0 && (DEFYRS[ih]+=1.0f0)
+        SUMPOT+=SPOTN[ih]; DEFLYR+=(DEFOL*SPOTN[ih])
+    end
+    DEFLYR = SUMPOT>0.0f0 ? DEFLYR/SUMPOT : 0.0f0
+    # ---- egg production (loop 160) ----
+    EGGSout=0.0f0
+    for ic in 1:9, ih in 1:6
+        BW[ic,ih]<1.0f0 && continue
+        wsbwe_bwedie!(ctx,3,ic,ih)
+        FOLQL=wsbwe_bweslp(DEFYRS[ih],WSBWE_FOLWTXb,WSBWE_FOLWTY,4)
+        EPINDX=wsbwe_bweslp(EARLYP[ic,ih],WSBWE_EWTX,WSBWE_EWTY,4)
+        DRYWT=(RATNEW[ic,ih]*WSBWE_AVEAMT[ih]*WSBWE_ECI[1,ih])+(FEDOLD[ic,ih]*WSBWE_AVEAMT[ih]*WSBWE_ECI[2,ih])+(EARLYP[ic,ih]*WSBWE_AVEAMT[ih]*WSBWE_ECI[1,ih]*EPINDX)
+        PUPAWT=DRYWT*WSBWE_FRESHC[ih]*1000.0f0*FOLQL
+        FEMS=BW[ic,ih]*WSBWE_SRATIO*WSBWE_PMATED
+        EGGFEM=(PUPAWT*WSBWE_EGG1[ih])+WSBWE_EGG2[ih]
+        EGGNEW=FEMS*EGGFEM*(1.0f0-WSBWE_ADMORT)
+        EGSTAY=FEMS*(1.0f0-WSBWE_ADMORT)*WSBWE_EPMASS
+        EGGSout+=EGSTAY; EGGSout+=(EGGNEW-EGSTAY)
+    end
+    return (EGGSout, DEFLYR, true)
+end
+
 # -----------------------------------------------------------------------------
 # BWEGO gate + wsbwe_apply! seam (mirrors the DFB LDFBGO / MPB seam).
 # -----------------------------------------------------------------------------
@@ -587,7 +1002,29 @@ block is active with `LDEFOL` and at least one DEFOL activity is scheduled. The
 `LCALBW/LBUDL` regional-outbreak (BUDLITE) branch is deferred (returns false).
 """
 @inline wsbwe_go(w::WsbweState)::Bool =
-    w.active && w.ldefol && !isempty(w.defol_sched)
+    w.active && ((w.ldefol && !isempty(w.defol_sched)) || w.lbudl)
+# NOTE: for LBUDL the real per-cycle BWEGO scheduling (LREGO/LCALBW, needs IY(ICYC)+FINT)
+# runs inside wsbwe_apply!; this coarse gate just admits the branch.
+
+# BWEOB (bweob.f) — schedule the outbreak. Only the IOBOPT=3 (user start/end) branch is
+# needed for the GENDEFOL fixture; it draws NO random numbers (the 2 BWERAN calls are the
+# IOBOPT≠3 branches). Sets the first scheduled window and the LFIRST/counters for a new outbreak.
+function wsbwe_bweob!(w::WsbweState)
+    if w.iobopt == 3
+        if Int(w.nobdon) < length(w.obsched)
+            w.nobdon += Int32(1)
+            (st, en) = w.obsched[Int(w.nobdon)]
+            w.iyrst = st; w.iyrend = en
+        else
+            w.iyrst = Int32(0); w.iyrend = Int32(0); w.iyrecv = Int32(0)
+        end
+    end
+    w.iyrobl = w.iyrst
+    w.iyrecv = w.iobopt == 3 ? (w.iyrend + w.iyrsrc) : w.iyrecv
+    w.lfirst = true; w.iobdur = Int32(0); w.lowyrs = Int32(0)
+    fill!(w.defyrs, 0.0f0)
+    return nothing
+end
 
 # DEFOL crown-index range (bwesin.f) for a crown code (0..15) → (icrc1,icrc2,step).
 @inline function wsbwe_crown_range(crn::Int)
@@ -613,7 +1050,7 @@ is DEFERRED; the BWESIT LSKBIO reset (IY(ICYC) > IPRBYR) applies for a fresh out
 """
 function wsbwe_feeder(w::WsbweState, ns::Int, sp, ht, dbh, dg, icr, prob,
                       ibwspm, ibiomp, elev::Float32, oldtpa::Float32, ormsqd::Float32,
-                      fint::Float32, ifint::Int, iy_start::Int)
+                      fint::Float32, ifint::Int, iy_start::Int; budlite::Bool=false)
     # --- BWEBMS (ICVOPT=2) foliage biomass WK4 per tree ---
     alntpa = wsbwe_log(oldtpa)
     WK4 = zeros(Float32, ns)
@@ -661,6 +1098,13 @@ function wsbwe_feeder(w::WsbweState, ns::Int, sp, ht, dbh, dg, icr, prob,
         FOLADJ[ihost,ic,ia] = FOLPOT[ihost,ic,ia]*1.0f0   # ×POFPOT(=1 on reset)
     end
     IFHOST[6] = 0   # BWEADV folds larch into nonhost then drops it as a host
+    # HOSTST (bwesit.f:418) — host trees/acre = Σ BWTPHA(host,sz)·0.4047 (BUDLITE dispersal mort).
+    HOSTST = 0.0f0
+    if budlite
+        for ihost in 1:6, iszi in 1:3
+            HOSTST += BWTPHA[ihost,iszi]*0.4047f0
+        end
+    end
     FNEW=zeros(Float32,9,6); FOLD1=zeros(Float32,9,6); FOLD2=zeros(Float32,9,6); FREM=zeros(Float32,9,6)
     PRBIO=ones(Float32,6,9,4)
     for ihost in 1:6
@@ -691,22 +1135,41 @@ function wsbwe_feeder(w::WsbweState, ns::Int, sp, ht, dbh, dg, icr, prob,
                 TOTP[ihost,iszi]+=FREM[ic,ihost]
             end
         end
-        # BWEDEF (scheduled DEFOLs firing this year)
-        for d in w.defol_sched
-            Int(trunc(d[1])) == IYRCUR || continue
-            spc = Int(trunc(d[2]))
-            is1 = spc <= 0 ? 1 : ibwspm[spc]
-            is2 = spc <= 0 ? 5 : is1
-            is1 > 6 && continue
-            (c1,c2,c3) = wsbwe_crown_range(Int(trunc(d[3])))
-            pnew=d[4]; p1=d[5]; p2=d[6]; prem=d[7]
-            for ih in is1:is2
-                IFHOST[ih]==0 && continue
-                for ic in c1:c3:c2
-                    FNEW[ic,ih]  *= (1.0f0-(pnew/100.0f0))
-                    FOLD1[ic,ih] *= (1.0f0-(p1/100.0f0))
-                    FOLD2[ic,ih] *= (1.0f0-(p2/100.0f0))
-                    FREM[ic,ih]  *= (1.0f0-(prem/100.0f0))
+        if budlite
+            # BWEDR BUDLITE branch (bwedr.f:145-232). LREGO active this cycle (set by BWEGO).
+            if w.lrego
+                if IYRCUR > Int(w.iyrend) && Int(w.iyrend) > 0
+                    w.lcalbw = false                       # outbreak ended (KEND=1)
+                elseif Int(w.iyrend) == -1 && Int(w.lowyrs) >= 3 && Int(w.iobdur) > 5 && IYRCUR >= Int(w.iyrst)
+                    w.lcalbw = false; w.iyrend = Int32(IYRCUR-1)
+                elseif IYRCUR >= Int(w.iyrst)
+                    # BWEWEA advances the weather cursor each outbreak year (bwelit.f:308).
+                    (days, dflush, treedd, _, _, _) = wsbwe_weather_step!(w)
+                    (eggs2, deflyr, ran) = wsbwe_bwelit!(FNEW,FOLD1,FOLD2,FREM, w.eggs,
+                        HOSTST, treedd, dflush, days, w.defyrs; lfirst=w.lfirst)
+                    w.eggs = eggs2; w.lfirst = false; w.iobdur += Int32(1)
+                    # LOWYRS update (bwelit.f:786) — only when BWELIT actually ran.
+                    ran && (deflyr <= 10.0f0 ? (w.lowyrs += Int32(1)) : (w.lowyrs = Int32(0)))
+                end
+            end
+        else
+            # BWEDEF (scheduled manual DEFOLs firing this year)
+            for d in w.defol_sched
+                Int(trunc(d[1])) == IYRCUR || continue
+                spc = Int(trunc(d[2]))
+                is1 = spc <= 0 ? 1 : ibwspm[spc]
+                is2 = spc <= 0 ? 5 : is1
+                is1 > 6 && continue
+                (c1,c2,c3) = wsbwe_crown_range(Int(trunc(d[3])))
+                pnew=d[4]; p1=d[5]; p2=d[6]; prem=d[7]
+                for ih in is1:is2
+                    IFHOST[ih]==0 && continue
+                    for ic in c1:c3:c2
+                        FNEW[ic,ih]  *= (1.0f0-(pnew/100.0f0))
+                        FOLD1[ic,ih] *= (1.0f0-(p1/100.0f0))
+                        FOLD2[ic,ih] *= (1.0f0-(p2/100.0f0))
+                        FREM[ic,ih]  *= (1.0f0-(prem/100.0f0))
+                    end
                 end
             end
         end
@@ -876,7 +1339,6 @@ function wsbwe_apply!(s::StandState, old_tpa, fint)
     w = s.wsbwe
     (w === nothing || !(w::WsbweState).active) && return nothing
     ww = w::WsbweState
-    ww.lbudl && return nothing                 # BUDLITE/GENDEFOL deferred
     ibwspm = wsbwe_ibwspm_for(s.variant)             # per-variant host-class map (EM, TT ported+validated)
     ibwspm === nothing && return nothing             # unsupported variant → inert
     ibiomp = wsbwe_ibiomp_for(s.variant)
@@ -916,13 +1378,42 @@ function wsbwe_apply!(s::StandState, old_tpa, fint)
     # outbreak, where the oracle never calls BWECUP — non-faithful and it consumes the RNG stream.
     # A byte-identical no-op on any cycle with no scheduled DEFOL year (must precede any RNG draw).
     lastyr_cyc = iy_st + ifint - 1
-    any(d -> (iy_st <= Int(trunc(d[1])) <= lastyr_cyc), ww.defol_sched) || return nothing
-    # --- FEEDER ---
-    (PRBIO, PEDDS, PEHTG, AVYRMX, IFHOST) = wsbwe_feeder(ww, ns,
-        t.species, t.height, t.dbh, t.diam_growth, t.crown_pct, t.tpa,
-        ibwspm, ibiomp, elev, oldtpaS, ormsqd, fintf, ifint, iy_st)
-    # NOBWYR/IBWYR/FA — the outbreak spans the whole cycle on the DEFOL path (FA=0)
-    IBWYR = ifint; NOBWYR = 0; FA = 0.0f0
+    if ww.lbudl
+        # ================= BUDLITE / GENDEFOL branch =================
+        # One-time setup (mirrors bwein.f END: read the weather stats file, CALL BWEOB).
+        if !ww.ob_setup
+            if isempty(ww.wx_wlines) && !isempty(ww.wfname) && isfile(ww.wfname)
+                wsbwe_read_bweath!(ww, readlines(ww.wfname))
+            end
+            wsbwe_bweob!(ww)                 # schedule outbreak (IOBOPT=3: no RNG)
+            ww.ob_setup = true
+        end
+        # BWEGO (bwego.f) LBUDL branch, per cycle: set LREGO/LCALBW. LBWEGO is effectively always
+        # true once LBUDL is set, so BWECUP (the feeder) runs every cycle; BWELIT itself is gated
+        # per-year inside the feeder by LREGO + [IYRST,IYREND].
+        ww.lcalbw = false
+        if ww.lrego
+            if Int(ww.iyrend) != -1
+                ww.lcalbw = (iy_st <= Int(ww.iyrend))
+            else
+                ww.lcalbw = (Int(ww.lowyrs) < 3 || Int(ww.iobdur) < 5)
+            end
+        elseif Int(ww.iyrst) < (iy_st + ifint) && Int(ww.iyrst) != 0
+            ww.lrego = true; ww.lcalbw = true
+        end
+        (PRBIO, PEDDS, PEHTG, AVYRMX, IFHOST) = wsbwe_feeder(ww, ns,
+            t.species, t.height, t.dbh, t.diam_growth, t.crown_pct, t.tpa,
+            ibwspm, ibiomp, elev, oldtpaS, ormsqd, fintf, ifint, iy_st; budlite=true)
+        IBWYR = ifint; NOBWYR = 0; FA = 0.0f0
+    else
+        # ================= manual DEFOL branch =================
+        any(d -> (iy_st <= Int(trunc(d[1])) <= lastyr_cyc), ww.defol_sched) || return nothing
+        (PRBIO, PEDDS, PEHTG, AVYRMX, IFHOST) = wsbwe_feeder(ww, ns,
+            t.species, t.height, t.dbh, t.diam_growth, t.crown_pct, t.tpa,
+            ibwspm, ibiomp, elev, oldtpaS, ormsqd, fintf, ifint, iy_st)
+        # NOBWYR/IBWYR/FA — the outbreak spans the whole cycle on the DEFOL path (FA=0)
+        IBWYR = ifint; NOBWYR = 0; FA = 0.0f0
+    end
     # --- point basal areas (PNTBA all, PNTHBA host≥? bwepdm sums all; host uses IBWSPM<6) ---
     npt = Int(s.plot.points_inv)                        # IPTINV
     PNTBA = zeros(Float32, max(npt,1)); PNTHBA = zeros(Float32, max(npt,1))
