@@ -713,3 +713,25 @@ ONLY the two PLANTED species (DF 363.6, LP 363.6) while the oracle ALSO has natu
 lines up early. SPECMULT (species est. multiplier) + HTADJ act on the NATURAL-establishment cohort, so their effect
 CANNOT be isolated bit-exact while the underlying natural-regen counts/timing differ. => blocked on the est-TIMING
 model divergence (known/deferred/cornered), not tooling. FVS_TreeList emission unblock = the reusable capability gain.
+
+## ★ FVS_TreeList full-column OC A/B (2026-08-22): TruncHt FIXED; CrWidth = the one remaining emission gap
+Ran a FULL-column FVS_TreeList A/B for OC vs FVSoc_clean at the INVENTORY year (1993) — inventory isolates pure
+emission/computation bugs from the OC broken-top cornered growth divergence (which muddies projected cycles). Result:
+every column bit-exact at inventory EXCEPT two:
+  1. **TruncHt — FIXED (20d0031c)**: jl emitted raw ITRUNC (hundredths); dbstrls.f emits (ITRUNC+5)/100 (feet, int
+     div). id=6 broken top 5600→56. Universal fix (both emission sites); CR test_dbs_treelist 14/14, gate 339/11.
+  2. **CrWidth = 0.5 (default) — CHARACTERIZED, NOT fixed** (oracle id=24 = 17.81). treelist_snapshot's non-CR branch
+     uses the EASTERN open-grown crown_width() which returns the 0.5 default for western ORGANON species (not in the
+     eastern coef table). The oracle uses the variant's cwcalc.f (national forest-grown crown-width library). jl has
+     cr_cwcalc = jl's port of cwcalc.f but with the CR-specific _CR_CWMAP (=CRMAP). To fix OC bit-exact:
+       • build _OC_CWMAP from bin/FVSoc_buildDir/cwcalc.f DATA OCMAP (50 species → national eqn numbers like 04105/
+         08105/24205/02006/…),
+       • port the two formula-type suffixes OC uses that cr_cwcalc lacks: **04** and **06** (cr_cwcalc has 05=R6M2 /
+         03=log / 02=Bech2 / 01=Bech1); plus any OC eqn-number coefficients not already inline in cr_cwcalc,
+       • dispatch cr_cwcalc→a variant-generic cwcalc keyed by the per-variant CWMAP.
+     This GENERALIZES: every non-CR WESTERN variant (WC/PN/EC/CA/SO/WS/AK/OC/OP/KT/IE/EM/BM/TT/UT/CI) emits CrWidth=0.5
+     in FVS_TreeList today (all fall into the eastern-crown_width else branch). cwcalc.f already carries every variant's
+     map (AKMAP/BMMAP/CAMAP/CIMAP/ECMAP/EMMAP/IEMAP/KTMAP/NCMAP/PNMAP/SOMAP/TTMAP/UTMAP/WCMAP/WSMAP/OCMAP/OPMAP/BCMAP).
+     A national-equation-library + per-variant-CWMAP refactor would fix them all. LARGE mechanical chunk for a
+     report-only column (FVS_TreeList CrWidth, not in the .sum) ⇒ scoped, deferred pending its value being worth the
+     multi-variant equation port. The full-column A/B harness (inventory-year isolation) is the reusable vehicle.
