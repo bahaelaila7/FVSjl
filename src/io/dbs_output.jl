@@ -746,6 +746,9 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # per-tree exact; see the recipe. The kernels bake in one forest's Region-6 BF ⇒ bit-exact on the reference forest.)
 function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
     p = s.plot
+    # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
+    # which R5 skips), so ws_r5crwd is per-tree exact for the TreeList (unlike the R6 BF-baked BM/SO kernels).
+    s.variant isa WestSierra && return clamp(ws_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
           s.variant isa OregonCoast       ? oc_cwcalc :
           s.variant isa Olympic           ? op_cwcalc :
