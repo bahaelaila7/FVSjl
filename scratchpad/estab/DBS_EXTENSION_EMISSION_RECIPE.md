@@ -975,3 +975,12 @@ is SHARED with the VALIDATED down-wood + FVS_Carbon (their OC-FFE validation use
 SNAGINIT-specific over-fall was never exercised). Correct fix requires reading fmsnag.f's SNAGINIT init-fall/decay
 semantics (does age reduce the count at init, or only set DKTIME/future fall?) + re-running the OC FFE down-wood/carbon
 A/B to confirm no regression. Report-only; a bounded but careful chunk, not autonomous-safe without the fmsnag.f read.
+
+### SnagDet root-cause CORRECTION 2026-08-22: yr=invyr-age is CORRECT (matches FVS)
+fmsnag.f:95 also sets YEAR=INT(IYR-AGE) — so jl's yr=invyr-age (snag.jl:723) MATCHES FVS; the prior "fix location"
+note is WRONG. FVS DOES apply FMSFALL to the SNAGINIT cohort at the init year (IYR.EQ.YR1 adds then falls), yet the
+oracle reports ~full 55.26 (barely any loss for age-2). jl loses ~35 of the 50 ⇒ the real bug is jl OVER-applying the
+fall-magnitude and/or the hard→soft DKTIME split to the pre-aged (age-2) cohort at init (oracle keeps them hard,
+soft=0 all years). The mechanism is in update_snags!/FMSFALL fall-target + the DKTIME hard→soft flip vs FVS's per-
+cycle single-step fall — NOT the yr assignment. Fix = compare jl update_snags! fall/decay for a known-age cohort vs
+FMSFALL(fmsfall.f) + the DKTIME flip; report-only, shared with validated down-wood/carbon (re-validate). Still open.
