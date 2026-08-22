@@ -921,3 +921,17 @@ Black-Hills-PP-only: CR for 203/207 sp13, IE/EM/KT sp10 — NOT OC).
 ⇒ FVS_CanProfile is EMITTED + cyc0-correct for the main canopy; residual = narrow small-tree low-layer + cornered
 post-fire + extra-year. Characterized-not-fixed (report-only, oracle-DEBUG-relink to fully root-cause). Same pattern
 expected for the other emitted tables — validate the CYC0/pre-disturbance rows, not the post-fire tail.
+
+### CanProfile small-tree residual — TRACED (2026-08-22), report-only, oracle-DEBUG-to-pin
+Deep trace of the 1993 low-layer residual (2 small DF: sp7 ht 11/13, dbh 1.2/1.9): NOT LSW (DF LSW=TRUE), NOT CANMHT
+(OC=6=jl), NOT FMICR filter (FMICR=ICR>0), NOT a TREEDATA-parse diff (cyc0 .sum Tpa=536 BA=77 MATCH both sides; QMD
+5.14 vs 5.10 = the small-tree straddle). jl DOES apply DF's fmcroww HP<DOMPCT(60) understory branch (cr_crown_biomass
+:279) and self-computes hp=42.5/47.6 (understory) → nonzero foliage XV0≈2.5. The oracle contributes ~0 from these 2
+trees at those layers (Δ = exactly jl's full sp7 ADCRWN 16.19+15.0=31.19). ⇒ the residual is an OC-ORGANON SMALL-TREE
+specific: either (a) the oracle's ICR (crown ratio) for these sub-QMD trees is LOWER than jl's crown_pct 55/45 (→ higher
+CRBOT = HT·(1−ICR/100) → the crown starts at layer 8 not 5, matching the oracle's lowest layer=8), or (b) the fmcroww
+foliage XV(0) for small understory DF differs. Disambiguating needs the oracle's per-tree CROWNW/ICR DEBUG dump
+(the `DEBUG <blank> FMCROW`/FMPOCR keyword — top-level, non-blank routine field; my inline attempt hit exit-20/invalid-
+keyword on column format). Report-only, narrow (2 trees, layers 5-13), not chased further. The (a) ICR-crbot lead is
+consistent with the QMD 5.14/5.10 small-tree straddle ⇒ likely a cornered OC small-tree crown-ratio realization, not a
+CanProfile-kernel bug.
