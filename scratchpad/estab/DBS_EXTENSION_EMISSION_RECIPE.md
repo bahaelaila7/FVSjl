@@ -695,3 +695,21 @@ the oracle emits 2 such rows (id=5 SP, id=14 LP) at 1990; jl emits 0 (CR-only ga
     variant crown_width dispatch, ungate from CentralRockies, validate the dead rows bit-exact per variant. REAL
     per-variant chunk with .sum-regression risk (touches crown init) for 2 inventory-year report-only rows ⇒ deferred.
     The gate's documented caution stands; this note upgrades it with the exact missing pieces (crown-dub + BAPctile).
+
+## ★ FVSie_clean FVS_TreeList emission UNBLOCKED 2026-08-22 (goal-doc item-1 SPECMULT/HTADJ blocker)
+The goal doc listed SPECMULT/HTADJ as blocked because "the FVS_TreeList DBS table which FVSie_clean would not emit
+this session." RESOLVED — it was keyfile ORDERING, not a missing extension (FVSie_clean HAS sqlite+DBS linked, 1195
+sqlite syms). **The DATABASE block must sit IMMEDIATELY after STDIDENT + the title line** (before DESIGN/STDINFO/etc.).
+Any later placement -> "FVS16 ERROR: KEYWORD ENTERED IS USED IN WRONG CONTEXT" (exit 20). Working structure (two-block,
+per the SnagDet recipe): block-1 DATABASE/DSNout/<db>/END right after the title; the report keyword (TREELIST) +
+ESTAB/PLANT in main context; block-2 DATABASE/SUMMARY/TREELIDB/END before PROCESS. FVSie_clean then emits FVS_TreeList
+(iebare: 210 est. trees @2002 -> 927 @2052). exit=10 (FVS_Error table present, harmless). Recipe: DATABASE block first.
+
+## ★ SPECMULT/HTADJ validation GATED on the establishment-TIMING divergence, NOT on the emission
+With emission unblocked, ran the iebare bare-establishment A/B (PLANT sp3+sp7, NUMCYCLE 6). The BASELINE (no SPECMULT)
+already diverges = the documented cornered seedling-regime timing straddle: at the FIRST est. cycle (2002) jl carries
+ONLY the two PLANTED species (DF 363.6, LP 363.6) while the oracle ALSO has natural regen already in (DF 492.9, GF
+298.1, ES 18.5, AF 7.4, WL 7.4, WP 32.3). jl's natural establishment fires ~1 cycle later, so per-species TPA never
+lines up early. SPECMULT (species est. multiplier) + HTADJ act on the NATURAL-establishment cohort, so their effect
+CANNOT be isolated bit-exact while the underlying natural-regen counts/timing differ. => blocked on the est-TIMING
+model divergence (known/deferred/cornered), not tooling. FVS_TreeList emission unblock = the reusable capability gain.
