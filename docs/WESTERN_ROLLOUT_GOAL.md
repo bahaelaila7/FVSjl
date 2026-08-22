@@ -38,15 +38,17 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      (wwpb/ in 0 sourceLists, bmdrv called only by absent PPMAIN), so Main/Tree/Vol validated BIT-EXACT vs a
      gfortran-16 golden of the real bmout.f arithmetic + BKP=state pass-through (6 landscape cols structurally 0);
      PPBMMAIN/PPBMTREE/PPBMVOL/PPBMBKP gates, test_bm_dbs.jl 47/47, gate 339/11 [[fvsjl-bm-dbs-tables-no-oracle]].
-     FVS_Climate/CanProfile/StrClass/SnagDet already emitted+validated. **★★ 2026-08-22 STALE-CLAIM CORRECTED:
-     "FVS_RD_* needs WRD ported (~23k lines)" is WRONG on BOTH counts. (a) WRD IS PORTED + VALIDATED — jl
-     src/engine/root_disease.jl is 2425 lines (RDIN reader, RDATV gate, RRANN RNG bit-exact vs live FVSkt [2000
-     draws/0 mismatch, RDRANP 297/0], RDMN2 spread, RDSPRD/RDRATE/RDINSD, mortality + growth-loss kernels, engine
-     seams); test_root_disease.jl 188 tests, .sum DELTA cornered vs FVSkt_clean. (b) rd/ IS in every FVS sourceList
-     (79 refs in FVSie) ⇒ FVS_RD_* has a REAL LIVE ORACLE (unlike WWPB). So FVS_RD_Sum/Det/Beetle (dbsrd.f
-     DBSRD1/2/3) is a LIVE-ORACLE serialization chunk = port the rdpr.f/rddout.f/rdbout.f report aggregation
-     (like misprt.f for DM) + RDSUM/RDDETAIL/RDBBMORT toggles (dbsin.f opt 34/35/36) + the RRDOUT report gate
-     (rdin.f opt 12). Recipe: DBS emission on FVSkt (WRD's validated variant). NEXT CHUNK. [[fvsjl-bm-dbs-tables-no-oracle]]**
+     FVS_Climate/CanProfile/StrClass/SnagDet already emitted+validated. **★★ FVS_RD_* (WRD) FAMILY COMPLETE
+     2026-08-22 (b42d6911 / 4ed85d8e / dcfe9f2f) — LIVE-ORACLE VALIDATED vs FVSkt_clean; the "~23k unported" claim
+     was DOUBLY STALE (WRD ported+validated + rd/ in every sourceList ⇒ REAL live oracle). FVS_RD_Sum ALL 20/20
+     cols (rdpr.f aggregation + rd_prinf(rdcntl.f PRINF) + CORINF/EXPINF new-infection accumulators; RDSUM gate;
+     test_rd_dbs.jl 33/33; 1990 inventory + first projected cycle BIT-EXACT, later cornered by #206 growth straddle).
+     FVS_RD_Det (rddout.f RDPSRT→PCTILE→RDDST per-species percentile-DBH; RDDETAIL gate; test_rd_det_dbs.jl 140/140;
+     1990 inventory BIT-EXACT 102/102 proving the percentile pipeline; DBH-percentile cols amplify the #206 straddle).
+     FVS_RD_Beetle (DBSRD3, rdbout.f) = VALIDATED-INERT NON-GAP — rdbout.f is gated IBBOUT>0 (rdoagm.f:140), set only
+     by a bark-beetle keyword the WRD corpus never exercises ⇒ the table is never emitted (verified: RDBBMORT run emits
+     no FVS_RD_Beetle), so it is untestable/structural (like FVS_BM_BKP's landscape cols). ⇒ **item-2 DBS surface CLOSED**
+     — no oracle-validatable DBS write-table remains. test_root_disease.jl 1159/1159, gate 339/11. [[fvsjl-rd-dbs-tables]]**
      Original (now-stale) note below:
      jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
