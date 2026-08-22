@@ -450,6 +450,116 @@ function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_DM_Stnd_Sum / FVS_DM_Spp_Sum / FVS_DM_Sz_Sum — dwarf-mistletoe summary tables (dbs/dbsmis.f
+# DBSMIS2/DBSMIS1/DBSMIS3, gated by the MISRPTS database keyword). Integer columns are NINT-rounded
+# to match FVS's SQL_F_INTEGER binds; the DMR/DMI means are stored double.
+const _FVS_DM_STNDSUM_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_DM_Stnd_Sum(
+  CaseID char(36) not null, StandID char(26) not null, Year int null, Age int null,
+  Stnd_TPA int null, Stnd_BA int null, Stnd_Vol int null,
+  Inf_TPA int null, Inf_BA int null, Inf_Vol int null,
+  Mort_TPA int null, Mort_BA int null, Mort_Vol int null,
+  Inf_TPA_Pct int null, Inf_Vol_Pct int null, Mort_TPA_Pct int null, Mort_Vol_Pct int null,
+  Mean_DMR real null, Mean_DMI real null)"""
+
+const _FVS_DM_SPPSUM_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_DM_Spp_Sum(
+  CaseID char(36) not null, StandID char(26) not null, Year Int null, Spp char(2) null,
+  Mean_DMR real null, Mean_DMI real null, Inf_TPA int null, Mort_TPA int null,
+  Inf_TPA_Pct int null, Mort_TPA_Pct int null, Stnd_TPA_Pct int null)"""
+
+const _FVS_DM_SZSUM_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_DM_Sz_Sum(
+  CaseID char(36) not null, StandID char(26) not null, Year int null, Type text null,
+  "0-3in" real null, "3-5in" real null, "5-7in" real null, "7-9in" real null, "9-11in" real null,
+  "11-13in" real null, "13-15in" real null, "15-17in" real null, "17-19in" real null, "gt19in" real null)"""
+
+"""
+    write_dbs_dm_stndsum!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the per-cycle stand-composite dwarf-mistletoe summary (DBSMIS2 → FVS_DM_Stnd_Sum). `rows` is
+the `(year, report)` collection, each `report` a `mistletoe_report` result.
+"""
+function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
+                               standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
+        ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        ni(x) = round(Int, x)
+        for (yr, rep) in rows
+            st = rep.stand
+            DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
+                ni(st.sttpat), ni(st.ba), ni(st.stvol),
+                ni(st.sttpai), ni(st.stbai), ni(st.stvoli),
+                ni(st.sttpam), ni(st.stbam), ni(st.stvolm),
+                ni(st.stpit), ni(st.stpiv), ni(st.stpmt), ni(st.stpmv),
+                Float64(st.stdmr), Float64(st.stdmi)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"""
+    write_dbs_dm_sppsum!(dbpath, caseid, standid, rows, coef) -> dbpath
+
+Write the per-cycle top-4-infected-species dwarf-mistletoe summary (DBSMIS1 → FVS_DM_Spp_Sum). Only
+the actually-infected species (`report.species`) are written (FVS skips the `**` blank slots).
+"""
+function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
+                              standid::AbstractString, rows::AbstractVector, coef)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
+        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 11), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        ni(x) = round(Int, x)
+        for (yr, rep) in rows
+            for sp in rep.species
+                DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                    String(strip(coef.code_alpha[sp.sp])),
+                    Float64(sp.mean_dmr), Float64(sp.mean_dmi),
+                    ni(sp.inf_tpa), ni(sp.mort_tpa),
+                    ni(sp.inf_pct), ni(sp.mort_pct), ni(sp.comp_pct)))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"""
+    write_dbs_dm_szsum!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the per-cycle by-DBH-class dwarf-mistletoe summary (DBSMIS3 → FVS_DM_Sz_Sum). Each year emits
+5 rows (Type = TPA/INF/MRT/DMR/DMI), one per DC statistic, over the 10 2-inch DBH classes. Gated by
+the MISTPRT report keyword (PRTMIS) in addition to MISRPTS.
+"""
+function write_dbs_dm_szsum!(dbpath::AbstractString, caseid::AbstractString,
+                             standid::AbstractString, rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_DM_SZSUM_CREATE)
+        ins = "INSERT INTO FVS_DM_Sz_Sum VALUES (" * join(fill("?", 14), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, rep) in rows
+            dc = rep.dbhclass
+            for (lab, arr) in (("TPA", dc.dctpa), ("INF", dc.dcinf), ("MRT", dc.dcmrt),
+                               ("DMR", dc.dcdmr), ("DMI", dc.dcdmi))
+                DBInterface.execute(stmt, (caseid, standid, Int(yr), lab,
+                    (Float64(arr[j]) for j in 1:10)...))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(

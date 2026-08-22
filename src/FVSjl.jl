@@ -426,6 +426,7 @@ include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon 
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)
+include("engine/mistletoe_report.jl")   # dwarf-mistletoe infection/mortality summary (misprt.f) → FVS_DM_* DBS tables
 include("io/summary.jl")
 include("io/dbs_output.jl")
 include("engine/simulate.jl")

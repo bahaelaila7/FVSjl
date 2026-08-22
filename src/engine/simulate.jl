@@ -891,12 +891,15 @@ function run_keyfile(keypath::AbstractString;
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
         cprof_rows = (s.control.dbs_canprofile && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
+        dm_rows = (s.control.dbs_mistoe && _dm_effects_variant(s.variant)) ? Tuple[] : nothing
+        dm_top4 = Int[]
         hook = tl_on ? (st, yr, pl, cy) -> push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
                        cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
+                       dm_collect = dm_rows, dm_top4 = dm_top4,
                        canprof_collect = cprof_rows, strclass_collect = strcl_rows)
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
@@ -925,6 +928,13 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
             strcl_rows === nothing ||
                 write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
+            if dm_rows !== nothing && !isempty(dm_rows)
+                # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1). The by-DBH-class FVS_DM_Sz_Sum
+                # (DBSMIS3) is additionally gated by the MISTPRT report keyword — a follow-up (the
+                # write_dbs_dm_szsum! writer + report.dbhclass aggregation are already in place).
+                write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
+                write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef)
+            end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
             if carb_rows !== nothing

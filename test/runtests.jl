@@ -27,6 +27,7 @@ using FVSjl
     include("unit/test_ppe_landscape.jl")  # PPE: reconstructed area-weighted landscape harness (PPEXCM PTSTV1) — behavior-faithful (source absent), self-consistent area-weighting over validated per-stand run_keyfile + INERT seam
     include("unit/test_climate_spcalib.jl") # Climate-FVS SPCALIB first-cycle presence-calibration (clmorts.f chunk C): PP ViabMort series bit-exact vs oracle FVS_Climate (present low-viability species no longer over-die early)
     include("unit/test_climate_dbs.jl")     # FVS_Climate DBS table (dbsclsum.f, CLIMREDB): climate_report + write_dbs_climate! — Viability/ViabMort bit-exact vs FVSie_clean, BA/TPA/etc cornered on the OLDRN straddle
+    include("unit/test_dm_dbs.jl")          # FVS_DM_Stnd_Sum/Spp_Sum DBS tables (dbsmis.f, MISRPTS): mistletoe_report + write_dbs_dm_* — cyc0 bit-exact vs FVSie_clean .out (all columns incl DM mortality)
     include("unit/test_canprofile_dbs.jl")  # FVS_CanProfile DBS table (dbsfmcanpr.f, CANFPROF): canopy_crfill + write_dbs_canprofile! — cyc0 profile bit-exact vs FVScr_clean (PRE-growth collection), multi-cycle cornered
     include("unit/test_strclass_dbs.jl")    # FVS_StrClass DBS table (dbsstrclass.f, STRCLSDB): structure_report + write_dbs_strclass! — cyc0 all-43-col bit-exact vs FVSoc_clean (+OC oc_cwcalc _ss_strata fix), later cycles cornered
     include("unit/test_calibstats_dbs.jl")  # FVS_CalibStats DBS table (dbscalib.f, CALBSTDB): captured DGSCOR calib stats + write_dbs_calibstats! — all 9 cols bit-exact vs FVScr_clean (WF/ES)

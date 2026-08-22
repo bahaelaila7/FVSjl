@@ -1687,6 +1687,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.strclass_on = true   # the DBS emitter implies the structure calc is on (sstage.f)
         elseif k == "CALBSTDB"
             s.control.dbs_calibstats = true
+        elseif k == "MISRPTS"
+            s.control.dbs_mistoe = true    # dbsin.f opt 18: IDM1/IDM2/IDM3 ⇒ FVS_DM_* summary tables
         end
     end
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
