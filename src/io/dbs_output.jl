@@ -749,6 +749,8 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
     # which R5 skips), so ws_r5crwd is per-tree exact for the TreeList (unlike the R6 BF-baked BM/SO kernels).
     s.variant isa WestSierra && return clamp(ws_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    # NC/Klamath (forest 505 = Region-5) uses R5CRWD too — reuse ws_r5crwd via the NC→WS FIA-species map.
+    s.variant isa Klamath && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
     # CA/BM: the FVS_TreeList forest-grown CRWDTH applies the R6 forest BF (cwcalc.f IWHO=0), UNLIKE the FFE PERCOV
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.

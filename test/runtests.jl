@@ -37,6 +37,7 @@ using FVSjl
     include("unit/test_ca_crwidth.jl")      # CA FVS_TreeList CrWidth via ca_cwcalc + folded forest-610 BF (SP/LP/PP) — 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum; 9th variant wired
     include("unit/test_bm_crwidth.jl")     # BM FVS_TreeList CrWidth via bm_cwcalc→cr_cwcalc + folded forest-614 BF (forest_bf flag; FFE path BF-free) — 29/29 vs FVSbm_clean, 10th variant
     include("unit/test_so_crwidth.jl")     # SO FVS_TreeList CrWidth: so_cwcalc forest-601 BF (present) + Hopkins-index fix (so_grinit! lat/lon 42/121 default) — 33/33 vs FVSso_clean, 11th variant
+    include("unit/test_nc_crwidth.jl")     # NC/Klamath FVS_TreeList CrWidth via R5CRWD reuse (nc_r5crwd→ws_r5crwd, NC→WS FIA map) — forest 505 R5, 29/29 vs FVSnc_clean, 12th variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb

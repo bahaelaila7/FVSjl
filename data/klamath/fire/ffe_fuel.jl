@@ -122,6 +122,15 @@ NC forest-grown crown width (ft) for NC species `sp` (1..12), DBH `d` (in), heig
 crown ratio `cr` (%), stand basal area `barea`, elevation `el` (100s ft), Hopkins index `hi`.
 Region-5 (forest 505) ⇒ BF=1. Errors loudly on NC species whose CWEQN is not yet ported.
 """
+# NC/Klamath forest 505 is REGION-5, where cwcalc.f branches to R5CRWD (ws/r5crwd.f) — a function of sp/D/H only,
+# NOT the R6M2 Crookston models nc_cwcalc uses. R5CRWD is FIA-keyed and shared with WS, so the FVS_TreeList CRWDTH
+# reuses ws_r5crwd via this NC-species→WS-species map (by FIA code): OS(299)→WS42, SP(117)→1, DF(202)→2, WF(015)→3,
+# MA(361)→38, IC(081)→5, BO(818)→31, TO(631)→34, RF(020)→7, PP(122)→8, OH(998)→43, RW(211)→23. Validated 29/29
+# vs FVSnc_clean nct01. (nc_cwcalc's R6M2 is the FFE/PERCOV path — a separate, currently-unported NC FFE concern.)
+const _NC_TO_WS_R5 = Int[42, 1, 2, 3, 38, 5, 31, 34, 7, 8, 43, 23]
+@inline nc_r5crwd(sp::Int, d::Float32, h::Float32)::Float32 =
+    (1 <= sp <= 12) ? ws_r5crwd(_NC_TO_WS_R5[sp], d, h) : 0f0
+
 function nc_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
                    el::Float32, hi::Float32)::Float32
     (1 <= sp <= 12) || return 0f0
