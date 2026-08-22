@@ -124,6 +124,7 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     driver::Any               # ::Union{Nothing,RDDriver}
     icyc::Int32               # RD cycle counter (FVS ICYC; 0 at LSTART, +1 per grow cycle)
     sum_rows::Vector{Any}     # RDSUM accumulator: (year, rd_sum_report) per cycle (FVS_RD_Sum / dbsrd.f DBSRD1)
+    det_rows::Vector{Any}     # RDDETAIL accumulator: (year, rd_det_report) per cycle (FVS_RD_Det / dbsrd.f DBSRD2)
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -192,6 +193,7 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.driver = nothing
     rd.icyc   = Int32(0)
     rd.sum_rows = Any[]
+    rd.det_rows = Any[]
     return rd
 end
 
@@ -244,14 +246,181 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
     m = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
     conv(x, f) = m ? x * f : x
     div_(x, f) = m ? x / f : x
+    prinf_idi, _ = rd_prinf(rd, s)                           # rdcntl.f DO-800 stand-total PRINF(IDI)
     return (Year = Int(year), Age = Int(iage), RD_Type = rdtype, Num_Centers = ncent,
             RD_Area = conv(parea, _RD_ACRtoHA), Spread = conv(rrrate, _RD_FTtoM),
             Stumps = div_(tstmps, _RD_ACRtoHA), Stumps_BA = conv(bastpa, _RD_FT2pACRtoM2pHA),
             Mort_TPA = div_(tdie, _RD_ACRtoHA), Mort_CuFt = conv(tdvol, _RD_FT3pACRtoM3pHA),
             UnInf_TPA = div_(tun, _RD_ACRtoHA), Inf_TPA = div_(tin, _RD_ACRtoHA),
-            Ave_Pct_Root_Inf = 0.0f0,                        # PRINF·100 — follow-on (accumulator absent)
+            Ave_Pct_Root_Inf = 100.0f0 * prinf_idi,          # TPRINF = PRINF(IRRSP)·100 (rdpr.f:241)
             Live_Merch_CuFt = conv(cfvpa, _RD_FT3pACRtoM3pHA), Live_BA = conv(bapa, _RD_FT2pACRtoM2pHA),
             New_Inf_Prp_Ins = 0.0f0, New_Inf_Prp_Exp = 0.0f0, New_Inf_Prp_Tot = 0.0f0)  # CORINF/EXPINF — follow-on
+end
+
+# rd_prinf (rd/rdcntl.f DO-800) — weighted-average proportion of infected roots.
+#   PRINF(KSP+ITOTRR) = Σ_{i∈KSP,IT,IP: PROPI>0} PROBI·PROPI / (Σ_{i∈KSP,IT,IP} PROBI + 1e-6)
+#   PRINF(IDI)        = Σ over ALL host species of the same disease type, divided ONCE.
+# The numerator gates on PROPI>0; the denominator (PRPTOT) sums every PROBI. For Armillaria
+# (IRRSP≥3, KT) IDI=IRRSP for all host species (no IDITYP remap), so the IDI accumulation
+# spans every infected record. Non-host records carry PROBI=0 ⇒ contribute nothing. Returns
+# (PRINF(IDI), per-variant-species PRINF vector) — shared by FVS_RD_Sum (stand total) and
+# FVS_RD_Det (per species). Read from the live 3-D PROBI/PROPI at the report collection point.
+function rd_prinf(rd::RootDiseaseState, s::StandState)
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    istep = max(1, Int(rd.istep))
+    nsp = length(s.coef.code_alpha)
+    num_sp = zeros(Float32, nsp); den_sp = zeros(Float32, nsp)
+    num_idi = 0.0f0; den_idi = 0.0f0
+    @inbounds for i in 1:n
+        sp = Int(t.species[i])
+        (1 <= sp <= nsp) || continue
+        for it in 1:istep, ip in 1:2
+            pb = d.probi[i, it, ip]
+            pp = d.propi[i, it, ip]
+            if pp > 0.0f0
+                num_sp[sp] += pb * pp
+                num_idi    += pb * pp
+            end
+            den_sp[sp] += pb
+            den_idi    += pb
+        end
+    end
+    prinf_sp = num_sp ./ (den_sp .+ 1.0f-6)
+    prinf_idi = num_idi / (den_idi + 1.0f-6)
+    return prinf_idi, prinf_sp
+end
+
+# -----------------------------------------------------------------------------
+# FVS_RD_Det (dbs/dbsrd.f DBSRD2, via rd/rddout.f) — per-species detail of the
+# stand attributes inside root-disease patches: the DBH at the 10/30/50/70/90/100
+# percentile points of the killed-tree and live(in-patch)-tree distributions, plus
+# the per-species mortality / uninfected / infected TPA and mean %-roots-infected.
+# The percentile pipeline is a faithful port of RDPSRT (descending-DBH sort) →
+# PCTILE (cumulative-from-smallest percentile) → RDDST (binary search for the point
+# DBH). Because tied trees share a DBH, the sort tie-order does not affect the
+# emitted (discrete) DBH values, so a stable descending sort reproduces RDDST.
+# -----------------------------------------------------------------------------
+
+# PCTILE (base/pctile.f): percentile of each record within the weighted distribution.
+# `ord` indexes the records in DESCENDING order of the sort key (ord[1] = largest DBH);
+# `wt` is the per-record weight (density). Returns PERCNT indexed by record: the largest
+# tree → 100, each smaller tree → 100·(cumulative weight from the smallest up to it)/total.
+function _rd_pctile(ord::Vector{Int}, wt::AbstractVector{Float32})
+    N = length(ord)
+    percnt = zeros(Float32, N)
+    N == 0 && return percnt
+    if N == 1
+        percnt[ord[1]] = 100.0f0
+        return percnt
+    end
+    percnt[ord[N]] = wt[ord[N]]
+    @inbounds for I in 1:(N - 1)
+        J = N - I
+        percnt[ord[J]] = percnt[ord[J + 1]] + wt[ord[J]]
+    end
+    tot = percnt[ord[1]]
+    percnt[ord[1]] = tot / 100.0f0
+    tot <= 0.0f0 && return percnt
+    pctin1 = percnt[ord[1]]
+    @inbounds for I in 2:N
+        percnt[ord[I]] /= pctin1
+    end
+    percnt[ord[1]] = 100.0f0
+    return percnt
+end
+
+# RDDST (rd/rddst.f): DBH at the 10/30/50/70/90 percentile points (RATTR[1:5], via a
+# binary search over the descending-percentile array) + the largest tree's DBH (RATTR[6]).
+function _rd_dst(ord::Vector{Int}, percnt::Vector{Float32}, dbh::AbstractVector{Float32})
+    rattr = zeros(Float32, 6)
+    N = length(ord)
+    N == 0 && return rattr
+    N1 = N + 1
+    itop = 1
+    pctage = 90.0f0
+    @inbounds for I in 1:5
+        J = 6 - I
+        if itop != N
+            ibot = N1
+            while true
+                iptr = (ibot + itop) ÷ 2
+                midptr = ord[iptr]
+                if percnt[midptr] < pctage
+                    ibot = iptr
+                else
+                    itop = iptr
+                end
+                (itop + 1 < ibot) || break
+            end
+        end
+        rattr[J] = dbh[ord[itop]]
+        pctage -= 20.0f0
+    end
+    rattr[6] = dbh[ord[1]]
+    return rattr
+end
+
+# Percentile-DBH vector for one attribute: compact (dbh,wt) → descending sort → PCTILE → RDDST.
+function _rd_pctile_dbh(dbh::Vector{Float32}, wt::Vector{Float32})
+    isempty(dbh) && return zeros(Float32, 6)
+    ord = sortperm(dbh; rev = true)                # RDPSRT: INDEX(1)=largest DBH
+    percnt = _rd_pctile(ord, wt)
+    return _rd_dst(ord, percnt, dbh)
+end
+
+# rd_det_report (rd/rddout.f) — one NamedTuple per variant species with a tree record in
+# the patch. Reads the same per-record driver state (probit/probiu/rdkill) + tree DBH as
+# rd_sum_report, grouped by species. Values are the DBSRD2 units the build emits: raw
+# imperial for KT, or (BC/ON) DBH·INTOCM, X·/ACRtoHA, area·ACRtoHA under LMTRIC.
+function rd_det_report(rd::RootDiseaseState, s::StandState, year::Integer)
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    idi = Int(rd.minrr)
+    parea = rd.parea[idi]; pdiv = parea + 1.0f-9
+    rdtype = 1 <= idi <= 4 ? _RD_TYPE_CHAR[idi] : "A"
+    _, prinf_sp = rd_prinf(rd, s)
+    nsp = length(s.coef.code_alpha)
+    metric = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
+    intocm = 2.54f0
+    # group live tree records by species
+    present = falses(nsp)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); (1 <= sp <= nsp) && (present[sp] = true)
+    end
+    rows = Any[]
+    for sp in 1:nsp
+        present[sp] || continue
+        oprobi = 0.0f0; oprobu = 0.0f0; orrkil = 0.0f0
+        dkl = Float32[]; wkl = Float32[]      # killed: dbh, density
+        dlv = Float32[]; wlv = Float32[]      # live-in-patch: dbh, density
+        @inbounds for i in 1:n
+            Int(t.species[i]) == sp || continue
+            tmpi = d.probit[i]
+            tmpi > 0.0f0 && (oprobi += tmpi)
+            if d.probiu[i] > 0.0f0
+                oprobu += d.probiu[i]
+                push!(dlv, t.dbh[i]); push!(wlv, (d.probiu[i] + tmpi) / pdiv)
+            end
+            if d.rdkill[i] > 0.0f0
+                orrkil += d.rdkill[i]
+                push!(dkl, t.dbh[i]); push!(wkl, d.rdkill[i] / pdiv)
+            end
+        end
+        mort_pct = _rd_pctile_dbh(dkl, wkl)
+        live_pct = _rd_pctile_dbh(dlv, wlv)
+        x1 = orrkil / pdiv; x2 = oprobu / pdiv; x3 = oprobi / pdiv
+        x4 = 100.0f0 * prinf_sp[sp]
+        if metric
+            mort_pct = mort_pct .* intocm
+            live_pct = live_pct .* intocm
+            x1 /= _RD_ACRtoHA; x2 /= _RD_ACRtoHA; x3 /= _RD_ACRtoHA
+        end
+        area = metric ? parea * _RD_ACRtoHA : parea
+        push!(rows, (species = sp, RD_Type = rdtype, RD_Area = area,
+                     Mort_pct = mort_pct, Mort_TPA = x1,
+                     Live_pct = live_pct, UnInf_TPA = x2, Inf_TPA = x3,
+                     Pct_Roots_Inf = x4))
+    end
+    return rows
 end
 
 # -----------------------------------------------------------------------------
@@ -2423,11 +2592,12 @@ function root_disease_setup!(s::StandState)
     # RDSUM: the inventory (1990/icyc=0) FVS_RD_Sum row — RDPR#1 at fvs.f:347, before the cycle
     # loop (pre-projection: rdkill/probda/rrrate=0 ⇒ Mort/Stumps/Spread=0, Inf/UnInf/BA from the
     # initial infection). Populate PROBIT (=Σ PROBI) first, as RDPR would.
-    if s.control.dbs_rd_sum
+    if s.control.dbs_rd_sum || s.control.dbs_rd_detail
         d = rd.driver::RDDriver
         rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))
         yr = Int(s.control.cycle_year[1]); iage = Int(s.plot.stand_age)
-        push!(rd.sum_rows, (yr, rd_sum_report(rd, s, yr, iage)))
+        s.control.dbs_rd_sum    && push!(rd.sum_rows, (yr, rd_sum_report(rd, s, yr, iage)))
+        s.control.dbs_rd_detail && push!(rd.det_rows, (yr, rd_det_report(rd, s, yr)))
     end
     return nothing
 end

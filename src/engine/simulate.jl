@@ -784,11 +784,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
     # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
     # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.
-    if !tripled && s.control.dbs_rd_sum && s.root_disease !== nothing &&
+    if !tripled && (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.root_disease !== nothing &&
        rd_active(s.root_disease) && s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
         let yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
             iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
-            push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
         end
     end
     accr = 0f0
@@ -961,6 +962,10 @@ function run_keyfile(keypath::AbstractString;
             # FVS_RD_Sum (WRD root-disease summary): rows accumulated per cycle after rd_end_apply!.
             if s.root_disease !== nothing && s.control.dbs_rd_sum && !isempty(s.root_disease.sum_rows)
                 write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows)
+            end
+            # FVS_RD_Det (WRD per-species patch detail): rows accumulated per cycle (dbs/dbsrd.f DBSRD2).
+            if s.root_disease !== nothing && s.control.dbs_rd_detail && !isempty(s.root_disease.det_rows)
+                write_dbs_rd_det!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.det_rows, s.coef)
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)

@@ -749,6 +749,53 @@ function write_dbs_rd_sum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_RD_Det schema (dbs/dbsrd.f DBSRD2) — WRD per-species detail inside root-disease patches:
+# DBH at 10/30/50/70/90/100 percentile points for killed + live(in-patch) trees, per-species TPA.
+const _FVS_RD_DET_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_RD_Det(
+  CaseID text not null, StandID text null, Year Int null, RD_Type text null, RD_Area real null,
+  SpeciesFVS text null, SpeciesPLANTS text null, SpeciesFIA text null,
+  Mort_10Pctile_DBH real null, Mort_30Pctile_DBH real null, Mort_50Pctile_DBH real null,
+  Mort_70Pctile_DBH real null, Mort_90Pctile_DBH real null, Mort_100Pctile_DBH real null,
+  Mort_TPA_Total real null,
+  Live_10Pctile_DBH real null, Live_30Pctile_DBH real null, Live_50Pctile_DBH real null,
+  Live_70Pctile_DBH real null, Live_90Pctile_DBH real null, Live_100Pctile_DBH real null,
+  UnInf_TPA_Total real null, Inf_TPA_Total real null, Pct_Roots_Inf real null)"""
+
+"""
+    write_dbs_rd_det!(dbpath, caseid, standid, rows, coef) -> dbpath
+
+Write the WRD per-species root-disease detail to `FVS_RD_Det` (dbs/dbsrd.f DBSRD2, RDDETAIL keyword). `rows`
+is the `(year, report_vector)` collection where each `report_vector` is a `rd_det_report` result (one NamedTuple
+per species with a tree record in the patch); `coef` supplies the FVS/PLANTS/FIA species codes.
+"""
+function write_dbs_rd_det!(dbpath::AbstractString, caseid::AbstractString,
+                           standid::AbstractString, rows::AbstractVector, coef)
+    fia3(x) = lpad(strip(x), 3, '0')
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_RD_DET_CREATE)
+        ins = "INSERT INTO FVS_RD_Det VALUES (" * join(fill("?", 24), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for (yr, rpt) in rows
+            for r in rpt
+                sp = r.species
+                DBInterface.execute(stmt, (caseid, standid, Int(yr), r.RD_Type, Float64(r.RD_Area),
+                    String(strip(coef.code_alpha[sp])), String(strip(coef.code_plants[sp])), String(fia3(coef.code_fia[sp])),
+                    Float64(r.Mort_pct[1]), Float64(r.Mort_pct[2]), Float64(r.Mort_pct[3]),
+                    Float64(r.Mort_pct[4]), Float64(r.Mort_pct[5]), Float64(r.Mort_pct[6]),
+                    Float64(r.Mort_TPA),
+                    Float64(r.Live_pct[1]), Float64(r.Live_pct[2]), Float64(r.Live_pct[3]),
+                    Float64(r.Live_pct[4]), Float64(r.Live_pct[5]), Float64(r.Live_pct[6]),
+                    Float64(r.UnInf_TPA), Float64(r.Inf_TPA), Float64(r.Pct_Roots_Inf)))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_CanProfile schema (dbsfmcanpr.f:97-104) — FFE canopy crown-fuel profile by 1-ft height layer.
 const _FVS_CANPROFILE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CanProfile(

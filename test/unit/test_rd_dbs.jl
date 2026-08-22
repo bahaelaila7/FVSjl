@@ -9,8 +9,9 @@
 # fvs.f:347, pre-projection); the projected rows are bit-exact early and cornered later by the WRD
 # DGSCOR/OLDRN #206 growth straddle (WRD growth is cornered on KT). Two collect-seam subtleties that
 # matter: the row is captured AFTER rd_grow_apply!→rdinoc (decayed stump pool PROBDA) AND after the
-# DBH-UPDATE + compute_volumes! (grown DBH for Live_BA). The 4 new-infection columns
-# (New_Inf_Prp_Ins/Exp/Tot + Ave_Pct_Root_Inf) are 0 pending the CORINF/EXPINF/PRINF accumulators.
+# DBH-UPDATE + compute_volumes! (grown DBH for Live_BA). Ave_Pct_Root_Inf = 100·PRINF(IDI)
+# (rdcntl.f DO-800) is now filled (BIT-EXACT at inventory, cornered later). The 3 new-infection
+# columns (New_Inf_Prp_Ins/Exp/Tot) remain 0 pending the CORINF/EXPINF spread accumulators.
 
 using Test
 using FVSjl
@@ -85,6 +86,8 @@ end
                     @test isapprox(Float32(r.UnInf_TPA), Float32(uninf); atol = 0.1f0)
                     @test isapprox(Float32(r.Inf_TPA), Float32(inf); atol = 0.1f0)
                     @test isapprox(Float32(r.Live_BA), Float32(ba); atol = 0.1f0)
+                    # Ave_Pct_Root_Inf = 100·PRINF(IDI) (rdcntl.f DO-800) — BIT-EXACT at inventory
+                    @test isapprox(Float32(r.Ave_Pct_Root_Inf), 9.9819f0; atol = 5f-3)
                 elseif yr == 2000
                     # first projected cycle: Area/Spread/Mort BIT-EXACT; Stumps/Inf/BA cornered
                     @test isapprox(Float32(r.RD_Area), Float32(area); atol = 5f-3)
@@ -92,6 +95,7 @@ end
                     @test isapprox(Float32(r.Mort_TPA), Float32(mort); atol = 0.05f0)
                     @test isapprox(Float32(r.Inf_TPA), Float32(inf); rtol = 0.02f0)
                     @test isapprox(Float32(r.Live_BA), Float32(ba); rtol = 0.03f0)
+                    @test isapprox(Float32(r.Ave_Pct_Root_Inf), 40.4337f0; rtol = 0.02f0)  # PRINF cornered
                 else
                     # later cycles: cornered by the WRD DGSCOR/OLDRN #206 growth+spread straddle
                     @test isapprox(Float32(r.RD_Area), Float32(area); rtol = 0.04f0)
