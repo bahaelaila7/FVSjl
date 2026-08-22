@@ -821,3 +821,14 @@ which FVS books as snags AT the 1993 inventory report but jl books at cycle-END 
 (matches the standing memory ROOT). The `d>=1` gate was INERT here (both input-dead are DBH≥1) so the fix changed
 nothing — reverted (speculative/unvalidated). ⇒ FVS_SnagSum/SnagDet remain BLOCKED on the cycle-0-mortality snag-booking
 TIMING (a snag/mortality-model divergence, deep), NOT input-dead and NOT serialization. Emission wiring recipe stands.
+
+## ★ FVS_BurnReport Fire_Type column FIXED 2026-08-22 (ae0ccfa4→1752b897) — real schema bug, fully validated
+Full-column A/B of the FFE fire-event DBS tables (which emit for any SIMFIRE stand via BURNREDB/MORTREDB, NO snag-style
+emission wall) vs FVSca_clean found jl's FVS_BurnReport had 22 cols vs the oracle's 23 — the Fire_Type column (fmcfir.f
+CFTMP) was OMITTED. FIXED: added Fire_Type to schema+serializer + threaded the crown-fire class (SURFACE/COND_CRN/
+PASSIVE/ACTIVE) out of crown_fire_result/nc_crown_fire_result (4th return) into the burn_report; USER_DEF via the
+FLAMEADJ signal (crburn≥0 — FireState default is the FVS UCRBURN sentinel -1 — or flmult≠1). Report-only (gate 339/11).
+VALIDATED: cat01_ffe (CA) Fire_Type=PASSIVE bit-exact; ocffe_full (OC, FLAMEADJ) =USER_DEF bit-exact. All 5 fmcfir types
+emitted. ★ The fire-event DBS tables (BurnReport/Mortality/Consumption) DON'T hit the CUTLIDB/SNAGOUDB emission wall —
+they emit cleanly from BURNREDB/MORTREDB + a DSNout (DATABASE-block-first). NOTE the OTHER BurnReport cols (flame/scorch/
+fuel-weights) + FVS_Mortality carry the KNOWN cornered crown-fire-byram-intensity + OC-growth-drift residuals (not new).
