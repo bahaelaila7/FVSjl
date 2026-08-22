@@ -1137,7 +1137,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
-                       stoadj::Real = 1f0)
+                       stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}())
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1190,7 +1190,9 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # OCURNF·XESMLT=1). On EM bare-establishment stands this let species EXCLUDED on the stand's NF (e.g. PP on
     # forest 108, OCURNF(ifo,PP)=0) over-establish and over-grow (#143: PP htg1≈4.22 vs DF≈1.50 ⇒ BA 6.5×). Now
     # multiplied in via autoes_ocurnf(variant,ifo,sp) (XESMLT=1 default). EM has its table; other variants→1.0.
-    occ = Float32[ie_ocurht(idx.ihab, sp) * (variant === nothing ? 1f0 : autoes_ocurnf(variant, Int(idx.ifo), sp)) for sp in 1:nsp]
+    # occ = OCURHT·XESMLT·OCURNF (estab.f); SPECMULT sets the per-species XESMLT (esnutr.f 95), default 1.0.
+    occ = Float32[ie_ocurht(idx.ihab, sp) * (variant === nothing ? 1f0 : autoes_ocurnf(variant, Int(idx.ifo), sp)) *
+                  (isempty(spec_mult) ? 1f0 : get(spec_mult, Int32(sp), 1f0)) for sp in 1:nsp]
     over = zeros(Float32, 10)
     _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
     tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
@@ -1348,7 +1350,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
                       point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
-                      stoadj = est.stoadj)      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
+                      stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
+                      spec_mult = est.spec_mult)  # SPECMULT per-species XESMLT (empty ⇒ inert)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")

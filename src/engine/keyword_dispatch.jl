@@ -1605,8 +1605,26 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "THRSHOLD"                                # esin.f opt 25: AUTOES removal-fraction thresholds
             if r.present[1]; s.estab.thres1 = clamp(Float32(r.values[1]) / 100f0, 0.025f0, 0.950f0); end
             if r.present[2]; s.estab.thres2 = clamp(Float32(r.values[2]) / 100f0, 0.050f0, 0.975f0); end
+        elseif k == "SPECMULT" || k == "HTADJ"
+            # esin.f opt 7/15 → esnutr.f IACTK 95/442: per-species establishment occupancy multiplier XESMLT
+            # (SPECMULT, default 1.0) / height adjustment HTADJ (default 0.0). Fields: 1=date (activity schedule;
+            # jl applies at establishment like STOCKADJ), 2=species selector (SPDECD: 0/blank⇒ALL, <0⇒group, >0⇒
+            # single), 3=value (esin.f:302 SPECMULT clamps ARRAY(3)<0⇒0). esnutr.f:71-103 expands 0⇒all / <0⇒group.
+            sel = r.present[2] ? Int(round(r.values[2])) : 0
+            val = r.present[3] ? Float32(r.values[3]) : (k == "SPECMULT" ? 1f0 : 0f0)
+            k == "SPECMULT" && val < 0f0 && (val = 0f0)       # esin.f:305 IF(ARRAY(3).LT.0.0) ARRAY(3)=0.0
+            tgt = k == "SPECMULT" ? s.estab.spec_mult : s.estab.ht_adj
+            nsp = length(s.coef.code_alpha)
+            sps = if sel == 0
+                1:nsp                                          # ALL species
+            elseif sel < 0
+                g = -sel                                       # species group
+                (1 <= g <= length(s.control.sp_groups)) ? Int.(s.control.sp_groups[g]) : Int[]
+            else
+                sel:sel                                        # single species index
+            end
+            for sp in sps; (1 <= sp <= nsp) && (tgt[Int32(sp)] = val); end
         end
-        # other establishment keywords (SPECMULT/HTADJ/…) not yet ported — skipped
     end
     # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
     # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.

@@ -669,9 +669,16 @@ mutable struct Establishment
     stoadj::Float32             # STOCKADJ keyword (esnutr.f IACTK 440 STOADJ): multiplier on the establishment
                                 # stocking probability PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Default
                                 # 1.0 (inert); NATURAL implies STOADJ=0.0 (esin.f:1230). Set inside the ESTAB packet.
+    spec_mult::Dict{Int32,Float32}  # SPECMULT keyword (esin.f opt 7 → esnutr.f IACTK 95 XESMLT(ISP)): per-species
+                                # establishment-occupancy multiplier, occ = OCURHT·XESMLT·OCURNF (estab.f). Default
+                                # lookup 1.0 (empty = inert). Set inside the ESTAB packet; 0/group/single species.
+    ht_adj::Dict{Int32,Float32} # HTADJ keyword (esin.f opt 15 → esnutr.f IACTK 442 HTADJ(ISP)): per-species height
+                                # adjustment added to established-tree height before the XMIN/HHTMAX clamps
+                                # (estab.f:932/1033/1036). Default lookup 0.0 (empty = inert).
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0)
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
+                                Dict{Int32,Float32}(), Dict{Int32,Float32}())
 
 mutable struct DbsState
     enabled::Bool

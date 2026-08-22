@@ -303,13 +303,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 htcalc_height(bc, sp, si, age, montane)
             end
             treeht = a.params[5]
+            # HTADJ (esin.f opt 15 → esnutr.f 442): per-species height adjustment added to HHT BEFORE the
+            # XMIN/0.05 floor and HHTMAX clamp (estab.f:932/1033/1036). Default 0 (empty dict) ⇒ inert.
+            hadj = isempty(s.estab.ht_adj) ? 0f0 : get(s.estab.ht_adj, Int32(sp), 0f0)
             if treeht >= 0.1f0                                      # PLANT specified a height
                 hht = treeht; xh = log(hht)
                 while true
                     xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
-                hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034), HTADJ=0
+                hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
+                hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
                    s.variant isa BlueMountains || s.variant isa Utah || s.variant isa Klamath
                 # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
@@ -319,12 +323,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # CI added #154 (was wrongly taking the else RAN-branch below → +~0.5 ft spurious height + a stream
                 # desync). NOTE (CR/IE/TT): same shared-source no-draw applies, latent behind their essubh branches
                 # (their validation used no-PLANT DB stands); fold them in when a PLANT .key is validated per variant.
+                hht += hadj                                        # estab.f:1036 HHT=HHT+HTADJ (before the XMIN floor)
                 hht < es_xmin[sp] && (hht = es_xmin[sp])
             else                                                   # default: RAN~N(0.5,0.25), accept RAN∈[ran_lo,ran_hi]
                 while true
                     ran = bachlo(s.rng, 0.5f0, 0.25f0; stream = :estab)
                     (ran_lo <= ran <= ran_hi) && (hht += ran; break)  # estab.f:483/490 (variant-specific window)
                 end
+                hht += hadj                                        # estab.f:932 HEIGHT(N)=HHT+HTADJ (before the XMIN floor)
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
             hht > es_hhtmax[sp] && (hht = es_hhtmax[sp])
