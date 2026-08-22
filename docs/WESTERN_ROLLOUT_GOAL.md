@@ -38,8 +38,16 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      (wwpb/ in 0 sourceLists, bmdrv called only by absent PPMAIN), so Main/Tree/Vol validated BIT-EXACT vs a
      gfortran-16 golden of the real bmout.f arithmetic + BKP=state pass-through (6 landscape cols structurally 0);
      PPBMMAIN/PPBMTREE/PPBMVOL/PPBMBKP gates, test_bm_dbs.jl 47/47, gate 339/11 [[fvsjl-bm-dbs-tables-no-oracle]].
-     FVS_Climate/CanProfile/StrClass/SnagDet already emitted+validated. **ONLY remaining absent = FVS_RD_* (3) —
-     needs the WRD model ported first (~23k lines unported), NOT a serialization chunk.** Original note below:
+     FVS_Climate/CanProfile/StrClass/SnagDet already emitted+validated. **★★ 2026-08-22 STALE-CLAIM CORRECTED:
+     "FVS_RD_* needs WRD ported (~23k lines)" is WRONG on BOTH counts. (a) WRD IS PORTED + VALIDATED — jl
+     src/engine/root_disease.jl is 2425 lines (RDIN reader, RDATV gate, RRANN RNG bit-exact vs live FVSkt [2000
+     draws/0 mismatch, RDRANP 297/0], RDMN2 spread, RDSPRD/RDRATE/RDINSD, mortality + growth-loss kernels, engine
+     seams); test_root_disease.jl 188 tests, .sum DELTA cornered vs FVSkt_clean. (b) rd/ IS in every FVS sourceList
+     (79 refs in FVSie) ⇒ FVS_RD_* has a REAL LIVE ORACLE (unlike WWPB). So FVS_RD_Sum/Det/Beetle (dbsrd.f
+     DBSRD1/2/3) is a LIVE-ORACLE serialization chunk = port the rdpr.f/rddout.f/rdbout.f report aggregation
+     (like misprt.f for DM) + RDSUM/RDDETAIL/RDBBMORT toggles (dbsin.f opt 34/35/36) + the RRDOUT report gate
+     (rdin.f opt 12). Recipe: DBS emission on FVSkt (WRD's validated variant). NEXT CHUNK. [[fvsjl-bm-dbs-tables-no-oracle]]**
+     Original (now-stale) note below:
      jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
      **★ UNBLOCKED 2026-08-21 (6704c1a5): the oracle-EMISSION plumbing is cracked** (had stalled 3× — FVS_TreeList,
