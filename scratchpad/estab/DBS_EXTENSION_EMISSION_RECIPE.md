@@ -623,3 +623,23 @@ latent OC-growth-calibration gap worth a future check). Validated CalibStats on 
 (snag-list model) · SnagSum ✓ · BM_*/DM_*/RD_* BLOCKED (no-oracle/DB-crash/WRD-partial) · Regen_Tally/SitePrep/
 Sprouts + Stats_Stand/Species = NOT-YET (need jl establishment-tally / inventory-sampling-stats plumbing) ·
 PotFire_Cond/East, Error, EconSummary = minor/eastern/N-A. The cleanly-tractable report-only tables are now DONE.
+
+## ★ OC MEASURED-DG DIVERGENCE 2026-08-22 — corrects the "OC bit-exact" claim; two real gaps (NOT committed, not bit-exact)
+The FVS_CalibStats OC observation (OC emits no rows) led to a MEASURED A/B on a MEASURED-DG OC stand (occal.key =
+ocsnag.tre, whose GF has measured 10-yr DG that the oracle calibrates: COR=1.33). Two real gaps found; OC is DGSD=0
+(deterministic) so these are NOT straddles:
+  (1) **OC is ABSENT from the setup_growth! DGSCOR-calibration chain** (simulate.jl — OP/Olympic IS there, OC is
+     NOT). So OC never runs calibrate_diameter_growth!; c.dg_cor stays 0; the ocmin/oct01 validation had no measured
+     DG so the gap was invisible. Attempted fix: add an OregonCoast branch (oc_dgcons! + compute_density! +
+     calibrate) + OC_DG_SIGMAR (oc/blkdat.f DATA SIGMAR, 50 sp) + wire the sigmar dispatch (OP-style special-case,
+     OC CSV has no dg_resid_sd column). RESULT: OC now emits a CalibStats row (GF n=5 ✓) but the values are ~5% OFF
+     (ScaleFactor 1.25 vs oracle 1.33; StdErrRatio/WC also off TOGETHER) ⇒ the BACKDATING (svar) differs, not just
+     SIGMAR — a deeper OC-backdating issue. **REVERTED (not bit-exact on a deterministic variant).**
+  (2) **The occal .sum diverges at 2003 (cycle 1): TopHt 79 vs 76, TCuFt 2707 vs 2682 — a HEIGHT issue** (BA/TPA/QMD
+     MATCH, so DIAMETER growth is fine; the DG-calibration fix was .sum-INERT). cyc0+1998 bit-exact, only 2003 (the
+     2nd projected cycle) drifts. This is a REAL deterministic OC HEIGHT residual on measured-DG stands (likely the
+     organon_htgro height path or the CCH-tie-break the memory notes), SEPARATE from the DG calibration. **The "OC
+     growth+vol COMPLETE bit-exact" claim was validated on NON-measured-DG stands (ocmin/oct01) and misses both.**
+NEXT (if OC-growth is prioritized): (a) fix the OC calibration BACKDATING to make CalibStats bit-exact, then (b)
+root-cause the 2003 TopHt height drift. Both are OC-growth chunks (not DBS-table work). Repro: /workspace/.ocwork/
+occal.key (oracle occal_oracle.db has FVS_Summary + FVS_CalibStats). Fixture data captured: OC_DG_SIGMAR values above.
