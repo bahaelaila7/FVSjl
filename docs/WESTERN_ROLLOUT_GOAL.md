@@ -28,9 +28,11 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      the prob1>1 over-book), gate 339/11, inert on base/0.5/NOINGROW.** REMAINING est-item = the separate cornered
      **seedling-mortality/timing regime** the STOCKADJ>1 + under-stocked A/Bs surfaced (jl retains extra early
      establishment the oracle density-mortalizes; jl est fires ~1 cycle later) — a pre-existing establishment-MODEL
-     divergence, NOT the keywords. STILL UNWIRED: ADDTREES, MECHPREP, BURNPREP, HABGROUP, MINPLOTS/MAXPLT, PLOTINFO,
-     OUTPUT, PASSALL, SPECMULT, HTADJ (SPECMULT/HTADJ .sum-invisible → need a PER-TREE TREELIST A/B, which needs the
-     FVS_TreeList DBS table that FVSie_clean would not emit this session — item 2 plumbing).
+     divergence, NOT the keywords. ★★ SPECMULT + HTADJ DONE (ed9c9241, test_estab_specmult_htadj.jl): wired into
+     kw_estab! (XESMLT occ-multiplier + established-tree height adjust); HTADJ validated BIT-EXACT vs FVSci_clean's
+     FVS_TreeList (cihtadj vs cibase: targeted DF +5.0ft = oracle 4.9976/5.0; untargeted WP unchanged to a 0.2% straddle).
+     STILL UNWIRED: ADDTREES (external program), MECHPREP/BURNPREP (cornered site-prep est-prob modifiers, no clean
+     signal), HABGROUP/MINPLOTS/MAXPLT/PLOTINFO/OUTPUT/PASSALL (report/control-only).
   2. **DBS write extension-output tables** — jl writes ~18/25; MISSING: FVS_BM_* (WWPB, 4), FVS_DM_* (3), FVS_RD_*
      (3), FVS_Climate, FVS_CanProfile, FVS_StrClass, FVS_SnagDet. Deterministic; per-table oracle SQLite A/B.
      **★ UNBLOCKED 2026-08-21 (6704c1a5): the oracle-EMISSION plumbing is cracked** (had stalled 3× — FVS_TreeList,
