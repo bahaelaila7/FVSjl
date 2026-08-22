@@ -147,5 +147,18 @@ end
 # ORGANON did height/mortality/crown inside `diameter_growth!` → these shared hooks are no-ops for OC.
 height_growth!(s::StandState, ::OregonCoast; kwargs...) = s
 small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
-mortality!(s::StandState, ::OregonCoast; kwargs...) = s
 crown_ratio_update!(s::StandState, ::OregonCoast; kwargs...) = s
+
+# MORTALITY snag-booking: ORGANON applied its MORTEXP inline in `diameter_growth!`
+# (`organon_apply_growth!`), recording the per-record killed density in `t.mort_pa`. The DBH/HT/CR/TPA
+# work is already done, so this hook does NOT re-apply mortality — but the ongoing (non-fire) ORGANON
+# mortality still has to reach the FFE standing-snag pool (fmkill.f ITYP=4 → fmsadd/fmsdit), exactly as
+# every Wykoff variant's `mortality!` books its `killed` density. Without this, OC booked snags only from
+# input-dead + fire, so `snag_summary` decayed to ~0.1× the oracle in the tail and missed the first
+# cycle's mortality pulse (ocsnag 1993 14.76 vs oracle 55.26). `book_mortality_snags!` is a no-op when the
+# FFE is inactive or the SN biomass coeffs are absent, and guards on `dbh>0` so stale `mort_pa` on empty
+# records is skipped. `book_snags=false` on the fire cycle: the fire path owns snag booking there.
+function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snags::Bool = true, kwargs...)
+    book_snags && book_mortality_snags!(s, s.trees.mort_pa, s.trees.n, fint)
+    return s
+end
