@@ -276,6 +276,49 @@ function write_dbs_snagsum!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_SnagDet schema (dbsfmdsnag.f) — the DETAILED snag report: one row per (species, death-year, DBH-class)
+# cohort. Species in all three code forms (FVS/PLANTS/FIA), like FVS_StrClass.
+const _FVS_SNAGDET_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_SnagDet(
+  CaseID text not null, StandID text not null, Year int null,
+  SpeciesFVS text null, SpeciesPLANTS text null, SpeciesFIA text null,
+  DBH_Class int null, Death_DBH real null, Current_Ht_Hard real null, Current_Ht_Soft real null,
+  Current_Vol_Hard real null, Current_Vol_Soft real null, Total_Volume real null, Year_Died int null,
+  Density_Hard real null, Density_Soft real null, Density_Total real null)"""
+
+"""
+    write_dbs_snagdet!(dbpath, caseid, standid, rows, coef) -> dbpath
+
+Write the detailed snag report to the `FVS_SnagDet` DBS table (dbsfmdsnag.f). `rows` is the
+`(year, detail)` collection where `detail` is a `snag_detail(s)` vector (per species×death-year×DBH-class
+cohort). `coef` supplies the FVS/PLANTS/FIA species-code triplet (as `write_dbs_strclass!` does).
+"""
+function write_dbs_snagdet!(dbpath::AbstractString, caseid::AbstractString,
+                            standid::AbstractString, rows::AbstractVector, coef)
+    isempty(rows) && return dbpath
+    fia3(x)   = lpad(strip(string(x)), 3, '0')
+    fvs(i)    = String(strip(coef.code_alpha[i]))
+    plants(i) = String(strip(coef.code_plants[i]))
+    fia(i)    = String(fia3(coef.code_fia[i]))
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_SNAGDET_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_SnagDet VALUES (" * join(fill("?", 17), ",") * ")")
+        for (yr, detail) in rows
+            for r in detail
+                DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                    fvs(r.sp), plants(r.sp), fia(r.sp), Int(r.jcl),
+                    Float64(r.death_dbh), Float64(r.hth), Float64(r.hts),
+                    Float64(r.vh), Float64(r.vs), Float64(r.tv), Int(r.yrdied),
+                    Float64(r.dh), Float64(r.ds), Float64(r.dt)))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_StrClass schema (dbsstrclass.f:128-174) — SSTAGE stand-structure classification: up to 3 height strata,
 # each with DBHNOM / heights / crown base / cover / the two dominant-crown species (FVS/PLANTS/FIA) / status,
 # plus the whole-stand strata count, cover, and structure-class label. Two rows/cycle (Removal_Code 0=before-thin,

@@ -469,6 +469,64 @@ function snag_summary(s::StandState)
     return (hard = Tuple(thd), soft = Tuple(tsf))
 end
 
+# DETAILED snag report DBH class (fmsout.f:150-153): EXCLUSIVE SNPRCL bins 1-6 (< breakpoint), distinct from
+# snag_summary's CUMULATIVE (≥) classes. class i = smallest with DBH < SNPRCL[i+1]; class 6 for DBH ≥ 36.
+@inline function _snag_detcl(d::Float32)::Int
+    @inbounds for c in 1:5
+        d < _FM_SNPRCL[c + 1] && return c
+    end
+    return 6
+end
+
+"""
+    snag_detail(s) -> Vector of (sp, jcl, death_dbh, hth, hts, vh, vs, tv, yrdied, dh, ds, dt) rows
+
+The DETAILED standing-snag report (fmsout.f → dbsfmdsnag.f / FVS_SnagDet): one row per non-empty
+(species, YRDEAD death-year, SNPRCL DBH-class) cohort, with the density-weighted mean DBH, the hard/soft
+mean CURRENT height, the hard/soft CURRENT bole cubic volume, the hard/soft/total densities, and the
+death year. Uses the SAME hard→soft DKTIME flip as `snag_summary` (an initially-hard snag past DKTIME is
+counted soft: its DENIH density/height/volume move to the soft totals — fmsout.f:162-172). Volume is the
+per-variant snag stem cubic on the CURRENT height (`_snag_merch_cuft_on`, = FMSVOL LMERCH per variant),
+matching the standing-snag bole used in `book_mortality_snags!`. Rows are sorted (sp, yrdead, jcl) for a
+deterministic emission order (the SQLite content is order-independent, but the sort keeps tests stable).
+"""
+function snag_detail(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return NamedTuple[]
+    sn = fs.snags; decayx = coef_col(s.coef, :snag_decayx); iyr = Int(current_cycle_year(s))
+    dcovr = fs.params.snag_decayx_ovr
+    acc = Dict{Tuple{Int,Int,Int},NTuple{7,Float32}}()   # key (sp,yrdead,jcl) ⇒ (dh,ds,hth,hts,vh,vs,dbh)
+    @inbounds for i in eachindex(sn.sp)
+        denih = sn.den_hard[i]; denis = sn.den_soft[i]; d = sn.dbh[i]
+        (denih + denis) > 0f0 || continue
+        d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
+        sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
+        vol = _snag_merch_cuft_on(s, sp, d, h)
+        dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
+        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
+        ishard = Float32(iyr - 1 - yd) < dktime
+        dh  = ishard ? denih : 0f0
+        ds  = denis + (ishard ? 0f0 : denih)
+        vh  = ishard ? vol * denih : 0f0
+        vs  = vol * denis + (ishard ? 0f0 : vol * denih)
+        p = get(acc, (sp, yd, jcl), (0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0))
+        acc[(sp, yd, jcl)] = (p[1] + dh, p[2] + ds, p[3] + h * dh, p[4] + h * ds,
+                              p[5] + vh, p[6] + vs, p[7] + d * (denih + denis))
+    end
+    rows = NamedTuple[]
+    for (key, v) in acc
+        (sp, yd, jcl) = key
+        totn = v[1] + v[2]
+        totn > 0f0 || continue
+        push!(rows, (sp = sp, jcl = jcl, death_dbh = v[7] / totn,
+                     hth = v[1] > 0f0 ? v[3] / v[1] : 0f0, hts = v[2] > 0f0 ? v[4] / v[2] : 0f0,
+                     vh = v[5], vs = v[6], tv = v[5] + v[6], yrdied = yd,
+                     dh = v[1], ds = v[2], dt = totn))
+    end
+    sort!(rows, by = r -> (r.sp, r.yrdied, r.jcl))
+    return rows
+end
+
 
 """
     ffe_seed_input_snags!(s) -> StandState

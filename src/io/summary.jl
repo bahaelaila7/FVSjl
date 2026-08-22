@@ -268,7 +268,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             uf = st.control.carbon_units == 1 ? 0.90718474f0 / 0.40468564f0 :
                  st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
             push!(carbon_collect, (r.year, stand_carbon_report(st), ffe_fuel_loadings(st),
-                                   snag_summary(st), ffe_down_wood(st), rel * uf))
+                                   snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
         # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed

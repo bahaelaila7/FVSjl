@@ -39,4 +39,26 @@ using SQLite, DBInterface
     @test tot[1998] > 30.0
     @test tot[2008] > tot[1998] > tot[1993]      # monotone recruitment while ongoing mortality > fall-down
     @test tot[2008] > 4 * tot[1993]              # strong recruitment signal (~70 vs 14.76)
+
+    # FVS_SnagDet (dbsfmdsnag.f): the DETAILED per-(species, death-year, DBH-class) snag report.
+    db2 = SQLite.DB(outdb)
+    @test "FVS_SnagDet" in [t.name for t in SQLite.tables(db2)]
+    # schema = 17 cols (matches FVSoc_clean dbsfmdsnag.f, verified vs ocsnag_oracle.db).
+    cols = [c.name for c in DBInterface.execute(db2, "PRAGMA table_info(FVS_SnagDet)")]
+    @test length(cols) == 17
+    @test cols[1:7] == ["CaseID", "StandID", "Year", "SpeciesFVS", "SpeciesPLANTS", "SpeciesFIA", "DBH_Class"]
+    # INTERNAL CONSISTENCY: the SnagDet Density_Total summed per year == the SnagSum grand total (same snags).
+    detsum = Dict{Int,Float64}()
+    for r in DBInterface.execute(db2, "SELECT Year, sum(Density_Total) s FROM FVS_SnagDet GROUP BY Year")
+        detsum[r.Year] = r.s
+    end
+    for y in keys(detsum)
+        @test isapprox(detsum[y], tot[y]; atol = 1e-3)
+    end
+    # BIT-EXACT input-dead rows at 1993 (LP class1 died 1988, dens 14.15; SP class5 died 1988, dens 0.61) —
+    # matches ocsnag_oracle.db FVS_SnagDet exactly (Death_DBH 7.2/34.6, Density 14.15/0.61).
+    lp93 = first(DBInterface.execute(db2,
+        "SELECT Death_DBH d, Density_Total t, Year_Died y FROM FVS_SnagDet WHERE Year=1993 AND SpeciesFVS='LP'"))
+    @test lp93.y == 1988 && isapprox(lp93.d, 7.2; atol = 0.05) && isapprox(lp93.t, 14.15; atol = 0.05)
+    SQLite.close(db2)
 end

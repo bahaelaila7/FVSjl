@@ -931,6 +931,8 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+                write_dbs_snagdet!(s.control.dbs_out_file, caseid, String(sid),
+                                   [(r[1], r[7]) for r in carb_rows], s.coef)
                 write_dbs_dwd_vol!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_dwd_cov!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
             end
