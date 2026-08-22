@@ -193,6 +193,17 @@ const _WSBWE_MIN = "WSBW\nDAMAGE\nEND\n"
         @test _FW.wsbwe_ibiomp_for(_FW.EastCascades()) === _FW.WSBWE_IBIOMP_EC
         @test length(_FW.WSBWE_IBWSPM_EC) == 32 && length(_FW.WSBWE_IBIOMP_EC) == 32
         @test (_FW.WSBWE_IBWSPM_EC[3], _FW.WSBWE_IBWSPM_EC[6], _FW.WSBWE_IBWSPM_EC[8], _FW.WSBWE_IBWSPM_EC[9]) == (2, 3, 5, 4)  # DF/GF/ES/AF
+        # BC (British Columbia, MAXSP=15): hosts LW(6)/FD(2)/BG(3)/SE(5)/BL(4) at sp2/3/4/8/9 (bwebkbc.f);
+        # biomass==EM; FVS BC works imperial internally (metric only I/O) ⇒ clean swap. VALIDATED vs the
+        # relinked FVSbc_wsbwe on a metric FD/BG/SE/BL stand: the budworm GROWTH effect (RDDS reduction)
+        # matches — QMD on-vs-off Δ oracle 0.3 / jl 0.2-0.3, and jl(BC) reproduces the on/off .sum within
+        # the ~0.5% BC growth straddle. (BC budworm mortality is minimal at these sizes — a BC-model property,
+        # not a gap; the growth signal is the validation vehicle.)
+        @test _FW.wsbwe_ibwspm_for(_FW.BritishColumbia()) === _FW.WSBWE_IBWSPM_BC
+        @test _FW.wsbwe_ibiomp_for(_FW.BritishColumbia()) === _FW.WSBWE_IBIOMP_BC
+        @test _FW.WSBWE_IBWSPM_BC == Int[7,6,2,3,7,7,7,5,4,7,7,7,7,2,7]
+        @test _FW.WSBWE_IBIOMP_BC == Int[1,2,3,4,5,6,7,8,9,10,11,11,11,3,11]
+        @test (_FW.WSBWE_IBWSPM_BC[2], _FW.WSBWE_IBWSPM_BC[3], _FW.WSBWE_IBWSPM_BC[4], _FW.WSBWE_IBWSPM_BC[8], _FW.WSBWE_IBWSPM_BC[9]) == (6, 2, 3, 5, 4)  # LW/FD/BG/SE/BL
         @test _FW.wsbwe_ibwspm_for(_FW.InlandEmpire()) === nothing    # unsupported variant → inert
         # CI (Central Idaho, MAXSP=19): sp3=DF(2), sp4=GF(3), sp8=ES(5), sp9=AF(4). biomass +
         # host-defol coeffs byte-identical to EM (verified) ⇒ clean IBWSPM/IBIOMP swap.
