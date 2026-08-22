@@ -31,6 +31,7 @@ using FVSjl
     include("unit/test_strclass_dbs.jl")    # FVS_StrClass DBS table (dbsstrclass.f, STRCLSDB): structure_report + write_dbs_strclass! — cyc0 all-43-col bit-exact vs FVSoc_clean (+OC oc_cwcalc _ss_strata fix), later cycles cornered
     include("unit/test_calibstats_dbs.jl")  # FVS_CalibStats DBS table (dbscalib.f, CALBSTDB): captured DGSCOR calib stats + write_dbs_calibstats! — all 9 cols bit-exact vs FVScr_clean (WF/ES)
     include("unit/test_oc_treelist_dg.jl")  # FVS_TreeList DG/HtG for OC: ORGANON clobbered diam_growth/ht_growth (0 on projected cycles); shared apply-loop now skips OC + keeps the increment (.sum-inert)
+    include("unit/test_op_treelist_dg.jl")  # FVS_TreeList DG/HtG for OP: sibling ORGANON (cooperating driver) — confirms OP has NO OC-style clobber, live-tree DG/HtG bit-exact vs FVSop_clean
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb
