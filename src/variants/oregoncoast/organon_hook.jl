@@ -138,11 +138,9 @@ function diameter_growth!(s::StandState, ::OregonCoast; tripling::Bool = false,
     # but faithful for dense stands. Sourced from the ecoclass-filled sp_sdi_def (site_setup!).
     msdi = (length(s.plot.sp_sdi_def) >= 7 && s.plot.sp_sdi_def[7] > 0f0) ? s.plot.sp_sdi_def[7] : 0f0
     organon_apply_growth!(s; fint=sfint, msdi=msdi)
-    t = s.trees
-    @inbounds for i in 1:t.n
-        t.diam_growth[i] = 0f0    # DBH/HT already grown in organon_apply_growth!; zero so the shared
-        t.ht_growth[i]   = 0f0    # grow_cycle! apply-loop (DBH+=DG/bark, HT+=HTG) is inert for OC.
-    end
+    # DBH/HT/NORMHT already grown INLINE in organon_apply_growth!; the shared grow_cycle! apply-loop SKIPS OC
+    # (simulate.jl) so it does NOT double-apply. We KEEP diam_growth/ht_growth (the applied increment) so the
+    # FVS_TreeList DG/HtG columns are populated for OC (they were 0 on every projected cycle when zeroed here).
     return nothing
 end
 

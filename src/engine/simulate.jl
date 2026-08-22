@@ -764,6 +764,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                                                 # vigor). dgdriv.f:161 WK1(I)=DG(I). CI/EM were OMITTED ⇒ their
                                                 # mortality read WK1=0 forever ⇒ wrong vigor G ⇒ mis-calibrated
                                                 # mortality on mature real-FIA stands (the multi-cycle blow-up).
+        # OC applied DBH/HT/NORMHT inline in organon_apply_growth! (ORGANON does growth+mort+crown in one
+        # EXECUTE) and KEEPS diam_growth/ht_growth for the FVS_TreeList DG/HtG report — so this shared
+        # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
+        # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
+        s.variant isa OregonCoast && continue
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
         (_cr_up || _tt_up || _ut_up || _ie_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
