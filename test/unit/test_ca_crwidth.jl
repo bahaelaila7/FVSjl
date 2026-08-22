@@ -14,7 +14,8 @@ using FVSjl
 @testset "CA FVS_TreeList CrWidth = ca_cwcalc + forest-610 BF, bit-exact vs FVSca_clean" begin
     # cat01 stand context (forest 610, el 45 hundred-ft, inline stand ⇒ lat/lon 0 ⇒ Hopkins -323.6175); BA 85.13126.
     ba = 85.13126f0; el = 45.0f0; hi = -323.6175f0
-    cw(sp, d, h, cr) = clamp(FVSjl.ca_cwcalc(sp, Float32(d), Float32(h), Float32(cr), ba, el, hi), 0.5f0, 99.9f0)
+    # forest_bf=true: the FVS_TreeList forest-grown path applies the R6 forest-610 BF (the FFE PERCOV path is BF-free).
+    cw(sp, d, h, cr) = clamp(FVSjl.ca_cwcalc(sp, Float32(d), Float32(h), Float32(cr), ba, el, hi; forest_bf = true), 0.5f0, 99.9f0)
     # CA species indices: DF=7, WF=4, SP=16, LP=12, PP=18 (code_alpha order).
     # Oracle FVS_TreeList CrWidth (FVSca_clean cat01, inventory 1990) — these carry the folded 610 BF:
     @test isapprox(cw(18, 6.5, 30.0,  75), 9.984; atol = 0.005)   # PP 6.5"/30'/cr75 (BF 0.918)

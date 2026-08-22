@@ -113,8 +113,17 @@ const _BM_ISPMAP = Int[15, 8, 3, 4, 24, 16, 11, 18, 1, 13, 14, 11, 7, 8, 41, 17,
 # the SAME 5-char crown-width equation, so the western Crookston/Bechtold library (cr_cwcalc) reproduces
 # BM's CRWDTH. bmt01's species (DF/GF/WL/LP/ES/MH) all map exactly. The BM-unique equations (06405 WJ,
 # 23104 PY, 04205 YC, 74705 CW, 31206 OH) have no CR carrier => nearest-genus fallback (cornered for
-# non-bmt01 stands). Region-6 forest bias factor BF (cwcalc.f:500+) is NOT applied here (BF in [0.9,1.25]
-# on the R6-model-2 species DF/LP/ES for KODFOR>=601) — a documented PERCOV-only residual.
+# non-bmt01 stands).
 const _BM_TO_CR_CWSP = Int[15, 8, 3, 4, 6, 16, 11, 17, 1, 13, 14, 10, 7, 7, 19, 19, 13, 19]
-@inline bm_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32 =
-    (1 <= sp <= 18) ? cr_cwcalc(_BM_TO_CR_CWSP[sp], d, h, cr, barea, el, hi) : 0f0
+# Region-6 forest bias factor BF (cwcalc.f CASE(614) UMATILLA, bmt01's forest) — per-FIASP, applied ONLY on the
+# R6-Model-2 (·BF·) eqns, NOT the log-form ones (07303 WL / 01703 GF have no BF in cwcalc.f). WP(119)=1.128,
+# DF(202)=1.055, LP(108)=1.244, ES(093)=1.137, AF(019)=1.110, PP(122)=1.035; WL/GF and the rest = 1.0 (log-form /
+# not in the 614 table). Folded into cr_cwcalc's leading coef via its `bf` kwarg ⇒ FVS_TreeList CrWidth bit-exact.
+const _BM_CWBF = Float32[1.128, 1.0, 1.055, 1.0, 1.0, 1.0, 1.244, 1.137, 1.110, 1.035, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+# `forest_bf` = apply the R6 forest BF (TreeList/CutList forest-grown CRWDTH, IWHO=0). The FFE PERCOV path (fmcba,
+# fuel_model) and StrClass call with the default forest_bf=false ⇒ BF=1, matching the oracle FFE crown-biomass
+# (bmt01_fire is BF-FREE — measured: with-BF regressed 2030 BA 131→165). Only _forest_crwdth opts in.
+@inline bm_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                  forest_bf::Bool = false)::Float32 =
+    (1 <= sp <= 18) ? cr_cwcalc(_BM_TO_CR_CWSP[sp], d, h, cr, barea, el, hi;
+                                bf = forest_bf ? _BM_CWBF[sp] : 1f0) : 0f0

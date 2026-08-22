@@ -247,18 +247,21 @@ const _CA_CWMAP = ("04105","08105","24205","01505","02006","02105","20205","2630
                    "81802","82102","83902","31206","31206","35106","36102","63102","35106","31206",
                    "31206","63102","63102","74605","74705","31206","98102","98102","31206","21104")
 
-function ca_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
+function ca_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                   forest_bf::Bool = false)::Float32
     (1 <= sp <= 50) || return 0f0
     eqn = _CA_CWMAP[sp]; cl = cr * h * 0.01f0; ba1 = barea + 1f0
-    # Crookston-R6 model 2, BF folded into the leading coef (cwcalc.f CASE(610,710,711) Rogue River — cat01's
-    # forest 610; same BF table as OC/oc_cwcalc, whose ref forest is also 610). BF: DF(202)=1.0, WF(015)=1.0
-    # (neither in the 610 table), SP(117)=1.048, LP(108)=0.944, PP(122)=0.918. Without BF the per-tree CrWidth was
-    # ~5% off (the aggregated FFE crown-biomass masked it); folding it in makes the FVS_TreeList column bit-exact.
-    if     eqn == "20205"; return _cr_r6m2(6.0227f0*1.000f0,0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)  # Douglas-fir (BF 1.0)
-    elseif eqn == "01505"; return _cr_r6m2(5.0312f0*1.000f0,0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)  # white fir (BF 1.0)
-    elseif eqn == "11705"; return _cr_r6m2(3.5930f0*1.048f0,0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el, 5f0,75f0,56f0)  # sugar pine (BF 1.048)
-    elseif eqn == "10805"; return _cr_r6m2(6.6941f0*0.944f0,0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)  # lodgepole pine (BF 0.944)
-    elseif eqn == "12205"; return _cr_r6m2(4.7762f0*0.918f0,0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0) # ponderosa pine (BF 0.918)
+    # `forest_bf` = apply the R6 forest BF for the TreeList/CutList forest-grown CRWDTH (cwcalc.f CASE(610,710,711)
+    # Rogue River — cat01's forest 610; same BF table as oc_cwcalc). BF on the R6-Model-2 eqns only: SP(117)=1.048,
+    # LP(108)=0.944, PP(122)=0.918 (DF/WF not in the 610 table ⇒ 1.0). The FFE PERCOV path (fmcba, fuel_model) and
+    # StrClass call with forest_bf=false ⇒ BF-free, matching the oracle FFE crown-biomass (the fire path is BF-free,
+    # as BM's bmt01_fire measurement proved — with-BF regressed it). Only _forest_crwdth opts in.
+    bf(x) = forest_bf ? x : 1f0
+    if     eqn == "20205"; return _cr_r6m2(6.0227f0,0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)  # Douglas-fir (BF 1.0)
+    elseif eqn == "01505"; return _cr_r6m2(5.0312f0,0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)  # white fir (BF 1.0)
+    elseif eqn == "11705"; return _cr_r6m2(3.5930f0*bf(1.048f0),0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el, 5f0,75f0,56f0)  # sugar pine (BF 1.048)
+    elseif eqn == "10805"; return _cr_r6m2(6.6941f0*bf(0.944f0),0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)  # lodgepole pine (BF 0.944)
+    elseif eqn == "12205"; return _cr_r6m2(4.7762f0*bf(0.918f0),0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0) # ponderosa pine (BF 0.918)
     elseif eqn == "09204"; return _nc_donnelly(2.8232f0,0.66326f0, d, 38f0)   # bristlecone/BR (Donnelly R6)
     else
         error("ca_cwcalc: crown-width equation $(eqn) (CA species $(sp)) not yet ported — cat01 exercises only " *

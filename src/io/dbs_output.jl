@@ -749,6 +749,13 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
     # which R5 skips), so ws_r5crwd is per-tree exact for the TreeList (unlike the R6 BF-baked BM/SO kernels).
     s.variant isa WestSierra && return clamp(ws_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
+    # CA/BM: the FVS_TreeList forest-grown CRWDTH applies the R6 forest BF (cwcalc.f IWHO=0), UNLIKE the FFE PERCOV
+    # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
+    s.variant isa CentralCalifornia &&
+        return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+    s.variant isa BlueMountains &&
+        return clamp(bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
           s.variant isa OregonCoast       ? oc_cwcalc :
           s.variant isa Olympic           ? op_cwcalc :
@@ -756,11 +763,9 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa WestCascades      ? wc_cwcalc :
           s.variant isa PacificNorthwest  ? pn_cwcalc :
           s.variant isa EastCascades      ? ec_cwcalc :
-          s.variant isa CentralCalifornia ? ca_cwcalc :
           nothing
     wcw === nothing &&
         return crown_width(s.coef, s.species.code2[sp], d, h, 90, 1, p.latitude, p.longitude, p.elevation)
-    hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
     return clamp(wcw(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi), 0.5f0, 99.9f0)
 end
 
