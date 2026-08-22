@@ -15,9 +15,15 @@
 "minimum tree DBH for DMR/DMI statistics (misin0.f:79 DMRMIN default; MISTMIN keyword not yet wired)"
 const _DM_DMRMIN = 1.0f0
 
-"true when any tree carries a dwarf-mistletoe rating (misprt.f DMFLAG) on a DM-effect variant"
+# Variants that run the base mistoe.f DM model + its MISPRT report: the N-Rockies cluster
+# (_ie_mis_variant), CentralRockies (its own cr_mistoe!/cr_dm_mortality — always-on, per-tree DMR),
+# and BritishColumbia (NEWSPRED, keyword-activated). Distinct from `_dm_effects_variant` (the
+# effect-application gate, which CR bypasses via its own cr_ gates).
+@inline _dm_report_variant(v)::Bool = _ie_mis_variant(v) || v isa CentralRockies || v isa BritishColumbia
+
+"true when any tree carries a dwarf-mistletoe rating (misprt.f DMFLAG) on a DM-report variant"
 function _dm_report_active(s::StandState)::Bool
-    _dm_effects_variant(s.variant) || return false
+    _dm_report_variant(s.variant) || return false
     t = s.trees
     @inbounds for i in 1:t.n
         t.dmr[i] > 0 && return true

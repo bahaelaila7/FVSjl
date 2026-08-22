@@ -891,7 +891,7 @@ function run_keyfile(keypath::AbstractString;
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
         cprof_rows = (s.control.dbs_canprofile && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
-        dm_rows = (s.control.dbs_mistoe && _dm_effects_variant(s.variant)) ? Tuple[] : nothing
+        dm_rows = (s.control.dbs_mistoe && _dm_report_variant(s.variant)) ? Tuple[] : nothing
         dm_top4 = Int[]
         hook = tl_on ? (st, yr, pl, cy) -> push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy)) : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
