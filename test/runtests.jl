@@ -53,6 +53,7 @@ using FVSjl
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb
     include("unit/test_wsbwe.jl")          # WSBWE beachhead: BWERAN RNG seed 55329 bit-exact vs pristine wsbwe/bweran.f + WSBW keyword reader (keywds.f opt 8) + INERT seam
+    include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_ontario.jl")        # ON (Ontario) beachhead: Penner large-tree DGF (annual diameter-increment, on/dgf.f) dump-replay bit-exact vs FVSon_g16
     include("unit/test_ontario_dgf_wired.jl")# ON: engine-WIRED dgf! (stand-context assembly + on_bratio + leftover-BARK DDS) WK2 bit-exact vs production FVSon_g16 on ont01 cyc0
