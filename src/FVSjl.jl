@@ -106,6 +106,7 @@ include("variants/centralidaho/regent.jl")           # CI small-tree growth (ci/
 include("variants/centralidaho/establishment.jl")    # CI ESSUBH planted/subsequent base height (ci/essubh.f) — #154
 include("variants/centralidaho/mortality.jl")        # CI mortality (ci/morts.f) — Hamilton, chunk 7
 include("variants/centralidaho/volume.jl")           # CI volume (ci VEQNNC): MATW/FW2W/DVEW — chunk 8
+include("variants/centralidaho/crown_width.jl")      # CI FVS_TreeList crown width (national cwcalc.f CIMAP dispatch)
 include("variants/inlandempire/inlandempire.jl")     # IE singleton + registration (MAXSP 23)
 include("variants/inlandempire/species.jl")          # IE species block-data init (ie/blkdat.f + grinit.f)
 include("variants/inlandempire/site_index.jl")       # IE habtyp/forkod/sitset (chunk 2): ITYPE/IFOR/SITEAR
@@ -129,6 +130,7 @@ include("variants/easternmontana/easternmontana.jl")  # EM singleton + registrat
 include("variants/easternmontana/species.jl")         # EM blkdat init (19 species, seed 55329, Stage SDI) + SPCTRN col 10
 include("variants/easternmontana/site_index.jl")      # EM habtyp (JTYPE/NIHMAP→ITYPE) + sitset (site index/SDIDEF) — site_setup!
 include("variants/easternmontana/crown.jl")           # EM per-tree CCF (em/ccfcal.f MODE=1 polynomial) — em_tree_ccf
+include("variants/national_crown_width.jl")           # shared cwcalc.f SELECT CASE(CWEQN) — _cwcalc_national (IE/KT/CI/…)
 include("variants/easternmontana/dg_coefficients.jl") # EM large-tree DG coefficient arrays (em/dgf.f DATA, 1D+2D)
 include("variants/easternmontana/diameter_growth.jl") # EM large-tree DDS (em/dgf.f): em_dgcons! + dgf! (Wykoff main)
 include("variants/easternmontana/height_growth.jl") # EM large-tree height growth (em/htgf.f+pothtg.f): POTHTG+RALPH+modifier
