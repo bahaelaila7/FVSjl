@@ -29,6 +29,7 @@ using FVSjl
     include("unit/test_climate_dbs.jl")     # FVS_Climate DBS table (dbsclsum.f, CLIMREDB): climate_report + write_dbs_climate! — Viability/ViabMort bit-exact vs FVSie_clean, BA/TPA/etc cornered on the OLDRN straddle
     include("unit/test_canprofile_dbs.jl")  # FVS_CanProfile DBS table (dbsfmcanpr.f, CANFPROF): canopy_crfill + write_dbs_canprofile! — cyc0 profile bit-exact vs FVScr_clean (PRE-growth collection), multi-cycle cornered
     include("unit/test_strclass_dbs.jl")    # FVS_StrClass DBS table (dbsstrclass.f, STRCLSDB): structure_report + write_dbs_strclass! — cyc0 all-43-col bit-exact vs FVSoc_clean (+OC oc_cwcalc _ss_strata fix), later cycles cornered
+    include("unit/test_calibstats_dbs.jl")  # FVS_CalibStats DBS table (dbscalib.f, CALBSTDB): captured DGSCOR calib stats + write_dbs_calibstats! — all 9 cols bit-exact vs FVScr_clean (WF/ES)
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb

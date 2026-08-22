@@ -920,6 +920,8 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
             strcl_rows === nothing ||
                 write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
+            s.control.dbs_calibstats &&
+                write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
             if carb_rows !== nothing
                 write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)

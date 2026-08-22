@@ -615,6 +615,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 c.dg_cor[sp] = corv
                 # modified residual SD only for calibrated species (dgdriv.f:323-325)
                 c.sigma[sp] = sqrt((svar + c.atten[sp] * sigmar[sp]^2) / (fn[sp] + c.atten[sp]))
+                # FVS_CalibStats (dgdriv.f:896-962): capture NUMCAL/STDRAT/WC for the CALBSTDB DBS report. STDRAT =
+                # SQRT(SVAR/SIGMAR²) with the SAMPLE variance SVAR/(FN−1); WC is the weight computed above.
+                c.cal_ntree[sp] = round(Int32, fn[sp])
+                c.cal_stdrat[sp] = sigmar[sp] > 0f0 && fn[sp] > 1f0 ?
+                                   sqrt((svar / (fn[sp] - 1f0)) / sigmar[sp]^2) : 0f0
+                c.cal_wci[sp] = wc
+                c.cal_cortem[sp] = exp(corv)      # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
                 slop[sp] = slp; bnx[sp] = bnxv; bny[sp] = bnyv; calibrated[sp] = true
             end
         end

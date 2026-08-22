@@ -264,6 +264,7 @@ mutable struct Control
     dbs_climate::Bool                         # DATABASE CLIMREDB ⇒ emit the FVS_Climate table         (ICLIM)
     dbs_canprofile::Bool                      # FFE CANFPROF keyword ⇒ emit the FVS_CanProfile table   (ICANPR)
     dbs_strclass::Bool                        # DATABASE STRCLSDB ⇒ emit the FVS_StrClass table        (ISTRCLAS)
+    dbs_calibstats::Bool                      # DATABASE CALBSTDB ⇒ emit the FVS_CalibStats table      (ICALBSTAT)
     cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle cut-record sink (_log_cut!), else nothing
     strclass_on::Bool                         # STRCLASS keyword ⇒ compute the structural stage each cycle (LCALC)
     strclass_thresh::NTuple{6,Float32}        # STRCLASS thresholds: gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx
@@ -351,7 +352,7 @@ function Control()
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
-        false, false, false, false, nothing,                    # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, cutlist_capture
+        false, false, false, false, false, nothing,             # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, dbs_calibstats, cutlist_capture
         false, SS_THRESH_DEFAULT,                               # strclass_on, strclass_thresh (SSTAGE)
         Int32(0), Int32(0), 5f0, 5f0, 5f0,                      # GROWTH: idg, ihtg, fint, finth, fintm (defaults)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
@@ -551,6 +552,13 @@ mutable struct Calibration
     op_cr2::Vector{Float32}
     op_mortexp::Vector{Float32}
     op_org_ran::Bool                 # true ⇒ ORGANON EXECUTE ran this cycle (SMORMT>0 ⇒ MORTEXP-for-all in mortality!)
+    # FVS_CalibStats (dgdriv.f, DBSCALIB): the LARGE-tree DG-calibration sample stats, captured during the DGSCOR
+    # calibration for the CALBSTDB DBS report. cal_ntree = NUMCAL (N calibration trees), cal_stdrat = STDRAT =
+    # SQRT(SVAR/SIGMAR²), cal_wci = WC (the Bayes weight-to-input). ScaleFactor=exp(dg_cor), ReadCorMult=exp(dg_cor/WC).
+    cal_ntree::Vector{Int32}         # NUMCAL — 0 = species not large-tree-calibrated (no CalibStats row)
+    cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
+    cal_wci::Vector{Float32}         # WC — calibration weight to input
+    cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -560,7 +568,9 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), ones(Int32,MAXSP), 0f0, Float32[],   # ht_dbh_aa=0, iabflg=1, calib_dbh empty
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # dg_dsq, dg_ccf (EM), sm_const (BM)
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
-    Int32[], Float32[], Float32[], Float32[], false)                 # OP ORGANON per-tree stash (empty until diameter_growth!)
+    Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
+    zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
+    zeros(Float32,MAXSP))                                            # cal_cortem (CalibStats ScaleFactor)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

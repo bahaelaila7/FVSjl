@@ -331,6 +331,45 @@ function write_dbs_strclass!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
+# FVS_CalibStats schema (dbscalib.f:88-100) — the DGSCOR large-tree DG-calibration sample statistics per calibrated
+# species (one row per species with NUMCAL>0). Written once per stand after calibration.
+const _FVS_CALIBSTATS_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_CalibStats(
+  CaseID text not null, StandID text not null, TreeSize text not null,
+  SpeciesFVSnum int not null, SpeciesFVS text not null, SpeciesPLANTS text not null, SpeciesFIA text not null,
+  NumTrees int null, ScaleFactor real null, StdErrRatio real null, WeightToInput real null, ReadCorMult real null)"""
+
+"""
+    write_dbs_calibstats!(dbpath, caseid, standid, calib, coef) -> dbpath
+
+Write the DGSCOR large-tree DG-calibration statistics to the `FVS_CalibStats` DBS table (dbscalib.f). One row per
+large-tree-calibrated species (`calib.cal_ntree[sp] > 0`): ScaleFactor = exp(COR), StdErrRatio = STDRAT,
+WeightToInput = WC, ReadCorMult = exp(COR/WC).
+"""
+function write_dbs_calibstats!(dbpath::AbstractString, caseid::AbstractString,
+                               standid::AbstractString, calib, coef)
+    fia3(x) = lpad(strip(x), 3, '0')
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_CALIBSTATS_CREATE)
+        ins = "INSERT INTO FVS_CalibStats VALUES (" * join(fill("?", 12), ",") * ")"
+        stmt = DBInterface.prepare(db, ins)
+        for sp in 1:length(calib.cal_ntree)
+            n = calib.cal_ntree[sp]
+            n > 0 || continue
+            wc = calib.cal_wci[sp]
+            scale = calib.cal_cortem[sp]                       # CORTEM = exp(COR) at calibration time
+            readcor = wc > 0f0 ? exp(log(scale) / wc) : scale  # exp(LOG(CORTEM)/WC)
+            DBInterface.execute(stmt, (caseid, standid, "LG", Int(sp),
+                String(strip(coef.code_alpha[sp])), String(strip(coef.code_plants[sp])), String(fia3(coef.code_fia[sp])),
+                Int(n), Float64(scale), Float64(calib.cal_stdrat[sp]), Float64(wc), Float64(readcor)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Climate schema (dbsclsum.f:33-48) — Climate-FVS per-species Viability-and-Effects report.
 const _FVS_CLIMATE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Climate(
