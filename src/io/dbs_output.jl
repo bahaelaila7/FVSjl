@@ -703,20 +703,34 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # cwcalc.f (IWHO=0, forest-grown Bechtold/Crookston library, actual crown ratio + stand BA/elev/Hopkins),
     # NOT the eastern open-grown crown_width. Precompute the CR stand inputs once; per-tree via cr_cwcalc.
     iscr   = s.variant isa CentralRockies
+    # CRWDTH forest-grown crown-width dispatch (cwcalc.f): the WESTERN variants that carry a ported per-variant
+    # cwcalc (CWMAP + national eqn library + per-forest BF) compute it here — the eastern open-grown crown_width()
+    # returns the 0.5 default for their species. Same dispatch StrClass (structure_stage.jl) and FFE (fmcba.jl) use.
+    isoc   = s.variant isa OregonCoast
+    isem   = s.variant isa EasternMontana
+    # SO (so_cwcalc) is NOT included yet: a full-column A/B on sot01 (forest 601) shows 4 minor species (WJ/GC/MC/MB)
+    # off by 0.9-2.6 — so_cwcalc coefficient/BF gaps for those, a separate per-species audit. CR/OC/EM are bit-exact.
+    usewcw = iscr || isoc || isem
     # SpeciesFIA: FVS emits the 3-char zero-padded FIA code (FIAJSP). CR's data has 2-digit western codes
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
-    cr_hi  = iscr ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
-    cr_ba  = iscr ? s.plot.basal_area : 0f0
-    cr_el  = iscr ? s.plot.elevation : 0f0
+    cr_hi  = usewcw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
+    cr_ba  = usewcw ? s.plot.basal_area : 0f0
+    cr_el  = usewcw ? s.plot.elevation : 0f0
+    # cwcalc.f applies a final CW clamp to [0.5, 99.9] (the last two lines before RETURN) that the jl per-variant
+    # cwcalc kernels omit — so the western dispatch clamps here. Tiny seedlings (DBH<1) whose eqn gives <0.5 floor
+    # to 0.5, matching the oracle. The eastern crown_width() has its own handling (0.5 default for unknown species).
+    _cwidth(sp, d, h, crp) =
+        usewcw ? clamp(iscr ? cr_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi) :
+                       isoc ? oc_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi) :
+                              em_cwcalc(sp, d, h, Float32(crp), cr_ba, cr_el, cr_hi), 0.5f0, 99.9f0) :
+        crown_width(c, s.species.code2[sp], d, h, 90, 1, s.plot.latitude, s.plot.longitude, s.plot.elevation)
     @inbounds for i in 1:t.n
         sp = Int(t.species[i])
-        # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). CR: the forest-grown
-        # cwcalc.f value (cr_cwcalc) — matches live's CRWDTH for CR (was the crown_width 0.5 default before).
-        cw = iscr ? cr_cwcalc(sp, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), cr_ba, cr_el, cr_hi) :
-                    crown_width(c, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
-                                s.plot.latitude, s.plot.longitude, s.plot.elevation)
+        # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). Western: the forest-grown
+        # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
+        cw = _cwidth(sp, t.dbh[i], t.height[i], t.crown_pct[i])
         # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
         # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT
         # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT

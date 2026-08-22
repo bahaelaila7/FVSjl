@@ -43,4 +43,13 @@ using SQLite, DBInterface
     @test maxtrunc < 1000                                            # feet, not hundredths (bug emitted 5600)
     bt = [Int(r.TruncHt) for r in DBInterface.execute(db, "SELECT TruncHt FROM FVS_TreeList WHERE Year=1993 AND TreeId=6")]
     @test bt == [56]                                                 # oracle TruncHt for the id=6 broken top
+
+    # CrWidth: OC is a WESTERN variant — its crown width comes from oc_cwcalc (cwcalc.f OCMAP + per-forest BF,
+    # clamped [0.5,99.9]), NOT the eastern crown_width() which returned the 0.5 default for every OC species.
+    # Assert real crown widths are present (not all-0.5) and a couple of exact oracle values (bit-exact @ inventory).
+    cwval(id) = only(Float64(r.CrWidth) for r in DBInterface.execute(db, "SELECT CrWidth FROM FVS_TreeList WHERE Year=1993 AND TreeId=$id"))
+    allcw = [Float64(r.CrWidth) for r in DBInterface.execute(db, "SELECT CrWidth FROM FVS_TreeList WHERE Year=1993")]
+    @test maximum(allcw) > 5.0 && all(>=(0.5), allcw)               # real widths, floored at 0.5 (was all 0.5 default)
+    @test isapprox(cwval(24), 17.809; atol = 0.01)                  # oracle CrWidth (Crookston R6 + forest BF)
+    @test isapprox(cwval(15), 0.5;    atol = 0.01)                  # tiny seedling floored to 0.5 (cwcalc.f min clamp)
 end
