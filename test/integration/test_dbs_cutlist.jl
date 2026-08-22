@@ -69,6 +69,13 @@ STOP
             @test round(Int, stpa)  == round(Int, rtpa)     # Σ removed TPA renders to the .sum integer (was ≤0.5)
             @test round(Int, stcuft) == round(Int, rtcuft)  # Σ removed total cubic renders to the .sum integer
             @test round(Int, smcuft) == round(Int, rmcuft)  # Σ removed merch cubic renders to the .sum integer
+            # TruncHt (dbscuts.f (ITRUNC+5)/100, feet) — was the raw hundredths ITRUNC (100× too large); assert feet-scale.
+            th = [Int(r.TruncHt) for r in DBInterface.execute(d, "SELECT TruncHt FROM FVS_CutList")]
+            @test all(<(1000), th)                          # feet, not hundredths (the 100× bug)
+            # CrWidth (dbscuts.f CW=CRWDTH(I), the shared _forest_crwdth dispatch) — was t.crown_width[i]=0 for most
+            # variants; SN (eastern) now gets the open-grown crown_width. Assert real widths present (not all 0).
+            cw = [Float64(r.CrWidth) for r in DBInterface.execute(d, "SELECT CrWidth FROM FVS_CutList") if r.CrWidth !== missing]
+            @test !isempty(cw) && maximum(cw) > 1.0
         finally
             SQLite.close(d)
         end
