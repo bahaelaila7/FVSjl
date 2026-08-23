@@ -361,7 +361,7 @@ include("engine/wsbwe.jl")                # Western Spruce Budworm (WSBWE) — b
 include("engine/cover.jl")                # COVER understory/canopy-cover REPORT extension (covr/vcovr) — beachhead: CVCW crown-area dump-replay bit-exact; report path deferred (report-only, no RNG, INERT)
 include("engine/wwpb.jl")                 # Westwide Pine Beetle (WWPB) — beachhead: BMIN output-block reader + BMRANN RNG + defaults (inert; PPE outbreak driver absent)
 include("engine/wwpb_landscape.jl")       # WWPB landscape model (synthetic PPE harness, USER-approved): BMDBHC + WwpbStand state + BMSDIT FVS→BM bridge (additive/inert until seam)
-include("engine/ppe_landscape.jl")        # PPE (Parallel Processing Extension) multi-stand landscape harness — reconstruction; area-weighted PPEXCM aggregates over run_keyfile stands (additive/inert)
+include("engine/ppe_landscape.jl")        # PPE (Parallel Processing Extension) multi-stand landscape — faithful port of the PPMAIN mode-1 master-cycle control structure (recovered source); C11SRT stand order + HXINDX neighbors wired, area-weighted PPEXCM PTSTV1(1..9) aggregates over run_keyfile stands (additive/inert)
 include("engine/ppe_sort.jl")             # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (bit-exact vs gfortran-16 golden; master all-stand ordering) — recovered source, additive/inert
 include("engine/ppe_search.jl")           # PPE PPBASE C26BSR/CH8BSR/SPBSRX keyed binary search over the sort index (bit-exact) — additive/inert
 include("engine/ppe_hxindx.jl")           # PPE PPBASE HXINDX hexagonal-grid neighbor indexing (inter-stand spread core; Float32-sqrt bit-exact) — additive/inert

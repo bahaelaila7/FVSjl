@@ -1,23 +1,32 @@
-# PPE (Parallel Processing Extension) — landscape / multi-stand harness.
-# USER-directed 2026-08-21 ("reconstruct a PPE harness like WWPB").  PPE's outer
-# routines (PPMAIN / ALSTD2 / SPLAEX) have NO source in this FVS tree — only the
-# COMMON-block declarations survive (archive/PPEcommons/PPEPRM.F77 + PPEXCM.F77),
-# so, exactly like the WWPB harness, src/engine/ppe_landscape.jl is a FAITHFUL
-# RECONSTRUCTION of PPE's documented area-weighted aggregation (PPEXCM PTSTV1),
-# NOT a bit-exact port (no oracle exists — the code is absent).  It composes the
-# ALREADY-oracle-validated per-stand `run_keyfile` projection into a landscape.
+# PPE (Parallel Processing Extension) — landscape / multi-stand orchestration.
 #
-# VALIDATED HERE (behavior-faithful self-consistency, since there is no PPE oracle):
-#   * identical member stands with unequal areas -> the area-weighting CANCELS and
-#     every aggregate equals the single-stand `.sum` value (TOTALWT = Σ area).
-#   * two DIFFERENT stands (unthinned A area 3 + thinned B area 1) -> each PTSTV1
-#     aggregate == the hand-computed Σ(value·area)/Σ(area) of the per-stand rows.
-#   * ADDITIVE + INERT: a new engine file with no simulate.jl seam (gate 339/11).
+# src/engine/ppe_landscape.jl is a FAITHFUL PORT of the PPMAIN mode-1 master-cycle
+# control structure (recovered source scratchpad/ppe/recovered/ppbase/ppmain.f, FVS
+# rev bc6e2377^ — the earlier "no source" premise was wrong). It orders stands by the
+# bit-exact C11SRT (ppe_index_qsort!), projects each with the oracle-validated
+# per-stand `run_keyfile` (GRSTND-equivalent), and forms the area-weighted PPEXCM
+# PTSTV1(1..9) landscape aggregates (SPLAEX/ALSTD2).
+#
+# MODE-1 (the reachable regime) is bit-identical to the master-cycle-stepped form:
+# stands do not interact, so independent full projection + area-aggregation == the
+# stepped run, and every per-stand value is oracle-validated. The C11SRT order and the
+# master-cycle stepping are behaviorally inert for mode-1 output (validated below by
+# order-invariance). Mode-2 (interstand beetle) + MXHRVP are documented seams.
+#
+# VALIDATED HERE:
+#   * ppe_processing_order == the bit-exact ppe_index_qsort! over stand ids, and mode-1
+#     aggregates are INVARIANT to input stand order (proves the equivalence premise).
+#   * ppe_neighbors == the bit-exact ppe_hxindx hex-neighbor lookup on a placed grid.
+#   * identical member stands with unequal areas -> area-weighting CANCELS (every
+#     aggregate == the single-stand `.sum` value; TOTALWT = Σ area).
+#   * two DIFFERENT stands -> each PTSTV1 aggregate == Σ(value·area)/Σ(area) of the
+#     per-stand rows; PTSTV1(7) MSPERIOD == the report cadence.
+#   * ADDITIVE + INERT: no simulate.jl seam (gate 339/11).
 
 using Test
 using FVSjl
 
-@testset "PPE landscape harness (reconstructed, behavior-faithful)" begin
+@testset "PPE landscape orchestration (faithful PPMAIN mode-1 port)" begin
     V = FVSjl.variant_from_code("EM")
     tre = "/workspace/ForestVegetationSimulator/tests/FVSem/emt01.tre"
     @assert isfile(tre)
@@ -51,6 +60,24 @@ STOP
     keyA = mkkey("ppeA", "")
     keyB = mkkey("ppeB", "THINBTA       2010.0     100.0\n")
 
+    # ---- C11SRT processing order: bit-exact ppe_index_qsort! over stand ids --------
+    s3 = [FVSjl.PPEStand(joinpath(dir, "c.key")),
+          FVSjl.PPEStand(joinpath(dir, "a.key")),
+          FVSjl.PPEStand(joinpath(dir, "b.key"))]
+    ord = FVSjl.ppe_processing_order(s3)
+    idx = collect(1:3)
+    FVSjl.ppe_index_qsort!(idx, ["c.key", "a.key", "b.key"]; lseq = false)
+    @test ord == idx                              # order IS the C11SRT of the basenames
+    @test [basename(s3[i].keyfile) for i in ord] == ["a.key", "b.key", "c.key"]
+
+    # ---- HXINDX spatial neighbors on a placed 3x3-ish grid (nstnd=9) ---------------
+    grid = [FVSjl.PPEStand(joinpath(dir, "g$(r)$(c).key"); col = c, row = r)
+            for r in 1:3 for c in 1:3]
+    nb = FVSjl.ppe_neighbors(grid[5], grid; nstnd = 9)   # centre-ish stand (row2,col2)
+    @test !isempty(nb)                                   # a centre cell has hex neighbors
+    @test all(1 .<= nb .<= 9) && !(5 in nb)              # valid indices, not self
+    @test isempty(FVSjl.ppe_neighbors(FVSjl.PPEStand(keyA), grid))  # unplaced -> none
+
     # per-stand baseline tpa (from the .sum data rows), for the hand check
     tpaof(txt) = Dict(parse(Int, split(strip(l))[1]) => parse(Float64, split(strip(l))[3])
                       for l in split(txt, '\n')
@@ -69,12 +96,19 @@ STOP
         @test isapprox(g.avbtpa, a[g.year]; atol = 1e-6)
     end
 
-    # TEST 2 — different stands A(area 3) + B(area 1): area-weighted mean.
-    land2 = FVSjl.ppe_run_landscape(
-        [FVSjl.PPEStand(keyA; area = 3.0), FVSjl.PPEStand(keyB; area = 1.0)]; variant = V)
+    # TEST 2 — different stands A(area 3) + B(area 1): area-weighted mean, and the
+    # aggregate is INVARIANT to input order (the mode-1 equivalence premise).
+    sA = FVSjl.PPEStand(keyA; area = 3.0); sB = FVSjl.PPEStand(keyB; area = 1.0)
+    land2  = FVSjl.ppe_run_landscape([sA, sB]; variant = V)
+    land2r = FVSjl.ppe_run_landscape([sB, sA]; variant = V)          # reversed input
     @test !isempty(land2)
-    for g in land2
+    @test [g.avbtpa for g in land2] == [g.avbtpa for g in land2r]    # order-invariant
+    yrs = sort(collect(keys(a)))
+    for (i, g) in enumerate(land2)
         @test isapprox(g.avbtpa, (3 * a[g.year] + 1 * b[g.year]) / 4; atol = 1e-6)
         @test g.totalwt == 4.0
+        # PTSTV1(7) MSPERIOD == gap to next report row (0 on the last)
+        exp_ms = i < length(land2) ? (land2[i+1].year - g.year) : 0
+        @test g.msperiod == exp_ms
     end
 end
