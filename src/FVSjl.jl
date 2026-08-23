@@ -363,6 +363,9 @@ include("engine/wwpb.jl")                 # Westwide Pine Beetle (WWPB) — beac
 include("engine/wwpb_landscape.jl")       # WWPB landscape model (synthetic PPE harness, USER-approved): BMDBHC + WwpbStand state + BMSDIT FVS→BM bridge (additive/inert until seam)
 include("engine/ppe_landscape.jl")        # PPE (Parallel Processing Extension) multi-stand landscape harness — reconstruction; area-weighted PPEXCM aggregates over run_keyfile stands (additive/inert)
 include("engine/ppe_sort.jl")             # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (bit-exact vs gfortran-16 golden; master all-stand ordering) — recovered source, additive/inert
+include("engine/ppe_search.jl")           # PPE PPBASE C26BSR/CH8BSR/SPBSRX keyed binary search over the sort index (bit-exact) — additive/inert
+include("engine/ppe_hxindx.jl")           # PPE PPBASE HXINDX hexagonal-grid neighbor indexing (inter-stand spread core; Float32-sqrt bit-exact) — additive/inert
+include("engine/ppe_add1.jl")             # PPE PPBASE ADD1 internal-stand-number digit increment (bit-exact) — additive/inert
 include("engine/climate.jl")
 include("io/fia_database.jl")            # DATABASE/DSNIN input: FIA "FVS-ready" SQLite → stand
 include("io/fia_translate.jl")           # raw FIADB (PLOT/COND/TREE/…) → FVS-ready records
