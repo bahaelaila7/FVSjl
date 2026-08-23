@@ -31,8 +31,27 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      divergence, NOT the keywords. ★★ SPECMULT + HTADJ DONE (ed9c9241, test_estab_specmult_htadj.jl): wired into
      kw_estab! (XESMLT occ-multiplier + established-tree height adjust); HTADJ validated BIT-EXACT vs FVSci_clean's
      FVS_TreeList (cihtadj vs cibase: targeted DF +5.0ft = oracle 4.9976/5.0; untargeted WP unchanged to a 0.2% straddle).
-     STILL UNWIRED: ADDTREES (external program), MECHPREP/BURNPREP (cornered site-prep est-prob modifiers, no clean
-     signal), HABGROUP/MINPLOTS/MAXPLT/PLOTINFO/OUTPUT/PASSALL (report/control-only).
+     **MECHPREP/BURNPREP — ★ MEASURED-CORNERED 2026-08-23 (kernel bit-exact in scratchpad, LIVE-DEFERRED with proof;
+     NOT committed).** [[fvsjl-mechprep-burnprep-site-prep-cornered]] The IPREP EFFECT model (SPRE/CPRE/FPRE/UPRE via
+     ie_estock/espadv/espxcs/essubh) was ALREADY ported; the gap was the keyword→per-plot-IPREP assignment. Built
+     FVSie_estabdump (instrumented estab.f dumping ESDRAW/WK6[50]/SUMUP/per-plot IPPREP/IPREP/PROB1/ITPP/NEWTPP +
+     ESETPR parse) on the under-stocked IE fixture 753189105290487. **KERNEL BIT-EXACT** (scratchpad/estab/mechprep/
+     staged/): ESETPR parse (PMECH/PBURN/IALN, 4 scenarios) + the estab.f:373-399 sample-without-replacement WK6→IPREP
+     sampler reproduce the oracle bit-for-bit (test_mechprep.jl 23/23, oracle-free). But LIVE wiring is BLOCKED, 4
+     measured reasons: (A) site prep fires ONLY on the AUTAL disturbance tally (needs a harvest ≥THRES1; the IE-FIA
+     ingrowth path structurally bypasses ESETPR → all IPREP=1); (B) **PROB1 (the intended threshold-free signal) is
+     PREP-INVARIANT here** — SPRE=0 for this habitat series, so PROB1=0.1870904 for IPREP 1/2/3 alike; the prep effect
+     lives in the species-mix (CPRE/FPRE) + heights (UPRE), NOT the per-plot PROB1 dump; (C) **jl's disturbance-tally
+     seed stream is DESYNCED from the oracle** (jl omits the cyc-1 ingrowth tally the oracle fires ⇒ jl grabs seed
+     43303 vs oracle 61997, a one-tally offset ⇒ jl's WK6 ≠ oracle's ⇒ the WK6-dependent IPPREP cases can't match live);
+     (D) jl's disturbance-establishment is itself cornered/garbage on the near-clearcut (cyc-3 SDI 310748 vs ~603).
+     Committing the live wiring would ride the desynced/cornered stream = UNVALIDATED + regression-risky, so it is
+     DEFERRED with the bit-exact kernel + regression + NOT-applied patch preserved in scratchpad. **Prerequisite =
+     resolve the disturbance-tally seed-stream desync (C) = the same pre-existing item-1 "jl est fires ~1 cycle late"
+     establishment-scheduling residual — a deep est-MODEL divergence, NOT the site-prep keyword.** Unlike GENDEFOL
+     (missing INPUT → synthesize), this blocker is a pre-existing jl-model desync that synthesis can't fix. ⇒ item-1
+     autonomous-portable surface CLOSED. STILL UNWIRED (all un-portable/no-signal): ADDTREES (external program),
+     HABGROUP/MINPLOTS/MAXPLT/PLOTINFO/OUTPUT/PASSALL (report/control-only).
   2. **DBS write extension-output tables** — ★★ 2026-08-22: FVS_DM_* (3) DONE + **FVS_BM_* (WWPB, all 4:
      Main/Tree/Vol/BKP) DONE** at the WWPB reconstruction bar (3f2fe501/d3208c74/571c469a) — no live oracle
      (wwpb/ in 0 sourceLists, bmdrv called only by absent PPMAIN), so Main/Tree/Vol validated BIT-EXACT vs a
