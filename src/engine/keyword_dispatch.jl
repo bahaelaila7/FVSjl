@@ -1594,6 +1594,18 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 yr = nint(r.values[1])
                 push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
             end
+        elseif k == "MECHPREP" || k == "BURNPREP"             # esin.f opt 5/4 → esprin.f 493/491: site preparation
+            # Schedule mechanical (MECHPREP) / broadcast-burn (BURNPREP) site prep. Field 1 = date/cycle
+            # (ZMECH/ZBURN), field 2 = % of plots to prep (0-100, PRMS(1) in esetpr.f). Honored on the AUTAL
+            # DISTURBANCE tally (NTALLY==1) in ie_autoes_establish! via ie_esetpr + ie_esetpr_sample, sampling the
+            # per-plot IPPREP off the WK6 site-prep RNG vector — each prepped plot's regen uses its IPREP in the
+            # advance/excess species mix (estb/esetpr.f + estab.f:373-399). Activity codes 493=MECH / 491=BURN.
+            if r.present[1]
+                ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
+                yr  = nint(r.values[1])
+                pct = r.present[2] ? clamp(Float32(r.values[2]), 0f0, 100f0) : 0f0
+                push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
+            end
         elseif k == "NOINGROW"                                # esin.f opt 22: disable automatic ingrowth
             s.estab.lingrw = false                            # (FVS parses these INSIDE the ESTAB packet, not top-level)
         elseif k == "INGROW"                                  # esin.f opt 21: enable automatic ingrowth

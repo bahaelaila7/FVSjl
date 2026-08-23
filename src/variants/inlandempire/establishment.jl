@@ -631,6 +631,69 @@ function ie_estpp(val::Real, ihab::Integer, xcos::Real, xsin::Real, slo::Real, r
 end
 
 # =============================================================================
+# MECHPREP / BURNPREP site preparation (estb/esetpr.f + estab.f:246-399) — ESTAB-packet keyword.
+# A MECHPREP/BURNPREP keyword schedules mechanical/broadcast-burn site prep on the AUTAL DISTURBANCE tally
+# (NTALLY==1): a fraction of the DUPNPT replicate plots is assigned IPPREP∈{1 NONE,2 MECH,3 BURN} by a
+# sample-without-replacement draw off the same WK6 site-prep RNG vector the tally already consumes (estab.f:333
+# DO 183). Each prepped plot's regen uses its IPREP index in the advance/excess species-mix (ie_espadv/ie_espxcs
+# CPRE prep term) — the prep shifts species COMPOSITION (measured on FVSie: MECHPREP/BURNPREP move the out-year
+# BA/QMD, count near-invariant since PROB1's SPRE term is 0 for this habitat series). Heights (UPRE) stay at the
+# XMIN+0.2 floor (the computed ESSUBH heights fall below it), so the effect is species-mix only here. TIME is
+# prep-invariant when the prep date == the harvest date (TIME=FTEMP−ZMECH=FTEMP−ZHARV).
+# =============================================================================
+
+# esetpr.f — resolve the MECHPREP/BURNPREP keyword %-of-plots into (PMECH,PBURN) fractions + the IALN flags.
+# pmech_pct / pburn_pct are 0-100 (or `nothing` if that keyword absent). esprin.f always stores ≥1 param so the
+# "prep all plots" METH branch is inert (a bare `MECHPREP <date>` gives PMECH=0 — verified on FVSie_estabdump).
+function ie_esetpr(pmech_pct, pburn_pct)
+    pmech = 0f0; pburn = 0f0; ialn2 = 0; ialn3 = 0
+    if pburn_pct !== nothing; pburn = Float32(pburn_pct) / 100f0; ialn3 = 1; end
+    if pmech_pct !== nothing; pmech = Float32(pmech_pct) / 100f0; ialn2 = 1; end
+    return (pmech = pmech, pburn = pburn, ialn2 = ialn2, ialn3 = ialn3,
+            any_kw = (ialn2 == 1 || ialn3 == 1))
+end
+
+# estab.f:249-375 — normalize (PNONE,PMECH,PBURN) into cumulative-bucket weights SUMUP(1..3). Keyword path
+# (IALN set): mixture is (1−PMECH−PBURN, PMECH, PBURN), renormalized if PMECH+PBURN>1 (estab.f:353-363).
+function ie_esetpr_normalize(pnone::Real, pmech::Real, pburn::Real, ialn2::Integer, ialn3::Integer)
+    pm = Float32(pmech); pb = Float32(pburn); pn = Float32(pnone)
+    if ialn2 == 1 || ialn3 == 1
+        s = pm + pb
+        if s > 1f0; pm /= s; pb /= s; end
+        pn = 1f0 - pm - pb
+    end
+    tot = pn + pm + pb
+    return (pn / tot, pm / tot, pb / tot)
+end
+
+# estab.f:382-399 "SAMPLE WITHOUT REPLACEMENT" — assign each of the DUPNPT=nptids·idup replicated plots an
+# IPPREP∈{1,2,3} from the normalized bucket weights `sumup` and the WK6 site-prep RNG vector (length DUPNPT,
+# already drawn on the :estab stream). BIT-EXACT vs FVSie_estabdump given identical (sumup, WK6).
+function ie_esetpr_sample(sumup, wk6::AbstractVector, nptids::Integer, idup::Integer)
+    dupnpt = Float32(nptids * idup)
+    su = Float32[sumup[1], sumup[2], sumup[3]]
+    ipprep = Vector{Int}(undef, nptids * idup)
+    n = 0
+    @inbounds for _ii in 1:idup, _nn in 1:nptids
+        n += 1
+        draw = Float32(wk6[n]) * (((dupnpt + 1f0) - Float32(n)) / dupnpt)   # estab.f:388
+        s = 0f0; sel = 0
+        for i in 1:2                                                        # estab.f:389-393
+            s += su[i]
+            draw > s && continue
+            sel = i; break
+        end
+        if sel == 0                                                        # estab.f:394-395
+            sel = 3; su[3] < 0f0 && (sel = 1)
+        end
+        ipprep[n] = sel                                                    # estab.f:396
+        su[sel] -= 1f0 / dupnpt                                            # estab.f:397 (without replacement)
+        su[sel] < 0f0 && (su[sel] = 0f0)
+    end
+    return ipprep
+end
+
+# =============================================================================
 # ie_autoes_plot_seeds — AUTOES per-plot RNG seed chain (estab.f, task #143 A2c).
 # The establishment tally reseeds the ESRANN stream PER PLOT (estab.f:967 ESAVE=INT(DRAW*100000+0.5),
 # :1075 CALL ESRNSD). Structure (instrument-confirmed on iet01 stand-4, seed0=43303, wk6=IDUP*NPTIDS=50):
@@ -682,7 +745,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          is_ingro::Bool = true, nstore::AbstractVector = Int32[],
                          pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50,
                          idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
-                         point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[])
+                         point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
+                         prep_sumup = nothing)
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -692,12 +756,27 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     _fillpt = idup > 0 && size(tally_pt, 1) == nsp && size(tally_pt, 2) >= 1
     _npt = _fillpt ? size(tally_pt, 2) : 1
     _ptof(n) = _fillpt ? min(div(n - 1, Int(idup)) + 1, _npt) : 1
-    padv = collect(ie_espadv(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
-                             Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-    pxcs = collect(ie_espxcs(ihab, iprep, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
-                             Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-    sumup_base = zeros(Float32, nsp); sumup_base[1:10] .= padv; sumup_base ./= sum(sumup_base)
-    nspnz = count(>(1f-4), sumup_base); maxspp = _IE_MAXSPP[ihab]
+    # Per-IPREP species-mix tables (sumup_base = normalized PADV advance-regen weights; pxcs = excess weights;
+    # nspnz = # nonzero best species). Site prep (MECHPREP/BURNPREP) modulates these via the CPRE prep-index term
+    # in ie_espadv/ie_espxcs, so each plot uses ITS assigned iprep. Memoized on IPREP (only 1..4 possible); the
+    # default (scalar `iprep`) is computed eagerly so the no-prep path stays byte-identical.
+    _prep_memo = Dict{Int,Tuple{Vector{Float32},Vector{Float32},Int}}()
+    function _prep_tables(ip::Integer)
+        get!(_prep_memo, Int(ip)) do
+            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
+                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
+            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
+                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
+            sb = zeros(Float32, nsp); sb[1:10] .= pa; sb ./= sum(sb)
+            (sb, px, count(>(1f-4), sb))
+        end
+    end
+    sumup_base, pxcs, nspnz = _prep_tables(iprep)
+    maxspp = _IE_MAXSPP[ihab]
+    # Per-plot IPPREP (estab.f:382-399): sample-without-replacement from the WK6 site-prep vector when a
+    # MECHPREP/BURNPREP keyword supplied prep_sumup (disturbance tally only; ingrowth path forces IPREP=1).
+    prep_active = prep_sumup !== nothing && !is_ingro
+    ipprep = Int[]
     # ITPP cap (estab.f:681-682): ALWAYS MAXTPP; the MAXING cap applies ONLY when INGRO=1. Instrument-replay
     # (FVSie iet01) CONFIRMED jl's ESTPP draws + TPP are BIT-IDENTICAL to live (0.346302→2.486, 0.835307→14.036,
     # 0.967520→34.5) and jl prob1 (0.60012) matches live PROB1 (0.60122) ⇒ per-tree TPA correct. The sole divergence
@@ -721,7 +800,19 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     tally = zeros(Float64, nsp)
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
-        for _ in 1:(n == 1 ? wk6fill : 0); ie_esrann!(rng); end
+        if n == 1
+            if prep_active                                                   # capture the DUPNPT WK6 site-prep draws
+                wk6v = Float32[ie_esrann!(rng) for _ in 1:wk6fill]           # (estab.f:333 DO 183) and sample IPPREP
+                _id = idup > 0 ? Int(idup) : 1
+                ipprep = ie_esetpr_sample(prep_sumup, wk6v, div(nplots, _id), _id)  # nptids = dupnpt/idup
+            else
+                for _ in 1:wk6fill; ie_esrann!(rng); end
+            end
+        end
+        # per-plot site prep (estab.f:382-399): each plot's regen uses its assigned IPREP in the species mix.
+        if prep_active && n <= length(ipprep)
+            sumup_base, pxcs, nspnz = _prep_tables(ipprep[n])
+        end
         ie_esrann!(rng); ie_esrann!(rng)                                     # EMSQR
         # Per-INVENTORY-POINT slope/aspect for ESTPP (live SLO=PSLO(NNID), XCOS=cos(PASP)·PSLO). Plot n → point
         # div(n-1,idup)+1. When per-point topo is supplied (FIA per-plot SLOPE/ASPECT) each plot's ESTPP uses ITS
@@ -1137,7 +1228,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
-                       stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}())
+                       stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
+                       prep_sumup = nothing)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1202,7 +1294,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
-                            point_slope = point_slope, point_aspect = point_aspect)
+                            point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
@@ -1350,6 +1442,25 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             (1 <= pid <= nptids) && (point_small[pid] += s.trees.tpa[i])
         end
     end
+    # MECHPREP/BURNPREP site prep (estb/esetpr.f): on the DISTURBANCE tally ONLY — estab.f:224-230 cancels prep
+    # for NTALLY>1, and the ingrowth path forces IPREP=1. Gather the scheduled prep %-of-plots at the disturbance
+    # date → normalized SUMUP for ie_autoes_tally's per-plot IPPREP sampler. No keyword ⇒ prep_sumup=nothing ⇒
+    # every plot IPREP=1 (byte-identical to the pre-wire behaviour).
+    prep_sumup = nothing
+    if _ntally == 1 && !is_ingro
+        pmech_pct = nothing; pburn_pct = nothing
+        for a in s.control.schedule
+            (a.icflag == Int32(493) || a.icflag == Int32(491)) || continue
+            ay = Int(a.year)
+            idt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay
+            (year <= idt < next_year) || continue
+            a.icflag == Int32(493) ? (pmech_pct = a.params[2]) : (pburn_pct = a.params[2])
+        end
+        if pmech_pct !== nothing || pburn_pct !== nothing
+            es = ie_esetpr(pmech_pct, pburn_pct)
+            prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
+        end
+    end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
                       elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
@@ -1360,7 +1471,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
                       point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
-                      spec_mult = est.spec_mult)  # SPECMULT per-species XESMLT (empty ⇒ inert)
+                      spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
+                      prep_sumup = prep_sumup)  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
