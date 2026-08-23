@@ -1,14 +1,18 @@
 # =============================================================================
 # PPE (Parallel Processing Extension) — LANDSCAPE / multi-stand harness.
 # =============================================================================
-# USER-directed 2026-08-21 ("reconstruct a PPE harness like WWPB"). The PPE outer
-# routines (PPMAIN / ALSTD2 / SPLAEX) have NO source in the FVS tree — only the
-# COMMON-block DECLARATIONS survive (archive/PPEcommons/PPEPRM.F77 + PPEXCM.F77).
-# So, exactly as the WWPB landscape harness (src/engine/wwpb_landscape.jl) did for
-# the absent PPMAIN/ALSTD2/SPLAEX beetle orchestration, this is a FAITHFUL
-# RECONSTRUCTION of PPE's documented behavior, NOT a bit-exact port (there is no
-# oracle to run — the code is absent). It composes the ALREADY-VALIDATED per-stand
-# projection (run_keyfile) into a landscape.
+# USER-directed 2026-08-21 ("reconstruct a PPE harness like WWPB").
+# ⚠ CORRECTION 2026-08-23: the "PPMAIN/ALSTD2/SPLAEX have NO source" premise was WRONG.
+# The PPE source was DELETED from the FVS Fortran repo (commit bc6e2377, 2014,
+# "deleted PPE directories"; commons archived by 48d32e7b, 2018) — it is RECOVERABLE
+# from git history at bc6e2377^ (152 files recovered to scratchpad/ppe/recovered/ppbase/).
+# It COMPILES (150/152 objects under gfortran-16), but the full standalone FVSppe exe
+# will NOT link against modern base-FVS (getstd/putstd marshal a deleted 2014 COMMON
+# layout — BB0..BB13/D0/D0MULT), so validation uses per-routine gfortran-16 goldens
+# (WWPB recipe). ppe_sort.jl is the first BIT-EXACT PPE kernel (C11SRT master stand
+# sort). This file remains a behavior-faithful landscape RECONSTRUCTION that composes
+# the ALREADY-VALIDATED per-stand projection (run_keyfile); bit-exact PPE kernels are
+# being ported incrementally against the recovered source. See docs/PPE_AUTOES_ROLLOUT_GOAL.md.
 #
 # PPE data model (PPEPRM.F77): a landscape holds up to MXSTND=10000 stands, each
 # area-weighted (TOTALWT), stepped through master cycles (MSPERIOD). PPE's

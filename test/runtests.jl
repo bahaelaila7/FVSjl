@@ -56,6 +56,7 @@ using FVSjl
     include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
+    include("unit/test_ppe_sort.jl")       # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (master stand ordering) — bit-exact vs gfortran-16 golden (recovered PPE source)
     include("unit/test_ontario.jl")        # ON (Ontario) beachhead: Penner large-tree DGF (annual diameter-increment, on/dgf.f) dump-replay bit-exact vs FVSon_g16
     include("unit/test_ontario_dgf_wired.jl")# ON: engine-WIRED dgf! (stand-context assembly + on_bratio + leftover-BARK DDS) WK2 bit-exact vs production FVSon_g16 on ont01 cyc0
     include("unit/test_ontario_growth_wired.jl")# ON: runnable growth — species table+translation (reader) + coefficients(::Ontario) standalone + DDS→DG on_bratio branch (d_ib/DDS/WKI) bit-exact vs FVSon_wkidump
