@@ -15,7 +15,10 @@ transcendentals; never FFI an RNG; commit ONLY validated chunks; gate test/integ
 - ITEM 2 (AUTOES #143): ✅ **RESOLVED bit-exact** (081e0e6c). Two measured bugs — ESAVE body length hard-coded
   135 (ihab-10) instead of ihab-derived 127; kw_estab! forced IDSDAT=-9999 discarding esin.f's -1 ⇒ ingrowth
   fired 1 cyc late. Fixed ⇒ firing ic 1/3/5 + seeds 43303/61997/49053 BIT-FOR-BIT vs FVSie_g16; test_ie_estock
-  128/128; gate 339/11. Residual under-stocked TPA ~7-15% = NON-RNG NEWTPP/NSTORE gap (separate cornered chunk).
+  128/128; gate 339/11. **Follow-on (af3aa7c9): the ~7-15% under-stocked TPA residual — long filed "cornered
+  NSTORE regime" — was re-measured post-#143 and found to be THREE real establishment bugs (estab used STAND
+  slope/aspect not per-plot PSLO/PASP [variant-general] + ESB calib skipped on cyc-1 ingrowth + stale pre-growth
+  BA); fixed ⇒ 2029 TPA BIT-EXACT, rest ~1-2%, residual = 1.2% per-point BA attribution corner.**
 - ITEM 3 (ESTAB keywords): ✅ **SURFACE CLOSED**. OUTPUT/HABGROUP inert (823b2a9f); MINPLOTS wired bit-exact
   (660edb9b, seed chains byte-exact at MINPLOTS 50/100/150); MECHPREP/BURNPREP wired LIVE bit-exact (a6fac7e0,
   h_base/h_mech100/h_burn100/h_mech50 FULL rows byte-identical vs FVSie_g16); PASSALL measured-inert; PLOTINFO
