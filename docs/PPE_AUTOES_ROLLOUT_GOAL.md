@@ -16,8 +16,10 @@ transcendentals; never FFI an RNG; commit ONLY validated chunks; gate test/integ
   135 (ihab-10) instead of ihab-derived 127; kw_estab! forced IDSDAT=-9999 discarding esin.f's -1 ⇒ ingrowth
   fired 1 cyc late. Fixed ⇒ firing ic 1/3/5 + seeds 43303/61997/49053 BIT-FOR-BIT vs FVSie_g16; test_ie_estock
   128/128; gate 339/11. Residual under-stocked TPA ~7-15% = NON-RNG NEWTPP/NSTORE gap (separate cornered chunk).
-- ITEM 3 (ESTAB keywords): OUTPUT/HABGROUP ✅ committed (823b2a9f, faithfully inert). MINPLOTS/PASSALL/PLOTINFO
-  + MECHPREP-live re-scope 🔄 IN FLIGHT (agent) now that #143 unblocks them.
+- ITEM 3 (ESTAB keywords): ✅ **SURFACE CLOSED**. OUTPUT/HABGROUP inert (823b2a9f); MINPLOTS wired bit-exact
+  (660edb9b, seed chains byte-exact at MINPLOTS 50/100/150); MECHPREP/BURNPREP wired LIVE bit-exact (a6fac7e0,
+  h_base/h_mech100/h_burn100/h_mech50 FULL rows byte-identical vs FVSie_g16); PASSALL measured-inert; PLOTINFO
+  inapplicable (DB pipeline). Only ADDTREES (external program) remains. Gate 339/11.
 
 ## ITEM 1 — PPE (Parallel Processing Extension) faithful port  [was wrongly "un-portable"; SOURCE RECOVERED]
 The PPE landscape harness source was DELETED from the FVS Fortran repo (commit bc6e2377 "deleted PPE
