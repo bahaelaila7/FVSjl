@@ -1392,6 +1392,16 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # So BAAA(NNID) is the per-point ALL-tree BA (dense.f REGNBK is ~0 for these stands), and point_ba[1] is the
     # right concept. Residual = a per-point scaling/attribution Δ (live 20.66 vs jl 13.18, ~1.5×) — see AUTOES doc.
     baaa = (isempty(s.density.point_ba) ? 0f0 : s.density.point_ba[1])
+    # ★#143 follow-on (MEASURED FVSie_g16): the establishment stocking model (ESTOCK / species-probs) uses the
+    # PER-PLOT slope/aspect PSLO(NNID)/PASP(NNID), which FVS reads from the TREE records (esplt1.f:69-70, IPINFO=2),
+    # NOT the stand SLOPE/ASPECT. On the under-stocked fixture FVS_TREEINIT_COND carries SLOPE=33/ASPECT=160 while
+    # FVS_STANDINIT_COND has SLOPE=0/ASPECT=0 (the stand value drives DGF, but establishment uses the per-plot value).
+    # jl fed the stand slope/aspect (0/0) into ESTOCK ⇒ the XCOSAS·SLO·XBAA interaction (+0.30 to ESB1) and the
+    # aspect·SQSQ terms vanished ⇒ PROB1 0.463 vs live 0.617. jl already reads these per-plot values into
+    # p.point_slope/p.point_aspect (used for ESTPP); use them for the stocking PN + ESB1 too. Empty (TREEDATA / no
+    # per-plot topo) ⇒ fall back to the stand slope/aspect (inert where they match, e.g. iet01).
+    es_slope  = isempty(p.point_slope)  ? Float32(p.slope)  : Float32(p.point_slope[1])
+    es_aspect = isempty(p.point_aspect) ? Float32(p.aspect) : Float32(p.point_aspect[1])
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
@@ -1405,12 +1415,21 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     elseif length(est.es_nstore) != dupnpt_i
         est.es_nstore = zeros(Int32, dupnpt_i); est.es_pnn = zeros(Float32, dupnpt_i)
     end
-    # ESB inventory calibration (estab.f:319-326,579) applies ONLY at the inventory-year disturbance (INADV=0);
-    # the auto/ingrowth tallies (est.idsdat > inv_year) have ESB=ESB1=0. ESB = logit(clamp(logistic(-5.174+0.851·
-    # ln(TPACRE)),0.10,0.90)) from the current small-tree (DBH<REGNBK=2.999) TPA; ESB1 = ESTOCK(BAAOLD, TIME=0).
-    # Computed once at the first inventory tally, reused by its continuation (est.esb_shift persists ESB-ESB1).
+    # ESB inventory calibration (estab.f:319-326,579): estab.f applies the ESB-ESB1 actual-vs-predicted stocking
+    # correction whenever INADV=0 .AND. NTALLY=1. INADV=0 ⟺ KDT+1-IY(1) ≤ 20 (estab.f:175), i.e. the tally is within
+    # 20 yr of inventory (kdt=next_year-1 ⇒ `next_year-inv_year ≤ 20`). ★#143 follow-on (MEASURED FVSie_g16): the
+    # FIRST-cycle AUTOES ingrowth IS a NTALLY=1/INADV=0 tally (dump: ntally=1 inadv=0 esb=0.0778 esb1=-0.3583 at ic=1;
+    # ntally=1 inadv=1 esb=0 at ic=3/5). jl's old `idsdat==inv_year` gate missed it (ingrowth idsdat=-1) ⇒ esb_shift=0
+    # ⇒ PROB1 0.463 vs live 0.617 ⇒ ingrowth (scaled by PROB1·NEWTPP/ITPP) under-booked ~25% ⇒ the .sum TPA residual.
+    # ESB = logit(clamp(logistic(-5.174+0.851·ln(TPACRE)),0.10,0.90)) from the current small-tree (DBH<2.999) TPA;
+    # ESB1 = ESTOCK(BAAOLD=INVENTORY per-point BA, TIME=0). Computed once (persists in est.esb_shift), applied only
+    # while INADV=0. NOTE: baaa here is the PRE-growth (inventory/start-of-cycle) point BA — the right BAAOLD for ESB1;
+    # the end-of-cycle stocking PN uses the POST-growth BA refreshed below.
+    # INADV=0 AND NTALLY=1-equivalent: the oracle recomputes ESB/ESB1 only on a FRESH tally (NTALLY=1); a
+    # continuation (NTALLY≥2) resets them to 0 ⇒ no correction. jl's fresh tallies are ntally∈{1 (disturbance),
+    # 99 (ingrowth)}; a continuation is ntally≥2. Guard so a within-20yr continuation doesn't get esb_shift.
     esb_shift = 0f0
-    if Int(est.idsdat) == inv_year
+    if (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
         if isnan(est.esb_shift)
             idx0 = ie_estab_indices(ihab_code, Int(p.user_forest_code))
             tpacre = 0f0
@@ -1419,7 +1438,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             esa = clamp(1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre)))), 0.10f0, 0.90f0)
             esb = -log(1f0 / esa - 1f0)
             baaold = max(baaa, 1f0)                          # inventory per-point BA (BAAINV); = baaa at cyc1
-            asp0 = Float32(p.aspect); sl0 = Float32(p.slope)
+            asp0 = es_aspect; sl0 = es_slope                 # per-plot PSLO/PASP (from tree records), not stand
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
                              baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
             est.esb_shift = esb - esb1
@@ -1461,9 +1480,20 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
         end
     end
+    # ★#143 follow-on: the END-OF-CYCLE stocking PN (estab.f:572 ESTOCK(BAA=BAAA(NNID))) uses the POST-growth
+    # per-point BA. jl's s.density was last refreshed PRE-growth (simulate.jl:548, before diameter/height growth),
+    # so point_ba lagged one cycle — MEASURED jl 62.51 vs live end-cycle BAAA 77.51 at ic=1 ⇒ PN too low ⇒ PROB1
+    # 0.463 vs 0.617. Refresh here so the ingrowth stocking PN sees the grown BA (esb_shift above already captured
+    # the PRE-growth baaa as its inventory BAAOLD). Ingrowth-only: the disturbance re-stocking path uses the bare
+    # per-point BA deliberately (validated bit-exact) and is inert to a refresh (bare stays bare).
+    baaa_pn = baaa
+    if is_ingro
+        compute_density!(s)
+        baaa_pn = isempty(s.density.point_ba) ? baaa : s.density.point_ba[1]
+    end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
-                      seed0 = seed0, dupnpt = dupnpt, slo = p.slope, aspect = p.aspect,
-                      elev = p.elevation, baa = max(baaa, 1f0), time = time, esb_shift = esb_shift,
+                      seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
+                      elev = p.elevation, baa = max(baaa_pn, 1f0), time = time, esb_shift = esb_shift,
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
                       point_small_tpa = point_small, idup = idup, variant = s.variant,
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
