@@ -183,6 +183,44 @@ struct CoverRow
     icvage::Int              # ICVAGE : overstory age
 end
 
+# Shrub-calibration state (covr/cvbcal.f + the SHRBLAYR/SHRUBHT/SHRUBPC keyword inputs).
+# Populated at keyword-parse time; BHTCF/BPCCF (+ report intermediates + carried RESIDC/
+# RESIDH) computed once by cvbcal! at cycle 0 and applied to the shrub predictions each
+# cycle while calibration is in effect (LCALIB).  Defaults per covr/cvinit.f.
+mutable struct ShrubCalib
+    lcal1::Bool                    # SHRBLAYR active (calibration by layer)
+    lcal2::Bool                    # SHRUBHT/SHRUBPC active (calibration by species)
+    lcalib::Bool                   # calibration still in effect (off after a thin)
+    avgbht::Vector{Float32}        # (3) observed layer heights, sorted tallest→shortest
+    avgbpc::Vector{Float32}        # (3) observed layer covers
+    nklass::Int                    # number of observed layers
+    sumcvr::Float32                # total observed cover (Σ AVGBPC over input fields)
+    shrbht::Vector{Float32}        # (31) observed species heights (-99999 = not input)
+    shrbpc::Vector{Float32}        # (31) observed species covers  (-99999 = not input)
+    bhtcf::Vector{Float32}         # (31) height correction factors (default 1)
+    bpccf::Vector{Float32}         # (31) cover  correction factors (default 1)
+    residc::Float32                # RESIDC (SUMCVR-TCOV, method 1) carried from cyc0
+    residh::Vector{Float32}        # (31) RESIDH (SHRBHT-SH, method 2) carried from cyc0
+    computed::Bool                 # cvbcal! has run (factors fixed at cyc0)
+    # report intermediates (cvout.f calibration tables)
+    xsh::Vector{Float32}           # (31) uncalibrated SH at cyc0
+    xcv::Vector{Float32}           # (31) uncalibrated PBCV at cyc0
+    xpb::Vector{Float32}           # (31) uncalibrated PB at cyc0
+    htavg::Vector{Float32}         # (3) predicted mean layer height
+    cvavg::Vector{Float32}         # (3) predicted layer cover
+    htfrac::Vector{Float32}        # (3) height scaling factor by layer
+    cvfrac::Vector{Float32}        # (3) cover  scaling factor by layer
+    ilayr::Vector{Int}             # (31) layer assigned to each species
+end
+
+ShrubCalib() = ShrubCalib(false, false, false,
+    fill(-99999.0f0, 3), fill(-99999.0f0, 3), 0, 0.0f0,
+    fill(-99999.0f0, 31), fill(-99999.0f0, 31), ones(Float32, 31), ones(Float32, 31),
+    0.0f0, zeros(Float32, 31), false,
+    zeros(Float32, 31), zeros(Float32, 31), zeros(Float32, 31),
+    zeros(Float32, 3), zeros(Float32, 3), zeros(Float32, 3), zeros(Float32, 3),
+    zeros(Int, 31))
+
 mutable struct CoverState <: AbstractCoverState
     active::Bool          # LCVATV: COVER activity scheduled → routinely called
     lcov::Bool            # LCOV:   activity has fired this/earlier cycle
@@ -204,11 +242,12 @@ mutable struct CoverState <: AbstractCoverState
     idist::Int            # IDIST:  disturbance type (default 1 = none)
     shrub_const::Any      # ShrubConst (CVSCON output) computed at cycle 0, else nothing
     shrub_rows::Vector    # per-cycle ShrubRow (CVBROW/CVSUM/CVCLAS output)
+    calib::ShrubCalib     # shrub-calibration inputs/outputs (covr/cvbcal.f)
 end
 
 CoverState() = CoverState(false, false, false, false, true, true, true,
                           2, 1, 0, 0.0f0, Float32[], CoverRow[],
-                          -1.0f0, 0, 2, 1, nothing, Any[])
+                          -1.0f0, 0, 2, 1, nothing, Any[], ShrubCalib())
 
 # CVINIT (covr/cvinit.f): initialise per-stand cover flags/arrays.
 function cover_init!(cv::CoverState)
@@ -227,6 +266,7 @@ function cover_init!(cv::CoverState)
     cv.idist  = 1
     cv.shrub_const = nothing
     empty!(cv.shrub_rows)
+    cv.calib = ShrubCalib()
     return cv
 end
 
@@ -273,14 +313,12 @@ function kw_coverin!(s::StandState, rec, kr)
             cv.ihtype = (r.present[2] ? Int(trunc(r.values[2])) : 0)
             cv.iphys  = (r.present[3] ? Int(trunc(r.values[3])) : 2)
             cv.idist  = (r.present[4] ? Int(trunc(r.values[4])) : 1)
-        elseif k == "SHRBLAYR" || k == "SHRUBHT" || k == "SHRUBPC"
-            # shrub calibration cards — deferred (consumed; SHRUBHT/PC read 4 data recs)
-            if k != "SHRBLAYR"
-                for _ in 1:4
-                    rr = read_keyword!(kr)
-                    (rr.status == KW_EOF || rr.status == KW_STOP) && break
-                end
-            end
+        elseif k == "SHRBLAYR"
+            _cvin_shrblayr!(cv.calib, r)          # calibration by shrub layer (cvin.f opt 4)
+        elseif k == "SHRUBHT"
+            _cvin_shrub_species!(cv.calib, kr, true)   # observed heights (cvin.f opt 5)
+        elseif k == "SHRUBPC"
+            _cvin_shrub_species!(cv.calib, kr, false)  # observed covers  (cvin.f opt 6)
         elseif k == "NOCOVOUT"
             cv.lcover = false
         elseif k == "NOSHBOUT"
@@ -302,6 +340,81 @@ function kw_coverin!(s::StandState, rec, kr)
         end
     end
     return nothing
+end
+
+# SHRBLAYR (cvin.f opt 4): observed shrub-layer heights/covers → AVGBHT/AVGBPC/NKLASS/
+# SUMCVR, bubble-sorted by decreasing height.  Fields 1,3,5 = heights, 2,4,6 = covers.
+function _cvin_shrblayr!(cal::ShrubCalib, r)
+    cal.lcal1 = true
+    cal.lcalib = true
+    getv(i) = (i <= length(r.values) && r.present[i]) ? r.values[i] : 0.0f0
+    pres(i) = i <= length(r.present) && r.present[i]
+    cal.avgbht[1] = getv(1); cal.avgbpc[1] = getv(2)
+    cal.avgbht[2] = getv(3); cal.avgbpc[2] = getv(4)
+    cal.avgbht[3] = getv(5); cal.avgbpc[3] = getv(6)
+    # count observed layers (non-blank COVER fields) and total cover (blanks = 0)
+    cal.nklass = 0
+    cal.sumcvr = 0.0f0
+    for i in (2, 4, 6)
+        pres(i) && (cal.nklass += 1)
+        cal.sumcvr += getv(i)
+    end
+    # bubble-sort AVGBHT/AVGBPC by decreasing height (cvin.f DO 120/130)
+    while true
+        lsort = false
+        for i in 1:2
+            j = i + 1
+            if cal.avgbht[i] < cal.avgbht[j]
+                lsort = true
+                cal.avgbht[i], cal.avgbht[j] = cal.avgbht[j], cal.avgbht[i]
+                cal.avgbpc[i], cal.avgbpc[j] = cal.avgbpc[j], cal.avgbpc[i]
+            end
+        end
+        lsort || break
+    end
+    return cal
+end
+
+# Shrub species abbreviation → index (CH4BSR over the 31 SNAME + blank(32) + "-999"(33)).
+function _cvb_species_index(abbrev::AbstractString)
+    a = uppercase(strip(abbrev))
+    isempty(a) && return 32
+    a == "-999" && return 33
+    idx = findfirst(==(a), _CV_SNAME)      # _CV_SNAME[1:31] are the species; 32 = OTHR
+    (idx === nothing || idx > 31) && return 0
+    return idx
+end
+
+# SHRUBHT / SHRUBPC (cvin.f opt 5/6): read up to 4 data records, format 8(A4,F6.1);
+# set SHRBHT (isheight) or SHRBPC per species.  "-999" terminates.  Blank abbrev keeps
+# the -99999 dummy.  cvin.f leaves the -99999 for species not listed.
+function _cvin_shrub_species!(cal::ShrubCalib, kr, isheight::Bool)
+    cal.lcal2 = true
+    cal.lcalib = true
+    target = isheight ? cal.shrbht : cal.shrbpc
+    for _ in 1:4
+        rr = read_keyword!(kr)
+        (rr.status == KW_EOF || rr.status == KW_STOP) && return cal
+        line = rpad(rr.raw, 80)
+        done = false
+        for p in 0:7                       # 8 pairs of (A4, F6.1) = 10 cols each
+            c = p * 10
+            abbrev = line[c+1:c+4]
+            num = _cvb_species_index(abbrev)
+            if num == 33                   # "-999" → end of data
+                done = true
+                break
+            end
+            num == 0 && continue           # unknown abbrev (ERRGRO) → skip
+            num == 32 && continue          # blank abbrev → keep dummy
+            valstr = strip(line[c+5:c+10])
+            v = isempty(valstr) ? 0.0f0 : (tryparse(Float32, valstr))
+            v === nothing && (v = 0.0f0)
+            target[num] = v
+        end
+        done && return cal
+    end
+    return cal
 end
 
 # =====================================================================================
@@ -552,6 +665,8 @@ function _cover_shrub_cycle!(cv::CoverState, s::StandState, year::Int, year0::In
     sage = sstart + Float32(year - year0)
     sage > 40.0f0 && return cv                   # shrubs not computed past 40 yr
 
+    # LSTART = first shrub cycle (== cycle 0): CVSCON + CVBCAL calibration run once here.
+    lstart = cv.shrub_const === nothing
     # CVSCON constants (once, at cycle 0 / first shrub cycle).
     if cv.shrub_const === nothing
         ihtype = cv.ihtype == 0 ? _cover_stand_habitat(s) : cv.ihtype
@@ -564,7 +679,14 @@ function _cover_shrub_cycle!(cv::CoverState, s::StandState, year::Int, year0::In
     end
     sc = cv.shrub_const::ShrubConst
 
-    cyc = cvbrow_cycle(sc, sage, ba, idist)
+    cal = cv.calib.lcalib ? cv.calib : nothing
+    cyc = cvbrow_cycle(sc, sage, ba, idist; cal=cal, lstart=lstart)
+    # CVBCAL: compute correction factors at cycle 0, then apply each cycle (cvbrow DO 63/65).
+    if cal !== nothing
+        lstart && !cal.computed &&
+            cvbcal!(cal, cyc.sh, cyc.pbcv, cyc.pb, cyc.htindx, cyc.totlcv)
+        cyc = _cvbcal_apply(cal, cyc)
+    end
     ss  = cvsum_shrub(cyc)
     relden = s.plot.relative_density
     crarea = sum(crxht)
@@ -644,6 +766,8 @@ function cover_report(cv::CoverState, io::IO, stand_id::AbstractString,
         println(io)
     end
     end  # has_canopy
+    (has_shrub && cv.calib.lcalib && cv.calib.computed) &&
+        _cover_calib_stats(cv, io, stand_id, mgmt_id, title)
     has_shrub && _cover_shrub_stats(cv, io, stand_id, mgmt_id, title)
     has_sum   && _cover_summary(cv, io, stand_id, mgmt_id, title)
     # SHRUB-SMALL CONIFER COMPETITION follows the summary on the same page (cvout.f 9090).
@@ -1059,14 +1183,22 @@ struct ShrubCycle
     htindx::Vector{Int}
 end
 
-function cvbrow_cycle(sc::ShrubConst, sage::Float32, ba::Float32, idist::Int)
-    residc = 0.0f0
+const _CVB_ZERO31 = zeros(Float32, 31)
+
+function cvbrow_cycle(sc::ShrubConst, sage::Float32, ba::Float32, idist::Int;
+                      cal::Union{ShrubCalib,Nothing}=nothing, lstart::Bool=false)
     pcon = sc.pcon; hcon = sc.hcon; ccon = sc.ccon
     tcon1, tcon2 = sc.tcon
     E = _f32exp
 
     pgt0 = 1.0f0/(1.0f0 + E(-(tcon1 + 0.0138f0*sage - 0.00412f0*ba - 0.000213f0*ba*sage)))
     tcov = E(tcon2 + 0.02885483f0*sage - 0.00020194f0*ba*sage + sage*_CVB_TDTSD[idist] + 0.3238953f0)
+
+    # RESIDC (calibration method 1): SUMCVR - TCOV, set at cycle 0, carried through.
+    if cal !== nothing && cal.lcal1 && lstart
+        cal.residc = cal.sumcvr - tcov
+    end
+    residc = cal === nothing ? 0.0f0 : cal.residc
 
     pb = Vector{Float32}(undef, 31)
     @inbounds for i in 1:31
@@ -1112,6 +1244,14 @@ function cvbrow_cycle(sc::ShrubConst, sage::Float32, ba::Float32, idist::Int)
     sh[30] = E(hcon[30]+0.163050f0*aldts-0.002211f0*tcov+0.001493f0*residc+0.04912f0)
     sh[31] = E(hcon[31]+0.004520f0*tcov+0.001510f0*residc-0.173325f0/sage+0.08724f0)
 
+    # RESIDH (calibration method 2): SHRBHT - SH at cycle 0, carried through (cvbrow DO 48).
+    if cal !== nothing && lstart
+        @inbounds for i in 1:31
+            cal.shrbht[i] >= 0.0f0 && (cal.residh[i] = cal.shrbht[i] - sh[i])
+        end
+    end
+    residh = cal === nothing ? _CVB_ZERO31 : cal.residh
+
     alnht = Vector{Float32}(undef, 31)
     @inbounds for i in 1:31
         shh = sh[i] <= 0.0f0 ? 0.1f0 : sh[i]
@@ -1134,50 +1274,199 @@ function cvbrow_cycle(sc::ShrubConst, sage::Float32, ba::Float32, idist::Int)
             pbcum += pbcv[htindx[j-1]]
             cabht[k] = pbcum
         end
-        cv[k] = _cvb_cv(k, ccon, sh, cabht[k], alnht, alnba, aldts, sage, ba)
+        cv[k] = _cvb_cv(k, ccon, sh, cabht[k], alnht, alnba, aldts, sage, ba, residh)
         pbcv[k] = pb[k]*cv[k]
         totlcv += pbcv[k]
     end
     return ShrubCycle(pgt0, tcov, pb, sh, cv, pbcv, cabht, totlcv, htindx)
 end
 
-# per-species % cover (cvbrow.f labels 51..531).  RESIDH(k)=0 (calibration deferred).
+# per-species % cover (cvbrow.f labels 51..531).  RESIDH(k) (calibration method 2)
+# enters at its exact Fortran position; residh = 0 for the no-calibration path (x+0f0 = x
+# exactly, so the uncalibrated result is byte-identical).
 @inline function _cvb_cv(k::Int, ccon, sh, cbh::Float32, alnht, alnba::Float32,
-                         aldts::Float32, sage::Float32, ba::Float32)
+                         aldts::Float32, sage::Float32, ba::Float32, residh)
     E = _f32exp
-    c = ccon[k]
+    c = ccon[k]; r = residh
     if k == 1;      return E(c-0.007130f0*cbh+0.23176f0)
     elseif k == 2;  return E(c+0.078842f0)
     elseif k == 3;  return E(c+0.006036f0*sage+0.28364f0)
-    elseif k == 4;  return E(c+1.128531f0*alnht[4]+0.003494f0*sage+0.001445f0*ba+0.123307f0)
-    elseif k == 5;  return E(c+5.617948f0*alnht[5]-2.102114f0*sh[5]-0.00488f0*cbh+0.002444f0*ba+0.195726f0)
-    elseif k == 6;  return E(c+0.112634f0*alnba-0.010360f0*cbh+0.620216f0*alnht[6]+0.253561f0)
+    elseif k == 4;  return E(c+1.128531f0*alnht[4]+0.208575f0*r[4]+0.003494f0*sage+0.001445f0*ba+0.123307f0)
+    elseif k == 5;  return E(c+5.617948f0*alnht[5]-2.102114f0*sh[5]+0.083065f0*r[5]-0.00488f0*cbh+0.002444f0*ba+0.195726f0)
+    elseif k == 6;  return E(c+0.112634f0*alnba-0.010360f0*cbh+0.620216f0*alnht[6]+0.009096f0*r[6]+0.253561f0)
     elseif k == 7;  return E(c-0.004303f0*cbh+0.306118f0)
-    elseif k == 8;  return E(c-0.042881f0*alnba+0.745749f0*sh[8]-0.039454f0*sh[8]*sh[8]+0.147753f0)
-    elseif k == 9;  return 200.0f0/(E(c-3.612059f0*alnht[9]+0.009250f0*cbh+0.010110f0*sage)+1.0f0)
-    elseif k == 10; return 200.0f0/(E(c-0.002451f0*(ba-30.573f0)+0.000035f0*(ba-30.573f0)*(ba-30.573f0)+0.248107f0*aldts+0.013535f0*cbh-4.936937f0*alnht[10])+1.0f0)
-    elseif k == 11; return E(c-0.005229f0*cbh+2.786906f0*alnht[11]+0.418976f0*aldts-0.057897f0*sage+0.153522f0)
-    elseif k == 12; return E(c-0.0034056f0*sage+1.493548f0*alnht[12]-0.002010f0*cbh+0.09473f0)
-    elseif k == 13; return E(c-0.069935f0*alnba-0.007007f0*cbh+1.429518f0*sh[13]-0.084391f0*sh[13]*sh[13]+0.156056f0)
-    elseif k == 14; return c-0.151413f0*cbh+25.163600f0*alnht[14]
-    elseif k == 15; return E(c+1.511617f0*alnht[15]-0.251851f0*sh[15]-0.003701f0*cbh-0.091528f0*aldts-0.052584f0*alnba+0.249182f0)
-    elseif k == 16; return 200.0f0/(E(c+0.003013f0*ba-5.284045f0*alnht[16]+0.468977f0*sh[16]+0.014973f0*cbh+0.119072f0*aldts)+1.0f0)
-    elseif k == 17; return E(c-0.004972f0*cbh+1.385094f0*alnht[17]-0.226805f0*aldts+0.283218f0)
+    elseif k == 8;  return E(c-0.042881f0*alnba+0.745749f0*sh[8]-0.039454f0*sh[8]*sh[8]+0.102498f0*r[8]+0.147753f0)
+    elseif k == 9;  return 200.0f0/(E(c-3.612059f0*alnht[9]-0.199540f0*r[9]+0.009250f0*cbh+0.010110f0*sage)+1.0f0)
+    elseif k == 10; return 200.0f0/(E(c-0.002451f0*(ba-30.573f0)+0.000035f0*(ba-30.573f0)*(ba-30.573f0)+0.248107f0*aldts+0.013535f0*cbh-4.936937f0*alnht[10]-0.123863f0*r[10])+1.0f0)
+    elseif k == 11; return E(c-0.005229f0*cbh+2.786906f0*alnht[11]+0.145728f0*r[11]+0.418976f0*aldts-0.057897f0*sage+0.153522f0)
+    elseif k == 12; return E(c-0.0034056f0*sage+1.493548f0*alnht[12]+0.083533f0*r[12]-0.002010f0*cbh+0.09473f0)
+    elseif k == 13; return E(c-0.069935f0*alnba-0.007007f0*cbh+1.429518f0*sh[13]-0.084391f0*sh[13]*sh[13]+0.202652f0*r[13]+0.156056f0)
+    elseif k == 14; return c-0.151413f0*cbh+25.163600f0*alnht[14]+0.603551f0*r[14]
+    elseif k == 15; return E(c+1.511617f0*alnht[15]-0.251851f0*sh[15]+0.087134f0*r[15]-0.003701f0*cbh-0.091528f0*aldts-0.052584f0*alnba+0.249182f0)
+    elseif k == 16; return 200.0f0/(E(c+0.003013f0*ba-0.147043f0*r[16]-5.284045f0*alnht[16]+0.468977f0*sh[16]+0.014973f0*cbh+0.119072f0*aldts)+1.0f0)
+    elseif k == 17; return E(c-0.004972f0*cbh+1.385094f0*alnht[17]+0.089854f0*r[17]-0.226805f0*aldts+0.283218f0)
     elseif k == 18; return E(c-0.005018f0*cbh+0.245277f0)
-    elseif k == 19; return E(c+0.040967f0*sh[19]+0.267191f0)
-    elseif k == 20; return 200.0f0/(E(c+0.007244f0*sage-0.037231f0*alnba+0.005470f0*cbh-1.580698f0*alnht[20])+1.0f0)
-    elseif k == 21; return 200.0f0/(E(c+0.011024f0*cbh-2.590103f0*alnht[21]+0.005074f0*ba)+1.0f0)
-    elseif k == 22; return 200.0f0/(E(c-0.642331f0*alnht[22]+0.002359f0*cbh)+1.0f0)
-    elseif k == 23; return 200.0f0/(E(c-3.761727f0*alnht[23]+0.009849f0*cbh+0.817357f0*aldts+0.118734f0*alnba)+1.0f0)
-    elseif k == 24; return 200.0f0/(E(c+0.002371f0*ba+0.016261f0*sage-3.633245f0*alnht[24]+0.017470f0*cbh)+1.0f0)
+    elseif k == 19; return E(c+0.040967f0*sh[19]+0.044127f0*r[19]+0.267191f0)
+    elseif k == 20; return 200.0f0/(E(c+0.007244f0*sage-0.037231f0*alnba+0.005470f0*cbh-1.580698f0*alnht[20]-0.066696f0*r[20])+1.0f0)
+    elseif k == 21; return 200.0f0/(E(c+0.011024f0*cbh-2.590103f0*alnht[21]-0.076644f0*r[21]+0.005074f0*ba)+1.0f0)
+    elseif k == 22; return 200.0f0/(E(c-0.642331f0*alnht[22]-0.065580f0*r[22]+0.002359f0*cbh)+1.0f0)
+    elseif k == 23; return 200.0f0/(E(c-3.761727f0*alnht[23]-0.120113f0*r[23]+0.009849f0*cbh+0.817357f0*aldts+0.118734f0*alnba)+1.0f0)
+    elseif k == 24; return 200.0f0/(E(c+0.002371f0*ba+0.016261f0*sage-3.633245f0*alnht[24]-0.184807f0*r[24]+0.017470f0*cbh)+1.0f0)
     elseif k == 25; return E(c+0.160346f0)
-    elseif k == 26; return E(c-0.003541f0*ba-0.094480f0*aldts-0.004642f0*cbh+0.814695f0*sh[26]-0.044342f0*sh[26]*sh[26]+0.172664f0)
-    elseif k == 27; return E(c-0.011936f0*cbh+0.718063f0*sh[27]-0.024411f0*sh[27]*sh[27]+0.252399f0)
-    elseif k == 28; return E(c+0.172636f0*sh[28]-0.004438f0*sh[28]*sh[28]+0.185518f0)
-    elseif k == 29; return 200.0f0/(E(c+0.181524f0*aldts-1.260551f0*alnht[29]+0.006094f0*cbh)+1.0f0)
-    elseif k == 30; return E(c+0.300947f0*sh[30]-0.004439f0*ba+0.172504f0)
-    else;           return E(c-0.004196f0*cbh+2.298975f0*alnht[31]-0.059705f0*alnba+0.196114f0)
+    elseif k == 26; return E(c-0.003541f0*ba-0.094480f0*aldts-0.004642f0*cbh+0.814695f0*sh[26]-0.044342f0*sh[26]*sh[26]+0.090125f0*r[26]+0.172664f0)
+    elseif k == 27; return E(c-0.011936f0*cbh+0.718063f0*sh[27]-0.024411f0*sh[27]*sh[27]+0.020491f0*r[27]+0.252399f0)
+    elseif k == 28; return E(c+0.172636f0*sh[28]-0.004438f0*sh[28]*sh[28]+0.068645f0*r[28]+0.185518f0)
+    elseif k == 29; return 200.0f0/(E(c+0.181524f0*aldts-1.260551f0*alnht[29]-0.039281f0*r[29]+0.006094f0*cbh)+1.0f0)
+    elseif k == 30; return E(c+0.300947f0*sh[30]+0.082204f0*r[30]-0.004439f0*ba+0.172504f0)
+    else;           return E(c-0.004196f0*cbh+2.298975f0*alnht[31]+0.129692f0*r[31]-0.059705f0*alnba+0.196114f0)
     end
+end
+
+# =====================================================================================
+# CVBCAL (covr/cvbcal.f) — compute shrub height/cover correction factors BHTCF/BPCCF
+# from user-observed shrub data, at cycle 0.  Two methods: by layer (SHRBLAYR, LCAL1)
+# or by species (SHRUBHT/SHRUBPC, LCAL2).  Report-only downstream (DGSD=0 path).
+# =====================================================================================
+function cvbcal!(cal::ShrubCalib, sh::Vector{Float32}, pbcv::Vector{Float32},
+                 pb::Vector{Float32}, htindx::Vector{Int}, totlcv::Float32)
+    @inbounds for i in 1:31
+        cal.xcv[i] = pbcv[i]; cal.xpb[i] = pb[i]; cal.xsh[i] = sh[i]
+    end
+    cal.lcal2 ? _cvbcal_m2!(cal, sh, pbcv) : _cvbcal_m1!(cal, sh, pbcv, htindx, totlcv)
+    cal.computed = true
+    return cal
+end
+
+# Method 1: calibration by shrub layer (cvbcal.f lines 98-238).
+function _cvbcal_m1!(cal::ShrubCalib, sh, pbcv, htindx::Vector{Int}, totlcv::Float32)
+    nklass = cal.nklass
+    relpc = Vector{Float32}(undef, 3)
+    @inbounds for i in 1:nklass
+        relpc[i] = 0.00001f0 + cal.avgbpc[i]/cal.sumcvr
+    end
+    iht = zeros(Int, 3, 2)
+    nextsp = 1
+    j = 0; k = 0
+    reached130 = false
+    @inbounds for i in 1:nklass
+        if nextsp > 31                       # GO TO 130
+            reached130 = true
+            break
+        end
+        iht[i, 1] = nextsp
+        cumuli = 0.0f0; rcumpc = 0.0f0
+        i == nklass && break                 # last group → GO TO 110 (handled below)
+        # DO 70: find the class-1 boundary
+        dropflag = false; keepflag = false
+        j = nextsp
+        while j <= 31
+            k = htindx[j]
+            diff1 = abs(rcumpc - relpc[i])
+            cumuli += pbcv[k]
+            rcumpc = cumuli/totlcv
+            diff2 = abs(rcumpc - relpc[i])
+            if relpc[i] == 0.0f0             # GO TO 80 (drop)
+                dropflag = true; break
+            end
+            if rcumpc <= relpc[i]            # GO TO 70 (continue)
+                j += 1; continue
+            end
+            if diff1 <= diff2                # GO TO 80 (drop)
+                dropflag = true; break
+            else                             # GO TO 90 (keep)
+                keepflag = true; break
+            end
+        end
+        if !keepflag                         # DO 70 fell through OR drop → 80
+            j > 31 && (j = 32; k = htindx[31])   # Fortran J=32, K=HTINDX(31) after loop
+            cumuli -= pbcv[k]
+            nextsp = j
+            iht[i, 2] = j - 1                # LASTSP
+        else                                 # 90 keep
+            nextsp = j + 1
+            iht[i, 2] = j                    # LASTSP
+        end
+    end
+    reached130 || (iht[nklass, 2] = 31)      # 110: last group = the rest
+    # DO 150: per-class predicted mean height and cover.
+    sumcv = zeros(Float32, 3); sumht = zeros(Float32, 3)
+    @inbounds for i in 1:nklass
+        cal.avgbpc[i] <= 0.0f0 && continue
+        cal.cvavg[i] = 0.0f0; cal.htavg[i] = 0.0f0
+        cal.cvfrac[i] = 0.0f0; cal.htfrac[i] = 0.0f0
+        i1 = iht[i, 1]; i2 = iht[i, 2]
+        i2 < i1 && continue
+        for jj in i1:i2
+            kk = htindx[jj]
+            cal.ilayr[kk] = i
+            sumcv[i] += pbcv[kk]
+            sumht[i] += sh[kk]
+        end
+        cal.cvavg[i] = sumcv[i]
+        cal.htavg[i] = sumht[i]/Float32((i2 - i1) + 1)
+    end
+    # DO 180: ratios observed/predicted → correction factors per species.
+    @inbounds for i in 1:nklass
+        cal.avgbpc[i] <= 0.0f0 && continue
+        cal.cvavg[i] > 0.0f0 && (cal.cvfrac[i] = cal.avgbpc[i]/cal.cvavg[i])
+        cal.htavg[i] > 0.0f0 && (cal.htfrac[i] = cal.avgbht[i]/cal.htavg[i])
+        i1 = iht[i, 1]; i2 = iht[i, 2]
+        i2 < i1 && continue
+        for jj in i1:i2
+            kk = htindx[jj]
+            cal.bhtcf[kk] = cal.htfrac[i]
+            cal.bpccf[kk] = cal.cvfrac[i]
+        end
+    end
+    return cal
+end
+
+# Method 2: calibration by individual species (cvbcal.f lines 239-295).
+function _cvbcal_m2!(cal::ShrubCalib, sh, pbcv)
+    @inbounds for ispi in 1:31
+        hh = cal.shrbht[ispi]; pc = cal.shrbpc[ispi]
+        if pc >= 0.0f0
+            if pc <= 0.0f0                   # pc == 0 → both factors 0
+                cal.bpccf[ispi] = 0.0f0; cal.bhtcf[ispi] = 0.0f0
+                continue
+            end
+            cal.bpccf[ispi] = pc/pbcv[ispi]  # 240: pc > 0
+            hh < 0.0f0 && continue           # height not observed → BHTCF stays 1
+            cal.bhtcf[ispi] = hh > 0.0f0 ? hh/sh[ispi] : 0.0f0
+        else                                 # pc < 0 (cover not observed)
+            hh < 0.0f0 && continue           # both not observed → unchanged
+            if hh > 0.0f0
+                cal.bhtcf[ispi] = hh/sh[ispi]  # 210: BPCCF stays 1
+            else                             # hh == 0
+                cal.bpccf[ispi] = 0.0f0; cal.bhtcf[ispi] = 0.0f0
+            end
+        end
+    end
+    return cal
+end
+
+# Apply BHTCF/BPCCF to the cycle predictions (cvbrow.f DO 63 / DO 65) → new totlcv.
+# Returns a calibrated ShrubCycle (report/aggregation consume the scaled arrays).
+function _cvbcal_apply(cal::ShrubCalib, cyc::ShrubCycle)
+    sh = copy(cyc.sh); pb = copy(cyc.pb); pbcv = copy(cyc.pbcv)
+    totlcv = 0.0f0
+    if cal.lcal1
+        @inbounds for i in 1:31
+            sh[i] = sh[i]*cal.bhtcf[i]
+            pbcv[i] = pbcv[i]*cal.bpccf[i]
+            totlcv += pbcv[i]
+        end
+    else  # lcal2
+        @inbounds for i in 1:31
+            if !(cal.shrbht[i] != 0.0f0 && cal.shrbpc[i] != 0.0f0)
+                pb[i] = 0.0f0; sh[i] = 0.0f0; pbcv[i] = 0.0f0
+            end
+            sh[i] = sh[i]*cal.bhtcf[i]
+            pbcv[i] = pbcv[i]*cal.bpccf[i]
+            totlcv += pbcv[i]
+        end
+    end
+    return ShrubCycle(cyc.pgt0, cyc.tcov, pb, sh, cyc.cv, pbcv, cyc.cabht, totlcv, cyc.htindx)
 end
 
 # ---- from cover_shrub_cvsum.jl ----
@@ -1477,6 +1766,82 @@ const _CV_SUM_HDR = [
 "         DISTURB. COV>0)  LOW  MED TALL TOTAL   HEIGHT  BIOMASS  (NO./  STAGE  AGE    HEIGHT   COVER   BIOMASS  DIAMS.   OF   ",
 "DATE     (YEARS)   (%)    (%)  (%)  (%)  (%)    (FEET)  (LB/AC)  SQFT)  CODE   (YRS)  (FEET)    (%)    (LB/AC)  (FEET)  STEMS ",
 ]
+
+# Place a preformatted string at an absolute column (Fortran T-descriptor).
+function _cvcol!(buf::Vector{Char}, col::Int, s::AbstractString)
+    n = length(s)
+    while length(buf) < col - 1 + n; push!(buf, ' '); end
+    @inbounds for (i, c) in enumerate(s); buf[col + i - 1] = c; end
+    return buf
+end
+
+# SHRUB MODEL CALIBRATION STATISTICS table (covr/cvout.f 1000/1010/1020/1030/1040 for
+# LCAL1; 1050/1060-1063 for LCAL2).  Emitted once, before the SHRUB STATISTICS table,
+# when calibration is in effect.
+function _cover_calib_stats(cv::CoverState, io::IO, stand_id, mgmt_id, title)
+    cal = cv.calib
+    _cover_stand_header(io, stand_id, mgmt_id, title)
+    println(io); println(io)
+    println(io, "-"^46, "  SHRUB MODEL CALIBRATION STATISTICS  ", "-"^47)
+    println(io); println(io); println(io)
+    if cal.lcal1
+        println(io, "CALIBRATION BY SHRUB LAYER (SHRBLAYR KEYWORD CARD):")
+        println(io)
+        println(io, "          AVERAGE HEIGHT (FEET)                    AVERAGE PERCENT COVER       ")
+        println(io, "    -----------------------------------     -----------------------------------")
+        println(io, "    SHRUB  OBSERVED  PREDICTED  SCALING     SHRUB  OBSERVED  PREDICTED  SCALING")
+        println(io, "    LAYER  VALUES    VALUES     FACTORS     LAYER  VALUES    VALUES     FACTORS")
+        println(io, "    -----  --------  ---------  -------     -----  --------  ---------  -------")
+        println(io)
+        for i in 1:cal.nklass
+            buf = Char[]
+            _cvcol!(buf, 5,  @sprintf("%4d", i))
+            _cvcol!(buf, 9,  @sprintf("%10.1f", cal.avgbht[i]))
+            _cvcol!(buf, 19, @sprintf("%11.1f", cal.htavg[i]))
+            _cvcol!(buf, 30, @sprintf("%9.2f", cal.htfrac[i]))
+            _cvcol!(buf, 46, @sprintf("%4d", i))
+            _cvcol!(buf, 50, @sprintf("%10.1f", cal.avgbpc[i]))
+            _cvcol!(buf, 60, @sprintf("%11.1f", cal.cvavg[i]))
+            _cvcol!(buf, 71, @sprintf("%9.2f", cal.cvfrac[i]))
+            println(io, rstrip(String(buf)))
+        end
+        println(io); println(io)
+        println(io, "                               HEIGHT         % COVER")
+        println(io, "      SHRUB     ASSIGNED       SCALING        SCALING")
+        println(io, "     SPECIES     LAYER         FACTOR         FACTOR")
+        println(io, "     -------    --------      ---------      ---------")
+        println(io)
+        for i in 1:31
+            buf = Char[]
+            _cvcol!(buf, 8,  _CV_SNAME[i])
+            _cvcol!(buf, 20, @sprintf("%1d", cal.ilayr[i]))
+            _cvcol!(buf, 33, @sprintf("%5.2f", cal.bhtcf[i]))
+            _cvcol!(buf, 48, @sprintf("%5.2f", cal.bpccf[i]))
+            println(io, rstrip(String(buf)))
+        end
+    else
+        println(io, "CALIBRATION BY INDIVIDUAL SPECIES (SHRUBHT AND/OR SHRUBPC KEYWORD CARDS):")
+        println(io)
+        println(io, "                        SHRUB HEIGHT (FEET)                        PERCENT COVER")
+        println(io, "                  ----------------------------------     ----------------------------------")
+        println(io, "     SHRUB         OBSERVED     PREDICTED    SCALING      OBSERVED     PREDICTED    SCALING")
+        println(io, "    SPECIES          VALUE        VALUE      FACTOR         VALUE        VALUE      FACTOR")
+        println(io, "    -------       -----------   ---------   --------     -----------   ---------   --------")
+        for i in 1:31
+            hh = cal.shrbht[i]; pc = cal.shrbpc[i]
+            buf = Char[]
+            _cvcol!(buf, 7, _CV_SNAME[i])
+            hh != -99999.0f0 && _cvcol!(buf, 20, @sprintf("%7.1f", hh))
+            _cvcol!(buf, 33, @sprintf("%7.1f", cal.xsh[i]))
+            _cvcol!(buf, 45, @sprintf("%7.2f", cal.bhtcf[i]))
+            pc != -99999.0f0 && _cvcol!(buf, 59, @sprintf("%7.1f", pc))
+            _cvcol!(buf, 72, @sprintf("%7.1f", cal.xcv[i]))
+            _cvcol!(buf, 84, @sprintf("%7.2f", cal.bpccf[i]))
+            println(io, rstrip(String(buf)))
+        end
+    end
+    return io
+end
 
 function _cover_shrub_stats(cv::CoverState, io::IO, stand_id, mgmt_id, title)
     _cover_stand_header(io, stand_id, mgmt_id, title)
