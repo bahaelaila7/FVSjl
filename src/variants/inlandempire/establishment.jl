@@ -1269,14 +1269,23 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # AUTOES ESRANN seed chain (estab.f:290-295 + the per-plot ESAVE reseed). A NEW disturbance/ingrowth tally
     # (NTALLY==1|99) draws seed0 = ESRANN(es_stream) from the continuing establishment stream, then advances the
     # stream to the post-tally state = the last plot's ESAVE (ie_autoes_plot_seeds[dupnpt+1], validated == the
-    # live ESS0 at the next tally: 55329→ESAVE 78807→…). A continuation (NTALLY≥2) reuses this tally's seed0.
-    # es_stream starts fresh at ESSS=55329. (Measured seeds 43303/61677/…; the ESAVE chain is bit-exact.)
+    # live ESS0 at the next tally). A continuation (NTALLY≥2) reuses this tally's seed0.
+    # es_stream starts fresh at ESSS=55329.
+    # ★#143: the ESAVE chain's per-plot body length = 16 + 3·NOFSPE + 2·MAXTPP(IHAB) (estab.f: EMSQR+ESTPP+
+    # NUMSPE-WK6+species-WK6 + ADV/SUBS(NOFSPE) + heights(2·NOFSPE) + excess-WK6(2·MAXTPP) + ESAVE), the SAME
+    # count ie_autoes_tally derives per plot. It VARIES with the stand's habitat (MAXTPP) — the old default 135
+    # was iet01-specific (ihab 10, MAXTPP 25). Using it for a stand at another habitat (e.g. under-stocked
+    # 550→ihab 9, MAXTPP 21 ⇒ body 127) advanced the stream WRONG and desynced every tally after the first
+    # (jl 2nd seed 61677 vs live 61997). Deriving body_es from THIS stand's ihab makes the seed chain bit-exact
+    # vs live (43303→61997→49053 on the under-stocked fixture).
     if _ntally == 1 || _ntally == 99
+        _idx_es = ie_estab_indices(ihab_code, Int(p.user_forest_code))
+        body_es = 16 + 3 * nsp + 2 * _IE_MAXTPP[_idx_es.ihab]
         ess0 = est.es_stream == 0f0 ? 55329.0 : Float64(est.es_stream)
         dr = ie_esrann!(IEEstabRNG(ess0))
         seed0 = floor(Int, dr * 100000f0 + 0.5f0)
         est.es_seed = Float32(seed0)                                          # save for the continuation
-        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1)[end])  # ESAVE_50 = next stream state
+        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1; body = body_es)[end])  # ESAVE = next stream state
     else
         seed0 = round(Int, est.es_seed)                                       # continuation reuses seed0
     end

@@ -1637,13 +1637,23 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # for now (matching the pre-existing silent skip), to be wired + validated once #143 is resolved.
         end
     end
-    # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
-    # the disturbance date, then mark IDSDAT unset so ESNUTR defaults it.
+    # END processing (esin.f:148-203). Two distinct IDSDAT outcomes:
+    #   • DATED ESTAB (idsdat ≠ -1): schedule the TALLY(427) trigger at the disturbance date, then set
+    #     IDSDAT=-9999 (esin.f:171) so ESNUTR defaults it to IY(1)-20 — a KNOWN disturbance year drives the
+    #     within-20yr continuation, not the ingrowth-gap rule.
+    #   • NO-DATE ESTAB (idsdat == -1): NO 427 tally; IDSDAT STAYS -1 (esin.f:201). ★#143: this is the crux
+    #     of the "cyc-1 ingrowth" — with IDSDAT=-1 the LINGRW gap rule (IY(ICYC+1)-IDSDAT ≥ 40) fires the
+    #     automatic ingrowth tally in CYCLE 1 (2029-(-1)=2030 ≥ 40), matching the live oracle (measured on
+    #     the under-stocked IE fixture: oracle fires ic=1/3/5, seeds 43303/61997/49053). jl formerly forced
+    #     -9999 here (→ ESNUTR default IY(1)-20 → 30<40 ⇒ no cyc-1 fire), which desynced the whole schedule
+    #     one cycle late (jl fired ic=2/4). Keeping -1 (verbatim esin.f) restores the bit-exact firing cadence.
     if idsdat != Int32(-1)
         push!(sched, ScheduledActivity(max(Int32(1), idsdat), Int32(427),
                                        (Float32(idsdat), 0f0, 0f0, 0f0, 0f0, 0f0)))
+        s.estab.idsdat = Int32(-9999)
+    else
+        s.estab.idsdat = Int32(-1)
     end
-    s.estab.idsdat = Int32(-9999)
     return
 end
 
