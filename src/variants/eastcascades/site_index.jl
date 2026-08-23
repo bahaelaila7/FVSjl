@@ -74,6 +74,30 @@ ec_habtyp(kodtyp::Integer)::String =
     (kodtyp <= 0 || kodtyp > length(EC_PCOML)) ? "" : EC_PCOML[kodtyp]
 ec_ecocls(pa::AbstractString) = filter(r -> r.pa == pa, EC_ECOCLS)
 
+# ec/hbdecd.f (base HBDECD, called from ec/habtyp.f) — decode the STDINFO field-2
+# habitat/plant-association code into a KODTYP index into EC_PCOML. `array2` is the field's
+# NUMERIC value (0 for an alpha code such as "CWS222"); `field` is the raw 10-char text.
+# Semantics: IHB=IFIX(ARRAY2); a numeric 1..NPA is used as a sequence number, IHB==0 tries an
+# alpha match against the 8-char PCOML codes, and anything unrecognized returns 0 (HABTYP's
+# ITYPE=114 default, which ec_sitset! maps to the CPS241 default site). Without this an
+# alpha plant-association code parsed to habitat_code=0 ⇒ every such stand grew on the poor
+# CPS241 default instead of its real site species/index.
+function ec_hbdecd(field::AbstractString, array2::Real)::Int
+    npa = length(EC_PCOML)
+    ihb = trunc(Int, Float32(array2))              # IHB = IFIX(ARRAY2)
+    (ihb < 0 || ihb > npa) && return 0             # out of range → default
+    ihb > 0 && return ihb                          # numeric sequence number (KODTYP)
+    # IHB==0: an alpha code may be present — up to 8 non-blank chars, uppercased (HBDECD DO 5).
+    s = strip(field)
+    isempty(s) && return 0                         # nothing → DEFAULT
+    first(s) == '0' && return 0                    # leading '0' → HBDECD 'DEFAULT'
+    key = rpad(uppercase(String(first(s, 8))), 8)  # TEMP(1:8)
+    for (i, pa) in enumerate(EC_PCOML)
+        rpad(pa, 8) == key && return i             # TEMP(1:8) .EQ. CNHB(I)(1:8)
+    end
+    return 0                                        # no match → default (ITYPE=114)
+end
+
 # ec/sichg.f — SIAGE(I) per species; metric species = MH(12) & OS(31).
 function ec_sichg(s::StandState, isisp::Integer, ssite::Float32)
     sd = s.coef.species

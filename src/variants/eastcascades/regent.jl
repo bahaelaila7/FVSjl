@@ -105,6 +105,22 @@ const EC_RG_REGYR = 10.0f0
     end
 end
 
+# ec/essubh.f — planted/subsequent-tree base height: SMHTGF called with MODE=0, DTIME=AGE. For the two
+# Chapman-Richards species (WP=1, RC=5) MODE=0 forces EFFAGE=0 (HHT = curve(AGE) − curve(0)); every other
+# species is linear (coef·AGE, H unused) so ec_smhtgf already gives the MODE=0 value. SI = the species' SITEAR.
+@inline function ec_essubh_hht(sp::Int, si::Float32, age::Float32)::Float32
+    age <= 0f0 && return 0f0                            # SMHTGF: DTIME≤0 → no growth (ec/smhtgf.f:97)
+    if sp == 1
+        c1=0.375045f0; c2=0.92503f0; c3=-0.020796f0; c4=2.48811f0
+        return (si/c1)*(1f0-c2*exp(c3*age))^c4 - (si/c1)*(1f0-c2)^c4     # EFFAGE=0
+    elseif sp == 5
+        c1=0.752842f0; c2=1.0f0; c3=-0.0174f0; c4=1.4711f0
+        return (si/c1)*(1f0-c2*exp(c3*age))^c4 - (si/c1)*(1f0-c2)^c4     # EFFAGE=0
+    else
+        return ec_smhtgf(sp, 0f0, age, si)             # linear species: H unused ⇒ = coef·AGE
+    end
+end
+
 function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s

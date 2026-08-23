@@ -80,6 +80,9 @@ const _UT_ES_XMIN   = Float32[1,1,1,0.5,0.5,6,1,0.5,0.5,1,0.5,0.5,0.5,0.5,0.5,0.
 const _UT_ES_HHTMAX = Float32[9,9,10,7,7,16,10,7,7,10,6,6,10,6,6,6,9,16,16,6,6,16,9,10]
 const _CI_ES_XMIN   = Float32[1,1,1,0.5,0.5,0.5,1,0.5,0.5,1,1,1,6,0.5,0.5,1,3,0.5,3]
 const _CI_ES_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17,27,27,16,6,6,27,16,22,16]
+# EC (East Cascades, MAXSP=32) establishment min height XMIN / max seedling height HHTMAX — ec/blkdat.f:140,153.
+const _EC_ES_XMIN   = Float32[1,1,1,0.5,0.5,0.5,1,0.5,0.5,1,1,0.5,1,1,1,0.5,1.5,1,1,1,1,1,1,1,1,1,1,1,1,1,0.5,1]
+const _EC_ES_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17,20,22,20,20,20,20,20,20,20,20,20,50,20,20,20,20,20,20,20,20,22,20]
 # NC (Klamath) establishment per-species min height (XMIN) / max sprout height (HHTMAX) — nc/blkdat.f:73,80.
 const _NC_ES_XMIN   = Float32[1,1,1,0.5,1,0.5,0.5,1,0.5,1,1,1]
 const _NC_ES_HHTMAX = Float32[27,31,25,25,26,24,28,20,20,18,26,25]
@@ -104,6 +107,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
               s.variant isa BlueMountains ? _BM_ES_XMIN :
               s.variant isa Utah ? _UT_ES_XMIN :
               s.variant isa CentralIdaho ? _CI_ES_XMIN :
+              s.variant isa EastCascades ? _EC_ES_XMIN :
               s.variant isa Klamath ? _NC_ES_XMIN :
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
@@ -116,6 +120,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 s.variant isa BlueMountains ? _BM_ES_HHTMAX :
                 s.variant isa Utah ? _UT_ES_HHTMAX :
                 s.variant isa CentralIdaho ? _CI_ES_HHTMAX :
+                s.variant isa EastCascades ? _EC_ES_HHTMAX :
                 s.variant isa Klamath ? _NC_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
@@ -142,7 +147,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
           s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton ||
           s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
-          s.variant isa CentralIdaho || s.variant isa Klamath) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa CentralIdaho || s.variant isa EastCascades ||
+          s.variant isa Klamath) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -158,7 +164,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT = SN window (cr/estab.f:486; TT tt/estab.f TBD-verify)
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC = SN window (cr/estab.f:486; ec/estab.f:486 RAN∈[0,1.5])
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -301,6 +307,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                               em_ihtser(Int(s.plot.habitat_code)), 3, 1)
             elseif s.variant isa Klamath
                 _NC_ESSUBH_HHT[sp]        # nc/essubh.f fixed per-species base height; clamped [XMIN,HHTMAX]
+            elseif s.variant isa EastCascades
+                # EC base height (ec/essubh.f → ec/smhtgf.f MODE=0): the small-tree height-at-total-age
+                # curve HHT = SMHTGF(sp, AGE) with SI = the species' SITEAR. Deterministic (no EMSQR/DILATE/
+                # ELEV). The PLANT-no-height branch below then adds the [0,1.5] RAN draw (ec/estab.f:485).
+                ec_essubh_hht(sp, si, age)
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -345,6 +356,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # inverse, floored to the species min DIAM + the height-proportional add.
             if hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
+            elseif s.variant isa EastCascades
+                # ec/estab.f:626 assigns the establishment DBH = 0.1 flat; ec/esgent.f only recomputes DBH
+                # when WK4<1 (a partial birth cycle). A full-birth-cycle PLANT/NATURAL tree (WK4=1) keeps
+                # DBH=0.1 even after its height exceeds breast height — height grows, DBH does not. (EC also
+                # lacks the shared :htdbh_* coef arrays — it has its own ec_htdbh_dbh — so the shared inverse
+                # both mis-modeled EC and KeyError-crashed.)
+                dbh = 0.1f0
             else
                 dbh = _htdbh_dbh(sd, sp, hht, ifor; isne = s.variant isa Northeast); dbh < 0.1f0 && (dbh = 0.1f0)
                 dbh += 0.001f0 * hht
