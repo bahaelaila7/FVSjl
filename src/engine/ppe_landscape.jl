@@ -90,8 +90,10 @@ end
 
 # Parse the per-cycle before-thin fields out of one `.sum` data row (US/imperial
 # 28-token layout). tpa=col3, cuft=col9, mcuft=col10, bdft=col12 from the FRONT;
-# accretion/mortality read from the END (end-4 / end-3) so they are robust to the
-# volume-block width. Returns nothing for header/blank/non-data lines.
+# period-length/accretion/mortality read from the END (end-5 / end-4 / end-3) so they
+# are robust to the volume-block width. Returns nothing for header/blank/non-data
+# lines. `prd` is IOSUM(14) (PERIOD LENGTH, YEARS) — the CMADDS accretion/mortality
+# weight (see the aggregation note below). Returns nothing for header/blank lines.
 function _ppe_parse_sum_row(line::AbstractString)
     f = split(strip(line))
     length(f) < 20 && return nothing
@@ -102,12 +104,65 @@ function _ppe_parse_sum_row(line::AbstractString)
         cuft = parse(Float64, f[9])
         mcuft = parse(Float64, f[10])
         bdft = parse(Float64, f[12])
+        prd  = parse(Float64, f[end-5])
         acc  = parse(Float64, f[end-4])
         mort = parse(Float64, f[end-3])
-        return (year = year, tpa = tpa, cuft = cuft, mcuft = mcuft, bdft = bdft, acc = acc, mort = mort)
+        return (year = year, tpa = tpa, cuft = cuft, mcuft = mcuft, bdft = bdft,
+                prd = prd, acc = acc, mort = mort)
     catch
         return nothing
     end
+end
+
+# The CMADDS/CMPRT2 composite-yield aggregation (ppbase/cmadds.f + cmprt2.f, the
+# routine that builds the "COMPOSITE YIELD STATISTICS" table — validated bit-exact
+# against the historical FVSppe oracle, scratchpad/ppe/recovered). `stand_rows` is one
+# (area, rows) pair per landscape stand, `rows` a vector of `_ppe_parse_sum_row`
+# NamedTuples. For each report year, CMADDS accumulates the weighted sums and CMPRT
+# averages them (IFIX(x+.5) round-to-nearest, kept as Float here — callers round on
+# compare):
+#   TREES/CU FT/MERCH (IOSUM 3..6): area-weighted mean  Σ(v·w) / Σ(w)         (÷ PRBSUM)
+#   ACCRETION/MORTALITY (IOSUM 15,16): weighted by area·PERIOD, per cmadds.f
+#       ALL(15)+=v·(w·prd); IALL(15)=ALL(15)/ALL(14) where ALL(14)=Σ(w·prd)   (÷ Σ w·prd)
+#   PERIOD (IOSUM 14): IALL(14)=Σ(prd·w)/Σ(w)                                 (÷ PRBSUM)
+#   TOTAL SAMPLE WEIGHT (IOSUM 17): Σ w
+# (BA/CCF/DOM HT (IOSUM 11..13) also divide by PRBSUM but use each stand's AFTER-thin
+# residual value, and REMOVALS (IOSUM 7..10) divide by the treated weight HRVSUM — both
+# outside PTSTV1(1..9) and not produced here; see the CHECK-1 note in the PPE tests.)
+function _ppe_aggregate(stand_rows)
+    wtpa = Dict{Int,Float64}(); wcuft = Dict{Int,Float64}(); wmcuft = Dict{Int,Float64}()
+    wbdft = Dict{Int,Float64}(); wacc = Dict{Int,Float64}(); wmort = Dict{Int,Float64}()
+    wsum = Dict{Int,Float64}(); wprd = Dict{Int,Float64}(); ncnt = Dict{Int,Int}()
+    for (area, rows) in stand_rows
+        for r in rows
+            a = area; wp = a * r.prd
+            wtpa[r.year]  = get(wtpa, r.year, 0.0)  + r.tpa  * a
+            wcuft[r.year] = get(wcuft, r.year, 0.0) + r.cuft * a
+            wmcuft[r.year]= get(wmcuft, r.year, 0.0)+ r.mcuft* a
+            wbdft[r.year] = get(wbdft, r.year, 0.0) + r.bdft * a
+            wacc[r.year]  = get(wacc, r.year, 0.0)  + r.acc  * wp   # ALL(15) += v·(w·prd)
+            wmort[r.year] = get(wmort, r.year, 0.0) + r.mort * wp   # ALL(16) += v·(w·prd)
+            wprd[r.year]  = get(wprd, r.year, 0.0)  + wp            # ALL(14) = Σ(w·prd)
+            wsum[r.year]  = get(wsum, r.year, 0.0)  + a             # PRBSUM
+            ncnt[r.year]  = get(ncnt, r.year, 0)    + 1
+        end
+    end
+    out = PPEAggregate[]
+    for yr in sort(collect(keys(wsum)))
+        w = wsum[yr]
+        w <= 0.0 && continue
+        wp = wprd[yr]
+        # ACC/MOR divide by Σ(w·prd); zero when the growth period is zero (final row).
+        acc  = wp > 0.0 ? wacc[yr]  / wp : 0.0
+        mort = wp > 0.0 ? wmort[yr] / wp : 0.0
+        # PTSTV1(7) MSPERIOD == IALL(14) = Σ(prd·w)/Σw (the master-cycle period length).
+        msperiod = floor(Int, wp / w + 0.5)
+        push!(out, PPEAggregate(yr, wtpa[yr]/w, wcuft[yr]/w, wmcuft[yr]/w, wbdft[yr]/w,
+                                acc, mort, msperiod, w,
+                                0.0,               # PTSTV1(9) OLDTARG: no landscape harvest target set
+                                ncnt[yr]))
+    end
+    return out
 end
 
 """
@@ -166,10 +221,11 @@ end
 
 Faithful port of the PPMAIN mode-1 master-cycle landscape run. Orders the member
 stands by the C11SRT processing order (`ppe_processing_order`), projects each with the
-oracle-validated per-stand engine `run_keyfile` (GRSTND-equivalent), then forms the
-area-weighted PPE landscape aggregates (PPEXCM PTSTV1(1..9)) per report year —
-SPLAEX/ALSTD2's aggregation, each `AVB* = Σ(value·area)/Σ(area)`. `variant` and any
-extra keyword args forward to `run_keyfile`.
+oracle-validated per-stand engine `run_keyfile` (GRSTND-equivalent), then runs the
+bit-exact CMADDS/CMPRT2 composite-yield aggregation (`_ppe_aggregate`) per report year:
+the before-thin TREES/volume columns are area-weighted means `Σ(v·w)/Σw`, while
+ACC/MOR are area·period-weighted `Σ(v·w·prd)/Σ(w·prd)` (they coincide when every stand
+shares one period). `variant` and any extra keyword args forward to `run_keyfile`.
 
 Mode-1 (no interstand interaction) is the reachable regime and is bit-identical to
 the master-cycle-stepped form (see the equivalence proof in the file header); every
@@ -179,41 +235,19 @@ documented seams (`ppe_neighbors`, the wwpb outbreak) — not applied here.
 function ppe_run_landscape(stands::AbstractVector{PPEStand}; variant, keyargs...)
     isempty(stands) && return PPEAggregate[]
     order = ppe_processing_order(stands)              # C11SRT (inert for mode-1 output)
-    # accumulate area-weighted sums per year (SPLAEX aggregation), visiting stands in
-    # the PPE processing order (order-independent for mode-1, but faithful).
-    wtpa = Dict{Int,Float64}(); wcuft = Dict{Int,Float64}(); wmcuft = Dict{Int,Float64}()
-    wbdft = Dict{Int,Float64}(); wacc = Dict{Int,Float64}(); wmort = Dict{Int,Float64}()
-    wsum = Dict{Int,Float64}(); ncnt = Dict{Int,Int}()
+    # project each stand and collect its (area, parsed .sum rows), visiting stands in the
+    # PPE processing order (order-independent for mode-1, but faithful), then run the
+    # bit-exact CMADDS/CMPRT2 composite-yield aggregation.
+    stand_rows = Tuple{Float64,Vector{Any}}[]
     for si in order
         st = stands[si]
         sumtext = run_keyfile(st.keyfile; variant = variant, keyargs...)
+        rows = Any[]
         for line in split(sumtext, '\n')
             r = _ppe_parse_sum_row(line)
-            r === nothing && continue
-            a = st.area
-            wtpa[r.year]  = get(wtpa, r.year, 0.0)  + r.tpa  * a
-            wcuft[r.year] = get(wcuft, r.year, 0.0) + r.cuft * a
-            wmcuft[r.year]= get(wmcuft, r.year, 0.0)+ r.mcuft* a
-            wbdft[r.year] = get(wbdft, r.year, 0.0) + r.bdft * a
-            wacc[r.year]  = get(wacc, r.year, 0.0)  + r.acc  * a
-            wmort[r.year] = get(wmort, r.year, 0.0) + r.mort * a
-            wsum[r.year]  = get(wsum, r.year, 0.0)  + a
-            ncnt[r.year]  = get(ncnt, r.year, 0)    + 1
+            r === nothing || push!(rows, r)
         end
+        push!(stand_rows, (st.area, rows))
     end
-    yrs = sort(collect(keys(wsum)))
-    out = PPEAggregate[]
-    for (i, yr) in enumerate(yrs)
-        w = wsum[yr]
-        w <= 0.0 && continue
-        # PTSTV1(7) MSPERIOD = the master-cycle period = years to the next report row
-        # (0 on the final row). Landscape-level constant in PPE; here derived from the
-        # reporting cadence the member stands share.
-        msperiod = i < length(yrs) ? (yrs[i+1] - yr) : 0
-        push!(out, PPEAggregate(yr, wtpa[yr]/w, wcuft[yr]/w, wmcuft[yr]/w, wbdft[yr]/w,
-                                wacc[yr]/w, wmort[yr]/w, msperiod, w,
-                                0.0,               # PTSTV1(9) OLDTARG: no landscape harvest target set
-                                ncnt[yr]))
-    end
-    return out
+    return _ppe_aggregate(stand_rows)
 end
