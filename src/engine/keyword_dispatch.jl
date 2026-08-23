@@ -1624,6 +1624,17 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 sel:sel                                        # single species index
             end
             for sp in sps; (1 <= sp <= nsp) && (tgt[Int32(sp)] = val); end
+        elseif k == "OUTPUT" || k == "HABGROUP"
+            # esin.f opt 6 (OUTPUT: IPRINT flag + JOREGT unit) / opt 14 (HABGROUP: prints the habitat-type-groups
+            # table via ESMSGS). PURE REPORT CONTROL — they only gate/print the establishment .out report, which
+            # FVSjl does not emit. Faithfully INERT: recognized-and-consumed inside the ESTAB packet, no .sum/RNG
+            # effect. (Explicit branch documents the deliberate no-op vs an accidental silent skip.)
+        elseif k == "MINPLOTS" || k == "PASSALL" || k == "PLOTINFO"
+            # esin.f opt 20 (MINPLOTS → MINREP plot count) / opt 18 (PASSALL → excess-tree passing IBLK/CONFID) /
+            # opt 10 (PLOTINFO → per-plot site input). MODEL-EFFECT on the establishment plot-replication/RNG stream.
+            # DEFERRED pending the AUTOES natural-regen tally desync fix (#143; see establishment.jl:227-228): wiring
+            # their effect now would ride jl's desynced establishment ESRANN stream ⇒ unvalidatable. Consumed-INERT
+            # for now (matching the pre-existing silent skip), to be wired + validated once #143 is resolved.
         end
     end
     # END processing (esin.f:100-117): schedule the TALLY(427) establishment trigger at
