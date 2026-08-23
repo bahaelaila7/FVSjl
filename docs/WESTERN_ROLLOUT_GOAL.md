@@ -79,8 +79,14 @@ DO NOT idle-cycle on the stop-hook or hold for per-item decisions — work conti
      bwebkem block-data dump-replay BIT-EXACT vs FVSem_wsbwe, LBUDL wired (wsbwe_go/bweob/BWEGO + budlite feeder),
      per-tree PEDDS/PEHTG/AVYRMX growth-loss RIGHT-cycle+~1e-4 (#206-straddle-perturbed BWESIT input; DG-reduction
      itself bit-exact 81/81), BWEPRB=measured non-gap (POFPOT=1.0). Gate 339/11 byte-identical; test_wsbwe_gendefol
-     20/20. [[fvsjl-wsbwe-gendefol-synthetic-weather]]. Remaining item-4 = COVER CVBCAL (calibration refinement,
-     primary output already bit-exact) ONLY. **ON method-6/broken-top vol = confirmed NON-GAP
+     20/20. [[fvsjl-wsbwe-gendefol-synthetic-weather]]. **COVER CVBCAL ✓ DONE 2026-08-23 (e6ea9dc2)** — the last
+     COVER sub-path: ported covr/cvbcal.f shrub calibration (both methods — SHRBLAYR by-layer + SHRUBHT/SHRUBPC
+     by-species → BHTCF/BPCCF correction factors + apply + RESIDC/RESIDH cvbrow feedback + SHRUB MODEL CALIBRATION
+     STATISTICS report). Kernel BIT-EXACT both methods (155/155 Float32-hex dump-replay vs FVSem_g16, all 4 method-2
+     apply branches) + calibration report tables byte-identical; SHRUB STATISTICS method-1 cyc0 byte-identical,
+     method-2 residual = a 1-ULP UPSTREAM stand-BA corner amplified by SHRBPC/XCV (not a calibration defect, measured
+     to the ULP). Gate 339/11 byte-identical (RESIDH insert = +0f0 identity uncalibrated); test_cvbcal 4/4.
+     ⇒ **item-4 FULLY CLOSED** (only PPE remains, source-absent = un-portable). **ON method-6/broken-top vol = confirmed NON-GAP
      2026-08-21** (not a remaining item): jl volume.jl documents ON's default METHC=METHB=8 (ZAK/HONER via volont.f);
      method 6 = R9CLARK/NATCRS which ON never selects (dead-code, all-METHC=8), and broken-top vol is oracle-degenerate
      (clean CFTOPK=NaN, jl-correct, NE-r9clark class) per the ON completion.
