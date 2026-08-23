@@ -175,6 +175,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("unit/test_fuel_decay.jl")          # FFE-F3: surface-fuel decay (FMCWD)
     include("unit/test_crown_lift.jl")          # FFE-F3: crown-lift rate X for down-wood additions (FMSDIT)
     include("unit/test_estab_specmult_htadj.jl")  # ESTAB-packet SPECMULT (XESMLT occ mult) + HTADJ (height adj) — parsing + occ-scaling + HTADJ +5.0 vs FVSci_clean
+    include("unit/test_estab_minplots.jl")        # ESTAB-packet MINPLOTS (esin.f MINREP → DUPNPT plot replication) — parse+clamp + bit-exact DUPNPT-scaled ESAVE draw chain vs live FVSie
     include("unit/test_snag.jl")                # FFE-F7: snag falldown + decay dynamics (FMSFALL)
     include("unit/test_consumption.jl")         # FFE-F7/F8: fire fuel consumption + carbon release (FMCONS)
     include("unit/test_econ.jl")                # C8: ECON economic-analysis core (eccalc.f)

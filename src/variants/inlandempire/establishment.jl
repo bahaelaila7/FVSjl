@@ -1201,7 +1201,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
-                            nsp = nsp, idup = Int(idup), tally_pt = tally_pt,
+                            nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
@@ -1264,7 +1264,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
 
     p = s.plot
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
-    idup   = max(1, cld(_ES_MINREP, nptids))
+    idup   = max(1, cld(Int(est.minrep), nptids))   # MINPLOTS keyword (esin.f MINREP; default 50)
     dupnpt = Float32(nptids * idup)
     # AUTOES ESRANN seed chain (estab.f:290-295 + the per-plot ESAVE reseed). A NEW disturbance/ingrowth tally
     # (NTALLY==1|99) draws seed0 = ESRANN(es_stream) from the continuing establishment stream, then advances the
@@ -1285,7 +1285,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         dr = ie_esrann!(IEEstabRNG(ess0))
         seed0 = floor(Int, dr * 100000f0 + 0.5f0)
         est.es_seed = Float32(seed0)                                          # save for the continuation
-        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1; body = body_es)[end])  # ESAVE = next stream state
+        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1; wk6 = Int(dupnpt), body = body_es)[end])  # ESAVE = next stream state (WK6 site-prep prefix = DUPNPT)
     else
         seed0 = round(Int, est.es_seed)                                       # continuation reuses seed0
     end

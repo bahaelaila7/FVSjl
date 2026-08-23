@@ -1629,12 +1629,34 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # table via ESMSGS). PURE REPORT CONTROL — they only gate/print the establishment .out report, which
             # FVSjl does not emit. Faithfully INERT: recognized-and-consumed inside the ESTAB packet, no .sum/RNG
             # effect. (Explicit branch documents the deliberate no-op vs an accidental silent skip.)
-        elseif k == "MINPLOTS" || k == "PASSALL" || k == "PLOTINFO"
-            # esin.f opt 20 (MINPLOTS → MINREP plot count) / opt 18 (PASSALL → excess-tree passing IBLK/CONFID) /
-            # opt 10 (PLOTINFO → per-plot site input). MODEL-EFFECT on the establishment plot-replication/RNG stream.
-            # DEFERRED pending the AUTOES natural-regen tally desync fix (#143; see establishment.jl:227-228): wiring
-            # their effect now would ride jl's desynced establishment ESRANN stream ⇒ unvalidatable. Consumed-INERT
-            # for now (matching the pre-existing silent skip), to be wired + validated once #143 is resolved.
+        elseif k == "MINPLOTS"
+            # esin.f opt 20 → MINREP: minimum plot-replication target. Drives the estab.f:199-207 IDUP loop
+            # (IDUP = smallest I with NPTIDS·I ≥ MINREP = ceil(MINREP/NPTIDS)) ⇒ DUPNPT = NPTIDS·IDUP, the number of
+            # establishment plots looped, hence the ESRANN draw-stream length. WIRED bit-exact (#143 now resolved):
+            # on the under-stocked IE fixture MINPLOTS 100 (idup 1→2, dupnpt 50→100) reproduces the live instrumented
+            # oracle's shifted per-tally seeds 43303/31334/6152 (base 43303/61997/49053) — the ESAVE chain advances
+            # through 100 plots not 50. esin.f:587-588: MINREP=IFIX(ARRAY(1)); IF(MINREP<20) MINREP=20.
+            if r.present[1]
+                mr = nint(r.values[1])
+                s.estab.minrep = mr < Int32(20) ? Int32(20) : mr
+            end
+        elseif k == "PASSALL"
+            # esin.f opt 18 → IBLK=1, CONFID=max(ARRAY(1),1) → PASMAX (esin.f:551-558). PASMAX caps the per-plot
+            # EXCESS-tree probability only (estab.f:1318-1321 XCSMAX=min(EXCESS/BRKUP, PASMAX/BRKUP)); it is a
+            # DETERMINISTIC post-draw PROB scaling (no RNG effect) that bites ONLY when a plot overflows MAXTPP so
+            # EXCESS(I)≥0.5. MEASURED-INERT on the reachable AUTOES regime: on the under-stocked IE fixture the
+            # oracle .sum is BYTE-IDENTICAL for PASSALL 1 == PASSALL 100 == default (CONFID 5) — the under-stocked
+            # stand never overflows a plot, so no excess trees exist to cap. (IBLK is set but referenced nowhere in
+            # estab.f — a dead serialization flag.) Consumed-inert; a dense over-regenerating fixture (untried, and
+            # not the AUTOES-exercising stand) would be needed to exercise the excess-tree cap.
+        elseif k == "PLOTINFO"
+            # esin.f opt 10 → IPINFO=1 + reads per-plot site CARDS (ID,slope,aspect,habitat,physio,prep) from the
+            # keyfile via esplt1/esplt2 (the LEGACY TREEDATA plot-card input format). STRUCTURALLY INAPPLICABLE to
+            # jl's DATABASE/FIA input pipeline: jl takes per-plot SLOPE/ASPECT from the DB reader (point_slope/
+            # point_aspect), IPINFO stays 0, and a real jl keyfile never carries PLOTINFO plot cards. Validating it
+            # bit-exact would require porting the entire legacy plot-card reader (esplt1.f/esplt2.f) and a non-DB
+            # input keyfile — outside the reachable DB regime. Consumed-inert (the plot-card lines it would introduce
+            # are a legacy-only construct jl's DB path does not emit).
         end
     end
     # END processing (esin.f:148-203). Two distinct IDSDAT outcomes:

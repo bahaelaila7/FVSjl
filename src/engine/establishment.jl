@@ -14,7 +14,9 @@
 # fresh (full TPA) this period; their DBH is derived from the established height.
 # =============================================================================
 
-const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f)
+const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f) — the DEFAULT for
+                               # Establishment.minrep (state.jl); the live value is per-stand via the
+                               # MINPLOTS keyword (esin.f opt 20), read at both idup call sites as est.minrep.
 
 # XMIN: per-species establishment min height (blkdat.f) lives in
 # data/southern/species_coefficients.csv as the `estab_min_ht` column.
@@ -133,7 +135,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     nptids = max(1, Int(s.plot.points_inv) - Int(s.plot.nonstockable))
     # estab.f:199-207: IDUP = smallest I with NPTIDS·I ≥ MINREP = CEIL(MINREP/NPTIDS) (not floor); the
     # MAXPLT cap doesn't bind for the divergent 1<NPTIDS<MINREP cases. NPTIDS=1 ⇒ ceil=floor=50 (BARE stand).
-    idup   = max(1, cld(_ES_MINREP, nptids))
+    idup   = max(1, cld(Int(s.estab.minrep), nptids))   # MINPLOTS keyword (esin.f MINREP; default 50)
     dupnpt = Float32(nptids * idup)
     # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
     # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).

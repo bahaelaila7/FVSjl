@@ -683,10 +683,15 @@ mutable struct Establishment
     ht_adj::Dict{Int32,Float32} # HTADJ keyword (esin.f opt 15 → esnutr.f IACTK 442 HTADJ(ISP)): per-species height
                                 # adjustment added to established-tree height before the XMIN/HHTMAX clamps
                                 # (estab.f:932/1033/1036). Default lookup 0.0 (empty = inert).
+    minrep::Int32               # MINPLOTS keyword (esin.f opt 20 → MINREP): minimum plot-replication target
+                                # (esinit.f:58 default 50; esin.f:587-588 IF(MINREP<20) MINREP=20). Drives the
+                                # estab.f:199-207 IDUP loop → DUPNPT = NPTIDS·ceil(MINREP/NPTIDS), so it sets the
+                                # number of establishment plots looped ⇒ the ESRANN draw-stream length (measured
+                                # model-affecting: MINPLOTS 100 shifts the under-stocked-IE tally-2 seed 61997→31334).
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
-                                Dict{Int32,Float32}(), Dict{Int32,Float32}())
+                                Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50))
 
 mutable struct DbsState
     enabled::Bool
