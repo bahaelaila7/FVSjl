@@ -180,6 +180,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("unit/test_estab_minplots.jl")        # ESTAB-packet MINPLOTS (esin.f MINREP → DUPNPT plot replication) — parse+clamp + bit-exact DUPNPT-scaled ESAVE draw chain vs live FVSie
     include("unit/test_estab_mechprep.jl")        # ESTAB-packet MECHPREP/BURNPREP site prep (esetpr.f + estab.f:382-399 WK6 IPPREP sampler) — kernel + live IPPREP vs FVSie_estabdump
     include("unit/test_ec_hbdecd_estab.jl")       # EC STDINFO alpha plant-association decode (ec/hbdecd.f → habitat 129/CWS222/GF/SI 103 vs FVSec_g16) + EC PLANT ESTAB path no longer KeyError-crashes (ec/blkdat XMIN/HHTMAX + ec/essubh SMHTGF)
+    include("unit/test_ec_volume_topkill.jl")     # EC broken-top TOTAL-cubic CFTOPK trim (ect01 cyc0 bit-exact vs FVSec_g16; closed the TCuFt +2 corner via r4_topkill in the FW2 branch)
     include("unit/test_snag.jl")                # FFE-F7: snag falldown + decay dynamics (FMSFALL)
     include("unit/test_consumption.jl")         # FFE-F7/F8: fire fuel consumption + carbon release (FMCONS)
     include("unit/test_econ.jl")                # C8: ECON economic-analysis core (eccalc.f)

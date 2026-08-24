@@ -61,8 +61,10 @@ end
 
 function compute_volumes_ec!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species
+    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
     ifor = Int(s.plot.forest_idx)
+    ecmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+               scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 32
@@ -80,6 +82,12 @@ function compute_volumes_ec!(s::StandState)
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
                            iregn = 6, board_cor = 'N', merch_opt = 23)   # MRULES REGN 6: COR='N', OPT=23
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
+            # Broken/killed-top reduction (fvsvol.f vols.f:193 CFTOPK/BFTOPK): the full cubic above used
+            # the NORMAL height (norm_ht/hv, cratet.f), so trim it back to the standing break (t.trunc/100)
+            # via the Behre taper. EC merch TOPD=4.5 (== BM). Measured on ect01 (rec-6 WL D8.0, rec-22 DF
+            # D10.4 broken-top) — the missing trim was the whole TCuFt +2 corner (oracle w/ CFTOPK off = 1617
+            # = jl-pre-fix; with CFTOPK on = 1615). Merch/board trims don't fire here (break above merch top).
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ecmerch, _BM_TOPD45)
         else                                            # 616BEHW
             tcf, mcf, bf = ec_behre_vol(sp, ifor, d, hv, bark)
         end
