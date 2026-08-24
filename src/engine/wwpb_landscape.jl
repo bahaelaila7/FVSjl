@@ -600,6 +600,437 @@ function bmatct_single!(st::WwpbStand, w::WwpbState; sdd::Float32=0.0f0, ipson::
     return st
 end
 
+# =============================================================================
+# MULTI-STAND landscape dispersal (bmatct.f full, MXSTND>1) — the interstand
+# spatial BKP redistribution. This is the piece that COLLAPSES to bmatct_single!
+# when BMSTND=1 & OUTOFF=T (SCORE self-cancels ⇒ PROP=1). Faithful line-by-line
+# translation of wwpb/bmatct.f, validated BIT-EXACT vs the gfortran-16 driver
+# golden scratchpad/wwpb/driver_bmatct_multi.f (4-stand landscape, OW-off /
+# OW-floating / OW-fixed-constant). Transcendentals route through glibc
+# logf/expf/powf; SQRT is IEEE-correctly-rounded (= gfortran sqrtf). The spatial
+# data model (SPLAAR area, SPLALO location, SPLADS euclidean distance from the
+# PPSPLA XLOC/YLOC/AREA arrays) lives in WwpbLandscape.
+# =============================================================================
+
+# geometry-unit constants (bmatct.f PARAMETERs, single-precision).
+const _WWPB_AC2SQM = Float32(1)/Float32(640)        # acres → sq.mi
+const _WWPB_M2MI   = Float32(1)/Float32(1609.34)    # meters → miles
+const _WWPB_MI2M   = 1609.34f0                       # miles → meters
+const _WWPB_PIE    = 3.14159f0                        # BMPRM PIE
+
+@inline _wwpb_sqrtf(x::Float32)::Float32 = sqrt(x)   # IEEE correctly-rounded == gfortran REAL SQRT
+
+# -----------------------------------------------------------------------------
+# WwpbLandscape — the PPSPLA spatial state (per-stand XLOC/YLOC/AREA) plus the
+# ACDONE-cached spatial results (ATTC/ATTBYK/AREAO/AREALP/AREAL/RADLC) and the
+# per-stand dispersal-output buffers (BKPOUT/BKPIN/SELFBKP/BKPS). One instance
+# per landscape; `bmatct_multi!` mutates it across years. The C-constants
+# (CBKPO…CRVOND) are resolved-once landscape averages, held here (BMCOM).
+# -----------------------------------------------------------------------------
+mutable struct WwpbLandscape
+    n     ::Int
+    xloc  ::Vector{Float32}   # SPLALO X (meters, PPSPLA)
+    yloc  ::Vector{Float32}   # SPLALO Y (meters)
+    area  ::Vector{Float32}   # SPLAAR area (acres)
+    stock ::Vector{Bool}      # STOCK(i)
+    # ACDONE-cached spatial results
+    acdone::Bool
+    attc  ::Matrix{Float32}   # ATTC(2,n)
+    attbyk::Matrix{Float32}   # ATTBYK(2,n)
+    areao ::Vector{Float32}   # AREAO(2)
+    arealp::Vector{Float32}   # AREALP(2)
+    areal ::Float32           # AREAL
+    radlc ::Float32           # RADLC
+    # resolved Outside-World constants (BMCOM CBKPO…CRVOND, resolved once if <0)
+    cbkpo ::Vector{Float32}   # CBKPO(2)
+    cbaho ::Vector{Float32}   # CBAHO(2)
+    cbaspo::Vector{Float32}   # CBASPO(2)
+    cspo  ::Vector{Float32}   # CSPO(2)
+    cbao  ::Float32           # CBAO
+    crvond::Float32           # CRVOND
+    # per-stand dispersal-output buffers (BMPCOM)
+    bkpout ::Matrix{Float32}  # BKPOUT(2,n)
+    bkpin  ::Matrix{Float32}  # BKPIN(2,n)
+    selfbkp::Matrix{Float32}  # SELFBKP(2,n)
+    bkps   ::Vector{Float32}  # BKPS(n)
+end
+
+function WwpbLandscape(xloc::Vector{Float32}, yloc::Vector{Float32},
+                       area::Vector{Float32}, stock::Vector{Bool};
+                       cbkpo=Float32[-1,-1], cbaho=Float32[-1,-1],
+                       cbaspo=Float32[-1,-1], cspo=Float32[-1,-1],
+                       cbao::Float32=-1.0f0, crvond::Float32=-1.0f0)
+    n = length(xloc)
+    z2 = () -> zeros(Float32, 2, n)
+    WwpbLandscape(n, copy(xloc), copy(yloc), copy(area), copy(stock),
+                  false, z2(), z2(), zeros(Float32, 2), zeros(Float32, 2),
+                  0.0f0, 0.0f0,
+                  Float32.(cbkpo), Float32.(cbaho), Float32.(cbaspo), Float32.(cspo),
+                  Float32(cbao), Float32(crvond),
+                  z2(), z2(), z2(), zeros(Float32, n))
+end
+
+# -----------------------------------------------------------------------------
+# bmatct_multi! (bmatct.f). `stands[i]` supplies NUMER/TFOOD/BKP/BKPIPS (+ BAH/
+# BANH/GRFSTD/SPCLT/TREE for the OW landscape-average branch). ATTRACT params:
+# `usera/selfa/userc/urmax` are the 3-element USER*(3) arrays (index PBSPEC ∈ 1:3
+# for the main beetle, [3] for Ips). Writes the new BKP/BKPIPS back into each
+# stand and the BKPOUT/BKPIN/SELFBKP/BKPS buffers into `ls`.
+# -----------------------------------------------------------------------------
+function bmatct_multi!(ls::WwpbLandscape, stands::Vector{WwpbStand}, w::WwpbState;
+                       usera::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                       selfa::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                       userc::NTuple{3,Float32}=(100.0f0,100.0f0,100.0f0),
+                       urmax::NTuple{3,Float32}=(15.0f0,15.0f0,15.0f0),
+                       outoff::Bool=true, ufloat::Float32=-1.0f0, sdd::Float32=0.0f0,
+                       rvod::Float32=1.0f0, stocko::Float32=1.0f0,
+                       lbad::Bool=false, ibadbb::Int=1,
+                       badrep::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                       ipson::Bool=false,
+                       msba::Vector{Float32}=zeros(Float32, WWPB_NSCL))
+    n = ls.n
+    pbspec = Int(w.pbspec)
+    PIE = _WWPB_PIE
+    AC2SQM = _WWPB_AC2SQM; M2MI = _WWPB_M2MI; MI2M = _WWPB_MI2M
+    npass = ipson ? 2 : 1
+
+    aspec = zeros(Float32, 2); nzero = zeros(Float32, 2)
+    ddwt = zeros(Float32, 2);  rmax = zeros(Float32, 2)
+    aspec[1] = usera[pbspec]; nzero[1] = selfa[pbspec]
+    ddwt[1]  = userc[pbspec]; rmax[1]  = urmax[pbspec]
+    if npass == 2
+        aspec[2] = usera[3]; nzero[2] = selfa[3]
+        ddwt[2]  = userc[3]; rmax[2]  = urmax[3]
+    end
+    # (GPGET2 option-processor calls omitted: the ATTRACT-schedule keyword changes
+    #  are not modeled here — CBKPO… keep their WwpbLandscape values, as with LOK=F.)
+
+    attc = ls.attc; attbyk = ls.attbyk
+    kl = zeros(Float32, 2); kls = zeros(Float32, 2); kav = zeros(Float32, 2)
+    ko = zeros(Float32, 2); bkpo = zeros(Float32, 2); attwp = zeros(Float32, 2)
+    xbkpo = zeros(Float32, 2)
+
+    # ======================= SPATIAL INIT (once, ACDONE) =======================
+    if !ls.acdone
+        # DO 8: ATTBYK
+        @inbounds for curr in 1:n
+            caREA = ls.area[curr] * AC2SQM
+            r2 = _wwpb_sqrtf(caREA / PIE)
+            for ipass in 1:npass
+                r2 > rmax[ipass] && (r2 = rmax[ipass])
+                attbyk[ipass, curr] = (PIE / ddwt[ipass]) *
+                    (_wwpb_logf(abs(ddwt[ipass]*r2*r2 + nzero[ipass])) -
+                     _wwpb_logf(abs(nzero[ipass])))
+            end
+        end
+
+        if outoff
+            ls.acdone = true
+        else
+            xbao = 0.0f0; xrvo = 0.0f0
+            xbaho = zeros(Float32, 2); xspo = zeros(Float32, 2); xbaspo = zeros(Float32, 2)
+            fill!(xbkpo, 0.0f0)
+            # DO 10: landscape centre
+            xmax = -1.0f0; ymax = -1.0f0; xmin = 1.0f35; ymin = 1.0f35
+            @inbounds for curr in 1:n
+                xp = ls.xloc[curr]; yp = ls.yloc[curr]
+                xp > xmax && (xmax = xp); xp < xmin && (xmin = xp)
+                yp > ymax && (ymax = yp); yp < ymin && (ymin = yp)
+            end
+            xmid = (xmin + xmax) / 2.0f0; ymid = (ymin + ymax) / 2.0f0
+            # DO 13: AREAL/AREALS/DMAX (+ conditional landscape sums)
+            areal = 0.0f0; areals = 0.0f0; dmax = -1.0f0
+            @inbounds for curr in 1:n
+                caREA = ls.area[curr] * AC2SQM
+                areal += caREA
+                d = _wwpb_sqrtf(caREA / PIE) * MI2M
+                xp = ls.xloc[curr]; yp = ls.yloc[curr]
+                d = d + _wwpb_sqrtf((xmid-xp)^2 + (ymid-yp)^2)
+                d > dmax && (dmax = d)
+                ls.stock[curr] || continue
+                areals += caREA
+                if (ls.cbao < 0.0f0) && (ufloat != -1.0f0)
+                    xbao += caREA * (stands[curr].bah[WWPB_NSCL+1] + stands[curr].banh[WWPB_NSCL+1])
+                end
+                if (ls.crvond < 0.0f0) && (ufloat != -1.0f0)
+                    xrvo += caREA * stands[curr].grfstd
+                end
+                for ipass in 1:npass
+                    if (ls.cbkpo[ipass] < 0.0f0) && (ufloat != -1.0f0)
+                        if (pbspec != 3) && (ipass == 1)
+                            xbkpo[ipass] += caREA * stands[curr].bkp
+                        else
+                            xbkpo[ipass] += caREA * stands[curr].bkpips
+                        end
+                    end
+                    # host/special sums (only when C-values missing & not fixed OW)
+                    if ((ls.cbaho[ipass] >= 0.0f0) && (ls.cspo[ipass] >= 0.0f0) &&
+                        (ls.cbaspo[ipass] >= 0.0f0)) || (ufloat == -1.0f0)
+                        # GOTO 12
+                    else
+                        mn = ipass == 1 ? Int(w.iscmin[pbspec]) : Int(w.iscmin[3])
+                        tbaho = 0.0f0; tbaspo = 0.0f0; tspo = 0.0f0
+                        for isiz in 1:WWPB_NSCL
+                            isiz >= mn && (tbaho += stands[curr].bah[isiz])
+                            xx = stands[curr].tree[isiz, 1] * stands[curr].spclt[isiz, ipass]
+                            tspo += xx
+                            isiz >= mn && (tbaspo += xx * msba[isiz])
+                        end
+                        xbaho[ipass] += caREA * tbaho
+                        xspo[ipass]  += caREA * tspo
+                        xbaspo[ipass] += caREA * tbaspo
+                    end
+                end
+            end
+            radl = dmax * M2MI
+            # DO 20: resolve landscape averages (skip if UFLOAT==-1)
+            if ufloat != -1.0f0
+                ls.cbao   < 0.0f0 && (ls.cbao = xbao / areals)
+                ls.crvond < 0.0f0 && (ls.crvond = (xrvo / areals) / rvod)
+                for ipass in 1:npass
+                    ls.cbkpo[ipass]  < 0.0f0 && (ls.cbkpo[ipass]  = xbkpo[ipass] / areals)
+                    ls.cbaho[ipass]  < 0.0f0 && (ls.cbaho[ipass]  = xbaho[ipass] / areals)
+                    ls.cbaspo[ipass] < 0.0f0 && (ls.cbaspo[ipass] = xbaspo[ipass] / areals)
+                    ls.cspo[ipass]   < 0.0f0 && (ls.cspo[ipass]   = xspo[ipass] / areals)
+                end
+            end
+            # eqns 5,11,15,16
+            radlc = _wwpb_sqrtf(areal / PIE)
+            for ipass in 1:npass
+                rado = radl + rmax[ipass]
+                ls.areao[ipass] = (PIE * rado * rado) - areal
+                if radlc > rmax[ipass]
+                    ls.arealp[ipass] = areal - (PIE * (radlc - rmax[ipass])^2)
+                else
+                    ls.arealp[ipass] = areal
+                end
+            end
+            ls.areal = areal; ls.radlc = radlc
+            # TX (DO 22)
+            tx = zeros(Float32, 2)
+            for ipass in 1:npass
+                tx[ipass] = (PIE / ddwt[ipass]) *
+                    (_wwpb_logf(abs(ddwt[ipass]*rmax[ipass]*rmax[ipass] + nzero[ipass])) -
+                     _wwpb_logf(abs(nzero[ipass])))
+            end
+            # ATTC (DO 30)
+            @inbounds for curr in 1:n
+                ls.stock[curr] || continue
+                caREA = ls.area[curr]
+                cdist = 0.5f0 * _wwpb_sqrtf(caREA * AC2SQM)
+                sx = zeros(Float32, 2)
+                for targ in 1:n
+                    if targ == curr
+                        for ipass in 1:npass
+                            sx[ipass] += attbyk[ipass, curr]
+                        end
+                    else
+                        dx0 = ls.xloc[targ] - ls.xloc[curr]
+                        dy0 = ls.yloc[targ] - ls.yloc[curr]
+                        dist = _wwpb_sqrtf(dx0*dx0 + dy0*dy0) * M2MI
+                        tarea = ls.area[targ] * AC2SQM
+                        tdist = 0.5f0 * _wwpb_sqrtf(tarea)
+                        dist < (cdist + tdist) && (dist = cdist + tdist)
+                        for ipass in 1:npass
+                            if dist <= rmax[ipass]
+                                dxq = ddwt[ipass] * dist * dist
+                                sx[ipass] += (tarea / (dxq + nzero[ipass]))
+                            end
+                        end
+                    end
+                end
+                for ipass in 1:npass
+                    attc[ipass, curr] = tx[ipass] - sx[ipass]
+                    attc[ipass, curr] < 0.0f0 && (attc[ipass, curr] = 0.0f0)
+                end
+            end
+            ls.acdone = true
+        end
+    end
+
+    # ============= OUTSIDE-WORLD YEAR SETUP (KL/KO/BKPO/KAV/ATTWP) =============
+    if !outoff
+        for ipass in 1:npass
+            kl[ipass] = 0.0f0; kls[ipass] = 0.0f0; xbkpo[ipass] = 0.0f0
+        end
+        @inbounds for curr in 1:n
+            caREA = ls.area[curr] * AC2SQM
+            for ipass in 1:npass
+                xx = caREA * stands[curr].numer[ipass]
+                kl[ipass] += xx
+                if (ufloat == -1.0f0) && ls.stock[curr]
+                    kls[ipass] += xx
+                    if (pbspec != 3) && (ipass == 1)
+                        xbkpo[ipass] += caREA * stands[curr].bkp
+                    else
+                        xbkpo[ipass] += caREA * stands[curr].bkpips
+                    end
+                end
+            end
+        end
+        # note: AREALS is only available inside the spatial-init; recompute here.
+        areals_now = 0.0f0
+        @inbounds for curr in 1:n
+            ls.stock[curr] && (areals_now += ls.area[curr] * AC2SQM)
+        end
+        for ipass in 1:npass
+            kl[ipass] = kl[ipass] / ls.areal
+        end
+        if ufloat == -1.0f0
+            for ipass in 1:npass
+                ko[ipass]   = kls[ipass] / areals_now
+                bkpo[ipass] = xbkpo[ipass] / areals_now
+            end
+        else
+            bao = ls.cbao; rvond = ls.crvond; rvo = rvond * rvod
+            for ipass in 1:npass
+                baho  = ls.cbaho[ipass]; baspo = ls.cbaspo[ipass]
+                spo   = ls.cspo[ipass];  bkpo[ipass] = ls.cbkpo[ipass]
+                ko[ipass] = (aspec[ipass]*spo + 1.0f0) * bao * (baho + baspo) / rvo
+            end
+            if lbad
+                if ibadbb != 3 || (ibadbb == 3 && npass == 1)
+                    bkpo[1] = bkpo[1] * badrep[pbspec]
+                end
+                if ibadbb >= 3 && npass == 2
+                    bkpo[2] = bkpo[2] * badrep[3]
+                end
+            end
+        end
+        if stocko < 1.0f0
+            for ipass in 1:npass
+                ko[ipass]   = ko[ipass] * stocko
+                bkpo[ipass] = bkpo[ipass] * stocko
+            end
+        end
+        for ipass in 1:npass
+            kav[ipass] = ((ls.areao[ipass] * ko[ipass]) + (ls.arealp[ipass] * kl[ipass])) /
+                         (ls.areao[ipass] + ls.arealp[ipass])
+            attwp[ipass] = (PIE / ddwt[ipass]) * kav[ipass] *
+                (_wwpb_logf(abs(ddwt[ipass]*rmax[ipass]*rmax[ipass] + nzero[ipass])) -
+                 _wwpb_logf(abs(nzero[ipass])))
+        end
+    end
+
+    # ========================= DISPERSAL (per source) =========================
+    newbkp = zeros(Float32, 2, n)
+    score  = zeros(Float32, 2, n)
+    # zero the output buffers on stockable stands
+    @inbounds for curr in 1:n
+        ls.stock[curr] || continue
+        for ipass in 1:npass
+            newbkp[ipass, curr] = 0.0f0
+            ls.bkpout[ipass, curr] = 0.0f0
+            ls.bkpin[ipass, curr] = 0.0f0
+            ls.selfbkp[ipass, curr] = 0.0f0
+        end
+    end
+
+    totsc = zeros(Float32, 2); attoj = zeros(Float32, 2); totbkp = zeros(Float32, 2)
+    @inbounds for curr in 1:n
+        ls.stock[curr] || continue
+        caREA = ls.area[curr]
+        for ipass in 1:npass
+            totsc[ipass] = 0.0f0
+            outoff || (attoj[ipass] = ko[ipass] * attc[ipass, curr])
+            if (pbspec != 3) && (ipass == 1)
+                totbkp[ipass] = caREA * stands[curr].bkp
+            else
+                totbkp[ipass] = caREA * stands[curr].bkpips
+            end
+        end
+        caREA = caREA * AC2SQM
+        cdist = 0.5f0 * _wwpb_sqrtf(caREA)
+        # target attractiveness
+        for targ in 1:n
+            if targ == curr
+                for ipass in 1:npass
+                    score[ipass, targ] = stands[curr].numer[ipass] * attbyk[ipass, curr]
+                    totsc[ipass] += score[ipass, targ]
+                end
+            else
+                dx0 = ls.xloc[targ] - ls.xloc[curr]
+                dy0 = ls.yloc[targ] - ls.yloc[curr]
+                dist = _wwpb_sqrtf(dx0*dx0 + dy0*dy0) * M2MI
+                tarea = ls.area[targ] * AC2SQM
+                tdist = 0.5f0 * _wwpb_sqrtf(tarea)
+                dist < (cdist + tdist) && (dist = cdist + tdist)
+                for ipass in 1:npass
+                    if dist <= rmax[ipass]
+                        dxq = ddwt[ipass] * dist * dist
+                        score[ipass, targ] = tarea * stands[targ].numer[ipass] / (dxq + nzero[ipass])
+                        totsc[ipass] += score[ipass, targ]
+                    else
+                        score[ipass, targ] = 0.0f0
+                    end
+                end
+            end
+        end
+        # Outside-World flux
+        if !outoff
+            for ipass in 1:npass
+                totsc[ipass] += attoj[ipass]
+                if totsc[ipass] > 0.0f0
+                    ls.bkpout[ipass, curr] = totbkp[ipass] * (attoj[ipass] / totsc[ipass])
+                end
+                xx = ko[ipass] * ls.areao[ipass] * attwp[ipass]
+                rattjo = xx > 0.0f0 ?
+                    (caREA * stands[curr].numer[ipass] * attoj[ipass]) / xx : 0.0f0
+                areaox = 2753.04f0 * _wwpb_powf(1.0f0 - _wwpb_expf(-0.06366f0 * ls.radlc), 1.5938f0) *
+                         _wwpb_powf(1.0f0 - _wwpb_expf(-0.0687f0 * rmax[ipass]), 0.8827f0)
+                ls.bkpin[ipass, curr] = bkpo[ipass] * (areaox / AC2SQM) * rattjo
+                newbkp[ipass, curr] += ls.bkpin[ipass, curr]
+            end
+        end
+        # allocate BKP to targets
+        for targ in 1:n
+            for ipass in 1:npass
+                prop = 0.0f0
+                totsc[ipass] > 0.0f0 && (prop = score[ipass, targ] / totsc[ipass])
+                targ == curr && (ls.selfbkp[ipass, targ] = prop * totbkp[ipass])
+                newbkp[ipass, targ] += prop * totbkp[ipass]
+            end
+        end
+    end
+
+    # ========================== SATURATION → BKP =============================
+    alpha = sdd < 0.0f0 ? (0.365f0 - 0.178f0*sdd) : (0.365f0 - 0.034f0*sdd)
+    alpha > 0.90f0 && (alpha = 0.90f0)
+    alpha < 0.01f0 && (alpha = 0.01f0)
+    @inbounds for curr in 1:n
+        ls.stock[curr] || continue
+        caREA = ls.area[curr]
+        for ipass in 1:2
+            newbkp[ipass, curr] = newbkp[ipass, curr] / caREA
+            ls.bkpout[ipass, curr] = ls.bkpout[ipass, curr] / caREA
+            ls.bkpin[ipass, curr] = ls.bkpin[ipass, curr] / caREA
+            ls.selfbkp[ipass, curr] = ls.selfbkp[ipass, curr] / caREA
+        end
+        s = stands[curr]
+        if pbspec != 3
+            if (newbkp[1, curr] > 0.0f0) && (s.tfood[1] > 0.0f0)
+                s.bkp = s.tfood[1] * (1.0f0 - _wwpb_expf(-(alpha * newbkp[1, curr] / (s.tfood[1] + 1.0f-6))))
+                ls.bkps[curr] = s.bkp / newbkp[1, curr]
+            else
+                s.bkp = 0.0f0; ls.bkps[curr] = 1.0f0
+            end
+            if newbkp[2, curr] > 0.0f0
+                s.bkpips = s.tfood[2] * (1.0f0 - _wwpb_expf(-(alpha * newbkp[2, curr] / (s.tfood[2] + 1.0f-6))))
+            else
+                s.bkpips = 0.0f0
+            end
+        else
+            if newbkp[1, curr] > 0.0f0
+                s.bkpips = s.tfood[1] * (1.0f0 - _wwpb_expf(-(alpha * newbkp[1, curr] / (s.tfood[1] + 1.0f-6))))
+                ls.bkps[curr] = s.bkpips / newbkp[1, curr]
+            else
+                s.bkpips = 0.0f0; ls.bkps[curr] = 1.0f0
+            end
+        end
+    end
+    return ls
+end
+
 # glibc single-precision logf for AS245/AS63 (matches gfortran REAL LOG bit-exact).
 @inline _wwpb_logf(x::Float32)::Float32 = ccall((:logf, "libm.so.6"), Float32, (Float32,), x)
 
@@ -991,6 +1422,54 @@ function wwpb_outbreak_cycle!(st::WwpbStand, w::WwpbState, coeffs, t, sp_alpha::
         bmmort!(st, true)                        # slow pass: PBKILL→TREE decrement + TPBK ledger
     end
     return st
+end
+
+# -----------------------------------------------------------------------------
+# bmdrv_multi! (bmdrv.f, MXSTND>1) — the interstand master driver loop. Faithful
+# to bmdrv.f's two-phase per-year structure, but with the bit-exact multi-stand
+# BMATCT hoisted to the landscape level (that is the whole point of mode-2): all
+# stands run phase-1 {BMCGRF/BMCBKP/BMCNUM} first, THEN one landscape BMATCT
+# redistributes BKP across neighbors, THEN all stands run phase-2 {BMISTD/BMMORT}
+# on the redistributed BKP. Minimal-outbreak chain (drought/fire/wind/management
+# neutral, as in wwpb_outbreak_cycle!): the omitted BMDRGT/BMLITE/BMFIRE/BMOBB/
+# BMDFOL/BMQMRT/BMMORT(fast) default to no-op when their keywords are absent.
+# Stands must be pre-loaded (bmsdit!) with rvdsc=1 and any inventory seed. At
+# MXSTND=1 / OUTOFF=T this collapses to wwpb_outbreak_cycle! (bmatct_multi!→
+# bmatct_single! degeneracy) — verified by test. No BMDRV Fortran oracle exists
+# (FVSppe links the exbm.f BMDRV stub); this composes driver-golden-validated
+# kernels, and the multi-stand BMATCT is itself golden-validated.
+# -----------------------------------------------------------------------------
+function bmdrv_multi!(ls::WwpbLandscape, stands::Vector{WwpbStand}, w::WwpbState, coeffs;
+                      area::Vector{Float32}, iyr1::Int, iyr2::Int, ipson::Bool=false,
+                      usera::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                      selfa::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                      userc::NTuple{3,Float32}=(100.0f0,100.0f0,100.0f0),
+                      urmax::NTuple{3,Float32}=(15.0f0,15.0f0,15.0f0),
+                      outoff::Bool=true, ufloat::Float32=-1.0f0, sdd::Float32=0.0f0,
+                      rvod::Float32=1.0f0, stocko::Float32=1.0f0,
+                      lbad::Bool=false, ibadbb::Int=1,
+                      badrep::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0))
+    oldgrf = zeros(Float32, WWPB_NSCL)
+    @inbounds for _iyr in iyr1:iyr2
+        # phase 1: per-stand GRF / BKP / attractiveness numerator (bmdrv.f DO 40)
+        for i in eachindex(stands)
+            ls.stock[i] || continue
+            bmcgrf!(stands[i], w, oldgrf)
+            bmcbkp!(stands[i], w, coeffs; ipson=ipson)
+            bmcnum!(stands[i], w, coeffs; ipson=ipson, usera=usera)
+        end
+        # landscape BKP redistribution (bmdrv.f: CALL BMATCT(IYR))
+        bmatct_multi!(ls, stands, w; usera=usera, selfa=selfa, userc=userc, urmax=urmax,
+                      outoff=outoff, ufloat=ufloat, sdd=sdd, rvod=rvod, stocko=stocko,
+                      lbad=lbad, ibadbb=ibadbb, badrep=badrep, ipson=ipson, msba=coeffs.msba)
+        # phase 2: per-stand within-stand dynamics + beetle-kill (bmdrv.f DO 45)
+        for i in eachindex(stands)
+            ls.stock[i] || continue
+            bmistd!(stands[i], w, coeffs; sarea=area[i])
+            bmmort!(stands[i], true)
+        end
+    end
+    return ls
 end
 
 # -----------------------------------------------------------------------------
