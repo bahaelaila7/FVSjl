@@ -2,10 +2,21 @@
     FVSjl
 
 An idiomatic, maintainable, thread-safe Julia reimplementation of the USFS Forest
-Vegetation Simulator. It is a drop-in replacement for the live Fortran FVS — Southern
-(`FVSsn`) and Northeast (`FVSne`) are complete and validated, Central States (`FVScs`)
-in progress — same `.key`/`.tre` inputs, same SQLite / `.sum` outputs, and (in the
-default `faithful=true` mode) bit-exact results.
+Vegetation Simulator. It is a drop-in replacement for the live Fortran FVS — same
+`.key`/`.tre` inputs, same SQLite / `.sum` outputs, and (in the default
+`faithful=true` mode) bit-exact-or-cornered results. All 24 geographic variants are
+ported and validated against the live relinked Fortran oracle, together with the
+extensions (FFE fire, FVS-Climate, WWPB beetle + PPE landscape, Western Root Disease,
+dwarf mistletoe, budworm/tussock/beetle insect models, COVER, Event Monitor, ECON,
+DBS database output, establishment). Validation status — see docs/PORT_STATUS.md:
+  * eastern SN/NE/CS/LS: EXHAUSTIVELY FIA-validated over the entire FVS-ready FIA
+    population (1,468,376 stands, 99.990% bit-exact-or-cornered — docs/fia_fullscale_results.md);
+  * the 20 western/non-eastern variants: validated bit-exact-or-cornered vs the live
+    relinked oracle per subsystem + large FIA sweeps; a full-population western sweep
+    to the eastern standard is under way.
+"cornered" = a divergence measured and reduced to a named floating-point primitive
+(the #206 OLDRN serial-correlation growth straddle, the RDPSRT self-thin tie-break,
+DGSCOR/volume ULP), not an unexplained difference.
 
 Design (see docs/ARCHITECTURE.md):
   * all simulation state lives on an explicit `StandState` — no globals;
@@ -14,8 +25,9 @@ Design (see docs/ARCHITECTURE.md):
   * variants are dispatched via `AbstractVariant` singletons.
 
 Ported from the Fortran sources under /workspace/ForestVegetationSimulator and
-validated against the live Fortran builds (SN additionally vs the faithful port at
-/workspace/FVSjulia; NE/CS have no faithful port — live binary is the sole oracle).
+validated per subsystem/chunk against freshly-relinked live Fortran builds
+(FVS{v}_g16, gfortran-16). The doctrine is bit-exact-or-cornered vs the live oracle,
+gated by test/integration/test_multicycle.jl staying 339/11 byte-identical.
 """
 module FVSjl
 
