@@ -39,6 +39,7 @@ using FVSjl
     include("unit/test_oc_treelist_dg.jl")  # FVS_TreeList DG/HtG for OC: ORGANON clobbered diam_growth/ht_growth (0 on projected cycles); shared apply-loop now skips OC + keeps the increment (.sum-inert)
     include("unit/test_op_treelist_dg.jl")  # FVS_TreeList DG/HtG for OP: sibling ORGANON (cooperating driver) — confirms OP has NO OC-style clobber, live-tree DG/HtG bit-exact vs FVSop_clean
     include("unit/test_oc_snag_recruit.jl") # OC FFE snag pool: mortality!(::OregonCoast) was a no-op ⇒ ongoing ORGANON mortality never booked as snags; now books t.mort_pa (1998 SnagSum bit-exact vs FVSoc_clean 92.99)
+    include("unit/test_oc_crown_change.jl") # OC FVS-native (IORG=0) crown-ratio CHANGE (oc/crown.f rank-Weibull): crown_ratio_update!(::OregonCoast) was a no-op ⇒ IORG=0 crowns frozen ⇒ LP height under-grew ~0.15 ft/cyc; now LP tree1 crown 35→53 + HT bit-exact vs FVSoc_clean all 10 cyc
     include("unit/test_ws_crwidth.jl")      # WS FVS_TreeList CrWidth via R5CRWD (ws_r5crwd) — R5 skips forest-BF ⇒ per-tree bit-exact (29/29 vs FVSws_clean), the 8th variant wired past the eastern 0.5 default
     include("unit/test_ca_crwidth.jl")      # CA FVS_TreeList CrWidth via ca_cwcalc + folded forest-610 BF (SP/LP/PP) — 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum; 9th variant wired
     include("unit/test_bm_crwidth.jl")     # BM FVS_TreeList CrWidth via bm_cwcalc→cr_cwcalc + folded forest-614 BF (forest_bf flag; FFE path BF-free) — 29/29 vs FVSbm_clean, 10th variant
