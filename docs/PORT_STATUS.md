@@ -63,14 +63,15 @@ historical `FVSppe` oracle lives at `/workspace/.ppework/FVSppe`):
   CMADDS/CMPRT2 composite aggregation is **bit-exact vs the FVSppe COMPOSITE table**;
 - **mode-2** (interstand beetle dispersal) — the spatial-redistribution kernels
   (`bmatct_multi!`/`bmdrv_multi!`) are **bit-exact vs pristine `bmatct.f` goldens**;
-  live in-run cross-stand coupling is being wired (an equivalence-validated refactor).
+  live in-run cross-stand coupling is **implemented** (`ppe_run_landscape_live!`, a
+  Julia-Task/Channel lockstep barrier), equivalence-validated (live in-flight ==
+  premade-decisions replay, bit-exact).
 
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** — external program, no in-tree source. Not ported.
-- **PPE mode-2 *live* per-cycle coupling** — kernels bit-exact; the in-run lockstep
-  driver is in progress (validated by live-vs-premade-decision equivalence, since the
-  recovered `FVSppe` links the beetle no-op stub for EC).
+- **PPE MXHRVP (multistand harvest scheduling)** — the one remaining un-wired PPE
+  seam (mode-2 live beetle coupling is now done; harvest allocation across stands is not).
 - **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
   SIGSEGV; ON is validated via the inline path, not a live DB oracle.
 - **Western full-population FIA sweep** — under way; not yet at the eastern
