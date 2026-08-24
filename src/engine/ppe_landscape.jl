@@ -44,14 +44,16 @@
 # still computed (via the bit-exact ppe_index_qsort!) so the port is faithful and the
 # kernel participates; it becomes LOAD-BEARING only for mode-2 / harvest scheduling.
 #
-# MODE-2 (interstand beetle dispersal) + MXHRVP (multistand harvest) require TRUE
-# master-cycle stepping — pausing every stand mid-projection to exchange landscape
-# state — which is exactly getstd/putstd's job and is NOT exposed by run_keyfile
-# (FVSjl projects a whole keyfile per call). Those are documented composition SEAMS
-# below (ppe_neighbors + the wwpb outbreak), left as honest stubs rather than faked:
-# the beetle biology itself is already bit-exact (src/engine/wwpb*.jl) and runs
-# per-stand via the DISPERSE keyword; only the cross-stand spatial redistribution of
-# beetle pressure is the missing landscape coupling.
+# MODE-2 (interstand beetle dispersal) requires TRUE master-cycle stepping — pausing
+# every stand mid-projection to exchange landscape state (getstd/putstd's job in
+# Fortran). This is now IMPLEMENTED live: `ppe_run_landscape_live!` (below) steps N
+# stands in LOCKSTEP via a Julia-Task/Channel rendezvous at the existing post-MORTS/
+# pre-GRADD WWPB seam (simulate.jl grow_cycle! `wwpb_barrier`), runs one `bmdrv_multi!`
+# dispersal across the spatial neighbors (ppe_neighbors/HXINDX), and hands each stand's
+# beetle kill back (bmkill!) before it resumes. The dispersal kernels are bit-exact vs
+# pristine wwpb/*.f; the live plumbing is proven zero-divergence by the equivalence
+# test (live in-flight == premade-decisions standalone replay, test_ppe_landscape_live).
+# MXHRVP (multistand harvest scheduling) remains the one documented un-wired seam.
 # =============================================================================
 
 """
