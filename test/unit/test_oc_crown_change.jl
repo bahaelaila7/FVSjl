@@ -3,13 +3,22 @@
 #
 # Regression guard for the LP height-growth fix: `crown_ratio_update!(::OregonCoast)` was a NO-OP, so the
 # crown ratio of every FVS-native (IORG=0) tree was FROZEN at its cycle-0 inventory value. That starved
-# the crown-vigor term CRMOD in oc/htgf.f, so LP (OC sp 12, not an ORGANON species) under-grew ~0.15
-# ft/cycle — compounding to −3.25 ft by cycle 9 on the S248112 (ocgro) stand.
+# the crown-vigor term CRMOD in oc/htgf.f, so LP (OC sp 12, not an ORGANON species) under-grew — the
+# fixed model marches LP tree 1's crown 35→53 (%) over the run, tracking the oracle bit-exact.
 #
-# Golden = the live FVSoc_clean run (scratchpad/lp_height, instrumented htgf/crown dumps): LP tree 1
-# marches crown 0.35→0.53 over 10 cycles and reaches HT 128.81; before the fix it stayed CR 0.35 / HT
-# 125.56. Tolerances ACCEPT the fixed (bit-exact) state and FAIL a revert to the frozen-crown behavior.
-# DGSD=0 on OC ⇒ deterministic ⇒ this is a true bit-exact target.
+# Golden = the live FVSoc_clean run on S248112 (ocgro), measured through the SAME engine path this test
+# uses (each_stand → setup_growth! → write_sum_file with a per-cycle hook). The keyfile has NUMCYCLE 10
+# / INVYEAR 1990 / 5-yr cycles ⇒ the oracle .sum has 11 rows 1990…2040, so the cycle_hook's LAST value
+# is the year-2040 state. The FINAL (year-2040) per-tree oracle numbers are:
+#   • tree 1  (LP, sp12, IORG=0): crown 53, HT 133.863 — jl BIT-EXACT (crown 35→53, HT to 133.8633).
+#   • tree 28 (BR, sp22, IORG=0, = the oracle's internal index 25): crown 56 (down from the inventory
+#     65), HT 71.766 — jl crown BIT-EXACT (56); jl HT 71.883 carries the pre-existing cornered ~0.12 ft
+#     residual (the sp22 RELHT reads AVH, which drifts once the IORG=1 ORGANON large-tree heights drift —
+#     the documented "OC large-tree ORGANON multi-cycle carry", a SEPARATE cornered item, not this fix).
+# NOTE: tree indexing is by jl `tree_id` (input record order). The oracle's per-tree dump uses FVS's
+# internal (reordered) index, so oracle internal I=25 is jl tree_id 28 — matched here by species + the
+# cycle-0 inventory height (sp22, H0=28 ft). A revert to the no-op FREEZES crown (LP→35, BR→65) and
+# lowers HT, so every assertion below fails on the frozen-crown behavior. DGSD=0 on OC ⇒ deterministic.
 # =============================================================================
 using Test
 using FVSjl
@@ -33,14 +42,15 @@ const F = FVSjl
             end
             acc
         end
-        # LP tree 1 (FVS-native, IORG=0): oracle final HT 128.81, crown 53 (%). Frozen-crown revert → HT
-        # ~125.56, crown 35 — the tolerances below distinguish the two decisively.
+        # LP tree 1 (FVS-native, IORG=0): oracle FINAL (year 2040) HT 133.863, crown 53 (%). The fix makes
+        # both BIT-EXACT; a frozen-crown revert stays crown 35 and grows less tall.
         @test haskey(snaps, 1)
-        @test abs(snaps[1][1] - 128.81f0) < 0.20f0      # HT bit-exact-or-cornered (revert = −3.25 ft)
-        @test snaps[1][2] >= 50                          # crown grew from 35 (revert stays 35)
-        # BR tree 25 (also IORG=0) — crown grew from 65 toward 57; height within the cornered AVH residual.
-        @test haskey(snaps, 25)
-        @test snaps[25][2] <= 60 && snaps[25][2] >= 55   # crown 57 (was frozen 65)
-        @test abs(snaps[25][1] - 67.49f0) < 0.30f0
+        @test abs(snaps[1][1] - 133.8633f0) < 0.05f0     # HT bit-exact vs FVSoc_clean
+        @test snaps[1][2] == 53                          # crown 35→53 (revert stays 35)
+        # BR tree 28 (sp22, IORG=0; oracle internal index 25): crown 56 (down from inventory 65) — jl crown
+        # BIT-EXACT; HT within the cornered AVH residual (oracle 71.766 / jl 71.883).
+        @test haskey(snaps, 28)
+        @test snaps[28][2] == 56                          # crown bit-exact (revert stays 65)
+        @test abs(snaps[28][1] - 71.766f0) < 0.30f0       # HT bit-exact-or-cornered (AVH residual)
     end
 end
