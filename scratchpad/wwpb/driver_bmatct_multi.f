@@ -86,6 +86,32 @@ C     ======== SCENARIO C: Outside World ON, fixed constants ==========
       CALL BMATCT(2000)
       CALL DUMP('C')
 
+C     ==== SCENARIO D: MULTI-YEAR OW-off cascade (ACDONE persists yrs 2..5) ====
+C     Reset BKP, hold NUMER fixed, let BKP evolve through repeated BMATCT calls
+C     across 5 years (exercises the ACDONE spatial-cache persistence that the
+C     master-cycle bmdrv loop relies on). Dump BKP per stand per year.
+      OUTOFF=.TRUE.
+      ACDONE=.FALSE.
+      BKP(1)=100.0 ; BKP(2)=40.0 ; BKP(3)=10.0 ; BKP(4)=60.0
+      DO 300 IYR=1,5
+        CALL BMATCT(2000+IYR)
+        DO 310 I=1,4
+          WRITE(*,'(A2,I1,1X,I2,1X,A,1X,Z8.8)') 'D',IYR,I,'BKP',BKP(I)
+  310   CONTINUE
+  300 CONTINUE
+
+C     ==== SCENARIO E: MULTI-YEAR OW-floating cascade ====
+      OUTOFF=.FALSE.
+      UFLOAT=-1.0
+      ACDONE=.FALSE.
+      BKP(1)=100.0 ; BKP(2)=40.0 ; BKP(3)=10.0 ; BKP(4)=60.0
+      DO 400 IYR=1,5
+        CALL BMATCT(2100+IYR)
+        DO 410 I=1,4
+          WRITE(*,'(A2,I1,1X,I2,1X,A,1X,Z8.8)') 'E',IYR,I,'BKP',BKP(I)
+  410   CONTINUE
+  400 CONTINUE
+
       END
 
       SUBROUTINE SETMSBA

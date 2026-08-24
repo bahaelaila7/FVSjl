@@ -217,6 +217,75 @@ function ppe_neighbors(stand::PPEStand, stands::AbstractVector{PPEStand};
 end
 
 """
+    ppe_landscape_mode2!(members, w, coeffs; iyr1, iyr2, dispersal-params...) -> (kills, ls)
+
+The MODE-2 interstand-beetle-dispersal composition (ppmain.f label-150 ALSTD2 phase +
+the phase-2 BMKILL stand loop). `members` is a vector of NamedTuples
+`(trees=<FVS treelist>, area=<acres>, xloc=<m>, yloc=<m>, stock=<Bool>,
+sp_alpha=<sp->code>)` — one per landscape stand, each already GROWN to mortality
+(GRINCR, mode-2). This runs the LANDSCAPE step faithfully:
+
+  1. bmsdit! bins each stand's treelist into its WwpbStand (the FVS→BM bridge),
+     seeds rvdsc=1 (drought off) and any inventory beetle damage.
+  2. bmdrv_multi! runs the master per-year loop, redistributing BKP ACROSS the
+     placed stands (bmatct_multi!, golden-validated) — the piece mode-1 cannot do.
+  3. bmkill! hands each stand's beetle mortality back to its treelist (returned as
+     `kills[i]`, a per-record WK2 mortality vector; the caller applies it, mirroring
+     ppmain.f's `CALL BMKILL` before GRADD/GRCEND).
+
+Returns `(kills, ls)` where `ls::WwpbLandscape` carries the per-stand BKPOUT/BKPIN/
+SELFBKP dispersal ledger. Every kernel here is bit-exact (bmsdit!/bmcgrf!/bmcbkp!/
+bmcnum!/bmatct_multi!/bmistd!/bmmort!/bmkill!, driver-golden-validated); the
+composition is the faithful bmdrv.f/ppmain.f control structure. At one stand /
+OUTOFF it collapses to the single-stand DISPERSE path (wwpb_apply!).
+
+RESIDUAL SEAM (measured architectural block): feeding this LIVE, mid-projection —
+i.e. pausing every member stand's FVSjl projection AT the outbreak cycle boundary to
+exchange landscape BKP, then resuming — is exactly getstd/putstd's master-cycle
+stepping, which `run_keyfile` (whole-keyfile-per-call) does not expose. So this
+function takes the already-grown per-stand treelists as input rather than driving the
+engine; wiring it into a live per-cycle FVSjl landscape stepper is the one remaining
+coupling. It is ADDITIVE + INERT (no simulate.jl seam; mode-1 stays byte-identical).
+"""
+function ppe_landscape_mode2!(members, w, coeffs; iyr1::Integer, iyr2::Integer,
+                              ipson::Bool=false, usera::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                              selfa::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                              userc::NTuple{3,Float32}=(100.0f0,100.0f0,100.0f0),
+                              urmax::NTuple{3,Float32}=(15.0f0,15.0f0,15.0f0),
+                              outoff::Bool=true, ufloat::Float32=-1.0f0, sdd::Float32=0.0f0,
+                              rvod::Float32=1.0f0, stocko::Float32=1.0f0,
+                              seed_pbkill=nothing)
+    n = length(members)
+    stands = WwpbStand[]
+    area  = Float32[]; xloc = Float32[]; yloc = Float32[]; stock = Bool[]
+    for (i, m) in enumerate(members)
+        st = WwpbStand()
+        bmsdit!(st, m.trees, w, m.sp_alpha)
+        fill!(st.rvdsc, 1.0f0)                    # drought model not run ⇒ neutral
+        if seed_pbkill !== nothing
+            sp = seed_pbkill[i]
+            sp !== nothing && (st.pbkill .= sp)
+        end
+        push!(stands, st)
+        push!(area, Float32(m.area)); push!(xloc, Float32(m.xloc)); push!(yloc, Float32(m.yloc))
+        push!(stock, get(m, :stock, true))
+    end
+    ls = WwpbLandscape(xloc, yloc, area, stock)
+    bmdrv_multi!(ls, stands, w, coeffs; area=area, iyr1=Int(iyr1), iyr2=Int(iyr2),
+                 ipson=ipson, usera=usera, selfa=selfa, userc=userc, urmax=urmax,
+                 outoff=outoff, ufloat=ufloat, sdd=sdd, rvod=rvod, stocko=stocko)
+    # phase-2 handback: BMKILL per stand (ppmain.f label-150 second loop).
+    kills = Vector{Vector{Float32}}(undef, n)
+    for (i, m) in enumerate(members)
+        t = m.trees
+        wk2 = zeros(Float32, t.n)                 # no pre-existing FVS mortality in this composition
+        bmkill!(stands[i], w, t, wk2, m.sp_alpha)
+        kills[i] = wk2
+    end
+    return kills, ls, stands
+end
+
+"""
     ppe_run_landscape(stands; variant, keyargs...) -> Vector{PPEAggregate}
 
 Faithful port of the PPMAIN mode-1 master-cycle landscape run. Orders the member

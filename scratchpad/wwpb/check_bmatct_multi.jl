@@ -76,3 +76,26 @@ end
 for l in lines
     println(l)
 end
+
+# Scenario D: multi-year OW-off cascade (reuse landscape, acdone persists)
+lsD = F.WwpbLandscape(xloc,yloc,area,stock)
+ssD = mkstands()
+dlines = String[]
+for yr in 1:5
+    F.bmatct_multi!(lsD, ssD, w; usera=usera,selfa=selfa,userc=userc,urmax=urmax,
+                    outoff=true, ipson=false)
+    for i in 1:4
+        push!(dlines, "D$yr $i BKP $(hx(ssD[i].bkp))")
+    end
+end
+# Scenario E: multi-year OW-floating cascade
+lsE = F.WwpbLandscape(xloc,yloc,area,stock)
+ssE = mkstands()
+for yr in 1:5
+    F.bmatct_multi!(lsE, ssE, w; usera=usera,selfa=selfa,userc=userc,urmax=urmax,
+                    outoff=false, ufloat=-1.0f0, rvod=1.0f0, stocko=1.0f0, ipson=false)
+    for i in 1:4
+        push!(dlines, "E$yr $i BKP $(hx(ssE[i].bkp))")
+    end
+end
+for l in dlines; println(l); end

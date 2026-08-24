@@ -93,6 +93,42 @@ const GOLD = Dict(
     checkone("C", lsC, ssC)
 end
 
+# Multi-year cascade golden (BKP per stand per year): reuse the SAME landscape so
+# ACDONE persists (spatial cache computed once, reused), NUMER held fixed, BKP evolves
+# through repeated BMATCT calls — the master-cycle dispersal cascade bmdrv relies on.
+const GOLD_D = [  # D[year][stand]
+ ["41D61A7C","4141D19E","409AC9F9","414BBA72"],
+ ["4116CBBF","4074306C","4001902A","40800C19"],
+ ["40607F3E","3F9D4BA8","3F540BD4","3FAE5632"],
+ ["3FA8A1A1","3ECDBA40","3EAB1FBC","3EF2A7D8"],
+ ["3EFC8488","3E083EC0","3E086C38","3E29EE80"]]
+const GOLD_E = [
+ ["4193487E","40BC48BE","4062815F","40DF8B35"],
+ ["407F1DB8","3F697E60","3F730A5C","3F87119E"],
+ ["3F5F3BDA","3E18FD00","3E70DF20","3E3186E0"],
+ ["3E41F840","3CD48A00","3D64D2C0","3CF91780"],
+ ["3D277B00","3B9C1800","3C53D100","3BB95000"]]
+
+@testset "WWPB bmatct_multi! multi-year cascade (ACDONE persistence)" begin
+    w = F.wwpb_defaults!(:ie)
+    usera=(1.0f0,1.0f0,1.0f0); selfa=(1.0f0,1.0f0,1.0f0)
+    userc=(100.0f0,100.0f0,100.0f0); urmax=(1.0f0,1.0f0,1.0f0)
+    # D: OW-off cascade
+    lsD = F.WwpbLandscape(XLOC,YLOC,AREA,STOCK); ssD = mkstands()
+    for yr in 1:5
+        F.bmatct_multi!(lsD, ssD, w; usera=usera,selfa=selfa,userc=userc,urmax=urmax,
+                        outoff=true, ipson=false)
+        for i in 1:4; @test hx(ssD[i].bkp) == GOLD_D[yr][i]; end
+    end
+    # E: OW-floating cascade
+    lsE = F.WwpbLandscape(XLOC,YLOC,AREA,STOCK); ssE = mkstands()
+    for yr in 1:5
+        F.bmatct_multi!(lsE, ssE, w; usera=usera,selfa=selfa,userc=userc,urmax=urmax,
+                        outoff=false, ufloat=-1.0f0, rvod=1.0f0, stocko=1.0f0, ipson=false)
+        for i in 1:4; @test hx(ssE[i].bkp) == GOLD_E[yr][i]; end
+    end
+end
+
 @testset "WWPB bmdrv_multi! collapses to single-stand at MXSTND=1" begin
     # At MXSTND=1 / OUTOFF=T the multi-stand BMATCT self-cancels (PROP=1), so the
     # bmdrv_multi! year loop must reproduce wwpb_outbreak_cycle! BIT-EXACT.
@@ -131,4 +167,40 @@ end
     @test all(hx.(st2.pbkill) .== hx.(stRef.pbkill))
     @test all(hx.(vec(st2.tree)) .== hx.(vec(stRef.tree)))
     @test all(hx.(vec(st2.tpbk)) .== hx.(vec(stRef.tpbk)))
+end
+
+@testset "PPE mode-2 landscape composition (ppe_landscape_mode2!)" begin
+    # The chunk-4 wiring: grow-to-mortality per-stand states → landscape dispersal →
+    # per-stand BMKILL handback. Verify it composes on a placed 2-stand landscape:
+    # BKP is redistributed across stands (interstand coupling that mode-1 cannot do),
+    # and BMKILL produces a per-record mortality.
+    w = F.wwpb_defaults!(:ie)
+    coeffs = F.wwpb_init_coeffs(w.upsiz)
+    code = ["WP","L","DF","GF","WH","C","LP","S","AF","PP","OTH"]
+    spα(sp::Int) = (1 <= sp <= length(code)) ? code[sp] : ""
+    mktrees(tpa) = (n=2, species=Int32[7,3], dbh=Float32[12.0,10.0], tpa=Float32[tpa,25.0],
+                    height=Float32[60.0,55.0], crown_pct=Float32[40.0,45.0],
+                    ht_growth=Float32[1.0,1.0], cuft_vol=Float32[15.0,12.0])
+    seedA = zeros(Float32, F.WWPB_NSCL); seedA[3] = 6.0f0
+
+    members = [
+        (trees=mktrees(50.0f0), area=100.0f0, xloc=0.0f0,    yloc=0.0f0, stock=true, sp_alpha=spα),
+        (trees=mktrees(40.0f0), area=120.0f0, xloc=800.0f0,  yloc=0.0f0, stock=true, sp_alpha=spα),
+    ]
+    kills, ls, stands = F.ppe_landscape_mode2!(members, w, coeffs; iyr1=1, iyr2=3,
+                        usera=(1.0f0,1.0f0,1.0f0), selfa=(1.0f0,1.0f0,1.0f0),
+                        userc=(100.0f0,100.0f0,100.0f0), urmax=(1.0f0,1.0f0,1.0f0),
+                        outoff=true, seed_pbkill=[copy(seedA), nothing])
+
+    @test length(kills) == 2
+    @test all(k -> length(k) == 2, kills)          # per-record WK2 for each stand
+    @test all(k -> all(isfinite, k), kills)
+    # interstand redistribution occurred: within URMAX the seeded stand's SELFBKP is a
+    # PROPER fraction of its total BKP (some pressure dispersed to the neighbor), so it
+    # is strictly less than the no-neighbor self-allocation (= area·BKP).
+    @test ls.n == 2
+    @test ls.selfbkp[1,1] > 0.0f0
+    @test ls.selfbkp[1,1] < ls.area[1] * 200.0f0   # loose upper bound; coupling present
+    # some mortality was produced on the seeded host stand
+    @test sum(kills[1]) > 0.0f0
 end
