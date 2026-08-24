@@ -119,6 +119,12 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
             t.tpa[i] -= dead
         end
     end
+    # Stash IORG for the GRADD-CROWN pass (crown_ratio_update!(::OregonCoast)): the FVS-native rank-
+    # Weibull crown-change model must run for the IORG=0 trees; the valid-ORGANON (IORG=1) crowns are
+    # already set above from CR2. op_iorg is the shared ORGANON per-tree flag (also used by Olympic).
+    c = s.calib
+    length(c.op_iorg) != t.n && resize!(c.op_iorg, t.n)
+    @inbounds for i in 1:t.n; c.op_iorg[i] = buf.iorg[i]; end
     return g
 end
 
@@ -147,7 +153,8 @@ end
 # ORGANON did height/mortality/crown inside `diameter_growth!` → these shared hooks are no-ops for OC.
 height_growth!(s::StandState, ::OregonCoast; kwargs...) = s
 small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
-crown_ratio_update!(s::StandState, ::OregonCoast; kwargs...) = s
+# crown_ratio_update!(::OregonCoast) is the FVS-native rank-Weibull crown CHANGE for IORG=0 trees —
+# see variants/oregoncoast/crown.jl (was a no-op ⇒ IORG=0 crowns frozen ⇒ LP height under-grew).
 
 # MORTALITY snag-booking: ORGANON applied its MORTEXP inline in `diameter_growth!`
 # (`organon_apply_growth!`), recording the per-record killed density in `t.mort_pa`. The DBH/HT/CR/TPA
