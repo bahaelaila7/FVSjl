@@ -169,7 +169,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         canprof_collect::Union{Nothing,Vector} = nothing,
                         strclass_collect::Union{Nothing,Vector} = nothing,
                         dm_collect::Union{Nothing,Vector} = nothing,
-                        dm_top4::Vector{Int} = Int[])
+                        dm_top4::Vector{Int} = Int[],
+                        wwpb_barrier::Union{Nothing,Function} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
     # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
     # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
@@ -385,7 +386,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             chook = fire_cycle ? (st -> (compute_density!(st); fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
                              fuel_period = fire_this_cycle ? per : nothing,
-                             ffe_init_period = ffe_defer_init ? per : nothing)   # advances cycle
+                             ffe_init_period = ffe_defer_init ? per : nothing,
+                             wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
             r.accretion = _acc_mort(gr.accretion)
             r.mortality = _acc_mort(gr.mortality)
             # Climate-FVS report (clauestb.f/DBSCLSUM): collected POST-growth, labeled with the cycle-START year,
