@@ -525,7 +525,8 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
-                     ffe_init_period::Union{Nothing,Real} = nothing)
+                     ffe_init_period::Union{Nothing,Real} = nothing,
+                     wwpb_barrier::Union{Nothing,Function} = nothing)
     compute_density!(s)
     root_disease_mn2!(s, fint)           # WRD grincr.f RDMN2 seam (cycle start) — inert unless an RDIN block is active
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
@@ -681,8 +682,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # a DISPERSE keyword activated the outbreak (w.outbreak) — a BMIN-only stand
     # still projects byte-identically. wwpb_apply! runs one cycle's outbreak and
     # reconciles the beetle kills into the FVS mortality (BMKILL/WK2 handback).
-    if !tripled && s.wwpb !== nothing && (s.wwpb::WwpbState).outbreak
-        wwpb_apply!(s, old_tpa, fint)
+    # PPE mode-2 LIVE landscape coupling (ppe_landscape.jl ppe_run_landscape_live!): when a
+    # `wwpb_barrier` closure is threaded in, it REPLACES the single-stand wwpb_apply! at this exact
+    # seam (post-MORTS/pre-GRADD, records un-tripled) — the barrier rendezvouses every landscape
+    # stand here, runs the bmdrv_multi! dispersal ONCE across the whole landscape, and hands each
+    # stand's beetle kill back. `wwpb_barrier === nothing` (every ordinary run) is byte-identical to
+    # the prior single-stand path (the guard test_multicycle stays 339/11).
+    if !tripled
+        if wwpb_barrier !== nothing
+            wwpb_barrier(s, old_tpa, fint)
+        elseif s.wwpb !== nothing && (s.wwpb::WwpbState).outbreak
+            wwpb_apply!(s, old_tpa, fint)
+        end
     end
     # LPMPB (Mountain Pine Beetle, lpmpb/*.f): stand-level Cole rate-of-loss
     # mortality (MPBGO→MPBCUP→COLDRV, gradd.f:63). Inert (byte-identical) unless an

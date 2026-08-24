@@ -320,3 +320,293 @@ function ppe_run_landscape(stands::AbstractVector{PPEStand}; variant, keyargs...
     end
     return _ppe_aggregate(stand_rows)
 end
+
+# =============================================================================
+# MODE-2 LIVE interstand-beetle coupling (the master-cycle lockstep barrier).
+# =============================================================================
+# `ppe_run_landscape_live!` steps N stands IN LOCKSTEP: every member is projected by
+# the ordinary per-stand engine (each_stand → setup_growth! → write_sum_file →
+# grow_cycle!) but PAUSES at the WWPB seam (simulate.jl, post-MORTS/pre-GRADD, records
+# un-tripled) via the `wwpb_barrier` hook. When all stands have reached that seam for a
+# master cycle, ONE landscape `bmdrv_multi!` dispersal runs across the placed neighbors
+# (redistributing beetle pressure over the SPLALO geometry / HXINDX), and each stand's
+# beetle kill is handed back (`bmkill!` → WK2 → t.tpa) before the stand resumes GRADD.
+# This is exactly what Fortran-FVS needed getstd/putstd for (swap one stand's COMMON in/
+# out of a DA file to pause it); FVSjl's per-stand StandState makes it natural.
+#
+# The lockstep barrier is implemented with cooperative Julia Tasks + a Channel rendezvous
+# (NOT OS threads): each stand runs on an `@async` Task; at the seam it deposits its
+# freshly-binned WwpbStand and `put!`s an arrival token, then blocks on `take!` of its
+# release channel. The coordinator (this function's own task) gathers all N arrivals, runs
+# the ONE `bmdrv_multi!` cascade, then releases every task. Because @async is cooperatively
+# scheduled (one task runs at a time, yielding only at the Channel ops) and the BMRANN RNG
+# is advanced ONLY inside `bmdrv_multi!`/`bmistd!` (the coordinator, in fixed stand order —
+# `bmsdit!`/`bmkill!` draw no random numbers), the run is fully DETERMINISTIC regardless of
+# task scheduling. `wwpb_barrier === nothing` on every ordinary run keeps the single-stand
+# path byte-identical (the guard test_multicycle stays 339/11).
+#
+# CONSTRAINTS (deadlock-safety of the fixed-N barrier): every member must share the same
+# NUMCYCLE (so all reach exactly `ncyc` barriers in lockstep) and must NOT schedule a
+# SIMFIRE (a fire cycle triples inside mortality_and_fire! and skips the WWPB seam ⇒ that
+# stand would never arrive). Both hold for a WWPB dispersal landscape.
+#
+# At MXSTND=1 the barrier reproduces the single-stand DISPERSE path (`wwpb_apply!`) BYTE-
+# IDENTICAL — `bmdrv_multi!` collapses to `bmatct_single!` (verified by test), and the
+# bmsdit!/seed/bmkill! wrapping mirrors `wwpb_outbreak_cycle!`. See test_ppe_landscape_live.jl.
+
+"""
+One member of a LIVE (mode-2) PPE landscape: the keyfile to project, its area/spatial
+location (SPLALO xloc/yloc in METERS, area in acres, STOCK flag), and its per-cycle beetle
+seed (`seed_class`/`seed_tpa` — the synthetic inventory-damage kick-off, 0 = a pure neighbor
+that only RECEIVES dispersed pressure). The outbreak year-window is landscape-global
+(`iyr1`/`iyr2` on `ppe_run_landscape_live!`).
+"""
+struct PPELiveMember
+    keyfile::String
+    area::Float32
+    xloc::Float32
+    yloc::Float32
+    stock::Bool
+    seed_class::Int
+    seed_tpa::Float32
+end
+PPELiveMember(keyfile::AbstractString; area::Real=1.0, xloc::Real=0.0, yloc::Real=0.0,
+              stock::Bool=true, seed_class::Integer=0, seed_tpa::Real=0.0) =
+    PPELiveMember(String(keyfile), Float32(area), Float32(xloc), Float32(yloc), stock,
+                  Int(seed_class), Float32(seed_tpa))
+
+# Build one member's projectable StandState (the run_keyfile prelude: first stand of the
+# keyfile, notre! + setup_growth! + compute_volumes!). Returns (state, stand_id, mgmt_id).
+function _ppe_member_state(keyfile::AbstractString; variant, faithful::Bool=true)
+    local st = nothing
+    for s in each_stand(keyfile; variant = variant, faithful = faithful)
+        st = s; break                          # one stand per member keyfile
+    end
+    st === nothing && error("PPE live: keyfile $keyfile produced no stand")
+    notre!(st); setup_growth!(st); compute_volumes!(st)
+    sid = strip(st.plot.stand_id)
+    mid = strip(st.plot.mgmt_id); mid = isempty(mid) ? "NONE" : String(mid)
+    return (st, String(sid), mid)
+end
+
+# The species→alpha-code closure a stand's bmsdit!/bmkill! need (mirrors wwpb_apply!).
+function _ppe_spalpha(s)
+    code = s.coef.code_alpha
+    return sp::Int -> (1 <= sp <= length(code)) ? code[sp] : ""
+end
+
+# The bmsdit! treelist input, snapshotted at the barrier (a mktrees-shaped NamedTuple over
+# the CURRENT live records — after old_tpa restore, so tpa == cycle-start TPA). Reused
+# verbatim by the standalone-decision recompute and read only by bmsdit!/bmkill!.
+function _ppe_tree_snapshot(t)
+    n = t.n
+    return (n = n,
+            species   = Int32[t.species[i]        for i in 1:n],
+            dbh       = Float32[t.dbh[i]           for i in 1:n],
+            tpa       = Float32[t.tpa[i]           for i in 1:n],
+            height    = Float32[t.height[i]        for i in 1:n],
+            crown_pct = Int32[t.crown_pct[i]       for i in 1:n],
+            ht_growth = Float32[t.ht_growth[i]     for i in 1:n],
+            cuft_vol  = Float32[t.cuft_vol[i]      for i in 1:n])
+end
+
+_ppe_seedvec(class::Integer, tpa::Real) = begin
+    v = zeros(Float32, WWPB_NSCL)
+    (1 <= class <= WWPB_NSCL) && (v[class] = Float32(tpa))
+    v
+end
+
+"""
+    ppe_run_landscape_live!(members; variant, iyr1, iyr2, period=5, dispersal-params...)
+        -> NamedTuple
+
+Run the LIVE mode-2 landscape (the lockstep master-cycle barrier described above). Returns
+a NamedTuple:
+
+  * `sums`         — per-stand `.sum` text (Vector{String}), landscape index order.
+  * `kills`        — `kills[i][cyc]` the per-record beetle-reconciled WK2 the barrier applied
+                     to stand `i` at master cycle `cyc` (the in-flight dispersal decision).
+  * `snaps`        — `snaps[i][cyc]` the bmsdit! treelist snapshot at that barrier (the input
+                     the standalone cascade is re-fed for the equivalence proof).
+  * `fvsmort`      — `fvsmort[i][cyc]` the FVS density/background mortality WK2 baseline the
+                     beetle kill is MAX-combined with (bmkill! seed).
+  * `landscapes`   — per-cycle `WwpbLandscape` (BKPOUT/BKPIN/SELFBKP dispersal ledger).
+  * `stand_ids`    — per-stand id; `ncyc` — barriers per stand; `w0`/`coeffs` — the shared
+                     dispersal state's ORIGINAL parameters (for the standalone recompute).
+
+Every dispersal kernel (`bmsdit!`/`bmdrv_multi!`/`bmatct_multi!`/`bmkill!`) is bit-exact vs
+pristine Fortran; this function is only the orchestration plumbing, proven zero-divergence by
+`ppe_landscape_replay` + `ppe_standalone_decisions` (see the equivalence test).
+"""
+function ppe_run_landscape_live!(members::AbstractVector{PPELiveMember}; variant,
+                                 iyr1::Integer, iyr2::Integer, period::Integer = 5,
+                                 faithful::Bool = true,
+                                 date::AbstractString = "01-01-2026",
+                                 time::AbstractString = "00:00:00",
+                                 usera::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                                 selfa::NTuple{3,Float32}=(1.0f0,1.0f0,1.0f0),
+                                 userc::NTuple{3,Float32}=(100.0f0,100.0f0,100.0f0),
+                                 urmax::NTuple{3,Float32}=(15.0f0,15.0f0,15.0f0),
+                                 outoff::Bool=true)
+    n = length(members)
+    n == 0 && error("PPE live: empty landscape")
+
+    # shared landscape dispersal state (one BMRANN stream, matching bmdrv_multi!/PPMAIN).
+    w = wwpb_defaults!(variant)
+    w.pbspec = Int32(1); w.iyr1 = Int32(iyr1); w.iyr2 = Int32(iyr2)
+    coeffs = wwpb_init_coeffs(w.upsiz)
+    w0_seed = w.rng_s0                                # ORIGINAL RNG (for the standalone recompute)
+
+    # build every member's StandState + landscape geometry.
+    states  = Vector{Any}(undef, n); stand_ids = Vector{String}(undef, n)
+    mgmt_ids = Vector{String}(undef, n); spαs = Vector{Any}(undef, n)
+    xloc = Float32[]; yloc = Float32[]; area = Float32[]; stock = Bool[]; seed = Vector{Float32}[]
+    for (i, m) in enumerate(members)
+        st, sid, mid = _ppe_member_state(m.keyfile; variant = variant, faithful = faithful)
+        states[i] = st; stand_ids[i] = sid; mgmt_ids[i] = mid; spαs[i] = _ppe_spalpha(st)
+        # sarea == the single-stand harness's sarea (gross_space, else 1) so MXSTND=1 collapses.
+        sar = st.plot.gross_space > 0.0f0 ? st.plot.gross_space : 1.0f0
+        push!(area, sar); push!(xloc, m.xloc); push!(yloc, m.yloc); push!(stock, m.stock)
+        push!(seed, _ppe_seedvec(m.seed_class, m.seed_tpa))
+    end
+    ncyc = Int(states[1].control.ncycle_eff); ncyc < 1 && (ncyc = Int(states[1].control.ncycle))
+
+    # per-cycle records + rendezvous channels.
+    kills   = [Vector{Vector{Float32}}() for _ in 1:n]
+    snaps   = [Vector{Any}()             for _ in 1:n]
+    fvsmort = [Vector{Vector{Float32}}() for _ in 1:n]
+    landscapes = WwpbLandscape[]
+    dep = Vector{WwpbStand}(undef, n)
+    arrivals = Channel{Int}(n)
+    releases = [Channel{Nothing}(1) for _ in 1:n]
+
+    make_barrier(i) = (s, old_tpa, fint) -> begin
+        t = s.trees; nn = t.n
+        fmort = Float32[old_tpa[k] - t.tpa[k] for k in 1:nn]
+        @inbounds for k in 1:nn; t.tpa[k] = old_tpa[k]; end   # beetle works on cycle-start stand
+        push!(snaps[i], _ppe_tree_snapshot(t)); push!(fvsmort[i], copy(fmort))
+        stw = WwpbStand()
+        if nn > 0
+            bmsdit!(stw, t, w, spαs[i]); fill!(stw.rvdsc, 1.0f0); stw.pbkill .= seed[i]
+        else
+            fill!(stw.rvdsc, 1.0f0)
+        end
+        dep[i] = stw
+        put!(arrivals, i); take!(releases[i])                 # rendezvous: coordinator runs bmdrv_multi!
+        wk2 = copy(fmort)
+        nn > 0 && bmkill!(dep[i], w, t, wk2, spαs[i])
+        @inbounds for k in 1:nn; t.tpa[k] = max(old_tpa[k] - wk2[k], 0.0f0); end
+        push!(kills[i], wk2)
+    end
+
+    tasks = Vector{Task}(undef, n)
+    for i in 1:n
+        tasks[i] = @async begin
+            io = IOBuffer()
+            write_sum_file(io, states[i]; period = Int(period), stand_id = stand_ids[i],
+                           mgmt_id = mgmt_ids[i], variant = variant_code(states[i].variant),
+                           date = date, time = time, wwpb_barrier = make_barrier(i))
+            String(take!(io))
+        end
+    end
+
+    for _cyc in 1:ncyc                                        # coordinator (lockstep master cycles)
+        for _ in 1:n; take!(arrivals); end                   # wait for every stand at the seam
+        ls = WwpbLandscape(xloc, yloc, area, stock)
+        bmdrv_multi!(ls, dep, w, coeffs; area = area, iyr1 = Int(iyr1), iyr2 = Int(iyr2),
+                     usera = usera, selfa = selfa, userc = userc, urmax = urmax, outoff = outoff)
+        push!(landscapes, ls)
+        for i in 1:n; put!(releases[i], nothing); end         # release all → resume GRADD
+    end
+
+    sums = String[fetch(tasks[i]) for i in 1:n]
+    return (sums = sums, kills = kills, snaps = snaps, fvsmort = fvsmort,
+            landscapes = landscapes, stand_ids = stand_ids, ncyc = ncyc,
+            seed = seed, area = area, xloc = xloc, yloc = yloc, stock = stock,
+            spαs = spαs, w0_seed = w0_seed, iyr1 = Int(iyr1), iyr2 = Int(iyr2),
+            usera = usera, selfa = selfa, userc = userc, urmax = urmax, outoff = outoff)
+end
+
+"""
+    ppe_standalone_decisions(res; variant) -> kills
+
+Recompute the per-cycle dispersal decisions OUTSIDE the engine, using the ALREADY-VALIDATED
+standalone `bmdrv_multi!` cascade fed the exact per-cycle barrier treelists `res.snaps` that
+the LIVE run recorded. A fresh landscape BMRANN stream is stepped from the same initial seed;
+each cycle rebins the recorded snapshots (`bmsdit!`), runs the one landscape dispersal, and
+hands back `bmkill!` on the same FVS-mortality baseline (`res.fvsmort`). This is the "premade
+decisions" side of the equivalence proof: identical kernels, but the decisions are computed
+standalone from the barrier treelists rather than in-flight. Returns `kills[i][cyc]`.
+"""
+function ppe_standalone_decisions(res; variant)
+    n = length(res.snaps); ncyc = res.ncyc
+    w = wwpb_defaults!(variant)
+    w.pbspec = Int32(1); w.iyr1 = Int32(res.iyr1); w.iyr2 = Int32(res.iyr2)
+    w.rng_s0 = res.w0_seed
+    coeffs = wwpb_init_coeffs(w.upsiz)
+    kills = [Vector{Vector{Float32}}() for _ in 1:n]
+    for cyc in 1:ncyc
+        stands = WwpbStand[]
+        for i in 1:n
+            snap = res.snaps[i][cyc]; stw = WwpbStand()
+            if snap.n > 0
+                bmsdit!(stw, snap, w, _ppe_snap_alpha(res, i)); fill!(stw.rvdsc, 1.0f0)
+                stw.pbkill .= res.seed[i]
+            else
+                fill!(stw.rvdsc, 1.0f0)
+            end
+            push!(stands, stw)
+        end
+        ls = WwpbLandscape(res.xloc, res.yloc, res.area, res.stock)
+        bmdrv_multi!(ls, stands, w, coeffs; area = res.area, iyr1 = res.iyr1, iyr2 = res.iyr2,
+                     usera = res.usera, selfa = res.selfa, userc = res.userc, urmax = res.urmax,
+                     outoff = res.outoff)
+        for i in 1:n
+            snap = res.snaps[i][cyc]; wk2 = copy(res.fvsmort[i][cyc])
+            snap.n > 0 && bmkill!(stands[i], w, snap, wk2, _ppe_snap_alpha(res, i))
+            push!(kills[i], wk2)
+        end
+    end
+    return kills
+end
+
+# the alpha-code closure for a recorded member (rebuilt from the member's own StandState is
+# unavailable post-run; the landscape shares one species→code map per variant, so recover it
+# from the live states via a stored closure). Stored on the result to keep decisions faithful.
+_ppe_snap_alpha(res, i) = res.spαs[i]
+
+"""
+    ppe_landscape_replay(members, kills; variant, period=5, ...) -> Vector{String}
+
+The PREMADE-decision projection: re-project each member stand INDEPENDENTLY (a plain
+sequential loop — NO Tasks, NO channel, NO cross-stand coupling), injecting the fixed
+per-cycle beetle kill `kills[i][cyc]` at the WWPB seam instead of running any dispersal.
+The per-stand growth path is the identical engine (write_sum_file → grow_cycle!); the ONLY
+thing supplied from outside is the pre-computed WK2. If the LIVE concurrent barrier had
+perturbed any stand's projection beyond delivering its kill vector (a race, a mis-routed
+kill, an RNG/state leak, an ordering effect), this independent replay would DIVERGE. Byte-
+identical `sums` therefore prove the lockstep plumbing (barrier + state extraction + kill
+handback) adds zero divergence — mirroring the mode-1 stepped==independent equivalence.
+"""
+function ppe_landscape_replay(members::AbstractVector{PPELiveMember}, kills; variant,
+                              period::Integer = 5, faithful::Bool = true,
+                              date::AbstractString = "01-01-2026",
+                              time::AbstractString = "00:00:00")
+    n = length(members)
+    sums = String[]
+    for i in 1:n
+        st, sid, mid = _ppe_member_state(members[i].keyfile; variant = variant, faithful = faithful)
+        cyc = Ref(0); ki = kills[i]
+        barrier = (s, old_tpa, fint) -> begin
+            cyc[] += 1
+            t = s.trees; wk2 = ki[cyc[]]
+            @inbounds for k in 1:t.n; t.tpa[k] = max(old_tpa[k] - wk2[k], 0.0f0); end
+        end
+        io = IOBuffer()
+        write_sum_file(io, st; period = Int(period), stand_id = sid, mgmt_id = mid,
+                       variant = variant_code(st.variant), date = date, time = time,
+                       wwpb_barrier = barrier)
+        push!(sums, String(take!(io)))
+    end
+    return sums
+end
