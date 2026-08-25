@@ -46,9 +46,17 @@ The 77 residual `needs_dig` all classify to named cornered primitives; the 60
 `live_crash` are cases where **live FVS itself** SIGFPEs on extreme FIA geometry while
 FVSjl runs clean.
 
-**Western / non-eastern (20) — large sweeps done; full-population sweep to the eastern
-standard is under way** (`docs/WESTERN_FIA_MORTALITY_SWEEP_2026-08-06.md`, per-variant
-regime samples, and the in-progress `docs/WESTERN_FIA_FULLSCALE_*.md`).
+**Western / non-eastern — full-population sweep IN PROGRESS** (`docs/WESTERN_FIA_FULLSCALE_2026-08-24.md`,
+`data/fia_sweep_west.db`). 15 of the 20 non-eastern variants carry an FVS-ready FIA
+population (688,903 stands); 5 have zero FIA (KT/BC/OC/OP/ON — Canada/no-FIA/ORGANON-BLM,
+N/A). The sweep runs like the eastern one — every cycle's `.sum` vs freshly-relinked live
+FVS — and has already surfaced and fixed **10 real bugs** the prior sampled validation
+could not reach: two NWCMRT density-mortality omissions (NC, UT), six alpha-PV_CODE
+habitat-decode bugs (PN/WC/CA/SO/NC/EC → correct SDIMAX), a 3-cause BM seedling
+small-tree-growth bug, and a CA/SO forkod forest-index crash. On corrected code the first
+re-swept variant (NC) reaches **98.76% bit-exact-or-cornered** (from a buggy ~92%). Full
+population coverage is a long-running background job; per-variant numbers accumulate as it
+runs, converging toward the eastern bit-exact-or-cornered standard.
 
 ## Extensions
 
