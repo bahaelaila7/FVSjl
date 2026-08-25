@@ -92,6 +92,12 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
         (d >= BM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]
         sitear = p.sp_site_index[sp]
+        # regent.f:230-232 clamps SI to the species SITERANGE [SLO,SHI], but that clamped SI drives ONLY the
+        # LM(12) POTHTG=SI/5 and the aspen(15) RELSI. For every SMHTGF species (CASE 1:11,13:14,16:18) SMHTGF
+        # IGNORES regent's SI and re-reads the RAW SITEAR(I) itself (smhtgf.f:78, no clamp except its own WJ
+        # branch) — so POTHTG uses the UNCLAMPED site index. jl was passing the clamped `si` to bm_smhtgf,
+        # over-growing species whose SITEAR falls outside [SLO,SHI] (e.g. LP SITEAR 23.9 clamped up to SLO+0.5=
+        # 30.5 ⇒ POTHTG 6.13 vs live 4.80 ⇒ seedling DBH/HT one-directionally high). Pass the raw SITEAR.
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
         relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
         con = exp(c.htg_cor_small[sp])                    # RHCON(=1)·exp(HCOR)
@@ -101,13 +107,13 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
         # POTHTG + HTGR
         local htgr::Float32
         if sp == 12
-            htgr = (si / 5.0f0) * pctred * vigor * con
+            htgr = (si / 5.0f0) * pctred * vigor * con     # LM: regent.f:311 uses the CLAMPED SI
         elseif sp == 15                                   # aspen Sheppard (bm/regent.f:294-305)
             age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
-            pothtg = bm_smhtgf(sp, si, h, _BM_RG_REGYR)    # DTIME=TEMT=10
+            pothtg = bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)   # SMHTGF reads raw SITEAR (unclamped); DTIME=TEMT=10
             htgr = pothtg * pctred * vigor * con
         end
         # ZZRAN reject-loop (bm/regent.f:308-310)
@@ -134,10 +140,12 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
             t.diam_growth[i] = 0.0f0
         else
             local dk::Float32, dkk::Float32
-            if sp == 7                                    # LP — fixed ht-dbh
-                dk = -9.8752f0 / (log(hk - 4.5f0) - 4.8656f0) - 1.0f0
-                dkk = h <= 4.5f0 ? d : -9.8752f0 / (log(h - 4.5f0) - 4.8656f0) - 1.0f0
-            elseif sp == 6                                # WJ — linear site
+            # LP(7)/PP(10) have a fixed/linear ht-dbh in the regent.f CASE block (CASE 7 / CASE 10,17), but
+            # LHTDRG(7)=LHTDRG(10)=.FALSE. ⇒ regent.f:519 UNCONDITIONALLY overrides DK/DKK with HTDBH (Curtis-
+            # Arney), so those fixed formulas are DEAD CODE. LP therefore uses HTDBH like DF/GF/ES — jl's fixed
+            # -9.8752 LP branch (dk≈1.14) over-grew LP seedling DBH ~2.7× vs HTDBH (dk≈0.5). Drop it; LP falls
+            # into the HTDBH branch below (all 4 BM forests have LP P2>0).
+            if sp == 6                                    # WJ — linear site
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
             elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
@@ -205,7 +213,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
-            pothtg = bm_smhtgf(sp, si, h, _BM_RG_REGYR)
+            pothtg = bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)  # SMHTGF reads raw SITEAR (unclamped)
             htgr = pothtg * pctred * vigor * con
         end
         zzran = 0.0f0
@@ -226,10 +234,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         (d >= bkpt || hk <= 4.5f0) && continue
         bark = bm_bratio(sd, sp, d)
         local dk::Float32, dkk::Float32
-        if sp == 7
-            dk = -9.8752f0 / (log(hk - 4.5f0) - 4.8656f0) - 1.0f0
-            dkk = h <= 4.5f0 ? d : -9.8752f0 / (log(h - 4.5f0) - 4.8656f0) - 1.0f0
-        elseif sp == 6
+        if sp == 6                                    # LP(7) fixed formula is dead code (HTDBH override); see small_tree_growth!
             dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
             dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
         elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
