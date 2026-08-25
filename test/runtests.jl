@@ -55,6 +55,7 @@ using FVSjl
     include("unit/test_ut_crwidth.jl")     # UT FVS_TreeList CrWidth via national cwcalc.f UTMAP (+3 codes 01505/81402/10201) — 4000/4000 vs FVSut_clean, 17th variant
     include("unit/test_ut_mortality.jl")   # UT/Utah UTMRT density-mortality distribution (ut/utmrt.f) — percentile/tolerance concentration + QMD loop; fixes mature over-max-SDI TPA under-kill
     include("unit/test_pn_mortality.jl")   # PN/WC (vwc/morts.f ORGANON) habitat PV_CODE → PCOML KODTYP decode (pn/wc habtyp+pvref6+hbdecd) + SDIDEF(ISISP) seed; fixes dense over-max-SDI SDIMAX ~2× ⇒ TPA ~4× under-kill
+    include("unit/test_ca_so_forkod_crash.jl") # CA/SO forest-index-overflow SIGSEGV: ca/so forkod.f "FOREST MAPPING CORRECTION" (CA 518→IFOR5, SO 514→4/702→8) remaps IFOR into the 1..10 array range; + SO WB(16) small-tree t.plot_id/point_ccf field fix. 3 previously-crashing FIA stands run end-to-end
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
     include("unit/test_bc_crwidth.jl")     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam

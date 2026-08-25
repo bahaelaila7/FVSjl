@@ -45,6 +45,10 @@ function ca_forkod!(p)
     kodfor = Int(p.user_forest_code)
     idx = findfirst(==(kodfor), CA_JFOR)
     ifor = idx === nothing ? 1 : idx
+    # ca/forkod.f "FOREST MAPPING CORRECTION": TRINITY NF (518, JFOR idx 11) → SHASTA-TRINITY (514, idx 5).
+    # MAPLOC/DGFOR/HTCALC forest arrays are dimensioned only 1..10, so an unmapped IFOR=11 indexes past
+    # them (segfault on 518-coded stands). FVS remaps here so IFOR ∈ 1..10 downstream.
+    ifor == 11 && (ifor = 5)
     p.forest_idx = Int32(ifor)
     p.geo_location = Int32(1)                     # ca/forkod.f KFOR = all 1
     p.user_forest_code = Int32(CA_JFOR[ifor])

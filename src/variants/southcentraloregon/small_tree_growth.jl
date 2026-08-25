@@ -184,8 +184,8 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
             dkk = (h - 4.5f0)*10f0/(si_raw - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
             h < 4.5f0 && (dkk = d)
         elseif sp == 16                                    # WB — EM SMDGF form (PPCCF=1)
-            pt = Int(t.plot[i])
-            tpccf = (pt >= 1 && pt <= length(p.point_ccf)) ? p.point_ccf[pt] : 0f0
+            pt = Int(t.plot_id[i])
+            tpccf = (pt >= 1 && pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
             tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
             hl = h - 4.5f0
             dkk = 0.000231f0*hl*icr - 0.00005f0*hl*tpccf + 0.001711f0*icr + 0.17023f0*hl + 0.3f0
