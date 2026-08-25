@@ -53,10 +53,13 @@ N/A). The sweep runs like the eastern one — every cycle's `.sum` vs freshly-re
 FVS — and has already surfaced and fixed **10 real bugs** the prior sampled validation
 could not reach: two NWCMRT density-mortality omissions (NC, UT), six alpha-PV_CODE
 habitat-decode bugs (PN/WC/CA/SO/NC/EC → correct SDIMAX), a 3-cause BM seedling
-small-tree-growth bug, and a CA/SO forkod forest-index crash. On corrected code the first
-re-swept variant (NC) reaches **98.76% bit-exact-or-cornered** (from a buggy ~92%). Full
-population coverage is a long-running background job; per-variant numbers accumulate as it
-runs, converging toward the eastern bit-exact-or-cornered standard.
+small-tree-growth bug, and a CA/SO forkod forest-index crash. On corrected code the BM
+re-sweep reaches **99.6% bit-exact-or-cornered** (from a buggy 95.5%); NC's full re-sweep
+is **88.9%** — most of its residual is a newly-identified under-mortality in the extreme
+`>10k-TPA` mega-record seedling regime (a real-bug candidate one regime past the mature
+NWCMRT fix, plus the FVS-flagged mega-record instability the eastern sweep cornered). Full
+population coverage is a long-running background job; per-variant numbers accumulate as the
+sweep (now crash-hardened) runs, converging toward the eastern standard.
 
 ## Extensions
 
