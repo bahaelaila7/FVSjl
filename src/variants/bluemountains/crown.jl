@@ -206,13 +206,23 @@ function bm_crown_init_lstart!(s::StandState)
         # IMC(I)==9 (HISTORY 8,9, older-dead) which LOAD DBH=0. Only HISTORY 6,7 (dead ≤5yr, IMC=7) keep their
         # DBH. So HISTORY 8,9 contribute 0 to the DBH-based density (BA/CCF/SDI) while their height still counts
         # toward AVH (stand_top_height, which live does NOT zero). Replicate by zeroing the 8/9 DBH for this pass.
+        # AVHT40/DENSE top-height (dense.f:285-297) sums HT over the 40 largest-DBH TPA using IND, the
+        # descending-REAL-DBH sort — NOT WK3. WK3 (with IMC9→0) drives only the BA/CCF/SDI accumulation.
+        # So the dead HISTORY 8/9 heights DO enter AVH, ranked by their real DBH. Compute AVH from real DBH
+        # FIRST (before the WK3-zeroing), then restore it after compute_density! overwrites it with the
+        # zeroed-DBH sort. Without this, the zeroed dead sink below the live seedlings and their heights are
+        # lost ⇒ DUBSCR sees AVH≈seedling-height instead of the dead-inclusive top height (measured on
+        # 449747082489998: live DUBSCR AVH 67.34 vs jl 1.01 ⇒ seedling crowns dubbed 80 not the capped 95 ⇒
+        # over-vigorous small-tree height/DBH growth, BA/SDI/CCF/QMD one-directionally high).
+        avht_real = stand_top_height(s)    # real-DBH IND sort, real HT (AVHT40 over live + all dead records)
         saved = Tuple{Int,Float32}[]
         @inbounds for i in (nlive + 1):(nlive + t.ndead)
             (t.history[i] == 8 || t.history[i] == 9) || continue
             push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
         end
-        compute_density!(s)                # dead-inclusive BA / AVH / point-CCF (CRATET DENSE over all inv records)
+        compute_density!(s)                # dead-inclusive BA / point-CCF (CRATET DENSE over all inv records)
         @inbounds for (i, d) in saved; t.dbh[i] = d; end
+        s.plot.avg_height = avht_real      # AVHT40 top height from real DBH (dead heights included), not the WK3 sort
         t.n = nlive
     end
     crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory

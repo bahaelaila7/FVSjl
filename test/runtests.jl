@@ -18,6 +18,7 @@ using FVSjl
     include("unit/test_forest_type.jl")    # C3: FORTYP/STKVAL FIA forest-type
     include("unit/test_diameter_growth.jl")# C3: DGF/DGCONS equation core
     include("unit/test_growth.jl")         # C3: DG calibration + HTGF + cycle loop
+    include("unit/test_bm_seedling.jl")    # BM dense-seedling regime: AVHT40 dead-inclusive crown dub + SMHTGF raw-SITEAR + LP HTDBH DG (3 small-tree over-growth fixes) vs live FVSbm_clean golden
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_root_disease.jl")   # WRD Chunk −1: RDIN reader + rdinit defaults + inert seam vs live FVSkt
     include("unit/test_dfb.jl")            # DFB: DFBIND/DFBDBH/DFBER/DFBPRB + DFBRAN/BACHLO/DFBMOD/DFBMRT bit-exact vs relinked FVSie_dfb g16 + gated DFBDRV mortality seam
