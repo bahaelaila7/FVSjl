@@ -27,6 +27,11 @@ function so_forkod!(p)
         end
         ifor == 0 && (ifor = 1)        # default Deschutes(601)=IFOR 1
     end
+    # so/forkod.f "FOREST MAPPING CORRECTION": SHASTA NF (514, JFOR idx 9) → KLAMATH (505, idx 4);
+    # INDUSTRY LANDS (702, idx 11) → 701 (idx 8). SO forest arrays are dimensioned only 1..10, so an
+    # unmapped IFOR=11 indexes past them (segfault on 702-coded stands); IFOR=9 reads the wrong forest.
+    ifor == 9 && (ifor = 4)
+    ifor == 11 && (ifor = 8)
     p.forest_idx = Int32(ifor)
     p.user_forest_code = Int32(SO_JFOR[ifor])
     return ifor
