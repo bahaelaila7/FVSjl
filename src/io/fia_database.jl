@@ -188,6 +188,22 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end
+    # EC (region-6, Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g. "CDG131"). The STDINFO
+    # KEYWORD path was fixed in 70535053 (ec_hbdecd), but the FIA-DB PV_CODE column had no reader branch ⇒
+    # habitat_code stayed 0 ⇒ ec_sitset! grew every FIA stand on the poor default site (measured live vs jl,
+    # CN 1143082551290487: live SDI MAX 530..629 per species vs jl uniform 331). ec/habtyp.f PVREF6-crosswalks
+    # (PV_CODE,PV_REF_CODE)→HABPVR then HBDECDs it to the KODTYP index into EC_PCOML. PV_CODE priority.
+    if s.variant isa EastCascades
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        pvref = ""
+        if _fia_present(d, "PV_REF_CODE")
+            r = _fia_f32(d, "PV_REF_CODE", 0f0); r > 0f0 && (pvref = string(Int(round(r))))
+        end
+        if !isempty(pv)
+            hc = ec_habitat_kodtyp(pv, pvref)
+            hc != 0 && (p.habitat_code = Int32(hc))
+        end
+    end
     # CA (region-5/6, Wykoff-DDS): PV_CODE is the ALPHA plant-association / ecoclass code (e.g. "CDH524").
     # For R6 forests (KODFOR≥600 — ~99.7% of CA's FIA population, LOCATION 610/611) ca/habtyp.f PVREF6-
     # crosswalks (PV_CODE,PV_REF_CODE)→HABPVR then HBDECDs it to the KODTYP index into CA_PCOML that

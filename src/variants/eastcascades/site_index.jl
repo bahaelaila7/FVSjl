@@ -36,6 +36,37 @@ function _ec_load_site_tables()
 end
 const EC_PCOML, EC_ECOCLS = _ec_load_site_tables()
 
+# ec/pvref6.f — (PV_CODE, PV_REF_CODE) → HABPVR crosswalk (ec/habtyp.f:87 CALL PVREF6 when a reference code
+# is present). FVS EXITs on the FIRST full match; a partial/no match leaves KARD2 blank ⇒ default. Only
+# non-blank HABPVR rows stored (missing key ⇒ blank ⇒ default). Used ONLY by the FIA-DB read path
+# (ec_habitat_kodtyp); the STDINFO-keyword path (ec_hbdecd) matches the given code directly.
+const EC_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(EC_DATADIR, "pvref6.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(l, ','; limit = 3)
+        c = String(strip(f[1])); r = String(strip(f[2]))
+        h = length(f) >= 3 ? String(strip(f[3])) : ""
+        (isempty(c) || isempty(h)) && continue
+        key = (c, r); haskey(d, key) || (d[key] = h)
+    end
+    d
+end
+
+# ec/habtyp.f — decode the FIA DB alpha PV_CODE (+ optional PV_REF_CODE) into the KODTYP index into EC_PCOML
+# that ec_sitset! consumes. When a reference code is present PVREF6 crosswalks (pv,ref)→HABPVR (blank on
+# partial/no match ⇒ 0 ⇒ ec_habtyp default); then HBDECD (ec_hbdecd) string-matches the (crosswalked) code
+# against PCOML. Mirrors the STDINFO keyword decode (70535053) but for the FIA DB PV_CODE column, which
+# had no reader branch ⇒ habitat_code stayed 0 ⇒ ec_sitset! grew every FIA stand on the poor default site.
+function ec_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
+    pvs = String(strip(pv)); refs = String(strip(pvref))
+    kard2 = pvs
+    if !isempty(refs)
+        kard2 = get(EC_PVREF6, (pvs, refs), "")     # blank on partial/no match ⇒ default
+    end
+    isempty(kard2) && return 0
+    ec_hbdecd(kard2, 0)                              # HBDECD alpha PCOML match (IHB=0 ⇒ alpha path)
+end
+
 # ec/forkod.f — KODFOR → IFOR 1..7 with corrections + reservation crosswalk.
 const EC_JFOR = Int[606, 608, 617, 699, 603, 613, 621]
 const EC_KFOR = Int[1, 1, 1, 1, 2, 3, 1]
@@ -137,6 +168,10 @@ function ec_sitset!(s::StandState)
         rsdi = min(r.sdimx, formax)
         (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
         (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
+        # ec/sitset.f:155-156 — seed the ECOCLS species' OWN SDImax (was omitted). On a PA whose ecoclass site
+        # species (e.g. DF) differs from the stand's DB site species (e.g. PP) the DF SDImax stayed 0 and got
+        # fanned to a wrong value; live seeds DF=RSDI here (FIA DB path; keyword ref stands had them equal).
+        p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
         (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
     end
     isisp <= 0 && (isisp = 10)                      # ec/sitset.f Region-6 default site sp = PP(10)
