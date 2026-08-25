@@ -126,6 +126,67 @@ const SO_SDIDEF_C5 = Float32[272,561,570,800,687,576,679,620,1000,365, 272,800,6
 const SO_FORMAX = 850f0
 const SO_PMSDIU = 85f0
 
+# so/habtyp.f + so/ecocls.f + so/pvref6.f — plant-association (PA) → per-species SDImax (SDIDEF). SO's R6
+# forests (IFOR≤3 or 10) take the ECOCLS PA-specific SDImax; the FIA DB delivers PV_CODE as the ALPHA PA
+# code (e.g. "CWS313"). Without decoding it, so_sitset! defaulted every stand's site-species SDImax to the
+# CPS111 default RSDI (285) instead of the stand's own ecoclass (CWS313 → 810), so on a non-default PA the
+# BA-weighted SDIMAX ran wrong (~2.8× low on CWS313) and the density self-thin fired at the wrong level.
+# PCOML (92 R6 PA codes; KODTYP indexes it; default PA = CPS111 = index 49), ECOCLS (92 PA rows → site
+# species FVSSEQ / RSDI / RSI), PVREF6 ((PV_CODE,PV_REF_CODE)→HABPVR crosswalk).
+function _so_load_site_tables()
+    pcoml = String[]
+    for l in readlines(joinpath(SO_DATADIR, "pcoml.csv"))[2:end]
+        isempty(strip(l)) && continue
+        push!(pcoml, String(strip(split(l, ',')[2])))
+    end
+    rows = NamedTuple{(:pa,:spc,:fvsseq,:sdimx,:site,:numbr,:iflag),
+                      Tuple{String,String,Int,Float32,Float32,Int,Int}}[]
+    for l in readlines(joinpath(SO_DATADIR, "ecocls.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(strip(l), ',')
+        push!(rows, (pa=String(f[1]), spc=String(f[2]), fvsseq=parse(Int, f[3]),
+                     sdimx=parse(Float32, f[4]), site=parse(Float32, f[5]),
+                     numbr=parse(Int, f[6]), iflag=parse(Int, f[7])))
+    end
+    return pcoml, rows
+end
+const SO_PCOML, SO_ECOCLS = _so_load_site_tables()
+
+# so/pvref6.f — (PV_CODE, PV_REF_CODE) → HABPVR crosswalk. FVS EXITs on the FIRST full match; a partial/no
+# match leaves KARD2 blank ⇒ default. Only non-blank HABPVR rows stored (missing key ⇒ blank ⇒ default).
+const SO_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(SO_DATADIR, "pvref6.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(l, ','; limit = 3)
+        c = String(strip(f[1])); r = String(strip(f[2]))
+        h = length(f) >= 3 ? String(strip(f[3])) : ""
+        (isempty(c) || isempty(h)) && continue
+        key = (c, r); haskey(d, key) || (d[key] = h)
+    end
+    d
+end
+
+const SO_HAB_DEFAULT_PA = "CPS111"                        # so/habtyp.f R6 default (PCOML[49])
+# so/habtyp.f (R6) — KODTYP → PCOM plant-association code; anything out of 1..92 ⇒ the CPS111 default.
+so_habtyp(kodtyp::Integer)::String =
+    (1 <= kodtyp <= length(SO_PCOML)) ? SO_PCOML[kodtyp] : SO_HAB_DEFAULT_PA
+so_ecocls(pa::AbstractString) = filter(r -> r.pa == pa, SO_ECOCLS)
+
+# so/habtyp.f (R6 path) — decode the FIA alpha PV_CODE (+ optional PV_REF_CODE) into the KODTYP index into
+# SO_PCOML. When a reference code is present PVREF6 crosswalks (pv,ref)→HABPVR (blank on partial/no match ⇒
+# 0 ⇒ CPS111 default); then HBDECD string-matches the (crosswalked) code against PCOML. No-ref ⇒ the raw
+# PV_CODE is matched directly.
+function so_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
+    pvs = String(strip(pv)); refs = String(strip(pvref))
+    kard2 = pvs
+    if !isempty(refs)
+        kard2 = get(SO_PVREF6, (pvs, refs), "")           # blank on partial/no match ⇒ default
+    end
+    isempty(kard2) && return 0
+    idx = findfirst(==(kard2), SO_PCOML)
+    idx === nothing ? 0 : Int(idx)
+end
+
 # so/sichg.f — SIAGE(i) per species (reference age for the site-species curve). RF(5) is metric.
 function so_sichg(s::StandState, isisp::Integer, ssite::Float32)
     sd = s.coef.species
@@ -176,16 +237,33 @@ function so_sitset!(s::StandState)
         p.sp_site_index[ispc] = v                        # SO sitset is authoritative (overrides the generic reader)
     end
 
-    # SDIDEF (per-species SDImax) — so/sitset.f:231-247 fan (chunk 4c; prereq for crown+mort RELSDI).
-    # so/habtyp.f DEFAULT plant association = CPS111 (PP, SI 70) ⇒ so/ecocls.f entry RSDI=285 for the site
-    # species. sot01 (+ any no-habitat stand) rides this default, consistent with chunk 2's SITEAR default.
+    # SDIDEF (per-species SDImax) — so/sitset.f:79-125 (R6 ECOCLS PA seed) + :231-247 fan (chunk 4c; prereq
+    # for crown+mort RELSDI). For R6 forests (IFOR≤3 or 10) so/sitset.f ECOCLS the stand's plant association
+    # (habitat_code → PCOML → PA; the CPS111 default when unresolved) and seeds the site species' SDImax from
+    # that PA's ecoclass RSDI (so/sitset.f:112-119: SDIDEF(ISEQ)=RSDI, and SDIDEF(ISISP)=RSDI on the IFLAG=1
+    # row). Without this seed every stand rode the CPS111 default RSDI 285 regardless of PA ⇒ on a non-default
+    # PA (e.g. CWS313 → 810) the SDIMAX was ~2.8× wrong (measured vs FVSso_clean). The FIA reader now decodes
+    # PV_CODE → habitat_code so this picks the stand's real PA (a no-habitat / unresolved stand still defaults
+    # to CPS111 285, so sot01 + the default case stay bit-exact vs the FVSso_g16 SDIDEF dump).
     # Fan (IFOR≤3/10 R6, BAMAX unset): SDIDEF[i]=SDIDEF[ISISP]·C6[i]/C6[ISISP] (cap FORMAX); else C5[i].
-    # (Explicit-habitat real-FIA stands need the full so/ecocls.f 92-entry PA table — a documented follow-on,
-    #  same deferral as the SITEAR path.) MEASURED bit-exact vs FVSso_g16 sitset SDIDEF dump on sot01.
-    # BAMAX-keyword branch (SDIDEF=BAMAX/(0.5454154·PMSDIU/100)) is a follow-on — sot01 has no BAMAX (=0),
-    # so the R6 C6-ratio fan below is the exercised path; keep the branch for when a BAMAX keyword lands.
+    # BAMAX-keyword branch (SDIDEF=BAMAX/(0.5454154·PMSDIU/100)) is a follow-on — no BAMAX (=0) here, so the
+    # R6 C6-ratio fan below is the exercised path; keep the branch for when a BAMAX keyword lands.
     bamax = 0f0
-    p.sp_sdi_def[isisp] <= 0f0 && (p.sp_sdi_def[isisp] = 285f0)   # ECOCLS CPS111 default RSDI (site species)
+    if ifor <= 3 || ifor == 10
+        # so/sitset.f R6 ECOCLS: seed each of the PA's ecoclass species' SDImax; ISISP (from DB) keeps its
+        # PA RSDI on the IFLAG=1 row. Unresolved habitat ⇒ so_habtyp default CPS111 (RSDI 285, site sp PP).
+        pa = so_habtyp(Int(p.habitat_code))
+        rows = so_ecocls(pa)
+        isempty(rows) && (rows = so_ecocls(SO_HAB_DEFAULT_PA))
+        @inbounds for r in rows
+            iseq = r.fvsseq; (iseq < 1 || iseq > maxsp) && continue
+            rsdi = min(r.sdimx, SO_FORMAX)
+            (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
+            p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
+            (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
+        end
+    end
+    p.sp_sdi_def[isisp] <= 0f0 && (p.sp_sdi_def[isisp] = 285f0)   # global fallback (ECOCLS CPS111 site sp)
     k = isisp
     @inbounds for i in 1:maxsp
         p.sp_sdi_def[i] > 0f0 && continue

@@ -208,6 +208,25 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             hc != 0 && (p.habitat_code = Int32(hc))
         end
     end
+    # SO (region-6/NE-California, Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g. "CWS313").
+    # For SO's R6 forests (601/602/620 = IFOR 1-3, 799 = IFOR 10; reservation 7710/7711 → 602) so/habtyp.f
+    # PVREF6-crosswalks (PV_CODE,PV_REF_CODE)→HABPVR (no ref ⇒ the raw code) then HBDECDs it to the KODTYP
+    # index into SO_PCOML that so_sitset! consumes to seed the site species' ecoclass SDImax. Without it
+    # habitat_code stays 0 ⇒ so_sitset! rode the CPS111 default RSDI (285) for EVERY stand instead of the
+    # stand's own PA (CWS313 → 810), so on a non-default PA the SDIMAX was ~2.8× wrong (measured live vs jl,
+    # CN 24397775010900) — most SO alpha stands crosswalk to CPS111 (=default) so were already right; the
+    # minority on other PAs self-thinned at the wrong level. PV_CODE priority (SO habtyp.f:206).
+    if s.variant isa SouthCentralOregon && Int(p.user_forest_code) in (601, 602, 620, 799, 7710, 7711)
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        pvref = ""
+        if _fia_present(d, "PV_REF_CODE")
+            r = _fia_f32(d, "PV_REF_CODE", 0f0); r > 0f0 && (pvref = string(Int(round(r))))
+        end
+        if !isempty(pv)
+            hc = so_habitat_kodtyp(pv, pvref)
+            hc != 0 && (p.habitat_code = Int32(hc))
+        end
+    end
     # PN/WC (region-6, ORGANON vwc/morts.f): PV_CODE is the ALPHA plant-association code (e.g. "CHS512"),
     # decoded to the KODTYP index into PN_PCOML/WC_PCOML by habtyp/PVREF6/HBDECD. Without it habitat_code
     # stays 0 ⇒ pn_sitset!/wc_sitset! fall back to the PA default (PN CHS133 SDIDEF 1606→FORMAX 950; WC
