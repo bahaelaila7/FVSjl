@@ -35,6 +35,39 @@ function _wc_load_site_tables()
 end
 const WC_PCOML, WC_ECOCLS = _wc_load_site_tables()
 
+# wc/pvref6.f — (PV_CODE, PV_REF_CODE) → HABPVR full-match crosswalk (2813 rows). FVS EXITs on the FIRST
+# matching row. HABPVR may be blank (⇒ HABTYP default).
+const WC_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(WC_DATADIR, "pvref6.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(l, ','; limit = 3)
+        c = String(strip(f[1])); isempty(c) && continue
+        r = String(strip(f[2])); h = length(f) >= 3 ? String(strip(f[3])) : ""
+        key = (c, r); haskey(d, key) || (d[key] = h)
+    end
+    d
+end
+
+# wc/habtyp.f — decode the STDINFO habitat field (alpha PV_CODE + optional PV_REF_CODE) into the KODTYP
+# index into WC_PCOML that wc_sitset! consumes. Same latent bug as PN: the FIA DB delivers PV_CODE as an
+# alpha plant-association code, and without this decode habitat_code stays 0 ⇒ wc_sitset! falls back to
+# CFS551 (SDIDEF 815) instead of the stand's ecoclass, shifting the vwc/morts.f density self-thin SDIMAX.
+const WC_HAB_DEFAULT = 52                           # wc/habtyp.f ITYPE=52 default (PCOML[52] = CFS551)
+function wc_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
+    pvs = String(strip(pv)); refs = String(strip(pvref))
+    kard2 = pvs
+    if !isempty(refs)                              # CPVREF present ⇒ PVREF6 crosswalk
+        h = get(WC_PVREF6, (pvs, refs), nothing)
+        (h === nothing || isempty(h)) && return WC_HAB_DEFAULT
+        kard2 = h
+    end
+    idx = findfirst(==(kard2), WC_PCOML)           # HBDECD plant-association string match
+    idx !== nothing && return Int(idx)
+    seq = tryparse(Int, kard2)                     # HBDECD no-match ⇒ IFIX(ARRAY2) sequence number
+    (seq !== nothing && 1 <= seq <= length(WC_PCOML)) && return seq
+    return WC_HAB_DEFAULT
+end
+
 # wc/forkod.f — accepted FVS location codes (KODFOR) → IFOR 1..11 subscript. Reservation pseudo-codes
 # 8124→MtBaker(2), 8130→GiffordPinchot(1); IFOR 11 (613) remaps to MtBaker-Snoqualmie(2).
 const WC_JFOR = Int[603, 605, 606, 610, 615, 618, 708, 709, 710, 711, 613]
@@ -109,6 +142,10 @@ function wc_sitset!(s::StandState)
         (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
         (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
         p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
+        # wc/sitset.f — ALSO seed the site species' SDIDEF from the site-flag ecocls row (see PN note): when
+        # the PA's ecocls site species differs from isisp, this is the only assignment that gives isisp an
+        # SDIDEF, which the DO-80 fill then propagates; omitting it collapses stand_sdimax → morts.f kill-all.
+        (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
     end
     isisp <= 0 && (isisp = 10)                                 # wc/sitset.f:111 Region-6 default site sp = ES(10)
     p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 70f0)   # wc/sitset.f:112

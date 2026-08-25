@@ -30,6 +30,43 @@ function _pn_load_site_tables()
 end
 const PN_PCOML, PN_ECOCLS = _pn_load_site_tables()
 
+# pn/pvref6.f — (PV_CODE, PV_REF_CODE) → HABPVR full-match crosswalk (2794 rows). FVS EXITs on the FIRST
+# matching row, so keep the first mapping. HABPVR may be blank (⇒ HABTYP default).
+const PN_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(PN_DATADIR, "pvref6.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(l, ','; limit = 3)
+        c = String(strip(f[1])); isempty(c) && continue
+        r = String(strip(f[2])); h = length(f) >= 3 ? String(strip(f[3])) : ""
+        key = (c, r); haskey(d, key) || (d[key] = h)
+    end
+    d
+end
+
+# pn/habtyp.f — decode the STDINFO habitat field (alpha PV_CODE + optional PV_REF_CODE) into the KODTYP
+# index into PN_PCOML that pn_sitset! consumes. The FIA DB delivers PV_CODE as an ALPHA plant-association
+# code (e.g. "CHS512"); without this decode habitat_code stays 0 ⇒ pn_sitset! falls back to CHS133 (SDIDEF
+# 1606→FORMAX 950) instead of the stand's ecoclass (e.g. CHS512 → 485), which DISABLES the morts.f density
+# self-thin (SDIMAX ~2× ⇒ the PASS loop never fires) and leaves ~3-4× too much TPA on dense stands.
+# Mirrors HABTYP: when a reference code is present, PVREF6 crosswalks (any non-full match ⇒ ITYPE=40
+# default = CHS133); then HBDECD string-matches the (possibly crosswalked) code against PCOML; a non-match
+# falls back to a numeric sequence index (1..NPA) and finally the CHS133 default.
+const PN_HAB_DEFAULT = 40                          # pn/habtyp.f ITYPE=40 default (PCOML[40] = CHS133)
+function pn_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
+    pvs = String(strip(pv)); refs = String(strip(pvref))
+    kard2 = pvs
+    if !isempty(refs)                              # CPVREF present ⇒ PVREF6 crosswalk
+        h = get(PN_PVREF6, (pvs, refs), nothing)
+        (h === nothing || isempty(h)) && return PN_HAB_DEFAULT   # partial/no match or blank HABPVR ⇒ default
+        kard2 = h
+    end
+    idx = findfirst(==(kard2), PN_PCOML)           # HBDECD plant-association string match
+    idx !== nothing && return Int(idx)
+    seq = tryparse(Int, kard2)                     # HBDECD no-match ⇒ IFIX(ARRAY2) sequence number
+    (seq !== nothing && 1 <= seq <= length(PN_PCOML)) && return seq
+    return PN_HAB_DEFAULT
+end
+
 # pn/forkod.f — KODFOR → IFOR 1..6. NO post-lookup remap. Reservation pseudo-codes map straight to IFOR.
 const PN_JFOR = Int[609, 612, 800, 708, 709, 712]
 const _PN_RES_IFOR1 = Set(Int[8110,8111,8113,8114,8115,8116,8119,8120,8121,8122,8123,8125,8126,8127,8128,8129])
@@ -97,6 +134,12 @@ function pn_sitset!(s::StandState)
         (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
         (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
         p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
+        # pn/sitset.f:91-96 — ALSO seed the site species' SDIDEF from the site-flag (iflag==1) ecocls row.
+        # When the PA's ecocls site species (e.g. WH) differs from the stand's site species isisp (e.g. DF),
+        # this is the ONLY assignment that gives isisp an SDIDEF; the DO-80 fill then propagates it to every
+        # species. Omitting it left isisp (hence all species, via the fill) at 0 ⇒ stand_sdimax→0 ⇒ morts.f's
+        # "SDIMAX<5 ⇒ kill ALL trees" wipes the stand at cycle 1 (measured: CHS324/CHS136/CHS422 WH-site PAs).
+        (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
     end
     isisp <= 0 && (isisp = 16)                     # pn/sitset.f Region-6 default site sp = DF(16)
     p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 100f0)   # pn/sitset.f default SITEAR

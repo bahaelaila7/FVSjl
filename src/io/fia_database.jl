@@ -188,6 +188,26 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end
+    # PN/WC (region-6, ORGANON vwc/morts.f): PV_CODE is the ALPHA plant-association code (e.g. "CHS512"),
+    # decoded to the KODTYP index into PN_PCOML/WC_PCOML by habtyp/PVREF6/HBDECD. Without it habitat_code
+    # stays 0 ⇒ pn_sitset!/wc_sitset! fall back to the PA default (PN CHS133 SDIDEF 1606→FORMAX 950; WC
+    # CFS551 815) instead of the stand's ecoclass SDIDEF (e.g. CHS512 → 485). SDICAL's weighted SDIMAX then
+    # runs ~2× high, so vwc/morts.f's SDI density self-thin (the integer-PASS loop, morts.f:456-500) never
+    # fires and the stand keeps ~3-4× too much TPA at cycle 1 (measured live vs jl on dense over-max-SDI FIA
+    # stands; cyc0/ref-stand sweeps never caught it — the ref stands' habitat resolves to a benign default).
+    # Match live FVSpn/FVSwc, which read PV_CODE and PVREF6/HBDECD it to the PCOML index.
+    if s.variant isa PacificNorthwest || s.variant isa WestCascades
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        pvref = ""
+        if _fia_present(d, "PV_REF_CODE")
+            r = _fia_f32(d, "PV_REF_CODE", 0f0)
+            r > 0f0 && (pvref = string(Int(round(r))))
+        end
+        if !isempty(pv) || !isempty(pvref)
+            hc = s.variant isa PacificNorthwest ? pn_habitat_kodtyp(pv, pvref) : wc_habitat_kodtyp(pv, pvref)
+            p.habitat_code = Int32(hc)
+        end
+    end
     # EM/UT/TT/IE (western, habitat-type-group DG): read PV_CODE (KODTYP) like CI/KT/BM. These variants'
     # DG constant + mortality ITYPE key off a habtyp(KODTYP) map (em_habtyp/ut_habtyp/tt_habtyp/ie_habtyp),
     # but the FIA reader never set habitat_code for them ⇒ it defaulted to 0/1 ⇒ WRONG habitat vs live.
