@@ -57,6 +57,7 @@ using FVSjl
     include("unit/test_pn_mortality.jl")   # PN/WC (vwc/morts.f ORGANON) habitat PV_CODE → PCOML KODTYP decode (pn/wc habtyp+pvref6+hbdecd) + SDIDEF(ISISP) seed; fixes dense over-max-SDI SDIMAX ~2× ⇒ TPA ~4× under-kill
     include("unit/test_ca_habitat.jl")     # CA (Wykoff-DDS) alpha plant-association PV_CODE → CA_PCOML KODTYP decode (ca habtyp+pvref6+hbdecd); fixes R6 SDIMAX 815→635 (CDH524/641→CDS511) density self-thin under-fire
     include("unit/test_so_habitat.jl")     # SO (Wykoff-DDS) alpha plant-association PV_CODE → SO_PCOML KODTYP decode (so habtyp+pvref6+hbdecd + ecocls PA SDImax seed); fixes non-default-PA SDIMAX (CWS313 285→810)
+    include("unit/test_nc_habitat.jl")     # NC (Klamath Wykoff-DDS) alpha plant-association PV_CODE → NC_PCOML KODTYP decode + faithful nc/sitset.f ECOCLS PA SDImax seed + C6 fan; fixes R6 SDIMAX (default 720→815-fan, HTS221 830)
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
     include("unit/test_bc_crwidth.jl")     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam

@@ -208,6 +208,24 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             hc != 0 && (p.habitat_code = Int32(hc))
         end
     end
+    # NC (Klamath, region-6/NE-California Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g.
+    # "HTS121"). For NC's R6 forests (611 Siskiyou = IFOR 4, 712 BLM Coos Bay = IFOR 7) nc/habtyp.f
+    # PVREF6-crosswalks (PV_CODE,PV_REF_CODE)→HABPVR (no ref ⇒ the raw code) then HBDECDs it to the KODTYP
+    # index into NC_PCOML that nc_sitset! consumes to seed the ECOCLS per-species SDImax. Without it
+    # habitat_code stays 0 ⇒ nc_sitset! rode a provisional uniform default (~720) instead of the ecoclass
+    # (CWC221 default → DF 815 + C6 fan capped at 850 = live's "SDI MAX 850 850 815 850..."; a real PA → its
+    # own RSDI). MEASURED live vs jl, CN 1127525637290487. PV_CODE priority (nc/habtyp.f).
+    if s.variant isa Klamath && Int(p.user_forest_code) in (611, 712)
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        pvref = ""
+        if _fia_present(d, "PV_REF_CODE")
+            r = _fia_f32(d, "PV_REF_CODE", 0f0); r > 0f0 && (pvref = string(Int(round(r))))
+        end
+        if !isempty(pv)
+            hc = nc_habitat_kodtyp(pv, pvref)
+            hc != 0 && (p.habitat_code = Int32(hc))
+        end
+    end
     # SO (region-6/NE-California, Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g. "CWS313").
     # For SO's R6 forests (601/602/620 = IFOR 1-3, 799 = IFOR 10; reservation 7710/7711 → 602) so/habtyp.f
     # PVREF6-crosswalks (PV_CODE,PV_REF_CODE)→HABPVR (no ref ⇒ the raw code) then HBDECDs it to the KODTYP
