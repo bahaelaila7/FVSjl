@@ -40,6 +40,39 @@ function _ca_load_site_tables()
 end
 const CA_PCOML, CA_ECOCLS = _ca_load_site_tables()
 
+# ca/pvref6.f — (PV_CODE, PV_REF_CODE) → HABPVR crosswalk (R6, KODFOR≥600). FVS EXITs on the FIRST full
+# (pvcode,ref) match; a partial/no match leaves KARD2 BLANK ⇒ habtyp default. Only non-blank HABPVR rows
+# are stored (a missing key ⇒ blank ⇒ default), so `get(...,"")` reproduces the Fortran exactly.
+const CA_PVREF6 = let d = Dict{Tuple{String,String},String}()
+    for l in readlines(joinpath(CA_DATADIR, "pvref6.csv"))[2:end]
+        isempty(strip(l)) && continue
+        f = split(l, ','; limit = 3)
+        c = String(strip(f[1])); r = String(strip(f[2]))
+        h = length(f) >= 3 ? String(strip(f[3])) : ""
+        (isempty(c) || isempty(h)) && continue
+        key = (c, r); haskey(d, key) || (d[key] = h)
+    end
+    d
+end
+
+# ca/habtyp.f (R6 path, KODFOR≥600) — decode the FIA alpha PV_CODE (+ optional PV_REF_CODE) into the KODTYP
+# index into CA_PCOML that ca_sitset! consumes. Mirrors HABTYP: when a reference code is present PVREF6
+# crosswalks (pv,ref)→HABPVR (blank on partial/no match ⇒ 0 ⇒ ca_habtyp default CWC221); then HBDECD
+# string-matches the (crosswalked) code against PCOML. A non-match ⇒ 0. The FIA DB delivers PV_CODE as an
+# alpha ecoclass code (e.g. "CDH524"); without this, habitat_code stays 0 ⇒ ca_sitset! falls back to CWC221
+# (SDImx 815) instead of the stand's ecoclass (e.g. CDH524/641 → CDS511 → 635), inflating SDIMAX ~1.3× so
+# the Wykoff density self-thin under-fires on dense stands.
+function ca_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
+    pvs = String(strip(pv)); refs = String(strip(pvref))
+    kard2 = pvs
+    if !isempty(refs)                               # CPVREF present ⇒ PVREF6 crosswalk
+        kard2 = get(CA_PVREF6, (pvs, refs), "")     # blank on partial/no match ⇒ default
+    end
+    isempty(kard2) && return 0
+    idx = findfirst(==(kard2), CA_PCOML)            # HBDECD plant-association string match
+    idx === nothing ? 0 : Int(idx)
+end
+
 # ca/forkod.f — set IFOR from KODFOR (cat01 610 → IFOR 6); default IFOR=1 if the code isn't in JFOR.
 function ca_forkod!(p)
     kodfor = Int(p.user_forest_code)

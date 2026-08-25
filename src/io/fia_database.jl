@@ -188,6 +188,26 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end
+    # CA (region-5/6, Wykoff-DDS): PV_CODE is the ALPHA plant-association / ecoclass code (e.g. "CDH524").
+    # For R6 forests (KODFOR≥600 — ~99.7% of CA's FIA population, LOCATION 610/611) ca/habtyp.f PVREF6-
+    # crosswalks (PV_CODE,PV_REF_CODE)→HABPVR then HBDECDs it to the KODTYP index into CA_PCOML that
+    # ca_sitset! consumes. Without it habitat_code stays 0 ⇒ ca_sitset! defaults to CWC221 (SDImx 815)
+    # instead of the stand's ecoclass (CDH524/641 → CDS511 → 635), inflating the BA-weighted SDIMAX ~1.3×
+    # so the density self-thin under-fires ⇒ dense stands keep too much TPA (measured live vs jl; cyc0/ref
+    # stands never caught it — cat01's habitat resolves to the benign CWC221 default). PV_CODE priority.
+    # (R5 forests <600 use the ca/pvref5.f + R5HABT path, which jl's R6-only ca_sitset! does not implement —
+    #  only ~6 CA FIA stands, left at the CWC221 default as before.)
+    if s.variant isa CentralCalifornia && Int(p.user_forest_code) >= 600
+        pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        pvref = ""
+        if _fia_present(d, "PV_REF_CODE")
+            r = _fia_f32(d, "PV_REF_CODE", 0f0); r > 0f0 && (pvref = string(Int(round(r))))
+        end
+        if !isempty(pv)
+            hc = ca_habitat_kodtyp(pv, pvref)
+            hc != 0 && (p.habitat_code = Int32(hc))
+        end
+    end
     # PN/WC (region-6, ORGANON vwc/morts.f): PV_CODE is the ALPHA plant-association code (e.g. "CHS512"),
     # decoded to the KODTYP index into PN_PCOML/WC_PCOML by habtyp/PVREF6/HBDECD. Without it habitat_code
     # stays 0 ⇒ pn_sitset!/wc_sitset! fall back to the PA default (PN CHS133 SDIDEF 1606→FORMAX 950; WC
