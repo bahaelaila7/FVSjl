@@ -20,6 +20,43 @@ const NC_RD3 = Float32[.00466,.00207,.00466,.00183,.00330,.00261,.0074,.00524,.0
 const NC_RDA = Float32[0.009884,0.007244,0.017299,0.015248,0.011109,0.008915,0.009187,0.007875,0.011402,0.007813,0.011109,0.017299]
 const NC_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,1.7560,1.7780,1.7250,1.5571]
 
+# nc/dubscr.f — dub crown ratio for sub-1" inventory trees with MISSING crown (crown.f:265,377). Logistic on
+# BA / per-point PCCF / top-40 AVH / RMAI (=50, grinit.f:139); sp12 RW on HDR/PRD/D:QMDPLT. The FCR random
+# perturbation (BACHLO, |FCR|≤CRSD) is a small logit-scale jitter: for the dense-seedling regime the
+# deterministic logit is ≲−6 ⇒ CR clamps to 0.95 REGARDLESS of FCR, so the crown VALUE is RNG-independent and
+# bit-exact without a draw (jl's index-order crown loop can't reproduce FVS's species-grouped RANN order anyway,
+# and NOT drawing leaves jl's stream — and the gate — untouched). Rare non-clamped sub-1" trees are cornered on
+# the FCR ULP. Was SKIPPED entirely (crown_pct stayed 0 ⇒ htgr5 CR²=0 ⇒ seedlings never crossed 4.5' ⇒ no
+# diameter ⇒ self-thinning never fired: the extreme-dense under-kill).
+const NC_BCR0  = Float32[-1.66949,-1.66949,-0.426688,-0.426688,-0.426688,-0.426688,-1.66949,-0.426688,-0.426688,-1.66949,-2.19723,0.0]
+const NC_BCR1  = Float32[-0.209765,-0.209765,-0.093105,-0.093105,-0.093105,-0.093105,-0.209765,-0.093105,-0.093105,-0.209765,0.0,0.0]
+const NC_BCR2  = Float32[0.0,0.0,0.022409,0.022409,0.022409,0.022409,0.0,0.022409,0.022409,0.0,0.0,0.0]
+const NC_BCR3  = Float32[0.003359,0.003359,0.002633,0.002633,0.002633,0.002633,0.003359,0.002633,0.002633,0.003359,0.0,0.0]
+const NC_BCR5  = Float32[0.011032,0.011032,0.0,0.0,0.0,0.0,0.011032,0.0,0.0,0.011032,0.0,0.0]
+const NC_BCR6  = Float32[0.0,0.0,-0.045532,-0.045532,-0.045532,-0.045532,0.0,-0.045532,-0.045532,0.0,0.0,0.0]
+const NC_BCR8  = Float32[0.017727,0.017727,0.0,0.0,0.0,0.0,0.017727,0.0,0.0,0.017727,0.0,0.0]
+const NC_BCR9  = Float32[-0.000053,-0.000053,0.000022,0.000022,0.000022,0.000022,-0.000053,0.000022,0.000022,-0.000053,0.0,0.0]
+const NC_BCR10 = Float32[0.014098,0.014098,-0.013115,-0.013115,-0.013115,-0.013115,0.014098,-0.013115,-0.013115,0.014098,0.0,0.0]
+
+# nc/dubscr.f deterministic crown (FCR=0). ba/tpccf/avh stand+point context; prd/qmdplt only for RW (sp12).
+@inline function nc_dubscr(sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real,
+                           prd::Real, qmdplt::Real)::Float32
+    hf = Float32(h); hf <= 0f0 && (hf = 0.1f0)
+    if sp == 12                                          # redwood — logistic on HDR/PRD/D:QMDPLT
+        hdr = (hf * 12f0) / max(Float32(d), 1f-4)
+        cr = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-4)) + 0.869720f0 * Float32(prd) -
+             0.116274f0 * (Float32(d) / max(Float32(qmdplt), 1f0))
+    else
+        cr = NC_BCR0[sp] + NC_BCR1[sp]*Float32(d) + NC_BCR2[sp]*hf + NC_BCR3[sp]*Float32(ba) +
+             NC_BCR5[sp]*Float32(tpccf) + NC_BCR6[sp]*(Float32(avh)/hf) + NC_BCR8[sp]*Float32(avh) +
+             NC_BCR9[sp]*(Float32(ba)*Float32(tpccf)) + NC_BCR10[sp]*50f0   # RMAI=50 (grinit.f:139)
+    end
+    abs(cr) >= 86f0 && (cr = 86f0)                       # dubscr.f: IF(ABS(CR+FCR).GE.86.)CR=86.
+    cr = 1f0 / (1f0 + exp(cr))
+    cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+    return cr
+end
+
 @inline function nc_tree_ccf(sp::Integer, d::Real)::Float32
     dd = Float32(d)
     if dd >= 1.0f0
@@ -53,7 +90,21 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 12) && continue
         (lstart && t.crown_pct[i] > 0) && continue
-        (d < 1f0 && lstart) && continue
+        if d < 1f0 && lstart                              # crown.f:265,377 — sub-1" missing-crown ⇒ DUBSCR
+            pt = Int(t.plot_id[i])
+            tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+            ptba = (1 <= pt <= length(s.density.point_ba)) ? s.density.point_ba[pt] : ba
+            pttpa = (1 <= pt <= length(s.density.point_tpa)) ? s.density.point_tpa[pt] : 0f0
+            qmdplt = pttpa > 0f0 ? sqrt((ptba / pttpa) / 0.005454f0) : 1f0
+            qmdplt < 1f0 && (qmdplt = 1f0)
+            # PRD = point Zeide relative density (ZRD/XMAXPT); only sp12 RW uses it — 0 baseline (RW dub cornered).
+            cr = nc_dubscr(sp, d, h, ba, tpccf, p.avg_height, 0f0, qmdplt)
+            icri = trunc(Int, cr * 100f0 + 0.5f0)
+            lo = sp == 12 ? 5 : 10
+            icri > 95 && (icri = 95); icri < lo && (icri = lo); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
         icr = Int(t.crown_pct[i])
         relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
         relsdi > 1.5f0 && (relsdi = 1.5f0)

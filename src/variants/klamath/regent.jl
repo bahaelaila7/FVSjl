@@ -20,24 +20,30 @@ const NC_HD_P2 = Float32[523.0987,819.8690,523.0987,604.8450,160.6821,1530.3300,
 const NC_HD_P3 = Float32[5.7243,6.4531,5.7243,5.9835,4.1677,7.0811,8.9420,5.5698,8.7469,7.0463,5.5698,5.8103]
 const NC_HD_P4 = Float32[-0.4109,-0.3434,-0.4109,-0.3789,-0.4954,-0.2544,-1.4832,-0.3074,-0.8317,-0.3076,-0.3074,-0.3821]
 
-"nc/htgr5.f — small-tree height increment (3 methods by species)."
+"nc/htgr5.f — small-tree height increment (3 methods by species). CR is the crown ratio on the ICR/10 (0–10)
+scale, NOT the 0–1 proportion (regent.f:183 `CR=ICR(I)/10.0`). Final floor `IF(HTGR.LE.0.0)HTGR=0.01`."
 @inline function nc_htgr5(sp::Int, ssite::Float32, baa::Float32, relht::Float32, cr::Float32, h::Float32)
     im = NC_HG_IMETH[sp]
-    if im == 2
+    htgr = if im == 2
         b = baa <= 5.0f0 ? 5.0f0 : baa
-        return exp(NC_HG_HCON[sp] + NC_HG_HBA[sp] * log(b))
+        exp(NC_HG_HCON[sp] + NC_HG_HBA[sp] * log(b))
     elseif im == 1
-        return NC_HG_HCON[sp] + relht * 4.292f0 + 0.0566f0 * cr * cr +
-               0.1699f0 * h + NC_HG_HBA[sp] * baa + 0.00768f0 * ssite
+        NC_HG_HCON[sp] + relht * 4.292f0 + 0.0566f0 * cr * cr +
+            0.1699f0 * h + NC_HG_HBA[sp] * baa + 0.00768f0 * ssite
     else                                              # sp12 redwood — site-age curve
         htmax = 2.242202f0 * ssite
-        (htmax - h <= 1.0f0) && return 0.0f0
-        age1 = (1.0f0 / -0.010742f0) * log(1.0f0 - (h / 2.242202f0 / ssite)^(1.0f0 / 0.919076f0))
-        age2 = age1 + 5.0f0
-        h1 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age1))^0.919076f0
-        h2 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age2))^0.919076f0
-        return h2 - h1
+        if htmax - h <= 1.0f0
+            0.0f0
+        else
+            age1 = (1.0f0 / -0.010742f0) * log(1.0f0 - (h / 2.242202f0 / ssite)^(1.0f0 / 0.919076f0))
+            age2 = age1 + 5.0f0
+            h1 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age1))^0.919076f0
+            h2 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age2))^0.919076f0
+            h2 - h1
+        end
     end
+    htgr <= 0.0f0 && (htgr = 0.01f0)                  # htgr5.f: IF(HTGR.LE.0.0)HTGR=0.01
+    return htgr
 end
 
 "nc/htdbh.f — Curtis-Arney HT-DBH (SISKIY, all forests). mode 1: H→D."
@@ -68,7 +74,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         relht = (h > 0f0 && avh > 0f0) ? h / avh : 1f0
         tpccf <= 75.0f0 && (relht = 1.0f0 - ((relht - 1.0f0) / 75.0f0) * tpccf)
         relht > 1.5f0 && (relht = 1.5f0)
-        cr = Float32(t.crown_pct[i]) * 0.01f0
+        cr = Float32(t.crown_pct[i]) * 0.1f0                   # regent.f:183 CR=ICR(I)/10.0 (0–10 scale, NOT /100)
         htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale   # CON=1, XRHMLT=1
         # height: XWT blend with the large-tree HTG (already in t.ht_growth[i])
         xmn = NC_ST_XMIN[sp]; xmx = NC_ST_XMAX[sp]

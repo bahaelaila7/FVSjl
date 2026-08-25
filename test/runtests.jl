@@ -48,6 +48,7 @@ using FVSjl
     include("unit/test_so_crwidth.jl")     # SO FVS_TreeList CrWidth: so_cwcalc forest-601 BF (present) + Hopkins-index fix (so_grinit! lat/lon 42/121 default) — 33/33 vs FVSso_clean, 11th variant
     include("unit/test_nc_crwidth.jl")     # NC/Klamath FVS_TreeList CrWidth via R5CRWD reuse (nc_r5crwd→ws_r5crwd, NC→WS FIA map) — forest 505 R5, 29/29 vs FVSnc_clean, 12th variant
     include("unit/test_nc_mortality.jl")   # NC/Klamath NWCMRT density-mortality distribution (nc/nwcmrt.f) — percentile/tolerance concentration + QMD loop; fixes mature over-max-SDI TPA ~3× under-kill
+    include("unit/test_nc_smalltree_crown.jl")  # NC/Klamath small-tree growth cascade (nc/htgr5.f CR scale + floor; nc/dubscr.f + LSTART crown dub) — fixes extreme-dense >10k-TPA seedling self-thin under-kill
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant

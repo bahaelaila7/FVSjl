@@ -158,6 +158,12 @@ function setup_growth!(s::StandState)
         # When a GROWTH keyword sets the remeasurement FINT, dgscale=yr/dfint IS that YR/FINT_meas already (so use
         # it directly); only the NO-GROWTH default (dgscale=1) needs the 10-yr-measurement 0.5. Other western
         # variants have YR=IFINT ⇒ scale 1; NC is the unique YR=5-with-10yr-default-measurement case.
+        compute_density!(s)               # current-stand density (point BA/CCF/TPA) for the crown dub
+        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns
+                                          # (nc/crown.f). Was MISSING (like IE #137/EM) ⇒ 0.1" seedlings kept
+                                          # crown_pct=0 ⇒ htgr5 CR² term=0 ⇒ HTGR negative ⇒ never cross 4.5' ⇒
+                                          # DBH growth skipped ⇒ QMD frozen ⇒ extreme-dense self-thin never fires.
+                                          # Live dubs sub-1" seedlings to CR 95% (nc/dubscr.f, logit clamps 0.95).
         calibrate_diameter_growth!(s; scale = s.control.growth_dg_set ? dgscale : 0.5f0)
     elseif s.variant isa SoutheastAlaska
         ak_dgcons!(s)                     # AK DGCON (0 + ln COR2 if READCORD), ATTEN=OBSERV; AK bark via ak_bratio in the driver
