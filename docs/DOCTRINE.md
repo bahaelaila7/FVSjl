@@ -19,6 +19,9 @@ semantic. After a container restart, RELINK the oracles (do not trust a stale bi
 - "measure-don't-infer" applies to your OWN fix too: implement it, then A/B it.
 - The full end-to-end `run_keyfile` `.sum` diff is REQUIRED. Controlled-input
   per-subsystem tests pass while the full engine hides crash / latitude / straddle bugs.
+- **Per-record / per-tree treelist diffs are INVALID after record TRIPLING** — the
+  tripled records don't correspond 1:1 across the two engines. Validate on the `.sum`
+  aggregates, or on the pre-split (pre-tripling) window.
 
 ## 3. "Cornered" is a MEASURED verdict, not a label of convenience
 A divergence may be called *cornered* only when it has been measured and reduced to a
@@ -41,7 +44,15 @@ against the live oracle; do not inherit a stale cornered verdict.
 after every commit. It is the guard that a change didn't perturb the validated engine.
 Run it under DEFAULT bounds. `--check-bounds=yes` is the crash-repro tool, not the gate.
 
-## 6. Commit & merge discipline
+A new variant / extension / subsystem is landed **ADDITIVE + INERT**: it adds code
+but no `simulate.jl` seam (or a seam gated off) until its effect is validated, so the
+gate stays byte-identical the whole time. Wire the live seam only once the effect is
+proven bit-exact-or-cornered.
+
+## 6. Commit, reuse & merge discipline
+- REUSE the shared engine — dispatch a variant into the shared kernels/drivers rather
+  than duplicating them (a bug fixed once in a shared driver fixes every variant; a
+  divergence found in one often lurks in its siblings — audit the family).
 - Commit ONLY validated chunks. A branch with an unverified fix is marked WIP and NOT merged.
 - Each fix must be variant-DISPATCH-GUARDED so it cannot regress other variants.
 - Verify "merged" by RUNNING the ref `.sum`, not by `git cherry` (patch-id gives
