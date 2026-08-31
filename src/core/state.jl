@@ -688,10 +688,16 @@ mutable struct Establishment
                                 # estab.f:199-207 IDUP loop → DUPNPT = NPTIDS·ceil(MINREP/NPTIDS), so it sets the
                                 # number of establishment plots looped ⇒ the ESRANN draw-stream length (measured
                                 # model-affecting: MINPLOTS 100 shifts the under-stocked-IE tally-2 seed 61997→31334).
+    inadv::Bool                 # INADV — "advance component of the inventory is invalid" (estab.f). Set TRUE by
+                                # EZCRUISE (esinit.f:79 ESEZCR, auto-invoked by initre.f:280 when a stand has < 1
+                                # projectable tree record at inventory, i.e. a BARE plot). PERSISTS for the whole
+                                # run (getstd/putstd INTS(33)). When TRUE, estab.f SKIPS the ESB inventory-stocking
+                                # calibration in EVERY cycle (estab.f:319/511 IF(INADV.EQ.1.OR.NTALLY.NE.1)) — so a
+                                # bare-origin ingrowth tally uses PROB1 = logistic(PN) with NO ESB-ESB1 shift.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
-                                Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50))
+                                Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50), false)
 
 mutable struct DbsState
     enabled::Bool

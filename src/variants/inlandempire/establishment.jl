@@ -1328,6 +1328,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     est.idsdat == Int32(-9999) && (est.idsdat = Int32(inv_year - 20))
     icyc = Int(s.control.cycle) + 1
     itrn = s.trees.n
+    # EZCRUISE / NOTREES auto-invoke (initre.f:280-289 → esinit.f:79 ESEZCR sets INADV=1): a BARE stand (< 1
+    # projectable tree record at inventory) auto-invokes the EZCRUISE regeneration option. INADV=1 then PERSISTS
+    # for the whole run (getstd/putstd INTS(33)) and makes estab.f SKIP the ESB inventory-stocking calibration in
+    # EVERY cycle (estab.f:319/511). A bare stand has itrn==0 at cycle 1 (pre-regen) — the same condition that
+    # triggers the LINGRW ingrowth path — so detect it here and latch the persistent flag.
+    icyc == 1 && itrn == 0 && (est.inadv = true)
     # User-scheduled TALLY/TALLYONE/TALLYTWO (esin.f 16/11/12; esnutr.f:163-252): a 427/428/429 whose date falls in
     # THIS cycle's window [year,next_year) and is not stale (KDT+1-IDSDAT ≤ 20) forces a tally, overriding the
     # automatic AUTOES rules. NTALLY = IACTK-427 collapsed to {1 (TALLY/TALLYONE), 2 (TALLYTWO continuation)}. The
@@ -1428,8 +1434,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # INADV=0 AND NTALLY=1-equivalent: the oracle recomputes ESB/ESB1 only on a FRESH tally (NTALLY=1); a
     # continuation (NTALLY≥2) resets them to 0 ⇒ no correction. jl's fresh tallies are ntally∈{1 (disturbance),
     # 99 (ingrowth)}; a continuation is ntally≥2. Guard so a within-20yr continuation doesn't get esb_shift.
+    # ★ BARE-STAND FIX (EZCRUISE INADV=1): estab.f gates the ESB calibration on INADV=0 (line 319/511). A bare
+    # stand latches est.inadv (above), so its ingrowth uses PROB1 = logistic(PN) with NO shift — MEASURED live
+    # FVSem_clean on bare stand 85271557010661: ESB=0 ESB1=0 PROB1=0.3584 (=logistic(PN=-0.5822)), whereas jl
+    # previously applied esb-esb1≈-1.39 ⇒ PROB1 0.1222 ⇒ ~2.9× under-production of ingrowth TPA.
     esb_shift = 0f0
-    if (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
+    if !est.inadv && (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
         if isnan(est.esb_shift)
             idx0 = ie_estab_indices(ihab_code, Int(p.user_forest_code))
             tpacre = 0f0
