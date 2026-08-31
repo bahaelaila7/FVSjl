@@ -92,5 +92,68 @@ Port EVERY column / subsystem bit-exact, including report-only and cosmetic outp
 When the roadmap order is clear, don't stop-and-ask — proceed and validate. The
 off-switch is the user's call.
 
+## Executing a fix — the method (how, not just what)
+Source: `feedback-audit-fix-doctrine`, `feedback-verify-semantics-from-fvs-code`,
+`feedback-decision-flow-is-completeness-oracle`, `feedback-test-must-exercise-the-semantic`.
+
+1. **UPSTREAM-FIRST / least-dependent first.** Work the most-upstream, least-dependent
+   divergence first — dependents inherit the corrected upstream behavior, so a downstream
+   symptom often vanishes once its root is fixed. (The NC "under-mortality" was really an
+   upstream small-tree-GROWTH starvation; don't patch the symptom.)
+2. **MAP THE FVS SEMANTICS HONESTLY FIRST, before attempting any fix.** Read the exact FVS
+   subroutine, trace the data flow (which call sets which value, what gates each block, the
+   restore/override order), and implement ONLY what the FVS code does.
+3. **TRACE LOGIC, NOT RUNTIME — read the code, don't fit the test.** A fix must match FVS
+   SEMANTICS in both the Fortran and the jl path. NEVER infer a fix from test pass/fail.
+   "It made the suite pass" is how bandaids + masked bugs are born (the s32 `prod=="01"`
+   proxy passed the tested cases but diverged on untested ones). **Bit-exact-on-a-test ≠
+   faithful** — bit-exactness on tested scenarios is necessary but NOT sufficient.
+4. **PORT THE SEMANTICS FAITHFULLY FIRST, THEN write the test.** Never test-first on a gap
+   (it invites fitting the code to the test). And the test scenario MUST actually fire the
+   ported branch — if the ported code can be deleted and the test still passes, the test is
+   vacuous. Prefer an empirical differential against the live oracle to settle "does X matter".
+5. **REGRESSION FROM A FAITHFUL FIX = MASKED-BUG SIGNAL, not a reason to revert.** If a
+   semantically-certain fix regresses other tests/stands, that is a GOOD sign it unmasked a
+   hidden bug. NOTE it, keep going upstream-first, circle back. Do NOT revert a faithful fix
+   to keep a stale test green. (This is why a fix invalidates the whole affected population,
+   not just the flagged stands — re-sweep the passers too; see the sweep discipline below.)
+6. **SERIALIZE THE GATE.** One fix → run the suite/gate → next fix, so any regression stays
+   attributable to the change that caused it. Each fix is variant-dispatch-guarded.
+7. **CHUNK large Fortran files.** Skeleton + a saved chunk plan; execute one chunk per
+   session (read only that chunk's source), mark verified; don't re-read covered sections.
+8. **DOCUMENT every verdict** (the both-sides logic, the faithful fix, any noted masked-bug
+   regression) so the work never runs in circles.
+9. **Drive completeness from the FVS decision flow, NOT from tests.** Destructure any coarse
+   node into its atomic branches, each with a port status, so untested gaps can't hide.
+
+## FIA full-population sweep discipline (recovered from the eastern 1.47M sweep)
+The eastern SN/NE/CS/LS sweep reached a *trustworthy* 99.99% because it ran this way.
+Deviating (as happened on the western sweep — DIGCAP raised, backlog ballooned to ~110k)
+produces provisional, untrustworthy numbers. Source: `docs/FIA_FVS_COMPAT_GOAL.md`,
+`docs/fia_ledger.README.md`, `docs/fia_divergence_taxonomy.md`, `run_expand_loop.sh`.
+
+1. **CAP-AND-FIX: DIGCAP ≈ 100 (never raise it for fresh clusters).** The loop PAUSES when
+   the dig-queue reaches ~100–200 material discrepancies; you then root-cause and fix them
+   BEFORE the sweep continues. One slice at a time; validate before the next. (The one time
+   the east raised the cap 100→500, it was for a batch that was a KNOWN already-classified
+   primitive — never for fresh unexplained divergence.)
+2. **STATUS-FLIP LEDGER: re-run a FIXED stand set after EVERY fix, diff BOTH directions.**
+   Keep a committed per-stand ledger (e.g. 1000 stratified stands/variant). After any fix,
+   re-run it and diff: a `needs_dig` that should now clear is only half — a previously
+   `bit_exact` stand that REGRESSED is the dangerous half. The 339/11 gate guards only the
+   ref stands, NOT the swept population, so a fix is not proven safe until the passers are
+   re-swept and shown unchanged.
+3. **A fix invalidates the population, not just the flagged stands.** A DB that mixes stands
+   swept across several code versions is PROVISIONAL — trustworthy numbers need a coherent
+   sweep on final code. Use a stale/mixed DB only as bug-finding signal, never as a verdict.
+4. **MATERIAL gate for "dig-worthy":** `>1 unit AND ≥1% rel` — a ±1 straddle is never counted
+   as a real divergence.
+5. **Per-stand both-sides-trace to a named primitive; no unexplained divergence remains**
+   (Pillar 4). Cluster-sampling finds bugs but does NOT discharge the endpoint — every
+   non-bit-exact stand must end classified (fixed, cornered-to-a-named-primitive, or an FVS
+   bug where jl is the correct side).
+6. **Don't quote a pass-rate as final while unexplained divergence stands** — the eastern
+   README calls that "PREMATURE." In-progress numbers are provisional; say so.
+
 ---
 _The per-topic detail behind each rule lives in the `feedback-*.md` auto-memory notes._
