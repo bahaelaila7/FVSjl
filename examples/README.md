@@ -1,4 +1,10 @@
-# FVSjl examples (Southern variant)
+# FVSjl examples
+
+> These worked examples use the **Southern (SN)** variant to demonstrate the *workflows*
+> (thinning, multi-stand, multi-scenario, the semantic YAML form, FIA export). The keyword
+> grammar and every workflow are identical for all 24 variants — run any of them by passing
+> `--variant <CODE>` (or the YAML `variant:` key); see [../docs/PORT_STATUS.md](../docs/PORT_STATUS.md)
+> for the variant list and [../docs/KEYWORDS.md](../docs/KEYWORDS.md) for the shared keywords.
 
 Each example lives in its **own folder** and is provided in several equivalent forms:
 

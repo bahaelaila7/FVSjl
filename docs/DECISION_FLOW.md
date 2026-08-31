@@ -10,13 +10,12 @@
 > - [`decision_flow.html`](decision_flow.html) — the **FVS** (Fortran oracle) graph,
 >   588 routines. The source-of-truth SN semantics.
 > - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
->   443 routines (idiomatic, compressed; the interactive graph is drawn for Southern +
->   Northeast (pentagons), but all **24 variants are validated** (see
->   [`PORT_STATUS.md`](PORT_STATUS.md)) — e.g. Central States and
->   Lake States reuse ~90% of this same shared engine, adding only their variant-specific
->   surface (SN-family ln(DDS) `dgf!`, site/volume/FFE/sprout coefs) under
->   `src/variants/centralstates|lakestates/`) — plus the full FFE carbon/fuels/fire path,
->   the 9 FFE DBS-table writers, ECON, and YARDLOSS). Put side by side with the FVS graph to see
+>   **1280 routines** across **all 24 variants** + the extensions, regenerated from the
+>   current `src`. Shape = scope: ⬡ Southern · ⬠ Northeast · ⯄ octagon = any of the other
+>   22 variants · ◆ FFE-fire / ECON · ▭ generic shared engine (the variant-agnostic core,
+>   which every variant reuses — e.g. Central States and Lake States reuse ~90% of it,
+>   adding only their variant-specific `dgf!`/site/volume/FFE/sprout surface under
+>   `src/variants/…`). Fill = port status. Put side by side with the FVS graph to see
 >   where the rewrite folded routines together (e.g. `grow_cycle!` = GRINCR+GRADD,
 >   `mortality_and_fire!` = MORTS+TRIPLE+FMBURN+FMKILL).
 >

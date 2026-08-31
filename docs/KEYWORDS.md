@@ -18,15 +18,25 @@ A blank date field defaults to **cycle 1**; a date ≥ 1000 is a calendar year, 
 number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 `examples/key_to_structured_yaml.py`); the round-trip is lossless.
 
-> **Variants.** This reference applies to **all four ported variants** — **SN** (Southern),
-> **NE** (Northeast), **CS** (Central States), and **LS** (Lake States). The keyword grammar
-> is *shared*: the variants differ in the underlying model coefficients (growth, volume,
-> site, forest type) and species list, not in which keywords exist. Stock FVS has no variant
-> keyword (you pick the `FVSsn`/`FVSne`/`FVScs`/`FVSls` binary); in FVSjl the variant is a run
-> option (`--variant SN|NE|CS|LS`, the YAML `variant:` key, or `run_keyfile(...; variant=…)`) —
-> see [FORMATS.md](FORMATS.md). A handful of keywords are recognized but `.sum`-inert in a
-> given variant (noted inline below). Species codes and defaults in the examples are the
-> Southern (SN) set unless stated; the *layout* is identical across variants.
+> **Variants.** This reference applies to **all 24 ported variants** (eastern SN/NE/CS/LS,
+> the western Rockies, the Pacific/coastal variants, plus BC/ON/AK — see
+> [PORT_STATUS.md](PORT_STATUS.md)). The keyword grammar is *shared*: the variants differ in
+> the underlying model coefficients (growth, volume, site, forest type) and species list, not
+> in which keywords exist. Stock FVS has no variant keyword (you pick the `FVS<v>` binary); in
+> FVSjl the variant is a run option (`--variant <CODE>`, the YAML `variant:` key, or
+> `run_keyfile(...; variant=…)`) — see [FORMATS.md](FORMATS.md). A handful of keywords are
+> recognized but `.sum`-inert in a given variant (noted inline below). Species codes and
+> defaults in the examples are the Southern (SN) set unless stated; the *layout* is identical
+> across variants.
+>
+> **Extension-model keywords.** The keyword sections below cover the core simulator plus the
+> FFE (fire/fuels/carbon), ECON, establishment/regeneration, COVER, and DBS-database
+> extensions. The additional **extension models** — dwarf mistletoe (`MISTOE`/`MISTMULT`/…),
+> FVS-Climate (`CLIMATE`), the ORGANON growth model (OC/OP), Western Root Disease
+> (`RDADD`/`RRINIT`/…), and the insect/beetle models (Douglas-fir beetle, tussock moth,
+> mountain pine beetle, western spruce budworm `WSBWE`, western pine beetle `WWPB`/`DISPERSE`)
+> — are ported and validated (see [PORT_STATUS.md](PORT_STATUS.md)) but their keyword cards
+> are not yet itemized in this reference; they follow the same fixed-column / YAML grammar.
 
 > There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that describes a
 > stand by intent (`invyr`, `numcycle`, `treatments`, `treelist`…) rather than mirroring the

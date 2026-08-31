@@ -18,6 +18,7 @@ const STOP=new Set(('DBCHK DBCHK_FVS DBSCAN GETLUN FVSGETRTNCODE FVSRESTART FVSS
 let files=[]; (function walk(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name); if(e.isDirectory())walk(p); else if(e.name.endsWith('.jl'))files.push(p);}})(SRC);
 const scopeOf=f=> f.includes('/variants/northeast')?'ne'
   : (f.includes('/sn/')||f.includes('/variants/southern'))?'sn'
+  : f.includes('/variants/')?'west'                       // any of the other 22 variants
   : (f.includes('/fire/')||f.includes('/extensions/fire'))?'fire'
   : (f.includes('/econ')||f.includes('/extensions/econ'))?'econ'
   : f.includes('/extensions')?'ext' : f.includes('/common/')?'common' : 'base';
