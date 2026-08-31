@@ -1,17 +1,5 @@
 {
   "env": {
     "JULIA_DEPOT_PATH": "/workspace/.julia_depot"
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/workspace/FVSjl/.claude/stop-goal.sh"
-          }
-        ]
-      }
-    ]
   }
 }

@@ -41,3 +41,16 @@ data/*.db-shm
 # persistent sweep working dir (scratch + redundant master ledger; results are in data/*.db)
 .sweep_work/
 test/harness/cr/fort.*
+
+# ── session tidy (2026-08-31) ──────────────────────────────────────────────
+# scratchpad = per-session working area (oracle dumps, staged Fortran builds, .o).
+# The historically-committed files under it stay tracked; new scratch is ignored so it
+# does not clutter status or get committed by accident (use `git add -f` to keep one).
+scratchpad/
+# local .claude hook backups (originals recoverable from git history)
+.claude/*.bak
+.claude/*-bak
+.claude/*.hookbak
+.claude/*.stophook-bak
+# runtime off-switch signal (moot now the Stop hook is disabled outright)
+docs/WESTERN_ROLLOUT_COMPLETE
