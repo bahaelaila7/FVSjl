@@ -1,8 +1,9 @@
 # FVSjl — port & validation status
 
-_Last updated 2026-08-24. Branch `kt-variant-port` (mainline; `master` tracks the
-validated state). Hard gate: `test/integration/test_multicycle.jl` = **339 pass / 11
-broken, byte-identical**._
+_Last updated 2026-08-31. `master` tracks the validated state (active work on the
+`fia-resweep` branch off master). Validation doctrine: **[DOCTRINE.md](DOCTRINE.md)**.
+Hard gate: `test/integration/test_multicycle.jl` = **339 pass / 11 broken,
+byte-identical**._
 
 FVSjl is a Julia reimplementation of the USFS Forest Vegetation Simulator — a drop-in
 replacement for the live Fortran FVS (same `.key`/`.tre` in, same SQLite/`.sum` out).
@@ -46,20 +47,27 @@ The 77 residual `needs_dig` all classify to named cornered primitives; the 60
 `live_crash` are cases where **live FVS itself** SIGFPEs on extreme FIA geometry while
 FVSjl runs clean.
 
-**Western / non-eastern — full-population sweep IN PROGRESS** (`docs/WESTERN_FIA_FULLSCALE_2026-08-24.md`,
-`data/fia_sweep_west.db`). 15 of the 20 non-eastern variants carry an FVS-ready FIA
-population (688,903 stands); 5 have zero FIA (KT/BC/OC/OP/ON — Canada/no-FIA/ORGANON-BLM,
-N/A). The sweep runs like the eastern one — every cycle's `.sum` vs freshly-relinked live
-FVS — and has already surfaced and fixed **10 real bugs** the prior sampled validation
-could not reach: two NWCMRT density-mortality omissions (NC, UT), six alpha-PV_CODE
-habitat-decode bugs (PN/WC/CA/SO/NC/EC → correct SDIMAX), a 3-cause BM seedling
-small-tree-growth bug, and a CA/SO forkod forest-index crash. On corrected code the BM
-re-sweep reaches **99.6% bit-exact-or-cornered** (from a buggy 95.5%); NC's full re-sweep
-is **88.9%** — most of its residual is a newly-identified under-mortality in the extreme
-`>10k-TPA` mega-record seedling regime (a real-bug candidate one regime past the mature
-NWCMRT fix, plus the FVS-flagged mega-record instability the eastern sweep cornered). Full
-population coverage is a long-running background job; per-variant numbers accumulate as the
-sweep (now crash-hardened) runs, converging toward the eastern standard.
+**Western / non-eastern — clean full-population sweep IN PROGRESS on final code.** 15 of
+the 20 non-eastern variants carry an FVS-ready FIA population (688,903 stands); 5 have zero
+FIA (KT/BC/OC/OP/ON — Canada/no-FIA/ORGANON-BLM, N/A). The sweep runs like the eastern one
+— every cycle's `.sum` vs freshly-relinked live FVS.
+
+An earlier sweep surfaced and fixed **11 real bugs** the prior sampled validation could not
+reach: the EM bare-plot AUTOES under-production (EZCRUISE `INADV=1` skips the ESB
+inventory-stocking calibration — the dominant western bug, ~98k EM stands), two NWCMRT
+density-mortality omissions (NC, UT), six alpha-`PV_CODE` habitat-decode bugs
+(PN/WC/CA/SO/NC/EC → correct SDIMAX), a 3-cause BM seedling small-tree-growth bug, and a
+CA/SO forkod forest-index crash.
+
+That earlier run's DB mixed code versions across the fixes (and was inflated by a
+discipline lapse that let the dig-queue balloon), so it is **archived, not trusted as
+final**. The sweep is now being **re-run clean on the final fixed engine** under the
+cap-and-fix discipline of [DOCTRINE.md](DOCTRINE.md): it pauses at ~100 unexplained
+divergences (`DIGCAP=100`), each is dug to a named cornered primitive or a real bug, real
+bugs are fixed upstream-first, and only then does the sweep resume — with a status-flip
+ledger re-checking both directions after every fix. Per-variant bit-exact-or-cornered
+numbers are re-established as the clean sweep progresses, converging toward the eastern
+standard; the harness is durable/resumable (state on `/workspace/.wt-western`).
 
 ## Extensions
 
@@ -85,5 +93,5 @@ historical `FVSppe` oracle lives at `/workspace/.ppework/FVSppe`):
   seam (mode-2 live beetle coupling is now done; harvest allocation across stands is not).
 - **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
   SIGSEGV; ON is validated via the inline path, not a live DB oracle.
-- **Western full-population FIA sweep** — under way; not yet at the eastern
-  exhaustiveness.
+- **Western full-population FIA sweep** — clean re-run on final code under way
+  (cap-and-fix, `DIGCAP=100`); not yet at the eastern exhaustiveness.

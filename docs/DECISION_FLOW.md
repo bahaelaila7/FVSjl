@@ -11,7 +11,8 @@
 >   588 routines. The source-of-truth SN semantics.
 > - [`decision_flow_fvsjl.html`](decision_flow_fvsjl.html) — the **FVSjl** graph,
 >   443 routines (idiomatic, compressed; the interactive graph is drawn for Southern +
->   Northeast (pentagons), but all **four variants are validated** — Central States and
+>   Northeast (pentagons), but all **24 variants are validated** (see
+>   [`PORT_STATUS.md`](PORT_STATUS.md)) — e.g. Central States and
 >   Lake States reuse ~90% of this same shared engine, adding only their variant-specific
 >   surface (SN-family ln(DDS) `dgf!`, site/volume/FFE/sprout coefs) under
 >   `src/variants/centralstates|lakestates/`) — plus the full FFE carbon/fuels/fire path,

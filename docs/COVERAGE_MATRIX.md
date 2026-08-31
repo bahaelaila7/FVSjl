@@ -1,4 +1,14 @@
-# FVSjl per-variant coverage matrix
+# FVSjl coverage matrix — Eastern four (SN/NE/CS/LS)
+
+> **Scope note (2026-08-31).** This is the original **eastern-four Pillar-1** coverage
+> matrix. It is accurate for SN/NE/CS/LS but does **not** cover the later 20 variants or
+> the full extension suite — for the current 24-variant, all-extensions status see
+> **[PORT_STATUS.md](PORT_STATUS.md)** (the canonical current status) and the doctrine in
+> **[DOCTRINE.md](DOCTRINE.md)**. The "extension keywords … outside the core scope" list
+> near the end (DFB/DFTM/MPB/WSBW/MISTOE/CLIMATE/ORGANON) is **superseded**: those
+> extensions are now ported and validated — see PORT_STATUS.md. The pass/broken counts
+> below are a historical Pillar-1 snapshot; the live hard gate is `test_multicycle.jl`
+> = 339 pass / 11 broken byte-identical.
 
 Pillar-1 done-state deliverable: a documented per-variant coverage matrix showing that the
 **100% drop-in** claim is defensible for **SN + NE + CS + LS**, every exercised path validated

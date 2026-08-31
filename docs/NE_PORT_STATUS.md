@@ -1,5 +1,11 @@
 # FVSjl Northeast (NE) Variant Port — Status & Verdict Log
 
+> **⚠ HISTORICAL (frozen NE port log).** NE is complete and validated; this is the
+> point-in-time verdict log from that port. The "5191 pass / 2 broken" below is the
+> **whole-suite count at the time** — the suite is now tens of thousands of tests across
+> 24 variants; the live hard gate is `test_multicycle.jl` = 339/11 byte-identical. For
+> current status see [PORT_STATUS.md](PORT_STATUS.md).
+
 Sole oracle: **live FVSne** (`bash test/harness/ne_oracle.sh <key> <outdir>` → `/tmp/FVSne_new`).
 There is no Oracle-A/FVSjulia for NE. `tests/FVSne/net01.sum.save` is STALE for cyc1+ — validate
 cyc1+ against the live binary. Canonical runner: `julia --project=. test/runtests.jl`.

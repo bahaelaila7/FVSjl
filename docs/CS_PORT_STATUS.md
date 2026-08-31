@@ -1,5 +1,11 @@
 # CS (Central States) port — status & live baselines
 
+> **⚠ HISTORICAL (frozen CS port log).** CS is **complete** and validated bit-exact-or-cornered
+> — the "IN PROGRESS" / chunk checkboxes and the "5391 pass" whole-suite count below are the
+> point-in-time state during that port, not current. The suite is now tens of thousands of
+> tests across 24 variants; the live hard gate is `test_multicycle.jl` = 339/11 byte-identical.
+> For current status see [PORT_STATUS.md](PORT_STATUS.md).
+
 Active campaign (see `docs/CS_GOAL.md` + `docs/CS_VARIANT_PORT_SCOPE.md`). Oracle = live
 `FVScs` relinked via `test/harness/cs_oracle.sh`; canonical stand `tests/FVScs/cst01.key`.
 
