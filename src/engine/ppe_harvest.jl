@@ -214,3 +214,36 @@ function lbmemr(mem::AbstractString, set::AbstractString)::Bool
     m = String(rstrip(mem)); st = String(rstrip(set))
     return _lbmemr(codeunits(m), ncodeunits(m), codeunits(st), ncodeunits(st))
 end
+
+"""
+    lbunin(set1, set2) -> (union::String, kode::Int)
+
+Port of `LBUNIN` (base lbunin.f) — the label-set union: start with `set1`, append each
+member of `set2` not already present (`lbmemr` de-dup), comma-space delimited, capped at
+250 chars (`kode=1` if truncated). Empty/undefined operands short-circuit to the other set.
+This is the primitive `LBDSET` uses to build a stand's default label set as the union over
+its activity-group labels (the union-over-activity-groups default). Byte-exact / ASCII.
+"""
+function lbunin(set1::AbstractString, set2::AbstractString)
+    s1 = String(rstrip(set1)); s2 = String(rstrip(set2))
+    len1 = ncodeunits(s1); len2 = ncodeunits(s2)
+    len1 <= 0 && return (len2 <= 0 ? "" : s2, 0)
+    len2 <= 0 && return (s1, 0)
+    union = s1; lnunin = len1; kode = 0
+    s2b = codeunits(s2)
+    ip = 1
+    while ip <= len2
+        lenwrk = _lb1mem_len(s2b, ip, len2)
+        member = lenwrk > 0 ? s2[ip:ip+lenwrk-1] : ""
+        if !lbmemr(member, union)
+            if lnunin + lenwrk + 2 <= 250
+                union = union * ", " * member
+                lnunin = lnunin + lenwrk + 2
+            else
+                kode = 1
+            end
+        end
+        ip = ip + lenwrk + 2
+    end
+    return (union, kode)
+end

@@ -3,7 +3,7 @@
 # over the historical FVSppe objects, bc6e2377^): each case feeds synthetic policy-1 inputs
 # (priority, yield-if-selected, yield-if-not, target, EXACT flag) and dumps IHVSTA + HVPART.
 using Test
-using FVSjl: hvsel!, hvccut, eval_policy_expr, HarvestVars, EventCtx, eval_event, parse_event_condition, lbmemr
+using FVSjl: hvsel!, hvccut, eval_policy_expr, HarvestVars, EventCtx, eval_event, parse_event_condition, lbmemr, lbunin
 
 # One golden: (label, lprtct, target, [(priority, yield_sel, yield_notsel)...],
 #             expected_status (original stand order), expected_hvpart_hex::UInt32)
@@ -85,4 +85,13 @@ end
     @test lbmemr("ALL",    "ALL")                 == true    # single-member set
     @test lbmemr("B",      "A, B, C, D")          == true
     @test lbmemr("D",      "A, B, C, D")          == true
+end
+
+@testset "PPE MXHRVP — LBUNIN label-set union (lbunin.f) vs Fortran" begin
+    @test lbunin("A, B", "C, D")   == ("A, B, C, D", 0)
+    @test lbunin("A, B", "B, C")   == ("A, B, C", 0)              # dedup B
+    @test lbunin("A, B, C", "A, B, C") == ("A, B, C", 0)          # full overlap
+    @test lbunin("", "X, Y")       == ("X, Y", 0)                 # empty set1
+    @test lbunin("P, Q", "")       == ("P, Q", 0)                 # empty set2
+    @test lbunin("ALL", "STAND1, ALL, GROUP2") == ("ALL, STAND1, GROUP2", 0)
 end
