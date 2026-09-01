@@ -22,12 +22,34 @@ struct EvBin <: EvNode; op::Symbol; a::EvNode; b::EvNode; end
 struct EvFun <: EvNode; name::Symbol; a::EvNode; b::EvNode; end   # b unused for 1-arg
 struct EvTime <: EvNode; args::Vector{EvNode}; end                # TIME(v0,y1,v1,…) variadic year-step fn
 
+"""
+PPE MXHRVP landscape/policy variables an ALGEVL harvest expression (TARGET/PRIORITY/
+CREDIT) can read — the PTSTV1(1..9) before-thin landscape aggregates plus the settable
+SELECTED test var (PPHVCM/PPEXCM; hvaloc.f:212-223). Zero-initialized, mirroring the
+Fortran's zeroed PTSTV1; `nothing` on an EventCtx ⇒ these variables read as 0.0.
+"""
+Base.@kwdef struct HarvestVars
+    avbtpa::Float32   = 0f0    # PTSTV1(1) AVBTPA   average before-thin trees/acre
+    avbtcuft::Float32 = 0f0    # PTSTV1(2) AVBTCUFT average before-thin total cubic volume
+    avbmcuft::Float32 = 0f0    # PTSTV1(3) AVBMCUFT average before-thin merch cubic volume
+    avbbdft::Float32  = 0f0    # PTSTV1(4) AVBBDFT  average before-thin board-foot volume
+    avbba::Float32    = 0f0    # PTSTV1(5) AVBBA    average before-thin basal area
+    avbacc::Float32   = 0f0    # PTSTV1(6) AVBACC   last-cycle accretion (cuft/acre/yr)
+    avbmort::Float32  = 0f0    # PTSTV1(7) AVBMORT  last-cycle mortality  (cuft/acre/yr)
+    totalwt::Float32  = 0f0    # PTSTV1(8) TOTALWT  Σ area over reporting stands
+    oldtarg::Float32  = 0f0    # PTSTV1(9) OLDTARG  last master-cycle harvest target
+    selected::Float32 = 0f0    # SELECTED (EVSET4 code 9): 1 if the stand is (trial-)selected
+end
+
 "Per-cycle context the condition reads (extend as variables are needed)."
 struct EventCtx
     cycle::Int        # FVS CYCLE: 1-based cycle index
     year::Int         # calendar year of this cycle
     state             # StandState, for stand variables (BBA/SDI/TPA/…)
+    harvest           # ::Union{Nothing,HarvestVars} — PPE MXHRVP policy vars (nothing = off)
 end
+# 3-arg form (the common case): no PPE harvest variables.
+EventCtx(cycle::Integer, year::Integer, state) = EventCtx(Int(cycle), Int(year), state, nothing)
 
 # --- evaluator (single recursive function, no closures) ---------------------
 function eval_event(n::EvNode, ctx::EventCtx)::Float32
@@ -150,6 +172,18 @@ function _event_var(name::AbstractString, ctx::EventCtx)::Float32
     # the fixed inventory age, so add (current year − inventory year), exactly as the .sum age does
     # (summary.jl). Was the bare `stand_age` — it omitted the elapsed term (a GAP; untested keyword path).
     name == "AGE"  ? Float32(Int(ctx.state.plot.stand_age) + (ctx.year - Int(ctx.state.control.cycle_year[1]))) :
+    # --- PPE MXHRVP multistand-policy variables (hvaloc.f:212-223 PTSTV1 + SELECTED) ---
+    # Resolved from ctx.harvest; 0.0 when no harvest context (matching zeroed PTSTV1).
+    name == "AVBTPA"   ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbtpa)   :
+    name == "AVBTCUFT" ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbtcuft) :
+    name == "AVBMCUFT" ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbmcuft) :
+    name == "AVBBDFT"  ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbbdft)  :
+    name == "AVBBA"    ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbba)     :
+    name == "AVBACC"   ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbacc)    :
+    name == "AVBMORT"  ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.avbmort)   :
+    name == "TOTALWT"  ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.totalwt)   :
+    name == "OLDTARG"  ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.oldtarg)   :
+    name == "SELECTED" ? (ctx.harvest === nothing ? 0f0 : ctx.harvest.selected)  :
     error("event-monitor variable not yet ported: $name")
 end
 

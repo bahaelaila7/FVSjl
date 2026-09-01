@@ -3,7 +3,7 @@
 # over the historical FVSppe objects, bc6e2377^): each case feeds synthetic policy-1 inputs
 # (priority, yield-if-selected, yield-if-not, target, EXACT flag) and dumps IHVSTA + HVPART.
 using Test
-using FVSjl: hvsel!
+using FVSjl: hvsel!, hvccut, eval_policy_expr, HarvestVars, EventCtx, eval_event, parse_event_condition
 
 # One golden: (label, lprtct, target, [(priority, yield_sel, yield_notsel)...],
 #             expected_status (original stand order), expected_hvpart_hex::UInt32)
@@ -47,4 +47,30 @@ const HVSEL_GOLDENS = [
             @test reinterpret(UInt32, hvpart) == exp_hvpart
         end
     end
+end
+
+@testset "PPE MXHRVP — HVCCUT clearcut-condition test (hvccut.f)" begin
+    # -1 iff after-thin TPA < DCTPA AND after-thin top height < DCTOP, else +1.
+    @test hvccut(5f0,  20f0, 10f0, 30f0) == -1   # both below thresholds → clearcut
+    @test hvccut(15f0, 20f0, 10f0, 30f0) == 1    # TPA not below → not clearcut
+    @test hvccut(5f0,  40f0, 10f0, 30f0) == 1    # topht not below → not clearcut
+    @test hvccut(10f0, 20f0, 10f0, 30f0) == 1    # TPA == DCTPA (strict <) → not clearcut
+    @test hvccut(0.001f0, 0.001f0, 0f0, 0f0) == 1  # DEFCCUT unset (0,0) → never a clearcut
+end
+
+@testset "PPE MXHRVP — policy expression eval (ALGCMP/ALGEVL via ported evmon)" begin
+    hv = HarvestVars(; avbtpa=250f0, avbtcuft=3000f0, avbmcuft=2600f0, avbbdft=1000f0,
+                       avbba=120f0, avbacc=40f0, avbmort=8f0, totalwt=40f0, oldtarg=100f0)
+    # TARGET-style expressions over the PTSTV1 landscape aggregates (Float32-exact).
+    @test eval_policy_expr("AVBBDFT * 0.5", hv)        == 1000f0 * 0.5f0
+    @test eval_policy_expr("AVBBDFT / TOTALWT", hv)    == 1000f0 / 40f0
+    @test eval_policy_expr("TOTALWT * OLDTARG - AVBTPA", hv) == 40f0 * 100f0 - 250f0
+    @test eval_policy_expr("AVBTCUFT - AVBMCUFT", hv)  == 3000f0 - 2600f0
+    # SELECTED (EVSET4 code 9) — 1 selected / 0 not.
+    @test eval_policy_expr("SELECTED * 500", HarvestVars(; selected=1f0)) == 500f0
+    @test eval_policy_expr("SELECTED * 500", HarvestVars(; selected=0f0)) == 0f0
+    # PPE vars read 0.0 when there is no harvest context (matching zeroed PTSTV1).
+    @test eval_event(parse_event_condition("AVBBDFT + 7"), EventCtx(1, 1990, nothing)) == 7f0
+    # backward-compat: the 3-arg EventCtx still constructs (harvest = nothing).
+    @test EventCtx(1, 1990, nothing).harvest === nothing
 end

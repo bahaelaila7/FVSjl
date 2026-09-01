@@ -135,3 +135,35 @@ function hvsel!(status::AbstractVector{<:Integer},
     end
     return status, hvpart
 end
+
+"""
+    hvccut(tstv2_1, tstv2_7, dctpa, dctop) -> Int
+
+Port of `HVCCUT` (hvccut.f) — the clearcut-condition test for the current stand.
+Returns `-1` if the stand meets the DEFCCUT clearcut definition (after-thin trees/acre
+`TSTV2(1) < DCTPA` **and** after-thin top height `TSTV2(7) < DCTOP`), else `+1`.
+`HVHRV1` multiplies the stand's `IHVSTA` by this to set the ± sign bit that `hvsel!`
+reads (sign = "would be in clearcut condition if selected"). `DCTPA`/`DCTOP` are the
+`DEFCCUT` thresholds (default 0 ⇒ never a clearcut). Pure Float32 comparison — no
+arithmetic, so bit-exact by construction (hvccut.f:36-37).
+"""
+hvccut(tstv2_1::Float32, tstv2_7::Float32, dctpa::Float32, dctop::Float32)::Int =
+    (tstv2_1 < dctpa && tstv2_7 < dctop) ? -1 : 1
+
+"""
+    eval_policy_expr(expr, harvest; cycle=1, year=0, state=nothing) -> Float32
+
+Compile-and-evaluate a MXHRVP policy expression (TARGET / PRIORITY / CREDIT) — the
+`ALGCMP`+`ALGEVL` path (hvin.f/hvaloc.f) — by reusing the already-validated event-monitor
+parser (`parse_event_condition`) and evaluator (`eval_event`). `harvest::HarvestVars`
+supplies the PPE landscape/policy variables (AVB*/TOTALWT/OLDTARG/SELECTED); `state`
+(a `StandState`, optional) supplies per-stand variables (BBA/AGE/…) for PRIORITY/CREDIT.
+The evaluator's Float32 arithmetic is bit-exact to ALGEVL (validated by the event-monitor
+tests); this only widens the variable set. In hot paths parse the expression once with
+`parse_event_condition` and reuse the AST across stands via `eval_event(ast, ctx)`.
+"""
+function eval_policy_expr(expr::AbstractString, harvest::HarvestVars;
+                          cycle::Integer = 1, year::Integer = 0, state = nothing)::Float32
+    ast = parse_event_condition(expr)
+    return eval_event(ast, EventCtx(Int(cycle), Int(year), state, harvest))
+end
