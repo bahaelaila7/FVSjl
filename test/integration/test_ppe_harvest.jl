@@ -3,7 +3,7 @@
 # over the historical FVSppe objects, bc6e2377^): each case feeds synthetic policy-1 inputs
 # (priority, yield-if-selected, yield-if-not, target, EXACT flag) and dumps IHVSTA + HVPART.
 using Test
-using FVSjl: hvsel!, hvccut, eval_policy_expr, HarvestVars, EventCtx, eval_event, parse_event_condition
+using FVSjl: hvsel!, hvccut, eval_policy_expr, HarvestVars, EventCtx, eval_event, parse_event_condition, lbmemr
 
 # One golden: (label, lprtct, target, [(priority, yield_sel, yield_notsel)...],
 #             expected_status (original stand order), expected_hvpart_hex::UInt32)
@@ -73,4 +73,16 @@ end
     @test eval_event(parse_event_condition("AVBBDFT + 7"), EventCtx(1, 1990, nothing)) == 7f0
     # backward-compat: the 3-arg EventCtx still constructs (harvest = nothing).
     @test EventCtx(1, 1990, nothing).harvest === nothing
+end
+
+@testset "PPE MXHRVP — LBMEMR label-set membership (lbmemr.f/lb1mem.f) vs Fortran" begin
+    # comma-space-delimited label sets; exact, length-gated membership (the candidacy test).
+    @test lbmemr("ALL",    "ALL, STAND1, GROUP2") == true
+    @test lbmemr("STAND1", "ALL, STAND1, GROUP2") == true
+    @test lbmemr("GROUP2", "ALL, STAND1, GROUP2") == true    # last member (no trailing comma)
+    @test lbmemr("X",      "ALL, STAND1")         == false
+    @test lbmemr("STAND",  "ALL, STAND1")         == false   # prefix, different length → no
+    @test lbmemr("ALL",    "ALL")                 == true    # single-member set
+    @test lbmemr("B",      "A, B, C, D")          == true
+    @test lbmemr("D",      "A, B, C, D")          == true
 end

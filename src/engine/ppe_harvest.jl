@@ -167,3 +167,50 @@ function eval_policy_expr(expr::AbstractString, harvest::HarvestVars;
     ast = parse_event_condition(expr)
     return eval_event(ast, EventCtx(Int(cycle), Int(year), state, harvest))
 end
+
+# --- label-set membership (base FVS lbmemr.f/lb1mem.f) ----------------------
+# A stand's label set (SLSET) is a comma-space-delimited string of labels, e.g.
+# "ALL, STAND1, GROUP2". A multistand policy's MSPLABEL (up to a '.') makes a stand a
+# candidate iff it is a member of that stand's label set (hvaloc.f:143 CALL LBMEMR).
+
+# lb1mem.f — length of the first comma-delimited member of setb[ip1:ip2] (1-based bytes),
+# 0 if none. INDEX(set(ip1:ip2),',') → member is up to the comma; else the whole segment.
+@inline function _lb1mem_len(setb, ip1::Int, ip2::Int)::Int
+    (ip1 <= 0 || ip2 <= 0 || ip2 - ip1 < 0) && return 0
+    @inbounds for k in ip1:ip2
+        setb[k] == UInt8(',') && return k - ip1        # (lc-1): chars before the comma
+    end
+    return ip2 - ip1 + 1                                # no comma ⇒ whole segment
+end
+
+# lbmemr.f — true if the `lenmem`-byte member is one of the comma-space-delimited members
+# of the `lenset`-byte set. Walks members (LB1MEM), comparing exactly on equal length; the
+# +2 step past each member skips its trailing ", " (the delimiter is 2 chars).
+function _lbmemr(memb, lenmem::Int, setb, lenset::Int)::Bool
+    ip = 1
+    @inbounds while ip <= lenset
+        lenwrk = _lb1mem_len(setb, ip, lenset)
+        if lenmem == lenwrk
+            eq = true
+            for k in 1:lenmem
+                if memb[k] != setb[ip + k - 1]; eq = false; break; end
+            end
+            eq && return true
+        end
+        ip = ip + lenwrk + 2
+    end
+    return false
+end
+
+"""
+    lbmemr(mem, set) -> Bool
+
+Port of `LBMEMR` (base lbmemr.f) — true if label `mem` is a member of the comma-space
+-delimited label `set` (e.g. `lbmemr("STAND1", "ALL, STAND1, GROUP2") == true`). Trailing
+blanks are trimmed (LEN_TRIM); comparison is exact and length-gated. This is the MXHRVP
+candidacy test (which stands a harvest policy's MSPLABEL applies to).
+"""
+function lbmemr(mem::AbstractString, set::AbstractString)::Bool
+    m = String(rstrip(mem)); st = String(rstrip(set))
+    return _lbmemr(codeunits(m), ncodeunits(m), codeunits(st), ncodeunits(st))
+end
