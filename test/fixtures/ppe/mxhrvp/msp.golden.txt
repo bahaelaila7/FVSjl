@@ -1,0 +1,35 @@
+# MXHRVP oracle golden — FVSppe (historical, bc6e2377^) on msp.key (3 EC stands, 1 policy).
+# Reproduce: bash /workspace/.ppework/run_oracle.sh test/fixtures/ppe/mxhrvp/msp.key \
+#            /workspace/.ppework/tests/testSetFromFMSC/ECPP.TRE   (uses ECPP.TRE tree data)
+# HVALOC fires each master cycle; HVSEL selection table (PRIORITY=CREDIT=BBA, MSPLABEL=ALL):
+
+ YEAR= 1990  MASTER CYCLE= 1  POLICY= 1  TARGETED RESOURCE=  0.1000000E+04  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.7739E+02 0.7739E+02   YES   S248112                         0.7739E+02 0.7739E+02   YES
+ S248112                         0.7739E+02 0.7739E+02   YES
+
+ SELECTED RESOURCE= 0.2321762E+03  NON-SELECTED RESOURCE SUPPLY= 0.1525879E-04  TOTAL= 0.2321762E+03  PERCENT OF TARGET=  23.2
+ YEAR= 2000  MASTER CYCLE= 2  POLICY= 1  TARGETED RESOURCE=  0.1000000E+04  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.1102E+03 0.1102E+03   YES   S248112                         0.1102E+03 0.1102E+03   YES
+ S248112                         0.1102E+03 0.1102E+03   YES
+
+ SELECTED RESOURCE= 0.3304816E+03  NON-SELECTED RESOURCE SUPPLY= 0.0000000E+00  TOTAL= 0.3304816E+03  PERCENT OF TARGET=  33.0
+ YEAR= 2010  MASTER CYCLE= 3  POLICY= 1  TARGETED RESOURCE=  0.1000000E+04  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.1466E+03 0.1466E+03   YES   S248112                         0.1466E+03 0.1466E+03   YES
+ S248112                         0.1466E+03 0.1466E+03   YES
+
+ SELECTED RESOURCE= 0.4398994E+03  NON-SELECTED RESOURCE SUPPLY= 0.0000000E+00  TOTAL= 0.4398994E+03  PERCENT OF TARGET=  44.0
+
+# COMPOSITE YIELD STATISTICS (landscape PTSTV1 aggregate):
+ 1990  60   536  1624  1102  5567     0     0     0     0   77 109  63  10 108   1     33 0.000000 NONE
+ 2000  70   529  2688  2167 11066     0     0     0     0  110 157  81  10 143   2     33 0.000000 NONE
+ 2010  80   523  4095  3438 17716     0     0     0     0  147 195  96  10 177   4     33 0.000000 NONE
+ 2020  90   514  5829  5069 26450     0     0     0     0  184 231 110   0   0   0     33 0.000000 NONE
