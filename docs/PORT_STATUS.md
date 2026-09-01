@@ -96,13 +96,16 @@ label sets) and the event-monitor evaluator was extended with the PPE policy var
 bit-exact at cyc0 and across the full/partial/not + differential (HVYLDS≠HVTHIN) branches,
 with the cyc1+ numeric residual cornered to the EC-variant before-thin-BA growth straddle
 (inherited by CREDIT=BBA) and the equal-priority tie-break cornered to the RDPSRT unstable
-sort (#206-class). The `hvreps` composite-materialization **mechanism is proven** — the
-selected harvest fires through the base-FVS activity-group-label path (`AGPLABEL`; hvreps keeps
-the MSPLABEL for selected stands), and an authored `msp_thin.key` run through `FVSppe` produces
-a post-harvest COMPOSITE with real removals (BA 77→23, FRACTION TREATED=1.0). Its FVSjl A/B is a
-**measured block**: FVSjl's base `THINBTA`→residual removes ~all trees on this EC stand vs the
-oracle's residual (a base THIN-keyword divergence to investigate separately, not an MXHRVP defect).
-`IHVEXT=1` external selection, `hvproj`, and `LHVMXC` max-contiguous-clearcut are deferred-documented.
+sort (#206-class). The `hvreps` composite-**materialization** (the actual harvest effect) is
+**oracle-validated**: the selected harvest fires through the base-FVS activity-group-label path
+(`AGPLABEL`; hvreps keeps the MSPLABEL for selected stands), and the post-harvest COMPOSITE
+(`_ppe_aggregate` over the thinned per-stand rows) is A/B'd vs the `FVSppe` `msp_thin` golden —
+post-thin TPA **bit-exact** every cycle (536→36→35→35; the harvest genuinely removes trees to
+residual 40 TPA and the landscape regrows identically), cyc0 volumes ~bit-exact, cyc1+ volumes
+cornered to the EC post-thin-regrowth growth straddle. (An earlier "THINBTA over-thin" was traced
+to a keyfile column-misalignment artifact — FVSjl's base `THINBTA` is correct and matches the
+oracle with a column-aligned card.) `IHVEXT=1` external selection, `hvproj`, and `LHVMXC`
+max-contiguous-clearcut are deferred-documented.
 
 ## Known exceptions / not-yet-closed
 
