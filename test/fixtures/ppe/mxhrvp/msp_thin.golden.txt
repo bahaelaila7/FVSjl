@@ -1,0 +1,24 @@
+# MXHRVP COMPOSITE-MATERIALIZATION golden — FVSppe on msp_thin.key: an AGPLABEL-gated
+# THINBTA (residual 40, prop 1.0) fires on SELECTED stands (all, TARGET=1000). The post-harvest
+# COMPOSITE reflects the actual removals. Reproduce: run_oracle.sh msp_thin.key ECPP.TRE
+# COMPOSITE YIELD STATISTICS (YEAR AGE TPA TCuFt MCuFt BdFt | REMOVALS tpa cuft mcuft bdft | BA CCF DOMHT PRD ACC MOR SAMPWT FRACTREATED):
+ 1990  60   536  1624  1102  5567   500  1044   565  3003   23  27  63  10  28   1     33 1.000000 NONE
+ 2000  70    36   857   814  4004     0     0     0     0   28  33  80  10  32   1     33 0.000000 NONE
+ 2010  80    35  1166  1117  5701     0     0     0     0   35  39  95  10  39   1     33 0.000000 NONE
+ 2020  90    35  1546  1489  7859     0     0     0     0   42  46 107   0   0   0     33 0.000000 NONE
+
+# ── MEASURED BLOCK (composite-materialization A/B, 2026-09-01) ──────────────────────
+# The MXHRVP composite-materialization MECHANISM is confirmed working in the oracle:
+# FVSppe applies the SELECTED harvest via the base-FVS ACTIVITY-GROUP-LABEL mechanism —
+# hvreps.f keeps the MSPLABEL in a selected stand's label set (deletes it for not-selected;
+# it never sets an IF(SELECTED) variable — SELECTED is UNDEFINED during real projection),
+# so an AGPLABEL-labeled activity group (here the THINBTA) fires iff the stand is selected.
+# Above golden proves it: BA/acre 77→23, 500 TPA / 3003 BdFt removed, FRACTION TREATED=1.0.
+#
+# The FVSjl composite A/B is BLOCKED by a base-THINBTA divergence (NOT an MXHRVP defect):
+# FVSjl's THINBTA to residual 40 removes ESSENTIALLY ALL trees on this EC stand (before-thin
+# BA 2000 ≈ 0.0), whereas the oracle thins to the residual and regrows (BA 2000 = 28).
+# Reproduced on the 2-field (THINBTA 1990 40) and 3-field (…40 1.0) cards. This is a base
+# THIN-keyword semantics/scaling issue to investigate separately; the MXHRVP materialization
+# LOGIC (re-project selected stands with the thin, split status-4 by HVPART, aggregate via the
+# oracle-validated _ppe_aggregate) is composable and gated only on the base THIN matching.
