@@ -62,6 +62,7 @@ function hvsel!(status::AbstractVector{<:Integer},
 
     # HVSEL:100-105 — sum the yield due to thinning (status-1 candidates only). Float32.
     thnyld = 0.0f0
+    hrvyld = 0.0f0
     @inbounds for ist in 1:n
         if status[ist] == 1
             thnyld += yield_notsel[ist]
@@ -79,7 +80,6 @@ function hvsel!(status::AbstractVector{<:Integer},
     else
         # HVSEL:118-269 — walk the stands in descending-priority order, accumulating
         # harvest yield until the target is met.
-        hrvyld = 0.0f0
         lmore = true
         @inbounds for ii in 1:n
             ist = Int(isnsrt[ii])
@@ -133,7 +133,11 @@ function hvsel!(status::AbstractVector{<:Integer},
     @inbounds for ist in 1:n
         status[ist] = abs(status[ist])
     end
-    return status, hvpart
+    # `hrvyld`/`thnyld` are the RUNNING report values (hvsel.f:352-354): the selected-
+    # resource total and the residual non-selected supply (the Float32 subtraction residual
+    # matters — the oracle prints e.g. 1.5e-5, not 0). Returned after (status, hvpart) so the
+    # 2-value `st, hvpart = hvsel!(...)` call form stays valid.
+    return status, hvpart, hrvyld, thnyld
 end
 
 """
@@ -246,4 +250,91 @@ function lbunin(set1::AbstractString, set2::AbstractString)
         ip = ip + lenwrk + 2
     end
     return (union, kode)
+end
+
+# --- the MXHRVP master-cycle coordinator (hvaloc.f) ------------------------
+# MSPLABEL up to the '.' — the candidate-pool key (the part after '.' ties coordinated
+# policies to one pool; hvin.f LNHPLB(.,2)).
+_mslabel_base(lab::AbstractString) =
+    (i = findfirst('.', lab); i === nothing ? String(strip(lab)) : String(strip(lab[1:prevind(lab, i)])))
+
+"""
+    ppe_run_landscape_harvest!(stands; variant, labels, mslabel, target_expr, priority_expr,
+                               credit_expr, master_years, period=5, lprtct=false) -> Vector
+
+The MXHRVP master-cycle coordinator (hvaloc.f) composed from the validated kernels. Per
+master-cycle year it selects which member stands to cut so the landscape `target_expr` is
+met, in `priority_expr` order — faithful to hvaloc.f with the constraint options OFF
+(LHVMXC max-contiguous-clearcut, LHVUNT coordinated units, LHIER hierarchy, IHVEXT external
+selection — deferred/documented).
+
+Each member `stands[i]` is a keyfile with area weight `.area`; `labels[i]` is its stand
+label set (SPLABEL). For each stand it projects once (the already-validated engine via
+`write_sum_file`) and, at each master-cycle year, runs the HVTHN1/HVHRV1 trial-cut — the
+stand's own scheduled cuts under `SELECTED=0` (→ HVTHIN, yield-if-not-selected) and
+`SELECTED=1` (→ HVYLDS, yield-if-selected) — then evaluates `credit_expr` and `priority_expr`
+(`eval_policy_expr`, the ALGEVL path). Candidacy is `lbmemr(mslabel, labels[i])`. Then per
+year: accumulate the area-weighted landscape stats, evaluate `target_expr`, and call `hvsel!`.
+
+Returns one NamedTuple per master year: `(year, target, stand_ids, priority, credit,
+selected, selected_resource, nonselected_supply, pct_of_target)` — the HVSEL selection table.
+"""
+function ppe_run_landscape_harvest!(stands::AbstractVector{PPEStand}; variant,
+        labels::AbstractVector{<:AbstractString}, mslabel::AbstractString,
+        target_expr::AbstractString, priority_expr::AbstractString, credit_expr::AbstractString,
+        master_years::AbstractVector{<:Integer}, period::Integer = 5, lprtct::Bool = false,
+        faithful::Bool = true)
+    n = length(stands)
+    length(labels) == n || error("ppe_run_landscape_harvest!: labels/stands length mismatch")
+    yrs = Int.(master_years); yrset = Set(yrs)
+    pri  = [Dict{Int,Float32}() for _ in 1:n]     # PRIORITY per master year
+    ythn = [Dict{Int,Float32}() for _ in 1:n]     # HVTHIN (SELECTED=0)
+    yhrv = [Dict{Int,Float32}() for _ in 1:n]     # HVYLDS (SELECTED=1)
+    ids  = Vector{String}(undef, n)
+    for (i, ps) in enumerate(stands)
+        got = false
+        for s in each_stand(ps.keyfile; variant = variant, faithful = faithful)
+            notre!(s); setup_growth!(s); compute_volumes!(s)
+            ids[i] = String(strip(s.plot.stand_id)); got = true
+            # HVTHN1/HVHRV1: the stand's own scheduled cuts run under SELECTED=0 / SELECTED=1,
+            # then CREDIT is evaluated. A stand with no SELECTED-gated cut ⇒ CUTS is a no-op and
+            # both reduce to CREDIT(state); a SELECTED-gated cut makes HVYLDS ≠ HVTHIN.
+            hook = (st, yr, _pl, cy) -> begin
+                y = Int(yr)
+                if y in yrset
+                    pri[i][y]  = eval_policy_expr(priority_expr, HarvestVars(); state = st, cycle = Int(cy), year = y)
+                    ythn[i][y] = eval_policy_expr(credit_expr, HarvestVars(; selected = 0f0); state = st, cycle = Int(cy), year = y)
+                    yhrv[i][y] = eval_policy_expr(credit_expr, HarvestVars(; selected = 1f0); state = st, cycle = Int(cy), year = y)
+                end
+            end
+            write_sum_file(IOBuffer(), s; period = Int(period), stand_id = ids[i], mgmt_id = "NONE",
+                           variant = variant_code(s.variant), date = "x", time = "y", cycle_hook = hook)
+            break
+        end
+        got || error("ppe_run_landscape_harvest!: keyfile $(ps.keyfile) produced no stand")
+    end
+    base = _mslabel_base(mslabel)
+    out = NamedTuple[]
+    for y in yrs
+        cand = Int[i for i in 1:n if lbmemr(base, labels[i]) && haskey(yhrv[i], y)]
+        isempty(cand) && continue
+        prio = Float32[pri[c][y]  for c in cand]
+        ysel = Float32[yhrv[c][y] for c in cand]
+        ynot = Float32[ythn[c][y] for c in cand]
+        status = fill(1, length(cand))
+        # area-weighted landscape stats (TRGSTS/PTSTV1) for a stats-based TARGET; a constant
+        # TARGET (msp.key) ignores them. AVBBA is the weighted mean priority proxy here.
+        totalwt = sum(Float32(stands[c].area) for c in cand)
+        avbba = totalwt > 0f0 ?
+            sum(Float32(stands[c].area) * prio[k] for (k, c) in enumerate(cand)) / totalwt : 0f0
+        hv = HarvestVars(; avbba = avbba, totalwt = totalwt)
+        target = eval_policy_expr(target_expr, hv; year = y)
+        _st, _hvpart, hrvyld, thnyld = hvsel!(status, prio, ysel, ynot, target; lprtct = lprtct)
+        sel = Bool[_st[k] != 2 for k in eachindex(cand)]
+        pct = target > 0f0 ? (hrvyld + thnyld) / target * 100f0 : 0f0
+        push!(out, (year = y, target = target, stand_ids = String[ids[c] for c in cand],
+                    priority = prio, credit = ysel, selected = sel,
+                    selected_resource = hrvyld, nonselected_supply = thnyld, pct_of_target = pct))
+    end
+    return out
 end
