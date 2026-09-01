@@ -32,7 +32,7 @@ using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
     @test all(r.target == 1000f0 for r in res)
 
     # --- cyc0 (1990): BIT-EXACT numerics vs oracle (FVSjl BBA=77.39206 rounds to 0.7739E+02) ---
-    @test all(isapprox(c, 77.39f0; atol = 0.005f0) for c in r1.credit)      # BBA = oracle 0.7739E+02
+    @test all(isapprox(c, 77.39f0; atol = 0.005f0) for c in r1.credit_sel)  # BBA = oracle 0.7739E+02
     @test all(isapprox(p, 77.39f0; atol = 0.005f0) for p in r1.priority)    # PRIORITY = CREDIT = BBA
     @test isapprox(r1.selected_resource, 232.176f0; atol = 0.01f0)          # oracle 0.2321762E+03
     @test isapprox(r1.pct_of_target, 23.2f0; atol = 0.05f0)                 # oracle PERCENT OF TARGET

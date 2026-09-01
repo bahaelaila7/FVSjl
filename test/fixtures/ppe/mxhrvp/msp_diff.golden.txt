@@ -1,0 +1,37 @@
+# MXHRVP DIFFERENTIAL oracle golden — FVSppe on msp_diff.key (CREDIT=SELECTED*BBA, TARGET=150).
+# HVYLDS(selected)=BBA != HVTHIN(not)=0 ⇒ hvsel! selects a SUBSET: stand1 FULL, stand2 PARTIAL
+# (status-4, HVPART), stand3 NO. SELECTED RESOURCE fills to target (150) every cycle.
+# Reproduce: bash /workspace/.ppework/run_oracle.sh test/fixtures/ppe/mxhrvp/msp_diff.key \
+#            /workspace/.ppework/tests/testSetFromFMSC/ECPP.TRE
+
+ YEAR= 1990  MASTER CYCLE= 1  POLICY= 1  TARGETED RESOURCE=  0.1500000E+03  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.7739E+02 0.7739E+02   YES   S248112                         0.7739E+02 0.7739E+02 **YES
+ S248112                         0.7739E+02 0.0000E+00   NO 
+
+ **YES=  93.8 PERCENT OF STAND S248112                    WILL BE SELECTED.  THE REMAINING PORTION IS NOT SELECTED.
+
+ SELECTED RESOURCE= 0.1500000E+03  NON-SELECTED RESOURCE SUPPLY= 0.0000000E+00  TOTAL= 0.1500000E+03  PERCENT OF TARGET= 100.0
+ YEAR= 2000  MASTER CYCLE= 2  POLICY= 1  TARGETED RESOURCE=  0.1500000E+03  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.1102E+03 0.1102E+03   YES   S248112                         0.1102E+03 0.1102E+03 **YES
+ S248112                         0.1102E+03 0.0000E+00   NO    S248112                         0.1102E+03 0.0000E+00   NO 
+
+ **YES=  36.2 PERCENT OF STAND S248112                    WILL BE SELECTED.  THE REMAINING PORTION IS NOT SELECTED.
+
+ SELECTED RESOURCE= 0.1500000E+03  NON-SELECTED RESOURCE SUPPLY= 0.0000000E+00  TOTAL= 0.1500000E+03  PERCENT OF TARGET= 100.0
+ YEAR= 2010  MASTER CYCLE= 3  POLICY= 1  TARGETED RESOURCE=  0.1500000E+03  MSPLABEL= ALL
+ ------------------------------------------------------------  ------------------------------------------------------------
+ STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT  STDIDENT                   MGMT  PRIORITY    CREDIT   SELECT 
+ -------------------------- ---- ---------- ---------- ------  -------------------------- ---- ---------- ---------- ------ 
+ S248112                         0.1466E+03 0.1466E+03   YES   S248112                         0.1466E+03 0.1466E+03 **YES
+ S248112                         0.1466E+03 0.0000E+00   NO    S248112                         0.1466E+03 0.0000E+00   NO 
+ S248112                         0.1466E+03 0.0000E+00   NO 
+
+ **YES=   2.3 PERCENT OF STAND S248112                    WILL BE SELECTED.  THE REMAINING PORTION IS NOT SELECTED.
+
+ SELECTED RESOURCE= 0.1500000E+03  NON-SELECTED RESOURCE SUPPLY= 0.0000000E+00  TOTAL= 0.1500000E+03  PERCENT OF TARGET= 100.0

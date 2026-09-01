@@ -329,11 +329,13 @@ function ppe_run_landscape_harvest!(stands::AbstractVector{PPEStand}; variant,
             sum(Float32(stands[c].area) * prio[k] for (k, c) in enumerate(cand)) / totalwt : 0f0
         hv = HarvestVars(; avbba = avbba, totalwt = totalwt)
         target = eval_policy_expr(target_expr, hv; year = y)
-        _st, _hvpart, hrvyld, thnyld = hvsel!(status, prio, ysel, ynot, target; lprtct = lprtct)
-        sel = Bool[_st[k] != 2 for k in eachindex(cand)]
+        st2, hvpart, hrvyld, thnyld = hvsel!(status, prio, ysel, ynot, target; lprtct = lprtct)
+        sel = Bool[st2[k] != 2 for k in eachindex(cand)]          # status 3/4 = selected, 2 = not
+        partial = Int[st2[k] == 4 ? k : 0 for k in eachindex(cand)]  # the one status-4 stand (0 = none)
         pct = target > 0f0 ? (hrvyld + thnyld) / target * 100f0 : 0f0
         push!(out, (year = y, target = target, stand_ids = String[ids[c] for c in cand],
-                    priority = prio, credit = ysel, selected = sel,
+                    priority = prio, credit_sel = ysel, credit_notsel = ynot,
+                    status = copy(st2), selected = sel, hvpart = hvpart,
                     selected_resource = hrvyld, nonselected_supply = thnyld, pct_of_target = pct))
     end
     return out
