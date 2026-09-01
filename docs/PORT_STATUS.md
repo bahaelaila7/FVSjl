@@ -96,10 +96,13 @@ label sets) and the event-monitor evaluator was extended with the PPE policy var
 bit-exact at cyc0 and across the full/partial/not + differential (HVYLDS≠HVTHIN) branches,
 with the cyc1+ numeric residual cornered to the EC-variant before-thin-BA growth straddle
 (inherited by CREDIT=BBA) and the equal-priority tie-break cornered to the RDPSRT unstable
-sort (#206-class). Remaining: `hvreps` composite-materialization (a mechanical composition of
-already-validated pieces — re-project selected stands with SELECTED injected + the validated
-`_ppe_aggregate`); `IHVEXT=1` external selection, `hvproj`, and `LHVMXC` max-contiguous-clearcut
-are deferred-documented.
+sort (#206-class). The `hvreps` composite-materialization **mechanism is proven** — the
+selected harvest fires through the base-FVS activity-group-label path (`AGPLABEL`; hvreps keeps
+the MSPLABEL for selected stands), and an authored `msp_thin.key` run through `FVSppe` produces
+a post-harvest COMPOSITE with real removals (BA 77→23, FRACTION TREATED=1.0). Its FVSjl A/B is a
+**measured block**: FVSjl's base `THINBTA`→residual removes ~all trees on this EC stand vs the
+oracle's residual (a base THIN-keyword divergence to investigate separately, not an MXHRVP defect).
+`IHVEXT=1` external selection, `hvproj`, and `LHVMXC` max-contiguous-clearcut are deferred-documented.
 
 ## Known exceptions / not-yet-closed
 
