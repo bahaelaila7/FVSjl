@@ -86,11 +86,24 @@ historical `FVSppe` oracle lives at `/workspace/.ppework/FVSppe`):
   Julia-Task/Channel lockstep barrier), equivalence-validated (live in-flight ==
   premade-decisions replay, bit-exact).
 
+**PPE MXHRVP (multistand harvest scheduling)** — the landscape harvest-flow allocator is
+now **ported and oracle-validated** (`ppe_run_landscape_harvest!`, the hvaloc.f coordinator).
+The kernels are bit-exact vs gfortran-16 driver-goldens over the historical `FVSppe`
+(`HVSEL` greedy priority-ranked target-constrained selection; `HVCCUT`; `LBMEMR`/`LBUNIN`
+label sets) and the event-monitor evaluator was extended with the PPE policy variables
+(PTSTV1 + `SELECTED`). End-to-end vs authored `MSPOLICY` keyfiles run through the historical
+`FVSppe`: the HVSEL selection table (per-stand PRIORITY/CREDIT/SELECT + SELECTED RESOURCE) is
+bit-exact at cyc0 and across the full/partial/not + differential (HVYLDS≠HVTHIN) branches,
+with the cyc1+ numeric residual cornered to the EC-variant before-thin-BA growth straddle
+(inherited by CREDIT=BBA) and the equal-priority tie-break cornered to the RDPSRT unstable
+sort (#206-class). Remaining: `hvreps` composite-materialization (a mechanical composition of
+already-validated pieces — re-project selected stands with SELECTED injected + the validated
+`_ppe_aggregate`); `IHVEXT=1` external selection, `hvproj`, and `LHVMXC` max-contiguous-clearcut
+are deferred-documented.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** — external program, no in-tree source. Not ported.
-- **PPE MXHRVP (multistand harvest scheduling)** — the one remaining un-wired PPE
-  seam (mode-2 live beetle coupling is now done; harvest allocation across stands is not).
 - **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
   SIGSEGV; ON is validated via the inline path, not a live DB oracle.
 - **Western full-population FIA sweep** — clean re-run on final code under way
