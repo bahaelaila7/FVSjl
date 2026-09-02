@@ -14,11 +14,15 @@
 #     PASMAX 1 caps). At PLANT densities the cap fires at EXCESS≥6 (default PASMAX=5).
 #   • The cap KERNEL (es_pasmax_xcsmax) is a faithful transcription of estab.f:1288/1318-1321 and is BIT-EXACT
 #     vs the instrumented oracle across EXCESS 1..6 × PASMAX {1,5} (numbers asserted below).
-#   • FVSjl parses+stores PASMAX but does NOT wire the cap into the live tally seam: FVSjl's IE establishment
-#     uses placeholder per-tree heights + a probabilistic (PXCS-weighted) excess model rather than the discrete
-#     estab.f NOTE/EXCESS split, so the cap's TPA effect is CORNERED by that height/excess approximation, not a
-#     faithful inert. FVSjl is therefore identical for PASSALL 1==100==default (unwired) — asserted below to
-#     lock the inert state until the IE per-tree-height + discrete-excess port lands.
+#   • WIRED 2026-09-02 (estab-ie-discrete): the cap is now applied in ie_autoes_tally, gated to InlandEmpire.
+#     Per plot the NOTE best/excess split (estab.f:1079-1145) uses the MEASURED bit-exact rule NBEST =
+#     min(ITP,max(4,NUMSPE)) (=54/54 plots on the FVSie dump); the (NBEST−NUMSPE) tallest excess are promoted to
+#     best (generation-order proxy — EXACT for single-species-excess plots, cornered for the ~6% multi-species
+#     ones), and each residual per-species EXCESS is capped via es_pasmax_xcsmax. The uncapped path (PASMAX ≥
+#     EXCESS) is left byte-identical, so the 339/11 gate + every non-IE variant are untouched. VALIDATED on the
+#     bare dated-ESTAB stand: default(5)==PASSALL 100 (max EXCESS≤5 ⇒ no cap), PASSALL 1 moves 2002 TPA 572→496
+#     (oracle 555→477: cap delta −76 vs −78, i.e. −13.3% vs −14.1%). The absolute residual (jl 572 vs oracle 555
+#     at default) is the PRE-EXISTING IE establishment placeholder-height/growth approximation, NOT the cap.
 # =============================================================================
 
 using Test
@@ -78,11 +82,19 @@ kwline(kw, fields...) = rpad(kw, 10) * join(rpad.(string.(fields), 10)) * "\n"
         @test es_pasmax_xcsmax(20, 15f0) == (3.0f0, 5)   # IBRKUP=INT(20/5+1)=5; 20/5=4.0 > 15/5=3.0 ⇒ cap to 3.0
     end
 
-    @testset "PASSALL is currently UNWIRED in FVSjl (inert; cornered pending the height/excess port)" begin
-        # A dated-ESTAB bare stand where the ORACLE .sum DIFFERS for PASSALL 1 (477 TPA) vs default (555). FVSjl's
-        # IE establishment is a placeholder-height / probabilistic-excess approximation, so the cap is not wired to
-        # the live tally; FVSjl is byte-identical for all three. This test locks that inert state (any future wiring
-        # that reaches bit-exact-or-cornered will update it).
+    @testset "PASSALL is WIRED into the IE tally seam (caps EXCESS; default/PASSALL-100 stay uncapped)" begin
+        # A dated-ESTAB bare stand where the ORACLE .sum DIFFERS for PASSALL 1 (477 TPA) vs default (555). The cap
+        # is now wired (ie_autoes_tally, IE-gated): PASSALL 1 MOVES the 2002 TPA down (jl 572→496, oracle 555→477),
+        # while default(PASMAX=5) and PASSALL 100 stay identical (this stand's max per-plot EXCESS is ≤5 ⇒ neither
+        # caps). This test FIRES the ported branch — deleting the cap wiring makes `sum_def == sum_p1` hold and the
+        # inequality assertion fail.
+        tpa2002(t) = begin
+            v = nothing
+            for l in split(t, "\n")
+                f = split(l); (length(f) >= 3 && f[1] == "2002") && (v = parse(Int, f[3]))
+            end
+            v
+        end
         mktempdir() do dir
             # column-sensitive keyfile — NO leading indentation (STDINFO/DESIGN fields are fixed-column)
             base = "STDIDENT\n" *
@@ -108,8 +120,12 @@ kwline(kw, fields...) = rpad(kw, 10) * join(rpad.(string.(fields), 10)) * "\n"
             sum_p100 = runsum("PASSALL          100.0\n")
             # strip the timestamp header line (col-varying date) before comparing the projection rows
             body(t) = join([l for l in split(t, "\n") if !occursin("PASSALLT", l)], "\n")
-            @test body(sum_def) == body(sum_p1)
+            # PASSALL 100 == default: this stand's max per-plot EXCESS ≤ 5 ⇒ min(EXCESS,PASMAX)=EXCESS for both.
             @test body(sum_def) == body(sum_p100)
+            # PASSALL 1 caps the excess ⇒ the projection DIFFERS and 2002 TPA drops materially (jl 572→496).
+            @test body(sum_def) != body(sum_p1)
+            @test tpa2002(sum_p1) < tpa2002(sum_def)
+            @test tpa2002(sum_def) - tpa2002(sum_p1) > 30      # the cap is a large, model-affecting reduction
         end
     end
 end

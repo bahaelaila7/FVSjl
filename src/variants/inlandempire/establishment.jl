@@ -746,7 +746,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50,
                          idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
                          point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
-                         prep_sumup = nothing)
+                         prep_sumup = nothing, pasmax::Real = Inf32)
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -798,6 +798,14 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     body_n = 16 + adv_heights + excess_draws
     seeds = ie_autoes_plot_seeds(seed0, nplots; wk6 = wk6fill, body = body_n)
     tally = zeros(Float64, nsp)
+    # PASSALL/PASMAX excess-tree cap (estab.f:1079-1145 NOTE selection + 1288-1370 excess pass). When `pasmax`
+    # is finite (only the IE seam passes it; every other caller/variant leaves it Inf ⇒ this block is dead ⇒
+    # byte-identical), each plot's per-species EXCESS regen count is capped at PASMAX via es_pasmax_xcsmax. The
+    # per-tree booking below is left UNCHANGED (so the uncapped case stays byte-identical); only species whose
+    # EXCESS strictly exceeds PASMAX get a deterministic reduction Δ = capped − uncapped applied afterwards.
+    docap = isfinite(Float32(pasmax)); pmx = Float32(pasmax)
+    exc_cnt = docap ? zeros(Float32, nsp) : Float32[]        # per-species EXCESS count (NOTE=0 trees)
+    exc_sum = docap ? zeros(Float32, nsp) : Float32[]        # per-species SUMESP (Σ esprob of those excess trees)
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
         if n == 1
@@ -858,10 +866,37 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         twe = sum(we); twe > 0 && (we ./= twe)
         for _ in 1:adv_heights; ie_esrann!(rng); end                         # ADV/SUBS(nsp)+heights(2·nsp)
         wk6e = ntuple(_ -> ie_esrann!(rng), excess_draws)                    # excess-WK6 (2·MAXTPP[ihab])
-        nd = 0
+        # NOTE best/excess split (estab.f:1079-1145). MEASURED bit-exact rule (FVSie estab.f dump, 54/54 plots):
+        # NBEST = min(ITP, max(4, #distinct species)) and #distinct == NUMSPE (excess trees pick only among best
+        # species). The NBEST trees = the NUMSPE best-species trees (each its species' tallest) + the tallest
+        # (NBEST−NUMSPE) excess trees. jl has no per-tree ESXCSH height (the FIRST order-statistic TALL chain is
+        # unported), so the promoted excess are taken in generation order — EXACT for single-species-excess plots
+        # (the cap is species-independent there) and cornered only for the ~6% multi-species-excess plots (the
+        # step-1/3 cross-species height ranking). Inert unless docap.
+        npro = docap ? (min(itpp, max(4, numspe)) - numspe) : 0             # excess trees promoted to "best"
+        touched = Int[]
+        nd = 0; kx = 0
         for _ in 1:(itpp - numspe)
-            nd += 1; iplot += 1; j = ie_estab_pick_species(wk6e[nd], we); _c = esprob(iplot) * scale
+            nd += 1; iplot += 1; kx += 1
+            j = ie_estab_pick_species(wk6e[nd], we); _e = esprob(iplot); _c = _e * scale
             tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c); nd += 1
+            if docap && kx > npro                                          # a NOTE=0 (true-excess) tree
+                (exc_cnt[j] == 0f0) && push!(touched, j)
+                exc_cnt[j] += 1f0; exc_sum[j] += _e
+            end
+        end
+        if docap
+            pt = _ptof(n)
+            for j in touched
+                ex = exc_cnt[j]
+                if ex > pmx                                                # cap bites (uncapped ⇒ untouched ⇒ byte-identical)
+                    ft2 = exc_sum[j] / (ex + 1f-5)                         # FTEMP2 = SUMESP/(EXCESS+1e-5)
+                    xcs, ibrk = es_pasmax_xcsmax(ex, pmx)                  # estab.f:1288/1318-1321
+                    dlt = Float64(ibrk) * Float64(ft2 * xcs) * Float64(scale) - Float64(exc_sum[j]) * Float64(scale)
+                    tally[j] += dlt; _fillpt && (tally_pt[j, pt] += dlt)
+                end
+                exc_cnt[j] = 0f0; exc_sum[j] = 0f0                         # reset for the next plot
+            end
         end
         has_state && (nstore[n] = Int32(itpp); pnn[n] = p1)                  # carry to the next tally
     end
@@ -1229,7 +1264,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                        stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
-                       prep_sumup = nothing)
+                       prep_sumup = nothing, pasmax::Real = Inf32)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1294,7 +1329,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             bwaf = Float32(bwaf), bwb4 = Float32(bwb4), prob1 = prob1, dupnpt = Float32(dupnpt),
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
-                            point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup)
+                            point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
+                            pasmax = pasmax)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
@@ -1524,7 +1560,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
-                      prep_sumup = prep_sumup)  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
+                      prep_sumup = prep_sumup,  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
+                      # PASSALL/PASMAX excess cap (estab.f:1288). Gated to IE ONLY (EM's cap deferred — task scope);
+                      # the AUTOES ingrowth path (NTALLY==99) hardcodes PASMAX=15 (estab.f:249), else the CONFID/
+                      # PASSALL value (default 5). Every non-IE caller stays Inf ⇒ dead code ⇒ byte-identical.
+                      pasmax = (s.variant isa InlandEmpire) ? (is_ingro ? 15f0 : Float32(est.pasmax)) : Inf32)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
