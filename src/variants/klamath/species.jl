@@ -37,4 +37,4 @@ load_species_coefficients!(s::StandState, v::Klamath) = init_blockdata!(s, v)
 
 # SPCTRN crosswalk target column — NC CSV mirrors the 7-col layout (target_nc ×4) ⇒ col 4.
 spctrn_column(::Klamath) = 4
-other_species(::Klamath) = Int32(1)   # NC "OS" (other softwood) = species 1
+other_species(::Klamath) = Int32(11)  # NC unmatched-species default = OH (spctrn.f:1338 CASE('NC') ISPC1=11); NOT OS(1)
