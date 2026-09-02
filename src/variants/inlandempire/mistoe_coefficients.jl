@@ -531,3 +531,127 @@ function ie_mistoe!(s::StandState; fint::Float32)
     end
     return s
 end
+
+# ============================================================================
+# MISTPINF — forced initial dwarf-mistletoe infection (mistoe/misinf.f MISINF, activity 2006).
+# Introduced infection, so RNG-bearing (the random method draws the MISRAN LCG). Runs each cycle
+# AFTER the spread model (cr_mistoe!/ie_mistoe!, mistoe.f:517) and BEFORE DM mortality (the same
+# order as mistoe.f: MISTOE spread → MISINF → MISMRT). Applies any MISTPINF card whose date falls
+# in this cycle (single-cycle, OPDONE), then the DM mortality/growth-loss effects pick up the new
+# per-tree DMR. No card due ⇒ byte-identical (the whole routine is skipped when s.control.mistpinf
+# is empty, so mistletoe-free non-MISTPINF runs are untouched — RNG-safe: the JRAN LCG is a SEPARATE
+# stream from rann!, advanced only here).
+# ============================================================================
+
+# MISRAN (mistoe/misran.f): fill iarray[1..isize] with a random permutation of 1..isize using the
+# dwarf-mistletoe LCG (Numerical Recipes portable generator, IM/IA/IC below). The JRAN state lives
+# in s.control.dm_jran (misin0.f seed 123231) and PERSISTS across MISINF calls within a stand.
+function misran_perm!(iarray::Vector{Int}, isize::Int, s::StandState)
+    isize < 1 && return iarray
+    IM = 233280; IA = 1861; IC = 49297
+    tarray = falses(isize)
+    jran = Int(s.control.dm_jran)
+    @inbounds for i in 1:isize
+        iran = 0
+        while true
+            jran = mod(jran * IA + IC, IM)              # misran.f:91 JRAN=MOD(JRAN*IA+IC,IM)
+            iran = 1 + (isize * jran ÷ IM)              # misran.f:92 IRAN=INT(1+(ISIZE*JRAN/IM))
+            (1 <= iran <= isize) && break               # misran.f:96 reject out-of-range (never fires here)
+        end
+        while tarray[iran]                              # misran.f:102-107 linear-probe to next free slot
+            iran += 1; iran > isize && (iran = 1)
+        end
+        tarray[iran] = true
+        iarray[i] = iran
+    end
+    s.control.dm_jran = Int32(jran)
+    return iarray
+end
+
+"""
+    dm_misinf!(s)
+
+MISTPINF forced initial dwarf-mistletoe infection (misinf.f). For CR and the N-Rockies Wykoff DM
+variants: infects a proportion of a targeted species' TPA by setting DMR (0-trees only) round-robin
+1..LEVEL, over a visit order chosen by METHOD (0 = random via MISRAN, 1 = tallest→shortest, 2 =
+shortest→tallest). No-op when no card is due (⇒ byte-identical, RNG-safe).
+"""
+function dm_misinf!(s::StandState)
+    isempty(s.control.mistpinf) && return s
+    is_cr = s.variant isa CentralRockies
+    (is_cr || _ie_mis_variant(s.variant)) || return s
+    t = s.trees; n = t.n; n == 0 && return s
+    c = s.control
+    yr = Int(current_cycle_year(s)); per = cycle_period_at(c, Int(c.cycle)); fvscyc = Int(c.cycle) + 1
+    # cards due THIS cycle: calendar-year date in [yr, yr+per), OR cycle-number date (<1000) == this
+    # 1-based cycle (mirrors the OPFIND/OPDONE single-cycle scheduling, same filter as establish!).
+    due = [a for a in c.mistpinf if (yr <= Int(a.year) < yr + per) ||
+           (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)]
+    isempty(due) && return s
+
+    misfit, maxsp = is_cr ? (CR_DM_MISFIT, 38) :
+                    (let (mf, _, _, ms) = _mis_tables(s.variant); (mf, ms) end)
+    mfit(sp::Int) = (1 <= sp <= length(misfit)) ? Int(misfit[sp]) : 0
+
+    newprp = zeros(Float32, maxsp); newlev = zeros(Int, maxsp); newtyp = zeros(Int, maxsp)
+    # each due card assigns per-species (last card wins); species 0 ⇒ all species (misinf.f:142-156).
+    # NEWPRP=PRM(2)·MISFIT, NEWLEV=INT(PRM(3))·MISFIT, NEWTYP=INT(PRM(4))·MISFIT (non-host ⇒ 0).
+    for a in due
+        ispc = round(Int, a.params[1])
+        prop = a.params[2]; lvl = Int(floor(a.params[3])); mth = Int(floor(a.params[4]))
+        if ispc != 0
+            (1 <= ispc <= maxsp) || continue
+            f = mfit(ispc); newprp[ispc] = prop * f; newlev[ispc] = lvl * f; newtyp[ispc] = mth * f
+        else
+            for sp in 1:maxsp
+                f = mfit(sp); newprp[sp] = prop * f; newlev[sp] = lvl * f; newtyp[sp] = mth * f
+            end
+        end
+    end
+
+    # species TPA totals + validity translation (misinf.f:160-211).
+    sptpat = zeros(Float32, maxsp)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); (1 <= sp <= maxsp) && (sptpat[sp] += t.tpa[i])
+    end
+    newinf = zeros(Float32, maxsp); newcnt = zeros(Float32, maxsp); newflg = false; nutype = -1
+    for sp in 1:maxsp
+        newprp[sp] < 0f0 && (newprp[sp] = 0f0)
+        if newprp[sp] > 0f0
+            newflg = true
+            newprp[sp] > 1f0 && (newprp[sp] = 1f0)
+            newinf[sp] = sptpat[sp] * newprp[sp]
+            (newlev[sp] < 1 || newlev[sp] > 6) && (newlev[sp] = 1)     # default DMR level 1
+            (newtyp[sp] < 0 || newtyp[sp] > 2) && (newtyp[sp] = 0)     # default method random
+            nutype == -1 && (nutype = newtyp[sp])                      # only the FIRST method is used
+        end
+    end
+    newflg || return s
+
+    # visit order over the ITRN records (misinf.f:222-255). RDPSRT(.TRUE.) reinitializes the index to
+    # 1..ITRN then sorts DESCENDING on height, so both branches ultimately visit PHYSICAL records.
+    trindx = collect(1:n)
+    if nutype == 1 || nutype == 2
+        htindx = Float32[t.height[i] for i in 1:n]
+        rdpsrt!(n, htindx, trindx, true)          # tallest → shortest
+        nutype == 2 && reverse!(trindx)           # shortest → tallest
+    else
+        misran_perm!(trindx, n, s)                # random (MISRAN / JRAN LCG)
+    end
+
+    # assign DMR round-robin 1..NEWLEV to uninfected trees of a targeted species until the desired
+    # TPA is reached (misinf.f:260-286).
+    idmptr = ones(Int, maxsp)
+    @inbounds for k in 1:n
+        indx = trindx[k]
+        sp = Int(t.species[indx]); (1 <= sp <= maxsp) || continue
+        p = t.tpa[indx]
+        if t.dmr[indx] == 0 && newprp[sp] > 0f0 && (newcnt[sp] + p) <= newinf[sp]
+            t.dmr[indx] = Int32(idmptr[sp])
+            newcnt[sp] += p
+            idmptr[sp] += 1
+            idmptr[sp] > newlev[sp] && (idmptr[sp] = 1)
+        end
+    end
+    return s
+end

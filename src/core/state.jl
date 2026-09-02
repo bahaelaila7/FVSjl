@@ -308,6 +308,14 @@ mutable struct Control
     svs_igrid::Int32                          # ground-file grid resolution (0 ⇒ none)                 (IGRID)
     svs_imetric::Int32                        # 0=imperial, 1=metric output                            (IMETRIC)
     svs_keystem::String                       # stem for <stem>_index.svs / <stem>_NNN.svs             (KWDFIL)
+
+    # MISTPINF (mistoe/misin.f opt 10, activity 2006 → misinf.f MISINF): forced initial dwarf-mistletoe
+    # infection. Each card = ScheduledActivity(year, 2006, (species, proportion, level, method, 0, 0)).
+    # `year` = the raw date field (calendar year, or cycle number <1000; blank ⇒ 1). Fires in the cycle
+    # its date falls in, once (OPDONE — single-cycle; not carried forward). Multiple cards allowed.
+    mistpinf::Vector{ScheduledActivity}
+    dm_jran::Int32                            # MISRAN dwarf-mistletoe LCG state (misin0.f JRAN=123231, MISCOM);
+                                              # advanced ONLY by the MISTPINF random-method infection (misran.f)
 end
 
 function Control()
@@ -372,6 +380,7 @@ function Control()
         false,                                                   # growth_dg_set (GROWTH FINT explicitly set?)
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
+        ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
     )
 end
 

@@ -796,6 +796,44 @@ function kw_mistmult!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# MISTPINF (mistoe/misin.f opt 10, activity 2006 → misinf.f MISINF): introduce a forced initial
+# dwarf-mistletoe infection on a proportion of a species' trees. Field 1 = date (blank ⇒ IDT=1),
+# field 2 = species (SPDECD: 0/blank/"ALL" = all host species, else a code/sequence index),
+# field 3 = proportion of that species' TPA to infect (0..1, blank ⇒ 0), field 4 = infection LEVEL
+# (DMR 1..6, blank ⇒ 1), field 5 = infection METHOD (0 = random/1 = hi→lo/2 = lo→hi, blank ⇒ 0).
+# misin.f validates (species 0..MAXSP, prop 0..1, level 1..6, method 0..2) and, if valid, schedules
+# the activity via OPNEW(2001→2006). MISINF consumes it in the cycle its date falls in (single-cycle;
+# OPDONE), setting the tree DMR round-robin 1..LEVEL over the chosen visit order. SPDECD writes the
+# resolved species SEQUENCE INDEX back into ARRAY(2) before OPNEW, so we store the decoded index.
+function kw_mistpinf!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    yr = pr[1] ? Int32(nint(v[1])) : Int32(1)                         # blank date ⇒ IDT=1
+    # --- species field (SPDECD): 0/blank/"ALL"/"0" ⇒ all hosts; numeric ⇒ sequence index; alpha ⇒ resolve.
+    spf = length(rec.fields) >= 2 ? strip(rec.fields[2]) : ""
+    numf = tryparse(Float64, spf)
+    num  = numf === nothing ? nothing : round(Int, numf)
+    sp = if isempty(spf) || uppercase(spf) == "ALL" || num == 0
+        Int32(0)
+    elseif num !== nothing
+        Int32(num)                                                   # sequence index (or −N group; validated below)
+    else
+        idx, _ = resolve_species(spf, s.variant, s.species, s.coef)
+        Int32(idx)
+    end
+    prop  = pr[3] ? Float32(v[3]) : 0f0                              # blank ⇒ 0 (misin.f:468)
+    level = pr[4] ? Float32(v[4]) : 1f0                              # blank ⇒ 1 (misin.f:469)
+    meth  = pr[5] ? Float32(v[5]) : 0f0                              # blank ⇒ 0 (misin.f:470)
+    maxsp = Int32(nspecies(s.variant))
+    # misin.f validation gate (opt 10): an invalid card is rejected (ERRGRO) and NOT scheduled.
+    (sp < 0 || sp > maxsp) && return                                # invalid species code (misin.f:485)
+    (prop < 0f0 || prop > 1f0) && return                            # invalid proportion (misin.f:492)
+    (level < 1f0 || level > 6f0) && return                          # invalid DMR level (misin.f:499)
+    (meth < 0f0 || meth > 2f0) && return                            # invalid method (misin.f:506)
+    push!(s.control.mistpinf,
+          ScheduledActivity(yr, Int32(2006), (Float32(sp), prop, level, meth, 0f0, 0f0)))
+    return
+end
+
 """
     active_fmort_mult(control, sp, year, dbh) -> Float32
 
@@ -2671,6 +2709,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "DMAUTO";   kw_dmauto!(s, rec)        #   spatial autocorrelation decay (DMALPHA/DMBETA)
         elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
         elseif kw == "MISTMULT"; kw_mistmult!(s, rec)      #   DM spread-probability multipliers (misin.f opt 1: YPLMLT/YNGMLT)
+        elseif kw == "MISTPINF"; kw_mistpinf!(s, rec)      #   forced initial DM infection (misin.f opt 10 → misinf.f MISINF)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

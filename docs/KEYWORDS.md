@@ -38,7 +38,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 > [FVS-Climate](#fvs-climate-climate), and [canopy & shrub COVER](#canopy--shrub-cover). Each
 > entry is written from the FVSjl parser and cross-checked against the Fortran keyword reader,
 > and flags honestly where a keyword is **parsed-but-inert** or **not implemented** in FVSjl
-> (e.g. `MISTPINF`, several report-only cards). The ORGANON growth model (OC/OP) is
+> (several report-only cards). The ORGANON growth model (OC/OP) is
 > a *variant*, not a keyword. See [PORT_STATUS.md](PORT_STATUS.md) for validation status.
 
 > There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that describes a
@@ -70,7 +70,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
   - [Economics (ECON)](#economics-econ) — ECON · STRTECON · ANNUCST · HRVVRCST · HRVRVN · TCONDMLT
   - **Extension models:**
     - [Insect models — bark beetles (DFB / DFTM / MPB)](#insect-models--bark-beetles-dfb--dftm--mpb) — DFB · DFTM · MPB blocks (MANSTART · RANSTART · MANSCHED · RANSCHED · RANNSEED · … + model-specific cards)
-    - [Dwarf mistletoe](#dwarf-mistletoe) — MISTOE · MISTPRT · MISTMULT · DMAUTO (MISTPINF not implemented)
+    - [Dwarf mistletoe](#dwarf-mistletoe) — MISTOE · MISTPRT · MISTMULT · MISTPINF · DMAUTO
     - [Western Root Disease (RRIN)](#western-root-disease-rrin) — RDIN block · RRTYPE · RRINIT · SAREA · RSEED · BBCLEAR · report cards
     - [Western pine beetle & landscape (WWPB / NEWSPRED)](#western-pine-beetle--landscape-wwpb--newspred) — BMIN block · DISPERSE · NEWSPRED
     - [FVS-Climate (CLIMATE)](#fvs-climate-climate) — CLIMATE block · CLIMDATA · GROWMULT · MORTMULT · MXDENMLT · AUTOESTB
@@ -4269,17 +4269,32 @@ to baseline, cyc0 DM report bit-exact with the card, and an `inc=2.0` card raise
 the DM rating + DM-mortality the same direction as the oracle (cyc1+ magnitude
 tracks the pre-existing DM-report AUTOES-regen projection straddle).
 
-#### MISTPINF  *(recognized by stock FVS — not parsed in FVSjl)*
-**What it does:** In stock FVS the mistletoe block (misin.f opt 10) also reads
-`MISTPINF`, which introduces new infections at a chosen level.
-**FVSjl does not implement this** — it is not in the keyword dispatch, so a
-`MISTPINF` card is recorded in `unrecognized_keywords` and has **no effect** on
-the projection. For reference, stock FVS reads:
-- `MISTPINF`: `date`(1), `species`(2), `proportion_to_infect`(3, dflt 0, range 0–1),
-  `dmr_level`(4, dflt 1, DMR 1–6), `method`(5, dflt 0, 0–2).
+#### MISTPINF  *(implemented — misin.f opt 10 → misinf.f MISINF, activity 2006)*
+**What it does:** Introduces a forced initial dwarf-mistletoe infection on a
+proportion of a species' trees at a chosen rating. Fields: `date`(1, blank ⇒
+cycle 1), `species`(2, SPDECD: 0/blank/`ALL` = all host species, else a code /
+sequence index), `proportion_to_infect`(3, dflt 0, range 0–1), `dmr_level`(4,
+dflt 1, DMR 1–6), `method`(5, dflt 0 — 0 = random, 1 = tallest→shortest, 2 =
+shortest→tallest). An out-of-range card is rejected at parse (as in `misin.f`).
+**Parsed by `kw_mistpinf!`** into `s.control.mistpinf` (a `ScheduledActivity`,
+activity 2006) and applied by **`dm_misinf!`** each cycle its date falls in
+(single-cycle, after the spread model — `mistoe.f:517`), setting the tree DMR
+(0-trees only) round-robin `1..LEVEL` over the chosen visit order. The random
+method draws the separate **MISRAN JRAN LCG** (`misran.f`, seed 123231) — never
+the main `rann!` stream, so a stand with **no `MISTPINF` card is byte-identical**.
 
-*The FVSjl mistletoe seam honors `MISTOE`/`MISTPRT`/`MISTMULT`/`NEWSPRED`/`DMAUTO`;
-the infection-introduction card `MISTPINF` remains an unported no-op.*
+Validated vs live `FVScr_clean` on the 6-tree CR DM stand: with `LEVEL=1` and a
+proportion that saturates the uninfectable trees, the introduction cycle is
+**bit-exact** (Mean_DMR / Inf_TPA / Mort_TPA), for all three methods (order is
+irrelevant when every infected tree gets DMR 1). **Cornered** (`LEVEL>1` /
+partial proportion): FVS round-robins the rating over the *tripled* treelist —
+assigning DMR 1,2,3 across one tree's three sub-records — whereas FVSjl carries a
+single DMR per central record (the sub-records are materialized later, at
+`UPDATE`); the exact `LEVEL>1` rating spread and the random selection for a
+partial proportion straddle the oracle (same central-record-DMR / tripling gap
+the DM spread report documents), though the direction is correct.
+
+*The FVSjl mistletoe seam honors `MISTOE`/`MISTPRT`/`MISTMULT`/`MISTPINF`/`NEWSPRED`/`DMAUTO`.*
 
 ---
 
