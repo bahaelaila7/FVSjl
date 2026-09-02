@@ -57,12 +57,76 @@ end
     end
 end
 
+"nc/dgbnd.f (IE) — cap the small-tree diameter increment at the TREESZCP size cap (inert at the 999 default)."
+@inline function nc_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap1::Float32, sizcap3::Float32)::Float32
+    if (dbh + ddg) > sizcap1 && sizcap3 < 1.5f0
+        ddg = sizcap1 - dbh
+        ddg < 0.01f0 && (ddg = 0.01f0)
+    end
+    return ddg
+end
+
+"""nc/regent.f LSTART calibration (DO 90 loop): the small-tree HEIGHT-increment CON = RHCON·exp(HCOR).
+HCOR = ln(CORNEW), CORNEW = Σ(observed·P)/Σ(predicted·P) over DBH<5 trees with a measured HTG — observed =
+the measured height increment scaled to 5-yr (HTG·SCALE3, SCALE3=REGYR/FINTH), predicted = the raw HTGR5 on
+the BACKDATED height/stand (RHCON=1). Trapped to CORNEW∈[0.0821,12.1825] (±2.5 SD of ln), else reset to 1.
+Called from calibrate_diameter_growth! where t.dbh is backdated and t.ht_growth holds the measured increment.
+The RAW HCOR goes into htg_cor_init; the shared dgdriv per-cycle attenuation (diameter_growth.jl:1133-1136)
+produces the applied htg_cor_small = WCI + cormlt_h·(HCOR_init−WCI), WCI=dg_cor_goal (=0 for a species with no
+diameter COR), cormlt_h=exp(−0.02773·elapsed_end). At cyc1 (elapsed 0, +5) ⇒ CON=exp(0.8705·HCOR_raw). Verified
+vs FVSnc_g16 dumps: BO raw HCOR −0.8059 (CORNEW 0.4467) → applied −0.7016 (CON 0.4958) → cyc1 HTG/DG bit-exact."""
+function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    # BACKDATED stand BA (t.dbh is backdated here) over LIVE + recently-dead records (the notre-inflated
+    # dead added back at their backdated dbh), matching regent.f's start-of-period XBA. (regent.f:390 XBA=BA)
+    ba = 0f0
+    @inbounds for i in 1:(t.n + t.ndead)
+        d = t.dbh[i]; ba += 0.005454154f0 * d * d * t.tpa[i]
+    end
+    ba <= 0f0 && (ba = 0.1f0)
+    avh = p.avg_height
+    regyr = NC_REGYR
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 10f0   # NC measured HTG period = IFINT=10
+    scale3 = regyr / finth                                                 # regent.f:363 SCALE3=REGYR/FINTH
+    @inbounds for sp in 1:12
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        ssite = p.sp_site_index[sp]
+        snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
+        for k in i1:i2
+            i = ind1[k]
+            saved_dbh[i] >= 5.0f0 && continue                 # regent.f:378 DBH<5 (current dbh)
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue     # regent.f:379 measured HTG≥0.001
+            hb = t.height[i] - hg; hb < 0.01f0 && continue    # regent.f:376 backdated H (IHTG<2)
+            cr = Float32(t.crown_pct[i]) * 0.1f0              # ICR/10
+            relht = avh > 0f0 ? hb / avh : 1f0; relht > 1.5f0 && (relht = 1.5f0)
+            xhtgr = nc_htgr5(sp, ssite, ba, relht, cr, hb)    # predicted; RHCON=1 ⇒ EDH=XHTGR
+            term = hg * scale3                                # observed, scaled to 5-yr
+            pr = t.tpa[i]
+            snx += xhtgr * pr; sny += term * pr; snp += pr; nh += 1
+        end
+        nh < 5 && continue                                    # NCALHT
+        snx /= snp; sny /= snp
+        cornew = snx > 0f0 ? sny / snx : 1f0
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        # RAW HCOR into htg_cor_init; the shared dgdriv attenuation (calibrate/diameter_growth.jl:1133-1136)
+        # produces the applied htg_cor_small = WCI + cormlt_h·(HCOR_init − WCI) each cycle (WCI=dg_cor_goal).
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end
+
 function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.0f0)
     p, t = s.plot, s.trees
     dens = s.density; sd = s.coef.species
     ba = p.basal_area; avh = p.avg_height
     scale = fint / NC_REGYR
+    scale2 = NC_REGYR / fint         # regent.f:126 SCALE2=YR/FNT (=1 for the native 5-yr NC cycle)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
+    hcor = s.calib.htg_cor_small     # regent.f:159 CON = RHCON(=1)·exp(HCOR)
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -75,7 +139,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         tpccf <= 75.0f0 && (relht = 1.0f0 - ((relht - 1.0f0) / 75.0f0) * tpccf)
         relht > 1.5f0 && (relht = 1.5f0)
         cr = Float32(t.crown_pct[i]) * 0.1f0                   # regent.f:183 CR=ICR(I)/10.0 (0–10 scale, NOT /100)
-        htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale   # CON=1, XRHMLT=1
+        htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale * exp(hcor[sp])   # ·CON(=exp(HCOR)); XRHMLT=1
         # height: XWT blend with the large-tree HTG (already in t.ht_growth[i])
         xmn = NC_ST_XMIN[sp]; xmx = NC_ST_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn) / (xmx - xmn)
@@ -85,10 +149,12 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
-        # small-tree DG (D < DGMIN): HT-DBH (SISKIY) DK/DKK
+        # small-tree DG (D < DGMIN): HT-DBH (SISKIY) DK/DKK (regent.f:243-320).
         if d < NC_ST_DGMIN[sp]
             hk = h + htg
             if hk <= 4.5f0
+                # regent.f:245-247 — DBH(K)=D+HK·0.001, DG(K)=0 (tiny sub-breast-height nudge).
+                t.dbh[i] = d + hk * 0.001f0
                 t.diam_growth[i] = 0f0
             else
                 dk = nc_htdbh_d(sp, hk)
@@ -96,10 +162,21 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
                 bark = bark_ratio(bark_a, bark_b, sp, d)
                 dgsm = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dk - dkk) * bark
                 dgsm < 0f0 && (dgsm = 0f0)
-                # blend small-tree DG with large-tree DG via XWT
-                dglt = t.diam_growth[i]
-                dg = dgsm * (1f0 - xwt) + xwt * dglt
-                (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)
+                # regent.f:305-318 — DDS-space transform (SCALE2=YR/FNT), then back to DBH increment.
+                # NON-redwood uses the pure small-tree DGSM (NO large-tree XWT blend, unlike height);
+                # ONLY redwood (sp12) blends small/large DG via XDWT=(D-XMN)/(DGMIN-XMN).
+                dds = dgsm * (2f0 * bark * d + dgsm) * scale2
+                local dg::Float32
+                if sp == 12
+                    dgsm2 = sqrt((d * bark)^2 + dds) - bark * d
+                    xdwt = d <= xmn ? 0f0 : (d - xmn) / (NC_ST_DGMIN[sp] - xmn)
+                    dglt = t.diam_growth[i]
+                    dg = dgsm2 * (1f0 - xdwt) + dglt * xdwt
+                else
+                    dg = sqrt((d * bark)^2 + dds) - bark * d
+                end
+                (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)   # regent.f:319 DIAM floor
+                dg = nc_dgbnd(sp, d, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
                 t.diam_growth[i] = dg
             end
         end

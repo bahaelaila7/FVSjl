@@ -757,6 +757,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # over-growth on dense stands where the calibration fires (#171). Inert on iet01 (no measured small-tree HTG).
     s.variant isa InlandEmpire && ie_regent_hcor_init!(s, isct, ind1, saved_dbh)
 
+    # NC (Klamath) regent small-tree HEIGHT calibration (nc/regent.f LSTART DO 90): raw HCOR → htg_cor_small,
+    # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
+    # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
+    s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
     # LIVE + the RECENTLY-DEAD records (trees that died within the measurement period, added back at their dbh);
