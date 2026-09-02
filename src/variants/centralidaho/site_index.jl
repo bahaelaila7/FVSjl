@@ -66,6 +66,14 @@ end
 "ci/sitset.f: SITEAR site-range default + forest-dependent SDImax (IFOR<2 Stage / IFOR≥2 Zeide R4SDI)."
 function ci_sitset!(s::StandState, icindx::Int, ifor::Int)
     p = s.plot; sd = s.coef.species
+    # ci/sitset.f:153 — the R1 Nez Perce forest (IFOR 1 = 117, IFOR<2) resets LZEIDE=.FALSE. (Reineke SDI)
+    # unless a SDICALC keyword set CALCSDI (sdi_method non-blank); R4 forests (IFOR≥2) keep the grinit Zeide
+    # default. Mirrors the NC/SO R6 resets. process_keywords! runs before site_setup! so a blank sdi_method
+    # here == CALCSDI blank at the Fortran SITSET call. (No IFOR<2 CI stands exist in the FIA population, so
+    # this is faithfulness-only for the swept variant, but a Nez Perce keyfile now reports Reineke like FVSci.)
+    if ifor < 2 && all(isspace, s.control.sdi_method)
+        s.control.zeide_sdi = false
+    end
     slo_a = sd[:site_lo]; shi_a = sd[:site_hi]
     isisp = Int(p.site_species)
     tem = 50.0f0
