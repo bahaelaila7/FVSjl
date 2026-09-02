@@ -183,6 +183,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_sprout_table.jl")  # SPROUT per-species/DBH-range multiplier table (esuckr act 450) vs live FVS
     include("integration/test_estab_pccf.jl")     # regen crown ratio uses stand CCF (PCCF), not 0 — vs live FVS
     include("integration/test_estab_rng_d10.jl")  # D10: establishment :estab RNG stream (RAN window + WK6/NTALLY draws) vs live FVS
+    include("integration/test_ie_addtrees.jl")    # ADDTREES (ESTAB opt 28, esaddt.f): external-regen bridge — writes .es1, runs CMDLN, reads back a .es2 activity block (OPRDAT) and schedules 430/431 into the validated PLANT path. Staged-read A/B vs live FVSie: bridge==direct PLANT keyword bit-exact (both sides) + null-bridge inert bit-exact (both sides)
     include("integration/test_thinprsc_fragment_d14.jl")  # D14: THINPRSC residual≤0.0005 whole-tree deletion (cuts.f:1632) vs live FVS
     include("integration/test_fire_rng_restore_d15.jl")  # D15: FMEFF RANNGET/RANNPUT RNG save-restore (post-fire growth) vs live FVS
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)

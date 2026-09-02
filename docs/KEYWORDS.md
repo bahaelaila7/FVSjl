@@ -60,7 +60,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
   - [Growth calibration & modifiers](#growth-calibration--modifiers) — GROWTH · NOCALIB · READCORD/H/R · REUSCORD/H/R · BAIMULT · HTGMULT · CRNMULT · REGDMULT · REGHMULT · DGSTDEV · SERLCORR · RANNSEED · FIXDG · FIXHTG · FIXMORT · MORTMULT · MORTMSB · TREESZCP · NOHTDREG · HTGSTOP · TOPKILL
   - [Thinning & harvest](#thinning--harvest) — THINBBA · THINABA · THINBTA · THINATA · THINSDI · THINCC · THINHT · THINQFA · THINRDEN · THINDBH · THINPT · SETPTHIN · THINAUTO · THINPRSC · SPECPREF · LEAVESP · SPLEAVE · CUTEFF · MINHARV · SALVAGE · YARDLOSS
   - [Establishment & regeneration](#establishment--regeneration) — ESTAB · PLANT · NATURAL · SPROUT · NOSPROUT · NOAUTOES
-  - [Establishment packet — ingrowth, tally & site prep](#establishment-packet--ingrowth-tally--site-prep) — STOCKADJ · TALLY/TALLYONE/TALLYTWO · THRSHOLD · INGROW/NOINGROW · AUTALLY/NOAUTALY · MINPLOTS · MECHPREP · BURNPREP · SPECMULT · HTADJ · HABGROUP · OUTPUT · PASSALL · PLOTINFO
+  - [Establishment packet — ingrowth, tally & site prep](#establishment-packet--ingrowth-tally--site-prep) — STOCKADJ · TALLY/TALLYONE/TALLYTWO · THRSHOLD · INGROW/NOINGROW · AUTALLY/NOAUTALY · MINPLOTS · MECHPREP · BURNPREP · SPECMULT · HTADJ · ADDTREES · HABGROUP · OUTPUT · PASSALL · PLOTINFO
   - [Species groups](#species-groups) — SPGROUP
   - [Site & treatments](#site--treatments) — SETSITE · FERTILIZ
   - [Volume & merchandising](#volume--merchandising) — VOLUME · BFVOLUME · VOLEQNUM · MCDEFECT · BFDEFECT · MCFDLN · BFFDLN
@@ -1751,6 +1751,32 @@ END
     - END: {}
 ```
 *Adds 5 ft to the established height of species 3's regeneration (validated ~bit-exact vs FVSci: Δmean 4.993 ft).*
+
+#### ADDTREES
+**What it does:** Bridges regeneration to an **external regeneration-model executable** (esin.f opt 28 → `estb/esaddt.f`, activity `432`). With `method = 1` the NEXT card is a shell command line (`CMDLN`). When the scheduled activity fires at the ESNUTR establishment seam, FVSjl writes a `.es1` stand-summary file (`<KWDFIL>_<NPLT>_<KDT>_<VARACD>.es1`; stand id, planting year, habitat/slope/aspect/elevation, before/after SDI & BA, per-species regen TPA), runs `CMDLN` (the external model reads the `.es1` and writes a `.es2`), then reads the model's `.es2` **activity block** and schedules each returned activity. A `.es2` is a first line `IKEEP` (1 = keep the file, else delete it after reading), then a block keyed by the stand id of free-format `IACTK IDT NPRMS PRMS…` records ending at an `End` line; `430`/`431` records route into the **already-validated PLANT/NATURAL** regen path — so the added trees come from a scheduled PLANT firing, not a raw tree reader. When the external model returns no `.es2` (or an empty block) the card is **inert** — it adds nothing. Only `method = 1` is wired (the in-tree data-base variants are a no-op in esaddt.f).
+**Parameters:**
+- `date`(1) — calendar year (≥ 1000) or cycle number (< 1000) the bridge fires in (`IDT`); blank ⇒ cycle 1.
+- `offset`(2) — planting-year offset `IYR1` added to the cycle-end year to form the `IPYR` written into the `.es1`; default 0.
+- `method`(3) — `1` = run an external program (the only portable path; reads the next card as `CMDLN`). Other/blank ⇒ no in-tree effect.
+- *(next card, method = 1 only)* — the verbatim external command line (`CMDLN`); FVSjl appends the `.es1` filename before running it.
+**Example:**
+```text
+ESTAB         1992
+NOAUTOES
+NOINGROW
+ADDTREES      1992         0         1
+/path/to/regen_model
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 1992 }
+    - NOAUTOES: {}
+    - NOINGROW: {}
+    - ADDTREES: { date: 1992, offset: 0, method: 1, command: "/path/to/regen_model" }
+    - END: {}
+```
+*Schedules the external regen model to run in 1992; the model's `.es2` PLANT/NATURAL records are scheduled into the validated regen path. Validated by a staged-read A/B vs live FVSie: `ADDTREES` + a staged `.es2` PLANT is **byte-identical to a native `PLANT` keyword** on both the oracle and FVSjl, and a null bridge (no `.es2`) is **byte-identical to the packet with no `ADDTREES` card**.*
 
 #### HABGROUP
 **What it does:** Requests a printed listing of the **habitat-type groups** table (esin.f opt 14 → ESMSGS report). It is **pure report control**: FVSjl recognizes and consumes it inside the packet but emits no establishment `.out` report, so it has no effect on the `.sum`, the tree list, or the RNG stream — **faithfully inert** on the exercised scope.

@@ -109,13 +109,21 @@ max-contiguous-clearcut are deferred-documented.
 
 ## Known exceptions / not-yet-closed
 
-- **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **not** "no in-tree source" (that earlier note was
-  wrong): the in-tree code is a *bridge* to an external regeneration-model executable — it writes a
-  `.es1` stand-summary, runs `SYSTEM(CMDLN)` (the external model), and reads back a `.es2` **activity
-  block** (`OPRDAT` → `IACTK IDT NPRMS PRMS…`; e.g. `431`=PLANT), scheduling those activities (the added
-  trees then come from the already-validated PLANT path). The bridge is portable and oracle-validatable
-  via a staged `.es2` (trivial `CMDLN` + a pre-staged deterministic `.es2` so the oracle and FVSjl read
-  the same activities); only the external model exe is out-of-tree. Not yet ported.
+- **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
+  `FVSie_g16`). The in-tree code is a *bridge* to an external regeneration-model executable: the keyword
+  (esin.f opt 28) schedules an activity `432`; when it fires at the ESNUTR establishment seam
+  (`addtrees_bridge!`, establishment.jl) FVSjl writes the `<KWDFIL>_<NPLT>_<KDT>_<VARACD>.es1`
+  stand-summary, runs `SYSTEM(CMDLN)` (the external model), then reads back the model's `.es2` **activity
+  block** (`OPRDAT` → first line IKEEP, then `IACTK IDT NPRMS PRMS…` records keyed by the stand id until
+  `End`) and OPADD-schedules each activity — `430`/`431` route into the already-validated PLANT/NATURAL
+  regen path (`s.control.schedule`, the `due` filter in `establish!`). Only the external model exe is
+  out-of-tree. **A/B (test_ie_addtrees.jl + manual FVSie_g16):** `ADDTREES(es2:430)` is **byte-identical
+  to the direct `PLANT` keyword on BOTH the oracle and FVSjl** (the bridge injects exactly a native PLANT
+  card), and a **null bridge** (no `.es2`) is **byte-identical to the same packet with no ADDTREES card on
+  both sides**. The oracle-vs-jl gap on the *plain PLANT path itself* (a synthetic bare NOTREES stand:
+  oracle 911 vs jl 364 TPA @2002) is the **pre-existing IE bare-plot establishment straddle**
+  (EZCRUISE/INADV) — not introduced by the bridge, which is bit-exact to the PLANT path. IMET≠1 (in-tree
+  data-base variants of ADDTREES) has no in-tree effect (esin.f falls through) and is not wired.
 - **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
   SIGSEGV; ON is validated via the inline path, not a live DB oracle.
 - **Western full-population FIA sweep** — clean re-run on final code under way
