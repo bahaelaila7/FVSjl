@@ -693,6 +693,44 @@ function ie_esetpr_sample(sumup, wk6::AbstractVector, nptids::Integer, idup::Int
     return ipprep
 end
 
+# esprep.f — DEFAULT site-prep proportions P(NONE)/P(MECH)/P(BURN) by habitat series, used when the USER
+# supplied NO MECHPREP/BURNPREP keyword (estab.f:365-370 → CALL ESPREP(ISER,PNONE,PMECH,PBURN)). Each is a
+# per-series logistic in cos/sin(ASPECT)·SLOPE, SLOPE, ln(BA+1) and ELEV. XPREP(prep,iser) coefficients from
+# esblkd.f (NONE/MECH/BURN/ROAD × series 1..5). The three probabilities are then NORMALIZED into the SUMUP the
+# per-plot IPPREP sample-without-replacement consumes. MEASURED on FVSie_g16 na_def (bare IE dated ESTAB,
+# series 4): PNONE/PMECH/PBURN → 0.48/0.26/0.26 (the regen-report SITE PREP SUMMARY), and because the stocking
+# logit ie_estock carries a per-IPREP SPRE term (ieq=2 grand-fir: 0/−0.16145/−0.18933), the per-plot PROB1
+# splits 0.699/0.663977/0.657729 whose 48/26/26 mean = 0.6792 = the oracle report's stocking probability.
+const _IE_XPREP = Float32[  # [iser 1..5, prep(NONE,MECH,BURN,ROAD)] — esblkd.f DATA XPREP (column-major)
+    0.0        0.0        0.0        0.0;
+    0.085732  -0.226844   0.087087   0.620176;
+    0.151164  -0.605840  -0.097998   1.390994;
+    0.680760  -0.832692  -0.756665   0.951442;
+    0.203387  -0.305596  -0.263820   0.995664]
+
+"""
+    ie_esprep(iser, aspect, slope, ba, elev) -> (pnone, pmech, pburn)
+
+IE default site-prep probabilities (estb/esprep.f). `aspect` in radians, `slope` fraction, `ba` stand basal
+area, `elev` elevation (hundreds of ft). Faithful transcription; the three are NOT normalized here (the caller
+normalizes into the IPPREP SUMUP).
+"""
+function ie_esprep(iser::Integer, aspect::Real, slope::Real, ba::Real, elev::Real)
+    xp(k) = (1 <= iser <= 5) ? _IE_XPREP[iser, k] : 0f0
+    asp = Float32(aspect); sl = Float32(slope); el = Float32(elev)
+    ca = cos(asp) * sl; sa = sin(asp) * sl; lba = log(Float32(ba) + 1f0)
+    pn = 1.043151f0 + xp(1) - 0.220954f0 * ca + 0.369575f0 * sa + 0.769112f0 * sl +
+         0.260178f0 * lba - 0.029689f0 * el
+    pnone = 1f0 / (1f0 + exp(-pn))
+    pn = -1.852031f0 + xp(2) + 0.492668f0 * ca + 0.192020f0 * sa - 0.966674f0 * sl -
+         0.085920f0 * lba + 0.024939f0 * el
+    pmech = 1f0 / (1f0 + exp(-pn))
+    pn = -15.195303f0 + xp(3) + 0.0519477f0 * ca - 0.6135848f0 * sa - 0.0890163f0 * sl -
+         0.377915f0 * lba + 0.5303707f0 * el - 0.0049081f0 * el * el
+    pburn = 1f0 / (1f0 + exp(-pn))
+    return (pnone, pmech, pburn)
+end
+
 # =============================================================================
 # ie_autoes_plot_seeds — AUTOES per-plot RNG seed chain (estab.f, task #143 A2c).
 # The establishment tally reseeds the ESRANN stream PER PLOT (estab.f:967 ESAVE=INT(DRAW*100000+0.5),
@@ -746,7 +784,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          pnn::AbstractVector = Float32[], nsp::Integer = 23, wk6fill::Integer = 50,
                          idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
                          point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
-                         prep_sumup = nothing, pasmax::Real = Inf32)
+                         prep_sumup = nothing, prob1_prep::AbstractVector = Float32[],
+                         is_ie::Bool = false, pasmax::Real = Inf32)
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -767,7 +806,21 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                                    Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
             px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                                    Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-            sb = zeros(Float32, nsp); sb[1:10] .= pa; sb ./= sum(sb)
+            # BEST-species SUMUP = normalized (PADV + PSUB) (estab.f:726-735 FTEMP=PADV(I)+PSUB(I)). PSUB is
+            # added ONLY when ITIME=INT(TIME+0.5)>2 (estab.f:606-616): the DATED/DISTURBANCE tally uses TIME=10
+            # (ITIME=10>2 ⇒ ESPSUB active), while the AUTOES ingrowth tally uses TIME=SHORTY=1 (ITIME=1≤2 ⇒
+            # PSUB stays 0). Omitting PSUB shifted the disturbance-tally best-species mix toward the PADV-dominant
+            # species — MEASURED on FVSie_g16 na_def (bare IE dated ESTAB): GF over-booked (jl 436 vs 348), LP
+            # under-booked (jl 4 vs 47); per-plot picks diverged exactly where the 2nd best species is a tail
+            # species (plots 8→WL, 10→LP). SQREGT/SQBWAF: estime.f SQREGT=√TIME−SQBWAF, REGT=TIME−BWAF; with no
+            # WSBW (BWAF=SQBWAF=0) √regt=√TIME=SQREGT — mirrors the ie_estock call. The ingrowth path (tm≤2 ⇒
+            # ps=0) stays BYTE-IDENTICAL, so the validated AUTOES-ingrowth tally is unperturbed.
+            ps = (is_ie && round(Int, tm + 0.5f0) > 2) ?
+                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), log(Float32(baa)),
+                                   Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
+                                   occ, over)) :
+                 zeros(Float32, 10)
+            sb = zeros(Float32, nsp); sb[1:10] .= pa .+ ps; sb ./= sum(sb)
             (sb, px, count(>(1f-4), sb))
         end
     end
@@ -839,10 +892,16 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         ns = has_state ? Int(nstore[n]) : 0
         pn = has_state ? pnn[n] : 0f0
         newtpp = max(0, itpp - ns)
+        # Per-plot PROB1 (estab.f:572-584): on the DISTURBANCE tally the stocking logit ie_estock carries a
+        # per-IPREP SPRE term (estock.f), so each plot's PROB1 depends on its sampled IPPREP. `prob1_prep`
+        # (=[PROB1(IPREP=1..3)], supplied only when the default/keyword prep is active) selects it; otherwise
+        # the stand-level scalar p1 (IPREP=1). MEASURED FVSie_g16 na_def: PROB1 0.699/0.663977/0.657729 by IPREP.
+        p1n = (prep_active && !isempty(prob1_prep) && n <= length(ipprep)) ?
+              Float32(prob1_prep[ipprep[n]]) : p1
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
-        prob_old = max(p1 - pn, 0.0001f0)
-        esprob(i) = is_ingro ? max(p1 * Float32(newtpp) / Float32(itpp), 0.0001f0) : (i <= ns ? prob_old : p1)
+        prob_old = max(p1n - pn, 0.0001f0)
+        esprob(i) = is_ingro ? max(p1n * Float32(newtpp) / Float32(itpp), 0.0001f0) : (i <= ns ? prob_old : p1n)
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1
@@ -898,7 +957,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 exc_cnt[j] = 0f0; exc_sum[j] = 0f0                         # reset for the next plot
             end
         end
-        has_state && (nstore[n] = Int32(itpp); pnn[n] = p1)                  # carry to the next tally
+        has_state && (nstore[n] = Int32(itpp); pnn[n] = p1n)                 # carry to the next tally
     end
     return tally
 end
@@ -1290,6 +1349,21 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # represented here — inert wherever prob1 ≥ the plot's PNN (the usual case; verified on the under-stocked fixture).
     prob1 < 0.0001f0 && (prob1 = 0.0001f0)
     prob1 > 0.9990f0 && (prob1 = 0.9990f0)
+    # Per-IPREP PROB1 for the DISTURBANCE tally's per-plot IPPREP sampler (estab.f:572 ESTOCK carries a per-IPREP
+    # SPRE term). Only needed when site prep is active (default ESPREP or a MECHPREP/BURNPREP keyword); otherwise
+    # every plot uses the scalar prob1 (IPREP=1). Mirrors the prob1 pipeline above for IPREP∈{1,2,3}.
+    _is_ie = variant !== nothing && variant isa InlandEmpire
+    prob1_prep = Float32[]
+    if _is_ie && prep_sumup !== nothing && !is_ingro
+        prob1_prep = Vector{Float32}(undef, 3)
+        for ip in 1:3
+            pnp = ie_estock(idx.ihab, ip, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
+                            sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+            v = (1f0 / (1f0 + exp(-(pnp + Float32(esb_shift))))) * sa
+            v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
+            prob1_prep[ip] = v
+        end
+    end
     # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
     # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
     # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,
@@ -1330,7 +1404,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
-                            pasmax = pasmax)
+                            prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
@@ -1536,6 +1610,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         if pmech_pct !== nothing || pburn_pct !== nothing
             es = ie_esetpr(pmech_pct, pburn_pct)
             prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
+        elseif s.variant isa InlandEmpire
+            # estab.f:365-370 — the user supplied NO site-prep keyword ⇒ ESPREP DEFAULT proportions by habitat
+            # series drive the per-plot IPPREP (MEASURED FVSie_g16 na_def: NONE/MECH/BURN ≈ 0.48/0.26/0.26). This
+            # is NOT inert: ie_estock's per-IPREP SPRE term then splits the per-plot PROB1 (0.699/0.663977/0.657729
+            # by IPREP), and the 48/26/26 mean 0.6792 = the oracle stocking prob — closing the bare-IE dated-ESTAB
+            # baseline (jl 629→610 internal, ×0.909 = 555). Only the DISTURBANCE tally (NTALLY==1, non-ingrowth);
+            # the ingrowth path forces IPREP=1 (estab.f). Species/series from ie_estab_indices; topo/BA/elev = the
+            # same stand values fed to ie_estock below.
+            _dx = ie_estab_indices(ihab_code, Int(p.user_forest_code))
+            pn0, pm0, pb0 = ie_esprep(_dx.iser, es_aspect, es_slope, baaa, p.elevation)
+            prep_sumup = ie_esetpr_normalize(pn0, pm0, pb0, 0, 0)
         end
     end
     # ★#143 follow-on: the END-OF-CYCLE stocking PN (estab.f:572 ESTOCK(BAA=BAAA(NNID))) uses the POST-growth
