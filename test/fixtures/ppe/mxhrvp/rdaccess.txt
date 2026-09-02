@@ -1,0 +1,4 @@
+STANDA                       50.0
+STANDB                       30.0
+STANDC                       10.0
+-999
