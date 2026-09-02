@@ -171,15 +171,23 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             end
         end
     end
-    # per-tree ZRAND (BACHLO ±2), drawn once (small-tree ZZRAN)
-    zrand = fill(0f0, n)
+    # per-tree ZRAND (BACHLO ±2). tt/smhtgf.f draws ZRAND(I) ONCE per tree and PERSISTS it across
+    # subcycles, cycles AND tripled sub-records (SMHTGF: `IF(ZRAND(I).NE.-999.) GO TO 20`; the reset
+    # to -999 fires only at projection start / new tree / when a cycle's growth floored to 0.1 ft).
+    # jl formerly re-drew a FRESH local zrand every cycle (and a distinct one per tripled record),
+    # so the persisted-negative-draw stands over-grew and the shared-triple spread was lost — the
+    # dominant TT seedling over-growth (CCF worst-col). Persist in t.tree_random (ZRAND), which the
+    # tripling copy list already inherits to sub-records. Inventory default 0 ⇒ first-cycle draw.
     @inbounds for i in 1:n
         (t.dbh[i] >= TT_RG_XMAX[Int(t.species[i])] || t.tpa[i] <= 0f0) && continue
         _tt_rg_default(Int(t.species[i])) || continue
         if dgsd >= 1.0f0
-            z = 0f0
-            while true; z = bachlo(s.rng, 0.0f0, 1.0f0); (-2f0 <= z <= 2f0) && break; end
-            zrand[i] = z
+            zr = t.tree_random[i]
+            if zr == 0f0 || zr == -999f0            # 0 = inventory default (first draw); -999 = reset
+                z = 0f0
+                while true; z = bachlo(s.rng, 0.0f0, 1.0f0); (-2f0 <= z <= 2f0) && break; end
+                t.tree_random[i] = z
+            end
         end
     end
     wk3 = Float32[t.height[i] for i in 1:n]         # subcycle height
@@ -206,7 +214,13 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             # height/DBH over-grew ~1.9× (11796095010690 +34% BA). At J=1 aspen SCALE=KPER(1)/REGYR=kpj/regyr matches.
             # (sp14 MM is UTVAR with SCALE=NTYR/YR — separate; jl handles it via aspen coefs, not fixed here.)
             (sp == 6 && j > 1) && continue
-            htgrl = _tt_smhtgf(sp, h1, cr, tpccf, zrand[i], si6)
+            htgrl = _tt_smhtgf(sp, h1, cr, tpccf, t.tree_random[i], si6)
+            # smhtgf.f: if the estimated increment ≤ 0.1 ft, floor to 0.1 and reset ZRAND (redraw next
+            # cycle). Reset only on the final subcycle so the persisted draw is not corrupted mid-cycle.
+            if htgrl <= 0.1f0
+                htgrl = 0.1f0
+                (dgsd >= 1.0f0 && j == nper) && (t.tree_random[i] = -999f0)
+            end
             h2 = h1 + htgrl * (kpj / regyr)
             wk3[i] = h2
             d2 = _tt_smdgf(esp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden
@@ -234,10 +248,15 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
         dgk = 0f0
         if hk >= 4.5f0
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
-            # regent.f:823-824/838: DKK = D (current DBH) when the ORIGINAL height is below breast height (H<4.5);
-            # only H≥4.5 uses smdgf(H). jl formerly used smdgf(H) unconditionally ⇒ NEGATIVE DKK for sub-4.5' aspen
-            # (e.g. h=1.01 → dkk=-0.326) ⇒ (wk5−dkk) over-counts the DBH increment ⇒ #191 aspen QMD/BA over-growth.
-            dkk = h < 4.5f0 ? d : _tt_smdgf(_tt_rg_esp(sp), h, Float32(t.crown_pct[i]), pccf)   # DBH from ORIGINAL height (MM→AS)
+            # regent.f:925 TTVAR branch: DKK = SMDGF(HT(I)) — the ORIGINAL-height DBH — UNCONDITIONALLY
+            # (there is NO `H<4.5 → DKK=D` guard here; that guard lives only in the CIVAR/UTVAR branches at
+            # :823-838). The HK≥4.5 gate above already suppresses DG while the GROWN height is sub-breast-height,
+            # so DKK never needs the `=D` fallback. jl's earlier #191 fix mis-imported the CIVAR rule to TTVAR:
+            # for a seedling whose ORIGINAL H<4.5 but GROWN HK≥4.5 it used DKK=D (≪ smdgf(H)) ⇒ (wk5−DKK)
+            # over-counted the DBH increment ⇒ the DBH jumped past the CCF BREAK=1" ⇒ the ~10× CCF blow-up
+            # (worst-col CCF in the TT dig cluster). MEASURED vs FVStt_g16 (aspen 31353347010690 cyc2):
+            # oracle DKK=smdgf(4.455)=0.582 (DG≈0.65, d→0.85) vs jl DKK=d=0.203 (DG≈1.0, d→1.2).
+            dkk = _tt_smdgf(_tt_rg_esp(sp), h, Float32(t.crown_pct[i]), pccf)   # DBH from ORIGINAL height (MM→AS)
             bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
             dgr = (wk5[i] - dkk) * bark
             dds = dgr * (2f0 * bark * dfl + dgr) * scale2
@@ -318,9 +337,17 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         h = t.height[i]; cr = Float32(t.crown_pct[i])
         pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100.0f0
         tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
+        # birth-cycle ZRAND: esgent.f → REGENT → SMHTGF draws ZRAND(I) for the new tree and stores it,
+        # so the NEXT cycle's small_tree_growth persists the same deviate (t.tree_random inheritance).
         zrand = 0.0f0
         if dgsd >= 1.0f0
-            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+            zr0 = t.tree_random[i]
+            if zr0 == 0f0 || zr0 == -999f0
+                while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+                t.tree_random[i] = zrand
+            else
+                zrand = zr0
+            end
         end
         esp = _tt_rg_esp(sp)                     # MM(14)→AS(6) coefficient mapping
         htgrl = _tt_smhtgf(esp, h, cr, tpccf, zrand, si6)
