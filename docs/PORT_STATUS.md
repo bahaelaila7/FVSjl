@@ -104,8 +104,11 @@ post-thin TPA **bit-exact** every cycle (536→36→35→35; the harvest genuine
 residual 40 TPA and the landscape regrows identically), cyc0 volumes ~bit-exact, cyc1+ volumes
 cornered to the EC post-thin-regrowth growth straddle. (An earlier "THINBTA over-thin" was traced
 to a keyfile column-misalignment artifact — FVSjl's base `THINBTA` is correct and matches the
-oracle with a column-aligned card.) `IHVEXT=1` external selection, `hvproj`, and `LHVMXC`
-max-contiguous-clearcut are deferred-documented.
+oracle with a column-aligned card.) **`LHVMXC` max-contiguous-clearcut** is now ported
+(`spcntg!`/`hvcntg!`/`hvsel!` veto, bit-exact vs a gfortran-16 driver-golden) and **`IHVEXT=1`
+external selection** is ported (the deterministic selection rule bit-exact, and the external
+read-back path validated via a staged `PPE_FFERdAccess.txt`). Only `hvproj` (the external-only
+project-ahead) remains deferred.
 
 ## Known exceptions / not-yet-closed
 
