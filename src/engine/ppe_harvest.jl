@@ -52,9 +52,12 @@ function hvsel!(status::AbstractVector{<:Integer},
                 lprtct::Bool = false,
                 lhvmxc::Bool = false, hvmxcc::Float32 = 0.0f0,
                 areas::Union{Nothing,AbstractVector{Float32}} = nothing,
-                border = nothing)
+                border = nothing,
+                ihvext::Bool = false)
     n = length(status)
     hvpart = 0.0f0
+    # hvin.f:153-157 — external selection (IHVEXT=1) forces the EXACT partial-cut off.
+    ihvext && (lprtct = false)
     n == 0 && return status, hvpart
 
     # HVSEL:95 — sort the stand priorities into descending order (RDPSRT, LODSRT=.TRUE.).
@@ -89,6 +92,12 @@ function hvsel!(status::AbstractVector{<:Integer},
             # HVSEL:126 — skip stands whose status is not ±1.
             abs(status[ist]) != 1 && continue
             # (LHIER hierarchy / LHVUNT coordinated-unit branches omitted — options off.)
+            # HVSEL:167-175 — external selection (IHVEXT=1): never select a stand whose
+            # externally-supplied priority is ≤ 0 (mark 2, skip to the next stand).
+            if ihvext && priority[ist] <= 0.0f0
+                status[ist] = 2
+                continue
+            end
             if lmore
                 # HVSEL:185-188 — if the selected-yield is ~0, don't cut it: mark 2.
                 if yield_sel[ist] < 0.000001f0
