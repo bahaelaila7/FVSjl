@@ -196,7 +196,15 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     # so the persisted-negative-draw stands over-grew and the shared-triple spread was lost — the
     # dominant TT seedling over-growth (CCF worst-col). Persist in t.tree_random (ZRAND), which the
     # tripling copy list already inherits to sub-records. Inventory default 0 ⇒ first-cycle draw.
-    @inbounds for i in 1:n
+    # ★#158 ZRAND draw ORDER: FVS draws ZRAND inside SMHTGF, called from REGENT's SPECIES-MAJOR subcycle loop
+    # (`DO 17 J; DO 16 ISPC=1,MAXSP; DO 15 I3=I1,I2; I=IND1(I3); CALL SMHTGF`) — the first-draw of each tree
+    # happens at J=1 in species order (sp6 AS before sp7 LP, etc.). jl drew in raw tree-index order ⇒ on a
+    # multi-species seedling cohort the per-tree ZRAND deviates were mis-assigned (aspen index-3 drew 3rd, not
+    # 1st) ⇒ conifer SMHTGF HTGRL=HTG1+ZRAND·STDDEV landed on the wrong deviate ⇒ dense over-growth. Draw
+    # species-major (index order within species = FVS IND1). Same root as the crown-dub reorder above; both are
+    # needed for the RNG stream to track FVS. TT-only (this method dispatches on ::Teton).
+    zorder = sort(collect(1:n); by = ii -> (Int(t.species[ii]), ii))
+    @inbounds for i in zorder
         (t.dbh[i] >= TT_RG_XMAX[Int(t.species[i])] || t.tpa[i] <= 0f0) && continue
         _tt_rg_default(Int(t.species[i])) || continue
         if dgsd >= 1.0f0

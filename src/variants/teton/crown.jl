@@ -159,7 +159,17 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
     p_pccf = s.density.point_ccf
     rmai = lstart ? _tt_rmai(s) : 0f0                    # RMAI stand constant, only used by the lstart dub
-    @inbounds for i in 1:n
+    # #158 dead-heavy over-growth ROOT: FVS crown.f dubs missing crowns in SPECIES-MAJOR order
+    # (`DO 70 ISPC=1,MAXSP; DO 60 I3=I1,I2; I=IND1(I3)`), so e.g. AS(sp6) is DUBSCR'd before LP(sp7). The
+    # DUBSCR FCR=BACHLO(0,CRSD) draw is REJECTION-sampled with a SPECIES-specific SD, so the tree PROCESSING
+    # ORDER sets the RNG-stream position each seedling lands on. jl dubbed in raw tree-index order ⇒ on a
+    # multi-species seedling cohort the per-tree FCR draws were mis-assigned ⇒ one+ seedlings got the wrong
+    # crown ⇒ SMHTGF HTG1=BETA1+BETA2·CR over-/under-grew that seedling's height ⇒ compounding dense-stand
+    # over-growth (MEASURED: 2821820010690 one LP seedling CR 53→76 ⇒ cyc1 TopHt 5→9). Only the lstart DUBSCR
+    # path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a species,
+    # tree-index order = FVS IND1 (stable species bucket). TT-only (this method dispatches on ::Teton).
+    order = lstart ? sort(collect(1:n); by = ii -> (Int(t.species[ii]), ii)) : collect(1:n)
+    @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue      # inventory crown present → keep (CROWN:222)
