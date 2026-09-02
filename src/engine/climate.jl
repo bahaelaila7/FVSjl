@@ -25,8 +25,8 @@ end
 
 """
 Per-stand Climate-FVS state (held by `StandState.climate`, `nothing` until a CLIMATE keyword fires).
-`active` = LCLIMATE (NATTRS>0 && NYEARS>0). `growmult`/`mortmult` are the per-species CLGROWMULT /
-CLMRTMLT1 keyword weights (GrowMult/MortMult), default 1. `plant_symbols` maps species index → PLANTS
+`active` = LCLIMATE (NATTRS>0 && NYEARS>0). `growmult`/`mortmult`/`mortmult2` are the per-species CLGROWMULT /
+CLMRTMLT1 / CLMRTMLT2 keyword weights (GrowMult, MortMult fields 3 and 4), default 1. `plant_symbols` maps species index → PLANTS
 symbol for viability-column lookup. `indices` caches the named-attribute columns (resolve_climate_indices).
 """
 # Per-variant PLANTS symbols (PLNJSP) — species index → USDA PLANTS code, used to locate each
@@ -45,12 +45,18 @@ mutable struct ClimateState <: AbstractClimateState
     plant_symbols::Vector{String}
     growmult::Vector{Float32}
     mortmult::Vector{Float32}
+    # CLMRTMLT2 (clmorts.f:223/237) — the SECOND MortMult weight (MORTMULT field 4), a per-species multiplier
+    # on the SPMORT2 transfer-distance DMORT component (distinct from `mortmult`=CLMRTMLT1 on the viability
+    # SPMORT1/FYRMORT component). Default 1 ⇒ inert. Realized per-cycle by apply_climate_schedule! from mort_events.
+    mortmult2::Vector{Float32}
     inv_year::Int
     # GrowMult/MortMult keyword weights, cycle-SCHEDULED (clin.f opt5/opt3 → OPADD; clgmult.f:44/clmorts.f:41
     # OPGET applies the value when ICYC reaches the scheduled cycle, then it persists). Each event =
     # (cycle, sp, value); sp=0 ⇒ all species. Applied per-cycle by `apply_climate_schedule!`.
     grow_events::Vector{Tuple{Int,Int,Float32}}
-    mort_events::Vector{Tuple{Int,Int,Float32}}
+    # MortMult events carry BOTH weights from one card: (cycle, sp[0=all], CLMRTMLT1, CLMRTMLT2). clin.f:384-386
+    # schedules OPNEW with PRMS(2)=ARRAY(3)=CLMRTMLT1 and PRMS(3)=ARRAY(4)=CLMRTMLT2 together (clmorts.f:44-48).
+    mort_events::Vector{Tuple{Int,Int,Float32,Float32}}
     # AutoEstb (climate auto-establishment, clauestb.f) events = (cycle, aestock%, aesntrees, nespecies).
     # A RECURRING activity: once icyc ≥ its cycle it fires EVERY cycle (OPINCR), scheduling NATURAL regen.
     # The latest event with cycle ≤ icyc supplies the active params.
@@ -268,9 +274,9 @@ end
 
 # --- Climate mortality (clmorts.f) — viability → survival → mortality rate ---
 # VALIDATED 8/8 IE species vs live FVSie_g16 clmorts debug (cyc1: WH XV.0585→X0→MORT1; RC .489→.9633→.0367;
-# LP mult=.5). This is the base viability-mortality path (SPMORT1/FYRMORT). NOT YET ported: the SPCALIB first-
-# cycle presence-calibration branch (clmorts.f:92-98) + the SPMORT2 transfer-distance DMORT (clmorts.f:128-223,
-# uses the DE* climate-distance attributes) — chunk-1c.2.
+# LP mult=.5). This is the base viability-mortality path (SPMORT1/FYRMORT). The SPCALIB first-cycle presence-
+# calibration branch (clmorts.f:92-98) AND the SPMORT2 transfer-distance DMORT (clmorts.f:128-237, uses the DE*
+# climate-distance attributes + the CLMRTMLT2 MortMult field-4 weight) are BOTH ported below (apply_climate_mort!).
 const _CLM_VS = Float32[0.2f0, 0.5f0]   # clmorts.f DATA VS/.2,.5/  (viability knots)
 const _CLM_SR = Float32[0.0f0, 1.0f0]   # clmorts.f DATA SR/0.,1./  (survival-rate knots)
 
@@ -367,10 +373,10 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
         ct5 = A(:dd0, ty); ct6 = A(:map, ty) * ct3 / 1000f0   # mapdd5 = map·dd5/1000
         de1 = de(:DEmtwm); de2 = de(:DEmtcm); de3 = de(:DEdd5)
         de4 = de(:DEsdi); de5 = de(:DEdd0); de6 = de(:DEpdd5)
-        clmrtmlt2 = 1f0                                        # CLMRTMLT2 (MortMult 2nd param); default 1
         @inbounds for i in 1:t.n
             pr = t.tpa[i]; pr <= 0f0 && continue
             sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+            clmrtmlt2 = c.mortmult2[sp]                        # CLMRTMLT2 (MortMult field 4) — per-species, dflt 1
             by = ty - t.birth_age[i]                          # BIRTHYR = THISYR - ABIRTH
             # DTV = CTHISYR - CBIRTH, each normalized by its DE* threshold (1.0 if threshold ≤0)
             d1 = de1 > 0f0 ? (ct1 - A(:mtwm, by)) / de1 : 1f0
@@ -407,8 +413,8 @@ end
     apply_climate_schedule!(s, icyc)
 
 Realize the cycle-SCHEDULED GrowMult/MortMult keyword weights for cycle `icyc` (FVS OPADD/OPGET: an event
-scheduled for cycle N takes effect once ICYC≥N and persists). Resets `growmult`/`mortmult` to 1 then applies
-every event with `cycle ≤ icyc` in keyword-file order (later entries override earlier — matches a specific
+scheduled for cycle N takes effect once ICYC≥N and persists). Resets `growmult`/`mortmult`/`mortmult2` to 1 then
+applies every event with `cycle ≤ icyc` in keyword-file order (a MortMult event carries both CLMRTMLT1 & CLMRTMLT2) (later entries override earlier — matches a specific
 species overriding a preceding `All`). No-op when climate is inactive or no events were parsed.
 """
 function apply_climate_schedule!(s::StandState, icyc::Integer)
@@ -423,10 +429,14 @@ function apply_climate_schedule!(s::StandState, icyc::Integer)
         end
     end
     if !isempty(c.mort_events)
-        fill!(c.mortmult, 1f0)
-        @inbounds for (cyc, sp, val) in c.mort_events
+        fill!(c.mortmult, 1f0); fill!(c.mortmult2, 1f0)
+        @inbounds for (cyc, sp, val, val2) in c.mort_events
             cyc <= icyc || continue
-            sp == 0 ? fill!(c.mortmult, val) : (1 <= sp <= ns && (c.mortmult[sp] = val))
+            if sp == 0
+                fill!(c.mortmult, val); fill!(c.mortmult2, val2)
+            elseif 1 <= sp <= ns
+                c.mortmult[sp] = val; c.mortmult2[sp] = val2
+            end
         end
     end
     return s
