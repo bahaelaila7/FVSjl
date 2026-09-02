@@ -83,7 +83,7 @@ byte-identically.
 mutable struct MpbState <: AbstractMpbState
     active::Bool            # LMPB1
     debug::Bool             # DEBUIN
-    lpopdy::Bool            # LPOPDY — false=Cole rate-of-loss (default), true=population dynamics (deferred)
+    lpopdy::Bool            # LPOPDY — false=Cole rate-of-loss (default), true=the MPBDRV/MPBMOD population-dynamics epidemic (ported: src/engine/lpmpb_lpopdy.jl, bit-exact vs FVSie_lpmpb)
     ibouse::Int32           # IBOUSE — 0 (default) simple Q, 1 Bousfield-bounded Q
     nclass::Int32           # NCLASS — requested classes (default 10)
     mpmxyr::Int32           # MPMXYR — max years in projection (default 10)
@@ -444,8 +444,8 @@ Whether a MANUAL/MPBSTART regional outbreak (OPNEW activity 555 at date IDT,
 mpbin.f opt 5/6) is due this cycle — the OPFIND(555) test in MPBGO. Mirrors the
 OPNEW/OPCYCL date matching: `IDT==0` every cycle; `0<IDT<1000` a 1-based cycle;
 `IDT≥1000` a calendar year in this cycle's window. In the COL path MPBYR stays 0,
-so the outbreak fires purely on this scheduled test (RANSTART would additionally
-draw MPRANN < PROTBK — the only stochastic branch, deferred).
+so the outbreak fires purely on this scheduled test. (RANSTART's stochastic branch —
+the MPRANN < PROTBK draw — is handled separately in `mpb_apply!`, not here.)
 """
 function mpb_outbreak_due(m::MpbState, s::StandState)::Bool
     isempty(m.outbreak_years) && return false
@@ -481,9 +481,12 @@ Outbreak-decision paths handled (MPBGO): the deterministic MANUAL/MPBSTART sched
 (OPFIND 555 ⇒ fire), the CURRMORT/INVMORT auto-cycle-1 schedule (ICYC=1 GREINF branch in
 COLMOD), and RANSTART (LRANST) — which draws `mpb_rand! < PROTBK` (PROTBK from MPOTPR,
 scaled by PRBSCL, or EPIPRB when LEPI), drawing once per eligible cycle so the RNG stream
-stays in sync with the oracle. The LPOPDY population-dynamics path (MPBDRV/MPBMOD) stays
-DEFERRED (early-return). IBOUSE from the keyword. GREINF (live inventory-attack) is 0 on
-loadable stands (no treelist damage codes); CURRMR is the CURRMORT keyword.
+stays in sync with the oracle. The LPOPDY population-dynamics path (MPBDRV/MPBMOD epidemic)
+is PORTED — src/engine/lpmpb_lpopdy.jl, validated bit-exact vs FVSie_lpmpb (BETIN/GARBEL/
+SURFCE/MPBMOD chain, test_lpopdy_chain.jl 54/54; the TA aggregation threshold is cornered to
+the #206 OLDRN growth straddle, epidemic outcome robust). IBOUSE from the keyword. GREINF
+(live inventory-attack) is 0 on loadable stands (no treelist damage codes); CURRMR is the
+CURRMORT keyword.
 """
 function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
     m = s.mpb

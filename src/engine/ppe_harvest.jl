@@ -345,6 +345,30 @@ _mslabel_base(lab::AbstractString) =
     (i = findfirst('.', lab); i === nothing ? String(strip(lab)) : String(strip(lab[1:prevind(lab, i)])))
 
 """
+    ppe_read_rdaccess(path) -> Dict{String,Float32}
+
+Port of the IHVEXT read-back — `SPRDRD` + `SPRDIS` (sprdrd.f/sprdis.f) reading the external
+selector's `PPE_FFERdAccess.txt` into a stand-id → priority map (which HVALOC assigns to
+`HVPRI`). Format `(A26,T30,F10.0)`: the stand id is columns 1-26 (trimmed), the priority
+value columns 30-39. A `-999` in the id column terminates; a blank id line is skipped; a
+blank value field maps to `-99999.0` (SPRDRD's missing-value sentinel). Bit-exact vs the
+gfortran-16 driver-golden scratchpad/ppe/mxhrvp/driver_sprd.f (the real SPRDRD/SPRDIS).
+"""
+function ppe_read_rdaccess(path::AbstractString)
+    d = Dict{String,Float32}()
+    for raw in eachline(path)
+        line = rpad(raw, 39)                       # pad so the fixed columns exist
+        id26 = line[1:26]
+        occursin("-999", id26) && break            # '-999' terminates (sprdrd.f:20)
+        id = strip(id26)
+        isempty(id) && continue                    # blank id skipped
+        valfield = strip(line[30:39])              # T30,F10.0
+        d[String(id)] = isempty(valfield) ? -99999.0f0 : parse(Float32, valfield)
+    end
+    return d
+end
+
+"""
     ppe_run_landscape_harvest!(stands; variant, labels, mslabel, target_expr, priority_expr,
                                credit_expr, master_years, period=5, lprtct=false) -> Vector
 
@@ -369,7 +393,14 @@ function ppe_run_landscape_harvest!(stands::AbstractVector{PPEStand}; variant,
         labels::AbstractVector{<:AbstractString}, mslabel::AbstractString,
         target_expr::AbstractString, priority_expr::AbstractString, credit_expr::AbstractString,
         master_years::AbstractVector{<:Integer}, period::Integer = 5, lprtct::Bool = false,
+        rdaccess::Union{Nothing,AbstractString} = nothing,
         faithful::Bool = true)
+    # IHVEXT=1 external harvest selection (hvaloc.f/hvsel.f): when a road-access file is
+    # supplied, the per-stand PRIORITY is OVERRIDDEN by the external selector's values
+    # (SPRDRD/SPRDIS read of PPE_FFERdAccess.txt → HVPRI) and HVSEL runs in external mode
+    # (never selects a stand whose supplied priority is ≤ 0). The read-back file is the
+    # USER-approved staged read: stage the file the external selector would emit.
+    rdmap = rdaccess === nothing ? nothing : ppe_read_rdaccess(rdaccess)
     n = length(stands)
     length(labels) == n || error("ppe_run_landscape_harvest!: labels/stands length mismatch")
     yrs = Int.(master_years); yrset = Set(yrs)
@@ -407,6 +438,13 @@ function ppe_run_landscape_harvest!(stands::AbstractVector{PPEStand}; variant,
         prio = Float32[pri[c][y]  for c in cand]
         ysel = Float32[yhrv[c][y] for c in cand]
         ynot = Float32[ythn[c][y] for c in cand]
+        # IHVEXT=1: override the computed priorities with the external selector's values
+        # (by stand id), keyed exactly as SPRDIS looks them up.
+        if rdmap !== nothing
+            for (k, c) in enumerate(cand)
+                prio[k] = get(rdmap, strip(ids[c]), 0.0f0)
+            end
+        end
         status = fill(1, length(cand))
         # area-weighted landscape stats (TRGSTS/PTSTV1) for a stats-based TARGET; a constant
         # TARGET (msp.key) ignores them. AVBBA is the weighted mean priority proxy here.
@@ -415,7 +453,8 @@ function ppe_run_landscape_harvest!(stands::AbstractVector{PPEStand}; variant,
             sum(Float32(stands[c].area) * prio[k] for (k, c) in enumerate(cand)) / totalwt : 0f0
         hv = HarvestVars(; avbba = avbba, totalwt = totalwt)
         target = eval_policy_expr(target_expr, hv; year = y)
-        st2, hvpart, hrvyld, thnyld = hvsel!(status, prio, ysel, ynot, target; lprtct = lprtct)
+        st2, hvpart, hrvyld, thnyld = hvsel!(status, prio, ysel, ynot, target;
+                                             lprtct = lprtct, ihvext = rdmap !== nothing)
         sel = Bool[st2[k] != 2 for k in eachindex(cand)]          # status 3/4 = selected, 2 = not
         partial = Int[st2[k] == 4 ? k : 0 for k in eachindex(cand)]  # the one status-4 stand (0 = none)
         pct = target > 0f0 ? (hrvyld + thnyld) / target * 100f0 : 0f0
