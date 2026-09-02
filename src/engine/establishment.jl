@@ -455,9 +455,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 bm_essubh_hht(sp, si, age)
             elseif s.variant isa Utah
                 # UT base height (ut/essubh.f): a FIXED per-species table (no age/site/EMSQR), clamped [XMIN,HHTMAX]
-                # by the shared engine. NOTE: full utt01 validation is gated on the SEPARATE UT sprout crash
-                # (esuckr!→essprt_sn dispatch gap: UT uses the ut/esuckr.f Crouch aspen model, not SN essprt) — that
-                # is a distinct sprout-subsystem bug, not this establishment-height gap.
+                # by the shared engine. (The UT stump-sprout subsystem — the strp/esuckr.f + vstrp/essprt.f
+                # CASE('UT') Crouch aspen model — is ported and dispatched in sprout.jl; utt01 runs end-to-end
+                # with no crash and is bit-exact-or-cornered vs FVSut_g16, the residual being the pre-existing
+                # UT growth straddle #206, which is present even in the unthinned control stand.)
                 _UT_ESSUBH_HHT[sp]
             elseif s.variant isa EasternMontana
                 # EM subsequent/planted base height (em/essubh.f, deterministic EXP(PN)). IHTSER from the habitat

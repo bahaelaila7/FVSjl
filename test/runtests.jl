@@ -191,6 +191,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("integration/test_fire_rng_restore_d15.jl")  # D15: FMEFF RANNGET/RANNPUT RNG save-restore (post-fire growth) vs live FVS
     include("integration/test_mcfdln.jl")       # C5: MCFDLN/BFFDLN form-model coefs (no Fortran oracle — FPE)
     include("unit/test_sprout.jl")              # ESUCKR-B: NSPREC/SPRTHT/ESSPRT sprout sub-routines + Wykoff DBH + cut-log
+    include("unit/test_ut_sprout.jl")           # #155 UT stump-sprout: NSPREC/ESSPRT/SPRTHT CASE('UT') + ISPSPE gate + esuckr! aspen dispatch
     include("integration/test_sprout_regen.jl") # ESUCKR-C/D: stump-sprout regen generation loop vs live Fortran
     include("integration/test_thindbh_cycledate.jl") # cuts: blank-date THINDBH = cycle-number date (initre.f:1189)
     include("unit/test_fire_biomass.jl")        # FFE-F1/F2/F3: biomass, crown fuels, surface fuels
