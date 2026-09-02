@@ -140,8 +140,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
             crb, rfinal, hpa, fire_type = (s.variant isa Klamath || s.variant isa OregonCoast ||
-                                           s.variant isa InlandEmpire || s.variant isa EasternMontana) ?
-                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind) :  # IE/EM fmcfir.f == nc/fmcfir.f FM10 path (RACT=3.34·FM10@SWIND·0.4)
+                                           s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+                                           s.variant isa Kootenai || s.variant isa CentralIdaho) ?
+                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind) :  # KT/CI fmcfir.f == nc/fmcfir.f FM10 path (RACT=3.34·FM10@SWIND·0.4)
                   crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
             # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
             # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's

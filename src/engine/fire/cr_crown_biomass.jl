@@ -53,6 +53,25 @@ const _EM_ISPMAP = Int[
 # EM species that use the Jenkins FMCROWE (em/fmcrow.f:144 CASE(11:17,19)).
 @inline _em_uses_fmcrowe(spiw::Integer) = (11 <= spiw <= 17) || spiw == 19
 
+# KT (Kootenai) crown-biomass group map — kt/fmcrow.f ISPMAP (KT species 1..11 → the crown-equation group
+# passed to FMCROWW). kt/fmcroww.f is BYTE-IDENTICAL to CR's, and kt/fmcrow.f calls FMCROWW for ALL species
+# (no SELECT CASE; none use the eastern FMCROWE) — the same all-conifer shape as NC/Klamath. jl previously
+# routed EVERY KT species through the eastern FMCROWE (the generic `crown_biomass` else-branch), ~2× under-
+# counting the conifer canopy crown fuel → CBD too low → crowning index above the wind → SURFACE fire → the
+# SimFire under-killed. Same latent gap as the IE/EM 6e5719dc fix; KT routes through `cr_crownw` with this map.
+const _KT_ISPMAP = Int[15, 8, 3, 4, 6, 7, 11, 18, 1, 13, 24]
+
+# CI (CentralIdaho) crown-biomass group map — ci/fmcrow.f ISPMAP (19 species). ci/fmcroww.f + fmcrowe.f are
+# BYTE-IDENTICAL to CR's; ci/fmcrow.f dispatches SELECT CASE(SPIW): CASE(13,15,17,19) → FMCROWE (Jenkins:
+# quaking aspen, curlleaf mtn-mahogany, black cottonwood, other hardwoods), CASE DEFAULT (conifers) → FMCROWW
+# (SPIE=ISPMAP). jl previously routed ALL CI species through FMCROWE. FMCROWE keeps the {13,15,17,19} species.
+const _CI_ISPMAP = Int[
+    15, 8, 3, 4, 6, 7, 11, 18, 1, 13,
+    14, 7, 41, 16, 41, 11, 17, 24, 17,
+]
+# CI species that use the Jenkins FMCROWE (ci/fmcrow.f CASE(13,15,17,19)).
+@inline _ci_uses_fmcrowe(spiw::Integer) = spiw == 13 || spiw == 15 || spiw == 17 || spiw == 19
+
 # NC (Klamath) crown-biomass group map — nc/fmcrow.f ISPMAP (NC species 1..12 → the crown-equation group
 # passed to FMCROWW). NC's fmcroww.f is byte-identical to CR's and dispatches directly on this SPI (no
 # internal remap), and nc/fmcrow.f calls FMCROWW for ALL species (none use the eastern FMCROWE). So NC

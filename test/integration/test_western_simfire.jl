@@ -21,12 +21,21 @@
 # still wipe the stand. The guard pins the crown-fire OUTCOME (near-total kill), which the surface-only
 # regression cannot produce (it left 174 IE / 112 EM TREES alive at 2030).
 
-@testset "Western Wykoff FFE SIMFIRE crown fire — IE/EM vs live (regression guard)" begin
+@testset "Western Wykoff FFE SIMFIRE crown fire — IE/EM/KT/CI vs live (regression guard)" begin
     _fixdir = joinpath(@__DIR__, "western_fixtures")
     # (variant, keybase, pre-fire 2020 TREES, post-fire 2030 TREES upper bound, 2020 MORT lower bound)
     cases = [
         (FVSjl.InlandEmpire(),   "ie_simfire", 306, 15, 480),   # live: 305 pre, 0 post, 512 MORT
         (FVSjl.EasternMontana(), "em_simfire", 507, 15, 280),   # live: 507 pre, 0 post, 305 MORT
+        # KT (Kootenai): kt/fmcrow.f calls FMCROWW for ALL species (all-conifer, like NC/Klamath) — no eastern
+        # FMCROWE. CI (CentralIdaho): ci/fmcrow.f SELECT CASE(SPIW) CASE(13,15,17,19)→FMCROWE, DEFAULT→FMCROWW.
+        # Both fmcfir.f == nc/fmcfir.f (FM10 path). Live (FVSkt_clean/FVSci_clean, SimFire 2020 severe):
+        #   KT: 2020 TREES 282, MORT 437; 2030 TREES 0.   CI: 2020 TREES 300, MORT 388; 2030 TREES 0.
+        # jl (after fix): KT 2020 TREES 282 (bit-exact), MORT 424, 2030 TREES 3; CI 2020 TREES 307, MORT 383,
+        # 2030 TREES 1 — the crown fire FIRES and wipes the stand (surface-only regression left the overstory).
+        # Residual = the same family-wide rothermel-HPA byram corner as IE/EM (2030 TREES 3/1 vs live 0).
+        (FVSjl.Kootenai(),       "kt_simfire", 282, 15, 400),   # live: 282 pre, 0 post, 437 MORT
+        (FVSjl.CentralIdaho(),   "ci_simfire", 307, 15, 350),   # live: 300 pre, 0 post, 388 MORT
     ]
     for (v, base, pre_trees, post_trees_max, mort_min) in cases
         key = joinpath(_fixdir, base * ".key")
