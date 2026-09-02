@@ -90,6 +90,126 @@ const _NC_ES_HHTMAX = Float32[27,31,25,25,26,24,28,20,20,18,26,25]
 # clamped [XMIN,HHTMAX] by the shared engine (like UT/TT).
 const _NC_ESSUBH_HHT = Float32[1,1,1,1,7,1,7,7,1,0.8,7,2]
 
+# BM (Blue Mountains) estab-model species → SUMSP slot map (esaddt.f:150-167): the .es1 payload
+# reports per-species TPA<1" for these eight species. Non-BM variants just report 0 in every slot
+# (the payload only matters to a real external BM model; the bridge's A/B rides on the .es2).
+const _ES_ADDT_BMMAP = Dict{Int,Int}(4=>1, 9=>2, 2=>3, 7=>4, 1=>5, 8=>6, 10=>7, 5=>8)
+
+# esaddt.f:126-176 — write the `.es1` stand summary the external regeneration model reads. The
+# header (stand id, planting year IPYR, ADDTREES field-2 offset) is exact; the density block is a
+# best-effort port of the Blue-Mountains payload (habitat/slope/aspect/elevation, pre/post SDI & BA
+# over GROSPC, stand TPA>1", per-species TPA<1"). Fortran right-justifies A30/I30/F30.1 fields.
+function write_es1(s::StandState, path::AbstractString, sid::AbstractString, ipyr::Int, iyr1::Int32)
+    t = s.trees; p = s.plot
+    grospc = p.gross_space > 0f0 ? p.gross_space : 1f0
+    sumsp = zeros(Float32, 8); sum1 = 0f0
+    @inbounds for i in 1:t.n
+        if t.dbh[i] > 1f0
+            sum1 += t.tpa[i]
+        else
+            slot = get(_ES_ADDT_BMMAP, Int(t.species[i]), 0)
+            slot > 0 && (sumsp[slot] += t.tpa[i])
+        end
+    end
+    open(path, "w") do io
+        println(io, lpad(strip(String(sid)), 30))              # (1) StandID (A30)
+        println(io, lpad(string(ipyr), 30))                    # (2) planting year IPYR (I30)
+        println(io, lpad(string(Int(iyr1)), 30))               # (3) ADDTREES fld2 (I30)
+        println(io, lpad(string(Int(p.habitat_code)), 30))     # (4) hab code KODTYP
+        println(io, lpad(string(Int(p.slope_raw)), 30))        # (5) slope ISLOP
+        println(io, lpad(string(Int(p.aspect_deg)), 30))       # (6) aspect IASPEC
+        _es1_f(io, p.elevation * 100f0)                        # (7) elev*100
+        _es1_f(io, p.sdi_before_cut / grospc)                  # (8) bsdi
+        _es1_f(io, p.sdi_after_cut / grospc)                   # (9) asdi
+        _es1_f(io, p.old_ba / grospc)                          # (10) ba
+        _es1_f(io, p.at_ba / grospc)                           # (11) aba
+        _es1_f(io, sum1)                                       # (12) stand TPA >1"
+        for k in 1:8; _es1_f(io, sumsp[k]); end                # (13-20) spp TPA <1"
+    end
+    return nothing
+end
+_es1_f(io, x::Real) = println(io, lpad(string(round(Float32(x); digits=1)), 30))
+
+# esaddt.f:181-195 + base/oprdat.f — read the external model's `.es2` activity block and OPADD-
+# schedule its activities. Layout: line 1 = IKEEP (esaddt reads it, I10); then OPRDAT scans for a
+# line equal to the stand id (NPLT), and reads `IACTK IDT NPRMS PRMS(1..NPRMS)` records (free-form)
+# until an `End` line. Records with IDT ≥ the current cycle-start year are scheduled (oprdat.f:55).
+# 431/430 (NATURAL/PLANT) route into the already-validated regen path (the `due` filter in
+# establish!). Returns IKEEP so the caller can honor the delete/keep of the file (esaddt.f:191-195).
+function read_es2!(s::StandState, path::AbstractString, sid::AbstractString)::Int
+    lines = readlines(path)
+    isempty(lines) && return 0
+    ikeep = something(tryparse(Int, strip(lines[1])), 0)
+    target = strip(String(sid))
+    icyc_year = Int(current_cycle_year(s))                     # IY(ICYC)
+    i = 2; n = length(lines); nadd = 0
+    while i <= n
+        if strip(lines[i]) == target
+            i += 1
+            while i <= n && !startswith(lstrip(lines[i]), "End")
+                toks = split(strip(lines[i]))
+                if length(toks) >= 3
+                    iactk = tryparse(Int, toks[1]); idt = tryparse(Int, toks[2])
+                    nprms = tryparse(Int, toks[3])
+                    if iactk !== nothing && idt !== nothing && nprms !== nothing
+                        prms = Float32[something(tryparse(Float32, toks[3+j]), 0f0)
+                                       for j in 1:min(nprms, length(toks) - 3)]
+                        # oprdat.f:55 IF (IDT.GE.IY(ICYC)) — schedule only current-or-future dates
+                        # (cycle-number dates <1000 are relative, always kept for the due filter).
+                        if idt >= icyc_year || (0 < idt < 1000)
+                            pr = ntuple(k -> k <= length(prms) ? prms[k] : 0f0, 6)
+                            push!(s.control.schedule, ScheduledActivity(Int32(idt), Int32(iactk), pr))
+                            nadd += 1
+                        end
+                    end
+                end
+                i += 1
+            end
+            break
+        end
+        i += 1
+    end
+    return ikeep
+end
+
+# esnutr.f:59 CALL ESADDT(1) — the ADDTREES external-regeneration bridge (estb/esaddt.f). For each
+# scheduled activity-432 due this cycle: write the `.es1` summary, run the external command, read the
+# `.es2` activity block, and OPADD-schedule its activities. Runs at the top of the ESNUTR seam so the
+# `due` filter in establish! creates the returned PLANT/NATURAL regen the SAME cycle.
+function addtrees_bridge!(s::StandState, yr::Int32, per::Int)
+    fvscyc = Int(s.control.cycle) + 1
+    kdt = cycle_year_at(s.control, Int(s.control.cycle) + 1) - 1   # IY(ICYC+1)-1 (end of cycle)
+    stem = replace(s.control.keyword_file, " " => "")
+    sid  = strip(s.plot.stand_id)
+    var  = replace(String(s.control.variant_code), " " => "")
+    for at in s.estab.addtrees
+        at.fired && continue
+        idt = Int(at.idt)
+        # OPFIND mode-1: the 432 fires in the cycle its date falls in (calendar year OR cycle number).
+        due = (yr <= idt < yr + per) || (0 < idt < 1000 && idt == fvscyc)
+        due || continue
+        at.fired = true
+        isempty(strip(at.cmdln)) && continue
+        ipyr = Int(at.iyr1) + kdt
+        # esaddt.f:73-107 — filename stem <KWDFIL>_<NPLT>_<KDT>_<VARACD>, spaces removed from each part.
+        base = string(stem, "_", replace(String(sid), " " => ""), "_", kdt, "_", var)
+        es1 = base * ".es1"; es2 = base * ".es2"
+        write_es1(s, es1, sid, ipyr, at.iyr1)
+        # esaddt.f:116-124,177 — the command is the CMDLN with the .es1 filename appended, then SYSTEM.
+        cmd = string(at.cmdln, " ", es1)
+        try
+            run(pipeline(Cmd(String.(split(cmd))); stdout=devnull, stderr=devnull))
+        catch
+            # A failed external command mirrors FVS's CALL SYSTEM returning nonzero: the .es2 may be
+            # absent (nothing scheduled). Do not abort the run.
+        end
+        isfile(es2) || continue
+        ikeep = read_es2!(s, es2, sid)
+        ikeep == 1 || (try; rm(es2); catch; end)   # esaddt.f:191-195 IKEEP≠1 ⇒ delete
+    end
+    return nothing
+end
+
 """
     establish!(state; fint=5f0) -> Bool
 
@@ -124,6 +244,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 s.variant isa Klamath ? _NC_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
+    # esnutr.f:59 CALL ESADDT(1): the ADDTREES external-regen bridge runs at the TOP of the ESNUTR
+    # seam, before the tally. It may OPADD-schedule PLANT/NATURAL activities (from the external
+    # model's .es2) that the `due` filter below then creates THIS cycle. Runs before the years_done
+    # guard so a 432 fires exactly once per cycle it is due, independent of the regen idempotency.
+    isempty(s.estab.addtrees) || addtrees_bridge!(s, yr, per)
     yr in s.estab.years_done && return false
     # PLANT/NATURAL dates < 1000 are CYCLE NUMBERS (FVS 1-based), not calendar years — the same OPNEW/OPFIND
     # convention cuts! applies (cuts.jl:203-208). Without the cycle-number clause a `PLANT 2 ...` (cycle 2) never

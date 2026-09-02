@@ -652,6 +652,18 @@ Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,M
 # Extension states — allocated lazily only when the extension is active.
 # Filled out in their own chunks (fire C7, econ C8, establishment C4).
 # ---------------------------------------------------------------------------
+# ADDTREES (esin.f opt 28 → estb/esaddt.f, activity 432): the external-regeneration-model
+# bridge. Each ADDTREES card schedules one activity 432; when it fires (ESADDT, at the ESNUTR
+# establishment seam) FVS writes a `.es1` stand summary, runs SYSTEM(CMDLN), then reads back a
+# `.es2` activity block (OPRDAT) and OPADD-schedules those activities (431=PLANT/NATURAL → the
+# already-validated regen path). Only IMET==1 (run external program) is a portable path.
+mutable struct AddTreesActivity
+    idt::Int32       # field 1: activity date/cycle (IDT) — the cycle the 432 bridge fires in
+    iyr1::Int32      # field 2: planting-year offset (added to KDT → IPYR written into the .es1)
+    cmdln::String    # field-3==1 (IMET): the external command line read from the NEXT keyfile card
+    fired::Bool      # OPDONE — already executed (idempotent per cycle)
+end
+
 mutable struct Establishment
     active::Bool
     idsdat::Int32       # date of disturbance (ESTAB keyword); -9999 = unset (ESNUTR defaults it)
@@ -688,6 +700,7 @@ mutable struct Establishment
                                 # estab.f:199-207 IDUP loop → DUPNPT = NPTIDS·ceil(MINREP/NPTIDS), so it sets the
                                 # number of establishment plots looped ⇒ the ESRANN draw-stream length (measured
                                 # model-affecting: MINPLOTS 100 shifts the under-stocked-IE tally-2 seed 61997→31334).
+    addtrees::Vector{AddTreesActivity}  # ADDTREES (esin.f opt 28): scheduled external-regen bridge activities
     inadv::Bool                 # INADV — "advance component of the inventory is invalid" (estab.f). Set TRUE by
                                 # EZCRUISE (esinit.f:79 ESEZCR, auto-invoked by initre.f:280 when a stand has < 1
                                 # projectable tree record at inventory, i.e. a BARE plot). PERSISTS for the whole
@@ -697,7 +710,8 @@ mutable struct Establishment
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
-                                Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50), false)
+                                Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
+                                AddTreesActivity[], false)
 
 mutable struct DbsState
     enabled::Bool

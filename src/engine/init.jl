@@ -77,6 +77,10 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # the previous stand's format, so re-applying the BLOCK DATA default here would break
     # it. Restore the inherited format; a TREEFMT keyword in this stand still overrides.
     isempty(inherited_format) || (s.control.tree_format = inherited_format)
+    # KWDFIL (base/filopn.f:44): the keyword-file path minus its `.k*` extension — the stem the
+    # ADDTREES bridge (esaddt.f) builds its `.es1`/`.es2` filenames from. `base_path` is already
+    # `strip_key_ext(keypath)`, matching FVS's KWDFIL exactly.
+    s.control.keyword_file = String(base_path)
     ranseed!(s.rng, false, s.rng.ss)              # INITRE: RANSED(false,...) → reset to seed
     s.plot.gross_space = -1f0                      # GRINIT reset (sn/grinit.f:156)
     @inbounds for i in 1:MAXSP                      # GRINIT size-cap defaults (sn/grinit.f:62)

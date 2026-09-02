@@ -1621,6 +1621,29 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             idt  = r.present[1] ? Int32(trunc(r.values[1])) : Int32(1)      # IDT = IFIX(field 1); default 1
             mult = r.present[2] ? Float32(r.values[2]) : 0f0                # blank field 2 ⇒ 0.0 (oracle echo)
             push!(sched, ScheduledActivity(max(Int32(1), idt), Int32(440), (mult, 0f0, 0f0, 0f0, 0f0, 0f0)))
+        elseif k == "ADDTREES"                                # esin.f opt 28 → activity 432 (esaddt.f)
+            # ADDTREES: the external-regeneration-model bridge. Fields: 1=date/cycle (IDT, default 1),
+            # 2=IYR1 planting-year offset (default 0), 3=IMET method (default 0). Only IMET==1 ("run
+            # external program") is portable: esin.f:751-772 reads the NEXT keyfile card verbatim as the
+            # command line (CMDLN) and OPNEW-schedules activity 432 at IDT. When that 432 fires (ESADDT at
+            # the ESNUTR seam), FVS writes a `.es1` stand summary, runs SYSTEM(CMDLN), then reads back the
+            # external model's `.es2` activity block and schedules those activities (431=PLANT/NATURAL →
+            # the validated regen path). IMET≠1 has no in-tree effect (esin.f falls through). See
+            # addtrees_bridge! (establishment.jl).
+            v = r.values
+            idt  = r.present[1] ? Int32(trunc(v[1])) : Int32(1)
+            iyr1 = r.present[2] ? Int32(trunc(v[2])) : Int32(0)
+            imet = r.present[3] ? Int32(trunc(v[3])) : Int32(0)
+            if imet == Int32(1)
+                # esin.f:752 READ(IREAD,'(A)') RECORD — the next card is the raw command line. read_keyword!
+                # skips !/* comments and pre-heading blanks (harmless: a command is neither); `.raw` carries
+                # the verbatim line, which OPCACT/OPGETC store/return as CMDLN.
+                cr = read_keyword!(kr)
+                cmdln = (cr.status == KW_EOF || cr.status == KW_STOP) ? "" : String(rstrip(cr.raw))
+                if !isempty(strip(cmdln))
+                    push!(s.estab.addtrees, AddTreesActivity(idt, iyr1, cmdln, false))
+                end
+            end
         elseif k == "TALLY" || k == "TALLYONE" || k == "TALLYTWO"
             # esin.f opt 16/11/12: schedule a user establishment tally at a date. IACTK 427/428/429; esnutr.f:180
             # NTALLY = IACTK-427 → TALLY/TALLYONE tally#1, TALLYTWO tally#2 (continuation). Field 1 = date (a cycle
