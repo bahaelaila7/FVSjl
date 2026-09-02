@@ -53,7 +53,14 @@ const _TT_BACON = 0.005454154f0
 @inline _tt_smdg_alt(sp::Int) = sp == 3 || (5 <= sp <= 9)   # DF/BS/AS/LP/ES/AF use the alternate SMDGF form
 @inline _tt_rg_default(sp::Int) = sp <= 3 || sp == 5 || sp == 6 || (7 <= sp <= 9) || sp == 14 || sp == 17  # regent-handled (ttt01 + MM=aspen)
 @inline _tt_rg_esp(sp::Int) = sp == 14 ? 6 : sp   # MM(14) uses AS(6) aspen coefficients (buildDir dgf/htgf: "MM from UT AS")
-@inline _tt_rg_utvar(sp::Int)   = sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 16   # PM/UJ/RM/BI/MC: UTVAR regent
+@inline _tt_rg_utvar(sp::Int)   = sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 15 || sp == 16 || sp == 18   # PM/UJ/RM/BI/NC/MC/OH: UTVAR regent (regent.f:386 CASE(4,11:16,18); MM(14) routed via default+aspen)
+# regent.f DBH BREAK (blkdat BREAK) — D≥BREAK skips the small-tree DBH increment (large-tree DG kept), D<BREAK gets
+# the regent H-D DBH. NC/OH (15,18) have BREAK=1 (they leave the small-tree DBH regime at 1"); all other UTVAR = 99.
+const TT_RG_BREAK = Float32[3.,3.,3.,99.,3.,3.,3.,3.,3.,3.,99.,99.,99.,3.,1.,99.,3.,1.]
+# tt/blkdat.f HT1(AX)/HT2(BX) — the NC/OH (15,18) Wykoff H-D coefficients used by the UTVAR DBH dub for D<4.5→>4.5
+# crossers (regent.f:907 `DK=(BX/(ALOG(HK-4.5)-AX))-1`, IABFLG=1 ⇒ AX=HT1). Same for 15 and 18; other sp unused.
+const TT_HT1 = Float32[4.1920,4.1920,4.5175,3.2000,4.5822,4.4625,4.4625,4.5822,4.3603,4.993,3.2000,3.2000,4.7000,4.4421,4.4421,5.1520,4.1920,4.4421]
+const TT_HT2 = Float32[-5.1651,-5.1651,-6.5129,-5.0000,-6.4818,-5.2223,-5.2223,-6.4818,-5.2148,-12.430,-5.0000,-5.0000,-6.3260,-6.5405,-6.5405,-13.5760,-5.1651,-6.5405]
 
 # tt/regent.f UTVAR height+diameter (no subcycle, SCALE=1). POTHTG=((SJ/5)·(SJ·1.5−H)/(SJ·1.5))·0.83;
 # VIGOR=(150·X³·exp(−6X))+0.3 (X=CR/100), cut ⅔ for PM/UJ/RM; HTGRL=POTHTG·PCTRED·VIGOR·CON (CON=exp(HCOR)).
@@ -74,11 +81,22 @@ const _TT_BACON = 0.005454154f0
     # floor drives DG=(DK−DKK)·bark≈0.1" via the H-D below. Clamping to 0 (old jl) froze UJ/PM/RM DBH.
     htgr = htgrl; htgr < 0.1f0 && (htgr = 0.1f0)
     h2 = h + htgr                                        # HK uses the FLOORED increment (measured vs FVStt_clean)
-    # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the WC "rule of thumb"
-    # DG=0.1·HTG (regent.f CASE(13,14,16,18), the LHTDRG&IABFLG==0 branch that fires for TT's MC/BI —
-    # HTDBH is a stub and the AA-fit leaves IABFLG=0 at growth, so DK/DKK are unused; measured fort.89).
+    # regent.f:817 `IF(.NOT.TTVAR .AND. HK.LT.4.5)`: a sub-breast-height UTVAR seedling gets DG=0 and DBH grows
+    # only via the tiny +0.001·HK nudge — AND it SKIPS the DIAM floor (that floor lives inside the HK≥4.5 ELSE
+    # branch, regent.f:1048). Applies to ALL UTVAR species (PM/UJ/RM/BI/NC/MC/OH). Without this, jl floored a
+    # 0.1" woodland seedling's DG to DIAM(sp)−d (≈0.2) instead of 0 — masked on low-TPA junipers, but sp18/NC-OH
+    # seedlings dominate woodland TPA (repro 1856054779290487: 3900 TPA of 0.1" OH grew to QMD 1.8 vs oracle 1.0).
+    h2 < 4.5f0 && return (htgr, 0f0)
+    # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the WC "rule of thumb" DG=0.1·HTG;
+    # NC/OH (15,18) use the Wykoff HT-DBH DK=(BX/(ln(HK−4.5)−AX))−1 (regent.f:907, IABFLG=1 ⇒ AX=HT1, BX=HT2).
     if sp == 13 || sp == 16
         dg = 0.1f0 * htgr                                # ·XRDGRO=1 (no MULTS)
+    elseif sp == 15 || sp == 18
+        ax = TT_HT1[sp]; bx = TT_HT2[sp]
+        dk  = bx / (flog(h2 - 4.5f0) - ax) - 1f0; dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h <= 4.5f0 ? d : bx / (flog(h - 4.5f0) - ax) - 1f0
+        # regent.f:1018 CASE(4,11,12,14,15,18): DK<0 or DKK<0 ⇒ the 0.2·HTG rule-of-thumb, else (DK−DKK)·bark
+        dg = (dk < 0f0 || dkk < 0f0) ? htgr * 0.2f0 * bark : (dk - dkk) * bark
     else
         dk  = (h2 - 4.5f0) * 10f0 / (sj - 4.5f0); dk  < 0.1f0 && (dk  = 0.1f0)
         dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10f0 / (sj - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
@@ -305,6 +323,10 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             cap = s.control.sp_size_cap[sp, 4]
             (h + htgr > cap) && (htgr = max(cap - h, 0.1f0))
             t.ht_growth[i] = htgr
+            # regent.f:822 `IF(D.GE.BKPT) GO TO 23`: at/above the DBH breakpoint the small-tree DBH increment is
+            # skipped and the large-tree DG (already in diam_growth) stands — height still grows via the UTVAR
+            # POTHTG above. NC/OH (15,18) BREAK=1"; junipers/BI/MC BREAK=99 (always < ⇒ always regent DBH).
+            d >= TT_RG_BREAK[sp] && continue
             t.diam_growth[i] = dg
             # Tripling: PM/UJ/RM regent DG is deterministic (tiny VARDG) ⇒ ~no spread. Override the stale
             # dgU/dgL (built in diameter_growth! from the DIAGR placeholder, giving a spurious wide spread)
