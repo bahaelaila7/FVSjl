@@ -79,11 +79,21 @@ function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                               saved_dbh::AbstractVector)
     p, t, c = s.plot, s.trees, s.calib
     t.n == 0 && return s
-    # BACKDATED stand BA (t.dbh is backdated here) over LIVE + recently-dead records (the notre-inflated
-    # dead added back at their backdated dbh), matching regent.f's start-of-period XBA. (regent.f:390 XBA=BA)
+    # BACKDATED stand BA = regent.f's XBA=BA, the plot common BA that DENSE loads backdated to start-of-period
+    # (dense.f:64-86): LIVE trees at their backdated dbh PLUS the RECENT-dead (tree HISTORY 6/7 ⇒ IMC 7) at their
+    # dbh, while OLDER dead (HISTORY 8/9 ⇒ IMC 9) load dbh=0 and drop out (dense.f:86 `IF(IMC(I).EQ.9)WK3=0`).
+    # Measured vs FVSnc_g16: 248669823489998 (dead=27.6" HISTORY-8 ⇒ excluded) 217.047==217.047; 449542210489998
+    # (4 dead HISTORY-6 ⇒ included at TPA 75) live-only 53.031 + recent-dead 2.466 = 55.497 == oracle 55.497. The
+    # earlier "all-dead-included" form wrongly added the HISTORY-8 27.6" record (BA 217→251), which suppressed the
+    # predicted HTGR5 enough to push CORNEW past the 12.18 trap ⇒ the calibration was WRONGLY rejected. (regent.f:390)
     ba = 0f0
-    @inbounds for i in 1:(t.n + t.ndead)
+    @inbounds for i in 1:t.n
         d = t.dbh[i]; ba += 0.005454154f0 * d * d * t.tpa[i]
+    end
+    @inbounds for j in (t.n + 1):(t.n + t.ndead)
+        h = t.history[j]
+        (h == 6 || h == 7) || continue          # older dead (8/9) load dbh 0 in DENSE ⇒ excluded
+        d = t.dbh[j]; ba += 0.005454154f0 * d * d * t.tpa[j]
     end
     ba <= 0f0 && (ba = 0.1f0)
     avh = p.avg_height
