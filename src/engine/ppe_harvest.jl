@@ -49,7 +49,10 @@ function hvsel!(status::AbstractVector{<:Integer},
                 yield_sel::AbstractVector{Float32},
                 yield_notsel::AbstractVector{Float32},
                 target::Float32;
-                lprtct::Bool = false)
+                lprtct::Bool = false,
+                lhvmxc::Bool = false, hvmxcc::Float32 = 0.0f0,
+                areas::Union{Nothing,AbstractVector{Float32}} = nothing,
+                border = nothing)
     n = length(status)
     hvpart = 0.0f0
     n == 0 && return status, hvpart
@@ -92,7 +95,18 @@ function hvsel!(status::AbstractVector{<:Integer},
                     status[ist] = 2
                     continue
                 end
-                # (LHVMXC max-contiguous-clearcut branch omitted — option off.)
+                # HVSEL:189-205 — max-contiguous-clearcut constraint. If selecting this
+                # (would-be-clearcut, status -1) stand would create more than HVMXCC
+                # contiguous clear-cut acres with the already-selected clearcut stands,
+                # do NOT select it: mark 2 and skip. Non-clearcut candidates (+1) return
+                # contig 0 from hvcntg and are never vetoed.
+                if lhvmxc
+                    contig = hvcntg(ii, isnsrt, status, areas, border)
+                    if contig > hvmxcc
+                        status[ist] = 2
+                        continue
+                    end
+                end
                 # HVSEL:209 — proportion of THIS stand needed to meet the target.
                 pneed = (target - (thnyld + hrvyld)) / yield_sel[ist]
                 if pneed >= 0.999f0
@@ -138,6 +152,69 @@ function hvsel!(status::AbstractVector{<:Integer},
     # matters — the oracle prints e.g. 1.5e-5, not 0). Returned after (status, hvpart) so the
     # 2-value `st, hvpart = hvsel!(...)` call form stays valid.
     return status, hvpart, hrvyld, thnyld
+end
+
+"""
+    spcntg!(isdwk1, areas, border) -> (contig::Float32, nneig::Int)
+
+Port of `SPCNTG` (spcntg.f) — the contiguous clear-cut acreage of a clear-cut stand set.
+`isdwk1::Vector{Int}` is stand indices, `isdwk1[1]` the SUBJECT stand; it is REORDERED in
+place so the stands forming a contiguous region with the subject are at the top (`1:nneig`).
+`areas[s]` = stand `s`'s area (acres); `border(i,j)::Float32` = the shared-border length of
+stands `i,j` (≥ 0 if they share a border, < 0 if not — SPNBBD's `X.GE.0.0` test). Returns
+the total contiguous area and `nneig`. Float32 area accumulation, bit-exact vs the Fortran
+(driver-golden scratchpad/ppe/mxhrvp/driver_spcntg.f). Grows the region breadth-first from
+the subject: each contiguous stand `i` pulls in any not-yet-added stand `j` sharing a border
+(swapping it up into the contiguous block), until no frontier stand has an outside neighbor.
+"""
+function spcntg!(isdwk1::Vector{Int}, areas::AbstractVector{Float32}, border)
+    nlst = length(isdwk1)
+    nneig = 1
+    contig = areas[isdwk1[1]]                       # SPLAAR(isdwk1(1))
+    nlst == 1 && return contig, nneig
+    @inbounds for ii in 1:nlst                      # DO 30 II=1,NLST
+        inei = 0
+        nneig >= nlst && break                      # GOTO 40
+        i = isdwk1[ii]
+        jj = nneig + 1                              # DO 20 JJ=NNEIG+1,NLST (start captured once)
+        while jj <= nlst
+            j = isdwk1[jj]
+            if border(i, j) >= 0.0f0                # SPNBBD(i,j): shared border (IRC=0)
+                inei = 1
+                nneig += 1
+                if jj > nneig
+                    isdwk1[jj] = isdwk1[nneig]
+                    isdwk1[nneig] = j
+                end
+                contig += areas[j]                  # SPLAAR(j) summed
+            end
+            jj += 1
+        end
+        inei == 0 && break                          # stand i had no outside neighbor → done
+    end
+    return contig, nneig
+end
+
+"""
+    hvcntg(ii, isnsrt, status, areas, border) -> contig::Float32
+
+Port of `HVCNTG` (hvcntg.f) — contiguous clear-cut acres created if the stand at
+priority position `ii` (`isnsrt[ii]`) is selected. Returns 0 unless that subject stand is a
+would-be-clearcut candidate (`status == -1`); otherwise builds the clear-cut set — the
+subject plus every already-selected would-be-clearcut stand (`status == -3`) at higher
+priority (positions `1:ii-1`) — and runs `spcntg!`.
+"""
+function hvcntg(ii::Integer, isnsrt::AbstractVector, status::AbstractVector{<:Integer},
+                areas, border)
+    ist = Int(isnsrt[ii])
+    status[ist] != -1 && return 0.0f0
+    isdwk1 = Int[ist]
+    @inbounds for k in 1:(ii-1)
+        s = Int(isnsrt[k])
+        status[s] == -3 && push!(isdwk1, s)
+    end
+    contig, _ = spcntg!(isdwk1, areas, border)
+    return contig
 end
 
 """
