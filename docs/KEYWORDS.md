@@ -29,14 +29,17 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 > defaults in the examples are the Southern (SN) set unless stated; the *layout* is identical
 > across variants.
 >
-> **Extension-model keywords.** The keyword sections below cover the core simulator plus the
-> FFE (fire/fuels/carbon), ECON, establishment/regeneration, COVER, and DBS-database
-> extensions. The additional **extension models** — dwarf mistletoe (`MISTOE`/`MISTMULT`/…),
-> FVS-Climate (`CLIMATE`), the ORGANON growth model (OC/OP), Western Root Disease
-> (`RDADD`/`RRINIT`/…), and the insect/beetle models (Douglas-fir beetle, tussock moth,
-> mountain pine beetle, western spruce budworm `WSBWE`, western pine beetle `WWPB`/`DISPERSE`)
-> — are ported and validated (see [PORT_STATUS.md](PORT_STATUS.md)) but their keyword cards
-> are not yet itemized in this reference; they follow the same fixed-column / YAML grammar.
+> **Extension-model keywords.** Beyond the core simulator, the FFE (fire/fuels/carbon), ECON,
+> and DBS-database sections, this reference now itemizes the **extension-model** keywords too:
+> the [establishment packet](#establishment-packet--ingrowth-tally--site-prep) options, the
+> [bark-beetle & defoliator models](#insect-models--bark-beetles-dfb--dftm--mpb) (DFB/DFTM/MPB),
+> [dwarf mistletoe](#dwarf-mistletoe), [Western Root Disease](#western-root-disease-rrin),
+> [WWPB / NEWSPRED](#western-pine-beetle--landscape-wwpb--newspred),
+> [FVS-Climate](#fvs-climate-climate), and [canopy & shrub COVER](#canopy--shrub-cover). Each
+> entry is written from the FVSjl parser and cross-checked against the Fortran keyword reader,
+> and flags honestly where a keyword is **parsed-but-inert** or **not implemented** in FVSjl
+> (e.g. `MISTMULT`/`MISTPINF`, several report-only cards). The ORGANON growth model (OC/OP) is
+> a *variant*, not a keyword. See [PORT_STATUS.md](PORT_STATUS.md) for validation status.
 
 > There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that describes a
 > stand by intent (`invyr`, `numcycle`, `treatments`, `treelist`…) rather than mirroring the
@@ -57,6 +60,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
   - [Growth calibration & modifiers](#growth-calibration--modifiers) — GROWTH · NOCALIB · READCORD/H/R · REUSCORD/H/R · BAIMULT · HTGMULT · CRNMULT · REGDMULT · REGHMULT · DGSTDEV · SERLCORR · RANNSEED · FIXDG · FIXHTG · FIXMORT · MORTMULT · MORTMSB · TREESZCP · NOHTDREG · HTGSTOP · TOPKILL
   - [Thinning & harvest](#thinning--harvest) — THINBBA · THINABA · THINBTA · THINATA · THINSDI · THINCC · THINHT · THINQFA · THINRDEN · THINDBH · THINPT · SETPTHIN · THINAUTO · THINPRSC · SPECPREF · LEAVESP · SPLEAVE · CUTEFF · MINHARV · SALVAGE · YARDLOSS
   - [Establishment & regeneration](#establishment--regeneration) — ESTAB · PLANT · NATURAL · SPROUT · NOSPROUT · NOAUTOES
+  - [Establishment packet — ingrowth, tally & site prep](#establishment-packet--ingrowth-tally--site-prep) — STOCKADJ · TALLY/TALLYONE/TALLYTWO · THRSHOLD · INGROW/NOINGROW · AUTALLY/NOAUTALY · MINPLOTS · MECHPREP · BURNPREP · SPECMULT · HTADJ · HABGROUP · OUTPUT · PASSALL · PLOTINFO
   - [Species groups](#species-groups) — SPGROUP
   - [Site & treatments](#site--treatments) — SETSITE · FERTILIZ
   - [Volume & merchandising](#volume--merchandising) — VOLUME · BFVOLUME · VOLEQNUM · MCDEFECT · BFDEFECT · MCFDLN · BFFDLN
@@ -64,6 +68,13 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
   - [Event monitor](#event-monitor) — IF · COMPUTE
   - [Fire & fuels (FFE)](#fire--fuels-ffe) — FMIN · SIMFIRE · FLAMEADJ · FIRECALC · MOISTURE · DROUGHT · CANCALC · FUELINIT · FUELSOFT · FUELMODL · DEFULMOD · FUELDCAY · FUELMULT · FUELPOOL · FUELMOVE · FUELTRET · DUFFPROD · PILEBURN · SNAGINIT · SNAGFALL · SNAGDCAY · SNAGBRK · SNAGPSFT · SNAGPBN · SALVAGE · SALVSP · FMORTMLT · CARBREPT · CARBCALC · POTFIRE · POTFMOIS · POTFWIND/TEMP/SEAS/PAB · SOILHEAT
   - [Economics (ECON)](#economics-econ) — ECON · STRTECON · ANNUCST · HRVVRCST · HRVRVN · TCONDMLT
+  - **Extension models:**
+    - [Insect models — bark beetles (DFB / DFTM / MPB)](#insect-models--bark-beetles-dfb--dftm--mpb) — DFB · DFTM · MPB blocks (MANSTART · RANSTART · MANSCHED · RANSCHED · RANNSEED · … + model-specific cards)
+    - [Dwarf mistletoe](#dwarf-mistletoe) — MISTOE · MISTPRT · DMAUTO (MISTMULT/MISTPINF not implemented)
+    - [Western Root Disease (RRIN)](#western-root-disease-rrin) — RDIN block · RRTYPE · RRINIT · SAREA · RSEED · BBCLEAR · report cards
+    - [Western pine beetle & landscape (WWPB / NEWSPRED)](#western-pine-beetle--landscape-wwpb--newspred) — BMIN block · DISPERSE · NEWSPRED
+    - [FVS-Climate (CLIMATE)](#fvs-climate-climate) — CLIMATE block · CLIMDATA · GROWMULT · MORTMULT · MXDENMLT · AUTOESTB
+    - [Canopy & shrub COVER](#canopy--shrub-cover) — COVER block · CANOPY · SHRUBS · SHRBLAYR · SHRUBHT · SHRUBPC · output toggles
   - [Compression & tripling](#compression--tripling) — COMPRESS · NOTRIPLE · NUMTRIP
 
 > **Conventions.** In each entry the number in `(n)` after a parameter is its 1-based **field
@@ -1470,6 +1481,352 @@ NOAUTOES
 
 > **Order-significance.** Within a packet the cards apply in the order written, and the bracket is mandatory: `ESTAB` first, then any mix of `PLANT`/`NATURAL`/`SPROUT`/`NOSPROUT`, then `END`. A `SPROUT`/`NOSPROUT` that both appear resolve to whichever came **last**. `PLANT`/`NATURAL` cards with the same year accumulate (multiple species/cohorts). A `SPROUT` naming a `−N` group requires that `SPGROUP` group to have been defined earlier in the file.
 
+## Establishment packet — ingrowth, tally & site prep
+
+These are the remaining sub-keywords read **inside** an `ESTAB … END` packet by the establishment
+parser (`kw_estab!`, src/engine/keyword_dispatch.jl; ESIN reader estb/esin.f). Where `ESTAB`/`PLANT`/
+`NATURAL`/`SPROUT`/`NOSPROUT` schedule *what* regenerates, these cards tune *how* the establishment/AUTOES
+model tallies ingrowth, replicates plots, prepares the site, and scales per-species occurrence and height —
+plus a handful of report-/legacy-only cards that are recognized and consumed but inert on the FVSjl
+DATABASE/FIA input path. They all live between the `ESTAB` line and its `END`.
+
+#### STOCKADJ
+**What it does:** Sets the **stockability adjustment** — a multiplier on the establishment stocking probability. The AUTOES model draws each plot's regeneration off `PROB1 = logistic(PN + ESB − ESB1) · STOADJ` (estab.f:579), so `STOADJ < 1` thins the predicted natural regeneration and `STOADJ = 0` cancels it entirely (this is exactly what a `NATURAL` card implies — esin.f:1230 `NATURAL IMPLIES STOCKADJ = 0.0`). Default 1.0 is inert.
+**Parameters:**
+- `date`(1) — the date/cycle the adjustment takes effect (`STOCKADJ <date> <mult>`).
+- `mult`(2) — stockability multiplier `STOADJ`; default **1.0**. Clamped to ≥ 0.001 before the multiply (estab.f:578); `0.0` cancels natural-regeneration prediction.
+> **⚠ Known FVSjl bug (field position).** Stock FVS (`esin.f` opt 13) reads **field 1 as the date/cycle** and the **multiplier from field 2**, scheduling it at activity 440 (its echo prints `DATE/CYCLE=…; MULTIPLIER=…`). FVSjl currently reads the multiplier from **field 1** and ignores the date (`keyword_dispatch.jl` — `stoadj = values[1]`, no scheduling) — a confirmed field-position divergence. Fix pending; the correct FVS card is `STOCKADJ <date> <mult>` with the multiplier in field 2.
+**Example:**
+```text
+ESTAB         2000.0
+STOCKADJ       0.5
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - STOCKADJ: { mult: 0.5 }
+    - END: {}
+```
+*Halves the predicted natural-regeneration stocking probability for the packet.*
+
+#### TALLY
+**What it does:** Schedules a **user establishment tally** at a date — a one-off request to run the establishment model (count/add regeneration) in the cycle containing that date, independent of the automatic disturbance/ingrowth tallies. FVSjl pushes a scheduled activity (code 427) at the date; the tally is honored inside the AUTOES scheduler's staleness window (`KDT+1 − IDSDAT ≤ 20`, esnutr.f). `TALLYONE` (code 428) and `TALLYTWO` (code 429) are the same mechanism keyed to establishment tally #1 vs #2 (a continuation), where `NTALLY = IACTK − 427`.
+**Parameters:**
+- `date`(1) — date/cycle of the tally (calendar year ≥ 1000 or cycle number < 1000); **required** (a blank date is an error in FVS). Scheduled at `max(1, date)`.
+- `disturbance_date`(2) — date of the triggering disturbance (esin.f defaults it to the packet's `IDSDAT`); parsed by stock FVS but **not read** by FVSjl, which uses the packet's `ESTAB` date.
+**Example:**
+```text
+ESTAB         2000.0
+TALLY         2005.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - TALLY: { date: 2005 }
+    - END: {}
+```
+*Requests an establishment tally in the 2005 cycle.*
+
+#### TALLYONE
+**What it does:** Schedules establishment **tally #1** (activity 428, `NTALLY = 1` — the disturbance tally) at a date. Same field layout and scheduling path as `TALLY`; distinguished only by its activity code so the AUTOES bookkeeping treats it as the first tally of a disturbance sequence rather than a continuation.
+**Parameters:**
+- `date`(1) — date/cycle of the tally; required.
+- `disturbance_date`(2) — disturbance date (defaults to the packet `IDSDAT`); parsed by FVS, unused by FVSjl.
+**Example:**
+```text
+ESTAB         2000.0
+TALLYONE      2000.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - TALLYONE: { date: 2000 }
+    - END: {}
+```
+*Schedules the disturbance-year establishment tally at 2000.*
+
+#### TALLYTWO
+**What it does:** Schedules establishment **tally #2** (activity 429, `NTALLY = 2` — the continuation tally) at a date, i.e. a follow-up counting pass after `TALLY`/`TALLYONE` that books only the increment over the prior tally. Same field layout as `TALLY`.
+**Parameters:**
+- `date`(1) — date/cycle of the continuation tally; required.
+- `disturbance_date`(2) — disturbance date (defaults to `IDSDAT`); parsed by FVS, unused by FVSjl.
+**Example:**
+```text
+ESTAB         2000.0
+TALLYONE      2000.0
+TALLYTWO      2005.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - TALLYONE: { date: 2000 }
+    - TALLYTWO: { date: 2005 }
+    - END: {}
+```
+*Adds a 2005 continuation tally that counts the regeneration added since the 2000 tally.*
+
+#### THRSHOLD
+**What it does:** Sets the **removal-fraction thresholds** that gate automatic (AUTOES) tallies after a thinning. When a within-cycle thin removes at least `THRES1` of the stand it triggers a single regeneration tally; a removal reaching `THRES2` triggers a full tally sequence (a heavier disturbance persists into the next cycle). Lets you tune how aggressive a harvest must be before the model adds regeneration.
+**Parameters:**
+- `lower_pct`(1) — lower removal percent → `THRES1 = field/100`, clamped to **[0.025, 0.950]**; default **10 %** (0.10). Blank ⇒ unchanged.
+- `upper_pct`(2) — upper removal percent → `THRES2 = field/100`, clamped to **[0.050, 0.975]**; default **30 %** (0.30). Blank ⇒ unchanged.
+**Example:**
+```text
+ESTAB         2000.0
+THRSHOLD      20.0      50.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - THRSHOLD: { lower_pct: 20, upper_pct: 50 }
+    - END: {}
+```
+*Requires ≥ 20 % removal to fire a single regen tally and ≥ 50 % for a full tally sequence.*
+
+#### INGROW
+**What it does:** Enables **automatic ingrowth** (`LINGRW = true`) — the model's periodic addition of ingrowth trees on the estab-gap rule. It is the "on" switch (the default is already on); use it to re-enable ingrowth after a `NOINGROW`, or to document intent.
+**Parameters:** *(none)*
+**Example:**
+```text
+ESTAB         2000.0
+INGROW
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - INGROW: {}
+    - END: {}
+```
+*Turns automatic ingrowth back on.*
+
+#### NOINGROW
+**What it does:** Disables **automatic ingrowth** (`LINGRW = false`), so no periodic ingrowth trees are added — only the tallies/plantings you schedule explicitly enter the stand. A `NATURAL` card implies `NOINGROW` (esin.f:1230).
+**Parameters:** *(none)*
+**Example:**
+```text
+ESTAB         2000.0
+NOINGROW
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - NOINGROW: {}
+    - END: {}
+```
+*Suppresses the automatic periodic ingrowth.*
+
+#### AUTALLY
+**What it does:** Enables **automatic tallies** after thinnings (`LAUTAL = true`) — the AUTOES trigger that runs a regeneration tally whenever a thin removes at least the `THRSHOLD` fraction of the stand. The "on" switch (default on); the counterpart to `NOAUTALY`.
+**Parameters:** *(none)*
+**Example:**
+```text
+ESTAB         2000.0
+AUTALLY
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - AUTALLY: {}
+    - END: {}
+```
+*Re-enables the automatic post-thinning regeneration tallies.*
+
+#### NOAUTALY
+**What it does:** Disables **automatic tallies** after thinnings (`LAUTAL = false`), so a heavy harvest does not itself trigger a regeneration tally. A `NATURAL` card implies `NOAUTALY` (esin.f:1230).
+**Parameters:** *(none)*
+**Example:**
+```text
+ESTAB         2000.0
+NOAUTALY
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - NOAUTALY: {}
+    - END: {}
+```
+*Suppresses the automatic post-thinning regeneration tallies.*
+
+#### MINPLOTS
+**What it does:** Sets the **minimum number of establishment plots to project** (`MINREP`). The establishment model replicates the inventory points up to this target — `DUPNPT = NPTIDS · ceil(MINREP / NPTIDS)` plots are looped — which sets the length of the ESRANN establishment random-draw stream. Raising it therefore changes both plot replication and the RNG sequence (measured model-affecting: on the under-stocked IE fixture `MINPLOTS 100` shifts the tally-2 seed 61997 → 31334). Default 50 (esinit.f).
+**Parameters:**
+- `minplots`(1) — minimum plots to project (`MINREP`); values **< 20 are raised to 20** (esin.f:587-588). Default **50**.
+**Example:**
+```text
+ESTAB         2000.0
+MINPLOTS     100.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - MINPLOTS: { minplots: 100 }
+    - END: {}
+```
+*Replicates the inventory to at least 100 establishment plots (lengthening the regen draw stream).*
+
+#### MECHPREP
+**What it does:** Schedules **mechanical site preparation** (activity 493). On the disturbance tally, a fraction of the replicated establishment plots is flagged as mechanically prepped, and each prepped plot draws its regeneration from a site-prep-specific species/advance mix (the per-plot `IPPREP` sampled off the WK6 site-prep RNG vector; estb/esetpr.f + estab.f:373-399). Represents scarification/scalping done to favor regeneration.
+**Parameters:**
+- `date`(1) — date/cycle of the site prep; scheduled at `max(1, date)`.
+- `pct_plots`(2) — percent of plots to prepare, **0–100** (clamped); default **0**.
+**Example:**
+```text
+ESTAB         2000.0
+MECHPREP      2000.0     50.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - MECHPREP: { date: 2000, pct_plots: 50 }
+    - END: {}
+```
+*Mechanically prepares 50 % of the establishment plots in 2000.*
+
+#### BURNPREP
+**What it does:** Schedules **broadcast-burn site preparation** (activity 491). Identical mechanism to `MECHPREP` but assigns the burn site-prep code to the sampled plots, so their regeneration is drawn from the burn-prep species/advance mix. Represents prescribed slash/broadcast burning to prepare a seedbed.
+**Parameters:**
+- `date`(1) — date/cycle of the burn prep; scheduled at `max(1, date)`.
+- `pct_plots`(2) — percent of plots to prepare, **0–100** (clamped); default **0**.
+**Example:**
+```text
+ESTAB         2000.0
+BURNPREP      2000.0     75.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - BURNPREP: { date: 2000, pct_plots: 75 }
+    - END: {}
+```
+*Broadcast-burns 75 % of the establishment plots in 2000.*
+
+#### SPECMULT
+**What it does:** Sets a per-species **establishment-occupancy multiplier** (`XESMLT`). The advance-regen occupancy each species contributes is `occ = OCURHT · XESMLT · OCURNF`, so `SPECMULT` scales a species' share of the regenerating stand linearly (e.g. ×2 doubles its predicted advance-regen probability). Default lookup 1.0 (inert). FVSjl applies it at establishment (the date field is not used for scheduling, like `STOCKADJ`).
+**Parameters:**
+- `date`(1) — date/cycle field; parsed but **not scheduled** by FVSjl (applied once at establishment).
+- `species`(2) — SPDECD selector: `0`/blank = **all** species, `−N` = SPGROUP group *N*, `> 0` = a single species index.
+- `mult`(3) — occupancy multiplier `XESMLT`; **negative values are set to 0** (esin.f:305); default **1.0**.
+**Example:**
+```text
+ESTAB         2000.0
+SPECMULT      2000.0      3.0       2.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - SPECMULT: { date: 2000, species: 3, mult: 2.0 }
+    - END: {}
+```
+*Doubles the establishment occupancy of species 3; a later `SPECMULT … 0 …` (all species) would overwrite it.*
+
+#### HTADJ
+**What it does:** Sets a per-species **height adjustment** (`HTADJ`) added to each established tree's height before the `XMIN`/`HHTMAX` clamps (estab.f). Positive shifts the regen cohort taller, negative shorter. Default lookup 0.0 (inert). Like `SPECMULT`, FVSjl applies it at establishment rather than scheduling by date.
+**Parameters:**
+- `date`(1) — date/cycle field; parsed but **not scheduled** by FVSjl (applied at establishment).
+- `species`(2) — SPDECD selector: `0`/blank = all, `−N` = SPGROUP group *N*, `> 0` = a single species.
+- `adj`(3) — height adjustment, feet, added to the established height; default **0.0**.
+**Example:**
+```text
+ESTAB         2000.0
+HTADJ         2000.0      3.0       5.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - HTADJ: { date: 2000, species: 3, adj: 5.0 }
+    - END: {}
+```
+*Adds 5 ft to the established height of species 3's regeneration (validated ~bit-exact vs FVSci: Δmean 4.993 ft).*
+
+#### HABGROUP
+**What it does:** Requests a printed listing of the **habitat-type groups** table (esin.f opt 14 → ESMSGS report). It is **pure report control**: FVSjl recognizes and consumes it inside the packet but emits no establishment `.out` report, so it has no effect on the `.sum`, the tree list, or the RNG stream — **faithfully inert** on the exercised scope.
+**Parameters:** *(none)*
+**Example:**
+```text
+ESTAB         2000.0
+HABGROUP
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - HABGROUP: {}
+    - END: {}
+```
+*Recognized but inert (report-only; FVSjl emits no establishment report).*
+
+#### OUTPUT
+**What it does:** Controls the **establishment `.out` report** (esin.f opt 6): field 1 is the print flag and field 2 the output unit. It is **pure report control** — FVSjl consumes it inside the packet but does not emit the establishment text report, so it is **faithfully inert** (no `.sum`/tree/RNG effect).
+**Parameters:**
+- `print`(1) — output flag (`0` = no output, `1` = normal output); negatives forced to 0. Consumed-inert in FVSjl.
+- `unit`(2) — Fortran output unit (`JOREGT`); consumed-inert in FVSjl.
+**Example:**
+```text
+ESTAB         2000.0
+OUTPUT         1.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - OUTPUT: { print: 1 }
+    - END: {}
+```
+*Recognized but inert (would enable the establishment report, which FVSjl does not emit).*
+
+#### PASSALL
+**What it does:** Raises the cap on **excess regeneration trees passed per plot per species** (`PASMAX`). In stock FVS it deterministically caps a plot's excess-tree probability only when a plot overflows `MAXTPP` (estab.f:1318-1321) — a post-draw `PROB` scaling with **no RNG effect**. On the reachable AUTOES regime it is **measured-inert**: the under-stocked IE fixture never overflows a plot, so `PASSALL 1 == PASSALL 100 ==` default is byte-identical `.sum`. Consumed-inert in FVSjl (its `IBLK` serialization flag is referenced nowhere).
+**Parameters:**
+- `confid`(1) — maximum excess trees passed per plot per species (`CONFID`/`PASMAX`); values **< 1.0 are raised to 1.0**. Consumed-inert on the exercised scope; only a dense over-regenerating stand (untested) would exercise the cap.
+**Example:**
+```text
+ESTAB         2000.0
+PASSALL        5.0
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - PASSALL: { confid: 5 }
+    - END: {}
+```
+*Recognized but inert on the reachable regime (no plot overflows, so no excess trees to cap).*
+
+#### PLOTINFO
+**What it does:** In stock FVS, signals that per-plot site cards (ID, slope, aspect, habitat, physiography, site-prep) follow in the keyfile and reads them via the **legacy TREEDATA plot-card** input format (esin.f opt 10 → esplt1/esplt2). It is **structurally inapplicable** to FVSjl's DATABASE/FIA input pipeline — FVSjl takes per-plot slope/aspect from the DB reader and a real FVSjl keyfile never carries `PLOTINFO` plot cards — so it is **consumed-inert** (validating it would require porting the entire legacy plot-card reader and a non-DB keyfile).
+**Parameters:**
+- `unit`(1) — input unit to read the plot cards from (`≥ 1` overrides the default keyfile unit). Consumed-inert in FVSjl.
+- *(following records)* — per-plot site cards `(ID, slope, aspect, habitat, physio, prep)`, legacy-only; not emitted by FVSjl's DB path.
+**Example:**
+```text
+ESTAB         2000.0
+PLOTINFO
+END
+```
+```yaml
+- regeneration:
+    - ESTAB: { date: 2000 }
+    - PLOTINFO: {}
+    - END: {}
+```
+*Recognized but inert (legacy plot-card input, not used on the DATABASE/FIA path).*
+
+> **Order & scope.** All of the above are read only between `ESTAB` and its `END`; cards apply in the order written and same-target cards resolve to whichever came **last** (e.g. a later all-species `SPECMULT 0` overwrites an earlier single-species multiplier). `STOCKADJ`/`SPECMULT`/`HTADJ`/`TALLY*`/`MECHPREP`/`BURNPREP`/`MINPLOTS`/`THRSHOLD` and the ingrowth/tally toggles are wired into the (IE/western) AUTOES establishment model; `HABGROUP`/`OUTPUT`/`PASSALL`/`PLOTINFO` are recognized-and-consumed but inert on FVSjl's DATABASE/FIA input scope (report-only or legacy plot-card constructs).
+
 ## Species groups
 
 A **named species group** lets you refer to several species at once with a single negative code. You define the group with `SPGROUP`, and thereafter any keyword's species field written as `−N` means "every member of the *N*-th group defined" (groups are numbered in definition order). This is the mechanism behind e.g. thinning "all oaks and hickories" with one card.
@@ -2795,6 +3152,1797 @@ TCONDMLT       2000       5.0      10.0
 - raw: "TCONDMLT       2000       5.0      10.0"
 ```
 *Biases the year-2000 thinning to remove poorer-condition and special-status trees first, by adding 5×condition-code + 10×special-status to each tree's cut-priority weight.*
+
+## Insect models — bark beetles (DFB / DFTM / MPB)
+
+FVS ships three western insect event-extensions that FVSjl ports as **supervisory keyword
+blocks**: each is opened by a single block keyword (`DFB`, `DFTM`, or `MPB`), reads its own
+sub-keyword cards until a matching `END`, and populates a per-stand model state (`s.dfb`,
+`s.dftm`, `s.mpb`). All three are gated: a stand that carries no block projects
+byte-identically, and the mortality/growth-loss seam fires only when the model's minimum
+stand conditions are met **and** an outbreak is scheduled or drawn for the current cycle.
+Each model reads its own private double-precision MINSTD random-number stream (seed 55329,
+`RANNSEED`), never the FVS `ZRAND` stream, so its stochastic paths are reproducible
+independently of the rest of the projection.
+
+Use these when you want to project a named bark-beetle or defoliator outbreak on a host
+stand: the **Douglas-fir beetle** (`DFB`) kills large (≥9″) Douglas-fir through a normal-draw
+"expected trees killed" model; the **Douglas-fir tussock moth** (`DFTM`) is a coupled
+population/defoliation model that converts percent-defoliation into growth-loss, top-kill, and
+mortality on Douglas-fir and grand/white fir; and the **mountain pine beetle** (`MPB`) drives
+lodgepole-pine mortality through the deterministic Cole (1983) rate-of-loss epidemic. Each
+model runs only on variants whose host species is present (DF = FVS species 3, except PN=16;
+lodgepole = 7, except CR=11; grand fir = 4/6/9 by variant); on a variant that does not link
+the extension the block is read and stored but stays inert.
+
+> **Note on the block keyword.** The Douglas-fir beetle block opener is the keyword `DFB`
+> (the model is historically called *DFBEETLE*); the tussock-moth opener is `DFTM`; the
+> mountain-pine-beetle opener is `MPB`. Everything up to the block's `END` is that model's
+> configuration. In the YAML form each block is one mapping key (`douglas_fir_beetle:` /
+> `tussock_moth:` / `mountain_pine_beetle:`) whose value is the ordered list of sub-keyword
+> entries, closed by `END` — exactly like the `ESTAB`/`FMIN`/`ECON` blocks.
+
+---
+
+### Douglas-fir beetle (DFB)
+
+The Douglas-fir beetle model (`dfb/*.f`) projects bark-beetle mortality on large Douglas-fir.
+Each cycle in which a regional outbreak is active and the stand meets the minimum condition
+(≥1 TPA of DF ≥4.5″, average DF DBH ≥9″, ≥25 % of stand basal area in DF), it draws an
+expected number of DF trees killed per outbreak-year (`EXYRMORT`, a normal deviate), scales it
+by the DF share of ≥9″ basal area and the outbreak length, and distributes that kill across
+the ≥9″ Douglas-fir records — raising their periodic mortality to the greater of background or
+beetle mortality. The port is validated bit-exact (Float32) against a relinked oracle for
+every numeric path (`START` binning, stand statistics, the `BACHLO`/`DFBRAN` normal draw, the
+kill distribution, and windthrow).
+
+#### DFB
+**What it does:** Opens the Douglas-fir beetle block and activates the model for the stand
+(`LDFBON`). Every card up to the matching `END` is read as DFB configuration; with no interior
+cards the model runs on its defaults (stochastic stand inclusion via `RANSTART`, auto-scheduled
+regional outbreaks via `RANSCHED`, a 4-year outbreak, 6.0 ± 2.0 DF killed/ac/yr).
+**Parameters:** *(none — a bare block opener; `END` closes the block)*
+**Example:**
+```text
+DFB
+MANSTART
+MANSCHED         2020.
+END
+```
+```yaml
+- douglas_fir_beetle:
+    - DFB: {}
+    - MANSTART: {}
+    - MANSCHED: { date: 2020 }
+    - END: {}
+```
+*Opens the DFB block, includes the stand in every regional outbreak, and schedules one outbreak in 2020.*
+
+#### MANSTART
+**What it does:** Deterministic stand-inclusion: the stand is included in **every** regional
+outbreak (`ISMETH=1`), skipping the stochastic per-stand inclusion draw. This is the validated
+deterministic outbreak path — pair it with `MANSCHED` for fully repeatable timing.
+**Parameters:** *(none)*
+**Example:**
+```text
+MANSTART
+```
+```yaml
+- MANSTART: {}
+```
+*Forces this stand into all scheduled regional Douglas-fir-beetle outbreaks.*
+
+#### RANSTART
+**What it does:** Stochastic stand inclusion (`ISMETH=2`, the default). On each scheduled
+regional outbreak the model draws one `DFBRAN` uniform against the stand-outbreak probability
+`PROTBK` (the ≥9″ DF share of basal area, capped at 0.9, or the `STOPROB` value) and includes
+the stand only when the draw succeeds.
+**Parameters:** *(none)*
+**Example:**
+```text
+RANSTART
+```
+```yaml
+- RANSTART: {}
+```
+*Includes the stand in regional outbreaks only when a random draw falls under the stand-outbreak probability.*
+
+#### MANSCHED
+**What it does:** Manually schedules a regional Douglas-fir-beetle outbreak at a given date
+(sets the scheduling mode to manual, `IDBSCH=1`, and records an OPNEW activity 2209). Repeat
+the card to schedule several outbreaks. The outbreak fires in whichever cycle contains the
+date; whether *this* stand is affected then depends on `MANSTART`/`RANSTART`.
+**Parameters:**
+- `date`(1) — outbreak date: calendar year (≥1000, fires in the cycle whose window contains it), 1-based cycle number (1–999), or `0` (every cycle). Default `1` (cycle 1).
+**Example:**
+```text
+MANSCHED         2015.
+```
+```yaml
+- MANSCHED: { date: 2015 }
+```
+*Schedules a regional outbreak in the cycle containing 2015.*
+
+#### RANSCHED
+**What it does:** Auto-schedules regional outbreaks (`IDBSCH=2`, the default scheduling mode).
+Before the cycle loop, `DFBSCH` walks the `DFBRAN` stream (seeded at `ORSEED`) treating each
+draw as one year and firing an outbreak whenever a draw falls under the annual event
+probability, then waiting the minimum period before the next — snapping each outbreak to the
+enclosing FVS cycle. The generated outbreak cycles are what the per-cycle gate then matches.
+**Parameters:**
+- `wait`(1) — `IWAIT`, minimum years between regional outbreaks. Default `10`.
+- `event_prob`(2) — `DBEVNT`, annual probability that a regional outbreak begins. Default `0.05`.
+- `last_outbreak`(3) — `IPAST`, calendar year of the last recorded outbreak (the schedule counts forward from it). Default `1950`.
+**Example:**
+```text
+RANSCHED           15.      0.04     1985.
+```
+```yaml
+- RANSCHED: { wait: 15, event_prob: 0.04, last_outbreak: 1985 }
+```
+*Auto-schedules outbreaks at ≥15-year spacing, 4 %/yr probability, counting from a 1985 outbreak.*
+
+#### RANNSEED
+**What it does:** Sets the seed of the DFB model's own random-number generator (`DFBRAN`,
+`ORSEED`). An even seed is bumped up by 1 to force an odd seed. Changing it changes every
+stochastic DFB realization (the `RANSTART` inclusion draw, the `EXYRMORT` normal deviate, and
+the `RANSCHED` schedule) while leaving the rest of the projection untouched.
+**Parameters:**
+- `seed`(1) — RNG seed (forced odd). Default `55329`.
+**Example:**
+```text
+RANNSEED        12345.
+```
+```yaml
+- RANNSEED: { seed: 12345 }
+```
+*Reseeds the Douglas-fir-beetle random stream to 12345.*
+
+#### EXYRMORT
+**What it does:** Sets the mean and standard deviation of the number of Douglas-fir trees
+killed per acre per outbreak-year. Each outbreak the model draws `BACHLO(mean, sd)` (a normal
+deviate on the `DFBRAN` stream), multiplies by the ≥9″ DF share of basal area and the outbreak
+length, and that is the total DF kill distributed across the large-DF records.
+**Parameters:**
+- `expected`(1) — `EXPCTD`, expected DF trees killed/ac/yr. Default `6.0`.
+- `std_dev`(2) — `EXSTDV`, standard deviation of the kill draw. Default `2.0`.
+**Example:**
+```text
+EXYRMORT          8.0       3.0
+```
+```yaml
+- EXYRMORT: { expected: 8.0, std_dev: 3.0 }
+```
+*Raises the outbreak kill to 8 ± 3 Douglas-fir/ac each outbreak-year.*
+
+#### OLENGTH
+**What it does:** Sets the outbreak length in years (`ILENTH`), which scales the total kill:
+the per-year expected kill is multiplied by the number of outbreak years falling in the cycle
+(capped at 10). Values outside 1–10 are ignored.
+**Parameters:**
+- `years`(1) — outbreak length, 1–10 years. Default `4`.
+**Example:**
+```text
+OLENGTH           6.
+```
+```yaml
+- OLENGTH: { years: 6 }
+```
+*Sets a 6-year outbreak.*
+
+#### STOPROB
+**What it does:** Overrides the model-computed stand-outbreak probability used by the
+`RANSTART` inclusion draw with a fixed user value (`EPIPRB`, `LEPI`). A value outside 0–1, or a
+blank field, is ignored (the model then computes the probability from the stand's DF basal-area
+share).
+**Parameters:**
+- `probability`(1) — stand-inclusion probability, 0.0–1.0.
+**Example:**
+```text
+STOPROB          0.75
+```
+```yaml
+- STOPROB: { probability: 0.75 }
+```
+*Fixes the stand's outbreak-inclusion probability at 0.75 for the RANSTART draw.*
+
+#### MORTDIS
+**What it does:** Switches the mortality-distribution method from the default DBH-weighted
+allocation to the **basal-area** method (`LBAMOD`): the total DF kill is apportioned to each
+≥9″ DF record by its share of ≥9″ DF basal area instead of its share of ΣDBH.
+**Parameters:** *(none)*
+**Example:**
+```text
+MORTDIS
+```
+```yaml
+- MORTDIS: {}
+```
+*Distributes beetle mortality across the large Douglas-fir by basal area rather than by diameter.*
+
+#### CUROUTBK
+**What it does:** Declares that an outbreak is already **in progress** at the start of the run
+(`LINPRG`), so the first cycle continues an existing outbreak rather than starting a fresh one.
+Field 1 is how many years the outbreak has already run (used to look up the remaining fraction
+of the 4-year kill curve); field 2, if given, is the TPA of DF already killed (the remaining
+kill is then computed deterministically). If field 2 is blank, the already-killed count is read
+from the tree list's beetle-damage codes (`LINV`) — in FVSjl the tree reader carries no such
+codes, so it stays 0 and the remaining kill is drawn.
+**Parameters:**
+- `year_in_outbreak`(1) — `IYOUT`, years the in-progress outbreak has already run (an outbreak >4 years old is assumed over ⇒ no further kill).
+- `killed_tpa`(2) — `PREKLL`, DF trees/ac already killed by the beetle; blank ⇒ take the count from the tree list.
+**Example:**
+```text
+CUROUTBK          2.        15.
+```
+```yaml
+- CUROUTBK: { year_in_outbreak: 2, killed_tpa: 15 }
+```
+*Continues an outbreak already 2 years along with 15 DF/ac already killed.*
+
+#### WINDTHR
+**What it does:** Schedules a windthrow event at a given date (OPNEW activity 2210). On that
+cycle the model blows down a proportion of the eligible large, dominant trees (those in the
+upper stand-BA percentile above a minimum height), by species susceptibility; when a regional
+outbreak is also active that cycle and enough large Douglas-fir blow down, the downed DF feed
+extra beetle mortality (`OKILL`) into the outbreak kill. Only variants with a ported
+species-susceptibility table (IE, PN) actually apply windthrow; on others the card is recorded
+but inert.
+**Parameters:**
+- `date`(1) — windthrow date (year / cycle / `0`). Default `1`.
+- `proportion`(2) — `PRPWIN`, proportion of eligible stems to windthrow. Default `0.8`.
+- `min_stems`(3) — `MINDEN`, minimum eligible stems/ac for the event to occur. Default `0.0`.
+**Example:**
+```text
+WINDTHR          2010.      0.6       25.
+```
+```yaml
+- WINDTHR: { date: 2010, proportion: 0.6, min_stems: 25 }
+```
+*Blows down 60 % of eligible dominant stems in 2010 if at least 25 stems/ac qualify.*
+
+#### DEBUG / NODEBUG
+**What it does:** `DEBUG` turns on the DFB model's debug output; `NODEBUG` turns it off. Neither
+affects the projection.
+**Parameters:** *(none)*
+**Example:**
+```text
+DEBUG
+```
+```yaml
+- DEBUG: {}
+```
+*Enables Douglas-fir-beetle debug output.*
+
+#### DFBECHO
+**What it does:** Requests the DFB post-processor output file (`JODFBX`); the following record
+names the file. FVSjl recognizes the keyword but produces no post-processor file, so it has no
+effect on the projection.
+**Parameters:** *(none read into model state — the supplemental record names the output file)*
+**Example:**
+```text
+DFBECHO
+DFBOUT
+```
+```yaml
+- DFBECHO: {}
+```
+*Requests the DFB post-processor report (no state effect in FVSjl).*
+
+#### END
+**What it does:** Closes the `DFB` block; keyword processing returns to the main stream.
+**Parameters:** *(none)*
+*Terminates the Douglas-fir-beetle keyword block.*
+
+---
+
+### Douglas-fir tussock moth (DFTM)
+
+The Douglas-fir tussock moth model (`dftm/*.f`) is a coupled population/defoliation model on
+Douglas-fir and grand/white fir. When a regional outbreak is scheduled, the model forces the
+outbreak cycle to a fixed 5-year base period, classifies the host trees into DFTM size/foliage
+classes, integrates the upper (regional) and lower (tree-class) population equations to a
+per-class percent branch-defoliation, then maps defoliation → foliage-biomass loss →
+diameter/height growth-loss, top-kill, and mortality back onto the host records. It is by far
+the most elaborate of the three models; its integrator, classification, biomass, damage
+functions, and RNG stream are validated bit-exact (Float32) against a relinked oracle, and the
+coupling seam is wired into the projection.
+The block is far larger than DFB/MPB — most sub-keywords tune the population model's internal
+coefficient arrays (B0/R0/B1) or the egg/biomass distributions; the commonly-used ones are the
+start method, the schedule, the host toggles, the report level, and the RNG seed.
+
+#### DFTM
+**What it does:** Opens the Douglas-fir tussock moth block and activates the model for the
+stand. Every card up to the matching `END` is read as DFTM configuration; with no interior
+cards the model runs on the Blue-Mountains default coefficients (both hosts on, deterministic
+`MANSTART` start method, redistribution on, biomass method 4, report level 2).
+**Parameters:** *(none — a bare block opener; `END` closes the block)*
+**Example:**
+```text
+DFTM
+MANSTART
+MANSCHED         2020.
+REPORT            1.
+END
+```
+```yaml
+- tussock_moth:
+    - DFTM: {}
+    - MANSTART: {}
+    - MANSCHED: { date: 2020 }
+    - REPORT: { level: 1 }
+    - END: {}
+```
+*Opens the DFTM block, deterministically starts the outbreak scheduled for 2020, and sets a brief report.*
+
+#### MANSTART
+**What it does:** Deterministic start method (`ITMETH=1`, the default): a scheduled regional
+outbreak always begins on this stand (no probability test).
+**Parameters:** *(none)*
+**Example:**
+```text
+MANSTART
+```
+```yaml
+- MANSTART: {}
+```
+*Starts every scheduled tussock-moth outbreak deterministically.*
+
+#### CRTSTART
+**What it does:** Critical-probability start method (`ITMETH=2`): a scheduled outbreak begins on
+this stand only when the model-computed stand-outbreak probability exceeds 0.5.
+**Parameters:** *(none)*
+**Example:**
+```text
+CRTSTART
+```
+```yaml
+- CRTSTART: {}
+```
+*Starts an outbreak only where the stand-outbreak probability exceeds 0.5.*
+
+#### RANSTART
+**What it does:** Stochastic start method (`ITMETH=3`): a scheduled outbreak begins on this
+stand when a `TMRANN` random draw falls under the model-computed stand-outbreak probability.
+**Parameters:** *(none)*
+**Example:**
+```text
+RANSTART
+```
+```yaml
+- RANSTART: {}
+```
+*Starts an outbreak randomly, weighted by the stand-outbreak probability.*
+
+#### MANSCHED
+**What it does:** Manually schedules a regional tussock-moth outbreak at a date (sets the
+schedule mode to manual, `ITMSCH=1`, OPNEW activity 810). Whether the stand then starts an
+outbreak depends on the start method (`MANSTART`/`CRTSTART`/`RANSTART`).
+**Parameters:**
+- `date`(1) — outbreak date: year (≥1000), cycle (1–999), or `0` (every cycle). Default `1`.
+**Example:**
+```text
+MANSCHED         2015.
+```
+```yaml
+- MANSCHED: { date: 2015 }
+```
+*Schedules a regional outbreak in the cycle containing 2015.*
+
+#### RANSCHED
+**What it does:** Auto-schedules regional outbreaks (`ITMSCH=2`): the model draws outbreak years
+off the `TMRANN` stream at the given annual probability and minimum spacing, counting forward
+from the last recorded outbreak.
+**Parameters:**
+- `wait`(1) — `TMWAIT`, minimum years between outbreaks. Default `30`.
+- `event_prob`(2) — `TMEVNT`, annual outbreak probability. Default `0.1`.
+- `last_outbreak`(3) — `TMPAST`, year of the last recorded outbreak. Default `1492`.
+**Example:**
+```text
+RANSCHED           25.      0.08     1980.
+```
+```yaml
+- RANSCHED: { wait: 25, event_prob: 0.08, last_outbreak: 1980 }
+```
+*Auto-schedules outbreaks ≥25 years apart at 8 %/yr, counting from 1980.*
+
+#### NODFRUN
+**What it does:** Turns off simulation on **Douglas-fir** (`LDF=false`); the outbreak then acts
+only on grand/white fir.
+**Parameters:** *(none)*
+**Example:**
+```text
+NODFRUN
+```
+```yaml
+- NODFRUN: {}
+```
+*Excludes Douglas-fir from the tussock-moth outbreak.*
+
+#### NOGFRUN
+**What it does:** Turns off simulation on **grand/white fir** (`LGF=false`); the outbreak acts
+only on Douglas-fir.
+**Parameters:** *(none)*
+**Example:**
+```text
+NOGFRUN
+```
+```yaml
+- NOGFRUN: {}
+```
+*Excludes grand/white fir from the tussock-moth outbreak.*
+
+#### RANNSEED
+**What it does:** Reseeds the DFTM random stream (`TMRANN`). With a value present the seed is
+forced odd and stored as both the working state and the reseed default; with no value the
+generator resets to the current default. Governs the `RANSTART`/`RANSCHED` draws and the
+`RANLARVA` and normal-error biomass draws.
+**Parameters:**
+- `seed`(1) — RNG seed (forced odd). Default `55329`; blank ⇒ reset to the current default.
+**Example:**
+```text
+RANNSEED        24680.
+```
+```yaml
+- RANNSEED: { seed: 24680 }
+```
+*Reseeds the tussock-moth random stream to 24681 (bumped to odd).*
+
+#### REPORT
+**What it does:** Sets the DFTM report verbosity (`ITMREP`); higher is more detailed. Does not
+affect the projected trees.
+**Parameters:**
+- `level`(1) — report level 0 / 1 / 2. Default `2`.
+**Example:**
+```text
+REPORT            1.
+```
+```yaml
+- REPORT: { level: 1 }
+```
+*Requests a brief tussock-moth report.*
+
+#### NUMCLASS
+**What it does:** Sets the number of DFTM tree-classes built for Douglas-fir and grand fir
+(`NCLAS`), and optionally the tree-difference proportion (`TMPN1`) that splits classes. The two
+class counts must sum to ≤100 or the card is ignored. More classes = finer defoliation
+resolution.
+**Parameters:**
+- `df_classes`(1) — Douglas-fir class count. Default `20`.
+- `gf_classes`(2) — grand-fir class count. Default `20`.
+- `split_prop`(3) — `TMPN1`, proportion splitting classes by tree difference. Default `0.5`.
+**Example:**
+```text
+NUMCLASS          15.       15.
+```
+```yaml
+- NUMCLASS: { df_classes: 15, gf_classes: 15 }
+```
+*Builds 15 Douglas-fir and 15 grand-fir defoliation classes.*
+
+#### TOPO
+**What it does:** Sets the stand topographic-position code used by the stand-outbreak
+probability (methods that read topography). Values >3 are ignored.
+**Parameters:**
+- `position`(1) — topographic position 1–3. Default `1`.
+**Example:**
+```text
+TOPO              2.
+```
+```yaml
+- TOPO: { position: 2 }
+```
+*Sets a mid-slope (2) topographic position for the outbreak-probability model.*
+
+#### ASHDEPTH
+**What it does:** Sets the soil-ash depth (inches, `TMASHD`) used by the Mika-Moore
+stand-outbreak probability methods (2 and 3).
+**Parameters:**
+- `depth`(1) — soil ash depth, inches. Default `15.93`.
+**Example:**
+```text
+ASHDEPTH         10.0
+```
+```yaml
+- ASHDEPTH: { depth: 10.0 }
+```
+*Sets a 10-inch ash depth for the Mika-Moore outbreak probability.*
+
+#### PROBMETH
+**What it does:** Selects the stand-outbreak conditional-probability method (`IPRBMT`): 1 =
+Heller (elevation/slope/aspect/topo/crown), 2 = Mika-Moore (topo/ash/%grand-fir/basal area),
+3 = Mika-Moore without the ash term; and an overall probability scale (`PRBSCL`).
+**Parameters:**
+- `method`(1) — probability method 1–3. Default `1`.
+- `scale`(2) — `PRBSCL`, probability scaling factor. Default `1.0`.
+**Example:**
+```text
+PROBMETH          2.        1.0
+```
+```yaml
+- PROBMETH: { method: 2, scale: 1.0 }
+```
+*Uses the Mika-Moore outbreak-probability method at full scale.*
+
+#### BIOMASS
+**What it does:** Selects the foliage-biomass assignment method (`IBMTYP`, 1–4) that gives each
+host tree its nominal-branch foliage biomass and percent-new-foliage feeding the defoliation
+integrator. Method 2 is the fully deterministic Hatch-Mika regression; methods 1/3/4 add normal
+errors drawn off the `TMRANN` stream. Out-of-range values are ignored.
+**Parameters:**
+- `method`(1) — biomass method 1–4. Default `4`.
+**Example:**
+```text
+BIOMASS           2.
+```
+```yaml
+- BIOMASS: { method: 2 }
+```
+*Uses the deterministic Hatch-Mika foliage-biomass regressions.*
+
+#### DFBIOMAS / GFBIOMAS
+**What it does:** Override the foliage-biomass and percent-new-foliage distribution parameters
+for Douglas-fir (`DFBIOMAS`) or grand/white fir (`GFBIOMAS`) — the mean and standard deviation
+of foliage biomass and of percent-new-foliage used by the biomass methods that draw them.
+**Parameters:**
+- `biomass_mean`(1) — foliage-biomass mean, g. (DF default 213.8; GF 227.0)
+- `biomass_sd`(2) — foliage-biomass standard deviation. (DF 64.2; GF 63.7)
+- `pctnew_mean`(3) — percent-new-foliage mean. (DF 26.9; GF 35.2)
+- `pctnew_sd`(4) — percent-new-foliage standard deviation. (DF 12.6; GF 7.3)
+**Example:**
+```text
+DFBIOMAS        220.0      60.0      28.0      12.0
+```
+```yaml
+- DFBIOMAS: { biomass_mean: 220, biomass_sd: 60, pctnew_mean: 28, pctnew_sd: 12 }
+```
+*Retunes the Douglas-fir foliage-biomass and percent-new-foliage distributions.*
+
+#### RANLARVA
+**What it does:** Sets a **random** egg-mass distribution (`IEGTYP=1`) for one host: the mean,
+within-tree variance, and between-tree variance of the egg count. Field 1 selects the host
+(1 = Douglas-fir, 2 = grand fir).
+**Parameters:**
+- `host`(1) — 1 = Douglas-fir, 2 = grand fir.
+- `mean`(2) — egg-mass mean. (DF default 9; GF 11)
+- `within`(3) — within-tree variance. (DF 2; GF 3)
+- `between`(4) — between-tree variance. Default `0`.
+**Example:**
+```text
+RANLARVA          1.       10.        2.        0.
+```
+```yaml
+- RANLARVA: { host: 1, mean: 10, within: 2, between: 0 }
+```
+*Sets a random Douglas-fir egg-mass distribution (mean 10).*
+
+#### DETLARVA
+**What it does:** Sets a **deterministic** egg-mass distribution (`IEGTYP=2`) for one host: the
+egg counts in the three tree thirds. Field 1 selects the host (1 = DF, 2 = GF).
+**Parameters:**
+- `host`(1) — 1 = Douglas-fir, 2 = grand fir.
+- `top`(2) — top-third egg count. (DF default 11; GF 15)
+- `middle`(3) — middle-third egg count. (DF 9; GF 10)
+- `bottom`(4) — bottom-third egg count. (DF 7; GF 7)
+**Example:**
+```text
+DETLARVA          2.       15.       10.        7.
+```
+```yaml
+- DETLARVA: { host: 2, top: 15, middle: 10, bottom: 7 }
+```
+*Sets deterministic grand-fir egg counts of 15/10/7 by tree third.*
+
+#### WEIGHT
+**What it does:** Sets the two weighting factors (`WEIGHT`, percent-new-foliage and biomass
+weights) applied when combining foliage classes.
+**Parameters:**
+- `pctnew_weight`(1) — percent-new-foliage weight. Default `1.0`.
+- `biomass_weight`(2) — biomass weight. Default `1.0`.
+**Example:**
+```text
+WEIGHT            1.0       1.0
+```
+```yaml
+- WEIGHT: { pctnew_weight: 1.0, biomass_weight: 1.0 }
+```
+*Weights new-foliage and biomass equally.*
+
+#### SALVAGE
+**What it does:** Enables post-outbreak salvage (`ITMSLV=1`): after each outbreak, survivors are
+salvaged when defoliation exceeded a critical percentage.
+**Parameters:**
+- `critical_defol`(1) — `TMDEFL`, critical defoliation percent triggering salvage. Default `50`.
+**Example:**
+```text
+SALVAGE          60.0
+```
+```yaml
+- SALVAGE: { critical_defol: 60 }
+```
+*Salvages stands defoliated more than 60 %.*
+
+#### CHEMICAL
+**What it does:** Applies a larvicide treatment: reduces the tussock-moth survival for one
+life-phase / instar by the given efficacy (mapped into the population-model coefficient array).
+**Parameters:**
+- `phase`(1) — treatment phase 1–4. Default `3`.
+- `instar`(2) — larval instar 1–6. Default `4`.
+- `efficacy`(3) — kill efficacy 0.0–1.0. Default `0.95`.
+**Example:**
+```text
+CHEMICAL          3.        4.       0.90
+```
+```yaml
+- CHEMICAL: { phase: 3, instar: 4, efficacy: 0.90 }
+```
+*Sprays the 4th-instar larvae at 90 % efficacy.*
+
+#### NPV2 / NPV3
+**What it does:** Apply a nucleopolyhedrosis-virus override, setting four population-model
+coefficients (`NPV2` → `B0(9..12)`; `NPV3` → `B0(15..18)`) that raise virus-induced larval
+mortality. Blank fields take the standard virus defaults (0.036 / 0.039 / 0.042 / 0.072).
+**Parameters:**
+- `c1`(1)…`c4`(4) — the four virus mortality coefficients.
+**Example:**
+```text
+NPV2
+```
+```yaml
+- NPV2: {}
+```
+*Applies the standard nucleopolyhedrosis-virus mortality override.*
+
+#### REDIST / NOREDIST
+**What it does:** Control larval redistribution across the stand. `REDIST` turns it on and sets
+its coefficient (`B0(62)`); `NOREDIST` turns it off (coefficient 0).
+**Parameters:** (`REDIST`)
+- `coeff`(1) — redistribution coefficient (`B0(62)`); nonzero ⇒ redistribution on.
+**Example:**
+```text
+NOREDIST
+```
+```yaml
+- NOREDIST: {}
+```
+*Disables larval redistribution.*
+
+#### TMPARMS
+**What it does:** Sets a single element of the population-model coefficient arrays by (row,
+column). Rows 2–12 address `B0`, rows 19–21 address `R0`, rows 22–25 address `B1`; the column
+is 1–6. A deep-tuning hook for the integrator.
+**Parameters:**
+- `row`(1) — coefficient row (2–12 → B0, 19–21 → R0, 22–25 → B1).
+- `col`(2) — column 1–6.
+- `value`(3) — the coefficient value.
+**Example:**
+```text
+TMPARMS           5.        3.       0.02
+```
+```yaml
+- TMPARMS: { row: 5, col: 3, value: 0.02 }
+```
+*Overrides one upper-module (B0) coefficient.*
+
+#### PUNCH
+**What it does:** Enables a parameter/state dump of the DFTM model to a Fortran unit. Output
+only — no effect on the projection.
+**Parameters:**
+- `unit`(1) — output unit number (>0 enables the dump).
+**Example:**
+```text
+PUNCH            30.
+```
+```yaml
+- PUNCH: { unit: 30 }
+```
+*Dumps the tussock-moth parameters to unit 30.*
+
+#### DATELIST
+**What it does:** Requests a date-list report of scheduled outbreaks. Report-only; no state
+effect.
+**Parameters:** *(none read into model state)*
+*Requests the tussock-moth outbreak date-list report.*
+
+#### DEBUG / DEBUTREE
+**What it does:** `DEBUG` turns on model debug output (and forces the report level to 2);
+`DEBUTREE` turns on per-tree debug output. Neither affects the projection.
+**Parameters:** *(none)*
+*Enables tussock-moth debug (`DEBUG`) or per-tree debug (`DEBUTREE`) output.*
+
+#### DFTMECHO
+**What it does:** Requests the DFTM post-processor output file; the following record names the
+file. Recognized (the supplemental record is consumed), no projection effect in FVSjl.
+**Parameters:** *(none read into model state — the supplemental record names the output file)*
+*Requests the DFTM post-processor report (no state effect in FVSjl).*
+
+#### END
+**What it does:** Closes the `DFTM` block; keyword processing returns to the main stream.
+**Parameters:** *(none)*
+*Terminates the Douglas-fir-tussock-moth keyword block.*
+
+---
+
+### Mountain pine beetle (MPB)
+
+The mountain pine beetle model (`lpmpb/*.f`) drives lodgepole-pine mortality. Its default path
+is the deterministic **Cole (1983) rate-of-loss** epidemic: each cycle in which an outbreak
+fires and the stand meets the minimum condition (≥1 LP record, ≥1 TPA of LP ≥4.5″), the model
+bins the lodgepole by DBH size class, runs the Cole survival recursion over the outbreak years
+(initial mortality by class × a per-class Q survival raised to the running dead count), converts
+the class survival into a proportion killed, and raises each lodgepole record's periodic
+mortality accordingly. The default deterministic path is validated bit-exact (Float32) against
+a relinked oracle. An alternative **population-dynamics** path (`POPDYN`) models beetle
+population and tree resistance; it is wired but reserved for that keyword. Many sub-keywords
+belong only to the population-dynamics / pheromone-baiting model and have **no effect** on the
+default Cole mortality path — those are recognized (and their trailing data records skipped) but
+inert in FVSjl.
+
+#### MPB
+**What it does:** Opens the mountain pine beetle block and activates the model for the stand
+(`LMPB1`). Every card up to the matching `END` is read as MPB configuration; with no interior
+cards the model runs the default Cole rate-of-loss path on its default class mortality/survival
+tables (10 size classes, up to 10 outbreak years).
+**Parameters:** *(none — a bare block opener; `END` closes the block)*
+**Example:**
+```text
+MPB
+MPBSTART         2020.
+END
+```
+```yaml
+- mountain_pine_beetle:
+    - MPB: {}
+    - MPBSTART: { date: 2020 }
+    - END: {}
+```
+*Opens the MPB block and schedules a lodgepole outbreak in 2020.*
+
+#### MPBSTART / MANSTART
+**What it does:** Schedule a mountain-pine-beetle outbreak at a date (OPNEW activity 555,
+`MPBON=1`); the two spellings are equivalent. When the cycle containing the date arrives and the
+stand meets the minimum condition, the outbreak fires deterministically. Repeat the card for
+several outbreaks.
+**Parameters:**
+- `date`(1) — outbreak date: year (≥1000), cycle (1–999), or `0` (every cycle). Default `1`.
+**Example:**
+```text
+MPBSTART         2015.
+```
+```yaml
+- MPBSTART: { date: 2015 }
+```
+*Schedules a lodgepole outbreak in the cycle containing 2015.*
+
+#### RANSTART
+**What it does:** Stochastic-inclusion outbreak method (`LRANST`): starting at a given date, each
+eligible cycle the model computes the stand-outbreak probability (`MPOTPR`, a logistic in the
+lodgepole basal-area share and stand relative density, requiring average LP DBH ≥6″, ≥25 % of
+BA in LP, ≥20 % of relative density in LP, and ≥40 LP TPA) and draws `MPRANN` against it,
+firing when the draw succeeds.
+**Parameters:**
+- `start_date`(1) — `ISTDT`, start date: ≤40 ⇒ cycle number, >40 ⇒ calendar year. Default `1`.
+**Example:**
+```text
+RANSTART            2.
+```
+```yaml
+- RANSTART: { start_date: 2 }
+```
+*Begins stochastic outbreak eligibility at cycle 2.*
+
+#### EPIPROB
+**What it does:** Overrides the model-computed stand-outbreak probability used by `RANSTART` with
+a fixed value (`EPIPRB`, `LEPI`). Values outside 0–1 are ignored.
+**Parameters:**
+- `probability`(1) — outbreak probability 0.0–1.0. Default `0.5`.
+**Example:**
+```text
+EPIPROB          0.7
+```
+```yaml
+- EPIPROB: { probability: 0.7 }
+```
+*Fixes the stand outbreak probability at 0.7 for the RANSTART draw.*
+
+#### PRBSCALE
+**What it does:** Scales the model-computed stand-outbreak probability (`PRBSCL`) used by the
+`RANSTART` draw.
+**Parameters:**
+- `scale`(1) — probability scaling factor. Default `1.0`.
+**Example:**
+```text
+PRBSCALE         0.8
+```
+```yaml
+- PRBSCALE: { scale: 0.8 }
+```
+*Scales the computed outbreak probability by 0.8.*
+
+#### RANNSEED
+**What it does:** Sets the seed of the MPB model's random-number generator (`MPRANN`, `ORSEED`);
+an even seed is bumped to odd. Governs the `RANSTART` inclusion draw (the only stochastic branch
+of the default path).
+**Parameters:**
+- `seed`(1) — RNG seed (forced odd). Default `55329`.
+**Example:**
+```text
+RANNSEED        13579.
+```
+```yaml
+- RANNSEED: { seed: 13579 }
+```
+*Reseeds the mountain-pine-beetle random stream to 13579.*
+
+#### MAXYEARS
+**What it does:** Sets the maximum number of years the Cole epidemic runs in a projection cycle
+(`MPMXYR`); the effective outbreak length is the smaller of this and the cycle length, capped at
+10. Values outside 1–30 are ignored.
+**Parameters:**
+- `years`(1) — max outbreak years, 1–30. Default `10`.
+**Example:**
+```text
+MAXYEARS          7.
+```
+```yaml
+- MAXYEARS: { years: 7 }
+```
+*Runs the Cole epidemic for at most 7 years per cycle.*
+
+#### NUMCLASS
+**What it does:** Sets the number of lodgepole DBH size classes the model builds (`NCLASS`).
+Values outside 1–30 are ignored. (The Cole tables are 10-class; this sets the requested
+resolution.)
+**Parameters:**
+- `classes`(1) — number of size classes, 1–30. Default `10`.
+**Example:**
+```text
+NUMCLASS         10.
+```
+```yaml
+- NUMCLASS: { classes: 10 }
+```
+*Builds 10 lodgepole size classes.*
+
+#### INITMORT
+**What it does:** Overrides the Cole **initial mortality** by size class (`ZINMOR`, the fraction
+of each class killed in the first outbreak year). Fields 1–7 set classes 1–7 on the card; a
+trailing record supplies classes 8–10.
+**Parameters:**
+- `class1`(1)…`class7`(7) — initial-mortality fraction for size classes 1–7 (classes 8–10 from the following record).
+**Example:**
+```text
+INITMORT          0.        0.      0.004     0.013     0.021     0.035     0.05
+```
+```yaml
+- INITMORT: { class1: 0, class2: 0, class3: 0.004, class4: 0.013, class5: 0.021, class6: 0.035, class7: 0.05 }
+```
+*Retunes the first-year mortality fractions by lodgepole size class.*
+
+#### QVALUES
+**What it does:** Overrides the Cole **Q survival** values by size class (`PRNOIN`, the
+per-class survival base raised to the running dead count in the epidemic recursion). Fields 1–7
+set classes 1–7; a trailing record supplies classes 8–10.
+**Parameters:**
+- `class1`(1)…`class7`(7) — Q survival value for size classes 1–7 (classes 8–10 from the following record).
+**Example:**
+```text
+QVALUES           1.        1.      0.994     0.982     0.965     0.909     0.743
+```
+```yaml
+- QVALUES: { class1: 1, class2: 1, class3: 0.994, class4: 0.982, class5: 0.965, class6: 0.909, class7: 0.743 }
+```
+*Retunes the per-class Q survival values driving the epidemic recursion.*
+
+#### CURRMORT
+**What it does:** Supplies the **current** (already-observed) mortality by size class (`CURRMR`)
+and schedules a cycle-1 outbreak, so the first-cycle Cole epidemic starts from the observed
+attack rather than the natural initial mortality. Fields 1–7 set classes 1–7; a trailing record
+supplies classes 8–10. Sets the current-mortality mode (`LCURMR`).
+**Parameters:**
+- `class1`(1)…`class7`(7) — current mortality (trees/ac) for size classes 1–7 (classes 8–10 from the following record).
+**Example:**
+```text
+CURRMORT          0.        0.        1.        2.        3.        1.        0.
+```
+```yaml
+- CURRMORT: { class1: 0, class2: 0, class3: 1, class4: 2, class5: 3, class6: 1, class7: 0 }
+```
+*Seeds the cycle-1 epidemic with observed current mortality by size class.*
+
+#### INVMORT
+**What it does:** Uses **inventoried** attack data from the tree list (`LINVMR`): trees flagged
+as successfully attacked (damage agent 2 / severity 3) are summed into the infested count per
+size class that seeds the cycle-1 epidemic. On stands without MPB damage codes this contributes
+nothing.
+**Parameters:** *(none)*
+**Example:**
+```text
+INVMORT
+```
+```yaml
+- INVMORT: {}
+```
+*Seeds the epidemic from inventoried lodgepole-attack codes in the tree list.*
+
+#### POPDYN / NOPOPDYN
+**What it does:** `POPDYN` switches to the beetle **population-dynamics** path (`LPOPDY`, the
+`MPBDRV`/`MPGR` tree-resistance epidemic) instead of the default Cole rate-of-loss.
+`NOPOPDYN` selects the rate-of-loss path (the default) and optionally the Q-value bounding
+method: field 1 ≥1 selects the Bousfield-bounded Q, 0 the simple Q.
+**Parameters:** (`NOPOPDYN`)
+- `bound_method`(1) — `IBOUSE`: 0 = simple Q (default), ≥1 = Bousfield-bounded Q.
+**Example:**
+```text
+NOPOPDYN          1.
+```
+```yaml
+- NOPOPDYN: { bound_method: 1 }
+```
+*Runs the Cole rate-of-loss path with the Bousfield-bounded Q survival.*
+
+#### LATITUDE
+**What it does:** Sets the forest latitude (`FORLAT`) used by the population-dynamics
+resistance/emergence model. Inert on the default Cole path.
+**Parameters:**
+- `latitude`(1) — forest latitude, degrees. Default `44.0`.
+**Example:**
+```text
+LATITUDE         47.0
+```
+```yaml
+- LATITUDE: { latitude: 47.0 }
+```
+*Sets the forest latitude to 47° for the population-dynamics model.*
+
+#### DEBUG / NODEBUG
+**What it does:** `DEBUG` turns on MPB debug output; `NODEBUG` turns it off. Neither affects the
+projection.
+**Parameters:** *(none)*
+*Enables (`DEBUG`) or disables (`NODEBUG`) mountain-pine-beetle debug output.*
+
+#### END
+**What it does:** Closes the `MPB` block; keyword processing returns to the main stream.
+**Parameters:** *(none)*
+*Terminates the mountain-pine-beetle keyword block.*
+
+#### Population-dynamics / pheromone-baiting keywords *(recognized, inert on the default path)*
+**What it does:** The following `MPB` sub-keywords configure the beetle population-dynamics and
+pheromone-baiting sub-models and have **no effect on the default Cole rate-of-loss mortality
+path**. FVSjl recognizes them (and skips the trailing data records that several of them read),
+so they never register as unrecognized keywords, but they do not change the projection unless
+the population-dynamics path is realized: `PSFOUND`, `DCFOUND`, `AGGPHERM`, `REPPHERM`,
+`BETTER`, `AMP`, `ACTSRF`, `CRITAD`, `MPBECHO`, `BEETLES`, `HABSUIT`, `STNDSIZE`, `GENOTYPE`,
+`STRONG`, `EMERINC`, `AGGTHRES`, `MPBGRF`, `NOMPBGRF`, `PSDBHLIM`, `PSPKILL`, `DCPKILL`,
+`PARTIAL`.
+*Pheromone-baiting and population-dynamics tuning keywords — parsed but inert on the default rate-of-loss mortality path.*
+
+# Disease, mistletoe & pine-beetle-landscape keywords
+
+Keyword documentation for the FVSjl **disease / pest** extensions: dwarf
+mistletoe, Western Root Disease (WRD), the NISI spatial mistletoe-spread model,
+and the Westwide Pine Beetle (WWPB / PPE landscape) beachhead. Fields use the
+FVS fixed-column convention — the keyword name occupies columns 1–10 and the
+numeric fields follow in 10-column groups: **field N = columns 10·N+1 … 10·N+10**
+(field 1 = cols 11–20, field 2 = cols 21–30, …). A blank field is "not present"
+and takes the keyword's documented default.
+
+---
+
+## Dwarf mistletoe
+
+Dwarf mistletoe (*Arceuthobium*) is an obligate parasitic plant that infects the
+crowns of conifers, robbing them of growth and eventually killing heavily
+infected trees. FVS rates each tree on the **Hawksworth 6-class Dwarf Mistletoe
+Rating (DMR, 0–6)** and applies rating-dependent multipliers to diameter growth,
+height growth, and mortality, while the infection spreads and intensifies from
+crown to crown over time. In FVSjl the *keyword-driven* dwarf-mistletoe control
+documented here is wired for the **British Columbia (BC)** variant — the seam
+that implements the #196 NEWSPRED / NISI spatial model (`mistoe*.jl`,
+`britishcolumbia/newspred.jl`). On every **other** variant these keywords are
+recorded in `unrecognized_keywords` and have no effect (the classic
+DMR-multiplier mistletoe model that CR/IE/… carry is seeded from the input
+damage codes internally, not from these cards). `MISTOE` opens the extension;
+`MISTPRT` requests the report; `NEWSPRED` (documented in the landscape section
+below) switches on the spatial model that `DMAUTO` parameterizes.
+
+#### MISTOE
+**What it does:** Activates the dwarf-mistletoe extension for the stand (BC
+variant). It sets the DM-active flag, which turns on the per-cycle infection /
+spread / growth-and-mortality-loss machinery and seeds each tree's initial DMR
+from its input damage codes (misdam.f codes 30–34: 30 generic, 31 LP, 32 WL, 33
+DF, 34 PP — the severity digit that follows becomes the 0–6 rating). It is the
+block-opener for the mistletoe keywords; by convention the sub-keywords
+(`MISTPRT`, `NEWSPRED`, `DMAUTO`) follow it and an `END` closes the group. On
+non-BC variants the card is recorded as unrecognized and does nothing.
+**Parameters:** *(none — a bare activator; any date field is ignored)*
+**Example:**
+```text
+MISTOE
+MISTPRT
+END
+```
+```yaml
+- dwarf_mistletoe:
+    - MISTOE: {}
+    - MISTPRT: {}
+    - END: {}
+```
+*Turns the BC dwarf-mistletoe extension on and requests the DM summary report.*
+
+#### MISTPRT
+**What it does:** Requests the dwarf-mistletoe summary reports — the by-DBH-class
+DMR / DMI statistical tables (emitted through the DBS `FVS_DM_*` tables, e.g.
+`FVS_DM_Sz_Sum`). Field 1 optionally sets the **minimum DBH** at which a tree is
+counted in the DMR/DMI statistics. Setting the global `mistprt_on` flag makes the
+report request take effect on any variant that produces the DM tables; the DBH
+threshold is stored only for BC.
+**Parameters:**
+- `min_dbh`(1) — minimum tree DBH (inches) to include in the DMR/DMI statistics;
+  values `< 0` are ignored. Default **1.0** (misin.f `DMRMIN`).
+**Example:**
+```text
+MISTOE
+MISTPRT            5.0
+END
+```
+```yaml
+- dwarf_mistletoe:
+    - MISTOE: {}
+    - MISTPRT: { min_dbh: 5.0 }
+    - END: {}
+```
+*Prints the DM summary tables, counting only trees ≥ 5″ DBH in the DMR/DMI stats.*
+
+#### DMAUTO
+**What it does:** Sets the two decay terms of the NISI double-exponential
+**spatial-autocorrelation** kernel — how strongly an infected crown's seed rain
+falls off with distance for like-class (`alpha`) versus unlike-class (`beta`)
+targets. It only matters when the NISI spatial model is on (`NEWSPRED`). FVS
+treats a *positive or missing* value as "unset": a supplied value **> 0** is an
+input error that is replaced by the −999 sentinel and left unchanged, so only a
+non-positive value actually overrides. Unset terms fall back in DMOPTS to
+`alpha = −0.50`, `beta = 0.0`.
+**Parameters:**
+- `date`(1) — activation date/cycle (year ≥ 1000, else cycle number). Default cycle 1.
+- `alpha`(2) — like-class autocorrelation decay (`DMALPHA`). A value **> 0** is
+  rejected (→ −999 unset). Unset ⇒ **−0.50**.
+- `beta`(3) — unlike-class autocorrelation decay (`DMBETA`). A value **> 0** is
+  rejected (→ −999 unset). Unset ⇒ **0.0**.
+**Example:**
+```text
+MISTOE
+NEWSPRED
+DMAUTO            2000     -0.45     -0.10
+END
+```
+```yaml
+- dwarf_mistletoe:
+    - MISTOE: {}
+    - NEWSPRED: {}
+    - DMAUTO: { date: 2000, alpha: -0.45, beta: -0.10 }
+    - END: {}
+```
+*Overrides the NISI spread-kernel decay terms (only negative values are honored).*
+
+#### MISTMULT / MISTPINF  *(recognized by stock FVS — not parsed in FVSjl)*
+**What it does:** In stock FVS the mistletoe block (misin.f) also reads
+per-species tuning cards: `MISTMULT` scales the infection-probability
+multipliers, and `MISTPINF` introduces new infections at a chosen level.
+**FVSjl does not implement these** — they are not in the keyword dispatch, so a
+`MISTMULT` / `MISTPINF` card is recorded in `unrecognized_keywords` and has **no
+effect** on the projection. They are documented here only so a key that carries
+them is understood. For reference, stock FVS reads:
+- `MISTMULT`: `date`(1), `species`(2), `prob(+)_mult`(3, dflt 1), `prob(−)_mult`(4, dflt 1).
+- `MISTPINF`: `date`(1), `species`(2), `proportion_to_infect`(3, dflt 0, range 0–1),
+  `dmr_level`(4, dflt 1, DMR 1–6), `method`(5, dflt 0, 0–2).
+
+*The FVSjl mistletoe seam honors `MISTOE`/`MISTPRT`/`NEWSPRED`/`DMAUTO`; the
+species-tuning cards `MISTMULT`/`MISTPINF` are unported no-ops.*
+
+---
+
+## Western Root Disease (RRIN)
+
+The Western Root Disease (WRD) extension models the soil-borne root pathogens —
+**annosus (P- and S-type), Armillaria, and Phellinus (laminated) root rot** —
+that spread through a stand as expanding **infection centers**. Roots of trees
+inside a center become infected; once the modeled proportion of a tree's root
+system reaches its species' lethal threshold the tree dies, and the infection
+persists in the stumps and root systems to attack the next generation. WRD is
+modeled as a **supervisory block**: a header keyword opens it and a run of
+sub-keywords configures the disease type, the initial center geometry, the stand
+area, the RNG, the default bark-beetle coupling, and the report requests, until
+`END` closes the block. In stock FVS the block header is **`RRIN`** (keywds.f
+option 91); **FVSjl accepts it as `RDIN`** (dispatch → `kw_rdin!`). FVSjl's WRD
+port is oracle-validated bit-exact against the live `FVSkt` binary (RDSUM
+summary + per-record mortality WK2 and diameter-growth loss).
+
+#### RDIN  *(stock FVS: `RRIN`)*
+**What it does:** Opens the Western Root Disease keyword block and activates WRD
+for the stand (`IROOT = 1`, loads the per-variant host crosswalk `IRTSPC`).
+Everything up to the matching `END` is read as WRD configuration. With no
+interior keywords the block still activates the extension with all defaults
+(random-center placement patched at `END`). This is the WRD analogue of the
+`FMIN`/`BMIN` block openers.
+**Parameters:** *(none — a bare block opener; `END` closes the block)*
+**Example:**
+```text
+RDIN
+RRTYPE             3
+RRINIT             0        10        10        20       0.1        10         3
+SAREA            100
+RRDOUT
+BBCLEAR
+END
+```
+```yaml
+- root_disease:
+    - RDIN: {}
+    - RRTYPE: { disease: 3 }
+    - RRINIT: { placement: 0, n_centers: 10, inf_tpa: 10, uninf_tpa: 20, root_prop: 0.1, area: 10, disease: 3 }
+    - SAREA: { acres: 100 }
+    - RRDOUT: {}
+    - BBCLEAR: {}
+    - END: {}
+```
+*Runs Armillaria (type 3) on a 100-acre stand seeded with 10 infection centers,
+requests the detail output, and clears the default bark beetles.*
+
+#### RRTYPE
+**What it does:** Selects the active root-disease type(s) (rdin.f option 42).
+Only one disease is modeled at a time, with the single exception of the
+**annosus P+S pair (types 1 and 2)** which may run together. The parser scans all
+supplied fields for the min/max disease number, clamps them to the valid range
+`1…ITOTRR`, and collapses any other multi-type request down to the single
+minimum type.
+**Parameters:**
+- `disease`(1…) — one or more disease-type numbers in successive fields
+  (`1` = annosus P, `2` = annosus S, `3` = Armillaria, `4` = Phellinus…). Blank
+  ⇒ type 1. Multiple values other than the `{1,2}` annosus pair collapse to the minimum.
+**Example:**
+```text
+RRTYPE             3
+```
+```yaml
+- RRTYPE: { disease: 3 }
+```
+*Selects Armillaria root rot as the active disease.*
+
+#### RRINIT
+**What it does:** Manually seeds the initial infection centers (rdin.f option 5;
+`RRMAN = true`). Field 1 chooses placement (`< 1` ⇒ random centers, the common
+path; `≥ 1` ⇒ explicit-center geometry, read from following records). Fields 2–6
+set the number of centers, the infected and uninfected host TPA inside the
+diseased area, the initial root-infection proportion, and the diseased-area
+acreage; field 7 optionally overrides the disease type for this init (else
+`MINRR`). Center count is capped at 100.
+**Parameters:**
+- `placement`(1) — `< 1` (or blank) ⇒ **random** center placement (`IPCFLG = 0`);
+  `≥ 1` ⇒ explicit-center geometry branch (`IPCFLG = 1`).
+- `n_centers`(2) — number of infection centers (`NCENTS`), capped at **100**.
+- `inf_tpa`(3) — infected host trees/acre inside the diseased area (`PRKILL`); `< 0` ignored.
+- `uninf_tpa`(4) — uninfected host trees/acre inside the diseased area (`PRUN`); `< 0` ignored.
+- `root_prop`(5) — initial proportion of roots infected (`RRINCS`), range **0–1**; out-of-range ignored.
+- `area`(6) — diseased-area size, acres (`PAREA`). Blank ⇒ patched at `END` to `0.25 × SAREA`.
+- `disease`(7) — disease type for this init; blank ⇒ `MINRR` (the `RRTYPE` minimum).
+**Example:**
+```text
+RRINIT             0        10        10        20       0.1        10         3
+```
+```yaml
+- RRINIT: { placement: 0, n_centers: 10, inf_tpa: 10, uninf_tpa: 20, root_prop: 0.1, area: 10, disease: 3 }
+```
+*Randomly places 10 Armillaria centers on a 10-acre diseased patch with 10
+infected + 20 uninfected host TPA and 10 % initial root infection.*
+
+#### SAREA
+**What it does:** Sets the total stand area used by the root-disease spatial model
+(rdin.f option 10). The center-spread geometry works in a square of side
+`DIMEN = √SAREA × 208.7` feet (√acres × feet/chain), so `SAREA` scales the whole
+disease landscape. Only a positive value is accepted.
+**Parameters:**
+- `acres`(1) — stand area, acres (`SAREA`); must be `> 0`. Sets `DIMEN = √SAREA × 208.7`.
+**Example:**
+```text
+SAREA            100
+```
+```yaml
+- SAREA: { acres: 100 }
+```
+*Sets the root-disease stand area to 100 acres.*
+
+#### RSEED
+**What it does:** Reseeds the root-disease Monte-Carlo RNG (rdin.f option 25) so a
+spread realization is reproducible. A non-zero value seeds the generator (`DSEED`
+→ `RDRANI`); a value of `0` requests a clock seed (`GETSED`, non-deterministic),
+which FVSjl deliberately does **not** honor (kept out of scope) so runs stay
+reproducible.
+**Parameters:**
+- `seed`(1) — RNG seed. Non-zero ⇒ deterministic reseed; `0`/blank ⇒ clock-seed request (ignored in FVSjl).
+**Example:**
+```text
+RSEED          55329
+```
+```yaml
+- RSEED: { seed: 55329 }
+```
+*Reseeds the WRD spread RNG for a reproducible realization.*
+
+#### BBCLEAR
+**What it does:** Suppresses the model's **default bark-beetle** coupling
+(rdin.f option 41): clears the auto-enabled bark-beetle-on-root-disease flag
+(`LBBON = false`), so beetle-driven mortality of root-diseased trees is not added
+on top of the direct root-disease kill.
+**Parameters:** *(none)*
+**Example:**
+```text
+BBCLEAR
+```
+```yaml
+- BBCLEAR: {}
+```
+*Turns off the default bark beetles that would otherwise attack root-diseased trees.*
+
+#### RRDOUT / RRECHO / SMCOUT / BBOUT  *(report requests — inert)*
+**What they do:** Request WRD diagnostic / echo outputs — `RRDOUT` the
+root-disease detail output, `RRECHO` the keyword echo, `SMCOUT` the
+spore-model-center output, `BBOUT` the bark-beetle output (each opening its own
+report file in stock FVS). FVSjl **recognizes** all four so a WRD key parses
+cleanly, but they carry **no state effect** and open no files — the WRD data that
+matters is emitted through the DBS `FVS_RD_*` tables instead. Deeper WRD
+sub-keywords not listed here (`SPREAD`, `CARRY`, `PSTUMP`, `RRTREIN`, …) are
+recorded as unrecognized.
+**Parameters:** *(recognized, ignored)*
+**Example:**
+```text
+RDIN
+RRTYPE             3
+RRDOUT
+END
+```
+```yaml
+- root_disease:
+    - RDIN: {}
+    - RRTYPE: { disease: 3 }
+    - RRDOUT: {}
+    - END: {}
+```
+*Report-request stubs — accepted for compatibility, no effect on the projection.*
+
+#### END
+**What it does:** Closes the `RDIN`/`RRIN` block (rdin.f option 9). At close it
+patches every not-explicitly-sized diseased area to `0.25 × SAREA` and finalizes
+the single-center flag (`LONECT`). Required to terminate the block.
+**Parameters:** *(none)*
+**Example:**
+```text
+END
+```
+```yaml
+- END: {}
+```
+*Ends the root-disease keyword block and applies default patch areas.*
+
+---
+
+## Western pine beetle & landscape (WWPB / NEWSPRED)
+
+The **Westwide Pine Beetle (WWPB)** model is a *landscape* Parallel-Processing
+Extension: it runs a bark-beetle **outbreak** — Mountain Pine Beetle, Western
+Pine Beetle, and Ips on lodgepole (sp 7) and ponderosa (sp 10) pine — across
+**many stands** with spatial location/area data and beetle **dispersal between
+stands**, then hands per-record mortality back to each stand's growth. In stock
+FVS the outbreak lives entirely in the PPE landscape driver (BMPPIN/BMDRV/BMKILL,
+activated by a `DISPERSE` card in the parallel-processing input); the shipped
+single-stand binaries link the **no-op stub** `exbm.f` and only expose the
+stand-level **`BMIN`** output block (keywds.f option 126). FVSjl ports the
+reachable `BMIN` block plus the model's own RNG **faithfully inert** — a stand
+carrying a WWPB block projects **byte-identically** to one without, matching the
+fact that even the relinked Fortran needs the absent PPE spatial harness to do
+anything. `NEWSPRED` is unrelated to the beetle — it is the BC dwarf-mistletoe
+switch that activates the **NISI** spatial spread-and-intensification model
+(the model `DMAUTO`, above, parameterizes); it is grouped here as the other
+spatial/landscape flag.
+
+#### BMIN
+**What it does:** Opens the Westwide Pine Beetle stand-level keyword block
+(keywds.f option 126) and marks WWPB active. Its only sub-keywords are the four
+output-scheduling cards plus `END`. Each output card schedules a beetle report
+(`.bmm`/`.bmt`/`.bmb`/`.bmv`) at a start date with a year window and increment.
+**FVSjl runs no PPE landscape loop and opens no `.bm*` files, so the whole block
+is inert** — it is recorded but never fires. (The reconstructed `DISPERSE` card,
+below, is read inside this block.)
+**Parameters:** *(none — a bare block opener; `END` closes the block)*
+Sub-keywords (`MAINOUT` / `TREEOUT` / `BKPOUT` / `VOLOUT`) each take:
+- `date`(1) — start date/cycle (`IDT`), INT-truncated. Default **1**.
+- `nyears`(2) — number of years to print (`PRMS(1)`). Default **100**.
+- `incr`(3) — year increment (`PRMS(2)`). Default **5**.
+
+where `MAINOUT` = stand main-summary (.bmm), `TREEOUT` = by-size-class tree
+detail (.bmt), `BKPOUT` = beetle-killing-potential/brood detail (.bmb), and
+`VOLOUT` = volume detail (.bmv).
+**Example:**
+```text
+BMIN
+MAINOUT         2000       100         5
+TREEOUT
+END
+```
+```yaml
+- pine_beetle:
+    - BMIN: {}
+    - MAINOUT: { date: 2000, nyears: 100, incr: 5 }
+    - TREEOUT: {}
+    - END: {}
+```
+*Opens the WWPB block and schedules the main + tree reports — parsed faithfully
+but inert (no PPE landscape driver, no `.bm*` files).*
+
+#### DISPERSE  *(reconstructed outbreak trigger — read inside `BMIN`)*
+**What it does:** In stock FVS `DISPERSE` is the parallel-processing-input card
+(BMPPIN, GPNEW activity 301) that **starts the beetle outbreak** over the
+landscape (start year `IBMYR1` + duration → `IBMYR2`). FVSjl reconstructs it
+inside the `BMIN` block as the single-stand outbreak activator, with a synthetic
+inventory-damage kick-off (since FVSjl has no PPE "outside-world" beetle
+immigration). Because the full PPE spatial driver is absent, this is the seam a
+future full port builds on; on a plain single-stand run it activates the
+reconstructed local outbreak only.
+**Parameters:**
+- `start_year`(1) — outbreak start year `IBMYR1`, INT-truncated. Default **1** (this cycle).
+- `duration`(2) — outbreak duration in years; sets `IBMYR2 = IBMYR1 + max(duration,1) − 1`. Default **1**.
+- `seed_class`(3) — synthetic damage-seed DBH size class (1…`NSCL`); clamped to range. Default **3**.
+- `seed_tpa`(4) — synthetic beetle-killed TPA kick-off. Default **0**.
+**Example:**
+```text
+BMIN
+DISPERSE        2005         5         6      2.0
+END
+```
+```yaml
+- pine_beetle:
+    - BMIN: {}
+    - DISPERSE: { start_year: 2005, duration: 5, seed_class: 6, seed_tpa: 2.0 }
+    - END: {}
+```
+*Triggers a 5-year outbreak from 2005 seeded with 2 beetle-killed TPA in size
+class 6 (the reconstructed single-stand BMPPIN seam; the full landscape driver is
+deferred).*
+
+#### NEWSPRED
+**What it does:** Switches the BC dwarf-mistletoe extension to the **NISI**
+(New Interference / spatial Spread-and-Intensification) model (misin.f option 12,
+`NEWMOD = true`) — the spatial crown-to-crown seed-dispersal model whose decay
+kernel is tuned by `DMAUTO`. It is used **with** `MISTOE`, and (like the other DM
+keywords) takes effect only on the BC variant; elsewhere it is recorded as
+unrecognized.
+**Parameters:** *(none — a bare switch)*
+**Example:**
+```text
+MISTOE
+NEWSPRED
+DMAUTO            2000     -0.45     -0.10
+END
+```
+```yaml
+- dwarf_mistletoe:
+    - MISTOE: {}
+    - NEWSPRED: {}
+    - DMAUTO: { date: 2000, alpha: -0.45, beta: -0.10 }
+    - END: {}
+```
+*Selects the NISI spatial dwarf-mistletoe spread model (BC), tuned by `DMAUTO`.*
+
+# CLIMATE-FVS & COVER extension keywords
+
+> Column convention (fixed-format keyfiles): the keyword name occupies columns 1–10, and
+> the numeric fields follow in 10-column groups — **field N = columns 10·N+1 … 10·N+10**
+> (field 1 = cols 11–20, field 2 = cols 21–30, …). Both blocks below are **supervisory
+> blocks**: an opening card (`CLIMATE` / `COVER`) starts the block, its sub-keyword cards
+> follow one per record, and `END` closes it. In the YAML keyfile form each block is a
+> single list whose first entry is the block keyword and whose last entry is `END`.
+
+---
+
+## FVS-Climate (CLIMATE)
+
+**Climate-FVS** feeds a stand's projected climate into the growth engine. From a table of
+per-year, per-attribute climate *scores* (a scenario such as `CGCM3_A2`, one row per
+calendar year, one column per climate attribute — read via `CLIMDATA`), the model derives
+time-varying multipliers that scale the ordinary FVS predictions. The block's sub-keywords
+let you *also* impose those multipliers directly, per species and per cycle:
+`GROWMULT` scales diameter/height growth, `MORTMULT` scales background mortality rate,
+`MXDENMLT` scales the stand's maximum-density (SDImax/BAMAX) ceiling that drives
+density-dependent mortality, and `AUTOESTB` turns on climate-driven automatic
+establishment (spontaneous ingrowth when the stand falls below a stocking threshold).
+In FVSjl the CLIMATE parser (`kw_climate!`, clim/base/clin.f) parses the scenario table
+into `s.climate` (a `ClimateState`, active only when the data block has ≥1 attribute and
+≥1 year) and records the scheduled multiplier/establishment events; `CLIMREPT` and
+`SETATTR` are recognized but not yet applied. The block is inert (no `s.climate`) if no
+stand-matching `CLIMDATA` block is read.
+
+The opening `CLIMATE` card itself takes **no fields** — it only opens the block. FVSjl
+reads sub-keyword cards until `END` (or EOF).
+
+#### CLIMATE
+**What it does:** Opens the Climate-FVS block and reads sub-keyword cards (`CLIMDATA`,
+`GROWMULT`, `MORTMULT`, `MXDENMLT`, `AUTOESTB`, `CLIMREPT`, `SETATTR`) until `END`. The
+opening card carries no parameters; all climate configuration is on the cards inside the
+block. The block only takes effect for a stand once a stand-matching `CLIMDATA` block has
+supplied at least one attribute-year of scores.
+**Parameters:** *(none on the opening card)*
+**Example:**
+```text
+CLIMATE
+CLIMDATA
+CGCM3_A2
+*
+STAND_CN,CGCM3_A2,2020,DDGDD,MAT
+0602010101,CGCM3_A2,2020,1234.0,7.1
+0602010101,CGCM3_A2,2030,1290.0,7.6
+-999
+GROWMULT           2.        DF        1.1
+END
+```
+```yaml
+- climate:
+    - CLIMATE: {}
+    - CLIMDATA:
+        scenario: "CGCM3_A2"
+        source: "*"                      # inline rows follow; "-999" ends them
+        raw:                             # attribute-header row, then data rows
+          - "STAND_CN,CGCM3_A2,2020,DDGDD,MAT"
+          - "0602010101,CGCM3_A2,2020,1234.0,7.1"
+          - "0602010101,CGCM3_A2,2030,1290.0,7.6"
+    - GROWMULT: { cycle: 2, species: "DF", value: 1.1 }
+    - END: {}
+```
+*Activates Climate-FVS for the stand with an inline two-year scenario table and boosts Douglas-fir growth 10 % from cycle 2 on.*
+
+#### CLIMDATA
+**What it does:** Supplies the climate **attribute-score table** that drives the whole
+extension. FVSjl reads two raw lines after the keyword — the **scenario name** (line 1,
+e.g. `CGCM3_A2`) and a **source** (line 2): a literal `*` means the score rows follow
+inline (terminated by a `-999` line), otherwise it is a CSV **filename** resolved relative
+to the run directory. Each data row is `STAND_CN, scenario, year, <attr1>, <attr2>, …`;
+the first data row's header names the attributes. Only rows matching this stand's ID and
+this scenario are kept; the surrounding quotes on quoted CSV fields are stripped. A block
+whose year count exceeds the model maximum (`MXCLYEARS`) is rejected (treated as no data).
+The last stand-matching, non-empty block wins.
+**Parameters:** *(read as free-form records, not fixed columns)*
+- *line 1* — scenario name (matched against column 2 of the data rows).
+- *line 2* — `*` for inline data (ended by a `-999` line) **or** a CSV filename.
+- *data rows* — `STAND_CN, scenario, year, attr…`; first row's trailing labels name the climate attributes; only this stand + scenario rows are retained.
+**Example:**
+```text
+CLIMDATA
+RCP85
+climate_scores.csv
+```
+```yaml
+- climate:
+    - CLIMDATA: { scenario: "RCP85", source: "climate_scores.csv" }
+```
+*Loads climate scores for scenario RCP85 for this stand from an external CSV, building the attribute-year matrix that Climate-FVS scales growth/mortality/max-density by.*
+
+#### GROWMULT
+**What it does:** Applies a **climate-caused growth multiplier** to a species (or all
+species) starting at a cycle (clin.f option 5, activity 2803). The factor multiplies the
+species' diameter/height growth. Recorded in FVSjl as a `(cycle, species, value)` event on
+`s.climate.grow_events`.
+**Parameters:**
+- `cycle`(1) — schedule cycle/date; blank ⇒ 1.
+- `species`(2) — species: 2-letter alpha code, FIA/numeric index, or `ALL`/`0`/blank = all species (SPDECD-decoded).
+- `value`(3) — growth multiplier applied to that species; blank ⇒ **1.0** (no change).
+**Example:**
+```text
+GROWMULT           3.        LP        0.9
+```
+```yaml
+- climate:
+    - GROWMULT: { cycle: 3, species: "LP", value: 0.9 }
+```
+*From cycle 3, scales loblolly-pine growth to 90 % under the climate scenario.*
+
+#### MORTMULT
+**What it does:** Applies a **climate-caused mortality multiplier** to a species (or all
+species) starting at a cycle (clin.f option 3, activity 2801). Scales the background
+mortality rate. Recorded as a `(cycle, species, value)` event on `s.climate.mort_events`.
+**Parameters:**
+- `cycle`(1) — schedule cycle/date; blank ⇒ 1.
+- `species`(2) — species (alpha/FIA/numeric) or `ALL`/`0`/blank = all species.
+- `value`(3) — first mortality multiplier (`CLMRTMLT1`); blank ⇒ **1.0**.
+- *(field 4 = `CLMRTMLT2`, a second/large-tree multiplier)* — read by stock FVS but **not captured** by the FVSjl parser.
+**Example:**
+```text
+MORTMULT           2.        AF        1.5
+```
+```yaml
+- climate:
+    - MORTMULT: { cycle: 2, species: "AF", value: 1.5 }
+```
+*From cycle 2, raises subalpine-fir mortality to 1.5× under the climate scenario.*
+
+#### MXDENMLT
+**What it does:** Applies a **climate-caused maximum-density multiplier** starting at a
+cycle (clin.f option 6, activity 2804). It scales the stand's maximum-density ceiling
+(`CLMXDENMULT` — the SDImax/BAMAX limit that governs density-dependent mortality), so a
+value < 1 makes the stand self-thin at lower density. Recorded as a `(cycle, value)` event
+on `s.climate.mxden_events`.
+**Parameters:**
+- `cycle`(1) — schedule cycle/date; blank ⇒ 1.
+- `value`(2) — maximum-density multiplier (`CLMXDENMULT`); blank ⇒ **1.0**.
+**Example:**
+```text
+MXDENMLT           4.                  0.85
+```
+```yaml
+- climate:
+    - MXDENMLT: { cycle: 4, value: 0.85 }
+```
+*From cycle 4, lowers the stand's carrying-capacity ceiling to 85 %, so density-dependent mortality kicks in earlier.*
+
+#### AUTOESTB
+**What it does:** Turns on **climate-driven automatic establishment** (clin.f option 4,
+activity 2802) — the model adds ingrowth on its own when stand stocking is below a
+threshold. Recorded as a `(cycle, aestock, aesntrees, nespecies)` event on
+`s.climate.autoestb_events`.
+**Parameters:**
+- `cycle`(1) — schedule cycle/date; blank ⇒ 1.
+- `aestock`(2) — stocking threshold, **percent**, below which auto-establishment fires; blank ⇒ **40.0**.
+- `aesntrees`(3) — base number of trees/acre to add; blank ⇒ **500.0**.
+- `nespecies`(4) — maximum number of species to add; blank ⇒ **4** (stock FVS caps this at the variant `MAXSP`).
+**Example:**
+```text
+AUTOESTB           1.       50.       400.        3.
+```
+```yaml
+- climate:
+    - AUTOESTB: { cycle: 1, aestock: 50, aesntrees: 400, nespecies: 3 }
+```
+*Enables climate auto-establishment from cycle 1: when stocking drops below 50 %, add up to 400 trees/ac across at most 3 species.*
+
+#### CLIMREPT
+**What it does:** Requests the Climate-FVS output report (clin.f option 7). **Recognized
+but not yet applied** in FVSjl — the card is accepted and skipped; no report is emitted.
+**Parameters:** *(not consumed by FVSjl)*
+```yaml
+- climate:
+    - CLIMREPT: {}
+```
+*Parsed-but-inert in FVSjl (report generation is a later chunk).*
+
+#### SETATTR
+**What it does:** Overrides an individual climate attribute value (clin.f option 8).
+**Recognized but not yet applied** in FVSjl — accepted and skipped.
+**Parameters:** *(not consumed by FVSjl)*
+```yaml
+- climate:
+    - SETATTR: {}
+```
+*Parsed-but-inert in FVSjl.*
+
+#### END (CLIMATE)
+**What it does:** Closes the Climate-FVS block. `END` (or EOF/end-of-keywords) stops
+sub-keyword reading; `s.climate` is committed only if a stand-matching `CLIMDATA` produced
+a non-empty attribute-year table.
+```yaml
+    - END: {}
+```
+*Closes the CLIMATE block.*
+
+---
+
+## Canopy & shrub COVER
+
+The **COVER** extension is a **report-only** understory/canopy model. Given the projected
+tree list and stand density it computes and prints, at the end of the projection, a
+**CANOPY COVER STATISTICS** table (per-tree crown width → crown area → percent canopy
+cover, by height class) plus, when the shrub option is enabled, **SHRUB STATISTICS**, a
+**SUMMARY**, and a shrub–small-conifer competition table. It **does not modify** any tree's
+DBH/height/growth/mortality and draws **no random numbers**: a run without the `COVER`
+keyword is byte-identical, and the only observable effect is the emitted report text
+(validated bit-exact for the canopy table against the live FVS oracle). In FVSjl the parser
+is `kw_coverin!` (covr/cvin.f); the report is scheduled as activity 900 at the requested
+date.
+
+The opening `COVER` card both opens the block **and** schedules the report — field 1 is the
+date/cycle to emit it and field 2 is the output unit. Sub-keyword cards (`CANOPY`,
+`SHRUBS`, `SHRBLAYR`, `SHRUBHT`, `SHRUBPC`, `SHOWSHRB`, the `NO*OUT` suppressors,
+`CVNOHEAD`, `DEBUG`, and a nested `COVER`) follow until `END`.
+
+#### COVER
+**What it does:** Opens the COVER block **and** schedules the cover report. Field 1 sets
+the date/cycle at which the report fires (activity 900); field 2 sets the data-set
+reference number (output unit) for the shrub/cover output. FVSjl marks cover active on the
+opening card, so a bare `COVER … END` with no inner cards still emits the canopy report.
+The same `COVER` card may also appear **inside** the block to (re)schedule the report.
+**Parameters:**
+- `date`(1) — date/cycle at which to emit the report (`IDT`); ≤ 0 or blank ⇒ **1**.
+- `dsn`(2) — output data-set reference number for shrub/cover output (`JOSHRB`); blank ⇒ leave at default.
+**Example:**
+```text
+COVER         2020.        26.
+CANOPY
+END
+```
+```yaml
+- cover:
+    - COVER: { date: 2020, dsn: 26 }
+    - CANOPY: {}
+    - END: {}
+```
+*Schedules the cover report for 2020 to data-set 26 and enables the canopy-cover calculations.*
+
+#### CANOPY
+**What it does:** Enables the **canopy model** (cvin.f option 2): per-tree crown width,
+crown shape, and foliage biomass, aggregated into the CANOPY COVER STATISTICS table. Sets
+the canopy flag and the foliage-biomass equation option `COVOPT` (default 2 when the card
+is present). This is the bit-exact-validated half of COVER.
+**Parameters:**
+- `covopt`(1) — foliage-biomass equation option; blank ⇒ **2**. (Stock FVS notes the age-dependent biomass equation "requires tree ages"; option 2 is the biomass path FVSjl implements.)
+**Example:**
+```text
+CANOPY
+```
+```yaml
+- cover:
+    - CANOPY: { covopt: 2 }
+```
+*Turns on canopy crown-width / crown-shape / foliage-biomass calculations for the cover report.*
+
+#### SHRUBS
+**What it does:** Enables the **shrub model** (cvin.f option 3) and sets its stand
+descriptors: time since disturbance, habitat type, physiographic position, and disturbance
+type. These parameterize the understory shrub height/cover predictions that feed the SHRUB
+STATISTICS report.
+**Parameters:**
+- `sage`(1) — time since disturbance, years (`SAGE`); blank ⇒ **−1** (fall back to stand age from STDINFO, else 3 yr).
+- `ihtype`(2) — habitat-type code for shrub processing; blank ⇒ **0**.
+- `iphys`(3) — physiographic-position code (1 = bottom, 2 = lower slope, 3 = midslope, 4 = upper slope, 5 = ridge); blank ⇒ **2**.
+- `idist`(4) — disturbance-type code (1 = none, 2 = mechanical, 3 = burn, 4 = road); blank ⇒ **1**.
+**Example:**
+```text
+SHRUBS           5.        12.        3.        2.
+```
+```yaml
+- cover:
+    - SHRUBS: { sage: 5, ihtype: 12, iphys: 3, idist: 2 }
+```
+*Enables shrub modeling 5 years after a mechanical disturbance on a midslope habitat-type-12 site.*
+
+#### SHRBLAYR
+**What it does:** Calibrates the shrub model to **observed shrub layers** (cvin.f option 4):
+up to three observed (height, cover) pairs. FVSjl stores the heights/covers, counts the
+layers with a non-blank cover, sums the total observed cover, and sorts the layers by
+decreasing height. Sets the layer-calibration flags.
+**Parameters:**
+- `ht1`(1), `pc1`(2) — height (ft) and cover (%) of shrub layer 1.
+- `ht2`(3), `pc2`(4) — layer 2 height/cover.
+- `ht3`(5), `pc3`(6) — layer 3 height/cover. (Fields 1,3,5 = heights; 2,4,6 = covers; blanks ⇒ 0.)
+**Example:**
+```text
+SHRBLAYR        4.5       40.        2.0       25.
+```
+```yaml
+- cover:
+    - SHRBLAYR: { ht1: 4.5, pc1: 40, ht2: 2.0, pc2: 25 }
+```
+*Calibrates the shrub model to two observed layers: 40 % cover at 4.5 ft and 25 % cover at 2.0 ft.*
+
+#### SHRUBHT
+**What it does:** Calibrates **observed shrub heights by species** (cvin.f option 5). Reads
+up to 4 following data records, each holding up to 8 `(species-abbrev, height)` pairs in a
+`8(A4,F6.1)` layout (10 columns per pair). A `-999` abbreviation ends the data; a blank
+abbreviation keeps the species' dummy value; an unrecognized abbreviation is skipped. Sets
+the by-species calibration flag.
+**Parameters:** *(species/value pairs on the following record(s), fixed 10-column pairs)*
+- each pair — 4-char shrub-species abbreviation (from the 31-species SNAME table) + observed height (ft).
+**Example:**
+```text
+SHRUBHT
+      VASC   1.5      XETE   0.8      -999
+```
+```yaml
+- cover:
+    - SHRUBHT:
+        raw:
+          - "      VASC   1.5      XETE   0.8      -999"
+```
+*Calibrates observed heights of grouse whortleberry (1.5 ft) and beargrass (0.8 ft).*
+
+#### SHRUBPC
+**What it does:** Calibrates **observed shrub percent-cover by species** (cvin.f option 6).
+Same record layout and terminator as `SHRUBHT` (`8(A4,F6.1)`, `-999` ends), but the value
+is percent cover. Sets the by-species calibration flag.
+**Parameters:** *(species/value pairs on the following record(s))*
+- each pair — 4-char shrub-species abbreviation + observed percent cover.
+**Example:**
+```text
+SHRUBPC
+      VASC  35.0      PHMA  20.0      -999
+```
+```yaml
+- cover:
+    - SHRUBPC:
+        raw:
+          - "      VASC  35.0      PHMA  20.0      -999"
+```
+*Calibrates observed cover of grouse whortleberry (35 %) and ninebark (20 %).*
+
+#### SHOWSHRB
+**What it does:** Selects up to 6 shrub species for the output report (cvin.f option 13).
+The species are listed on the **following** data record. **Parsed-but-inert** in FVSjl: the
+parser consumes the one species-selection record but the selection is not yet applied.
+**Parameters:** *(one following record: up to 6 species abbreviations)*
+```yaml
+- cover:
+    - SHOWSHRB:
+        raw:
+          - "      VASC      XETE      PHMA"
+```
+*Consumed but not yet acted on in FVSjl (deferred).*
+
+#### NOCOVOUT
+**What it does:** Suppresses the **canopy-cover** output section (cvin.f option 8; clears
+`lcover`). Compact toggle, no fields.
+```yaml
+- cover:
+    - NOCOVOUT: {}
+```
+*Omits the canopy-cover table from the cover report.*
+
+#### NOSHBOUT
+**What it does:** Suppresses the **shrub** output section (cvin.f option 9; clears
+`lshrub`). Compact toggle, no fields.
+```yaml
+- cover:
+    - NOSHBOUT: {}
+```
+*Omits the shrub-statistics table from the cover report.*
+
+#### NOSUMOUT
+**What it does:** Suppresses the **summary** output section (cvin.f option 10; clears
+`lcvsum`). Compact toggle, no fields.
+```yaml
+- cover:
+    - NOSUMOUT: {}
+```
+*Omits the summary table from the cover report.*
+
+#### CVNOHEAD
+**What it does:** Requests cover data written **without a heading** (cvin.f option 14). A
+**no-op** on the FVSjl canopy-report path — accepted and ignored.
+```yaml
+- cover:
+    - CVNOHEAD: {}
+```
+*Parsed-but-inert in FVSjl.*
+
+#### DEBUG
+**What it does:** Enables COVER debug output (cvin.f option 7). A **no-op** on the FVSjl
+canopy-report path — accepted and ignored.
+```yaml
+- cover:
+    - DEBUG: {}
+```
+*Parsed-but-inert in FVSjl.*
+
+#### END (COVER)
+**What it does:** Closes the COVER block. `END` (or EOF/end-of-keywords) stops sub-keyword
+reading; the scheduled report fires at the date on the `COVER` card.
+```yaml
+    - END: {}
+```
+*Closes the COVER block.*
+
+> **Block notes.** Both blocks are order-sensitive only in that the opening card must come
+> first and `END` last; between them the sub-keyword cards may appear in any order and
+> accumulate (e.g. multiple `GROWMULT`/`MORTMULT` cards for different species/cycles, or
+> `CANOPY` + `SHRUBS` together). An unrecognized card inside `COVER` is collected as an
+> unrecognized keyword; inside `CLIMATE` an unrecognized card is skipped. Neither block
+> perturbs growth/mortality RNG state — CLIMATE only when `CLIMDATA` supplies data (its
+> multipliers then scale predictions), COVER never (it is report-only).
 
 ## Compression & tripling
 
