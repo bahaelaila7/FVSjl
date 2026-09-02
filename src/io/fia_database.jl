@@ -83,9 +83,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # while the western VDBSQLITE reader (FVSem_buildDir:303) uses ELEVATION raw (already hundreds-of-ft).
     # jl elevation feeds the BC crown model (CRCON EL·elev + EL2·elev²) and AUTOES, so a raw-metre store is
     # ~30.48× too large. ELEVFT is feet in both readers (metric reader still ×0.01, no MtoFt).
-    if _fia_present(d, "ELEVFT")
+    # ⚠ Gate on a NUMERIC ELEVFT, not mere presence: this FVS-ready DB stores an unset numeric column as an
+    # EMPTY STRING (e.g. LD3001 ElevFt="" while Elevation=518 m), which _fia_present() reports as present.
+    # A blank/non-numeric ELEVFT would then set elevation=0 and short-circuit the ELEVATION fallback, dropping
+    # the real metres value. FVS's dbsstandin treats a null ELEVFT as absent and reads ELEVATION — mirror that.
+    if _fia_present(d, "ELEVFT") && _fia_num(d["ELEVFT"]) !== nothing
         p.elevation = _fia_f32(d, "ELEVFT", 0f0) * 0.01f0
-    elseif _fia_present(d, "ELEVATION")
+    elseif _fia_present(d, "ELEVATION") && _fia_num(d["ELEVATION"]) !== nothing
         if s.variant isa BritishColumbia || s.variant isa Ontario
             p.elevation = _fia_f32(d, "ELEVATION", 0f0) * 3.280839895f0 / 100f0   # m → hundreds of ft (BC/ON metric DB)
         else
