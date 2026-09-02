@@ -109,7 +109,13 @@ max-contiguous-clearcut are deferred-documented.
 
 ## Known exceptions / not-yet-closed
 
-- **ADDTREES** — external program, no in-tree source. Not ported.
+- **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **not** "no in-tree source" (that earlier note was
+  wrong): the in-tree code is a *bridge* to an external regeneration-model executable — it writes a
+  `.es1` stand-summary, runs `SYSTEM(CMDLN)` (the external model), and reads back a `.es2` **activity
+  block** (`OPRDAT` → `IACTK IDT NPRMS PRMS…`; e.g. `431`=PLANT), scheduling those activities (the added
+  trees then come from the already-validated PLANT path). The bridge is portable and oracle-validatable
+  via a staged `.es2` (trivial `CMDLN` + a pre-staged deterministic `.es2` so the oracle and FVSjl read
+  the same activities); only the external model exe is out-of-tree. Not yet ported.
 - **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
   SIGSEGV; ON is validated via the inline path, not a live DB oracle.
 - **Western full-population FIA sweep** — clean re-run on final code under way
