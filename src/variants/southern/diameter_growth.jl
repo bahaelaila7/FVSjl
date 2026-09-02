@@ -344,6 +344,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
     _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
     _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
+    _ut_cal = s.variant isa Utah              # #199: UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766)
+    _ut_bd_ccf = 0f0                           # UT: BACKDATED CCF (RELDEN, dense.f RELDM1) for the calib PCTRED (X=AVH·RELDEN/100; AVH stays current)
     _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
@@ -407,6 +409,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # stands with recent mortality (68 vs live 121 on 1855925743290487); dead-inclusive = 121.13 = live exact.
     # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
     _cr_cal && (_cr_bd_ccf = stand_ccf(s); _cr_bd_avht = stand_top_height(s))
+    _ut_cal && (_ut_bd_ccf = stand_ccf(s))    # #199: BACKDATED CCF (RELDEN) capture, dead-inclusive, same as CR
     t.n = nlive
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
@@ -979,6 +982,62 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             end
             nh < 5 && continue                                    # NCALHT
             cornew = sny / snx
+            cornew <= 0f0 && (cornew = 1f-4)
+            (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+            c.htg_cor_init[sp] = log(cornew)
+        end
+    end
+    # UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766, LSTART pass). For each species with
+    # ≥NCALHT(5) sub-5" trees carrying a measured height increment, HCOR_raw = ln(Σ(HTG·SCALE3·P)/Σ(EDH·P)):
+    # observed = the measured increment scaled to 10-yr (HTG·SCALE3, SCALE3=REGYR/FINTH), predicted EDH = the
+    # UT small-tree POTHTG·PCTRED·VIGOR on the BACKDATED height H−HTG and BACKDATED stand density (RHCON=1).
+    # RAW HCOR → htg_cor_init; the shared dgdriv attenuation below produces htg_cor_small = WCI + cormlt_h·
+    # (HCOR_init − WCI). Without it UT small trees ran CON=1 ⇒ up to ~2× under-prediction of the woodland (GO/PJ)
+    # small-tree HTG (hence DG, since DG∝HTG on the PJ linear-DK) ⇒ dense woodland stands stalled at QMD ~1.6"
+    # instead of self-thinning to ~6" (#199, stand 317272705489998 QMD 1.6 vs live 6.0). Trapped to CORNEW∈
+    # [0.0821,12.1825]. Validated vs FVSut_g16 mode-40 dumps: GO N=5, MEANX 0.44181, MEANY 1.11111, CORNEW
+    # 2.51492 ⇒ HCOR_raw 0.92224; applied 0.699 ⇒ growth CON 2.012 (bit-exact vs the growth-phase RGDUMP).
+    if _ut_cal
+        sd_ut = s.coef.species; slo_ut = sd_ut[:site_lo]; shi_ut = sd_ut[:site_hi]
+        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH
+        ccf = _ut_bd_ccf; avht = _cur_avh    # RELDEN backdated (dense.f RELDM1); AVH stays CURRENT (heights not backdated), regent.f:601
+        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        ab = UT_RG_AB
+        pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
+        pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+        @inbounds for sp in 1:24
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]
+            sj = s.plot.sp_site_index[sp]                     # SITEAR (raw, unclamped) — same as growth path
+            si = sj; si > shi_ut[sp] && (si = shi_ut[sp]); si <= slo_ut[sp] && (si = slo_ut[sp] + 0.5f0)
+            relsi = (si - slo_ut[sp]) / (shi_ut[sp] - slo_ut[sp]); rsimod = 0.5f0 * (1f0 + relsi)
+            isconif = sp <= 5 || (7 <= sp <= 10) || sp == 23
+            snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
+            for k in i1:i2
+                i = ind1[k]
+                t.dbh[i] >= 5f0 && continue                   # backdated DBH<5 (regent.f:652)
+                hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required (regent.f:721)
+                hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2, regent.f:649)
+                local edh::Float32
+                if sp == 6                                    # aspen — Sheppard inverse from backdated H (regent.f:685-693)
+                    ag1 = (hb * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                    ag2 = ag1 + 10f0
+                    h2 = (26.9825f0 * ag2^1.1752f0) / (2.54f0 * 12f0)
+                    edh = (h2 - hb) * rsimod * 0.75f0; edh < 0f0 && (edh = 0f0)   # ·RHCON=1
+                else
+                    xc = Float32(t.crown_pct[i]) / 100f0
+                    vigor = 150f0 * xc^3 * exp(-6f0 * xc) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    (11 <= sp <= 17 || sp == 24) && (vigor = 1f0 - (1f0 - vigor) / 3f0)
+                    pothtg = isconif ? sj / 5f0 : (sj / 5f0) * (sj * 1.5f0 - hb) / (sj * 1.5f0) * 0.83f0
+                    edh = pothtg * pctred * vigor              # ·RHCON=1 (regent.f:676)
+                end
+                term = hg * scale3
+                pr = t.tpa[i]
+                snx += edh * pr; sny += term * pr; snp += pr; nh += 1
+            end
+            nh < 5 && continue                                # NCALHT
+            snx /= snp; sny /= snp
+            cornew = snx > 0f0 ? sny / snx : 1f0
             cornew <= 0f0 && (cornew = 1f-4)
             (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
             c.htg_cor_init[sp] = log(cornew)
