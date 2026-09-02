@@ -110,11 +110,13 @@ function setup_growth!(s::StandState)
         tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
-        compute_density!(s)               # density for the crown dub
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING crowns (tt/crown.f) — was MISSING
-                                          # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ tt regent
-                                          # HTG1=BETA1+BETA2·CR / VIGOR(CR) lost the crown term ⇒ QMD freeze. TT's
-                                          # crown model already dubs missing crown at lstart (Weibull); only the call missing.
+        compute_density!(s)               # density for the crown dub (fresh scalars for the ndead=0 path + dub_ages)
+        tt_crown_init_lstart!(s)          # CRATET DENSE (DEAD-INCLUSIVE) → DUBSCR/CL/Weibull dub of MISSING crowns
+                                          # (tt/crown.f). Was the LIVE-only crown_ratio_update! (EM #137 sibling) ⇒
+                                          # missing-CR seedlings dubbed against a live-only AVH (≈ seedling height) ⇒
+                                          # crown over-dubbed ⇒ tt regent VIGOR(CR)/BETA2·CR over-grows small-tree
+                                          # DBH/BA on dead-heavy stands. Now the standing-dead heights enter AVHT40
+                                          # (dead PROB ×FINT/FINTM), matching the live DUBSCR/CL dub.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
         # NB: the CRATET age-50 site-curve conversion (ut/cratet.f) is ALREADY applied once in site_setup!

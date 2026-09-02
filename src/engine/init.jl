@@ -98,6 +98,10 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # overrides. Drives the FINT/FINTM=2 dead-record PROB inflation for the backdated calibration/crown-init DENSE
     # (notre.f) — the DG SCALE stays the NC 0.5 hardcode (gated on growth_dg_set, unaffected).
     s.variant isa Klamath && (s.control.growth_fint = 10f0)
+    # TT grinit.f:194-196 FINT=10 / FINTM=5 ⇒ the FINT/FINTM=2 dead-record PROB inflation (notre.f:122-124) for the
+    # backdated calibration + crown-init DENSE. Affects ONLY dead-bearing stands (ndead=0 unchanged); the DG SCALE
+    # stays 1 (meas_fint gated on growth_dg_set, else htg_period=10 — unaffected).
+    s.variant isa Teton && (s.control.growth_fint = 10f0)
     # AK GRINIT defaults (ak/grinit.f): BAF=62.5 (vs the generic 40), FINT=10-yr cycle. Set before
     # keyword processing so a DESIGN BAF / NUMCYCLE-period still overrides. akt01's DESIGN omits BAF ⇒
     # the 62.5 default is load-bearing for the plot expansion (TPA/BA/QMD).
