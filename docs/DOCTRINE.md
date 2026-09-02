@@ -154,6 +154,15 @@ produces provisional, untrustworthy numbers. Source: `docs/FIA_FVS_COMPAT_GOAL.m
    bug where jl is the correct side).
 6. **Don't quote a pass-rate as final while unexplained divergence stands** — the eastern
    README calls that "PREMATURE." In-progress numbers are provisional; say so.
+7. **The authoritative endpoint is a FINAL CLEAN PASS on the frozen engine.** The cap-and-fix
+   run is the *bug-finding* pass: its results DB (`data/fia_sweep_*.db`, per-stand `dig_class`
+   + `swept_at` + `oracle`) mixes code versions (a stand's row reflects the engine *at its
+   `swept_at`*, not the final code), so it is NOT the number to quote per variant. Once every
+   variant's caps are resolved and the engine is frozen at a single commit, **reset the cursors
+   and re-sweep the whole population on that one commit** — *that* DB is the all-on-one-version
+   snapshot for the cross-variant analysis (the eastern four's 99.99% table is such a pass).
+   Keep the bug-finding DB archived; `swept_at` + the frozen SHA tell you exactly what was
+   stale. Budget the final pass as a distinct step — it is not optional.
 
 ---
 _The per-topic detail behind each rule lives in the `feedback-*.md` auto-memory notes._
