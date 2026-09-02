@@ -32,6 +32,7 @@ function cr_mistoe!(s::StandState; fint::Float32)
     ind1 = s.scratch.idx1
     rng  = s.rng
     fscale = fint / 10f0
+    cur_year = current_cycle_year(s)                  # MISTMULT date gate (from-date-onward, latest-wins)
     @inbounds for ispc in 1:38
         CR_DM_MISFIT[ispc] == 0 && continue          # MISFIT: non-host species skip (no spread)
         i1 = isct[ispc, 1]; i1 == 0 && continue
@@ -45,6 +46,9 @@ function cr_mistoe!(s::StandState; fint::Float32)
         tottpa <= 0f0 && continue
         smr /= tottpa
         smr == 0f0 && continue                        # mistletoe-free species ⇒ NO draws (mistoe.f:263)
+        # MISTMULT YPLMLT/YNGMLT (mistoe.f:219-227) — 1.0 by default (no keyword ⇒ byte-identical)
+        yplmlt = active_multiplier(s.control, :dm_inc, ispc, cur_year)
+        yngmlt = active_multiplier(s.control, :dm_dec, ispc, cur_year)
         # tallest infected tree height per point (DMTALL, mistoe.f:280-290)
         dmtall = Dict{Int32,Float32}()   # only allocated for an actually-infected host species
         for i3 in i1:i2
@@ -63,13 +67,13 @@ function cr_mistoe!(s::StandState; fint::Float32)
             if idmr < 6
                 pplus = CR_DM_BCONST + CR_DM_BDMR[idmr + 1] +
                         CR_DM_BHTG * (htgr10 * 10f0 / fint) + CR_DM_BTPA * tottpa
-                pplus != 0f0 && (pplus = 1f0 / (1f0 + fexp(-pplus)))     # ×YPLMLT(=1)
+                pplus != 0f0 && (pplus = (1f0 / (1f0 + fexp(-pplus))) * yplmlt)   # ×YPLMLT (mistoe.f:331)
                 pplus = pplus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pplus, fscale)
             end
             if idmr != 0
                 pminus = CR_DM_DCONST + CR_DM_DDMR * idmr +
                          CR_DM_DHTG * (htgr10 * 10f0 / fint) + CR_DM_DTPA * tottpa
-                pminus != 0f0 && (pminus = 1f0 / (1f0 + fexp(-pminus)))  # ×YNGMLT(=1)
+                pminus != 0f0 && (pminus = (1f0 / (1f0 + fexp(-pminus))) * yngmlt) # ×YNGMLT (mistoe.f:359)
                 pminus = pminus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pminus, fscale)
                 xnum = rann!(rng)
                 dtall = get(dmtall, t.plot_id[i], 0f0)

@@ -447,6 +447,7 @@ function ie_mistoe!(s::StandState; fint::Float32)
     ind1 = s.scratch.idx1
     rng  = s.rng
     fscale = fint / 10f0
+    cur_year = current_cycle_year(s)                  # MISTMULT date gate (from-date-onward, latest-wins)
     mis_fit, _, _, mis_maxsp = _mis_tables(s.variant)
     nsp = min(mis_maxsp, nspecies(s.variant))
     @inbounds for ispc in 1:nsp
@@ -461,6 +462,9 @@ function ie_mistoe!(s::StandState; fint::Float32)
         tottpa <= 0f0 && continue
         smr /= tottpa
         smr == 0f0 && continue                        # mistletoe-free species ⇒ NO draws
+        # MISTMULT YPLMLT/YNGMLT (mistoe.f:219-227) — 1.0 by default (no keyword ⇒ byte-identical)
+        yplmlt = active_multiplier(s.control, :dm_inc, ispc, cur_year)
+        yngmlt = active_multiplier(s.control, :dm_dec, ispc, cur_year)
         dmtall = Dict{Int32,Float32}()
         for i3 in i1:i2
             i = Int(ind1[i3])
@@ -477,13 +481,13 @@ function ie_mistoe!(s::StandState; fint::Float32)
             if idmr < 6
                 pplus = CR_DM_BCONST + CR_DM_BDMR[idmr + 1] +
                         CR_DM_BHTG * (htgr10 * 10f0 / fint) + CR_DM_BTPA * tottpa
-                pplus != 0f0 && (pplus = 1f0 / (1f0 + fexp(-pplus)))
+                pplus != 0f0 && (pplus = (1f0 / (1f0 + fexp(-pplus))) * yplmlt)   # ×YPLMLT (mistoe.f:331)
                 pplus = pplus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pplus, fscale)
             end
             if idmr != 0
                 pminus = CR_DM_DCONST + CR_DM_DDMR * idmr +
                          CR_DM_DHTG * (htgr10 * 10f0 / fint) + CR_DM_DTPA * tottpa
-                pminus != 0f0 && (pminus = 1f0 / (1f0 + fexp(-pminus)))
+                pminus != 0f0 && (pminus = (1f0 / (1f0 + fexp(-pminus))) * yngmlt) # ×YNGMLT (mistoe.f:359)
                 pminus = pminus >= 1f0 ? 1f0 : 1f0 - fpow(1f0 - pminus, fscale)
                 xnum = rann!(rng)
                 dtall = get(dmtall, t.plot_id[i], 0f0)

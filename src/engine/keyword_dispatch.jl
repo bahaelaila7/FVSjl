@@ -773,6 +773,29 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     return
 end
 
+# MISTMULT (mistoe/misin.f opt 1): dwarf-mistletoe spread-probability multipliers.
+# Field 1 = date, field 2 = species (0/blank = all host species), field 3 = DMR-increase
+# multiplier (YPLMLT, default 1.0), field 4 = DMR-decrease multiplier (YNGMLT, default 1.0).
+# FVS schedules it at IDT via OPNEW(2001); mistoe.f then sets YPLMLT(sp)=PRM(2)·MISFIT(sp),
+# YNGMLT(sp)=PRM(3)·MISFIT(sp) (persisting in MISCOM common until changed) and multiplies the
+# logistic spread probability: PPLUS=(1/(1+EXP(-PPLUS)))·YPLMLT, PMINUS·=YNGMLT (mistoe.f:331/
+# 359). MISFIT is 1 for host species and 0 for non-hosts, but non-hosts are skipped in the
+# spread loop, so the effective host multiplier is exactly PRM. A negative multiplier is reset
+# to 1.0 (misin.f:196-203); a blank date ⇒ IDT=1 (misin.f:181-182). Stored as two
+# GrowthMultiplier kinds (:dm_inc/:dm_dec), queried by `active_multiplier` — same date-onward /
+# latest-wins / species-specific-beats-all precedence as MULTS. Default 1.0 leaves the spread
+# byte-identical (RNG-safe: it scales the probability, never the `rann!` draw).
+function kw_mistmult!(s::StandState, rec::KeywordRecord)
+    v = rec.values; pr = rec.present
+    yr  = pr[1] ? Int32(nint(v[1])) : Int32(1)                       # blank date ⇒ IDT=1
+    sp  = pr[2] ? Int32(nint(v[2])) : Int32(0)                       # blank species ⇒ 0 = all hosts
+    inc = (pr[3] && Float32(v[3]) >= 0f0) ? Float32(v[3]) : 1f0      # blank/negative ⇒ 1.0
+    dec = (pr[4] && Float32(v[4]) >= 0f0) ? Float32(v[4]) : 1f0
+    push!(s.control.multipliers, GrowthMultiplier(:dm_inc, yr, sp, inc))
+    push!(s.control.multipliers, GrowthMultiplier(:dm_dec, yr, sp, dec))
+    return
+end
+
 """
     active_fmort_mult(control, sp, year, dbh) -> Float32
 
@@ -2616,6 +2639,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NEWSPRED"; kw_newspred!(s, rec)      #   use the NISI spatial spread model (misin.f opt 12)
         elseif kw == "DMAUTO";   kw_dmauto!(s, rec)        #   spatial autocorrelation decay (DMALPHA/DMBETA)
         elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
+        elseif kw == "MISTMULT"; kw_mistmult!(s, rec)      #   DM spread-probability multipliers (misin.f opt 1: YPLMLT/YNGMLT)
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

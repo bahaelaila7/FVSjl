@@ -38,7 +38,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
 > [FVS-Climate](#fvs-climate-climate), and [canopy & shrub COVER](#canopy--shrub-cover). Each
 > entry is written from the FVSjl parser and cross-checked against the Fortran keyword reader,
 > and flags honestly where a keyword is **parsed-but-inert** or **not implemented** in FVSjl
-> (e.g. `MISTMULT`/`MISTPINF`, several report-only cards). The ORGANON growth model (OC/OP) is
+> (e.g. `MISTPINF`, several report-only cards). The ORGANON growth model (OC/OP) is
 > a *variant*, not a keyword. See [PORT_STATUS.md](PORT_STATUS.md) for validation status.
 
 > There is also a **second, *semantic* YAML flavor** (`format: fvs-stand/v1`) that describes a
@@ -70,7 +70,7 @@ number. Convert between the forms with `bin/fvsjl-translate.jl` (or
   - [Economics (ECON)](#economics-econ) — ECON · STRTECON · ANNUCST · HRVVRCST · HRVRVN · TCONDMLT
   - **Extension models:**
     - [Insect models — bark beetles (DFB / DFTM / MPB)](#insect-models--bark-beetles-dfb--dftm--mpb) — DFB · DFTM · MPB blocks (MANSTART · RANSTART · MANSCHED · RANSCHED · RANNSEED · … + model-specific cards)
-    - [Dwarf mistletoe](#dwarf-mistletoe) — MISTOE · MISTPRT · DMAUTO (MISTMULT/MISTPINF not implemented)
+    - [Dwarf mistletoe](#dwarf-mistletoe) — MISTOE · MISTPRT · MISTMULT · DMAUTO (MISTPINF not implemented)
     - [Western Root Disease (RRIN)](#western-root-disease-rrin) — RDIN block · RRTYPE · RRINIT · SAREA · RSEED · BBCLEAR · report cards
     - [Western pine beetle & landscape (WWPB / NEWSPRED)](#western-pine-beetle--landscape-wwpb--newspred) — BMIN block · DISPERSE · NEWSPRED
     - [FVS-Climate (CLIMATE)](#fvs-climate-climate) — CLIMATE block · CLIMDATA · GROWMULT · MORTMULT · MXDENMLT · AUTOESTB
@@ -4225,20 +4225,34 @@ END
 ```
 *Overrides the NISI spread-kernel decay terms (only negative values are honored).*
 
-#### MISTMULT / MISTPINF  *(recognized by stock FVS — not parsed in FVSjl)*
-**What it does:** In stock FVS the mistletoe block (misin.f) also reads
-per-species tuning cards: `MISTMULT` scales the infection-probability
-multipliers, and `MISTPINF` introduces new infections at a chosen level.
-**FVSjl does not implement these** — they are not in the keyword dispatch, so a
-`MISTMULT` / `MISTPINF` card is recorded in `unrecognized_keywords` and has **no
-effect** on the projection. They are documented here only so a key that carries
-them is understood. For reference, stock FVS reads:
-- `MISTMULT`: `date`(1), `species`(2), `prob(+)_mult`(3, dflt 1), `prob(−)_mult`(4, dflt 1).
+#### MISTMULT  *(implemented)*
+**What it does:** In stock FVS the mistletoe block (misin.f opt 1) reads a
+per-species spread-probability tuning card: `MISTMULT` scales the dwarf-mistletoe
+increase/decrease probabilities (`YPLMLT`/`YNGMLT`), applied at mistoe.f:331/359
+as `PPLUS·=YPLMLT` / `PMINUS·=YNGMLT`.
+- `MISTMULT`: `date`(1), `species`(2, 0 = all hosts), `prob(+)_mult`(3, dflt 1), `prob(−)_mult`(4, dflt 1).
+
+**FVSjl implements this** (`kw_mistmult!`): the two multipliers are stored as
+`GrowthMultiplier` kinds `:dm_inc`/`:dm_dec` (date-onward, latest-wins,
+species-specific-beats-all — same precedence as MULTS) and threaded into
+`cr_mistoe!`/`ie_mistoe!` at the logistic-spread hook. It is RNG-safe (it scales
+the probability, never the `rann!` draw), so a `mult=1.0` (or absent) card is
+byte-identical. Validated vs the live `FVScr_clean` oracle: `mult=1.0` byte-identical
+to baseline, cyc0 DM report bit-exact with the card, and an `inc=2.0` card raises
+the DM rating + DM-mortality the same direction as the oracle (cyc1+ magnitude
+tracks the pre-existing DM-report AUTOES-regen projection straddle).
+
+#### MISTPINF  *(recognized by stock FVS — not parsed in FVSjl)*
+**What it does:** In stock FVS the mistletoe block (misin.f opt 10) also reads
+`MISTPINF`, which introduces new infections at a chosen level.
+**FVSjl does not implement this** — it is not in the keyword dispatch, so a
+`MISTPINF` card is recorded in `unrecognized_keywords` and has **no effect** on
+the projection. For reference, stock FVS reads:
 - `MISTPINF`: `date`(1), `species`(2), `proportion_to_infect`(3, dflt 0, range 0–1),
   `dmr_level`(4, dflt 1, DMR 1–6), `method`(5, dflt 0, 0–2).
 
-*The FVSjl mistletoe seam honors `MISTOE`/`MISTPRT`/`NEWSPRED`/`DMAUTO`; the
-species-tuning cards `MISTMULT`/`MISTPINF` are unported no-ops.*
+*The FVSjl mistletoe seam honors `MISTOE`/`MISTPRT`/`MISTMULT`/`NEWSPRED`/`DMAUTO`;
+the infection-introduction card `MISTPINF` remains an unported no-op.*
 
 ---
 
