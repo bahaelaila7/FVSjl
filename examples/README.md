@@ -15,6 +15,9 @@ multistand/  multistand.key  …  .tre  …  .yaml  …  .csv
 semantic/      thinsdi.yaml  multistand.yaml   (+ .tre/.csv)   ← the SEMANTIC form
 multiscenario/ stand.yaml    (+ stand.tre/.csv)              ← N scenarios, one stand
 fia/           163384065010854.{key,tre,yaml,csv}           ← a real FVS-ready FIA plot, exported
+western_ie/    western_ie.{key,tre,yaml,csv}                ← a WESTERN variant (Inland Empire) + THINBBA
+ffe_fire/      ffe_fire.{key,tre,yaml,csv}                  ← EXTENSION: FFE fire/fuels (SIMFIRE)
+regen/         regen.{key,tre,yaml,csv}                     ← EXTENSION: establishment / ingrowth (ESTAB)
 convert_and_run.sh                            ← run + convert every form
 fia/export_and_run.sh                         ← FIA CNs → standalone files, then run/convert
 ```
@@ -31,6 +34,21 @@ fia/export_and_run.sh                         ← FIA CNs → standalone files, 
 > scenario after the first so stock FVS re-reads that inventory; FVSjl re-reads implicitly.
 > Verified: the converted `.key` reproduces **live FVSsn** within the ±1-cuft single-precision
 > tail, and all input forms give byte-identical FVSjl output.
+
+> **Beyond Southern — a western variant + two extensions.** Three folders broaden the set:
+> - **`western_ie/`** — an **Inland Empire (IE)** mixed-conifer stand (DF/WL/GF/LP/WP/WH),
+>   projected 5 cycles with a `THINBBA` thin-from-below to residual BA 40 in 2010. It shows
+>   the western variants run the **identical workflow** — run the `.key` with `--variant IE`,
+>   or the `.yaml` (whose `variant: IE` key selects the model, no flag needed).
+> - **`ffe_fire/`** — an `FMIN … SIMFIRE … END` **Fire & Fuels** packet scheduling a
+>   simulated wildfire in 2000 (mortality spikes, live TPA drops across the fire).
+> - **`regen/`** — an `ESTAB … PLANT/NATURAL … END` **establishment** packet; ingrowth
+>   arrives the following cycle (TPA jumps as the regen cohort establishes).
+>
+> Each runs cleanly through FVSjl and the `.yaml` reproduces the `.key` output byte-for-byte.
+> (Non-default `TREEFMT`: `.tre ↔ .csv` translation needs that FORMAT as the 3rd arg to
+> `bin/fvsjl-translate.jl` — see `convert_and_run.sh`'s `$FMT`; *running* the stand needs no
+> such argument, the engine reads `TREEFMT` from the `.key`.)
 
 | file | what it is |
 |------|------------|

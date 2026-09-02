@@ -1,0 +1,41 @@
+# FVS keywords — ORDER-AWARE hierarchical form. The keyword stream is
+# an ordered sequence; sections only GROUP it (flattening top-to-bottom
+# reproduces the exact order). `treatments`, `species_groups` and
+# `event_monitor` are order-significant (define-before-use, same-cycle
+# activities run in input order). See docs/KEYWORDS.md.
+variant: IE           # run as the Inland Empire western variant (no --variant flag needed)
+stand:
+  - setup:
+      - keyword: "STDIDENT"
+      - raw: "IE  Inland Empire — thin from below to residual BA 40 in 2010"
+      - keyword: "NOAUTOES"
+  - control:
+      - keyword: "NOTRIPLE"
+  - setup:
+      - DESIGN:
+          number_of_plots: 11.0
+          nonstockable_code: 1.0
+      - STDINFO:
+          forest_code: 11406001
+          habitat: 570.0
+          stand_age: 60.0
+          aspect: 315.0
+          slope: 30.0
+          elevation: 34.0
+      - INVYEAR:
+          year: 1990.0
+      - NUMCYCLE:
+          cycles: 5.0
+  - output:
+      - keyword: "ECHOSUM"
+  - treatments:
+      - THINBBA:
+          year: 2010.0
+          residual_basal_area: 40.0
+  - setup:
+      - keyword: "TREEFMT"
+      - raw: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,"
+      - raw: "T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
+      - keyword: "TREEDATA"
+      - keyword: "PROCESS"
+      - keyword: "STOP"

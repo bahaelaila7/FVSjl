@@ -1,0 +1,56 @@
+# FVS keywords — ORDER-AWARE hierarchical form. The keyword stream is
+# an ordered sequence; sections only GROUP it (flattening top-to-bottom
+# reproduces the exact order). `treatments`, `species_groups` and
+# `event_monitor` are order-significant (define-before-use, same-cycle
+# activities run in input order). See docs/KEYWORDS.md.
+variant: SN           # Southern variant
+stand:
+  - setup:
+      - keyword: "STDIDENT"
+      - raw: "SN  Regeneration — ESTAB packet plants + natural ingrowth in 1995"
+      - keyword: "NOAUTOES"
+  - control:
+      - keyword: "NOTRIPLE"
+  - setup:
+      - DESIGN:
+          number_of_plots: 11.0
+          nonstockable_code: 1.0
+      - STDINFO:
+          forest_code: 80106
+          habitat: "231Dd"
+          stand_age: 20.0
+          aspect: 315.0
+          slope: 30.0
+          elevation: 7.0
+      - SITECODE:
+          site_species: 63
+          site_index: "60."
+      - INVYEAR:
+          year: 1990.0
+      - NUMCYCLE:
+          cycles: 6.0
+  - output:
+      - keyword: "ECHOSUM"
+  - other:
+      - keyword: "NOHTDREG"
+        params: ["", "", "0"]
+  - regeneration:
+      - ESTAB:
+          disturbance_date: 1995
+      - PLANT:
+          year: 1995
+          species: 13
+          tpa: 300
+      - NATURAL:
+          year: 1995
+          species: 3
+          tpa: 200
+  - other:
+      - keyword: "END"
+  - setup:
+      - keyword: "TREEFMT"
+      - raw: "(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,"
+      - raw: "T52,I2,T66,5I1,T54,7I1,T75,F3.0)"
+      - keyword: "TREEDATA"
+      - keyword: "PROCESS"
+      - keyword: "STOP"
