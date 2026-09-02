@@ -14,6 +14,42 @@
 # fresh (full TPA) this period; their DBH is derived from the established height.
 # =============================================================================
 
+# =============================================================================
+# es_pasmax_xcsmax — PASSALL / PASMAX excess-tree cap (estab.f:1288,1318-1321).
+#
+# When a plot's per-species EXCESS regeneration count (integer-valued, incremented by
+# 1.0 per non-"best" tree) is passed to the tree list it is broken into IBRKUP records
+# (≈1 record per 5 excess trees), each carrying the SAME per-record excess XCSMAX. The
+# PASSALL keyword's PASMAX caps that per-record count so the TOTAL excess passed for the
+# species cannot exceed PASMAX (esin.f echo: "MAXIMUM NUMBER OF EXCESS TREES PASSED PER
+# PLOT PER SPECIES"). The record PROB scales LINEARLY with XCSMAX, so this is a purely
+# DETERMINISTIC post-draw scaling — it consumes NO RNG draw.
+#
+#   IBRKUP = INT(EXCESS/5.0 + 1.0)          (estab.f:1288)
+#   XCSMAX = EXCESS/BRKUP                    (estab.f:1318)
+#   FTEMP  = PASMAX/BRKUP                    (estab.f:1319)
+#   IF (XCSMAX > FTEMP) XCSMAX = FTEMP       (estab.f:1320-1321)  ← the cap
+#
+# Returns (xcsmax, ibrkup). Faithful transcription; VALIDATED BIT-EXACT against the live
+# instrumented FVSie oracle (single-.o estab.f dump swap) across EXCESS 1..6 × PASMAX
+# {1,5}: e.g. (EXCESS=6,PASMAX=5)→BRK=2,XCS=2.5 (uncapped 3.0 → capped), (EXCESS=5,
+# PASMAX=1)→BRK=2,XCS=0.5, (EXCESS=4,PASMAX=5)→BRK=1,XCS=4.0 (uncapped, 4<5). See
+# test/unit/test_estab_passall.jl. Default PASMAX=5 (CONFID, esinit.f:50); the AUTOES
+# ingrowth path overrides PASMAX=15 (estab.f:249, NTALLY==99). This kernel is the ported,
+# oracle-validated primitive; the live IE tally seam is not yet wired to it (the excess
+# TPA effect is cornered by the placeholder-height / probabilistic-excess establishment
+# approximation — see the PASSALL branch in keyword_dispatch.jl:kw_estab!).
+# =============================================================================
+function es_pasmax_xcsmax(excess::Real, pasmax::Real)
+    exc = Float32(excess)
+    ibrkup = trunc(Int, exc / 5f0 + 1f0)          # INT(EXCESS/5.0 + 1.0)
+    brk = Float32(ibrkup)
+    xcsmax = exc / brk                            # EXCESS/BRKUP
+    ftemp = Float32(pasmax) / brk                 # PASMAX/BRKUP
+    xcsmax > ftemp && (xcsmax = ftemp)            # cap
+    return xcsmax, ibrkup
+end
+
 const _ES_MINREP = 50          # MINREP: target plot replication (esinit.f) — the DEFAULT for
                                # Establishment.minrep (state.jl); the live value is per-stand via the
                                # MINPLOTS keyword (esin.f opt 20), read at both idup call sites as est.minrep.

@@ -1712,14 +1712,22 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 s.estab.minrep = mr < Int32(20) ? Int32(20) : mr
             end
         elseif k == "PASSALL"
-            # esin.f opt 18 → IBLK=1, CONFID=max(ARRAY(1),1) → PASMAX (esin.f:551-558). PASMAX caps the per-plot
-            # EXCESS-tree probability only (estab.f:1318-1321 XCSMAX=min(EXCESS/BRKUP, PASMAX/BRKUP)); it is a
-            # DETERMINISTIC post-draw PROB scaling (no RNG effect) that bites ONLY when a plot overflows MAXTPP so
-            # EXCESS(I)≥0.5. MEASURED-INERT on the reachable AUTOES regime: on the under-stocked IE fixture the
-            # oracle .sum is BYTE-IDENTICAL for PASSALL 1 == PASSALL 100 == default (CONFID 5) — the under-stocked
-            # stand never overflows a plot, so no excess trees exist to cap. (IBLK is set but referenced nowhere in
-            # estab.f — a dead serialization flag.) Consumed-inert; a dense over-regenerating fixture (untried, and
-            # not the AUTOES-exercising stand) would be needed to exercise the excess-tree cap.
+            # esin.f opt 18 → IBLK=1, CONFID=max(ARRAY(1),1) → PASMAX (esin.f:551-558; estab.f:171 PASMAX=CONFID).
+            # PASMAX is the MAXIMUM number of EXCESS regeneration trees passed per plot per species: it caps the
+            # post-draw excess-tree PROB at estab.f:1318-1321 (XCSMAX=min(EXCESS/BRKUP, PASMAX/BRKUP)) — a
+            # DETERMINISTIC post-draw scaling, no RNG effect, that bites whenever a plot's per-species EXCESS
+            # exceeds PASMAX. esin.f:557 raises CONFID<1 to 1; a blank field ⇒ ARRAY(1)=0 ⇒ CONFID=0<1 ⇒ 1.
+            # ★MEASURED model-affecting on the live oracle FVSie (see es_pasmax_xcsmax + test_estab_passall.jl):
+            # on a dated-ESTAB bare stand PASSALL 1 gives 477 TPA vs default's 555 (the cap fires at EXCESS>1).
+            # BUT: the AUTOES ingrowth path (estab.f:249 NTALLY==99) HARDCODES PASMAX=15.0 — PASSALL affects only
+            # the dated/regular tally path (NTALLY 1,2,…). FVSjl parses+stores it here; the cap KERNEL is ported
+            # and oracle-bit-exact, but the live tally seam is NOT wired: FVSjl's IE establishment uses placeholder
+            # per-tree heights + a probabilistic (PXCS-weighted) excess model rather than the discrete estab.f
+            # NOTE/EXCESS split, so the cap's TPA effect is a CORNERED gap tied to that height/excess port, not a
+            # faithful inert. On the reachable under-stocked fixture (ingrowth ⇒ PASMAX=15, no plot overflow) the
+            # oracle .sum is byte-identical for PASSALL 1==100==default, and FVSjl is likewise inert.
+            v = r.present[1] ? r.values[1] : 0f0
+            s.estab.pasmax = v < 1f0 ? 1f0 : v
         elseif k == "PLOTINFO"
             # esin.f opt 10 → IPINFO=1 + reads per-plot site CARDS (ID,slope,aspect,habitat,physio,prep) from the
             # keyfile via esplt1/esplt2 (the LEGACY TREEDATA plot-card input format). STRUCTURALLY INAPPLICABLE to
