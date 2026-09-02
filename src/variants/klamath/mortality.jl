@@ -41,19 +41,30 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
     n = t.n; n == 0 && return s
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     yr = htg_period(s.variant)          # NC growth model is 5-yr native (YR=5); the cycle is FINT=10
-    # Zeide grown-stand sums (morts.f:186-232, LZEIDE path): T and the Reineke diameters DR0/DR10.
-    # G is the OUTSIDE-bark end-of-cycle increment `(DG/BARK)·(FINT/5)` (morts.f:199) — for a 10-yr cycle
-    # over a 5-yr-native growth model this is the linear-FINT extrapolation, NOT the raw diam_growth
-    # (EM/UT/TT get away with raw because their FINT==YR==10; NC's FINT=10≠YR=5, so the /5 factor matters).
-    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0
+    # Grown-stand sums (morts.f:186-263). G is the OUTSIDE-bark end-of-cycle increment `(DG/BARK)·(FINT/5)`
+    # (morts.f:199) — for a 10-yr cycle over a 5-yr-native growth model this is the linear-FINT extrapolation,
+    # NOT the raw diam_growth (EM/UT/TT get away with raw because their FINT==YR==10; NC's FINT=10≠YR=5, so
+    # the /5 factor matters). ⚠ METHOD SELECTION (morts.f:229-241): when LZEIDE the self-thin diameters are
+    # the Reineke DR0/DR10=(Σp·D^1.605/T)^(1/1.605); when .NOT.LZEIDE they are the QUADRATIC mean DQ0/DQ10=
+    # √(Σp·D²/T). NC's nc_sitset! resets zeide_sdi=FALSE for R6 forests (IFOR 4/7), so the mortality path MUST
+    # mirror the same branch the reported SDI uses — otherwise Zeide (≤ Reineke, power-mean) understates D10 ⇒
+    # tmd10=const·D10^-1.605 overstates the self-thin target ⇒ systematic UNDER-kill on R6 dense stands.
+    zeide = s.control.zeide_sdi
+    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; sdq0 = 0f0; sd2sq = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = bark_ratio(bark_a, bark_b, sp, d)
         g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
+        ciobds = 2f0 * d * g + g * g
+        sd2sq += pr * (d * d + ciobds); sdq0 += pr * fpow(d, 2f0)
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
     end
     tt < 1f-6 && return s
-    dr10 = fpow(sumdr10 / tt, 1f0 / 1.605f0); dia0 = fpow(sumdr0 / tt, 1f0 / 1.605f0)
+    if zeide
+        dr10 = fpow(sumdr10 / tt, 1f0 / 1.605f0); dia0 = fpow(sumdr0 / tt, 1f0 / 1.605f0)
+    else
+        dr10 = sqrt(sd2sq / tt); dia0 = sqrt(sdq0 / tt)
+    end
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
     sdimax = stand_sdimax(s)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
@@ -122,16 +133,18 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
                 end
             end
             density_on || break                                 # background ⇒ no d10 dependence, one pass
-            # Post-mortality Reineke diameter d10n from the survivors (morts.f:551-582, LZEIDE path).
-            ttn = 0f0; sdr = 0f0
+            # Post-mortality diameter d10n from the survivors (morts.f:551-582) — same LZEIDE branch as above.
+            ttn = 0f0; sdr = 0f0; sd2sqn = 0f0
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
                 bark = bark_ratio(bark_a, bark_b, Int(t.species[i]), d)
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
+                ciobds = 2f0 * d * g + g * g
+                sd2sqn += pr * (d * d + ciobds)
                 sdr += pr * fpow(d + g, 1.605f0); ttn += pr
             end
             ttn <= 0f0 && break
-            d10n = fpow(sdr / ttn, 1f0 / 1.605f0)
+            d10n = zeide ? fpow(sdr / ttn, 1f0 / 1.605f0) : sqrt(sd2sqn / ttn)
             (abs(d10 - d10n) <= 0.1f0 || d10n <= dia0) && break
             d10 = d10n
         end
