@@ -97,6 +97,14 @@ ECOCLS plant association (habitat_code → PCOML → PA; the CWC221 default when
 capped at FORMAX; non-R6 forests use C5(i). The FIA reader now decodes the alpha PV_CODE into habitat_code."
 function nc_sitset!(s::StandState)
     p = s.plot; ifor = Int(p.forest_idx)
+    # nc/sitset.f:72-73 — Region-6 forests (IFOR 4 = Siskiyou 611 / IFOR 7 = BLM Coos Bay 712) reset
+    # LZEIDE=.FALSE. (Reineke SDI) UNLESS a SDICALC keyword set CALCSDI (sdi_method non-blank). The reported
+    # .sum SDI (disply.f branches on LZEIDE) and the SDImax self-thin both follow this, so R6 stands report
+    # Reineke (QMD form) while interior forests keep the grinit Zeide default. process_keywords! runs before
+    # site_setup!, so a blank sdi_method here == CALCSDI blank at the Fortran SITSET call.
+    if (ifor == 4 || ifor == 7) && all(isspace, s.control.sdi_method)
+        s.control.zeide_sdi = false
+    end
     isisp = Int(p.site_species); isisp == 0 && (isisp = 3)     # sitset.f: ISISP default = 3 (DF)
     @inbounds for i in 1:12
         p.sp_site_index[i] <= 0f0 && (p.sp_site_index[i] = NC_SITE_DEFAULT[i])
