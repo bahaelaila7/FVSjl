@@ -124,6 +124,15 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d)
         elseif nivar && (!lstart && (d - t.diam_growth[i]/bark) < 3f0)
             continue                                    # cycling: backdated D<3 keeps its crown (GOTO 60)
+        elseif nivar && lstart && d < 3.0f0
+            # ie/crown.f:415 — NIVAR D<3 at LSTART branches to stmt 58 → CALL DUBSCR (crown.f:601), NOT the
+            # PCR-change path. DUBSCR is a distinct logistic model with its OWN stochastic draw that carries a
+            # |FCR|≤CRSD outer rejection loop (dubscr.f:101-104), so it consumes a DIFFERENT number of BACHLO
+            # uniforms than the PCR path's single unbounded draw. Routing D<3 seedlings through the PCR path
+            # (the old code) mis-consumed the main RNG stream by one bachlo per rejection ⇒ every downstream
+            # draw (the regent NIVAR ZZRAN + the frozen DG serial-correlation OLDRN) desynced vs the oracle ⇒
+            # dense small-tree stands scattered ±. ie_dubscr restores both the crown VALUE and the draw count.
+            icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd)
         elseif nivar
             xcrcon = crcon + IE_CRPARM[sp,1]*ba + IE_CRPARM[sp,2]*ba*ba + IE_CRPARM[sp,3]*lnba +
                      IE_CRPARM[sp,4]*relden + IE_CRPARM[sp,5]*relden*relden + IE_CRPARM[sp,6]*lnrd
@@ -172,6 +181,26 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
         t.crown_pct[i] = Int32(icri)
     end
     return s
+end
+
+# ie/dubscr.f DUBSCR — small-tree (D<3 NIVAR) crown-ratio dub. Logistic model with a stochastic error that
+# is REJECTION-BOUNDED to |FCR|≤CRSD(sp) (dubscr.f:100-104) — distinct from the D≥3 PCR path's single
+# unbounded BACHLO(icri,6.35). For NIVAR the BCR5/6/8/9/10 (TPCCF/AVH/TMAI) terms are all zero, so only
+# BCR0-3 enter. Returns ICRI = INT(CR*100+0.5), CR ∈ [0.05,0.95].
+@inline function ie_dubscr(rng, sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32)::Int
+    cr = IE_DUB_BCR0[sp] + IE_DUB_BCR1[sp]*d + IE_DUB_BCR2[sp]*h + IE_DUB_BCR3[sp]*ba
+    sd = IE_DUB_CRSD[sp]
+    fcr = 0.0f0
+    if dgsd >= 1.0f0
+        while true
+            fcr = bachlo(rng, 0.0f0, sd)
+            abs(fcr) <= sd && break                     # dubscr.f:104 IF(ABS(FCR).GT.SD) GO TO 10 (redraw)
+        end
+    end
+    abs(cr + fcr) >= 86.0f0 && (cr = 86.0f0)            # dubscr.f:105 overflow guard
+    crf = 1.0f0 / (1.0f0 + exp(cr + fcr))
+    crf < 0.05f0 && (crf = 0.05f0); crf > 0.95f0 && (crf = 0.95f0)
+    return trunc(Int, crf * 100.0f0 + 0.5f0)
 end
 
 # ie/crown.f label 53: CRVAR/LPIJU change bound + ICRI (CHG=CRNEW-ICR, PDIFPY ±1%/yr, CRMAX cap).
