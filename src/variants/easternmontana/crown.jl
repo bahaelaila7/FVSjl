@@ -65,7 +65,16 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     P = EM_CRPARM
     nlim = t.n + (lstart ? Int(t.ndead) : 0)
-    @inbounds for i in 1:nlim
+    # #158-class species-major RNG order: FVS em/crown.f processes trees SPECIES-MAJOR
+    # (`DO 70 ISPC=1,MAXSP; DO 60 I3=I1,I2; I=IND1(I3)`), so the per-tree DUBSCR/NIVAR BACHLO crown draw
+    # (line ~90, rejection-sampled with a species-specific SD) is consumed in species order. jl dubbed in raw
+    # tree-index order ⇒ on a multi-species seedling cohort the per-tree crown draws were mis-assigned ⇒ wrong
+    # crown ⇒ SMHTGF over-/under-grows that seedling's height ⇒ compounding dense-stand divergence. Only the
+    # lstart DUB path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a
+    # species, tree-index order = FVS IND1 (stable species bucket). The deterministic per-tree crown update is
+    # order-independent, so this is a no-op except on the RNG stream. EM-only (dispatches on ::EasternMontana).
+    order = lstart ? sort(collect(1:nlim); by = ii -> (Int(t.species[ii]), ii)) : collect(1:nlim)
+    @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue
