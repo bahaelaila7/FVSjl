@@ -26,6 +26,47 @@ const _EM_RG_RSAB0 = -0.10987f0; const _EM_RG_RSAB1 = 0.22157f0; const _EM_RG_RS
 const _EM_RG_BH = 0.3740f0; const _EM_RG_BCCF = -0.00391f0; const _EM_RG_BBAL = -0.22957f0
 const _EM_RG_AX = 0.0658f0; const _EM_RG_BX = 1.3817f0
 const _EM_RG_HSIGMA = 0.59f0; const _EM_RG_REGYR = 5.0f0
+# Curtis-Arney/Wykoff height-diameter coefficients (em/blkdat.f HT1/HT2, IABFLG=1 for all sp ⇒ AX=HT1),
+# and the CRVAR/UTVAR small-tree DGMAX cap (em/regent.f DATA DGMAX). Used by the height→diameter DK model.
+const EM_RG_HT1 = Float32[4.1539,4.1539,4.4161,4.1920,4.76537,3.2,4.5356,4.7537,4.5788,4.414,4.4421,4.4421,4.4421,4.4421,4.4421,4.4421,4.4421,4.1539,4.4421]
+const EM_RG_HT2 = Float32[-4.212,-4.212,-6.962,-5.1651,-7.61062,-5.0,-5.692,-8.356,-7.138,-8.907,-6.5405,-6.5405,-6.5405,-6.5405,-6.5405,-6.5405,-6.5405,-4.212,-6.5405]
+const EM_RG_DGMAX = Float32[0,0,0,2,99,2,0,0,0,0,2.5,2.5,2.5,2.5,2.5,2.5,2.5,0,2.5]
+
+# em/regent.f DO-25 CRVAR/UTVAR height→diameter DG (lines 914-1012): the small CR/UT tree whose blended new
+# height hk=h+htg has crossed breast height (hk≥4.5) grows DIAMETER from the INVERSE Wykoff height-diameter
+# curve DK=(HT2/(ln(hk-4.5)-HT1))-1, NOT the (near-zero) large-tree DG. Juniper(6) uses the SITEAR linear form.
+# This is the seam that was MISSING in jl: aspen/PB (UTVAR) and cottonwood/OH (CRVAR) seedlings that grew past
+# 4.5' kept the ~0 large-tree DG ⇒ dense multi-species stands under-grew BA ~4× (measured stand 488929762126144:
+# jl BA 62 vs oracle 244). Returns the bark-transformed DBH increment (inches), same units as t.diam_growth.
+# BARK is the local BRATIO(sp,d,h) — FVS carries the previous DO-25 tree's BARK into the DGK scaling (line 990),
+# but line 1001 recomputes it fresh for the DDS transform; for the tiny seedlings that dominate the fix the two
+# are ~equal, so a local BRATIO is used (residual cornered to em/regent.f's carried-BARK order-dependence).
+@inline function _em_crut_dg(sp::Int, d::Float32, h::Float32, hk::Float32, htg::Float32,
+                             sitear::Float32, bark::Float32, dgmx::Float32, scale::Float32)::Float32
+    xrdgro = 1.0f0
+    local dk::Float32, dkk::Float32
+    if sp == 6                                            # RM juniper — SITEAR linear (em/regent.f:915-920)
+        dk = (hk - 4.5f0) * 10f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+        dkk = (h - 4.5f0) * 10f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0); h < 4.5f0 && (dkk = d)
+    else                                                  # inverse-Wykoff HD (em/regent.f:922-934)
+        bx = EM_RG_HT2[sp]; ax = EM_RG_HT1[sp]
+        dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+    end
+    local dgk::Float32
+    if dk < 0f0 || dkk < 0f0
+        dgk = htg * 0.2f0 * bark * xrdgro
+    else
+        dgk = (dk - dkk) * bark * xrdgro
+    end
+    dgk > dgmx && (dgk = dgmx); dgk < 0f0 && (dgk = 0f0)
+    dg = dgk                                              # CRVAR/UTVAR: DG(K)=DGK (no *BARK — em/regent.f:1005)
+    dds = dg * (2f0 * bark * d + dg) * scale
+    dg = sqrt((d * bark)^2 + dds) - bark * d
+    (d + dg) < EM_RG_DIAM[sp] && (dg = EM_RG_DIAM[sp] - d)   # DIAM floor (em/regent.f:1010-1012)
+    dg < 0f0 && (dg = 0f0)
+    return dg
+end
 
 # EMVAR small-tree models (em/smhtgf.f height + em/smdgf.f diameter; coeffs em/blkdat.f:253-270 + smdgf.f DATA).
 # EMVAR = _em_orig_species {1,2,3,7,8,9,10,18}. FVS uses these, NOT the NI exp-form (which is sp5/NIVAR only).
@@ -208,16 +249,17 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         largeh = t.ht_growth[i]
         htg = htgr*(1.0f0-xwt)+xwt*largeh; htg < 0.1f0 && (htg=0.1f0)
         t.ht_growth[i] = htg
-        # CRVAR small-tree DIAMETER (em/regent.f:599-603): D<1 seedlings get the sub-breast-height nominal
-        # (D2=D+0.0001·H2 if H2≤4.5, else D2=D) — NOT the large-tree DIAGR DG, which over-extrapolates a 0.1"
-        # seedling to ~0.9"/cycle (real-FIA stand 225065919010661: dense GA/OH seedlings → BA 2× live). D≥1
-        # keeps the large-tree DG (Fortran `IF(D.GE.1.0)GO TO 15` skips the WK5 store). D<1 ⇒ xwt=0 (below XMIN),
-        # so the override is unblended, matching WK5(I)=D2.
+        # CRVAR small-tree DIAMETER (em/regent.f DO-25, D<1 only — D≥1 keeps large-tree DG, line 855 GOTO 23).
+        # hk<4.5: DG=0 (line 884); hk≥4.5: inverse-Wykoff height→diameter DK model. Was previously a near-zero
+        # placeholder (d+0.0001·h2) that froze cottonwood/OH seedlings once they grew past breast height.
         if d < 1.0f0
-            h2 = h + htg
-            d2 = h2 <= 4.5f0 ? d + 0.0001f0 * h2 : d
-            dgnew = d2 - d; dgnew < 0f0 && (dgnew = 0f0)
-            t.diam_growth[i] = dgnew
+            hk = h + htg
+            if hk < 4.5f0
+                t.diam_growth[i] = 0.0f0
+            else
+                bk = bark_ratio(c.bark_a, c.bark_b, sp, d)
+                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp]*fint10, 10f0/fint)
+            end
         end
         _em_rg_stash!(stash, t, i)
     end
@@ -256,12 +298,18 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
-        # diameter: aspen(12,17) D≥3 skip; H2≤4.5 → D2=D+0.001·H2 (em/regent.f:600-606)
-        h2 = h + htg
-        if !((sp == 12 || sp == 17) && d >= 3.0f0) && h2 <= 4.5f0
-            d2 = d + 0.001f0 * h2
-            dgnew = d2 - d; dgnew < 0.0f0 && (dgnew = 0.0f0)
-            t.diam_growth[i] = dgnew * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        # UTVAR small-tree DIAMETER (em/regent.f DO-25). Juniper(6) always DK (SITEAR linear, XMAX=99); aspen/PB
+        # (12,17) D<3 → inverse-Wykoff DK once hk≥4.5 (D≥3 keeps large DG, line 606/857 GOTO 23). hk<4.5 → DG=0
+        # (line 881-884). Was previously frozen at the ~0 large-tree DG for hk>4.5 ⇒ aspen seedlings never grew
+        # diameter (measured: 0.1" aspen got DG≈0 in jl vs DG≈1.4" in FVSem_g16).
+        hk = h + htg
+        if sp == 6 || d < 3.0f0
+            if hk < 4.5f0
+                t.diam_growth[i] = 0.0f0
+            else
+                bk = bark_ratio(c.bark_a, c.bark_b, sp, d)
+                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp], 10f0/fint)
+            end
         end
         _em_rg_stash!(stash, t, i)
     end
