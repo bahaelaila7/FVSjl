@@ -1815,9 +1815,10 @@ END
 *Recognized but inert (would enable the establishment report, which FVSjl does not emit).*
 
 #### PASSALL
-**What it does:** Raises the cap on **excess regeneration trees passed per plot per species** (`PASMAX`). In stock FVS it deterministically caps a plot's excess-tree probability only when a plot overflows `MAXTPP` (estab.f:1318-1321) — a post-draw `PROB` scaling with **no RNG effect**. On the reachable AUTOES regime it is **measured-inert**: the under-stocked IE fixture never overflows a plot, so `PASSALL 1 == PASSALL 100 ==` default is byte-identical `.sum`. Consumed-inert in FVSjl (its `IBLK` serialization flag is referenced nowhere).
+**What it does:** Sets `CONFID` → `PASMAX`, the **maximum number of excess regeneration trees passed per plot per species** (esin.f:551-558; estab.f:171). When a plot's per-species `EXCESS` count is passed to the tree list it is split into `IBRKUP = INT(EXCESS/5+1)` records each carrying `XCSMAX = EXCESS/BRKUP`; `PASMAX` caps that to `min(EXCESS/BRKUP, PASMAX/BRKUP)` (estab.f:1318-1321). The record `PROB` scales **linearly** with `XCSMAX`, so the cap is a purely **deterministic post-draw scaling — no RNG draw consumed**. Default `CONFID=5.0` (esinit.f:50); `CONFID<1` (incl. a blank field) is raised to `1.0`. **The AUTOES ingrowth path (estab.f:249, `NTALLY==99`) OVERRIDES `PASMAX=15.0`**, so `PASSALL` bites only the dated/regular tally path (`NTALLY 1,2,…`).
+**Status (measured 2026-09-02 vs live `FVSie_g16`, single-`.o` estab.f dump swap):** **MODEL-AFFECTING on the oracle** — on a dated-`ESTAB` bare stand `PASSALL 1` → 2002 TPA 477 vs default(5)/`PASSALL 100` → 555 (default==100 there: max `EXCESS≤5`, so only `PASMAX 1` caps); at PLANT densities the cap fires at `EXCESS≥6`. FVSjl **parses+stores** `pasmax` (default 5, `<1→1`) and the cap **kernel `es_pasmax_xcsmax` is BIT-EXACT** vs the instrumented oracle (EXCESS 1..6 × PASMAX {1,5}). The live tally seam is **NOT wired**: FVSjl's IE establishment uses placeholder per-tree heights + a probabilistic (`PXCS`-weighted) excess model rather than the discrete estab.f `NOTE`/`EXCESS` split, so the cap's TPA effect is **cornered** by that height/excess approximation — not a faithful inert. On the previously-validated **under-stocked ingrowth fixture** (`PASMAX=15`, no plot overflow) the oracle `.sum` **is** byte-identical for `PASSALL 1==100==default`, and FVSjl is likewise inert (locked by `test/unit/test_estab_passall.jl`). (`IBLK` is set but referenced nowhere in estab.f — a dead serialization flag.)
 **Parameters:**
-- `confid`(1) — maximum excess trees passed per plot per species (`CONFID`/`PASMAX`); values **< 1.0 are raised to 1.0**. Consumed-inert on the exercised scope; only a dense over-regenerating stand (untested) would exercise the cap.
+- `confid`(1) — maximum excess trees passed per plot per species (`CONFID`/`PASMAX`); values **< 1.0 (and blank) are raised to 1.0**. Parsed+stored; the cap kernel is oracle-bit-exact but not yet wired to the live tally (cornered pending the IE per-tree-height + discrete-excess port).
 **Example:**
 ```text
 ESTAB         2000.0
@@ -1830,7 +1831,7 @@ END
     - PASSALL: { confid: 5 }
     - END: {}
 ```
-*Recognized but inert on the reachable regime (no plot overflows, so no excess trees to cap).*
+*Parsed+stored; cap kernel ported and oracle-bit-exact. Live-wiring deferred (cornered by placeholder IE heights + the probabilistic excess model); inert on the validated ingrowth fixture.*
 
 #### PLOTINFO
 **What it does:** In stock FVS, signals that per-plot site cards (ID, slope, aspect, habitat, physiography, site-prep) follow in the keyfile and reads them via the **legacy TREEDATA plot-card** input format (esin.f opt 10 → esplt1/esplt2). It is **structurally inapplicable** to FVSjl's DATABASE/FIA input pipeline — FVSjl takes per-plot slope/aspect from the DB reader and a real FVSjl keyfile never carries `PLOTINFO` plot cards — so it is **consumed-inert** (validating it would require porting the entire legacy plot-card reader and a non-DB keyfile).
@@ -1851,7 +1852,7 @@ END
 ```
 *Recognized but inert (legacy plot-card input, not used on the DATABASE/FIA path).*
 
-> **Order & scope.** All of the above are read only between `ESTAB` and its `END`; cards apply in the order written and same-target cards resolve to whichever came **last** (e.g. a later all-species `SPECMULT 0` overwrites an earlier single-species multiplier). `STOCKADJ`/`SPECMULT`/`HTADJ`/`TALLY*`/`MECHPREP`/`BURNPREP`/`MINPLOTS`/`THRSHOLD` and the ingrowth/tally toggles are wired into the (IE/western) AUTOES establishment model; `HABGROUP`/`OUTPUT`/`PASSALL`/`PLOTINFO` are recognized-and-consumed but inert on FVSjl's DATABASE/FIA input scope (report-only or legacy plot-card constructs).
+> **Order & scope.** All of the above are read only between `ESTAB` and its `END`; cards apply in the order written and same-target cards resolve to whichever came **last** (e.g. a later all-species `SPECMULT 0` overwrites an earlier single-species multiplier). `STOCKADJ`/`SPECMULT`/`HTADJ`/`TALLY*`/`MECHPREP`/`BURNPREP`/`MINPLOTS`/`THRSHOLD` and the ingrowth/tally toggles are wired into the (IE/western) AUTOES establishment model; `HABGROUP`/`OUTPUT`/`PLOTINFO` are recognized-and-consumed but inert on FVSjl's DATABASE/FIA input scope (report-only or legacy plot-card constructs). `PASSALL` is parsed+stored and its cap kernel is oracle-bit-exact, but the live tally seam is not yet wired (see its entry — measured model-affecting on the oracle, cornered in FVSjl).
 
 ## Species groups
 

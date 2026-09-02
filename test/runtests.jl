@@ -202,6 +202,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("unit/test_estab_minplots.jl")        # ESTAB-packet MINPLOTS (esin.f MINREP → DUPNPT plot replication) — parse+clamp + bit-exact DUPNPT-scaled ESAVE draw chain vs live FVSie
     include("unit/test_estab_stockadj.jl")   # STOCKADJ field-position fix (esin.f opt 13: field1=date/field2=mult, scheduled at activity 440) vs live FVSie echo
     include("unit/test_estab_mechprep.jl")        # ESTAB-packet MECHPREP/BURNPREP site prep (esetpr.f + estab.f:382-399 WK6 IPPREP sampler) — kernel + live IPPREP vs FVSie_estabdump
+    include("unit/test_estab_passall.jl")         # ESTAB-packet PASSALL (esin.f opt 18 → CONFID → PASMAX excess-tree cap) — parse+clamp + es_pasmax_xcsmax kernel bit-exact vs live FVSie + unwired-inert lock
     include("unit/test_ec_hbdecd_estab.jl")       # EC STDINFO alpha plant-association decode (ec/hbdecd.f → habitat 129/CWS222/GF/SI 103 vs FVSec_g16) + EC PLANT ESTAB path no longer KeyError-crashes (ec/blkdat XMIN/HHTMAX + ec/essubh SMHTGF)
     include("unit/test_ec_volume_topkill.jl")     # EC broken-top TOTAL-cubic CFTOPK trim (ect01 cyc0 bit-exact vs FVSec_g16; closed the TCuFt +2 corner via r4_topkill in the FW2 branch)
     include("unit/test_snag.jl")                # FFE-F7: snag falldown + decay dynamics (FMSFALL)

@@ -700,6 +700,13 @@ mutable struct Establishment
                                 # estab.f:199-207 IDUP loop → DUPNPT = NPTIDS·ceil(MINREP/NPTIDS), so it sets the
                                 # number of establishment plots looped ⇒ the ESRANN draw-stream length (measured
                                 # model-affecting: MINPLOTS 100 shifts the under-stocked-IE tally-2 seed 61997→31334).
+    pasmax::Float32             # PASSALL keyword (esin.f opt 18 → CONFID → estab.f:171 PASMAX): the MAXIMUM number
+                                # of EXCESS regeneration trees passed per plot per species (esinit.f:50 default
+                                # CONFID=5.0; esin.f:557 IF(CONFID<1) CONFID=1). Caps the post-draw excess-tree
+                                # PROB at estab.f:1318-1321 XCSMAX=min(EXCESS/BRKUP, PASMAX/BRKUP) — deterministic,
+                                # no RNG effect. NOTE (estab.f:249): the AUTOES ingrowth path (NTALLY==99) OVERRIDES
+                                # PASMAX=15.0 regardless of this value, so PASSALL bites only the dated/regular tally
+                                # path (NTALLY 1,2,…). MEASURED model-affecting on the live oracle (see es_pasmax_xcsmax).
     addtrees::Vector{AddTreesActivity}  # ADDTREES (esin.f opt 28): scheduled external-regen bridge activities
     inadv::Bool                 # INADV — "advance component of the inventory is invalid" (estab.f). Set TRUE by
                                 # EZCRUISE (esinit.f:79 ESEZCR, auto-invoked by initre.f:280 when a stand has < 1
@@ -711,7 +718,7 @@ end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
-                                AddTreesActivity[], false)
+                                5.0f0, AddTreesActivity[], false)
 
 mutable struct DbsState
     enabled::Bool
