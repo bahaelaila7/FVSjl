@@ -124,7 +124,20 @@ max-contiguous-clearcut are deferred-documented.
   oracle 911 vs jl 364 TPA @2002) is the **pre-existing IE bare-plot establishment straddle**
   (EZCRUISE/INADV) — not introduced by the bridge, which is bit-exact to the PLANT path. IMET≠1 (in-tree
   data-base variants of ADDTREES) has no in-tree effect (esin.f falls through) and is not wired.
-- **ON database-read path** — no real ON DB data + a characterized gcc-16×sqlite
-  SIGSEGV; ON is validated via the inline path, not a live DB oracle.
+- **ON database-read path** — reader VALIDATED on a real ON DB (`FVSDataHardwood.db`, stand
+  `LD3001`, 94 metric trees) via **inline-equivalence**: the DB path and the inline `.tre` path
+  share `ingest_tree_records!`, and on LD3001 they produce byte-identical tree state (species /
+  cm→in DBH / m→ft height / id / plot-index), with DB TPA == inline TPA × `ACRtoHA` (per-ha→
+  per-acre) bit-exact; stand attrs (age/slope/aspect/elevation/latitude) match the DB row
+  (`test_ontario_db_path_equiv.jl`). Surfaced+fixed a real reader bug: a **blank ElevFt string**
+  (this DB stores unset numerics as `""`, which `_fia_present` counts as present) dropped the real
+  metres `Elevation`; now gated on a NUMERIC value so it falls through to `ELEVATION` (moves the ON
+  DB cyc0 `.sum` col 269→258). A **live DB oracle remains blocked**: FVSon_g16 SIGSEGVs in
+  `dbstreesin_`'s prologue (`__memset_avx2`) on the SQLite tree-read (stand-read of 86 cols
+  succeeds) — reproduces with fresh gfortran-16 objects, the shipped Jun-4 `dbstreesin.o`, and a
+  static link; gcc-15/gfortran-15 (the workaround for this toolchain-skew class) is unavailable and
+  not installable here, and the isoc23 sscanf shim is unrelated to the memset fault. The archived
+  `Hardwood.sum.save` is from a DIFFERENT FVS build (MCuFt=178 vs FVSon_g16/FVSjl's faithful 0), so
+  not a valid FVSon_g16 oracle. ⇒ measured toolchain block + inline-equivalence, not a live DB A/B.
 - **Western full-population FIA sweep** — clean re-run on final code under way
   (cap-and-fix, `DIGCAP=100`); not yet at the eastern exhaustiveness.

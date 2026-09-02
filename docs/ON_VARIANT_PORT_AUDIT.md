@@ -152,3 +152,26 @@ Instrument a scratch copy of `canada/on/{dgf,dgdriv,sitset,crown,htont}.f` with 
   Only gcc-16 is available (no gcc-15). ⇒ jl's ON DB reader validated against the INLINE path instead (which
   IS oracle-validated). No real Ontario DB data exists, so the DG-calibration-on-real-data goal is
   data-blocked regardless; the reader-correctness goal (the actual value) is achieved.
+- **DB-read path CLOSED on a REAL ON DB (2026-09-02, `test_ontario_db_path_equiv.jl`).** Real ON input DB
+  now available: `test/fixtures/ontario/FVSDataHardwood.db`, stand `LD3001` (ON variant, 94 metric trees).
+  - **Oracle DB-path re-measured & still blocked (deeper localization).** The `dbstreesin_` SIGSEGV is
+    `__memset_avx2` in the routine's PROLOGUE (the entry `write` never executes) on the tree-read — the
+    stand-read `dbsstandsin` reads all 86 FVS_StandInit columns fine, so it is specifically the tree read.
+    Reproduces IDENTICALLY with (a) fresh gfortran-16 objects, (b) the shipped Jun-4 `dbstreesin.o` (compiled
+    on a different machine), and (c) a fully-STATIC `-no-pie` link ⇒ not a fresh-compile artifact, not the C
+    sqlite layer (bisected: swapping the Jun-4 `fvsqlite3.o`/`sqlite3.o` does not change it). `isoc23_shim`
+    is only `__isoc23_sscanf` — unrelated to the memset. `gfortran-15`/`gcc-15` (the fix for this
+    toolchain-skew class) is UNAVAILABLE and not installable (`apt-get` has no candidate). The archived
+    `Hardwood.sum.save` is from a DIFFERENT FVS build (reports MCuFt=178 where FVSon_g16's faithful
+    metric-quirk gives 0) ⇒ NOT a valid FVSon_g16 oracle. ⇒ measured toolchain block, honest close.
+  - **Reader validated via inline-equivalence on LD3001.** DB path and inline `.tre` path share
+    `ingest_tree_records!`; on the 94-tree stand they produce byte-identical tree state (species / cm→in DBH
+    / m→ft height / tree-id / plot-index), 94 raw → 91 live on both, and DB TPA == inline TPA × `ACRtoHA`
+    (0.40468564, the per-ha→per-acre transform) bit-exact. Stand attrs (age 100 / slope 0.05 / aspect 0 /
+    latitude 49 / elevation) match the DB row; the DB path runs end-to-end to a cyc0 `.sum`.
+  - **Real reader BUG fixed:** LD3001 stores `Elevation`=518 m with a BLANK `ElevFt` string; `_fia_present`
+    counts `""` as present, so the reader set elevation=0 and short-circuited the `ELEVATION` fallback,
+    dropping the real metres value. Gated both `ELEVFT`/`ELEVATION` on a NUMERIC value (blank ⇒ absent, like
+    FVS dbsstandin) ⇒ elevation now 16.994751 (518·MtoFt/100); moves the ON DB cyc0 `.sum` col 269→258.
+    Surgical (blank-string columns only; US-FIA DBs use real NULLs). multicycle 339/11; ON suite 217/217;
+    fia-reader 55/55 unchanged.
