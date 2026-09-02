@@ -1494,21 +1494,21 @@ DATABASE/FIA input path. They all live between the `ESTAB` line and its `END`.
 **What it does:** Sets the **stockability adjustment** — a multiplier on the establishment stocking probability. The AUTOES model draws each plot's regeneration off `PROB1 = logistic(PN + ESB − ESB1) · STOADJ` (estab.f:579), so `STOADJ < 1` thins the predicted natural regeneration and `STOADJ = 0` cancels it entirely (this is exactly what a `NATURAL` card implies — esin.f:1230 `NATURAL IMPLIES STOCKADJ = 0.0`). Default 1.0 is inert.
 **Parameters:**
 - `date`(1) — the date/cycle the adjustment takes effect (`STOCKADJ <date> <mult>`).
-- `mult`(2) — stockability multiplier `STOADJ`; default **1.0**. Clamped to ≥ 0.001 before the multiply (estab.f:578); `0.0` cancels natural-regeneration prediction.
-> **⚠ Known FVSjl bug (field position).** Stock FVS (`esin.f` opt 13) reads **field 1 as the date/cycle** and the **multiplier from field 2**, scheduling it at activity 440 (its echo prints `DATE/CYCLE=…; MULTIPLIER=…`). FVSjl currently reads the multiplier from **field 1** and ignores the date (`keyword_dispatch.jl` — `stoadj = values[1]`, no scheduling) — a confirmed field-position divergence. Fix pending; the correct FVS card is `STOCKADJ <date> <mult>` with the multiplier in field 2.
+- `mult`(2) — stockability multiplier `STOADJ`. A **blank field 2 ⇒ 0.0** (which cancels natural-regeneration prediction — the oracle echo prints `MULTIPLIER= 0.00`); clamped to ≥ 0.001 before the multiply (estab.f:578). When no `STOCKADJ` card is present the multiplier is 1.0 (inert).
+> **Field layout (fixed 2026-09).** `esin.f` opt 13 reads **field 1 = date/cycle** (`IDT = IFIX`) and **field 2 = the multiplier**, scheduling it at activity 440 for that date (echo: `DATE/CYCLE=…; MULTIPLIER=…`). FVSjl now matches — validated against the live FVSie echo (`STOCKADJ 2000. 0.5` → `DATE/CYCLE= 2000; MULTIPLIER= 0.50`; the multiplier applies at the scheduled establishment cycle). Put the date in field 1 and the multiplier in field 2.
 **Example:**
 ```text
 ESTAB         2000.0
-STOCKADJ       0.5
+STOCKADJ      2000.       0.5
 END
 ```
 ```yaml
 - regeneration:
     - ESTAB: { date: 2000 }
-    - STOCKADJ: { mult: 0.5 }
+    - STOCKADJ: { date: 2000, mult: 0.5 }
     - END: {}
 ```
-*Halves the predicted natural-regeneration stocking probability for the packet.*
+*Halves the predicted natural-regeneration stocking probability at the 2000 establishment cycle.*
 
 #### TALLY
 **What it does:** Schedules a **user establishment tally** at a date — a one-off request to run the establishment model (count/add regeneration) in the cycle containing that date, independent of the automatic disturbance/ingrowth tallies. FVSjl pushes a scheduled activity (code 427) at the date; the tally is honored inside the AUTOES scheduler's staleness window (`KDT+1 − IDSDAT ≤ 20`, esnutr.f). `TALLYONE` (code 428) and `TALLYTWO` (code 429) are the same mechanism keyed to establishment tally #1 vs #2 (a continuation), where `NTALLY = IACTK − 427`.
@@ -1713,7 +1713,7 @@ END
 *Broadcast-burns 75 % of the establishment plots in 2000.*
 
 #### SPECMULT
-**What it does:** Sets a per-species **establishment-occupancy multiplier** (`XESMLT`). The advance-regen occupancy each species contributes is `occ = OCURHT · XESMLT · OCURNF`, so `SPECMULT` scales a species' share of the regenerating stand linearly (e.g. ×2 doubles its predicted advance-regen probability). Default lookup 1.0 (inert). FVSjl applies it at establishment (the date field is not used for scheduling, like `STOCKADJ`).
+**What it does:** Sets a per-species **establishment-occupancy multiplier** (`XESMLT`). The advance-regen occupancy each species contributes is `occ = OCURHT · XESMLT · OCURNF`, so `SPECMULT` scales a species' share of the regenerating stand linearly (e.g. ×2 doubles its predicted advance-regen probability). Default lookup 1.0 (inert). FVSjl applies it at establishment; its date field is not yet used for scheduling (unlike `STOCKADJ`, which now schedules at activity 440).
 **Parameters:**
 - `date`(1) — date/cycle field; parsed but **not scheduled** by FVSjl (applied once at establishment).
 - `species`(2) — SPDECD selector: `0`/blank = **all** species, `−N` = SPGROUP group *N*, `> 0` = a single species index.

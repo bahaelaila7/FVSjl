@@ -1340,6 +1340,18 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # strict window fires each scheduled tally exactly once; the automatic 20-yr continuation (rule 2) then handles
     # its 2nd pass. The ESTAB-END 427 sits at inv-20 (stale, >20yr) so it is correctly skipped — no regression.
     kdt = next_year - 1
+    # STOCKADJ (esin.f opt 13 → activity 440): the stockability multiplier scheduled for THIS cycle's window,
+    # default 1.0 (inert). Mirrors the TALLY date→cycle mapping (a cycle number → this cycle's year, else a
+    # calendar year). est.stoadj is then consumed by ie_autoes_run (PROB1 = logistic(…)·STOADJ, estab.f:578).
+    est.stoadj = 1f0
+    for a in s.control.schedule
+        a.icflag == Int32(440) || continue
+        ay = Int(a.year)
+        aidt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay
+        (year <= aidt < next_year) || continue
+        est.stoadj = a.params[1]
+        break
+    end
     sched_fire = false; sched_ntally = 0
     for a in s.control.schedule
         (a.icflag == 427 || a.icflag == 428 || a.icflag == 429) || continue

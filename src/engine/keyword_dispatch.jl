@@ -1587,10 +1587,17 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             end
         elseif k == "NOSPROUT"                                # esin.f opt 27: disable sprouting
             s.control.lsprut = false
-        elseif k == "STOCKADJ"                                # esnutr.f IACTK 440: STOADJ = PRMS(1)
-            # Stockability adjustment — multiplier on the establishment stocking probability
-            # PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Applied in ie_autoes_run.
-            s.estab.stoadj = r.present[1] ? Float32(r.values[1]) : 1f0
+        elseif k == "STOCKADJ"                                # esin.f opt 13 → activity 440 (esnutr.f)
+            # Stockability adjustment — a multiplier on the establishment stocking probability
+            # PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:578-580). ⚠ FIELD FIX: esin.f opt 13 reads
+            # field 1 = DATE/CYCLE (IDT=IFIX(ARRAY(1))) and field 2 = the MULTIPLIER (ARRAY(2)), and
+            # OPNEW-schedules it at activity 440 for that date. Confirmed vs the live FVSie echo:
+            # "STOCKADJ 2000. 0.5" → "DATE/CYCLE= 2000; MULTIPLIER= 0.50"; "STOCKADJ 0.5" → DATE=0,
+            # MULTIPLIER=0.00. (jl previously read the multiplier from field 1 and dropped the date —
+            # a real field-position bug the prior fixture masked by putting the value in field 1.)
+            idt  = r.present[1] ? Int32(trunc(r.values[1])) : Int32(1)      # IDT = IFIX(field 1); default 1
+            mult = r.present[2] ? Float32(r.values[2]) : 0f0                # blank field 2 ⇒ 0.0 (oracle echo)
+            push!(sched, ScheduledActivity(max(Int32(1), idt), Int32(440), (mult, 0f0, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "TALLY" || k == "TALLYONE" || k == "TALLYTWO"
             # esin.f opt 16/11/12: schedule a user establishment tally at a date. IACTK 427/428/429; esnutr.f:180
             # NTALLY = IACTK-427 → TALLY/TALLYONE tally#1, TALLYTWO tally#2 (continuation). Field 1 = date (a cycle
