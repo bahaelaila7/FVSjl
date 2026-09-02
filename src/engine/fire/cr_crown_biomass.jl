@@ -29,6 +29,30 @@ const _CR_ISPMAP = Int[
 # CR species that use the Jenkins FMCROWE (the generic `crown_biomass`) instead of FMCROWW.
 @inline _cr_uses_fmcrowe(spiw::Integer) = spiw == 20 || spiw == 21 || spiw == 22 || spiw == 28 || spiw == 38
 
+# IE (InlandEmpire) crown-biomass group map — ie/fmcrow.f ISPMAP (IE species 1..23 → the crown-equation
+# group passed to FMCROWW/FMCROWE). ie/fmcroww.f + fmcrowe.f are BYTE-IDENTICAL to CR's, and ie/fmcrow.f
+# dispatches SELECT CASE(SPIW): CASE(18,19,21) → FMCROWE (Jenkins), CASE DEFAULT → FMCROWW(SPIE=ISPMAP).
+# jl previously routed ALL IE species through the eastern FMCROWE (the generic `crown_biomass` else-branch),
+# ~2× under-counting the conifer canopy crown fuel → CBD too low → the crown-fire OACT1/crowning index
+# above the 20-mph wind → SURFACE fire (no crown-fire boost) → the SimFire massively under-killed
+# (iet01_fire: jl CBD 0.066 / crb 0 vs live CBD 0.146 / CRBURN 1.0). Same bug class as the OC 40298123 fix.
+const _IE_ISPMAP = Int[
+    15, 8, 3, 4, 6, 7, 11, 18, 1, 13,
+    24, 14, 11, 1, 12, 16, 7, 41, 17, 5,
+    43, 23, 24,
+]
+# IE species that use the Jenkins FMCROWE (ie/fmcrow.f:147-148 CASE(18,19,21)): aspen/cottonwood/paper birch.
+@inline _ie_uses_fmcrowe(spiw::Integer) = spiw == 18 || spiw == 19 || spiw == 21
+
+# EM (EasternMontana) crown-biomass group map — em/fmcrow.f ISPMAP (19 species). em/fmcroww.f + fmcrowe.f
+# byte-identical to CR's; em/fmcrow.f dispatches CASE(11:17,19) → FMCROWE, CASE DEFAULT → FMCROWW(SPIE=ISPMAP).
+const _EM_ISPMAP = Int[
+    14, 8, 3, 11, 1, 16, 11, 18, 1, 13,
+    16, 41, 17, 42, 17, 17, 43, 16, 17,
+]
+# EM species that use the Jenkins FMCROWE (em/fmcrow.f:144 CASE(11:17,19)).
+@inline _em_uses_fmcrowe(spiw::Integer) = (11 <= spiw <= 17) || spiw == 19
+
 # NC (Klamath) crown-biomass group map — nc/fmcrow.f ISPMAP (NC species 1..12 → the crown-equation group
 # passed to FMCROWW). NC's fmcroww.f is byte-identical to CR's and dispatches directly on this SPI (no
 # internal remap), and nc/fmcrow.f calls FMCROWW for ALL species (none use the eastern FMCROWE). So NC

@@ -103,9 +103,11 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     if (s.variant isa CentralRockies || s.variant isa BlueMountains || s.variant isa Klamath ||
         s.variant isa WestSierra || s.variant isa WestCascades || s.variant isa CentralCalifornia ||
         s.variant isa PacificNorthwest || s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
-        s.variant isa OregonCoast) &&
+        s.variant isa OregonCoast || s.variant isa InlandEmpire || s.variant isa EasternMontana) &&
        (s.variant isa Klamath ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
+          s.variant isa InlandEmpire ? _ie_uses_fmcrowe(sp) :
+          s.variant isa EasternMontana ? _em_uses_fmcrowe(sp) :
           s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) :
           s.variant isa WestCascades ? wc_uses_fmcrowe(sp) :
           s.variant isa PacificNorthwest ? pn_uses_fmcrowe(sp) :
@@ -114,6 +116,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
           s.variant isa OregonCoast ? oc_uses_fmcrowe(sp) :
           s.variant isa SouthCentralOregon ? so_uses_fmcrowe(sp) : ws_uses_fmcrowe(sp)))
         spie = s.variant isa CentralRockies ? _CR_ISPMAP[sp] :
+               s.variant isa InlandEmpire ? _IE_ISPMAP[sp] :
+               s.variant isa EasternMontana ? _EM_ISPMAP[sp] :
                s.variant isa BlueMountains ? _BM_ISPMAP[sp] :
                s.variant isa WestSierra ? WS_ISPMAP[sp] :
                s.variant isa WestCascades ? WC_ISPMAP[sp] :
@@ -133,6 +137,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # group), which selects the correct TOTABV + the ≥15 foliage fraction. Using ls_spi[20]=1 gave the
     # <15 hardwood foliage ⇒ ~2.45× too much aspen foliage ⇒ the crt01 litter over-accumulation.
     spils = s.variant isa CentralRockies ? Int(_CR_ISPMAP[sp]) :
+            s.variant isa InlandEmpire ? Int(_IE_ISPMAP[sp]) :     # ie/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
+            s.variant isa EasternMontana ? Int(_EM_ISPMAP[sp]) :   # em/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
             s.variant isa BlueMountains ? Int(_BM_ISPMAP[sp]) :
             s.variant isa WestSierra ? Int(WS_ISPMAP[sp]) :
             s.variant isa WestCascades ? Int(WC_ISPMAP[sp]) :

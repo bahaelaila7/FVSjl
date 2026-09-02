@@ -121,6 +121,7 @@ using FVSjl
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")
 include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking
+include("integration/test_western_simfire.jl") # FFE: IE/EM Wykoff SIMFIRE crown-fire kill vs live (FMCROWW crown-biomass + FM10 RACT regression guard)
 include("integration/test_cst01.jl")   # CS: cst01 cycle-0 stand columns bit-exact (GROSPC<1 path)
 include("integration/test_lst01.jl")   # LS: lst01 cycle-0 stand columns bit-exact (all 6, vs live FVSls)
 include("integration/test_lst01_ffe.jl")  # LS: FFE fire behavior (fmcfmd model 10 + fmmois) + fire mortality vs live FVSls
