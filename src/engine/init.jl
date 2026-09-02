@@ -93,6 +93,11 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # processing so TIMEINT/NUMCYCLE-period still overrides. `control.year` is the per-cycle
     # length build_cycle_schedule!/grow drive on; SN keeps its 5 default (bit-exact).
     (s.variant isa Northeast || s.variant isa CentralStates) && (s.control.year = 10f0)
+    # NC GRINIT DG-measurement period default (nc/grinit.f:169-171 FINT=10, FINTH=5, FINTM=5). Only FINT differs
+    # from the generic 5 default. Set before keyword/DB processing so a GROWTH keyword or DG_MEASURE column still
+    # overrides. Drives the FINT/FINTM=2 dead-record PROB inflation for the backdated calibration/crown-init DENSE
+    # (notre.f) — the DG SCALE stays the NC 0.5 hardcode (gated on growth_dg_set, unaffected).
+    s.variant isa Klamath && (s.control.growth_fint = 10f0)
     # AK GRINIT defaults (ak/grinit.f): BAF=62.5 (vs the generic 40), FINT=10-yr cycle. Set before
     # keyword processing so a DESIGN BAF / NUMCYCLE-period still overrides. akt01's DESIGN omits BAF ⇒
     # the 62.5 default is load-bearing for the plot expansion (TPA/BA/QMD).

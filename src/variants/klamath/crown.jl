@@ -140,3 +140,51 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
     end
     return s
 end
+
+# nc/cratet.f LSTART crown-init: FVS's DENSE (called during CRATET before the crown dub) runs over the FULL
+# inventory — live PLUS HISTORY 6-9 standing-dead records — so the dead-inclusive density (BA/AVH/point-CCF) is
+# what CROWN→DUBSCR sees when dubbing the D<1 / missing-CR LIVE trees. jl partitions the dead into
+# t.n+1:t.n+ndead, so we temporarily extend the live range to fold them in, then restore live-only afterward.
+# dense.f:83-87: standing-dead records load WK3=DBH EXCEPT IMC(I)==9 (HISTORY 8,9) which load DBH=0 — so
+# HISTORY 8,9 contribute 0 to the DBH-based density (BA/CCF/SDI) while their HEIGHT still enters AVH (AVHT40,
+# dense.f:285-297, sums HT over the 40 largest-REAL-DBH TPA via the descending-real-DBH IND sort — NOT WK3).
+# Measured on CN 30191796010497 (681-TPA seedling stand + a dead HISTORY-8 9.5"/57ft record): live DUBSCR
+# AVH 38.945 vs jl live-only 1.01 ⇒ seedling crowns dubbed 57/69 (live) not jl's 72 ⇒ the 0.0566·CR² htgr5
+# term ran ~4%/cycle high ⇒ compounding DG/BA/SDI over-growth ⇒ SDI self-thin fired early ⇒ over-mortality
+# (2033 TPA jl 259 vs oracle 490). Mirror of bm_crown_init_lstart!.
+function nc_crown_init_lstart!(s::StandState)
+    t = s.trees
+    nlive = t.n
+    if t.ndead > 0
+        t.n = nlive + t.ndead
+        # NOTRE (notre.f:122-124) inflates DEAD-record PROB by FINT/FINTM (DG-measurement period / mortality-
+        # observation period) so the recent dead are re-added at the right rate for the BACKDATED calibration
+        # DENSE (cratet.f:172, LBKDEN). CROWN→DUBSCR runs against THAT dead-inclusive backdated density, so the
+        # dead heights enter AVH weighted by the INFLATED PROB. NC grinit.f:169-171 FINT=10/FINTM=5 ⇒ ×2. jl
+        # carries the true dead TPA, so inflate the dead partition here (scoped), then restore. (Measured: dead
+        # PROB 13.66→27.33 ⇒ AVH 20.14→38.94 ⇒ seedling crown 65%→57%, matching live DUBSCR.)
+        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        saved_tpa = fintr != 1f0 ? Float32[t.tpa[j] for j in (nlive + 1):(nlive + t.ndead)] : Float32[]
+        if fintr != 1f0
+            @inbounds for j in (nlive + 1):(nlive + t.ndead); t.tpa[j] *= fintr; end
+        end
+        # AVH from real DBH FIRST (before the WK3-zeroing), since compute_density! overwrites avg_height with
+        # the zeroed-DBH sort under which the HISTORY-8/9 dead (DBH→0) sink below the live seedlings.
+        avht_real = stand_top_height(s)      # AVHT40 over live + all dead records, real DBH, real HT
+        saved = Tuple{Int,Float32}[]
+        @inbounds for i in (nlive + 1):(nlive + t.ndead)
+            (t.history[i] == 8 || t.history[i] == 9) || continue
+            push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
+        end
+        compute_density!(s)                  # dead-inclusive BA / point-CCF (CRATET DENSE over all inv records)
+        @inbounds for (i, d) in saved; t.dbh[i] = d; end
+        s.plot.avg_height = avht_real        # AVHT40 top height from real DBH (dead heights included)
+        if fintr != 1f0
+            @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead)); t.tpa[j] = saved_tpa[k]; end
+        end
+        t.n = nlive
+    end
+    crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR
+    compute_density!(s)                      # restore live-only density so nothing downstream sees dead-inclusive BA
+    return s
+end
