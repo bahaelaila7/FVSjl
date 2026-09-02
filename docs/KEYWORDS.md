@@ -4686,13 +4686,19 @@ GROWMULT           3.        LP        0.9
 
 #### MORTMULT
 **What it does:** Applies a **climate-caused mortality multiplier** to a species (or all
-species) starting at a cycle (clin.f option 3, activity 2801). Scales the background
-mortality rate. Recorded as a `(cycle, species, value)` event on `s.climate.mort_events`.
+species) starting at a cycle (clin.f option 3, activity 2801). `CLMRTMLT1` scales the
+viability-driven mortality (SPMORT1/FYRMORT); `CLMRTMLT2` scales the climate transfer-distance
+mortality (SPMORT2/DMORT, clmorts.f:223/237). Recorded as a `(cycle, species, CLMRTMLT1, CLMRTMLT2)`
+event on `s.climate.mort_events`.
 **Parameters:**
 - `cycle`(1) — schedule cycle/date; blank ⇒ 1.
 - `species`(2) — species (alpha/FIA/numeric) or `ALL`/`0`/blank = all species.
-- `value`(3) — first mortality multiplier (`CLMRTMLT1`); blank ⇒ **1.0**.
-- *(field 4 = `CLMRTMLT2`, a second/large-tree multiplier)* — read by stock FVS but **not captured** by the FVSjl parser.
+- `value`(3) — first mortality multiplier (`CLMRTMLT1`), on the viability mortality; blank ⇒ **1.0**.
+- `value2`(4) — second mortality multiplier (`CLMRTMLT2`), on the transfer-distance DMORT; blank ⇒ **1.0**.
+  **Implemented** (both weights parsed and applied): validated vs the live FVSie_clean oracle
+  (`FVS_Climate.dClimMort`) — the CLMRTMLT2=2.0 doubling reproduces the oracle bit-exact for the
+  deterministic dominant species (2040 DF/LP/PP/WL 0.20628→0.41256), late cycles/minor species
+  cornered on the same OLDRN/DGSD growth straddle the `.sum` corners.
 **Example:**
 ```text
 MORTMULT           2.        AF        1.5

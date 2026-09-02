@@ -1458,7 +1458,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     invyr = length(s.control.cycle_year) >= 1 ? Int(s.control.cycle_year[1]) : 0
     cdata::Union{ClimateData,Nothing} = nothing
     grow_events = Tuple{Int,Int,Float32}[]     # GrowMult (cycle, sp[0=all], value); clin.f opt5
-    mort_events = Tuple{Int,Int,Float32}[]     # MortMult CLMRTMLT1 (cycle, sp, value); clin.f opt3
+    mort_events = Tuple{Int,Int,Float32,Float32}[]  # MortMult (cycle, sp, CLMRTMLT1, CLMRTMLT2); clin.f opt3
     autoestb_events = Tuple{Int,Float32,Float32,Int}[]   # AutoEstb (cycle, aestock%, aesntrees, nespecies); clin.f opt4
     mxden_events = Tuple{Int,Float32}[]                  # MxDenMlt (cycle, CLMXDENMULT weight); clin.f opt (clmaxden)
     while true
@@ -1501,8 +1501,9 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 end
             end
         elseif k == "GROWMULT" || k == "MORTMULT"
-            # clin.f opt5/opt3: cycle (blank⇒1) + SPDECD species (blank/All/0⇒0=all) + value (CLMRTMLT1).
-            # Plain OR parms(species,value) form (via _clim_kw_fields).
+            # clin.f opt5/opt3: cycle (blank⇒1) + SPDECD species (blank/All/0⇒0=all) + value (CLMRTMLT1);
+            # MORTMULT additionally carries field 4 = CLMRTMLT2 (ARRAY(4)→PRMS(3), clin.f:365/385). Plain OR
+            # parms(species,mult1[,mult2]) form (via _clim_kw_fields). Blank ⇒ default 1 (clin.f LNOTBK gate).
             cyc, args = _clim_kw_fields(r)
             spf = length(args) >= 1 ? args[1] : ""
             sp = 0
@@ -1511,7 +1512,12 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 sp = n2 !== nothing ? n2 : Int(first(resolve_species(spf, s.variant, s.species, s.coef)))
             end
             val = length(args) >= 2 ? something(tryparse(Float32, args[2]), 1f0) : 1f0
-            push!(k == "GROWMULT" ? grow_events : mort_events, (cyc, sp, val))
+            if k == "GROWMULT"
+                push!(grow_events, (cyc, sp, val))
+            else
+                val2 = length(args) >= 3 ? something(tryparse(Float32, args[3]), 1f0) : 1f0  # CLMRTMLT2 (field 4)
+                push!(mort_events, (cyc, sp, val, val2))
+            end
         elseif k == "AUTOESTB"
             # clin.f opt4: cycle (blank⇒1) + AESTOCK% dflt 40 + AESNTREES dflt 500 + NESPECIES dflt 4
             # (clinit.f:40-42). Plain OR parms(aestock,aesntrees,nespecies) form.
@@ -1531,7 +1537,8 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
-                                 climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns), invyr,
+                                 climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns),
+                                 fill(1f0, ns), invyr,
                                  grow_events, mort_events, autoestb_events, mxden_events,
                                  Float32[], zeros(Float32, ns), zeros(Float32, ns))
     end
