@@ -26,12 +26,17 @@ const TT_SDCR   = Float32[0.001711, 0.001711, 0.002736, 0.0, -0.002371, 0.003191
 const TT_SDHL4  = Float32[0.17023, 0.17023, 0.00036, 0.0, -0.0007, -0.0022, -0.0022, -0.0007, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.17023, 0.0]
 # blend / floor (tt/regent.f)
 const TT_RG_DIAM = Float32[0.4, 0.3, 0.3, 0.4, 0.3, 0.2, 0.4, 0.3, 0.3, 0.5, 0.3, 0.3, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3]
-# regent.f XMIN/XMAX DATA (small/large-tree blend range XWT=(D−XMIN)/(XMAX−XMIN)). Default species were jl 1.5/3.0
-# but buildDir differs (DF 2.0/4.0 etc.) ⇒ jl blended the large-tree dgf DG PREMATURELY (at DBH 2, xwt=0.33 vs
-# live's 0 = pure small-tree), over-growing DF 2×. UTVAR species (4,11,12,13,16) KEEP 90/99 (jl regent-for-all
-# representation; their buildDir 2.0/4.0 would wrongly EXCLUDE them from the UTVAR pass at D>4).
+# regent.f XMIN/XMAX DATA (small/large-tree blend range XWT=(D−XMIN)/(XMAX−XMIN)).
+# ⚠ KNOWN DATA MISMATCH (documented 2026-09-03, NOT fixed here): the AUTHORITATIVE tt/regent.f:161-171 DATA — and
+# the relinked FVStt oracle (single-.o trace: XMN=1.5, XMX=3.0 for LM/LP/ES/AF) — are XMIN/XMAX = 1.5/3.0 for the
+# TTVAR conifers (WB/LM/DF/BS/LP/ES/AF/OS), NOT the 2.0/4.0 below (a mis-read buildDir). Correcting them to 1.5/3.0
+# is faithful, but on ~half the M331D woodland sample it EXPOSES a SEPARATE large-tree dgf over-prediction (3–4" QMD
+# range): with XMAX=3.0 the 1.5–3" trees blend in more of the (over-predicted) large-tree DG and over-grow harder —
+# MEASURED net-regression vs the density fix alone (26-stand sample 41.6→42.1). So this correction is DEFERRED to
+# land TOGETHER with the large-tree-dgf fix; the density-projection fix below is the clean root-cause fix for the
+# woodland small-tree over-growth on its own. UTVAR (4,11,12,13,16) 90/99; NC/OH (15,18) 0.5/2.0.
 const TT_RG_XMIN = Float32[2.0, 1.0, 2.0, 90.0, 1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.0, 0.5]
-const TT_RG_XMAX = Float32[3.0, 2.0, 4.0, 99.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 5.0, 2.0]  # default species = buildDir DATA (DF sp3=4.0); UTVAR (4,11,12,16) keep 99
+const TT_RG_XMAX = Float32[3.0, 2.0, 4.0, 99.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 5.0, 2.0]  # ⚠ FVS DATA is 1.5/3.0 for TTVAR conifers — see note above (deferred)
 # jl per-cycle regent DG cap. ★#158 RESOLVED 2026-08-11 (see TT audit): the conifer 0.2 caps were NOT a band-aid
 # for an un-portable model — they were the RAW per-YEAR DGMAX (tt/regent.f:175-177) applied WITHOUT the FINT
 # multiplier that live's regent.f:684 applies (IF(TTVAR)DGMX=FINT*DGMAX). MEASURED via FVStt_g16: jl's uncapped
@@ -185,7 +190,15 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             k = 0
             for j in 2:nper
                 k += kper[j-1]; pn = pr * 0.985f0^k
-                rdnext[j] += k * ci / pr * pn; banext[j] += k * bi * pn
+                # ★TT M331D woodland over-growth ROOT FIX (2026-09-03): tt/ccfcal.f returns CCFT=poly(D)·P (CCF ×
+                # trees-per-acre). FVS's projection `RDNEXT+=K·CI/P·PN` (regent.f:274) nets ONE factor of P
+                # (CI=(C2−C1)/10 already carries ·P; CI/P·PN=CI/P·P·0.985^K). jl's `tt_tree_ccf` returns the
+                # per-tree CCF WITHOUT ·P, so dividing `ci/pr` dropped the density weighting entirely — rdnext
+                # barely moved (28.7→28.9 vs oracle 28.7→32.7), so PPCCF≈1.007 vs oracle 1.137, so subcycle-2
+                # SMHTGF saw too-low CCF ⇒ too-high height increment ⇒ small-tree DBH over-grew, ONE-DIRECTIONAL
+                # and compounding across the woodland cluster. banext is already correct (BI=BACON·D² carries no
+                # ·P, so `k·bi·pn` nets ·P). Match by dropping the `/pr`: `k·ci·pn` = k·(poly2−poly1)/10·P·0.985^k.
+                rdnext[j] += k * ci * pn; banext[j] += k * bi * pn
             end
         end
     end
@@ -225,13 +238,24 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     # fix the visible residual. The faithful PCTRED·VIGOR·CON gap remains (conifer-only if ever added).
     @inbounds for j in 1:nper
         rdj = rdnext[j]; kpj = Float32(kper[j])
+        ky = 0; for m in 1:j; ky += kper[m]; end          # cumulative subcycle length (regent.f KY=KY+KPER(J))
+        kymort = 0.985f0 ^ ky
+        # ★TT M331D woodland over-growth FIX (2026-09-03): PPCCF — the subcycle proportional point-CCF
+        # adjustment (regent.f:352-353 `PPCCF=1.0+(RDJ-RELDEN)/RELDEN`). FVS scales each tree's point CCF by
+        # the PROJECTED stand-density increase for subcycle J before feeding it to SMHTGF as TPCCF. jl omitted
+        # it — every subcycle used the RAW point CCF — so subcycle J≥2 saw a lower CCF than FVS (density always
+        # grows ⇒ PPCCF>1), yielding a HIGHER SMHTGF height increment (BETA1/BETA2 fall with CCF) ⇒ over-grown
+        # small-tree height ⇒ over-grown SMDGF DBH, ONE-DIRECTIONAL and compounding across the woodland cluster.
+        # MEASURED vs FVStt (stand 335 cyc1 i6): oracle J=2 TPCCF=65.18=57.33·1.1369 HTGRL=1.079 vs jl raw
+        # TPCCF=57.33 HTGRL=1.121. SMDGF (DBH, regent.f:574) keeps the RAW PCCF — only the height model uses PPCCF.
+        ppccf = relden > 0f0 ? 1f0 + (rdj - relden) / relden : 0f0
         for i in 1:n
-            sp = Int(t.species[i]); d = t.dbh[i]
-            (d >= TT_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
+            sp = Int(t.species[i]); d = t.dbh[i]; pr = t.tpa[i]
+            (d >= TT_RG_XMAX[sp] || pr <= 0f0) && continue
             _tt_rg_default(sp) || continue
             h1 = wk3[i]; cr = Float32(t.crown_pct[i])
             pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100f0
-            tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)   # smhtgf clamps [25,300]
+            tpccf = pccf * ppccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)   # PPCCF-adjusted; smhtgf clamps [25,300]
             esp = _tt_rg_esp(sp)                       # MM(14)→AS(6) coefficient mapping (DBH); smhtgf handles 14 directly
             # #205 (2026-08-13): tt/regent.f:415 label-16 gate — aspen(6)/CIVAR(10)/UTVAR(4,11:16,18) apply the
             # small-tree height+DBH increment ONLY on the FIRST subcycle (`(ISPC.EQ.6 .OR. UTVAR .OR. CIVAR) .AND.
@@ -249,9 +273,21 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             end
             h2 = h1 + htgrl * (kpj / regyr)
             wk3[i] = h2
+            d1s = wk5[i]                               # subcycle-START DBH (regent.f:461 D1=WK5(I)) for the density feedback
             d2 = _tt_smdgf(esp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden
             d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
             wk5[i] = d2
+            # ★TT M331D woodland over-growth ROOT FIX (2026-09-03): small-tree density FEEDBACK (regent.f:581-593).
+            # During subcycle J<NPER, each grown small tree (D<3, grown H2>4.5) adds its CCF/BA INCREASE to the NEXT
+            # subcycle's projected density RDNEXT(J+1)/BANEXT(J+1). For the dense-seedling M331D woodland this
+            # DOMINATES the density rise (stand 335: large-tree DO6 gives Δ1.24, the small-tree feedback adds ~2.7
+            # more → RDNEXT(2) 28.7→32.7, PPCCF 1.137). jl omitted it, so PPCCF stayed ≈1.04 ⇒ SMHTGF saw too-low
+            # CCF ⇒ over-grown height/DBH. `pr` supplies the ·P that CCFCAL folds in (tt_tree_ccf returns per-tree).
+            if j < nper && d < 3.0f0 && h2 > 4.5f0
+                cc1f = tt_tree_ccf(sp, d1s); cc2f = tt_tree_ccf(sp, d2)
+                rdnext[j+1] += ky * (cc2f - cc1f) / 10f0 * pr * kymort
+                banext[j+1] += _TT_BACON * (d2 * d2 - d1s * d1s) * pr * kymort
+            end
         end
     end
     # blend HTGR/DG over [XMIN,XMAX] with the large-tree prediction (regent.f:735-943)
