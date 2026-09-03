@@ -754,6 +754,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
     end
 
+    # TT aspen(6)/MM(14) regent small-tree HEIGHT calibration (tt/regent.f:1097-1362, the SMHTGF-aspen
+    # LSTART CORNEW pass). The Teton block just above handles the UTVAR species (4,11,12,13,16); this seeds
+    # htg_cor_init for the aspen closed-form species so the shared attenuation below produces CON=exp(HCOR)
+    # (was CON=1 ⇒ ~3.6× small-tree HEIGHT over-growth on the M331D woodland aspen cluster). TT-guarded.
+    s.variant isa Teton && tt_regent_hcor_aspen_init!(s, isct, ind1, saved_dbh)
+
     # IE regent small-tree HEIGHT calibration (ie/regent.f:1138-1337): compute the RAW regent HCOR into
     # htg_cor_init for NIVAR species via the NIVAR EDH model. Without it, IE NIVAR species had htg_cor_init=0,
     # so the shared attenuation below leaked the diameter COR into the regent height CON ⇒ small-tree

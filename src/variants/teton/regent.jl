@@ -187,6 +187,68 @@ end
     end
 end
 
+"""
+    tt_regent_hcor_aspen_init!(s, isct, ind1, saved_dbh)
+
+TT REGENT small-tree HEIGHT self-calibration for the SMHTGF-aspen species — aspen (sp6, TTVAR) and
+Rocky-Mountain maple MM (sp14, jl models it on the aspen closed form). Ports tt/regent.f:1097-1362 (the
+LSTART CORNEW pass, `CALL REGENT(.FALSE.,1)` from cratet.f:713): for each sub-5" aspen/MM record carrying a
+measured height increment, the predicted increment EDH = NPER·SMHTGF(HT) (with the aspen RSIMOD folded in for
+sp6 by `_tt_smhtgf`) accumulated over the NPER calibration subcycles — the aspen closed form is TPCCF/CR-
+independent so every subcycle is identical, hence the ·NPER (verified vs FVStt_g16: stand 325585226489998
+tree19 EDH=2·5.9956·RSIMOD=6.338). CORNEW = Σ(HTG·SCALE3·P)/Σ(EDH·P); HCOR_raw = ln(CORNEW), trapped to
+[0.0821,12.1825] (the ±2.5σ ERRGRO trap). The RAW HCOR → `htg_cor_init`; `calibrate_diameter_growth!`'s shared
+attenuation (`htg_cor_small = dg_cor_goal + cormlt_h·(htg_cor_init − dg_cor_goal)`, dgdriv.f:188-213) then
+produces the per-cycle applied CON = exp(HCOR), which `small_tree_growth!` multiplies into the height growth.
+
+Without it aspen/MM held CON=1 ⇒ ~3.6× small-tree HEIGHT over-growth on the M331D woodland cluster (stand
+325585226489998: oracle CON cyc1=0.4476, jl 1.0; aspen i19 htg 1.69 vs oracle 0.756=1.69·0.4476). The
+calibration's SMHTGF ZRAND draw is taken as 0 here — jl draws ZRAND lazily in the growth loop, one phase later
+than FVS's cratet-time draw, so the streams are not aligned and replicating the draw here would perturb the
+(separately-validated) TTVAR-conifer RNG without gaining the FVS values; the ±ZRAND·0.1 perturbation averages
+across the calibration sample ⇒ CORNEW within ~0.4% of the oracle (measured CON 0.449 vs 0.4476).
+"""
+function tt_regent_hcor_aspen_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                                    saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    si6 = p.sp_site_index[6]
+    regyr = _TT_REGYR
+    # SCALE3 = 10./FINTH (NOT REGYR/FINTH). regent.f:1106-1116 selects SCALE3 on `SELECT CASE(ISPC)`, but ISPC
+    # there is STALE — it is MAXSP+1 (=19), left one past the end by the immediately-preceding `DO 45 ISPC=1,MAXSP`
+    # HCOR-init loop — so 19 is out of every CASE range and every species falls to `CASE DEFAULT: SCALE3=10./FINTH`.
+    # This single stand-level SCALE3 is then applied to ALL species (aspen's nominal CASE(...)=REGYR/FINTH branch
+    # never runs). FINTH = the HTG measurement period (FVS_STANDINIT HTG_MEASURE / GROWTH kwd), default 10.
+    # VERIFIED vs FVStt_g16 (stand 325585226489998): FINTH=10 ⇒ SCALE3=1.0, TERM=HTG·1 (RGTREE dump).
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : Float32(htg_period(s.variant))
+    scale3 = 10f0 / finth
+    ntyr = Int(round(htg_period(s.variant))); iyr = Int(regyr)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    npf = Float32(nper)
+    @inbounds for sp in (6, 14)
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = ind1[k]
+            saved_dbh[i] >= 5f0 && continue                   # DBH<5 excluded (regent.f:1228)
+            htg = t.ht_growth[i]; htg < 0.001f0 && continue   # measured height increment > 0.001
+            h = t.height[i]                                   # SMHTGF reads HT(I) — the current height
+            (h - htg) < 0.01f0 && continue                    # backdated start-of-period H ≥ 0.01 (regent.f:1227-1228)
+            cr = Float32(t.crown_pct[i])
+            edh = npf * _tt_smhtgf(sp, h, cr, 100f0, 0f0, si6)   # NPER identical subcycles; tpccf/cr unused for aspen form
+            pr = t.tpa[i]
+            snx += edh * pr; sny += htg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                    # NCALHT (default 5)
+        cornew = snx > 0f0 ? sny / snx : 1f0
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)   # ±2.5σ ln(C) trap (regent.f:1358)
+        c.htg_cor_init[sp] = log(cornew)                      # raw HCOR; shared attenuation → htg_cor_small
+    end
+    return s
+end
+
 function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
@@ -295,7 +357,14 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
                 htgrl = 0.1f0
                 (dgsd >= 1.0f0 && j == nper) && (t.tree_random[i] = -999f0)
             end
-            h2 = h1 + htgrl * (kpj / regyr)
+            # CON = RHCON·exp(HCOR) — the REGENT small-tree HEIGHT self-calibration (regent.f:420,552:
+            # `H2=H1+HTGRL*SCALE*XRHGRO*CON`). For aspen(6)/MM(14) HCOR = the CORNEW calibration seeded in
+            # tt_regent_hcor_aspen_init! and attenuated per-cycle in diameter_growth!; for the TTVAR conifers
+            # htg_cor_small stays ~0 (no measured-HTG calibration ⇒ CON≈1). Without this factor aspen/MM held
+            # CON=1 ⇒ ~3.6× small-tree HEIGHT over-growth on the M331D woodland cluster (stand 325585226489998:
+            # oracle CON=0.4476, jl was 1.0 ⇒ aspen i19 htg 1.69 vs oracle 0.756). RHCON=1 (no REUSCORR).
+            con = exp(c.htg_cor_small[sp])
+            h2 = h1 + htgrl * (kpj / regyr) * con
             wk3[i] = h2
             d1s = wk5[i]                               # subcycle-START DBH (regent.f:461 D1=WK5(I)) for the density feedback
             d2 = _tt_smdgf(esp, h2, cr, pccf)          # SMDGF gets the RAW point CCF (regent.f:574), not stand relden

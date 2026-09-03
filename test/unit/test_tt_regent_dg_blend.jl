@@ -65,4 +65,40 @@ using FVSjl
         @test 0.22f0 < dg_inventory < 0.24f0
         @test dg_inventory < 0.1f0 * 3.83f0   # strictly less than the removed 0.1·HTG over-grow
     end
+
+    # ── Firing test: TT aspen(6)/MM(14) REGENT small-tree HEIGHT self-calibration CON = exp(HCOR) ──
+    # tt_regent_hcor_aspen_init! (tt/regent.f:1097-1362): CORNEW = Σ(HTG·SCALE3·P)/Σ(EDH·P), EDH = NPER·SMHTGF,
+    # HCOR = ln(CORNEW). small_tree_growth! then multiplies the aspen/MM height increment by CON = exp(HCOR).
+    # Pinned to FVStt_g16 stand 325585226489998 cyc1 (M331D pure-aspen woodland): the 5 sub-5" aspen records
+    # carrying measured HTG are HT=[13,12,17,14,16], HTG=[4,2,1,2,2], SITEAR(6)=34 (⇒ RSIMOD=0.52857),
+    # FINTH=10 ⇒ SCALE3=10/FINTH=1, NPER=2. Oracle: SNX=6.5179 (mean EDH), CORNEW=0.337531, HCOR=−1.08610,
+    # and after the dgdriv WCI attenuation (WCI=0.0797, CORMLT=exp(−0.2773)=0.75797) the growth-cycle
+    # CON = 0.4476. Without this the aspen HEIGHT increment ran CON=1 ⇒ ~3.6× over-growth (i19 htg 1.69 vs
+    # 0.756=1.69·0.4476). jl takes ZRAND=0 in the calibration (the SMHTGF ZRAND draw is a separate RNG-stream
+    # item), landing CORNEW/CON within ~0.7% of the oracle.
+    let
+        HT  = Float32[13, 12, 17, 14, 16]     # SMHTGF reads HT(I) (current height)
+        HTG = Float32[4, 2, 1, 2, 2]          # measured height increment
+        si6 = 34.0f0
+        nper = 2f0; scale3 = 1.0f0            # 10/FINTH with FINTH=10
+        snx = 0f0; sny = 0f0
+        for k in 1:5
+            # aspen SMHTGF (sp6) folds in the ·0.75 and RSIMOD; TPCCF/CR are unused for the aspen closed form.
+            edh = nper * FVSjl._tt_smhtgf(6, HT[k], 25f0, 100f0, 0f0, si6)
+            snx += edh; sny += HTG[k] * scale3
+        end
+        # per-subcycle EDH for the first tree (HTGR·0.75·RSIMOD), the load-bearing SMHTGF kernel.
+        @test FVSjl._tt_smhtgf(6, 13.0f0, 25f0, 100f0, 0f0, si6) ≈ 3.1993902f0 rtol=1f-5
+        cornew = sny / snx
+        hcor_init = log(cornew)
+        @test cornew ≈ 0.3398311f0 rtol = 1f-5           # jl CORNEW (regression pin)
+        @test abs(cornew - 0.337531f0) < 0.004f0          # within ~0.7% of the FVStt_g16 oracle CORNEW
+        # dgdriv WCI attenuation → the applied growth-cycle CON (dgdriv.f:213). With the oracle WCI the cyc1
+        # CON lands at the oracle 0.4476 to within the ZRAND=0 residual.
+        cormlt_h = exp(-0.02773f0 * 10f0)                 # exp(−0.2773) = 0.75797
+        con_cyc1 = exp(0.0797f0 + cormlt_h * (hcor_init - 0.0797f0))
+        @test abs(con_cyc1 - 0.4476f0) < 0.004f0          # CON matches the oracle 0.4476 (±0.7%)
+        # CON must be the dominant reduction, not ≈1 (the pre-fix over-growth): a >2× height brake.
+        @test con_cyc1 < 0.5f0
+    end
 end
