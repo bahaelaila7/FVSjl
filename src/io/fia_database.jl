@@ -380,9 +380,20 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
                 # regional crosswalk that resolve_species falls through to for trees.
                 # An unrecognized site species ⇒ ISISP=0 ⇒ SITE_INDEX applied to ALL
                 # species (dbsstandin.f:776-779), which the `isp<1` branch below does.
+                # NUMERIC codes: `_fia_spcode` zero-pads the input to 3 chars ("93"→"093")
+                # but the variant coef stores FIA codes UNPADDED ("93"), so a strict `==`
+                # here MISSED a 2-digit FIA site species (e.g. ES=093 vs table "93") ⇒ ISISP
+                # fell to 0 ⇒ SITE_INDEX wrongly filled ALL species, freezing SITSET's
+                # per-species interpolation (aspen SITEAR 86 vs live's interpolated 60.67 ⇒
+                # RSIMOD 0.9 vs 0.719 ⇒ TT small-tree aspen height over-grows in dense
+                # woodland). Normalize leading zeros the same way resolve_species does for
+                # trees (but WITHOUT its SPCTRN fallthrough — the strict own-code match stands).
                 cc = uppercase(code); sp = s.species
+                ccn = all(isdigit, cc) ? lstrip(cc, '0') : ""
                 @inbounds for j in 1:nspecies(s.variant)
-                    if strip(sp.alpha[j]) == cc || strip(sp.fia[j]) == cc || strip(sp.plants[j]) == cc
+                    fj = strip(sp.fia[j])
+                    if strip(sp.alpha[j]) == cc || fj == cc || strip(sp.plants[j]) == cc ||
+                       (!isempty(ccn) && all(isdigit, fj) && lstrip(fj, '0') == ccn)
                         isp = j; break
                     end
                 end

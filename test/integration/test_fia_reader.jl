@@ -8,6 +8,8 @@
 
 using Test
 using FVSjl
+using .FVSjl.SQLite
+using .FVSjl.DBInterface
 
 const FIA_DIR = joinpath(@__DIR__, "..", "fixtures", "fia")
 const FIA_DB  = abspath(joinpath(FIA_DIR, "ls_sample.db"))
@@ -68,4 +70,38 @@ STOP
         end
         @test jl[12] == lv[12]                     # BdFt BIT-EXACT (per-forest board type)
     end
+end
+
+@testset "FIA SITE_SPECIES 2-digit FIA code → SITSET interpolates (not fill-all)" begin
+    # Regression: a 2-digit numeric FIA SITE_SPECIES ("93" = Engelmann spruce) was zero-padded
+    # to "093" by _fia_spcode but the variant coef stores the FIA code UNPADDED ("93"), so the
+    # STRICT site-species match at apply_fia_stand! missed it ⇒ ISISP fell to 0 ⇒ SITE_INDEX
+    # was filled to ALL species, freezing SITSET's per-species interpolation. On a dense TT
+    # (Teton) woodland aspen stand this raised aspen SITEAR to the site index (86) vs live's
+    # interpolated 60.67, driving RSIMOD 0.9 vs 0.719 ⇒ TT small-tree aspen height/DBH over-grew
+    # from cycle 1 (worst dig CN 1856529552290487: BA 150 vs live 91 by 2072). The match now
+    # normalizes leading zeros like resolve_species does for trees.
+    dir = mktempdir(); dbf = joinpath(dir, "tt_site.db")
+    db = SQLite.DB(dbf)
+    DBInterface.execute(db, """CREATE TABLE FVS_STANDINIT_COND (STAND_CN TEXT, VARIANT TEXT,
+        INV_YEAR INT, SITE_SPECIES TEXT, SITE_INDEX REAL, AGE INT, SLOPE REAL, ASPECT REAL,
+        ELEVATION REAL, LATITUDE REAL, LONGITUDE REAL, ECOREGION TEXT, LOCATION INT)""")
+    DBInterface.execute(db, "INSERT INTO FVS_STANDINIT_COND VALUES " *
+        "('T1','TT',2022,'93',86.0,50,20,180,65,44.0,-110.0,'M331Df',415)")
+    DBInterface.execute(db, """CREATE TABLE FVS_TREEINIT_COND (STAND_CN TEXT, PLOT_ID INT,
+        SPECIES TEXT, DIAMETER REAL, HT REAL, TREE_COUNT REAL, CRRATIO REAL)""")
+    DBInterface.execute(db, "INSERT INTO FVS_TREEINIT_COND VALUES ('T1',1,'746',0.1,NULL,50.0,NULL)")
+    DBInterface.execute(db, "INSERT INTO FVS_TREEINIT_COND VALUES ('T1',1,'93',10.0,60.0,5.0,55.0)")
+    SQLite.close(db)
+    key = joinpath(dir, "t.key")
+    write(key, "STDIDENT\nT1\nDATABASE\nDSNin\n$dbf\nStandSQL\n" *
+        "SELECT * FROM FVS_STANDINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nTreeSQL\n" *
+        "SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'\nEndSQL\nEND\n" *
+        "NUMCYCLE 1.0\nECHOSUM\nPROCESS\nSTOP\n")
+    s, _ = FVSjl.initialize(key; variant = FVSjl.Teton())
+    @test Int(s.plot.site_species) == 8                      # FIA 93 → TT Engelmann spruce (idx 8), not 0/fill-all
+    # aspen (idx 6) SITEAR is INTERPOLATED from the site species SI (SITSET), not the raw 86:
+    #   SITELO[6]=30 + (86−40)/(100−40)·(70−30) = 60.667 (bit-matches live FVStt SITEAR(6)).
+    @test isapprox(Float64(s.plot.sp_site_index[6]), 60.667; atol = 0.05)
+    @test s.plot.sp_site_index[6] < 85f0                     # decisively NOT the fill-all value 86
 end
