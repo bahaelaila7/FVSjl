@@ -65,6 +65,21 @@ const TT_RG_BREAK = Float32[3.,3.,3.,99.,3.,3.,3.,3.,3.,3.,99.,99.,99.,3.,1.,99.
 const TT_HT1 = Float32[4.1920,4.1920,4.5175,3.2000,4.5822,4.4625,4.4625,4.5822,4.3603,4.993,3.2000,3.2000,4.7000,4.4421,4.4421,5.1520,4.1920,4.4421]
 const TT_HT2 = Float32[-5.1651,-5.1651,-6.5129,-5.0000,-6.4818,-5.2223,-5.2223,-6.4818,-5.2148,-12.430,-5.0000,-5.0000,-6.3260,-6.5405,-6.5405,-13.5760,-5.1651,-6.5405]
 
+# tt/regent.f BI/MC (13,16) inventory Curtis-Arney HT-DBH (regent.f:874-901, the "SO originally from WC"
+# equations). Since LHTDRG(13)=LHTDRG(16)=.FALSE. (tt/grinit.f), the `IF(.NOT.LHTDRG .OR. …)` gate at
+# regent.f:872 is ALWAYS true ⇒ the inventory equation is used and the 0.1·HTG rule-of-thumb (regent.f:1009,
+# gated LHTDRG.AND.IABFLG.EQ.0) NEVER fires. Returns the DBH predicted from a height HGT (≥4.5).
+# P2/P3/P4 (regent.f:875-882): MC(16)=1709.7229/5.8887/−0.2286, BI(13)=76.5170/2.2107/−0.6365.
+@inline function _tt_bimc_dk(hgt::Float32, hat3::Float32, p2::Float32, p3::Float32, p4::Float32)::Float32
+    if hgt >= hat3
+        # regent.f:885 DK=EXP(ALOG((ALOG(HK-4.5)-ALOG(P2))/(-1.*P3))*1./P4)  (·1./P4 ≡ /P4, L-to-R)
+        return fexp(flog((flog(hgt - 4.5f0) - flog(p2)) / (-p3)) / p4)
+    else
+        # regent.f:888 DK=(((HK-4.51)*2.7)/(HAT3-4.51))+0.3 ; denom = 4.5+P2·exp(−P3·3^P4) − 4.51 = HAT3−4.51
+        return (((hgt - 4.51f0) * 2.7f0) / (hat3 - 4.51f0)) + 0.3f0
+    end
+end
+
 # tt/regent.f UTVAR height+diameter (no subcycle, SCALE=1). POTHTG=((SJ/5)·(SJ·1.5−H)/(SJ·1.5))·0.83;
 # VIGOR=(150·X³·exp(−6X))+0.3 (X=CR/100), cut ⅔ for PM/UJ/RM; HTGRL=POTHTG·PCTRED·VIGOR·CON (CON=exp(HCOR)).
 # Diameter via H-D: DK=(H2−4.5)·10/(SJ−4.5), DKK from H1; DG=(DK−DKK)·bark. Returns (htgr, dg).
@@ -90,10 +105,21 @@ const TT_HT2 = Float32[-5.1651,-5.1651,-6.5129,-5.0000,-6.4818,-5.2223,-5.2223,-
     # 0.1" woodland seedling's DG to DIAM(sp)−d (≈0.2) instead of 0 — masked on low-TPA junipers, but sp18/NC-OH
     # seedlings dominate woodland TPA (repro 1856054779290487: 3900 TPA of 0.1" OH grew to QMD 1.8 vs oracle 1.0).
     h2 < 4.5f0 && return (htgr, 0f0)
-    # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the WC "rule of thumb" DG=0.1·HTG;
-    # NC/OH (15,18) use the Wykoff HT-DBH DK=(BX/(ln(HK−4.5)−AX))−1 (regent.f:907, IABFLG=1 ⇒ AX=HT1, BX=HT2).
+    # H-D diameter: PM/UJ/RM (4,11,12) use (H−4.5)·10/(SJ−4.5); BI/MC (13,16) use the inventory Curtis-Arney
+    # HT-DBH equation (regent.f:874-901; NOT the 0.1·HTG rule-of-thumb — that requires LHTDRG.AND.IABFLG.EQ.0,
+    # but LHTDRG(13/16)=.FALSE.); NC/OH (15,18) use the Wykoff DK=(BX/(ln(HK−4.5)−AX))−1 (regent.f:907).
+    # ★TT M331D woodland over-growth ROOT FIX (2026-09-03): jl formerly used 0.1·HTG for BI/MC, which
+    # over-grew Gambel-oak (FIA 322→BI/13) DBH ~1.66× (measured FVStt_dbg dense stand 51031230020004 cyc1:
+    # jl dg=0.383 vs oracle DG=(DK−DKK)·bark=0.230, DK from inventory eqn=0.3324, DKK=D=0.1). Gambel oak
+    # dominates the M331D woodland TPA, so this one-directional over-grow drives the whole dense-woodland cap.
     if sp == 13 || sp == 16
-        dg = 0.1f0 * htgr                                # ·XRDGRO=1 (no MULTS)
+        p2, p3, p4 = sp == 16 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
+        hat3 = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))      # regent.f:883
+        dk  = _tt_bimc_dk(h2, hat3, p2, p3, p4)
+        dkk = h <= 4.5f0 ? d : _tt_bimc_dk(h, hat3, p2, p3, p4)   # regent.f:891 H≤4.5 ⇒ DKK=D
+        # regent.f:1001 DK<0 or DKK<0 ⇒ 0.2·HTG rule-of-thumb, else (DK−DKK)·bark·XRDGRO (XRDGRO=1)
+        dg = (dk < 0f0 || dkk < 0f0) ? htgr * 0.2f0 * bark : (dk - dkk) * bark
+        dg < 0f0 && (dg = 0.1f0)                             # regent.f:1011 BI/MC floor is 0.1 (not 0)
     elseif sp == 15 || sp == 18
         ax = TT_HT1[sp]; bx = TT_HT2[sp]
         dk  = bx / (flog(h2 - 4.5f0) - ax) - 1f0; dk < 0.1f0 && (dk = 0.1f0)
@@ -296,9 +322,20 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
         _tt_rg_default(sp) || continue
         h = t.height[i]; xmn = TT_RG_XMIN[sp]; xmx = TT_RG_XMAX[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        # HTG blend + size cap
+        # HTG blend + size cap. ★TT M331D woodland over-growth ROOT FIX (2026-09-03): regent.f:731 sets
+        # HTG(I)=0.0 for EVERY TTVAR tree at the top of loop-2 (the `IF(TTVAR)…HTG(I)=0.0` block), BEFORE the
+        # XWT height blend at regent.f:799 (`HTG(K)=HTGR*(1-XWT)+XWT*HTG(K)`). So the large-tree height increment
+        # is DISCARDED for TTVAR and the blend collapses to HTG = HTGR·(1−XWT). jl was blending in the large-tree
+        # t.ht_growth[i] (htgf.f fires for D≥1.5), which — for trees in the [XMIN,XMAX)=[1.5,3.0) window — added
+        # up to xwt·(large-tree htg) of spurious HEIGHT growth. MEASURED FVStt_dbg (AF stand 388908802489998
+        # cyc1 i10, D=1.9): oracle HTGlarge=0 ⇒ HTG=0.8222·0.7333=0.603, jl blended large-htg=1.53 ⇒ HTG=1.011
+        # (+68%). The current-cycle DBH is unaffected (SMDGF uses the subcycle H2, not this blended HTG — DG was
+        # already bit-exact 0.11805), but the over-grown height compounds: next cycle SMDGF(H) over-predicts DBH,
+        # driving the whole M331D AF/aspen/conifer woodland over-growth. (sp14 MM is UTVAR in FVS with a separate
+        # POTHTG path; jl approximates it here via aspen — zeroing the large-tree term matches the TTVAR aspen it
+        # is modeled on.)
         htgr = wk3[i] - h; htgr < 0.0f0 && (htgr = 0.0f0)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
+        htg = htgr * (1.0f0 - xwt)
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
