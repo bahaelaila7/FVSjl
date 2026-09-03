@@ -27,16 +27,14 @@ const TT_SDHL4  = Float32[0.17023, 0.17023, 0.00036, 0.0, -0.0007, -0.0022, -0.0
 # blend / floor (tt/regent.f)
 const TT_RG_DIAM = Float32[0.4, 0.3, 0.3, 0.4, 0.3, 0.2, 0.4, 0.3, 0.3, 0.5, 0.3, 0.3, 0.2, 0.2, 0.3, 0.2, 0.2, 0.3]
 # regent.f XMIN/XMAX DATA (small/large-tree blend range XWT=(D−XMIN)/(XMAX−XMIN)).
-# ⚠ KNOWN DATA MISMATCH (documented 2026-09-03, NOT fixed here): the AUTHORITATIVE tt/regent.f:161-171 DATA — and
-# the relinked FVStt oracle (single-.o trace: XMN=1.5, XMX=3.0 for LM/LP/ES/AF) — are XMIN/XMAX = 1.5/3.0 for the
-# TTVAR conifers (WB/LM/DF/BS/LP/ES/AF/OS), NOT the 2.0/4.0 below (a mis-read buildDir). Correcting them to 1.5/3.0
-# is faithful, but on ~half the M331D woodland sample it EXPOSES a SEPARATE large-tree dgf over-prediction (3–4" QMD
-# range): with XMAX=3.0 the 1.5–3" trees blend in more of the (over-predicted) large-tree DG and over-grow harder —
-# MEASURED net-regression vs the density fix alone (26-stand sample 41.6→42.1). So this correction is DEFERRED to
-# land TOGETHER with the large-tree-dgf fix; the density-projection fix below is the clean root-cause fix for the
-# woodland small-tree over-growth on its own. UTVAR (4,11,12,13,16) 90/99; NC/OH (15,18) 0.5/2.0.
-const TT_RG_XMIN = Float32[2.0, 1.0, 2.0, 90.0, 1.0, 1.5, 2.0, 2.0, 2.0, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.0, 0.5]
-const TT_RG_XMAX = Float32[3.0, 2.0, 4.0, 99.0, 2.0, 3.0, 4.0, 4.0, 4.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 5.0, 2.0]  # ⚠ FVS DATA is 1.5/3.0 for TTVAR conifers — see note above (deferred)
+# VERBATIM tt/regent.f:161-171 DATA (corrected 2026-09-03). Prior jl used 2.0/4.0 for the TTVAR conifers — a
+# mis-read buildDir. The authoritative DATA (and the relinked FVStt single-.o trace: XMN=1.5, XMX=3.0 for
+# LM/LP/ES/AF) is 1.5/3.0. XMIN/XMAX govern the HEIGHT-increment blend window (XWT) only. Correcting the window
+# to [1.5,3.0] alone over-grew ~half the M331D woodland sample because the OLD code also (wrongly) XWT-blended
+# the DIAMETER increment — see the DG assignment below, which is fixed in the same commit to pure regent DG.
+# UTVAR (4,11,12,13,16) 90/99; NC (15) 0.5/2.0; OS (18) 0.5/2.0.
+const TT_RG_XMIN = Float32[1.5, 1.5, 1.5, 90.0, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0, 90.0, 90.0, 90.0, 2.0, 0.5, 90.0, 1.5, 0.5]
+const TT_RG_XMAX = Float32[3.0, 3.0, 3.0, 99.0, 3.0, 3.0, 3.0, 3.0, 3.0, 5.0, 99.0, 99.0, 99.0, 4.0, 2.0, 99.0, 3.0, 2.0]
 # jl per-cycle regent DG cap. ★#158 RESOLVED 2026-08-11 (see TT audit): the conifer 0.2 caps were NOT a band-aid
 # for an un-portable model — they were the RAW per-YEAR DGMAX (tt/regent.f:175-177) applied WITHOUT the FINT
 # multiplier that live's regent.f:684 applies (IF(TTVAR)DGMX=FINT*DGMAX). MEASURED via FVStt_g16: jl's uncapped
@@ -332,7 +330,18 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             dgmx = fint * TT_RG_DGMAX_RAW[sp]
             dgk > dgmx && (dgk = dgmx)
         end
-        t.diam_growth[i] = dgk * (1.0f0 - xwt) + xwt * t.diam_growth[i]
+        # DG is NOT XWT-blended. FVS regent.f blends only the HEIGHT increment with XWT (regent.f:799
+        # HTG(K)=HTGR*(1-XWT)+XWT*HTG(K)); the DIAMETER increment has no such blend — for D<BKPT the regent
+        # small-tree DG (dgk) fully REPLACES the large-tree dgf DG (regent.f:935-939), and for D≥BKPT the tree
+        # takes GO TO 23 (regent.f:809) keeping the pre-computed large-tree DG. jl previously did
+        # dgk*(1-xwt)+xwt*large_tree_DG, which mixed in up to ~xwt of the (larger) dgf DG. On mature ref stands
+        # the [XMIN,XMAX) trees are few so this rounded out, but on M331D woodland/seedling stands (many trees
+        # in 1.5–3"), the XMIN/XMAX correction to [1.5,3.0] pushed xwt→~0.93 at the window top, over-blending
+        # the large-tree DG and over-growing DBH/BA/QMD (measured net-regression vs baseline). BKPT=XMAX=3.0
+        # for the TT default conifers, so within this loop (d<XMAX) D<BKPT always holds ⇒ pure regent DG.
+        if d < TT_RG_BREAK[sp]
+            t.diam_growth[i] = dgk
+        end
         # #148 latent bug (2): DIAM floor on the DEFAULT path (regent.f:576 D2=max(smdgf,DIAM) + :1056), missing here.
         # Without it a tiny tree whose grown smdgf-DBH floors to DIAM while its original DKK exceeds DIAM gets a
         # NEGATIVE dgk → NEGATIVE DBH → NaN in crown. The H-D branch already floors (line 83). Floor (d+DG)≥DIAM.
