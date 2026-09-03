@@ -9,6 +9,10 @@
 # Per-tree, ORIGINAL EM species (1-3,7-10,18): RI=0.5/(1+exp(PMSC+PMD·D+PMDSQ·D²)); RIP=RN if SDI limiting
 #   (T>TEM and RN>0) else RI; WKI=P·(1−(1−RIP)^FINT). ADDED species (4-6,11-17,19): KT density Hamilton
 #   (deferred — not in emt01). Reuses the shared self-thinning RDPSRT + snag booking.
+# D10-RECALIBRATION LOOP (tt/morts.f label 10, IPASS≤10): selective percentile mortality raises the post-kill
+#   self-thin diameter D10N above the uniform-growth D10 estimate; FVS re-runs the whole TN10/RN/kill/TTMRT
+#   block with D10←D10N until |D10−D10N|≤0.1 (or D10N≤DIA0, or IPASS=10). Omitting it stopped jl at IPASS=1 and
+#   UNDER-self-thinned dense conifer stands (CN 388908802489998 cyc1 TPA 2967→2682 vs oracle).
 # =============================================================================
 
 const TT_PMSC  = Float32[6.5112, 6.5112, 7.2985, 5.1677, 9.6943, 5.1677, 5.9617, 9.6943, 5.1677, 0.2118, 5.1677, 5.1677, 5.5877, 5.1677, 5.9617, 5.9617, 5.1677, 5.9617]
@@ -155,92 +159,117 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
-    tmd10 = const_ * dq10^(-1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
+    # DIA0-side (pre-growth) SDI density lines are constant across the D10 recalibration passes.
     tmd0  = const_ * dq0^(-1.605f0);  tmd0  > 35000f0 && (tmd0  = 35000f0)
-    t85d10 = tmd10 * pmsdiu; t55d10 = tmd10 * pmsdil
     t85d0  = tmd0  * pmsdiu; t55d0  = tmd0  * pmsdil
-    # TN10 target (morts.f 200-271): the SDI mature-stand-boundary self-thinning.
-    local tn10::Float32
-    if tt > t85d0
-        tn10 = t85d10                                              # kill to the 85% line
-    elseif tt > t55d0
-        tn10 = abs(t85d0 - tt) <= 5f0 ? t85d10 :
-               _tt_tn10_iter(tt, dq0, dq10, const_, pmsdil, pmsdiu, t85d10, t55d0, false)
-    elseif tt <= t55d10
-        tn10 = tt                                                  # below 55% at both — hold (RN=0)
-    else
-        tn10 = _tt_tn10_iter(tt, dq0, dq10, const_, pmsdil, pmsdiu, t85d10, t55d0, true)   # IPATH=2
-    end
-    tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
-    rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-    tem = t55d10     # SDI-in-effect gate (tt/morts.f:633-635): min(CONST·D10^-1.605,35000)·PMSDIL — the CAP
-                     # was missing (uncapped tem ≫ tt on ultra-dense sub-1" cohorts → wrong background fallback). #140
-    # PP CI-variant stand projection (tt/morts.f 273-293): BA forward 10y assuming BA/BAMAX of the BA
-    # increment is lost to mortality → an annual TPA-mortality rate RZ. BAMAX defaults from weighted SDImax
-    # (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU) when not user-set. Only PP (CASE 10) consumes RZ/BAMAX.
+    # BAMAX defaults from weighted SDImax (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU); PP consumes RZ/BAMAX.
     bamax = sdimax * 0.5454154f0 * pmsdiu        # LBAMAX=false default (no user BAMAX keyword in ttpp)
-    deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
-    ba10 = bamax > 0f0 ? ba + ((bamax - ba) / bamax) * deltba : ba
-    tb = ba10 / (0.005454154f0 * dq10 * dq10)
-    ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
-    @inbounds for i in 1:n
-        sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
-        d = t.dbh[i]
-        if _tt_mort_default(sp)
-            ri = 0.5f0 * (1f0 / (1f0 + exp(TT_PMSC[sp] + TT_PMD[sp] * d + TT_PMDSQ[sp] * d * d)))
-            rip = rn
-            (tt <= tem || rn <= 0f0) && (rip = ri)              # background when SDI not yet limiting
-            rip > 1f0 && (rip = 1f0)
-            wki = pr * (1f0 - (1f0 - rip)^fint)
-            wki > pr && (wki = pr)
-            sdimax < 5f0 && (wki = pr)
-            killed[i] = wki
+    dia0 = dq0
+    d10 = dq10
+    # tt/morts.f label-10 D10-RECALIBRATION LOOP (IPASS ≤ 10). Selective (percentile) mortality raises the
+    # post-kill self-thin diameter D10N above the uniform-growth estimate D10, which tightens the SDI density
+    # target (TMD10=CONST·D10^−1.605) and kills MORE. FVS re-runs the whole TN10/RN/kill/TTMRT block with
+    # D10←D10N until |D10−D10N| ≤ 0.1 (or D10N ≤ DIA0, or IPASS=10). Omitting it made jl stop at IPASS=1 and
+    # UNDER-self-thin dense conifer stands (e.g. CN 388908802489998 cyc1 TPA 2967 vs oracle 2682).
+    for ipass in 1:10
+        tmd10 = const_ * d10^(-1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
+        t85d10 = tmd10 * pmsdiu; t55d10 = tmd10 * pmsdil
+        # TN10 target (morts.f 200-271): the SDI mature-stand-boundary self-thinning.
+        local tn10::Float32
+        if tt > t85d0
+            tn10 = t85d10                                              # kill to the 85% line
+        elseif tt > t55d0
+            tn10 = abs(t85d0 - tt) <= 5f0 ? t85d10 :
+                   _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, false)
+        elseif tt <= t55d10
+            tn10 = tt                                                  # below 55% at both — hold (RN=0)
         else
-            # tt/morts.f CASE(10) — PP from the CI variant. RIP logistic → REIN(IP) potential rate;
-            # RIPP blends BA·RZ with a BAMAX-approach term. WK1=prior-cycle DG (dg_prev, 0 at cycle 1 ⇒
-            # the ICYC==1 override G=DG/(bark·10) fires for every DG>0.5 tree, matching live).
-            dm = d <= 0.5f0 ? 0.5f0 : d
-            bark = tt_bratio(10, d)
-            reldbh = d / aved
-            wk1 = t.dg_prev[i]                      # prior applied DG (inside-bark); 0 at cycle 1
-            dgt = wk1 / fint                          # OLDFNT = FINT for the uniform-cycle case
-            if dm <= 1f0 && dgt < 0.05f0
-                dgt = 0.05f0
-            elseif dm > 1f0 && dm <= 5f0 && dgt < 0.05f0
-                dgt = 0.05f0 * (5f0 - dm) / 4f0
-            end
-            g = wk1 / (bark * fint)
-            (wk1 / fint < dgt) && (g = dgt / bark)
-            dgcur = t.diam_growth[i]                  # current applied DG (inside-bark)
-            (wk1 == 0f0 && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))   # ICYC==1/WK1==0 override
-            ip = dm <= 5f0 ? 2 : 1
-            g *= TT_PP_GMULT[ip]
-            rip = 2.76253f0 + 0.222310f0 * sqrt(dm) - 0.0460508f0 * sqrt(ba) + 11.2007f0 * g -
-                  0.554421f0 / dm + TT_PMSC[10] + 0.246301f0 * reldbh + 6.07129f0 * g / dm
-            rip = rip > 88.5f0 ? 88.5f0 : (rip < -88.5f0 ? -88.5f0 : rip)
-            rip = 1f0 / (1f0 + exp(rip))
-            rip *= TT_PP_REIN[ip]                     # POTENT = REIN(IP)
-            ripp = ba * rz
-            ba <= bamax && (ripp += (bamax - ba) * rip)
-            ripp /= bamax
-            ripp < rip && (ripp = rip)
-            ripp > 1f0 && (ripp = 1f0)
-            wki = pr * (1f0 - (1f0 - ripp)^fint)      # X=1 (no MORTMULT); establishment "best-tree" deferred
-            wki > pr && (wki = pr)
-            sdimax < 5f0 && (wki = pr)
-            killed[i] = wki
+            tn10 = _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true)   # IPATH=2
         end
-    end
-    # tt/morts.f:682 — REDISTRIBUTE the mortality by percentile+EFFTR (TTMRT). When self-thinning (default trees
-    # have rip==rn, i.e. tt>tem & rn>0) TOKILL = T−TN10; else TOKILL=0 ⇒ TTMRT redistributes the background total.
-    # Called whenever TN10≥0.1 (morts.f). Overwrites `killed` with the percentile allocation of the same total.
-    if tn10 >= 0.1f0
-        self_thin = tt > tem && rn > 0f0
-        tokill = self_thin ? (tt - tn10) : 0f0
-        tokill < 0f0 && (tokill = 0f0)
-        _tt_ttmrt!(killed, tokill, s, n)
+        tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
+        rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
+        tem = t55d10     # SDI-in-effect gate (tt/morts.f:633-635): min(CONST·D10^-1.605,35000)·PMSDIL (capped) #140
+        # PP CI-variant stand projection (tt/morts.f 273-293): BA forward 10y; RZ = annual TPA-mort rate.
+        deltba = 0.005454154f0 * d10 * d10 * tt - ba
+        ba10 = bamax > 0f0 ? ba + ((bamax - ba) / bamax) * deltba : ba
+        tb = ba10 / (0.005454154f0 * d10 * d10)
+        ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
+        rz = 1f0 - (1f0 - ttb)^0.1f0
+        fill!(killed, 0f0)
+        @inbounds for i in 1:n
+            sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
+            d = t.dbh[i]
+            if _tt_mort_default(sp)
+                ri = 0.5f0 * (1f0 / (1f0 + exp(TT_PMSC[sp] + TT_PMD[sp] * d + TT_PMDSQ[sp] * d * d)))
+                rip = rn
+                (tt <= tem || rn <= 0f0) && (rip = ri)              # background when SDI not yet limiting
+                rip > 1f0 && (rip = 1f0)
+                wki = pr * (1f0 - (1f0 - rip)^fint)
+                wki > pr && (wki = pr)
+                sdimax < 5f0 && (wki = pr)
+                killed[i] = wki
+            else
+                # tt/morts.f CASE(10) — PP from the CI variant. RIP logistic → REIN(IP) potential rate;
+                # RIPP blends BA·RZ with a BAMAX-approach term. WK1=prior-cycle DG (dg_prev, 0 at cycle 1 ⇒
+                # the ICYC==1 override G=DG/(bark·10) fires for every DG>0.5 tree, matching live).
+                dm = d <= 0.5f0 ? 0.5f0 : d
+                bark = tt_bratio(10, d)
+                reldbh = d / aved
+                wk1 = t.dg_prev[i]                      # prior applied DG (inside-bark); 0 at cycle 1
+                dgt = wk1 / fint                          # OLDFNT = FINT for the uniform-cycle case
+                if dm <= 1f0 && dgt < 0.05f0
+                    dgt = 0.05f0
+                elseif dm > 1f0 && dm <= 5f0 && dgt < 0.05f0
+                    dgt = 0.05f0 * (5f0 - dm) / 4f0
+                end
+                g = wk1 / (bark * fint)
+                (wk1 / fint < dgt) && (g = dgt / bark)
+                dgcur = t.diam_growth[i]                  # current applied DG (inside-bark)
+                (wk1 == 0f0 && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))   # ICYC==1/WK1==0 override
+                ip = dm <= 5f0 ? 2 : 1
+                g *= TT_PP_GMULT[ip]
+                rip = 2.76253f0 + 0.222310f0 * sqrt(dm) - 0.0460508f0 * sqrt(ba) + 11.2007f0 * g -
+                      0.554421f0 / dm + TT_PMSC[10] + 0.246301f0 * reldbh + 6.07129f0 * g / dm
+                rip = rip > 88.5f0 ? 88.5f0 : (rip < -88.5f0 ? -88.5f0 : rip)
+                rip = 1f0 / (1f0 + exp(rip))
+                rip *= TT_PP_REIN[ip]                     # POTENT = REIN(IP)
+                ripp = ba * rz
+                ba <= bamax && (ripp += (bamax - ba) * rip)
+                ripp /= bamax
+                ripp < rip && (ripp = rip)
+                ripp > 1f0 && (ripp = 1f0)
+                wki = pr * (1f0 - (1f0 - ripp)^fint)      # X=1 (no MORTMULT); establishment "best-tree" deferred
+                wki > pr && (wki = pr)
+                sdimax < 5f0 && (wki = pr)
+                killed[i] = wki
+            end
+        end
+        # tt/morts.f:682 — REDISTRIBUTE the mortality by percentile+EFFTR (TTMRT). When self-thinning (default
+        # trees have rip==rn, i.e. tt>tem & rn>0) TOKILL = T−TN10; else TOKILL=0 ⇒ redistribute the background.
+        if tn10 >= 0.1f0
+            self_thin = tt > tem && rn > 0f0
+            tokill = self_thin ? (tt - tn10) : 0f0
+            tokill < 0f0 && (tokill = 0f0)
+            _tt_ttmrt!(killed, tokill, s, n)
+        end
+        # tt/morts.f DO 30 — recompute the self-thin diameter D10N over the SURVIVORS (Reineke/Zeide; DBHZEIDE=0
+        # ⇒ no DBH gate, FINT/10=1). If it moved > 0.1 (and stayed above DIA0), recalibrate D10 and re-run.
+        ipass == 10 && break
+        tn_surv = 0f0; sumdr10n = 0f0
+        @inbounds for i in 1:n
+            pr = t.tpa[i] - killed[i]
+            d = t.dbh[i]; sp = Int(t.species[i])
+            bark = tt_bratio(sp, d)
+            g = t.diam_growth[i] / bark
+            sumdr10n += pr * fpow(d + g, 1.605f0)
+            tn_surv += pr
+        end
+        tn_surv <= 0f0 && break
+        d10n = fpow(sumdr10n / tn_surv, 1f0 / 1.605f0)
+        abs(d10 - d10n) <= 0.1f0 && break
+        d10n <= dia0 && break                                          # QMD fell below DIA0 — take current kill
+        d10 = d10n
     end
     # BAMAX residual-BA cap (tt/morts.f BA-check, tt/morts.f:823-852 — runs AFTER TTMRT redistribution + the
     # SIZCAP loop). When the user did not set BAMAX, residual BA is capped at BAMAX = SDIMAX·0.5454154·PMSDIU
