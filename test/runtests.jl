@@ -109,6 +109,7 @@ using FVSjl
     include("unit/test_op_multicycle_sum.jl") # OP end-to-end multi-cycle .sum (growth+total-cubic bit-exact, merch cornered) vs relinked FVSop_clean
     include("unit/test_oc_regent_smtree.jl") # OC REGENT small-tree height (smhtgf.f) — seedling +7ft bug fixed, vs live FVSoc_clean
     include("integration/test_opt01_cyc0.jl") # OP chunk 3: opt01 cyc0 .sum (density+volume) bit-exact vs live FVSop
+    include("integration/test_op_native_mortality_rip.jl") # OP no-big-6 FVS-native RIP mortality (morts.f BM0..5 + Gould-Harrington) vs FVSop_clean
     include("integration/test_svs_chunk0.jl") # SVS chunk 0: cyc0 .svs object list bit-exact vs live FVSkt
     include("integration/test_svs_multicycle.jl") # SVS multi-cycle: end-of-projection + begin-cycle pictures vs live FVSkt
     include("integration/test_svs_snag.jl") # SVS mortality→snag: standing-dead aging + display bit-exact vs live FVSkt
