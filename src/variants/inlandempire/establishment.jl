@@ -785,7 +785,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
                          point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                          prep_sumup = nothing, prob1_prep::AbstractVector = Float32[],
-                         is_ie::Bool = false, pasmax::Real = Inf32)
+                         is_ie::Bool = false, pasmax::Real = Inf32, prob1_pt::AbstractVector = Float32[])
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -837,7 +837,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # split cap jl ITPP = live bit-exact [2,1,14,2,4,2,25,4]. (Old "over-produces at MAXTPP" comment predated the
     # ESTOCK-PROB1 understanding.) NOTE: the ingrowth (is_ingro) path has a separate open residual (see IE audit).
     cap = is_ingro ? _IE_MAXING[ihab] : _IE_MAXTPP[ihab]
-    p1 = Float32(prob1); scale = 300f0 / Float32(dupnpt)
+    p1s = Float32(prob1); scale = 300f0 / Float32(dupnpt)   # stand-scalar PROB1 (per-point override below)
     # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
     has_state = length(nstore) == nplots && length(pnn) == nplots
     # Per-plot RNG body = the ACTUAL ESRANN advance per plot (measured live estab.f, EM/IE instrument-replay):
@@ -889,6 +889,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             _sln = sl; _xcn = xc; _xsn = xs                                  # empty point (no tree) → stand slope
         end
         itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, _xcn, _xsn, _sln, Float32(regt), Float32(bwaf))), 1, cap)
+        p1 = isempty(prob1_pt) ? p1s : prob1_pt[clamp(_ptn, 1, length(prob1_pt))]   # this plot's inventory-point PROB1
         ns = has_state ? Int(nstore[n]) : 0
         pn = has_state ? pnn[n] : 0f0
         newtpp = max(0, itpp - ns)
@@ -1280,11 +1281,29 @@ function ie_pvref1(pv_code::AbstractString, pv_ref::Integer)::Int
 end
 
 """
+    ie_estab_kodtyp(kodtyp) -> Int
+
+Apply ie/habtyp.f's FINAL habitat crosswalk (KODTYP → MTYPE(ITYPE) via the JTYPE/KTYPE lookup,
+`ie_habtyp` gives ITYPE) to a raw/pvref1-intermediate habitat code, yielding the FVS "mapped"
+habitat code the oracle stores as ICL5 and feeds to esplt2.f/estab.f. ★ ROOT of the IE AUTOES
+over-regen population bug: jl's FIA reader stopped at the PVREF1 HABPVR intermediate (e.g.
+PV_CODE 591 → pvref1 590) and fed THAT to `ie_estab_indices`, whose IEND/MYGRUP bracket then
+gave the wrong ESTAB habitat GROUP (590→group 5, SHAB=+0.54) instead of the oracle's mapped
+510→group 6 (SHAB=−0.06) — a ~+0.6 logit that inflated the stocking probability on EVERY plot.
+Growth is unaffected (the DG/site path already calls `ie_habtyp`→ITYPE, identical for 590 & 510);
+iet01 is inert (570→ITYPE 17→MTYPE 570). Out-of-range codes pass through unchanged.
+"""
+function ie_estab_kodtyp(kodtyp::Integer)::Int
+    it = ie_habtyp(kodtyp)                                    # ie/habtyp.f DO 100/110 → ITYPE (1-30), 0 if out of range
+    (1 <= it <= length(_IE_HABTYP_MTYPE)) ? Int(_IE_HABTYP_MTYPE[it]) : Int(kodtyp)
+end
+
+"""
     ie_estab_indices(habitat_code, forest_code) -> (ihab, iser, ifo, iphy, iprep)
 
 Derive the AUTOES per-plot indices for a stand (no plot-specific overrides).
-`habitat_code` = the raw STDINFO habitat class (KODTYP/ICL5); `forest_code` = the
-raw forest-location code (KODFOR). For iet01 stand-4 (570, 118) → (10, 4, 4, 3, 1).
+`habitat_code` = the MAPPED STDINFO habitat class (KODTYP/ICL5 = `ie_estab_kodtyp` output); `forest_code`
+= the raw forest-location code (KODFOR). For iet01 stand-4 (570, 118) → (10, 4, 4, 3, 1).
 """
 function ie_estab_indices(habitat_code::Integer, forest_code::Integer)
     ihtype = 16                                              # esplt2.f:52 fallback
@@ -1323,7 +1342,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                        stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
-                       prep_sumup = nothing, pasmax::Real = Inf32)
+                       prep_sumup = nothing, pasmax::Real = Inf32,
+                       point_ba::AbstractVector = Float32[])
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1364,6 +1384,29 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             prob1_prep[ip] = v
         end
     end
+    # ★ PER-INVENTORY-POINT PROB1 (estab.f:466-582). The oracle recomputes the stocking logit PER PLOT from that
+    # plot's inventory-point BAAA(NNID)/PSLO(NNID)/PASP(NNID) via ESTOCK, so on a multi-point FIA stand each point
+    # gets its OWN stocking probability (a heavily-stocked point ⇒ near-zero regen, an open point ⇒ high). jl used a
+    # single scalar prob1 from point-1's BA/slope for EVERY plot ⇒ on real FIA stands (4 points, heterogeneous BA)
+    # the low-BA point-1 value over-produced ingrowth on the high-BA points (MEASURED trace 1627628023290487: pt3
+    # BA 266 oracle PROB1 0.097 vs jl 0.60). Compute the per-point vector here (IE ingrowth only — the disturbance
+    # path stays on the validated bare-BA scalar; EM stays scalar). nptids==1 ⇒ prob1_pt[1]==prob1 (byte-identical).
+    _npt_pb = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1
+    prob1_pt = Float32[]
+    if _is_ie && is_ingro && !isempty(point_ba)
+        prob1_pt = Vector{Float32}(undef, _npt_pb)
+        @inbounds for pt in 1:_npt_pb
+            ba_pt  = clamp(pt <= length(point_ba)     ? Float32(point_ba[pt])     : ba,  1f0, 400f0)   # BAAA(NNID) clamp [1,400]
+            sl_pt  =       pt <= length(point_slope)  ? Float32(point_slope[pt])  : sl                 # PSLO(NNID)
+            asp_pt =       pt <= length(point_aspect) ? Float32(point_aspect[pt]) : asp                # PASP(NNID)
+            pn_pt = ie_estock(idx.ihab, idx.iprep, sl_pt, cos(asp_pt), sin(asp_pt), Float32(elev), ba_pt,
+                              log(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+            v = (1f0 / (1f0 + exp(-(pn_pt + Float32(esb_shift))))) * sa                                 # STOADJ already clamped ≥0.001 (sa)
+            v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
+            prob1_pt[pt] = v
+        end
+    end
+    prob1_of(pt) = isempty(prob1_pt) ? prob1 : prob1_pt[clamp(pt, 1, length(prob1_pt))]
     # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
     # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
     # cohort), so NSTORE=INT(tpacre/(prob1·300)+0.5) per plot (nptids/idup cancel → uniform; exact single-point,
@@ -1373,10 +1416,12 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
         npt = length(point_small_tpa)
         if npt > 0 && idup > 0 && npt * Int(idup) == Int(dupnpt)
             # PER-POINT NSTORE (estab.f:313/589): NSTORE(pt)=INT(PLPROB·DUPNPT/(PROB1·300)+0.5), PLPROB=point_TPA/DUP
-            # ⇒ point_TPA·NPTIDS/(PROB1·300). Fill each point's contiguous IDUP-plot block (FVS NCOUNT order).
+            # ⇒ point_TPA·NPTIDS/(PROB1·300). Fill each point's contiguous IDUP-plot block (FVS NCOUNT order). PROB1 is
+            # the POINT's own stocking prob (prob1_of) — a high-BA point has a low PROB1 ⇒ its small-tree stock maps to
+            # a LARGER NSTORE (more existing trees per plot) ⇒ less NEWTPP, matching the oracle's per-point suppression.
             fill!(nstore, Int32(0))
             @inbounds for pt in 1:npt
-                ns_pt = floor(Int32, Float32(point_small_tpa[pt]) * Float32(npt) / (prob1 * 300f0) + 0.5f0)
+                ns_pt = floor(Int32, Float32(point_small_tpa[pt]) * Float32(npt) / (prob1_of(pt) * 300f0) + 0.5f0)
                 ns_pt <= 0 && continue
                 base = (pt - 1) * Int(idup)
                 for k in 1:Int(idup); nstore[base + k] = ns_pt; end
@@ -1404,7 +1449,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
-                            prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax)
+                            prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax, prob1_pt = prob1_pt)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
 end
 
@@ -1428,7 +1473,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # wet-side estb species (OCURHT verified bit-identical to live FVSem for IHAB=3), and EM's establishing species
     # (WL/DF/LP/ES/AF/PP) sit at the matching estb indices 2,3,7,8,9,10.
     ihab_code = s.variant isa EasternMontana ?
-        Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)]) : Int(s.plot.habitat_code)
+        Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)]) :
+        ie_estab_kodtyp(Int(s.plot.habitat_code))   # apply ie/habtyp.f MTYPE crosswalk (591→590→510) — matches oracle ICL5
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
     next_year = year + per
@@ -1643,6 +1689,9 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
                       point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
+                      # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). Post-growth
+                      # per-point BA (compute_density! refreshed above for is_ingro). Empty ⇒ ie_autoes_run keeps the scalar.
+                      point_ba = (is_ingro && !isempty(s.density.point_ba) ? (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
                       prep_sumup = prep_sumup,  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
