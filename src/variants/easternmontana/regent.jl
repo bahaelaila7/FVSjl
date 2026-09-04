@@ -42,14 +42,23 @@ const EM_RG_DGMAX = Float32[0,0,0,2,99,2,0,0,0,0,2.5,2.5,2.5,2.5,2.5,2.5,2.5,0,2
 # but line 1001 recomputes it fresh for the DDS transform; for the tiny seedlings that dominate the fix the two
 # are ~equal, so a local BRATIO is used (residual cornered to em/regent.f's carried-BARK order-dependence).
 @inline function _em_crut_dg(sp::Int, d::Float32, h::Float32, hk::Float32, htg::Float32,
-                             sitear::Float32, bark::Float32, dgmx::Float32, scale::Float32)::Float32
+                             sitear::Float32, bark::Float32, dgmx::Float32, scale::Float32,
+                             ax::Float32 = EM_RG_HT1[sp])::Float32
     xrdgro = 1.0f0
     local dk::Float32, dkk::Float32
     if sp == 6                                            # RM juniper — SITEAR linear (em/regent.f:915-920)
         dk = (hk - 4.5f0) * 10f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
         dkk = (h - 4.5f0) * 10f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0); h < 4.5f0 && (dkk = d)
-    else                                                  # inverse-Wykoff HD (em/regent.f:922-934)
-        bx = EM_RG_HT2[sp]; ax = EM_RG_HT1[sp]
+    else                                                  # inverse-Wykoff HD (em/regent.f:922-934). AX (passed in) is
+        # the CRATET-fitted HT-DBH intercept AA when IABFLG=0, else the HT1 default. em/regent.f:924-927 selects
+        # AX=AA(ISPC) when IABFLG(ISPC)=0 (cratet.f:325-331 fits AA=mean(ln(H−4.5)−HT2/(D+1)) over the species'
+        # ≥3 measured D≥3 H>4.5 trees, then sets IABFLG=0 if AA≥0). jl previously hard-coded AX=HT1 here, so every
+        # aspen/PB/CO/hardwood small-tree (D<3 UTVAR, D<1 CRVAR) DK used the DEFAULT intercept instead of the
+        # stand-fitted one — on FIA aspen stands AA≈4.10 vs HT1=4.4421 ⇒ DK under-predicted ⇒ regent DBH growth
+        # ~30% low ⇒ QMD under + the mortality Hamilton vigor G collapsed ⇒ ~2× first-cycle mortality over-kill
+        # ⇒ aspen BA under-projected ~30% (stand 31438934010690 y2018 BA 103 vs FVSem_g16 119; jl-fixed = 119).
+        # jl already fits this AA in dub_missing_heights! (ht_dbh_aa/ht_dbh_iabflg); this just consumes it, as IE does.
+        bx = EM_RG_HT2[sp]
         dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
         dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
     end
@@ -333,7 +342,8 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                 t.diam_growth[i] = 0.0f0
             else
                 bk = bark_ratio(c.bark_a, c.bark_b, sp, d)
-                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp]*fint10, 10f0/fint)
+                axc = c.ht_dbh_iabflg[sp] == 1 ? EM_RG_HT1[sp] : c.ht_dbh_aa[sp]   # em/regent.f:924-927
+                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp]*fint10, 10f0/fint, axc)
             end
         end
         _em_rg_stash!(stash, t, i)
@@ -383,7 +393,8 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                 t.diam_growth[i] = 0.0f0
             else
                 bk = bark_ratio(c.bark_a, c.bark_b, sp, d)
-                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp], 10f0/fint)
+                axc = c.ht_dbh_iabflg[sp] == 1 ? EM_RG_HT1[sp] : c.ht_dbh_aa[sp]   # em/regent.f:924-927
+                t.diam_growth[i] = _em_crut_dg(sp, d, h, hk, htg, sitear, bk, EM_RG_DGMAX[sp], 10f0/fint, axc)
             end
         end
         _em_rg_stash!(stash, t, i)
