@@ -765,6 +765,9 @@ end
 const _IE_MAXTPP = Int[9, 7, 5, 5, 10, 8, 9, 5, 21, 25, 10, 10, 11, 7, 10, 8]
 const _IE_MAXSPP = Int[4, 3, 3, 3, 5, 4, 6, 4, 6, 6, 4, 5, 5, 4, 6, 4]
 const _IE_MAXING = Int[4, 4, 3, 3, 5, 4, 5, 4, 7, 7, 5, 5, 5, 4, 5, 4]
+# MYHTS(IHAB) → IHTSER habitat-SERIES (1-5) for ESADVH/ESSUBH THAB/UHAB tables (estab.f:111 DATA MYHTS/1,3*2,
+# 4*3,2*4,6*5/, line 493 IHTSER=MYHTS(IHAB)). Distinct from ISER=MYHABG(IHAB).
+const _IE_MYHTS = Int[1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5]
 
 # =============================================================================
 # ie_autoes_tally — AUTOES per-species ingrowth TPA for one tally (ie/estab.f, task #143 chunk A2c).
@@ -785,7 +788,9 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          idup::Integer = 0, tally_pt::AbstractMatrix = Array{Float64}(undef, 0, 0),
                          point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                          prep_sumup = nothing, prob1_prep::AbstractVector = Float32[],
-                         is_ie::Bool = false, pasmax::Real = Inf32, prob1_pt::AbstractVector = Float32[])
+                         is_ie::Bool = false, pasmax::Real = Inf32, prob1_pt::AbstractVector = Float32[],
+                         emit::Union{Nothing,Vector{NTuple{5,Float64}}} = nothing,
+                         ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true)
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -799,13 +804,20 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # nspnz = # nonzero best species). Site prep (MECHPREP/BURNPREP) modulates these via the CPRE prep-index term
     # in ie_espadv/ie_espxcs, so each plot uses ITS assigned iprep. Memoized on IPREP (only 1..4 possible); the
     # default (scalar `iprep`) is computed eagerly so the no-prep path stays byte-identical.
-    _prep_memo = Dict{Int,Tuple{Vector{Float32},Vector{Float32},Int}}()
+    # Cache carries: (sumup_base, pxcs, nspnz, padv_raw, psub_raw). padv_raw = ESPADV weights when the internal
+    # NTALLY==1 (ESPADV is CALLed; estab.f:773), else zeros; psub_raw = ESPSUB weights (ALWAYS CALLed, estab.f:774).
+    # These raw per-species PADV/PSUB drive the ADV/SUBS ICHOI dispatch (DO 63, estab.f:780-788) for the emit path.
+    _prep_memo = Dict{Int,Tuple{Vector{Float32},Vector{Float32},Int,Vector{Float32},Vector{Float32}}}()
     function _prep_tables(ip::Integer)
         get!(_prep_memo, Int(ip)) do
             pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                                    Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
             px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
                                    Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
+            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), log(Float32(baa)),
+                                        Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
+                                        occ, over))
+            padv_raw = call_espadv ? copy(pa) : zeros(Float32, 10)
             # BEST-species SUMUP = normalized (PADV + PSUB) (estab.f:726-735 FTEMP=PADV(I)+PSUB(I)). PSUB is
             # added ONLY when ITIME=INT(TIME+0.5)>2 (estab.f:606-616): the DATED/DISTURBANCE tally uses TIME=10
             # (ITIME=10>2 ⇒ ESPSUB active), while the AUTOES ingrowth tally uses TIME=SHORTY=1 (ITIME=1≤2 ⇒
@@ -821,10 +833,10 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                                    occ, over)) :
                  zeros(Float32, 10)
             sb = zeros(Float32, nsp); sb[1:10] .= pa .+ ps; sb ./= sum(sb)
-            (sb, px, count(>(1f-4), sb))
+            (sb, px, count(>(1f-4), sb), padv_raw, ps_full)
         end
     end
-    sumup_base, pxcs, nspnz = _prep_tables(iprep)
+    sumup_base, pxcs, nspnz, padv_raw, psub_raw = _prep_tables(iprep)
     maxspp = _IE_MAXSPP[ihab]
     # Per-plot IPPREP (estab.f:382-399): sample-without-replacement from the WK6 site-prep vector when a
     # MECHPREP/BURNPREP keyword supplied prep_sumup (disturbance tally only; ingrowth path forces IPREP=1).
@@ -859,6 +871,19 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     docap = isfinite(Float32(pasmax)); pmx = Float32(pasmax)
     exc_cnt = docap ? zeros(Float32, nsp) : Float32[]        # per-species EXCESS count (NOTE=0 trees)
     exc_sum = docap ? zeros(Float32, nsp) : Float32[]        # per-species SUMESP (Σ esprob of those excess trees)
+    # ── Establishment-cohort HEIGHT-CLASS / WK4 emission (estab.f DO 99 + DO 33/228). When `emit` is supplied
+    # (IE only), the per-plot tally additionally reproduces FVS's per-tree record booking: each best-species
+    # first tree (advance ESADVH WK4≈0.60 / subsequent ESSUBH WK4≈0.20/0.00) is one record; the leftover trees
+    # accumulate per species into ceil(EXCESS/5) tripled excess records (mean ESXCSH height, WK4=STOMLT). Each
+    # record carries (sp, point, height, wk4, tpa). Collapsing to one WK4=0.60 record over-projected the cohort.
+    doemit = emit !== nothing
+    gtim = Float32(gentim); ihts = Int(ihtser); iphy_i = Int(iphy)
+    xmin_e = _IE_ES_XMIN; hhtmax_e = _IE_ES_HHTMAX; bnorml_e = _IE_ES_BNORML
+    first1 = doemit ? fill(0.1f0, nsp) : Float32[]           # FIRST(1,sp) advance dilate order-statistic (persists
+    first2 = doemit ? fill(0.1f0, nsp) : Float32[]           # across plots within a tally, estab.f:179-183)
+    stomlt = doemit ? fill(1f0, nsp) : Float32[]             # per-species WK4 for THIS plot (reset per plot)
+    tallh  = doemit ? zeros(Float32, nsp) : Float32[]        # per-species best-tree height (post-floor)
+    iasep_e = doemit ? zeros(Int, nsp) : Int[]               # 1=advance 2=subsequent
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
         if n == 1
@@ -872,9 +897,10 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         end
         # per-plot site prep (estab.f:382-399): each plot's regen uses its assigned IPREP in the species mix.
         if prep_active && n <= length(ipprep)
-            sumup_base, pxcs, nspnz = _prep_tables(ipprep[n])
+            sumup_base, pxcs, nspnz, padv_raw, psub_raw = _prep_tables(ipprep[n])
         end
-        ie_esrann!(rng); ie_esrann!(rng)                                     # EMSQR
+        _emd1 = ie_esrann!(rng); _emd2 = ie_esrann!(rng)                     # EMSQR: sign@1 · magnitude@2
+        emsqr = (_emd1 < 0.5f0 ? -1f0 : 1f0) * _emd2                         # estab.f:646-650
         # Per-INVENTORY-POINT slope/aspect for ESTPP (live SLO=PSLO(NNID), XCOS=cos(PASP)·PSLO). Plot n → point
         # div(n-1,idup)+1. When per-point topo is supplied (FIA per-plot SLOPE/ASPECT) each plot's ESTPP uses ITS
         # point's slope; else fall back to the uniform (stand/TREEDATA) xc/xs/sl. FIXES #143 (jl formerly used the
@@ -924,8 +950,80 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             we[i] = pxcs[i] * ibest[i]; (ibest[i] == 1 && we[i] < 0.0001f0) && (we[i] = 0.0001f0)
         end
         twe = sum(we); twe > 0 && (we ./= twe)
-        for _ in 1:adv_heights; ie_esrann!(rng); end                         # ADV/SUBS(nsp)+heights(2·nsp)
+        # ADV/SUBS + heights (estab.f DO 63 ICHOI[nsp] + DO 122 WK6[2·nsp]). Draw them in-order (identical RNG
+        # consumption to the prior bulk discard), then — for the emit path — reproduce ESADVH/ESSUBH per best
+        # species: ICHOI (advance if draw ≤ PADV/(PADV+PSUB)) → ESDLAY delay → ESADVH/ESSUBH height + STOMLT.
+        ichoi_dr = Vector{Float32}(undef, nsp)
+        @inbounds for i in 1:nsp; ichoi_dr[i] = ie_esrann!(rng); end          # DO 63 (one draw per species; used if IBEST)
+        wk6d = Vector{Float32}(undef, 2 * nsp)
+        @inbounds for i in 1:(2 * nsp); wk6d[i] = ie_esrann!(rng); end        # DO 122 WK6 (ESDLAY draws)
+        if doemit
+            ip_plot = (prep_active && n <= length(ipprep)) ? Int(ipprep[n]) : Int(iprep)
+            @inbounds for i in 1:nsp; stomlt[i] = 1f0; tallh[i] = 0.001f0; iasep_e[i] = 0; end
+            ndraw = 0
+            @inbounds for sp2 in 1:nsp
+                ndraw += 1                                                    # estab.f:803 (every species advances NDRAW)
+                ibest[sp2] == 1 || continue                                   # best species are always 1..10
+                pav = sp2 <= 10 ? padv_raw[sp2] : 0f0
+                psu = sp2 <= 10 ? psub_raw[sp2] : 0f0
+                sm = pav + psu
+                ftmp = sm > 0f0 ? pav / sm : 0f0                             # PADV/SUM
+                isadv = ichoi_dr[sp2] <= ftmp                               # J=1 advance if DRAW ≤ FTEMP (estab.f:785-786)
+                local hh::Float32, trage::Float32
+                if isadv
+                    drw = wk6d[ndraw]
+                    delay = ie_esdlay(sp2, 1, drw, tm, baa; bwb4 = bwb4, bwaf = bwaf)
+                    nN = trunc(Int, delay + 0.5f0); nN > 2 && (nN = 1)        # esadvh.f: N=INT(DELAY+.5); N>2→1
+                    dN = Float32(nN)
+                    trage = 3f0 - dN
+                    agev = 3f0 - dN - gtim; agev < 1f0 && (agev = 1f0)
+                    itime = trunc(Int, tm + 0.5f0); itime < 1 && (itime = 1); itime > 20 && (itime = 20)
+                    bnrm = bnorml_e[itime]
+                    dil = first1[sp2]; first1[sp2] = sqrt(dil)
+                    hh = ie_esadvh(sp2, emsqr, dil, log(agev), bnrm; baa = baa, elev = elev, xcos = xc,
+                                   xsin = xs, slo = sl, ihtser = ihts, iphy = iphy_i, iprep = ip_plot,
+                                   bwaf = bwaf, bwb4 = bwb4)
+                    iasep_e[sp2] = 1
+                else
+                    ndraw += 1                                                # estab.f:823 (subsequent consumes a 2nd slot)
+                    drw = wk6d[ndraw]
+                    delay = ie_esdlay(sp2, 2, drw, tm, baa; bwb4 = bwb4, bwaf = bwaf)
+                    nN = trunc(Int, delay + 0.5f0); nN < -3 && (nN = -3)      # essubh.f: N=INT(DELAY+.5); N<-3→-3
+                    itime = trunc(Int, tm + 0.5f0)
+                    dN = (nN > itime) ? tm : Float32(nN)                      # IF(N>ITIME) DELAY=TIME
+                    ageA = tm - dN - gtim
+                    iage = trunc(Int, ageA + 0.5f0); iage < 1 && (iage = 1); iage > 20 && (iage = 20)
+                    agev = ageA < 1f0 ? 1f0 : ageA                           # AGE=AGE+TRAGE(=0); AGE<1→1
+                    bnrm = bnorml_e[iage]
+                    dil = first2[sp2]; first2[sp2] = sqrt(dil)
+                    disp = emsqr * dil * bnrm
+                    hh = ie_essubh(sp2, agev, baa, ihts, ip_plot, iphy_i, xc, xs, sl, elev, disp;
+                                   bwaf = bwaf, bwb4 = bwb4)
+                    trage = tm - dN
+                    iasep_e[sp2] = 2
+                end
+                ft = trage; ft > gtim && (ft = gtim); stomlt[sp2] = ft / (gtim + 0.0001f0)   # STOMLT=min(TRAGE,GENTIM)/…
+                tv = hh                                                       # +HTADJ (=0); floor XMIN+0.2; cap HHTMAX
+                (tv - xmin_e[sp2] < 0.2f0) && (tv = xmin_e[sp2] + 0.2f0)
+                (tv > hhtmax_e[sp2]) && (tv = hhtmax_e[sp2])
+                tallh[sp2] = tv
+            end
+        end
         wk6e = ntuple(_ -> ie_esrann!(rng), excess_draws)                    # excess-WK6 (2·MAXTPP[ihab])
+        # Per-plot tree records for the emit path: positions 1..numspe = best-species first trees (numeric order,
+        # estab.f DO 146), numspe+1..itpp = excess trees (ESXCSH, filled in the excess loop below).
+        e_sp = doemit ? zeros(Int, itpp) : Int[]
+        e_ht = doemit ? zeros(Float32, itpp) : Float32[]
+        e_wk4 = doemit ? zeros(Float32, itpp) : Float32[]
+        e_esp = doemit ? zeros(Float32, itpp) : Float32[]
+        if doemit
+            _N = 0
+            @inbounds for sp2 in 1:nsp
+                ibest[sp2] == 1 || continue
+                _N += 1; _N > itpp && break
+                e_sp[_N] = sp2; e_ht[_N] = tallh[sp2]; e_wk4[_N] = stomlt[sp2]; e_esp[_N] = Float32(esprob(_N))
+            end
+        end
         # NOTE best/excess split (estab.f:1079-1145). MEASURED bit-exact rule (FVSie estab.f dump, 54/54 plots):
         # NBEST = min(ITP, max(4, #distinct species)) and #distinct == NUMSPE (excess trees pick only among best
         # species). The NBEST trees = the NUMSPE best-species trees (each its species' tallest) + the tallest
@@ -939,7 +1037,14 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         for _ in 1:(itpp - numspe)
             nd += 1; iplot += 1; kx += 1
             j = ie_estab_pick_species(wk6e[nd], we); _e = esprob(iplot); _c = _e * scale
-            tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c); nd += 1
+            tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c)
+            if doemit                                                      # ESXCSH excess-tree height (estab.f DO 156)
+                dhx = wk6e[nd + 1]                                         # 2nd draw = ESXCSH DRAW (NDRAW+1)
+                hx = ie_esxcsh(j, tallh[j], xmin_e[j], tm, dhx)           # HTMAX=TALL(II), HTMIN=XMIN(II)
+                (hx < xmin_e[j]) && (hx = xmin_e[j]); (hx > hhtmax_e[j]) && (hx = hhtmax_e[j])
+                e_sp[iplot] = j; e_ht[iplot] = hx; e_wk4[iplot] = stomlt[j]; e_esp[iplot] = Float32(_e)
+            end
+            nd += 1
             if docap && kx > npro                                          # a NOTE=0 (true-excess) tree
                 (exc_cnt[j] == 0f0) && push!(touched, j)
                 exc_cnt[j] += 1f0; exc_sum[j] += _e
@@ -956,6 +1061,73 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     tally[j] += dlt; _fillpt && (tally_pt[j, pt] += dlt)
                 end
                 exc_cnt[j] = 0f0; exc_sum[j] = 0f0                         # reset for the next plot
+            end
+        end
+        # ── Best-tree selection (estab.f:1090-1144 DO 166/168/172) + record booking (DO 33 best, DO 228 excess).
+        if doemit && itpp >= 1
+            pt_e = _ptof(n)
+            note_e = zeros(Int, itpp)
+            if p1n >= 0.00011f0                                              # ISTART=1 unless PROB1<0.00011 (estab.f:1088)
+                null_sp = zeros(Int, nsp); nbest = 0
+                for _step in 1:2                                             # STEP 1: 2 tallest regardless of species
+                    nbest >= itpp && break
+                    ftv = 0.001f0; itemp = 0
+                    @inbounds for i in 1:itpp
+                        note_e[i] == 1 && continue
+                        e_ht[i] < ftv && continue
+                        ftv = e_ht[i]; itemp = i
+                    end
+                    itemp == 0 && break
+                    null_sp[e_sp[itemp]] = 1; note_e[itemp] = 1; nbest += 1
+                end
+                talls = zeros(Float32, nsp); ilsp = zeros(Int, nsp)         # STEP 2: tallest of each additional species
+                @inbounds for i in 1:itpp
+                    note_e[i] == 1 && continue
+                    s = e_sp[i]; (s < 1) && continue
+                    e_ht[i] < talls[s] && continue
+                    talls[s] = e_ht[i]; ilsp[s] = i
+                end
+                @inbounds for s in 1:nsp
+                    (null_sp[s] == 1 || ilsp[s] == 0) && continue
+                    note_e[ilsp[s]] = 1; nbest += 1
+                end
+                if nbest < 4 && nbest < itpp                                 # STEP 3: tallest remaining until ≥4
+                    while true
+                        ftv = 0.001f0; itemp = 0
+                        @inbounds for i in 1:itpp
+                            note_e[i] == 1 && continue
+                            e_ht[i] < ftv && continue
+                            ftv = e_ht[i]; itemp = i
+                        end
+                        itemp == 0 && break
+                        nbest += 1; note_e[itemp] = 1
+                        nbest >= itpp && break
+                        nbest < 4 || break
+                    end
+                end
+            end
+            ex_c = zeros(Float32, nsp); ex_h = zeros(Float32, nsp); ex_p = zeros(Float32, nsp)
+            @inbounds for N in 1:itpp                                        # DO 33: best trees are individual records
+                I = e_sp[N]; (I < 1) && continue; hh = e_ht[N]
+                if e_esp[N] >= 0.00011f0 && note_e[N] == 1
+                    push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(e_wk4[N]),
+                                 Float64(e_esp[N]) * 300.0 / Float64(dupnpt)))
+                else                                                        # accumulate excess per species (DO 33:199)
+                    ex_c[I] += 1f0; ex_h[I] += hh; ex_p[I] += e_esp[N]
+                end
+            end
+            @inbounds for I in 1:nsp                                         # DO 228: excess → ceil(EXCESS/5) records
+                ex_c[I] < 0.5f0 && continue
+                if ex_p[I] < 0.00011f0 && I < nsp                            # roll a near-zero-prob species forward
+                    ex_p[I+1] += ex_p[I]; ex_p[I] = 0f0; continue
+                end
+                ft2 = ex_p[I] / (ex_c[I] + 0.00001f0)                        # FTEMP2 = SUMESP/(EXCESS+1e-5)
+                xcs, ibrk = es_pasmax_xcsmax(ex_c[I], pmx)                   # XCSMAX + IBRKUP (estab.f:1288/1318-1321)
+                hh = ex_h[I] / ex_c[I]                                       # mean excess height (SUMHTS/EXCESS)
+                tpa_r = Float64(ft2) * 300.0 * Float64(xcs) / Float64(dupnpt)
+                for _ib in 1:ibrk
+                    push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(stomlt[I]), tpa_r))
+                end
             end
         end
         has_state && (nstore[n] = Int32(itpp); pnn[n] = p1n)                 # carry to the next tally
@@ -1343,7 +1515,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                        stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
                        prep_sumup = nothing, pasmax::Real = Inf32,
-                       point_ba::AbstractVector = Float32[])
+                       point_ba::AbstractVector = Float32[],
+                       gentim::Real = 5f0, call_espadv::Bool = true)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1442,6 +1615,10 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     over = zeros(Float32, 10)
     _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
     tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
+    # IE emits the faithful per-tree height-class / WK4 records (advance/subsequent/excess); other variants keep
+    # the collapsed single-record path (emit=nothing ⇒ byte-identical). ihtser = MYHTS(IHAB).
+    emit_recs = _is_ie ? NTuple{5,Float64}[] : nothing
+    ihtser = _IE_MYHTS[clamp(Int(idx.ihab), 1, length(_IE_MYHTS))]
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
                             slo = sl, elev = Float32(elev), baa = ba, regt = Float32(regt),
@@ -1449,8 +1626,9 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             occ = occ, over = over, time = tm, is_ingro = is_ingro, nstore = nstore, pnn = pnn,
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
-                            prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax, prob1_pt = prob1_pt)
-    return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx)
+                            prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax, prob1_pt = prob1_pt,
+                            emit = emit_recs, ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv)
+    return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs)
 end
 
 # =============================================================================
@@ -1698,7 +1876,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # PASSALL/PASMAX excess cap (estab.f:1288). Gated to IE ONLY (EM's cap deferred — task scope);
                       # the AUTOES ingrowth path (NTALLY==99) hardcodes PASMAX=15 (estab.f:249), else the CONFID/
                       # PASSALL value (default 5). Every non-IE caller stays Inf ⇒ dead code ⇒ byte-identical.
-                      pasmax = (s.variant isa InlandEmpire) ? (is_ingro ? 15f0 : Float32(est.pasmax)) : Inf32)
+                      pasmax = (s.variant isa InlandEmpire) ? (is_ingro ? 15f0 : Float32(est.pasmax)) : Inf32,
+                      # Establishment-cohort height-class / WK4 distribution (IE emit path). gentim=FINT−5;
+                      # call_espadv = internal-NTALLY==1 (ESPADV CALLed ⇒ advance regen possible): true for a
+                      # fresh disturbance (NTALLY=1) AND the ingrowth path (NTALLY 99→INGRO=1,NTALLY=1, estab.f:256);
+                      # false only for a continuation (NTALLY≥2) ⇒ PADV=0 ⇒ all-subsequent.
+                      gentim = max(fint - 5f0, 0f0), call_espadv = (is_ingro || _ntally == 1))
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
@@ -1720,37 +1903,59 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     _autoes_htimlt = min(_autoes_trage, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
-    @inbounds for sp in 1:nsp                            # each seedling record carries its TRUE plot_id (not 1) —
-        Float32(r.tally[sp]) > 0f0 || continue           # feeds the next ingrowth tally's per-point NSTORE (#172).
-        hht = xmin[sp] + 0.2f0                           # est. height floor TALL=max(HHT,XMIN+0.2) (estab.f:838);
-                                                         # the computed ESADVH/ESSUBH heights (0.14-0.65) fall below
-                                                         # it, so XMIN+0.2 is the effective seedling height (per-tree
-                                                         # ESADVH/ESSUBH refinement pending — this is the floor value)
-        dbh = 0.1f0 + 0.001f0 * hht                      # esgent.f:56 sub-breast-height nominal DBH
-        for pt in 1:npt_c
-            tpa_sp = Float32(r.tally_pt[sp, pt])
-            tpa_sp > 0f0 || continue
-            n = t.n + 1; n + Int(t.ndead) > length(t.dbh) && break   # leave room for the dead block (t.n+1…t.n+ndead); else the volume loop `1:(t.n+ndead)` overruns the MAXTRE arrays
-            t.n = n
-            t.species[n]     = Int32(sp)
-            t.dbh[n]         = dbh
-            t.height[n]      = hht
-            t.tpa[n]         = tpa_sp
-            t.plot_id[n]     = Int32(pt)
-            t.htimlt[n]      = _autoes_htimlt     # WK4 birth-cycle HTG scale (#193): AUTOES ⇒ 0.40 at FINT=10
-            # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
-            # A near-bare regen stand has PCCF≈0 ⇒ CR≈0.90; a nominal deterministic value here (the ±1% RANN draw is
-            # a refinement) keeps the downstream crown/DG models well-defined (crown_ratio=0 produced NaN TopHt).
-            pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
-                   (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])
-            cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
-            icr0 = floor(Int32, cr * 100f0 + 0.5f0)
-            t.crown_pct[n]   = icr0
-            t.crown_ratio[n] = Float32(icr0)
-            t.norm_ht[n]     = Int32(0)
-            t.sort_key[n]    = Float64(n)
-            created = true
+    # Booking table: (sp, pt, height, wk4) → summed TPA. IE uses the faithful per-tree height-class / WK4 emit
+    # records (ie_autoes_tally emit path: advance WK4≈0.60 / subsequent 0.20/0.00 first trees + tripled excess),
+    # aggregated by identical (sp,pt,height,wk4) — physically equivalent to booking each FVS record separately
+    # (same growth/mortality) but keeps the tree list bounded. Other variants (EM) keep the collapsed path.
+    book = Vector{NTuple{5,Float32}}()                   # (sp, pt, height, dbh, tpa) with per-record wk4 in a parallel
+    bwk4 = Float32[]                                     # array; each is one aggregated seedling record.
+    if r.emit !== nothing
+        agg = Dict{NTuple{4,Int},Float64}()
+        order = NTuple{4,Int}[]
+        for rec in r.emit
+            sp = Int(rec[1]); pt = Int(rec[2]); hh = Float32(rec[3]); wk4 = Float32(rec[4]); tpa = rec[5]
+            (sp < 1 || sp > nsp || tpa <= 0.0) && continue
+            key = (sp, pt, round(Int, hh * 1000f0), round(Int, wk4 * 1000f0))
+            haskey(agg, key) || push!(order, key)
+            agg[key] = get(agg, key, 0.0) + tpa
         end
+        for key in order
+            sp, pt, hk, wk = key
+            hh = Float32(hk) / 1000f0; wk4 = Float32(wk) / 1000f0
+            dbh = 0.1f0 + 0.001f0 * hh                    # esgent.f:56 sub-breast-height nominal DBH
+            push!(book, (Float32(sp), Float32(pt), hh, dbh, Float32(agg[key]))); push!(bwk4, wk4)
+        end
+    else
+        # Collapsed single-record path (EM / non-emit): one WK4=STOMLT(advance) record per (species, point).
+        for sp in 1:nsp
+            Float32(r.tally[sp]) > 0f0 || continue
+            hh = xmin[sp] + 0.2f0; dbh = 0.1f0 + 0.001f0 * hh
+            for pt in 1:npt_c
+                tpa_sp = Float32(r.tally_pt[sp, pt]); tpa_sp > 0f0 || continue
+                push!(book, (Float32(sp), Float32(pt), hh, dbh, tpa_sp)); push!(bwk4, _autoes_htimlt)
+            end
+        end
+    end
+    for (bi, rec) in enumerate(book)
+        sp = Int(rec[1]); pt = Int(rec[2]); hht = rec[3]; dbh = rec[4]; tpa_sp = rec[5]
+        n = t.n + 1; n + Int(t.ndead) > length(t.dbh) && break   # leave room for the dead block (t.n+1…t.n+ndead)
+        t.n = n
+        t.species[n]     = Int32(sp)
+        t.dbh[n]         = dbh
+        t.height[n]      = hht
+        t.tpa[n]         = tpa_sp
+        t.plot_id[n]     = Int32(pt)
+        t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
+        # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
+        pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
+               (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])
+        cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
+        icr0 = floor(Int32, cr * 100f0 + 0.5f0)
+        t.crown_pct[n]   = icr0
+        t.crown_ratio[n] = Float32(icr0)
+        t.norm_ht[n]     = Int32(0)
+        t.sort_key[n]    = Float64(n)
+        created = true
     end
     created || return false
     push!(est.years_done, Int32(year))
