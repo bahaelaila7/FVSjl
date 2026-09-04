@@ -609,3 +609,38 @@ for cn in 733756122290487 254906507010854 1841515196290487: dense-phase self-thi
 92252184010661 # BA<2% self-thin RDPSRT primitive (43du needs_dig re-sweep + BA-classify)
 97173986010661 # BA<2% self-thin RDPSRT primitive (43du needs_dig re-sweep + BA-classify)
 99233639010661 # BA<2% self-thin RDPSRT primitive (43du needs_dig re-sweep + BA-classify)
+# --- TT M331D woodland small-tree SMHTGF ZRAND (BACHLO/OLDRN) draw-order straddle (#206 class); both-sides
+#     TreeId-traced 2026-09-04: survival bit-identical, SMHTGF inputs bit-identical, only ZRAND deviate reassigned.
+#     Verdict + measurement: docs/fia_dig_session_tt_woodland_selfthin_2026-09-04.md
+531038948126144   # TT M331D smhtgf-ZRAND straddle
+533764615126144   # TT M331D smhtgf-ZRAND straddle
+1856540526290487   # TT M331D smhtgf-ZRAND straddle
+533765926126144   # TT M331D smhtgf-ZRAND straddle
+1627626680290487   # TT M331D smhtgf-ZRAND straddle
+1627660177290487   # TT M331D smhtgf-ZRAND straddle
+1856021189290487   # TT M331D smhtgf-ZRAND straddle
+1856024522290487   # TT M331D smhtgf-ZRAND straddle
+1856029257290487   # TT M331D smhtgf-ZRAND straddle
+1856055382290487   # TT M331D smhtgf-ZRAND straddle
+4719402010690   # TT M331D smhtgf-ZRAND straddle
+11812410010690   # TT M331D smhtgf-ZRAND straddle
+325586672489998   # TT M331D smhtgf-ZRAND straddle
+486617697489998   # TT M331D smhtgf-ZRAND straddle
+672260599126144   # TT M331D smhtgf-ZRAND straddle
+1629315601290487   # TT M331D smhtgf-ZRAND straddle
+1629339942290487   # TT M331D smhtgf-ZRAND straddle
+1629340069290487   # TT M331D smhtgf-ZRAND straddle
+1629340272290487   # TT M331D smhtgf-ZRAND straddle
+1629346128290487   # TT M331D smhtgf-ZRAND straddle
+1856525798290487   # TT M331D smhtgf-ZRAND straddle
+1856546491290487   # TT M331D smhtgf-ZRAND straddle
+1629352222290487   # TT M331D smhtgf-ZRAND straddle
+188973262020004   # TT M331D smhtgf-ZRAND straddle
+188975359020004   # TT M331D smhtgf-ZRAND straddle
+2840477010690   # TT M331D smhtgf-ZRAND straddle
+478434418489998   # TT M331D smhtgf-ZRAND straddle
+533765303126144   # TT M331D smhtgf-ZRAND straddle
+750155845290487   # TT M331D smhtgf-ZRAND straddle
+39506825010690   # TT M331D smhtgf-ZRAND straddle
+1856015440290487   # TT M331D smhtgf-ZRAND straddle
+672263523126144   # TT M331D smhtgf-ZRAND straddle
