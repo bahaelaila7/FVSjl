@@ -254,6 +254,32 @@ function addtrees_bridge!(s::StandState, yr::Int32, per::Int)
 end
 
 """
+    snapshot_esb_inputs!(state)
+
+Freeze the AUTOES ESB1 BAAOLD at stand SETUP, mirroring FVS `base/fvs.f:201 CALL ESFLTR`
+(which runs once, before any growth cycle): the inventory per-point OVERSTORY (D≥REGNBK=2.999)
+basal area BAAINV(1), used as ESB1 = ESTOCK(BAAOLD=BAAINV). ESFLTR is never re-called after a
+harvest, so this stays the INVENTORY value even when the first regen tally fires after a cycle-2
+thin — the key to matching the post-thin re-stocking magnitude. (ESB's small-tree TPACRE is NOT
+frozen — estab.f:301-322 reads the live tally-time small-tree TPA.) IE/EM only; no-op otherwise.
+Idempotent. The per-point BA uses the same PTBAA scale as `point_basal_area!` (validated vs live
+BAAA), filtered to point-1 overstory records.
+"""
+function snapshot_esb_inputs!(s::StandState)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return s
+    isnan(s.estab.inv_baaold) || return s              # snapshot once (setup)
+    p, t = s.plot, s.trees
+    scale = p.gross_space > 0f0 ? p.pi / p.gross_space : 1f0   # PTBAA scale (= point_basal_area!)
+    baold = 0f0
+    @inbounds for i in 1:t.n
+        (t.dbh[i] >= 2.999f0 && Int(t.plot_id[i]) == 1) &&    # per-point (point 1) OVERSTORY BAAINV (ESB1 BAAOLD)
+            (baold += t.tpa[i] * 0.005454154f0 * t.dbh[i] * t.dbh[i] * scale)
+    end
+    s.estab.inv_baaold = baold
+    return s
+end
+
+"""
     establish!(state; fint=5f0) -> Bool
 
 Create scheduled PLANT/NATURAL regen for the current cycle (ESNUTR/ESTAB). Runs at

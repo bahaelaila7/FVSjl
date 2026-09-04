@@ -1786,9 +1786,18 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # FVSem_clean on bare stand 85271557010661: ESB=0 ESB1=0 PROB1=0.3584 (=logistic(PN=-0.5822)), whereas jl
     # previously applied esb-esb1≈-1.39 ⇒ PROB1 0.1222 ⇒ ~2.9× under-production of ingrowth TPA.
     esb_shift = 0f0
-    if !est.inadv && (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
+    if _ntally == 2 && !isnan(est.esb_shift)
+        # DISTURBANCE CONTINUATION (NTALLY=2): reuse the fresh tally's stored ESB−ESB1. FVS resets ESB1(NCOUNT)/ESB
+        # ONLY on NTALLY=1 (estab.f:264 GO TO 276 skips the DO-12 reset; :319/:511 skip the recompute for NTALLY≠1),
+        # so the persisted ESB1(NCOUNT) is applied at estab.f:579 for the continuation too — it is NOT re-gated by
+        # the 20-yr inventory window. jl formerly zeroed it (the `_ntally==1||99` gate excluded 2) ⇒ the cyc-3
+        # continuation tally lost its +2.1 stocking shift ⇒ PROB1 0.51 vs oracle 0.90 ⇒ post-thin under-production (D1).
+        esb_shift = est.esb_shift
+    elseif !est.inadv && (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
         if isnan(est.esb_shift)
             idx0 = ie_estab_indices(ihab_code, Int(p.user_forest_code))
+            # ESB reads the small-tree (D<REGNBK) TPACRE from the live tree list at the tally (estab.f:301-322 —
+            # the current small-tree stocking, NOT frozen at inventory: only ESB1's BAAOLD is the frozen inventory value).
             tpacre = 0f0
             @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre += s.trees.tpa[i]); end
             tpacre < 1f0 && (tpacre = 1f0)
@@ -1801,7 +1810,14 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             # oracle 0.207) ⇒ the first ingrowth tally over-books ~4.5× (lead 12281578010690: jl 894 vs oracle 199
             # TPA). FVS clamps BOTH BAA (prob1_pt already clamps) AND BAAOLD to 400; jl omitted the BAAOLD clamp.
             # IE-guarded (shared with EM; inert for EM's bare BA<400 stands, but scoped to honor the collision seam).
-            baaold = (s.variant isa InlandEmpire) ? clamp(baaa, 1f0, 400f0) : max(baaa, 1f0)  # BAAINV; = baaa at cyc1
+            # BAAOLD = the INVENTORY per-point OVERSTORY BAAINV (ESFLTR-frozen, snapshot_esb_inputs!), NOT the CURRENT
+            # (post-thin) per-point BA `baaa`. ESB1 is defined as the stocking predicted AT INVENTORY (estab.f:506,
+            # 536 ESTOCK(BAAOLD=BAAINV(NNID))); using the thinned `baaa` (e.g. 40 vs inventory-overstory 133) collapsed
+            # ESB1 (→ +2.4 instead of −0.97) ⇒ esb_shift wrong-signed ⇒ PROB1 0.18 vs oracle 0.87 ⇒ the post-thin
+            # re-stocking cohort under-produced ~10× (D1). inv_baaold is overstory-only (D≥REGNBK) per ESFLTR; falls
+            # back to the current baaa only if the setup snapshot is absent (never, for IE/EM).
+            baaold_raw = isnan(est.inv_baaold) ? baaa : est.inv_baaold
+            baaold = (s.variant isa InlandEmpire) ? clamp(baaold_raw, 1f0, 400f0) : max(baaold_raw, 1f0)  # BAAINV
             asp0 = es_aspect; sl0 = es_slope                 # per-plot PSLO/PASP (from tree records), not stand
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
                              baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)

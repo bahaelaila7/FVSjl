@@ -32,6 +32,8 @@ function setup_growth!(s::StandState)
     apply_voleqnum_overrides!(s)         # VOLEQNUM — user overrides of those equation ids (cubic only)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
+    snapshot_esb_inputs!(s)              # ESFLTR (fvs.f:201): freeze the AUTOES ESB inventory-calibration inputs
+                                         # (small-tree TPACRE + per-point overstory BAAINV) BEFORE any growth
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due

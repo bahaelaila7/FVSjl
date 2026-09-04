@@ -102,6 +102,7 @@ using FVSjl
     include("unit/test_ontario_db_path_equiv.jl")   # ON DATABASE-read path == inline `.tre` path on the REAL ON DB (FVSDataHardwood.db, LD3001, 94 trees): tree ingestion bit-exact + stand attrs + blank-ELEVFT fallback (oracle DB-path blocked: gcc-16 dbstreesin segfault, gcc-15 unavailable)
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
+    include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
     include("unit/test_oc_organon_setup.jl")# C2: OC ORGANON PREPARE calibration (TMPCAL) vs live FVSoc
     include("unit/test_op_organon_nwo.jl") # OP ORGANON NWO engine (DG/HG/CR/MORT + PREPARE ACALIB) vs live FVSop
     include("unit/test_op_native_growth.jl") # OP FVS-native large-tree DGF/HTGF (non-ORGANON species) vs live FVSop

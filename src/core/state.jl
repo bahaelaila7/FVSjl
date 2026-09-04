@@ -717,6 +717,17 @@ mutable struct Establishment
                                 # PASMAX=15.0 regardless of this value, so PASSALL bites only the dated/regular tally
                                 # path (NTALLY 1,2,…). MEASURED model-affecting on the live oracle (see es_pasmax_xcsmax).
     addtrees::Vector{AddTreesActivity}  # ADDTREES (esin.f opt 28): scheduled external-regen bridge activities
+    # ESB1's BAAOLD, frozen at stand setup (base/fvs.f:201 CALL ESFLTR, BEFORE any growth). esfltr.f accumulates,
+    # once at inventory, the per-point OVERSTORY (D≥REGNBK) basal area BAAINV(NNID) — the BAAOLD fed to ESB1 =
+    # ESTOCK(BAAOLD). ESFLTR runs only at setup, never re-called after a harvest, so a disturbance-triggered first
+    # regen tally (post-thin) still predicts the INVENTORY stocking from the INVENTORY BA, not the thinned BA. jl
+    # formerly read the CURRENT (post-thin) per-point BA when it lazily computed ESB1 at the first firing tally —
+    # correct only when that tally is cycle-1 & un-thinned; for a stand whose first AUTOES tally fires AFTER a
+    # cycle-2 thin, jl used the post-thin BA (e.g. 40 vs inventory-overstory 133) ⇒ ESB1 wrong-signed ⇒ PROB1 0.18
+    # vs 0.87 ⇒ the post-thin re-stocking cohort under- (or over-) produced ~10× (the D1 count-partition bug).
+    # (ESB's small-tree TPACRE, by contrast, IS the current tally-time value — estab.f:301-322 — so it stays live.)
+    # NaN = not snapshotted.
+    inv_baaold::Float32         # ESFLTR BAAINV(1): inventory per-point OVERSTORY (D≥REGNBK) BA (ESB1 BAAOLD)
     inadv::Bool                 # INADV — "advance component of the inventory is invalid" (estab.f). Set TRUE by
                                 # EZCRUISE (esinit.f:79 ESEZCR, auto-invoked by initre.f:280 when a stand has < 1
                                 # projectable tree record at inventory, i.e. a BARE plot). PERSISTS for the whole
@@ -727,7 +738,7 @@ end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
-                                5.0f0, AddTreesActivity[], false)
+                                5.0f0, AddTreesActivity[], NaN32, false)
 
 mutable struct DbsState
     enabled::Bool
