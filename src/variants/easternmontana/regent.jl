@@ -138,6 +138,81 @@ function em_regcons!(s::StandState)
     return rhcon
 end
 
+"""
+    em_regent_aspen_calib!(s)
+
+EM aspen/PB (sp 12/17, UTVAR Sheppard model) two-part setup, run ONCE per stand from the EM branch of
+`setup_growth!` AFTER `calibrate_diameter_growth!` (mirrors the CR/TT/UT `_xx_dub_ages!` hooks). Neither
+part was ported, so the tiny-aspen small-tree HEIGHT over-grew ~2× (stand 373796912489998: aspen BA cyc1
+oracle 68 → jl 123; the inflated `hk=h+htg` feeds the aspen inverse-Wykoff DK diameter).
+
+(A) ABIRTH dub (em/cratet.f:517 → findag.f:91 → pothtg.f:158-161). For aspen/PB with un-set birth_age
+    (ABIRTH<=0) and PROB>0, dub the effective tree age from the CURRENT height by inverting the Sheppard
+    height–age curve: EFAGE = (H·2.54·12/26.9825)^(1/1.1752). The growth path (below, lines 275-279) reads
+    `t.birth_age` for HITE1/HITE2; without the dub it clamped ABIRTH to 1.0 (age 1) ⇒ huge HITE2−HITE1
+    increment. `age_known` is set so `setup_growth!`'s per-cycle GRADD advance (gradd.f:205, ABIRTH+=FINT)
+    keeps later cycles aged. A DB AGE column (birth_age>0) skips the dub, matching FVS.
+
+(B) REGENT small-tree HEIGHT self-calibration CORNEW (em/regent.f:1298-1365, the LSTART `CALL REGENT(.T.,..)`
+    UTVAR-aspen branch). For each sub-5"-DBH aspen/PB record carrying a measured height increment the predicted
+    5-yr increment is EDH = (H2−H)·RSIMOD·RHCON(=1)·0.75·0.5, where H is the backdated start height, AG1=EFAGE(H),
+    AG2=AG1+10, H2 = the Sheppard height at AG2 (the aspen closed form is J/subcycle-independent, so the DO-55
+    subcycle loop leaves the single value). CORNEW = Σ(HTG·SCALE3·P)/Σ(EDH·P), SCALE3 = REGYR(5)/FINTH (the
+    HTG_MEASURE period, default 5; =10 for the target stand ⇒ SCALE3=0.5, cancelling the EDH ·0.5). HCOR = ln(CORNEW),
+    trapped to CORNEW∈[0.0821,12.1825]. The RAW HCOR seeds `htg_cor_init`; `diameter_growth!`'s shared per-cycle
+    attenuation (`htg_cor_small = dg_cor_goal + cormlt_h·(htg_cor_init−dg_cor_goal)`, dgdriv.f WCI/CORMLT) then
+    produces the applied CON = exp(htg_cor_small) the growth path multiplies in (was CON=1 ⇒ ~2× HEIGHT over-grow).
+    Verified vs FVSem_g16 (stand 373796912489998 sp12): CORNEW=0.27368, HCOR=−1.29579, cyc1 CON=0.3746.
+
+Runs at the setup call site where `calibrate_diameter_growth!` has already restored the read-in dbh
+(southern/diameter_growth.jl:801) and transformed `t.ht_growth` to the measured INCREMENT (lines 247-252),
+so `t.dbh`/`t.height` are read-in and `t.ht_growth` is the increment — read directly.
+"""
+function em_regent_aspen_calib!(s::StandState)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    slo = s.coef.species[:site_lo]; shi = s.coef.species[:site_hi]
+    ihtg = s.control.growth_ihtg
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0   # em/grinit.f:192 FINTH default 5; DB HTG_MEASURE overrides
+    scale3 = _EM_RG_REGYR / finth                                          # em/regent.f:1094 SCALE3 = REGYR/FINTH
+    @inbounds for sp in (12, 17)
+        # (A) ABIRTH dub from CURRENT height (pothtg.f:158-161; gated ABIRTH<=0, PROB>0)
+        for i in 1:t.n
+            Int(t.species[i]) == sp || continue
+            (t.tpa[i] <= 0f0 || t.birth_age[i] > 0f0) && continue
+            h = t.height[i]; h <= 0f0 && continue
+            t.birth_age[i] = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
+            t.age_known[i] = true
+        end
+        # (B) REGENT height self-calibration CORNEW → raw HCOR → htg_cor_init
+        sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
+        relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1f0 + relsi)
+        snx = 0f0; sny = 0f0; nh = 0
+        for i in 1:t.n
+            Int(t.species[i]) == sp || continue
+            t.tpa[i] <= 0f0 && continue
+            t.dbh[i] >= 5f0 && continue                    # DBH>=5 excluded (regent.f:1201)
+            htg = t.ht_growth[i]; htg < 0.001f0 && continue   # HTG<0.001 excluded (regent.f:1202)
+            h = t.height[i]
+            hstart = ihtg < 2 ? h - htg : h                # backdated start height (regent.f:1197)
+            hstart < 0.01f0 && continue                    # H<0.01 excluded (regent.f:1201)
+            ag1 = (hstart * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
+            ag2 = ag1 + 10f0
+            h2 = (26.9825f0 * ag2^1.1752f0) / (2.54f0 * 12f0)
+            edh = (h2 - hstart) * rsimod * 0.75f0 * 0.5f0  # RHCON=1; ·0.5 = CR/UT 10yr→5yr (regent.f:1305,1310)
+            pr = t.tpa[i]
+            snx += edh * pr; sny += htg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                 # NCALHT (default 5, regent.f:1351)
+        cornew = snx > 0f0 ? sny / snx : 1f0
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)   # ±2.5σ ln(C) trap (regent.f:1372)
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end
+
 function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s

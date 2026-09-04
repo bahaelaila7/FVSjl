@@ -106,6 +106,12 @@ function setup_growth!(s::StandState)
                                           # never cross 4.5' ⇒ DBH growth skipped ⇒ QMD frozen ⇒ dense self-thin
                                           # holds at the tiny-QMD target (#137). Live dubs these to CR 51-79%.
         calibrate_diameter_growth!(s; scale = dgscale)
+        em_regent_aspen_calib!(s)         # aspen/PB (12,17): dub ABIRTH from height (cratet→pothtg) + seed the
+                                          # REGENT small-tree HEIGHT self-calib HCOR (regent.f:1298-1365). Without
+                                          # both, tiny aspen ran ABIRTH=1 + CON=1 ⇒ HEIGHT over-grew ~2× ⇒ the
+                                          # inflated hk fed the aspen inverse-Wykoff DK ⇒ BA cyc1 ~2× (stand
+                                          # 373796912489998: oracle 68 → jl 123). Runs after calibrate (dbh restored,
+                                          # ht_growth = measured increment). The shared per-cycle attenuation decays CON.
     elseif s.variant isa Teton
         tt_dgcons!(s)                     # TT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
@@ -761,6 +767,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
                                           # birth_age nowhere else ⇒ inert for climate-off IE runs (bit-exact).
+    _em_up = s.variant isa EasternMontana # EM ages ABIRTH (gradd.f:205, ALL trees): aspen/PB (12,17) regent reads
+                                          # it (HITE1/HITE2); em/dgf.f age-range term is NOT ported ⇒ conifer-inert.
     @inbounds for i in 1:n
         # DG is the INSIDE-bark increment; outside-bark DBH grows by DG/bark, with
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
@@ -791,7 +799,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.variant isa OregonCoast && continue
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up || _ut_up || _ie_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
+        (_cr_up || _tt_up || _ut_up || _ie_up || _em_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
