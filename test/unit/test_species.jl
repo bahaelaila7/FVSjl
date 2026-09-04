@@ -78,3 +78,44 @@ end
         @test FVSjl.other_species(var) == other
     end
 end
+
+@testset "western SPCTRN crosswalk columns (spctrn.f ASPT, full 442-row table)" begin
+    # Guard against the crosswalk-column / incomplete-table bugs found in the 2026-09-04 audit:
+    #   * utah's CSV had been derived from EM's ASPT column (all 442 rows matched col 10 EM,
+    #     not col 17 UT) — Quercus 850 mismapped OH instead of GO, ABGR 017 → AF instead of OS.
+    #   * eastcascades/klamath/olympic/oregoncoast/pacificnorthwest/westcascades/southeastalaska
+    #     shipped truncated subsets (4–159 rows) and southcentraloregon/westsierra were EMPTY,
+    #     so unrecognized species fell through to the coarse other_species bucket instead of the
+    #     ASPT mapping. All 18 western tables are now the full 442-row ASPT column for the variant.
+    # Each probe below is a non-native FIA/PLANTS code whose value pins the variant's OWN column
+    # (values read directly from <var>/spctrn.f ASPT). Native codes (e.g. OP 361→MA) are omitted
+    # since those direct-match before the crosswalk.
+    probes = [
+        (FVSjl.Utah(),             [("850","GO"), ("017","OS"), ("998","OH"), ("999","OS")]),
+        (FVSjl.Klamath(),          [("850","BO"), ("998","OH"), ("999","OS"), ("011","RF")]),
+        (FVSjl.Olympic(),          [("850","WO"), ("998","OT"), ("999","OT")]),
+        (FVSjl.OregonCoast(),      [("850","LO"), ("998","OH"), ("999","OH")]),
+        (FVSjl.EastCascades(),     [("850","WO"), ("998","OH"), ("999","OS")]),
+        (FVSjl.SouthCentralOregon(),[("850","WO"),("998","OH"), ("999","OS")]),
+        (FVSjl.WestSierra(),       [("850","BO"), ("998","OH"), ("999","OS")]),
+    ]
+    for (v, ps) in probes
+        s = StandState(v); init_blockdata!(s, s.variant)
+        sp, var, co = s.species, s.variant, s.coef
+        @test length(co.translation) == 442
+        for (code, exp) in ps
+            idx = resolve_species(code, var, sp, co)[1]
+            @test strip(sp.alpha[idx]) == exp
+        end
+    end
+    # every western variant ships the full 442-row table (empties/subsets are the bug)
+    for v in (FVSjl.BlueMountains(), FVSjl.CentralCalifornia(), FVSjl.CentralIdaho(),
+              FVSjl.CentralRockies(), FVSjl.EastCascades(), FVSjl.EasternMontana(),
+              FVSjl.InlandEmpire(), FVSjl.Klamath(), FVSjl.Kootenai(), FVSjl.Olympic(),
+              FVSjl.OregonCoast(), FVSjl.PacificNorthwest(), FVSjl.SouthCentralOregon(),
+              FVSjl.SoutheastAlaska(), FVSjl.Teton(), FVSjl.Utah(), FVSjl.WestCascades(),
+              FVSjl.WestSierra())
+        s = StandState(v); init_blockdata!(s, s.variant)
+        @test length(s.coef.translation) == 442
+    end
+end
