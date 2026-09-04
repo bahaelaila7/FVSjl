@@ -1704,11 +1704,20 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
     t = s.trees
     xmin = _IE_ES_XMIN
-    # Birth-cycle HTG multiplier WK4=HTIMLT (estab.f:1054-1063): GENTIM=max(FINT-DELAY-5,0), TRAGE=2.0 (AUTOES
-    # default PRMS(4), estab.f:987-989), HTIMLT=min(TRAGE,GENTIM)/(GENTIM+1e-4). DELAY=0 for cycle-boundary
-    # AUTOES ingrowth. At FINT=10 ⇒ 0.40 (was jl's wrong constant subyr/regyr=1 in em_esgent! ⇒ #193 over-growth).
+    # Birth-cycle HTG multiplier WK4=HTIMLT (estab.f:801-902/1054-1063). For AUTOES NATURAL regen the per-species
+    # WK4=STOMLT(sp)=min(TRAGE,GENTIM)/(GENTIM+1e-4) where GENTIM=FINT-5 and TRAGE is the ESADVH advance-regen age
+    # TRAGE=3−DELAY (esadvh.f:86, DELAY=0 at a cycle boundary ⇒ TRAGE=3). So the ADVANCE-regen (dominant) WK4 =
+    # min(3,GENTIM)/(GENTIM+1e-4) ⇒ 0.60 at FINT=10 (NOT the PLANT default TRAGE=2 ⇒ 0.40, which under-set the
+    # advance cohort). The oracle's per-record 0.2/0.0 tail comes from the un-ported ESSUBH-subsequent + ESXCSH-
+    # excess draws (leftover-STOMLT quirk estab.f:937) — cornered here (the advance value is the representative).
+    # ★ MEASURED (FVSie_g16 esgent trace, 195384161020004): WK4 is applied TWICE — once in REGENT(LESTB) subcycling
+    # (regent.f:596 H2=H1+EXP(HTGRL)·SCALE·XRHGRO·WK4) and again in ESGENT (esgent.f:57 HTG=HTG·WK4) ⇒ effective
+    # birth multiplier = WK4². ie_esgent! reproduces the square; here we store the single WK4 (per-tree) it reads.
+    # IE-ONLY change (TRAGE=3): ie_autoes_establish! is shared with EM (simulate.jl), whose em_esgent! applies WK4
+    # ONCE — leave EM on the prior TRAGE=2 (0.40) so EM birth growth is byte-unchanged (collision boundary).
     _autoes_gentim = max(fint - 5f0, 0f0)
-    _autoes_htimlt = min(2f0, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
+    _autoes_trage = (s.variant isa InlandEmpire) ? 3f0 : 2f0
+    _autoes_htimlt = min(_autoes_trage, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
     @inbounds for sp in 1:nsp                            # each seedling record carries its TRUE plot_id (not 1) —

@@ -554,8 +554,11 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
     scale2 = ntyr > 0 ? yr / Float32(ntyr) : 1.0f0
-    gentim = max(fint - 5.0f0, 0.0f0)
-    bscale = (fint - gentim) / regyr                     # birth-cycle fraction (WK4; =0.5 for fint=10)
+    # REGENT(LESTB) grows the birth cohort over NTYR−5 years (regent.f:200; the 5-yr GENTIM lead is not grown).
+    # Single 5-yr subcycle at FINT=10 ⇒ SCALE = KPER(1)/REGYR = 5/5 = 1. NTYR−5≤0 ⇒ LSKIPH (no height growth).
+    ntyr_est = fint - 5.0f0
+    est_scale = ntyr_est > 0.0f0 ? ntyr_est / regyr : 0.0f0
+    lskiph = ntyr_est <= 0.0f0
     cur_year = current_cycle_year(s)
     delmax = (ah / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
     @inbounds for i in (nstart+1):t.n
@@ -564,6 +567,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         t.tpa[i] <= 0.0f0 && continue
         (sp <= 12 || sp == 14 || sp == 23) || continue   # NIVAR conifers only (planted-conifer case)
         h = t.height[i]
+        wk4 = t.htimlt[i]                                 # per-tree WK4=HTIMLT (PLANT/existing=1.0; AUTOES<1)
         con = rhcon[sp] + c.htg_cor_small[sp]             # CON = RHCON + HCOR
         pct = t.crown_ratio[i]
         bal = ba * (100.0f0 - pct) * 0.0001f0
@@ -572,11 +576,14 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
         relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
         dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
-        htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden + IE_RG_RHBAL[sp]*bal
-        # ×per-tree WK4=HTIMLT birth-cycle multiplier (live esgent.f:23 HTG=HTG*WK4; #193). PLANT/existing=1.0
-        # (= old bscale ⇒ iet01 unchanged); AUTOES natural regen=0.40 (was bscale=1.0 ⇒ 2.5× seedling over-growth).
-        h2 = h + exp(htgrl) * t.htimlt[i] * xrhgro
-        htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        # REGENT(LESTB) NIVAR height increment (regent.f:596): H2=H1+EXP(HTGRL)·SCALE·XRHGRO·WK4 — WK4 enters HERE
+        # (first application). LSKIPH ⇒ no height growth (regent.f:764 HTG=0).
+        htgr1 = 0.0f0
+        if !lskiph
+            htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden + IE_RG_RHBAL[sp]*bal
+            h2 = h + exp(htgrl) * est_scale * wk4 * xrhgro
+            htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        end
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
         ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
@@ -590,12 +597,34 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
             end
         end
         htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)
-        htg = htgr * (1.0f0 - xwt)                       # new tree: large-tree HTG(K)=0
+        htg_regent = htgr * (1.0f0 - xwt)                # REGENT HTG(I): new tree large-tree HTG(K)=0
+        # ★ ESGENT (esgent.f:56-71): scale REGENT's HTG by WK4 AGAIN (second application ⇒ effective WK4²), then
+        # for WK4<1 (AUTOES) reset the sub-breast-height DBH to the birth-cycle nominal 0.1+0.001·HT (DG=0) or,
+        # once HT≥4.5, shrink REGENT's DBH/DG by the height ratio HT/HTEMP. WK4≥1 (PLANT) keeps REGENT's DBH dub.
+        htemp = h + htg_regent
+        htg = htg_regent * wk4
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         hk = h + htg
         t.height[i] = hk; t.ht_growth[i] = htg
-        if d < 3.0f0                                     # small-tree DBH dub (regent.f:938-987)
+        if wk4 < 1.0f0
+            if hk < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * hk; t.diam_growth[i] = 0.0f0   # esgent.f:61
+            elseif d < 3.0f0
+                # REGENT DBH dub (regent.f:938-987) then esgent height-ratio shrink (esgent.f:64-65).
+                dk = ax * (hk - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk * 0.001f0
+                dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0)
+                dg0 = dgk * bark
+                dds = dg0 * (2.0f0*bark*d + dg0) * scale2
+                dg_inc = sqrt((d*bark)^2 + dds) - bark*d
+                (d + dg_inc) < diam && (dg_inc = diam - d)
+                dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)
+                ratio = htemp > 0.0f0 ? hk / htemp : 1.0f0
+                if dg_inc > 0.0f0
+                    t.dbh[i] = (d + dg_inc) * ratio; t.diam_growth[i] = dg_inc * ratio
+                end
+            end
+        elseif d < 3.0f0                                 # PLANT/existing (WK4≥1): REGENT DBH dub unchanged (iet01)
             if hk < 4.5f0
                 t.dbh[i] = 0.1f0 + diam * 0.01f0 + hk * 0.001f0; t.diam_growth[i] = 0.0f0
             else
