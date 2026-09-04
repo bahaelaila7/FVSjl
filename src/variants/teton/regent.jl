@@ -54,9 +54,14 @@ const _TT_REGYR = 5.0f0
 const _TT_BACON = 0.005454154f0
 
 @inline _tt_smdg_alt(sp::Int) = sp == 3 || (5 <= sp <= 9)   # DF/BS/AS/LP/ES/AF use the alternate SMDGF form
-@inline _tt_rg_default(sp::Int) = sp <= 3 || sp == 5 || sp == 6 || (7 <= sp <= 9) || sp == 14 || sp == 17  # regent-handled (ttt01 + MM=aspen)
-@inline _tt_rg_esp(sp::Int) = sp == 14 ? 6 : sp   # MM(14) uses AS(6) aspen coefficients (buildDir dgf/htgf: "MM from UT AS")
-@inline _tt_rg_utvar(sp::Int)   = sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 15 || sp == 16 || sp == 18   # PM/UJ/RM/BI/NC/MC/OH: UTVAR regent (regent.f:386 CASE(4,11:16,18); MM(14) routed via default+aspen)
+@inline _tt_rg_default(sp::Int) = sp <= 3 || sp == 5 || sp == 6 || (7 <= sp <= 9) || sp == 17  # TTVAR regent-handled (WB/LM/DF/BS/AS/LP/ES/AF/OS; regent.f:388 CASE 1:3,5:9,17)
+@inline _tt_rg_esp(sp::Int) = sp == 14 ? 6 : sp   # (legacy) MM→AS aspen-coef map; unused now MM is UTVAR-routed
+# ★TT M331D MM over-growth ROOT FIX (2026-09-03): MM(14) is UTVAR (regent.f:396 CASE 4,11:16,18), NOT the
+# aspen/TTVAR path. It was mis-routed through the default+aspen path (SMHTGF CASE(6) +5-yr Sheppard SUBCYCLED,
+# no ·0.75, no RSIMOD, aspen SMDGF DBH), which over-grew MM height ~1.5× (H2≈15 vs FVS 10.2) then compounded
+# into DBH/BA. FVS MM = regent.f:464 FINDAG aspen-height (AG2=SITAGE+10, ·RSIMOD·0.75, applied ONCE) + Wykoff
+# H-D DBH (regent.f:907, HT1/HT2(14)). Route it through the UTVAR pass with its own FINDAG-height branch.
+@inline _tt_rg_utvar(sp::Int)   = sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 14 || sp == 15 || sp == 16 || sp == 18   # PM/UJ/RM/BI/MM/NC/MC/OH: UTVAR regent (regent.f:396 CASE 4,11:16,18)
 # regent.f DBH BREAK (blkdat BREAK) — D≥BREAK skips the small-tree DBH increment (large-tree DG kept), D<BREAK gets
 # the regent H-D DBH. NC/OH (15,18) have BREAK=1 (they leave the small-tree DBH regime at 1"); all other UTVAR = 99.
 const TT_RG_BREAK = Float32[3.,3.,3.,99.,3.,3.,3.,3.,3.,3.,99.,99.,99.,3.,1.,99.,3.,1.]
@@ -85,7 +90,47 @@ end
 # Diameter via H-D: DK=(H2−4.5)·10/(SJ−4.5), DKK from H1; DG=(DK−DKK)·bark. Returns (htgr, dg).
 @inline function _tt_utvar_regent(sp::Int, h::Float32, d::Float32, cr::Float32, sitear::Float32,
                                   pctred::Float32, con::Float32, bark::Float32,
-                                  dgmax::Float32, diam::Float32, scale2::Float32)::Tuple{Float32,Float32}
+                                  dgmax::Float32, diam::Float32, scale2::Float32,
+                                  htg_large::Float32 = 0f0)::Tuple{Float32,Float32}
+    if sp == 14
+        # MM (Rocky Mtn maple) — UTVAR FINDAG aspen-height + Wykoff DBH (regent.f:464-486, 907-914).
+        # HEIGHT: FINDAG SITAGE (aspen inverse-height age, findag.f CASE 6,14, metric), AG2=SITAGE+10,
+        # HTGRL=(H(AG2)−H(SITAGE))/(2.54·12)·RSIMOD·CON·0.75, applied ONCE (UTVAR SCALE=NTYR/YR=1 for FINT=10).
+        # RSIMOD=0.5·(1+RELSI), RELSI=(SITEAR(14)−SLO)/(SHI−SLO), SLO/SHI from siterange.f (SITELO(14)=5,
+        # SITEHI(14)=30); RELSI is NOT clamped here (only aspen sp6's separate RSIMOD at regent.f:522 clamps).
+        sitage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
+        hite1  = 26.9825f0 * sitage^1.1752f0
+        hite2  = 26.9825f0 * (sitage + 10f0)^1.1752f0
+        relsi  = (sitear - 5f0) / 25f0
+        rsimod = 0.5f0 * (1f0 + relsi)
+        htgr   = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con * 0.75f0
+        htgr < 0.1f0 && (htgr = 0.1f0)               # regent.f:780 "PREVENT NEGATIVE HEIGHT GROWTH" 0.1-ft floor
+        # XWT height blend (regent.f:793-799): UTVAR does NOT zero the large-tree HTG (that is TTVAR-only,
+        # regent.f:731), so once D>XMIN(14)=2 the height increment blends toward the large-tree htgf prediction
+        # HTG(K): HTG=HTGR·(1−XWT)+XWT·HTG_large, XWT=(D−XMIN)/(XMAX−XMIN), XMAX(14)=4. This is the ~20-29%
+        # later-cycle MM residual (D∈[2,4)): the aspen-SBB large-tree HTG is smaller than the small-tree htgr,
+        # so omitting the blend over-grew MM height (and, via HK below, its Wykoff DBH). The DBH uses the BLENDED
+        # HK (regent.f:816 HK=H+HTG(K)). D≤2 ⇒ XWT=0 ⇒ pure small-tree (the seedling cycles stay bit-exact).
+        xwt = d <= 2f0 ? 0f0 : (d - 2f0) / 2f0; xwt > 1f0 && (xwt = 1f0)
+        htgr = htgr * (1f0 - xwt) + xwt * htg_large
+        htgr < 0.1f0 && (htgr = 0.1f0)
+        h2 = h + htgr
+        # sub-breast-height UTVAR seedling: DG=0 (regent.f:817-819), DBH grows only via +0.001·HK nudge (kept as d).
+        h2 < 4.5f0 && return (htgr, 0f0)
+        # DBH: Wykoff inventory H-D (regent.f:907-914, CASE 13:16,18 non-13/16 branch; IABFLG(14)=1 ⇒ AX=HT1(14)).
+        ax = TT_HT1[14]; bx = TT_HT2[14]
+        dk  = bx / (flog(h2 - 4.5f0) - ax) - 1f0; dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h <= 4.5f0 ? d : bx / (flog(h - 4.5f0) - ax) - 1f0
+        # regent.f:1018 CASE(4,11,12,14,15,18): DK<0 or DKK<0 ⇒ 0.2·HTG rule-of-thumb, else (DK−DKK)·bark.
+        dg  = (dk < 0f0 || dkk < 0f0) ? htgr * 0.2f0 * bark : (dk - dkk) * bark
+        dg < 0f0 && (dg = 0f0)
+        dg > dgmax && (dg = dgmax)                   # DGMX cap (regent.f:1046 UTVAR, DGMX=DGMAX(14)=2.5)
+        dds = dg * (2f0 * bark * d + dg) * scale2     # DDS period/bark conversion (regent.f:1049-1054)
+        arg = (d * bark)^2 + dds
+        dg  = arg > 0f0 ? sqrt(arg) - bark * d : 0f0
+        (d + dg) < diam && (dg = diam - d)            # DIAM floor (regent.f:1056)
+        return (htgr, dg)
+    end
     sj = sitear
     pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
     x = cr / 100f0
@@ -478,7 +523,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             bark = tt_bratio(sp, d)
             scale2 = htg_period(s.variant) / fint                     # YR/NTYR
             htgr, dg = _tt_utvar_regent(sp, h, d, cr, sitear, pctred, con, bark,
-                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2)
+                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2, t.ht_growth[i])
             cap = s.control.sp_size_cap[sp, 4]
             (h + htgr > cap) && (htgr = max(cap - h, 0.1f0))
             t.ht_growth[i] = htgr

@@ -101,4 +101,42 @@ using FVSjl
         # CON must be the dominant reduction, not ≈1 (the pre-fix over-growth): a >2× height brake.
         @test con_cyc1 < 0.5f0
     end
+
+    # ── Firing test: MM(14) UTVAR FINDAG height + Wykoff DBH + XWT blend (M331D sparse-woodland fix) ──
+    # MM (Rocky Mtn maple, FIA 321) is UTVAR (regent.f:396 CASE 4,11:16,18), NOT the aspen/TTVAR small-tree
+    # path. jl formerly mis-routed it through the default+aspen path (SMHTGF CASE(6) +5-yr Sheppard SUBCYCLED
+    # twice, no ·0.75, no RSIMOD) which over-grew MM height ~1.5× → compounded 2.2–2.5× into stand BA on the
+    # sparse-woodland stands (2766510 O:87 vs jl:153; 2764247 O:159 vs 246). FVS MM = FINDAG aspen-height
+    # (AG2=SITAGE+10, ·RSIMOD·0.75, applied ONCE) + HTDBH Wykoff H-D DBH (acd/htdbh.f:458 D=HT2/(ln(H-4.5)-HT1)-1).
+    # After the fix + the XWT height blend (regent.f:793-799, XMIN(14)=2/XMAX(14)=4): 2766510→90, 2764247→160.
+    @testset "TT MM(14) UTVAR FINDAG + XWT-blend routing" begin
+        # (1) MM(14) routes through the UTVAR pass, NOT the default/aspen path (reverting step-1 flips these).
+        @test FVSjl._tt_rg_utvar(14) == true
+        @test FVSjl._tt_rg_default(14) == false
+
+        # (2) FINDAG height applied ONCE + XWT blend. Args:
+        #   (sp, h, d, cr, sitear, pctred, con, bark, dgmax, diam, scale2, htg_large)
+        # con=1, sitear=30 ⇒ RSIMOD=0.5·(1+(30−5)/25)=1.0, h=10 ⇒ HTGRL=(H(sitage+10)−H(sitage))/(30.48)·0.75.
+        bark = FVSjl.tt_bratio(14, 1.0f0)
+        @test bark == 0.95f0
+        call(d, htgL) = FVSjl._tt_utvar_regent(14, 10.0f0, d, 25.0f0, 30.0f0, 1.0f0, 1.0f0,
+                                               bark, 2.5f0, 0.1f0, 1.0f0, htgL)
+
+        # FINDAG height at d=1 (XWT=0 ⇒ pure small-tree, blend inert). Regression pin: 12.1616 ft — NOT the
+        # subcycled default+aspen value the pre-fix produced (~1.5× larger). Applied ONCE (·0.75, RSIMOD=1).
+        h_d1, dg_d1 = call(1.0f0, 0.0f0)
+        @test h_d1 ≈ 12.161556f0 rtol = 1f-5
+        # Wykoff DBH increment is non-zero (guards the HTDBH branch vs a DG=0 seedling stub).
+        @test dg_d1 ≈ 1.6859541f0 rtol = 1f-5
+
+        # d≤2 ⇒ XWT=0 ⇒ height increment is INDEPENDENT of the large-tree HTG (seedling cycles stay bit-exact).
+        @test call(1.0f0, 0.0f0)[1] == call(1.0f0, 99.0f0)[1]
+
+        # d=3 ⇒ XWT=(3−2)/(4−2)=0.5 ⇒ height increment blends HALF-way toward the large-tree HTG.
+        # (a) With htg_large=0 the blend halves the pure small-tree value (load-bearing: the pre-fix omitted
+        #     the blend, so MM height over-grew once D crossed XMIN=2).
+        @test call(3.0f0, 0.0f0)[1] ≈ 0.5f0 * h_d1 rtol = 1f-5
+        # (b) A Δhtg_large of 4 shifts the blended increment by exactly XWT·4 = 2.0.
+        @test (call(3.0f0, 6.0f0)[1] - call(3.0f0, 2.0f0)[1]) ≈ 2.0f0 rtol = 1f-4
+    end
 end
