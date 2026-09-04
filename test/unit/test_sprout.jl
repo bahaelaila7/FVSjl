@@ -1,7 +1,9 @@
 # Unit tests for the stump-sprout sub-routines (NSPREC / SPRTHT / ESSPRT, SN).
 # Expected values are hand-computed directly from essprt.f's SN SELECT CASE blocks.
 using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, sprout_dbh, coefficients, Southern,
-             StandState, init_blockdata!, _log_cut!
+             StandState, init_blockdata!, _log_cut!,
+             nsprec_ie, essprt_ie, sprtht_ie, nsprec_em, essprt_em, sprtht_em,
+             InlandEmpire, EasternMontana
 
 @testset "sprout sub-routines (NSPREC/SPRTHT/ESSPRT)" begin
     coef = coefficients(Southern())
@@ -80,5 +82,63 @@ using FVSjl: nsprec_sn, sprtht_sn, essprt_sn, sprout_dbh, coefficients, Southern
         s.control.lsprut = false; empty!(s.control.cut_log)
         _log_cut!(s, t, 1, 5.0f0)
         @test isempty(s.control.cut_log)
+    end
+
+    # IE/EM stump & root sprouting (ie/em essprt.f CASE('IE')/CASE('EM')). Coeffs verbatim from essprt.f.
+    @testset "IE sprout (NSPREC/ESSPRT/SPRTHT CASE('IE'))" begin
+        # NSPREC (essprt.f:221): aspen(18)→2; CO(19) DSTMP-branched; else 1.
+        @test nsprec_ie(18, 8.0f0) == 2
+        @test nsprec_ie(19, 4.0f0) == 1                       # DSTMP<5 → 1
+        @test nsprec_ie(19, 7.5f0) == 2                       # NINT(-1+0.4·7.5)=NINT(2.0)=2
+        @test nsprec_ie(19, 10.0f0) == 3                      # ≥10 → 3
+        @test nsprec_ie(17, 8.0f0) == 1                       # PY → default 1
+        # ESSPRT (essprt.f:70): PY(17)×0.40, CO(19)×0.90, MM/PB(20,21)×0.70, aspen(18)/default ×1.
+        @test essprt_ie(17, 1.0f0, 6.0f0) == 0.40f0
+        @test essprt_ie(19, 1.0f0, 6.0f0) == 0.90f0
+        @test essprt_ie(20, 1.0f0, 6.0f0) == 0.70f0
+        @test essprt_ie(21, 1.0f0, 6.0f0) == 0.70f0
+        @test essprt_ie(18, 1.0f0, 6.0f0) == 1.0f0            # aspen handled by ASSPTN, not ESSPRT
+        # SPRTHT (essprt.f:329): aspen(18) SI/80; PY/CO/MM/PB(17,19,20,21) SI/100; else 0.5+0.5·IAG.
+        @test sprtht_ie(18, 48.0f0, 10) == (0.1f0 + 48f0/80f0) * 10f0
+        @test sprtht_ie(21, 50.0f0, 10) == (0.1f0 + 50f0/100f0) * 10f0
+        @test sprtht_ie(9,  50.0f0, 10) == 0.5f0 + 0.5f0 * 10f0
+    end
+
+    @testset "EM sprout (NSPREC/ESSPRT/SPRTHT CASE('EM'))" begin
+        # NSPREC (essprt.f:205): aspen(12)→2; CW/BA/PW/NC(13:16) DSTMP-branched; else 1.
+        @test nsprec_em(12, 8.0f0) == 2
+        @test nsprec_em(14, 4.0f0) == 1
+        @test nsprec_em(14, 7.5f0) == 2
+        @test nsprec_em(16, 10.0f0) == 3
+        @test nsprec_em(11, 8.0f0) == 1                       # GA → default 1
+        # ESSPRT (essprt.f:92): GA(11) DSTMP-split 0.80/0.50; CW/PW(13,15)×0.90; BA(14) 0.80/0.50; NC(16)×0.80; PB(17)×0.70.
+        @test essprt_em(11, 1.0f0, 12.0f0) == 0.80f0
+        @test essprt_em(11, 1.0f0, 13.0f0) == 0.50f0
+        @test essprt_em(13, 1.0f0, 6.0f0) == 0.90f0
+        @test essprt_em(14, 1.0f0, 25.0f0) == 0.80f0
+        @test essprt_em(14, 1.0f0, 26.0f0) == 0.50f0
+        @test essprt_em(16, 1.0f0, 6.0f0) == 0.80f0
+        @test essprt_em(17, 1.0f0, 6.0f0) == 0.70f0
+        @test essprt_em(12, 1.0f0, 6.0f0) == 1.0f0            # aspen via ASSPTN
+        # SPRTHT (essprt.f:316): AS/PB(12,17) SI/80; GA/CW/BA/PW/NC(11,13:16) SI/100; else default.
+        @test sprtht_em(12, 48.0f0, 10) == (0.1f0 + 48f0/80f0) * 10f0
+        @test sprtht_em(11, 50.0f0, 10) == (0.1f0 + 50f0/100f0) * 10f0
+        @test sprtht_em(5,  50.0f0, 10) == 0.5f0 + 0.5f0 * 10f0
+    end
+
+    # ESTUMP cut-log marks IE {17,18,19,20,21} and EM {11..17} as sprouters (is_sprouting CSV column).
+    @testset "IE/EM ESTUMP cut-log sprouter set" begin
+        for (variant, sprouters, nonsp) in ((InlandEmpire(), (17,18,19,20,21), (1,10,15)),
+                                            (EasternMontana(), (11,12,13,14,15,16,17), (1,10,18)))
+            s = StandState(variant); init_blockdata!(s, s.variant)
+            t = s.trees; s.control.lsprut = true; s.plot.cycle_length = 10f0
+            allsp = (sprouters..., nonsp...)
+            t.n = length(allsp)
+            for (i, sp) in enumerate(allsp); t.species[i] = Int32(sp); t.dbh[i] = 8.0f0; t.plot_id[i] = Int32(1); end
+            empty!(s.control.cut_log)
+            for i in 1:t.n; _log_cut!(s, t, i, 3.0f0); end
+            logged = Set(Int(r.species) for r in s.control.cut_log)
+            @test logged == Set(sprouters)          # exactly the ISPSPE set is logged
+        end
     end
 end

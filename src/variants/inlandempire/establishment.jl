@@ -1822,6 +1822,31 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
                              baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
             est.esb_shift = esb - esb1
+            # ★ D1b — DISTURBANCE-tally NSTORE/PNN (estab.f:545-559). The existing sub-REGNBK stock — dominated
+            # by the stump/root-sprout cohort (esuckr!, AS/PB) just created this cycle — SUPPRESSES new AUTOES regen:
+            # NSTORE(pt)=INT((PLPROB·DUPNPT)/(FTEMP·300)+0.5) with FTEMP=logistic(ESB1 PN) and PLPROB·DUPNPT = the
+            # point's DBH<2.999 TPA × NPTIDS; PNN(pt)=UNCLAMPED ESA (estab.f:322,554). ie_autoes_run then books only
+            # NEWTPP=max(0,ITPP−NSTORE) full-prob trees + the NSTORE "already there" trees at the increment PROB1−PNN.
+            # Runs ONLY on the fresh disturbance tally (NTALLY==1, INADV==0, within 20yr) — same gate as the ESB block;
+            # the ingrowth (NTALLY==99) NSTORE is handled per-point in ie_autoes_run. Without it the sprout cohort did
+            # not suppress AUTOES ⇒ WL/DF/LP over-produced ~9× (flagship 2978686010690: jl 790 vs oracle 84 TPA regen).
+            if _ntally == 1
+                ftemp1 = 1f0 / (1f0 + exp(-esb1))
+                esa_raw = 1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre))))   # UNCLAMPED ESA → PNN
+                psmall = zeros(Float32, nptids)
+                @inbounds for i in 1:s.trees.n
+                    s.trees.dbh[i] < 2.999f0 || continue
+                    pid = Int(s.trees.plot_id[i]); (1 <= pid <= nptids) && (psmall[pid] += s.trees.tpa[i])
+                end
+                length(est.es_nstore) == dupnpt_i || (est.es_nstore = zeros(Int32, dupnpt_i))
+                length(est.es_pnn)    == dupnpt_i || (est.es_pnn    = zeros(Float32, dupnpt_i))
+                fill!(est.es_nstore, Int32(0)); fill!(est.es_pnn, esa_raw)
+                @inbounds for pt in 1:nptids
+                    ns_pt = floor(Int32, psmall[pt] * Float32(nptids) / (ftemp1 * 300f0) + 0.5f0)
+                    base = (pt - 1) * idup
+                    for k in 1:idup; (base + k) <= dupnpt_i && (est.es_nstore[base + k] = ns_pt); end
+                end
+            end
         end
         esb_shift = est.esb_shift
     end
