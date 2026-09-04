@@ -611,6 +611,19 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # dg_prev=0 at cycle 1 ⇒ the LM/added-species Hamilton G collapsed ⇒ ~2.5× first-cycle mortality over-kill.
     (s.variant isa BritishColumbia || s.variant isa EasternMontana) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # IE: same ie/morts.f Hamilton path (WK1=DG at dgdriv.f:142). ie/morts.f:273 override
+    # (ICYC.EQ.1 .OR. WK1==0) .AND. DG>0.5 ⇒ G=DG/(BARK·10) MASKS WK1=0 for every measured-DG tree whose
+    # PREDICTED cycle-1 DG>0.5 (verified on iet01 STDINFO: all 27 measured-DG trees fire the override). The
+    # residual gap is the tree carrying a measured past DG>0 whose PREDICTED cycle-1 DG≤0.5 (override does NOT
+    # fire): FVS's G reads WK1=measured-DG, jl read dg_prev=0 ⇒ Hamilton G collapse ⇒ cycle-1 over-kill. This
+    # bites FIA stands too — FVS_TREEINIT carries a measured DG (oracle FVSie_g16 stand 373781950489998: 38/44
+    # trees WK1>0, ~10 with predDG≤0.5). Fix: snapshot the measured DG (intree.f DG field, held in diam_growth
+    # pre-growth). CYCLE-0 ONLY: at cycle≥1 the post-update snapshot at :793 already gives WK1=DG (this cycle's
+    # applied DG → next cycle's vigor) exactly; an every-cycle snapshot here instead OVER-KILLS the shelterwood
+    # auto-regen path (iet01 THN3) by racing establishment/tripling churn — measured as ~2.8× cyc-2040 mort.
+    # A/B (373781950489998, no regen): moves TPA toward oracle every cycle (2025 2328→2333 vs 2337, …).
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
