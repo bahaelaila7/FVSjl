@@ -644,3 +644,34 @@ for cn in 733756122290487 254906507010854 1841515196290487: dense-phase self-thi
 39506825010690   # TT M331D smhtgf-ZRAND straddle
 1856015440290487   # TT M331D smhtgf-ZRAND straddle
 672263523126144   # TT M331D smhtgf-ZRAND straddle
+# --- TT forward sweep 8025→9728 (2026-09-04): 25 escalated structure_densephase (worst_col CCF/TPA,
+#     never BA/SDI). Same primitive as the M331D smhtgf-ZRAND corner, extended to M331Ja + M332Er:
+#     small-tree growth ZRAND draw-order straddle → near-SDImax self-thinning count-straddle (density
+#     BA/SDI carrying capacity preserved/reconverges; TPA/QMD trade; balanced direction). 5 stands per-cycle
+#     A/B traced across both new ecoregions + seedling/dense/mature morphologies. Verdict + measurement:
+#     docs/fia_dig_session_tt_9728_smhtgf_countstraddle_2026-09-04.md
+1627663632290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|29.921)
+1627697333290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|18.452)
+486618340489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|20.812)
+486619645489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|15.832)
+195350383020004   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|16.0)
+486588237489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|38.333)
+5376609010690   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|16.23)
+672263387126144   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|20.28)
+1856031521290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|30.323)
+1856015162290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|15.88)
+1856043735290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|57.848)
+1629341124290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|30.435)
+1856532899290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|49.146)
+1856534084290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|28.986)
+1856534189290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|28.433)
+2809684010690   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|28.889)
+335148292489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|22.846)
+750156234290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|87.5)
+11796828010690   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|15.126)
+12274651010690   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|38.636)
+1627659734290487   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|17.222)
+387680576489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|56.453)
+387682991489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|25.341)
+486615712489998   # TT sweep-9728 smhtgf-ZRAND count-straddle (TPA|16.981)
+51051702020004   # TT sweep-9728 smhtgf-ZRAND count-straddle (CCF|21.739)
