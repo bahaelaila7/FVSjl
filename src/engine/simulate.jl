@@ -602,11 +602,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (MAXTRE - Int(t.ndead)) ÷ 3   # NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
-    # BC V2 mortality WK1 (morts.f) = DG(I) at the START of dgdriv (dgdriv.f:141 WK1=DG), i.e. the PRE-prediction
+    # BC/EM V2 mortality WK1 (morts.f) = DG(I) at the START of dgdriv (dgdriv.f:141/144 WK1=DG), i.e. the PRE-prediction
     # DG: the measured input increment at cycle 1, or the previous cycle's DG later. Snapshot it before
     # diameter_growth! overwrites diam_growth. Without it WK1=0 ⇒ the Hamilton G collapses to the DGT floor ⇒
-    # RIP over-predicts ⇒ over-kill. (KT/IE/TT use the post-update snapshot at :527, which misses cycle-1's measured DG.)
-    s.variant isa BritishColumbia && (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # RIP over-predicts ⇒ over-kill. (KT/IE/TT/CI use the post-update snapshot at :791, which misses cycle-1's measured DG.)
+    # EM: the .tre carries a measured past DG (intree.f:151 reads DG(I) into diam_growth); FVS's cycle-1 WK1 is that
+    # value verbatim (oracle FVSem_g16 WK1={1.0,2.3,0.6,0.7} == em_LM.tre DG field). jl's post-cycle snapshot left
+    # dg_prev=0 at cycle 1 ⇒ the LM/added-species Hamilton G collapsed ⇒ ~2.5× first-cycle mortality over-kill.
+    (s.variant isa BritishColumbia || s.variant isa EasternMontana) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert

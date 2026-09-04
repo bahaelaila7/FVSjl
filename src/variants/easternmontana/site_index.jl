@@ -152,7 +152,13 @@ function em_sitset!(s::StandState, itype::Int, iemtyp::Int)
             p.sp_sdi_def[i] = bamax_kw > 0f0 ? bamax_kw / (0.5454154f0 * pmsdiu) : Float32(EM_SDICON[isdi])
         end
     end
-    s.control.ba_max <= 0f0 && (s.control.ba_max = EM_BAMAXA[itype])   # BAMAX = BAMAXA(ITYPE)
+    # sitset.f:159 seeds BAMAX=BAMAXA(ITYPE) when the user gave no BAMAX keyword, but LBAMAX stays FALSE, so
+    # sdical.f:203-204 OVERWRITES BAMAX=SDIMAX·0.5454154·PMSDIU on every SDICAL call (dgf.f:471 each cycle, before
+    # MORTS) — the BAMAXA seed never reaches the RZ/RIPP mortality. jl keeps only `control.ba_max`, whose sole
+    # reader is em mortality!, which already falls to the SDI-derived value when ba_max<=0. Persisting the BAMAXA
+    # seed here (as jl previously did) fed the STALE habitat 310 into mortality instead of the SDI-derived 322.67
+    # ⇒ ~2.5× LM over-kill. So leave control.ba_max=0 when no BAMAX keyword; SDIDEF above already used bamax_kw
+    # (the keyword value) before this point. EM-only (own site_index.jl).
     return s
 end
 

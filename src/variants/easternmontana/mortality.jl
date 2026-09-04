@@ -111,7 +111,15 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     # GMULT/REIN from IPDG/IPDG2[ITYPE,IFOR]. Only used by the added-species branch below.
     itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 6) && (ifor = 1)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? EM_BAMAXA[itype] : 0f0)
+    # BAMAX for the RZ/RIPP Hamilton mortality (em/morts.f:384,689-691). When the user did NOT set BAMAX,
+    # the RZ/RIPP `BAMAX` is NOT the habitat EM_BAMAXA — it is the SDI-derived value SDIMAX·0.5454154·PMSDIU:
+    # sitset.f:159 seeds BAMAX=BAMAXA(ITYPE), but LBAMAX stays false, so sdical.f:203-204 OVERWRITES
+    # BAMAX=XMAX·0.5454154·PMSDIU every SDICAL call. DGF calls SDICAL (dgf.f:471) BEFORE MORTS, and MORTS's own
+    # SDICAL (morts.f:454) lands after the RZ math (morts.f:384) — so by the time RZ/RIPP run, BAMAX is the
+    # SDI-derived value (identical to the residual-BA cap below). jl previously used EM_BAMAXA[itype] here, which
+    # (being smaller than the SDI-derived BAMAX on this LM regime) inflated RZ ⇒ ~2.5× LM mortality over-kill
+    # (em_LM cyc1 killed ~3 TPA vs live ~1.2). MEASURED vs FVSem_g16 TREELIST. EM-only (own mortality!, ::EasternMontana).
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
     bamax <= 0f0 && (bamax = 1f0)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
