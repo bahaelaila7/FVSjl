@@ -1914,10 +1914,20 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # ★ MEASURED (FVSie_g16 esgent trace, 195384161020004): WK4 is applied TWICE — once in REGENT(LESTB) subcycling
     # (regent.f:596 H2=H1+EXP(HTGRL)·SCALE·XRHGRO·WK4) and again in ESGENT (esgent.f:57 HTG=HTG·WK4) ⇒ effective
     # birth multiplier = WK4². ie_esgent! reproduces the square; here we store the single WK4 (per-tree) it reads.
-    # IE-ONLY change (TRAGE=3): ie_autoes_establish! is shared with EM (simulate.jl), whose em_esgent! applies WK4
-    # ONCE — leave EM on the prior TRAGE=2 (0.40) so EM birth growth is byte-unchanged (collision boundary).
+    # TRAGE=3 for IE AND EM: ESADVH advance-regen age TRAGE=3−DELAY (esadvh.f:86, DELAY=0 at a cycle boundary) is
+    # variant-general, so the DOMINANT advance cohort's WK4=min(3,GENTIM)/(GENTIM+1e-4)=0.60 (FINT=10), not the
+    # PLANT default 0.40. MEASURED directly from the FVSem_g16 esgent trace (stand 11847845010690, esgent.f:57
+    # HTG=HTG·WK4 per record): the EM AUTOES cohort books WK4 ∈ {0.60 (advance, 110/138 records), 0.20 (subsequent,
+    # 23), 0.00 (excess, 5)} — the advance 0.60 dominates (~80%). jl's collapsed single-record path books that
+    # dominant advance class, so it needs 0.60 (EM's em_esgent! applies WK4 ONCE, ie_esgent! squares it — the store
+    # is the single per-tree WK4 either way). EM previously kept TRAGE=2 (0.40), UNVALIDATED (left byte-unchanged
+    # when the IE emit path landed); 0.60 is the faithful advance value. The 0.20/0.00 subsequent/excess tail
+    # (28/138 records) is not separately booked in the collapsed path (that needs the full IE-style emit
+    # distribution) — a second-order effect. Measured .sum impact on FIA stands is below integer-BA resolution
+    # (the AUTOES ingrowth cohort is a small fraction of tree TPA — ~100 tiny seedlings vs thousands), so this is
+    # a faithfulness alignment to the oracle-measured WK4, not a visible .sum mover on the sampled EM stands.
     _autoes_gentim = max(fint - 5f0, 0f0)
-    _autoes_trage = (s.variant isa InlandEmpire) ? 3f0 : 2f0
+    _autoes_trage = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? 3f0 : 2f0
     _autoes_htimlt = min(_autoes_trage, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
