@@ -94,7 +94,15 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
         hk = h + htg
         bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
         if hk <= 4.5f0
-            t.diam_growth[i] = 0.0f0                    # DBH+=0.001·HK is a birth detail; DG=0
+            # ut/regent.f:383-385 — sub-breast-height seedling: DG(K)=0.0, DBH(K)=D+0.001·HK.
+            # The 0.001·HK nudge is applied EVERY cycle (not a one-time birth detail): it slowly
+            # accretes DBH while the seedling is below 4.5 ft, and at D≈0.1" it crosses the CCF
+            # discontinuity in ut/ccfcal.f (D≤0.1 → CCFT=0.001 vs D>0.1 → RDA·D^RDB ≈5× smaller),
+            # so omitting it left dense tiny-seedling woodland stands at a ~5× inflated stand CCF
+            # (RELDEN), perturbing PCTRED/density for the whole stand. Direct dbh write matches the
+            # sibling EC/KT/PN regent seedling nudge; diam_growth stays 0 so the apply-loop adds nothing.
+            t.diam_growth[i] = 0.0f0
+            t.dbh[i] = d + 0.001f0 * hk
         else
             local dk::Float32, dkk::Float32
             if sp == 10                                # PP Wykoff
