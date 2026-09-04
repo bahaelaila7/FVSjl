@@ -211,6 +211,7 @@ include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board 
     include("unit/test_estab_mechprep.jl")        # ESTAB-packet MECHPREP/BURNPREP site prep (esetpr.f + estab.f:382-399 WK6 IPPREP sampler) — kernel + live IPPREP vs FVSie_estabdump
     include("unit/test_estab_passall.jl")         # ESTAB-packet PASSALL (esin.f opt 18 → CONFID → PASMAX excess-tree cap) — parse+clamp + es_pasmax_xcsmax kernel bit-exact vs live FVSie + WIRED end-to-end (cap moves TPA)
     include("unit/test_ie_estab_discrete.jl")     # IE discrete-establishment PASMAX cap wired into ie_autoes_tally (IE-gated): uncapped byte-identical + low PASMAX moves the tally
+    include("unit/test_ie_estab_cohort_wk4.jl")   # IE AUTOES cohort HEIGHT-CLASS/WK4 partition (emit path): faithful 3-class split (advance 0.60 dominant / subsequent 0.20 / excess 0.00) locked vs FVSie_g16 DO 33/228; residual = #206 straddle (measured)
     include("unit/test_ie_default_prep.jl")       # IE DEFAULT site-prep (ESPREP) + per-plot PROB1 by IPREP on the bare dated-ESTAB tally — closes the 572→555 baseline (IE-gated; is_ie=false byte-identical)
     include("unit/test_ec_hbdecd_estab.jl")       # EC STDINFO alpha plant-association decode (ec/hbdecd.f → habitat 129/CWS222/GF/SI 103 vs FVSec_g16) + EC PLANT ESTAB path no longer KeyError-crashes (ec/blkdat XMIN/HHTMAX + ec/essubh SMHTGF)
     include("unit/test_ec_volume_topkill.jl")     # EC broken-top TOTAL-cubic CFTOPK trim (ect01 cyc0 bit-exact vs FVSec_g16; closed the TCuFt +2 corner via r4_topkill in the FW2 branch)

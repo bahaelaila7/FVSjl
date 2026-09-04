@@ -1891,8 +1891,18 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # WK4=STOMLT(sp)=min(TRAGE,GENTIM)/(GENTIM+1e-4) where GENTIM=FINT-5 and TRAGE is the ESADVH advance-regen age
     # TRAGE=3−DELAY (esadvh.f:86, DELAY=0 at a cycle boundary ⇒ TRAGE=3). So the ADVANCE-regen (dominant) WK4 =
     # min(3,GENTIM)/(GENTIM+1e-4) ⇒ 0.60 at FINT=10 (NOT the PLANT default TRAGE=2 ⇒ 0.40, which under-set the
-    # advance cohort). The oracle's per-record 0.2/0.0 tail comes from the un-ported ESSUBH-subsequent + ESXCSH-
-    # excess draws (leftover-STOMLT quirk estab.f:937) — cornered here (the advance value is the representative).
+    # advance cohort). The per-record 0.2/0.0 tail (ESSUBH-subsequent TRAGE=TIME−DELAY + ESXCSH-excess, leftover-
+    # STOMLT estab.f:937) is now FULLY PORTED via the ie_autoes_tally emit path (DO 99/33/228), NOT cornered/collapsed.
+    # ★ RE-BALANCE MEASUREMENT (2026-09-04, branch fix-ie-cohort-rebalance): the b6edfd9a partition was suspected of
+    # over-weighting the slow (WK4≤0.20) classes → under-projection. Instrumenting FVSie_g16 estab.f DO 33/228 (booked
+    # WK4+PROB per tree) vs the jl emit records across a POPULATION of bare+sparse establishment stands (ecoregions
+    # 331Aa/Ac/Af, 342Ia/b; single- AND multi-point) shows the jl per-class booked TPA MATCHES the oracle within
+    # realization noise (advance/subsequent/excess fractions within ~1-3pp; population-mean advance fraction ~equal, jl
+    # if anything marginally HIGHER) — the partition is faithful, it does NOT over-weight the slow classes. The residual
+    # .sum BA/CCF/SDI cap is a two-sided #206 OLDRN/ZRAND realization straddle (86 stands: BA 38 over / 44 under, mean
+    # −0.85; adjacent near-identical stands flip sign; the per-stand advance-fraction discrepancy is UNCORRELATED with
+    # the BA sign — jl booking LESS advance yields both +19 and −15). So NO re-balance is warranted (it would break
+    # faithfulness to the FVS source without touching the straddle); the residual is legitimately the IE #206 corner.
     # ★ MEASURED (FVSie_g16 esgent trace, 195384161020004): WK4 is applied TWICE — once in REGENT(LESTB) subcycling
     # (regent.f:596 H2=H1+EXP(HTGRL)·SCALE·XRHGRO·WK4) and again in ESGENT (esgent.f:57 HTG=HTG·WK4) ⇒ effective
     # birth multiplier = WK4². ie_esgent! reproduces the square; here we store the single WK4 (per-tree) it reads.
