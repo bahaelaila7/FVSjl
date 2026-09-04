@@ -309,16 +309,25 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         if hc == 0 && isie && _fia_present(d, "PV_CODE")
             hc = ie_pa_habitat_code(_fia_str(d, "PV_CODE", ""))
         end
-        # numeric PV_CODE (5-digit 41780 → 780; 3-digit used directly).
+        # numeric PV_CODE (5-digit 41780 → 780; 3-digit used directly). The FIA "not collected" sentinel
+        # 9999999 (and any ≥6-digit value) is NOT a habitat code: ie/habtyp.f HBDECD fails to recognize it ⇒
+        # the code is unrecognized ⇒ the default habitat (below), NOT 9999999%1000=999 (ITYPE 30). The %1000
+        # strip is only for a genuine 5-digit state-prefixed code (41780 → 780).
         if hc == 0 && _fia_present(d, "PV_CODE")
             pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
-            pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41780 → 780)
-            (10 <= pvc <= 999) && (hc = pvc)
+            if pvc < 100000
+                pvc > 999 && (pvc = pvc % 1000)           # strip the 2-digit state prefix (41780 → 780)
+                (10 <= pvc <= 999) && (hc = pvc)
+            end
         end
-        # Fallback on a present reference code: IE ⇒ live default habitat 260 (habtyp default ITYPE 4, MTYPE(4)=260);
-        # EM/UT/TT ⇒ the raw PV_REF_CODE (their readers use it directly — validated separately).
-        if hc == 0 && pvref > 0
-            hc = isie ? 260 : ((10 <= pvref <= 999) ? pvref : 0)
+        # Unresolved habitat: IE ⇒ live default habitat 260 (ie/habtyp.f: an out-of-range/unrecognized KODTYP
+        # leaves ITYPE at the grinit default 4, then KODTYP=MTYPE(4)=260 — the ".out" "HABITAT TYPE WILL BE
+        # MAPPED TO 260"). This default is UNCONDITIONAL for IE (matches FVS, which always ends KODTYP=MTYPE(ITYPE));
+        # without it a no-PV/sentinel-PV IE stand kept habitat_code=999 (ITYPE 30) or 0, so AUTOES (ie_estab_kodtyp)
+        # picked the wrong climax species (ES/AF vs DF/PP) ⇒ half-height regen establishment ⇒ the D2 growth deficit.
+        # EM/UT/TT ⇒ the raw PV_REF_CODE (their readers use it directly — validated separately; unchanged).
+        if hc == 0
+            hc = isie ? 260 : (pvref > 0 ? ((10 <= pvref <= 999) ? pvref : 0) : 0)
         end
         hc != 0 && (p.habitat_code = Int32(hc))
     end
