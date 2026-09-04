@@ -55,3 +55,26 @@ end
     @test strip(s.species.class_codes[5, 2]) == "SP2"
     @test s.plot.valid_habitat[1] == 10
 end
+
+@testset "IE/EM western SPCTRN crosswalk (ie/spctrn.f ASPT: IE=col11, EM=col10)" begin
+    # Regression guard for the IE crosswalk-column bug: the IE species_translation.csv had been
+    # derived from KT's ASPT column (target_kt), which collapses ~274 unrecognized species to "OT"
+    # → other_species(23)=OS. IE's OWN ASPT column (11) maps hardwoods to OH(22) etc. The wrong table
+    # starved translated-species stands (e.g. bitter cherry 768) of height/diameter growth (OS grows
+    # far slower than OH), a one-directional BA/QMD under-build in the FIA establishment/dense regime.
+    for (v, other) in ((InlandEmpire(), Int32(23)), (EasternMontana(), Int32(19)))
+        s = StandState(v); init_blockdata!(s, s.variant)
+        sp, var, co = s.species, s.variant, s.coef
+        # bitter cherry (FIA 768, Prunus emarginata) → OH, NOT the OS/OH catch-all-by-accident
+        idx = resolve_species("768", var, sp, co)[1]
+        @test strip(sp.alpha[idx]) == "OH"
+        # generic hardwood 998 → OH; generic softwood 999 → OS; oak 850 → OH
+        @test strip(sp.alpha[resolve_species("998", var, sp, co)[1]]) == "OH"
+        @test strip(sp.alpha[resolve_species("999", var, sp, co)[1]]) == "OS"
+        @test strip(sp.alpha[resolve_species("850", var, sp, co)[1]]) == "OH"
+        # ABAM (FIA 011) → OS (no true fir in IE/EM 23/19-species set)
+        @test strip(sp.alpha[resolve_species("011", var, sp, co)[1]]) == "OS"
+        @test length(co.translation) == 442
+        @test FVSjl.other_species(var) == other
+    end
+end
