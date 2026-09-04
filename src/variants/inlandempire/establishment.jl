@@ -847,7 +847,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # 0.967520→34.5) and jl prob1 (0.60012) matches live PROB1 (0.60122) ⇒ per-tree TPA correct. The sole divergence
     # was jl capping the disturbance path at MAXING(7) too — truncating ITPP 14→7, 25→7 ⇒ UNDER-production. With the
     # split cap jl ITPP = live bit-exact [2,1,14,2,4,2,25,4]. (Old "over-produces at MAXTPP" comment predated the
-    # ESTOCK-PROB1 understanding.) NOTE: the ingrowth (is_ingro) path has a separate open residual (see IE audit).
+    # ESTOCK-PROB1 understanding.) NOTE: the ingrowth (is_ingro) dense-stand NSTORE over-book (BA>400 stands) was
+    # a MISSING BAAOLD [1,400] clamp on the ESB1 stocking prediction — FIXED in ie_autoes_establish! (see there).
     cap = is_ingro ? _IE_MAXING[ihab] : _IE_MAXTPP[ihab]
     p1s = Float32(prob1); scale = 300f0 / Float32(dupnpt)   # stand-scalar PROB1 (per-point override below)
     # Per-plot NSTORE/PNN (prior tally's stocked count + PROB1). Empty ⇒ a fresh disturbance (all zeros).
@@ -1793,7 +1794,14 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             tpacre < 1f0 && (tpacre = 1f0)
             esa = clamp(1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre)))), 0.10f0, 0.90f0)
             esb = -log(1f0 / esa - 1f0)
-            baaold = max(baaa, 1f0)                          # inventory per-point BA (BAAINV); = baaa at cyc1
+            # BAAOLD clamped to [1,400] (estab.f:487-489: IF(BAAOLD.LT.1)=1; IF(BAAOLD.GT.400)=400). ★ MEASURED
+            # NSTORE over-book fix (dense already-stocked IE stands): on a BA>400 stand the ESB1=ESTOCK(BAAOLD)
+            # prediction runs off the un-clamped tail (jl baaold 536 ⇒ esb1 −10.4 vs oracle −6.45 at BAAOLD=400),
+            # inflating esb_shift=ESB−ESB1 (jl 8.21 vs oracle 4.26) ⇒ the per-point PROB1 saturates (jl 0.93 vs
+            # oracle 0.207) ⇒ the first ingrowth tally over-books ~4.5× (lead 12281578010690: jl 894 vs oracle 199
+            # TPA). FVS clamps BOTH BAA (prob1_pt already clamps) AND BAAOLD to 400; jl omitted the BAAOLD clamp.
+            # IE-guarded (shared with EM; inert for EM's bare BA<400 stands, but scoped to honor the collision seam).
+            baaold = (s.variant isa InlandEmpire) ? clamp(baaa, 1f0, 400f0) : max(baaa, 1f0)  # BAAINV; = baaa at cyc1
             asp0 = es_aspect; sl0 = es_slope                 # per-plot PSLO/PASP (from tree records), not stand
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
                              baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)

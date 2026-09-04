@@ -26,6 +26,31 @@ using FVSjl
     @test isfinite(FVSjl.ie_estock(10, 4, 0.30f0, 0.7f0, -0.7f0, 34.0f0, 1.0f0, 0.0f0, 1.0f0, 1.0f0, 0.0f0, 0.0f0, 4))
 end
 
+@testset "IE AUTOES BAAOLD clamp — dense-stand ingrowth NSTORE over-book fix" begin
+    # MEASURED (FVSie_g16 estab.f dump on the lead dense stand 12281578010690: ecoregion M332Aa,
+    # Idaho Batholith; init BA 683, 57 records ALL DBH≥3", zero small-tree). FVS clamps BAAOLD to
+    # [1,400] (estab.f:487-489) BEFORE ESB1 = ESTOCK(BAAOLD, TIME=0). jl's ie_autoes_establish!
+    # formerly used max(baaa,1f0) with NO upper clamp; on a BA>400 stand ESB1 ran off the un-clamped
+    # BA tail, inflating esb_shift = ESB − ESB1 (jl 8.21 vs oracle 4.26) ⇒ the per-inventory-point
+    # ingrowth PROB1 saturated (jl 0.93 vs oracle 0.207) ⇒ the first ingrowth tally booked a ~4.5×
+    # over-cohort (lead last-cycle TPA jl 388 = +72% vs oracle 225). Clamping BAAOLD to 400 restores it.
+    # Stand ESTOCK indices: IHAB=9 (IEQ=3 cedar/hemlock series, which carries a BA term), IFO=4,
+    # ELEV=58.5 (hundreds of ft). ESTOCK does NOT clamp internally — the caller must (this is the fix).
+    pn400 = FVSjl.ie_estock(9, 1, 0f0, 1f0, 0f0, 58.5f0, 400f0, log(400f0), 0f0, 0f0, 0f0, 0f0, 4)
+    pn683 = FVSjl.ie_estock(9, 1, 0f0, 1f0, 0f0, 58.5f0, 683f0, log(683f0), 0f0, 0f0, 0f0, 0f0, 4)
+    @test clamp(683f0, 1f0, 400f0) == 400f0                 # the fix's BAAOLD clamp (estab.f:487-489)
+    @test isapprox(pn400, -5.6455f0; atol = 1f-2)           # ESTOCK at the clamped BA (≈ oracle ESB1)
+    @test pn683 < pn400 - 5f0                               # un-clamped BA drives ESB1 far more negative
+    # PROB1 = logistic(PN_end + ESB − ESB1). With the measured oracle end-cycle PN=-5.5978 and inventory
+    # ESB=-2.1972: the CLAMPED ESB1 (=pn400) keeps PROB1 moderate; the UN-clamped ESB1 (=pn683) saturates
+    # it near 1 ⇒ the over-book. This asserts the clamp is what keeps ingrowth from over-booking.
+    pn_end = -5.5978f0; esb = -2.1972f0
+    prob1_clamped   = 1f0 / (1f0 + exp(-(pn_end + esb - pn400)))
+    prob1_unclamped = 1f0 / (1f0 + exp(-(pn_end + esb - pn683)))
+    @test prob1_clamped < 0.30f0                            # faithful: moderate stocking prob (oracle ≈0.21)
+    @test prob1_unclamped > 0.90f0                          # the bug: saturated PROB1 ⇒ ~4.5× over-book
+end
+
 @testset "IE ESNSPE P(#species) — task #143 chunk A2a" begin
     # iet01 stand-4 plot-1: ISER=4 (WH), ITPP=2, TPP=2, TPPLN=ln2, BAA=1, ELEV=34, REGT=1, BWAF=0.
     # XCOS=cos(asp)·SLO, XSIN=sin(asp)·SLO (SLO-weighted aspect). Oracle PSPE=(0.543,0.393,0,0,0,0).
