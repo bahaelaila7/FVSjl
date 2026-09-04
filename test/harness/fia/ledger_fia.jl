@@ -47,7 +47,13 @@ regime_block(r, plantyr=0) =
     r == "salvage" ? kwrec("SALVAGE","2.0","0.0","999.0","0.9") :
     r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3","400") * "\nEnd" : ""
 
-keytext(cn, db, regime, plantyr=0) = """
+# `seed` (optional): when set, emit a RANNSEED keyword whose value sits in the keyword RECORD columns 11-20
+# (via kwrec — field 1) so FVS actually reseeds. ⚠ A RANNSEED value placed on a BLANK supplemental line is
+# SILENTLY IGNORED by FVS (a blank field 1 = "restart from the saved seed" ⇒ a no-op that reuses the default
+# seed 55329) — the value MUST be in the record itself. RANNSEED (option 61) reseeds ONLY the main RANSED
+# stream; the ESTABLISHMENT stream (ESRANN, fixed 55329) is NOT affected — establishment-cohort divergence is
+# therefore seed-invariant BY CONSTRUCTION. Identical keytext feeds jl and the oracle, so both reseed the same.
+keytext(cn, db, regime, plantyr=0, seed=nothing) = """
 STDIDENT
 $cn
 DATABASE
@@ -61,7 +67,7 @@ SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'
 EndSQL
 END
 NUMCYCLE         5.0
-$(regime_block(regime, plantyr))
+$(seed === nothing ? "" : kwrec("RANNSEED", seed) * "\n")$(regime_block(regime, plantyr))
 ECHOSUM
 PROCESS
 STOP
@@ -93,8 +99,8 @@ end
 # Returns (sum_text, crashed). crashed=true when the live binary died on a SIGNAL (SIGFPE=8/SIGSEGV=11/SIGABRT=6)
 # or exit>128 — distinguishing a live-FVS CRASH (e.g. the FVS40 >1000-TPA-seedling floating-point exception, which
 # FVSjl survives) from a clean no-output run. Lets the ledger record `live_crash` instead of silently skipping.
-function run_live(bin, cn, db, regime, dir, plantyr=0)
-    key = joinpath(dir,"s.key"); write(key, keytext(cn, db, regime, plantyr))
+function run_live(bin, cn, db, regime, dir, plantyr=0, seed=nothing)
+    key = joinpath(dir,"s.key"); write(key, keytext(cn, db, regime, plantyr, seed))
     for f in ("s.sum","s.out"); fp=joinpath(dir,f); isfile(fp) && rm(fp); end
     crashed = false
     try
@@ -124,8 +130,19 @@ function classify(bit_exact, struct_mat, vol_mat, density_mat, converges, max_re
     bit_exact && return "bit_exact"
     # every diverging cell is a ±1-unit / sub-MATERIAL straddle ⇒ print/ULP boundary
     (!struct_mat && !vol_mat) && return "print_boundary"
-    # structure moves materially but ONLY in TPA/QMD (density BA/SDI/CCF/TopHt preserved) ⇒ self-thin count-straddle
-    (struct_mat && !density_mat) && return "count_straddle"
+    # structure moves materially but ONLY in TPA/QMD (density BA/SDI/CCF/TopHt preserved).
+    # ⚠ This is NOT self-evidently a benign self-thin realization straddle: it is the IDENTICAL signature of a
+    # REAL deterministic count/height bug. When a bug redistributes TPA across size-classes (over-/under-kill in
+    # density-dependent mortality, or a stunted small-tree height cohort that never crosses the diameter gate),
+    # BA/SDI/CCF/TopHt CONVERGE BY CONSTRUCTION (the model agrees on stand density, disagrees on HOW MANY trees
+    # carry it), so "density preserved + TPA/QMD move" cannot on its own distinguish RNG straddle from bug. The
+    # 2026-09-04 IE re-diagnosis showed this pattern auto-cornered SEED-INVARIANT deterministic bugs (TPA −574,
+    # −141, ±100, seed-invariant one-directional) as if they were #206 OLDRN/ZRAND straddles. So we emit a
+    # signature that does NOT auto-drop: material count divergences ESCALATE to needs_dig (see sweep_db.jl /
+    # filter_digworthy.jl) and MUST be seed-tested (test/harness/fia/seed_test.jl) before any corner — a seed
+    # sweep that FLIPS the signed jl−oracle residual is a genuine straddle; a SEED-INVARIANT one-directional
+    # residual is a real deterministic bug.
+    (struct_mat && !density_mat) && return "count_divergence_UNVERIFIED"
     # structure clean (only ±1 straddles) but volume moves materially ⇒ merch/threshold crossing
     (!struct_mat && vol_mat && converges)  && return "threshold_crossing"
     (!struct_mat && vol_mat && !converges) && return "volume_persistent"        # FLAG: volume-only, no convergence

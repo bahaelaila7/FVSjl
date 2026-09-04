@@ -8,10 +8,13 @@
 #
 # Every stand is bucketed into exactly one `dig_class`:
 #   • bit_exact  — FVSjl == live FVS on all 10 .sum cols, every cycle.
-#   • ulp_class  — diverges, but the divergence is an ACCEPTED cornered primitive (print/ULP boundary, self-thin
-#                  count-straddle, merch/board threshold-crossing, compounded-ULP dense-phase). No action needed.
+#   • ulp_class  — diverges, but the divergence is an ACCEPTED cornered primitive (print/ULP boundary, merch/board
+#                  threshold-crossing, compounded-ULP dense-phase, or a SUB-MATERIAL count divergence). No action.
+#                  ⚠ A MATERIAL count divergence (density preserved, TPA/QMD moves) is NOT auto-cornered here — it
+#                  shares the signature of a real seed-invariant count/height bug and escalates to needs_dig.
 #   • needs_dig  — diverges in a way the escalation guard could NOT corner (UNCLASSIFIED signature, a MATERIAL
-#                  structure move ≥10 abs units & ≥15%, or a threshold-free total-cubic ≥15%). REASSESS / TRACE.
+#                  structure/count move ≥10 abs units & ≥15%, or a threshold-free total-cubic ≥15%). REASSESS /
+#                  TRACE — for a count/height divergence, SEED-TEST (seed_test.jl) before cornering.
 #
 # `dig_class` is the SINGLE SOURCE of the "what to look at" question — it mirrors filter_digworthy.jl's
 # escalation guard exactly (kept in sync; both key on struct_max_abs so a young/small-base ±1-unit straddle that
@@ -49,8 +52,13 @@ function dig_class(bit_exact::Bool, sig::AbstractString, worst_col::AbstractStri
     sig == "live_crash" && return "live_crash"   # live FVS crashed (FVS-UB); FVSjl projected — not comparable
     sa = struct_max_abs === nothing ? Inf : float(struct_max_abs)
     va = vol_max_abs === nothing ? Inf : float(vol_max_abs)
+    # count_divergence_UNVERIFIED (formerly the auto-benign "count_straddle") is NOT auto-cornered: a TPA/QMD move
+    # with density preserved is also the signature of a real seed-invariant count/height bug (2026-09-04 IE
+    # re-diagnosis). A MATERIAL one (worst_col a count/structure col, ≥15% rel AND ≥10 abs units — the same gate
+    # as structure_densephase) escalates to needs_dig so it is SEED-TESTED (seed_test.jl) before any corner;
+    # sub-material ones (a few-% straddle with density preserved) stay ulp_class as before.
     esc = sig == "UNCLASSIFIED" ||
-          (sig == "structure_densephase" && worst_col in _STRUCT_ESCALATE_COLS &&
+          (sig in ("structure_densephase", "count_divergence_UNVERIFIED") && worst_col in _STRUCT_ESCALATE_COLS &&
                  max_rel_pct >= _ESCALATE_REL && sa >= _STRUCT_ABS_FLOOR) ||
           (worst_col == "TCuFt" && max_rel_pct >= _ESCALATE_REL && va >= _VOL_ABS_FLOOR)
     return esc ? "needs_dig" : "ulp_class"
@@ -145,7 +153,8 @@ _pi(s) = (v = tryparse(Int, strip(s)); v)
 # glued to the CN, the signature slot holds a bool/number). Such rows are DROPPED on ingest, never classified.
 const _VALID_VARIANTS = Set(["SN","NE","CS","LS"])
 const _VALID_SIGS = Set(["bit_exact","print_boundary","volume_persistent","structure_densephase",
-                         "threshold_crossing","count_straddle","UNCLASSIFIED","live_crash"])
+                         "threshold_crossing","count_straddle","count_divergence_UNVERIFIED",
+                         "UNCLASSIFIED","live_crash"])   # count_straddle kept for LEGACY-row ingest only
 _valid_row(variant, cn, sig) =
     variant in _VALID_VARIANTS && sig in _VALID_SIGS && !isempty(cn) && all(isdigit, cn)
 

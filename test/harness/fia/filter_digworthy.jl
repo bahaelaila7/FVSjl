@@ -12,7 +12,11 @@ import SQLite, DBInterface
 const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
 
 # base dig-worthy rule (same as run_expand_cycle.sh's historical awk): a MATERIAL, potentially-real-bug class.
-const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase"])
+const DIG_SIGS = Set(["UNCLASSIFIED", "volume_persistent", "structure_densephase",
+                      "count_divergence_UNVERIFIED"])   # count divergence is a dig CANDIDATE, not auto-benign:
+# it shares the signature of a real seed-invariant count/height bug (2026-09-04 IE re-diagnosis). Material ones
+# (is_escalation) always surface for a SEED-TEST; sub-material ones can still be cornered by an explicit
+# (ecoregion, signature) cluster taxonomy below — but never auto-dropped on the raw signature alone.
 # structure/density cols whose MATERIAL divergence signals a real structure bug. TopHt is DELIBERATELY EXCLUDED
 # — dig-session #2c empirically cornered the AVHT40 top-height tie-break as a ULP primitive (no global single/
 # double RDPSRT sort is bit-exact; stand-dependent), and TopHt divergences with density preserved ARE that
@@ -51,9 +55,12 @@ is_dig(sig, worst_col, struct_pct, max_rel) =
 #     struct_max_abs≥FLOOR (a real ≥10-unit BA/SDI/CCF move, not a tiny-base %-inflated ±1 straddle; see above).
 #   • a volume-EQUATION bug — worst_col==TCuFt (threshold-FREE total cubic) ≥15%, any signature (cf slice-41
 #     FORKOD zero-vol). BdFt/SCuFt/MCuFt (merch/board step-fns) are NOT here — their large % is threshold-crossing.
+#   • a MATERIAL count divergence — signature==count_divergence_UNVERIFIED (density preserved, TPA/QMD moves), same
+#     gate as structure_densephase. This is NOT auto-cornered because it shares the signature of a real
+#     seed-invariant count/height bug (2026-09-04 IE re-diagnosis); it must be SEED-TESTED (seed_test.jl) first.
 is_escalation(sig, worst_col, max_rel, struct_abs, vol_abs) =
     sig == "UNCLASSIFIED" ||
-    (sig == "structure_densephase" && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL && struct_abs >= STRUCT_ABS_FLOOR) ||
+    (sig in ("structure_densephase", "count_divergence_UNVERIFIED") && worst_col in STRUCT_ESCALATE_COLS && max_rel >= ESCALATE_REL && struct_abs >= STRUCT_ABS_FLOOR) ||
     (worst_col == "TCuFt" && max_rel >= ESCALATE_REL && vol_abs >= VOL_ABS_FLOOR)
 
 function load_cornered(path)
