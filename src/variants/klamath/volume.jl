@@ -369,15 +369,20 @@ const NC_SISKFC = (
     Int(NC_SISKFC[sp][ifc])
 end
 
-# NC Region-6 Behre (616BEHW) per-tree volume. Total cubic via R6VOL3 (fvsvol.f→profile2.f:317-334, ZONE=1,
-# FC_HT=16.3 short-tree cylinder); merch VOL(4)/board VOL(2) via R6DIBS/R6VOL1 with NC TOPD=6.0 (·BARK IB top,
+# NC Region-6 Behre (616BEHW) per-tree volume. Total cubic via R6VOL3 (fvsvol.f→r6vol.f:100-114, ZONE=1,
+# FC_HT=17.3 short-tree cylinder); merch VOL(4)/board VOL(2) via R6DIBS/R6VOL1 with NC TOPD=6.0 (·BARK IB top,
 # sitset.f DEFAULT). Reuses the shared bm_r6vol3/r6dibs/r6vol1 kernels + NC SISKFC form class.
+# ⚠ The cylinder cutoff is r6vol.f's FC_HT=17.3 (ZONE 1), NOT profile.f/profile2.f's 16.3 — NC's total cubic is
+# driven by R6VOL (r6vol.f), not PROFILE. A tree with TTH∈(16.3,17.3] is SHORTER than the 17.3-ft butt log, so
+# routing it through the full R6VOL3 profile makes HTUP=TTH−17.3<0 and the taper loop runs away (verified: a
+# D=4.5/H=17 chinquapin gave 26.7 cuft vs the oracle's cylinder 0.76). WC/BM already guard at 17.3; this was an
+# NC-only mis-port to the profile2 cutoff. (fixed 2026-09-05: NC Siskiyou short-tree TCuFt over-prediction bug.)
 function nc_behre_vol(sp::Int, d::Float32, h::Float32, bark::Float32)
     fc = nc_siskfc(sp, d)
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
     vol2 = 0f0; vol4 = 0f0
-    v1 = if h <= 16.3f0
-        0.00272708f0 * dbhib * dbhib * h            # profile2.f:330 short-tree cylinder (TTH ≤ FC_HT)
+    v1 = if h <= 17.3f0
+        0.00272708f0 * dbhib * dbhib * h            # r6vol.f:105 short-tree cylinder (TTH ≤ FC_HT=17.3, ZONE 1)
     else
         v = bm_r6vol3(d, dbtbh, fc, h, 1)
         mtopp = 6.0f0 * bark                         # NC TOPD=6.0 (sitset DEFAULT), inside-bark top
