@@ -302,21 +302,32 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # (e.g. PV_CODE "ABR8" + ref 639, 4/5 IE sweep stands) defaults to 260 — NOT the raw reference code. jl's old
         # bug fell back to the raw PV_REF_CODE (639) ⇒ ESTOCK ihab 11 (GF-dominant) vs live's ihab 3 (DF/PP) ⇒ AUTOES
         # over-establishment. MEASURED vs live esplt2.f/habtyp.f (ihab/MYGRUP/OCURHT/OCURNF/PADV all match at ihab 3).
-        if isie && pvref > 0
+        # ★ IE: when a PV_REF_CODE is present (CPVREF≠blank), ie/habtyp.f calls PVREF1 which BLANKS KARD2 and zeros
+        # KODTYP UNLESS it finds a full (PV_CODE,PV_REF) match. On a non-match the subsequent HBDECD therefore sees a
+        # BLANK code ⇒ default 260 — the oracle does NOT re-try the bare PCOML string match NOR the raw numeric
+        # PV_CODE. So gate BOTH fallbacks below on `!(isie && pvref>0)`: for an IE stand with a ref, only ie_pvref1's
+        # result counts, else default 260. (CWS422/626 → jl formerly fell back to ie_pa_habitat_code=520; 41691/401 →
+        # jl formerly %1000-stripped to 691. MEASURED vs FVSie_g16 habtyp.f+pvref1.f: both default to 260.)
+        ie_ref_present = isie && pvref > 0
+        if ie_ref_present
             hc = ie_pvref1(_fia_str(d, "PV_CODE", ""), pvref)
         end
         # PV_CODE as a 6-char plant-association string given directly (ie/habtyp.f PCOML path, e.g. "CDS715"→260).
-        if hc == 0 && isie && _fia_present(d, "PV_CODE")
+        # NOT run when a ref was present (PVREF1 already blanked KARD2 ⇒ no PCOML retry).
+        if hc == 0 && isie && !ie_ref_present && _fia_present(d, "PV_CODE")
             hc = ie_pa_habitat_code(_fia_str(d, "PV_CODE", ""))
         end
         # numeric PV_CODE (5-digit 41780 → 780; 3-digit used directly). The FIA "not collected" sentinel
         # 9999999 (and any ≥6-digit value) is NOT a habitat code: ie/habtyp.f HBDECD fails to recognize it ⇒
         # the code is unrecognized ⇒ the default habitat (below), NOT 9999999%1000=999 (ITYPE 30). The %1000
         # strip is only for a genuine 5-digit state-prefixed code (41780 → 780).
-        if hc == 0 && _fia_present(d, "PV_CODE")
+        # NOT run for an IE stand with a ref present (PVREF1 zeroed KODTYP ⇒ the raw numeric value is discarded).
+        if hc == 0 && !ie_ref_present && _fia_present(d, "PV_CODE")
             pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
             if pvc < 100000
-                pvc > 999 && (pvc = pvc % 1000)           # strip the 2-digit state prefix (41780 → 780)
+                # EM/UT/TT strip a 2-digit state prefix (41780 → 780); IE does NOT — ie/habtyp.f keeps the raw
+                # KODTYP, and a >999 value is out of range ⇒ default 260 (MEASURED 41691 → 260, NOT 691).
+                !isie && pvc > 999 && (pvc = pvc % 1000)
                 (10 <= pvc <= 999) && (hc = pvc)
             end
         end

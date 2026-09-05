@@ -1447,7 +1447,11 @@ Returns the HABPVR habitat code on a full match (numeric directly, or a PCOML st
 [`ie_pa_habitat_code`](@ref)), or `0` if the pair is not in the table (caller then applies the live default 260).
 """
 function ie_pvref1(pv_code::AbstractString, pv_ref::Integer)::Int
-    hab = get(_IE_PVREF1, (strip(uppercase(pv_code)), string(Int(pv_ref))), "")
+    # CASE-SENSITIVE match: ie/pvref1.f compares ADJUSTL(PVCODE(I)).EQ.ADJUSTL(KARD2T) — it left-justifies but does
+    # NOT uppercase, and the table codes are UPPERCASE. So a lowercase DB PV_CODE (e.g. "ces211") does NOT match
+    # "CES211" ⇒ no PVREF1 hit ⇒ habtyp.f defaults to 260. (Only 3 IE stands are lowercase: ccf221/cef111/ces211;
+    # jl formerly uppercased ⇒ matched ⇒ resolved a habitat the oracle defaults to 260.) Uppercase codes unchanged.
+    hab = get(_IE_PVREF1, (strip(pv_code), string(Int(pv_ref))), "")
     isempty(hab) && return 0
     all(isdigit, hab) && return parse(Int, hab)          # numeric HABPVR = habitat code directly
     return ie_pa_habitat_code(hab)                        # PCOML HABPVR (e.g. "CDS715") → NI code, 0 if unmapped
@@ -1509,7 +1513,7 @@ end
 function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Integer,
                        dupnpt::Real, slo::Real, aspect::Real, elev::Real, baa::Real,
                        time::Real = 1f0, regt::Real = time, bwaf::Real = 0f0, bwb4::Real = 0f0,
-                       esb_shift::Real = 0f0, is_ingro::Bool = true,
+                       esb_shift::Real = 0f0, esb_shift_pt::AbstractVector = Float32[], is_ingro::Bool = true,
                        nstore::AbstractVector = Int32[], pnn::AbstractVector = Float32[],
                        tpacre_ingro::Real = 0f0, point_small_tpa::AbstractVector = Float32[],
                        idup::Integer = 0, nsp::Integer = 23, variant = nothing,
@@ -1575,7 +1579,11 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             asp_pt =       pt <= length(point_aspect) ? Float32(point_aspect[pt]) : asp                # PASP(NNID)
             pn_pt = ie_estock(idx.ihab, idx.iprep, sl_pt, cos(asp_pt), sin(asp_pt), Float32(elev), ba_pt,
                               log(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
-            v = (1f0 / (1f0 + exp(-(pn_pt + Float32(esb_shift))))) * sa                                 # STOADJ already clamped ≥0.001 (sa)
+            # PER-POINT stocking shift ESB−ESB1(NNID): each point's ingrowth stocking is corrected by ITS OWN
+            # inventory prediction (estab.f:557,599). Empty ⇒ the scalar esb_shift (point-1 value) — over-corrects
+            # the open points of a heterogeneous multi-point stand (the M333 AUTOES over-production bug).
+            shift_pt = pt <= length(esb_shift_pt) ? esb_shift_pt[pt] : Float32(esb_shift)
+            v = (1f0 / (1f0 + exp(-(pn_pt + shift_pt)))) * sa                                            # STOADJ already clamped ≥0.001 (sa)
             v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
             prob1_pt[pt] = v
         end
@@ -1822,6 +1830,27 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
                              baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
             est.esb_shift = esb - esb1
+            # ★ PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID) (estab.f:507-557 — ESB1 is computed inside the
+            # per-plot loop from THAT point's BAAINV(NNID)/PSLO/PASP). The scalar esb_shift above uses point-1's
+            # BAAINV, which over-corrects the OPEN points of a heterogeneous multi-point stand: a dense point 1
+            # (BAAINV→400 ⇒ ESB1≈−6.2 ⇒ +4 logit) applied to a low-BA point pushes its ingrowth PROB1 to ~0.95
+            # (vs the oracle's ~0.25) ⇒ ~4× AUTOES over-production (MEASURED FVSie_g16 1856003217290487 @2043: jl
+            # 822 vs oracle 184 TPA). Compute the frozen per-point shift = ESB − ESTOCK(BAAINV(NNID)) so each
+            # point's ingrowth stocking is corrected by ITS OWN inventory prediction. IE ingrowth only; empty ⇒
+            # scalar fallback (byte-identical). Uses each point's PSLO(NNID)/PASP(NNID) (per-point tree topo).
+            if s.variant isa InlandEmpire && !isempty(est.inv_point_baaold)
+                npt_e = length(est.inv_point_baaold)
+                shpt = Vector{Float32}(undef, npt_e)
+                @inbounds for pt in 1:npt_e
+                    bo = clamp(est.inv_point_baaold[pt], 1f0, 400f0)                       # BAAINV(NNID) clamp [1,400]
+                    slp = pt <= length(p.point_slope)  ? Float32(p.point_slope[pt])  : sl0  # PSLO(NNID)
+                    asp = pt <= length(p.point_aspect) ? Float32(p.point_aspect[pt]) : asp0 # PASP(NNID)
+                    e1p = ie_estock(idx0.ihab, idx0.iprep, slp, cos(asp), sin(asp), Float32(p.elevation),
+                                    bo, log(bo), 0f0, 0f0, 0f0, 0f0, idx0.ifo)             # ESTOCK(BAAINV(NNID), TIME=0)
+                    shpt[pt] = esb - e1p
+                end
+                est.esb_shift_pt = shpt
+            end
             # ★ D1b — DISTURBANCE-tally NSTORE/PNN (estab.f:545-559). The existing sub-REGNBK stock — dominated
             # by the stump/root-sprout cohort (esuckr!, AS/PB) just created this cycle — SUPPRESSES new AUTOES regen:
             # NSTORE(pt)=INT((PLPROB·DUPNPT)/(FTEMP·300)+0.5) with FTEMP=logistic(ESB1 PN) and PLPROB·DUPNPT = the
@@ -1910,6 +1939,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
                       elev = p.elevation, baa = max(baaa_pn, 1f0), time = time, esb_shift = esb_shift,
+                      # Per-point stocking shift ESB−ESB1(NNID) for the ingrowth per-point PROB1 (fixes the M333
+                      # multi-point over-production). Passed only when calibration is active THIS call (scalar
+                      # esb_shift≠0 ⇒ the ESB block ran this tally); empty ⇒ ie_autoes_run uses the scalar shift.
+                      esb_shift_pt = (is_ingro && esb_shift != 0f0) ? est.esb_shift_pt : Float32[],
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
                       point_small_tpa = point_small, idup = idup, variant = s.variant,
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).

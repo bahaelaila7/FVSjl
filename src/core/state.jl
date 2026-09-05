@@ -734,11 +734,19 @@ mutable struct Establishment
                                 # run (getstd/putstd INTS(33)). When TRUE, estab.f SKIPS the ESB inventory-stocking
                                 # calibration in EVERY cycle (estab.f:319/511 IF(INADV.EQ.1.OR.NTALLY.NE.1)) — so a
                                 # bare-origin ingrowth tally uses PROB1 = logistic(PN) with NO ESB-ESB1 shift.
+    inv_point_baaold::Vector{Float32}  # ESFLTR BAAINV(NNID) for ALL stockable inventory points 1..NPTIDS — the
+                                # PER-POINT frozen inventory OVERSTORY (D≥REGNBK) BA. inv_baaold above is just its
+                                # element [1]. Needed because ESB1(NCOUNT)=ESTOCK(BAAINV(NNID)) is computed PER
+                                # POINT in estab.f (inside the per-plot loop), so the actual-vs-predicted stocking
+                                # correction ESB−ESB1(NCOUNT) is per-point. Empty = not snapshotted (non-IE).
+    esb_shift_pt::Vector{Float32}  # PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID), frozen at the calibrating
+                                # tally (INADV=0, first tally). The ingrowth per-point PROB1 uses this instead of the
+                                # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
-                                5.0f0, AddTreesActivity[], NaN32, false)
+                                5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[])
 
 mutable struct DbsState
     enabled::Bool

@@ -270,12 +270,20 @@ function snapshot_esb_inputs!(s::StandState)
     isnan(s.estab.inv_baaold) || return s              # snapshot once (setup)
     p, t = s.plot, s.trees
     scale = p.gross_space > 0f0 ? p.pi / p.gross_space : 1f0   # PTBAA scale (= point_basal_area!)
-    baold = 0f0
+    # PER-INVENTORY-POINT OVERSTORY BAAINV(NNID) (esfltr.f:67, D≥REGNBK): each stockable point accumulates its own
+    # frozen inventory overstory BA. ESB1(NCOUNT)=ESTOCK(BAAINV(NNID)) is per-point in estab.f, so the ESB−ESB1
+    # actual-vs-predicted stocking correction is per-point — a single stand/point-1 value over-corrects the open
+    # points of a heterogeneous multi-point stand (dense point 1 ⇒ +4 logit ⇒ the open points' ingrowth PROB1
+    # saturates ⇒ ~4× AUTOES over-production on M333 subalpine stands). MEASURED FVSie_g16 1856003217290487.
+    nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
+    ptbaold = zeros(Float32, nptids)
     @inbounds for i in 1:t.n
-        (t.dbh[i] >= 2.999f0 && Int(t.plot_id[i]) == 1) &&    # per-point (point 1) OVERSTORY BAAINV (ESB1 BAAOLD)
-            (baold += t.tpa[i] * 0.005454154f0 * t.dbh[i] * t.dbh[i] * scale)
+        t.dbh[i] >= 2.999f0 || continue                       # OVERSTORY (D≥REGNBK)
+        pid = Int(t.plot_id[i])
+        (1 <= pid <= nptids) && (ptbaold[pid] += t.tpa[i] * 0.005454154f0 * t.dbh[i] * t.dbh[i] * scale)
     end
-    s.estab.inv_baaold = baold
+    s.estab.inv_point_baaold = ptbaold
+    s.estab.inv_baaold = ptbaold[1]                           # point-1 value (scalar path / EM)
     return s
 end
 
