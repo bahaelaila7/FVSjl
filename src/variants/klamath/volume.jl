@@ -1,11 +1,14 @@
 # =============================================================================
 # volume.jl (klamath) — NC volume (chunk 8). NVEL Region-5/6, dispatched by VEQNNC geocode.
 #
-# NC's 12 species (VOLEQ confirmed BIT-EXACT vs live oracle nct01.out:68-70, from voleqdef.f R5_EQN):
-#   8 conifers + redwood = "500WO2W<fia>"  → Region-6 West-side Flewelling taper (r6vol.f)  [nc_wo2w_vol]
-#   4 hardwoods MA/BO/TO/OH = "500DVEW<fia>" → Region-5 DVE California hardwood D²H (r5harv.f) [nc_r5harv_vol]
-# nct01 = 100% conifers (SP/DF/WF/RF) ⇒ only the WO2W path is exercised for nct01 validation; the DVEW
-# hardwood path below is ported faithfully from r5harv.f but is NOT reachable on nct01 (no hardwood stand).
+# ⚠ NC's VEQNNC is FOREST/REGION-DEPENDENT (sitset.f → VOLEQDEF(VAR='NC',IREGN=KODFOR/100,FORST)):
+#   • REGION-5 forests (Klamath/Six Rivers/Trinity, IFOR 1-3) — the NC_VOL_EQ table below:
+#       8 conifers + redwood = "500WO2W<fia>"  → Region-5 Wensel-Krumland R5TAP taper (r5tap.f)  [nc_wo2w_vol]
+#       4 hardwoods MA/BO/TO/OH = "500DVEW<fia>" → Region-5 DVE California hardwood D²H (r5harv.f) [nc_r5harv_vol]
+#   • REGION-6 forest SISKIYOU (IFOR 4, forest 611) — the NC_R6_VOL_EQ table further down: westside Flewelling
+#       F06FW2W202 (DF) + INGY I00FW2W093/073 (WF/PP) + Region-6 Behre 616BEHW<fia> (all else). See that block.
+# nct01 = 100% conifers (SP/DF/WF/RF) on a Region-5 forest ⇒ exercises only the R5 WO2W path; the DVEW hardwood
+# path is ported faithfully from r5harv.f but not reachable on nct01 (no hardwood stand).
 #
 # Merch: NC grinit.f leaves TOPD/DBHMIN/STMP at 0/0/1 ⇒ the NVEL equation-default merch specs apply
 # (MTOPP resolved by the volume driver — see nc_wo2w_vol / the merch-top plumbing).
@@ -287,6 +290,84 @@ function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32)
 end
 
 # ---------------------------------------------------------------------------
+# NC REGION-6 (Siskiyou IFOR=4) volume — NVEL VOLEQDEF R6 branch, NOT R5.
+#
+# ROOT CAUSE of the large-tree WO2W total-cubic over-prediction: NC's VEQNNC is forest/region-dependent
+# (sitset.f → VOLEQDEF(VAR='NC',IREGN=KODFOR/100,FORST)). The 500WO2W/500DVEW table above is the REGION-5
+# assignment (forests Klamath/SixRivers/Trinity, IFOR 1-3). SISKIYOU (IFOR=4, forest 611, a Region-6 forest —
+# and its reservation crosswalks 8103/8105) instead gets the REGION-6 equations: westside Flewelling
+# F06FW2W202 (DF), INGY I00FW2W093/073 (WF/PP), and Region-6 Behre 616BEHW<fia> for everything else.
+# jl previously hardcoded the R5 table for ALL forests, so on Siskiyou stands large sound DF was computed with
+# the R5 Wensel-Krumland R5TAP taper (a much fatter stem) instead of the R6 Flewelling profile — +30% TCuFt at
+# D=54. VEQNNC table confirmed bit-exact vs FVSnc_g16 forest 611 (.out VOLEQ table); per-tree TVOL1 bit-exact
+# (D=54.4/H=221 DF: 827.4 == 827.4 vs the R5TAP 1075.3). The R6 kernels are shared NVEL and already ported for
+# WC (westside Flewelling wc_fw2_westside_vol / f_west.f SHP_W3) and BM/WC (Behre bm_r6vol3/r6dibs/r6vol1).
+# ---------------------------------------------------------------------------
+const NC_R6_VOL_EQ = String[
+    "616BEHW299",  # 1  OS  → Behre (other softwood → 299)
+    "616BEHW117",  # 2  SP  → Behre
+    "F06FW2W202",  # 3  DF  → westside Flewelling (F-model)
+    "I00FW2W093",  # 4  WF  → INGY (Engelmann-spruce profile 093)
+    "616BEHW361",  # 5  MA  → Behre
+    "616BEHW081",  # 6  IC  → Behre
+    "616BEHW818",  # 7  BO  → Behre
+    "616BEHW631",  # 8  TO  → Behre
+    "616BEHW020",  # 9  RF  → Behre
+    "I00FW2W073",  # 10 PP  → INGY (western-larch profile 073)
+    "616BEHW998",  # 11 OH  → Behre
+    "616BEHW211",  # 12 RW  → Behre
+]
+
+# SISKFC(sp, IFCDBH) form class (formcl.f:35-40, IFOR 4). Column = DBH class (1..5), row = species 1..12.
+# IFCDBH = INT((D-1)/10+1), clamp ≥1, D>40.9 → 5. Used only by the Region-6 Behre path.
+const NC_SISKFC = (
+    (91f0, 84f0, 79f0, 78f0, 78f0),  # 1  OS
+    (96f0, 91f0, 85f0, 83f0, 82f0),  # 2  SP
+    (90f0, 86f0, 81f0, 80f0, 80f0),  # 3  DF
+    (98f0, 90f0, 86f0, 85f0, 85f0),  # 4  WF
+    (98f0, 88f0, 84f0, 81f0, 80f0),  # 5  MA
+    (89f0, 89f0, 77f0, 73f0, 72f0),  # 6  IC
+    (98f0, 98f0, 98f0, 98f0, 98f0),  # 7  BO
+    (91f0, 91f0, 82f0, 80f0, 79f0),  # 8  TO
+    (92f0, 83f0, 80f0, 80f0, 79f0),  # 9  RF
+    (93f0, 89f0, 83f0, 81f0, 80f0),  # 10 PP
+    (95f0, 86f0, 78f0, 76f0, 75f0),  # 11 OH
+    (82f0, 82f0, 79f0, 78f0, 78f0),  # 12 RW
+)
+
+@inline function nc_siskfc(sp::Int, d::Float32)::Int
+    (sp < 1 || sp > 12) && return 80
+    ifc = Int(floor((d - 1f0) / 10f0 + 1f0))
+    ifc < 1 && (ifc = 1)
+    d > 40.9f0 && (ifc = 5)
+    Int(NC_SISKFC[sp][ifc])
+end
+
+# NC Region-6 Behre (616BEHW) per-tree volume. Total cubic via R6VOL3 (fvsvol.f→profile2.f:317-334, ZONE=1,
+# FC_HT=16.3 short-tree cylinder); merch VOL(4)/board VOL(2) via R6DIBS/R6VOL1 with NC TOPD=6.0 (·BARK IB top,
+# sitset.f DEFAULT). Reuses the shared bm_r6vol3/r6dibs/r6vol1 kernels + NC SISKFC form class.
+function nc_behre_vol(sp::Int, d::Float32, h::Float32, bark::Float32)
+    fc = nc_siskfc(sp, d)
+    dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+    vol2 = 0f0; vol4 = 0f0
+    v1 = if h <= 16.3f0
+        0.00272708f0 * dbhib * dbhib * h            # profile2.f:330 short-tree cylinder (TTH ≤ FC_HT)
+    else
+        v = bm_r6vol3(d, dbtbh, fc, h, 1)
+        mtopp = 6.0f0 * bark                         # NC TOPD=6.0 (sitset DEFAULT), inside-bark top
+        xlogs, ld1 = bm_r6dibs(d, fc, mtopp, h)
+        lv1, lv4 = bm_r6vol1(d, fc, xlogs, ld1)
+        nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
+        for k in 1:nacc
+            vol2 += bm_anint(lv1[k])
+            vol4 += bm_anint(lv4[k] * 10f0) / 10f0
+        end
+        v
+    end
+    return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
+end
+
+# ---------------------------------------------------------------------------
 # Driver — dispatch each species' VEQNNC by model type (WO2W vs DVEW).
 # ---------------------------------------------------------------------------
 function compute_volumes_nc!(s::StandState)
@@ -294,11 +375,34 @@ function compute_volumes_nc!(s::StandState)
     t = s.trees; sd = s.coef.species; c = s.control
     ncmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    isr6 = Int(s.plot.forest_idx) == 4       # SISKIYOU (IFOR 4, forest 611) = Region-6 VOLEQDEF branch
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 12
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
+        end
+        dbhmin0 = 9.0f0
+        hv0 = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+        if isr6
+            # Region-6 (Siskiyou): F06 westside Flewelling (DF) / I00 INGY (WF,PP) / 616 Behre (rest).
+            eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
+            bark = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+            local tcf6::Float32, mcf6::Float32, bf6::Float32
+            if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
+                tcf6, mcf6, bf6 = wc_fw2_westside_vol(eq6, d, hv0, bark; topd = 6.0f0, bftopd = 6.0f0)
+            elseif m6 == "FW2"                              # INGY (I00) — reuse cr_fw2_vol
+                v = cr_fw2_vol(eq6, d, hv0; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6)
+                tcf6 = max(v[1], 0f0); mcf6 = max(v[4] + v[7], 0f0); bf6 = max(v[2], 0f0)
+            else                                            # 616BEHW Behre
+                tcf6, mcf6, bf6 = nc_behre_vol(sp, d, hv0, bark)
+            end
+            tcf6, mcf6, bf6 = r4_topkill(t, i, sp, d, hv0, bark, tcf6, mcf6, bf6, ncmerch, _R4_TOPD6)
+            t.cuft_vol[i] = max(tcf6, 0f0)
+            t.merch_cuft_vol[i] = d >= dbhmin0 ? max(mcf6, 0f0) : 0f0
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= dbhmin0 ? max(bf6, 0f0) : 0f0
+            continue
         end
         eq = NC_VOL_EQ[sp]; mdl = eq[4:6]
         # nc/sitset.f:196-224 forest-default merch specs (IFOR 1 = Klamath 505 = DEFAULT case):
@@ -338,6 +442,18 @@ end
 # NVEL variants ⇒ bole==fall==TCF). Used by _snag_merch_cuft_on + the input/SNAGINIT/fire snag paths.
 function nc_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > 12) && return 0f0
+    if Int(s.plot.forest_idx) == 4              # SISKIYOU (Region-6): same VEQNNC dispatch as compute_volumes_nc!
+        eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
+        bark = nc_bratio(s.coef.species[:bark1][sp], s.coef.species[:bark2][sp],
+                         Int(s.coef.species[:bark_imap][sp]), d)
+        if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
+            return max(wc_fw2_westside_vol(eq6, d, h, bark; topd = 6.0f0, bftopd = 6.0f0)[1], 0f0)
+        elseif m6 == "FW2"
+            return max(cr_fw2_vol(eq6, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6)[1], 0f0)
+        else
+            return max(nc_behre_vol(sp, d, h, bark)[1], 0f0)
+        end
+    end
     eq = NC_VOL_EQ[sp]
     length(eq) < 6 && return 0f0
     v = eq[4:6] == "WO2" ? nc_wo2w_vol(eq, d, h) : nc_r5harv_vol(eq, d, h, 6.0f0)
