@@ -429,9 +429,11 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     end
                 end
             elseif sp == 19 || sp == 22
-                # CRVAR CO: HTGR=(HTGR1+ZZRAN·0.2)·XRHGRO (regent.f:815), XWT blend [0.5,2]. Diameter = dgf (not overridden).
+                # CRVAR CO/OH: HTGR=(HTGR1+ZZRAN·0.2)·XRHGRO (regent.f:815), XWT blend [0.5,2]. Diameter: D≥1 keeps
+                # the large-tree dgf (regent.f:859), D<1 gets the regent log-DK dub (see the D<1 block below).
                 h = t.height[i]
                 xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
                 htgr1 = wk3[i] - h
                 zzran = 0f0
                 if dgsd >= 1.0f0
@@ -449,15 +451,35 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 cap = s.control.sp_size_cap[sp, 4]
                 (h + htg > cap) && (htg = max(cap - h, 0.1f0))
                 t.ht_growth[i] = htg
-                # CRVAR CO DIAMETER (ie/regent.f:637-640): D<1 seedlings get the sub-breast-height nominal
-                # D2=D+0.0001·H2 (H2≤4.5) else D2=D — NOT the large-tree DG, which over-extrapolates a 0.1"
-                # seedling ⇒ dense hardwood-seedling BA over-growth (same bug fixed for EM CRVAR, 5116924).
-                # D≥1 keeps the large-tree DG (Fortran `IF(D.GE.1.0)GO TO 15`).
+                # CRVAR CO/OH DIAMETER (ie/regent.f:859-987). D≥1 keeps the large-tree DG (regent.f:859
+                # `IF(CRVAR.AND.D.GE.1.0)GOTO 23`). D<1 gets the regent log-DK Wykoff diameter growth — the
+                # SAME final-assembly path as UTVAR aspen (regent.f:899-912,956-982): DK/DKK from the blkdat
+                # HT-DBH curve, DGK=(DK−DKK)·BARK·XRDGRO on the DDS scale. (The prior stub used the SUBCYCLE
+                # density-feedback nominal D+0.0001·H2 — regent.f:640 — which FROZE the D<1 seedling diameter
+                # once HK>4.5 ⇒ dense OH under-grows. EM CRVAR uses SMDGF instead, so its port differs.)
                 if d < 1.0f0
-                    h2 = h + htg
-                    d2 = h2 <= 4.5f0 ? d + 0.0001f0*h2 : d
-                    dgnew = d2 - d; dgnew < 0f0 && (dgnew = 0f0)
-                    t.diam_growth[i] = dgnew
+                    hk = h + htg
+                    if hk < 4.5f0
+                        t.dbh[i] = d + 0.001f0*hk; t.diam_growth[i] = 0f0     # regent.f:883
+                    else
+                        bx = sd[:ht2][sp]                                      # blkdat Wykoff HT2 (regent.f:900)
+                        ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:901-905
+                        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
+                        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
+                        bark = ie_bratio(sp, d)
+                        if dk < 0f0 || dkk < 0f0                              # regent.f:957-959
+                            dgk = htg*0.2f0*bark*xrdgro
+                        else
+                            dgk = (dk - dkk)*bark*xrdgro                      # regent.f:961
+                        end
+                        dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)    # regent.f:963
+                        dgk < 0f0 && (dgk = 0f0)                              # regent.f:966
+                        dds = dgk*(2f0*bark*d + dgk)*scale2                   # regent.f:978-981 (DG(K)=DGK for CRVAR)
+                        dgv = sqrt((d*bark)^2 + dds) - bark*d                 # regent.f:982
+                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)   # regent.f:984-986
+                        dgv = dg_bound(nothing, nothing, sp, d, dgv, s.control.sp_size_cap)   # DGBND (regent.f:991)
+                        t.diam_growth[i] = dgv
+                    end
                 end
             end
             continue                                              # (all special species handled)
