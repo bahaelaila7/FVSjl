@@ -114,10 +114,12 @@ function _nc_r5_spec(fia::AbstractString)::Int
     return -1
 end
 
-"R5HARV DVE cubic (r5harv.f). Returns (tcuft VOL(1), merch-cuft VOL(4), topwood VOL(7)). `mtopp` = merch
-top DIB (TOPC): [3,5)→CV4, [5,7)→CV6, [7,9]→CV8, <3→CVT (whole stem). Misc-hardwood power-law branch
-(NC's MA/BO/TO/OH); juniper & giant-sequoia special branches included. Board/Intl (VOL(2)/VOL(10)) omitted
-(NC .sum reports cubic only for DVE; board handled by the driver if ever needed)."
+"R5HARV DVE cubic+board (r5harv.f). Returns (tcuft VOL(1), MERCH-cuft = VOL(4)+VOL(7), scribner-bf VOL(2)) —
+the FVS .sum aggregates MCF = VOL(4)+VOL(7) (fvsvol.f:512) and BDFT = VOL(2). `mtopp` = merch top DIB (TOPC):
+[3,5)→CV4, [5,7)→CV6, [7,9]→CV8, <3→CVT (whole stem). Misc-hardwood power-law branch (NC's MA/BO/TO/OH);
+juniper & giant-sequoia special branches included but unreachable in NC. ⚠ These are the FULL (unbroken-height)
+volumes — the driver applies CFTOPK/BFTOPK (r4_topkill) for broken tops exactly as fvsvol.f:193/391 does for
+METHC=6 (both WO2W conifers AND DVE hardwoods go through NATCRS→CFTOPK; the DVE path is NOT skipped)."
 function nc_r5harv_vol(voleq::AbstractString, d::Float32, h::Float32, mtopp::Float32)
     length(voleq) < 10 && return (0f0, 0f0, 0f0)
     d < 1f0 && return (0f0, 0f0, 0f0)
@@ -151,8 +153,32 @@ function nc_r5harv_vol(voleq::AbstractString, d::Float32, h::Float32, mtopp::Flo
                TOPC >= 7 && TOPC <= 9 ? cv8 :
                TOPC < 3 ? cvt : 0.0
     topwood = cv4 - cuftgros
-    mtopp > d && (cuftgros = 0.0)                      # r5harv.f:412 top>DBH ⇒ no merch
-    return (Float32(cvt), Float32(max(cuftgros,0.0)), Float32(max(topwood,0.0)))
+    # SCRIBNER board VOL(2) (r5harv.f:342-408). TOPB=MTOPP. D<11 ⇒ cubic×4 board/cube ratio; D≥11 ⇒ TARIF
+    # → RS616/SV616 (5"top) / SV816 (7"top). NC MTOPP∈[5,7) ⇒ CV6·4 / SV616.
+    board = 0.0
+    if D >= 5.0
+        if D < 11.0
+            board = (TOPC >= 5 && TOPC < 7) ? cv6*4.0 :
+                    (TOPC >= 7 && TOPC <= 9) ? cv8*4.0 : 0.0
+        else
+            ba = 0.005454154*D*D
+            tarif = (cv8*0.912733)/((0.983 - 0.983*0.65^(D-8.6))*(ba - 0.087266))
+            tarif <= 0.0 && (tarif = 0.01)
+            b4 = tarif/0.912733
+            dlog = log10(D); balog = log10(b4)
+            rs616l = 0.174439 + 0.117594*dlog*balog - 8.210585/D^2 +
+                     0.236693*balog - 0.00001345*b4^2 - 0.00001937*D^2
+            sv616 = (10.0^rs616l)*cv6
+            sv816 = (0.99 - 0.58*(0.484^(D-9.5)))*sv616
+            board = (TOPC >= 5 && TOPC < 7) ? sv616 :
+                    (TOPC >= 7 && TOPC <= 9) ? sv816 : 0.0
+        end
+    end
+    if mtopp > d                                        # r5harv.f:410-412 top>DBH ⇒ no merch/board
+        cuftgros = 0.0; board = 0.0
+    end
+    mcf = cuftgros + topwood                             # fvsvol.f:512 MCF = VOL(4)+VOL(7)
+    return (Float32(cvt), Float32(max(mcf,0.0)), Float32(max(board,0.0)))
 end
 
 # ---------------------------------------------------------------------------
@@ -424,10 +450,16 @@ function compute_volumes_nc!(s::StandState)
             t.saw_cuft_vol[i] = 0f0
             t.bdft_vol[i] = d >= dbhmin ? bf : 0f0
         else                                       # DVE — California hardwood D²H (r5harv.f), MTOPP=6
-            tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, 6.0f0)
+            # Full (unbroken-height NORMHT) cubic/merch/board, then CFTOPK/BFTOPK trim for broken tops:
+            # fvsvol.f METHC=6 → NATCRS sets VMAX=TCF & CTKFLG, then vols.f:193/391 CFTOPK/BFTOPK trim TCF/MCF
+            # & BDFT — the SAME top-kill path as the WO2W conifers (both are NVEL method 6). DVE is NOT skipped.
+            tcf, mcf, bf = nc_r5harv_vol(eq, d, hv, 6.0f0)
+            bark = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ncmerch, _R4_TOPD6)
             t.cuft_vol[i] = tcf
             t.merch_cuft_vol[i] = d >= dbhmin ? mcf : 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0   # DVE board deferred (no hardwood on nct01)
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= dbhmin ? bf : 0f0
         end
     end
     return s
