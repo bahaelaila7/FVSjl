@@ -243,6 +243,7 @@ region-4 DVE woodland path does NOT call this (fvsvol.f skips CFTOPK for DVE).
 # species-CSV `top_dib` (which is 4.0 for TT / 0.0 for CI — the secondary-product default, wrong for the broken-
 # top reduction). A 6.0-filled top vector keyed by species for the western MAT/FW2 broken-top path.
 const _R4_TOPD6 = fill(6.0f0, 64)
+const _R4_TOPD5 = fill(5.0f0, 64)                                       # NC IFOR 5,7 (Hoopa/BLM) TOPD=5.0
 const _BM_TOPD45 = fill(4.5f0, 64)                                       # BM grinit TOPD=4.5
 
 @inline function r4_topkill(t, i::Integer, sp::Integer, d::Float32, h::Float32, bark::Float32,

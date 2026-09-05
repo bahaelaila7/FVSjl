@@ -394,6 +394,171 @@ function nc_behre_vol(sp::Int, d::Float32, h::Float32, bark::Float32)
 end
 
 # ---------------------------------------------------------------------------
+# NC REGION-7 (HOOPA IFOR=5, forest 705) volume — NVEL BLMVOL (Behre-hyperbola BLM taper, blmtap.f/blmvol.f).
+#
+# ROOT CAUSE of the +16-22% TCuFt / −8-23% BdFt on the 57 LOC-705 stands: NC's VEQNNC is forest/region-
+# dependent (sitset.f → VOLEQDEF(VAR='NC',IREGN=KODFOR/100,FORST)). Forest 705 = HOOPA, IREGN=7, FORST='05'
+# ⇒ VOLEQDEF returns B00BEHW<fia> (DF = B01BEHW202) — the BLM Oregon volume routines (volinit.f:366 → BLMVOL
+# → blmtap.f BEHRE'S HYPERBOLA), NOT the Region-5 WO2W/DVE table (IFOR 1-3) nor the Region-6 Behre (IFOR 4).
+# jl previously had no IFOR-5 branch ⇒ fell through to the R5 WO2W taper (fatter stem, R5 board rules) ⇒ the
+# one-directional cyc0 volume error. FORMCL (formcl.f) leaves FC=80 for IFOR 5 (neither SISKFC-4 nor BLM712-7).
+# Merch specs for IFOR 5,7 (sitset.f CASE(5,7)): DBHMIN=9.0, TOPD=BFTOPD=5.0 (inside-bark top = 5.0·BARK).
+#
+# The driver (fvsvol.f NATCRS, IREGN=7) calls BLMVOL twice: (1) cubic — MTOPP=TOPD·BARK=5·BARK, BFPFLG=0,
+# CUPFLG=1 ⇒ VOL(1) total cubic (BLMTCUB) + VOL(4) merch cubic; (2) board — MTOPP=BFTOPD·BARK=5·BARK,
+# BFPFLG=1 ⇒ VOL(2) Scribner. Both MTOPP identical (TOPD==BFTOPD==5) ⇒ one pass yields VOL(1)/VOL(4)/VOL(2).
+# STUMP is hard-wired to 1.0 inside BLMVOL. Broken tops trimmed by CFTOPK/BFTOPK (r4_topkill), METHC=6.
+# ---------------------------------------------------------------------------
+
+# VEQNNC/VEQNNB for forest 705 (VOLEQDEF VAR=NC IREGN=7 FORST=05). CONFIRMED bit-exact vs FVSnc_g16 705 .out.
+const NC_R7_VOL_EQ = String[
+    "B00BEHW999",  # 1  OS
+    "B00BEHW117",  # 2  SP
+    "B01BEHW202",  # 3  DF
+    "B00BEHW015",  # 4  WF
+    "B00BEHW361",  # 5  MA
+    "B00BEHW081",  # 6  IC
+    "B00BEHW800",  # 7  BO
+    "B00BEHW631",  # 8  TO
+    "B00BEHW021",  # 9  RF
+    "B00BEHW122",  # 10 PP
+    "B00BEHW999",  # 11 OH
+    "B00BEHW211",  # 12 RW
+]
+
+# BLMTHT(4,10): Behre's-hyperbola "A" coefficients (B0,B1,B2,B3) per PROFILE index 1..10 (blmtap.f:19-38).
+const NC_BLMTHT = (
+    (0.6448f0,  -0.00196f0, 0.0f0,      0.0f0),        # 1  DF coast (zone 01)
+    (0.6096f0,  -0.00196f0, 0.0f0,      0.0f0),        # 2  DF cascade (zone 02)
+    (0.31385f0,  0.0f0,     0.002985f0, -0.00003386f0),# 3  PP (10,11)
+    (0.4779f0,   0.0f0,     0.0f0,      0.0f0),        # 4  SP (13)
+    (0.5455f0,  -0.00196f0, 0.0f0,      0.0f0),        # 5  WWP (14)
+    (0.45648f0,  0.00289f0, 0.0f0,      0.0f0),        # 6  WF-west/grand (31 zone1,33)
+    (0.6014f0,   0.0f0,     0.0f0,      0.0f0),        # 7  red/silver/noble fir (32,34,35)
+    (0.54568f0,  0.0f0,     0.0f0,      0.00000546f0), # 8  hemlock (48)
+    (0.4606f0,   0.0f0,     0.0f0,      0.0f0),        # 9  cedars/larch (51,54,55)
+    (0.6200f0,   0.0f0,     0.0f0,      0.0f0),        # 10 all other species
+)
+
+# Per-species (PROFILE, TAPEQU) for forest 705, from BLMTAPEQ(VOLEQ) (blmvol.f:937-1070) on NC_R7_VOL_EQ.
+# PROFILE selects BLMTHT taper coefficients; TAPEQU selects the DOUBLE_BARK equation.
+const NC_R7_PROFILE = (10, 4, 1, 10, 10, 9, 10, 10, 7, 3, 10, 10)
+const NC_R7_TAPEQU  = (56, 13, 1, 31, 25, 51, 29, 21, 32, 11, 56, 5)
+
+"BLMTAP (blmtap.f:71-95, TLH=0 feet branch): inside-bark DIB (in) at height `htup` on a stem of DBH `dbhob`,
+TOTAL height `tth` (=tree height + 1.5 stump), form-class DIB-at-17ft `d17`. Behre's hyperbola. REAL(F32)."
+@inline function nc_blmtap_dib(profile::Int, dbhob::Float32, tth::Float32, htup::Float32, d17::Float32)::Float32
+    hbutt = tth - (16.3f0 + 1.5f0)               # HBUTT = HTTOT - (XLEN + 1.5), XLEN=16.3
+    hbutt <= 0f0 && return 0f0
+    htdib = tth - htup
+    c = NC_BLMTHT[profile]
+    a = c[1] + c[2] * dbhob + c[3] * tth + c[4] * dbhob * tth
+    b = 1f0 - a
+    r = htdib / hbutt
+    return d17 * (r / (a * r + b))
+end
+
+"DOUBLE_BARK (blmvol.f:838-934): the large-end DIB @ breast height from DBHOB, keyed by TAPEQU."
+@inline function nc_blm_double_bark(tapequ::Int, dbhob::Float32)::Float32
+    (tapequ == 1  || tapequ == 2  || tapequ == 3 || tapequ == 5 || tapequ == 35) &&
+        return 0.903563f0 * fpow(dbhob, 0.989388f0)          # Douglas-fir (Larsen & Hann)
+    (tapequ == 11 || tapequ == 12) && return 0.809427f0 * fpow(dbhob, 1.016866f0)  # ponderosa/Jeffrey
+    (tapequ == 13 || tapequ == 14) && return 0.859045f0 * dbhob                    # sugar/W white pine
+    tapequ == 15 && return dbhob - (0.3147f0 + 0.0274f0 * dbhob)                   # lodgepole
+    (tapequ == 20 || tapequ == 25) && return -0.03425f0 + 0.98155f0 * dbhob        # yew/madrone
+    tapequ == 21 && return -4.36852f0 + 0.95354f0 * dbhob + 0.18307f0 * 4.5f0      # tanoak
+    (tapequ == 22 || tapequ == 23 || tapequ == 24 || tapequ == 26 || tapequ == 27) &&
+        return 0.39534f0 + 0.90182f0 * dbhob                 # red alder/myrtle/bigleaf maple/chinkapin/ash
+    (tapequ == 28 || tapequ == 29) && return -0.78034f0 + 0.95956f0 * dbhob        # cottonwood/oak
+    (tapequ == 31 || tapequ == 33) && return 0.904973f0 * dbhob                    # white/grand fir
+    (tapequ == 32 || tapequ == 34) && return 0.86951f0 * fpow(dbhob, 1.00983f0)    # red/silver fir (Dolph)
+    (tapequ == 41 || tapequ == 42) && return dbhob - (0.2113f0 + 0.0445f0 * dbhob) # Engelmann/Sitka spruce
+    (tapequ == 48 || tapequ == 56) && return dbhob / 1.071f0                       # hemlock/misc
+    (tapequ == 52 || tapequ == 54) && return dbhob / 1.053f0                       # AK yellow/W red cedar
+    (tapequ == 51 || tapequ == 53) && return 0.837291f0 * dbhob                    # incense/PO cedar
+    tapequ == 55 && return dbhob - (0.1231f0 + 0.1306f0 * dbhob)                   # W larch
+    return 0f0
+end
+
+"BLMMLEN (blmvol.f:710-762): merchantable length stump→`top`-diameter, 0.1-ft binary search on the
+tenth-inch-truncated Behre DIB (TOP1=AINT(TOP·10); DIB=AINT((D2+0.005)·10)). `dibat`=height→DIB closure."
+@inline function nc_blmmlen(dibat, top::Float32, tth::Float32, stump::Float32)::Float32
+    top1 = trunc(top * 10f0)                     # AINT(TOP*10)
+    first = 1; last = trunc(Int, tth + 0.5f0) * 10
+    @inbounds while first != last
+        half = (first + last + 1) ÷ 2
+        d2 = dibat(Float32(half) / 10f0)
+        d2t = trunc((d2 + 0.005f0) * 10f0)       # AINT((D2+0.005)*10)
+        top1 <= d2t ? (first = half) : (last = half - 1)
+    end
+    lmerch = Float32(first) / 10f0 - stump
+    return lmerch < 0f0 ? 0f0 : lmerch
+end
+
+"BLMGDIB (blmvol.f:768-832): the small-end DIB of each of `numseg` logs (LOGDIA(i+1,2)). Butt log large end
+is DBHIB (handled by caller). Heights advance by TRIM+LOGLEN from a 1-ft stump; top log forced ≥ `top`."
+@inline function nc_blmgdib(dibat, top::Float32, stump::Float32, trim::Float32, numseg::Int, loglen)::Vector{Float32}
+    ld = Vector{Float32}(undef, numseg)
+    hgt2 = stump
+    @inbounds for i in 1:numseg
+        hgt2 += trim + loglen[i]
+        ld[i] = dibat(hgt2)
+    end
+    @inbounds (ld[numseg] < top) && (ld[numseg] = top)
+    return ld
+end
+
+"BLMVOL (blmvol.f) per-tree BLM Oregon volume for forest 705 (Behre-hyperbola taper, FC=80). Returns
+(tcuft VOL(1), merch-cuft VOL(4), scribner-bf VOL(2)). `bark`=DIB/DOB (nc_bratio) ⇒ MTOPP=5·BARK inside-bark
+merch/board top. The FULL (unbroken NORMHT) volumes; the driver applies r4_topkill (CFTOPK/BFTOPK) for
+broken tops. VOL(1) is UNROUNDED (BLMTCUB, unlike profile.f TCUBIC's NINT·10/10). Small-tree cylinder for
+TTH≤17.8 or when the DIB at 17.3 ft < MTOPP."
+function nc_blmvol_vol(sp::Int, d::Float32, h::Float32, bark::Float32)
+    (d < 1f0 || h <= 0f0) && return (0f0, 0f0, 0f0)    # DBHOB<=0 (errflag3) / HTTOT<=0 (errflag4) ⇒ all zero
+    profile = NC_R7_PROFILE[sp]; tapequ = NC_R7_TAPEQU[sp]
+    dbhib = nc_blm_double_bark(tapequ, d)
+    dbhib <= 0.0001f0 && return (0f0, 0f0, 0f0)         # errflag14 RETURN
+    mtopp = 5.0f0 * bark                                # MTOPP = TOPD(=5.0)·BARK (inside-bark)
+    mtopp <= 0f0 && (mtopp = floor(0.184f0 * d + 2.24f0 + 0.5f0))   # BLMVOL default (anint), unreachable here
+    tth = h + 1.5f0                                     # TTH = HTTOT + 1.5 (total ht incl 1.5 stump)
+    # small-tree cubic-cylinder fixes (blmvol.f:319-335)
+    if tth <= 17.8f0
+        return (0.00272708f0 * dbhib * dbhib * tth, 0f0, 0f0)
+    else
+        smd17 = trunc(sqrt(dbhib * dbhib - dbhib * dbhib * 17.3f0 / tth) + 0.5f0)   # AINT(SQRT(...)+0.5)
+        smd17 < mtopp && return (0.00272708f0 * dbhib * dbhib * tth, 0f0, 0f0)
+    end
+    d17 = floor(d * 80f0 / 100f0 + 0.5f0)              # ANINT((DBHOB*FCLASS)/100), FCLASS=80
+    dibat = ht -> nc_blmtap_dib(profile, d, tth, Float32(ht), d17)
+    tcf = _fw2_tcubic(dibat, tth)                      # BLMTCUB total cubic (UNROUNDED for BLM)
+    # merch/board (BLM segmentation: OPT=23, EVOD=2, MAXLEN=16, MINLEN=8, TRIM=0.3, MERCHL=8, STUMP=1.0)
+    stump = 1.0f0; trim = 0.3f0; maxlen = 16f0; minlen = 8f0; merchl = 8f0
+    mcf = 0f0; bf = 0f0
+    lmerch = nc_blmmlen(dibat, mtopp, tth, stump)
+    if lmerch >= merchl
+        numseg = _nvb_numlog(23, 2, lmerch, maxlen, minlen, trim)
+        if numseg > 0
+            loglen, numseg = _nvb_segmnt(23, 2, lmerch, maxlen, minlen, trim, numseg)
+            if numseg > 0
+                ld = nc_blmgdib(dibat, mtopp, stump, trim, numseg, loglen)
+                dibl = floor(dbhib + 0.5f0)            # ANINT(LOGDIA(1,2)=DBHIB) — butt log large end
+                @inbounds for i in 1:numseg
+                    dibs = floor(ld[i] + 0.5f0)        # ANINT(LOGDIA(i+1,2))
+                    logv = 0.00272708f0 * (dibl * dibl + dibs * dibs) * loglen[i]
+                    mcf += floor(logv * 10f0 + 0.5f0) / 10f0                # ANINT(LOGV*10)/10
+                    dibl = dibs
+                end
+                @inbounds for i in 1:numseg
+                    dib = floor(ld[i] + 0.5f0)         # ANINT small-end for Scribner class
+                    bf += floor(_scrib(dib, loglen[i], 'N') + 0.5f0)       # ANINT(SCRIB), COR='N'
+                end
+            end
+        end
+    end
+    return (max(tcf, 0f0), max(mcf, 0f0), max(bf, 0f0))
+end
+
+# ---------------------------------------------------------------------------
 # Driver — dispatch each species' VEQNNC by model type (WO2W vs DVEW).
 # ---------------------------------------------------------------------------
 function compute_volumes_nc!(s::StandState)
@@ -402,6 +567,7 @@ function compute_volumes_nc!(s::StandState)
     ncmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     isr6 = Int(s.plot.forest_idx) == 4       # SISKIYOU (IFOR 4, forest 611) = Region-6 VOLEQDEF branch
+    isr7 = Int(s.plot.forest_idx) == 5       # HOOPA (IFOR 5, forest 705, Region 7) = BLMVOL Behre branch
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 12
@@ -410,6 +576,17 @@ function compute_volumes_nc!(s::StandState)
         end
         dbhmin0 = 9.0f0
         hv0 = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+        if isr7
+            # Region-7 (Hoopa 705): NVEL BLMVOL (Behre-hyperbola BLM taper), FC=80, TOPD=5.0.
+            bark = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+            tcf7, mcf7, bf7 = nc_blmvol_vol(sp, d, hv0, bark)
+            tcf7, mcf7, bf7 = r4_topkill(t, i, sp, d, hv0, bark, tcf7, mcf7, bf7, ncmerch, _R4_TOPD5)
+            t.cuft_vol[i] = max(tcf7, 0f0)
+            t.merch_cuft_vol[i] = d >= dbhmin0 ? max(mcf7, 0f0) : 0f0
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= dbhmin0 ? max(bf7, 0f0) : 0f0
+            continue
+        end
         if isr6
             # Region-6 (Siskiyou): F06 westside Flewelling (DF) / I00 INGY (WF,PP) / 616 Behre (rest).
             eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
@@ -474,6 +651,11 @@ end
 # NVEL variants ⇒ bole==fall==TCF). Used by _snag_merch_cuft_on + the input/SNAGINIT/fire snag paths.
 function nc_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > 12) && return 0f0
+    if Int(s.plot.forest_idx) == 5              # HOOPA (Region-7 705): BLMVOL Behre total cubic VOL(1)
+        bark = nc_bratio(s.coef.species[:bark1][sp], s.coef.species[:bark2][sp],
+                         Int(s.coef.species[:bark_imap][sp]), d)
+        return max(nc_blmvol_vol(sp, d, h, bark)[1], 0f0)
+    end
     if Int(s.plot.forest_idx) == 4              # SISKIYOU (Region-6): same VEQNNC dispatch as compute_volumes_nc!
         eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
         bark = nc_bratio(s.coef.species[:bark1][sp], s.coef.species[:bark2][sp],

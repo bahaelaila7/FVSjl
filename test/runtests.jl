@@ -60,6 +60,7 @@ using FVSjl
     include("unit/test_nc_mortality.jl")   # NC/Klamath NWCMRT density-mortality distribution (nc/nwcmrt.f) — percentile/tolerance concentration + QMD loop; fixes mature over-max-SDI TPA ~3× under-kill
     include("unit/test_nc_smalltree_crown.jl")  # NC/Klamath small-tree growth cascade (nc/htgr5.f CR scale + floor; nc/dubscr.f + LSTART crown dub) — fixes extreme-dense >10k-TPA seedling self-thin under-kill
     include("unit/test_nc_r6_volume.jl")   # NC/Klamath Region-6 (SISKIYOU IFOR 4) VEQNNC fix: westside Flewelling F06FW2W202 DF + INGY + Behre 616BEHW — fixes large-tree total-cubic over-prediction (+30% at D=54) vs FVSnc_g16 forest 611
+    include("unit/test_nc_r7_blmvol.jl")   # NC/Klamath Region-7 (HOOPA IFOR 5, forest 705) VEQNNC fix: NVEL BLMVOL Behre-hyperbola BLM taper (blmtap.f) B00BEHW/B01BEHW — fixes cyc0 TCuFt +16-22% / BdFt −8-23% vs FVSnc_g16 forest 705 (57 stands)
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant
