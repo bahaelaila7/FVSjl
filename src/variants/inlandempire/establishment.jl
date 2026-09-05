@@ -2057,6 +2057,14 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.crown_ratio[n] = Float32(icr0)
         t.norm_ht[n]     = Int32(0)
         t.sort_key[n]    = Float64(n)
+        # Newly-established AUTOES trees carry NO volume in their birth cycle. Zero the volume fields so the
+        # post-ESTAB .sum does not sum a STALE value inherited from this slot's prior occupant (a dead inventory
+        # tree or a previously-removed record — compute_volumes! writes cuft_vol over 1:(n+ndead)). Mirrors the
+        # esuckr.f sprout path's "the slot may hold a previously-deleted record" zeroing; without it an all-dead-
+        # inventory (HISTORY=6) + heavy-AUTOES stand over-reports TCuFt/MCuFt/BdFt (a 0.1" seedling summing tens
+        # of cuft). Correct volume is filled by next cycle's compute_volumes!.
+        t.cuft_vol[n]       = 0f0; t.merch_cuft_vol[n] = 0f0
+        t.saw_cuft_vol[n]   = 0f0; t.bdft_vol[n]       = 0f0
         created = true
     end
     created || return false

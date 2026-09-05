@@ -611,6 +611,16 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
                 t.sort_key[n]    = Float64(n)
+                # Newly-established trees carry NO volume in their birth cycle (FVS: VOLS runs BEFORE the new
+                # records are inserted — see grow_cycle! note "regen first gets volume from the next cycle's
+                # VOLS"). Zero the volume fields so the post-ESTAB .sum does not sum a STALE value inherited from
+                # this array slot's prior occupant — a DEAD inventory tree (compute_volumes! writes cuft_vol over
+                # 1:(n+ndead), so slots n+1…n+ndead hold real dead-tree volume) or a removed record. Without this,
+                # an all-dead-inventory (HISTORY=6) + heavy-ESTAB stand (EM/IE) over-reports TCuFt/MCuFt/BdFt by
+                # the reused slot's volume (a 0.1" seedling summing 22 cuft ⇒ 2600 cuft/acre). Correct volume is
+                # filled by next cycle's compute_volumes!.
+                t.cuft_vol[n]       = 0f0; t.merch_cuft_vol[n] = 0f0
+                t.saw_cuft_vol[n]   = 0f0; t.bdft_vol[n]       = 0f0
                 created = true
             end
         end
