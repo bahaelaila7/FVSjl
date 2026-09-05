@@ -64,7 +64,11 @@ function height_growth!(s::StandState, ::Klamath; scale::Float32 = 1.0f0)
         local htg::Float32
         if sp == 12                                    # REDWOOD
             brat = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
-            dg10 = h < 4.5f0 ? 0.1f0 : dglt / brat
+            # nc/htgf.f:156-161 — DGLT (the per-cycle large-tree DG) is scaled to a 10-YEAR increment
+            # (DGLT·2) BEFORE the outside-bark conversion DG10 = DGLT/BRAT. The ·2 was MISSING ⇒ DG10 half
+            # of FVS ⇒ redwood large-tree HTG understated (log(DG10) term), leaving RW stands short even
+            # after the site-index fix.
+            dg10 = h < 4.5f0 ? 0.1f0 : (dglt * 2f0) / brat
             lthtg = exp(1.412947f0 - 0.000204f0 * d * d + 0.31971f0 * log(d) +
                         0.394005f0 * log(si) + 0.399888f0 * log(dg10) - 0.451708f0 * log(h)) * 0.5f0
             hgbnd = h < 217.0f0 ? 1.0f0 :

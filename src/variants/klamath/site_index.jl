@@ -21,11 +21,46 @@ function nc_forkod!(p)
 end
 
 # nc/sitset.f site-index species defaults (SI array): the per-species site index when NO SITECODE, with the
-# site species (ISISP default = DF sp3) at 90. MEASURED from live nct01.out (DF=90, SP/PP=100, rest 90) — the
-# HTCALC-based DF→species conversion (sitset.f DO 30) reduces to these for the default DF-site-species=90 case.
-# (Stands WITH a SITECODE set p.sp_site_index directly; the full HTCALC conversion for a non-default site
-#  species/index is a follow-up — nct01 + the common no-SITECODE case uses these defaults.)
-const NC_SITE_DEFAULT = Float32[90,100,90,90,90,90,90,90,90,100,90,90]
+# nc/sitset.f DO 30/35 site-index conversion (SICHG + HTCALC): the site species' index (ISISP, default DF sp3
+# at 90) is converted to a per-species site index via a height-at-age curve. SICHG gives each species' site
+# age SIAGE; HTCALC evaluates the SITE SPECIES' potential-height curve at that age. This REPLACES the old
+# hardcoded NC_SITE_DEFAULT=[90,100,90,…] (measured/rounded from the DF=90 default only) — that was wrong for
+# any stand whose DB site index ≠ 90 (the CA redwood/hardwood stands), giving redwood SITEAR 90 vs the oracle's
+# 109.976 at DF site 110 ⇒ a redwood htgr5 (small-tree height) + sp12 DGCON (ln SITEAR) diameter error.
+
+# SICHG (nc/sichg.f): per-species site AGE from the reference species' site index. REFLOC = total-age ('T':
+# SP sp2, PP sp10) vs breast-height-age ('B': all others) basis; the age slides to align the reference.
+const NC_SICHG_B      = Float32[-0.08,-0.05,-0.08,-0.07,-0.02,-0.05,-0.05,-0.03,-0.06,-0.05,-0.03,-0.08]
+const NC_SICHG_A      = Float32[10,12,10,10,3,10,6,4,10,12,4,10]
+const NC_SICHG_SIMIN  = Float32[50,40,50,30,50,30,30,50,30,40,50,50]
+const NC_SICHG_SIMAX  = Float32[150,120,150,130,100,130,70,90,130,120,90,150]
+const NC_SICHG_IREFAG = 50f0
+
+# REFLOC: 'T' (total-age) basis for SP (sp2) and PP (sp10); 'B' (breast-height age) for all others (sichg.f).
+@inline _nc_refloc_t(sp::Int) = sp == 2 || sp == 10
+
+"nc/sichg.f SICHG — per-species site age SIAGE from the site species (isisp) index ssite."
+function nc_sichg(isisp::Int, ssite::Float32)::NTuple{12,Float32}
+    ref_t = _nc_refloc_t(isisp)
+    temsi = ssite
+    smin = NC_SICHG_SIMIN[isisp]; smax = NC_SICHG_SIMAX[isisp]
+    spread = smax - smin
+    ntuple(12) do i
+        tgt_t = _nc_refloc_t(i)
+        # IDIFF: +1 if ref='B' & tgt='T'; -1 if ref='T' & tgt='B'; 0 if same basis (sichg.f:38-40)
+        idiff = (!ref_t && tgt_t) ? 1 : (ref_t && !tgt_t) ? -1 : 0
+        age2bh = 0f0
+        if idiff != 0
+            ts = temsi < smin ? smin : temsi > smax ? smax : temsi
+            relsi = 100f0 * (ts - smin) / spread
+            age2bh = NC_SICHG_A[i] + NC_SICHG_B[i] * relsi
+        end
+        NC_SICHG_IREFAG + age2bh * idiff
+    end
+end
+
+# HTCALC is nc_htcalc (defined in height_growth.jl, the htcalc.f port) — the DO 30 loop evaluates the
+# SITE SPECIES' (ISISP) curve at each target species' site age.
 
 # nc/sitset.f SDIDEF fan (chunk 7): C6 = R6 per-species SDImax-ratio basis (IFOR 4/7 = Siskiyou 611 / BLM
 # Coos Bay 712); C5 = the non-R6 fallback SDImax; FORMAX = SDImax cap; PMSDIU (nc/grinit.f:239) = BAMAX→%.
@@ -105,9 +140,15 @@ function nc_sitset!(s::StandState)
     if (ifor == 4 || ifor == 7) && all(isspace, s.control.sdi_method)
         s.control.zeide_sdi = false
     end
-    isisp = Int(p.site_species); isisp == 0 && (isisp = 3)     # sitset.f: ISISP default = 3 (DF)
+    isisp = Int(p.site_species); isisp == 0 && (isisp = 3)     # sitset.f:119 ISISP default = 3 (DF)
+    sref = p.sp_site_index[isisp]
+    sref <= 0f0 && (sref = 90f0; p.sp_site_index[isisp] = 90f0) # sitset.f:120 reference SI default = 90
+    # sitset.f DO 30/35 — fill each UNSET species' site index from the site species' index via the
+    # SICHG (site age) + HTCALC (site-species height-at-age curve) conversion. A species whose SITEAR was
+    # already set (site species / keyword / DB) keeps it (sitset.f:152 `IF(SITEAR(I).EQ.0.)`).
+    siage = nc_sichg(isisp, sref)
     @inbounds for i in 1:12
-        p.sp_site_index[i] <= 0f0 && (p.sp_site_index[i] = NC_SITE_DEFAULT[i])
+        p.sp_site_index[i] <= 0f0 && (p.sp_site_index[i] = nc_htcalc(sref, isisp, siage[i]))
     end
     # R6 ECOCLS PA seed (nc/sitset.f:82-113): seed each PA species' SDImax; SDIDEF(ISISP)=RSDI on IFLAG=1.
     jsisp = 0

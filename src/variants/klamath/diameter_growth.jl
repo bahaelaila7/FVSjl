@@ -86,15 +86,14 @@ const NC_DGSLOP = Float32[0.63500,0.0,0.46468,0.58937,-1.29627,0.0,0.85815,0.735
 const NC_DGSLSQ = Float32[-1.09400,0.0,-0.87145,-1.05045,0.87335,0.0,-1.17209,-0.99561,0.0,0.0,-0.99561,0.0]
 
 # NC bark BRATIO: eqtype 1 DBT=a+b·D→(D−DBT)/D ; 2 DIB=a+b·D→DIB/D ; 3 DIB=a·D^b→a·D^(b−1) [POWER].
+# nc/bratio.f:59 floors the ratio at 0.80 for EVERY species — the redwood (POWER) ratio drops well below
+# 0.80 at small D (0.71 at D=1.3) and the floor is what the oracle actually uses.
 @inline function nc_bratio(a::Float32, b::Float32, eqtype::Int, d::Float32)
     d <= 0f0 && return 0.99f0
-    if eqtype == 1
-        return (d - (a + b * d)) / d
-    elseif eqtype == 2
-        return (a + b * d) / d
-    else
-        return (a * d^b) / d
-    end
+    r = eqtype == 1 ? (d - (a + b * d)) / d :
+        eqtype == 2 ? (a + b * d) / d :
+                      (a * d^b) / d
+    return r < 0.80f0 ? 0.80f0 : r
 end
 
 "NC DGCONS: per-species DGCON (nc/dgf.f ENTRY DGCONS), 3 branches. Stored in c.dg_const[sp]."

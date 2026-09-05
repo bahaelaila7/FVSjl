@@ -1150,6 +1150,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # linear fallback (bark_a/bark_b=0) would floor to 0.80 vs on_bratio's
                                              # ~0.91-0.96, understating d_ib ⇒ over-high DG. dgf! formed WK2 with
                                              # on_bratio, so this conversion MUST use on_bratio too (same family).
+    _nc_rw_dg = s.variant isa Klamath          # NC redwood (sp12) bark = nc_bratio (POWER, floored 0.80). The
+                                               # linear bark_a/bark_b cache is a 0.9 PLACEHOLDER for RW (not
+                                               # linear-encodable) ⇒ d_ib overstated ⇒ the large-tree RW DG
+                                               # (which feeds htgf's DG10 → RW height) understated. BO/TO keep
+                                               # the linear cache (bit-exact). nc/dgdriv.f uses BRATIO(ISPC,…).
     _so_dg = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path) — DDS→DG conversion
                                              # understated d_ib ⇒ same DDS gave a LARGER DG ⇒ cat01 ~+6% BA/cyc over-growth
                                              # ⇒ DDS→DG (sqrt(d_ib²+DDS)−d_ib) OVER-predicts ~2%/tree ⇒ the multi-cycle
@@ -1274,6 +1279,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                    (_ec_dg || _ca_dg) ? wc_bratio(sd, Int(sp), t.dbh[i]) :
                    _so_dg ? so_bratio(sd, Int(sp), t.dbh[i]) :
                    _on_dg ? on_bratio(Int(sp), t.dbh[i], t.height[i]) :   # dgdriv.f:201 BRATIO(ISPC,DBH,HT), original DBH
+                   (_nc_rw_dg && sp == 12) ? nc_bratio(sd[:bark1][12], sd[:bark2][12], Int(sd[:bark_imap][12]), t.dbh[i]) :
                    _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length

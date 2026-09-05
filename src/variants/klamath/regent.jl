@@ -66,6 +66,15 @@ end
     return ddg
 end
 
+"NC redwood (sp12) small-tree DG blend + DIAM floor + DGBND for one record (regent.f:305-327): DG =
+DGSM·(1−XDWT) + DGLT·XDWT, where DGLT is THIS record's large-tree DG (central/upper/lower differ under tripling)."
+@inline function _nc_rw_blend(dgsm2::Float32, xdwt::Float32, dglt::Float32, d::Float32,
+                              sp::Int, cap1::Float32, cap3::Float32)::Float32
+    dg = dgsm2 * (1f0 - xdwt) + dglt * xdwt
+    (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)     # regent.f:319 DIAM floor
+    return nc_dgbnd(sp, d, dg, cap1, cap3)                     # regent.f:327 DGBND
+end
+
 """nc/regent.f LSTART calibration (DO 90 loop): the small-tree HEIGHT-increment CON = RHCON·exp(HCOR).
 HCOR = ln(CORNEW), CORNEW = Σ(observed·P)/Σ(predicted·P) over DBH<5 trees with a measured HTG — observed =
 the measured height increment scaled to 5-yr (HTG·SCALE3, SCALE3=REGYR/FINTH), predicted = the raw HTGR5 on
@@ -137,6 +146,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
     scale2 = NC_REGYR / fint         # regent.f:126 SCALE2=YR/FNT (=1 for the native 5-yr NC cycle)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     hcor = s.calib.htg_cor_small     # regent.f:159 CON = RHCON(=1)·exp(HCOR)
+    trip = stash !== nothing         # tripling active: replicate the small-tree DG/HTG onto upper/lower records
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -161,11 +171,15 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         t.ht_growth[i] = htg
         # small-tree DG (D < DGMIN): HT-DBH (SISKIY) DK/DKK (regent.f:243-320).
         if d < NC_ST_DGMIN[sp]
+            cap1 = s.control.sp_size_cap[sp, 1]; cap3 = s.control.sp_size_cap[sp, 3]
             hk = h + htg
             if hk <= 4.5f0
                 # regent.f:245-247 — DBH(K)=D+HK·0.001, DG(K)=0 (tiny sub-breast-height nudge).
                 t.dbh[i] = d + hk * 0.001f0
                 t.diam_growth[i] = 0f0
+                if trip                                 # tripled records: same nudge ⇒ DG=0 (regent.f re-entry)
+                    stash.dgU[i] = 0f0; stash.dgL[i] = 0f0
+                end
             else
                 dk = nc_htdbh_d(sp, hk)
                 dkk = h <= 4.5f0 ? d : nc_htdbh_d(sp, h)
@@ -176,18 +190,37 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
                 # NON-redwood uses the pure small-tree DGSM (NO large-tree XWT blend, unlike height);
                 # ONLY redwood (sp12) blends small/large DG via XDWT=(D-XMN)/(DGMIN-XMN).
                 dds = dgsm * (2f0 * bark * d + dgsm) * scale2
-                local dg::Float32
                 if sp == 12
+                    # REDWOOD: DG = DGSM·(1−XDWT) + DGLT·XDWT where DGLT = the record's OWN large-tree DG
+                    # (regent.f:305-311). At D≤XMN=2 XDWT=0 ⇒ pure small-tree (all tripled records equal); at
+                    # 2<D<DGMIN=7 XDWT>0 ⇒ each tripled record blends with its own large-tree DG (upper/lower
+                    # DIFFER, verified vs FVSnc_g16). The DIAM floor + DGBND (regent.f:319-327) apply per record.
                     dgsm2 = sqrt((d * bark)^2 + dds) - bark * d
                     xdwt = d <= xmn ? 0f0 : (d - xmn) / (NC_ST_DGMIN[sp] - xmn)
-                    dglt = t.diam_growth[i]
-                    dg = dgsm2 * (1f0 - xdwt) + dglt * xdwt
+                    dg = _nc_rw_blend(dgsm2, xdwt, t.diam_growth[i], d, sp, cap1, cap3)
+                    if trip
+                        stash.dgU[i] = _nc_rw_blend(dgsm2, xdwt, stash.dgU[i], d, sp, cap1, cap3)
+                        stash.dgL[i] = _nc_rw_blend(dgsm2, xdwt, stash.dgL[i], d, sp, cap1, cap3)
+                    end
+                    t.diam_growth[i] = dg
                 else
                     dg = sqrt((d * bark)^2 + dds) - bark * d
+                    (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)   # regent.f:319 DIAM floor
+                    dg = nc_dgbnd(sp, d, dg, cap1, cap3)
+                    t.diam_growth[i] = dg
+                    if trip                             # non-RW small tree: DG is DETERMINISTIC ⇒ tripled = central
+                        stash.dgU[i] = dg; stash.dgL[i] = dg
+                    end
                 end
-                (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)   # regent.f:319 DIAM floor
-                dg = nc_dgbnd(sp, d, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
-                t.diam_growth[i] = dg
+            end
+            # REGENT tripling override (regent.f:339-342 GO TO 18 re-entry): for a small tree (D<DGMIN)
+            # the L=1,2 tripled records inherit the small-tree HTG (deterministic) and the DG set above
+            # (identical for non-RW / RW below XMN; the RW large-tree-blend spread above 2"). is_small=true
+            # routes htgU/htgL through triple_records!. Without this the tripled upper/lower records (0.40 of
+            # TPA) kept the LARGE-tree DDS DG stashed by diameter_growth! — far smaller than the small-tree DG
+            # for the CA hardwoods (BO/TO/RW, newly mapped by the 442-row crosswalk) ⇒ ~31% BA deficit.
+            if trip
+                stash.htgU[i] = htg; stash.htgL[i] = htg; stash.is_small[i] = true
             end
         end
     end
