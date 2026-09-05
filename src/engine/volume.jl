@@ -377,6 +377,12 @@ function dub_missing_heights!(s::StandState)
             # on/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (Wykoff/Curtis-Arney) default-coefficient
             # dub. Reaches here for missing / broken-top heights (which drop the measured H).
             _on_htdbh_height(Int(sp), d)
+        elseif s.variant isa Klamath
+            # nc/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (SISKIY Curtis-Arney, nc_htdbh_h). NC has
+            # no :htdbh_p2 blockdata column, so the generic `_htdbh_height` below would dub a too-short height:
+            # harmless for measured-height trees (H kept) but on BROKEN-TOP trees it clamped NORMHT to the
+            # recorded (broken) height ⇒ 16-31% low cubic/board volume on large old redwood (crosswalk-exposed).
+            nc_htdbh_h(Int(sp), d)
         else
             _htdbh_height(sd, sp, d, ifor; isne = isne)
         end

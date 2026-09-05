@@ -57,6 +57,19 @@ end
     end
 end
 
+"nc/htdbh.f MODE=0 — Curtis-Arney HT-DBH (SISKIY, all forests): predict total height H from DBH `d`.
+D≥3 uses the Curtis-Arney exponential; 0.3<D<3 the linear break; result floored at 4.5 (htdbh.f:79-90).
+Used by the CRATET missing-height / broken-top NORMHT dub (dub_missing_heights!) — NC has no :htdbh_p2
+blockdata column, so the generic `_htdbh_height` gave a too-short height ⇒ broken-top redwood NORMHT
+clamped to the recorded (broken) height ⇒ 16-31% low cubic/board volume on large old redwood."
+@inline function nc_htdbh_h(sp::Int, d::Float32)::Float32
+    p2 = NC_HD_P2[sp]; p3 = NC_HD_P3[sp]; p4 = NC_HD_P4[sp]
+    h = d >= 3.0f0 ? 4.5f0 + p2 * exp(-p3 * d^p4) :
+        ((4.5f0 + p2 * exp(-p3 * 3.0f0^p4) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+    h <= 4.5f0 && (h = 4.5f0)
+    return h
+end
+
 "nc/dgbnd.f (IE) — cap the small-tree diameter increment at the TREESZCP size cap (inert at the 999 default)."
 @inline function nc_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap1::Float32, sizcap3::Float32)::Float32
     if (dbh + ddg) > sizcap1 && sizcap3 < 1.5f0

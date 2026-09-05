@@ -291,7 +291,9 @@ end
 # ---------------------------------------------------------------------------
 function compute_volumes_nc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees
+    t = s.trees; sd = s.coef.species; c = s.control
+    ncmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+               scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 12
@@ -302,10 +304,17 @@ function compute_volumes_nc!(s::StandState)
         # nc/sitset.f:196-224 forest-default merch specs (IFOR 1 = Klamath 505 = DEFAULT case):
         # DBHMIN=9.0, TOPD=BFTOPD=6.0. Merch/board are ZEROED for D < DBHMIN (fvsvol.f:337,512 gate).
         dbhmin = 9.0f0
-        # Top-killed: full cubic uses the NORMAL height, then the profile naturally truncates at the break.
+        # Top-killed: the full cubic uses the NORMAL height (norm_ht, cratet.f nc_htdbh_h SISKIY dub),
+        # then CFTOPK/BFTOPK (vols.f:193) trims it back to the standing break (t.trunc/100) via the Behre
+        # taper. WITHOUT the trim, a broken-top redwood's full-NORMHT cubic over-counts; WITHOUT the NORMHT
+        # (using the recorded broken height) it under-counts 16-31%. Both together match the oracle.
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         if mdl == "WO2"
             tcf, mcf, bf = nc_wo2w_vol(eq, d, hv)
+            # Broken/killed-top reduction (fvsvol.f CFTOPK/BFTOPK) — WO2W conifer/redwood path only; the DVE
+            # California-hardwood path skips CFTOPK (fvsvol.f). NC merch TOPD=6.0 (nc/sitset.f DEFAULT).
+            bark = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ncmerch, _R4_TOPD6)
             t.cuft_vol[i] = tcf
             t.merch_cuft_vol[i] = d >= dbhmin ? mcf : 0f0
             t.saw_cuft_vol[i] = 0f0
