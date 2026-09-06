@@ -146,6 +146,10 @@ function setup_growth!(s::StandState)
                                           # inventory crowns. Without it dense read 0.1" seedlings keep crown_pct=0 ⇒
                                           # VIGOR floors at 0.30 ⇒ HTGR under-predicts ⇒ never cross 4.5' ⇒ DBH growth
                                           # skipped ⇒ small-tree DG/BA ~2× low (#149). bm/crown.f reads BA/AVH/TPCCF/RMAI.
+        _bm_dub_ages!(s)                  # CRATET age dub (bm/cratet.f:656 FINDAG): ABIRTH from height for un-aged
+                                          # trees. BM height growth recomputes SITAGE fresh each cycle (doesn't read
+                                          # ABIRTH), so this feeds ONLY the Climate-FVS DMORT BIRTHYR (clmorts.f:170);
+                                          # inert for non-climate runs. Aged per-cycle at line ~861 (gradd.f:205).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralIdaho
         ci_dgcons!(s)                     # CI DGCON (DGHAB via ICHBCL + DGFOR + elev/slope-aspect + site adj), ATTEN
@@ -858,7 +862,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.variant isa OregonCoast && continue
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up || _ut_up || _ie_up || _em_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
+        (_cr_up || _tt_up || _ut_up || _ie_up || _em_up || _bm_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old

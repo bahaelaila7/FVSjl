@@ -498,6 +498,14 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     end
     s.density.tpa_mort = surv
 
+    # Climate-FVS mortality (morts.f:777 CALL CLMORTS, AFTER TPAMRT is locked, BEFORE FIXMORT): the
+    # viability FYRMORT + transfer-distance DMORT path MAX-combined into killed[] (clmorts.f:258-259
+    # WK2=PROB·max(FYRMORT,DMORT)). THISYR = IY(ICYC)+FINT/2 (clmorts.f:78). Shared across every variant
+    # routing through this driver (BM/CR/…); inert unless a CLIMATE keyword built s.climate AND the variant
+    # defines climate_plant_symbols (empty ⇒ ns=0 ⇒ no-op). IE has its own mortality! that wires this itself.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
+
     # FIXMORT (morts.f:781): forced-mortality override, applied AFTER the BA-check and TPAMRT.
     apply_fixmort!(s, killed, n, fint)
 

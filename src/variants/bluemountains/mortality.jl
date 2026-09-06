@@ -13,6 +13,13 @@
 
 mort_ri_scale(::BlueMountains) = 0.5f0     # bm/morts.f:471 RI = 0.5·RI (Hamilton half-rate, like CR/NE)
 
+# Climate-FVS: BM PLANTS symbols (PLNJSP, bm/blkdat.f:150-153) for the per-species viability-column
+# lookup that drives clmorts FYRMORT / clgmult VSCORE. Species index → USDA PLANTS code (18 species).
+const _BM_PLNJSP = String[
+    "PIMO3","LAOC","PSME","ABGR","TSME","JUOC","PICO","PIEN","ABLA","PIPO",
+    "PIAL","PIFL2","TABR2","CANO9","POTR5","POBAT","2TN","2TB"]
+climate_plant_symbols(::BlueMountains) = _BM_PLNJSP
+
 # bm/bmtmrt.f efficiency: original species DBH cubic; added species (6,11-16,18) SO percentile form.
 function _varmrt_efftr!(efftr, s, ::BlueMountains, t::TreeList, n::Int)
     varadj = s.coef.species[:varmrt_varadj]

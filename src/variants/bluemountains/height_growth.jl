@@ -65,6 +65,25 @@ function bm_findag(sp::Int, h::Float32, sindx::Float32)
     end
 end
 
+# _bm_dub_ages! (bm/cratet.f:656-661 + FINDAG) — dub ABIRTH from the current height for inventory trees with no
+# measured age (ABIRTH≤0). BM's own height growth recomputes SITAGE on the fly each cycle and never reads
+# ABIRTH, so this was previously unnecessary; the Climate-FVS DMORT transfer-distance path (clmorts.f:170
+# BIRTHYR = THISYR − ABIRTH) DOES read it, so an un-dubbed ABIRTH=0 makes CBIRTH=CTHISYR ⇒ DMORT≡0 ⇒ jl
+# under-applies the later-cycle climate mortality that a warming scenario drives. FINDAG returns SITAGE=0 for
+# WJ/WB/LM (sp 6/11/12), matching cratet's `IF(SITAGE>0)` guard (those non-viable species die via the
+# viability FYRMORT path, not DMORT). Inert for non-climate runs (birth_age unread elsewhere for BM).
+function _bm_dub_ages!(s::StandState)
+    t = s.trees; p = s.plot
+    @inbounds for i in 1:t.n
+        t.birth_age[i] > 0f0 && continue                      # measured/dubbed age present (cratet.f:657 ABIRTH≤0)
+        sp = Int(t.species[i]); h = t.height[i]
+        h <= 0f0 && continue
+        sitage = bm_findag(sp, h, p.sp_site_index[sp])[1]      # SITEAR(ISPC) site index (findag.f:93)
+        sitage > 0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)   # cratet.f:660 IF(SITAGE>0)ABIRTH=SITAGE
+    end
+    return s
+end
+
 # bm/htgf.f Johnson-SBB height coeffs (Schreuder-Hafley SBB). COF1 = WB(11)/LM(12) (from TT/UT), COF6 = AS(15)
 # (from UT). [9 coeffs × 3 crown classes], K from IICR=int(ICR/10+0.5): {1,2}→1 {3-7}→2 {8,9}→3. XI1=0.1, XI2=4.5.
 # (Identical to EM _EM_COFLM/_EM_COFAS — the same shared Schreuder-Hafley tables.)
