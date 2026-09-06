@@ -1734,11 +1734,25 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     if _ntally == 1 || _ntally == 99
         _idx_es = ie_estab_indices(ihab_code, Int(p.user_forest_code))
         body_es = 16 + 3 * nsp + 2 * _IE_MAXTPP[_idx_es.ihab]
-        ess0 = est.es_stream == 0f0 ? 55329.0 : Float64(est.es_stream)
-        dr = ie_esrann!(IEEstabRNG(ess0))
+        # estab.f:290-295 CALL ESRANN(DRAW) draws seed0 from the SHARED establishment stream ESS0 (ESRNCM),
+        # the SAME stream ESUCKR's BACHLO(0,0.5,ESRANN) advances when a disturbance (fire/thin/salvage) removed
+        # sprouting-species records earlier this cycle (esuckr.f runs in ESNUTR, BEFORE the AUTOES tally). Model
+        # ESS0 as the single canonical `s.rng.es0` (FVSRng :estab; seeded 55329, advanced by esuckr! through
+        # bachlo(:estab)), exactly as the SN/base establish! path does (establishment.jl:422-426). Reading the
+        # private est.es_stream here instead LOST every ESUCKR draw ⇒ on a disturbance stand AUTOES seeded from a
+        # fresh stream (draw #1, ESDRAW 43303) instead of the post-ESUCKR draw (e.g. draw #82, ESDRAW 34087 on
+        # the 81-sprout-draw simfire stand 1143093321290487), a systematic post-disturbance seedling miscount.
+        # dr is drawn from the raw post-ESUCKR ESS0 (no odd-adjust — estab.f:291 draws directly; ESRNSD odd-forces
+        # only on reseed). VALIDATED: 7/8 seed-affected thinbba stands + the simfire stand now match the live
+        # oracle's ESDRAW bit-for-bit; on the base `none` regime esuckr! is a no-op so ESS0 stays 55329 and seed0
+        # is the previously-validated 43303 chain (no regression). The post-tally ESAVE is written back so the NEXT
+        # cycle's esuckr!/tally continue the same stream (both directions of the ESS0 ↔ ESUCKR coupling).
+        dr = esrann!(s.rng)                                                   # estab.f:291 — advances shared ESS0
         seed0 = floor(Int, dr * 100000f0 + 0.5f0)
         est.es_seed = Float32(seed0)                                          # save for the continuation
-        est.es_stream = Float32(ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1; wk6 = Int(dupnpt), body = body_es)[end])  # ESAVE = next stream state (WK6 site-prep prefix = DUPNPT)
+        final_seed = ie_autoes_plot_seeds(seed0, Int(dupnpt) + 1; wk6 = Int(dupnpt), body = body_es)[end]  # ESAVE_last (odd-forced)
+        est.es_stream = Float32(final_seed)
+        s.rng.es0 = Float64(final_seed)                                       # leave ESS0 at the post-tally ESAVE
     else
         seed0 = round(Int, est.es_seed)                                       # continuation reuses seed0
     end
