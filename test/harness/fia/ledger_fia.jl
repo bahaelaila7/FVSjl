@@ -56,30 +56,41 @@ kwrec(kw, f...) = rpad(kw,10) * join(lpad(string(x),10) for x in f)
 #     block per stand: the real CGCM3_A2 attribute row from the validated fixture (clim_iet.key), re-keyed to
 #     THIS stand's CN, at years 1990 & 2100 (bracketing every FIA inventory; algslp interpolates flat). Both
 #     sides read the identical inline data, so the regime is fully oracle-comparable.
-const _CLIM_HEADER, _CLIM_VALTAIL = let hdr = "", tail = ""
+# ⚠ REVIEW-GATE FIX (2026-09-06): the climate scenario MUST be TIME-VARYING or Climate-FVS is inert. GROWMULT
+# (clgmult.f:225) scales only the DEVIATION of the climate score PS from 1.0: TREEMULT=1+((PS−1)·CLGROWMULT). A
+# FLAT scenario (identical rows both years) ⇒ every _NOW−_INVYR delta = 0 ⇒ PS=1 ⇒ TREEMULT=1 regardless of
+# GROWMULT ⇒ byte-identical to none (tested a WARM 2100 row → it bites). So we template the fixture's REAL
+# CGCM3_A2 1990 (cool) row at year 1990 and its 2090 (warm: mat 3.7→8.6, dd5 1095→2087) row at year 2100 — the
+# genuine warming trajectory. Both sides read the identical inline data ⇒ oracle-comparable.
+const _CLIM_HEADER, _CLIM_TAIL_1990, _CLIM_TAIL_2090 = let hdr = "", t90 = "", t20 = ""
     for ln in eachline(joinpath(dirname(@__DIR__), "..", "fixtures", "climate", "clim_iet.key"))
         startswith(ln, "Stand_ID,Scenario,Year") && (hdr = ln)
-        if startswith(ln, "S248112,CGCM3_A2,1990,")
-            tail = ln[length("S248112,CGCM3_A2,1990,")+1:end]   # everything AFTER the leading id,scenario,year
-        end
+        startswith(ln, "S248112,CGCM3_A2,1990,") && (t90 = ln[length("S248112,CGCM3_A2,1990,")+1:end])
+        startswith(ln, "S248112,CGCM3_A2,2090,") && (t20 = ln[length("S248112,CGCM3_A2,2090,")+1:end])
     end
-    (hdr, tail)
+    (hdr, t90, t20)
 end
 # the ClimData sub-block ONLY (the enclosing CLIMATE…End is supplied by regime_block, once): ClimData +
-# scenario name + `*` (inline) + header + two year rows re-keyed to `cn` + the -999 CLIMDATA terminator.
+# scenario name + `*` (inline) + header + two DIFFERING year rows re-keyed to `cn` + the -999 terminator.
 climate_block(cn) = string(
     "ClimData\nCGCM3_A2\n*\n", _CLIM_HEADER, "\n",
-    cn, ",CGCM3_A2,1990,", _CLIM_VALTAIL, "\n",
-    cn, ",CGCM3_A2,2100,", _CLIM_VALTAIL, "\n-999")
+    cn, ",CGCM3_A2,1990,", _CLIM_TAIL_1990, "\n",
+    cn, ",CGCM3_A2,2100,", _CLIM_TAIL_2090, "\n-999")
 
 regime_block(r, plantyr=0, cn="") =
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE","2.0","10.00","1","50.0") * "\nEnd" :
     r == "thinbba" ? kwrec("THINBBA","2.0","40.0") :
-    r == "salvage" ? kwrec("SALVAGE","2.0","0.0","999.0","0.9") :
+    # SALVAGE is an FFE keyword (fmin.f:47), NOT a base keyword — a bare SALVAGE draws FVS01 INVALID and is
+    # DROPPED by the oracle (inert on green stands, but a false-divergence risk on standing-dead stands). Wrap in
+    # FMIn…End (review-gate fix 2026-09-06). Removes standing-dead ≥0" up to 999" at 0.9 fraction, cycle 2.
+    r == "salvage" ? "FMIn\n" * kwrec("SALVAGE","2.0","0.0","999.0","0.9") * "\nEnd" :
     r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3","400") * "\nEnd" :
     # --- EXTENSION regimes (USER 2026-09-05: enrich the western matrix). Faithful activation keywords per FVSjl's
-    #     own dispatch (keyword_dispatch.jl / root_disease.jl); ⚠ PENDING the review-gate + first-sweep A/B validation.
-    r == "mistletoe" ? kwrec("MISTPINF","1","0","1.0","3.0") :                          # DM: force initial infection all hosts, DMR 3 (misin.f opt10) — bites where host present
+    #     own dispatch (keyword_dispatch.jl / root_disease.jl).
+    # MISTPINF is a SUB-keyword of the MISTOE section (initre.f opt 95 → misin.f keyword loop), NOT a top-level
+    # keyword — a bare MISTPINF draws FVS01 INVALID in the oracle (dropped) while jl over-leniently accepts it,
+    # manufacturing a false divergence on every host stand. Wrap in MISTOE…END (review-gate fix 2026-09-06).
+    r == "mistletoe" ? "MISTOE\n" * kwrec("MISTPINF","1","0","1.0","3.0") * "\nEND" :     # force initial infection all hosts, DMR 3 (misin.f opt10) — bites where host present
     r == "cover"     ? "COVER\nEnd" :                                                   # COVER report SECTION (cvin.f opt12 → activity 900); MUST close with END or it swallows following keywords (FVS01 INVALID). Report-only ⇒ crash/integration coverage
     r == "econ"      ? kwrec("THINBBA","2.0","40.0") * "\nECON\n" * kwrec("ANNUCST","10.0") * "\n" * kwrec("HRVRVN","0","999","30.0") * "\nEnd" : # ECON valuation needs a harvest to value: thin + $10/ac/yr cost + $30/ccf revenue
     r == "climate"   ? "CLIMATE\n" * kwrec("GROWMULT","1","0","1.1") * "\n" * climate_block(cn) * "\nEnd" : # Climate-FVS: inline per-stand CLIMDATA (bites) + growth-mult weight
