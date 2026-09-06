@@ -122,14 +122,34 @@ _fm_dkr_default(::LakeStates) = _FM_DKR_LS
 _fm_dkr_default(::Northeast) = _FM_DKR_NE
 _fm_dkr_default(::CentralStates) = _FM_DKR_CS
 _fm_dkr_default(::CentralRockies) = _FM_DKR_CR
-# IE/KT share CR's N-Rockies decay table (ie/fmcwd.f DKR + breakpoints verified identical to cr/fmcwd.f).
-# Without this they fell through to the SN `_FM_DKR` default ⇒ wrong 30-yr fuel accumulation ⇒ weak flame.
-_fm_dkr_default(::InlandEmpire) = _FM_DKR_CR
-_fm_dkr_default(::Kootenai) = _FM_DKR_CR
-_fm_dkr_default(::EasternMontana) = _FM_DKR_CR   # em/fmcwd.f DKR verified identical to cr
-_fm_dkr_default(::CentralIdaho) = _FM_DKR_CR     # ci/fmcwd.f DKR verified identical to cr
-_fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmcwd.f DKR == cr
-_fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmcwd.f DKR == cr
+# North-Rockies decay table (ie/kt/em/ci fmvinit.f): the SAME base woody/litter/duff rates as CR
+# (0.12/0.12/0.09 fine, 0.015 coarse, 0.5 litter, 0.002 duff), but DECAY-CLASS-INDEPENDENT — these four
+# variants set `DKR(I,J)=DKR(I,1)` for all decay classes 2-4 and DO NOT apply the CR/UT/TT `×0.45`
+# decay-class modifier (verified: ie/fmvinit.f:77-88, kt/:73-83, em/:87-96, ci/:118-128 all lack the
+# `MODIFER FOR CR/UT` block that CR/UT/TT carry, cr/fmvinit.f:97-113). The earlier assignment to
+# `_FM_DKR_CR` was a MISVERIFICATION (it checked fmcwd.f's decay ALGORITHM, identical across the family,
+# not fmvinit.f's DKR DATA + the ×0.45): it over-retained the fine dead fuel ~2.2× in the dominant decay
+# class 4 (0.054 vs 0.12 woody, 0.225 vs 0.5 litter) ⇒ the IE surface fire over-carried on stale fine
+# fuel and needed the fuel loop disabled to compensate. This table restores the faithful IE/KT/EM/CI rates.
+const _FM_DKR_NR = Float32[
+    0.12  0.12  0.12  0.12     # 1  (<0.25")
+    0.12  0.12  0.12  0.12     # 2  (0.25-1")
+    0.09  0.09  0.09  0.09     # 3  (1-3")
+    0.015 0.015 0.015 0.015    # 4  (3-6")
+    0.015 0.015 0.015 0.015    # 5  (6-12")
+    0.015 0.015 0.015 0.015    # 6  (12-20")
+    0.015 0.015 0.015 0.015    # 7  (20-35")
+    0.015 0.015 0.015 0.015    # 8  (35-50")
+    0.015 0.015 0.015 0.015    # 9  (>50")
+    0.5   0.5   0.5   0.5       # 10 litter (ie/fmvinit.f:86)
+    0.002 0.002 0.002 0.002    # 11 duff   (ie/fmvinit.f:87)
+]
+_fm_dkr_default(::InlandEmpire) = _FM_DKR_NR     # ie/fmvinit.f:77-88 — DKR(I,J)=DKR(I,1), NO ×0.45
+_fm_dkr_default(::Kootenai) = _FM_DKR_NR         # kt/fmvinit.f:73-83 — NO ×0.45
+_fm_dkr_default(::EasternMontana) = _FM_DKR_NR   # em/fmvinit.f:87-96 — NO ×0.45
+_fm_dkr_default(::CentralIdaho) = _FM_DKR_NR     # ci/fmvinit.f:118-128 — NO ×0.45
+_fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmvinit.f:23-25 — DKR(I,J)=DKR(I,1)*0.45 (== CR)
+_fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmvinit.f — DKR ×0.45 (== CR)
 # NC (Klamath) base decay table (nc/fmvinit.f:70-92) — decay-class-INDEPENDENT and MUCH slower than the SN
 # default (woody 0.0125-0.025 vs SN 0.07-0.11); subsequently ×DCYMLT (nc/fmcba.f:405, Dunning-code/site index).
 # Without this NC fell through to the SN `_FM_DKR` ⇒ LARGE down-wood decayed ~3.7× too fast ⇒ low fuel-model

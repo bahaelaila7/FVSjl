@@ -203,9 +203,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # the per-cycle ffe_fuel_update! + fire_smlg stash are skipped ⇒ the SIMFIRE samples a (0,0) down-wood
     # point ⇒ FMDYN drops the natural-fuel model (ect01_ffe FMD-set {6,9} vs live {9,10,6}) ⇒ under-fire.
     # (Unlike WC/PN/CA/WS whose crown fire dominates and masks the fuel-model weights, EC's is a SURFACE fire.)
+    # IE/KT (InlandEmpire/Kootenai) carry their live+dead fuel in their own COVTYP loaders (ie_live/dead_
+    # fuel_loading), so ffe_fuel_live is empty — but the FFE fuel loop MUST still run, else the per-cycle
+    # ffe_fuel_update! + fire_smlg stash are skipped ⇒ the SIMFIRE samples an empty (0,0) down-wood point ⇒
+    # FMCFMD falls back to fuel model 8 (byram ~370 vs the accumulated-fuel ~637 on crown-prone dense stands)
+    # ⇒ under-fire. Folded in with the decay-table fix (ie/fmvinit.f DKR is decay-class-INDEPENDENT, _FM_DKR_NR)
+    # so the accumulated fine fuel matches the oracle rather than over-retaining ~2.2×. (The rest of the CR
+    # family — CR/EM/CI/TT/UT/BM/WC/PN/CA/WS — shares this latent gap; fold them in + validate separately.)
     ffe_on = s.fire !== nothing && s.fire.active &&
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
-              s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
+              s.variant isa InlandEmpire || s.variant isa Kootenai)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
