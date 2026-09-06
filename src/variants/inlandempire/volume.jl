@@ -74,6 +74,32 @@ function ie_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
 end
 
+# ---------------------------------------------------------------------------
+# ie_snag_bole_cuft — the FFE snag-bole TOTAL cubic (FVS FMSVL2 'D' ⇒ TCF) for IE/KT. IE/KT's `vol_eq`
+# is a Region-1 NVEL string (Flewelling FW2 / Gevorkiantz DVE / R6 Behre), NOT an R8-Clark string, so the
+# shared _R8CLARK_VOL snag path returns 0 ⇒ the input/SNAGINIT snag bole collapses to 0 and update_snags!
+# falls back to the Jenkins ABOVEGROUND stem biomass — ~2.3× the true total-stem cubic (the 18" input snag:
+# Jenkins 1.146 t vs FVS TVOLI·V2T 0.505 t) — over-loading the coarse (3"+) down-wood ⇒ over-fire. FVS
+# FMSVOL/FMSVL2 (fmsvol.f:152-155) returns MAX(X,TCF) for the western NVEL variants, so the western snag
+# bole (report AND CWD1 falldown) == the total cubic VOL(1). Mirror `cr_snag_bole_cuft`/`nc_snag_bole_cuft`.
+function ie_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    (d < 1f0 || h <= 0f0 || sp < 1) && return 0f0
+    veq = s.species.vol_eq
+    sp > length(veq) && return 0f0
+    eq = veq[sp]
+    if s.variant isa Kootenai                        # KT: FW2 only (kt/bratio.f bark), no DVE/Behre
+        bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
+        startswith(eq, "I") || return 0f0
+        return max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)[1], 0f0)
+    end
+    bark = ie_bratio(sp, d)
+    occursin("BEH", eq) && return max(ie_behre_vol(sp, Int(s.plot.forest_idx), d, h, bark)[1], 0f0)
+    v = startswith(eq, "I") ?
+        cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1) :
+        cr_dve_vol(eq, d, h)
+    return max(v[1], 0f0)                             # VOL(1) total cubic (= FMSVL2 'D' TCF)
+end
+
 function compute_volumes!(s::StandState, ::InlandEmpire)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq

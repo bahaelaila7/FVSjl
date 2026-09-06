@@ -569,6 +569,8 @@ function ffe_seed_input_snags!(s::StandState)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
         elseif s.variant isa CentralRockies
             mcuft = cr_snag_bole_cuft(s, sp, d, h)   # CR NATCRS total cubic (R8-Clark returns 0 for NVEL vol_eq)
+        elseif s.variant isa InlandEmpire || s.variant isa Kootenai
+            mcuft = ie_snag_bole_cuft(s, sp, d, h)   # IE/KT Region-1 NVEL total cubic (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
         elseif s.variant isa OregonCoast
@@ -741,6 +743,8 @@ function ffe_add_snaginit!(s::StandState)
             # CR vol_eq are NVEL DVE/NVB/FW2 codes ⇒ _R8CLARK_VOL returns 0. CR's FMSVOL (fmsvol.f:153) reports
             # the TOTAL cubic (TCF) for the snag bole AND the CWD1 fall, so bole==fall==TCF for CR.
             mcuft = cr_snag_bole_cuft(s, sp, d, h); tcuft = mcuft
+        elseif s.variant isa InlandEmpire || s.variant isa Kootenai
+            mcuft = ie_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # IE/KT Region-1 NVEL total cubic (bole==fall==TCF)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # NC total cubic (bole==fall==TCF)
         elseif s.variant isa OregonCoast

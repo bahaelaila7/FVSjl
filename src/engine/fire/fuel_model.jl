@@ -37,6 +37,7 @@ the dead moisture of extinction.
         ov = get(fs.defulmod, Int32(model), nothing)
         ov !== nothing && return ov
     end
+    Int(model) > 14 && haskey(_SB_FUEL_MODELS, Int(model)) && return _sb_fuel_model(model)
     return standard_fuel_model(s.coef, model)
 end
 
@@ -50,6 +51,67 @@ function standard_fuel_model(coef::SpeciesCoefficients, model::Integer)
     # Scott-Burgan grass/timber-understory models (fminit.f). Read from the trailing sav_lherb column
     # when present (LS); the standard 13-model CSVs omit it ⇒ the 1500 default (bit-identical).
     sav[2, 1] = m[2]; sav[2, 2] = length(m) >= 10 ? m[10] : 1500f0
+    return (load, sav, m[8], m[9])
+end
+
+# The 40 Scott & Burgan (2005) fuel models (fminit.f:347-820, "ADD IN THE 40 NEW FUEL MODELS"). FVS loads
+# these into SURFVL/FMLOAD/FMDEP/MOISEX alongside the original 13 (Anderson) so a stand whose FVS_StandInit
+# supplies a FUEL_MODEL in the 101-204 range (a FUELMODL activity, dbsstandin.f:1081) burns on the named
+# Scott-Burgan model. Row order matches the standard-13 CSV `m`: [sav_1hr, sav_lwoody, load_1hr, load_10,
+# load_100, load_lwoody, load_lherb, depth, mext, sav_lherb] — loads lb/ft², SAV 1/ft, depth ft. Defaults
+# (fminit.f:166-181): sav_10hr=109, sav_100hr=30, sav_lwoody=1500, sav_lherb=1500; all loads 0.
+const _SB_FUEL_MODELS = Dict{Int,NTuple{10,Float32}}(
+    101 => (2200f0,1500f0,0.00459f0,0f0,0f0,0f0,0.01377f0,0.4f0,0.15f0,2000f0),
+    102 => (2000f0,1500f0,0.00459f0,0f0,0f0,0f0,0.04591f0,1f0,0.15f0,1800f0),
+    103 => (1500f0,1500f0,0.00459f0,0.01837f0,0f0,0f0,0.06887f0,2f0,0.3f0,1300f0),
+    104 => (2000f0,1500f0,0.01148f0,0f0,0f0,0f0,0.08724f0,2f0,0.15f0,1800f0),
+    105 => (1800f0,1500f0,0.01837f0,0f0,0f0,0f0,0.11478f0,1.5f0,0.4f0,1600f0),
+    106 => (2200f0,1500f0,0.00459f0,0f0,0f0,0f0,0.15611f0,1.5f0,0.4f0,2000f0),
+    107 => (2000f0,1500f0,0.04591f0,0f0,0f0,0f0,0.24793f0,3f0,0.15f0,1800f0),
+    108 => (1500f0,1500f0,0.02296f0,0.04591f0,0f0,0f0,0.33517f0,4f0,0.3f0,1300f0),
+    109 => (1800f0,1500f0,0.04591f0,0.04591f0,0f0,0f0,0.41322f0,5f0,0.4f0,1600f0),
+    121 => (2000f0,1800f0,0.00918f0,0f0,0f0,0.02984f0,0.02296f0,0.9f0,0.15f0,1800f0),
+    122 => (2000f0,1800f0,0.02296f0,0.02296f0,0f0,0.04591f0,0.02755f0,1.5f0,0.15f0,1800f0),
+    123 => (1800f0,1600f0,0.01377f0,0.01148f0,0f0,0.05739f0,0.06657f0,1.8f0,0.4f0,1600f0),
+    124 => (1800f0,1600f0,0.08724f0,0.01377f0,0.00459f0,0.32599f0,0.15611f0,2.1f0,0.4f0,1600f0),
+    141 => (2000f0,1600f0,0.01148f0,0.01148f0,0f0,0.05969f0,0.00689f0,1f0,0.15f0,1800f0),
+    142 => (2000f0,1600f0,0.06189f0,0.11019f0,0.03444f0,0.17677f0,0f0,1f0,0.15f0,1500f0),
+    143 => (1600f0,1400f0,0.02066f0,0.13774f0,0f0,0.28466f0,0f0,2.4f0,0.4f0,1500f0),
+    144 => (2000f0,1600f0,0.03903f0,0.0528f0,0.00918f0,0.11708f0,0f0,3f0,0.3f0,1800f0),
+    145 => (750f0,1600f0,0.16529f0,0.09642f0,0f0,0.13315f0,0f0,6f0,0.15f0,1500f0),
+    146 => (750f0,1600f0,0.13315f0,0.06657f0,0f0,0.06428f0,0f0,2f0,0.3f0,1500f0),
+    147 => (750f0,1600f0,0.1607f0,0.24334f0,0.10101f0,0.15611f0,0f0,6f0,0.15f0,1500f0),
+    148 => (750f0,1600f0,0.09412f0,0.15611f0,0.03903f0,0.19972f0,0f0,3f0,0.4f0,1500f0),
+    149 => (750f0,1500f0,0.20661f0,0.11249f0,0f0,0.3214f0,0.07117f0,4.4f0,0.4f0,1800f0),
+    161 => (2000f0,1600f0,0.00918f0,0.04132f0,0.06887f0,0.04132f0,0.00918f0,0.6f0,0.2f0,1800f0),
+    162 => (2000f0,1600f0,0.04362f0,0.08264f0,0.05739f0,0.00918f0,0f0,1f0,0.3f0,1500f0),
+    163 => (1800f0,1400f0,0.05051f0,0.00689f0,0.01148f0,0.05051f0,0.02984f0,1.3f0,0.3f0,1600f0),
+    164 => (2300f0,2000f0,0.20661f0,0f0,0f0,0.09183f0,0f0,0.5f0,0.12f0,1500f0),
+    165 => (1500f0,750f0,0.18365f0,0.18365f0,0.13774f0,0.13774f0,0f0,1f0,0.25f0,1500f0),
+    181 => (2000f0,1500f0,0.04591f0,0.10101f0,0.16529f0,0f0,0f0,0.2f0,0.3f0,1500f0),
+    182 => (2000f0,1500f0,0.06428f0,0.1056f0,0.10101f0,0f0,0f0,0.2f0,0.25f0,1500f0),
+    183 => (2000f0,1500f0,0.02296f0,0.10101f0,0.12856f0,0f0,0f0,0.3f0,0.2f0,1500f0),
+    184 => (2000f0,1500f0,0.02296f0,0.06887f0,0.19284f0,0f0,0f0,0.4f0,0.25f0,1500f0),
+    185 => (2000f0,1600f0,0.0528f0,0.11478f0,0.20202f0,0f0,0f0,0.6f0,0.25f0,1500f0),
+    186 => (2000f0,1500f0,0.11019f0,0.0551f0,0.0551f0,0f0,0f0,0.3f0,0.25f0,1500f0),
+    187 => (2000f0,1500f0,0.01377f0,0.06428f0,0.3719f0,0f0,0f0,0.4f0,0.25f0,1500f0),
+    188 => (1800f0,1500f0,0.2663f0,0.06428f0,0.05051f0,0f0,0f0,0.3f0,0.35f0,1500f0),
+    189 => (1800f0,1600f0,0.30533f0,0.15152f0,0.19054f0,0f0,0f0,0.6f0,0.35f0,1500f0),
+    201 => (2000f0,1500f0,0.06887f0,0.13774f0,0.50505f0,0f0,0f0,1f0,0.25f0,1500f0),
+    202 => (2000f0,1500f0,0.20661f0,0.19513f0,0.18365f0,0f0,0f0,1f0,0.25f0,1500f0),
+    203 => (2000f0,1500f0,0.25253f0,0.12626f0,0.13774f0,0f0,0f0,1.2f0,0.25f0,1500f0),
+    204 => (2000f0,1500f0,0.24105f0,0.1607f0,0.24105f0,0f0,0f0,2.7f0,0.25f0,1500f0),
+)
+
+# Rothermel inputs for a Scott-Burgan model (101-204), built from `_SB_FUEL_MODELS` exactly as
+# `standard_fuel_model` builds the Anderson 13 from a CSV row.
+function _sb_fuel_model(model::Integer)
+    m = _SB_FUEL_MODELS[Int(model)]
+    load = zeros(Float32, 2, 4); sav = zeros(Float32, 2, 4)
+    load[1, 1] = m[3]; load[1, 2] = m[4]; load[1, 3] = m[5]
+    load[2, 1] = m[6]; load[2, 2] = m[7]
+    sav[1, 1] = m[1]; sav[1, 2] = 109f0; sav[1, 3] = 30f0; sav[1, 4] = 1500f0
+    sav[2, 1] = m[2]; sav[2, 2] = m[10]
     return (load, sav, m[8], m[9])
 end
 
@@ -142,6 +204,13 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
             (Int(date) == yr || (0 < Int(date) < 1000 && Int(date) == fvscyc)) || continue
             return [(Int(m), w) for (m, w) in pairs]
         end
+    end
+    # FVS_StandInit FUEL_MODEL override (dbsstandin.f:1081 → FUELMODL activity 2538 → fmusrfm.f LUSRFM):
+    # a fixed input fuel model burns on that model at weight 1.0 for the whole run, bypassing FMCFMD/FMCFMD2
+    # auto-selection (fmcfmd.f:107 IF(LUSRFM)RETURN). Honors the Anderson 13 and the Scott-Burgan 101-204.
+    if s.plot.fuel_model_input > 0
+        fm = Int(s.plot.fuel_model_input)
+        (fm <= 14 || haskey(_SB_FUEL_MODELS, fm)) && return [(fm, 1f0)]
     end
     eqwt = zeros(Float32, _FMD_ICLSS)
     iffeft = ffe_forest_type(s)

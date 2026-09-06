@@ -461,6 +461,12 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         _fuelcol("FUEL_20_35_S"), _fuelcol("FUEL_35_50_S"), _fuelcol("FUEL_GT_50_S"), -1f0, -1f0]
     any(x -> x >= 0f0, hard) && (p.ffe_fuel_hard = hard)
     any(x -> x >= 0f0, soft) && (p.ffe_fuel_soft = soft)
+    # FVS_StandInit FUEL_MODEL (dbsstandin.f:460): a fixed surface fuel model that FVS injects as a FUELMODL
+    # activity (fmusrfm.f LUSRFM), overriding FMCFMD auto-selection. 0/missing ⇒ auto-select (unchanged).
+    if _fia_present(d, "FUEL_MODEL")
+        fm = _fia_int(d, "FUEL_MODEL", 0)
+        fm > 0 && (p.fuel_model_input = Int32(fm))
+    end
     return s
 end
 

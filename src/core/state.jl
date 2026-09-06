@@ -484,6 +484,10 @@ mutable struct PlotData
     # FFEParams.stfuel_hard/soft from these (the reader's equivalent of dbsstandin.f injecting a FUELINIT keyword).
     ffe_fuel_hard::Vector{Float32}
     ffe_fuel_soft::Vector{Float32}
+    # FVS_StandInit FUEL_MODEL (dbsstandin.f:460 ISTANDDATA(51) → FUELMODL activity 2538, fmusrfm.f LUSRFM):
+    # a fixed surface fuel model (Anderson 1-13 or Scott-Burgan 101-204) that OVERRIDES the FMCFMD auto-selection
+    # for the whole run. 0 = not supplied (auto-select). Read by the FIA reader; honored in select_fuel_models.
+    fuel_model_input::Int32
     # Per-inventory-point topography (PSLO/PASP, esplt2.f), indexed by point id (1..MAXPLT). Loaded once from the
     # FVS_TREEINIT per-tree SLOPE/ASPECT columns (each tree carries its plot's topo). Used by AUTOES establishment
     # (ESTPP/species-probs read per-point SLO/XCOS/XSIN, estab.f:476); 0 when the DB slope is missing (#143). Empty
@@ -506,6 +510,7 @@ function PlotData()
         zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
         zeros(Float32,MAXSP), zeros(Float32,MAXSTR,6),
         Float32[], Float32[],
+        Int32(0),                       # fuel_model_input (FVS_StandInit FUEL_MODEL; 0 = auto-select)
         Float32[], Float32[],           # point_slope, point_aspect (FIA reader fills when per-plot topo present)
     )
 end
