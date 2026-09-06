@@ -30,8 +30,16 @@ import SQLite, DBInterface
 using FVSjl
 include(joinpath(@__DIR__, "sweep_db.jl"))   # open_sweepdb / upsert! — durable per-stand coverage record
 const MASTER = "/workspace/SQLite_FIADB_ENTIRE.db"
-const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new","CR"=>"/workspace/.crwork/FVScr_clean")
-const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates(),"CR"=>FVSjl.CentralRockies())
+# Oracle binary per variant. Western oracles live in /workspace/.<v>work/ (persistent); a fresh relink lands as
+# FVS<v>_g16 (preferred), else the older FVS<v>_clean. ⚠ RESTART⇒RELINK ALL before a sweep (binaries can go stale);
+# _oracle_bin picks the g16 if present. Eastern keep their tmp/oracles/*_new paths.
+_oracle_bin(v) = let w = "/workspace/." * lowercase(v) * "work"
+    isfile("$w/FVS$(lowercase(v))_g16") ? "$w/FVS$(lowercase(v))_g16" : "$w/FVS$(lowercase(v))_clean"
+end
+const BIN = Dict("SN"=>"/workspace/FVSjl/tmp/oracles/FVSsn_new","NE"=>"/workspace/FVSjl/tmp/oracles/FVSne_new","CS"=>"/workspace/FVSjl/tmp/oracles/FVScs_new","LS"=>"/workspace/FVSjl/tmp/oracles/FVSls_new",
+    ("$c"=>_oracle_bin(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","AK","WC","PN","EC","CA","SO","WS"))...)
+const VAR = Dict("SN"=>FVSjl.Southern(),"NE"=>FVSjl.Northeast(),"CS"=>FVSjl.CentralStates(),"LS"=>FVSjl.LakeStates(),
+    ("$c"=>FVSjl.variant_from_code(c) for c in ("CR","KT","IE","EM","TT","UT","BM","CI","BC","NC","OC","AK","WC","PN","EC","CA","SO","WS"))...)
 const COLS = ["TPA","BA","SDI","CCF","TopHt","QMD","TCuFt","MCuFt","SCuFt","BdFt"]   # .sum fields 3..12
 const DENSITY_COLS = (2,3,4,5)   # BA,SDI,CCF,TopHt — preserved under the self-thinning count-straddle
 
@@ -41,11 +49,45 @@ kwrec(kw, f...) = rpad(kw,10) * join(lpad(string(x),10) for x in f)
 # (audit slice 42d-42g), which tanked the PLANT bit-exact rate to ~0% as a HARNESS ARTIFACT. `plantyr` is the
 # stand's INV_YEAR+period (cycle 1) passed from main(). The other activities keep cycle-number "2.0" (their
 # scheduling is age-independent and already bit-exact at normal rates). plantyr=0 ⇒ fall back to cycle "2.0".
-regime_block(r, plantyr=0) =
+# --- Climate-FVS regime scaffolding: Climate-FVS's growth/mort multipliers fire ONLY when CLIMDATA populates
+#     s.climate (LCLIMATE = NATTRS>0 && NYEARS>0, clin.f); a bare GROWMULT card is caught by the generic
+#     multiplier handler and DISCARDED without CLIMDATA. FIA stands carry no climate scenario, so — exactly like
+#     WSBWE's synthetic synwx.txt (fed byte-identically to jl AND the oracle) — we template an INLINE CLIMDATA
+#     block per stand: the real CGCM3_A2 attribute row from the validated fixture (clim_iet.key), re-keyed to
+#     THIS stand's CN, at years 1990 & 2100 (bracketing every FIA inventory; algslp interpolates flat). Both
+#     sides read the identical inline data, so the regime is fully oracle-comparable.
+const _CLIM_HEADER, _CLIM_VALTAIL = let hdr = "", tail = ""
+    for ln in eachline(joinpath(dirname(@__DIR__), "..", "fixtures", "climate", "clim_iet.key"))
+        startswith(ln, "Stand_ID,Scenario,Year") && (hdr = ln)
+        if startswith(ln, "S248112,CGCM3_A2,1990,")
+            tail = ln[length("S248112,CGCM3_A2,1990,")+1:end]   # everything AFTER the leading id,scenario,year
+        end
+    end
+    (hdr, tail)
+end
+# the ClimData sub-block ONLY (the enclosing CLIMATE…End is supplied by regime_block, once): ClimData +
+# scenario name + `*` (inline) + header + two year rows re-keyed to `cn` + the -999 CLIMDATA terminator.
+climate_block(cn) = string(
+    "ClimData\nCGCM3_A2\n*\n", _CLIM_HEADER, "\n",
+    cn, ",CGCM3_A2,1990,", _CLIM_VALTAIL, "\n",
+    cn, ",CGCM3_A2,2100,", _CLIM_VALTAIL, "\n-999")
+
+regime_block(r, plantyr=0, cn="") =
     r == "simfire" ? "FMIn\n" * kwrec("SIMFIRE","2.0","10.00","1","50.0") * "\nEnd" :
     r == "thinbba" ? kwrec("THINBBA","2.0","40.0") :
     r == "salvage" ? kwrec("SALVAGE","2.0","0.0","999.0","0.9") :
-    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3","400") * "\nEnd" : ""
+    r == "plant"   ? "ESTAB\n" * kwrec("PLANT", plantyr > 0 ? string(plantyr) : "2.0", "3","400") * "\nEnd" :
+    # --- EXTENSION regimes (USER 2026-09-05: enrich the western matrix). Faithful activation keywords per FVSjl's
+    #     own dispatch (keyword_dispatch.jl / root_disease.jl); ⚠ PENDING the review-gate + first-sweep A/B validation.
+    r == "mistletoe" ? kwrec("MISTPINF","1","0","1.0","3.0") :                          # DM: force initial infection all hosts, DMR 3 (misin.f opt10) — bites where host present
+    r == "cover"     ? "COVER\nEnd" :                                                   # COVER report SECTION (cvin.f opt12 → activity 900); MUST close with END or it swallows following keywords (FVS01 INVALID). Report-only ⇒ crash/integration coverage
+    r == "econ"      ? kwrec("THINBBA","2.0","40.0") * "\nECON\n" * kwrec("ANNUCST","10.0") * "\n" * kwrec("HRVRVN","0","999","30.0") * "\nEnd" : # ECON valuation needs a harvest to value: thin + $10/ac/yr cost + $30/ccf revenue
+    r == "climate"   ? "CLIMATE\n" * kwrec("GROWMULT","1","0","1.1") * "\n" * climate_block(cn) * "\nEnd" : # Climate-FVS: inline per-stand CLIMDATA (bites) + growth-mult weight
+    # WRD (RDIN block): RRINIT field1<1 ⇒ RANDOM center placement (field1≥1 = DETERMINISTIC placement reads
+    # follow-on coordinate cards and DERAILS the reader). fields 2..6 = 1 center, 10 infected + 50 uninfected
+    # TPA/ac, 0.5 root-infection prop, 1.0-acre disease area ⇒ actively seeds infection (bites where host present).
+    r == "rootdis"   ? "RDIN\n" * kwrec("RRTYPE","1") * "\n" * kwrec("SAREA","1.0") * "\n" * kwrec("RRINIT","0","1","10.0","50.0","0.5","1.0") * "\nEnd" :
+    ""
 
 # `seed` (optional): when set, emit a RANNSEED keyword whose value sits in the keyword RECORD columns 11-20
 # (via kwrec — field 1) so FVS actually reseeds. ⚠ A RANNSEED value placed on a BLANK supplemental line is
@@ -67,7 +109,7 @@ SELECT * FROM FVS_TREEINIT_COND WHERE STAND_CN = '%StandID%'
 EndSQL
 END
 NUMCYCLE         5.0
-$(seed === nothing ? "" : kwrec("RANNSEED", seed) * "\n")$(regime_block(regime, plantyr))
+$(seed === nothing ? "" : kwrec("RANNSEED", seed) * "\n")$(regime_block(regime, plantyr, cn))
 ECHOSUM
 PROCESS
 STOP
