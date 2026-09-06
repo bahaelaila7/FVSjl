@@ -33,9 +33,51 @@ const IE_VOL_EQ = String[
     "I00FW2W260",  # sp23
 ]
 
+# ie/formcl.f COLVFC — Colville NF (IFOR=5, forest 621, a Region-6 forest) Girard form-class table,
+# [IFCDBH 1..5, ISPC 1..23]. Column-major Fortran DATA transcribed to [ifcdbh, sp]. Region-1 IE forests
+# ignore form class (their FW2/DVE routines don't use it) and get FC=80; Colville feeds it to the R6 Behre
+# routine. FRMCLS keyword override (ie/formcl.f) not modeled — FIA stands carry none.
+const IE_COLVFC = permutedims(Float32[
+    78 78 78 76 76 64 80 77 78 78 75 81 75 78 56 56 56 77 76 70 70 70 75
+    80 78 76 78 78 65 82 79 76 80 78 82 75 76 56 56 60 77 78 70 70 70 78
+    80 80 75 77 80 66 82 80 74 80 79 82 75 74 56 56 60 77 78 70 70 70 79
+    82 80 74 76 80 66 80 80 74 82 79 80 74 74 56 56 60 77 78 70 70 70 79
+    80 80 74 76 82 66 80 81 74 80 78 80 74 74 56 56 60 77 78 70 70 70 78])
+
+# ie/formcl.f FORMCL: Region-6 Colville (IFOR=5) uses COLVFC; all other IE forests default FC=80.
+@inline function ie_formcl(sp::Integer, ifor::Int, d::Real)::Int
+    (ifor == 5 && sp >= 1 && sp <= 23) || return 80
+    ifcdbh = Int(floor((Float32(d) - 1f0) / 10f0 + 1f0))
+    ifcdbh < 1 && (ifcdbh = 1); Float32(d) > 40.9f0 && (ifcdbh = 5)
+    return Int(IE_COLVFC[sp, ifcdbh])
+end
+
+# IE sp17 (PY, VEQNNC 616BEHW231) region-6 Behre volume — reuses the validated BM/SO R6 machinery
+# (bm_r6vol3/bm_r6dibs/bm_r6vol1) with the IE form class. IE TOPD=BFTOPD=4.5 ⇒ MTOPP=4.5·BARK (fvsvol.f).
+function ie_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
+    fclass = ie_formcl(sp, ifor, d)
+    dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+    vol2 = 0f0; vol4 = 0f0
+    v1 = if h <= 17.3f0                                    # R6VOL short-tree guard (TTH≤FC_HT): cylinder VOL(1)
+        0.00272708f0 * dbhib * dbhib * h
+    else
+        v = bm_r6vol3(d, dbtbh, fclass, h, 1)             # ZONE 1 total cubic → VOL(1)
+        mtopp = 4.5f0 * bark                              # TOPDIAM = TOPD·BARK
+        xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, h)       # log bucking → small-end diameters
+        lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)       # per-log Scribner (VOL2) + merch cubic (VOL4)
+        nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
+        for k in 1:nacc
+            vol2 += bm_anint(lv1[k]); vol4 += bm_anint(lv4[k] * 10f0) / 10f0
+        end
+        v
+    end
+    return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
+end
+
 function compute_volumes!(s::StandState, ::InlandEmpire)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
+    ifor = Int(s.plot.forest_idx)
     topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0; iregn = 1
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
@@ -47,12 +89,29 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
         bfmind = sp == 7 ? 6f0 : 7f0
         bark = ie_bratio(sp, d)
         eq = veq[sp]
+        if occursin("BEH", eq)                            # region-6 Behre (sp17 PY, 616BEHW231)
+            # Broken/dead-top trees (trunc = break-ht·100, norm_ht = predicted full ht·100): FVS builds the
+            # full-bole volume at NORMHT then trims to the break via the Behre form-class taper (cftopk/bftopk),
+            # exactly as the FW2 variants do. (Validated vs FVSie_g16 treelist: D=11.7 broken tree 9.16/7.44/29.5
+            # vs live 9.2/7.4/29.5.)
+            broken = t.trunc[i] > 0 && t.norm_ht[i] > 0
+            hbase = broken ? Float32(t.norm_ht[i]) / 100f0 : h
+            tcf, mcf, bf = ie_behre_vol(sp, ifor, d, hbase, bark)
+            if broken && tcf > 0f0 && hbase >= 4.5f0
+                vmax = tcf
+                tcf, mcf = cr_cftopk(tcf, mcf, d, hbase, vmax, bark, Int(t.trunc[i]), 1f0, 4.5f0)
+                bf = cr_bftopk(bf, d, hbase, vmax, bark, Int(t.trunc[i]), 1f0, 4.5f0)
+            end
+            t.cuft_vol[i] = max(tcf, 0f0)
+            t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= bfmind ? max(bf, 0f0) : 0f0
+            continue
+        end
         v = if startswith(eq, "I")                       # Flewelling FW2 (sp1-14,23)
             cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
-        elseif occursin("DVE", eq)                        # Gevorkiantz DVE (sp15,16,18,19,20,21,22)
+        else                                              # Gevorkiantz DVE (sp15,16,18,19,20,21,22)
             cr_dve_vol(eq, d, h)
-        else                                              # Behre (sp17 PY) — deferred
-            zeros(Float32, 15)
         end
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0

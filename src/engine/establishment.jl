@@ -475,9 +475,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             elseif s.variant isa CentralRockies
                 _CR_ESSUBH_HHT[sp]        # cr/essubh.f: a FIXED per-species base height (not a height-at-age curve)
             elseif s.variant isa InlandEmpire
-                # IE NATURAL/PLANT base height — FIRST-CUT placeholder (=XMIN); the DF NATURAL height source
-                # is the estb tally path (not essubh, cont.56), to be pinned via esnutr trace + refined vs live.
-                _IE_ES_XMIN[sp]
+                # IE NATURAL/PLANT base height (ie/essubh.f) — the subsequent/planted-tree height model
+                # HHT = EXP(PN + EMSQR·DILATE·BNORM·SIG). IHTSER from the shared estab MYGRUP→MYHTS bracket
+                # (em_ihtser); IPREP=1 (NONE) / IPHY=3 defaults (esplt2.f:191-192); BAA = overstory competition
+                # clamp[1,400]; XCOS/XSIN = cos/sin(aspect)·slope. Measurement pass uses disp=0 (deterministic
+                # median), like CI/EM. This base is used ONLY when the keyword gives no AVE.HEIGHT (the
+                # treeht≥0.1 branch below overrides it with the user height + lognormal BACHLO draw).
+                let _slo = s.plot.slope
+                    ie_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0),
+                              em_ihtser(Int(s.plot.habitat_code)), 1, 3,
+                              _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation, 0f0)
+                end
             elseif s.variant isa Teton
                 _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
             elseif s.variant isa CentralIdaho
@@ -548,7 +556,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa BlueMountains || s.variant isa Utah || s.variant isa Klamath
+                   s.variant isa BlueMountains || s.variant isa Utah || s.variant isa Klamath ||
+                   s.variant isa InlandEmpire
                 # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
                 # NO RAN draw. Only the user-specified-height branch (treeht≥0.1, estab.f:1026-1034) draws the lognormal
                 # BACHLO perturbation. jl already consumes the per-replicate EMSQR/ESDRAW draws (line ~218) for stream
