@@ -759,6 +759,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
         triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
+        # RD driver must be tripled in lockstep (rd/triple.f RDTRIP): FVS RDGROW runs on the
+        # already-tripled list, so the RD per-record arrays are split .60/.25/.15 to match.
+        if stash !== nothing && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+           s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+            rd_triple_driver!(s.root_disease, stash.nlive)
+        end
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)

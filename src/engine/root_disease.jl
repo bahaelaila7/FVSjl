@@ -2368,20 +2368,39 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
     (tparea == 0.0f0 || n == 0) && return
 
-    # --- FPROB: outside-center density (RDTREG DO 843) ---
-    diffv = sarea - rd.parea[idi]
-    @inbounds for i in 1:n
-        ksp = Int(t.species[i]); ksp == 0 && continue
-        base = Int(irt[ksp]); di = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
-        di <= 0 && continue
-        if diffv >= 1.0f-6
-            fp = (t.tpa[i] * sarea - d.probiu[i] - d.probit[i]) / diffv
-            fp <= 1.0f-6 && (fp = 0.0f0)
-            d.fprob[i] = fp
-        else
-            d.fprob[i] = 0.0f0
+    # --- FPROB: outside-center density (rdtreg.f DO 839/841/843/844) ---
+    # DO 839: DIFF(idi)=SAREA-PAREA(idi) for idi in MINRR..MAXRR, breaking (GOTO 841) at
+    # the FIRST DIFF>0; DIFF starts at 0 for every disease (rdtreg.f DO 10). If NO DIFF is
+    # >0 (e.g. the single-center turnkey where PAREA==SAREA) FVS does GOTO 844 — it SKIPS
+    # the recompute entirely, leaving FPROB at its RDSETP value (=PROB). The record loop
+    # (DO 843) indexes DIFF by the per-species disease IDITYP, which is 0 for any disease
+    # not reached before the break. (An earlier port wrongly zeroed FPROB when DIFF(MAXRR)
+    # ≤ 0, killing the RDGROW OUTNUM=FPROB·(SAREA-PAREA) suppression of non-active-type
+    # host species — whose PAREA defaults to 25 > SAREA.)
+    diff4 = zeros(Float32, RD_ITOTRR)
+    anypos = false
+    @inbounds for idd in minrr:maxrr
+        diff4[idd] = sarea - rd.parea[idd]
+        if diff4[idd] > 0.0f0
+            anypos = true
+            break                                     # rdtreg.f GOTO 841
         end
     end
+    if anypos
+        @inbounds for i in 1:n
+            ksp = Int(t.species[i]); ksp == 0 && continue
+            base = Int(irt[ksp]); di = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+            di <= 0 && continue
+            if diff4[di] >= 1.0f-6
+                fp = (t.tpa[i] * sarea - d.probiu[i] - d.probit[i]) / diff4[di]
+                fp <= 1.0f-6 && (fp = 0.0f0)
+                d.fprob[i] = fp
+            else
+                d.fprob[i] = 0.0f0
+            end
+        end
+    end
+    # else: rdtreg.f GOTO 844 — FPROB unchanged (kept from RDSETP / previous cycle)
 
     # --- ROOTL: live-tree root radius (RDTREG DO 1001, rd_root) ---
     yincpt = (rd.sdislp == 0.0f0 || rd.sdnorm == 0.0f0) ? 1.0f0 : 1.0f0 - (rd.sdnorm * rd.sdislp)
@@ -2680,4 +2699,84 @@ function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int)
     d.decrat .= old.decrat; d.jraged .= old.jraged
     d.probd .= old.probd; d.dbhd .= old.dbhd; d.rootd .= old.rootd
     return d
+end
+
+# -----------------------------------------------------------------------------
+# RDTRIP (rd/rdtrip.f, called from prgnos/triple.f) — triple the RD per-record
+# arrays when the FVS tree list is TRIPLEd. In FVS growth order (tregro.f) GRINCR
+# runs TRIPLE (grincr.f:543) BEFORE GRADD runs RDTREG→RDGROW (rdtreg.f:217), so
+# RDGROW (and the downstream volume) operate on the ALREADY-tripled list. triple.f
+# calls RDTRIP(ITFN,I,WEIGHT) for each split child, scaling the parent's infection
+# state by WEIGHT (PROBI/PROBIT/PROBIU/FPROB/FFPROB/WK22/RRKILL/RDKILL/OAKL) and
+# copying PROPI/ROOTL/RROOTT unchanged. FVSjl's triple_records! splits each parent
+# i into central=i·0.60 + upper=(nlive+2i-1)·0.25 + lower=(nlive+2i)·0.15; this
+# routine extends the RD driver to 3·nlive and applies the same split, so the RD
+# driver stays sized to the tree list. Without it rd_grow_apply!/rd_end_apply! read
+# past the nlive-sized driver (garbage ⇒ nondeterministic growth-loss + volume
+# InexactError crashes). Called from grow_cycle! right after triple_records!.
+function rd_triple_driver!(rd::RootDiseaseState, nlive::Int)
+    (rd_active(rd) && rd.iroot != 0) || return
+    d = rd.driver
+    d === nothing && return
+    nlive <= 0 && return
+    tparea = 0.0f0
+    @inbounds for idi in Int(rd.minrr):Int(rd.maxrr); tparea += rd.parea[idi]; end
+    tparea == 0.0f0 && return                       # rdtrip.f TPAREA gate
+    istep = Int(rd.istep)
+    newn  = 3 * nlive
+    dn = rd_build_driver!(rd, newn)
+    # Copy the parent records (1..nlive) intact + all center/stump (non-record) arrays.
+    m = min(nlive, d.n)
+    @inbounds for i in 1:m
+        for it in 1:RD_ISTEP_MAX, ip in 1:2
+            dn.probi[i,it,ip] = d.probi[i,it,ip]; dn.propi[i,it,ip] = d.propi[i,it,ip]
+        end
+        dn.probit[i]=d.probit[i]; dn.probiu[i]=d.probiu[i]; dn.fprob[i]=d.fprob[i]
+        dn.ffprob[i,1]=d.ffprob[i,1]; dn.ffprob[i,2]=d.ffprob[i,2]
+        dn.rootl[i]=d.rootl[i]; dn.rrkill[i]=d.rrkill[i]; dn.rdkill[i]=d.rdkill[i]
+        dn.wk22[i]=d.wk22[i]; dn.rroott[i]=d.rroott[i]
+        for k in 1:3; dn.oakl[k,i]=d.oakl[k,i]; dn.bbkill[k,i]=d.bbkill[k,i]; end
+        for a in 1:4, b in 1:3; dn.dprob[i,a,b]=d.dprob[i,a,b]; end
+    end
+    dn.rrates .= d.rrates; dn.rrrate .= d.rrrate; dn.areanu .= d.areanu
+    dn.shcent .= d.shcent; dn.nscen .= d.nscen; dn.icensp .= d.icensp
+    dn.probda .= d.probda; dn.dbhda .= d.dbhda; dn.rootda .= d.rootda
+    dn.decrat .= d.decrat; dn.jraged .= d.jraged
+    dn.probd .= d.probd; dn.dbhd .= d.dbhd; dn.rootd .= d.rootd
+    # RDTRIP split: children copy from the (unscaled) parent, then the central record is
+    # scaled in place — matching triple.f (two RDTRIP children, then RDTRIP(I,I,0.6)).
+    @inbounds for i in 1:nlive
+        u = nlive + 2i - 1; l = nlive + 2i
+        rd_trip_rec!(dn, u, i, 0.25f0, istep)
+        rd_trip_rec!(dn, l, i, 0.15f0, istep)
+        rd_trip_rec!(dn, i, i, 0.60f0, istep)       # rdtrip.f WEIGHT=0.6, ITFN=I (in place)
+    end
+    rd.driver = dn
+    return
+end
+
+# rd/rdtrip.f record body. Scale the parent's infection state by WEIGHT into record
+# `itfn` (PROBI/PROBIT/PROBIU/FPROB/FFPROB/WK22/RRKILL/RDKILL/OAKL); copy PROPI, ROOTL
+# and RROOTT unchanged. `itfn==i` scales the parent in place (the 0.60 central split).
+@inline function rd_trip_rec!(d::RDDriver, itfn::Int, i::Int, w::Float32, istep::Int)
+    d.fprob[itfn]    = d.fprob[i]    * w
+    d.ffprob[itfn,1] = d.ffprob[i,1] * w
+    d.ffprob[itfn,2] = d.ffprob[i,2] * w
+    d.rroott[itfn]   = d.rroott[i]                  # copy (no weight)
+    d.wk22[itfn]     = d.wk22[i]     * w
+    d.rootl[itfn]    = d.rootl[i]                   # copy
+    d.rrkill[itfn]   = d.rrkill[i]   * w
+    d.rdkill[itfn]   = d.rdkill[i]   * w
+    d.probit[itfn]   = d.probit[i]   * w
+    d.probiu[itfn]   = d.probiu[i]   * w
+    @inbounds for ityp in 1:3
+        d.oakl[ityp,itfn] = d.oakl[ityp,i] * w
+    end
+    @inbounds for jinf in 1:istep
+        d.probi[itfn,jinf,1] = d.probi[i,jinf,1] * w
+        d.propi[itfn,jinf,1] = d.propi[i,jinf,1]    # copy (no weight)
+        d.probi[itfn,jinf,2] = d.probi[i,jinf,2] * w
+        d.propi[itfn,jinf,2] = d.propi[i,jinf,2]
+    end
+    return
 end
