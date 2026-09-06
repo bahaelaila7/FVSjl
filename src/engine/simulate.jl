@@ -421,6 +421,16 @@ function _due_fire_index(s::StandState)::Int
     return 0
 end
 
+# Duff fuel moisture MOIS(1,5) at a fire in calendar `year`, mirroring fmburn!'s own moisture selection
+# (MOISTURE-keyword override else the FMMOIS dryness-model table). Used to derive the FMCONS EXPOSR
+# mineral-soil exposure for the AUTOES BurnPrep seam. Row 1 col 5 = duff (fmburn.f:373-380).
+function _fire_duff_moisture(s::StandState, year::Int)::Float32
+    (s.fire === nothing) && return 0f0
+    movr = _active_moisture_override(s, year)
+    mois = movr === nothing ? fuel_moisture(Int(s.fire.fmois), s.variant) : _moisture_matrix(movr)
+    return Float32(mois[1, 5])
+end
+
 """
     _maybe_burn!(s, fint) -> fire_mort
 
@@ -449,6 +459,30 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     fm = 0f0
     @inbounds for i in 1:length(pre_tpa)
         fm += (pre_tpa[i] - t.tpa[i]) * pre_cfv[i]
+    end
+    # AUTOES disturbance seam (fmcons.f:247-258): "a fire is a disturbance so the year of the fire is the year
+    # of the disturbance." When automatic tallies are on (LAUTAL), FVS's FMCONS OPADDs a TALLY (activity 427,
+    # PRMS(1)=FLOAT(IYR)) at the fire year — this forces ESNUTR to fire the disturbance regen tally (NTALLY=1)
+    # INDEPENDENTLY of any harvest removal (ONTREM/OCVREM are cut-only, so a fire alone never trips the LAUTAL
+    # removal path). Without it jl fell through to the small LINGRW ingrowth and heavily UNDER-regenerated after a
+    # fire (measured 1143093321290487 simfire: post-fire TPA 285 vs oracle 1244). FMCONS also OPADDs a BurnPrep
+    # (491, PRMS(1)=EXPOSR mineral-soil exposure) which shifts species COMPOSITION only (esetpr/burnprep); the
+    # dominant TPA effect is the 427. Gated to the AUTOES variants (IE/EM, which read 427 via ie_autoes_establish!)
+    # and to LAUTAL, mirroring FVS's IF(LAUTAL). Injected post-FMBURN, pre-ESTAB — the FMBURN→ESNUTR order FVS
+    # uses; the existing scheduled-427 path in ie_autoes_establish! then consumes it (idt=fire year sits in
+    # [year,next_year) at the fire cycle ⇒ fires exactly once, inert every other cycle). ESB1 uses est.inv_baaold
+    # (the ESFLTR-frozen inventory BA) so the post-fire tally calibrates against inventory, not the depleted BA.
+    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana)
+        push!(s.control.schedule, ScheduledActivity(Int32(yr), Int32(427),
+              (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
+        # EXPOSR (fmcons.f:186-208): PRDUF(%) = 83.7 − 0.426·m_duff%, floored 0; EXPOSR = (−8.98 + 0.899·PRDUF)·
+        # PSBURN/100, zeroed when PRDUF<10. Added only when >0 so the (usual) EXPOSR=0 fire stays byte-identical.
+        mduff = _fire_duff_moisture(s, Int(yr))
+        prduf = 83.7f0 - 0.426f0 * mduff * 100f0
+        prduf < 0f0 && (prduf = 0f0)
+        exposr = prduf < 10f0 ? 0f0 : (-8.98f0 + 0.899f0 * prduf) * (Float32(s.fire.psburn) / 100f0)
+        exposr > 0f0 && push!(s.control.schedule, ScheduledActivity(Int32(yr), Int32(491),
+              (Float32(yr), exposr, 0f0, 0f0, 0f0, 0f0)))
     end
     # One-shot: drop the just-fired event (index `di`, captured before firing — no deletions in between, so
     # it is still valid) from the schedule; resync the scalars to the next pending fire so a later cycle's
