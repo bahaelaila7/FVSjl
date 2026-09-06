@@ -143,8 +143,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                                            s.variant isa InlandEmpire || s.variant isa EasternMontana ||
                                            s.variant isa Kootenai || s.variant isa CentralIdaho ||
                                            s.variant isa Olympic) ?
-                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind) :  # IE/EM/KT/CI/OP fmcfir.f == nc/fmcfir.f FM10 path (RACT=3.34·FM10@SWIND·0.4)
-                  crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant)
+                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind; fire_basis = true) :  # IE/EM/KT/CI/OP fmcfir.f == nc/fmcfir.f FM10 path (RACT=3.34·FM10@SWIND·0.4)
+                  crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant; fire_basis = true)
             # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
             # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
             # FLAMEADJ forces CRBURN=1% (0.01) ⇒ FINTEN=(HPA+TCLOAD·7744.8·0.01)·RFINAL/60 ⇒ flame 8.29 (live 8.3),
@@ -386,11 +386,16 @@ heat-per-area = `Σxir·w·384/Σsigma·w`); then BISECT the 20-ft wind (× the 
 the stand's WEIGHTED surface-fuel-model spread = RINIT1. NB the torching bisection uses the FMCFMD weighted
 STAND models (fmfint.f:120-134, the ICALL=2 ELSE branch) — NOT the fixed FM10 the crowning index uses.
 """
-torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant) = -1f0
-function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic})::Float32
+torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant; fire_basis::Bool = false) = -1f0
+function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic}; fire_basis::Bool = false)::Float32
     (cbd > 0f0 && actcbh >= 0) || return -1f0
     mois = fuel_moisture(fmois, s.variant)
-    models = select_fuel_models(s, mois)
+    # FVS computes ONE dynamic fuel model (FMCFMD3) per cycle and uses it for the surface fire AND every
+    # crown-fire FMFINT (torching bisection included) — so the torching HPA/spread must use the SAME model
+    # basis as the actual fire (fire_basis=true = the start-of-cycle+1-annual-step stash). Recomputing from
+    # the live period-end cwd (fire_basis=false) re-weights the natural-fuel model 10 up (jl 0.39 vs live 0.02)
+    # ⇒ HPA 676 vs 238 ⇒ RINIT1 too low ⇒ torching index collapses to 0 ⇒ a spurious PASSIVE crown fire.
+    models = select_fuel_models(s, mois; fire_basis = fire_basis)
     # HPA = stand heat-per-area = Σxir·w·384/Σsigma·w (fmfint.f:550, wind-independent intermediates)
     sxir = 0f0; ssig = 0f0
     for (fm, w) in models
@@ -420,12 +425,12 @@ end
 # the flame adjustment in fmburn!. CRBURN=0 ⇒ SURFACE fire (flame path unchanged ⇒ mild fires stay bit-exact).
 # NE/CR only. swind = actual 20-ft wind (mi/h).
 function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32,
-                           ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest})
-    oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
+                           ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest}; fire_basis::Bool = false)
+    oinit = torching_index(s, cbd, actcbh, fmois, s.variant; fire_basis = fire_basis)   # OINIT1
     oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
     (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0, "SURFACE")   # SURFACE (fmcfir.f:334) + Fire_Type
     mois = fuel_moisture(fmois, s.variant)
-    models = select_fuel_models(s, mois)
+    models = select_fuel_models(s, mois; fire_basis = fire_basis)   # same one FMCFMD3 basis as the actual fire
     wmult = fire_wind_reduction(s.fire.percov)
     sxir = 0f0; ssig = 0f0
     for (fm, w) in models
@@ -459,12 +464,12 @@ end
 # the FM10 reference model (not the selected surface models), and RACT's wind is a FIXED SWIND·0.4 (not OACT1·
 # WMULT). Reusing the CR/NE path over-boosts RACT ~2× (RFINAL 38.9 vs live 29.03) ⇒ over-kill. Returns
 # (crburn, rfinal, hpa). Measured vs live DEBUG FMCFIR @2003: RACT 41.71, RINIT1 6.45, CRBURN 0.561, RFINAL 29.03.
-function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32)
-    oinit = torching_index(s, cbd, actcbh, fmois, s.variant)   # OINIT1
+function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32; fire_basis::Bool = false)
+    oinit = torching_index(s, cbd, actcbh, fmois, s.variant; fire_basis = fire_basis)   # OINIT1
     oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
     (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0, "SURFACE")   # SURFACE (fmcfir.f:334) + Fire_Type
     mois = fuel_moisture(fmois, s.variant)
-    models = select_fuel_models(s, mois)
+    models = select_fuel_models(s, mois; fire_basis = fire_basis)   # same one FMCFMD3 basis as the actual fire
     wmult = fire_wind_reduction(s.fire.percov)
     sxir = 0f0; ssig = 0f0
     for (fm, w) in models

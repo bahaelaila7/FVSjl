@@ -78,6 +78,13 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _so_fm = s.variant isa SouthCentralOregon     # SO CRWDTH via so_cwcalc (SOMAP Crookston R6; forest 601 DESCHUTES BF)
     _oc_fm = s.variant isa OregonCoast            # OC CRWDTH via oc_cwcalc (OCMAP Crookston R6/R1; forest 711 BLM Medford→610 Rogue River BF)
     _op_fm = s.variant isa Olympic                # OP CRWDTH via op_cwcalc (OPMAP Crookston R6; forest 708 BLM Salem→606 Mt Hood BF)
+    # IE/KT CRWDTH via ie_crown_width (ie/ccfcal.f MODE=2, the B1·exp(B2+B3·lnCL+B4·lnD+B5·lnH+B6·lnBA) form).
+    # FMCBA reads CRWDTH(I) filled by CWIDTH→CWCALC (cwcalc.f R1-Crookston), which is bit-identical to ccfcal
+    # MODE=2 for the IE Region-1 species (verified vs FVSie_g16 CRWDTH: sp9 11.40 = 11.39). Without this IE fell
+    # to the generic eastern `crown_width` (0.5 default ⇒ crown area ~43× too small ⇒ PERCOV≈1 vs live 38.6) —
+    # PERCOV drives the FMBURN wind reduction (WMULT 0.5 vs 0.197 ⇒ FWIND 5 vs 1.97), so the surface fire was
+    # over-driven into a spurious PASSIVE crown fire (SCH 15.8 vs 2.58) ⇒ ~213 TPA + big-tree over-kill.
+    _ie_fm = s.variant isa InlandEmpire || s.variant isa Kootenai
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -107,6 +114,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
+             _ie_fm ? ie_crown_width(sp, d, t.height[i], Int(t.crown_pct[i]), s.plot.basal_area) :  # IE/KT ccfcal MODE=2
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
