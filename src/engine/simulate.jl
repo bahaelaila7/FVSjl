@@ -673,17 +673,29 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
     s.mpb !== nothing && mpb_svdg!(s)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
-    # IE cycle-1 WK1 dub for UNMEASURED trees (dgdriv.f:755-793 LSTART "DUB IN DBH INCREMENT FOR TREES
-    # ON WHICH IT WAS NOT MEASURED"): FVS dubs DG(I)=SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D for every tree whose
-    # measured increment is absent (HT>4.5), and that dubbed value becomes cycle-1 WK1 (dgdriv.f:142). The
-    # snapshot above copied `diam_growth`, which for a FIA/no-remeasurement stand is the −1 MISSING sentinel
-    # (apply_growth_input_types!, IDG=1) — NOT a real DG. Feeding WK1=−1 into ie/morts.f:268 G=WK1/(BARK·10)
-    # yields a NEGATIVE G whenever the morts.f:273 override (DG>0.5) does not fire (suppressed small trees,
-    # predicted DG≤0.5) ⇒ RIP explodes ⇒ ~2× dense small-tree over-mortality. jl's own DGF prediction
-    # (diam_growth just filled by diameter_growth!) is the faithful analog of the FVS dub, so adopt it as WK1
-    # for the sentinel trees; measured trees (dg_prev>0) keep their measured increment. CYCLE-0 only.
+    # IE cycle-1 WK1 dub (dgdriv.f:755-795 LSTART "DUB IN DBH INCREMENT FOR TREES ON WHICH IT WAS NOT
+    # MEASURED"): the calibration pass sets DG(I) per dgdriv.f:774-795, and that value becomes cycle-1 WK1
+    # (dgdriv.f:142 WK1(I)=DG(I) before DGF recomputes DG). The FVS precedence, EXACTLY:
+    #   • HT≤4.5 (seedling)          ⇒ DG(I)=0  (dgdriv.f:784-785) ⇒ WK1=0   [unconditional — the keep-measured
+    #                                   branch at :774 requires HT>4.5, so a sub-breast-height tree is ALWAYS zeroed]
+    #   • HT>4.5, measured DG>0       ⇒ WK1 = measured DG           (dgdriv.f:774-782)
+    #   • HT>4.5, no measured DG      ⇒ WK1 = DGF dub                (dgdriv.f:786-792)
+    # The snapshot above (665-666) copied `diam_growth` = the measured input DG, which for a FIA/no-remeasurement
+    # stand is the −1 MISSING sentinel (apply_growth_input_types!, IDG=1). jl's own DGF prediction (diam_growth
+    # just filled by diameter_growth!) is the faithful analog of the FVS dub for the HT>4.5 unmeasured case.
+    # ★ The HT≤4.5 ⇒ 0 branch is LOAD-BEARING for dense seedling stands: a sub-breast-height FIA seedling carries a
+    # nominal DBH (~0.1") but HT<4.5, so FVS gives it WK1=0 ⇒ Hamilton G collapses to the DGT floor (0.05/BARK) ⇒
+    # HIGH cycle-1 mortality. Without this branch jl fed WK1=predicted-DG (often >0.5 for a vigorous DF seedling),
+    # inflating 11.2007·G + 6.07129·G/D ⇒ RIP collapses ⇒ massive under-kill (oracle 39607788010690 cyc-1 drop
+    # 1614 vs jl 344). Verified vs FVSie_g16: all 3 cyc-1 seedling records HT=1.01 ⇒ WK1=0 ⇒ mortG≈0.079. CYCLE-0 only.
     (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
-        (@inbounds for i in 1:t.n; t.dg_prev[i] <= 0f0 && (t.dg_prev[i] = t.diam_growth[i]); end)
+        (@inbounds for i in 1:t.n
+            if t.height[i] <= 4.5f0
+                t.dg_prev[i] = 0f0                                   # dgdriv.f:784-785
+            elseif t.dg_prev[i] <= 0f0
+                t.dg_prev[i] = t.diam_growth[i]                      # dgdriv.f:786-792 (DGF dub analog)
+            end
+        end)
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
     s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
