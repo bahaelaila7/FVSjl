@@ -100,6 +100,133 @@ function ie_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Floa
     return max(v[1], 0f0)                             # VOL(1) total cubic (= FMSVL2 'D' TCF)
 end
 
+# ---------------------------------------------------------------------------
+# IE minor-species (aspen/cottonwood/mtn-mahogany/paper-birch/pinyon) volume.
+# IE assigns these species NVEL "DVE"-method VOLEQ strings that are REGION-1
+# ("102…"/"101…") and REGION-2 ("200…") — NOT the region-3 r3d2hv that
+# `cr_dve_vol` implements. FVS routes them (vols.f METHC=6 → NATCRS → VOLINIT →
+# dvest.f) by VOLEQ prefix: region-1 '02'-'06' → R1KEMP (r1kemp.f), region-1
+# '01' → R1ALLENC (r1allen.f), region-2 → R2OLDV (r2oldv.f). The total-cubic
+# call carries PROD='02' (fvsvol.f:184), which fixes R1KEMP's KLASS (live→3,
+# dead→1). Sending these to `cr_dve_vol` made every aspen/cottonwood/birch tree
+# return 0 cuft (r3d2hv has no branch for spc 746/740/375) — the IE TCuFt=0 bug.
+# All three routines return the FVS VOL(1..15) convention: [1]=total cubic,
+# [4]=merch cubic, [2]=board, [7]=topwood. (Measured vs FVSie_g16 dvest/vols dumps.)
+
+# r1kemp.f species index (VOLEQ(8:10) → ISPEC) for the region-1 '02'-'06' D2H tables.
+function _ie_r1kemp_ispec(spc::AbstractString)
+    spc == "746" ? 1  : spc == "740" ? 2  : spc == "017" ? 3  : spc == "019" ? 4  :
+    (spc == "070" || spc == "073") ? 5 : (spc == "090" || spc == "093") ? 6 :
+    spc == "101" ? 7  : spc == "108" ? 8  : spc == "119" ? 9  : spc == "122" ? 10 :
+    spc == "202" ? 11 : (spc == "240" || spc == "242") ? 12 :
+    (spc == "260" || spc == "263") ? 13 : spc == "060" ? 14 : spc == "106" ? 15 : 0
+end
+
+# r1kemp.f CBVOLE(ISPEC,1..11) cubic-foot coefficient table (region-1 Kemp D2H).
+const _IE_CBVOLE = (
+    (0.3482f0,-0.0384f0,0.001427f0,-0.842503f0,0.224f0,-0.343f0,0.217f0,1.071f0,0f0,0f0,0f0),
+    (0.1064f0,-0.00778f0,0.000176f0,-0.265342f0,0.204f0,-0.749f0,0.194f0,4.285f0,0f0,0f0,0f0),
+    (0.3386f0,-0.03359f0,0.001109f0,-0.918645f0,0.219f0,-0.563f0,0.197f0,9.969f0,0.2153f0,-0.00167f0,0.50f0),
+    (0.4529f0,-0.052f0,0.002003f0,-1.113416f0,0.183f0,1.449f0,0.117f0,26.222f0,0.2153f0,0.00167f0,0.67f0),
+    (0.4172f0,-0.04693f0,0.001782f0,-1.086592f0,0.17f0,-0.056f0,0.132f0,19.409f0,0.1922f0,0.09023f0,0.35f0),
+    (0.2619f0,-0.02345f0,0.000671f0,-0.716502f0,0.214f0,0.48f0,0.174f0,19.041f0,0.2306f0,0.14528f0,0.35f0),
+    (0.6808f0,-0.07974f0,0.003113f0,-1.692512f0,0.221f0,1.052f0,0.197f0,5.369f0,0.2306f0,0.14528f0,0.35f0),
+    (0.6808f0,-0.07974f0,0.003113f0,-1.692512f0,0.221f0,1.052f0,0.197f0,5.369f0,0.2306f0,0.14528f0,0.35f0),
+    (0.4544f0,-0.05119f0,0.001945f0,-1.14765f0,0.206f0,0.166f0,0.194f0,4.508f0,0.2306f0,0.14528f0,0.35f0),
+    (0.4041f0,-0.04535f0,0.001726f0,-1.054732f0,0.203f0,-1.656f0,0.218f0,-9.637f0,0.2306f0,0.14528f0,0.25f0),
+    (0.5125f0,-0.05817f0,0.002208f0,-1.320519f0,0.178f0,0.437f0,0.165f0,7.702f0,0.1795f0,0.16949f0,0.47f0),
+    (0.3349f0,-0.03565f0,0.001273f0,-0.851441f0,0.174f0,1.141f0,0.146f0,8.931f0,0.1922f0,0.09023f0,0.67f0),
+    (0.2213f0,-0.01913f0,0.000533f0,-0.635045f0,0.209f0,-0.991f0,0.210f0,2.544f0,0.2153f0,-0.00167f0,0.43f0),
+    (0f0,0f0,0f0,0f0,0.211f0,-0.597f0,0.211f0,-0.597f0,0f0,0f0,0f0),
+    (0f0,0f0,0f0,0f0,0.211f0,-0.597f0,0.211f0,-0.597f0,0f0,0f0,0f0))
+
+# r1kemp.f BFVOL(ISPEC,1,1..4) — board-foot "01" table (JTAB=1; region-1 '02'⇒JTAB=1).
+const _IE_BFVOL01 = (
+    (1.197f0,-18.544f0,1.216f0,-21.309f0),(1.046f0,-15.966f0,1.140f0,-46.735f0),
+    (1.293f0,-34.127f0,1.218f0,10.603f0),(1.011f0,-11.403f0,0.694f0,124.425f0),
+    (0.997f0,-29.790f0,0.841f0,85.150f0),(1.149f0,-11.851f0,1.158f0,1.620f0),
+    (1.208f0,-8.085f0,1.103f0,14.111f0),(1.208f0,-8.085f0,1.103f0,14.111f0),
+    (1.189f0,-26.729f0,1.181f0,-32.516f0),(1.201f0,-50.340f0,1.595f0,-298.784f0),
+    (1.003f0,-25.332f0,1.011f0,-9.522f0),(0.878f0,-10.742f0,0.799f0,-4.064f0),
+    (1.203f0,-37.314f0,1.306f0,-50.680f0),(1.208f0,-8.085f0,1.103f0,14.111f0),
+    (0f0,0f0,0f0,0f0))
+
+# R1KEMP (r1kemp.f) — region-1 Kemp D2H cubic + board. Returns (CBGRS, BFGRS) = (VOL(1)=VOL(4), VOL(2)).
+# PROD='02' always for the total-cubic call (fvsvol.f:184) ⇒ KLASS=3 (live) / KLASS=1 (dead, ispec≠8).
+function ie_r1kemp_vol(ispec::Int, d::Float32, h::Float32, islive::Bool)
+    (ispec < 1 || ispec > 15) && return (0f0, 0f0)
+    cb = _IE_CBVOLE[ispec]
+    d2h100 = d * d * h / 100f0
+    # KLASS (r1kemp.f:253): live PROD='02'⇒3; dead (ispec≠8)⇒1.
+    klass = islive ? 3 : 1
+    # CBGRS — cubic foot (r1kemp.f:345-366).
+    cbgrs = if ispec == 14 || ispec == 15
+        d < 5f0 ? 0f0 : (d <= 20.5f0 ? cb[5]*d2h100 + cb[6] : cb[7]*d2h100 + cb[8])
+    else
+        if d < 5f0
+            (cb[9]*d2h100 + cb[10]) * cb[11]
+        elseif d <= 9.5f0
+            d2h100 * (cb[1]*d + cb[2]*d*d + cb[3]*d*d*d + cb[4])
+        elseif d <= 20.5f0
+            cb[5]*d2h100 + cb[6]
+        else
+            cb[7]*d2h100 + cb[8]
+        end
+    end
+    # Cubic minimums (r1kemp.f:373-384): KLASS=3⇒2.4, KLASS≤2 (not dead-LP/WP)⇒1.6.
+    if klass == 3
+        cbgrs < 2.4f0 && (cbgrs = 2.4f0)
+    else
+        cbgrs < 1.6f0 && (cbgrs = 1.6f0)
+    end
+    # BFGRS — board foot, JTAB=1 "01" table (r1kemp.f:272-276, 336).
+    bf = _IE_BFVOL01[ispec]
+    bfgrs = d < 21f0 ? bf[1]*d2h100 + bf[2] : bf[3]*d2h100 + bf[4]
+    bfgrs < 10f0 && (bfgrs = 10f0)
+    return (cbgrs, bfgrs)
+end
+
+# R2OLDV (r2oldv.f) — region-2 "200DVEW746" aspen (RM-232). Returns (TCUFT, GCUFT, GRSBDT) = VOL(1),VOL(4),VOL(2).
+function ie_r2oldv_746(d::Float32, h::Float32)
+    d2h = d * d * h
+    tcuft = d2h <= 12470f0 ? 0.002219f0*d2h : 0.001896f0*d2h + 4.0267f0
+    gcuft = d2h <= 11800f0 ? 0.002195f0*d2h - 0.9076f0 : 0.001837f0*d2h + 3.3075f0
+    grsbdt = 0f0
+    if d > 7f0
+        grsbdt = d2h <= 2500f0 ? 8f0 : (d2h <= 8850f0 ? 0.011389f0*d2h - 20.5112f0 : 0.010344f0*d2h - 11.2615f0)
+    end
+    return (max(tcuft, 0f0), max(gcuft, 0f0), max(grsbdt, 0f0))
+end
+
+# R1ALLENC (r1allen.f) — region-1 '01' cubic. IE uses only "101DVEW375" paper birch (ISPC=12); returns VOL(1)=VOL(4)=CUVOL.
+function ie_r1allenc_375(d::Float32, h::Float32)
+    d2h = d * d * h
+    cuvol = d < 5f0 ? 0f0 : (d < 11f0 ? 0.988264f0 + 0.002732f0*d2h : 2.512836f0 + 0.002446f0*d2h)
+    return max(cuvol, 0f0)
+end
+
+# IE minor-species volume dispatch (dvest.f): returns FVS VOL(1..15) with [1]=total,[4]=merch,[2]=board,[7]=topwood.
+function ie_dve_vol(eq::AbstractString, d::Float32, h::Float32, islive::Bool)
+    vol = zeros(Float32, 15)
+    length(eq) >= 10 || return vol
+    spc = eq[8:10]
+    if eq[1] == '1'
+        r23 = eq[2:3]
+        if r23 == "01"                                   # region-1 '01' → R1ALLENC (birch 375)
+            spc == "375" && (v = ie_r1allenc_375(d, h); vol[1] = v; vol[4] = v)
+        else                                             # region-1 '02'-'06' → R1KEMP
+            cb, bf = ie_r1kemp_vol(_ie_r1kemp_ispec(spc), d, h, islive)
+            vol[1] = cb; vol[4] = cb; vol[2] = bf
+        end
+    elseif eq[1] == '2'                                  # region-2 → R2OLDV
+        if spc == "746"
+            tc, gc, bd = ie_r2oldv_746(d, h)
+            vol[1] = tc; vol[4] = gc; vol[2] = bd
+        end
+    end
+    return vol
+end
+
 function compute_volumes!(s::StandState, ::InlandEmpire)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
@@ -134,16 +261,31 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
             t.bdft_vol[i] = d >= bfmind ? max(bf, 0f0) : 0f0
             continue
         end
-        v = if startswith(eq, "I")                       # Flewelling FW2 (sp1-14,23)
-            cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
-        else                                              # Gevorkiantz DVE (sp15,16,18,19,20,21,22)
-            cr_dve_vol(eq, d, h)
+        if startswith(eq, "I")                            # Flewelling FW2 (sp1-14,23)
+            v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
+            tcf = max(v[1], 0f0)
+            mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+            bf  = d >= bfmind ? v[2] : 0f0
+            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
+        else                                              # region-1/2 NVEL DVE (aspen/cottonwood/mm/birch/pinyon)
+            # FVS routes these by VOLEQ prefix (R1KEMP / R1ALLENC / R2OLDV), PROD='02' total-cubic call.
+            broken = t.trunc[i] > 0 && t.norm_ht[i] > 0
+            hbase = broken ? Float32(t.norm_ht[i]) / 100f0 : h
+            v = ie_dve_vol(eq, d, hbase, i <= t.n)
+            tcf = max(v[1], 0f0)
+            mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
+            bf  = d >= bfmind ? max(v[2], 0f0) : 0f0
+            # CFTOPK/BFTOPK (vols.f:191-193): broken-top trees have their full-height cubic + board
+            # reduced to the standing broken stem via the Behre taper (TOPD=4.5).
+            if broken && tcf > 0f0 && hbase >= 4.5f0
+                vmax = tcf
+                tcf, mcf = cr_cftopk(tcf, mcf, d, hbase, vmax, bark, Int(t.trunc[i]), 1f0, 4.5f0)
+                bf = cr_bftopk(bf, d, hbase, vmax, bark, Int(t.trunc[i]), 1f0, 4.5f0)
+            end
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
+            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         end
-        tcf = max(v[1], 0f0)
-        mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
-        bf  = d >= bfmind ? v[2] : 0f0
-        t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
-        t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
     end
     return s
 end
