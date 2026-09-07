@@ -90,8 +90,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     dgsd = s.control.dg_sd
     ba_a = c.bark_a; ba_b = c.bark_b
     # ISORT: descending-DBH rank (ie/crown.f:152, for UTTVAR Weibull X). IND is DBH-descending order.
-    nlim = t.n + (lstart ? Int(t.ndead) : 0)
-    # #158-class species-major RNG order: FVS ie/crown.f processes trees SPECIES-MAJOR
+    # #158-class species-major RNG order: FVS ie/crown.f processes the LIVE trees SPECIES-MAJOR
     # (`DO 70 ISPC=1,MAXSP; DO 60 I3=I1,I2; I=IND1(I3)`), so the per-tree NIVAR/DUBSCR BACHLO crown draw
     # (line ~143, rejection-sampled with a species-specific SD) is consumed in species order. jl dubbed in raw
     # tree-index order ⇒ on a multi-species seedling cohort the per-tree crown draws were mis-assigned ⇒ wrong
@@ -99,7 +98,9 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a species,
     # tree-index order = FVS IND1 (stable species bucket). The deterministic per-tree crown update is
     # order-independent, so this is a no-op except on the RNG stream. IE-only (dispatches on ::InlandEmpire).
-    order = lstart ? sort(collect(1:nlim); by = ii -> (Int(t.species[ii]), ii)) : collect(1:nlim)
+    # NOTE: the LIVE loop is live-only (1:t.n); the cycle-0 DEAD records are dubbed in a SEPARATE reverse-index
+    # pass below (crown.f:634 DO 79), NOT folded into this species-major order — see the dead-dub loop.
+    order = lstart ? sort(collect(1:t.n); by = ii -> (Int(t.species[ii]), ii)) : collect(1:t.n)
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
@@ -179,6 +180,43 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             icri < 10 && (icri = 10); icri < 1 && (icri = 1)
         end
         t.crown_pct[i] = Int32(icri)
+    end
+    # ---- CYCLE-0 DEAD-TREE CROWN DUB (crown.f:633-694 `DO 79 I=IREC2,MAXTRE`) ----
+    # FVS dubs MISSING crowns on the standing-dead (HISTORY 6/7/8) records in a SEPARATE pass AFTER the live
+    # loop, iterating the dead partition in STORAGE-INDEX order (IREC2→MAXTRE). FVS stores dead records from
+    # MAXTRE downward in inventory-READ order, so IREC2 = the LAST dead read and MAXTRE = the FIRST — i.e. the
+    # DO 79 order is the REVERSE of jl's dead storage (t.n+1 = first dead read … t.n+ndead = last). Verified
+    # bit-for-bit on stand 530569588126144: the oracle's DO 79 (D,H,species) sequence == jl dead indices
+    # (t.n+ndead):-1:(t.n+1). Each NIVAR/UTTVAR dead tree draws one DUBSCR error (a main-stream BACHLO with the
+    # |FCR|≤CRSD rejection loop) REGARDLESS OF DBH (unlike the live loop's D<3 gate); CRVAR/LPIJU use the
+    # deterministic CL dub (no draw). The OLD code folded the dead into the live species-major order and routed
+    # them through the D≥3 PCR path (single unbounded BACHLO) or, for UTTVAR sp17, skipped them entirely — both
+    # desynced the main RNG stream by ~33 draws vs the oracle before the first REGENT ZZRAN, scattering every
+    # small-tree seedling stand's ZZRAN height-growth draw (#137/#206 class). Dead crown VALUES are not reported
+    # in the .sum, so the DUBSCR mean (NIVAR BCR0-3 form; UTTVAR TPCCF/AVH/TMAI terms omitted) is immaterial —
+    # only the SD (=CRSD[sp], faithful) and hence the draw COUNT/ORDER matter for the RNG sync. crown.f:684-687
+    # bounds the dead ICRI to [10,95] for ALL species (not the live loop's NIVAR<5). IE-only dispatch.
+    if lstart && t.ndead > 0
+        @inbounds for i in (t.n + Int(t.ndead)):-1:(t.n + 1)
+            t.tpa[i] <= 0f0 && continue
+            icr = Int(t.crown_pct[i]); icr > 0 && continue
+            sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+            d <= 0f0 && continue
+            local icri::Int
+            if sp == 19 || sp == 22                                   # CRVAR: deterministic CL, INT(CR*100) (no +0.5)
+                cl = 5.17281f0 + 0.32552f0*h - 0.01675f0*ba
+                cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+                icri = trunc(Int, (cl / h) * 100f0)
+            elseif sp == 15 || sp == 16                               # LPIJU: deterministic CL
+                cl = -0.59373f0 + 0.67703f0*h
+                cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+                icri = trunc(Int, (cl / h) * 100f0)
+            else                                                       # NIVAR + UTTVAR → DUBSCR (draws)
+                icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10)         # crown.f:684-686 dead bounds (all species)
+            t.crown_pct[i] = Int32(icri)
+        end
     end
     return s
 end
