@@ -358,7 +358,26 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     #      value, and D≥3 keep their large-tree DG (only D<3 gets the small-tree dub). FVS iterates SPECIES-
     #      SORTED (DO 30 ISPC; DO 25 I3=I1,I2 via IND1) — the per-record ZZRAN (BACHLO) draws MUST happen in
     #      this order or the RNG stream desyncs vs live on multi-species stands (CR proved this). ----
-    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
+    # ★ The DO-30 within-species order is the ISCT/IND1 LINKED-LIST order (setup.f: IND1 follows IBEGIN→IND2,
+    #   the tree-insertion order), NOT the storage order. A plain `sortperm(species)` is species-major but
+    #   ORDERS RECORDS BY STORAGE INDEX within a species — which only coincides with IND1 until establishment/
+    #   mortality reshuffle the linked list. Once they diverge (the cycle AFTER the first AUTOES tally on a
+    #   dense sp-9 stand), the per-record ZZRAN gets paired to the WRONG record, so a heavy small tree draws a
+    #   different height error than the oracle, under-grows, and lingers below REGNBK=2.999 — inflating the
+    #   small-tree pool that tips NSTORE (INT(ΣTPA/(prob1·300)+0.5)) and thus the AUTOES ingrowth count. Iterate
+    #   the maintained ISCT/IND1 (the SAME order dgdriv.f's DGSCOR draws use — the diameter randomization is
+    #   validated bit-exact) so the ZZRAN stream stays RNG-aligned with live FVS's DO-30 (regent.f:696-744).
+    _isct = s.control.sp_count_tab; _ind1 = s.scratch.idx1
+    _sp_order = Vector{Int}(undef, n); _no = 0
+    @inbounds for sp in 1:MAXSP
+        i1 = _isct[sp, 1]; i1 == 0 && continue
+        i2 = _isct[sp, 2]
+        for k in i1:i2
+            (1 <= k <= length(_ind1)) || continue
+            ii = Int(_ind1[k]); (1 <= ii <= n) || continue
+            _no += 1; _sp_order[_no] = ii
+        end
+    end
     # REGENT stale-BARK (ie/regent.f): the small-tree DGK=(DK−DKK)·BARK for a CRVAR/UTVAR species uses a LEFTOVER
     # BARK — the recompute BARK=BRATIO(ISPC,DBH(K),HT(K)) (regent.f:978) happens AFTER, so DGK sees the PREVIOUS
     # tree's bark. FVS's first (subcycle) loop grows UTVAR/CRVAR species in J=1 ONLY (regent.f:407) but NIVAR every
@@ -367,14 +386,14 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # same species-major order as FVS's DO-30 loop). Without this, a hardwood/aspen seedling that follows a
     # different-bark conifer seedling over-grows (its own bark ~0.95 vs the stale ~0.85–0.87) ⇒ under-mortality.
     prevbark = NaN32
-    @inbounds for j in 1:nper, oi in 1:n
+    @inbounds for j in 1:nper, oi in 1:_no
         i = _sp_order[oi]; sp = Int(t.species[i]); d = t.dbh[i]
         (d >= IE_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         isniv = sp <= 12 || sp == 14 || sp == 23
         (!isniv && j > 1) && continue                    # regent.f:407 — UTVAR/CRVAR grow in subcycle 1 only
         prevbark = ie_bratio(sp, d)                      # regent.f:445 BARK=BRATIO in the first (subcycle) loop
     end
-    @inbounds for oi in 1:n
+    @inbounds for oi in 1:_no
         i = _sp_order[oi]
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= IE_RG_XMAX[sp] && continue
