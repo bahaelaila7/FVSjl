@@ -323,7 +323,21 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             ni != 0 && (hc = ni)
         end
         if hc == 0 && ie_ref_present
-            hc = ie_pvref1(_fia_str(d, "PV_CODE", ""), pvref)
+            # ★ ESTAB ICL5 (numeric+ref path): ie/pvref1.f gives the HABPVR *intermediate* KODTYP (e.g.
+            # PV_CODE 508 / ref 110 → 506). For a NUMERIC PV_CODE the oracle's dbsstandin.f then stores
+            # ICL5 = the FINAL MTYPE-mapped KODTYP (dbsstandin.f:590-593: ICL5=KODTYP; CALL HABTYP zeros ICL5
+            # on the numeric path since habtyp.f:125 sets ICL5 only inside the 6-char/PCOML alpha block; then
+            # `IF(ICL5.LE.0) ICL5=KODTYP` ⇒ ICL5 = the projection code 510 the .out reports "MAPPED TO 510").
+            # esplt2.f keys the AUTOES habitat bracket off ICL5, so the estab IHAB comes from 510 (IHAB 6), NOT
+            # the pvref1 intermediate 506 (IHAB 8). jl stored 506 ⇒ estab bracketed to IHAB 8 ⇒ PP occupancy
+            # (OCURHT) opened at 8 that is closed by the correct habitat's species-probs ⇒ a spurious fast-growing
+            # ponderosa cohort on bare stands (measured FVSie_g16 estab-debug: over-stand ICL5→IHAB=6; jl→8). Apply
+            # ie_estab_kodtyp (= habtyp.f:134-147 MTYPE remap). GROWTH IS PROVABLY INVARIANT: ie_estab_kodtyp(x) =
+            # MTYPE[ie_habtyp(x)] is the canonical JTYPE representative of x's ITYPE ⇒ ie_habtyp(ie_estab_kodtyp(x))
+            # == ie_habtyp(x) (ie_habtyp(506)==ie_habtyp(510)==ITYPE 12), so the DG/site path is unchanged. The 6-char
+            # ALPHA path (ie_pa_ni_code above) already stores ICL5=JTYPE (habtyp.f:125) and must NOT be remapped.
+            pv = ie_pvref1(_fia_str(d, "PV_CODE", ""), pvref)
+            hc = pv == 0 ? 0 : ie_estab_kodtyp(pv)
         end
         # PV_CODE as a 6-char plant-association string given directly (ie/habtyp.f PCOML path, e.g. "CDS715"→260).
         # NOT run when a ref was present (PVREF1 already blanked KARD2 ⇒ no PCOML retry).
@@ -341,7 +355,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
                 # EM/UT/TT strip a 2-digit state prefix (41780 → 780); IE does NOT — ie/habtyp.f keeps the raw
                 # KODTYP, and a >999 value is out of range ⇒ default 260 (MEASURED 41691 → 260, NOT 691).
                 !isie && pvc > 999 && (pvc = pvc % 1000)
-                (10 <= pvc <= 999) && (hc = pvc)
+                # IE: mirror dbsstandin.f/habtyp.f — the ESTAB ICL5 for a NUMERIC PV_CODE is the FINAL
+                # MTYPE-mapped KODTYP (see the pvref1 branch above), not the raw code. Growth-invariant.
+                (10 <= pvc <= 999) && (hc = isie ? ie_estab_kodtyp(pvc) : pvc)
             end
         end
         # Unresolved habitat: IE ⇒ live default habitat 260 (ie/habtyp.f: an out-of-range/unrecognized KODTYP
