@@ -561,7 +561,28 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
         end
     end
     p = s.plot
-    npt = s.trees.n > 0 ? maximum(Int(p) for p in @view s.trees.plot_id[1:s.trees.n]) : 0
+    npt_trees = s.trees.n > 0 ? maximum(Int(pp) for pp in @view s.trees.plot_id[1:s.trees.n]) : 0
+    # ★ Size point_slope/point_aspect to the FULL inventory-point count (IPTINV-NONSTK = nptids) — but ONLY when
+    # the stand carries ≥1 tree record. esplt2.f keys the per-plot slope on IPINFO:
+    #   • IPINFO=2 (tree records present, carrying plot site data): FVS builds all IPTINV points; a point with NO
+    #     tree record keeps PSLO(NNID)=0 (BLKDAT default → *0.01 → 0), while the tree-bearing points get their slope.
+    #     jl formerly sized this to max(tree plot_id), so those empty points fell OUT of the array and
+    #     ie_autoes_tally/ie_autoes_run used the empty→STAND-slope fallback — feeding the stand slope into ESTPP/
+    #     ESTOCK for points the oracle drives with slope 0. Since ESTPP's BB carries −2.76·SLO, a spurious nonzero
+    #     slope on the empty points UNDER-counts trees-per-plot (ITPP) ⇒ AUTOES ingrowth under-produces (MEASURED
+    #     FVSie_g16 4733242010690 @2013: oracle per-point PSLO=[0.68,0,0,0], ITPP 92 → 100 TPA; jl fed 0.68 to all
+    #     4 points ⇒ ITPP 62 → 64 TPA). Extending to npt_inv with empty points → 0 (get(...,0f0)) matches PSLO=0.
+    #   • IPINFO=0 (fully BARE stand, ZERO tree records): FVS takes the NM=1/GOTO 150 branch and sets EVERY point to
+    #     the STAND slope XXSLP (MEASURED FVSie_g16 1856009969290487, 0 trees, 4 points: PSLO=[0.44,0.44,0.44,0.44]).
+    #     So for a bare stand leave point_slope EMPTY (npt=0) — ie_autoes_tally's empty→stand-slope fallback then
+    #     drives every point with the stand slope, matching IPINFO=0. (Forcing empty points to 0 here OVER-produced:
+    #     1856009969290487 189→470, 1629553740290487 252→826.)
+    #   The IPINFO discriminator is the RAW tree-record count (length(recs)), NOT s.trees.n: a stand can carry a
+    #   tree record that ingest DROPS (e.g. a HISTORY=6 dead / non-projectable stem) yet FVS still processed that
+    #   record in esplt1 (IPINFO=2) — so its plot keeps its slope and the empty points get 0. A truly-bare stand
+    #   (zero tree rows) is the only IPINFO=0 case. (MEASURED: 4733242010690 has 1 DB tree row but s.trees.n=0.)
+    npt_inv = max(1, Int(p.points_inv) - Int(p.nonstockable))          # IPTINV-NONSTK (esplt2.f nptids)
+    npt = length(recs) == 0 ? npt_trees : max(npt_trees, npt_inv)
     # Always populate for DATABASE input (this reader is DATABASE-only; TREEDATA uses a different path so iet01 etc.
     # keep the empty→stand-slope fallback). A NULL DB slope ⇒ 0, which is the CORRECT establishment slope live uses.
     if npt >= 1
