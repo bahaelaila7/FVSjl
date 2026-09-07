@@ -1421,6 +1421,25 @@ function ie_pa_habitat_code(code::AbstractString)::Int
     return Int(_IE_HABTYP_MTYPE[itype])                 # final KODTYP = MTYPE[ITYPE]
 end
 
+# ie_pa_ni_code(code) → the NORTH-IDAHO habitat code ICL5 = JTYPE(NITYPE) for a 6-char plant-association PV_CODE,
+# or 0 if unrecognized. ★ This is what ie/habtyp.f STORES AS ICL5 (line 124-125: KODTYP=JTYPE(NITYPE); ICL5=KODTYP)
+# BEFORE the final MTYPE(ITYPE) remap — and ICL5, not the MTYPE growth code, is what esplt2.f/estab.f key the
+# AUTOES habitat bracket off. (ie_pa_habitat_code above returns the MTYPE growth code, which HBDECD→ITYPE→MTYPE
+# yields; for a 6-char code the two DIFFER, e.g. CWS821 → NITYPE 55 → JTYPE(55)=590 (estab ICL5) vs MTYPE 510
+# (growth). Feeding 510 to the estab bracket gives group 6 (SHAB −0.06); the oracle's 590 gives group 5
+# (SHAB +0.54) — MEASURED live FVSie_g16 645170890126144: ICL5=590, ESTOCK IHAB=5.) Growth is invariant to which
+# we store: ie_habtyp(JTYPE(NITYPE)) == ie_habtyp(MTYPE[ITYPE]) == ITYPE (MTYPE codes are the canonical JTYPE
+# representative of each group), so the DG/site path re-derives the identical ITYPE either way.
+function ie_pa_ni_code(code::AbstractString)::Int
+    s = strip(uppercase(code))
+    length(s) == 6 || return 0
+    idx = findfirst(==(s), _IE_HABTYP_PCOML)
+    idx === nothing && return 0
+    nitype = Int(_IE_HABTYP_MAPR6[idx])                 # NITYPE = MAPR6[i]
+    (1 <= nitype <= length(IE_JTYPE)) || return 0
+    return Int(IE_JTYPE[nitype])                        # ICL5 = JTYPE(NITYPE)
+end
+
 # ie/pvref1.f: the (PV_CODE, PV_REF_CODE) → HABPVR crosswalk (879 rows, first-match-wins per live's DO-EXIT).
 # Live habtyp.f calls PVREF1 whenever a reference code is present; a FULL match (both PVCODE and PVREF hit the
 # same row) sets KODTYP=HABPVR; ANY non-full-match (incl. neither found, e.g. PV_CODE "ABR8" + ref 639) leaves
@@ -1659,9 +1678,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # (species 1-10 = WP WL DF GF WH RC LP ES AF PP), so no species crosswalk is needed — EM's dry habitats zero the
     # wet-side estb species (OCURHT verified bit-identical to live FVSem for IHAB=3), and EM's establishing species
     # (WL/DF/LP/ES/AF/PP) sit at the matching estb indices 2,3,7,8,9,10.
+    # esplt2.f keys the ESTAB habitat bracket off ICL5 = the NORTH-IDAHO habitat code (JTYPE value), which
+    # ie/habtyp.f sets to JTYPE(NITYPE) (line 124-125) BEFORE the final MTYPE(ITYPE) remap used only for GROWTH.
+    # s.plot.habitat_code already holds that NI code (ie_pvref1's numeric HABPVR / the raw numeric habitat code =
+    # ICL5), so feed it DIRECTLY — exactly as the EM branch feeds EM_JTYPE[iemtyp]. ★ MEASURED (FVSie_g16
+    # 645170890126144 @2057): oracle ICL5=590 (=JTYPE(55)) → esplt2 group 5 (SHAB=+0.540 ⇒ PROB1 0.726), whereas a
+    # PRIOR ie_estab_kodtyp remap sent 590→MTYPE 510 → group 6 (SHAB=−0.060 ⇒ PROB1 0.586), a −0.60 stocking logit
+    # that under-produced AUTOES ingrowth by ~100 TPA/cycle. Growth is unaffected: the DG/site path re-derives ITYPE
+    # via ie_habtyp(habitat_code), and ie_habtyp(590)==ie_habtyp(510)==ITYPE 12 (identical MTYPE 510).
     ihab_code = s.variant isa EasternMontana ?
         Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)]) :
-        ie_estab_kodtyp(Int(s.plot.habitat_code))   # apply ie/habtyp.f MTYPE crosswalk (591→590→510) — matches oracle ICL5
+        Int(s.plot.habitat_code)
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
     next_year = year + per

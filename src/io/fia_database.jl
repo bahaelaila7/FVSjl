@@ -309,7 +309,20 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # result counts, else default 260. (CWS422/626 → jl formerly fell back to ie_pa_habitat_code=520; 41691/401 →
         # jl formerly %1000-stripped to 691. MEASURED vs FVSie_g16 habtyp.f+pvref1.f: both default to 260.)
         ie_ref_present = isie && pvref > 0
-        if ie_ref_present
+        # ★ ESTAB ICL5 fix: for IE a 6-char plant-association PV_CODE is decoded by ie/habtyp.f's PCOML block
+        # (dbsstandin.f DB path keeps KARD2 as the alpha code ⇒ HBDECD→NITYPE→ICL5=JTYPE(NITYPE)), INDEPENDENT
+        # of PV_REF_CODE. That North-Idaho code (NOT pvref1's HABPVR, NOT the MTYPE growth code) is what
+        # esplt2.f/estab.f key the AUTOES habitat bracket off. MEASURED FVSie_g16 645170890126144 (PV_CODE
+        # CWS821, ref 627): ICL5=590=JTYPE(55) (growth KODTYP 510), ESTOCK IHAB=5. jl formerly stored the MTYPE/
+        # pvref1 code (510) ⇒ estab bracket group 6 (SHAB −0.06) vs the oracle's group 5 (SHAB +0.54), a −0.60
+        # stocking logit that under-produced AUTOES ingrowth ~100 TPA/cycle. Growth is invariant: ie_habtyp(590)
+        # == ie_habtyp(510) == ITYPE 12 (MTYPE codes are the canonical JTYPE representative of each ITYPE group),
+        # so the DG/site path re-derives the identical habitat_input. Take precedence for any recognized 6-char code.
+        if isie
+            ni = ie_pa_ni_code(_fia_str(d, "PV_CODE", ""))
+            ni != 0 && (hc = ni)
+        end
+        if hc == 0 && ie_ref_present
             hc = ie_pvref1(_fia_str(d, "PV_CODE", ""), pvref)
         end
         # PV_CODE as a 6-char plant-association string given directly (ie/habtyp.f PCOML path, e.g. "CDS715"→260).
