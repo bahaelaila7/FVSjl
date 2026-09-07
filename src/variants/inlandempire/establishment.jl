@@ -1973,9 +1973,28 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # the PRE-growth baaa as its inventory BAAOLD). Ingrowth-only: the disturbance re-stocking path uses the bare
     # per-point BA deliberately (validated bit-exact) and is inert to a refresh (bare stays bare).
     baaa_pn = baaa
+    # ★ OVERSTORY-ONLY per-point BAAA (estb/dense.f:212 `IF(D.LT.REGNBK) GO TO 10`): the end-of-cycle stocking
+    # ESTOCK reads BAAA(NNID), which dense.f accumulates from OVERSTORY trees ONLY (D≥REGNBK=2.999, blkdat.f:235).
+    # jl fed the ALL-tree point_ba (point_basal_area!, no DBH filter), which on a seedling/regenerating stand counts
+    # the sub-REGNBK cohort and inflates BAAA far above the oracle's ~0 (MEASURED FVSie_g16 196386885020004 @2022:
+    # oracle BAAA=1.0 all 4 points [all stems <2.999] vs jl point_ba=[13.3,1.1,15.7,5.0] ⇒ PN +0.35 ⇒ PROB1 0.72 vs
+    # 0.636 ⇒ NSTORE too low ⇒ AUTOES ingrowth over-books ~+66 TPA). Rebuild the per-point BA counting only D≥REGNBK
+    # (same tpa·0.005454·D²·PI/GROSPC scale as point_basal_area!), matching dense.f. On a stocked stand this equals
+    # the all-tree value minus the small-tree BA — MEASURED oracle 30194821 @2018 BAAA=59.5 vs jl overstory 60.3
+    # (all-tree 68.9) ⇒ closer to the oracle, no regression. Used for the scalar baaa_pn AND the per-point PROB1
+    # vector (prob1_pt) below. Ingrowth-only (the disturbance re-stocking path deliberately uses the bare all-tree
+    # per-point BA, validated bit-exact, and is not refreshed here).
+    overstory_pba = Float32[]
     if is_ingro
         compute_density!(s)
-        baaa_pn = isempty(s.density.point_ba) ? baaa : s.density.point_ba[1]
+        _sc = s.plot.pi / s.plot.gross_space
+        overstory_pba = zeros(Float32, nptids)
+        @inbounds for i in 1:s.trees.n
+            s.trees.dbh[i] < 2.999f0 && continue                          # REGNBK overstory filter (dense.f:212)
+            pid = Int(s.trees.plot_id[i]); (1 <= pid <= nptids) || continue
+            overstory_pba[pid] += s.trees.tpa[i] * 0.005454154f0 * s.trees.dbh[i]^2 * _sc
+        end
+        baaa_pn = isempty(overstory_pba) ? baaa : overstory_pba[1]
     end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
@@ -1990,9 +2009,9 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
                       point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
-                      # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). Post-growth
-                      # per-point BA (compute_density! refreshed above for is_ingro). Empty ⇒ ie_autoes_run keeps the scalar.
-                      point_ba = (is_ingro && !isempty(s.density.point_ba) ? (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
+                      # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). OVERSTORY-ONLY
+                      # (D≥REGNBK) post-growth per-point BA (dense.f:212), built above. Empty ⇒ ie_autoes_run keeps the scalar.
+                      point_ba = (is_ingro && !isempty(overstory_pba) ? (@view overstory_pba[1:min(nptids, length(overstory_pba))]) : Float32[]),
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
                       prep_sumup = prep_sumup,  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
