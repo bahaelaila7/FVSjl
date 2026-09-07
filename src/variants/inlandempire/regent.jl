@@ -333,44 +333,61 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             # UTVAR PI/JU (sp15,16): height increment + ZZRAN + linear height→DBH (regent.f:756-985).
             # regent OVERRIDES the large-tree dgf/htgf for pinyon/juniper (XMAX=99, XMIN=90 ⇒ XWT≡0).
             if sp == 15 || sp == 16
+                # UTVAR PI/JU tripling (regent.f DO-25 918-loopback, line 1042-1044 GO TO 918): each record —
+                # central + 2 copies — draws its OWN ZZRAN and gets its OWN height + linear-DK diameter dub; the
+                # copies' DG/HTG MUST be stashed (dgU/dgL, htgU/htgL, is_small) or they FREEZE at the tiny
+                # large-tree DGFASP DG (triple_records! always overwrites the copies' DG with dgU/dgL). XWT≡0
+                # (XMIN=90); no D<3 gate (regent.f:862 GO TO 1020 for 15/16). DGK uses the STALE leftover BARK.
                 h = t.height[i]
                 sitear = p.sp_site_index[sp]
                 xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
                 xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
                 htgr1 = wk3[i] - h                                # HK−H (UT: NOT floored; regent.f:756)
-                zzran = 0f0
-                if dgsd >= 1.0f0
-                    while true
-                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break   # CR/UT bound (regent.f:813)
-                    end
-                end
-                htgr = (htgr1 + zzran*0.1f0) * xrhgro              # UT: ZZRAN·0.1 (regent.f:814)
-                htgr < 0.1f0 && (htgr = 0.1f0)
                 xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
                 xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)       # ≡0 for PI/JU (xmn=90)
-                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
                 cap = s.control.sp_size_cap[sp, 4]
-                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-                t.ht_growth[i] = htg
-                # diameter: linear height→DBH; DG on the DDS scale (regent.f:879-985)
-                hk = h + htg
-                if hk < 4.5f0
-                    t.diam_growth[i] = 0f0                          # regent.f:883 DG(K)=0
-                else
-                    dk = (hk - 4.5f0)*10f0/(sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-                    dkk = (h - 4.5f0)*10f0/(sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-                    h < 4.5f0 && (dkk = d)                          # regent.f:897 override
-                    bark = ie_bratio(sp, d)
-                    dgkbark = isnan(prevbark) ? bark : prevbark     # regent.f:961 STALE BARK (see prevbark note)
-                    dgk = (dk - dkk) * dgkbark * xrdgro             # regent.f:960
-                    dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
-                    dgk < 0f0 && (dgk = 0f0)
-                    dds = dgk*(2f0*bark*d + dgk)*scale2             # regent.f:980 (DG(K)=DGK for CR/UT)
-                    dgv = sqrt((d*bark)^2 + dds) - bark*d           # regent.f:981
-                    (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
-                    t.diam_growth[i] = dgv
-                    prevbark = bark                                 # regent.f:978 recompute (this tree's bark)
+                bark = ie_bratio(sp, d)
+                large_htg = t.ht_growth[i]                         # large-tree htgf value for the XWT blend
+                nrec = stash !== nothing ? 3 : 1
+                for l in 0:(nrec - 1)
+                    zzran = 0f0
+                    if dgsd >= 1.0f0
+                        while true
+                            zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                            (zzran <= 0.5f0 && zzran >= -2.0f0) && break   # CR/UT bound (regent.f:813)
+                        end
+                    end
+                    htgr = (htgr1 + zzran*0.1f0) * xrhgro          # UT: ZZRAN·0.1 (regent.f:814)
+                    htgr < 0.1f0 && (htgr = 0.1f0)
+                    htg = htgr*(1f0 - xwt) + xwt*large_htg
+                    (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                    # diameter: linear height→DBH; DG on the DDS scale (regent.f:879-985)
+                    hk = h + htg
+                    dgv = 0f0; has_dg = false                      # hk<4.5 ⇒ DG=0, DBH unchanged (regent.f:883)
+                    if hk >= 4.5f0
+                        has_dg = true
+                        dk = (hk - 4.5f0)*10f0/(sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                        dkk = (h - 4.5f0)*10f0/(sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                        h < 4.5f0 && (dkk = d)                      # regent.f:897 override
+                        dgkbark = isnan(prevbark) ? bark : prevbark # regent.f:961 STALE BARK (see prevbark note)
+                        dgk = (dk - dkk) * dgkbark * xrdgro         # regent.f:960
+                        dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
+                        dgk < 0f0 && (dgk = 0f0)
+                        dds = dgk*(2f0*bark*d + dgk)*scale2         # regent.f:980 (DG(K)=DGK for CR/UT)
+                        dgv = sqrt((d*bark)^2 + dds) - bark*d       # regent.f:981
+                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
+                    end
+                    if l == 0
+                        t.ht_growth[i] = htg
+                        t.diam_growth[i] = dgv
+                    elseif l == 1
+                        stash.htgU[i] = htg; stash.is_small[i] = true
+                        stash.dgU[i] = dgv
+                    else
+                        stash.htgL[i] = htg
+                        stash.dgL[i] = dgv
+                    end
+                    has_dg && (prevbark = bark)                    # regent.f:978 recompute (per record)
                 end
             elseif sp == 18 || sp == 20 || sp == 21
                 # UTVAR aspen (regent.f:756-985): per-RECORD ZZRAN height draw + XWT blend, then log-DK diameter
@@ -464,60 +481,92 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         t.diam_growth[i] = 0f0
                     end
                 end
+                # TTVAR tripling (regent.f:1029-1041): the 2 copies are EXACT DUPLICATES of the central
+                # (DBH,DG,HT,HTG all copied — NO new ZZRAN, NO recompute; TTVAR skips the 918-loopback). Stash the
+                # central's HTG/DG so the copies GROW instead of freezing at the large-tree dgU (triple_records!
+                # always overwrites the copies' DG). XMAX=3 ⇒ every processed TTVAR record is D<3 (dub always ran).
+                if stash !== nothing
+                    stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]; stash.is_small[i] = true
+                    stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+                end
             elseif sp == 19 || sp == 22
-                # CRVAR CO/OH: HTGR=(HTGR1+ZZRAN·0.2)·XRHGRO (regent.f:815), XWT blend [0.5,2]. Diameter: D≥1 keeps
-                # the large-tree dgf (regent.f:859), D<1 gets the regent log-DK dub (see the D<1 block below).
+                # CRVAR CO/OH tripling (regent.f DO-25 918-loopback): each record — central + 2 copies — draws its
+                # OWN ZZRAN (bound [−2,0.5]) and gets its OWN height (HTGR=(HTGR1+ZZRAN·0.2)·XRHGRO + XWT blend
+                # [XMIN,XMAX] + HTG floor 0.1) and, for D<1, its OWN log-DK diameter dub; the copies' DG/HTG MUST
+                # be stashed or they FREEZE at the tiny large-tree DGFASP DG. D≥1 keeps the large-tree dgf
+                # (regent.f:859 GOTO 23) but STILL draws the per-copy ZZRAN and blends the height. DGK uses the
+                # STALE leftover BARK (prevbark); hk<4.5 sets DBH directly (regent.f:883 DBH(K)=D+.001·HK), encoded
+                # for the copies as a DG vs central_dbh (copy_tree! copies the central DBH, GRADD adds DG/bark).
                 h = t.height[i]
                 xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
                 xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
                 htgr1 = wk3[i] - h
-                zzran = 0f0
-                if dgsd >= 1.0f0
-                    while true
-                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-                    end
-                end
-                htgr = (htgr1 + zzran*0.2f0) * xrhgro                # CRVAR: ZZRAN·0.2
-                htgr < 0.1f0 && (htgr = 0.1f0)
                 xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
                 xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
-                htg < 0.1f0 && (htg = 0.1f0)                         # CRVAR HTG floor (regent.f:842)
                 cap = s.control.sp_size_cap[sp, 4]
-                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-                t.ht_growth[i] = htg
-                # CRVAR CO/OH DIAMETER (ie/regent.f:859-987). D≥1 keeps the large-tree DG (regent.f:859
-                # `IF(CRVAR.AND.D.GE.1.0)GOTO 23`). D<1 gets the regent log-DK Wykoff diameter growth — the
-                # SAME final-assembly path as UTVAR aspen (regent.f:899-912,956-982): DK/DKK from the blkdat
-                # HT-DBH curve, DGK=(DK−DKK)·BARK·XRDGRO on the DDS scale. (The prior stub used the SUBCYCLE
-                # density-feedback nominal D+0.0001·H2 — regent.f:640 — which FROZE the D<1 seedling diameter
-                # once HK>4.5 ⇒ dense OH under-grows. EM CRVAR uses SMDGF instead, so its port differs.)
-                if d < 1.0f0
-                    hk = h + htg
-                    if hk < 4.5f0
-                        t.dbh[i] = d + 0.001f0*hk; t.diam_growth[i] = 0f0     # regent.f:883
-                    else
-                        bx = sd[:ht2][sp]                                      # blkdat Wykoff HT2 (regent.f:900)
-                        ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:901-905
-                        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
-                        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
-                        bark = ie_bratio(sp, d)
-                        dgkbark = isnan(prevbark) ? bark : prevbark          # regent.f:961 STALE BARK
-                        if dk < 0f0 || dkk < 0f0                              # regent.f:957-959
-                            dgk = htg*0.2f0*dgkbark*xrdgro
-                        else
-                            dgk = (dk - dkk)*dgkbark*xrdgro                   # regent.f:961
+                bark = ie_bratio(sp, d)
+                bx = sd[:ht2][sp]                                             # blkdat Wykoff HT2 (regent.f:900)
+                ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:901-905
+                large_htg = t.ht_growth[i]                                    # large-tree htgf value for the blend
+                small_d = d < 1.0f0
+                nrec = stash !== nothing ? 3 : 1
+                central_dbh = d
+                for l in 0:(nrec - 1)
+                    zzran = 0f0
+                    if dgsd >= 1.0f0
+                        while true
+                            zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                            (zzran <= 0.5f0 && zzran >= -2.0f0) && break
                         end
-                        dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)    # regent.f:963
-                        dgk < 0f0 && (dgk = 0f0)                              # regent.f:966
-                        dds = dgk*(2f0*bark*d + dgk)*scale2                   # regent.f:978-981 (DG(K)=DGK for CRVAR)
-                        dgv = sqrt((d*bark)^2 + dds) - bark*d                 # regent.f:982
-                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)   # regent.f:984-986
-                        dgv = dg_bound(nothing, nothing, sp, d, dgv, s.control.sp_size_cap)   # DGBND (regent.f:991)
-                        t.diam_growth[i] = dgv
-                        prevbark = bark                                      # regent.f:978 recompute
                     end
+                    htgr = (htgr1 + zzran*0.2f0) * xrhgro                     # CRVAR: ZZRAN·0.2
+                    htgr < 0.1f0 && (htgr = 0.1f0)
+                    htg = htgr*(1f0 - xwt) + xwt*large_htg
+                    htg < 0.1f0 && (htg = 0.1f0)                              # CRVAR HTG floor (regent.f:842)
+                    (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                    # CRVAR CO/OH DIAMETER (ie/regent.f:859-987). D≥1 keeps the large-tree DG (regent.f:859
+                    # `IF(CRVAR.AND.D.GE.1.0)GOTO 23`). D<1 gets the regent log-DK Wykoff diameter growth on the
+                    # DDS scale; hk<4.5 sets DBH directly (regent.f:883, DG=0).
+                    dgv = 0f0; dbh_dir = -1.0f0; has_dg = false
+                    if small_d
+                        hk = h + htg
+                        if hk < 4.5f0
+                            dbh_dir = d + 0.001f0*hk                          # regent.f:883 DBH(K)=D+.001·HK, DG=0
+                        else
+                            has_dg = true
+                            dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
+                            dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
+                            dgkbark = isnan(prevbark) ? bark : prevbark      # regent.f:961 STALE BARK
+                            if dk < 0f0 || dkk < 0f0                          # regent.f:957-959
+                                dgk = htg*0.2f0*dgkbark*xrdgro
+                            else
+                                dgk = (dk - dkk)*dgkbark*xrdgro              # regent.f:961
+                            end
+                            dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)   # regent.f:963
+                            dgk < 0f0 && (dgk = 0f0)                          # regent.f:966
+                            dds = dgk*(2f0*bark*d + dgk)*scale2               # regent.f:978-981 (DG(K)=DGK for CRVAR)
+                            dgv = sqrt((d*bark)^2 + dds) - bark*d             # regent.f:982
+                            (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)   # regent.f:984-986
+                            dgv = dg_bound(nothing, nothing, sp, d, dgv, s.control.sp_size_cap)   # DGBND (regent.f:991)
+                        end
+                    end
+                    if l == 0
+                        t.ht_growth[i] = htg
+                        if small_d
+                            if dbh_dir >= 0.0f0
+                                t.dbh[i] = dbh_dir; t.diam_growth[i] = 0f0; central_dbh = dbh_dir
+                            else
+                                t.diam_growth[i] = dgv
+                            end
+                        end
+                    elseif l == 1
+                        stash.htgU[i] = htg; stash.is_small[i] = true
+                        small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dgv)
+                    else
+                        stash.htgL[i] = htg
+                        small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dgv)
+                    end
+                    has_dg && (prevbark = bark)                              # regent.f:978 recompute (per record)
                 end
             end
             continue                                              # (all special species handled)
