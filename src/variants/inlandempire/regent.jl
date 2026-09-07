@@ -309,6 +309,21 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     #      SORTED (DO 30 ISPC; DO 25 I3=I1,I2 via IND1) — the per-record ZZRAN (BACHLO) draws MUST happen in
     #      this order or the RNG stream desyncs vs live on multi-species stands (CR proved this). ----
     _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
+    # REGENT stale-BARK (ie/regent.f): the small-tree DGK=(DK−DKK)·BARK for a CRVAR/UTVAR species uses a LEFTOVER
+    # BARK — the recompute BARK=BRATIO(ISPC,DBH(K),HT(K)) (regent.f:978) happens AFTER, so DGK sees the PREVIOUS
+    # tree's bark. FVS's first (subcycle) loop grows UTVAR/CRVAR species in J=1 ONLY (regent.f:407) but NIVAR every
+    # subcycle, so the bark entering the second loop is the LAST NIVAR small tree's bark from the final subcycle.
+    # Replicate that leftover, then carry it forward (updated by every tree that reaches the diameter dub, in the
+    # same species-major order as FVS's DO-30 loop). Without this, a hardwood/aspen seedling that follows a
+    # different-bark conifer seedling over-grows (its own bark ~0.95 vs the stale ~0.85–0.87) ⇒ under-mortality.
+    prevbark = NaN32
+    @inbounds for j in 1:nper, oi in 1:n
+        i = _sp_order[oi]; sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= IE_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        isniv = sp <= 12 || sp == 14 || sp == 23
+        (!isniv && j > 1) && continue                    # regent.f:407 — UTVAR/CRVAR grow in subcycle 1 only
+        prevbark = ie_bratio(sp, d)                      # regent.f:445 BARK=BRATIO in the first (subcycle) loop
+    end
     @inbounds for oi in 1:n
         i = _sp_order[oi]
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -346,56 +361,76 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     dk = (hk - 4.5f0)*10f0/(sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                     dkk = (h - 4.5f0)*10f0/(sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
                     h < 4.5f0 && (dkk = d)                          # regent.f:897 override
-                    dgk = (dk - dkk) * ie_bratio(sp, d) * xrdgro    # regent.f:960
+                    bark = ie_bratio(sp, d)
+                    dgkbark = isnan(prevbark) ? bark : prevbark     # regent.f:961 STALE BARK (see prevbark note)
+                    dgk = (dk - dkk) * dgkbark * xrdgro             # regent.f:960
                     dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
                     dgk < 0f0 && (dgk = 0f0)
-                    bark = ie_bratio(sp, d)
                     dds = dgk*(2f0*bark*d + dgk)*scale2             # regent.f:980 (DG(K)=DGK for CR/UT)
                     dgv = sqrt((d*bark)^2 + dds) - bark*d           # regent.f:981
                     (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
                     t.diam_growth[i] = dgv
+                    prevbark = bark                                 # regent.f:978 recompute (this tree's bark)
                 end
             elseif sp == 18 || sp == 20 || sp == 21
-                # UTVAR aspen: height increment + ZZRAN + XWT blend, then log-DK diameter (regent.f:756-985).
-                # XMAX=4, XMIN=2 ⇒ height blends toward large-tree htgf on D∈[2,4]; diameter only D<3 (else DGFASP).
+                # UTVAR aspen (regent.f:756-985): per-RECORD ZZRAN height draw + XWT blend, then log-DK diameter
+                # (D<3 only; else keep large-tree DGFASP). XMAX=4, XMIN=2. TRIPLING (regent.f:801-829 DO-25 over
+                # IND1): each record — central + 2 copies — draws its OWN ZZRAN and gets its OWN height+diameter
+                # dub; the copies' DG MUST be stashed (dgU/dgL) or they FREEZE at the tiny large-tree DGFASP DG and
+                # get over-killed in later cycles (the dominant IE none-regime aspen/hardwood over-mortality). The
+                # DGK bark is the STALE leftover BARK (prevbark): the recompute at regent.f:978 is only afterwards,
+                # so the central sees the previous small tree's bark and each record then updates it for the next.
                 h = t.height[i]
                 xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
                 xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
                 htgr1 = wk3[i] - h
-                zzran = 0f0
-                if dgsd >= 1.0f0
-                    while true
-                        zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                        (zzran <= 0.5f0 && zzran >= -2.0f0) && break       # CR/UT bound (regent.f:813)
-                    end
-                end
-                htgr = (htgr1 + zzran*0.1f0) * xrhgro
-                htgr < 0.1f0 && (htgr = 0.1f0)
                 xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
                 xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-                htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
                 cap = s.control.sp_size_cap[sp, 4]
-                (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-                t.ht_growth[i] = htg
-                # diameter: aspen log-DK, ONLY D<3 (regent.f:860 D≥3 ⇒ GO TO 23, keeps large-tree DGFASP)
-                if d < 3f0
-                    hk = h + htg
-                    bx = sd[:ht2][sp]                                       # blkdat Wykoff HT2
-                    ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:900-904
-                    if hk < 4.5f0
-                        t.diam_growth[i] = 0f0
-                    else
-                        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:905-906
-                        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:907-911 (no DKK floor)
-                        bark = ie_bratio(sp, d)
-                        dgk = (dk - dkk) * bark * xrdgro                                       # regent.f:960
-                        dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
-                        dgk < 0f0 && (dgk = 0f0)
-                        dds = dgk*(2f0*bark*d + dgk)*scale2                                    # regent.f:980
-                        dgv = sqrt((d*bark)^2 + dds) - bark*d                                  # regent.f:981
-                        (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
-                        t.diam_growth[i] = dgv
+                bx = sd[:ht2][sp]                                          # blkdat Wykoff HT2
+                ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]   # regent.f:900-904
+                bark = ie_bratio(sp, d)
+                large_htg = t.ht_growth[i]                                 # large-tree htgf value for the XWT blend
+                nrec = stash !== nothing ? 3 : 1
+                for l in 0:(nrec - 1)
+                    zzran = 0f0
+                    if dgsd >= 1.0f0
+                        while true
+                            zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                            (zzran <= 0.5f0 && zzran >= -2.0f0) && break   # CR/UT bound (regent.f:813)
+                        end
                     end
+                    htgr = (htgr1 + zzran*0.1f0) * xrhgro
+                    htgr < 0.1f0 && (htgr = 0.1f0)
+                    htg = htgr*(1f0 - xwt) + xwt*large_htg
+                    (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+                    dgv = 0f0; has_dg = false
+                    if d < 3f0                                            # regent.f:860 D≥3 ⇒ keep large-tree DGFASP
+                        hk = h + htg
+                        if hk >= 4.5f0
+                            has_dg = true
+                            dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:905-906
+                            dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:907-911
+                            dgkbark = isnan(prevbark) ? bark : prevbark                            # regent.f:961 STALE BARK
+                            dgk = (dk - dkk) * dgkbark * xrdgro                                    # regent.f:960
+                            dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
+                            dgk < 0f0 && (dgk = 0f0)
+                            dds = dgk*(2f0*bark*d + dgk)*scale2                                    # regent.f:980
+                            dgv = sqrt((d*bark)^2 + dds) - bark*d                                  # regent.f:981
+                            (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
+                        end
+                    end
+                    if l == 0
+                        t.ht_growth[i] = htg
+                        (d < 3f0) && (t.diam_growth[i] = dgv)             # dgv=0 when hk<4.5 (regent.f:883)
+                    elseif l == 1
+                        stash.htgU[i] = htg; stash.is_small[i] = true
+                        (d < 3f0) && (stash.dgU[i] = dgv)
+                    else
+                        stash.htgL[i] = htg
+                        (d < 3f0) && (stash.dgL[i] = dgv)
+                    end
+                    has_dg && (prevbark = bark)                           # regent.f:978 recompute (per record)
                 end
             elseif sp == 13 || sp == 17
                 # TTVAR (LM/PY): HTGR=HTGR1 (regent.f:800 skips ZZRAN for TT) + XWT blend; DLESS3 DK−DKK diameter.
@@ -424,6 +459,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         dgv = sqrt((d*bark)^2 + dds) - bark*d
                         (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)
                         t.diam_growth[i] = dgv
+                        prevbark = bark                             # regent.f:978 recompute (TTVAR reaches the dub)
                     else
                         t.diam_growth[i] = 0f0
                     end
@@ -467,10 +503,11 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
                         dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
                         bark = ie_bratio(sp, d)
+                        dgkbark = isnan(prevbark) ? bark : prevbark          # regent.f:961 STALE BARK
                         if dk < 0f0 || dkk < 0f0                              # regent.f:957-959
-                            dgk = htg*0.2f0*bark*xrdgro
+                            dgk = htg*0.2f0*dgkbark*xrdgro
                         else
-                            dgk = (dk - dkk)*bark*xrdgro                      # regent.f:961
+                            dgk = (dk - dkk)*dgkbark*xrdgro                   # regent.f:961
                         end
                         dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)    # regent.f:963
                         dgk < 0f0 && (dgk = 0f0)                              # regent.f:966
@@ -479,6 +516,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         (d + dgv) < IE_RG_DIAM[sp] && (dgv = IE_RG_DIAM[sp] - d)   # regent.f:984-986
                         dgv = dg_bound(nothing, nothing, sp, d, dgv, s.control.sp_size_cap)   # DGBND (regent.f:991)
                         t.diam_growth[i] = dgv
+                        prevbark = bark                                      # regent.f:978 recompute
                     end
                 end
             end
@@ -544,6 +582,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
                     else
                         t.diam_growth[i] = dg_inc                           # increment; DBH unchanged (=d)
+                        prevbark = bark                                    # regent.f:978 recompute (NIVAR reaches the dub)
                     end
                 end
             elseif l == 1
