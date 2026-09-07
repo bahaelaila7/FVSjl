@@ -710,6 +710,29 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     lskiph = ntyr_est <= 0.0f0
     cur_year = current_cycle_year(s)
     delmax = (ah / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
+    # ★ regent.f:301-320 "DUB CROWN RATIO FOR NEWLY ESTABLISHED SEEDLINGS" (the LESTB DO-13 pass). BEFORE the
+    # height-growth ZZRAN loop, REGENT(.TRUE.) draws ONE main-stream BACHLO per NEW record (I=ITRNIN..ITRN,
+    # ALL species, tree-index/storage order), rejection-bounded to |RAN|≤1, and dubs its crown from PCCF:
+    #   CR = 0.89722 − 0.0000461·PCCF(ITRE(I)); 12 RAN=BACHLO(0,1,RANN); IF(|RAN|>1)GOTO 12; CR=CR+0.07985·RAN.
+    # jl OMITTED this pass entirely ⇒ on an establishment cycle jl consumed ~5.3 fewer main-stream RANN per new
+    # tree than the oracle (64 new trees ⇒ 342 missing draws on stand 1856050746290487 cyc-2), desyncing every
+    # downstream DGSCOR/REGENT-ZZRAN draw from the FIRST establishment cycle onward — the dominant cause of the
+    # "#206 ZZRAN straddle" (the divergence appears exactly one cycle after establishment fires). The draw is
+    # RNG-independent of PCCF (BACHLO(0,1) regardless), so this re-aligns the stream bit-for-bit; the crown VALUE
+    # (from point_ccf) is second-order. Unconditional (NOT dgsd-gated — regent.f has no DGSD guard on this draw).
+    @inbounds for i in (nstart+1):t.n
+        ipccf = Int(t.plot_id[i])
+        pccf = (ipccf >= 1 && ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
+        cr = 0.89722f0 - 0.0000461f0 * pccf
+        local ran::Float32
+        while true
+            ran = bachlo(s.rng, 0.0f0, 1.0f0)
+            (ran >= -1.0f0 && ran <= 1.0f0) && break        # regent.f:310 IF(RAN<−1 .OR. RAN>1) redraw
+        end
+        cr += 0.07985f0 * ran
+        cr > 0.90f0 && (cr = 0.90f0); cr < 0.20f0 && (cr = 0.20f0)
+        t.crown_pct[i] = Int32(trunc(cr * 100.0f0 + 0.5f0))    # regent.f:314 ICR(I)=INT(CR*100+0.5)
+    end
     @inbounds for i in (nstart+1):t.n
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= IE_RG_XMAX[sp] && continue

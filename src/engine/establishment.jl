@@ -678,7 +678,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             rdiam_e = sd[:htdbh_db]
             rnd_e = s.control.dg_stddev_bound >= 1f0
         end
+        # IE has its OWN esgent (ie_esgent!, run after this) which does the REGENT(LESTB) crown-dub in the
+        # faithful ie/regent.f DO-13 STORAGE order for ALL new records (PLANT + AUTOES). Drawing it here too
+        # (in SPESRT species order) would DOUBLE-consume the main stream for IE PLANT/NATURAL records and use
+        # the wrong (eastern) order. So skip the crown-dub draw for IE — ie_esgent! is the sole IE crown-dub.
+        _ie_own_esgent = s.variant isa InlandEmpire
         @inbounds for i in newidx
+            _ie_own_esgent && continue
             ran_cr = 0f0
             while true
                 ran_cr = bachlo(s.rng, 0f0, 1f0)
