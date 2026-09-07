@@ -673,6 +673,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
     s.mpb !== nothing && mpb_svdg!(s)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
+    # IE cycle-1 WK1 dub for UNMEASURED trees (dgdriv.f:755-793 LSTART "DUB IN DBH INCREMENT FOR TREES
+    # ON WHICH IT WAS NOT MEASURED"): FVS dubs DG(I)=SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D for every tree whose
+    # measured increment is absent (HT>4.5), and that dubbed value becomes cycle-1 WK1 (dgdriv.f:142). The
+    # snapshot above copied `diam_growth`, which for a FIA/no-remeasurement stand is the −1 MISSING sentinel
+    # (apply_growth_input_types!, IDG=1) — NOT a real DG. Feeding WK1=−1 into ie/morts.f:268 G=WK1/(BARK·10)
+    # yields a NEGATIVE G whenever the morts.f:273 override (DG>0.5) does not fire (suppressed small trees,
+    # predicted DG≤0.5) ⇒ RIP explodes ⇒ ~2× dense small-tree over-mortality. jl's own DGF prediction
+    # (diam_growth just filled by diameter_growth!) is the faithful analog of the FVS dub, so adopt it as WK1
+    # for the sentinel trees; measured trees (dg_prev>0) keep their measured increment. CYCLE-0 only.
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] <= 0f0 && (t.dg_prev[i] = t.diam_growth[i]); end)
     # CR dwarf mistletoe diameter growth-loss (misdgf.f, dgdriv.f:230): DG·=DGPDMR(sp,DMR); applied to the
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
     s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
