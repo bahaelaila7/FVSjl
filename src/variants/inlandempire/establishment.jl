@@ -1539,7 +1539,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        point_slope::AbstractVector = Float32[], point_aspect::AbstractVector = Float32[],
                        stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
                        prep_sumup = nothing, pasmax::Real = Inf32,
-                       point_ba::AbstractVector = Float32[],
+                       point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
                        gentim::Real = 5f0, call_espadv::Bool = true)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
@@ -1640,7 +1640,14 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # occ = OCURHT·XESMLT·OCURNF (estab.f); SPECMULT sets the per-species XESMLT (esnutr.f 95), default 1.0.
     occ = Float32[ie_ocurht(idx.ihab, sp) * (variant === nothing ? 1f0 : autoes_ocurnf(variant, Int(idx.ifo), sp)) *
                   (isempty(spec_mult) ? 1f0 : get(spec_mult, Int32(sp), 1f0)) for sp in 1:nsp]
+    # OVER(i) = per-species OVERSTORY basal area (D≥REGNBK) at the tally point (dense.f:214 OVER(ISPC,IP)).
+    # ESPADV/ESPXCS/ESPSUB add a per-species "seed-source present" bump when OVER(i)>9.95 (a species with
+    # overstory ⇒ higher regen probability). jl formerly hardcoded over=0 ⇒ the bump NEVER fired ⇒ species with
+    # overstory seed source (esp. LP/GF) were systematically UNDER-picked in the best/excess mix. `over_sp` is the
+    # point-1 per-species D≥REGNBK BA supplied by ie_autoes_establish! (IE only; empty ⇒ zeros ⇒ EM/other callers
+    # byte-identical). Species order 1-10 = WP WL DF GF WH RC LP ES AF PP (= IE variant indices 1-10).
     over = zeros(Float32, 10)
+    @inbounds for i in 1:min(10, length(over_sp)); over[i] = Float32(over_sp[i]); end
     _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
     tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
     # IE emits the faithful per-tree height-class / WK4 records (advance/subsequent/excess); other variants keep
@@ -1996,6 +2003,26 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         end
         baaa_pn = isempty(overstory_pba) ? baaa : overstory_pba[1]
     end
+    # ★ OVER(i) per-species overstory BA (dense.f:214 OVER(ISPC,IP)). The ESPADV/ESPXCS/ESPSUB seed-source bump
+    # (OVER(i)>9.95 ⇒ +2.48 LP / +1.05 GF / … logit) is keyed off the TALLY POINT's per-species D≥REGNBK BA.
+    # jl formerly passed over=0 ⇒ the bump never fired ⇒ overstory-seed-source species (LP/GF) were massively
+    # under-picked (MEASURED FVSie_g16 1856050746290487 @2043: oracle OVER=[GF 11.22, LP 15.60] ⇒ PADV(LP) 0.391,
+    # PXCS(LP) 0.301; jl over=0 gave PADV(LP) 0.051, PXCS(LP) 0.031 ⇒ ~1 LP vs oracle 28, +34 AF vs 13). Build the
+    # POINT-1 per-species overstory BA (same tpa·0.005454·D²·PI/GROSPC scale as baaa_pn), matching dense.f's OVER,
+    # and pass it to ie_autoes_run. Species index = the IE variant index 1-10 (= estab order WP WL DF GF WH RC LP
+    # ES AF PP). IE only (EM keeps over=0 pending its own oracle validation). Point 1 is the tally point the port's
+    # single ba/occ/species-prob set already uses; single-point IE stands (this bug's regime) are exact.
+    over_sp = Float32[]
+    if s.variant isa InlandEmpire
+        over_sp = zeros(Float32, 10)
+        _scv = s.plot.pi / s.plot.gross_space
+        @inbounds for i in 1:s.trees.n
+            s.trees.dbh[i] < 2.999f0 && continue                              # REGNBK overstory filter (dense.f:212)
+            Int(s.trees.plot_id[i]) == 1 || continue                          # tally point NNID=1 (matches baaa_pn)
+            sp = Int(s.trees.species[i]); (1 <= sp <= 10) || continue         # estab species 1-10 carry OVER
+            over_sp[sp] += s.trees.tpa[i] * 0.005454154f0 * s.trees.dbh[i]^2 * _scv
+        end
+    end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
                       elev = p.elevation, baa = max(baaa_pn, 1f0), time = time, esb_shift = esb_shift,
@@ -2012,6 +2039,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). OVERSTORY-ONLY
                       # (D≥REGNBK) post-growth per-point BA (dense.f:212), built above. Empty ⇒ ie_autoes_run keeps the scalar.
                       point_ba = (is_ingro && !isempty(overstory_pba) ? (@view overstory_pba[1:min(nptids, length(overstory_pba))]) : Float32[]),
+                      over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
                       prep_sumup = prep_sumup,  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
