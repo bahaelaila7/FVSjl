@@ -150,6 +150,21 @@ the DUBSCR error here too, so this also re-aligns the RNG for those trees); iner
     return
 end
 
+# HTGF per-tripled-copy large-tree height growth (ie/htgf.f:318-347). Each tripled copy's large-tree HTG
+# used in the REGENT XWT blend is recomputed from the COPY's OWN diameter growth DG(ITFN)/DG(ITFN+1) —
+# NOT the central record's — using the SAME CON (central DBH/HT). NIVAR (recompute) species only; the
+# Weibull species (13,17-22) keep the central value (htgf HTG(ITFN)=TEMHTG). `con`,`hdgcof` are the
+# central tree's htgf terms; `dg` the copy's large-tree DG; tail = *scale*xht then the HT-based SIZCAP.
+@inline function _ie_htgf_copy_large(con::Float32, hdgcof::Float32, dg::Float32,
+                                     scale::Float32, xht::Float32, hti::Float32, cap::Float32)
+    dg <= 0.0f0 && return 0.1f0 * scale * xht               # ln(DG) undefined ⇒ FVS's pre-tail 0.1 floor
+    v = exp(con + hdgcof * log(dg)) + IE_HTBIAS
+    v < 0.1f0 && (v = 0.1f0)
+    v = v * scale * xht
+    (hti + v > cap) && (v = max(cap - hti, 0.1f0))          # htgf.f:329-331 SIZCAP on HT(ITFN)=central HT
+    return v
+end
+
 """IE `small_tree_growth!` (ie/regent.f). Overrides DG/HTG for small trees (D<XMAX). NIVAR path is the
 bulk (iet01); special species ported faithfully."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0)
@@ -158,6 +173,11 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     t.n == 0 && return s
     n = t.n
     rhcon = ie_regcons!(s)
+    # htgf.f HTCONS habitat terms — needed to recompute each tripled COPY's large-tree HTG (its own DG) for
+    # the NIVAR XWT blend (ie/htgf.f:318-347). Stand-level; resolved once.
+    itype_hg = Int(p.habitat_input); iht_hg = (1 <= itype_hg <= 30) ? IE_HTMAPHAB[itype_hg] : 1
+    hghch_hg = IE_HGHC[iht_hg]; h2cof_hg = IE_HGH2[iht_hg]; hdgcof_hg = IE_HGLDD[iht_hg]
+    htgf_scale = fint / 10.0f0                              # htgf SCALE=FINT/YR, YR=10 (matches height_growth!)
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR
@@ -613,6 +633,21 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
         cap = s.control.sp_size_cap[sp, 4]
         large_htg = t.ht_growth[i]                              # large-tree htgf value for the blend (before l=0 overwrites)
+        # PER-COPY large-tree HTG for the XWT blend (ie/htgf.f:318-347). FVS's HTGF recomputes HTG(ITFN)/
+        # HTG(ITFN+1) from the COPY's OWN large-tree DG (dgU=upper/FRU, dgL=lower/FRL) using the central CON,
+        # so a tripled NIVAR copy blends toward a DIFFERENT large-tree value than the central. jl formerly used
+        # the central `large_htg` for all three copies ⇒ the tripled copies' blended small-tree HEIGHTS were
+        # wrong, shifting the <3" pool that feeds NSTORE/AUTOES. The copies' large-tree DG lives in stash.dgU/dgL
+        # and is read HERE, before the l-loop overwrites it for small_d records.
+        large_htg_u = large_htg; large_htg_l = large_htg
+        if stash !== nothing
+            htcon_hg = hghch_hg + IE_HGSC[sp]
+            (s.control.htg_cor2_on && s.control.htg_cor2[sp] > 0.0f0) && (htcon_hg += log(s.control.htg_cor2[sp]))
+            con_hg = htcon_hg + h2cof_hg * h * h + IE_HGLD[sp] * log(d) + IE_HGLH * log(h)
+            xht_hg = active_multiplier(s.control, :htg, sp, cur_year)
+            large_htg_u = _ie_htgf_copy_large(con_hg, hdgcof_hg, stash.dgU[i], htgf_scale, xht_hg, h, cap)
+            large_htg_l = _ie_htgf_copy_large(con_hg, hdgcof_hg, stash.dgL[i], htgf_scale, xht_hg, h, cap)
+        end
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         small_d = d < 3.0f0
         diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)          # BARK at the pre-growth DBH (regent.f:983)
@@ -639,7 +674,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 end
             end
             htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
-            htg = htgr * (1.0f0 - xwt) + xwt * large_htg        # blend toward the large-tree htgf value
+            lhtg = l == 0 ? large_htg : (l == 1 ? large_htg_u : large_htg_l)  # per-copy large-tree HTG (htgf.f)
+            htg = htgr * (1.0f0 - xwt) + xwt * lhtg             # blend toward the (per-copy) large-tree htgf value
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
             # diameter dub (D<3 only). dg_inc = inside-bark increment (added to DBH via GRADD); dbh_dir≥0 ⇒ set DBH.
             dg_inc = 0.0f0; dbh_dir = -1.0f0
