@@ -2072,20 +2072,21 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     book = Vector{NTuple{5,Float32}}()                   # (sp, pt, height, dbh, tpa) with per-record wk4 in a parallel
     bwk4 = Float32[]                                     # array; each is one aggregated seedling record.
     if r.emit !== nothing
-        agg = Dict{NTuple{4,Int},Float64}()
-        order = NTuple{4,Int}[]
+        # Book each FVS DO-33 (best) / DO-228 (excess) record 1:1 — NO height/wk4 merge. FVS emits the full
+        # per-plot record set (estab.f:1199-1359: best trees individual, excess aggregated per plot at the
+        # species-mean height) and ESGENT/REGENT then grows EACH record with its OWN bounded ZZRAN height-
+        # growth draw (regent.f:805 CALL BACHLO per record, HTGR=HTGR1·EXP(ZZRAN·HSIGMA)). ★ MEASURED (stand
+        # 22963815010497, FVSie_g16 TREELIST): the oracle books 106 records/tally; a prior collapse that merged
+        # them by (sp,pt,round(HT·1e3),round(WK4·1e3)) into ~19 gave each merged mass ONE zzran instead of the
+        # per-record draws, compressing the birth-cycle HtG spread and — via TPA weighting — systematically
+        # under-growing (2057 BA 35 vs oracle 43, TCuFt 944 vs 1199). Booking 1:1 recovers it: BA 42, TCuFt
+        # 1178 (residual = the #206 ZRAND realization straddle, ~1.7%). The start heights + per-species TPA +
+        # WK4 distribution are already bit-exact to the oracle, so this only restores the record GRANULARITY.
         for rec in r.emit
             sp = Int(rec[1]); pt = Int(rec[2]); hh = Float32(rec[3]); wk4 = Float32(rec[4]); tpa = rec[5]
             (sp < 1 || sp > nsp || tpa <= 0.0) && continue
-            key = (sp, pt, round(Int, hh * 1000f0), round(Int, wk4 * 1000f0))
-            haskey(agg, key) || push!(order, key)
-            agg[key] = get(agg, key, 0.0) + tpa
-        end
-        for key in order
-            sp, pt, hk, wk = key
-            hh = Float32(hk) / 1000f0; wk4 = Float32(wk) / 1000f0
             dbh = 0.1f0 + 0.001f0 * hh                    # esgent.f:56 sub-breast-height nominal DBH
-            push!(book, (Float32(sp), Float32(pt), hh, dbh, Float32(agg[key]))); push!(bwk4, wk4)
+            push!(book, (Float32(sp), Float32(pt), hh, dbh, Float32(tpa))); push!(bwk4, wk4)
         end
     else
         # Collapsed single-record path (EM / non-emit): one WK4=STOMLT(advance) record per (species, point).
