@@ -120,6 +120,36 @@ function ie_regcons!(s::StandState)
     return rhcon
 end
 
+"""
+REGENT DUBSCR crown dub (ie/regent.f:999-1021). A small tree that will reach DBH≥3 THIS cycle and does not
+yet carry a crown (`ICRK==0`) gets a crown ratio dubbed from DUBSCR — `IF(DNEW.GE.3.0)THEN; IF(ICRK.EQ.0)
+CALL DUBSCR(ISPC,DNEW,HK,...); ICR(K)=ICRK`. DNEW is the projected end-of-cycle DBH: DG(K) (the record's
+FINT-basis increment) is put on the full-cycle DDS scale (`DDS2=DG·(2·BARK·D+DG)·SCALE`, SCALE=NTYR/YR) and
+`DNEW=D+SQRT((D·BARK)²+DDS2)−BARK·D`.
+
+Without this the crown-less regen — most visibly quaking aspen, whose per-cycle crown update is deferred in
+`crown_ratio_update!` (crown.f UTTVAR), so nothing else ever assigns it — keeps `crown_pct==0`. Aspen with
+3≤D<XMAX(=4) SKIP the regent diameter dub (regent.f:861 `IF(D.GE.3.0)GO TO 23`) and take their diameter from
+the large-tree DGFASP, whose POT carries a crown term (`4.510E-2·ASPCR·D^.67266`); with CR=0 the DDS collapses
+(~0.42 vs ~1.45 measured on the oracle) so the cohort never crosses 4″ into the productive regime and the
+stand BA/QMD stall (~19% aspen BA deficit). Fires only for `crown_pct==0` records crossing 3″ (the oracle draws
+the DUBSCR error here too, so this also re-aligns the RNG for those trees); inert where the crown already exists
+(every conifer regen — the NIVAR/CRVAR/LPIJU crown paths in crown_ratio_update! keep them non-zero).
+"""
+@inline function _ie_regent_dubscr_crown!(s::StandState, i::Int, sp::Int, d::Float32, hk::Float32,
+                                          dg_this::Float32, ntyr::Int, yr::Float32, ba::Float32, dgsd::Float32)
+    s.trees.crown_pct[i] != 0 && return                      # regent.f:1014 ICRK.EQ.0 guard
+    bark = ie_bratio(sp, d)                                   # regent.f:1006 BRATIO(ISPC,DBH(K),HT(K))
+    scale = yr > 0f0 ? Float32(ntyr) / yr : 1f0              # DO-30 SCALE = FLOAT(NTYR)/YR
+    dds2 = dg_this * (2f0 * bark * d + dg_this) * scale       # regent.f:1007
+    dg2 = sqrt((d * bark)^2 + dds2) - bark * d                # regent.f:1008
+    dg2 < 0f0 && (dg2 = 0f0)                                  # regent.f:1009
+    dnew = d + dg2                                            # regent.f:1010
+    dnew < 3f0 && return                                      # regent.f:1013 DNEW.GE.3.0
+    s.trees.crown_pct[i] = Int32(ie_dubscr(s.rng, sp, dnew, hk, ba, dgsd))   # regent.f:1015-1018
+    return
+end
+
 """IE `small_tree_growth!` (ie/regent.f). Overrides DG/HTG for small trees (D<XMAX). NIVAR path is the
 bulk (iet01); special species ported faithfully."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0)
@@ -439,7 +469,12 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     end
                     if l == 0
                         t.ht_growth[i] = htg
-                        (d < 3f0) && (t.diam_growth[i] = dgv)             # dgv=0 when hk<4.5 (regent.f:883)
+                        if d < 3f0
+                            t.diam_growth[i] = dgv                        # dgv=0 when hk<4.5 (regent.f:883)
+                            # regent.f:999-1021 — aspen D<3 reaches the DUBSCR block; assign a crown when it
+                            # crosses 3″ (the 3≤D<4 range then uses DGFASP, which needs the crown).
+                            _ie_regent_dubscr_crown!(s, i, sp, d, h + htg, dgv, ntyr, yr, ba, dgsd)
+                        end
                     elseif l == 1
                         stash.htgU[i] = htg; stash.is_small[i] = true
                         (d < 3f0) && (stash.dgU[i] = dgv)
@@ -632,6 +667,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     else
                         t.diam_growth[i] = dg_inc                           # increment; DBH unchanged (=d)
                         prevbark = bark                                    # regent.f:978 recompute (NIVAR reaches the dub)
+                        # regent.f:999-1021 — crown dub for a NIVAR small tree crossing 3″ with no crown.
+                        # Inert for the usual FIA conifer regen (crown_ratio_update! keeps NIVAR crowns
+                        # non-zero); present so a genuinely crown-less NIVAR seedling is not left at CR=0.
+                        _ie_regent_dubscr_crown!(s, i, sp, d, h + htg, dg_inc, ntyr, yr, ba, dgsd)
                     end
                 end
             elseif l == 1
