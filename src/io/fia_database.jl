@@ -58,7 +58,13 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     p = s.plot; c = s.control
     # INV_YEAR (IY(1)) → first-cycle (start) year
     iy = _fia_int(d, "INV_YEAR", 0); iy > 0 && (c.cycle_year[1] = Int32(iy))
-    # LOCATION (KODFOR): direct if present, else composite REGION*100 + FOREST (dbsstandin.f:569)
+    # LOCATION (KODFOR): direct if present, else composite REGION*100 + FOREST (dbsstandin.f:569).
+    # ⚠ FAITHFULNESS NOTE (latent, inert on all FIA data): dbsstandin.f uses a WIDER composite for a couple of
+    # variants — KT builds RFFDDCCC (region*10^6 + forest*10^3 + district*... ) and WS/SN build RFFDD
+    # (region*10^4 + forest*100 + district). We deliberately DO NOT port those encodings: the REGION*100+FOREST
+    # fallback only fires when LOCATION is absent, which never happens on the western FIA tables (LOCATION is
+    # populated on every stand); KT has ZERO FIA stands (so its encoding can never be oracle-validated); and WS's
+    # composite equals its LOCATION anyway. Documenting rather than adding unexercised, un-testable encoding code.
     loc = _fia_int(d, "LOCATION", 0)
     (loc == 0 && _fia_present(d, "REGION")) && (loc = _fia_int(d, "REGION", 0) * 100 + _fia_int(d, "FOREST", 0))
     loc != 0 && (p.user_forest_code = Int32(loc))

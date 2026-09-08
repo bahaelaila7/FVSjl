@@ -122,7 +122,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             cl = crvar ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*ba) : (-0.59373f0 + 0.67703f0*hf)
             cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
             crnew = (cl / hf) * 100f0
-            icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d)
+            icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
         elseif nivar && (!lstart && (d - t.diam_growth[i]/bark) < 3f0)
             continue                                    # cycling: backdated D<3 keeps its crown (GOTO 60)
         elseif nivar && lstart && d < 3.0f0
@@ -160,13 +160,9 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             end
             icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)   # DLOW=0/DHI=99/CRNMLT=1 defaults
             (lstart && dgsd >= 1f0) && (icri = trunc(Int, bachlo(s.rng, Float32(icri), IE_CRSD)))
-            # CRMAX cap (crown.f:556-568), skipped at LSTART or ICR==0
-            if !(lstart || icr == 0)
-                crln = h * Float32(icr) / 100f0
-                crmax = (crln + t.ht_growth[i]) / (h + t.ht_growth[i]) * 100f0
-                icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
-                Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
-            end
+            # NIVAR ends with `GO TO 55` (crown.f "END OF NI BLOCK") — it SKIPS the CRMAX cap (which lives on the
+            # label-53 CRVAR/LPIJU path, now in _ie_crown_label53). jl formerly applied CRMAX here (NIVAR) and
+            # omitted it for CRVAR/LPIJU — inverted. No CRMAX on the NIVAR path.
         else
             # UTTVAR Weibull (sp13,17,18,20,21): needs ISORT/RANN/DUBSCR — deferred (not in iet01).
             lstart || continue
@@ -242,7 +238,8 @@ end
 end
 
 # ie/crown.f label 53: CRVAR/LPIJU change bound + ICRI (CHG=CRNEW-ICR, PDIFPY ±1%/yr, CRMAX cap).
-@inline function _ie_crown_label53(crnew::Float32, icr::Int, lstart::Bool, fint::Float32, sp::Int, d::Float32)
+@inline function _ie_crown_label53(crnew::Float32, icr::Int, lstart::Bool, fint::Float32, sp::Int, d::Float32,
+                                   h::Float32, htg::Float32)
     chg = crnew - Float32(icr)
     if !lstart || icr > 0
         pdifpy = chg / Float32(icr) / fint
@@ -250,7 +247,16 @@ end
         pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
         crnew = Float32(icr) + chg                       # CRNMLT=1 default
     end
-    return trunc(Int, crnew + 0.5f0)
+    icri = trunc(Int, crnew + 0.5f0)
+    # CRMAX cap (crown.f:556-568) is on the LABEL-53 (CRVAR/LPIJU) path — the NIVAR block ends with GO TO 55 and
+    # SKIPS it (crown.f "END OF NI BLOCK"). Skipped at LSTART or ICR==0; CRNMLT=1 default so the ICRI<10 guard fires.
+    if !(lstart || icr == 0)
+        crln = h * Float32(icr) / 100f0
+        crmax = (crln + htg) / (h + htg) * 100f0
+        icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+        Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+    end
+    return icri
 end
 
 # ie/cratet.f:513 `OLDPCT(I)=PCT(I)` — seed the first grow cycle's crown DCR percentile (OLDPCT) from the
