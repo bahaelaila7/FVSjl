@@ -788,7 +788,20 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         cr > 0.90f0 && (cr = 0.90f0); cr < 0.20f0 && (cr = 0.20f0)
         t.crown_pct[i] = Int32(trunc(cr * 100.0f0 + 0.5f0))    # regent.f:314 ICR(I)=INT(CR*100+0.5)
     end
-    @inbounds for i in (nstart+1):t.n
+    # ★ REGENT(LESTB) DO-30/DO-25 iterates the NEW records SPECIES-MAJOR in IND1 (linked-list) order
+    # (regent.f:695 DO 30 ISPC; :743 DO 25 I3=I1,I2 via IND1, gated IF(LESTB.AND.I.LT.ITRNIN)GO TO 25 to skip
+    # the pre-existing trees). Each new record then draws its OWN per-record ZZRAN height error (regent.f:812).
+    # Iterating the new records in STORAGE order (nstart+1:n) instead mis-PAIRS each drawn ZZRAN to the wrong
+    # tree — the SAME wrong-pairing desync Bug P (7f284b29) fixed for the LESTB=F growth path (small_tree_growth!'s
+    # _sp_order) but which was left un-fixed here in the birth-cycle (LESTB=T) path. The draw COUNT is unchanged
+    # (same NIVAR set), so the main stream stays aligned; only the height↔tree assignment is corrected — which
+    # de-scrambles the birth-cohort DBH pool that feeds the next cycle's AUTOES NSTORE tally. New-tree sort_key =
+    # storage index (establishment.jl:2148), so species-major-with-increasing-index reproduces the oracle IND1.
+    _es_order = Int[]
+    @inbounds for sp in 1:MAXSP, i in (nstart+1):t.n
+        Int(t.species[i]) == sp && push!(_es_order, i)
+    end
+    @inbounds for i in _es_order
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= IE_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue
