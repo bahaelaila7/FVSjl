@@ -1753,6 +1753,35 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
     idup   = max(1, cld(Int(est.minrep), nptids))   # MINPLOTS keyword (esin.f MINREP; default 50)
     dupnpt = Float32(nptids * idup)
+    # ★ EMPTY-INVENTORY-POINT PSLO/PASP (esplt2.f:168-227). When PROJECTABLE trees exist (IPTKNT>0 ⟺ s.trees.n>0),
+    # esplt2.f pads the point list to IPTINV−NONSTK with empty points (no tree record) whose PSLO/PASP are set to −1
+    # (:184-193) and then RESOLVED to the STAND slope/aspect XXSLP/XXASP (:216-227, XXSLP=ISLOP·0.01, XXASP=IASPEC·
+    # 0.0174533) — NOT 0. The FIA reader (fia_database.jl) fills these empty points with 0, which is correct ONLY for
+    # the IPTKNT==0 path (a bare / all-dead stand takes esplt2.f's top block and empty points keep the BLKDAT 0). For
+    # IPTKNT>0 the reader's 0 is WRONG: ESTPP's BB carries −2.76·PSLO, so a spurious 0 slope on the empty points of a
+    # sloped stand UN-suppresses trees-per-plot ⇒ AUTOES ingrowth OVER-produces (MEASURED FVSie_g16 39598164010690
+    # @2039: oracle empty-point PSLO 0.65 ⇒ ITPP 20/21, jl 0 ⇒ ITPP 46/34; +30–120 TPA/cycle across the 4-point
+    # sparse `none` stands). The appended empty points are exactly those with p.point_ids[k]==0 (see below). Build a local corrected copy — never mutate
+    # p.point_slope (a later cycle's established trees must not turn an inventory-empty point into a tree point; PSLO
+    # is frozen at inventory). Bare stands (s.trees.n==0) keep the reader's values (IPTKNT==0 / IPINFO=0 path).
+    # An inventory-empty point is exactly one with p.point_ids[k]==0 (the reader's IPVEC, MAXPLT-sized and zero-init;
+    # the inventory tree points get their raw plot number ≥1, the appended empty points stay 0). This is frozen at
+    # inventory read — established trees never rewrite IPVEC — so it is the correct inventory-emptiness test.
+    pslo_es = p.point_slope; pasp_es = p.point_aspect
+    if s.trees.n > 0 && !isempty(p.point_slope)
+        _need = false
+        @inbounds for k in 1:length(p.point_slope)
+            (k > length(p.point_ids) || p.point_ids[k] == 0) && (_need = true; break)
+        end
+        if _need
+            pslo_es = copy(p.point_slope); pasp_es = copy(p.point_aspect)
+            @inbounds for k in 1:length(pslo_es)
+                if k > length(p.point_ids) || p.point_ids[k] == 0
+                    pslo_es[k] = Float32(p.slope); pasp_es[k] = Float32(p.aspect)   # esplt2.f XXSLP/XXASP
+                end
+            end
+        end
+    end
     # AUTOES ESRANN seed chain (estab.f:290-295 + the per-plot ESAVE reseed). A NEW disturbance/ingrowth tally
     # (NTALLY==1|99) draws seed0 = ESRANN(es_stream) from the continuing establishment stream, then advances the
     # stream to the post-tally state = the last plot's ESAVE (ie_autoes_plot_seeds[dupnpt+1], validated == the
@@ -1809,8 +1838,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # aspect·SQSQ terms vanished ⇒ PROB1 0.463 vs live 0.617. jl already reads these per-plot values into
     # p.point_slope/p.point_aspect (used for ESTPP); use them for the stocking PN + ESB1 too. Empty (TREEDATA / no
     # per-plot topo) ⇒ fall back to the stand slope/aspect (inert where they match, e.g. iet01).
-    es_slope  = isempty(p.point_slope)  ? Float32(p.slope)  : Float32(p.point_slope[1])
-    es_aspect = isempty(p.point_aspect) ? Float32(p.aspect) : Float32(p.point_aspect[1])
+    es_slope  = isempty(pslo_es)  ? Float32(p.slope)  : Float32(pslo_es[1])
+    es_aspect = isempty(pasp_es) ? Float32(p.aspect) : Float32(pasp_es[1])
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
@@ -2034,8 +2063,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       point_small_tpa = point_small, idup = idup, variant = s.variant,
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
-                      point_slope = (isempty(s.plot.point_slope) ? Float32[] : @view s.plot.point_slope[1:min(nptids, length(s.plot.point_slope))]),
-                      point_aspect = (isempty(s.plot.point_aspect) ? Float32[] : @view s.plot.point_aspect[1:min(nptids, length(s.plot.point_aspect))]),
+                      point_slope = (isempty(pslo_es) ? Float32[] : @view pslo_es[1:min(nptids, length(pslo_es))]),
+                      point_aspect = (isempty(pasp_es) ? Float32[] : @view pasp_es[1:min(nptids, length(pasp_es))]),
                       # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). OVERSTORY-ONLY
                       # (D≥REGNBK) post-growth per-point BA (dense.f:212), built above. Empty ⇒ ie_autoes_run keeps the scalar.
                       point_ba = (is_ingro && !isempty(overstory_pba) ? (@view overstory_pba[1:min(nptids, length(overstory_pba))]) : Float32[]),
