@@ -176,7 +176,12 @@ function point_basal_area!(s::StandState)
         npts = max(npts, Int(t.plot_id[i]))
         pbal[i] = 0f0
     end
-    order = sortperm!(view(s.scratch.stat_idx, 1:t.n), view(t.dbh, 1:t.n); rev = true)  # descending DBH (stable)
+    # FVS ptbal.f accumulates PTBALT per point in IND order = RDPSRT(ITRN,DBH,IND,.TRUE.) — Scowen's UNSTABLE
+    # Quickersort DBH-descending, NOT a stable sort. Use the ported `_rdpsrt!` so equal-DBH tie-break matches
+    # FVS's IND (a stable sortperm! diverges on tie-heavy points; inert for IE which uses PCT not PTBALT, but
+    # PTBALT-consuming variants — SN calibration, PN/WC/AK/OP — need the RDPSRT order).
+    order = view(s.scratch.stat_idx, 1:t.n)
+    _rdpsrt!(view(t.dbh, 1:t.n), order)                                                 # IND: DBH descending, FVS tie-break
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
