@@ -252,3 +252,78 @@ end
     end
     return trunc(Int, crnew + 0.5f0)
 end
+
+# ie/cratet.f:513 `OLDPCT(I)=PCT(I)` — seed the first grow cycle's crown DCR percentile (OLDPCT) from the
+# BACKDATED percentile, not the plain inventory PCT. At the initial CRATET the PCT saved into OLDPCT is the one
+# computed by the BACKDATING density pass (cratet.f:217-219 `LBKDEN=IDG<2; CALL DENSE`, dense.f), NOT the later
+# non-backdated PCT (dense.f:273) that overwrites PCT for the current cycle. The backdating pass (dense.f):
+#   • backdates each LIVE tree's diameter to start-of-growth: WK3 = SQRT(D²·R), R = 1-(2·D·G-G²)/D² = (1-G/D)²
+#     with G = DG/bark (dense.f:118-128) ⇒ WK3 = D-G; a missing increment (DG≤0 → cratet.f:211 DG=-1) takes
+#     R = BAGR, the stand-mean BA-growth ratio over the valid-DG live trees (dense.f:89-117) ⇒ WK3 = D·√BAGR.
+#   • builds WK5 = WK3²·PROB and runs PCTILE (pctile.f) over ITRN records, which at this point STILL INCLUDES the
+#     standing-dead (cratet.f deletes them only AFTER this DENSE, lines 224-255). HISTORY 6/7 dead enter with
+#     WK3 = DBH and PROB inflated ×FINT/FINTM (notre.f:122-124); HISTORY 8/9 dead enter with WK3 = 0 (dense.f:86).
+#     PCTILE's INDEX is the CURRENT-DBH descending sort (cratet.f:189).
+# Seeding OLDPCT from the plain current PCT instead over-states each tree's start-of-cycle percentile rank ⇒ DCR's
+# b13·PB + b14·log(PB) term too high ⇒ EDCR too high / CHG too low ⇒ crown ICR biased low on a subset ⇒ pre-fire
+# TREES gap. Verified vs FVSie_g16 (ie_simfire): tree I=3 OLDPCT 34.2→25.2 (oracle backdated), all 27 live match.
+function ie_seed_backdated_oldpct!(s::StandState)
+    t = s.trees; nlive = t.n
+    nlive == 0 && return s
+    ntot = nlive + Int(t.ndead)
+    ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
+    # BAGR = mean over the valid-DG live trees of R=1-(2·D·G-G²)/D², G=DG/bark, skipping DG≤0 and G>D (dense.f:89-117).
+    bagr = 0f0; sn = 0
+    @inbounds for i in 1:nlive
+        dg = t.diam_growth[i]; dg <= 0f0 && continue                 # DG≤0 → -1 (missing), excluded (dense.f:100)
+        d = t.dbh[i]; d <= 0f0 && continue
+        g = dg / bark_ratio(ba_a, ba_b, Int(t.species[i]), d)
+        g > d && continue                                            # growth ≥ current diameter → excluded (dense.f:105)
+        bagr += 1f0 - (2f0*d*g - g*g)/(d*d); sn += 1
+    end
+    have_bagr = sn > 0; have_bagr && (bagr /= Float32(sn))
+    # WK5 = WK3²·PROB (CHAR for PCTILE). Live: WK3 = backdated diameter (dense.f:118-128). Dead: HISTORY 6/7 →
+    # WK3 = DBH with PROB×FINT/FINTM (notre.f); HISTORY 8/9 → WK3 = 0 (dense.f:86); DBH is kept for the sort key.
+    fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+    char = Vector{Float32}(undef, ntot)
+    key  = Vector{Float32}(undef, ntot)
+    @inbounds for i in 1:nlive
+        d = t.dbh[i]; key[i] = d
+        if !have_bagr || d <= 0f0
+            wk3 = d                                                  # SN≤0 ⇒ no backdating (dense.f:112 GO TO 6)
+        else
+            dg = t.diam_growth[i] > 0f0 ? t.diam_growth[i] : -1f0    # cratet.f:211 missing DG → -1
+            g = dg / bark_ratio(ba_a, ba_b, Int(t.species[i]), d)
+            g > d && (g = d)                                         # dense.f:124
+            r = 1f0 - (2f0*d*g - g*g)/(d*d)
+            (g < 0f0 || r <= 0f0) && (r = bagr)                      # dense.f:127
+            wk3 = sqrt(d*d*r)
+        end
+        char[i] = wk3*wk3 * t.tpa[i]
+    end
+    @inbounds for j in 1:Int(t.ndead)
+        i = nlive + j; d = t.dbh[i]; key[i] = d
+        h = Int(t.history[i])
+        # HISTORY 8/9 (older dead, IMC=9) → WK3=0; HISTORY 6/7 (recent dead, IMC=7) → WK3=DBH, PROB inflated
+        char[i] = h >= 8 ? 0f0 : (d*d * t.tpa[i] * fintr)
+    end
+    # INDEX = current-DBH descending (cratet.f:189 RDPSRT), then PCTILE cumulative-from-smallest (pctile.f).
+    idx = Vector{Int32}(undef, ntot)
+    _rdpsrt!(key, idx)
+    percnt = Vector{Float32}(undef, ntot)
+    if ntot == 1
+        percnt[1] = 100f0
+    else
+        cum = 0f0
+        @inbounds for k in ntot:-1:1                                 # accumulate from the smallest up (pctile.f:44-54)
+            ii = Int(idx[k]); cum += char[ii]; percnt[ii] = cum
+        end
+        tot = cum
+        if tot > 0f0
+            @inbounds for ii in 1:ntot; percnt[ii] = percnt[ii] / tot * 100f0; end
+        end
+        percnt[Int(idx[1])] = 100f0                                  # largest = 100 (pctile.f:73)
+    end
+    @inbounds for i in 1:nlive; t.old_crown_pct[i] = percnt[i]; end
+    return s
+end

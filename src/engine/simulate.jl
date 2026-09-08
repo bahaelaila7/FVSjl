@@ -586,10 +586,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
-    # IE crown OLDPCT init (cratet.f:513): at the first grow cycle, seed OLDPCT = inventory (pre-growth) PCT so
-    # cycle-1's crown DCR uses it (not the post-growth PCT). Later cycles get OLDPCT from the post-crown snapshot.
+    # IE crown OLDPCT init (cratet.f:513): at the first grow cycle, seed OLDPCT from the BACKDATED percentile that
+    # the initial-CRATET backdating DENSE (cratet.f:217-219) computes — NOT the plain inventory PCT. The backdating
+    # runs over the un-deleted inventory (dead-inclusive) with each live diameter backdated to start-of-growth; see
+    # ie_seed_backdated_oldpct!. Later cycles get OLDPCT from the post-crown snapshot (crown_ratio) below.
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
-        @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
+        ie_seed_backdated_oldpct!(s)
+        # IE crown DCR backdates against OLDBA/RELDM1 = the PREVIOUS cycle's stand BA/RELDEN (dense.f:239-240,
+        # threaded start-of-cycle; crown.f:277-281 reads them for DCRCON). Seed cycle-1's pair from the
+        # inventory (pre-growth) density — analog of the OLDPCT seed above (matches oracle OBA[1]=inventory BA).
+        s.plot.old_ba = s.plot.basal_area
+        s.plot.relative_density_prev = s.plot.relative_density
     end
     apply_setsite!(s)                                      # SETSITE (act 120): mid-run site change (RCON), before growth
     # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
@@ -946,6 +953,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
     if s.variant isa InlandEmpire || s.variant isa BritishColumbia
         @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
+    end
+    # IE: snapshot the crown-time (current) stand BA/RELDEN into OLDBA/RELDM1 so NEXT cycle's CROWN backdates
+    # DCRCON against them (dense.f threads RELDM1/OLDBA as the prior-cycle density; oracle OBA[N]=BA[N-1],
+    # RDM1[N]=RELDEN[N-1]). Previously never assigned ⇒ OBA==BA, RDM1==RELDEN ⇒ DCRCON==XCRCON ⇒ EDCR too low
+    # ⇒ CHG (=EXPPCR−EXPDCR) too high ⇒ ICR +1..3 too high every cycle. Verified vs FVSie_g16 on 3307603010690:
+    # per-tree ICR at CROWN goes from 33/39 one-directional +diffs to ~5 mixed ±1 (residual = a small stand-BA gap).
+    if s.variant isa InlandEmpire
+        s.plot.old_ba = s.plot.basal_area
+        s.plot.relative_density_prev = s.plot.relative_density
     end
     # NOTE: newly-established trees get NO volume in their birth cycle. The oracle's
     # VOLS in the establishment cycle runs before the records are inserted, so a planted

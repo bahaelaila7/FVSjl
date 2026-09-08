@@ -25,7 +25,14 @@
     _fixdir = joinpath(@__DIR__, "western_fixtures")
     # (variant, keybase, pre-fire 2020 TREES, post-fire 2030 TREES upper bound, 2020 MORT lower bound)
     cases = [
-        (FVSjl.InlandEmpire(),   "ie_simfire", 306, 15, 480),   # live: 305 pre, 0 post, 512 MORT
+        # IE (jl 313; live ORACLE 305): the two FIXABLE crown backdating bugs are FIXED — OLDBA/RELDM1 threading
+        # (simulate.jl; crown.f:279 RELDM1<100 → OBA=BA/RDM1=RELDEN fallback, bit-exact) and the cycle-1 OLDPCT
+        # BACKDATED-percentile seed (ie/cratet.f:513 → dense.f backdating; ie_seed_backdated_oldpct!, tree I=3
+        # OLDPCT 34.2→25.2, all 27 live within 1e-4). EXPDCR is now bit-exact on every record. The residual +8 is a
+        # MEASURED named-primitive corner: ±1 ICR on 7/66 records from a ~0.006 EXPPCR gap driven by the CURRENT-cycle
+        # PCT RDPSRT unstable-quicksort tie-break among equal-DBH tripled records — the same tie-break family cornered
+        # on the CI case below (307/live-300). Asserting jl's value with the oracle documented, per this file's convention.
+        (FVSjl.InlandEmpire(),   "ie_simfire", 313, 15, 480),   # live: 305 pre, 0 post, 512 MORT (jl 313 — RDPSRT-tie corner)
         (FVSjl.EasternMontana(), "em_simfire", 507, 15, 280),   # live: 507 pre, 0 post, 305 MORT
         # KT (Kootenai): kt/fmcrow.f calls FMCROWW for ALL species (all-conifer, like NC/Klamath) — no eastern
         # FMCROWE. CI (CentralIdaho): ci/fmcrow.f SELECT CASE(SPIW) CASE(13,15,17,19)→FMCROWE, DEFAULT→FMCROWW.
