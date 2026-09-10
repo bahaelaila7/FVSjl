@@ -1470,7 +1470,17 @@ function ie_pvref1(pv_code::AbstractString, pv_ref::Integer)::Int
     # NOT uppercase, and the table codes are UPPERCASE. So a lowercase DB PV_CODE (e.g. "ces211") does NOT match
     # "CES211" ⇒ no PVREF1 hit ⇒ habtyp.f defaults to 260. (Only 3 IE stands are lowercase: ccf221/cef111/ces211;
     # jl formerly uppercased ⇒ matched ⇒ resolved a habitat the oracle defaults to 260.) Uppercase codes unchanged.
-    hab = get(_IE_PVREF1, (strip(pv_code), string(Int(pv_ref))), "")
+    # ie/habtyp.f:84-96 — BEFORE the PVREF1 lookup the habitat key KARD2 is left-justified and, when it is a
+    # ≤2-char PURELY-NUMERIC code, given a leading zero to 3 chars (`IF(LEN_TRIM(KARD2).LE.2 .AND. both chars
+    # digits) KARD2='0'//KARD2`). The FIA DB delivers 2-digit PV_CODEs unpadded (e.g. "31"), but the ported
+    # ie/pvref1.f table keys are 3-char zero-padded ("031"). Without this pad ie_pvref1("31",110) MISSES the
+    # ("031","110")→130 row ⇒ habtyp defaults to 260 ⇒ ITYPE 4 (MTYPE(4)) instead of the correct 130→ITYPE 1,
+    # which mis-selects the RHCON habitat term for NIVAR species (e.g. sp10 RHHAB(3)=-0.4345 vs the correct
+    # RHHAB(1)=-0.2146, a +0.22 CON deficit ⇒ ~26% under-height ⇒ compounding QMD/BA deficit on bare/pure-
+    # establishment IE stands). Mirror habtyp.f: pad a length-2 all-digit code to "0"//code.
+    pvc = String(strip(pv_code))
+    (length(pvc) == 2 && all(isdigit, pvc)) && (pvc = "0" * pvc)
+    hab = get(_IE_PVREF1, (pvc, string(Int(pv_ref))), "")
     isempty(hab) && return 0
     all(isdigit, hab) && return parse(Int, hab)          # numeric HABPVR = habitat code directly
     return ie_pa_habitat_code(hab)                        # PCOML HABPVR (e.g. "CDS715") → NI code, 0 if unmapped
