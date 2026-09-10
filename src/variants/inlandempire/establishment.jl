@@ -924,7 +924,11 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # per-IPREP SPRE term (estock.f), so each plot's PROB1 depends on its sampled IPPREP. `prob1_prep`
         # (=[PROB1(IPREP=1..3)], supplied only when the default/keyword prep is active) selects it; otherwise
         # the stand-level scalar p1 (IPREP=1). MEASURED FVSie_g16 na_def: PROB1 0.699/0.663977/0.657729 by IPREP.
-        p1n = (prep_active && !isempty(prob1_prep) && n <= length(ipprep)) ?
+        # ★ When the per-point prob1_pt is present (the ESB1 correction is active, esb_shift≠0) the SPRE term
+        # CANCELS in logistic(PN+ESB−ESB1) — it is time/BA-independent and enters BOTH the end-of-cycle PN and the
+        # inventory ESB1 — so PROB1 is per-point AND iprep-independent (the oracle prints one PROB1 per point). Use
+        # prob1_pt then and SKIP the per-IPREP override (which would mis-apply point-1's SPRE-uncancelled prob1_prep).
+        p1n = (prep_active && !isempty(prob1_prep) && isempty(prob1_pt) && n <= length(ipprep)) ?
               Float32(prob1_prep[ipprep[n]]) : p1
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
@@ -1596,11 +1600,18 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # gets its OWN stocking probability (a heavily-stocked point ⇒ near-zero regen, an open point ⇒ high). jl used a
     # single scalar prob1 from point-1's BA/slope for EVERY plot ⇒ on real FIA stands (4 points, heterogeneous BA)
     # the low-BA point-1 value over-produced ingrowth on the high-BA points (MEASURED trace 1627628023290487: pt3
-    # BA 266 oracle PROB1 0.097 vs jl 0.60). Compute the per-point vector here (IE ingrowth only — the disturbance
-    # path stays on the validated bare-BA scalar; EM stays scalar). nptids==1 ⇒ prob1_pt[1]==prob1 (byte-identical).
+    # BA 266 oracle PROB1 0.097 vs jl 0.60). Compute the per-point vector here (IE; EM stays scalar). nptids==1 ⇒
+    # prob1_pt[1]==prob1 (byte-identical). ★ DISTURBANCE tally (NTALLY=1, post-thin) ALSO needs this: a heterogeneous
+    # multi-point thin leaves some points bare (BAAA≈0 ⇒ high PROB1) and others stocked, and the oracle recomputes
+    # PROB1 per inventory point identically to the ingrowth path (MEASURED FVSie_g16 3291804010690 @2020: oracle
+    # per-point PROB1 [0.272,0.317,0.872,0.530], jl scalar point-1 0.272 ⇒ TPA 507 vs 1059, ~half). The per-IPREP
+    # SPRE term (estock.f) CANCELS in PROB1=logistic(PN+ESB−ESB1) whenever the ESB1 correction is active (SPRE is
+    # time/BA-independent and appears in both the end-of-cycle PN and the inventory ESB1), so a disturbance PROB1
+    # with esb_shift≠0 is per-point AND iprep-independent (the oracle prints one PROB1 per point regardless of the
+    # plot's IPREP). The caller passes point_ba (the disturbance all-tree per-point BAAA) only when esb_shift≠0.
     _npt_pb = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1
     prob1_pt = Float32[]
-    if _is_ie && is_ingro && !isempty(point_ba)
+    if _is_ie && !isempty(point_ba)
         prob1_pt = Vector{Float32}(undef, _npt_pb)
         @inbounds for pt in 1:_npt_pb
             ba_pt  = clamp(pt <= length(point_ba)     ? Float32(point_ba[pt])     : ba,  1f0, 400f0)   # BAAA(NNID) clamp [1,400]
@@ -2075,16 +2086,25 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # Per-point stocking shift ESB−ESB1(NNID) for the ingrowth per-point PROB1 (fixes the M333
                       # multi-point over-production). Passed only when calibration is active THIS call (scalar
                       # esb_shift≠0 ⇒ the ESB block ran this tally); empty ⇒ ie_autoes_run uses the scalar shift.
-                      esb_shift_pt = (is_ingro && esb_shift != 0f0) ? est.esb_shift_pt : Float32[],
+                      # ESB−ESB1(NNID) per point: ingrowth AND the IE disturbance tally (both recompute PROB1 per
+                      # inventory point). Passed when the ESB block ran this call (esb_shift≠0 ⇒ est.esb_shift_pt filled).
+                      esb_shift_pt = (esb_shift != 0f0 && (is_ingro || s.variant isa InlandEmpire)) ? est.esb_shift_pt : Float32[],
                       is_ingro = is_ingro, nstore = est.es_nstore, pnn = est.es_pnn, tpacre_ingro = tpacre_ingro,
                       point_small_tpa = point_small, idup = idup, variant = s.variant,
                       # Per-point slope/aspect (PSLO/PASP) for ESTPP — from the FIA per-plot SLOPE/ASPECT (#143).
                       # Empty (TREEDATA / no per-plot topo) ⇒ ESTPP falls back to the uniform stand slope, inert.
                       point_slope = (isempty(pslo_es) ? Float32[] : @view pslo_es[1:min(nptids, length(pslo_es))]),
                       point_aspect = (isempty(pasp_es) ? Float32[] : @view pasp_es[1:min(nptids, length(pasp_es))]),
-                      # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit (IE ingrowth). OVERSTORY-ONLY
-                      # (D≥REGNBK) post-growth per-point BA (dense.f:212), built above. Empty ⇒ ie_autoes_run keeps the scalar.
-                      point_ba = (is_ingro && !isempty(overstory_pba) ? (@view overstory_pba[1:min(nptids, length(overstory_pba))]) : Float32[]),
+                      # Per-inventory-point BAAA(NNID) for the per-point PROB1 stocking logit. INGROWTH: OVERSTORY-ONLY
+                      # (D≥REGNBK) post-growth per-point BA (dense.f:212), built above. DISTURBANCE (IE, esb_shift active):
+                      # the ALL-tree per-point BA s.density.point_ba (the per-point analog of the validated scalar
+                      # baaa=point_ba[1]; the oracle's post-thin BAAA(NNID)=[0,0,162,0] on 3291804010690 matches the
+                      # all-tree per-point BA — these points are bare/stocked with negligible sub-REGNBK stock). Empty ⇒
+                      # ie_autoes_run keeps the scalar (single-point / non-IE / esb_shift=0 ⇒ byte-identical).
+                      point_ba = is_ingro ?
+                          (isempty(overstory_pba) ? Float32[] : @view overstory_pba[1:min(nptids, length(overstory_pba))]) :
+                          ((s.variant isa InlandEmpire && esb_shift != 0f0 && !isempty(s.density.point_ba)) ?
+                              (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
                       over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
