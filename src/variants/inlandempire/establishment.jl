@@ -1355,7 +1355,7 @@ end
 # post-growth, pre-regen). `next_year` = IY(ICYC+1) (the cycle-end year).
 function ie_autoes_schedule!(est::Establishment, icyc::Integer, year::Integer,
                              next_year::Integer, itrn::Integer, xtes::Real,
-                             inv_year::Integer)
+                             inv_year::Integer, npnats::Integer=0)
     kdt = next_year - 1
     # (1) LAUTAL removal path (esnutr.f:264-289). Fires whenever a within-cycle thin removed ≥THRES1 —
     # INCLUDING at the inventory year (measured: iet01 stand-4 cyc1 THINPRSC XTES=0.5526 → NTALLY=1, IDSDAT=1990).
@@ -1374,6 +1374,17 @@ function ie_autoes_schedule!(est::Establishment, icyc::Integer, year::Integer,
     if est.lingrw && ((itrn == 0 && icyc == 1) || (next_year - Int(est.idsdat) >= 40))
         est.idsdat = Int32(next_year - 20)                # IDSDAT = IY(ICYC+1) - 20
         est.ntally = Int32(0)                             # LONE=T ⇒ reset after firing
+        return (true, 99)
+    end
+    # (4) PLANT/NATURAL-in-case catch-all (esnutr.f:345-359): a PLANT(430)/NATURAL(431) scheduled THIS cycle forces
+    # an ingrowth ESTAB call (NTALLY=99, IDSDAT=IY(ICYC+1)-20) when no earlier rule fired — so a PLANTED stand gets
+    # AUTOMATIC natural regen IN the plant cycle (OPFIND(2,[430,431]) = current-cycle PLANT/NATURAL count). Unlike
+    # rule 3 this block leaves LONE=.FALSE. (esnutr.f:51 default, never re-set here), so NTALLY stays 99 after ESTAB
+    # (the subsequent gap checks still gate the next fire). A NATURAL stand never reaches here — est.lingrw is false
+    # (esin.f:1300) so ie_autoes_establish! returns at its 1708 (lautal||lingrw) gate before the scheduler runs.
+    if npnats > 0
+        est.idsdat = Int32(next_year - 20)                # IDSDAT = IY(ICYC+1) - 20
+        est.ntally = Int32(99)                            # LONE=.FALSE. ⇒ NTALLY NOT reset (esnutr.f:416)
         return (true, 99)
     end
     return (false, 0)
@@ -1771,11 +1782,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         sched_fire = true
         break
     end
+    # esnutr.f:348 OPFIND(2,[430,431]) — PLANT/NATURAL activities scheduled THIS cycle (same due-window as establish!,
+    # engine/establishment.jl:337-339). Drives the rule-6 catch-all so a planted stand gets automatic ingrowth in the
+    # plant cycle. (fvscyc = icyc for cycle-number-encoded dates.)
+    npnats = count(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+                        ((year <= Int(a.year) < next_year) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)),
+                   s.control.schedule)
     fire, _ntally = sched_fire ? (true, sched_ntally) :
-        ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year)
+        ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year, npnats)
     est.last_xtes = 0f0                       # consume the removal fraction (one cycle only)
     fire || return false
-    year in est.years_done && return false
+    year in est.autoes_years_done && return false   # AUTOES own re-entry guard (NOT establish!'s years_done — a PLANT this cycle must NOT suppress the natural tally, estab.f runs both together)
 
     p = s.plot
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
@@ -1907,7 +1924,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # continuation tally lost its +2.1 stocking shift ⇒ PROB1 0.51 vs oracle 0.90 ⇒ post-thin under-production (D1).
         esb_shift = est.esb_shift
     elseif !est.inadv && (next_year - inv_year) <= 20 && (_ntally == 1 || _ntally == 99)
-        if isnan(est.esb_shift)
+        # ESB is recomputed from the CURRENT small-tree TPACRE at EVERY fresh tally (estab.f:301-322 reads the live
+        # DBH<REGNBK stocking each call; only ESB1's BAAOLD is the frozen inventory value). The `isnan` compute-once
+        # guard wrongly FROZE ESB at the first tally: on a stand with a SECOND within-20yr ingrowth (NTALLY=99) — a
+        # PLANT-triggered rule-6 tally after the cyc-1 ingrowth — the cyc-1 esb_shift (tpacre≈3, ESB floored, shift
+        # ≈−1.23) was reused although cyc-2 tpacre has jumped to ~190 (the cyc-1 cohort), so ESB rises and the shift
+        # flips to ≈+0.26. The stale −1.23 collapsed PROB1 0.157 vs oracle 0.63 ⇒ ingrowth NSTORE=INT(tpacre/(PROB1·
+        # 300)) inflated 1→4 ⇒ NEWTPP≈0 ⇒ ~7× under-production of plant-cycle natural regen. Recompute on every
+        # ingrowth tally (SAFE for none/thinbba/salvage: they have only ONE within-20yr ingrowth ⇒ isnan-equivalent;
+        # the NTALLY=2 continuation still reuses the stored value via the branch above). ESB1 stays the frozen
+        # inventory prediction (inv_baaold), so this only refreshes the current-stocking ESB half.
+        if isnan(est.esb_shift) || _ntally == 99
             idx0 = ie_estab_indices(ihab_code, Int(p.user_forest_code))
             # ESB reads the small-tree (D<REGNBK) TPACRE from the live tree list at the tally (estab.f:301-322 —
             # the current small-tree stocking, NOT frozen at inventory: only ESB1's BAAOLD is the frozen inventory value).
@@ -2223,7 +2250,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         created = true
     end
     created || return false
-    push!(est.years_done, Int32(year))
+    push!(est.autoes_years_done, Int32(year))
     compute_density!(s)
     return true
 end

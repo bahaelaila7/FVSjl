@@ -683,7 +683,13 @@ mutable struct Establishment
     idsdat::Int32       # date of disturbance (ESTAB keyword); -9999 = unset (ESNUTR defaults it)
     ntally::Int32       # regen-tally counter (NTALLY)
     es_seed::Float32    # persisted ESDRAW establishment reseed value (estab.f ESDRAW, SAVEd across tallies)
-    years_done::Set{Int32}  # establishment years already applied (idempotent ESNUTR)
+    years_done::Set{Int32}  # scheduled-PLANT/NATURAL (establish!) years already applied (idempotent ESNUTR)
+    # SEPARATE AUTOES idempotency set. FVS estab.f produces the automatic natural tally (DO 99, indices 1..ITPP)
+    # and the scheduled planted-tree append (ITPP+1..ITPP+ITODO) in the SAME call with NO cross-gate — PLANT leaves
+    # LAUTAL/LINGRW TRUE (esin.f:1205; only NATURAL zeroes them at :1300). Sharing one `years_done` between
+    # establish! (PLANT/NATURAL scheduled handler) and ie_autoes_establish! (automatic AUTOES tally) let a PLANT
+    # cycle stamp the year and SUPPRESS the entire natural-regen cohort — the plant-regime ~½-ingrowth bug.
+    autoes_years_done::Set{Int32}  # AUTOES automatic-tally years already applied (ie_autoes_establish! re-entry guard)
     # AUTOES automatic-tally controls (esinit.f:50-64 defaults; western/IE auto-establishment). LAUTAL fires a
     # regen tally when a thinning removes ≥THRES of the stand; LINGRW adds periodic ingrowth. NOAUTOES clears both.
     lautal::Bool        # LAUTAL — automatic tallies after thinnings (default TRUE)
@@ -748,7 +754,7 @@ mutable struct Establishment
                                 # tally (INADV=0, first tally). The ingrowth per-point PROB1 uses this instead of the
                                 # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
 end
-Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(),
+Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[])

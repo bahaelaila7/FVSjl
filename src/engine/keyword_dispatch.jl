@@ -1596,6 +1596,14 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             break
         elseif k == "PLANT" || k == "NATURAL"
             ic = k == "PLANT" ? Int32(430) : Int32(431)
+            # esin.f:1300-1303 — NATURAL implies STOADJ=0.0, NOAUTALY (LAUTAL=.F.), NOINGROW (LINGRW=.F.); it then
+            # falls through to the shared PLANT processing (:1205). PLANT (430) leaves these flags untouched. This
+            # disables the automatic AUTOES tally for a NATURAL stand (ie_autoes_establish! guard on est.lautal||
+            # est.lingrw). Faithful decoupling from establish!'s years_done requires this — else NATURAL would wrongly
+            # get AUTOES *plus* the user's scheduled natural regen (the shared-set behavior previously masked it).
+            if k == "NATURAL"
+                s.estab.lautal = false; s.estab.lingrw = false; s.estab.stoadj = 0f0
+            end
             v = r.values
             yr   = r.present[1] ? nint(v[1]) : Int32(1)
             # species (field 2) is SPDECD-decoded: a numeric species index is used directly,

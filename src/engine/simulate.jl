@@ -932,10 +932,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # current (post-growth) density + species viability, for a year WITHIN this cycle (IY(ICYC+1)-1) so the
     # establish! immediately below picks it up SAME cycle. Inert unless a CLIMATE block parsed AutoEstb.
     (s.climate !== nothing && s.climate.active) && clim_autoestb!(s, Int(s.control.cycle) + 1, fint)
-    establish!(s; fint = fint)              # ESNUTR — adds regen (ICR=0), recomputes density
-    # AUTOES (IE): automatic natural establishment (esnutr.f scheduler → estab.f tally). Fires off the removal/
-    # ingrowth rules (not a scheduled PLANT/NATURAL), so it runs separately from establish!.
+    # AUTOES (IE/EM): the AUTOMATIC natural tally (esnutr.f scheduler → estab.f DO-99, indices 1..ITPP) must run
+    # BEFORE establish! appends any scheduled PLANT/NATURAL trees (estab.f appends those at ITPP+1..ITPP+ITODO, AFTER
+    # the natural tally). estab.f is ONE call — the natural tally's ESB small-tree stocking (estab.f:301-322 TPACRE)
+    # is therefore computed from the PRE-plant treelist; running establish! first would let the just-planted
+    # seedlings inflate ESB and suppress the natural cohort (the plant-regime ~½-ingrowth bug). esnutr.f:345-359
+    # ALSO fires this tally in a PLANT cycle via the rule-6 PLANT/NATURAL-in-case catch-all (ie_autoes_schedule!).
+    # For a NON-plant cycle establish! finds no due activity and returns early (engine/establishment.jl:340) with no
+    # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
+    # floor and the ie_autoes RNG stream are unchanged.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
+    establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
