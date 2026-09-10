@@ -1660,9 +1660,16 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     @inbounds for i in 1:min(10, length(over_sp)); over[i] = Float32(over_sp[i]); end
     _npt = idup > 0 ? max(1, div(Int(dupnpt), Int(idup))) : 1     # inventory points = dupnpt/idup (=nptids)
     tally_pt = zeros(Float64, nsp, _npt)                          # per-point established TPA (for plot_id placement)
-    # IE emits the faithful per-tree height-class / WK4 records (advance/subsequent/excess); other variants keep
-    # the collapsed single-record path (emit=nothing ⇒ byte-identical). ihtser = MYHTS(IHAB).
-    emit_recs = _is_ie ? NTuple{5,Float64}[] : nothing
+    # IE AND EM emit the faithful per-tree height-class / WK4 records (advance/subsequent/excess); other variants
+    # keep the collapsed single-record path (emit=nothing ⇒ byte-identical). ihtser = MYHTS(IHAB).
+    # EM shares the estb/estab.f DO-99/33/228 driver and borrows IE/NI coefficients for its 7 establishing
+    # species (WB≡WP,WL,DF,LP,ES,AF,PP at positions 1,2,3,7,8,9,10 — verified identical in esadvh/essubh/esxcsh/
+    # esdlay + XMIN/HHTMAX/BNORML/MYHTS); OCURNF zeroes the non-shared positions (4,5,6=LM/LL/RM, 11-19), so the
+    # emit path is numerically faithful for EM. `is_ie` (below) still gates the IE-ONLY tally internals (PSUB add,
+    # prep_active, per-point PROB1) so the validated EM tally TPA + RNG stream stay byte-identical — emit only adds
+    # the per-record height/WK4 emission over the SAME draws.
+    _is_em = variant !== nothing && variant isa EasternMontana
+    emit_recs = (_is_ie || _is_em) ? NTuple{5,Float64}[] : nothing
     ihtser = _IE_MYHTS[clamp(Int(idx.ihab), 1, length(_IE_MYHTS))]
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
