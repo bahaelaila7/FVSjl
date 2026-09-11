@@ -2238,9 +2238,18 @@ function rd_build_driver!(rd::RootDiseaseState, n::Int)
     return d
 end
 
-# Host records (idi>0) in FVS ISCT/IND1 processing order: species ascending, stable
-# within species by record index. The RD-RNG consumers (RDINSD/RDSPRD/RDINF) walk
-# this order; the non-RNG kernels (RDMORT/RDEND/RDGROW) are order-independent.
+# Host records of the ACTIVE disease type (IDITYP==IRRSP), in FVS ISCT/IND1 processing
+# order: species ascending, stable within species by record index. The RD-RNG consumers
+# (RDINSD/RDSPRD/RDINF) run INSIDE the RDCNTL DO-525/75/300 `IRRSP=MINRR,MAXRR` loop and
+# each skip records of a different disease type (`IF (IDI .NE. IRRSP) GOTO ...`,
+# rdinsd.f:94/139/278/373, rdsprd.f, rdinf.f). For the single-disease turnkey MINRR=MAXRR,
+# the active type is `idi = MAXRR` (rd_control!). Records of an INACTIVE host disease type
+# (IDITYP≠MAXRR when MAXRR<3) carry PROBIU sized by that type's default PAREA (=25 ≫ SAREA),
+# so including them here inflates the RDINSD inoculum-density denominator (SMIU) — collapsing
+# RRIARE and, with it, all inside-patch infection (and it desynchronises the RD-RNG stream by
+# drawing for records the oracle never visits). MAXRR≥3 ⇒ IDI≡MAXRR ⇒ every host record kept.
+# The non-RNG kernels (RDMORT/RDEND/RDGROW) run ONCE outside that loop over ALL records, each
+# using the record's own IDITYP, so they are unaffected by this filter.
 function _rd_host_order(rd::RootDiseaseState, s::StandState)
     t = s.trees; maxrr = Int(rd.maxrr); irt = rd.irtspc
     order = Int[]
@@ -2248,7 +2257,7 @@ function _rd_host_order(rd::RootDiseaseState, s::StandState)
         ksp = Int(t.species[i]); ksp == 0 && continue
         base = Int(irt[ksp])
         idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
-        idi <= 0 && continue
+        (idi <= 0 || idi != maxrr) && continue      # skip non-host + non-active-type (IDI≠IRRSP)
         push!(order, i)
     end
     sort!(order; by = i -> (Int(t.species[i]), i))
