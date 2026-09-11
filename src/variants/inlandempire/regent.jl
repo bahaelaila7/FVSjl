@@ -847,35 +847,30 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         hk = h + htg
         t.height[i] = hk; t.ht_growth[i] = htg
+        # REGENT(LESTB) NIVAR diameter: the ESTAB birth path sets DBH DIRECTLY to the absolute height→DBH
+        # value DK — it does NOT accumulate a DDS increment (regent.f:938-946 `IF(LESTB) DBH(K)=DK; DG(K)=DK`).
+        # DK is computed on the REGENT height HK = H + HTG(K), i.e. the ONE-WK4 height (esgent.f applies the
+        # SECOND WK4 afterward), which for a new record is `htemp = h + htg_regent` here (XWT≡0 under LESTB).
+        # The former code ran the NON-LESTB increment path (DGK=(DK−D1)·BARK on the DDS scale, DBH=d+DG): with
+        # the tiny birth DBH d≈0.1 that gives DGK=(DK−D1)<0 (D1=DIAM+DADJ≈1.05 > DK≈0.9), so it FLOORED to
+        # DBH=DIAM(=0.3) and the whole PLANT/AUTOES cohort entered the next cycle at ~0.3″ instead of DK≈0.8–1.0″
+        # — a one-directional ~9% BA/QMD deficit that compounds every later cycle (the plant-regime residual).
+        hk_reg = htemp                                   # REGENT HK (one WK4); == hk when WK4=1 (PLANT)
         if wk4 < 1.0f0
-            if hk < 4.5f0
+            if hk < 4.5f0                                # esgent.f:60 — HT (the DOUBLE-WK4 height) below breast height
                 t.dbh[i] = 0.1f0 + 0.001f0 * hk; t.diam_growth[i] = 0.0f0   # esgent.f:61
             elseif d < 3.0f0
-                # REGENT DBH dub (regent.f:938-987) then esgent height-ratio shrink (esgent.f:64-65).
-                dk = ax * (hk - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk * 0.001f0
-                dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0)
-                dg0 = dgk * bark
-                dds = dg0 * (2.0f0*bark*d + dg0) * scale2
-                dg_inc = sqrt((d*bark)^2 + dds) - bark*d
-                (d + dg_inc) < diam && (dg_inc = diam - d)
-                dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)
+                # REGENT LESTB DBH(K)=DK on the REGENT height, then esgent HT/HTEMP shrink (esgent.f:64-65).
+                dk = ax * (hk_reg - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
                 ratio = htemp > 0.0f0 ? hk / htemp : 1.0f0
-                if dg_inc > 0.0f0
-                    t.dbh[i] = (d + dg_inc) * ratio; t.diam_growth[i] = dg_inc * ratio
-                end
+                t.dbh[i] = dk * ratio; t.diam_growth[i] = dk * ratio
             end
-        elseif d < 3.0f0                                 # PLANT/existing (WK4≥1): REGENT DBH dub unchanged (iet01)
-            if hk < 4.5f0
-                t.dbh[i] = 0.1f0 + diam * 0.01f0 + hk * 0.001f0; t.diam_growth[i] = 0.0f0
+        elseif d < 3.0f0                                 # PLANT/existing (WK4≥1)
+            if hk_reg < 4.5f0                            # regent.f:881-882 REGENT HK<4.5 ⇒ nominal sub-BH DBH
+                t.dbh[i] = 0.1f0 + diam * 0.01f0 + hk_reg * 0.001f0; t.diam_growth[i] = 0.0f0
             else
-                dk = ax * (hk - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk * 0.001f0
-                dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0)
-                dg0 = dgk * bark
-                dds = dg0 * (2.0f0*bark*d + dg0) * scale2
-                dg_inc = sqrt((d*bark)^2 + dds) - bark*d
-                (d + dg_inc) < diam && (dg_inc = diam - d)
-                dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)
-                dg_inc > 0.0f0 && (t.dbh[i] = d + dg_inc; t.diam_growth[i] = dg_inc)
+                dk = ax * (hk_reg - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
+                t.dbh[i] = dk; t.diam_growth[i] = dk    # regent.f:939,941 DBH(K)=DK; DG(K)=DK
             end
         end
     end
