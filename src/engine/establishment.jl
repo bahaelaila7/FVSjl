@@ -432,15 +432,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # uniform slope/aspect/habitat), so the per-point variables don't vary; only the
     # record count and the ESRANN draw count scale with NPTIDS. (ptree already divides by
     # dupnpt = NPTIDS·idup, so the planted TPA is conserved across all the records.)
+    _ie_first2 = Dict{Int,Float32}()   # IE PLANT-height DILATE = FIRST(2,sp) accumulator (estab.f:181 init 0.1, :1039 sqrt); IE branch only
     @inbounds for nn in 1:nptids, rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
-        # (unused on the no-treeht path), one for esdraw (the re-seed value).
+        # (previously discarded on the no-treeht path), one for esdraw (the re-seed value).
         # estab.f:646-650 EMSQR = ±DRAW2 (sign from DRAW1<0.5). These two draws align with the live oracle only
         # for the FIRST plot; from plot 2 on, live's per-plot ESRANN count is inflated by the AUTOES natural-regen
-        # tally (STOADJ block + species tally, estab.f:651+) that jl does not model (that is #143). So the CI essubh
-        # `disp = EMSQR·DILATE·BNORM` term is #143-entangled and is left at 0 (the deterministic median) — the essubh
-        # MEAN (PN) is bit-exact vs live; disp is a stochastic realization straddling 0, .sum-inert on cit01.
-        esrann!(s.rng); esrann!(s.rng)
+        # tally (STOADJ block + species tally, estab.f:651+) that jl does not model (that is #143). The IE PLANT
+        # branch below now USES these two draws to form EMSQR (RNG-NEUTRAL — the draws were already taken); the CI
+        # essubh disp stays 0 (#143-entangled, .sum-inert on cit01). The essubh MEAN (PN) is bit-exact vs live.
+        _emd1 = esrann!(s.rng); _emd2 = esrann!(s.rng)
+        _emsqr = (_emd1 < 0.5f0 ? -1f0 : 1f0) * _emd2          # estab.f:646-650 (consumed here whether or not used)
         esdraw = floor(esrann!(s.rng) * 100000f0 + 0.5f0)
         for a in due
             sp = round(Int, a.params[1]); (1 <= sp <= MAXSP) || continue
@@ -478,13 +480,25 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # IE NATURAL/PLANT base height (ie/essubh.f) — the subsequent/planted-tree height model
                 # HHT = EXP(PN + EMSQR·DILATE·BNORM·SIG). IHTSER from the shared estab MYGRUP→MYHTS bracket
                 # (em_ihtser); IPREP=1 (NONE) / IPHY=3 defaults (esplt2.f:191-192); BAA = overstory competition
-                # clamp[1,400]; XCOS/XSIN = cos/sin(aspect)·slope. Measurement pass uses disp=0 (deterministic
-                # median), like CI/EM. This base is used ONLY when the keyword gives no AVE.HEIGHT (the
-                # treeht≥0.1 branch below overrides it with the user height + lognormal BACHLO draw).
+                # clamp[1,400]; XCOS/XSIN = cos/sin(aspect)·slope. disp = EMSQR·DILATE·BNORM (estab.f:646-650 +
+                # essubh.f:118), the log-normal dispersion realized per PLANT record — same form the IE tally path
+                # uses (inlandempire/establishment.jl:1002-1005). Restores the planted-height SPREAD: the median
+                # EXP(PN) (disp=0) was biased LOW (Jensen: E[exp(disp·σ)]>1, plus the XMIN floor lifts the low
+                # tail) ⇒ the cohort out-grows/crosses breast height too slowly ⇒ the BA/CCF/SDI under-bias.
+                # LIMITATION (distribution-level, NOT per-record bit-exact): FVS draws EMSQR once per plot and
+                # advances FIRST(2,sp) in the tally block BEFORE the PLANT block WITHIN the same plot; jl runs the
+                # whole tally then the whole PLANT block, so neither the per-plot EMSQR nor the FIRST(2,sp)
+                # accumulator is threaded between the two — this reproduces the aggregate (seed-invariant) spread,
+                # not the exact per-record heights. Used ONLY when the keyword gives no AVE.HEIGHT (the treeht≥0.1
+                # branch below overrides it with the user height + lognormal BACHLO draw). XMIN floor applied below.
                 let _slo = s.plot.slope
+                    _iage = trunc(Int, (Float32(per) - Float32(delay) - Float32(gentim)) + 0.5f0)   # essubh.f AGE=TIME-DELAY-GENTIM; IAGE=INT(AGE+.5)
+                    _iage < 1 && (_iage = 1); _iage > 20 && (_iage = 20)
+                    _dil = get(_ie_first2, sp, 0.1f0); _ie_first2[sp] = sqrt(_dil)                   # FIRST(2,sp): 0.1 → sqrt per use (estab.f:1039)
                     ie_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0),
                               em_ihtser(Int(s.plot.habitat_code)), 1, 3,
-                              _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation, 0f0)
+                              _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation,
+                              _emsqr * _dil * _IE_ES_BNORML[_iage])
                 end
             elseif s.variant isa Teton
                 _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
