@@ -707,6 +707,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # central + tripled DGs right after the DG driver, using START-of-cycle DMR (before cr_mistoe! spread).
     s.variant isa CentralRockies && cr_dm_growth_loss!(s, stash)
     _dm_effects_variant(s.variant) && ie_dm_growth_loss!(s, stash)   # western MISTOE DG-loss (misdgf.f) — IE+KT/EM/BM/UT/TT/CI + BC(NEWSPRED); START-of-cycle DMR
+    # IE REGENT(LESTB) (ie_esgent!) reads the START-of-cycle (post-thin, pre-growth) stand density as TEMAHT/
+    # TEMBA/TEMCCF (grincr.f:316-320 ATAVH/ATBA/ATCCF → regent.f:218-222; regent.f:326-328 AH=TEMAHT,R=TEMCCF;
+    # :1082-1083 BANEXT=TEMBA,RDNEXT=TEMCCF) — NOT the post-growth density. Capture it here (the same values
+    # small_tree_growth! reads) before growth+establishment recompute avg_height upward; ie_esgent! uses it for
+    # the DADJ AH-vs-4.5 relh clamp (else on a stand whose trees grew past 4.5 ft, relh<0⇒0 ⇒ DADJ=0.65 instead
+    # of the pre-growth all-seedling relh=1 ⇒ DADJ=0.65−DELMAX≈0.77: every crossing seedling's dubbed DBH ~0.12"
+    # too small, halving the birth-cohort BA — the dominant plant-regime residual). Same #194 ATAVH class CI
+    # already fixed. IE-only (only ie_esgent! consumes this trio; every other variant path is unchanged).
+    es_at_avh = s.plot.avg_height
+    es_at_ba = s.plot.basal_area
+    es_at_relden = s.plot.relative_density
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
@@ -951,7 +962,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint)   # UT western: grow birth-cycle regen (ut/esgent.f, #184)
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint)   # BM western: grow birth-cycle regen (bm/esgent.f, #185)
-    s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR)
+    s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.

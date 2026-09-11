@@ -748,12 +748,23 @@ end
 # AX/BX power H→D dub over the birth fraction (subyr=FINT−GENTIM=5=WK4), applying HT/DBH directly. NIVAR conifers
 # (sp≤12,14,23) — the planted-conifer case. Non-NIVAR planted species (PI/JU 15,16 / TT 13,17 / CR 19,22) are rare
 # as planting stock and left un-birth-grown here (would need their special-species branches; see #186 follow-up).
-function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
     nstart >= t.n && return s
     rhcon = ie_regcons!(s)
-    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height; ah = avh
+    # REGENT(LESTB) reads the START-of-cycle (post-thin, pre-growth) stand density as TEMBA/TEMCCF/TEMAHT
+    # (regent.f:218-222 ← grincr.f ATBA/ATCCF/ATAVH; :326-328 AH=TEMAHT,R=TEMCCF; :1082-1083 BANEXT=TEMBA,
+    # RDNEXT=TEMCCF), NOT the current post-growth stand. By establishment time p.avg_height reflects the GROWN
+    # stand (top height ≫ 4.5), collapsing the DADJ relh clamp (relh<0⇒0 ⇒ DADJ=0.65 instead of the pre-growth
+    # all-seedling relh=1 ⇒ DADJ=0.65−DELMAX≈0.77) so every crossing seedling's dubbed DBH is ~0.12" too small
+    # (halving the birth-cohort BA). Use the captured start-of-cycle trio (avh/ba/relden); TEMBA/TEMCCF fall
+    # back to BA/RELDEN when ≤0 (regent.f:219,221), TEMAHT=ATAVH is unconditional (0 on a bare stand ⇒ DADJ=0.65
+    # both ways). Missing (-1) sentinel ⇒ the legacy post-growth scalars (defensive; the IE call site passes them).
+    ba = atba > 0f0 ? atba : p.basal_area
+    relden = atrelden > 0f0 ? atrelden : p.relative_density
+    avh = atavh >= 0f0 ? atavh : p.avg_height; ah = avh
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
