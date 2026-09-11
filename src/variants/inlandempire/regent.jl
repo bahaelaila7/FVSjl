@@ -765,6 +765,13 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     ba = atba > 0f0 ? atba : p.basal_area
     relden = atrelden > 0f0 ? atrelden : p.relative_density
     avh = atavh >= 0f0 ? atavh : p.avg_height; ah = avh
+    # The REGENT height-growth terms (HTGRL BCCF·RDJ + BBAL·BAL, regent.f:500/442) use the CURRENT
+    # (post-thin/post-fire) stand RELDEN/BA — RDNEXT/BANEXT = RELDEN/BA for the single LESTB subcycle
+    # (NPER=1 at FINT=10) — NOT the start-of-cycle TEMCCF/TEMBA (which feed ONLY DELMAX/AH, regent.f:327-333).
+    # Post-fire the start-of-cycle density is the pre-fire overstory (e.g. relden 372 vs current ~9), which
+    # collapses HTGRL and stunts the birth cohort ~2.5-3× (the dominant IE simfire post-fire BA deficit).
+    # atba/atrelden/atavh stay on delmax/relh (the birth-DBH DADJ dub, #194); only bal/htgrl move to current.
+    ba_htg = p.basal_area; relden_htg = p.relative_density
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
@@ -821,7 +828,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         wk4 = t.htimlt[i]                                 # per-tree WK4=HTIMLT (PLANT/existing=1.0; AUTOES<1)
         con = rhcon[sp] + c.htg_cor_small[sp]             # CON = RHCON + HCOR
         pct = t.crown_ratio[i]
-        bal = ba * (100.0f0 - pct) * 0.0001f0
+        bal = ba_htg * (100.0f0 - pct) * 0.0001f0
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
@@ -831,7 +838,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         # (first application). LSKIPH ⇒ no height growth (regent.f:764 HTG=0).
         htgr1 = 0.0f0
         if !lskiph
-            htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden + IE_RG_RHBAL[sp]*bal
+            htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden_htg + IE_RG_RHBAL[sp]*bal
             h2 = h + exp(htgrl) * est_scale * wk4 * xrhgro
             htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         end
