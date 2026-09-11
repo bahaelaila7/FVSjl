@@ -279,6 +279,10 @@ where a future LS/NE/ON port would re-introduce those branches.
         (sp > 14 && dbh <= 1f0) && (pmort = 1f0)                 # hardwoods ≤1″ die
         return pmort
     end
+    # Engelmann-spruce minimum mortality 0.8 (fmeff.f:261-266): IE/EM/KT species 8. Applied to the FOFEM
+    # logistic PMORT before the SN/CS early-return below.
+    ((variant isa InlandEmpire || variant isa EasternMontana || variant isa Kootenai) && sp == 8) &&
+        (pmort = max(0.8f0, pmort))
     variant isa Northeast || return pmort                # SN/CS: no post-logistic adjustment
     # NE dormant-season (BURNSEAS≤2) reductions (ne/fmeff.f:304-326):
     (burnseas <= 2 && sp <= 25) && (pmort /= 2f0)        # conifers ×½ before greenup

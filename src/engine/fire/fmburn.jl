@@ -514,23 +514,69 @@ lbs/ac-ft, −1 if none); `canopy_ht` = effective canopy top (ft); `tcload` = to
 # The canopy crown-fuel profile CRFILL (fmpocr.f): crown fuel by 1-ft height layer (lbs/ac-ft) — the array both
 # canopy_bulk_density (its running-mean CBD) and the FVS_CanProfile report (DBSFMCANPR) consume. Extracted so the
 # report reuses it; returns a length-400 vector (zeros when no FFE).
+# Does this species use the Black-Hills-ponderosa special Weibull crown-shape distribution in FMPOCR?
+# (fmpocr.f:82-89) — SELECT CASE(VARACD): CR ⇒ ponderosa (sp 13) on the Black Hills forests (KODFOR
+# 203/207); IE/EM/KT ⇒ species 10 (ponderosa pine). All other species/variants ⇒ the uniform spread.
+@inline function _fm_pocr_lbhpp(sp::Integer, variant, kodfor::Integer)::Bool
+    if variant isa InlandEmpire || variant isa EasternMontana || variant isa Kootenai
+        return sp == 10
+    elseif variant isa CentralRockies
+        return sp == 13 && (kodfor == 203 || kodfor == 207)
+    end
+    return false
+end
+
 function canopy_crfill(s::StandState)::Vector{Float32}
     NH = 400
     crfill = zeros(Float32, NH)
     fs = s.fire
     (fs === nothing || !fs.active) && return crfill
     t = s.trees
+    # Black-Hills-ponderosa Weibull-shape relative density MRD (fmpocr.f:62-74): a metric SDI over ALL tree
+    # records, MSDI = Σ (TPA·2.47)·(DBH·2.54/25.4)^1.6, MRD = MSDI/1111.97 capped at 1. Only consumed by the
+    # LBHPP crown-shape branch below, but computed unconditionally (over the full ITRN loop) to match FVS.
+    msdi = 0f0
+    @inbounds for i in 1:t.n
+        dcm = t.dbh[i] * 2.54f0
+        msdi += (t.tpa[i] * 2.47f0) * (dcm / 25.4f0)^1.6f0
+    end
+    mrd = msdi / 1111.97f0; mrd > 1f0 && (mrd = 1f0)
+    lbhpp_kodfor = Int(s.plot.user_forest_code)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         # Tree-inclusion filter (fmpocr.f:78-80): canopy-softwood species (LSW; hardwoods excluded), crown
         # ratio > 0 (FMICR), and height > CANMHT.
         h = t.height[i]; h > _FM_CANMHT || continue
-        fm_canopy_lsw(Int(t.species[i]), s.variant) || continue
+        sp = Int(t.species[i])
+        fm_canopy_lsw(sp, s.variant) || continue
         icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
-        xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(round(icr)))
+        xv = crown_biomass(s, sp, t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
         crbio > 0f0 || continue
+        # Black-Hills-ponderosa special crown-shape distribution (fmpocr.f:129-221): spread CRBIO over the
+        # crown by a truncated Weibull (Keyser & Smith 2010) instead of uniformly. Same total load, but the
+        # mass is concentrated higher in the crown, raising the peak 13-ft running-mean CBD.
+        if _fm_pocr_lbhpp(sp, s.variant, lbhpp_kodfor)
+            i1 = Int(floor(crbot)) + 1; i2 = Int(floor(h)) + 1
+            (Float32(i2) - h) >= 1f0 && (i2 -= 1)        # fmpocr.f:143 (only bites when HT is integral)
+            i1 > NH && (i1 = NH); i2 > NH && (i2 = NH)
+            (i1 <= i2 && crbio > 0f0) || continue
+            weibb = 7.1386f0 - 0.0608f0 * (h / 3.28f0)
+            weibc = 3.3126f0 - 0.0214f0 * (h / 3.28f0) - 1.1622f0 * mrd
+            wtradj = 1f0 - exp(-((10f0 / weibb)^weibc))
+            tscl = Float32(i2 - i1)
+            secint = 10f0 / (tscl + 1f0)
+            secbnd = 0f0
+            for j in i2:-1:i1                            # from crown top down, fill each 1-ft section
+                secbnd += secint
+                wprop = j == i2 ? (1f0 - exp(-((secbnd / weibb)^weibc))) :
+                        (1f0 - exp(-((secbnd / weibb)^weibc))) -
+                        (1f0 - exp(-(((secbnd - secint) / weibb)^weibc)))
+                crfill[j] += (crbio * wprop) / wtradj
+            end
+            continue
+        end
         len = h - crbot; len > 0f0 || continue
         adcrwn = crbio / len                            # uniform density over the crown length (lbs/ac-ft)
         i1 = Int(floor(crbot)) + 1; i2 = Int(floor(h)) + 1
