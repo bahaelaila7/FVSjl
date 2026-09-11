@@ -134,7 +134,12 @@ function rothermel_surface_fire(load::AbstractMatrix{Float32}, sav::AbstractMatr
     rhobqig = rhop1 * sum3                               # heat sink
     b   = (0.792f0 + 0.681f0 * sqrt(sigma)) * (0.1f0 + beta1)
     xio = (xir * fexp(b)) / (192f0 + 0.2595f0 * sigma)   # propagating flux
-    phis = beta1 != 0f0 ? 5.275f0 * slope_tan * slope_tan / fpow(beta1, 0.3f0) : 0f0
+    # fmfint.f:79-85 — FVS rescales a slope stored >1.0 by /100 (TTHETA=FMSLOP/100) before the slope factor.
+    # jl's p.slope = FIA_SLOPE/100 (fia_database.jl), so a stand with FIA slope >100% yields slope_tan>1.0 and,
+    # without this, phis = 5.275·slope²/beta^0.3 blows up ~1e4× ⇒ a spurious ACTIVE crown fire (total-kill) where
+    # the oracle stays SURFACE (measured 374597837489998: jl phis 32.5 vs oracle 0.00325; post-fire BA 2 vs 85).
+    ttheta = slope_tan > 1f0 ? slope_tan / 100f0 : slope_tan
+    phis = beta1 != 0f0 ? 5.275f0 * ttheta * ttheta / fpow(beta1, 0.3f0) : 0f0
     xm1 = 0.02526f0 * fpow(sigma, 0.54f0)
     xn1 = 0.715f0 * fexp(-0.000359f0 * sigma)
     c1  = 7.47f0 * fexp(-0.133f0 * fpow(sigma, 0.55f0))
