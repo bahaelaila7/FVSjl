@@ -2260,7 +2260,13 @@ function _rd_host_order(rd::RootDiseaseState, s::StandState)
         (idi <= 0 || idi != maxrr) && continue      # skip non-host + non-active-type (IDI≠IRRSP)
         push!(order, i)
     end
-    sort!(order; by = i -> (Int(t.species[i]), i))
+    # FVS IND1 order (setup.f/spesrt.f): species-major, then within species by the LNKCHN/TRIPLE
+    # lineage key — NOT the physical record index. After TRIPLE (reass.f) the chain is the U,C,L
+    # interleave [nlive+2p-1, p, nlive+2p] per parent p, which `t.sort_key` encodes (triple_records!:
+    # upper=3kk, central=3kk+1, lower=3kk+2). The RD-RNG consumers (RDINSD/RDSPRD) walk this exact IND1
+    # order, so the record→draw mapping must too — else the inside-infection RRNINF distributes to the
+    # wrong DBH class ⇒ wrong stump DBHDA ⇒ the inoculum decays away instead of sustaining the disease.
+    sort!(order; by = i -> (Int(t.species[i]), t.sort_key[i]))
     return order
 end
 
