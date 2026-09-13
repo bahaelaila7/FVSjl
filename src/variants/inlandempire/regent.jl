@@ -229,6 +229,37 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     zrand_tt = fill(-999f0, n)          # TTVAR (sp13/17) persistent ZRAND per tree (regent.f:513); drawn fresh
                                         # each call (cross-cycle persistence = accepted ZZRAN-class residual)
     cur_year = current_cycle_year(s)
+    # WK4(I) = clgmult's per-tree CLIMATE growth multiplier (regent.f:596/598 H2=H1+…·WK4). In the oracle
+    # CLGMULT fills WK4 once (dgdriv.f:153) and BOTH the large-tree DDS (dgdriv.f:217, jl apply_climate_dds!)
+    # AND the small-tree regent height read it. jl applied it to diameter but OMITTED it in the height path,
+    # so under a suppressing climate score the NIVAR/TTVAR seedling over-grew ~1/WK4 (tripping breast-height a
+    # cycle early ⇒ escaping self-thinning — the IE climate-regime dense-phase under-kill). WK4≡1 without a
+    # CLIMATE keyword (clgmult.f:55,60 return early) ⇒ IEEE-exact no-op on every non-climate stand.
+    wk4 = ones(Float32, n)
+    if s.climate !== nothing && s.climate.active
+        _c = s.climate; _cd = _c.data; _ix = _c.indices
+        if !(_ix[:mtcm]==0 || _ix[:mmin]==0 || _ix[:dd0]==0 || _ix[:d100]==0 || _ix[:dd5]==0 || _ix[:gsp]==0)
+            _ty = Float32(cur_year) + fint / 2f0                 # THISYR = IY(ICYC)+FINT/2 (matches apply_climate_dds!)
+            _A(sym, yr) = algslp(yr, _cd.years, view(_cd.attrs, :, _ix[sym]))
+            _smi(yr) = (g = _A(:gsp, yr); g > 0f0 ? _A(:dd5, yr) / g : 0f0)
+            _xgsite = _ix[:pSite] > 0 ? clim_xgsite(_A(:pSite, _ty), _A(:pSite, Float32(_c.inv_year))) : 1f0
+            _mtcm_now = _A(:mtcm, _ty); _mmin_now = _A(:mmin, _ty); _smi_now = _smi(_ty)
+            _ns = length(_c.plant_symbols)
+            _vscore = ones(Float32, _ns)
+            @inbounds for sp in 1:_ns; _, _vscore[sp] = species_vscore(_cd, _c.plant_symbols[sp], _ty); end
+            @inbounds for i in 1:n
+                t.dbh[i] <= 0f0 && continue
+                sp = Int(t.species[i]); (sp < 1 || sp > _ns) && continue
+                _by = _ty - t.birth_age[i]
+                _xdf = leites_xdf(_mtcm_now, _A(:mtcm, _by))
+                _xwl = leites_xwl(_mmin_now, _A(:mmin, _by), _A(:dd0, _by))
+                _xpp = leites_xpp(_smi_now, _smi(_by), _A(:d100, _by))
+                _xr = clim_xrelgr(_c.plant_symbols[sp], _xdf, _xpp, _xwl)
+                _, _tm = clim_treemult(_xgsite, _xr, _vscore[sp], _c.growmult[sp])
+                wk4[i] = _tm
+            end
+        end
+    end
     # ---- subcycle loop (regent.f:250-620) ----
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]
@@ -299,7 +330,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     htgrl = htg1 + zrand_tt[i]*stddev
                     (htgrl <= 0.1f0) && (htgrl = 0.1f0; zrand_tt[i] = -999f0)   # reset ⇒ redraw next subcycle
                     xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
-                    wk3[i] = h1 + htgrl * scale * xrhgro * con              # ·SCALE=kper/regyr ·CON ·WK4(=1)
+                    wk3[i] = h1 + htgrl * scale * xrhgro * con * wk4[i]     # regent.f:598 ·SCALE ·CON ·WK4(I)
                     # DLESS3 diameter into wk5 (= DK in final assembly)
                     h2 = wk3[i]
                     if h2 > 4.5f0
@@ -330,7 +361,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
             htgrl = con + IE_RG_RHLH[sp]*log(h1) + IE_RG_RHCCF[sp]*rdj + IE_RG_RHBAL[sp]*bal
-            h2 = h1 + exp(htgrl) * scale * xrhgro            # WK4≈1 (healthy; damage factor omitted)
+            h2 = h1 + exp(htgrl) * scale * xrhgro * wk4[i]   # regent.f:596 ·WK4(I) = clgmult climate multiplier
             wk3[i] = h2
             # NIVAR diameter (regent.f:598-610): skip if last subcycle or D≥3 or H2≤4.5
             d2 = d
