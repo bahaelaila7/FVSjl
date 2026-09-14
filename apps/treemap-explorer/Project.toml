@@ -1,0 +1,19 @@
+name = "TreeMapExplorer"
+uuid = "b2d4e6a8-1c3f-4a5b-9d7e-0f1a2b3c4d5e"
+version = "0.1.0"
+
+[deps]
+ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+DBFTables = "75c7ada1-017a-5fb6-b8c7-2125ff2d6c93"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FVSjl = "f5d3a1c2-9b4e-4a7d-8c61-2e0f7b9a4d33"
+FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+Oxygen = "df9a0d86-3283-4920-82dc-4555fc0d1d8b"
+PNGFiles = "f57f5aa1-a3ce-4bc8-8ab9-96f992907883"
+
+[sources]
+FVSjl = {path = "../.."}

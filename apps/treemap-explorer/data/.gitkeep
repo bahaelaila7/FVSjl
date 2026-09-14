@@ -1,0 +1,2 @@
+# TreeMap data lives OUTSIDE the repo (default /workspace/treemap/Data + /workspace/treemap/derived).
+# This directory is a placeholder; do not commit rasters/VAT/tree-table/index here.
