@@ -231,9 +231,22 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
         dd = d.dbhda[idi, l, k, m]
         bastpa += p * (3.141593f0 * (dd / 24.0f0)^2) * pinv
     end
-    # live tree list restricted to the disease area (per-record, 1:1 with trees)
+    # live tree list restricted to the disease area AND the active-disease-type host
+    # species. rdpr.f DO-800 (rdpr.f:186-216) walks by species (ISCT) and SKIPS any species
+    # whose disease type IDITYP(IRTSPC(KSP)) ≠ IRRSP when IRRSP<3 (rdpr.f:187-188) — so the
+    # per-record TUN/TIN/TDIE/BAPA/CFVPA sums span ONLY the active-type hosts, NOT every record.
+    # RDSETP loads PROBIU/PROBIT onto every host record via IDI=MAXRR (the IDITYP remap at
+    # rdsetp.f:249 is disabled), so a non-active-type host (e.g. a Douglas-fir seedling cohort in
+    # a P-type-Annosus stand) carries a large PROBIU that RDSETP set but RDPR must EXCLUDE. Without
+    # this filter jl over-reported UnInf_TPA by the whole off-type population (flagship 24505254010900:
+    # jl 3187 vs live oracle 535 — measured via an instrumented rdpr.o). The INFECTION kernel already
+    # walks the filtered host set (_rd_host_order skips IDI≠MAXRR), so this only aligns the DBS report.
     tun = 0.0f0; tin = 0.0f0; tdie = 0.0f0; tdvol = 0.0f0; bapa = 0.0f0; cfvpa = 0.0f0
+    irt = rd.irtspc; maxrr = Int(rd.maxrr)
     @inbounds for i in 1:n
+        ksp = Int(t.species[i]); ksp == 0 && continue
+        idi_rec = maxrr < 3 ? Int(RD_IDITYP[Int(irt[ksp])]) : maxrr
+        (idi_rec <= 0 || idi_rec != idi) && continue         # rdpr.f:188 IDI≠IRRSP ⇒ skip
         tclas = d.probiu[i] + d.probit[i]
         tun   += d.probiu[i] * pinv
         tin   += d.probit[i] * pinv
