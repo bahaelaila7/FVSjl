@@ -733,7 +733,19 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
     s.variant isa BritishColumbia && dm_tregro!(s, round(Int, fint))
-    root_disease_treg!(s, fint)          # WRD gradd.f RDTREG seam (post-growth) — inert unless an RDIN block is active
+    # WRD RDTREG seam ORDERING. FVS runs the ENTIRE root-disease chain (RDCNTL: RDINSD/RDSPRD/RDINF/RDMORT/
+    # RDSTP, then RDEND, then RDGROW) in GRADD (gradd.f:131) AFTER GRINCR's TRIPLE (grincr.f:543). MORTS only
+    # sets the WK2 kill array (PROB is untouched); TRIPLE (triple.f:67/129) splits PROB *and* WK2 proportionally;
+    # RDTREG's RDINSD/RDMORT/RDSTP therefore see the ALREADY-tripled records at FULL pre-mortality PROB, and
+    # UPDATE (gradd.f:180) subtracts WK2 only afterwards. Running the chain on the un-tripled list (ITRN, not
+    # ITRN×3) coarsens RDINSD's NUMTRE=INT(IRINIT/ITRN) Monte-Carlo (rdinsd.f:290) → over-infection → an
+    # undersized cyc-1 stump the faithful rd_inoc_decay! destroys → disease fizzles. So when this cycle BOTH
+    # triples (stash) AND has no SIMFIRE, DEFER the whole chain to the post-triple block below (rd_post_triple);
+    # otherwise (no tripling, or a fire cycle) FVS's RDTREG also runs un-tripled, so keep the pre-triple call.
+    rd_stand = (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+               s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+    rd_post_triple = rd_stand && (stash !== nothing) && !_fire_due(s)
+    rd_post_triple || root_disease_treg!(s, fint)  # WRD gradd.f RDTREG seam — inert unless an RDIN block is active
     # FFE SIMFIRE this cycle? FVS computes MORTS (GRINCR) on the FULL pre-fire stand into WK2,
     # then GRADD's FMKILL sets WK2(I)=MAX(WK2(I),FIRKIL(I)) (fmkill.f:86) — a tree dies from
     # whichever is LARGER, density/background MORTS or fire, NOT both summed. The old code ran
@@ -756,9 +768,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
     # MORTS time (GRINCR MORTS → GRADD RDTREG/RDEND). Non-fire, non-tripled RD path only;
     # gated so a no-RD stand is byte-identical (root_disease === nothing ⇒ no-op).
-    if !tripled && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+    if !tripled && !rd_post_triple && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
        s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-        rd_end_apply!(s.root_disease, s, old_tpa)
+        rd_end_apply!(s.root_disease, s, old_tpa)   # RDEND (un-tripled path only; tripled RD runs post-triple below)
     end
     # DFB dfb/dfbdrv.f (DFBDBH→DFBMOD→DFBMRT) gated by DFBGO: on a cycle with a scheduled Douglas-fir
     # Beetle outbreak, raise the large-DF WK2 mortality to MAX(background, DFKILL). FVS calls DFBDRV in
@@ -837,12 +849,40 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             mort += m * old_cfv[i]
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
-        triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
-        # RD driver must be tripled in lockstep (rd/triple.f RDTRIP): FVS RDGROW runs on the
-        # already-tripled list, so the RD per-record arrays are split .60/.25/.15 to match.
-        if stash !== nothing && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
-           s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-            rd_triple_driver!(s.root_disease, stash.nlive)
+        if rd_post_triple
+            # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
+            # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
+            # PROB and WK2 proportionally; RDTREG (RDCNTL RDINSD/RDMORT/RDSTP) runs on the tripled full-PROB
+            # records; RDEND combines RRKILL into WK2; UPDATE subtracts WK2. Reconstruct here: recover the
+            # MORTS kill, restore t.tpa→full PROB, triple, RDTRIP the driver, run RDCNTL on full PROB, then
+            # re-apply the (proportionally-tripled) WK2 and let RDEND fold in the RD kill.
+            wk2_u = Float32[old_tpa[i] - t.tpa[i] for i in 1:nlive]      # per-original MORTS kill (WK2)
+            @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end       # restore full pre-mort PROB
+            triple_records!(s, stash)                                    # splits FULL PROB .60/.25/.15
+            rd_triple_driver!(s.root_disease, stash.nlive)               # RDTRIP: split RD per-record arrays
+            n2 = t.n
+            full_prob = Float32[t.tpa[i] for i in 1:n2]                  # tripled pre-mort PROB (= RDTREG input)
+            root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
+            @inbounds for i in 1:nlive                                   # survivors = PROB − WK2 (triple.f WEIGHT split)
+                t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
+                t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
+                t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
+            end
+            rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
+            mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
+            @inbounds for c in 1:n2
+                m = full_prob[c] - t.tpa[c]
+                mort += m * t.cuft_vol[c]
+                t.mort_pa[c] = m
+            end
+        else
+            triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
+            # RD driver must be tripled in lockstep (rd/triple.f RDTRIP): FVS RDGROW runs on the
+            # already-tripled list, so the RD per-record arrays are split .60/.25/.15 to match.
+            if stash !== nothing && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+               s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+                rd_triple_driver!(s.root_disease, stash.nlive)
+            end
         end
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
