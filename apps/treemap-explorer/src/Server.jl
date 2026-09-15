@@ -98,6 +98,26 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     # static frontend
     staticfiles(PUBLIC, "/")
 
-    @info "TreeMap Growth Explorer serving" host port public = PUBLIC
-    serve(; host = host, port = port, async = false)
+    @info "TreeMap Growth Explorer serving — press Ctrl-C to stop" host port public = PUBLIC
+
+    # Run Oxygen ASYNC and own the interrupt ourselves. Oxygen's own async=false
+    # path flips exit_on_sigint off and blocks in wait(); the HTTP accept loop then
+    # keeps the process alive so Ctrl-C appears ignored. Here SIGINT is delivered to
+    # our sleep loop as an InterruptException, we terminate() and return cleanly.
+    serve(; host = host, port = port, async = true)
+    Base.exit_on_sigint(false)
+    try
+        while true
+            sleep(0.5)
+        end
+    catch e
+        e isa InterruptException || rethrow()
+        @info "shutting down"
+    finally
+        try
+            terminate()
+        catch
+        end
+    end
+    return nothing
 end

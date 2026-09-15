@@ -9,9 +9,26 @@ const CMAP_CSS = {
 const SP_PALETTE = ['#4ade80','#38bdf8','#f59e0b','#f472b6','#a78bfa',
                     '#facc15','#fb7185','#2dd4bf','#94a3b8'];
 
+// key-free raster basemaps (Esri/USGS ArcGIS use z/y/x order; OSM uses z/x/y)
+const BASEMAPS = {
+  satellite: { tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+               maxzoom: 19, attribution: 'Esri World Imagery · USFS TreeMap 2022' },
+  topo:      { tiles: ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}'],
+               maxzoom: 16, attribution: 'USGS The National Map · USFS TreeMap 2022' },
+  terrain:   { tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}'],
+               maxzoom: 13, attribution: 'Esri World Shaded Relief · USFS TreeMap 2022' },
+  osm:       { tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+               maxzoom: 19, attribution: '© OpenStreetMap contributors · USFS TreeMap 2022' },
+};
+let curBasemap = 'satellite';
+
 const el = id => document.getElementById(id);
 const status = el('status');
 const fmt = (n, d=0) => Number(n).toLocaleString(undefined,{maximumFractionDigits:d});
+
+// never fail silently — surface any uncaught error to the status bar + console
+window.addEventListener('error', e => { try { status.textContent = 'JS error: ' + e.message; } catch(_){} });
+window.addEventListener('unhandledrejection', e => { try { status.textContent = 'error: ' + (e.reason && e.reason.message || e.reason); } catch(_){} });
 
 let map, attrs = {}, curAttr = 'carbon_l';
 const RASTER_SRC = 'treemap';
@@ -30,35 +47,48 @@ async function boot() {
     sel.appendChild(o);
   });
 
+  const EMPTY = {type:'FeatureCollection',features:[]};
   map = new maplibregl.Map({
     container: 'map',
     style: {
       version: 8,
       sources: {
-        base: {
-          type: 'raster', tileSize: 256,
-          tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                  'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                  'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
-          attribution: '© OpenStreetMap © CARTO · USFS TreeMap 2022'
-        },
-        [RASTER_SRC]: { type:'raster', tileSize:256, tiles:[tileUrl(curAttr)] }
+        base: { type:'raster', tileSize:256, tiles:BASEMAPS[curBasemap].tiles,
+                maxzoom:BASEMAPS[curBasemap].maxzoom, attribution:BASEMAPS[curBasemap].attribution },
+        [RASTER_SRC]: { type:'raster', tileSize:256, tiles:[tileUrl(curAttr)] },
+        aoi:   { type:'geojson', data:EMPTY },
+        draft: { type:'geojson', data:EMPTY }
       },
+      // declared here (not via addLayer) so the draw layers can never be missing
       layers: [
         { id:'base', type:'raster', source:'base' },
-        { id:'treemap', type:'raster', source:RASTER_SRC, paint:{'raster-opacity':0.85} }
+        { id:'treemap', type:'raster', source:RASTER_SRC, paint:{'raster-opacity':0.85} },
+        { id:'aoi-fill', type:'fill', source:'aoi',
+          paint:{'fill-color':'#4ade80','fill-opacity':0.12} },
+        { id:'aoi-line', type:'line', source:'aoi',
+          paint:{'line-color':'#4ade80','line-width':2} },
+        { id:'draft-fill', type:'fill', source:'draft',
+          paint:{'fill-color':'#facc15','fill-opacity':0.10} },
+        { id:'draft-line', type:'line', source:'draft',
+          paint:{'line-color':'#facc15','line-width':2,'line-dasharray':[2,1]} },
+        { id:'draft-pt', type:'circle', source:'draft',
+          filter:['==',['geometry-type'],'Point'],
+          paint:{
+            'circle-radius':['case',['boolean',['get','first'],false],7,5],
+            'circle-color':['case',['boolean',['get','first'],false],'#22c55e','#facc15'],
+            'circle-stroke-width':2,'circle-stroke-color':'#fff'} }
       ]
     },
     center: [(meta.bounds.west+meta.bounds.east)/2, (meta.bounds.south+meta.bounds.north)/2],
     zoom: 3.4
   });
   map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
+  map.on('error', e => { console.error('map error', e && e.error); setStatus('map error: '+((e&&e.error&&e.error.message)||'see console')); });
   map.on('load', () => {
     map.fitBounds([[meta.bounds.west,meta.bounds.south],[meta.bounds.east,meta.bounds.north]],
                   {padding:20, duration:0});
-    addAoiLayers();
     updateLegend();
-    setStatus(`${fmt(meta.nplots_total)} plots · ${attrs[curAttr].label}`);
+    setStatus(`${fmt(meta.nplots_total)} plots · ${attrs[curAttr].label} · click “Draw polygon” to select an AOI`);
   });
 
   sel.onchange = e => { curAttr = e.target.value; swapTiles(); updateLegend();
@@ -67,11 +97,28 @@ async function boot() {
     const v = +e.target.value; el('opv').textContent = v+'%';
     if (map.getLayer('treemap')) map.setPaintProperty('treemap','raster-opacity', v/100);
   };
+  el('basemap').onchange = e => setBasemap(e.target.value);
   el('draw').onclick = startDraw;
   el('clear').onclick = clearAoi;
   el('upload').onclick = () => el('file').click();
   el('file').onchange = onUpload;
-  window.addEventListener('keydown', e => { if (e.key==='Escape') cancelDraw(); });
+  window.addEventListener('keydown', e => {
+    if (!drawing) return;
+    if (e.key === 'Escape') cancelDraw();
+    else if (e.key === 'Enter') finishDraw();
+    else if (e.key === 'Backspace') { e.preventDefault(); verts.pop(); renderDraft(); updateDrawHint(); }
+  });
+}
+
+function setBasemap(key){
+  curBasemap = key;
+  const b = BASEMAPS[key];
+  if (map.getLayer('base')) map.removeLayer('base');
+  if (map.getSource('base')) map.removeSource('base');
+  map.addSource('base',{type:'raster',tileSize:256,tiles:b.tiles,maxzoom:b.maxzoom,attribution:b.attribution});
+  // keep base at the bottom (below the treemap layer)
+  const below = map.getLayer('treemap') ? 'treemap' : undefined;
+  map.addLayer({id:'base',type:'raster',source:'base'}, below);
 }
 
 const tileUrl = a => `/tiles/${a}/{z}/{x}/{y}.png`;
@@ -91,58 +138,74 @@ function updateLegend(){
 }
 function setStatus(t){ status.textContent = t; }
 
-/* ---------------- AOI layers ---------------- */
-function addAoiLayers(){
-  map.addSource('aoi',{type:'geojson',data:emptyFC()});
-  map.addLayer({id:'aoi-fill',type:'fill',source:'aoi',
-    paint:{'fill-color':'#4ade80','fill-opacity':0.12}});
-  map.addLayer({id:'aoi-line',type:'line',source:'aoi',
-    paint:{'line-color':'#4ade80','line-width':2}});
-  map.addSource('draft',{type:'geojson',data:emptyFC()});
-  map.addLayer({id:'draft-line',type:'line',source:'draft',
-    paint:{'line-color':'#facc15','line-width':2,'line-dasharray':[2,1]}});
-  map.addLayer({id:'draft-pt',type:'circle',source:'draft',
-    filter:['==','$type','Point'],
-    paint:{'circle-radius':4,'circle-color':'#facc15'}});
-}
-const aoiBeforeId = () => map.getLayer('aoi-fill') ? 'aoi-fill' : undefined;
+/* AOI + draft layers are declared in the initial style (see boot). */
+const aoiBeforeId = () => (map && map.getLayer('aoi-fill')) ? 'aoi-fill' : undefined;
 const emptyFC = () => ({type:'FeatureCollection',features:[]});
 
 /* ---------------- polygon draw ---------------- */
-let drawing=false, verts=[];
+let drawing=false, verts=[], lastClick=0;
 function startDraw(){
-  clearAoi(); drawing=true; verts=[];
+  clearAoi();                 // clears any prior AOI (also calls cancelDraw)
+  drawing=true; verts=[];
   map.getCanvas().style.cursor='crosshair';
-  el('drawhint').style.display='block';
   map.doubleClickZoom.disable();
   map.on('click', onDrawClick);
-  map.on('dblclick', onDrawDone);
+  map.on('dblclick', onDrawDblClick);
   map.on('mousemove', onDrawMove);
+  updateDrawHint();
+  setStatus('draw mode — click on the map to place points');
+  console.log('[draw] mode on; draft layer present:', !!(map.getLayer && map.getLayer('draft-pt')));
 }
-function onDrawClick(e){ verts.push([e.lngLat.lng,e.lngLat.lat]); renderDraft(); }
-function onDrawMove(e){ if(drawing && verts.length) renderDraft([e.lngLat.lng,e.lngLat.lat]); }
+function onDrawClick(e){
+  if (!drawing) return;
+  const now = Date.now();
+  // swallow the 2nd click of a double-click (dblclick handler finishes instead)
+  if (now - lastClick < 300){ lastClick = now; return; }
+  lastClick = now;
+  const p = [e.lngLat.lng, e.lngLat.lat];
+  // click near the first vertex closes the polygon
+  if (verts.length >= 3){
+    const f = map.project(verts[0]), c = map.project(p);
+    if (Math.hypot(f.x-c.x, f.y-c.y) < 12){ finishDraw(); return; }
+  }
+  verts.push(p); renderDraft(); updateDrawHint();
+  setStatus(`drawing — ${verts.length} point${verts.length===1?'':'s'} placed`);
+}
+function onDrawDblClick(e){ if (e) e.preventDefault(); finishDraw(); }
+function onDrawMove(e){ if (drawing && verts.length) renderDraft([e.lngLat.lng,e.lngLat.lat]); }
+
 function renderDraft(hover){
-  const pts = hover ? verts.concat([hover]) : verts;
-  const feats = verts.map(v=>({type:'Feature',geometry:{type:'Point',coordinates:v}}));
-  if (pts.length>=2) feats.push({type:'Feature',geometry:{type:'LineString',coordinates:pts}});
+  if (!map.getSource('draft')) return;
+  const line = hover ? verts.concat([hover]) : verts;
+  const feats = verts.map((v,i)=>({type:'Feature',properties:{first:i===0},
+                                    geometry:{type:'Point',coordinates:v}}));
+  if (verts.length >= 3) feats.push({type:'Feature',geometry:
+    {type:'Polygon',coordinates:[verts.concat([verts[0]])]}});
+  else if (line.length >= 2) feats.push({type:'Feature',geometry:
+    {type:'LineString',coordinates:line}});
   map.getSource('draft').setData({type:'FeatureCollection',features:feats});
 }
-function onDrawDone(e){
-  if (e) e.preventDefault();
-  if (verts.length < 3){ cancelDraw(); return; }
-  const ring = verts.concat([verts[0]]);
-  const geometry = {type:'Polygon',coordinates:[ring]};
+function updateDrawHint(){
+  const h = el('drawhint');
+  h.style.display = 'block';
+  h.textContent = verts.length < 3
+    ? `Click to add points — ${verts.length} placed (need 3+). Esc to cancel.`
+    : `${verts.length} points · double-click, Enter, or click the first point to finish · Backspace to undo · Esc to cancel`;
+}
+function finishDraw(){
+  if (verts.length < 3){ return; }         // keep drawing until a valid ring
+  const geometry = {type:'Polygon',coordinates:[verts.concat([verts[0]])]};
   cancelDraw();
   map.getSource('aoi').setData({type:'Feature',geometry});
   submitAoi({body:JSON.stringify({geometry}),
              headers:{'Content-Type':'application/json'}});
 }
 function cancelDraw(){
-  drawing=false; verts=[];
+  drawing=false; verts=[]; lastClick=0;
   map.getCanvas().style.cursor='';
   el('drawhint').style.display='none';
-  map.off('click',onDrawClick); map.off('dblclick',onDrawDone); map.off('mousemove',onDrawMove);
-  setTimeout(()=>map.doubleClickZoom.enable(),0);
+  map.off('click',onDrawClick); map.off('dblclick',onDrawDblClick); map.off('mousemove',onDrawMove);
+  map.doubleClickZoom.enable();
   if (map.getSource('draft')) map.getSource('draft').setData(emptyFC());
 }
 function clearAoi(){
@@ -154,6 +217,11 @@ function clearAoi(){
 /* ---------------- upload ---------------- */
 async function onUpload(e){
   const f = e.target.files[0]; if(!f) return;
+  const name = f.name.toLowerCase();
+  if (name.endsWith('.shp') || name.endsWith('.shx') || name.endsWith('.dbf') || name.endsWith('.prj')){
+    setStatus('Upload a .zip of the whole shapefile (.shp+.shx+.dbf+.prj), or a GeoJSON — a single .shp can’t be read.');
+    e.target.value=''; return;
+  }
   clearAoi();
   const buf = await f.arrayBuffer();
   submitAoi({body:buf, headers:{'Content-Type':'application/octet-stream','X-Filename':f.name}});
@@ -246,4 +314,4 @@ function drawChart(cells){
     + `<span><i class="sw" style="background:${OTHER}"></i>other</span>`;
 }
 
-boot();
+boot().catch(err => { console.error(err); try { status.textContent = 'startup error: ' + err.message; } catch(_){} });

@@ -15,8 +15,9 @@ spec = TME.ATTRS["carbon_l"]
 img = TME.Color.colorize(tm, TME.attr_valfn(app, "carbon_l"), spec.cmap, spec.lo, spec.hi)
 import PNGFiles
 import ColorTypes: alpha
-PNGFiles.save("/workspace/treemap/derived/test_tile.png", img)
-println("wrote test_tile.png (", count(p -> alpha(p) > 0, img), " colored px)")
+outpng = joinpath(mktempdir(), "test_tile.png")
+PNGFiles.save(outpng, img)
+println("wrote ", outpng, " (", count(p -> alpha(p) > 0, img), " colored px)")
 
 # --- AOI clip + aggregate: ~6 km box in the Idaho panhandle (dense IE forest) ---
 using ArchGDAL

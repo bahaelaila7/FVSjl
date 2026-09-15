@@ -57,14 +57,19 @@ end
 """
     geom_from_upload(bytes, filename) -> geom5070
 
-Open an uploaded AOI file (GeoJSON or zipped/So shapefile handled by GDAL via
-/vsimem) and return the union of all feature geometries reprojected to 5070.
+Open an uploaded AOI — a **GeoJSON** file, or a **.zip bundle of a shapefile**
+(.shp/.shx/.dbf/.prj) which GDAL reads in place via `/vsizip/`. A bare `.shp`
+alone cannot be read (its `.shx`/`.prj` are missing), so upload the zip.
+Returns the union of all feature geometries reprojected to EPSG:5070.
 """
 function geom_from_upload(bytes::Vector{UInt8}, filename::AbstractString)
-    vpath = "/vsimem/aoi_" * string(hash(bytes); base=16) * "_" * basename(filename)
+    base = basename(filename)
+    vpath = "/vsimem/aoi_" * string(hash(bytes); base=16) * "_" * base
     AG.GDAL.vsifilefrommembuffer(vpath, bytes, length(bytes), false)
+    # a zipped shapefile bundle is opened through the /vsizip/ virtual filesystem
+    open_path = endswith(lowercase(base), ".zip") ? "/vsizip/" * vpath : vpath
     try
-        ds = AG.read(vpath)
+        ds = AG.read(open_path)
         lyr = AG.getlayer(ds, 0)
         # source SRS (fall back to 4326)
         sr = AG.getspatialref(lyr)

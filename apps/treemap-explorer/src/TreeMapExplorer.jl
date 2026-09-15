@@ -6,7 +6,8 @@ polygon to its FIA plots, and chart species / DBH-class distributions of the
 forest — with FVSjl growth projection behind a single `simulate` boundary.
 
 Data (raster, VAT, tree table, offset index) lives OUTSIDE the repo, under a
-data directory passed to `init` (default `/workspace/treemap`).
+data directory resolved from the `init_app` argument, else the `TREEMAP_DATA`
+env var, else a default derived from this module's location (see `default_datadir`).
 """
 module TreeMapExplorer
 
@@ -53,12 +54,23 @@ struct App
 end
 
 """
-    init_app(datadir="/workspace/treemap") -> App
+    init_app(datadir=default_datadir()) -> App
 
 Load the VAT (65k plots, ~instant) and bind the tree-table offset index and the
 raster. The 4.85 GB raster is memory-mapped by GDAL, not read up front.
+
+The data directory is resolved (in order): the `datadir` argument, the
+`TREEMAP_DATA` environment variable, else a default derived from this module's
+own location (`<repo-parent>/treemap`) — no absolute path is hard-coded.
 """
-function init_app(datadir::AbstractString = "/workspace/treemap")
+function default_datadir()
+    haskey(ENV, "TREEMAP_DATA") && return ENV["TREEMAP_DATA"]
+    # this file: <root>/apps/treemap-explorer/src/TreeMapExplorer.jl
+    # data sits beside the repo root: <root>/../treemap  ==  <repo-parent>/treemap
+    normpath(joinpath(@__DIR__, "..", "..", "..", "..", "treemap"))
+end
+
+function init_app(datadir::AbstractString = default_datadir())
     dd = joinpath(datadir, "Data")
     tif = joinpath(dd, "TreeMap2022_CONUS.tif")
     vat = joinpath(dd, "TreeMap2022_CONUS.tif.vat.dbf")

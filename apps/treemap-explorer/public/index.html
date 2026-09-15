@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TreeMap Growth Explorer</title>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="/vendor/maplibre-gl.css">
+<script src="/vendor/maplibre-gl.js"></script>
 <style>
   :root{
     --bg:#0e1512; --panel:#141d18; --panel2:#1b2620; --line:#26332b;
@@ -70,6 +70,13 @@
     <div class="grp">
       <h2>Display attribute</h2>
       <select id="attr"></select>
+      <label class="field">Basemap</label>
+      <select id="basemap">
+        <option value="satellite">Satellite (Esri)</option>
+        <option value="topo">Topographic (USGS)</option>
+        <option value="terrain">Shaded relief (Esri)</option>
+        <option value="osm">Streets (OSM)</option>
+      </select>
       <label class="field">Layer opacity <span id="opv">85%</span></label>
       <input type="range" id="op" min="0" max="100" value="85">
       <div class="legend">
@@ -83,14 +90,15 @@
       <div class="row">
         <button class="btn" id="draw">Draw polygon</button>
         <button class="btn sec" id="upload">Upload…</button>
-        <input type="file" id="file" accept=".geojson,.json,.zip,.shp" hidden>
+        <input type="file" id="file" accept=".geojson,.json,.zip" hidden>
       </div>
       <div class="row" style="margin-top:8px">
         <button class="btn sec" id="clear">Clear</button>
       </div>
       <div class="hint" id="aoihint" style="margin-top:10px">
-        Draw a polygon (click vertices, double-click to close) or upload a GeoJSON / shapefile.
-        The AOI resolves to its FIA plots; TreeMap ships 65,043 plots CONUS-wide.
+        Draw a polygon (click vertices, double-click to finish), or upload a <b>GeoJSON</b>
+        or a <b>zipped shapefile bundle</b> (.zip with .shp/.shx/.dbf/.prj — a bare .shp
+        can't be read). The AOI resolves to its FIA plots; TreeMap ships 65,043 plots CONUS-wide.
       </div>
     </div>
 
