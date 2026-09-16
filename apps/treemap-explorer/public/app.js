@@ -438,17 +438,29 @@ async function loadPlan(e){
 async function runSim(){
   if(!currentAoiGeom){ setStatus('select an AOI first'); return; }
   plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
-  setStatus('running FVS simulation… (first run compiles; then it caches)');
+  setStatus('running FVS simulation…');
   el('runSim').disabled=true;
+  el('simprog').style.display='block'; el('simprogbar').style.width='4%'; el('simprogtxt').textContent='starting…';
+  const poll=setInterval(async()=>{
+    try{
+      const p=await fetch('/api/simprogress').then(r=>r.json());
+      if(p && p.total>0){
+        const pct=Math.min(100,Math.max(4,Math.round(100*p.done/p.total)));
+        el('simprogbar').style.width=pct+'%';
+        el('simprogtxt').textContent = p.done===0 ? `${p.total} plots — first run is compiling FVS…`
+                                                   : `${p.done} / ${p.total} plots`;
+      }
+    }catch(_){}
+  }, 400);
   try{
     const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({geometry:currentAoiGeom, plan})});
     const d=await res.json();
     if(!res.ok||d.error){ setStatus('simulate error: '+(d.error||res.status)); return; }
     lastSim=d; plan.period=d.period||plan.period; drawSimChart(); setupSlider(d);
-    setStatus(`simulated ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${fmt(d.acres)} ac${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
+    setStatus(`simulated ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${fmt(d.acres)} ac · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
   }catch(err){ setStatus('simulate error: '+err.message); }
-  finally{ el('runSim').disabled=false; }
+  finally{ clearInterval(poll); el('runSim').disabled=false; el('simprog').style.display='none'; }
 }
 
 /* time slider — recolor the AOI's pixels to the projected state at each cycle */

@@ -69,11 +69,14 @@ const HA_PER_ACRE = 0.404685642
 
 # the projected layer of the last simulation: tm_id => per-cycle metrics (for /simtiles)
 const SIM_LAYER = Ref{Dict{UInt32,Vector{FiaSim.CycleMetrics}}}(Dict{UInt32,Vector{FiaSim.CycleMetrics}}())
-# map-colorable per-area sim metrics: name => (field, lo, hi, colormap)
+# map-colorable per-area sim metrics: name => (field, lo, hi, colormap). lo/hi are CONUS
+# fallbacks; the actual domain is auto-scaled per simulation (SIM_DOMAINS) so a pixel's
+# change across cycles spans a visible color range.
 const SIM_METRICS = Dict(
     "carbon" => (:carbon_live_ag, 0.0, 80.0,  Color.GREENS),   # t C/ha live aboveground
     "ba"     => (:ba,             0.0, 250.0, Color.VIRIDIS),  # ft²/ac
     "volume" => (:tcuft,          0.0, 8000.0, Color.VIRIDIS)) # ft³/ac standing
+const SIM_DOMAINS = Ref{Dict{String,Tuple{Float64,Float64}}}(Dict{String,Tuple{Float64,Float64}}())
 
 "AOI geometry (5070) -> (Dict{PLT_CN=>acres}, Dict{tm_id=>PLT_CN}), capped to largest plots."
 function _resolve_plots(geom5070)
@@ -148,6 +151,18 @@ function _simulate_response(geom5070, plan)
         v === nothing || (layer[tm] = v)
     end
     SIM_LAYER[] = layer
+    # auto-scale each map metric's color domain to this simulation's actual value range,
+    # so the pixel colors visibly change across cycles (CONUS defaults are far too wide)
+    doms = Dict{String,Tuple{Float64,Float64}}()
+    for (mname, spec) in SIM_METRICS
+        field = spec[1]; lo = Inf; hi = -Inf
+        for v in values(layer), m in v
+            x = Float64(getfield(m, field)); isnan(x) && continue
+            lo = min(lo, x); hi = max(hi, x)
+        end
+        isfinite(lo) && hi > lo && (doms[mname] = (floor(lo), ceil(hi)))
+    end
+    SIM_DOMAINS[] = doms
 
     (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
        capped = capped, acres = round(total_aoi_acres; digits = 1),
@@ -160,6 +175,7 @@ function _simtile_handler(metric::String, cycle::Int, z::Int, x::Int, y::Int)
     layer = SIM_LAYER[]
     isempty(layer) && return HTTP.Response(204)
     field, lo, hi, cmap = get(SIM_METRICS, metric, SIM_METRICS["carbon"])
+    lo, hi = get(SIM_DOMAINS[], metric, (lo, hi))   # auto-scaled to this sim's range
     tmids = Raster.warp_tile(APP[].rasterctx, z, x, y; size = 256)
     valfn = tm -> begin
         v = get(layer, tm, nothing)
@@ -198,6 +214,10 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
         [(; name = s.name, label = s.label, units = s.units, lo = s.lo, hi = s.hi,
             cmap = _cmap_name(s.cmap))
          for s in sort(collect(values(ATTRS)); by = s -> s.name)]
+    end
+
+    @get "/api/simprogress" function (req)
+        FiaSim.progress()
     end
 
     @get "/api/meta" function (req)

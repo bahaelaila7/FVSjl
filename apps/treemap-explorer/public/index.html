@@ -181,7 +181,13 @@
       <div class="actions" id="actions"></div>
       <div class="hint" id="planHint" style="margin-top:10px">
         Select an AOI, then add <b>Thin/harvest</b> or <b>Plant</b> actions (or leave empty to grow only)
-        and Run. Actions apply to every plot in the AOI at their scheduled year.
+        and Run. Actions apply to every plot in the AOI at their scheduled cycle.
+      </div>
+      <div id="simprog" style="display:none;margin-top:10px">
+        <div style="height:6px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;overflow:hidden">
+          <div id="simprogbar" style="height:100%;width:0;background:var(--accent2);transition:width .25s"></div>
+        </div>
+        <div id="simprogtxt" class="hint" style="margin-top:5px;font-family:var(--mono);font-size:11px"></div>
       </div>
     </div>
     <div class="planR">

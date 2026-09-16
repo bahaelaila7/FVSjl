@@ -209,6 +209,12 @@ end
 const _MEM = Dict{String,Vector{CycleMetrics}}()   # cache: "plt_cn|planhash" => cycles
 const _MEM_LOCK = ReentrantLock()
 
+# live progress of the current simulate_plots call (polled by /api/simprogress)
+const _PROG = (done = Threads.Atomic{Int}(0), total = Threads.Atomic{Int}(0),
+               running = Threads.Atomic{Bool}(false))
+progress() = (; done = _PROG.done[], total = _PROG.total[], running = _PROG.running[])
+_tick!() = Threads.atomic_add!(_PROG.done, 1)
+
 "Run one plot; returns its per-cycle metrics or `nothing`."
 function _run_one(cn::String, vcode::String, subdb::String, plan::ManagementPlan, mgmt::String)
     key = tempname() * ".key"
@@ -242,40 +248,50 @@ plot's lazy per-variant caches are populated before the threaded fan-out.
 """
 function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir::AbstractString)
     plt_cns = unique(plt_cns)
-    subdb, varmap = build_subdb(plt_cns; cache_dir=cache_dir)
-    ph = plan_hash(plan)
-    mgmt = plan_keywords(plan)
-    results = Dict{String,Vector{CycleMetrics}}()
-    torun = String[]
-    for cn in plt_cns
-        r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$ph", nothing); end
-        r !== nothing ? (results[cn] = r) :
-            (isempty(get(varmap, cn, "")) || push!(torun, cn))
-    end
-    isempty(torun) && return results
+    _PROG.total[] = length(plt_cns); _PROG.done[] = 0; _PROG.running[] = true
+    try
+        subdb, varmap = build_subdb(plt_cns; cache_dir=cache_dir)
+        ph = plan_hash(plan)
+        mgmt = plan_keywords(plan)
+        results = Dict{String,Vector{CycleMetrics}}()
+        torun = String[]
+        for cn in plt_cns
+            r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$ph", nothing); end
+            if r !== nothing
+                results[cn] = r; _tick!()                 # cached = instant
+            elseif isempty(get(varmap, cn, ""))
+                _tick!()                                  # absent from FIA plot table
+            else
+                push!(torun, cn)
+            end
+        end
+        isempty(torun) && return results
 
-    # warm up lazy per-variant caches with one serial run per variant present
-    warmed = Set{String}()
-    for cn in torun
-        v = varmap[cn]; v in warmed && continue
-        push!(warmed, v)
-        r = _run_one(cn, v, subdb, plan, mgmt)
-        r === nothing && continue
-        results[cn] = r
-        lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = r; end
-    end
+        # warm up lazy per-variant caches with one serial run per variant present
+        warmed = Set{String}()
+        for cn in torun
+            v = varmap[cn]; v in warmed && continue
+            push!(warmed, v)
+            r = _run_one(cn, v, subdb, plan, mgmt); _tick!()
+            r === nothing && continue
+            results[cn] = r
+            lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = r; end
+        end
 
-    rest = filter(cn -> !haskey(results, cn), torun)
-    out = Vector{Union{Nothing,Vector{CycleMetrics}}}(undef, length(rest))
-    Threads.@threads for i in eachindex(rest)
-        out[i] = _run_one(rest[i], varmap[rest[i]], subdb, plan, mgmt)
+        rest = filter(cn -> !haskey(results, cn), torun)
+        out = Vector{Union{Nothing,Vector{CycleMetrics}}}(undef, length(rest))
+        Threads.@threads for i in eachindex(rest)
+            out[i] = _run_one(rest[i], varmap[rest[i]], subdb, plan, mgmt); _tick!()
+        end
+        for (i, cn) in enumerate(rest)
+            out[i] === nothing && continue
+            results[cn] = out[i]
+            lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = out[i]; end
+        end
+        return results
+    finally
+        _PROG.running[] = false
     end
-    for (i, cn) in enumerate(rest)
-        out[i] === nothing && continue
-        results[cn] = out[i]
-        lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = out[i]; end
-    end
-    results
 end
 
 end # module
