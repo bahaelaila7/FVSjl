@@ -98,6 +98,16 @@ async function boot() {
     if (map.getLayer('treemap')) map.setPaintProperty('treemap','raster-opacity', v/100);
   };
   el('basemap').onchange = e => setBasemap(e.target.value);
+  el('addThin').onclick = addThin;
+  el('addPlant').onclick = addPlant;
+  el('savePlan').onclick = savePlan;
+  el('loadPlan').onclick = () => el('planFile').click();
+  el('planFile').onchange = loadPlan;
+  el('runSim').onclick = runSim;
+  el('simMetric').onchange = drawSimChart;
+  el('pCycles').onchange = e => plan.cycles = +e.target.value;
+  el('pPeriod').onchange = e => plan.period = +e.target.value;
+  renderActions();
   el('draw').onclick = startDraw;
   el('clear').onclick = clearAoi;
   el('download').onclick = downloadAoi;
@@ -233,6 +243,8 @@ function clearAoi(){
   cancelDraw();
   if (map.getSource('aoi')) map.getSource('aoi').setData(emptyFC());
   currentAoiGeom = null; el('download').disabled = true;
+  el('runSim').disabled = true;
+  lastSim = null; drawSimChart();
   el('statsGrp').hidden = true; el('chartGrp').hidden = true;
 }
 
@@ -282,6 +294,7 @@ function renderResult(d){
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
   el('statsGrp').hidden = false;
   drawChart(d.cells);
+  onAoiReady(d.cells);
   setStatus(`${fmt(d.nplots)} plots · ${fmt(d.acres)} ac · ${fmt(d.npixels)} px`);
 }
 
@@ -340,6 +353,117 @@ function drawChart(cells){
   el('swatches').innerHTML = top.map(s=>
     `<span><i class="sw" style="background:${color[s]}"></i>${s} · ${spName[s]||''}</span>`).join('')
     + `<span><i class="sw" style="background:${OTHER}"></i>other</span>`;
+}
+
+/* ---------------- simulation plan builder ---------------- */
+let plan = { name:'plan', cycles:10, period:10, actions:[] };
+let lastSim = null;
+
+const _opt = (items, sel) => items.map(it => { const [v,t]=Array.isArray(it)?it:[it,it];
+  return `<option value="${v}"${v===sel?' selected':''}>${t}</option>`; }).join('');
+const _planYear = () => (new Date().getFullYear()) + (plan.period||10);
+
+function renderActions(){
+  const host = el('actions'); if(!host) return; host.innerHTML='';
+  if(!plan.actions.length){
+    host.innerHTML = '<div class="act"><span class="tag">grow</span>&nbsp;No intervention — grow the stands only.</div>';
+    return;
+  }
+  plan.actions.forEach((a,i)=>{
+    const d=document.createElement('div'); d.className='act '+a.kind;
+    if(a.kind==='thin'){
+      d.innerHTML = `<span class="tag thin">Thin</span>
+        <label>yr</label><input type="number" class="num" value="${a.year}" data-i="${i}" data-f="year">
+        <label>to</label><select data-i="${i}" data-f="metric">${_opt(['BA','TPA','SDI'],a.metric)}</select>
+        <input type="number" class="num" value="${a.target}" data-i="${i}" data-f="target" title="residual (0 = clearcut)">
+        <select data-i="${i}" data-f="direction">${_opt([['below','from below'],['above','from above']],a.direction)}</select>
+        <label>DBH</label><input type="number" class="num" value="${a.dbh_lo}" data-i="${i}" data-f="dbh_lo">–<input type="number" class="num" value="${a.dbh_hi}" data-i="${i}" data-f="dbh_hi">″
+        <button class="rm" data-rm="${i}" title="remove">×</button>`;
+    } else {
+      d.innerHTML = `<span class="tag plant">Plant</span>
+        <label>yr</label><input type="number" class="num" value="${a.year}" data-i="${i}" data-f="year">
+        <label>sp</label><input list="splist" value="${a.species}" data-i="${i}" data-f="species" style="width:60px">
+        <input type="number" class="num" value="${a.tpa}" data-i="${i}" data-f="tpa" title="trees/acre">tpa
+        <label>surv</label><input type="number" class="num" value="${a.survival}" data-i="${i}" data-f="survival">%
+        <button class="rm" data-rm="${i}" title="remove">×</button>`;
+    }
+    host.appendChild(d);
+  });
+  host.querySelectorAll('[data-f]').forEach(inp => inp.onchange = e => {
+    const i=+e.target.dataset.i, f=e.target.dataset.f; let v=e.target.value;
+    if(!['species','metric','direction'].includes(f)) v = +v;
+    plan.actions[i][f] = v;
+  });
+  host.querySelectorAll('[data-rm]').forEach(b => b.onclick = e => {
+    plan.actions.splice(+e.currentTarget.dataset.rm,1); renderActions(); });
+}
+function addThin(){ plan.actions.push({kind:'thin',year:_planYear(),metric:'BA',target:80,direction:'below',dbh_lo:0,dbh_hi:999}); renderActions(); }
+function addPlant(){ plan.actions.push({kind:'plant',year:_planYear(),species:'DF',tpa:300,survival:85}); renderActions(); }
+
+function savePlan(){
+  plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
+  const blob=new Blob([JSON.stringify(plan,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=`plan-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),0);
+}
+async function loadPlan(e){
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const p=JSON.parse(await f.text());
+    plan={name:p.name||'plan',cycles:+p.cycles||10,period:+p.period||10,actions:Array.isArray(p.actions)?p.actions:[]};
+    el('pCycles').value=plan.cycles; el('pPeriod').value=plan.period; renderActions();
+    setStatus('plan loaded: '+(plan.name||'')+' ('+plan.actions.length+' actions)');
+  }catch(err){ setStatus('plan load error: '+err.message); }
+  e.target.value='';
+}
+
+async function runSim(){
+  if(!currentAoiGeom){ setStatus('select an AOI first'); return; }
+  plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
+  setStatus('running FVS simulation… (first run compiles; then it caches)');
+  el('runSim').disabled=true;
+  try{
+    const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({geometry:currentAoiGeom, plan})});
+    const d=await res.json();
+    if(!res.ok||d.error){ setStatus('simulate error: '+(d.error||res.status)); return; }
+    lastSim=d; drawSimChart();
+    setStatus(`simulated ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${fmt(d.acres)} ac${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
+  }catch(err){ setStatus('simulate error: '+err.message); }
+  finally{ el('runSim').disabled=false; }
+}
+
+function drawSimChart(){
+  const svg=el('simChart'); if(!svg) return; svg.innerHTML='';
+  el('simEmpty').style.display = (lastSim && lastSim.cycles && lastSim.cycles.length) ? 'none' : 'block';
+  if(!lastSim || !lastSim.cycles || !lastSim.cycles.length) return;
+  const metric=el('simMetric').value;
+  const pts=lastSim.cycles.map(c=>({x:c.elapsed, y:+c[metric]||0}));
+  const W=svg.clientWidth||360, H=150, mL=52, mB=22, mT=8, mR=10, pw=W-mL-mR, ph=H-mT-mB;
+  const xmax=Math.max(...pts.map(p=>p.x),1), ymax=Math.max(...pts.map(p=>p.y),1)*1.08;
+  const X=x=>mL+pw*x/xmax, Y=y=>mT+ph-ph*y/ymax;
+  const ns='http://www.w3.org/2000/svg', add=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e;};
+  for(let i=0;i<=3;i++){ const y=mT+ph-ph*i/3;
+    add('line',{x1:mL,y1:y,x2:W-mR,y2:y,stroke:'#26332b','stroke-width':1});
+    add('text',{x:mL-5,y:y+3,'text-anchor':'end',fill:'#8ba393','font-size':9}).textContent=fmt(ymax*i/3); }
+  const isRem = metric==='removed_volume';
+  const path='M'+pts.map(p=>X(p.x)+','+Y(p.y)).join(' L');
+  if(isRem){ pts.forEach(p=>{ if(p.y>0) add('rect',{x:X(p.x)-4,y:Y(p.y),width:8,height:mT+ph-Y(p.y),fill:'#f59e0b',rx:1}); }); }
+  else { add('path',{d:path,fill:'none',stroke:'#4ade80','stroke-width':2});
+         pts.forEach(p=>add('circle',{cx:X(p.x),cy:Y(p.y),r:2.5,fill:'#4ade80'})); }
+  const step=Math.ceil(pts.length/6);
+  pts.forEach((p,i)=>{ if(i%step===0||i===pts.length-1) add('text',{x:X(p.x),y:H-7,'text-anchor':'middle',fill:'#8ba393','font-size':9}).textContent='+'+p.x; });
+}
+
+function onAoiReady(cells){
+  el('runSim').disabled = false;
+  // seed the plant species picker with the AOI's own species + common western codes
+  const dl=el('splist'); if(!dl) return;
+  const seen=new Set(), out=[];
+  ['DF','PP','LP','ES','AF','WL','GF','WP','WH','RC','WF','JU','PI','AS','LM'].forEach(s=>{seen.add(s);out.push(s);});
+  (cells||[]).forEach(c=>{ const s=(c.symbol||'').slice(0,2).toUpperCase(); if(s&&!seen.has(s)){seen.add(s);out.push(s);} });
+  dl.innerHTML = out.map(s=>`<option value="${s}">`).join('');
 }
 
 boot().catch(err => { console.error(err); try { status.textContent = 'startup error: ' + err.message; } catch(_){} });

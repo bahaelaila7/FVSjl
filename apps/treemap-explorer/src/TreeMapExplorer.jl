@@ -17,8 +17,9 @@ include("VAT.jl")
 include("Color.jl")
 include("Aoi.jl")
 include("Aggregate.jl")
+include("FiaSim.jl")
 
-using .Raster, .TreeList, .VAT, .Color, .Aoi, .Aggregate
+using .Raster, .TreeList, .VAT, .Color, .Aoi, .Aggregate, .FiaSim
 
 export App, init_app, AttrSpec, ATTRS
 

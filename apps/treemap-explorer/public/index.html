@@ -16,8 +16,12 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
-  #app{display:grid;grid-template-columns:340px 1fr;height:100vh}
-  @media(max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+  #app{display:grid;grid-template-columns:340px 1fr;grid-template-rows:1fr auto;height:100vh}
+  aside{grid-column:1;grid-row:1}
+  main{grid-column:2;grid-row:1}
+  #planpanel{grid-column:1 / -1;grid-row:2}
+  @media(max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+    aside{grid-column:1;grid-row:1} main{grid-column:1;grid-row:2} #planpanel{grid-column:1;grid-row:3}}
   /* sidebar */
   aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
   header{padding:16px 18px 12px;border-bottom:1px solid var(--line)}
@@ -57,6 +61,26 @@
   #drawhint{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(10,16,13,.9);
             border:1px solid var(--accent);color:var(--ink);border-radius:8px;padding:7px 12px;font-size:12px;display:none}
   .maplibregl-popup-content{background:var(--panel);color:var(--ink);border:1px solid var(--line);font-size:12px}
+  /* plan panel (bottom) */
+  #planpanel{background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-columns:1.5fr 1fr;min-height:200px;max-height:36vh}
+  .planL,.planR{padding:12px 16px;overflow:auto}
+  .planL{border-right:1px solid var(--line)}
+  .planhdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .planhdr h2{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .planhdr .sp{flex:1}
+  .mini{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:6px 9px;font-size:12px;cursor:pointer}
+  .mini:hover{border-color:var(--muted)} .mini.go{background:var(--accent2);color:#04150b;border:none;font-weight:600}
+  .mini:disabled{opacity:.5;cursor:default}
+  .num{width:52px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:5px 6px;font-size:12px;font-family:var(--mono)}
+  .actions{display:flex;flex-direction:column;gap:8px}
+  .act{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:8px;padding:8px 10px;font-size:12px}
+  .act.thin{border-left-color:var(--warn)} .act.plant{border-left-color:var(--accent)}
+  .act .tag{font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.08em}
+  .act .tag.thin{color:var(--warn)} .act .tag.plant{color:var(--accent)}
+  .act label{color:var(--muted);font-size:11px}
+  .act select,.act input{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:4px 6px;font-size:12px}
+  .act .rm{margin-left:auto;color:var(--muted);cursor:pointer;border:none;background:none;font-size:16px;line-height:1}
+  .planR .empty{color:var(--muted);font-size:12px;padding:8px 2px}
 </style>
 </head>
 <body>
@@ -124,6 +148,44 @@
     <div id="drawhint">Click to add vertices · double-click to finish · Esc to cancel</div>
     <div id="status">loading…</div>
   </main>
+
+  <section id="planpanel">
+    <div class="planL">
+      <div class="planhdr">
+        <h2>Simulation plan</h2>
+        <input class="num" id="pCycles" type="number" min="1" max="40" value="10" title="cycles">
+        <span style="color:var(--muted);font-size:11px">cycles ×</span>
+        <input class="num" id="pPeriod" type="number" min="1" max="20" value="10" title="years per cycle">
+        <span style="color:var(--muted);font-size:11px">yr</span>
+        <span class="sp"></span>
+        <button class="mini" id="addThin">+ Thin / harvest</button>
+        <button class="mini" id="addPlant">+ Plant</button>
+        <button class="mini" id="savePlan">Save plan</button>
+        <button class="mini" id="loadPlan">Load plan</button>
+        <input type="file" id="planFile" accept=".json,.geojson" hidden>
+        <datalist id="splist"></datalist>
+        <button class="mini go" id="runSim" disabled>▶ Run simulation</button>
+      </div>
+      <div class="actions" id="actions"></div>
+      <div class="hint" id="planHint" style="margin-top:10px">
+        Select an AOI, then add <b>Thin/harvest</b> or <b>Plant</b> actions (or leave empty to grow only)
+        and Run. Actions apply to every plot in the AOI at their scheduled year.
+      </div>
+    </div>
+    <div class="planR">
+      <div class="planhdr"><h2>Projection</h2><span class="sp"></span>
+        <select id="simMetric" class="mini">
+          <option value="carbon_total">Total carbon (t)</option>
+          <option value="carbon_live_ag">Live aboveground carbon (t)</option>
+          <option value="volume">Standing volume (ft³)</option>
+          <option value="ba_ac">Basal area (ft²/ac)</option>
+          <option value="removed_volume">Removed volume (ft³)</option>
+        </select>
+      </div>
+      <svg id="simChart" width="100%" height="150"></svg>
+      <div class="empty" id="simEmpty">Run a simulation to project the AOI forward per cycle.</div>
+    </div>
+  </section>
 </div>
 
 <script src="/app.js"></script>

@@ -54,6 +54,79 @@ function _aoi_response(geom5070)
        cells = cells)
 end
 
+# --- Phase 2: run FVSjl on the AOI's plots under a management plan -----------
+const MAX_SIM_PLOTS = 200          # cap for a responsive synchronous request
+const HA_PER_ACRE = 0.404685642
+
+"AOI geometry (5070) -> Dict{PLT_CN => acres}, capped to the largest-area plots."
+function _resolve_plot_acres(geom5070)
+    app = APP[]
+    counts = Raster.aoi_tally(app.rasterctx, geom5070)      # tm_id => pixels
+    acres = Dict{String,Float64}()
+    for (tm, px) in counts
+        rec = VAT.stand(app.st, tm)
+        rec === nothing && continue
+        cn = string(rec.plt_cn)
+        acres[cn] = get(acres, cn, 0.0) + px * Aggregate.ACRES_PER_PIXEL
+    end
+    acres
+end
+
+function _parse_plan(o)
+    acts = FiaSim.PlanAction[]
+    for a in get(o, :actions, ())
+        kind = String(a.kind)
+        if kind == "thin"
+            push!(acts, FiaSim.PlanAction(; kind = "thin", year = Int(a.year),
+                metric = String(get(a, :metric, "BA")), target = Float64(get(a, :target, 0)),
+                direction = String(get(a, :direction, "below")),
+                dbh_lo = Float64(get(a, :dbh_lo, 0)), dbh_hi = Float64(get(a, :dbh_hi, 999))))
+        elseif kind == "plant"
+            push!(acts, FiaSim.PlanAction(; kind = "plant", year = Int(a.year),
+                species = String(a.species), tpa = Float64(a.tpa),
+                survival = Float64(get(a, :survival, 100))))
+        end
+    end
+    FiaSim.ManagementPlan(; name = String(get(o, :name, "plan")),
+        cycles = Int(get(o, :cycles, 10)), period = Int(get(o, :period, 10)), actions = acts)
+end
+
+function _simulate_response(geom5070, plan)
+    app = APP[]
+    acres = _resolve_plot_acres(geom5070)
+    total_aoi_acres = sum(values(acres); init = 0.0)
+    # cap to the largest-area plots for a bounded synchronous run
+    cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
+    capped = length(cns) > MAX_SIM_PLOTS
+    sim_cns = capped ? cns[1:MAX_SIM_PLOTS] : cns
+    cache = joinpath(app.datadir, "derived", "sim_cache")
+    res = FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache)   # plt_cn => Vector{CycleMetrics}
+
+    ncyc = maximum((length(v) for v in values(res)); init = 0)
+    sim_acres = sum(acres[cn] for cn in keys(res); init = 0.0)
+    cycles = map(1:ncyc) do i
+        baw = 0.0; w = 0.0; vol = 0.0; rem = 0.0; ct = 0.0; cl = 0.0; el = (i - 1) * plan.period
+        for (cn, v) in res
+            i <= length(v) || continue
+            m = v[i]; a = acres[cn]
+            baw += m.ba * a; w += a
+            vol += m.tcuft * a
+            rem += m.rem_tcuft * a
+            isnan(m.carbon_total)   || (ct += m.carbon_total   * a * HA_PER_ACRE)
+            isnan(m.carbon_live_ag) || (cl += m.carbon_live_ag * a * HA_PER_ACRE)
+        end
+        (; cycle = i - 1, elapsed = el,
+           ba_ac = w > 0 ? round(baw / w; digits = 1) : 0.0,
+           volume = round(vol; digits = 0),
+           removed_volume = round(rem; digits = 0),
+           carbon_total = round(ct; digits = 1),
+           carbon_live_ag = round(cl; digits = 1))
+    end
+    (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
+       capped = capped, acres = round(total_aoi_acres; digits = 1),
+       sim_acres = round(sim_acres; digits = 1), cycles = cycles)
+end
+
 function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     APP[] = app
 
@@ -93,6 +166,19 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
             end
         catch e
             @warn "aoi error" exception = (e, catch_backtrace())
+            return HTTP.Response(400, JSON3.write((; error = string(e))))
+        end
+    end
+
+    # Phase 2: run a management plan on the AOI's plots -> per-cycle aggregate
+    @post "/api/simulate" function (req)
+        try
+            body = JSON3.read(String(req.body))
+            geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
+            plan = _parse_plan(body.plan)
+            return _simulate_response(geom, plan)
+        catch e
+            @warn "simulate error" exception = (e, catch_backtrace())
             return HTTP.Response(400, JSON3.write((; error = string(e))))
         end
     end
