@@ -2372,6 +2372,194 @@ function rd_inoc_decay!(rd::RootDiseaseState, d::RDDriver, fint::Real)
     return
 end
 
+# =============================================================================
+# rd/rdoagm.f + rd/rdbb1.f/rdbb3.f/rdbb4.f + rd/rdbbdo.f — the DEFAULT bark-beetle
+# subsystem ("Chunk 7"). When an RDIN block is active and BBCLEAR was NOT used
+# (`rd.lbbon`), FVS auto-schedules three default bark beetles at RDIN END
+# (rdin.f:1155 `IDOBB<=0 .AND. LBBON`): TYPE 1, TYPE 3, TYPE 4 (TYPE 2 needs an
+# explicit BBTYPE2 + windthrow). Each cycle, inside RDTREG's RDOAGM (BEFORE RDCNTL's
+# RDINSD), the eligible beetles are activated (RDBB1 via RDCSD stand-density; RDBB3/
+# RDBB4 via infected-stem density) and RDBBDO applies their mortality: it kills a
+# fraction of the INSIDE-INFECTED host stems (reducing PROBI, adding to RRKILL and
+# OAKL/BBKILL, and creating stumps via RDSTP), the INSIDE-UNINFECTED stems (OAKL/
+# BBKILL, applied later by RDEND), and the OUTSIDE stems. The beetle preferentially
+# removes larger infected stems → larger stumps (bigger ROOTD) → stronger inoculum,
+# which is what drives the Annosus/Armillaria patch to expand and the host pool to
+# collapse. Omitting it left the disease unable to sustain itself past cycle 1.
+#
+# Default table (rd/rdinit.f DATA TEMP12/11/9/8/10), indexed by beetle TYPE 1..4.
+# HOST is the raw variant species index (FVS compares HOST(BB) to ISP(I) directly,
+# no crosswalk). Per-type IU/O/OF rates: TYPE 1 = MORT for all; TYPE 3 = 0; TYPE 4 =
+# 0.30 / 0.01 / 0.15 (rdin.f default-schedule PRMS(6..8)).
+const RD_BB_TYPES  = (1, 3, 4)
+const RD_BB_HOST   = Int32[10, 3, 4, 10]                     # RROBTS
+const RD_BB_MINDBH = Float32[8f0, 0f0, 10f0, 4f0]           # RROBSC
+const RD_BB_THRESH = Float32[150f0, 10f0, 10f0, 1f0]        # RROBOL (TYPE1 = TOTDEN)
+const RD_BB_MORT   = Float32[0.1f0, 0.88f0, 0.88f0, 0.75f0] # RROBMR = IIRATE
+const RD_BB_MININF = Float32[0f0, 0f0, 0.3f0, 0.4f0]        # RROBRD (min PROPI for II)
+const RD_BB_IURATE = Float32[0.1f0, 0f0, 0f0, 0.30f0]
+const RD_BB_ORATE  = Float32[0.1f0, 0f0, 0f0, 0.01f0]
+const RD_BB_OFRATE = Float32[0.1f0, 0f0, 0f0, 0.15f0]
+
+"""
+    rd_bark_beetles!(rd, s, fint)
+
+rd/rdoagm.f (RDBB1/RDBB3/RDBB4 activation + RDBBDO) — apply the default bark-beetle
+mortality to the (already-tripled) tree list, inside RDTREG before RDINSD. Reduces
+PROBI (infected), accumulates OAKL/BBKILL (for RDEND), RRKILL, and DIENAT stumps.
+Inert unless `rd.lbbon`. For the manual-RRINIT turnkey (LONECT=1, PAREA=SAREA) the
+outside-tree kill is inert (FPROB≡0) and FRINGE≡0.
+"""
+function rd_bark_beetles!(rd::RootDiseaseState, s::StandState, fint::Real,
+                          proakl::Vector{Float32}, prankl::Vector{Float32})
+    rd.lbbon || return
+    d = rd.driver::RDDriver; t = s.trees; n = t.n
+    n == 0 && return
+    minrr = Int(rd.minrr); maxrr = Int(rd.maxrr); irt = rd.irtspc
+    istep = max(1, Int(rd.istep)); sarea = rd.sarea; fintf = Float32(fint)
+    tparea = 0.0f0
+    @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
+    tparea == 0.0f0 && return
+    twf = 2.0f0 / fintf                              # rdbb4 "2/FINT" (last-two-years) factor
+
+    _rrtype(sp) = maxrr < 3 ? Int(RD_IDITYP[Int(irt[sp])]) : maxrr
+
+    # --- Activation (RDBB1 stand-density / RDBB3 infected-stem / RDBB4 infected+recent-dead) ---
+    active = Bool[false, false, false, false]
+    @inbounds for bt in RD_BB_TYPES
+        host = Int(RD_BB_HOST[bt])
+        rrtype = 0; hostpresent = false
+        for i in 1:n
+            Int(t.species[i]) == host || continue
+            hostpresent = true; rrtype = _rrtype(host); break
+        end
+        (hostpresent && rrtype > 0 && rd.parea[rrtype] > 0.0f0) || continue
+        if bt == 1
+            # RDCSD default (REINEK≡0 ⇒ STEM method / ALLX space / LIVE dtype):
+            # TOTDEN = (Σ(PROBIT+PROBIU) + Σ FPROB·(SAREA−PAREA)) / SAREA, DBH≥DBHLIM.
+            nsum = 0.0f0; dosum = 0.0f0
+            for i in 1:n
+                Int(t.species[i]) == host || continue
+                t.dbh[i] < RD_BB_MINDBH[bt] && continue
+                dosum += d.fprob[i]
+                nsum  += d.probit[i] + d.probiu[i]
+            end
+            totden = (nsum + dosum * (sarea - rd.parea[rrtype])) / sarea
+            totden >= RD_BB_THRESH[bt] && (active[bt] = true)
+        elseif bt == 3
+            # RDBB3: STEMS = Σ PROBI (DBH≥DBHLIM, PROPI≥RROTEX); active if STEMS/PAREA ≥ THRESH.
+            stems = 0.0f0
+            for i in 1:n
+                Int(t.species[i]) == host || continue
+                t.dbh[i] < RD_BB_MINDBH[bt] && continue
+                for it in 1:istep, ip in 1:2
+                    d.propi[i, it, ip] < RD_BB_MININF[bt] && continue
+                    stems += d.probi[i, it, ip]
+                end
+            end
+            (stems / rd.parea[rrtype]) >= RD_BB_THRESH[bt] && (active[bt] = true)
+        else
+            # RDBB4: gate on PCOLO≥RROTEX; STEMS = (2/FINT)·[Σ PROBI(PROPI≥RROTEX) +
+            #   PROAKL(DSII) + PRANKL] over DBH≥DBHLIM (living + last-two-years dead).
+            if RD_PCOLO[Int(irt[host]), rrtype] >= RD_BB_MININF[bt]
+                stems = 0.0f0
+                for i in 1:n
+                    Int(t.species[i]) == host || continue
+                    t.dbh[i] < RD_BB_MINDBH[bt] && continue
+                    for it in 1:istep, ip in 1:2
+                        d.propi[i, it, ip] < RD_BB_MININF[bt] && continue
+                        stems += twf * d.probi[i, it, ip]
+                    end
+                    stems += twf * (proakl[i] + prankl[i])
+                end
+                (stems / rd.parea[rrtype]) >= RD_BB_THRESH[bt] && (active[bt] = true)
+            end
+        end
+    end
+    (active[1] || active[3] || active[4]) || return
+
+    # --- RDBBDO: apply the mortality (MAX rate over active beetles per category) ---
+    @inbounds for i in 1:n
+        ispi = Int(t.species[i]); ispi == 0 && continue
+        rrtype = _rrtype(ispi); rrtype <= 0 && continue
+        dbhi = t.dbh[i]
+        # (1) inside INFECTED — reduce PROBI, add RRKILL/OAKL/BBKILL, stump the total.
+        totded = 0.0f0
+        for it in 1:istep, ip in 1:2
+            d.probi[i, it, ip] <= 0.0f0 && continue
+            maxkl = 0.0f0
+            for bt in RD_BB_TYPES
+                (active[bt] && Int(RD_BB_HOST[bt]) == ispi && RD_BB_MINDBH[bt] <= dbhi) || continue
+                r = RD_BB_MININF[bt] <= d.propi[i, it, ip] ? RD_BB_MORT[bt] : RD_BB_IURATE[bt]
+                r > maxkl && (maxkl = r)
+            end
+            maxkl <= 0.0f0 && continue
+            numded = d.probi[i, it, ip] * maxkl
+            d.probi[i, it, ip] -= numded
+            d.oakl[RD_DSII, i]   += numded
+            d.bbkill[RD_DSII, i] += numded
+            d.rrkill[i]          += numded
+            totded += numded
+        end
+        totded > 0.0f0 && rd_stp!(rd, d, ispi, dbhi, d.rootl[i], totded)
+        # (2) inside UNINFECTED — OAKL/BBKILL only (RDEND applies to PROBIU).
+        if d.probiu[i] > 0.0f0
+            maxkl = 0.0f0
+            for bt in RD_BB_TYPES
+                (active[bt] && Int(RD_BB_HOST[bt]) == ispi && RD_BB_MINDBH[bt] <= dbhi) || continue
+                RD_BB_IURATE[bt] > maxkl && (maxkl = RD_BB_IURATE[bt])
+            end
+            if maxkl > 0.0f0
+                numded = d.probiu[i] * maxkl
+                d.oakl[RD_DSIU, i]   += numded
+                d.bbkill[RD_DSIU, i] += numded
+            end
+        end
+        # (3) OUTSIDE — inert for LONECT=1 (FPROB≡0). FRINGE≡0 (single-center turnkey).
+        if d.fprob[i] > 0.0f0
+            maxkl = 0.0f0; maxfkl = 0.0f0
+            for bt in RD_BB_TYPES
+                (active[bt] && Int(RD_BB_HOST[bt]) == ispi && RD_BB_MINDBH[bt] <= dbhi) || continue
+                RD_BB_ORATE[bt]  > maxkl  && (maxkl  = RD_BB_ORATE[bt])
+                RD_BB_OFRATE[bt] > maxfkl && (maxfkl = RD_BB_OFRATE[bt])
+            end
+            if maxkl > 0.0f0 || maxfkl > 0.0f0
+                fringe = 0.0f0
+                numdef = d.fprob[i] * fringe * maxfkl
+                numded = d.fprob[i] * (sarea - rd.parea[rrtype] - fringe) * maxkl + numdef
+                d.oakl[RD_DSO, i]   += numded
+                d.bbkill[RD_DSO, i] += numded
+                d.ffprob[i, 2] -= d.ffprob[i, 2] * maxfkl
+            end
+        end
+    end
+    return
+end
+
+# rd/rdmrec.f (ITYP=1 from RDINSD, OAMOVE = {DSO:0, DSII:+prevkl, DSIU:−prevkl}) —
+# reclassify PREVKL beetle-killed uninfected trees on record `i` as infected-dead:
+# move OAKL DSIU→DSII (+ proportional BBKILL), add PREVKL to RRKILL, and create an
+# infected stump of PREVKL. Mortality-neutral (RDEND's TDIEN↑ and TDIUN↓ cancel).
+function rd_mrec!(rd::RootDiseaseState, d::RDDriver, i::Int, ksp::Int, dbh::Float32, prevkl::Float32)
+    prevkl <= 0.0f0 && return
+    oamove_dsii = prevkl; oamove_dsiu = -prevkl
+    d.oakl[RD_DSII, i] += oamove_dsii
+    d.oakl[RD_DSIU, i] += oamove_dsiu
+    if oamove_dsiu < 0.0f0 && d.oakl[RD_DSIU, i] > 0.0f0
+        ratio = d.bbkill[RD_DSIU, i] / d.oakl[RD_DSIU, i]
+        d.bbkill[RD_DSII, i] += oamove_dsii * ratio
+        d.bbkill[RD_DSIU, i] += oamove_dsiu * ratio
+    elseif oamove_dsiu >= 0.0f0 && d.oakl[RD_DSO, i] > 0.0f0
+        ratio = d.bbkill[RD_DSO, i] / d.oakl[RD_DSO, i]
+        d.bbkill[RD_DSII, i] += oamove_dsii * ratio
+        d.bbkill[RD_DSIU, i] += oamove_dsiu * ratio
+        # OAMOVE(DSO)≡0 from RDINSD ⇒ no BBKILL(DSO) change.
+    end
+    d.rrkill[i] += oamove_dsii
+    rd_stp!(rd, d, ksp, dbh, d.rootl[i], oamove_dsii)
+    return
+end
+
 """
     rd_control!(rd, s, fint)
 
@@ -2457,7 +2645,12 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
         d.ffprob[i, 1] = (dff <= 1.0f-4 || icyc == 1) ? d.fprob[i] : d.ffprob[i, 2]
         d.ffprob[i, 2] = d.fprob[i]
     end
+    # RDOAGM DO 200: snapshot the PREVIOUS-cycle beetle/RD kills (PROAKL/PRANKL) BEFORE
+    # zeroing OAKL — they feed RDBB4's "stems that died in the last two years" density.
+    proakl = Float32[d.oakl[RD_DSII, i] for i in 1:n]
+    prankl = Float32[d.rdkill[i] for i in 1:n]
     fill!(d.oakl, 0.0f0); fill!(d.bbkill, 0.0f0)
+    rd_bark_beetles!(rd, s, fintf, proakl, prankl)  # RDOAGM → RDBB1/3/4 → RDBBDO (default beetles)
     rd_sum!(d.probit, d.probi, istep)
 
     order = _rd_host_order(rd, s)
@@ -2499,6 +2692,15 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
                 d.probi[i, istep, 1] += nk
                 d.propi[i, istep, 1] = -pl
                 rd.corinf[idi, 1] += nk                     # rdinsd.f:415 CORINF(IDI,1) += RRNINF (new infection inside core)
+                # rdinsd.f:417-423 RDMREC — a beetle-killed UNINFECTED tree (OAKL[DSIU])
+                # that RDINSD has now infected becomes an INFECTED-dead stump. Mortality-
+                # neutral (OAKL DSIU→DSII), but adds RRKILL + stump inoculum. PROPN uses
+                # the post-subtraction PROBIU (clamped) + RRNINF.
+                if d.oakl[RD_DSIU, i] > 0.0f0
+                    propn  = d.oakl[RD_DSIU, i] / (d.probiu[i] + nk + 1.0f-6)
+                    prevkl = propn * nk
+                    rd_mrec!(rd, d, i, Int(t.species[i]), t.dbh[i], prevkl)
+                end
             end
             rd_sum!(d.probit, d.probi, istep)
         end
@@ -2720,6 +2922,10 @@ function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int)
         d.probit[i] = old.probit[i]; d.probiu[i] = old.probiu[i]; d.fprob[i] = old.fprob[i]
         d.ffprob[i,1] = old.ffprob[i,1]; d.ffprob[i,2] = old.ffprob[i,2]
         d.rootl[i] = old.rootl[i]; d.wk22[i] = old.wk22[i]; d.rroott[i] = old.rroott[i]
+        # carry the prev-cycle other-agent/beetle kills (RDBB4 STEMS reads PROAKL(DSII)
+        # + PRANKL = last cycle's OAKL/RDKILL) and the RDKILL itself.
+        d.rdkill[i] = old.rdkill[i]
+        for k in 1:3; d.oakl[k,i] = old.oakl[k,i]; d.bbkill[k,i] = old.bbkill[k,i]; end
     end
     d.rrates .= old.rrates; d.rrrate .= old.rrrate; d.areanu .= old.areanu
     d.shcent .= old.shcent; d.nscen .= old.nscen; d.icensp .= old.icensp
