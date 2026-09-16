@@ -18,7 +18,7 @@ module Raster
 using ArchGDAL
 const AG = ArchGDAL
 
-export RasterCtx, warp_tile, aoi_tally, NODATA
+export RasterCtx, warp_tile, warp_extent, extent_mask, aoi_tally, aoi_tile_mask, NODATA
 
 const NODATA = typemax(UInt32)                    # 4294967295
 const WEBMERC_HALF = 20037508.342789244           # half-extent of EPSG:3857
@@ -46,11 +46,22 @@ Returns a `size×size` matrix of TM_IDs in image order `[row, col]`,
 """
 function warp_tile(ctx::RasterCtx, z::Integer, x::Integer, y::Integer; size::Int=256)
     xmin, ymin, xmax, ymax = tile_bounds_3857(z, x, y)
+    warp_extent(ctx, xmin, ymin, xmax, ymax, size, size)
+end
+
+"""
+    warp_extent(ctx, xmin, ymin, xmax, ymax, w, h) -> Matrix{UInt32}   [row, col]
+
+Warp the TM_ID raster over an arbitrary EPSG:3857 extent into a `w×h` matrix
+(nearest resampling). `NODATA` outside the raster. This is the tiler generalized
+to any window — used to render a whole AOI into one cached image.
+"""
+function warp_extent(ctx::RasterCtx, xmin, ymin, xmax, ymax, w::Integer, h::Integer)
     opts = [
         "-of", "MEM",
         "-t_srs", "EPSG:3857",
         "-te", string(xmin), string(ymin), string(xmax), string(ymax),
-        "-ts", string(size), string(size),
+        "-ts", string(w), string(h),
         "-r", "near",
         "-dstnodata", string(NODATA),
         "-wo", "NUM_THREADS=ALL_CPUS",
@@ -62,6 +73,17 @@ function warp_tile(ctx::RasterCtx, z::Integer, x::Integer, y::Integer; size::Int
             permutedims(arr, (2, 1))        # -> [row, col]
         end
     end
+end
+
+"""
+    extent_mask(geom3857, xmin, ymin, xmax, ymax, w, h) -> Matrix{UInt8}   [row, col]
+
+Rasterize the AOI polygon (EPSG:3857) over the same `w×h` 3857 window as
+`warp_extent` — 1 inside the polygon, 0 outside — to clip the rendered image.
+"""
+function extent_mask(geom3857, xmin, ymin, xmax, ymax, w::Integer, h::Integer)
+    srs = AG.toWKT(AG.importEPSG(3857))
+    permutedims(_rasterize_mask(geom3857, w, h, xmin, ymin, xmax, ymax, srs), (2, 1))
 end
 
 # --- geotransform helper on the source (EPSG:5070) ---
@@ -116,6 +138,21 @@ function aoi_tally(ctx::RasterCtx, geom5070; max_pixels::Int = 200_000_000)
         end
         return counts
     end
+end
+
+"""
+    aoi_tile_mask(geom3857, z, x, y; size=256) -> Matrix{UInt8}   [row, col]
+
+Rasterize the AOI polygon (already in EPSG:3857) onto one web-mercator XYZ tile
+grid — 1 inside the polygon, 0 outside — aligned pixel-for-pixel with
+`warp_tile`. Used to clip a per-plot layer to the AOI (TreeMap imputes each plot
+to many pixels nationwide, so a tm_id lookup alone would paint far outside it).
+"""
+function aoi_tile_mask(geom3857, z::Integer, x::Integer, y::Integer; size::Int=256)
+    xmin, ymin, xmax, ymax = tile_bounds_3857(z, x, y)
+    srs = AG.toWKT(AG.importEPSG(3857))
+    m = _rasterize_mask(geom3857, size, size, xmin, ymin, xmax, ymax, srs)  # [x,y]
+    permutedims(m, (2, 1))                                                  # -> [row,col]
 end
 
 "Burn geom5070 into a wcols×wrows UInt8 mask ([x,y]); 1 inside, 0 outside."

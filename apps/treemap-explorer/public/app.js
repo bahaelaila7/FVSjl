@@ -482,6 +482,12 @@ function effSimMetric(){
   const first = Object.keys(doms)[0];
   return first || sel;
 }
+// URL of the pre-rendered, cached AOI image for (metric, cycle); token-versioned so the
+// browser caches each immutably and the slider just swaps a ready image.
+function simImgUrl(metric, cycle){
+  const im = lastSim && lastSim.image; if(!im) return null;
+  return `/simimage/${im.token}/${metric}/${cycle}.png`;
+}
 function renderSimLegend(){
   if(!lastSim || !lastSim.domains) return;
   const m=effSimMetric(), meta=SIM_MAP_META[m]||SIM_MAP_META.carbon, dom=lastSim.domains[m]||[0,1];
@@ -492,7 +498,7 @@ function renderSimLegend(){
 function setupSlider(d){
   const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
   el('timerow').style.display = (d.ncycles>1) ? 'flex' : 'none';
-  el('simLayerGrp').hidden = false; el('showSim').checked = true;
+  el('simLayerGrp').hidden = !d.image; el('showSim').checked = true;
   renderSimLegend();
   updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle();
 }
@@ -521,18 +527,31 @@ function updateSimTime(){
   if(el('simLayerWhen')) el('simLayerWhen').textContent = t;
 }
 function setSimLayer(){
-  if(!map || !lastSim) return;
-  if(map.getLayer('simlayer')) map.removeLayer('simlayer');
-  if(map.getSource('simlayer')) map.removeSource('simlayer');
-  if(!el('showSim').checked) return;                 // dedicated toggle, independent of the whole-map layer
-  const metric = effSimMetric();                     // fall back off an empty metric so it's never all-transparent
+  if(!map || !lastSim || !lastSim.image) return;
+  const im = lastSim.image;
+  if(!el('showSim').checked){                        // dedicated toggle, independent of the whole-map layer
+    if(map.getLayer('simlayer')) map.removeLayer('simlayer');
+    if(map.getSource('simlayer')) map.removeSource('simlayer');
+    return;
+  }
+  const metric = effSimMetric();                     // fall back off an empty metric so it's never blank
   const op = (+el('simOp').value)/100 || 0.92;
-  const url=`/simtiles/${metric}/${simCycle}/{z}/{x}/{y}.png`;
-  map.addSource('simlayer',{type:'raster',tileSize:256,tiles:[url]});
-  // ABOVE the translucent AOI fill (so the raster is clearly visible), BELOW the AOI outline
-  const before = map.getLayer('aoi-line') ? 'aoi-line' : undefined;
-  map.addLayer({id:'simlayer',type:'raster',source:'simlayer',
-    paint:{'raster-opacity':op}}, before);
+  const url = simImgUrl(metric, simCycle);
+  const src = map.getSource('simlayer');
+  if(src && src.updateImage){
+    // cycle/metric changed → point the SAME image source at the cached image for this cycle
+    src.updateImage({url, coordinates: im.corners});
+    map.setPaintProperty('simlayer','raster-opacity',op);
+  } else {
+    if(map.getLayer('simlayer')) map.removeLayer('simlayer');
+    if(map.getSource('simlayer')) map.removeSource('simlayer');
+    // a single georeferenced image over the AOI (pre-rendered + cached server-side) —
+    // ABOVE the translucent AOI fill (clearly visible), BELOW the AOI outline
+    map.addSource('simlayer', {type:'image', url, coordinates: im.corners});
+    const before = map.getLayer('aoi-line') ? 'aoi-line' : undefined;
+    map.addLayer({id:'simlayer', type:'raster', source:'simlayer',
+      paint:{'raster-opacity':op, 'raster-resampling':'nearest'}}, before);
+  }
 }
 function clearSimLayer(){
   if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; }

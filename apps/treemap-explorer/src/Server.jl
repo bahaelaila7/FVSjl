@@ -2,6 +2,7 @@
 
 using Oxygen, HTTP, JSON3
 import PNGFiles
+import ArchGDAL
 
 const APP = Ref{App}()
 const PUBLIC = normpath(joinpath(@__DIR__, "..", "public"))
@@ -67,7 +68,8 @@ end
 const MAX_SIM_PLOTS = 200          # cap for a responsive synchronous request
 const HA_PER_ACRE = 0.404685642
 
-# the projected layer of the last simulation: tm_id => per-cycle metrics (for /simtiles)
+# the projected layer of the last simulation: tm_id => per-cycle metrics (source for the
+# cached AOI images rendered below)
 const SIM_LAYER = Ref{Dict{UInt32,Vector{FiaSim.CycleMetrics}}}(Dict{UInt32,Vector{FiaSim.CycleMetrics}}())
 # map-colorable per-area sim metrics: name => (field, lo, hi, colormap). lo/hi are CONUS
 # fallbacks; the actual domain is auto-scaled per simulation (SIM_DOMAINS) so a pixel's
@@ -77,6 +79,70 @@ const SIM_METRICS = Dict(
     "ba"     => (:ba,             0.0, 250.0, Color.VIRIDIS),  # ft²/ac
     "volume" => (:tcuft,          0.0, 8000.0, Color.VIRIDIS)) # ft³/ac standing
 const SIM_DOMAINS = Ref{Dict{String,Tuple{Float64,Float64}}}(Dict{String,Tuple{Float64,Float64}}())
+# the last simulation's AOI polygon in EPSG:3857 (tile CRS) — clips the rendered image to
+# the polygon, since a plot's tm_id recurs on many pixels nationwide (imputation).
+const SIM_AOI = Ref{Any}(nothing)
+# Pre-rendered, cached AOI raster images: (metric, cycle) => PNG bytes. The whole AOI is
+# warped + masked ONCE per simulation, then colorized per (metric, cycle) and cached, so
+# the time slider just swaps a ready image (an /simimage lookup) with no recompute.
+const SIM_IMAGES = Ref{Dict{Tuple{String,Int},Vector{UInt8}}}(Dict{Tuple{String,Int},Vector{UInt8}}())
+const SIM_IMG_META = Ref{Any}(nothing)      # corners (lon/lat) + size + metrics for the frontend
+const SIM_TOKEN = Threads.Atomic{Int}(0)    # bumps per simulation → fresh immutable image URLs
+const SIM_IMG_MAXPX = 1200                   # cap the longer image side (bounds memory)
+
+"EPSG:3857 meters -> (lon, lat) degrees."
+function _merc_to_lonlat(x::Float64, y::Float64)
+    lon = x / Raster.WEBMERC_HALF * 180.0
+    lat = rad2deg(2 * atan(exp(y / 6_378_137.0)) - pi / 2)
+    (lon, lat)
+end
+
+"""
+Render the AOI into one cached PNG per (metric, cycle) and return the frontend metadata
+(image corners in lon/lat, pixel size, the metrics that have data, and a fresh token).
+The tm_id grid + AOI mask are computed ONCE; each (metric, cycle) is just a colorize.
+"""
+function _render_sim_images(geom3857, layer, doms, ncyc)
+    env = ArchGDAL.envelope(geom3857)                 # 3857 meters: MinX,MaxX,MinY,MaxY
+    xmin, xmax, ymin, ymax = env.MinX, env.MaxX, env.MinY, env.MaxY
+    wm = max(xmax - xmin, 1.0); hm = max(ymax - ymin, 1.0)
+    longer = max(wm, hm)
+    # ~30 m native, capped; keep aspect ratio so the overlay isn't distorted
+    L = clamp(round(Int, longer / 30), 128, SIM_IMG_MAXPX)
+    w = max(1, round(Int, wm / longer * L)); h = max(1, round(Int, hm / longer * L))
+
+    tmids = Raster.warp_extent(APP[].rasterctx, xmin, ymin, xmax, ymax, w, h)   # [row,col]
+    mask = Raster.extent_mask(geom3857, xmin, ymin, xmax, ymax, w, h)
+    @inbounds for i in eachindex(tmids)
+        mask[i] == 0x00 && (tmids[i] = Raster.NODATA)
+    end
+
+    images = Dict{Tuple{String,Int},Vector{UInt8}}()
+    for (mname, spec) in SIM_METRICS
+        haskey(doms, mname) || continue               # skip metrics with no data (all-NaN)
+        field, lo0, hi0, cmap = spec
+        lo, hi = doms[mname]
+        for c in 0:(ncyc - 1)
+            valfn = tm -> begin
+                v = get(layer, tm, nothing)
+                (v === nothing || c + 1 > length(v)) && return NaN
+                Float64(getfield(v[c + 1], field))
+            end
+            img = Color.colorize(tmids, valfn, cmap, lo, hi)
+            images[(mname, c)] = _png_bytes(img)
+        end
+    end
+    SIM_IMAGES[] = images
+    tok = Threads.atomic_add!(SIM_TOKEN, 1) + 1
+    # MapLibre image-source corners: TL, TR, BR, BL in [lon,lat]
+    tl = _merc_to_lonlat(xmin, ymax); tr = _merc_to_lonlat(xmax, ymax)
+    br = _merc_to_lonlat(xmax, ymin); bl = _merc_to_lonlat(xmin, ymin)
+    meta = (; token = tok, width = w, height = h,
+            corners = [collect(tl), collect(tr), collect(br), collect(bl)],
+            metrics = [m for m in keys(SIM_METRICS) if haskey(doms, m)])
+    SIM_IMG_META[] = meta
+    meta
+end
 
 "AOI geometry (5070) -> (Dict{PLT_CN=>acres}, Dict{tm_id=>PLT_CN}), capped to largest plots."
 function _resolve_plots(geom5070)
@@ -182,29 +248,27 @@ function _simulate_response(geom5070, plan)
         isfinite(lo) && hi > lo && (doms[mname] = (floor(lo), ceil(hi)))
     end
     SIM_DOMAINS[] = doms
+    geom3857 = Aoi.to3857(geom5070)
+    SIM_AOI[] = geom3857
+    # pre-render + cache every (metric, cycle) AOI image; the slider just swaps them
+    imgmeta = ncyc > 0 && !isempty(layer) ? _render_sim_images(geom3857, layer, doms, ncyc) : nothing
 
     (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
        capped = capped, acres = round(total_aoi_acres; digits = 1),
        sim_acres = round(sim_acres; digits = 1),
        ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist,
-       domains = doms)   # auto-scaled color domains per map metric (for the legend)
+       domains = doms,        # auto-scaled color domains per map metric (for the legend)
+       image = imgmeta)       # cached AOI raster overlay: token, corners (lon/lat), size, metrics
 end
 
-"Colorized projected tile for the last simulation at `cycle` (0-based), metric per-area."
-function _simtile_handler(metric::String, cycle::Int, z::Int, x::Int, y::Int)
-    layer = SIM_LAYER[]
-    isempty(layer) && return HTTP.Response(204)
-    field, lo, hi, cmap = get(SIM_METRICS, metric, SIM_METRICS["carbon"])
-    lo, hi = get(SIM_DOMAINS[], metric, (lo, hi))   # auto-scaled to this sim's range
-    tmids = Raster.warp_tile(APP[].rasterctx, z, x, y; size = 256)
-    valfn = tm -> begin
-        v = get(layer, tm, nothing)
-        (v === nothing || cycle + 1 > length(v)) && return NaN
-        Float64(getfield(v[cycle+1], field))
-    end
-    img = Color.colorize(tmids, valfn, cmap, lo, hi)
-    HTTP.Response(200, ["Content-Type" => "image/png", "Cache-Control" => "no-store"];
-                  body = _png_bytes(img))
+"Serve a pre-rendered, cached AOI raster image for (metric, cycle). Token-versioned so
+the browser can cache each immutably — the slider just fetches from cache."
+function _simimage_handler(metric::String, cycle::Int)
+    png = get(SIM_IMAGES[], (metric, cycle), nothing)
+    png === nothing && return HTTP.Response(404)
+    HTTP.Response(200, ["Content-Type" => "image/png",
+                        "Cache-Control" => "public, max-age=31536000, immutable"];
+                  body = png)
 end
 
 function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
@@ -220,13 +284,15 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
         end
     end
 
-    @get "/simtiles/{metric}/{cycle}/{z}/{x}/{y}" function (req, metric::String, cycle::String, z::String, x::String, y::String)
+    # cached AOI raster overlay: /simimage/{token}/{metric}/{cycle}.png . The token
+    # (bumped per simulation) only makes the URL immutable for browser caching; the
+    # server serves whatever the current cache holds for (metric, cycle).
+    @get "/simimage/{token}/{metric}/{cycle}" function (req, token::String, metric::String, cycle::String)
         try
-            yi = parse(Int, first(split(y, '.')))
-            return _simtile_handler(metric, parse(Int, cycle), parse(Int, z), parse(Int, x), yi)
+            return _simimage_handler(metric, parse(Int, first(split(cycle, '.'))))
         catch e
-            @warn "simtile error" exception = e
-            return HTTP.Response(204)
+            @warn "simimage error" exception = e
+            return HTTP.Response(404)
         end
     end
 

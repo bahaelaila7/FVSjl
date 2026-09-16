@@ -10,7 +10,7 @@ module Aoi
 using ArchGDAL
 const AG = ArchGDAL
 
-export geom_from_geojson, geom_from_upload, bbox4326, geojson4326
+export geom_from_geojson, geom_from_upload, bbox4326, geojson4326, to3857
 
 const EPSG5070_WKT = Ref{String}()
 
@@ -29,6 +29,17 @@ function to5070(geom, src_epsg::Integer = 4326)
     # honor traditional lon/lat axis order for 4326 input
     AG.GDAL.osrsetaxismappingstrategy(src.ptr, AG.GDAL.OAMS_TRADITIONAL_GIS_ORDER)
     g = AG.clone(geom)
+    AG.createcoordtrans(src, dst) do ct
+        AG.transform!(g, ct)
+    end
+    g
+end
+
+"Reproject a 5070 geometry to EPSG:3857 (web mercator, the tile CRS); returns a clone."
+function to3857(geom5070)
+    src = AG.importEPSG(5070)
+    dst = AG.importEPSG(3857)
+    g = AG.clone(geom5070)
     AG.createcoordtrans(src, dst) do ct
         AG.transform!(g, ct)
     end
