@@ -123,6 +123,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     flame != oldfl && (byram = 60f0 * fpow(flame / 0.45f0, 1f0 / 0.46f0))
     sch = byram > 0f0 ? scorch_height(byram, atemp, fwind) : 0f0
     fire_type = "SURFACE"                    # FVS_BurnReport Fire_Type (fmcfir.f CFTMP); crown-fire branch overwrites
+    # Effective crown-fraction-burned fed to the FMEFF crowning-kill term (fmeff.f:547-551, CURKIL = PMORT·FMPROB
+    # + CRBURN·(FMPROB−PMORT·FMPROB)). FVS passes FMEFF the RESOLVED common CRBURN — the FMCFIR crown fraction
+    # (`crb`, below), OR the FLAMEADJ user override. The kill loop must use THAT, not the raw `crburn` FLAMEADJ
+    # parameter (whose default sentinel is −1/0). Without this a passive/active crown fire applied ZERO extra kill:
+    # the low-PMORT large overstory survived the scorch logistic but should also lose CRBURN·(1−PMORT) to crowning.
+    crfrac = crburn > 0f0 ? crburn : 0f0
     # Crown-fire flame adjustment (fmburn.f:538-543, NE/CR): a passive/active crown fire adds the canopy fuel
     # load to the intensity, raising the flame → scorch height that kills the tall overstory. CRBURN=0 (surface/
     # mild fire) leaves flame/byram/scorch UNCHANGED ⇒ bit-exact preserved. Only when the user did NOT set flame.
@@ -151,6 +157,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # NOT the ~18 the computed 0.561 would give. Klamath-guarded (the shared CR/NE path is unchanged).
             (s.variant isa Klamath || s.variant isa Olympic) && crburn >= 0f0 && (crb = crburn)   # OP FLAMEADJ forces CRBURN (opt01: 1%) — same guard as Klamath/nct01
             if crb > 0f0
+                crfrac = crb                                                # FMEFF crowning-kill fraction (fmeff.f CRBURN)
                 byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN
                 finten = byram / 60f0
                 flame = 0.45f0 * fpow(finten, 0.46f0) + crb * (0.2f0 * fpow(finten, 0.667f0) - 0.45f0 * fpow(finten, 0.46f0))
@@ -194,7 +201,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
             pmort = clamp(pmort, 0f0, 1f0)
             curkil = pmort * t.tpa[i]
-            crburn > 0f0 && (curkil += crburn * (t.tpa[i] - curkil))  # crown-fire share
+            crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             # Fire-killed sprouting trees feed the ESUCKR stump-sprout pool exactly as cutting does: FVS
