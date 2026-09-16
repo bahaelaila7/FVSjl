@@ -115,6 +115,10 @@ async function boot() {
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
   el('simSlider').oninput = e => onSlider(e.target.value);
   el('simPlay').onclick = toggleSimPlay;
+  el('showSim').onchange = setSimLayer;
+  el('simMapMetric').onchange = () => { renderSimLegend(); setSimLayer(); };
+  el('simOp').oninput = e => { el('simOpv').textContent=e.target.value+'%';
+    if(map.getLayer('simlayer')) map.setPaintProperty('simlayer','raster-opacity',(+e.target.value)/100); };
   el('pCycles').onchange = e => plan.cycles = +e.target.value;
   el('pPeriod').onchange = e => plan.period = +e.target.value;
   renderActions();
@@ -392,6 +396,7 @@ function renderActions(){
     const cy = a=>`<label>at</label><input type="number" class="num" min="0" max="${plan.cycles-1}" value="${a.cycle}" data-i="${i}" data-f="cycle" title="cycles from now (0 = immediately)"><span style="color:var(--muted);font-size:11px">${a.cycle===0?'now':'+'+a.cycle*plan.period+'yr'}</span>`;
     if(a.kind==='thin'){
       d.innerHTML = `<span class="tag thin">Thin</span>${cy(a)}
+        <label>sp</label><input list="splist" value="${a.species||'all'}" data-i="${i}" data-f="species" style="width:80px" title="species to cut: 'all', or one/more FVS alpha codes (comma-separated)">
         <label>to</label><select data-i="${i}" data-f="metric">${_opt(['BA','TPA','SDI'],a.metric)}</select>
         <input type="number" class="num" value="${a.target}" data-i="${i}" data-f="target" title="residual (0 = clearcut)">
         <select data-i="${i}" data-f="direction">${_opt([['below','from below'],['above','from above']],a.direction)}</select>
@@ -399,8 +404,8 @@ function renderActions(){
         <button class="rm" data-rm="${i}" title="remove">×</button>`;
     } else {
       d.innerHTML = `<span class="tag plant">Plant</span>${cy(a)}
-        <label>sp</label><input list="splist" value="${a.species}" data-i="${i}" data-f="species" style="width:60px">
-        <input type="number" class="num" value="${a.tpa}" data-i="${i}" data-f="tpa" title="trees/acre">tpa
+        <label>sp</label><input list="splist" value="${a.species}" data-i="${i}" data-f="species" style="width:80px" title="species to plant: one/more FVS alpha codes (comma-separated)">
+        <input type="number" class="num" value="${a.tpa}" data-i="${i}" data-f="tpa" title="trees/acre (each species)">tpa
         <label>surv</label><input type="number" class="num" value="${a.survival}" data-i="${i}" data-f="survival">%
         <button class="rm" data-rm="${i}" title="remove">×</button>`;
     }
@@ -415,7 +420,7 @@ function renderActions(){
   host.querySelectorAll('[data-rm]').forEach(b => b.onclick = e => {
     plan.actions.splice(+e.currentTarget.dataset.rm,1); renderActions(); });
 }
-function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',dbh_lo:0,dbh_hi:999}); renderActions(); }
+function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',species:'all',dbh_lo:0,dbh_hi:999}); renderActions(); }
 function addPlant(){ plan.actions.push({kind:'plant',cycle:1,species:'DF',tpa:300,survival:85}); renderActions(); }
 
 function savePlan(){
@@ -466,10 +471,18 @@ async function runSim(){
 
 /* time slider — recolor the AOI's pixels to the projected state at each cycle */
 let simCycle=0, simTimer=null;
-const mapMetric = () => { const m=el('simMetric').value; return m==='ba_ac'?'ba' : m==='volume'?'volume' : 'carbon'; };
+const SIM_MAP_META = { carbon:{cmap:'greens',units:'t C/ha'}, ba:{cmap:'viridis',units:'ft²/ac'}, volume:{cmap:'viridis',units:'ft³/ac'} };
+function renderSimLegend(){
+  if(!lastSim || !lastSim.domains) return;
+  const m=el('simMapMetric').value, meta=SIM_MAP_META[m]||SIM_MAP_META.carbon, dom=lastSim.domains[m]||[0,1];
+  el('simLegbar').style.background = CMAP_CSS[meta.cmap] || CMAP_CSS.viridis;
+  el('simLegLo').textContent=fmt(dom[0]); el('simLegHi').textContent=fmt(dom[1]); el('simLegLabel').textContent=meta.units;
+}
 function setupSlider(d){
   const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
   el('timerow').style.display = (d.ncycles>1) ? 'flex' : 'none';
+  el('simLayerGrp').hidden = false; el('showSim').checked = true;
+  renderSimLegend();
   updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle();
 }
 // drive the LEFT panel (species×DBH distribution + summary cards) to the projected cycle
@@ -491,18 +504,26 @@ function updateLeftForCycle(){
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
   el('statsGrp').hidden=false; el('chartGrp').hidden=false;
 }
-function updateSimTime(){ el('simTime').textContent = simCycle===0 ? 'now (cycle 0)' : `+${simCycle*plan.period} yr · cyc ${simCycle}`; }
+function updateSimTime(){
+  const t = simCycle===0 ? 'now' : `+${simCycle*(plan.period||10)} yr`;
+  el('simTime').textContent = simCycle===0 ? 'now (cycle 0)' : `+${simCycle*(plan.period||10)} yr · cyc ${simCycle}`;
+  if(el('simLayerWhen')) el('simLayerWhen').textContent = t;
+}
 function setSimLayer(){
   if(!map || !lastSim) return;
   if(map.getLayer('simlayer')) map.removeLayer('simlayer');
   if(map.getSource('simlayer')) map.removeSource('simlayer');
-  const url=`/simtiles/${mapMetric()}/${simCycle}/{z}/{x}/{y}.png`;
+  if(!el('showSim').checked) return;                 // dedicated toggle, independent of the whole-map layer
+  const url=`/simtiles/${el('simMapMetric').value}/${simCycle}/{z}/{x}/{y}.png`;
   map.addSource('simlayer',{type:'raster',tileSize:256,tiles:[url]});
-  map.addLayer({id:'simlayer',type:'raster',source:'simlayer',paint:{'raster-opacity':0.92}}, aoiBeforeId());
+  // ABOVE the translucent AOI fill (so the raster is clearly visible), BELOW the AOI outline
+  const before = map.getLayer('aoi-line') ? 'aoi-line' : undefined;
+  map.addLayer({id:'simlayer',type:'raster',source:'simlayer',
+    paint:{'raster-opacity':(+el('simOp').value)/100}}, before);
 }
 function clearSimLayer(){
   if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; }
-  el('timerow').style.display='none';
+  el('timerow').style.display='none'; el('simLayerGrp').hidden=true;
   if(map){ if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer'); }
 }
 function onSlider(v){ simCycle=+v; el('simSlider').value=simCycle; updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle(); }

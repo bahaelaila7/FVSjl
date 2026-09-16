@@ -84,17 +84,33 @@ function plan_keywords(p::ManagementPlan)::String
     thins = filter(a -> a.kind == "thin", p.actions)
     plants = filter(a -> a.kind == "plant", p.actions)
     for a in thins
-        tok = get(_THIN_TOKEN, (a.metric, a.direction), "THINBBA")
-        # THIN*: field1=DATE (<1000 ⇒ CYCLE number, relative; our 0-based cycle → FVS
-        # cycle a.cycle+1, so cycle 0 = at inventory, cycle 1 = +period …),
-        # field2=residual target, field3=cut-eff, field4/5=DBH lo/hi
-        println(io, _kwrec(tok, a.cycle + 1, a.target, 1, a.dbh_lo, a.dbh_hi))
+        allsp = isempty(a.species) || lowercase(a.species) == "all"
+        if allsp
+            # all species → THINBBA/ABA/BTA/… : date(cycle+1), residual target, cut-eff, DBH lo/hi
+            tok = get(_THIN_TOKEN, (a.metric, a.direction), "THINBBA")
+            println(io, _kwrec(tok, a.cycle + 1, a.target, 1, a.dbh_lo, a.dbh_hi))
+        else
+            # species-specific → one THINDBH per listed species (comma-separated list allowed):
+            # date, DBH lo/hi, cut-eff, SPECIES(alpha), resid CTPA, resid CBA
+            ctpa = a.metric == "TPA" ? _fmt(a.target) : ""
+            cba  = a.metric == "TPA" ? "" : _fmt(a.target)     # BA (and SDI→BA fallback)
+            for sp in split(a.species, ',')
+                s = strip(sp)
+                isempty(s) && continue
+                println(io, _kwrec("THINDBH", a.cycle + 1, a.dbh_lo, a.dbh_hi, 1, s, ctpa, cba))
+            end
+        end
     end
     if !isempty(plants)
         println(io, "ESTAB")
         for a in plants
-            # PLANT: DATE(cycle a.cycle+1), species(alpha), trees/acre, survival%
-            println(io, _kwrec("PLANT", a.cycle + 1, a.species, a.tpa, a.survival))
+            # PLANT: DATE(cycle a.cycle+1), species(alpha), trees/acre, survival%.
+            # A comma-separated species list plants each species at the given tpa.
+            for sp in split(a.species, ',')
+                s = strip(sp)
+                isempty(s) && continue
+                println(io, _kwrec("PLANT", a.cycle + 1, s, a.tpa, a.survival))
+            end
         end
         println(io, "END")
     end

@@ -139,6 +139,23 @@
       </div>
     </div>
 
+    <div class="grp" id="simLayerGrp" hidden>
+      <h2>Simulated layer <span class="badge" id="simLayerWhen" style="color:var(--accent);border-color:var(--accent)">now</span></h2>
+      <label class="chk"><input type="checkbox" id="showSim" checked> Show projected raster over AOI</label>
+      <label class="field">Metric</label>
+      <select id="simMapMetric">
+        <option value="carbon">Live carbon (t/ha)</option>
+        <option value="ba">Basal area (ft²/ac)</option>
+        <option value="volume">Standing volume (ft³/ac)</option>
+      </select>
+      <label class="field">Opacity <span id="simOpv">92%</span></label>
+      <input type="range" id="simOp" min="20" max="100" value="92">
+      <div class="legend">
+        <div class="bar" id="simLegbar"></div>
+        <div class="ticks"><span id="simLegLo">0</span><span id="simLegLabel"></span><span id="simLegHi">1</span></div>
+      </div>
+    </div>
+
     <div class="grp" id="statsGrp" hidden>
       <h2>AOI summary <span class="badge" id="cycleBadge">cycle 0 · current</span></h2>
       <div class="cards" id="cards"></div>

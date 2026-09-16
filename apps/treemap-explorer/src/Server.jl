@@ -102,6 +102,7 @@ function _parse_plan(o)
             push!(acts, FiaSim.PlanAction(; kind = "thin", cycle = Int(get(a, :cycle, 1)),
                 metric = String(get(a, :metric, "BA")), target = Float64(get(a, :target, 0)),
                 direction = String(get(a, :direction, "below")),
+                species = String(get(a, :species, "")),
                 dbh_lo = Float64(get(a, :dbh_lo, 0)), dbh_hi = Float64(get(a, :dbh_hi, 999))))
         elseif kind == "plant"
             push!(acts, FiaSim.PlanAction(; kind = "plant", cycle = Int(get(a, :cycle, 1)),
@@ -185,7 +186,8 @@ function _simulate_response(geom5070, plan)
     (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
        capped = capped, acres = round(total_aoi_acres; digits = 1),
        sim_acres = round(sim_acres; digits = 1),
-       ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist)
+       ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist,
+       domains = doms)   # auto-scaled color domains per map metric (for the legend)
 end
 
 "Colorized projected tile for the last simulation at `cycle` (0-based), metric per-area."
