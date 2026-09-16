@@ -8,7 +8,7 @@
 #   - Data dir:   honors $TREEMAP_DATA, else TreeMapExplorer derives it (see
 #     default_datadir); override with e.g. TREEMAP_DATA=/path ./serve.sh
 #   - Bind:       HOST (default 127.0.0.1) and PORT (default 8080).
-set -euo pipefail
+#set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -18,9 +18,8 @@ if [ -z "${JULIA_DEPOT_PATH:-}" ]; then
 fi
 
 host="${HOST:-127.0.0.1}"
-port="${PORT:-8080}"
+port="${PORT:-8087}"
 
 echo "depot: $JULIA_DEPOT_PATH"
 echo "serving http://$host:$port  (HOST/PORT/TREEMAP_DATA env to override)"
-exec julia --project="$here" -e \
-  "using TreeMapExplorer; TreeMapExplorer.start_server!(; host=\"$host\", port=$port)"
+exec julia --project="$here" -e "using TreeMapExplorer; TreeMapExplorer.start_server!(; host=\"$host\", port=$port)"

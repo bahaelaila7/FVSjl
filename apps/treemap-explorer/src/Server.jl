@@ -41,6 +41,8 @@ function _aoi_response(geom5070)
     w, s, e, n = Aoi.bbox4326(geom5070)
     (; nplots = agg.nplots, npixels = agg.npixels,
        bbox = (; west = w, south = s, east = e, north = n),
+       geometry = JSON3.read(Aoi.geojson4326(geom5070)),  # 4326 GeoJSON for the map
+
        acres = round(agg.acres; digits = 1),
        ba_total = round(agg.ba_total; digits = 1),
        tpa_expanded = round(agg.tpa_expanded; digits = 0),

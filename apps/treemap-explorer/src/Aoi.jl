@@ -10,7 +10,7 @@ module Aoi
 using ArchGDAL
 const AG = ArchGDAL
 
-export geom_from_geojson, geom_from_upload, bbox4326
+export geom_from_geojson, geom_from_upload, bbox4326, geojson4326
 
 const EPSG5070_WKT = Ref{String}()
 
@@ -48,6 +48,18 @@ function bbox4326(geom5070)
     (e.MinX, e.MinY, e.MaxX, e.MaxY)
 end
 
+"GeoJSON *geometry* string (EPSG:4326 lon/lat) of a 5070 geometry — for the frontend to draw."
+function geojson4326(geom5070)
+    src = AG.importEPSG(5070)
+    dst = AG.importEPSG(4326)
+    AG.GDAL.osrsetaxismappingstrategy(dst.ptr, AG.GDAL.OAMS_TRADITIONAL_GIS_ORDER)
+    g = AG.clone(geom5070)
+    AG.createcoordtrans(src, dst) do ct
+        AG.transform!(g, ct)
+    end
+    AG.toJSON(g)
+end
+
 "Build a 5070 geometry from a raw GeoJSON *geometry* string (drawn polygon, 4326)."
 function geom_from_geojson(geojson::AbstractString)
     g = AG.fromJSON(String(geojson))
@@ -71,13 +83,6 @@ function geom_from_upload(bytes::Vector{UInt8}, filename::AbstractString)
     try
         ds = AG.read(open_path)
         lyr = AG.getlayer(ds, 0)
-        # source SRS (fall back to 4326)
-        sr = AG.getspatialref(lyr)
-        epsg = 4326
-        if sr !== nothing
-            code = AG.getauthoritycode(sr)
-            code !== nothing && (epsg = parse(Int, code))
-        end
         # union all feature geometries
         acc = nothing
         for f in lyr
@@ -86,7 +91,18 @@ function geom_from_upload(bytes::Vector{UInt8}, filename::AbstractString)
             acc = acc === nothing ? AG.clone(g) : AG.union(acc, g)
         end
         acc === nothing && error("no geometry found in AOI upload")
-        return to5070(acc, epsg)
+        # Reproject to 5070 using the layer's OWN spatial ref (handles any CRS —
+        # a shapefile .prj, or a GeoJSON read as OGC:CRS84 which has no EPSG code).
+        # Falls back to WGS84 lon/lat when the layer carries no CRS (bare GeoJSON).
+        srcsr = AG.getspatialref(lyr)
+        srcsr === nothing && (srcsr = AG.importEPSG(4326))
+        AG.GDAL.osrsetaxismappingstrategy(srcsr.ptr, AG.GDAL.OAMS_TRADITIONAL_GIS_ORDER)
+        dst = AG.importEPSG(5070)
+        g5070 = AG.clone(acc)
+        AG.createcoordtrans(srcsr, dst) do ct
+            AG.transform!(g5070, ct)
+        end
+        return g5070
     finally
         AG.GDAL.vsiunlink(vpath)
     end

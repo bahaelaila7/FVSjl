@@ -100,6 +100,7 @@ async function boot() {
   el('basemap').onchange = e => setBasemap(e.target.value);
   el('draw').onclick = startDraw;
   el('clear').onclick = clearAoi;
+  el('download').onclick = downloadAoi;
   el('upload').onclick = () => el('file').click();
   el('file').onchange = onUpload;
   window.addEventListener('keydown', e => {
@@ -176,13 +177,15 @@ function onDrawMove(e){ if (drawing && verts.length) renderDraft([e.lngLat.lng,e
 
 function renderDraft(hover){
   if (!map.getSource('draft')) return;
-  const line = hover ? verts.concat([hover]) : verts;
+  // fold the moving cursor into the preview so the rubber-band stays live at every
+  // vertex count (>=3 verts + hover -> the closing polygon tracks the cursor too)
+  const chain = hover ? verts.concat([hover]) : verts;
   const feats = verts.map((v,i)=>({type:'Feature',properties:{first:i===0},
                                     geometry:{type:'Point',coordinates:v}}));
-  if (verts.length >= 3) feats.push({type:'Feature',geometry:
-    {type:'Polygon',coordinates:[verts.concat([verts[0]])]}});
-  else if (line.length >= 2) feats.push({type:'Feature',geometry:
-    {type:'LineString',coordinates:line}});
+  if (chain.length >= 3) feats.push({type:'Feature',geometry:
+    {type:'Polygon',coordinates:[chain.concat([chain[0]])]}});
+  else if (chain.length >= 2) feats.push({type:'Feature',geometry:
+    {type:'LineString',coordinates:chain}});
   map.getSource('draft').setData({type:'FeatureCollection',features:feats});
 }
 function updateDrawHint(){
@@ -196,9 +199,27 @@ function finishDraw(){
   if (verts.length < 3){ return; }         // keep drawing until a valid ring
   const geometry = {type:'Polygon',coordinates:[verts.concat([verts[0]])]};
   cancelDraw();
+  currentAoiGeom = geometry;               // enable GeoJSON download
+  el('download').disabled = false;
   map.getSource('aoi').setData({type:'Feature',geometry});
   submitAoi({body:JSON.stringify({geometry}),
              headers:{'Content-Type':'application/json'}});
+}
+
+let currentAoiGeom = null;
+function downloadAoi(){
+  if (!currentAoiGeom) return;
+  const fc = {type:'FeatureCollection', features:[{type:'Feature',
+              properties:{name:'AOI', source:'TreeMap Growth Explorer',
+                          created:new Date().toISOString()},
+              geometry:currentAoiGeom}]};
+  const blob = new Blob([JSON.stringify(fc, null, 2)], {type:'application/geo+json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `aoi-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.geojson`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 function cancelDraw(){
   drawing=false; verts=[]; lastClick=0;
@@ -211,6 +232,7 @@ function cancelDraw(){
 function clearAoi(){
   cancelDraw();
   if (map.getSource('aoi')) map.getSource('aoi').setData(emptyFC());
+  currentAoiGeom = null; el('download').disabled = true;
   el('statsGrp').hidden = true; el('chartGrp').hidden = true;
 }
 
@@ -240,6 +262,12 @@ async function submitAoi(opts){
 }
 
 function renderResult(d){
+  // draw the AOI the server actually used (covers uploads, which have no client geometry)
+  if (d.geometry && map.getSource('aoi')){
+    map.getSource('aoi').setData({type:'Feature',geometry:d.geometry});
+    currentAoiGeom = d.geometry;            // allow re-download of an uploaded AOI too
+    el('download').disabled = false;
+  }
   if (d.bbox) map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
                             {padding:60,maxZoom:13,duration:600});
   const cards = [
