@@ -141,9 +141,10 @@ function setBasemap(key){
   if (map.getLayer('base')) map.removeLayer('base');
   if (map.getSource('base')) map.removeSource('base');
   map.addSource('base',{type:'raster',tileSize:256,tiles:b.tiles,maxzoom:b.maxzoom,attribution:b.attribution});
-  // keep base at the bottom (below the treemap layer)
-  const below = map.getLayer('treemap') ? 'treemap' : undefined;
-  map.addLayer({id:'base',type:'raster',source:'base'}, below);
+  // keep base at the very bottom — insert before the lowest non-base layer (a bare
+  // `undefined` beforeId would stack it on TOP, hiding the AOI, sim raster and overlays).
+  const first = map.getStyle().layers.find(l => l.id !== 'base');
+  map.addLayer({id:'base',type:'raster',source:'base'}, first ? first.id : undefined);
 }
 
 const tileUrl = a => `/tiles/${a}/{z}/{x}/{y}.png`;
@@ -472,11 +473,21 @@ async function runSim(){
 /* time slider — recolor the AOI's pixels to the projected state at each cycle */
 let simCycle=0, simTimer=null;
 const SIM_MAP_META = { carbon:{cmap:'greens',units:'t C/ha'}, ba:{cmap:'viridis',units:'ft²/ac'}, volume:{cmap:'viridis',units:'ft³/ac'} };
+// the metric to actually draw: the chosen one if the sim produced data for it, else the
+// first metric that DID get a domain (e.g. carbon is empty for unported-FFE variants, so a
+// carbon-default raster would be silently all-transparent — fall back to ba/volume).
+function effSimMetric(){
+  const sel = el('simMapMetric').value, doms = (lastSim && lastSim.domains) || {};
+  if(doms[sel]) return sel;
+  const first = Object.keys(doms)[0];
+  return first || sel;
+}
 function renderSimLegend(){
   if(!lastSim || !lastSim.domains) return;
-  const m=el('simMapMetric').value, meta=SIM_MAP_META[m]||SIM_MAP_META.carbon, dom=lastSim.domains[m]||[0,1];
+  const m=effSimMetric(), meta=SIM_MAP_META[m]||SIM_MAP_META.carbon, dom=lastSim.domains[m]||[0,1];
   el('simLegbar').style.background = CMAP_CSS[meta.cmap] || CMAP_CSS.viridis;
-  el('simLegLo').textContent=fmt(dom[0]); el('simLegHi').textContent=fmt(dom[1]); el('simLegLabel').textContent=meta.units;
+  el('simLegLo').textContent=fmt(dom[0]); el('simLegHi').textContent=fmt(dom[1]);
+  el('simLegLabel').textContent = meta.units + (m!==el('simMapMetric').value ? ' •' : '');
 }
 function setupSlider(d){
   const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
@@ -514,12 +525,14 @@ function setSimLayer(){
   if(map.getLayer('simlayer')) map.removeLayer('simlayer');
   if(map.getSource('simlayer')) map.removeSource('simlayer');
   if(!el('showSim').checked) return;                 // dedicated toggle, independent of the whole-map layer
-  const url=`/simtiles/${el('simMapMetric').value}/${simCycle}/{z}/{x}/{y}.png`;
+  const metric = effSimMetric();                     // fall back off an empty metric so it's never all-transparent
+  const op = (+el('simOp').value)/100 || 0.92;
+  const url=`/simtiles/${metric}/${simCycle}/{z}/{x}/{y}.png`;
   map.addSource('simlayer',{type:'raster',tileSize:256,tiles:[url]});
   // ABOVE the translucent AOI fill (so the raster is clearly visible), BELOW the AOI outline
   const before = map.getLayer('aoi-line') ? 'aoi-line' : undefined;
   map.addLayer({id:'simlayer',type:'raster',source:'simlayer',
-    paint:{'raster-opacity':(+el('simOp').value)/100}}, before);
+    paint:{'raster-opacity':op}}, before);
 }
 function clearSimLayer(){
   if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; }
