@@ -112,6 +112,7 @@ async function boot() {
   el('loadPlan').onclick = () => el('planFile').click();
   el('planFile').onchange = loadPlan;
   el('runSim').onclick = runSim;
+  el('runLandscape').onclick = runLandscape;
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
   el('simSlider').oninput = e => onSlider(e.target.value);
   el('simPlay').onclick = toggleSimPlay;
@@ -267,7 +268,7 @@ function clearAoi(){
   currentAoiGeom = null; el('download').disabled = true;
   el('runSim').disabled = true;
   lastSim = null; clearSimLayer(); drawSimChart();
-  el('statsGrp').hidden = true; el('chartGrp').hidden = true;
+  el('statsGrp').hidden = true; el('chartGrp').hidden = true; el('landscapeGrp').hidden = true;
 }
 
 /* ---------------- upload ---------------- */
@@ -593,12 +594,45 @@ function drawSimChart(){
 
 function onAoiReady(cells){
   el('runSim').disabled = false;
+  el('landscapeGrp').hidden = false;
   // seed the plant species picker with the AOI's own species + common western codes
   const dl=el('splist'); if(!dl) return;
   const seen=new Set(), out=[];
   ['DF','PP','LP','ES','AF','WL','GF','WP','WH','RC','WF','JU','PI','AS','LM'].forEach(s=>{seen.add(s);out.push(s);});
   (cells||[]).forEach(c=>{ const s=(c.symbol||'').slice(0,2).toUpperCase(); if(s&&!seen.has(s)){seen.add(s);out.push(s);} });
   dl.innerHTML = out.map(s=>`<option value="${s}">`).join('');
+}
+
+// PPE cross-stand harvest budget — pick which plots to cut each cycle to meet a target flow
+async function runLandscape(){
+  if(!currentAoiGeom){ setStatus('select an AOI first'); return; }
+  const policy = {
+    common_year:+el('lsYear').value, target_expr:el('lsTarget').value.trim()||'1000',
+    priority_expr:el('lsPriority').value, credit_expr:el('lsCredit').value,
+    cycles:+el('lsCycles').value, period:+el('lsPeriod').value };
+  el('runLandscape').disabled=true; el('lsInfo').textContent='running PPE landscape harvest…';
+  el('lsResult').innerHTML='';
+  try{
+    const res=await fetch('/api/landscape',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({geometry:currentAoiGeom, policy})});
+    const d=await res.json();
+    if(!res.ok||d.error){ el('lsInfo').textContent='error: '+(d.error||res.status); return; }
+    el('lsInfo').textContent = `${d.variant} · ${d.nplots} plots`
+      + (d.nexcluded?` · ${d.nexcluded} excluded (other variant)`:'')
+      + (d.capped?' · capped to largest':'');
+    const rows = (d.cycles||[]).map(c=>{
+      const bar = Math.max(0, Math.min(100, c.pct_of_target));
+      return `<tr><td>+${c.elapsed}yr</td><td>${c.ncut}/${c.nstands}</td>`
+        + `<td style="font-family:var(--mono)">${fmt(c.resource,0)} / ${fmt(c.target,0)}</td>`
+        + `<td style="width:70px"><div style="height:8px;background:var(--panel2);border-radius:3px;overflow:hidden">`
+        + `<div style="height:100%;width:${bar}%;background:var(--accent2)"></div></div></td>`
+        + `<td style="color:var(--muted)">${Math.round(c.pct_of_target)}%${c.hvpart>0?` · part ${c.hvpart}`:''}</td></tr>`;
+    }).join('');
+    el('lsResult').innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">`
+      + `<tr style="color:var(--muted);text-align:left"><th>when</th><th>cut</th><th>resource</th><th></th><th>%target</th></tr>`
+      + rows + `</table>`;
+  }catch(err){ el('lsInfo').textContent='error: '+err.message; }
+  finally{ el('runLandscape').disabled=false; }
 }
 
 boot().catch(err => { console.error(err); try { status.textContent = 'startup error: ' + err.message; } catch(_){} });

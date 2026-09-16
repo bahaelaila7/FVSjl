@@ -170,6 +170,30 @@
         volume &amp; carbon and the forward projection (time slider) arrive with the FVSjl adapter.
       </div>
     </div>
+
+    <div class="grp" id="landscapeGrp" hidden>
+      <h2>Cross-stand harvest budget <span class="badge" style="color:var(--accent);border-color:var(--accent)">PPE</span></h2>
+      <div class="hint" style="margin-bottom:8px">
+        A landscape <b>budget</b>: FVS-PPE picks which plots to cut each cycle, in priority
+        order, to meet a target resource flow across the whole AOI.
+      </div>
+      <label class="field">Target resource flow (per cycle)</label>
+      <input id="lsTarget" value="1000" title="e.g. a basal-area flow target, or an expression">
+      <div class="row" style="gap:6px;margin-top:6px">
+        <div style="flex:1"><label class="field">Priority</label>
+          <select id="lsPriority"><option value="BBA">Basal area (BBA)</option><option value="AGE">Stand age (AGE)</option></select></div>
+        <div style="flex:1"><label class="field">Credit toward target</label>
+          <select id="lsCredit" title="what a plot contributes to the target"><option value="SELECTED * BBA">Harvested BA (cut plots only)</option><option value="BBA">Standing BA (whole landscape)</option></select></div>
+      </div>
+      <div class="row" style="gap:6px;margin-top:6px">
+        <div style="flex:1"><label class="field">Start year</label><input class="num" id="lsYear" type="number" value="2020" style="width:100%"></div>
+        <div style="flex:1"><label class="field">Cycles</label><input class="num" id="lsCycles" type="number" min="1" max="20" value="3" style="width:100%"></div>
+        <div style="flex:1"><label class="field">Period</label><input class="num" id="lsPeriod" type="number" min="1" max="20" value="10" style="width:100%"></div>
+      </div>
+      <button class="mini go" id="runLandscape" style="margin-top:8px;width:100%">▶ Run landscape budget</button>
+      <div id="lsInfo" class="hint" style="margin-top:8px;font-family:var(--mono);font-size:11px"></div>
+      <div id="lsResult" style="margin-top:6px"></div>
+    </div>
   </aside>
 
   <main>

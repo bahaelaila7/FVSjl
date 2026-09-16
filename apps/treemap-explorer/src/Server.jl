@@ -180,6 +180,33 @@ function _parse_plan(o)
         cycles = Int(get(o, :cycles, 10)), period = Int(get(o, :period, 10)), actions = acts)
 end
 
+function _parse_policy(o)
+    FiaSim.LandscapePolicy(;
+        common_year   = Int(get(o, :common_year, 2020)),
+        target_expr   = String(get(o, :target_expr, "1000")),
+        priority_expr = String(get(o, :priority_expr, "BBA")),
+        credit_expr   = String(get(o, :credit_expr, "BBA")),
+        cycles        = Int(get(o, :cycles, 3)),
+        period        = Int(get(o, :period, 10)),
+        mslabel       = String(get(o, :mslabel, "ALL")))
+end
+
+"PPE cross-stand harvest budget over the AOI's plots (dominant variant)."
+function _landscape_response(geom5070, pol)
+    app = APP[]
+    acres, _ = _resolve_plots(geom5070)
+    cns = collect(keys(acres))
+    isempty(cns) && return (; error = "no plots resolved in the AOI")
+    capped = length(cns) > MAX_SIM_PLOTS
+    if capped
+        cns = sort(cns; by = cn -> -acres[cn])[1:MAX_SIM_PLOTS]
+    end
+    cache = joinpath(app.datadir, "derived", "sim_cache")
+    r = FiaSim.simulate_landscape(cns, acres, pol; cache_dir = cache)
+    (; variant = r.variant, nplots = r.nplots, nexcluded = r.nexcluded, capped = capped,
+       master_years = r.master_years, cycles = r.cycles)
+end
+
 function _simulate_response(geom5070, plan)
     app = APP[]
     acres, tm2cn = _resolve_plots(geom5070)
@@ -340,6 +367,19 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
             return _simulate_response(geom, plan)
         catch e
             @warn "simulate error" exception = (e, catch_backtrace())
+            return HTTP.Response(400, JSON3.write((; error = string(e))))
+        end
+    end
+
+    # PPE cross-stand harvest budget (landscape flow) over the AOI's plots
+    @post "/api/landscape" function (req)
+        try
+            body = JSON3.read(String(req.body))
+            geom = Aoi.geom_from_geojson(JSON3.write(body.geometry))
+            pol = _parse_policy(body.policy)
+            return _landscape_response(geom, pol)
+        catch e
+            @warn "landscape error" exception = (e, catch_backtrace())
             return HTTP.Response(400, JSON3.write((; error = string(e))))
         end
     end

@@ -18,7 +18,8 @@ module FiaSim
 using FVSjl
 import SQLite, DBInterface, SHA
 
-export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics, PlotResult
+export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics, PlotResult,
+       LandscapePolicy, simulate_landscape
 
 # Resolved at RUNTIME (honors FIA_DB set when the server starts). The default is derived
 # from this module's own location — the workspace root that holds the repo — not hardcoded:
@@ -349,6 +350,96 @@ function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir
     finally
         _PROG.running[] = false
     end
+end
+
+# ---------------------------------------------------------------------------
+# PPE cross-stand harvest budget (landscape flow) — FVS Parallel Processing
+# Extension MXHRVP. Instead of scheduling each plot independently, the user sets a
+# landscape harvest POLICY (a target resource flow + per-stand priority + credit) and
+# `ppe_run_landscape_harvest!` picks WHICH plots to cut each master cycle to meet the
+# target, in priority order. Policy variables: BBA/AGE (per-stand), SELECTED/AVBBA/
+# TOTALWT (landscape). Expressions reuse the Event-Monitor evaluator.
+# ---------------------------------------------------------------------------
+struct LandscapePolicy
+    common_year::Int         # all plots are harmonized to this inventory year so the
+    target_expr::String      #   master-cycle grid aligns across plots (FIA invyears vary)
+    priority_expr::String    # per-stand cut priority (e.g. "BBA")
+    credit_expr::String      # per-stand resource credit toward the target (e.g. "BBA")
+    cycles::Int
+    period::Int
+    mslabel::String
+end
+LandscapePolicy(; common_year=2020, target_expr="1000", priority_expr="BBA",
+                  credit_expr="BBA", cycles=3, period=10, mslabel="ALL") =
+    LandscapePolicy(common_year, target_expr, priority_expr, credit_expr, cycles, period, mslabel)
+
+"""
+    simulate_landscape(plt_cns, acres, pol; cache_dir) -> NamedTuple
+
+Run the PPE landscape harvest over the AOI's plots (area-weighted by `acres`, a
+Dict plt_cn→acres). Because the PPE reader ingests every stand with one variant, v1
+runs the AOI's DOMINANT variant and reports minority-variant plots as excluded.
+Returns `(; variant, nplots, nexcluded, master_years, cycles)` where `cycles` is a
+per-master-year selection table: which plots are cut, resource achieved vs target.
+"""
+function simulate_landscape(plt_cns::Vector{String}, acres::AbstractDict{String,Float64},
+                            pol::LandscapePolicy; cache_dir::AbstractString)
+    plt_cns = unique(plt_cns)
+    subdb, varmap = build_subdb(plt_cns; cache_dir=cache_dir)
+
+    # dominant variant (the PPE reads all stands with one variant; don't mis-read others)
+    counts = Dict{String,Int}()
+    for cn in plt_cns
+        v = get(varmap, cn, ""); isempty(v) && continue
+        counts[v] = get(counts, v, 0) + 1
+    end
+    isempty(counts) && error("no projectable plots in the AOI")
+    vdom = argmax(counts)
+    cns = [cn for cn in plt_cns if get(varmap, cn, "") == vdom]
+    nexcluded = length(plt_cns) - length(cns)
+
+    # harmonize INV_YEAR into a policy-specific DB copy so all plots share the grid
+    harm = joinpath(cache_dir, "landscape_$(vdom)_$(pol.common_year).db")
+    cp(subdb, harm; force=true); chmod(harm, 0o644)
+    db = SQLite.DB(harm)
+    DBInterface.execute(db, "UPDATE FVS_STANDINIT_PLOT SET INV_YEAR = $(pol.common_year)")
+    close(db)
+
+    keyfor(cn) = begin
+        k = tempname() * ".key"
+        write(k, string("STDIDENT\n", cn, "\n",
+            "DATABASE\nDSNin\n", harm, "\n",
+            "StandSQL\nSELECT * FROM FVS_STANDINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
+            "TreeSQL\nSELECT * FROM FVS_TREEINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\nEND\n",
+            _kwrec("NUMCYCLE", pol.cycles), "\nPROCESS\nSTOP\n"))
+        k
+    end
+    stands = FVSjl.PPEStand[]; ids = String[]
+    for cn in cns
+        push!(stands, FVSjl.PPEStand(keyfor(cn); area = get(acres, cn, 1.0)))
+        push!(ids, cn)
+    end
+    lbl = fill(pol.mslabel, length(stands))
+    master_years = [pol.common_year + pol.period * k for k in 0:pol.cycles]
+
+    res = FVSjl.ppe_run_landscape_harvest!(stands;
+            variant = FVSjl.variant_from_code(vdom),
+            labels = lbl, mslabel = pol.mslabel,
+            target_expr = pol.target_expr, priority_expr = pol.priority_expr,
+            credit_expr = pol.credit_expr, master_years = master_years,
+            period = pol.period, lprtct = true)
+
+    cycles = map(res) do r
+        (; year = r.year, elapsed = r.year - pol.common_year,
+           target = round(r.target; digits = 1),
+           resource = round(r.selected_resource; digits = 1),
+           pct_of_target = round(r.pct_of_target; digits = 1),
+           hvpart = round(r.hvpart; digits = 3),
+           cut = String[r.stand_ids[i] for i in eachindex(r.selected) if r.selected[i]],
+           ncut = count(r.selected), nstands = length(r.selected))
+    end
+    (; variant = vdom, nplots = length(cns), nexcluded = nexcluded,
+       master_years = master_years, cycles = cycles)
 end
 
 end # module
