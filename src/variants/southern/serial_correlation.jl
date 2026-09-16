@@ -121,6 +121,8 @@ function species_sort!(s::StandState)
         if pos >= start
             # order this species' records by their lineage key — the FVS LNKCHN/TRIPLE
             # traversal order — so per-tree RNG draws match the oracle bit-for-bit.
+            # (After an establishment SPESRT rebuild the key is reset to the ascending
+            # physical index — see `spesrt_reorder!` — so this sort is then a no-op.)
             sort!(view(ind1, start:pos); by = j -> t.sort_key[j])
             isct[sp, 1] = Int32(start); isct[sp, 2] = Int32(pos)
         end

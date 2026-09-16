@@ -1004,6 +1004,20 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint)   # BM western: grow birth-cycle regen (bm/esgent.f, #185)
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
+    # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment
+    # model calls ESGENT, which calls SPESRT (esgent.f:49), rebuilding IND1 in ASCENDING
+    # physical order and DISCARDING the post-TRIPLE REASS (U,C,L) lineage interleave
+    # (grincr.f:553). So a cycle that ADDS regen enters the next cycle's DGSCOR in ascending
+    # order, not lineage order; a cycle with NO new trees leaves the REASS lineage intact.
+    # jl only reset `sort_key` inside the TREDEL removal path (tredel_compact!); it never
+    # modeled this establishment SPESRT, so the stale REASS lineage key mis-ordered the
+    # per-tree DGSCOR/REGENT RNG draws from cyc3 on (IE none over-grows BA +3/+4 vs oracle).
+    # Gate on "records were added this cycle" (t.n > es_nstart) — mirrors estab.f:1493 exactly;
+    # NOT the coarse AUTOES-active flag (which over-fires on no-establishment cycles and moves
+    # otherwise-bit-exact stands off the oracle). Scoped to IE (measured bit-exact vs
+    # FVSie_g16); SN/eastern lineage sort unchanged. EM + other western AUTOES REGENT variants
+    # share this SPESRT and are a measured follow-up (each needs its own oracle A/B).
+    s.variant isa InlandEmpire && s.trees.n > es_nstart && spesrt_reorder!(s.trees)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.

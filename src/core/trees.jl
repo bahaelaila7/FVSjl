@@ -258,3 +258,23 @@ next cycle, drifting the RNG from the oracle. (The COMPRESS-keyword compression 
 bottom half of comcup.f is a management option — not ported here.)
 """
 comcup!(t::TreeList) = tredel_compact!(t; thresh = 1f-5)
+
+"""
+    spesrt_reorder!(t)
+
+Reset the species-sort lineage key (`sort_key`) to each record's ascending physical
+index — the effect of FVS's `SPESRT` rebuild (spesrt.f→lnkchn.f→setup.f), which
+re-lists every species in ASCENDING PHYSICAL record order and DISCARDS the post-TRIPLE
+`REASS` (upper,central,lower) lineage interleave (grincr.f:553). FVS calls SPESRT
+whenever the tree list is modified: after a TREDEL removal (already handled inside
+`tredel_compact!`) and — crucially — unconditionally after the establishment model
+generates records (esgent.f:49, esnutr.f:138). A stand with active establishment
+therefore enters the NEXT growth cycle's DGSCOR in ascending physical order, NOT the
+REASS lineage order. (For a NOAUTOES stand no establishment SPESRT fires, so the REASS
+interleave survives to the next cycle — which is why the eastern/NOAUTOES stochastic-DG
+path keeps needing `species_sort!`'s lineage sort.)
+"""
+function spesrt_reorder!(t::TreeList)
+    @inbounds for i in 1:t.n; t.sort_key[i] = Float64(i); end
+    return t
+end
