@@ -25,10 +25,13 @@ const MASTER_DB = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
 # ---------------------------------------------------------------------------
 # Plan model (mirrors the frontend JSON)
 # ---------------------------------------------------------------------------
-"One scheduled management action. `kind` ∈ (\"grow\",\"thin\",\"plant\")."
+"One scheduled management action. `kind` ∈ (\"grow\",\"thin\",\"plant\").
+Timing is RELATIVE: `cycle` is a 1-based projection cycle (fires ~cycle×period years
+out), scheduled via FVS cycle-number dating so it lands at the same relative point on
+every plot regardless of that plot's inventory year."
 struct PlanAction
     kind::String
-    year::Int                    # calendar year the action fires (>=1000)
+    cycle::Int                   # 1-based projection cycle the action fires in
     # thin:
     metric::String               # "BA" | "TPA" | "SDI"  (residual target metric)
     target::Float64              # residual value (0 = clearcut)
@@ -40,9 +43,9 @@ struct PlanAction
     tpa::Float64                 # trees/acre planted
     survival::Float64            # percent 0-100
 end
-PlanAction(; kind, year=0, metric="BA", target=0.0, direction="below",
+PlanAction(; kind, cycle=1, metric="BA", target=0.0, direction="below",
              dbh_lo=0.0, dbh_hi=999.0, species="", tpa=0.0, survival=100.0) =
-    PlanAction(kind, year, metric, target, direction, dbh_lo, dbh_hi, species, tpa, survival)
+    PlanAction(kind, cycle, metric, target, direction, dbh_lo, dbh_hi, species, tpa, survival)
 
 struct ManagementPlan
     name::String
@@ -56,7 +59,7 @@ ManagementPlan(; name="grow-only", cycles=10, period=10, actions=PlanAction[]) =
 "Stable hash of a plan (for caching)."
 plan_hash(p::ManagementPlan) = bytes2hex(SHA.sha1(string(
     p.cycles, "|", p.period, "|",
-    join(("$(a.kind):$(a.year):$(a.metric):$(a.target):$(a.direction):$(a.dbh_lo):$(a.dbh_hi):$(a.species):$(a.tpa):$(a.survival)"
+    join(("$(a.kind):$(a.cycle):$(a.metric):$(a.target):$(a.direction):$(a.dbh_lo):$(a.dbh_hi):$(a.species):$(a.tpa):$(a.survival)"
           for a in p.actions), ";"))))[1:16]
 
 # ---------------------------------------------------------------------------
@@ -78,14 +81,16 @@ function plan_keywords(p::ManagementPlan)::String
     plants = filter(a -> a.kind == "plant", p.actions)
     for a in thins
         tok = get(_THIN_TOKEN, (a.metric, a.direction), "THINBBA")
-        # THIN*: field1=year, field2=residual target, field3=cut-eff, field4/5=DBH lo/hi
-        println(io, _kwrec(tok, a.year, a.target, 1, a.dbh_lo, a.dbh_hi))
+        # THIN*: field1=DATE (<1000 ⇒ CYCLE number, relative; our 0-based cycle → FVS
+        # cycle a.cycle+1, so cycle 0 = at inventory, cycle 1 = +period …),
+        # field2=residual target, field3=cut-eff, field4/5=DBH lo/hi
+        println(io, _kwrec(tok, a.cycle + 1, a.target, 1, a.dbh_lo, a.dbh_hi))
     end
     if !isempty(plants)
         println(io, "ESTAB")
         for a in plants
-            # PLANT: year, species(alpha), trees/acre, survival%
-            println(io, _kwrec("PLANT", a.year, a.species, a.tpa, a.survival))
+            # PLANT: DATE(cycle a.cycle+1), species(alpha), trees/acre, survival%
+            println(io, _kwrec("PLANT", a.cycle + 1, a.species, a.tpa, a.survival))
         end
         println(io, "END")
     end
@@ -180,12 +185,39 @@ function _parse_sum_and_carbon(out::AbstractString)::Vector{CycleMetrics}
     out2
 end
 
-_MEM = Dict{String,Vector{CycleMetrics}}()   # cache: "plt_cn|planhash" => cycles
+const _MEM = Dict{String,Vector{CycleMetrics}}()   # cache: "plt_cn|planhash" => cycles
+const _MEM_LOCK = ReentrantLock()
+
+"Run one plot; returns its per-cycle metrics or `nothing`."
+function _run_one(cn::String, vcode::String, subdb::String, plan::ManagementPlan, mgmt::String)
+    key = tempname() * ".key"
+    write(key, string(
+        "STDIDENT\n", cn, "\n",
+        "DATABASE\nDSNin\n", subdb, "\n",
+        "StandSQL\nSELECT * FROM FVS_STANDINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
+        "TreeSQL\nSELECT * FROM FVS_TREEINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
+        "END\n",
+        _kwrec("NUMCYCLE", plan.cycles), "\n",
+        mgmt,
+        "FMIn\nCARBREPT\nEnd\n",
+        "ECHOSUM\nPROCESS\nSTOP\n"))
+    try
+        out = FVSjl.run_keyfile(key; variant=FVSjl.variant_from_code(vcode), period=plan.period)
+        return _parse_sum_and_carbon(out)
+    catch e
+        @warn "simulate failed" cn vcode exception=e
+        return nothing
+    finally
+        rm(key; force=true)
+    end
+end
 
 """
     simulate_plots(plt_cns, plan; cache_dir) -> Dict{plt_cn => Vector{CycleMetrics}}
 
-Run every plot under the plan (deduped; cached). Plots are grouped by FIA VARIANT.
+Run every plot under the plan (deduped; cached). Runs are parallelized across Julia
+threads (start with `--threads=auto`); each variant is warmed up serially first so a
+plot's lazy per-variant caches are populated before the threaded fan-out.
 """
 function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir::AbstractString)
     plt_cns = unique(plt_cns)
@@ -193,31 +225,34 @@ function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir
     ph = plan_hash(plan)
     mgmt = plan_keywords(plan)
     results = Dict{String,Vector{CycleMetrics}}()
+    torun = String[]
     for cn in plt_cns
-        ck = "$cn|$ph"
-        if haskey(_MEM, ck); results[cn] = _MEM[ck]; continue; end
-        vcode = get(varmap, cn, "")
-        isempty(vcode) && continue                     # plot absent from FIA plot table
-        key = tempname() * ".key"
-        write(key, string(
-            "STDIDENT\n", cn, "\n",
-            "DATABASE\nDSNin\n", subdb, "\n",
-            "StandSQL\nSELECT * FROM FVS_STANDINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
-            "TreeSQL\nSELECT * FROM FVS_TREEINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
-            "END\n",
-            _kwrec("NUMCYCLE", plan.cycles), "\n",
-            mgmt,
-            "FMIn\nCARBREPT\nEnd\n",
-            "ECHOSUM\nPROCESS\nSTOP\n"))
-        try
-            out = FVSjl.run_keyfile(key; variant=FVSjl.variant_from_code(vcode), period=plan.period)
-            cyc = _parse_sum_and_carbon(out)
-            _MEM[ck] = cyc; results[cn] = cyc
-        catch e
-            @warn "simulate failed" cn vcode exception=e
-        finally
-            rm(key; force=true)
-        end
+        r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$ph", nothing); end
+        r !== nothing ? (results[cn] = r) :
+            (isempty(get(varmap, cn, "")) || push!(torun, cn))
+    end
+    isempty(torun) && return results
+
+    # warm up lazy per-variant caches with one serial run per variant present
+    warmed = Set{String}()
+    for cn in torun
+        v = varmap[cn]; v in warmed && continue
+        push!(warmed, v)
+        r = _run_one(cn, v, subdb, plan, mgmt)
+        r === nothing && continue
+        results[cn] = r
+        lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = r; end
+    end
+
+    rest = filter(cn -> !haskey(results, cn), torun)
+    out = Vector{Union{Nothing,Vector{CycleMetrics}}}(undef, length(rest))
+    Threads.@threads for i in eachindex(rest)
+        out[i] = _run_one(rest[i], varmap[rest[i]], subdb, plan, mgmt)
+    end
+    for (i, cn) in enumerate(rest)
+        out[i] === nothing && continue
+        results[cn] = out[i]
+        lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = out[i]; end
     end
     results
 end

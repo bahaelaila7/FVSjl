@@ -66,35 +66,50 @@ function aggregate_aoi(counts::AbstractDict, tt::TreeList.TreeTable, st::VAT.Sta
     ba_total = 0.0; tpa_exp = 0.0
     cL = 0.0; cD = 0.0; cDwn = 0.0; bioL = 0.0; volL = 0.0
 
-    for (tm, px) in counts
+    pairs = collect(counts)                       # (tm_id, pixels)
+    # cheap serial pass: VAT-precomputed stand totals + area/counts (no I/O)
+    for (tm, px) in pairs
         acres = px * ACRES_PER_PIXEL
-        npixels += px
-        nplots += 1
-        acres_tot += acres
-
+        npixels += px; nplots += 1; acres_tot += acres
         rec = VAT.stand(st, tm)
-        if rec !== nothing
-            isnan(rec.carbon_l)   || (cL   += rec.carbon_l   * acres)
-            isnan(rec.carbon_d)   || (cD   += rec.carbon_d   * acres)
-            isnan(rec.carbon_dwn) || (cDwn += rec.carbon_dwn * acres)
-            isnan(rec.drybio_l)   || (bioL += rec.drybio_l   * acres)
-            isnan(rec.volcfnet_l) || (volL += rec.volcfnet_l * acres)
-        end
+        rec === nothing && continue
+        isnan(rec.carbon_l)   || (cL   += rec.carbon_l   * acres)
+        isnan(rec.carbon_d)   || (cD   += rec.carbon_d   * acres)
+        isnan(rec.carbon_dwn) || (cDwn += rec.carbon_dwn * acres)
+        isnan(rec.drybio_l)   || (bioL += rec.drybio_l   * acres)
+        isnan(rec.volcfnet_l) || (volL += rec.volcfnet_l * acres)
+    end
 
-        for tr in TreeList.treelist(tt, tm)
-            tr.statuscd == 1 || continue          # live only
-            (isnan(tr.dia) || tr.dia <= 0) && continue
-            w = tr.tpa_unadj * acres              # expanded count
-            ba = ba_per_tree(tr.dia) * w
-            lo = dbh_class_lo(tr.dia)
-            k = (tr.spcd, lo)
-            c, b = get(acc, k, (0.0, 0.0))
-            acc[k] = (c + w, b + ba)
-            ba_total += ba
-            tpa_exp += w
-            get!(names, tr.spcd, tr.common_name)
-            get!(syms, tr.spcd, tr.species_symbol)
+    # parallel pass: the per-plot tree-list reads (CSV seek+parse) fanned across tasks,
+    # each with a local accumulator, then merged — the species×DBH tally + BA/TPA totals.
+    nchunks = clamp(Threads.nthreads(), 1, max(1, length(pairs)))
+    chunks = [pairs[i:nchunks:end] for i in 1:nchunks]
+    tasks = map(chunks) do chunk
+        Threads.@spawn begin
+            la = Dict{Tuple{Int16,Int},NTuple{2,Float64}}()
+            lba = 0.0; ltpa = 0.0
+            ln = Dict{Int16,String}(); ls = Dict{Int16,String}()
+            for (tm, px) in chunk
+                acres = px * ACRES_PER_PIXEL
+                for tr in TreeList.treelist(tt, tm)
+                    tr.statuscd == 1 || continue
+                    (isnan(tr.dia) || tr.dia <= 0) && continue
+                    w = tr.tpa_unadj * acres
+                    ba = ba_per_tree(tr.dia) * w
+                    k = (tr.spcd, dbh_class_lo(tr.dia))
+                    c, b = get(la, k, (0.0, 0.0)); la[k] = (c + w, b + ba)
+                    lba += ba; ltpa += w
+                    get!(ln, tr.spcd, tr.common_name); get!(ls, tr.spcd, tr.species_symbol)
+                end
+            end
+            (la, lba, ltpa, ln, ls)
         end
+    end
+    for t in tasks
+        la, lba, ltpa, ln, ls = fetch(t)
+        for (k, v) in la; c, b = get(acc, k, (0.0, 0.0)); acc[k] = (c + v[1], b + v[2]); end
+        ba_total += lba; tpa_exp += ltpa
+        merge!(names, ln); merge!(syms, ls)
     end
 
     cells = [SpeciesDbhCell(k[1], k[2], v[1], v[2]) for (k, v) in acc]

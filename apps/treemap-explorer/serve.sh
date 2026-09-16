@@ -19,7 +19,8 @@ fi
 
 host="${HOST:-127.0.0.1}"
 port="${PORT:-8087}"
+threads="${JULIA_NUM_THREADS:-auto}"      # parallel FVSjl runs across the AOI's plots
 
 echo "depot: $JULIA_DEPOT_PATH"
-echo "serving http://$host:$port  (HOST/PORT/TREEMAP_DATA env to override)"
-exec julia --project="$here" -e "using TreeMapExplorer; TreeMapExplorer.start_server!(; host=\"$host\", port=$port)"
+echo "serving http://$host:$port  (threads=$threads; HOST/PORT/JULIA_NUM_THREADS/TREEMAP_DATA to override)"
+exec julia --project="$here" --threads="$threads" -e "using TreeMapExplorer; TreeMapExplorer.start_server!(; host=\"$host\", port=$port)"

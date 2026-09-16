@@ -58,18 +58,28 @@ end
 const MAX_SIM_PLOTS = 200          # cap for a responsive synchronous request
 const HA_PER_ACRE = 0.404685642
 
-"AOI geometry (5070) -> Dict{PLT_CN => acres}, capped to the largest-area plots."
-function _resolve_plot_acres(geom5070)
+# the projected layer of the last simulation: tm_id => per-cycle metrics (for /simtiles)
+const SIM_LAYER = Ref{Dict{UInt32,Vector{FiaSim.CycleMetrics}}}(Dict{UInt32,Vector{FiaSim.CycleMetrics}}())
+# map-colorable per-area sim metrics: name => (field, lo, hi, colormap)
+const SIM_METRICS = Dict(
+    "carbon" => (:carbon_live_ag, 0.0, 80.0,  Color.GREENS),   # t C/ha live aboveground
+    "ba"     => (:ba,             0.0, 250.0, Color.VIRIDIS),  # ft²/ac
+    "volume" => (:tcuft,          0.0, 8000.0, Color.VIRIDIS)) # ft³/ac standing
+
+"AOI geometry (5070) -> (Dict{PLT_CN=>acres}, Dict{tm_id=>PLT_CN}), capped to largest plots."
+function _resolve_plots(geom5070)
     app = APP[]
     counts = Raster.aoi_tally(app.rasterctx, geom5070)      # tm_id => pixels
     acres = Dict{String,Float64}()
+    tm2cn = Dict{UInt32,String}()
     for (tm, px) in counts
         rec = VAT.stand(app.st, tm)
         rec === nothing && continue
         cn = string(rec.plt_cn)
+        tm2cn[tm] = cn
         acres[cn] = get(acres, cn, 0.0) + px * Aggregate.ACRES_PER_PIXEL
     end
-    acres
+    acres, tm2cn
 end
 
 function _parse_plan(o)
@@ -77,12 +87,12 @@ function _parse_plan(o)
     for a in get(o, :actions, ())
         kind = String(a.kind)
         if kind == "thin"
-            push!(acts, FiaSim.PlanAction(; kind = "thin", year = Int(a.year),
+            push!(acts, FiaSim.PlanAction(; kind = "thin", cycle = Int(get(a, :cycle, 1)),
                 metric = String(get(a, :metric, "BA")), target = Float64(get(a, :target, 0)),
                 direction = String(get(a, :direction, "below")),
                 dbh_lo = Float64(get(a, :dbh_lo, 0)), dbh_hi = Float64(get(a, :dbh_hi, 999))))
         elseif kind == "plant"
-            push!(acts, FiaSim.PlanAction(; kind = "plant", year = Int(a.year),
+            push!(acts, FiaSim.PlanAction(; kind = "plant", cycle = Int(get(a, :cycle, 1)),
                 species = String(a.species), tpa = Float64(a.tpa),
                 survival = Float64(get(a, :survival, 100))))
         end
@@ -93,7 +103,7 @@ end
 
 function _simulate_response(geom5070, plan)
     app = APP[]
-    acres = _resolve_plot_acres(geom5070)
+    acres, tm2cn = _resolve_plots(geom5070)
     total_aoi_acres = sum(values(acres); init = 0.0)
     # cap to the largest-area plots for a bounded synchronous run
     cns = sort(collect(keys(acres)); by = cn -> -acres[cn])
@@ -122,9 +132,34 @@ function _simulate_response(geom5070, plan)
            carbon_total = round(ct; digits = 1),
            carbon_live_ag = round(cl; digits = 1))
     end
+    # build the per-pixel projected layer (tm_id => per-cycle metrics) for the time slider
+    layer = Dict{UInt32,Vector{FiaSim.CycleMetrics}}()
+    for (tm, cn) in tm2cn
+        v = get(res, cn, nothing)
+        v === nothing || (layer[tm] = v)
+    end
+    SIM_LAYER[] = layer
+
     (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
        capped = capped, acres = round(total_aoi_acres; digits = 1),
-       sim_acres = round(sim_acres; digits = 1), cycles = cycles)
+       sim_acres = round(sim_acres; digits = 1),
+       ncycles = ncyc, period = plan.period, cycles = cycles)
+end
+
+"Colorized projected tile for the last simulation at `cycle` (0-based), metric per-area."
+function _simtile_handler(metric::String, cycle::Int, z::Int, x::Int, y::Int)
+    layer = SIM_LAYER[]
+    isempty(layer) && return HTTP.Response(204)
+    field, lo, hi, cmap = get(SIM_METRICS, metric, SIM_METRICS["carbon"])
+    tmids = Raster.warp_tile(APP[].rasterctx, z, x, y; size = 256)
+    valfn = tm -> begin
+        v = get(layer, tm, nothing)
+        (v === nothing || cycle + 1 > length(v)) && return NaN
+        Float64(getfield(v[cycle+1], field))
+    end
+    img = Color.colorize(tmids, valfn, cmap, lo, hi)
+    HTTP.Response(200, ["Content-Type" => "image/png", "Cache-Control" => "no-store"];
+                  body = _png_bytes(img))
 end
 
 function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
@@ -137,6 +172,16 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
         catch e
             @warn "tile error" attr z x y exception = e
             return HTTP.Response(204)   # empty tile
+        end
+    end
+
+    @get "/simtiles/{metric}/{cycle}/{z}/{x}/{y}" function (req, metric::String, cycle::String, z::String, x::String, y::String)
+        try
+            yi = parse(Int, first(split(y, '.')))
+            return _simtile_handler(metric, parse(Int, cycle), parse(Int, z), parse(Int, x), yi)
+        catch e
+            @warn "simtile error" exception = e
+            return HTTP.Response(204)
         end
     end
 

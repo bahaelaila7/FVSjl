@@ -104,7 +104,9 @@ async function boot() {
   el('loadPlan').onclick = () => el('planFile').click();
   el('planFile').onchange = loadPlan;
   el('runSim').onclick = runSim;
-  el('simMetric').onchange = drawSimChart;
+  el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
+  el('simSlider').oninput = e => onSlider(e.target.value);
+  el('simPlay').onclick = toggleSimPlay;
   el('pCycles').onchange = e => plan.cycles = +e.target.value;
   el('pPeriod').onchange = e => plan.period = +e.target.value;
   renderActions();
@@ -244,7 +246,7 @@ function clearAoi(){
   if (map.getSource('aoi')) map.getSource('aoi').setData(emptyFC());
   currentAoiGeom = null; el('download').disabled = true;
   el('runSim').disabled = true;
-  lastSim = null; drawSimChart();
+  lastSim = null; clearSimLayer(); drawSimChart();
   el('statsGrp').hidden = true; el('chartGrp').hidden = true;
 }
 
@@ -371,17 +373,16 @@ function renderActions(){
   }
   plan.actions.forEach((a,i)=>{
     const d=document.createElement('div'); d.className='act '+a.kind;
+    const cy = a=>`<label>at</label><input type="number" class="num" min="0" max="${plan.cycles-1}" value="${a.cycle}" data-i="${i}" data-f="cycle" title="cycles from now (0 = immediately)"><span style="color:var(--muted);font-size:11px">${a.cycle===0?'now':'+'+a.cycle*plan.period+'yr'}</span>`;
     if(a.kind==='thin'){
-      d.innerHTML = `<span class="tag thin">Thin</span>
-        <label>yr</label><input type="number" class="num" value="${a.year}" data-i="${i}" data-f="year">
+      d.innerHTML = `<span class="tag thin">Thin</span>${cy(a)}
         <label>to</label><select data-i="${i}" data-f="metric">${_opt(['BA','TPA','SDI'],a.metric)}</select>
         <input type="number" class="num" value="${a.target}" data-i="${i}" data-f="target" title="residual (0 = clearcut)">
         <select data-i="${i}" data-f="direction">${_opt([['below','from below'],['above','from above']],a.direction)}</select>
         <label>DBH</label><input type="number" class="num" value="${a.dbh_lo}" data-i="${i}" data-f="dbh_lo">–<input type="number" class="num" value="${a.dbh_hi}" data-i="${i}" data-f="dbh_hi">″
         <button class="rm" data-rm="${i}" title="remove">×</button>`;
     } else {
-      d.innerHTML = `<span class="tag plant">Plant</span>
-        <label>yr</label><input type="number" class="num" value="${a.year}" data-i="${i}" data-f="year">
+      d.innerHTML = `<span class="tag plant">Plant</span>${cy(a)}
         <label>sp</label><input list="splist" value="${a.species}" data-i="${i}" data-f="species" style="width:60px">
         <input type="number" class="num" value="${a.tpa}" data-i="${i}" data-f="tpa" title="trees/acre">tpa
         <label>surv</label><input type="number" class="num" value="${a.survival}" data-i="${i}" data-f="survival">%
@@ -393,12 +394,13 @@ function renderActions(){
     const i=+e.target.dataset.i, f=e.target.dataset.f; let v=e.target.value;
     if(!['species','metric','direction'].includes(f)) v = +v;
     plan.actions[i][f] = v;
+    if(f==='cycle') renderActions();     // refresh the "+N yr" label
   });
   host.querySelectorAll('[data-rm]').forEach(b => b.onclick = e => {
     plan.actions.splice(+e.currentTarget.dataset.rm,1); renderActions(); });
 }
-function addThin(){ plan.actions.push({kind:'thin',year:_planYear(),metric:'BA',target:80,direction:'below',dbh_lo:0,dbh_hi:999}); renderActions(); }
-function addPlant(){ plan.actions.push({kind:'plant',year:_planYear(),species:'DF',tpa:300,survival:85}); renderActions(); }
+function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',dbh_lo:0,dbh_hi:999}); renderActions(); }
+function addPlant(){ plan.actions.push({kind:'plant',cycle:1,species:'DF',tpa:300,survival:85}); renderActions(); }
 
 function savePlan(){
   plan.cycles=+el('pCycles').value; plan.period=+el('pPeriod').value;
@@ -428,10 +430,40 @@ async function runSim(){
       body:JSON.stringify({geometry:currentAoiGeom, plan})});
     const d=await res.json();
     if(!res.ok||d.error){ setStatus('simulate error: '+(d.error||res.status)); return; }
-    lastSim=d; drawSimChart();
+    lastSim=d; plan.period=d.period||plan.period; drawSimChart(); setupSlider(d);
     setStatus(`simulated ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${fmt(d.acres)} ac${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
   }catch(err){ setStatus('simulate error: '+err.message); }
   finally{ el('runSim').disabled=false; }
+}
+
+/* time slider — recolor the AOI's pixels to the projected state at each cycle */
+let simCycle=0, simTimer=null;
+const mapMetric = () => { const m=el('simMetric').value; return m==='ba_ac'?'ba' : m==='volume'?'volume' : 'carbon'; };
+function setupSlider(d){
+  const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
+  el('timerow').style.display = (d.ncycles>1) ? 'flex' : 'none';
+  updateSimTime(); setSimLayer(); drawSimChart();
+}
+function updateSimTime(){ el('simTime').textContent = simCycle===0 ? 'now (cycle 0)' : `+${simCycle*plan.period} yr · cyc ${simCycle}`; }
+function setSimLayer(){
+  if(!map || !lastSim) return;
+  if(map.getLayer('simlayer')) map.removeLayer('simlayer');
+  if(map.getSource('simlayer')) map.removeSource('simlayer');
+  const url=`/simtiles/${mapMetric()}/${simCycle}/{z}/{x}/{y}.png`;
+  map.addSource('simlayer',{type:'raster',tileSize:256,tiles:[url]});
+  map.addLayer({id:'simlayer',type:'raster',source:'simlayer',paint:{'raster-opacity':0.92}}, aoiBeforeId());
+}
+function clearSimLayer(){
+  if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; }
+  el('timerow').style.display='none';
+  if(map){ if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer'); }
+}
+function onSlider(v){ simCycle=+v; el('simSlider').value=simCycle; updateSimTime(); setSimLayer(); drawSimChart(); }
+function toggleSimPlay(){
+  if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; return; }
+  el('simPlay').textContent='❚❚';
+  const mx=+el('simSlider').max;
+  simTimer=setInterval(()=>{ onSlider(simCycle>=mx ? 0 : simCycle+1); }, 850);
 }
 
 function drawSimChart(){
@@ -454,6 +486,9 @@ function drawSimChart(){
          pts.forEach(p=>add('circle',{cx:X(p.x),cy:Y(p.y),r:2.5,fill:'#4ade80'})); }
   const step=Math.ceil(pts.length/6);
   pts.forEach((p,i)=>{ if(i%step===0||i===pts.length-1) add('text',{x:X(p.x),y:H-7,'text-anchor':'middle',fill:'#8ba393','font-size':9}).textContent='+'+p.x; });
+  // current-cycle marker (tracks the time slider)
+  if(el('timerow').style.display!=='none'){ const mx=X(simCycle*(lastSim.period||plan.period));
+    add('line',{x1:mx,y1:mT,x2:mx,y2:mT+ph,stroke:'#facc15','stroke-width':1.5,'stroke-dasharray':'3 2'}); }
 }
 
 function onAoiReady(cells){
