@@ -20,8 +20,11 @@ import SQLite, DBInterface, SHA
 
 export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics
 
-# resolved at RUNTIME so FIA_DB set when the server starts is honored (not baked at precompile)
-master_db() = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
+# Resolved at RUNTIME (honors FIA_DB set when the server starts). The default is derived
+# from this module's own location — the workspace root that holds the repo — not hardcoded:
+#   <root>/apps/treemap-explorer/src/FiaSim.jl  ->  up 4 = <workspace>  ->  SQLite_FIADB_ENTIRE.db
+master_db() = get(ENV, "FIA_DB",
+    normpath(joinpath(@__DIR__, "..", "..", "..", "..", "SQLite_FIADB_ENTIRE.db")))
 
 # ---------------------------------------------------------------------------
 # Plan model (mirrors the frontend JSON)
