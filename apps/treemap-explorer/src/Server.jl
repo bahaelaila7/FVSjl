@@ -9,6 +9,15 @@ const PUBLIC = normpath(joinpath(@__DIR__, "..", "public"))
 # raster geographic bounds (EPSG:4326) for map fit — CONUS Albers extent corners
 const CONUS_BOUNDS_4326 = (west = -127.9, south = 22.7, east = -65.3, north = 51.6)
 
+# Extension points: data sources and simulation engines. Today one of each is
+# implemented; the UI presents them as selectable so more can be added later.
+const SOURCES = [
+    (; id = "treemap2022", name = "TreeMap 2022 CONUS", detail = "USFS · 30 m · circa 2022",
+       active = true)]
+const ENGINES = [
+    (; id = "fvsjl", name = "FVSjl", detail = "Forest Vegetation Simulator (Julia port)",
+       active = true)]
+
 _png_bytes(img) = (io = IOBuffer(); PNGFiles.save(io, img); take!(io))
 
 function _cmap_name(cm)
@@ -193,7 +202,8 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
 
     @get "/api/meta" function (req)
         (; default_attr = DEFAULT_ATTR, bounds = CONUS_BOUNDS_4326,
-           nplots_total = length(app.st.by_tm))
+           nplots_total = length(app.st.by_tm),
+           sources = SOURCES, engines = ENGINES)
     end
 
     # AOI: JSON body {"geometry": <geojson geometry>} (drawn), or raw file upload

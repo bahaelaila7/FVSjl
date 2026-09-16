@@ -47,6 +47,12 @@ async function boot() {
     sel.appendChild(o);
   });
 
+  // source & engine selectors (extension points; one option each for now)
+  const fill=(id,items)=>{ const s=el(id); (items||[]).forEach(it=>{ const o=document.createElement('option'); o.value=it.id; o.textContent=it.name; o.title=it.detail||''; s.appendChild(o); }); };
+  fill('source', meta.sources); fill('engine', meta.engines);
+  const src0=(meta.sources||[])[0], eng0=(meta.engines||[])[0];
+  el('subline').textContent = [src0&&src0.detail, eng0&&('engine: '+eng0.name)].filter(Boolean).join(' · ');
+
   const EMPTY = {type:'FeatureCollection',features:[]};
   map = new maplibregl.Map({
     container: 'map',
@@ -62,7 +68,7 @@ async function boot() {
       // declared here (not via addLayer) so the draw layers can never be missing
       layers: [
         { id:'base', type:'raster', source:'base' },
-        { id:'treemap', type:'raster', source:RASTER_SRC, paint:{'raster-opacity':0.85} },
+        { id:'treemap', type:'raster', source:RASTER_SRC, layout:{visibility:'none'}, paint:{'raster-opacity':0.85} },
         { id:'aoi-fill', type:'fill', source:'aoi',
           paint:{'fill-color':'#4ade80','fill-opacity':0.12} },
         { id:'aoi-line', type:'line', source:'aoi',
@@ -87,8 +93,9 @@ async function boot() {
   map.on('load', () => {
     map.fitBounds([[meta.bounds.west,meta.bounds.south],[meta.bounds.east,meta.bounds.north]],
                   {padding:20, duration:0});
+    setAttrVisible(attrVisible());     // sync: off by default -> no whole-map tiles fetched
     updateLegend();
-    setStatus(`${fmt(meta.nplots_total)} plots · ${attrs[curAttr].label} · click “Draw polygon” to select an AOI`);
+    setStatus(`${fmt(meta.nplots_total)} plots · draw or upload an AOI to compute stats`);
   });
 
   sel.onchange = e => { curAttr = e.target.value; swapTiles(); updateLegend();
@@ -97,6 +104,7 @@ async function boot() {
     const v = +e.target.value; el('opv').textContent = v+'%';
     if (map.getLayer('treemap')) map.setPaintProperty('treemap','raster-opacity', v/100);
   };
+  el('showAttr').onchange = e => setAttrVisible(e.target.checked);
   el('basemap').onchange = e => setBasemap(e.target.value);
   el('addThin').onclick = addThin;
   el('addPlant').onclick = addPlant;
@@ -135,12 +143,19 @@ function setBasemap(key){
 }
 
 const tileUrl = a => `/tiles/${a}/{z}/{x}/{y}.png`;
+const attrVisible = () => el('showAttr').checked;
 function swapTiles(){
   if (map.getLayer('treemap')) map.removeLayer('treemap');
   if (map.getSource(RASTER_SRC)) map.removeSource(RASTER_SRC);
+  if (!attrVisible()) return;                 // don't fetch whole-map tiles when off
   map.addSource(RASTER_SRC,{type:'raster',tileSize:256,tiles:[tileUrl(curAttr)]});
   map.addLayer({id:'treemap',type:'raster',source:RASTER_SRC,
     paint:{'raster-opacity':(+el('op').value)/100}}, aoiBeforeId());
+}
+function setAttrVisible(on){
+  if(on){ if(!map.getLayer('treemap')) swapTiles();
+          else map.setLayoutProperty('treemap','visibility','visible'); }
+  else if(map.getLayer('treemap')){ map.removeLayer('treemap'); if(map.getSource(RASTER_SRC)) map.removeSource(RASTER_SRC); }
 }
 function updateLegend(){
   const a = attrs[curAttr];

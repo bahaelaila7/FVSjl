@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TreeMap Growth Explorer</title>
+<title>Forest Growth Explorer</title>
 <link rel="stylesheet" href="/vendor/maplibre-gl.css">
 <script src="/vendor/maplibre-gl.js"></script>
 <style>
@@ -34,6 +34,8 @@
   select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px}
   input[type=range]{accent-color:var(--accent)}
   .row{display:flex;gap:8px;align-items:center}
+  .chk{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink);cursor:pointer;user-select:none}
+  .chk input{accent-color:var(--accent);width:auto}
   .btn{background:var(--accent2);color:#04150b;border:none;border-radius:8px;padding:9px 12px;font-weight:600;font-size:13px;cursor:pointer;flex:1}
   .btn.sec{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
   .btn:disabled{opacity:.5;cursor:default}
@@ -87,12 +89,22 @@
 <div id="app">
   <aside>
     <header>
-      <h1>🌲 TreeMap Growth Explorer</h1>
-      <div class="sub">USFS TreeMap 2022 · CONUS · 30 m · FVSjl projection</div>
+      <h1>🌲 Forest Growth Explorer</h1>
+      <div class="sub" id="subline">forest inventory → growth simulation</div>
     </header>
 
     <div class="grp">
+      <h2>Source &amp; engine</h2>
+      <label class="field">Data source</label>
+      <select id="source"></select>
+      <label class="field">Simulation engine</label>
+      <select id="engine"></select>
+    </div>
+
+    <div class="grp">
       <h2>Display attribute</h2>
+      <label class="chk"><input type="checkbox" id="showAttr"> Color whole map by attribute</label>
+      <div class="hint" style="margin:-4px 0 8px">Off by default — the map draws only the basemap so it loads fast. AOI stats are always computed when you select an area.</div>
       <select id="attr"></select>
       <label class="field">Basemap</label>
       <select id="basemap">

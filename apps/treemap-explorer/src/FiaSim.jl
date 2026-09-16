@@ -20,7 +20,8 @@ import SQLite, DBInterface, SHA
 
 export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics
 
-const MASTER_DB = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
+# resolved at RUNTIME so FIA_DB set when the server starts is honored (not baked at precompile)
+master_db() = get(ENV, "FIA_DB", "/workspace/SQLite_FIADB_ENTIRE.db")
 
 # ---------------------------------------------------------------------------
 # Plan model (mirrors the frontend JSON)
@@ -106,23 +107,37 @@ function build_subdb(plt_cns::Vector{String}; cache_dir::AbstractString)
     key = bytes2hex(SHA.sha1(join(sort(plt_cns), ",")))[1:16]
     path = joinpath(cache_dir, "aoi_$key.db")
     varmap = Dict{String,String}()
+    # reuse a cached sub-DB, but if it's unreadable (a half-written/corrupt build from an
+    # interrupted run) drop it and rebuild rather than surfacing "unable to open".
     if isfile(path)
-        db = SQLite.DB(path)
-        for r in DBInterface.execute(db, "SELECT STAND_CN, VARIANT FROM FVS_STANDINIT_PLOT")
-            varmap[string(r.STAND_CN)] = String(strip(String(r.VARIANT)))
+        try
+            db = SQLite.DB(path)
+            for r in DBInterface.execute(db, "SELECT STAND_CN, VARIANT FROM FVS_STANDINIT_PLOT")
+                varmap[string(r.STAND_CN)] = String(strip(String(r.VARIANT)))
+            end
+            SQLite.close(db)
+            return path, varmap
+        catch
+            @warn "cached sub-DB unreadable, rebuilding" path
+            rm(path; force = true); empty!(varmap)
         end
-        SQLite.close(db)
-        return path, varmap
     end
+
+    mdb = master_db()
+    isfile(mdb) || error("FIA database not found at \"$mdb\". Set the FIA_DB environment " *
+        "variable to your SQLite_FIADB_ENTIRE.db before starting the server.")
+
     idlist = join(("'" * cn * "'" for cn in plt_cns), ",")
-    src = SQLite.DB("file:$MASTER_DB?mode=ro&immutable=1")
-    dst = SQLite.DB(path)
+    tmp = path * ".building"                       # atomic: build to a temp, rename on success
+    rm(tmp; force = true)
+    src = SQLite.DB("file:$mdb?mode=ro&immutable=1")
+    dst = SQLite.DB(tmp)
     try
         for tbl in ("FVS_STANDINIT_PLOT", "FVS_TREEINIT_PLOT")
             ddl = first(DBInterface.execute(src,
                 "SELECT sql FROM sqlite_master WHERE name='$tbl'")).sql
             DBInterface.execute(dst, ddl)
-            DBInterface.execute(dst, "ATTACH DATABASE 'file:$MASTER_DB?mode=ro&immutable=1' AS m")
+            DBInterface.execute(dst, "ATTACH DATABASE 'file:$mdb?mode=ro&immutable=1' AS m")
             DBInterface.execute(dst, "INSERT INTO $tbl SELECT * FROM m.$tbl WHERE STAND_CN IN ($idlist)")
             DBInterface.execute(dst, "DETACH DATABASE m")
             DBInterface.execute(dst, "CREATE INDEX idx_$(tbl)_cn ON $tbl(STAND_CN)")
@@ -130,9 +145,12 @@ function build_subdb(plt_cns::Vector{String}; cache_dir::AbstractString)
         for r in DBInterface.execute(dst, "SELECT STAND_CN, VARIANT FROM FVS_STANDINIT_PLOT")
             varmap[string(r.STAND_CN)] = String(strip(String(r.VARIANT)))
         end
-    finally
-        SQLite.close(src); SQLite.close(dst)
+    catch e
+        SQLite.close(src); SQLite.close(dst); rm(tmp; force = true)
+        rethrow(e)
     end
+    SQLite.close(src); SQLite.close(dst)
+    mv(tmp, path; force = true)
     return path, varmap
 end
 
