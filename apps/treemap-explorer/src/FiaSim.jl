@@ -18,7 +18,7 @@ module FiaSim
 using FVSjl
 import SQLite, DBInterface, SHA
 
-export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics
+export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics, PlotResult
 
 # Resolved at RUNTIME (honors FIA_DB set when the server starts). The default is derived
 # from this module's own location — the workspace root that holds the repo — not hardcoded:
@@ -206,7 +206,43 @@ function _parse_sum_and_carbon(out::AbstractString)::Vector{CycleMetrics}
     out2
 end
 
-const _MEM = Dict{String,Vector{CycleMetrics}}()   # cache: "plt_cn|planhash" => cycles
+dbh_class_lo(dia) = min(2 * floor(Int, dia / 2), 40)   # 2-inch DBH class, 40+ cap
+
+"Per-plot result: per-cycle metrics + per-cycle (by year) species×DBH tally + species symbols."
+struct PlotResult
+    metrics::Vector{CycleMetrics}
+    dist::Dict{Int,Dict{Tuple{Int16,Int},NTuple{2,Float64}}}   # year => (spcd,dbh_lo) => (tpa/ac, ba/ac)
+    spsym::Dict{Int16,String}
+end
+
+"Read the per-cycle FVS_TreeList (start-of-cycle) from a DBS output DB into a per-year species×DBH tally."
+function _read_treelist(outdb::AbstractString)
+    dist = Dict{Int,Dict{Tuple{Int16,Int},NTuple{2,Float64}}}()
+    spsym = Dict{Int16,String}()
+    isfile(outdb) || return dist, spsym
+    db = SQLite.DB("file:$outdb?mode=ro")
+    try
+        isempty(collect(DBInterface.execute(db,
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='FVS_TreeList'"))) &&
+            return dist, spsym
+        for r in DBInterface.execute(db, "SELECT Year, SpeciesFIA, SpeciesPLANTS, DBH, TPA FROM FVS_TreeList")
+            (r.TPA === missing || r.DBH === missing || r.Year === missing) && continue
+            tpa = Float64(r.TPA); tpa > 0 || continue
+            d = Float64(r.DBH);   d   > 0 || continue
+            spcd = r.SpeciesFIA === missing ? Int16(0) : Int16(parse(Int, string(r.SpeciesFIA)))
+            get!(spsym, spcd, r.SpeciesPLANTS === missing ? "" : String(r.SpeciesPLANTS))
+            g = get!(dist, Int(r.Year), Dict{Tuple{Int16,Int},NTuple{2,Float64}}())
+            k = (spcd, dbh_class_lo(d))
+            c, b = get(g, k, (0.0, 0.0))
+            g[k] = (c + tpa, b + 0.005454154 * d * d * tpa)
+        end
+    finally
+        SQLite.close(db)
+    end
+    dist, spsym
+end
+
+const _MEM = Dict{String,PlotResult}()   # cache: "plt_cn|planhash" => PlotResult
 const _MEM_LOCK = ReentrantLock()
 
 # live progress of the current simulate_plots call (polled by /api/simprogress)
@@ -215,26 +251,31 @@ const _PROG = (done = Threads.Atomic{Int}(0), total = Threads.Atomic{Int}(0),
 progress() = (; done = _PROG.done[], total = _PROG.total[], running = _PROG.running[])
 _tick!() = Threads.atomic_add!(_PROG.done, 1)
 
-"Run one plot; returns its per-cycle metrics or `nothing`."
+"Run one plot; returns its `PlotResult` (metrics + per-cycle species×DBH) or `nothing`."
 function _run_one(cn::String, vcode::String, subdb::String, plan::ManagementPlan, mgmt::String)
     key = tempname() * ".key"
+    outdb = tempname() * ".db"            # per-run DBS output for the per-cycle FVS_TreeList
     write(key, string(
         "STDIDENT\n", cn, "\n",
         "DATABASE\nDSNin\n", subdb, "\n",
         "StandSQL\nSELECT * FROM FVS_STANDINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
         "TreeSQL\nSELECT * FROM FVS_TREEINIT_PLOT WHERE STAND_CN = '%StandID%'\nEndSQL\n",
         "END\n",
+        "DATABASE\nDSNOut\n", outdb, "\nTREELIDB\nEND\n",
         _kwrec("NUMCYCLE", plan.cycles), "\n",
         mgmt,
         "FMIn\nCARBREPT\nEnd\n",
         "ECHOSUM\nPROCESS\nSTOP\n"))
     try
         out = FVSjl.run_keyfile(key; variant=FVSjl.variant_from_code(vcode), period=plan.period)
-        return _parse_sum_and_carbon(out)
+        metrics = _parse_sum_and_carbon(out)
+        dist, spsym = _read_treelist(outdb)
+        return PlotResult(metrics, dist, spsym)
     catch e
         @warn "simulate failed" cn vcode exception=e
         return nothing
     finally
+        rm(outdb; force=true)
         rm(key; force=true)
     end
 end
@@ -253,7 +294,7 @@ function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir
         subdb, varmap = build_subdb(plt_cns; cache_dir=cache_dir)
         ph = plan_hash(plan)
         mgmt = plan_keywords(plan)
-        results = Dict{String,Vector{CycleMetrics}}()
+        results = Dict{String,PlotResult}()
         torun = String[]
         for cn in plt_cns
             r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$ph", nothing); end
@@ -279,7 +320,7 @@ function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir
         end
 
         rest = filter(cn -> !haskey(results, cn), torun)
-        out = Vector{Union{Nothing,Vector{CycleMetrics}}}(undef, length(rest))
+        out = Vector{Union{Nothing,PlotResult}}(undef, length(rest))
         Threads.@threads for i in eachindex(rest)
             out[i] = _run_one(rest[i], varmap[rest[i]], subdb, plan, mgmt); _tick!()
         end

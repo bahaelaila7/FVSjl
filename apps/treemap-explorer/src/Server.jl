@@ -124,13 +124,13 @@ function _simulate_response(geom5070, plan)
     cache = joinpath(app.datadir, "derived", "sim_cache")
     res = FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache)   # plt_cn => Vector{CycleMetrics}
 
-    ncyc = maximum((length(v) for v in values(res)); init = 0)
+    ncyc = maximum((length(v.metrics) for v in values(res)); init = 0)
     sim_acres = sum(acres[cn] for cn in keys(res); init = 0.0)
     cycles = map(1:ncyc) do i
         baw = 0.0; w = 0.0; vol = 0.0; rem = 0.0; ct = 0.0; cl = 0.0; el = (i - 1) * plan.period
         for (cn, v) in res
-            i <= length(v) || continue
-            m = v[i]; a = acres[cn]
+            i <= length(v.metrics) || continue
+            m = v.metrics[i]; a = acres[cn]
             baw += m.ba * a; w += a
             vol += m.tcuft * a
             rem += m.rem_tcuft * a
@@ -144,11 +144,29 @@ function _simulate_response(geom5070, plan)
            carbon_total = round(ct; digits = 1),
            carbon_live_ag = round(cl; digits = 1))
     end
+
+    # per-cycle species×DBH distribution over the AOI (acres-weighted, from FVS_TreeList)
+    dist = map(1:ncyc) do i
+        agg = Dict{Tuple{Int16,Int},NTuple{2,Float64}}()
+        syms = Dict{Int16,String}()
+        for (cn, v) in res
+            i <= length(v.metrics) || continue
+            g = get(v.dist, v.metrics[i].year, nothing); g === nothing && continue
+            a = acres[cn]; merge!(syms, v.spsym)
+            for (k, val) in g
+                c, b = get(agg, k, (0.0, 0.0))
+                agg[k] = (c + val[1] * a, b + val[2] * a)
+            end
+        end
+        [(; spcd = k[1], symbol = get(syms, k[1], ""), dbh_lo = k[2],
+            count = round(v[1]; digits = 1), ba = round(v[2]; digits = 1)) for (k, v) in agg]
+    end
+
     # build the per-pixel projected layer (tm_id => per-cycle metrics) for the time slider
     layer = Dict{UInt32,Vector{FiaSim.CycleMetrics}}()
     for (tm, cn) in tm2cn
         v = get(res, cn, nothing)
-        v === nothing || (layer[tm] = v)
+        v === nothing || (layer[tm] = v.metrics)
     end
     SIM_LAYER[] = layer
     # auto-scale each map metric's color domain to this simulation's actual value range,
@@ -167,7 +185,7 @@ function _simulate_response(geom5070, plan)
     (; plan = plan.name, nplots_aoi = length(acres), nplots_sim = length(res),
        capped = capped, acres = round(total_aoi_acres; digits = 1),
        sim_acres = round(sim_acres; digits = 1),
-       ncycles = ncyc, period = plan.period, cycles = cycles)
+       ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist)
 end
 
 "Colorized projected tile for the last simulation at `cycle` (0-based), metric per-area."

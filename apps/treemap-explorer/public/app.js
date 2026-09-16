@@ -310,6 +310,7 @@ function renderResult(d){
   el('cards').innerHTML = cards.map(([k,v,u])=>
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
   el('statsGrp').hidden = false;
+  if(el('cycleBadge')) el('cycleBadge').textContent = 'cycle 0 · current';
   drawChart(d.cells);
   onAoiReady(d.cells);
   setStatus(`${fmt(d.nplots)} plots · ${fmt(d.acres)} ac · ${fmt(d.npixels)} px`);
@@ -469,7 +470,26 @@ const mapMetric = () => { const m=el('simMetric').value; return m==='ba_ac'?'ba'
 function setupSlider(d){
   const sl=el('simSlider'); sl.max=Math.max(0,(d.ncycles||1)-1); sl.value=0; simCycle=0;
   el('timerow').style.display = (d.ncycles>1) ? 'flex' : 'none';
-  updateSimTime(); setSimLayer(); drawSimChart();
+  updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle();
+}
+// drive the LEFT panel (species×DBH distribution + summary cards) to the projected cycle
+function updateLeftForCycle(){
+  if(!lastSim || !lastSim.dist) return;
+  const c=lastSim.cycles[simCycle]||{}, cells=lastSim.dist[simCycle]||[];
+  drawChart(cells);
+  const when = simCycle===0 ? 'now' : '+'+simCycle*(lastSim.period||plan.period)+'yr';
+  if(el('cycleBadge')) el('cycleBadge').textContent = 'projected · '+when;
+  const cards=[
+    ['When', when, 'cyc '+simCycle],
+    ['Basal area', fmt(c.ba_ac,1), 'ft²/ac'],
+    ['Live carbon', fmt(c.carbon_total), 'tons AG'],
+    ['Live volume', fmt(c.volume), 'ft³'],
+    ['Removed vol', fmt(c.removed_volume), 'ft³'],
+    ['Plots', fmt(lastSim.nplots_sim), 'simulated'],
+  ];
+  el('cards').innerHTML = cards.map(([k,v,u])=>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
+  el('statsGrp').hidden=false; el('chartGrp').hidden=false;
 }
 function updateSimTime(){ el('simTime').textContent = simCycle===0 ? 'now (cycle 0)' : `+${simCycle*plan.period} yr · cyc ${simCycle}`; }
 function setSimLayer(){
@@ -485,7 +505,7 @@ function clearSimLayer(){
   el('timerow').style.display='none';
   if(map){ if(map.getLayer('simlayer')) map.removeLayer('simlayer'); if(map.getSource('simlayer')) map.removeSource('simlayer'); }
 }
-function onSlider(v){ simCycle=+v; el('simSlider').value=simCycle; updateSimTime(); setSimLayer(); drawSimChart(); }
+function onSlider(v){ simCycle=+v; el('simSlider').value=simCycle; updateSimTime(); setSimLayer(); drawSimChart(); updateLeftForCycle(); }
 function toggleSimPlay(){
   if(simTimer){ clearInterval(simTimer); simTimer=null; el('simPlay').textContent='▶'; return; }
   el('simPlay').textContent='❚❚';
