@@ -581,21 +581,18 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         h2 = h + htg
-        dgk = 0.0f0
-        if h2 >= 4.5f0                           # only trees that reach breast height get a real DBH increment
-            dfl = d < TT_RG_DIAM[sp] ? TT_RG_DIAM[sp] : d
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, dfl)
-            d2 = _tt_smdgf(esp, h2, cr, pccf); d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
-            dkk = _tt_smdgf(esp, h, cr, pccf)
-            dgr = (d2 - dkk) * bark
-            dds = dgr * (2.0f0 * bark * dfl + dgr) * scale2
-            arg = (dfl * bark)^2 + dds
-            dgk = arg > 0.0f0 ? sqrt(arg) - bark * dfl : 0.0f0
-            dgmx = fint * TT_RG_DGMAX_RAW[sp]                       # ★#158: live DGMX=FINT·DGMAX (regent.f:684), not raw
-            dgk > dgmx && (dgk = dgmx)
-        end
         t.height[i] = h2
-        dgk > 0.0f0 && (t.dbh[i] = d + dgk / tt_bratio(sp, d))   # outside-bark DBH (simulate.jl:499)
+        if h2 >= 4.5f0
+            # tt/regent.f:948-960 TTVAR REGENT(LESTB) sets DBH(K)=DK = SMDGF(HK) ABSOLUTELY. The former code
+            # booked dbh = d + dgk/bratio, i.e. the LESTB=F growth-increment reconstruction (DG=(DK−DKK)*BARK,
+            # DDS-rescaled ≈ d+DK−DKK) capped at DGMX=FINT·DGMAX. Since DKK=SMDGF(H) on the sub-breast-height
+            # birth height ≠ D, that reconstruction sits below DK, and the DGMX cap clips it further, so the
+            # synchronized PLANT cohort entered the next cycle under DK — a one-directional BA/QMD deficit.
+            # TTVAR takes the plain DBH(K)=DK arm (no UTVAR/CIVAR DIAM-floor/+0.001*HK, regent.f:962-967); the
+            # jl d2 floor to DIAM is retained (harmless, prevents a sub-DIAM birth record). Mirror of IE/UT/BM.
+            d2 = _tt_smdgf(esp, h2, cr, pccf); d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
+            t.dbh[i] = d2
+        end
     end
     return s
 end
