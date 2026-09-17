@@ -126,3 +126,61 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
     end
     return s
 end
+
+"""
+    ie_triple_htg!(s, stash; scale)
+
+Per-copy TRIPLED height increment for the LARGE (NI-section) IE species, mirroring `ie/htgf.f`
+lines 317-347. `htgf.f` recomputes `HTG(ITFN)=EXP(CON+HDGCOF*ALOG(DG(ITFN)))+BIAS` (then floor 0.1,
+`*SCALE*XHT`, SIZCAP cap) for each tripled copy using that copy's spread diameter growth `DG(ITFN)` —
+`CON` and the start `HT`/`DBH` are the parent's (the copies share `HT(ITFN)=HT(I)`, `DBH(ITFN)=DBH(I)`).
+`height_growth!` runs BEFORE `triple_records!` materialises the copies, so it only ever computed the
+CENTRAL record's HTG; the upper/lower copies inherited that flat value via `copy_tree!`. FVS instead
+spreads them with the diameter spread, so the dominant height (and everything it feeds — crown, mortality,
+establishment) diverges. This restores the per-copy spread using the copy DGs already in `stash`
+(deterministic — no RNG draw, so the stream is untouched). Small trees are handled by REGENT
+(`small_tree_growth!`, which overwrites htgU/htgL and sets is_small); species 13/17-22 keep the central
+HTG (htgf.f TEMHTG branch) and 15/16 stay 0 — all correctly left to the existing `copy_tree!` path.
+Call right after `height_growth!` and before `small_tree_growth!` (the FVS HTGF→REGENT order).
+"""
+function ie_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
+    stash === nothing && return s
+    t, ctl, p = s.trees, s.control, s.plot
+    itype = Int(p.habitat_input)
+    iht = (1 <= itype <= 30) ? IE_HTMAPHAB[itype] : 1
+    hghch  = IE_HGHC[iht]
+    h2cof  = IE_HGH2[iht]
+    hdgcof = IE_HGLDD[iht]
+    cur_year = current_cycle_year(s)
+    nlive = stash.nlive
+    dgU = stash.dgU; dgL = stash.dgL
+    htgU = stash.htgU; htgL = stash.htgL; htg_copy = stash.htg_copy
+    @inbounds for i in 1:nlive
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i])
+        # NI-section only (htgf.f: sp13/17-22 → TEMHTG, sp15/16 → skip; those keep copy_tree!'s flat HTG).
+        (sp <= 12 || sp == 14 || sp == 23) || continue
+        d = t.dbh[i]; hti = t.height[i]
+        (d <= 0.0f0 || hti <= 0.0f0) && continue
+        htcon_ni = hghch + IE_HGSC[sp]
+        htcon = htcon_ni
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
+        con = htcon + h2cof * hti * hti + IE_HGLD[sp] * log(d) + IE_HGLH * log(hti)
+        xht = active_multiplier(ctl, :htg, sp, cur_year)
+        cap = ctl.sp_size_cap[sp, 4]
+        function copy_htg(dgc::Float32)::Float32
+            dgc <= 0.0f0 && return -1.0f0                 # ln(DG) undefined ⇒ leave copy flat (parent HTG)
+            h = exp(con + hdgcof * log(dgc)) + IE_HTBIAS
+            h < 0.1f0 && (h = 0.1f0)
+            h = h * scale * xht
+            if hti + h > cap
+                h = cap - hti; h < 0.1f0 && (h = 0.1f0)
+            end
+            return h
+        end
+        hu = copy_htg(dgU[i]); hl = copy_htg(dgL[i])
+        (hu < 0.0f0 || hl < 0.0f0) && continue            # either copy DG ≤ 0 ⇒ keep both flat (rare)
+        htgU[i] = hu; htgL[i] = hl; htg_copy[i] = true
+    end
+    return s
+end

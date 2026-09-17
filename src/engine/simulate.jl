@@ -732,6 +732,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     es_at_ba = s.plot.basal_area
     es_at_relden = s.plot.relative_density
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
+    # IE htgf.f (317-347) recomputes each TRIPLED large-tree copy's HTG from the copy's spread DG (the
+    # NI-section species); height_growth! only computed the central record's HTG, leaving the copies flat.
+    # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
+    s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)

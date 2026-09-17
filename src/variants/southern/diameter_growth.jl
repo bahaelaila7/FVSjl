@@ -1412,8 +1412,14 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     htgU = do_trip ? zeros(Float32, nlive) : Float32[]
     htgL = do_trip ? zeros(Float32, nlive) : Float32[]
     is_small = do_trip ? falses(nlive) : BitVector()
+    # htg_copy marks large-tree records whose tripled copies carry a PER-COPY height increment
+    # recomputed from the copy's spread DG (htgf.f triple branch, lines 317-347: HTG(ITFN)=
+    # EXP(CON+HDGCOF*ALOG(DG(ITFN)))+BIAS for the NI-section species). Only the IE per-copy pass
+    # (`ie_triple_htg!`) sets it; other variants leave it false ⇒ their large-tree copies keep the
+    # central HTG via copy_tree! exactly as before (gate byte-identical).
+    htg_copy = do_trip ? falses(nlive) : BitVector()
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
-                      htgU = htgU, htgL = htgL, is_small = is_small) : nothing
+                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy) : nothing
 end
 
 """
@@ -1430,6 +1436,7 @@ function triple_records!(s::StandState, stash)
     t = s.trees; nlive = stash.nlive
     dgU = stash.dgU; dgL = stash.dgL; rnU = stash.rnU; rnL = stash.rnL
     htgU = stash.htgU; htgL = stash.htgL; is_small = stash.is_small
+    htg_copy = stash.htg_copy
     @inbounds for k in t.ndead:-1:1
         copy_tree!(t, 3 * nlive + k, nlive + k)
     end
@@ -1444,8 +1451,10 @@ function triple_records!(s::StandState, stash)
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0
-        # small-tree records carry per-record height increments (REGENT random effect)
-        if is_small[i]
+        # small-tree records carry per-record height increments (REGENT random effect); large NI-section
+        # records carry a per-copy HTG recomputed from the copy's spread DG (htgf.f triple branch, via
+        # ie_triple_htg!). Both are stored in htgU/htgL; htg_copy marks the large-tree case.
+        if is_small[i] || htg_copy[i]
             t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
         end
         t.tpa[i] *= 0.60f0; t.mort_pa[i] *= 0.60f0
