@@ -732,8 +732,16 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             snx = 0f0; sny = 0f0; nh = 0
             for k in i1:i2
                 i = ind1[k]
+                # regent.f:1235 `IF(DBH(I).GE.5.0.OR.H.LT.0.01) GO TO 60`: the small-tree HEIGHT calibration
+                # EXCLUDES trees ≥5" DBH (and start-of-period height <0.01), then requires measured HTG>0.001.
+                # H is the BACKDATED start-of-period height (regent.f:1234 IHTG<2 ⇒ H=HT−HTG). Omitting the
+                # DBH≥5 gate counted large woodland trees carrying a measured HTG toward NCALHT (default 5),
+                # spuriously firing REGCON HCOR on UTVAR junipers whose <5" cohort alone is under NCALHT — the
+                # M331D dense-juniper CON=exp(HCOR)≈3.75 height (and cascaded DBH) over-growth (stand
+                # 387680993489998: 6 junipers w/ HTG but only 2 are <5" ⇒ oracle N=2<5 ⇒ HCOR=0, jl counted 6).
+                saved_dbh[i] >= 5f0 && continue
                 hg = t.ht_growth[i]; hg < 0.001f0 && continue      # measured HTG (observed)
-                t.height[i] < 0.01f0 && continue
+                (t.height[i] - hg) < 0.01f0 && continue            # backdated start-of-period H ≥ 0.01
                 cr = Float32(t.crown_pct[i]); x = cr / 100f0
                 # ★ REGCON POTHTG uses H=0 (evaluated once, NOT the tree's current H): (SJ·1.5−0)/(SJ·1.5)=1
                 # ⇒ POTHTG=(SJ/5)·0.83; AND the ·0.5 (UT 10yr→5yr) IS applied. (My earlier current-H/no-0.5
