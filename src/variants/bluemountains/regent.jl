@@ -158,7 +158,13 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                 dk = bm_htdbh(ifor, sp, hk)
                 dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
             else                                          # AX/BX (bm/regent.f CASE 1:5,8:9,12,15 = incl AS/LM)
-                bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
+                # bm/regent.f:411-414: AX = IABFLG(ISPC)==1 ? HT1(ISPC) : AA(ISPC). AA is the CRATET-fitted
+                # Wykoff intercept (0 until calibrated); IABFLG=1 (default) means Wykoff calibration did NOT
+                # occur, so the RAW HT1 intercept must be used. The AX/BX branch is reached by AS(15)/LM(12)
+                # (P2=0 ⇒ no HTDBH), which carry IABFLG=1 ⇒ AA=0 ⇒ ax=0 gave DK<0 ⇒ DG floored to 0.1
+                # (seedling DBH frozen, e.g. BM 22960605010497 aspen 0.1→2.2 became 0.1→0.2). Match FVS +
+                # the cr/regent.f:158 & sprout.f:644 pattern.
+                bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
                 dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
             end
@@ -255,7 +261,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
                 dk = bm_htdbh(Int(p.forest_idx), sp, hk)
             else
-                bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
+                bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]   # AX = IABFLG==1?HT1:AA (bm/regent.f:411)
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
             end
             dbh = dk
