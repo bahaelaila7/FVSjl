@@ -23,6 +23,13 @@ end
 const CI_RG_REGYR = 5.0f0
 const CI_RG_DIAM = Float32[0.4,0.3,0.3,0.3,0.2,0.2,0.4,0.3,0.3,0.5,0.3,0.3,0.2,0.3,0.2,0.3,0.2,0.2,0.2]  # ci/regent.f DATA DIAM (min DBH)
 const CI_RG_AB = Float32[1.11436, -0.011493, 0.43012f-4, -0.72221f-7, 0.5607f-10, -0.1641f-13]  # PCTRED poly (regent.f:448)
+# BKPT = DBH BREAKPOINT (ci/regent.f:490-500,816-822 SELECT CASE): the DBH at/above which the small-tree HT-DBH
+# diameter increment is NOT applied (ci/regent.f:993 `IF(D .GE. BKPT) GO TO 23`) — for BKPT≤D<XMAX the tree still
+# takes the XWT-blended regent HEIGHT growth but KEEPS its large-tree dgf DG. CASE(17,19) CW/OH=1.0; CASE(14,15)
+# juniper/MC=99.0 (fully regent, XMAX=99); DEFAULT (CIVAR conifers + aspen sp13)=3.0. jl previously overwrote the
+# large-tree DG for ALL D<XMAX (conifers XMAX=5 ⇒ the [3,5) medium-conifer band lost its large-tree DG; QMD/BA
+# deficit as trees mature past 3"), mirroring the UT bug (see src/variants/utah/regent.jl UT_RG_BREAK).
+const CI_RG_BREAK = Float32[3,3,3,3,3,3,3,3,3,3, 3,3,3, 99,99, 3, 1, 3, 1]
 @inline _ci_ut_species(sp::Int) = sp == 13 || sp == 14 || sp == 15 || sp == 17 || sp == 19  # ci/regent.f UTVAR branch
 
 """ci/regent.f sp17/19 (CW/OH) Curtis-Arney height→DBH inverse (P2=1709.7229,P3=5.8887,P4=−0.2286)."""
@@ -104,6 +111,12 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
             hcap = s.control.sp_size_cap[sp, 4]           # SIZCAP(sp,4) max height (regent.f:955)
             (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
             t.ht_growth[i] = htg
+            # ci/regent.f:993 `IF(D .GE. BKPT) GO TO 23` — for BKPT≤D<XMAX (aspen sp13: [3,4)) the tree keeps its
+            # large-tree dgf DG; only the XWT-blended HEIGHT growth (above) applies. Skip the small-tree DBH dub.
+            if d0 >= CI_RG_BREAK[sp]
+                _ci_rg_stash!(stash, t, i, false)
+                continue
+            end
             hk = h0 + htg
             bark = ci_bratio(sd, sp, d0)
             if hk <= 4.5f0
@@ -127,7 +140,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
                 t.diam_growth[i] = dg
             end
-            _ci_rg_stash!(stash, t, i, d0 < 3.0f0)   # copies use the regent growth (UTVAR); dgU/dgL only if dubbed
+            _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])   # copies use the regent growth (UTVAR); dgU/dgL only if dubbed
             continue
         end
         pt = Int(t.plot_id[i])
@@ -160,10 +173,18 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         hcap = s.control.sp_size_cap[sp, 4]               # SIZCAP(sp,4) max height (regent.f:983-986)
         (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
         t.ht_growth[i] = htg
+        # ci/regent.f:993 `IF(D .GE. BKPT) GO TO 23` — the CIVAR conifers have BKPT=3 but XMAX=5 (sp1-10,18) or
+        # XMAX=3 (sp11,12,16). For the [3,5) band the tree takes the XWT-blended HEIGHT growth (above) but KEEPS
+        # its large-tree dgf DG. Omitting this overwrote medium conifers' large-tree DG with the smaller
+        # height-derived increment ⇒ QMD/BA under-growth as stems mature past 3" (the UT lever bug).
+        if d0 >= CI_RG_BREAK[sp]
+            _ci_rg_stash!(stash, t, i, false)
+            continue
+        end
         hk = h0 + htg                                     # HK = H + HTG(K) (blended, regent.f:998)
         if hk < 4.5f0
             t.diam_growth[i] = 0.0f0
-            _ci_rg_stash!(stash, t, i, d0 < 3.0f0)
+            _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])
             continue
         end
         dhcn = CI_RG_DHCN[sp]; dhht = CI_RG_DHHT[sp]; dhcr = CI_RG_DHCR[sp]
@@ -177,7 +198,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
         dg < 0.0f0 && (dg = 0.0f0)
         (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)              # regent.f:1256 min-DBH floor
         t.diam_growth[i] = dg
-        _ci_rg_stash!(stash, t, i, d0 < 3.0f0)   # copies use the regent growth (CIVAR/NIVAR); dgU/dgL only if dubbed
+        _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])   # copies use the regent growth (CIVAR/NIVAR); dgU/dgL only if dubbed
     end
     return s
 end
