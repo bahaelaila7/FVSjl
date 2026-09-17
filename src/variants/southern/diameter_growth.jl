@@ -19,6 +19,8 @@
 # (that's UT/CR, which carry 99 for woodland). Length = variant MAXSP (19). See calibrate_diameter_growth!.
 #   CI (ci/dgdriv.f:466-472): CASE(17=CW,19=OH) → 1.0 ; DEFAULT 3.0.
 const CI_GST_BKPT = Float32[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,3,1]
+#   EM (em/dgdriv.f:446-448): ISPC∈{11=GA,13=CW,14=BA,15=PW,16=NC,19=OH} → 1.0 ; else 3.0.
+const EM_GST_BKPT = Float32[3,3,3,3,3,3,3,3,3,3,1,3,1,1,1,1,3,3,1]
 
 # Forest-type group of IFORTP → which categorical coefficient applies (dgf.f:453).
 function _dgf_forest_group(ifortp::Integer)
@@ -330,6 +332,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
     _bm_cal = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model)
+    _em_cal = s.variant isa EasternMontana  # EM GST floor = per-species 1.0/3.0 (em/dgdriv.f:446-448)
     _bc_cal = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant BARK1; shared bark_a/bark_b are 0 → 0.80 floor)
     _ci_cal = s.variant isa CentralIdaho      # CI bark = ci_bratio (POWER) — same missing-branch class as _backdate_dbh!
     _ak_cal = s.variant isa SoutheastAlaska   # AK bark = ak_bratio (3-type); shared bark_a/bark_b unset ⇒ 0.80 floor otherwise
@@ -548,12 +551,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # per-species GST floor of 1.0 for small-statured HARDWOODS, 3.0 otherwise — NEVER 99 (so their woodland
     # junipers/pinyon at BREAK=99 in the regent path still calibrate at the DEFAULT 3.0 floor here, and are
     # NOT excluded). This is a DIFFERENT gap from UT/CR: the flat 3.0 wrongly DROPPED the 1–3" hardwood cohort
-    # (CI CW/OH) from the calibration, shrinking DN and skewing FN/COR for that species. NOTE the floor only
-    # bites a GROWTH-SAMPLE-TREE (measured DG>0) in [bkpt,3.0) — non-GSTs (DG≤0) are skipped both sides anyway.
+    # (CI CW/OH; EM GA/CW/BA/PW/NC/OH) from the calibration, shrinking DN and skewing FN/COR for that species.
+    # NOTE the floor only bites a GROWTH-SAMPLE-TREE (measured DG>0) in [bkpt,3.0) — non-GSTs (DG≤0) are skipped
+    # both sides anyway (so it is null on stands whose small hardwoods carry no measured increment).
     #   ci/dgdriv.f:466-472  CASE(17=CW,19=OH) BKPT=1.0 ; DEFAULT 3.0
+    #   em/dgdriv.f:446-448  ISPC∈{11,13,14,15,16,19} BKPT=1.0 ; else 3.0
     # Do NOT reuse CI_RG_BREAK / TT_RG_BREAK etc. here — those are the regent HT-DBH dubbing breaks (carry 99).
     break_cr = _cr_cal ? sd[:st_break] : _ut_cal ? UT_RG_BREAK :
-               _ci_cal ? CI_GST_BKPT : nothing
+               _ci_cal ? CI_GST_BKPT : _em_cal ? EM_GST_BKPT : nothing
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
