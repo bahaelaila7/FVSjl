@@ -14,6 +14,12 @@
 # per-tree value).
 # =============================================================================
 
+# Per-species GST-calibration BKPT floor (dgdriv.f "FIRST LOOP TO FIND MINIMUM AND MAXIMUM DBH FOR GSTS").
+# These encode each variant's HARDCODED CASE floor (small hardwoods → 1.0, else 3.0) — NOT BREAK(ISPC)
+# (that's UT/CR, which carry 99 for woodland). Length = variant MAXSP (19). See calibrate_diameter_growth!.
+#   CI (ci/dgdriv.f:466-472): CASE(17=CW,19=OH) → 1.0 ; DEFAULT 3.0.
+const CI_GST_BKPT = Float32[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1,3,1]
+
 # Forest-type group of IFORTP → which categorical coefficient applies (dgf.f:453).
 function _dgf_forest_group(ifortp::Integer)
     ifortp == 701 || ifortp == 801 || ifortp == 805 ? :nohd :
@@ -538,7 +544,16 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # DG calibration, producing a negative dg_cor_goal that leaked into htg_cor_small (=WCI·(1−CORMLT)) ⇒ a
     # phantom CON<1 that under-grew Gambel-oak/PJ woodland diameter ~21% (stand 471756702489998, GO BREAK=99:
     # oracle COR(13)=HCOR(13)=0 all cycles; jl was calibrating 6 ≥3" GO trees). Matches live FVSut_g16.
-    break_cr = _cr_cal ? sd[:st_break] : _ut_cal ? UT_RG_BREAK : nothing
+    # CI/EM do NOT use BREAK(ISPC) (that's the UT/CR case with woodland=99); their dgdriv.f hardcodes a
+    # per-species GST floor of 1.0 for small-statured HARDWOODS, 3.0 otherwise — NEVER 99 (so their woodland
+    # junipers/pinyon at BREAK=99 in the regent path still calibrate at the DEFAULT 3.0 floor here, and are
+    # NOT excluded). This is a DIFFERENT gap from UT/CR: the flat 3.0 wrongly DROPPED the 1–3" hardwood cohort
+    # (CI CW/OH) from the calibration, shrinking DN and skewing FN/COR for that species. NOTE the floor only
+    # bites a GROWTH-SAMPLE-TREE (measured DG>0) in [bkpt,3.0) — non-GSTs (DG≤0) are skipped both sides anyway.
+    #   ci/dgdriv.f:466-472  CASE(17=CW,19=OH) BKPT=1.0 ; DEFAULT 3.0
+    # Do NOT reuse CI_RG_BREAK / TT_RG_BREAK etc. here — those are the regent HT-DBH dubbing breaks (carry 99).
+    break_cr = _cr_cal ? sd[:st_break] : _ut_cal ? UT_RG_BREAK :
+               _ci_cal ? CI_GST_BKPT : nothing
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
