@@ -531,7 +531,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # PER-SPECIES BREAK(ISPC) (cr/dgdriv.f:410 BKPT=BREAK(ISPC); e.g. ES=1.0) — the flat 3.0 dropped small GSTs
     # (backdated WK3 2.5" ES) from the calibration, shrinking FN and skewing COR → uniform over-growth.
     gst_min = (s.variant isa CentralStates || s.variant isa LakeStates) ? 5f0 : 3f0   # cs/ls dgdriv.f WK3<5.0
-    break_cr = _cr_cal ? sd[:st_break] : nothing
+    # GST eligibility floor = the PER-SPECIES BREAK(ISPC) (ut/dgdriv.f:450 BKPT=BREAK(ISPC), like CR), NOT
+    # the flat 3.0. For UT's WOODLAND species (PI/WJ/GO/PM/RM/UJ/GB/MC/BI/OH — BREAK=99) this excludes EVERY
+    # tree from the large-tree DG self-calibration (they grow diameter via the regent HT-DBH path, not DGF),
+    # so COR/WCI stay 0 ⇒ regent CON=exp(HCOR)=1. The flat 3.0 spuriously fed the ≥3" woodland cohort into the
+    # DG calibration, producing a negative dg_cor_goal that leaked into htg_cor_small (=WCI·(1−CORMLT)) ⇒ a
+    # phantom CON<1 that under-grew Gambel-oak/PJ woodland diameter ~21% (stand 471756702489998, GO BREAK=99:
+    # oracle COR(13)=HCOR(13)=0 all cycles; jl was calibrating 6 ≥3" GO trees). Matches live FVSut_g16.
+    break_cr = _cr_cal ? sd[:st_break] : _ut_cal ? UT_RG_BREAK : nothing
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
     @inbounds for i in 1:t.n
