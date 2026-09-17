@@ -14,6 +14,10 @@
 const UT_RG_DGMAX = Float32[2.8,2.8,2.4,3.6,3.6,2.5,3.5,3.6,3.6,2.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.5,2.5,2.0,2.0,2.5,2.8,2.0]
 const UT_RG_XMAX  = Float32[4,4,4,4,4,4,5,4,6,6,99,99,99,99,99,99,199,2,2,99,99,2,6,99]
 const UT_RG_XMIN  = Float32[2,2,2,2,2,2,1,2,2,2,90,90,90,90,90,90,99,0.5,0.5,90,90,0.5,2,90]
+# BKPT = BREAK (ut/blkdat.f DATA BREAK): the DBH at/above which the small-tree HT-DBH diameter increment is
+# NOT applied (ut/regent.f:383 IF(D.GE.BKPT) GO TO 23) — the tree keeps its large-tree DGDRIV DG but still
+# takes the XWT-blended regent HEIGHT growth. Conifers 3", NC/FC/BE 1", woodland 99 (never large-tree).
+const UT_RG_BREAK = Float32[3,3,3,3,3,3,3,3,3,3,99,99,99,99,99,99,99,1,1,99,99,1,3,99]
 const UT_RG_DIAM  = Float32[0.4,0.4,0.3,0.3,0.3,0.2,0.4,0.3,0.3,0.5,0.4,0.3,0.3,0.4,0.3,0.3,0.4,0.3,0.3,0.2,0.2,0.3,0.2,0.3]
 const UT_RG_AB    = Float32[1.11436, -0.011493, 0.43012f-4, -0.72221f-7, 0.5607f-10, -0.1641f-13]
 const _UT_RG_REGYR = 10.0f0
@@ -89,6 +93,13 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg
+        # ut/regent.f:383 IF(D.GE.BKPT) GO TO 23 — for BKPT≤D<XMAX the tree gets the regent (XWT-blended)
+        # HEIGHT growth above but KEEPS its large-tree DGDRIV diameter growth: the small-tree HT-DBH DG below
+        # is applied ONLY for D<BKPT. Omitting this over-wrote medium conifers' large-tree DG with a smaller
+        # height-derived increment (QMD/BA under-growth as trees mature past 3").
+        if d >= UT_RG_BREAK[sp]
+            continue
+        end
         # ---- small-tree DG (ut/regent.f:380-560). DK/DKK are a 10-YR diameter increment; NO XWT blend
         # (the HTG blend enters via HK=H+HTG). Clamp to DGMX, DDS→DG rescale by SCALE2=YR/FINT, DIAM floor.
         hk = h + htg
