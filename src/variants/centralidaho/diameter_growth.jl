@@ -13,13 +13,19 @@
 
 const CI_NSP = 19
 
-"""CI aspen large-tree DG (ci/dgfasp.f, shared Utah form). Returns ASPDG = ln(DDS-equivalent)."""
+"""CI aspen large-tree DG (ci/dgfasp.f, shared Utah form — identical to `_em_dgfasp`).
+Returns ASPDG = ln(DDS-equivalent). `cr` = raw crown pct (÷10 → ASPCR inside); `rmsqd` = stand QMD."""
 @inline function ci_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)
-    rel = rmsqd > 0f0 ? d / rmsqd : 1f0
-    gofad = 1.0f0 - exp(-1.0f0 * max(rel, 0f0))
-    dg = (0.22f0 + 0.01f0 * si) * gofad * exp(-0.005f0 * ba) * (cr / 10f0 + 0.5f0)
-    dds = dg <= 0f0 ? -9.21f0 : log((dg * bark) * (2f0 * d * bark))
-    return dds
+    rel = rmsqd > 0f0 ? d / rmsqd : 0f0
+    aspcr = cr / 10f0
+    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    pot <= 0f0 && (pot = 0.01f0)
+    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    baact = ba >= 310f0 ? 305f0 : ba
+    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    predgr = pot * valmod * (0.48630f0 + 0.01258f0 * si)
+    return log(2f0 * d * bark * predgr + predgr * predgr)
 end
 
 function ci_dgcons!(s::StandState)
