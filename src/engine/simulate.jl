@@ -339,6 +339,19 @@ end
 "Number of early cycles that use deterministic record tripling (FVS ICL4)."
 const TRIPLE_CYCLE_LIMIT = 2
 
+# Western variants whose establishment runs the SHARED `estb/` model AND run the recurring AUTOES natural
+# tally: estab.f:1493 calls ESGENT (esgent.f:49 → SPESRT) whenever new regen records were added this cycle,
+# rebuilding IND1 in ascending physical order and DISCARDING the post-TRIPLE REASS lineage interleave. Without
+# the reset, a stand that keeps adding AUTOES natural regen across tripled cycles mis-orders the per-tree
+# DGSCOR/REGENT RNG draws (the IE `none` +BA over-production, fixed for IE at 80d96174). Only IE and EM run the
+# recurring AUTOES tally in jl (`ie_autoes_establish!`, simulate.jl above), so only they exercise this gap —
+# a stratified 120-stand `none` A/B vs FVSem_g16 measured EM at 42/47 changed stands improved (many
+# −1 BA rel−25% → bit-exact), meanFinalBA bias −0.72→−0.41. UT/BM/TT/CI do NOT run AUTOES: on `none` they add
+# no records (reorder never fires) and on `plant` the one-shot bare-stand planting fires the gate only where
+# sort_key is already ascending (measured `changed=false`), so the reorder is a measured no-op for them — they
+# are deliberately EXCLUDED until a regime that exercises their tripled-lineage establishment is measured.
+uses_estab_spesrt(v) = v isa InlandEmpire || v isa EasternMontana
+
 """
     fertilizer_growth!(s; fint)
 
@@ -1014,10 +1027,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # per-tree DGSCOR/REGENT RNG draws from cyc3 on (IE none over-grows BA +3/+4 vs oracle).
     # Gate on "records were added this cycle" (t.n > es_nstart) — mirrors estab.f:1493 exactly;
     # NOT the coarse AUTOES-active flag (which over-fires on no-establishment cycles and moves
-    # otherwise-bit-exact stands off the oracle). Scoped to IE (measured bit-exact vs
-    # FVSie_g16); SN/eastern lineage sort unchanged. EM + other western AUTOES REGENT variants
-    # share this SPESRT and are a measured follow-up (each needs its own oracle A/B).
-    s.variant isa InlandEmpire && s.trees.n > es_nstart && spesrt_reorder!(s.trees)
+    # otherwise-bit-exact stands off the oracle). Applied to the AUTOES western variants IE + EM
+    # (both measured bit-exact-or-improving vs FVS{ie,em}_g16); SN/eastern lineage sort unchanged.
+    # See uses_estab_spesrt above for the per-variant measurement (UT/BM/TT/CI measured-inert, excluded).
+    uses_estab_spesrt(s.variant) && s.trees.n > es_nstart && spesrt_reorder!(s.trees)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
