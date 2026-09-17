@@ -1160,6 +1160,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # DDS→DG bark MUST match the bark cr_gemdg used internally.
     _cr_dg = s.variant isa CentralRockies
     _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
+    _em_dg = s.variant isa EasternMontana   # EM GA/CW/BA/PW/NC/OH DGSCOR-draw cap (em/dgdriv.f:229-238, from CR)
     _tt_dg = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model); DDS→DG dib must match
     _bc_dg = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant; calib.bark_a/b=0 ⇒ 0.80 floor otherwise)
     _bm_dg = s.variant isa BlueMountains     # ★#140: BM bark = bm_bratio (POWER); the linear fallback here gave
@@ -1364,7 +1365,12 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # IF GDIF>GLIM DG=WKI+GLIM — WKI is the un-FRM'd central DG (dgdriv.f:213 SQRT(DSQ+DDS)−D). Eastern
             # dgdriv.f has NO GLIM (only DGBND); jl's _bound_scale is DGBND-style, so CR needs this extra cap
             # BEFORE the bound. Without it CR's upper tripled records over-grow (dense-stand BA ~10% high).
-            crv = s.variant isa CentralRockies
+            # CR caps ALL species; EM (em/dgdriv.f:229-238, lifted from CR dgdriv) caps ONLY GA(11)/CW(13)/
+            # BA(14)/PW(15)/NC(16)/OH(19) — the hardwood DIAGR species. Without it the uncapped DGSCOR upside
+            # (right-truncation is asymmetric: only GDIF>GLIM is clipped) fattens the right tail of the birth-
+            # /small-tree DG ⇒ one-directional DG over-prediction ⇒ inflated DQ10 ⇒ Hamilton mortality under-kill
+            # (MEASURED FVSem_g16 9866226020004 @cyc2: jl MEANDG 0.678 vs oracle 0.170, +416 TPA whole-stand).
+            crv = _cr_dg || (_em_dg && (sp == 11 || (13 <= sp <= 16) || sp == 19))
             wkicr = crv ? (sqrt(d_ib * d_ib + dds5) - d_ib) : 0f0
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)

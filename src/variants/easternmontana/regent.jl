@@ -117,6 +117,18 @@ end
 # already have EM_RG_XMAX=3, but LL(5)'s XMAX=10 is only the height-blend range — its regent still caps at 3,
 # so D≥3 LL stays on the pure large-tree path (else the XWT DG-override halves the large DG → em_LL breaks).
 @inline _em_rg_cap(sp::Int) = sp == 5 ? 3.0f0 : EM_RG_XMAX[sp]
+# em/regent.f:322-333 — the CRVAR/UTVAR small-tree HEIGHT-growth DENSITY modifier PCTRED. FVS computes it ONCE
+# per stand from X = AH·(RELDEN/100) (top height × relative density), NOT the relative SITE INDEX. jl had wrongly
+# fed X = relsi·100 (RELSI·100), which over-stated PCTRED in a dense young stand (measured FVSem_g16 9866226020004
+# @cyc2: X=61.49 ⇒ oracle PCTRED 0.554 vs jl relsi·100=75.7 ⇒ 0.757, a 1.37× HTG inflation that COMPOUNDS across
+# cycles ⇒ CRVAR (GA/OH) seedlings cross 4.5' too fast ⇒ the inverse-Wykoff DBH jump over-fires ⇒ sub-1" DG
+# 0.75 vs oracle 0.11 ⇒ inflated DQ10 ⇒ Hamilton mortality under-kill ⇒ +416 TPA whole-stand). AH=AVH, R=RELDEN.
+@inline function _em_rg_pctred(ah::Float32, relden::Float32)::Float32
+    x = ah * relden / 100f0; x > 300f0 && (x = 300f0)
+    pr = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
+    pr > 1.0f0 && (pr = 1.0f0); pr < 0.01f0 && (pr = 0.01f0)
+    return pr
+end
 @inline _em_rg_crvar(sp::Int) = sp == 11 || (13 <= sp <= 16) || sp == 19
 # UTVAR (UT-variant) small-tree form: RM(6, juniper, XMAX=99 fully-regent), AS(12)/PB(17, aspen Sheppard).
 @inline _em_rg_utvar(sp::Int) = sp == 6 || sp == 12 || sp == 17
@@ -310,15 +322,14 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         _em_rg_stash!(stash, t, i)
     end
     slo = s.coef.species[:site_lo]; shi = s.coef.species[:site_hi]; fint10 = fint/10.0f0
+    pctred = _em_rg_pctred(ah, relden)     # em/regent.f:322-333 stand density modifier (AH·RELDEN/100), computed once
     @inbounds for i in 1:n
         sp = Int(t.species[i]); d = t.dbh[i]
         _em_rg_crvar(sp) || continue
         (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]; sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp]+0.5f0)
-        relsi = (si-slo[sp])/(shi[sp]-slo[sp]); x = relsi*100.0f0
-        pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
-        pctred > 1.0f0 && (pctred=1.0f0); pctred < 0.01f0 && (pctred=0.01f0)
+        relsi = (si-slo[sp])/(shi[sp]-slo[sp])
         xcr = Float32(t.crown_pct[i])/100.0f0
         vigor = 150.0f0*xcr^3*exp(-6.0f0*xcr)+0.3f0; vigor>1.0f0 && (vigor=1.0f0)
         pothtg = sitear/(15.0f0-4.0f0*relsi); con = exp(c.htg_cor_small[sp])
@@ -355,16 +366,14 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         (d >= EM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]; sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp]+0.5f0)
-        relsi = (si-slo[sp])/(shi[sp]-slo[sp]); rsimod = 0.5f0*(1.0f0+relsi); x = relsi*100.0f0
+        relsi = (si-slo[sp])/(shi[sp]-slo[sp]); rsimod = 0.5f0*(1.0f0+relsi)
         con = exp(c.htg_cor_small[sp])                            # RHCON(=1.0 non-NIVAR)·exp(HCOR)
         if sp == 12 || sp == 17                                   # aspen/PB Sheppard (ABIRTH)
             ab = Float32(t.birth_age[i]); ab < 1.0f0 && (ab = 1.0f0)
             hite1 = 26.9825f0 * ab^1.1752f0
             hite2 = 26.9825f0 * (ab + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
-        else                                                      # RM juniper
-            pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
-            pctred > 1.0f0 && (pctred=1.0f0); pctred < 0.01f0 && (pctred=0.01f0)
+        else                                                      # RM juniper — density PCTRED (AH·RELDEN/100)
             xcr = Float32(t.crown_pct[i])/100.0f0
             vigor = 150.0f0*xcr^3*exp(-6.0f0*xcr)+0.3f0; vigor>1.0f0 && (vigor=1.0f0)
             vigor = 1.0f0 - (1.0f0 - vigor)/3.0f0                 # RM ⅔ VIGOR cut (em/regent.f:515)
