@@ -744,7 +744,20 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
     # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
     cr_mistoe!(s; fint = fint)
-    _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+    # MISTOE TRIPLING SEAM (mirrors the RD rd_post_triple pattern below). FVS runs MISTOE at gradd.f:96 —
+    # in GRADD, AFTER GRINCR's MORTS+TRIPLE (grincr.f:535/543) — so on a TRIPLING cycle the spread draws its
+    # per-infected-tree rann! on the ALREADY-TRIPLED record list (ITRN×3), not the un-tripled ITRN. jl ran
+    # ie_mistoe! here (pre-mortality/pre-triple), so on a tripling cycle it drew 1/3 of FVS's mistletoe draws
+    # (measured stand 1143092700290487: jl 2 vs oracle 6 at cyc0, jl 6 vs oracle 18 at cyc1) — desyncing the
+    # SHARED main rann! stream for every downstream DGSCOR/REGENT draw (the #206 straddle). DEFER the spread to
+    # the post-triple block (right after mortality_and_fire!) when this cycle triples; the pre-mortality dmr is
+    # unchanged for the DM growth-loss (start-of-cycle, applied at diameter_growth!) and DM mortality (FVS MORTS
+    # precedes MISTOE, so it correctly reads the PRE-spread dmr either way). Non-tripling cycles keep the
+    # existing seam (MORTS/TRIPLE draw no rann!, so the RNG position is identical) — byte-identical there.
+    mis_defer = _ie_mis_variant(s.variant) && (stash !== nothing)
+    if !mis_defer
+        _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+    end
     dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
@@ -903,6 +916,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         end
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
+    # MISTOE post-triple seam. FVS runs MISTOE at gradd.f:96 — in GRADD, AFTER GRINCR's MORTS+TRIPLE — so on a
+    # TRIPLING cycle the spread draws its per-host-tree rann! on the ALREADY-TRIPLED record list (ITRN×3). jl
+    # ran ie_mistoe! before TRIPLE (the pre-mortality seam above), so on a tripling cycle it drew only 1/3 of
+    # FVS's mistletoe draws — measured stand 1143092700290487 (2 DMR-6 western-larch trees): jl drew 2 vs the
+    # oracle's 6 at cyc0, 6 vs 18 at cyc1 — desyncing the SHARED main rann! stream for every downstream
+    # DGSCOR/REGENT draw (the #206 straddle). `mis_defer` (set at the pre-mortality seam) deferred the spread on
+    # a tripling cycle; run it HERE, after TRIPLE, on the tripled records — the FVS gradd.f:96 order/count. The
+    # DM growth-loss (start-of-cycle DMR, applied at diameter_growth!) and DM mortality (FVS MORTS precedes
+    # MISTOE ⇒ reads the PRE-spread DMR) are both unchanged. Non-tripling cycles keep the pre-mortality seam
+    # (MORTS/TRIPLE draw no rann! ⇒ identical RNG position) — byte-identical there.
+    mis_defer && ie_mistoe!(s; fint = fint)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # WRD rd/rdgrow.f (+ tail rd/rdinoc.f decay): reduce the per-record DG/HTG by the infected-
     # root proportion, on the PRE-DBH-update increments (FVS RDGROW runs in RDTREG before UPDATE,
