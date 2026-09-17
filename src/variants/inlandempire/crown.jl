@@ -69,6 +69,12 @@ end
     IE_CRHAB[clamp(Int(IE_CRMAPHAB[itype, sp]), 1, 14), sp]
 end
 
+# ie/crown.f:177-180 RMAIAS/RMAILM — stand MAI constants for the UTTVAR (aspen-group) DUBSCR TMAI term.
+# RMAIAS = min(ADJMAI(746, SITEAR(18), 10), 128); RMAILM = ADJMAI(101, SITEAR(13), 10). (crown.f's RMAILM>128
+# guard is the well-known `RMAI=128` typo — it never caps RMAILM — so RMAILM is left uncapped, faithfully.)
+_ie_rmai_as(s::StandState)::Float32 = (r = _adjmai(746, s.plot.sp_site_index[18], 10f0); r > 128f0 ? 128f0 : r)
+_ie_rmai_lm(s::StandState)::Float32 = _adjmai(101, s.plot.sp_site_index[13], 10f0)
+
 """
     crown_ratio_update!(s, ::InlandEmpire; fint, lstart, crown_sdi, ...)
 
@@ -100,6 +106,17 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # order-independent, so this is a no-op except on the RNG stream. IE-only (dispatches on ::InlandEmpire).
     # NOTE: the LIVE loop is live-only (1:t.n); the cycle-0 DEAD records are dubbed in a SEPARATE reverse-index
     # pass below (crown.f:634 DO 79), NOT folded into this species-major order — see the dead-dub loop.
+    # ISORT for the UTTVAR (aspen-group) Weibull X: whole-stand DBH rank (ie/crown.f:261-263 ISORT(IND)=ITRN-JJ+1,
+    # so largest DBH → ITRN, smallest → 1). Ranks on t.dbh directly — post-growth at cycling (simulate.jl applies DG
+    # before CROWN), inventory DBH at LSTART — matching FVS's DBH(I). Once/cycle; local buffers, not the hot path.
+    isort = Vector{Int32}(undef, t.n)
+    _srtk = Vector{Float32}(undef, t.n); _srti = Vector{Int32}(undef, t.n)
+    @inbounds for i in 1:t.n; _srtk[i] = t.dbh[i]; _srti[i] = Int32(i); end
+    _rdpsrt!(_srtk, _srti)                                         # descending: _srti[1] = largest DBH
+    @inbounds for jj in 1:t.n; isort[_srti[jj]] = Int32(t.n - jj + 1); end
+    # RMAIAS/RMAILM (ie/crown.f:177-180) — stand MAI constants; only the UTTVAR D<1 LSTART DUBSCR uses them.
+    rmai_as = lstart ? _ie_rmai_as(s) : 0f0
+    rmai_lm = lstart ? _ie_rmai_lm(s) : 0f0
     order = lstart ? sort(collect(1:t.n); by = ii -> (Int(t.species[ii]), ii)) : collect(1:t.n)
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
@@ -107,13 +124,13 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
         (lstart && icr > 0) && continue
         icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        d <= 0f0 && continue
-        bark = bark_ratio(ba_a, ba_b, sp, d)
-        crcon = ie_crcon(itype, sp)
         nivar = sp <= 12 || sp == 14 || sp == 23
         crvar = sp == 19 || sp == 22
         lpiju = sp == 15 || sp == 16
         uttvar = !(nivar || crvar || lpiju)
+        d <= 0f0 && !uttvar && continue        # non-UTTVAR need D>0; UTTVAR D≤0 cycling draws RANN (crown.f:431)
+        bark = d > 0f0 ? bark_ratio(ba_a, ba_b, sp, d) : 0f0
+        crcon = ie_crcon(itype, sp)
         local icri::Int
         b7=IE_CRPARM[sp,7]; b8=IE_CRPARM[sp,8]; b9=IE_CRPARM[sp,9]; b10=IE_CRPARM[sp,10]
         b11=IE_CRPARM[sp,11]; b12=IE_CRPARM[sp,12]; b13=IE_CRPARM[sp,13]; b14=IE_CRPARM[sp,14]
@@ -164,9 +181,32 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             # label-53 CRVAR/LPIJU path, now in _ie_crown_label53). jl formerly applied CRMAX here (NIVAR) and
             # omitted it for CRVAR/LPIJU — inverted. No CRMAX on the NIVAR path.
         else
-            # UTTVAR Weibull (sp13,17,18,20,21): needs ISORT/RANN/DUBSCR — deferred (not in iet01).
-            lstart || continue
-            continue
+            # UTTVAR (sp 13,17,18,20,21 — aspen group AS/MM/PB + LM/PY): ie/crown.f:412-447 rank-Weibull crown,
+            # falling through to label 53 (same CHG-bound/CRMAX as CRVAR/LPIJU). Previously a NO-OP (crown frozen at
+            # the inventory value) — the documented ~7% aspen BA deficit: FVS re-predicts the crown EVERY cycle for
+            # ALL DBH (UTTVAR never routes to the NIVAR D<3 freeze), converging toward the SDI-driven mean ACRNEW
+            # (which recedes as RELSDI climbs), bounded ±1%/yr.
+            if lstart && d < 1f0
+                # crown.f:413 — D<1 at LSTART → GOTO 58 → DUBSCR (UTTVAR BCR5/6/8/9/10 with TPCCF/AVH/TMAI). Draws
+                # one main-stream BACHLO (|FCR|≤CRSD rejection) when DGSD≥1 — restores the LSTART draw COUNT vs FVS.
+                pt = Int(t.plot_id[i])
+                tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+                tmai = (sp == 13 || sp == 17) ? rmai_lm : rmai_as
+                icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd; tpccf = tpccf, avh = p.avg_height, tmai = tmai)
+            else
+                relsdi = p.sp_sdi_def[sp] > 0f0 ? crown_sdi / p.sp_sdi_def[sp] : 1f0   # SDIAC/SDIDEF (≤1.5)
+                relsdi > 1.5f0 && (relsdi = 1.5f0)
+                acrnew = IE_CRC0[sp] + IE_CRC1[sp] * relsdi * 100f0
+                A = IE_WEIBA[sp]
+                B = IE_WEIBB0[sp] + IE_WEIBB1[sp]*acrnew; B < 1f0 && (B = 1f0)   # crown.f:358
+                C = IE_WEIBC0[sp] + IE_WEIBC1[sp]*acrnew; C < 2f0 && (C = 2f0)   # crown.f:359
+                scale = 1f0 - 0.00167f0*(relden - 100f0)                          # crown.f:425-427
+                scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+                x = d > 0f0 ? (Float32(isort[i]) / Float32(t.n)) * scale : rann!(s.rng) * scale   # crown.f:428-433
+                x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+                crnew = (A + B * (-log(1f0 - x))^(1f0/C)) * 10f0                   # crown.f:436,443
+                icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
+            end
         end
         # final bounds (crown.f:382-390)
         icri > 95 && (icri = 95)
@@ -221,8 +261,13 @@ end
 # is REJECTION-BOUNDED to |FCR|≤CRSD(sp) (dubscr.f:100-104) — distinct from the D≥3 PCR path's single
 # unbounded BACHLO(icri,6.35). For NIVAR the BCR5/6/8/9/10 (TPCCF/AVH/TMAI) terms are all zero, so only
 # BCR0-3 enter. Returns ICRI = INT(CR*100+0.5), CR ∈ [0.05,0.95].
-@inline function ie_dubscr(rng, sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32)::Int
-    cr = IE_DUB_BCR0[sp] + IE_DUB_BCR1[sp]*d + IE_DUB_BCR2[sp]*h + IE_DUB_BCR3[sp]*ba
+@inline function ie_dubscr(rng, sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32;
+                           tpccf::Float32 = 0f0, avh::Float32 = 0f0, tmai::Float32 = 0f0)::Int
+    # dubscr.f:105 — full logistic incl. the UTTVAR TPCCF/AVH/TMAI terms (BCR5/6/8/9/10 are zero for
+    # NIVAR/CRVAR/LPIJU, so the NIVAR/dead-dub callers that omit these kwargs stay bit-exact).
+    cr = IE_DUB_BCR0[sp] + IE_DUB_BCR1[sp]*d + IE_DUB_BCR2[sp]*h + IE_DUB_BCR3[sp]*ba +
+         IE_DUB_BCR5[sp]*tpccf + (h > 0f0 ? IE_DUB_BCR6[sp]*(avh/h) : 0f0) + IE_DUB_BCR8[sp]*avh +
+         IE_DUB_BCR9[sp]*(ba*tpccf) + IE_DUB_BCR10[sp]*tmai
     sd = IE_DUB_CRSD[sp]
     fcr = 0.0f0
     if dgsd >= 1.0f0
