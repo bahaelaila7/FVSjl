@@ -183,14 +183,24 @@ end
 # first-cycle height growth (BM BARE-PLANT: persistent TopHt lag ~5 ft). Same class as EM #137 / UT #184 / CI #185.
 # Mirrors small_tree_growth!'s POTHTG/PCTRED/VIGOR/CON height + DK/DKK DBH over the birth subperiod (subyr=FINT−
 # GENTIM=5), applying HT/DBH directly (esgent.f HT(I)=HT(I)+HTG(I)·WK4). Gated to the new records nstart+1:n.
-function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
     sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
     relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
     gentim = max(fint - 5.0f0, 0.0f0)
     bscale = (fint - gentim) / _BM_RG_REGYR              # birth-cycle fraction (WK4; =0.5 for fint=10)
-    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
+    # REGENT(LESTB) PCTRED reads a MID-PERIOD blend of the CURRENT (post-growth) and the START-of-cycle
+    # (post-thin, pre-growth) CCF/top-height (bm/regent.f:193-202): CCF=(5/FINT)*RELDEN+((FINT-5)/FINT)*ATCCF,
+    # AVHT=(5/FINT)*AVH+((FINT-5)/FINT)*ATAVH, X=AVHT*(CCF/100). ATCCF/ATAVH = grincr.f:318-320 post-thin
+    # (== simulate.jl es_at_relden/es_at_avh). Using the current-only stand inflated X (the grown top height)
+    # and drove PCTRED to its floor => birth-cycle HTG collapse => one-directional PLANT under-production.
+    # #194-class start-of-cycle fix, mirror of IE/UT. Missing (-1) sentinel => legacy current-only (defensive).
+    w0 = fint > 0f0 ? 5.0f0 / fint : 1.0f0; w1 = 1.0f0 - w0
+    ccf = atrelden >= 0f0 ? w0*relden + w1*atrelden : relden
+    avht = atavh >= 0f0 ? w0*avh + w1*atavh : avh
+    xd = avht * (ccf / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
     ab = BM_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
@@ -231,29 +241,30 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         hk = h + htg
         t.height[i] = hk; t.ht_growth[i] = htg
         bkpt = sp == 6 ? 99.0f0 : 3.0f0
-        (d >= bkpt || hk <= 4.5f0) && continue
-        bark = bm_bratio(sd, sp, d)
-        local dk::Float32, dkk::Float32
-        if sp == 6                                    # LP(7) fixed formula is dead code (HTDBH override); see small_tree_growth!
-            dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-            dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-        elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
-            ifor = Int(p.forest_idx)
-            dk = bm_htdbh(ifor, sp, hk)
-            dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
+        d >= bkpt && continue                         # bm/regent.f:390 D>=BKPT ⇒ GO TO 23 (large-tree)
+        # REGENT(LESTB) birth diameter is the ABSOLUTE dubbed DK, NOT the DDS growth-increment reconstruction
+        # (bm/regent.f:542-556 `IF(LESTB) … DBH(K)=DK ; IF(DBH<DIAM .OR. HK<4.5)DBH=DIAM ; DBH=DBH+0.001*HK ;
+        # DG(K)=DBH(K)`). All BM planted species (13/14/16/18 have LHTDRG=false) take the plain DBH(K)=DK arm.
+        # The former code ran the LESTB=F increment path (DG=(DK−DKK)*BARK, DDS-rescaled, capped at
+        # DGMX=DGMAX·SCALE): the half-cycle DGMX cap clipped the synchronized PLANT cohort under DK. Mirror of
+        # the IE/UT fix. HK≤4.5 ⇒ DBH=D+0.001*HK, DG=0 (bm/regent.f:392-394).
+        if hk > 4.5f0
+            local dk::Float32
+            if sp == 6                                    # LP(7) fixed formula is dead code (HTDBH override); see small_tree_growth!
+                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+            elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
+                dk = bm_htdbh(Int(p.forest_idx), sp, hk)
+            else
+                bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
+                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
+            end
+            dbh = dk
+            dbh < BM_RG_DIAM[sp] && (dbh = BM_RG_DIAM[sp])   # regent.f:554 IF(DBH<DIAM)DBH=DIAM
+            dbh = dbh + hk * 0.001f0                          # regent.f:555 DBH=DBH+0.001*HK
+            t.dbh[i] = dbh; t.diam_growth[i] = dbh            # regent.f:556 DG(K)=DBH(K)
         else
-            bx = sd[:ht2][sp]; ax = c.ht_dbh_aa[sp]
-            dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
-            dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+            t.dbh[i] = d + 0.001f0 * hk; t.diam_growth[i] = 0.0f0   # regent.f:392-394 HK≤4.5
         end
-        dgk = (dk - dkk) * bark; dgk < 0.0f0 && (dgk = 0.0f0)
-        dgmx = BM_RG_DGMAX[sp] * bscale
-        sp == 11 && (dgmx = fint * 0.2f0 * bscale)
-        dgk > dgmx && (dgk = dgmx)
-        dds = dgk * (2.0f0 * bark * d + dgk)
-        dgk = sqrt((d * bark)^2 + dds) - bark * d
-        (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
-        dgk > 0.0f0 && (t.dbh[i] = d + dgk; t.diam_growth[i] = dgk)
     end
     return s
 end

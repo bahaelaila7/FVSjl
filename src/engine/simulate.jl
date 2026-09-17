@@ -1015,7 +1015,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
-    s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint)   # BM western: grow birth-cycle regen (bm/esgent.f, #185)
+    s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atrelden = es_at_relden)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
     # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment
