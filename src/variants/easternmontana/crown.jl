@@ -82,6 +82,40 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         bark = bark_ratio(ba_a, ba_b, sp, d)
         local icri::Int
+        # em/crown.f:322-334 — CRVAR (GA/CW/BA/PW/NC/OH: sp 11,13-16,19; the CR-variant hardwood expansion)
+        # use a LINEAR crown-LENGTH model, NOT the NIVAR PARM PCR/DCR logistic below and NOT DUBSCR. For a
+        # sub-1" seedling CL clamps to HF ⇒ CR=1.0 ⇒ ICR caps at 95 (measured vs FVSem_g16: seedling ICR=95,
+        # VIGOR=150·0.95³·e^-5.7+0.3=0.731; the PARM path gave ICR≈36-62 ⇒ VIGOR clamps to 1.0 ⇒ regent HTG
+        # over by 1.0/0.731≈1.37×). No RNG draw on this path (crown.f CRVAR never calls BACHLO). D<3 is NOT
+        # frozen for CRVAR — the CL model updates every cycle (the freeze below is the EMVAR/UTTVAR path).
+        if sp == 11 || (13 <= sp <= 16) || sp == 19
+            htg = t.ht_growth[i]
+            hf = h + htg                                  # crown.f:325 HF=H+HTG (H is post-growth at CROWN)
+            cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*ba  # crown.f:328 CRVAR crown-length
+            cl < 1.0f0 && (cl = 1.0f0)                     # crown.f:331
+            cl > hf && (cl = hf)                           # crown.f:332
+            crnew = (cl/hf)*100.0f0                        # crown.f:333-334 CR=CL/HF; CRNEW=CR*100
+            if !lstart || icr > 0                          # crown.f:450 bounded-change path (±1%/yr)
+                chg = crnew - Float32(icr)
+                pdifpy = chg/Float32(icr)/fint             # crown.f:452 (no *100; crnew already in %)
+                pdifpy > 0.01f0  && (chg = Float32(icr)*0.01f0*fint)
+                pdifpy < -0.01f0 && (chg = Float32(icr)*(-0.01f0)*fint)
+                icri = trunc(Int, (Float32(icr) + chg) + 0.5f0)   # crown.f:459-463 (CRNMLT=1 default)
+                if !lstart && icr != 0                     # crown.f:470-486 crown-length max (cycling, icr>0)
+                    crln  = h*Float32(icr)/100.0f0
+                    crmax = (crln + htg)/(h + htg)*100.0f0
+                    icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+                    Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+                end
+            else                                           # crown.f:465-467 DUB (lstart, icr==0)
+                icri = trunc(Int, crnew + 0.5f0)
+            end
+            icri > 95 && (icri = 95)                        # crown.f:590
+            icri < 10 && (icri = 10)                        # crown.f:594 (CRNMLT=1)
+            icri < 1  && (icri = 1)                         # crown.f:595
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
         # em/crown.f: the DCR change-in-crown model applies to the lstart DUB (all sizes) and to CYCLING
         # d≥3; cycling d<3 keeps its crown. (Previously d<3 at lstart used a flat-40 placeholder — never
         # exercised because EM wasn't calling the lstart dub at all. Now that the dub is wired (simulate.jl),
