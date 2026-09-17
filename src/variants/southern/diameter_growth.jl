@@ -1209,6 +1209,33 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dgf!(s, s.variant)
     wk2 = view(s.scratch.wk, 2, :)
 
+    # CI cycle-0 mortality WK1 = the calibration DGF "dub" (ci/dgdriv.f:792-832 "DUB IN DBH INCREMENT
+    # FOR TREES ON WHICH IT WAS NOT MEASURED"). On the FIRST cycle FVS has no prior-cycle DG, so
+    # ci/morts.f WK1 is NOT 0 — the LSTART calibration pass CALLs DGF(WK3) and, for a FIA stand with no
+    # measured increment (DGIN<0) and HT>4.5, sets DG(I)=SQRT(D_ib²+EXP(WK2+OLDRN)·SCALE)−D_ib (dgdriv.f:823),
+    # which cycle-1's dgdriv.f:171 WK1(I)=DG(I) then hands to MORTS. HT≤4.5 seedling ⇒ DG=0 (dgdriv.f:820-821).
+    # SCALE=FINT/YR=1 for the native 10-yr CI period; OLDRN is a BACHLO(DGSD) RNG residual (mean 0) — the
+    # deterministic expected dub SQRT(D_ib²+EXP(WK2))−D_ib is the faithful value (the RNG residual is the
+    # irreducible seed noise, +50…+66 BA across RANNSEED). Without this WK1=0 collapsed the small-tree
+    # ci/morts.f Hamilton G to the DGT floor (≈½ the dub) ⇒ ~34% cycle-1 dense over-kill on lodgepole
+    # (42518341010690: 5248→3491 jl vs →3938 oracle). Cycle-0 ONLY: cycle≥1 WK1 is the post-update snapshot
+    # (simulate.jl:948 = this cycle's applied DG). Unlike IE (simulate.jl:711-718, which copies diam_growth),
+    # CI's dense small trees grow by the SMALL-tree model, whose DG ≠ the large-tree DGF dub, so WK1 must be
+    # the actual DGF value from wk2 here, not diam_growth.
+    if s.variant isa CentralIdaho && Int(s.control.cycle) == 0
+        _ci_scap = s.control.sp_size_cap
+        @inbounds for i in 1:nlive
+            if t.height[i] <= 4.5f0
+                t.dg_prev[i] = 0f0                                 # dgdriv.f:820-821 seedling ⇒ WK1=0
+            else
+                _spi = Int(t.species[i])
+                _dib = t.dbh[i] * ci_bratio(sd, _spi, t.dbh[i])
+                _dub = sqrt(_dib * _dib + fexp(wk2[i])) - _dib     # dgdriv.f:823 (OLDRN=0, SCALE=1)
+                t.dg_prev[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _ci_scap)  # dgdriv.f:828 DGBND
+            end
+        end
+    end
+
     # per-cycle ARMA multipliers: AUTCOR(new, old) where `new` = THIS cycle's period and
     # `old` = the PREVIOUS cycle's period (dgdriv.f). For uniform 5-yr cycles both are 5
     # (unchanged); a non-uniform TIMEINT/CYCLEAT schedule (e.g. a 10-yr cycle following a
