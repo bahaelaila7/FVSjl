@@ -146,14 +146,26 @@ end
 # got their first-cycle height growth ⇒ the cohort stayed at the ~plant height (PP HHT=3.0) at the birth-cycle
 # report (BARE-PLANT: TopHt 3 vs live 6, BA ~half thru age 60). Mirrors small_tree_growth!'s HTGR over the birth
 # subperiod (subyr=FINT−GENTIM=5, germination offset like tt_esgent!), then DBH once the seedling crosses 4.5 ft.
-function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
     sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
     relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
     gentim = max(fint - 5.0f0, 0.0f0)
     bscale = (fint - gentim) / _UT_RG_REGYR            # birth-cycle time fraction (=0.5 for fint=10)
-    xd = avh * (relden / 100.0f0)
+    # REGENT(LESTB) density modifier PCTRED reads a MID-PERIOD blend of the CURRENT (post-growth) and the
+    # START-of-cycle (post-thin, pre-growth) CCF/top-height, NOT the current stand alone (ut/regent.f:162-171:
+    #   CCF =(5/FINT)*RELDEN+((FINT-5)/FINT)*ATCCF ; AVHT=(5/FINT)*AVH+((FINT-5)/FINT)*ATAVH ; X=AVHT*(CCF/100)).
+    # ATCCF/ATAVH are grincr.f:318-320 post-thin values (== simulate.jl es_at_relden/es_at_avh). By establishment
+    # time p.avg_height reflects the GROWN stand (top height ≫ start), inflating X and driving PCTRED toward its
+    # floor ⇒ birth-cycle HTG collapses ⇒ seedlings cross 4.5 ft too slowly ⇒ one-directional BA under-production.
+    # #194-class start-of-cycle density fix, mirror of IE. Missing (-1) sentinel ⇒ legacy current-only (defensive;
+    # the UT call site passes the trio). X>300 clamp per ut/regent.f:172.
+    w0 = fint > 0f0 ? 5.0f0 / fint : 1.0f0; w1 = 1.0f0 - w0
+    ccf = atrelden >= 0f0 ? w0*relden + w1*atrelden : relden
+    avht = atavh >= 0f0 ? w0*avh + w1*atavh : avh
+    xd = avht * (ccf / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
     ab = UT_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
@@ -199,33 +211,34 @@ function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         (h + htg > cap) && (htg = max(cap - h, 0.0f0))
         h2 = h + htg
         t.height[i] = h2; t.ht_growth[i] = htg
+        # REGENT(LESTB) diameter for the birth record is the ABSOLUTE dubbed DK, NOT the DDS growth-increment
+        # reconstruction (ut/regent.f:483-497 `IF(LESTB) … DBH(K)=DK ; IF(DBH<DIAM) DBH=DIAM ; DBH=DBH+0.001*HK ;
+        # DG(K)=DBH(K)`). The former code ran the LESTB=F increment path (:498-552 DG=(DK−DKK)*BARK, DDS-rescaled,
+        # capped at DGMX=DGMAX·SCALE): with the tiny birth DKK≈D the reconstruction ≈DK, but the DGMX cap on a
+        # half-cycle (bscale≈0.5) clips the increment ⇒ the whole synchronized PLANT cohort enters the next cycle
+        # well under DK ⇒ a seed-invariant, one-directional BA/QMD deficit that compounds. Mirror of the IE fix.
         if h2 > 4.5f0
             hk = h2
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
-            local dk::Float32, dkk::Float32
+            local dk::Float32
             if sp == 10
                 dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
-                dkk = h < 4.5f0 ? d : (h - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
             elseif (11 <= sp <= 17) || sp == 24
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-                dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
             elseif sp == 20 || sp == 21
-                dk = 3.1020f0 + 0.0210f0 * hk
-                dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
-                dk < dkk && (dk = dkk + 0.01f0)
+                dk = 3.1020f0 + 0.0210f0 * hk   # (ut/regent.f refines via P2/P3/P4 inv-eqns + DAT45 offset for
+                                                 #  LHTDRG species; SO/WC-origin sp 20/21 are ~absent in UT FIA)
             else
                 ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
                 bx = sd[:ht2][sp]
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
-                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
             end
-            dgk = (dk - dkk) * bark; dgk < 0.0f0 && (dgk = 0.0f0)
-            dgmx = UT_RG_DGMAX[sp] * bscale
-            dgk > dgmx && (dgk = dgmx)
-            dds = dgk * (2.0f0 * bark * d + dgk)
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
-            (d + dgk) < UT_RG_DIAM[sp] && (dgk = UT_RG_DIAM[sp] - d)
-            dgk > 0.0f0 && (t.dbh[i] = d + dgk; t.diam_growth[i] = dgk)
+            dbh = dk
+            dbh < UT_RG_DIAM[sp] && (dbh = UT_RG_DIAM[sp])   # regent.f:495 IF(DBH<DIAM) DBH=DIAM
+            dbh = dbh + hk * 0.001f0                          # regent.f:496 DBH=DBH+0.001*HK
+            t.dbh[i] = dbh; t.diam_growth[i] = dbh            # regent.f:497 DG(K)=DBH(K)
+        else
+            # regent.f:383-385 HK≤4.5 ⇒ DBH=D+0.001*HK, DG=0 (birth record stays sub-breast-height).
+            t.dbh[i] = d + 0.001f0 * h2; t.diam_growth[i] = 0.0f0
         end
     end
     return s

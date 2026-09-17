@@ -1012,7 +1012,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint)   # EM western: grow birth-cycle regen (#137)
-    s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint)   # UT western: grow birth-cycle regen (ut/esgent.f, #184)
+    s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atrelden = es_at_relden)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint)   # BM western: grow birth-cycle regen (bm/esgent.f, #185)
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
