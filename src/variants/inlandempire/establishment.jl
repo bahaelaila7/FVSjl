@@ -842,12 +842,23 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             baa_p = (!isempty(point_baa) && ptn <= length(point_baa)) ?
                     clamp(Float32(point_baa[ptn]), 1f0, 400f0) : Float32(baa)
             over_p = (size(over_pt, 1) >= 10 && ptn <= size(over_pt, 2)) ? view(over_pt, :, ptn) : over
-            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, Float32(elev),
-                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over_p))
-            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, Float32(elev),
-                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over_p))
-            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, log(baa_p),
-                                        Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
+            # estab.f:604-609 — the ADV/SUBS/EXCESS species probabilities are ALWAYS computed at TIME=10.0
+            # (INGRO=0) or SHORTY (INGRO=1), NOT the tally's elapsed time: `TIME=10.0; IF(INGRO.EQ.1) TIME=SHORTY;
+            # CALL ESTIME(IDSDAT,IDSDAT+ITIME)` overwrites TIME right before ESPADV/ESPSUB/ESPXCS. A CONTINUATION
+            # tally (NTALLY≥2) has elapsed 20/30 yr but STILL calls ESPADV at TIME=10, so REGT=TIME−BWAF=10 too.
+            # jl passed the tally `tm`/`regt` (=next_year−IDSDAT: 10 at cycle-1 but 20+ at a cycle-2 continuation),
+            # over-aging the logits (advance −0.228·TIME + −0.118·REGT terms) ⇒ GF adv-prob 0.168 vs the oracle's
+            # 0.398 ⇒ DF over-book +53 @2012, compounding to +212 TPA @2032. Use the estab.f:606 species-prob
+            # TIME/REGT here (10 / SHORTY); ESTOCK/PROB1 (ie_autoes_run) keeps the ACTUAL elapsed time. Cycle-1
+            # (tm=regt=10) is unchanged ⇒ byte-identical; only the continuation (tm>10) is corrected.
+            tm_sp = is_ingro ? tm : 10f0
+            rg_sp = is_ingro ? Float32(regt) : 10f0
+            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, Float32(elev),
+                                   rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
+            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, Float32(elev),
+                                   rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
+            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, log(baa_p),
+                                        Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                         occ, over_p))
             padv_raw = call_espadv ? copy(pa) : zeros(Float32, 10)
             # BEST-species SUMUP = normalized (PADV + PSUB) (estab.f:726-735 FTEMP=PADV(I)+PSUB(I)). PSUB is
@@ -859,9 +870,9 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             # species (plots 8→WL, 10→LP). SQREGT/SQBWAF: estime.f SQREGT=√TIME−SQBWAF, REGT=TIME−BWAF; with no
             # WSBW (BWAF=SQBWAF=0) √regt=√TIME=SQREGT — mirrors the ie_estock call. The ingrowth path (tm≤2 ⇒
             # ps=0) stays BYTE-IDENTICAL, so the validated AUTOES-ingrowth tally is unperturbed.
-            ps = (is_ie && round(Int, tm + 0.5f0) > 2) ?
-                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, log(baa_p),
-                                   Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
+            ps = (is_ie && round(Int, tm_sp + 0.5f0) > 2) ?
+                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, log(baa_p),
+                                   Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                    occ, over_p)) :
                  zeros(Float32, 10)
             sb = zeros(Float32, nsp); sb[1:10] .= pa .+ ps; sb ./= sum(sb)
@@ -1626,7 +1637,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
                        over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
                        gentim::Real = 5f0, call_espadv::Bool = true,
-                       plant_sp::AbstractVector = Int[])
+                       plant_sp::AbstractVector = Int[], cont_ppba::Bool = false)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1765,8 +1776,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             emit = emit_recs, ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
                             # Per-point species tables gated to the INGROWTH tally (the establishment lever); the
                             # DISTURBANCE path keeps the validated scalar/point-1 tables (empty ⇒ fallback).
-                            point_baa = is_ingro ? point_ba : Float32[],
-                            over_pt = is_ingro ? over_pt : Array{Float32}(undef, 0, 0),
+                            point_baa = (is_ingro || cont_ppba) ? point_ba : Float32[],
+                            over_pt = (is_ingro || cont_ppba) ? over_pt : Array{Float32}(undef, 0, 0),
                             plant_sp = plant_sp)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs)
 end
@@ -2158,9 +2169,19 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # (all-tree 68.9) ⇒ closer to the oracle, no regression. Used for the scalar baaa_pn AND the per-point PROB1
     # vector (prob1_pt) below. Ingrowth-only (the disturbance re-stocking path deliberately uses the bare all-tree
     # per-point BA, validated bit-exact, and is not refreshed here).
+    # ★ CONTINUATION-tally per-point BAAA (dense.f:212-213). FVS builds BAAA(NNID) = per-point OVERSTORY (D≥REGNBK)
+    # POST-growth BA for EVERY establishment tally, not just ingrowth. A CONTINUATION tally (NTALLY≥2 — e.g. the
+    # bare-INADV cycle-2 re-tally on a planted cohort) previously fell back to the STALE, ALL-tree scalar
+    # s.density.point_ba[1] (measured ≈0.4/pt vs the oracle's overstory 1.6-9.3/pt at cycle 2) ⇒ ESPADV BAA clamped
+    # to ~1 vs the oracle's 1.6-3.9 ⇒ GF adv-prob 0.168 vs 0.398 ⇒ DF over-booked +53 @2012, compounding through
+    # faithful per-species growth+mortality to +212 TPA @2032. Build the SAME post-growth overstory per-point BAAA
+    # the ingrowth path uses (from the current post-growth treelist, D≥REGNBK, same tpa·0.005454·D²·PI/GROSPC scale
+    # as dense.f:213) and feed it into the species-prob tables. Gated to NTALLY≥2 so the validated NTALLY=1 initial
+    # disturbance (all-tree ≈ overstory on its overstory-dominated residuals) stays byte-identical.
+    _ie_cont = (s.variant isa InlandEmpire) && !is_ingro && _ntally >= 2
     overstory_pba = Float32[]
-    if is_ingro
-        compute_density!(s)
+    if is_ingro || _ie_cont
+        is_ingro && compute_density!(s)                                   # ingrowth also refreshes PROB1/ESB point stats
         _sc = s.plot.pi / s.plot.gross_space
         overstory_pba = zeros(Float32, nptids)
         @inbounds for i in 1:s.trees.n
@@ -2220,10 +2241,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # baaa=point_ba[1]; the oracle's post-thin BAAA(NNID)=[0,0,162,0] on 3291804010690 matches the
                       # all-tree per-point BA — these points are bare/stocked with negligible sub-REGNBK stock). Empty ⇒
                       # ie_autoes_run keeps the scalar (single-point / non-IE / esb_shift=0 ⇒ byte-identical).
-                      point_ba = is_ingro ?
+                      point_ba = (is_ingro || _ie_cont) ?
                           (isempty(overstory_pba) ? Float32[] : @view overstory_pba[1:min(nptids, length(overstory_pba))]) :
                           ((s.variant isa InlandEmpire && esb_shift != 0f0 && !isempty(s.density.point_ba)) ?
                               (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
+                      cont_ppba = _ie_cont,   # IE continuation (NTALLY≥2): use per-point overstory BAAA species tables
                       over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
                       over_pt = over_pt,        # per-species PER-POINT overstory BA (10×nptids); empty ⇒ scalar/point-1 fallback
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
