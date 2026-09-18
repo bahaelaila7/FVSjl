@@ -261,19 +261,12 @@
   </section>
 </div>
 
-<div id="compareModal" hidden style="position:fixed;inset:0;z-index:50;background:rgba(6,12,9,.72);display:flex;align-items:center;justify-content:center;padding:24px">
+<div id="compareModal" style="position:fixed;inset:0;z-index:50;background:rgba(6,12,9,.72);display:none;align-items:center;justify-content:center;padding:24px">
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;max-width:960px;width:100%;max-height:90vh;overflow:auto;padding:20px">
     <div class="row" style="align-items:center">
       <h2 style="margin:0">Scenario comparison</h2>
+      <span style="color:var(--muted);font-size:12px;margin-left:8px" id="cmpSub"></span>
       <span class="sp"></span>
-      <label class="field" style="margin:0">Metric</label>
-      <select id="cmpMetric" class="mini">
-        <option value="carbon_total">Total carbon (t)</option>
-        <option value="carbon_live_ag">Live aboveground carbon (t)</option>
-        <option value="volume">Standing volume (ft³)</option>
-        <option value="ba_ac">Basal area (ft²/ac)</option>
-        <option value="removed_volume">Removed volume (ft³)</option>
-      </select>
       <button class="mini" id="cmpDownload">↓ Report</button>
       <button class="mini" id="cmpClose">✕ Close</button>
     </div>

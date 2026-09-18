@@ -114,10 +114,10 @@ async function boot() {
   el('runSim').onclick = runSim;
   el('newScenario').onclick = newScenario;
   el('compareBtn').onclick = openCompare;
-  el('cmpMetric').onchange = renderCompare;
   el('cmpDownload').onclick = downloadReport;
   el('cmpClose').onclick = closeCompare;
   el('compareModal').onclick = e => { if(e.target===el('compareModal')) closeCompare(); };
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && el('compareModal').style.display==='flex') closeCompare(); });
   el('runLandscape').onclick = runLandscape;
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
   el('simSlider').oninput = e => onSlider(e.target.value);
@@ -760,15 +760,16 @@ async function runLandscape(){
 // ---------------- scenario comparison ----------------
 const CMP_LABEL = { carbon_total:'Total carbon (t)', carbon_live_ag:'Live carbon (t)',
   volume:'Standing volume (ft³)', ba_ac:'Basal area (ft²/ac)', removed_volume:'Removed volume (ft³)' };
+const CMP_ORDER = ['carbon_total','carbon_live_ag','volume','ba_ac','removed_volume'];
 const SCEN_COLORS = ['#4ade80','#facc15','#38bdf8','#f472b6','#fb923c','#a78bfa','#34d399','#f87171'];
 const scenColor = i => SCEN_COLORS[i % SCEN_COLORS.length];
 
 function openCompare(){
   if(scenarios.length<2){ return; }
-  el('compareModal').hidden=false;
+  el('compareModal').style.display='flex';   // toggle display (inline style beats [hidden])
   renderCompare();
 }
-function closeCompare(){ el('compareModal').hidden=true; }
+function closeCompare(){ el('compareModal').style.display='none'; }
 
 // build a multi-line SVG (one line per scenario) for the chosen metric; returns SVG markup
 function compareChartSVG(metric, W=880, H=280){
@@ -813,27 +814,37 @@ function compareTableHTML(){
       <th>Final volume (ft³)</th><th>Σ removed (ft³)</th><th>Plots</th></tr>${rows}</table>
     <div class="hint" style="margin-top:6px">Deltas in parentheses are vs the first scenario (baseline), at the final projected cycle.</div>`;
 }
+// which metrics have any non-zero data across scenarios (skip all-zero charts, e.g.
+// "removed volume" when every scenario is grow-only)
+function activeMetrics(){
+  return CMP_ORDER.filter(m => scenarios.some(s =>
+    (s.result.cycles||[]).some(c => Math.abs(+c[m]||0) > 0)));
+}
 function renderCompare(){
-  const m = el('cmpMetric').value;
-  el('cmpBody').innerHTML =
+  const sub = el('cmpSub'); if(sub) sub.textContent = `${scenarios.length} scenarios · all metrics vs. time`;
+  const charts = activeMetrics().map(m =>
     `<div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px">
-       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${CMP_LABEL[m]} vs. time (${scenarios.length} scenarios)</div>
-       ${compareChartSVG(m)}</div>
+       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${CMP_LABEL[m]} vs. time</div>
+       ${compareChartSVG(m, 560, 230)}</div>`).join('');
+  el('cmpBody').innerHTML =
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:12px">${charts}</div>
      <div style="margin-top:14px">${compareTableHTML()}</div>`;
 }
 function downloadReport(){
-  const m = el('cmpMetric').value;
   const plans = scenarios.map((s,i)=>
     `<li><b style="color:${scenColor(i)}">${s.name}</b> — ${planSummary(s.plan)} · ${s.plan.cycles}×${s.plan.period}yr</li>`).join('');
   const aoi = el('cards') ? el('cards').innerText.replace(/\n+/g,' · ') : '';
+  const charts = activeMetrics().map(m =>
+    `<div class="chart"><h3>${CMP_LABEL[m]} over time</h3>${compareChartSVG(m, 760, 300)}</div>`).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Forest Growth Explorer — scenario comparison</title>
     <style>body{font:14px system-ui,sans-serif;color:#0f1a14;background:#fff;max-width:960px;margin:24px auto;padding:0 16px}
-    h1{font-size:20px} table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+    h1{font-size:20px} h3{font-size:14px;margin:18px 0 4px} table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
     th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #e5e7eb} .muted{color:#6b7280}
+    .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
     svg text{fill:#374151 !important} svg line{stroke:#e5e7eb !important}</style></head><body>
     <h1>🌲 Forest Growth Explorer — scenario comparison</h1>
-    <div class="muted">Generated ${new Date().toLocaleString()} · AOI: ${aoiParts.length} patch(es)${aoi?' · '+aoi:''}</div>
-    <h2>${CMP_LABEL[m]} over time</h2>${compareChartSVG(m)}
+    <div class="muted">Generated ${new Date().toLocaleString()} · AOI: ${aoiParts.length} patch(es)${aoi?' · '+aoi:''} · ${scenarios.length} scenarios</div>
+    <h2>Metrics over time</h2><div class="charts">${charts}</div>
     <h2>Endpoints</h2>${compareTableHTML()}
     <h2>Scenarios</h2><ul>${plans}</ul></body></html>`;
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
