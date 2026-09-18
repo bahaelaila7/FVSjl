@@ -155,3 +155,49 @@ IE estock tests pass. (end-to-end) `run_keyfile` on the dense stand → jl ingro
 
 **Bonus:** the same synthetic dense stand + live FVSem_g16 oracle cleanly reproduces the SEPARATE #137/#140
 self-thin under-kill — jl self-thins 40000→38897 while live →29750 (mortality, not ingrowth). Ready reproducer.
+
+---
+
+## IE CLOSE-OUT — bit-exact-or-cornered across the FULL base+regime+extension matrix (2026-09-18)
+
+IE is **closed to the corner floor with no open caveat**, validated end-to-end vs the live relinked
+`FVSie_g16` at master `583da79c`: base regimes (none N=400 + plant/thinbba/simfire/salvage N=60) **and**
+the full extension matrix (mistletoe / climate / rootdis-WRD / econ / cover N=60), each re-swept at the
+final code, seed-tested, and population-sign-tallied. Every residual is either bit-exact, a cornered
+floating-point/realization primitive, or was root-caused to a real bug that is now **fixed and merged**.
+
+**9 real IE-affecting fixes merged this run (all faithful Fortran lifts, IE/extension-gated, gate 339/11,
+proper `git merge` — no cherry-pick):**
+1. broken-top FW2 cubic/board volume (build at NORMHT, CFTOPK-trim; `vols.f:143-193`).
+2. Colville (region-6, forest 621) forest-keyed VOLEQ — INGY subregion conifers + Behre minors.
+3. AUTOES `BAA` clamp `[1,400]` before ESPADV (`estab.f:482-484`).
+4. per-point AUTOES species-selection — ESPADV per inventory point + per-point overstory BA (`dense.f`);
+   fixed the +117-TPA mono-redcedar over-retention (mortality was bit-exact — it was establishment
+   *composition*).
+5. Climate-FVS SPCALIB set at cycle 0 from inventory presence (`clmorts.f:57-75`) — was lazily calibrated
+   from the wrong (established) cohort.
+6. Climate-FVS regen ABIRTH (`establish!` path) — regen `birth_age=0` zeroed the Leites transfer distance.
+7. Climate-FVS regen ABIRTH (AUTOES path) — the AUTOES-tally half of (6), completing regen.
+8. WRD RDESTB establishment→disease coupling (`rdestb.f`/`rdgrow.f`) — established/regen trees were never
+   entered into the RD driver, so a regenerating stand under `RDIN` got NO disease growth-loss (jl(RDIN) ≡
+   jl(none)); repro now byte-exact vs oracle rd.sum, host-present N=60 responds 60/60 (one-directional → balanced).
+9. Climate-FVS inventory-aspen ABIRTH (`cratet.f:544-563`/`findag.f`) — inventory aspen (sp18/20/21) left at
+   `birth_age=0`; dub `birth_age=SITAGE` via Sheppard age-from-height. Completes the ABIRTH family.
+
+**Certification method (population is the adjudicator, not single-stand reseed).** Establishment residual is
+ESRANN-fixed ⇒ seed-invariant *by construction*, so single-stand seed-tests can falsely read "deterministic
+bug"; the correct test is the population one-directional signature. All regime population sign-tallies are
+**mixed / negligible-Σ = realization floor**, not one-directional: none TPA 3-over/9-under, thinbba 4/11,
+simfire 19/11-TPA (BA Σ +25, vol net −277), climate 1-over/1-under. The seed-invariant single-stand movers
+were **traced per-cycle and confirmed floor**: `3004925` thinbba = final-cycle AUTOES regen burst (QMD↓,
+BA-matched); `3332308` simfire = post-fire regen (more-but-shorter); `4759041` climate = the inventory-aspen
+ABIRTH bug above (now fixed; sign-swing +70/+477 → −6/−45).
+
+**Residual character (all cornered-with-evidence):** dense-phase NSTORE-INT small-tree count ULP; ESRANN-fixed
+establishment realization; `#206` OLDRN growth straddles (seed-proven); simfire fire-threshold corners (CFB
+catastrophic-cancellation, FMDYN fuel-model boundary); per-cycle volume/height single-precision ULP.
+
+**Full `Pkg.test` on main-at-master: 55329 pass / 25 fail / 75 broken — zero IE regressions** (the 25 are
+pre-existing + IE-independent: 22 Ontario per-tree-volume ULP, 1 SO-WRD corner, 1 LPMPB oracle-dump, 1 CI
+simfire stale golden). Cross-variant / non-IE follow-ups remain open in the wider campaign (wider western
+tripling-cycle mistletoe sweep; ON per-tree-volume ULP; CI simfire golden) — not IE.

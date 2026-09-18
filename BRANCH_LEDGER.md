@@ -1,6 +1,9 @@
 # Branch ledger — merged/superseded classification (2026-09-18)
 
-Master tip at classification: `a4a1af39` → (after this) the `b94eceda` climate-completion merge.
+Master tip at classification: `a4a1af39`. Master has since advanced (all proper `git merge`, no
+cherry-pick): `bebee0b3` (b94eceda climate AUTOES-ABIRTH) → `7dee9fa1` (this ledger) → `583da79c`
+(ie-climate-4759041 = inventory-aspen ABIRTH, the third/final Climate-FVS ABIRTH fix — a real bug
+found during the IE close-out, now merged). See `docs/IE_VARIANT_PORT_AUDIT.md` "IE CLOSE-OUT".
 
 **Why this exists:** prior sessions **cherry-picked** dig-branch fixes into master, so the
 same fix lives under *different SHAs* on branch vs master — `git branch --merged` can't see it,

@@ -1,4 +1,12 @@
-# ⚑ SUPERSEDED 2026-09-18 — IE re-sweep DRIVEN TO THE CORNER FLOOR (master `9aa565c4`)
+# ⚑ SUPERSEDED 2026-09-18 — IE CLOSED to the corner floor (base+regime+extension, master `583da79c`)
+
+**Full close-out (base regimes + all extensions, no caveat): see `docs/IE_VARIANT_PORT_AUDIT.md` → "IE CLOSE-OUT".**
+9 real IE-affecting fixes merged (broken-top + Colville volume, AUTOES BAA-clamp, per-point ESPADV species-
+selection, Climate-FVS SPCALIB + regen-ABIRTH×2 + inventory-aspen-ABIRTH, WRD RDESTB coupling). All proper
+`git merge`. `Pkg.test` 55329/25/75, zero IE regressions.
+
+────────────────────────────────────────────────────────────────────────────
+(earlier close-out note, base regimes only, master `9aa565c4`)
 
 The 2026-09-04 paused state below is HISTORICAL. The one-directional establishment/mortality
 under-build it named was closed over the subsequent merges, and the post-restart re-sweep

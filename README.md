@@ -69,6 +69,12 @@ per cycle vs freshly-relinked live FVS.
   of [docs/DOCTRINE.md](docs/DOCTRINE.md) (pause at ~100 unexplained divergences, dig
   each to a named primitive or a real bug, fix upstream-first, resume). See
   [docs/PORT_STATUS.md](docs/PORT_STATUS.md) for the current per-variant state.
+  - **Inland Empire (IE) — closed to the corner floor** across the full stratified
+    regime + extension matrix (none / thin / plant / simfire / salvage + mistletoe /
+    climate / rootdis / econ / cover), bit-exact-or-cornered vs the live oracle with
+    every residual named (establishment realization, dense-phase NSTORE-INT ULP, `#206`
+    straddles, fire-threshold corners). Full write-up:
+    [docs/IE_VARIANT_PORT_AUDIT.md](docs/IE_VARIANT_PORT_AUDIT.md) → "IE CLOSE-OUT".
 
 ## Install & run
 
