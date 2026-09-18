@@ -32,7 +32,7 @@
         # MEASURED named-primitive corner: ±1 ICR on 7/66 records from a ~0.006 EXPPCR gap driven by the CURRENT-cycle
         # PCT RDPSRT unstable-quicksort tie-break among equal-DBH tripled records — the same tie-break family cornered
         # on the CI case below (307/live-300). Asserting jl's value with the oracle documented, per this file's convention.
-        (FVSjl.InlandEmpire(),   "ie_simfire", 313, 15, 480),   # live: 305 pre, 0 post, 512 MORT (jl 313 — RDPSRT-tie corner)
+        (FVSjl.InlandEmpire(),   "ie_simfire", 309, 15, 480),   # live: 305 pre, 0 post, 512 MORT (jl 313→309 after the per-point AUTOES species-selection fix b927f4a3 — MOVED TOWARD live 305; residual +4 = the RDPSRT-tie corner, was +8)
         (FVSjl.EasternMontana(), "em_simfire", 507, 15, 280),   # live: 507 pre, 0 post, 305 MORT
         # KT (Kootenai): kt/fmcrow.f calls FMCROWW for ALL species (all-conifer, like NC/Klamath) — no eastern
         # FMCROWE. CI (CentralIdaho): ci/fmcrow.f SELECT CASE(SPIW) CASE(13,15,17,19)→FMCROWE, DEFAULT→FMCROWW.
