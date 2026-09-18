@@ -599,6 +599,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
+    # Climate SPCALIB (clmorts.f:57-75 ICYC==1): set at cycle 0 from INVENTORY presence, BEFORE establishment
+    # adds regen — so an empty-at-cycle-1 establishment stand correctly gets SPCALIB=−1 (matches the oracle),
+    # not a mis-calibration from a later cycle's established cohort. Inert unless CLIMATE is active.
+    (s.climate !== nothing && s.climate.active && s.control.cycle == Int32(0)) && init_climate_spcalib!(s)
     # IE crown OLDPCT init (cratet.f:513): at the first grow cycle, seed OLDPCT from the BACKDATED percentile that
     # the initial-CRATET backdating DENSE (cratet.f:217-219) computes — NOT the plain inventory PCT. The backdating
     # runs over the un-deleted inventory (dead-inclusive) with each live diameter backdated to start-of-growth; see

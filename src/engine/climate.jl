@@ -322,6 +322,36 @@ function clim_mort_rates(x::Real, fint::Real, mult::Real)
 end
 
 """
+    init_climate_spcalib!(s)
+
+Set the first-cycle species-presence calibration SPCALIB ONCE at ICYC==1 (clmorts.f:57-75). FVS runs this
+unconditionally at cycle 1 from the cycle-1 species presence (ISCT) sampled at IY(1) (the inventory year):
+`SPCALIB(I) = present ? viability(IY(1))·0.9 : -1`. Because it must reflect the INVENTORY presence, jl calls
+this at cycle 0 (grow_cycle!) — BEFORE establishment adds regen — so a stand that is empty at cycle 1 and only
+establishes trees in later cycles correctly gets SPCALIB = -1 for all species (matching the oracle), instead of
+being (mis-)calibrated from the later cycle's established cohort. No-op when climate is inactive or already set.
+"""
+function init_climate_spcalib!(s::StandState)
+    c = s.climate
+    (c === nothing || !c.active) && return s
+    isempty(c.spcalib) || return s                            # set once (ICYC==1)
+    cd = c.data; t = s.trees; ns = length(c.plant_symbols)
+    c.spcalib = fill(-1f0, ns)
+    present = falses(ns)
+    @inbounds for i in 1:t.n                                  # ISCT(I,1)>0 = species present in the cycle-1 treelist
+        (t.dbh[i] > 0f0 && t.tpa[i] > 0f0) || continue
+        sp = Int(t.species[i]); (1 <= sp <= ns) && (present[sp] = true)
+    end
+    yr = Float32(current_cycle_year(s))                       # THISYR = IY(ICYC=1) = inventory year
+    @inbounds for sp in 1:ns
+        present[sp] || continue
+        findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
+        c.spcalib[sp] = species_vscore(cd, c.plant_symbols[sp], yr)[1] * 0.9f0
+    end
+    return s
+end
+
+"""
     apply_climate_mort!(s, killed, thisyr, fint)
 
 Apply Climate-FVS mortality (clmorts.f:240-259): per tree the applied mortality rate = MAX(base FVS rate,
@@ -335,22 +365,10 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
     (c === nothing || !c.active) && return s
     cd = c.data; ix = c.indices; t = s.trees; ns = length(c.plant_symbols)
     ty = Float32(thisyr); fi = Float32(fint)
-    # (0) First-cycle presence calibration (clmorts.f:57-75): once, set SPCALIB from INVENTORY presence.
-    # Sampled at IY(ICYC) = cycle-START (ty − fint/2), ·0.9 for present species, −1 for absent. Persisted.
-    if isempty(c.spcalib)
-        c.spcalib = fill(-1f0, ns)
-        present = falses(ns)
-        @inbounds for i in 1:t.n
-            (t.dbh[i] > 0f0 && t.tpa[i] > 0f0) || continue
-            sp = Int(t.species[i]); (1 <= sp <= ns) && (present[sp] = true)
-        end
-        startyr = ty - fi / 2f0
-        @inbounds for sp in 1:ns
-            present[sp] || continue
-            findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
-            c.spcalib[sp] = species_vscore(cd, c.plant_symbols[sp], startyr)[1] * 0.9f0
-        end
-    end
+    # (0) First-cycle presence calibration (clmorts.f:57-75) is set ONCE at ICYC==1 by init_climate_spcalib!
+    # (called from grow_cycle! at cycle 0, so it captures the INVENTORY presence even on a stand that is empty
+    # at cycle 1 and only establishes trees later). Defensive fallback if it was somehow not set yet.
+    isempty(c.spcalib) && init_climate_spcalib!(s)
     # (1) Per-species viability FYRMORT (clmorts.f:79-126) — the SPMORT1/FYRMORT loop, presence-calibrated.
     fy = zeros(Float32, ns)
     fill!(c.spmort1, 0f0); fill!(c.spmort2, 0f0)               # reset the report accumulators this cycle
