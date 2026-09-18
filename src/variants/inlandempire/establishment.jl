@@ -790,7 +790,9 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          prep_sumup = nothing, prob1_prep::AbstractVector = Float32[],
                          is_ie::Bool = false, pasmax::Real = Inf32, prob1_pt::AbstractVector = Float32[],
                          emit::Union{Nothing,Vector{NTuple{5,Float64}}} = nothing,
-                         ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true)
+                         ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
+                         point_baa::AbstractVector = Float32[],
+                         over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0))
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -807,16 +809,27 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # Cache carries: (sumup_base, pxcs, nspnz, padv_raw, psub_raw). padv_raw = ESPADV weights when the internal
     # NTALLY==1 (ESPADV is CALLed; estab.f:773), else zeros; psub_raw = ESPSUB weights (ALWAYS CALLed, estab.f:774).
     # These raw per-species PADV/PSUB drive the ADV/SUBS ICHOI dispatch (DO 63, estab.f:780-788) for the emit path.
-    _prep_memo = Dict{Int,Tuple{Vector{Float32},Vector{Float32},Int,Vector{Float32},Vector{Float32}}}()
-    function _prep_tables(ip::Integer)
-        get!(_prep_memo, Int(ip)) do
-            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
-                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), Float32(elev),
-                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over))
-            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), log(Float32(baa)),
+    # Per-INVENTORY-POINT species-mix tables (estab.f:482-484 BAA=BAAA(NNID) clamp[1,400] PER POINT; dense.f:214
+    # OVER(ISPC,IP) per point). The oracle runs ESPADV/ESPXCS/ESPSUB per point, so a multi-point stand's low-BA
+    # points regen the BA²-penalized species (WP/DF/GF) while its dense point regens redcedar; jl formerly used the
+    # scalar (point-1, densest) baa/over for ALL plots ⇒ mono-RC over-retention (RC has the lowest mortality). Key
+    # the memo on (POINT, IPREP). ★ ESPADV/ESPXCS/ESPSUB draw NO RNG ⇒ per-point weights leave the wk6/pick stream
+    # byte-identical. Fall back to the scalar baa / point-1 `over` when the caller supplies no per-point data
+    # (non-IE / disturbance / single point): baa_p[1]==scalar baa and over_pt[:,1]==over by construction, so
+    # single-point IE and every non-IE caller stay BYTE-IDENTICAL. Slope stays the scalar sl (unchanged).
+    _prep_memo = Dict{Tuple{Int,Int},Tuple{Vector{Float32},Vector{Float32},Int,Vector{Float32},Vector{Float32}}}()
+    function _prep_tables(ptn::Integer, ip::Integer)
+        get!(_prep_memo, (Int(ptn), Int(ip))) do
+            baa_p = (!isempty(point_baa) && ptn <= length(point_baa)) ?
+                    clamp(Float32(point_baa[ptn]), 1f0, 400f0) : Float32(baa)
+            over_p = (size(over_pt, 1) >= 10 && ptn <= size(over_pt, 2)) ? view(over_pt, :, ptn) : over
+            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, Float32(elev),
+                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over_p))
+            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, Float32(elev),
+                                   Float32(regt), Float32(bwaf), Float32(bwb4), occ, over_p))
+            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, log(baa_p),
                                         Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
-                                        occ, over))
+                                        occ, over_p))
             padv_raw = call_espadv ? copy(pa) : zeros(Float32, 10)
             # BEST-species SUMUP = normalized (PADV + PSUB) (estab.f:726-735 FTEMP=PADV(I)+PSUB(I)). PSUB is
             # added ONLY when ITIME=INT(TIME+0.5)>2 (estab.f:606-616): the DATED/DISTURBANCE tally uses TIME=10
@@ -828,15 +841,15 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             # WSBW (BWAF=SQBWAF=0) √regt=√TIME=SQREGT — mirrors the ie_estock call. The ingrowth path (tm≤2 ⇒
             # ps=0) stays BYTE-IDENTICAL, so the validated AUTOES-ingrowth tally is unperturbed.
             ps = (is_ie && round(Int, tm + 0.5f0) > 2) ?
-                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, Float32(baa), log(Float32(baa)),
+                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm, baa_p, log(baa_p),
                                    Float32(elev), sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4),
-                                   occ, over)) :
+                                   occ, over_p)) :
                  zeros(Float32, 10)
             sb = zeros(Float32, nsp); sb[1:10] .= pa .+ ps; sb ./= sum(sb)
             (sb, px, count(>(1f-4), sb), padv_raw, ps_full)
         end
     end
-    sumup_base, pxcs, nspnz, padv_raw, psub_raw = _prep_tables(iprep)
+    sumup_base, pxcs, nspnz, padv_raw, psub_raw = _prep_tables(1, iprep)   # default (point 1); loop recomputes per point
     maxspp = _IE_MAXSPP[ihab]
     # Per-plot IPPREP (estab.f:382-399): sample-without-replacement from the WK6 site-prep vector when a
     # MECHPREP/BURNPREP keyword supplied prep_sumup (disturbance tally only; ingrowth path forces IPREP=1).
@@ -896,10 +909,6 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 for _ in 1:wk6fill; ie_esrann!(rng); end
             end
         end
-        # per-plot site prep (estab.f:382-399): each plot's regen uses its assigned IPREP in the species mix.
-        if prep_active && n <= length(ipprep)
-            sumup_base, pxcs, nspnz, padv_raw, psub_raw = _prep_tables(ipprep[n])
-        end
         _emd1 = ie_esrann!(rng); _emd2 = ie_esrann!(rng)                     # EMSQR: sign@1 · magnitude@2
         emsqr = (_emd1 < 0.5f0 ? -1f0 : 1f0) * _emd2                         # estab.f:646-650
         # Per-INVENTORY-POINT slope/aspect for ESTPP (live SLO=PSLO(NNID), XCOS=cos(PASP)·PSLO). Plot n → point
@@ -915,6 +924,11 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         else
             _sln = sl; _xcn = xc; _xsn = xs                                  # empty point (no tree) → stand slope
         end
+        # This plot's species-mix tables use ITS inventory point's BAA + per-species OVERSTORY BA (estab.f runs
+        # ESPADV/ESPXCS/ESPSUB per point) and ITS assigned IPREP. Deterministic (no RNG) ⇒ draw stream unchanged;
+        # single-point / non-IE fall back to the point-1/scalar tables ⇒ byte-identical (see _prep_tables).
+        sumup_base, pxcs, nspnz, padv_raw, psub_raw =
+            _prep_tables(_ptn, (prep_active && n <= length(ipprep)) ? ipprep[n] : iprep)
         itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, _xcn, _xsn, _sln, Float32(regt), Float32(bwaf))), 1, cap)
         p1 = isempty(prob1_pt) ? p1s : prob1_pt[clamp(_ptn, 1, length(prob1_pt))]   # this plot's inventory-point PROB1
         ns = has_state ? Int(nstore[n]) : 0
@@ -1565,6 +1579,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        stoadj::Real = 1f0, spec_mult::AbstractDict = Dict{Int32,Float32}(),
                        prep_sumup = nothing, pasmax::Real = Inf32,
                        point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
+                       over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
                        gentim::Real = 5f0, call_espadv::Bool = true)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
@@ -1701,7 +1716,11 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
                             prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax, prob1_pt = prob1_pt,
-                            emit = emit_recs, ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv)
+                            emit = emit_recs, ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
+                            # Per-point species tables gated to the INGROWTH tally (the establishment lever); the
+                            # DISTURBANCE path keeps the validated scalar/point-1 tables (empty ⇒ fallback).
+                            point_baa = is_ingro ? point_ba : Float32[],
+                            over_pt = is_ingro ? over_pt : Array{Float32}(undef, 0, 0))
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs)
 end
 
@@ -2096,15 +2115,24 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # and pass it to ie_autoes_run. Species index = the IE variant index 1-10 (= estab order WP WL DF GF WH RC LP
     # ES AF PP). IE only (EM keeps over=0 pending its own oracle validation). Point 1 is the tally point the port's
     # single ba/occ/species-prob set already uses; single-point IE stands (this bug's regime) are exact.
-    over_sp = Float32[]
+    # ★ PER-POINT per-species overstory BA `over_pt` (10×nptids): the oracle runs ESPADV/ESPXCS/ESPSUB per
+    # inventory point with THAT point's BAAA (clamp[1,400]) and OVER(ISPC,IP), so a multi-point stand's low-BA
+    # points regen the BA²-penalized species (WP/DF/GF) while its dense point regens redcedar — the oracle cohort
+    # MIXES them. jl formerly used only point-1 (`over_sp`) + the scalar baa for ALL plots ⇒ mono-RC (RC has the
+    # lowest mortality ⇒ never culled ⇒ +TPA over-retention). `over_pt[:,pt]` is threaded into ie_autoes_tally's
+    # per-point species tables; `over_sp` is kept as the point-1 slice so a single-point stand is byte-identical.
+    over_sp = Float32[]; over_pt = Array{Float32}(undef, 0, 0)
     if s.variant isa InlandEmpire
         over_sp = zeros(Float32, 10)
+        over_pt = zeros(Float32, 10, nptids)
         _scv = s.plot.pi / s.plot.gross_space
         @inbounds for i in 1:s.trees.n
             s.trees.dbh[i] < 2.999f0 && continue                              # REGNBK overstory filter (dense.f:212)
-            Int(s.trees.plot_id[i]) == 1 || continue                          # tally point NNID=1 (matches baaa_pn)
+            pid = Int(s.trees.plot_id[i]); (1 <= pid <= nptids) || continue
             sp = Int(s.trees.species[i]); (1 <= sp <= 10) || continue         # estab species 1-10 carry OVER
-            over_sp[sp] += s.trees.tpa[i] * 0.005454154f0 * s.trees.dbh[i]^2 * _scv
+            b = s.trees.tpa[i] * 0.005454154f0 * s.trees.dbh[i]^2 * _scv
+            over_pt[sp, pid] += b
+            pid == 1 && (over_sp[sp] += b)                                    # point-1 slice (byte-identical fallback)
         end
     end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
@@ -2133,6 +2161,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                           ((s.variant isa InlandEmpire && esb_shift != 0f0 && !isempty(s.density.point_ba)) ?
                               (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
                       over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
+                      over_pt = over_pt,        # per-species PER-POINT overstory BA (10×nptids); empty ⇒ scalar/point-1 fallback
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)
                       spec_mult = est.spec_mult,  # SPECMULT per-species XESMLT (empty ⇒ inert)
                       prep_sumup = prep_sumup,  # MECHPREP/BURNPREP per-plot IPPREP (nothing ⇒ all IPREP=1, inert)
