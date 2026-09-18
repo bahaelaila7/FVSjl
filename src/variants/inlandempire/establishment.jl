@@ -2258,6 +2258,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.height[n]      = hht
         t.tpa[n]         = tpa_sp
         t.plot_id[n]     = Int32(pt)
+        # ABIRTH = AGEPL+GENTIM (estab.f:628/707); AUTOES natural regen ⇒ AGEPL=0, GENTIM=FINT−5. Read ONLY by
+        # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL transfer distance; apply_climate_dds! +
+        # inlandempire/regent.jl clim_treemult), so byte-identical for climate-off IE. Was birth_age=0 ⇒ BIRTHYR=now
+        # ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE (matches oracle ABIRTH=GENTIM=5).
+        t.birth_age[n]   = _autoes_gentim
         t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
         # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
         pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
