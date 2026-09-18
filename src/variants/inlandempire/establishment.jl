@@ -2109,7 +2109,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
-                      elev = p.elevation, baa = max(baaa_pn, 1f0), time = time, esb_shift = esb_shift,
+                      elev = p.elevation, baa = clamp(baaa_pn, 1f0, 400f0), time = time, esb_shift = esb_shift,
                       # Per-point stocking shift ESB−ESB1(NNID) for the ingrowth per-point PROB1 (fixes the M333
                       # multi-point over-production). Passed only when calibration is active THIS call (scalar
                       # esb_shift≠0 ⇒ the ESB block ran this tally); empty ⇒ ie_autoes_run uses the scalar shift.
