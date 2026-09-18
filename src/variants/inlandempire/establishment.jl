@@ -931,6 +931,14 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # record carries (sp, point, height, wk4, tpa). Collapsing to one WK4=0.60 record over-projected the cohort.
     doemit = emit !== nothing
     gtim = Float32(gentim); ihts = Int(ihtser); iphy_i = Int(iphy)
+    # ESXCSH excess-tree-height TIME (estab.f:945 FTEMP=FLOKDT−KDTOLD) is the INTER-TALLY interval (= the cycle
+    # length), NOT the tally's elapsed-since-disturbance time — MEASURED FVSie_g16: FTEMP=10.0 at BOTH cycle-1
+    # (FLOKDT 2001−KDTOLD 1991) and the cycle-2 CONTINUATION (2011−2001), so ITIME=2 both. jl passed the tally `tm`
+    # (=next_year−IDSDAT: 10 at cycle-1 but 20+ at a continuation) ⇒ ITIME jumped to 3 ⇒ wrong ESXCSH BB/CC height-
+    # class coefficients ⇒ the excess-tree size distribution (and its size-dependent RIP self-thinning) diverged.
+    # Cycle length = GENTIM+5 = FINT (estab.f FINT; gentim=max(FINT−5,0)); byte-identical at cycle-1 (tm=FINT), the
+    # continuation is corrected. Ingrowth (INGRO=1) keeps its SHORTY `tm` (its validated iet01 excess heights).
+    _esx_tm = is_ingro ? tm : (gtim + 5f0)
     xmin_e = _IE_ES_XMIN; hhtmax_e = _IE_ES_HHTMAX; bnorml_e = _IE_ES_BNORML
     first1 = doemit ? fill(0.1f0, nsp) : Float32[]           # FIRST(1,sp) advance dilate order-statistic (persists
     first2 = doemit ? fill(0.1f0, nsp) : Float32[]           # across plots within a tally, estab.f:179-183)
@@ -1127,7 +1135,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             tally[j] += _c; _fillpt && (tally_pt[j, _ptof(n)] += _c)
             if doemit                                                      # ESXCSH excess-tree height (estab.f DO 156)
                 dhx = wk6e[nd + 1]                                         # 2nd draw = ESXCSH DRAW (NDRAW+1)
-                hx = ie_esxcsh(j, tallh[j], xmin_e[j], tm, dhx)           # HTMAX=TALL(II), HTMIN=XMIN(II)
+                hx = ie_esxcsh(j, tallh[j], xmin_e[j], _esx_tm, dhx)      # HTMAX=TALL(II), HTMIN=XMIN(II); TIME=FLOKDT−KDTOLD
                 (hx < xmin_e[j]) && (hx = xmin_e[j]); (hx > hhtmax_e[j]) && (hx = hhtmax_e[j])
                 e_sp[iplot] = j; e_ht[iplot] = hx; e_wk4[iplot] = stomlt[j]; e_esp[iplot] = Float32(_e)
             end
