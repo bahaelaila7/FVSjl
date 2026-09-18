@@ -609,6 +609,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ie_seed_backdated_oldpct!. Later cycles get OLDPCT from the post-crown snapshot (crown_ratio) below.
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
         ie_seed_backdated_oldpct!(s)
+        ie_dub_aspen_birthage!(s)   # cratet.f:544-563 CALL FINDAG: dub ABIRTH=SITAGE for sp18/20/21 (AS/MM/PB)
         # IE crown DCR backdates against OLDBA/RELDM1 = the PREVIOUS cycle's stand BA/RELDEN (dense.f:239-240,
         # threaded start-of-cycle; crown.f:277-281 reads them for DCRCON). Seed cycle-1's pair from the
         # inventory (pre-growth) density — analog of the OLDPCT seed above (matches oracle OBA[1]=inventory BA).

@@ -318,6 +318,28 @@ end
 # Seeding OLDPCT from the plain current PCT instead over-states each tree's start-of-cycle percentile rank ⇒ DCR's
 # b13·PB + b14·log(PB) term too high ⇒ EDCR too high / CHG too low ⇒ crown ICR biased low on a subset ⇒ pre-fire
 # TREES gap. Verified vs FVSie_g16 (ie_simfire): tree I=3 OLDPCT 34.2→25.2 (oracle backdated), all 27 live match.
+"""
+    ie_dub_aspen_birthage!(s)
+
+Dub the effective tree AGE (ABIRTH) for inventory aspen-group trees at init, per FVS cratet.f:544-563
+(`CALL FINDAG` for ISPC ∈ {18,20,21} = AS/MM/PB when ABIRTH≤0) with ie/findag.f's single Sheppard aspen
+age-from-height equation `SITAGE = (H·2.54·12/26.9825)^(1/1.1752)` (H in feet). Only Climate-FVS reads
+birth_age in IE (apply_climate_dds! + inlandempire/regent.jl clim_treemult → BIRTHYR=THISYR−ABIRTH → the
+Leites XDF/XPP/XWL transfer distance), so this is byte-identical for climate-off IE. Without it, mature
+inventory aspen carried birth_age=0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-applied the climate growth multiplier
+(the oracle carries ABIRTH=SITAGE 30-85 yr, XRELGR≈1.03). Aged +FINT/cycle thereafter (gradd.f:205).
+"""
+function ie_dub_aspen_birthage!(s::StandState)
+    t = s.trees
+    @inbounds for i in 1:t.n
+        sp = Int(t.species[i])
+        (sp == 18 || sp == 20 || sp == 21) || continue
+        (t.birth_age[i] <= 0f0 && t.height[i] > 0f0) || continue
+        t.birth_age[i] = (t.height[i] * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)   # ie/findag.f
+    end
+    return s
+end
+
 function ie_seed_backdated_oldpct!(s::StandState)
     t = s.trees; nlive = t.n
     nlive == 0 && return s
