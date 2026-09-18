@@ -262,11 +262,23 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
             continue
         end
         if startswith(eq, "I")                            # Flewelling FW2 (sp1-14,23)
-            v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
+            # Broken/dead-top trees (vols.f:145-146,193): the full cubic/board is built at the
+            # PREDICTED FULL HEIGHT (NORMHT), then trimmed to the standing broken stem via the
+            # Behre taper (CFTOPK/BFTOPK, TOPD=4.5). Mirrors the Behre/DVE branches below and KT's
+            # FW2 path. (Validated vs FVSie_g16 vols dump: D=15.04 NORMHT=57.81 ITRUNC=16 broken
+            # redcedar VMAX 27.3 → TCF 14.84 / MCF 10.61.)
+            broken = t.trunc[i] > 0 && t.norm_ht[i] > 0
+            hbase = broken ? Float32(t.norm_ht[i]) / 100f0 : h
+            v = cr_fw2_vol(eq, d, hbase; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= bfmind ? v[2] : 0f0
-            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
+            if broken && tcf > 0f0 && hbase >= 4.5f0
+                vmax = tcf
+                tcf, mcf = cr_cftopk(tcf, mcf, d, hbase, vmax, bark, Int(t.trunc[i]), stump, topd)
+                bf = cr_bftopk(bf, d, hbase, vmax, bark, Int(t.trunc[i]), stump, bftopd)
+            end
+            t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                              # region-1/2 NVEL DVE (aspen/cottonwood/mm/birch/pinyon)
             # FVS routes these by VOLEQ prefix (R1KEMP / R1ALLENC / R2OLDV), PROD='02' total-cubic call.
