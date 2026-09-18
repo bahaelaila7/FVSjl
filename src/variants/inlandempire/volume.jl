@@ -33,6 +33,40 @@ const IE_VOL_EQ = String[
     "I00FW2W260",  # sp23
 ]
 
+# IE Colville NF (region-6, forest 621, IFOR==5) VOLEQ — VOLEQDEF is forest-keyed and Colville is IE's ONLY
+# region-6 forest (ie/forkod.f JFOR: only 621 is R6; the other 10 are region-1). Region-6 assigns the INGY
+# Flewelling subregion (I11/I12/I13 → GFSUB/PPSUB/WLSUB coefficients in cr_fw2_vol, applied via _fw2_ingy_frow)
+# for the conifers and the region-6 GIRARD-form-class BEHRE equation (616BEHW###, → ie_behre_vol) for the
+# minor species — NOT the region-1 FW2/DVE strings above. DUMPED verbatim from the live FVSie_g16 "NATIONAL
+# VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS" table for a forest-621 stand. (DF/LP/ES/AF resolve to the FW2 base
+# row either way, so those were already bit-exact; WL/GF/WH/PP/MH pick up INGY subregion coefs, and every minor
+# species — WB/LM/LL/PM/RM/PY/AS/CO/MM/PB/OH/OS — switches from FW2/DVE to Behre.)
+const IE_VOL_EQ_COLVILLE = String[
+    "I00FW2W119",  # sp1  WP
+    "I11FW2W073",  # sp2  WL (WLSUB 11)
+    "I11FW2W202",  # sp3  DF (base)
+    "I11FW2W017",  # sp4  GF (GFSUB 11)
+    "I11FW2W017",  # sp5  WH → GF equation (GFSUB 11)
+    "I11FW2W242",  # sp6  RC
+    "I11FW2W108",  # sp7  LP (base)
+    "I13FW2W093",  # sp8  ES (base)
+    "I11FW2W202",  # sp9  AF → DF equation (base)
+    "I12FW2W122",  # sp10 PP (PPSUB 12)
+    "I11FW2W017",  # sp11 MH → GF equation (GFSUB 11)
+    "616BEHW101",  # sp12 WB Behre
+    "616BEHW113",  # sp13 LM Behre
+    "616BEHW072",  # sp14 LL Behre
+    "616BEHW000",  # sp15 PM Behre
+    "616BEHW066",  # sp16 RM Behre
+    "616BEHW231",  # sp17 PY Behre
+    "616BEHW746",  # sp18 AS Behre
+    "616BEHW740",  # sp19 CO Behre
+    "616BEHW321",  # sp20 MM Behre
+    "616BEHW375",  # sp21 PB Behre
+    "616BEHW998",  # sp22 OH Behre
+    "616BEHW299",  # sp23 OS Behre
+]
+
 # ie/formcl.f COLVFC — Colville NF (IFOR=5, forest 621, a Region-6 forest) Girard form-class table,
 # [IFCDBH 1..5, ISPC 1..23]. Column-major Fortran DATA transcribed to [ifcdbh, sp]. Region-1 IE forests
 # ignore form class (their FW2/DVE routines don't use it) and get FC=80; Colville feeds it to the R6 Behre

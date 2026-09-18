@@ -358,9 +358,12 @@ function setup_volume_equations!(s::StandState)
             vfia = KT_VOL_FIA[sp]
             s.species.vol_eq[sp] = "I00FW2W" * lpad(string(vfia), 3, '0')
         elseif s.variant isa InlandEmpire
-            # IE VOLEQDEF (ie/sitset.f, VAR='IE'): FW2 (sp1-14,23) + DVE/Behre (sp15-22). Strings dumped from
-            # live (forest 118); forest-keyed VOLEQDEF port needed for arbitrary IE forests (see volume.jl).
-            s.species.vol_eq[sp] = sp <= length(IE_VOL_EQ) ? IE_VOL_EQ[sp] : "           "
+            # IE VOLEQDEF (ie/sitset.f, VAR='IE') is FOREST-KEYED. Region-1 forests (10 of 11) use the forest-118
+            # FW2/DVE table; Colville (IFOR==5, forest 621) is IE's only region-6 forest and uses INGY-subregion
+            # FW2 + region-6 Behre (IE_VOL_EQ_COLVILLE). forest_idx is set by ie_forkod! in site_setup! (before
+            # volume setup), same as ie_formcl keys on IFOR==5.
+            ie_tbl = Int(s.plot.forest_idx) == 5 ? IE_VOL_EQ_COLVILLE : IE_VOL_EQ
+            s.species.vol_eq[sp] = sp <= length(ie_tbl) ? ie_tbl[sp] : "           "
         elseif s.variant isa Teton
             # TT VOLEQDEF = R4_EQN (region-4, FORNUM-keyed via TT_JFOR[forest_idx]). Forest 405 (F5) selects
             # DF→405MATW202, AF→405MATW019 (confirmed live). The earlier apparent ".sum regression" from this
