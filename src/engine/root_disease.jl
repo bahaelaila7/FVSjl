@@ -2884,7 +2884,7 @@ function root_disease_mn2!(s::StandState, fint::Real)
     s.trees.n == 0 && return nothing
     rd.icyc += Int32(1)
     # rebuild the driver if the record count changed (COMCUP dropped PROB≤1e-5 records)
-    d.n == s.trees.n || (d = rd.driver = _rd_resize_driver!(rd, d, s.trees.n))
+    d.n == s.trees.n || (d = rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s))
     rd_mn2_advance!(rd, d.rrkill, d.probit, d.probi, fint)
     return nothing
 end
@@ -2912,7 +2912,7 @@ end
 # effort guard — copy the overlapping record prefix from the old driver (stumps carry
 # through unchanged). For the turnkey no record reaches PROB≤1e-5 within 10 cycles, so
 # this never fires there; it exists so an unrelated stand cannot crash the seam.
-function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int)
+function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int, s::Union{StandState,Nothing} = nothing)
     d = rd_build_driver!(rd, n)
     m = min(n, old.n)
     @inbounds for i in 1:m
@@ -2932,6 +2932,34 @@ function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int)
     d.probda .= old.probda; d.dbhda .= old.dbhda; d.rootda .= old.rootda
     d.decrat .= old.decrat; d.jraged .= old.jraged
     d.probd .= old.probd; d.dbhd .= old.dbhd; d.rootd .= old.rootd
+    # RDESTB (rd/rdestb.f, called from estab.f for each newly-established regen record):
+    # FVS runs the RD model on a REGENERATING stand by entering each new tree into the
+    # disease area as UNINFECTED-in-patch (PROBIU = PROB·PAREA[idityp], FPROB = PROB,
+    # PROBI = 0). Records [m+1 : n] are the ones that establishment appended since the
+    # driver was last sized. On a BARE stand (0 inventory trees) EVERY record is new, so
+    # without this the driver stays all-zero and the disease effect (rd/rdgrow.f growth
+    # floor) never fires. TPAREA gate mirrors rdestb.f:52. ROOTL/RROOTT are left to the
+    # per-cycle rd_control! recompute (it rebuilds rootl for ALL records). Only records
+    # with a valid host disease type (idi≥1) are entered (rdestb.f indexes PAREA(IDI)).
+    if s !== nothing && n > m
+        t = s.trees; irt = rd.irtspc; maxrr = Int(rd.maxrr); minrr = Int(rd.minrr)
+        tparea = 0.0f0
+        @inbounds for id in minrr:maxrr; tparea += rd.parea[id]; end
+        if tparea != 0.0f0
+            @inbounds for i in (m+1):n
+                ksp = Int(t.species[i]); ksp == 0 && continue
+                base = Int(irt[ksp])
+                idi = maxrr < 3 ? Int(RD_IDITYP[base]) : maxrr
+                idi <= 0 && continue                       # non-host: leave uncoupled (PROBIU=0)
+                ans = t.tpa[i]                              # RDESTB ANS = PROB(N)
+                d.fprob[i]    = ans                         # FPROB(N)  = ANS
+                d.ffprob[i,2] = ans                         # FFPROB(N,2)= ANS
+                d.probiu[i]   = ans * rd.parea[idi]         # PROBIU(N) = ANS·PAREA(IDI)
+                # PROBI(N,·,·) already 0 from rd_build_driver!; WK22 already 0.
+            end
+            rd_sum!(d.probit, d.probi, Int(rd.istep))       # PROBIT = Σ PROBI (unchanged; new PROBI=0)
+        end
+    end
     return d
 end
 
