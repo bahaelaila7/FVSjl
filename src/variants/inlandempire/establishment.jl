@@ -1735,7 +1735,13 @@ end
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return false
     est = s.estab
-    (est.lautal || est.lingrw) || return false
+    # INADV=1 bare-stand bypass (estab.f:319,511 `IF(INADV.EQ.1 .OR. NTALLY.NE.1) GO TO …`): on a bare stand FVS
+    # runs the establishment scheduler REGARDLESS of the LAUTAL/LINGRW auto-tally flags (so a bare stand with
+    # NOAUTALY/NOINGROW still gets the PLANT-forced / bare ingrowth — rule (4)/(3) below). est.inadv persists from
+    # the cycle-1 latch (line ~1771); catch cycle-1 inline before it's latched. NON-bare stands (INADV=0) keep the
+    # original gate exactly ⇒ byte-identical.
+    _bare = est.inadv || (Int(s.control.cycle) + 1 == 1 && s.trees.n == 0)
+    (est.lautal || est.lingrw || _bare) || return false
     nsp = nspecies(s.variant)
     # The estb habitat bracket (esplt2.f IEND/MYGRUP, = _IE_ESTAB_IEND/MYGRUP) keys off ICL5 = the FVS/NI habitat
     # CODE. IE's p.habitat_code IS that code; EM's p.habitat_code is IEMTYP (1-118) whose NI code is EM_JTYPE[iemtyp]
