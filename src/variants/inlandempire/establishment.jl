@@ -811,7 +811,10 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
                          point_baa::AbstractVector = Float32[],
                          over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
-                         plant_sp::AbstractVector = Int[])
+                         plant_sp::AbstractVector = Int[],
+                         ipprep_in::AbstractVector = Int[],
+                         ipprep_out::Union{Nothing,Vector{Int32}} = nothing,
+                         prob1_pt_ip::AbstractMatrix = Array{Float32}(undef, 0, 0))
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -884,6 +887,12 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # Per-plot IPPREP (estab.f:382-399): sample-without-replacement from the WK6 site-prep vector when a
     # MECHPREP/BURNPREP keyword supplied prep_sumup (disturbance tally only; ingrowth path forces IPREP=1).
     prep_active = prep_sumup !== nothing && !is_ingro
+    # CONTINUATION reuse (estab.f:341 IF(NTALLY.NE.1) GO TO 242): a continuation tally does NOT re-sample IPPREP;
+    # it reuses the NTALLY=1 per-plot IPPREP (persisted in est.es_ipprep, passed as ipprep_in) so the per-IPREP
+    # SPRE stocking term carries into cycle-2+. The DUPNPT WK6 site-prep draws (DO 183) are STILL consumed each
+    # tally (below), so the RNG stream is unchanged. Empty ipprep_in ⇒ inert (byte-identical).
+    _reuse_prep = !prep_active && !isempty(ipprep_in)
+    _use_prep = prep_active || _reuse_prep
     ipprep = Int[]
     # ITPP cap (estab.f:681-682): ALWAYS MAXTPP; the MAXING cap applies ONLY when INGRO=1. Instrument-replay
     # (FVSie iet01) CONFIRMED jl's ESTPP draws + TPP are BIT-IDENTICAL to live (0.346302→2.486, 0.835307→14.036,
@@ -954,8 +963,10 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 wk6v = Float32[ie_esrann!(rng) for _ in 1:wk6fill]           # (estab.f:333 DO 183) and sample IPPREP
                 _id = idup > 0 ? Int(idup) : 1
                 ipprep = ie_esetpr_sample(prep_sumup, wk6v, div(nplots, _id), _id)  # nptids = dupnpt/idup
+                ipprep_out === nothing || (resize!(ipprep_out, length(ipprep)); ipprep_out .= Int32.(ipprep))  # persist for continuations
             else
-                for _ in 1:wk6fill; ie_esrann!(rng); end
+                for _ in 1:wk6fill; ie_esrann!(rng); end                     # DO 183 draws still consumed (RNG unchanged)
+                _reuse_prep && (ipprep = Int[Int(x) for x in ipprep_in])     # reuse the NTALLY=1 IPPREP (estab.f:341)
             end
         end
         _emd1 = ie_esrann!(rng); _emd2 = ie_esrann!(rng)                     # EMSQR: sign@1 · magnitude@2
@@ -977,7 +988,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # ESPADV/ESPXCS/ESPSUB per point) and ITS assigned IPREP. Deterministic (no RNG) ⇒ draw stream unchanged;
         # single-point / non-IE fall back to the point-1/scalar tables ⇒ byte-identical (see _prep_tables).
         sumup_base, pxcs, nspnz, padv_raw, psub_raw =
-            _prep_tables(_ptn, (prep_active && n <= length(ipprep)) ? ipprep[n] : iprep)
+            _prep_tables(_ptn, (_use_prep && n <= length(ipprep)) ? ipprep[n] : iprep)
         itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, _xcn, _xsn, _sln, Float32(regt), Float32(bwaf))), 1, cap)
         p1 = isempty(prob1_pt) ? p1s : prob1_pt[clamp(_ptn, 1, length(prob1_pt))]   # this plot's inventory-point PROB1
         ns = has_state ? Int(nstore[n]) : 0
@@ -991,8 +1002,16 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # CANCELS in logistic(PN+ESB−ESB1) — it is time/BA-independent and enters BOTH the end-of-cycle PN and the
         # inventory ESB1 — so PROB1 is per-point AND iprep-independent (the oracle prints one PROB1 per point). Use
         # prob1_pt then and SKIP the per-IPREP override (which would mis-apply point-1's SPRE-uncancelled prob1_prep).
-        p1n = (prep_active && !isempty(prob1_prep) && isempty(prob1_pt) && n <= length(ipprep)) ?
-              Float32(prob1_prep[ipprep[n]]) : p1
+        # ★ CONTINUATION (NTALLY≥2): the per-plot PROB1 is per-(inventory-point × IPPREP) — the oracle recomputes
+        # ESTOCK per point with THAT point's BAAA(NNID) AND the plot's persisted IPPREP, so the SPRE(IPREP) term
+        # is NOT cancelled (the cycle-1 ESB1 that would cancel it was computed at inventory, a different prep) ⇒
+        # the oracle prints (point×IPREP)-distinct PROB1 (26 values 0.786-0.830) vs jl's earlier per-point-at-IPREP=1
+        # (7 values, ~+0.02 high ⇒ per-tree over-book). `prob1_pt_ip[pt,iprep]` carries it (built in ie_autoes_run
+        # for the continuation); select by this plot's (point, persisted IPPREP). Empty ⇒ the pre-existing paths.
+        p1n = (!isempty(prob1_pt_ip) && _use_prep && n <= length(ipprep)) ?
+              prob1_pt_ip[clamp(_ptn, 1, size(prob1_pt_ip, 1)), clamp(Int(ipprep[n]), 1, size(prob1_pt_ip, 2))] :
+              ((prep_active && !isempty(prob1_prep) && isempty(prob1_pt) && n <= length(ipprep)) ?
+               Float32(prob1_prep[ipprep[n]]) : p1)
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
         prob_old = max(p1n - pn, 0.0001f0)
@@ -1026,7 +1045,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         wk6d = Vector{Float32}(undef, 2 * nsp)
         @inbounds for i in 1:(2 * nsp); wk6d[i] = ie_esrann!(rng); end        # DO 122 WK6 (ESDLAY draws)
         if doemit
-            ip_plot = (prep_active && n <= length(ipprep)) ? Int(ipprep[n]) : Int(iprep)
+            ip_plot = (_use_prep && n <= length(ipprep)) ? Int(ipprep[n]) : Int(iprep)
             @inbounds for i in 1:nsp; stomlt[i] = 1f0; tallh[i] = 0.001f0; iasep_e[i] = 0; end
             ndraw = 0
             @inbounds for sp2 in 1:nsp
@@ -1637,7 +1656,9 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
                        over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
                        gentim::Real = 5f0, call_espadv::Bool = true,
-                       plant_sp::AbstractVector = Int[], cont_ppba::Bool = false)
+                       plant_sp::AbstractVector = Int[], cont_ppba::Bool = false,
+                       ipprep_in::AbstractVector = Int[],
+                       ipprep_out::Union{Nothing,Vector{Int32}} = nothing)
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1711,6 +1732,30 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             prob1_pt[pt] = v
         end
     end
+    # ★ PER-(INVENTORY-POINT × IPPREP) PROB1 for the CONTINUATION tally (estab.f:466-582 ESTOCK per plot with the
+    # plot's persisted IPPREP). On a continuation the SPRE(IPREP) stocking term does NOT cancel (the cycle-1 ESB1
+    # that would cancel it was computed at inventory under a different prep), so the oracle's per-plot PROB1 varies
+    # by (point × IPREP): MEASURED FVSie_g16 cyc-2 na_valid pt1 BAAA=2.97 → NONE 0.8188 / MECH 0.804 / BURN 0.789
+    # (Δlogit = SPRE(1,IEQ)−SPRE(k,IEQ) exactly). Build PROB1[pt,iprep] = logistic(PN(BAAA_pt, iprep) + shift_pt)·sa
+    # for iprep∈{1,2,3} so the tally can select each plot's persisted IPPREP. IE + continuation (cont_ppba) only;
+    # nptids==1/non-IE/non-continuation ⇒ empty ⇒ the scalar/per-point paths above are unchanged (byte-identical).
+    prob1_pt_ip = Array{Float32}(undef, 0, 0)
+    if _is_ie && cont_ppba && !isempty(point_ba)
+        prob1_pt_ip = Array{Float32}(undef, _npt_pb, 3)
+        @inbounds for pt in 1:_npt_pb
+            ba_pt  = clamp(pt <= length(point_ba)     ? Float32(point_ba[pt])     : ba,  1f0, 400f0)
+            sl_pt  =       pt <= length(point_slope)  ? Float32(point_slope[pt])  : sl
+            asp_pt =       pt <= length(point_aspect) ? Float32(point_aspect[pt]) : asp
+            shift_pt = pt <= length(esb_shift_pt) ? esb_shift_pt[pt] : Float32(esb_shift)
+            for ipk in 1:3
+                pn_pt = ie_estock(idx.ihab, ipk, sl_pt, cos(asp_pt), sin(asp_pt), Float32(elev), ba_pt,
+                                  log(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+                v = (1f0 / (1f0 + exp(-(pn_pt + shift_pt)))) * sa
+                v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
+                prob1_pt_ip[pt, ipk] = v
+            end
+        end
+    end
     prob1_of(pt) = isempty(prob1_pt) ? prob1 : prob1_pt[clamp(pt, 1, length(prob1_pt))]
     # #143: INGROWTH NSTORE = the existing small-tree (DBH<REGNBK) stocking (estab.f:589 NSTORE=INT(PLPROB·DUPNPT/
     # (FTEMP·300)+0.5)). PLPROB·DUPNPT = the current DBH<2.999 TPA (measured live: 595·50=29750 = self-thinned
@@ -1778,7 +1823,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             # DISTURBANCE path keeps the validated scalar/point-1 tables (empty ⇒ fallback).
                             point_baa = (is_ingro || cont_ppba) ? point_ba : Float32[],
                             over_pt = (is_ingro || cont_ppba) ? over_pt : Array{Float32}(undef, 0, 0),
-                            plant_sp = plant_sp)
+                            plant_sp = plant_sp, ipprep_in = ipprep_in, ipprep_out = ipprep_out,
+                            prob1_pt_ip = prob1_pt_ip)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs)
 end
 
@@ -2246,6 +2292,9 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                           ((s.variant isa InlandEmpire && esb_shift != 0f0 && !isempty(s.density.point_ba)) ?
                               (@view s.density.point_ba[1:min(nptids, length(s.density.point_ba))]) : Float32[]),
                       cont_ppba = _ie_cont,   # IE continuation (NTALLY≥2): use per-point overstory BAAA species tables
+                      # IPPREP persistence: est.es_ipprep is WRITTEN at NTALLY=1 (prep sampled) and REUSED as the
+                      # per-plot IPPREP by continuations (estab.f:341), so the per-IPREP SPRE PROB1/species carry over.
+                      ipprep_in = est.es_ipprep, ipprep_out = est.es_ipprep,
                       over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
                       over_pt = over_pt,        # per-species PER-POINT overstory BA (10×nptids); empty ⇒ scalar/point-1 fallback
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)

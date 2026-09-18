@@ -706,6 +706,9 @@ mutable struct Establishment
     es_nstore::Vector{Int32}    # per-plot stocked tree count (NSTORE, estab.f:685) from the prior tally in this
                                 # disturbance sequence; a continuation books only the increment ITPP-NSTORE.
     es_pnn::Vector{Float32}     # per-plot prior PROB1 (PNN, estab.f:953); old trees get the increment PROB1-PNN.
+    es_ipprep::Vector{Int32}    # per-plot site-prep IPPREP (estab.f DO 10) sampled at NTALLY=1; PERSISTED and
+                                # REUSED by continuation tallies (estab.f:341 IF(NTALLY.NE.1) GO TO 242 skips the
+                                # re-sample), so the per-plot per-IPREP SPRE stocking term carries into cycle-2+.
     stoadj::Float32             # STOCKADJ keyword (esnutr.f IACTK 440 STOADJ): multiplier on the establishment
                                 # stocking probability PROB1 = logistic(PN+ESB-ESB1)·STOADJ (estab.f:579). Default
                                 # 1.0 (inert); NATURAL implies STOADJ=0.0 (esin.f:1230). Set inside the ESTAB packet.
@@ -755,7 +758,7 @@ mutable struct Establishment
                                 # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
-                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], 1f0,
+                                true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[])
 
