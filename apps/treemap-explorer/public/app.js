@@ -112,6 +112,12 @@ async function boot() {
   el('loadPlan').onclick = () => el('planFile').click();
   el('planFile').onchange = loadPlan;
   el('runSim').onclick = runSim;
+  el('newScenario').onclick = newScenario;
+  el('compareBtn').onclick = openCompare;
+  el('cmpMetric').onchange = renderCompare;
+  el('cmpDownload').onclick = downloadReport;
+  el('cmpClose').onclick = closeCompare;
+  el('compareModal').onclick = e => { if(e.target===el('compareModal')) closeCompare(); };
   el('runLandscape').onclick = runLandscape;
   el('simMetric').onchange = () => { drawSimChart(); if(lastSim) setSimLayer(); };
   el('simSlider').oninput = e => onSlider(e.target.value);
@@ -179,7 +185,7 @@ const emptyFC = () => ({type:'FeatureCollection',features:[]});
 /* ---------------- polygon draw ---------------- */
 let drawing=false, verts=[], lastClick=0;
 function startDraw(){
-  clearAoi();                 // clears any prior AOI (also calls cancelDraw)
+  cancelDraw();               // cancel any in-progress draft; KEEP existing patches (additive)
   drawing=true; verts=[];
   map.getCanvas().style.cursor='crosshair';
   map.doubleClickZoom.disable();
@@ -232,20 +238,49 @@ function finishDraw(){
   if (verts.length < 3){ return; }         // keep drawing until a valid ring
   const geometry = {type:'Polygon',coordinates:[verts.concat([verts[0]])]};
   cancelDraw();
-  currentAoiGeom = geometry;               // enable GeoJSON download
-  el('download').disabled = false;
-  map.getSource('aoi').setData({type:'Feature',geometry});
-  submitAoi({body:JSON.stringify({geometry}),
-             headers:{'Content-Type':'application/json'}});
+  aoiParts.push(geometry);                 // ADD a patch to the holding (multi-polygon AOI)
+  submitAoiUnion();
 }
 
-let currentAoiGeom = null;
+// --- multi-patch AOI: the holding is the union of `aoiParts` polygons -------------------
+let aoiParts = [];                         // array of GeoJSON Polygon geometries (patches)
+let currentAoiGeom = null;                 // the union MultiPolygon actually sent to the API
+// flatten any Polygon/MultiPolygon into a list of Polygon coordinate-arrays
+function polysOf(geom){
+  if(!geom) return [];
+  if(geom.type==='Polygon') return [geom.coordinates];
+  if(geom.type==='MultiPolygon') return geom.coordinates.slice();
+  return [];
+}
+// the AOI geometry = MultiPolygon union of every patch (each patch may itself be multi)
+function aoiGeometry(){
+  const all = aoiParts.flatMap(polysOf);
+  if(!all.length) return null;
+  return {type:'MultiPolygon', coordinates:all};
+}
+function aoiFeatureCollection(){
+  return {type:'FeatureCollection', features:aoiParts.map((g,i)=>
+    ({type:'Feature', properties:{i}, geometry:g}))};
+}
+function renderPatchList(){
+  const host=el('patchList'); if(!host) return;
+  el('patchBadge').hidden = aoiParts.length===0;
+  el('patchBadge').textContent = aoiParts.length + (aoiParts.length===1?' patch':' patches');
+  host.innerHTML = aoiParts.map((g,i)=>
+    `<div class="row" style="justify-content:space-between;align-items:center;font-size:12px;padding:2px 0">
+       <span style="color:var(--muted)">▪ Patch ${i+1}</span>
+       <button class="rm" data-patch="${i}" title="remove patch">×</button></div>`).join('');
+  host.querySelectorAll('[data-patch]').forEach(b=>b.onclick=e=>{
+    aoiParts.splice(+e.currentTarget.dataset.patch,1);
+    aoiParts.length ? submitAoiUnion() : clearAoi();
+  });
+}
 function downloadAoi(){
-  if (!currentAoiGeom) return;
-  const fc = {type:'FeatureCollection', features:[{type:'Feature',
-              properties:{name:'AOI', source:'TreeMap Growth Explorer',
+  if (!aoiParts.length) return;
+  const fc = {type:'FeatureCollection', features:aoiParts.map((g,i)=>({type:'Feature',
+              properties:{name:`Patch ${i+1}`, source:'Forest Growth Explorer',
                           created:new Date().toISOString()},
-              geometry:currentAoiGeom}]};
+              geometry:g}))};
   const blob = new Blob([JSON.stringify(fc, null, 2)], {type:'application/geo+json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -264,14 +299,16 @@ function cancelDraw(){
 }
 function clearAoi(){
   cancelDraw();
+  aoiParts = []; currentAoiGeom = null;
   if (map.getSource('aoi')) map.getSource('aoi').setData(emptyFC());
-  currentAoiGeom = null; el('download').disabled = true;
-  el('runSim').disabled = true;
+  el('download').disabled = true; el('runSim').disabled = true;
+  renderPatchList();
+  clearScenarios();
   lastSim = null; clearSimLayer(); drawSimChart();
   el('statsGrp').hidden = true; el('chartGrp').hidden = true; el('landscapeGrp').hidden = true;
 }
 
-/* ---------------- upload ---------------- */
+/* ---------------- upload (adds patch(es)) ---------------- */
 async function onUpload(e){
   const f = e.target.files[0]; if(!f) return;
   const name = f.name.toLowerCase();
@@ -279,30 +316,42 @@ async function onUpload(e){
     setStatus('Upload a .zip of the whole shapefile (.shp+.shx+.dbf+.prj), or a GeoJSON — a single .shp can’t be read.');
     e.target.value=''; return;
   }
-  clearAoi();
-  const buf = await f.arrayBuffer();
-  submitAoi({body:buf, headers:{'Content-Type':'application/octet-stream','X-Filename':f.name}});
+  setStatus('reading upload…');
+  try {
+    const buf = await f.arrayBuffer();
+    // parse the file server-side into a geometry, then add its polygons as patches
+    const res = await fetch('/api/aoi',{method:'POST',
+      body:buf, headers:{'Content-Type':'application/octet-stream','X-Filename':f.name}});
+    const d = await res.json();
+    if(!res.ok||d.error){ setStatus('upload error: '+(d.error||res.status)); e.target.value=''; return; }
+    polysOf(d.geometry).forEach(coords => aoiParts.push({type:'Polygon', coordinates:coords}));
+    submitAoiUnion();
+  } catch(err){ setStatus('upload error: '+err.message); }
   e.target.value='';
 }
 
-/* ---------------- submit + render ---------------- */
-async function submitAoi(opts){
+/* ---------------- submit the union of all patches + render ---------------- */
+async function submitAoiUnion(){
+  currentAoiGeom = aoiGeometry();
+  renderPatchList();
+  if(map.getSource('aoi')) map.getSource('aoi').setData(aoiFeatureCollection());
+  if(!currentAoiGeom){ clearAoi(); return; }
+  const hadScenarios = scenarios.length;
+  if(hadScenarios) clearScenarios();          // AOI changed → prior scenarios are stale
+  el('download').disabled = false;
   setStatus('resolving AOI…');
   try {
-    const res = await fetch('/api/aoi',{method:'POST',...opts});
+    const res = await fetch('/api/aoi',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({geometry:currentAoiGeom})});
     const data = await res.json();
     if (!res.ok || data.error){ setStatus('AOI error: '+(data.error||res.status)); return; }
     renderResult(data);
+    if(hadScenarios) setStatus(`AOI changed (${aoiParts.length} patch${aoiParts.length===1?'':'es'}) — ${hadScenarios} prior scenario${hadScenarios===1?'':'s'} cleared (stale). Re-run to compare.`);
   } catch(err){ setStatus('AOI error: '+err.message); }
 }
 
 function renderResult(d){
-  // draw the AOI the server actually used (covers uploads, which have no client geometry)
-  if (d.geometry && map.getSource('aoi')){
-    map.getSource('aoi').setData({type:'Feature',geometry:d.geometry});
-    currentAoiGeom = d.geometry;            // allow re-download of an uploaded AOI too
-    el('download').disabled = false;
-  }
+  if (map.getSource('aoi')) map.getSource('aoi').setData(aoiFeatureCollection());
   if (d.bbox) map.fitBounds([[d.bbox.west,d.bbox.south],[d.bbox.east,d.bbox.north]],
                             {padding:60,maxZoom:13,duration:600});
   const cards = [
@@ -381,7 +430,68 @@ function drawChart(cells){
 
 /* ---------------- simulation plan builder ---------------- */
 let plan = { name:'plan', cycles:10, period:10, actions:[] };
-let lastSim = null;
+let lastSim = null;                        // = the ACTIVE scenario's result (drives all displays)
+
+// --- scenarios: each = { name, plan (snapshot), result } ; one is ACTIVE -----------------
+let scenarios = [];
+let activeIdx = -1;
+let scenSeq = 0;
+const MAX_SCENARIOS = 8;                    // DD9: soft cap (also = SCEN_COLORS length)
+function planSummary(p){
+  if(!p.actions || !p.actions.length) return 'grow-only';
+  return p.actions.map(a => a.kind==='thin'
+    ? `thin ${a.metric}→${a.target}${a.species&&a.species!=='all'?' '+a.species:''}@+${a.cycle*p.period}yr`
+    : `plant ${a.species}@+${a.cycle*p.period}yr`).join(', ');
+}
+function clearScenarios(){
+  scenarios = []; activeIdx = -1; lastSim = null;
+  renderScenarioChips(); clearSimLayer(); drawSimChart();
+}
+function renderScenarioChips(){
+  const host = el('scenarioChips'); if(!host) return;
+  host.innerHTML = scenarios.map((s,i)=>
+    `<span class="chip${i===activeIdx?' on':''}" data-scen="${i}" title="${planSummary(s.plan)}"
+       style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;cursor:pointer;
+       border:1px solid ${i===activeIdx?'var(--accent)':'var(--line)'};color:${i===activeIdx?'var(--accent)':'var(--muted)'};font-size:12px">
+       ${s.name}<span class="rm" data-del="${i}" style="margin-left:2px" title="delete scenario">×</span></span>`).join('');
+  host.querySelectorAll('[data-scen]').forEach(c=>c.onclick=e=>{
+    if(e.target.dataset.del!==undefined) return;   // handled below
+    activateScenario(+c.dataset.scen);
+  });
+  host.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); deleteScenario(+b.dataset.del);
+  });
+  el('compareBtn').disabled = scenarios.length < 2;
+}
+function deleteScenario(i){
+  scenarios.splice(i,1);
+  if(!scenarios.length){ clearScenarios(); return; }
+  activateScenario(Math.min(activeIdx, scenarios.length-1));
+}
+function activateScenario(i){
+  if(i<0||i>=scenarios.length) return;
+  activeIdx = i;
+  const s = scenarios[i];
+  plan = JSON.parse(JSON.stringify(s.plan));           // load its plan into the builder
+  el('pCycles').value=plan.cycles; el('pPeriod').value=plan.period; el('scenName').value=s.name;
+  renderActions();
+  lastSim = s.result; drawSimChart(); setupSlider(s.result);
+  renderScenarioChips();
+  setStatus(`scenario “${s.name}” · ${fmt(s.result.nplots_sim)} plots · ${s.result.ncycles} cycles`);
+}
+function newScenario(){
+  // fork a fresh draft FROM the current builder plan (DD6): keep its actions/cycles so the
+  // user can tweak one knob and Run to compare; detach from the active scenario so Run appends.
+  activeIdx = -1;
+  plan = JSON.parse(JSON.stringify(plan));
+  plan.cycles = +el('pCycles').value||plan.cycles||10; plan.period = +el('pPeriod').value||plan.period||10;
+  el('scenName').value = '';
+  renderActions();
+  lastSim = null; clearSimLayer(); drawSimChart();
+  el('statsGrp') && (el('cycleBadge').textContent='cycle 0 · current');
+  renderScenarioChips();
+  setStatus('new scenario forked from the current plan — tweak it and Run (or clear actions for grow-only)');
+}
 
 const _opt = (items, sel) => items.map(it => { const [v,t]=Array.isArray(it)?it:[it,it];
   return `<option value="${v}"${v===sel?' selected':''}>${t}</option>`; }).join('');
@@ -465,8 +575,20 @@ async function runSim(){
       body:JSON.stringify({geometry:currentAoiGeom, plan})});
     const d=await res.json();
     if(!res.ok||d.error){ setStatus('simulate error: '+(d.error||res.status)); return; }
-    lastSim=d; plan.period=d.period||plan.period; drawSimChart(); setupSlider(d);
-    setStatus(`simulated ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${fmt(d.acres)} ac · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
+    plan.period=d.period||plan.period;
+    // store as a scenario (update the active one if re-running it, else append)
+    const updating = activeIdx>=0 && activeIdx<scenarios.length;
+    if(!updating && scenarios.length>=MAX_SCENARIOS){          // DD9 soft cap
+      setStatus(`scenario limit is ${MAX_SCENARIOS} — delete one to add another (or re-run to overwrite the active scenario)`);
+      return;
+    }
+    const nm = el('scenName').value.trim() || `Scenario ${++scenSeq}`;
+    const scen = { name:nm, plan:JSON.parse(JSON.stringify(plan)), result:d };
+    if(updating){ scenarios[activeIdx]=scen; }
+    else { scenarios.push(scen); activeIdx=scenarios.length-1; }
+    el('scenName').value = nm;
+    lastSim=d; drawSimChart(); setupSlider(d); renderScenarioChips();
+    setStatus(`“${nm}”: ${fmt(d.nplots_sim)} of ${fmt(d.nplots_aoi)} plots · ${d.ncycles} cycles${d.capped?' (largest '+d.nplots_sim+' run)':''}`);
   }catch(err){ setStatus('simulate error: '+err.message); }
   finally{ clearInterval(poll); el('runSim').disabled=false; el('simprog').style.display='none'; }
 }
@@ -633,6 +755,91 @@ async function runLandscape(){
       + rows + `</table>`;
   }catch(err){ el('lsInfo').textContent='error: '+err.message; }
   finally{ el('runLandscape').disabled=false; }
+}
+
+// ---------------- scenario comparison ----------------
+const CMP_LABEL = { carbon_total:'Total carbon (t)', carbon_live_ag:'Live carbon (t)',
+  volume:'Standing volume (ft³)', ba_ac:'Basal area (ft²/ac)', removed_volume:'Removed volume (ft³)' };
+const SCEN_COLORS = ['#4ade80','#facc15','#38bdf8','#f472b6','#fb923c','#a78bfa','#34d399','#f87171'];
+const scenColor = i => SCEN_COLORS[i % SCEN_COLORS.length];
+
+function openCompare(){
+  if(scenarios.length<2){ return; }
+  el('compareModal').hidden=false;
+  renderCompare();
+}
+function closeCompare(){ el('compareModal').hidden=true; }
+
+// build a multi-line SVG (one line per scenario) for the chosen metric; returns SVG markup
+function compareChartSVG(metric, W=880, H=280){
+  const ns='http://www.w3.org/2000/svg', mL=64, mB=28, mT=12, mR=140, pw=W-mL-mR, ph=H-mT-mB;
+  const series = scenarios.map((s,i)=>({name:s.name, color:scenColor(i),
+    pts:(s.result.cycles||[]).map(c=>({x:c.elapsed, y:+c[metric]||0}))}));
+  const xmax=Math.max(1,...series.flatMap(s=>s.pts.map(p=>p.x)));
+  const ymax=Math.max(1,...series.flatMap(s=>s.pts.map(p=>p.y)))*1.08;
+  const X=x=>mL+pw*x/xmax, Y=y=>mT+ph-ph*y/ymax;
+  let g=`<svg xmlns="${ns}" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px">`;
+  for(let i=0;i<=4;i++){ const y=mT+ph-ph*i/4;
+    g+=`<line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="#26332b" stroke-width="1"/>`;
+    g+=`<text x="${mL-6}" y="${y+3}" text-anchor="end" fill="#8ba393" font-size="10">${fmt(ymax*i/4)}</text>`; }
+  const step=Math.max(1,Math.ceil((series[0]?.pts.length||1)/6));
+  (series[0]?.pts||[]).forEach((p,i)=>{ if(i%step===0||i===series[0].pts.length-1)
+    g+=`<text x="${X(p.x)}" y="${H-8}" text-anchor="middle" fill="#8ba393" font-size="10">+${p.x}</text>`; });
+  series.forEach((s,si)=>{
+    if(!s.pts.length) return;
+    g+=`<path d="M${s.pts.map(p=>X(p.x)+','+Y(p.y)).join(' L')}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+    s.pts.forEach(p=>{ g+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="2.3" fill="${s.color}"/>`; });
+    g+=`<text x="${W-mR+8}" y="${mT+14*si+10}" fill="${s.color}" font-size="11">■ ${s.name}</text>`;
+  });
+  return g+'</svg>';
+}
+function compareTableHTML(){
+  const base = scenarios[0].result.cycles;
+  const last = r => (r.cycles && r.cycles.length) ? r.cycles[r.cycles.length-1] : {};
+  const totRem = r => (r.cycles||[]).reduce((a,c)=>a+(+c.removed_volume||0),0);
+  const rows = scenarios.map((s,i)=>{
+    const L=last(s.result), b=last({cycles:base});
+    const d=(k)=> i===0 ? '' : `<span style="color:var(--muted)">(${(L[k]-b[k])>=0?'+':''}${fmt(L[k]-b[k])})</span>`;
+    return `<tr>
+      <td><span style="color:${scenColor(i)}">■</span> ${s.name}<div style="color:var(--muted);font-size:11px">${planSummary(s.plan)}</div></td>
+      <td>${fmt(L.ba_ac,1)}</td>
+      <td>${fmt(L.carbon_total)} ${d('carbon_total')}</td>
+      <td>${fmt(L.volume)} ${d('volume')}</td>
+      <td>${fmt(totRem(s.result))}</td>
+      <td>${fmt(s.result.nplots_sim)}</td></tr>`;
+  }).join('');
+  return `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="color:var(--muted);text-align:left"><th>Scenario</th><th>Final BA</th><th>Final carbon (t)</th>
+      <th>Final volume (ft³)</th><th>Σ removed (ft³)</th><th>Plots</th></tr>${rows}</table>
+    <div class="hint" style="margin-top:6px">Deltas in parentheses are vs the first scenario (baseline), at the final projected cycle.</div>`;
+}
+function renderCompare(){
+  const m = el('cmpMetric').value;
+  el('cmpBody').innerHTML =
+    `<div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px">
+       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">${CMP_LABEL[m]} vs. time (${scenarios.length} scenarios)</div>
+       ${compareChartSVG(m)}</div>
+     <div style="margin-top:14px">${compareTableHTML()}</div>`;
+}
+function downloadReport(){
+  const m = el('cmpMetric').value;
+  const plans = scenarios.map((s,i)=>
+    `<li><b style="color:${scenColor(i)}">${s.name}</b> — ${planSummary(s.plan)} · ${s.plan.cycles}×${s.plan.period}yr</li>`).join('');
+  const aoi = el('cards') ? el('cards').innerText.replace(/\n+/g,' · ') : '';
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Forest Growth Explorer — scenario comparison</title>
+    <style>body{font:14px system-ui,sans-serif;color:#0f1a14;background:#fff;max-width:960px;margin:24px auto;padding:0 16px}
+    h1{font-size:20px} table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+    th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #e5e7eb} .muted{color:#6b7280}
+    svg text{fill:#374151 !important} svg line{stroke:#e5e7eb !important}</style></head><body>
+    <h1>🌲 Forest Growth Explorer — scenario comparison</h1>
+    <div class="muted">Generated ${new Date().toLocaleString()} · AOI: ${aoiParts.length} patch(es)${aoi?' · '+aoi:''}</div>
+    <h2>${CMP_LABEL[m]} over time</h2>${compareChartSVG(m)}
+    <h2>Endpoints</h2>${compareTableHTML()}
+    <h2>Scenarios</h2><ul>${plans}</ul></body></html>`;
+  const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url;
+  a.download=`scenario-comparison-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.html`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),0);
 }
 
 boot().catch(err => { console.error(err); try { status.textContent = 'startup error: ' + err.message; } catch(_){} });

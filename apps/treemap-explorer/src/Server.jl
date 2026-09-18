@@ -85,10 +85,27 @@ const SIM_AOI = Ref{Any}(nothing)
 # Pre-rendered, cached AOI raster images: (metric, cycle) => PNG bytes. The whole AOI is
 # warped + masked ONCE per simulation, then colorized per (metric, cycle) and cached, so
 # the time slider just swaps a ready image (an /simimage lookup) with no recompute.
-const SIM_IMAGES = Ref{Dict{Tuple{String,Int},Vector{UInt8}}}(Dict{Tuple{String,Int},Vector{UInt8}}())
+# Per-token cache: token => ((metric,cycle) => PNG bytes). Each simulation (each SCENARIO)
+# gets a fresh token so multiple scenarios' rasters coexist; an LRU cap bounds memory.
+const SIM_IMAGES = Ref{Dict{Int,Dict{Tuple{String,Int},Vector{UInt8}}}}(Dict{Int,Dict{Tuple{String,Int},Vector{UInt8}}}())
+const SIM_IMG_ORDER = Ref{Vector{Int}}(Int[])   # token insertion order for LRU eviction
+const SIM_IMG_LOCK = ReentrantLock()
+const SIM_IMG_MAXTOKENS = 12                     # keep the last N scenarios' raster sets
 const SIM_IMG_META = Ref{Any}(nothing)      # corners (lon/lat) + size + metrics for the frontend
 const SIM_TOKEN = Threads.Atomic{Int}(0)    # bumps per simulation → fresh immutable image URLs
 const SIM_IMG_MAXPX = 1200                   # cap the longer image side (bounds memory)
+
+"Store a scenario's rendered images under `tok`, evicting the oldest token past the cap."
+function _cache_sim_images!(tok::Int, images::Dict{Tuple{String,Int},Vector{UInt8}})
+    lock(SIM_IMG_LOCK) do
+        SIM_IMAGES[][tok] = images
+        push!(SIM_IMG_ORDER[], tok)
+        while length(SIM_IMG_ORDER[]) > SIM_IMG_MAXTOKENS
+            old = popfirst!(SIM_IMG_ORDER[])
+            delete!(SIM_IMAGES[], old)
+        end
+    end
+end
 
 "EPSG:3857 meters -> (lon, lat) degrees."
 function _merc_to_lonlat(x::Float64, y::Float64)
@@ -132,8 +149,8 @@ function _render_sim_images(geom3857, layer, doms, ncyc)
             images[(mname, c)] = _png_bytes(img)
         end
     end
-    SIM_IMAGES[] = images
     tok = Threads.atomic_add!(SIM_TOKEN, 1) + 1
+    _cache_sim_images!(tok, images)          # per-token store (multi-scenario) + LRU cap
     # MapLibre image-source corners: TL, TR, BR, BL in [lon,lat]
     tl = _merc_to_lonlat(xmin, ymax); tr = _merc_to_lonlat(xmax, ymax)
     br = _merc_to_lonlat(xmax, ymin); bl = _merc_to_lonlat(xmin, ymin)
@@ -288,10 +305,12 @@ function _simulate_response(geom5070, plan)
        image = imgmeta)       # cached AOI raster overlay: token, corners (lon/lat), size, metrics
 end
 
-"Serve a pre-rendered, cached AOI raster image for (metric, cycle). Token-versioned so
-the browser can cache each immutably — the slider just fetches from cache."
-function _simimage_handler(metric::String, cycle::Int)
-    png = get(SIM_IMAGES[], (metric, cycle), nothing)
+"Serve a scenario's pre-rendered cached AOI raster for (token, metric, cycle). The token
+selects the SCENARIO (each simulation caches its own set); browser-cacheable immutably."
+function _simimage_handler(token::Int, metric::String, cycle::Int)
+    imgs = get(SIM_IMAGES[], token, nothing)
+    imgs === nothing && return HTTP.Response(404)
+    png = get(imgs, (metric, cycle), nothing)
     png === nothing && return HTTP.Response(404)
     HTTP.Response(200, ["Content-Type" => "image/png",
                         "Cache-Control" => "public, max-age=31536000, immutable"];
@@ -312,11 +331,10 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     end
 
     # cached AOI raster overlay: /simimage/{token}/{metric}/{cycle}.png . The token
-    # (bumped per simulation) only makes the URL immutable for browser caching; the
-    # server serves whatever the current cache holds for (metric, cycle).
+    # (bumped per simulation/scenario) selects which scenario's cached raster set to serve.
     @get "/simimage/{token}/{metric}/{cycle}" function (req, token::String, metric::String, cycle::String)
         try
-            return _simimage_handler(metric, parse(Int, first(split(cycle, '.'))))
+            return _simimage_handler(parse(Int, token), metric, parse(Int, first(split(cycle, '.'))))
         catch e
             @warn "simimage error" exception = e
             return HTTP.Response(404)
