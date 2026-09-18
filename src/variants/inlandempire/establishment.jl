@@ -810,7 +810,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          emit::Union{Nothing,Vector{NTuple{5,Float64}}} = nothing,
                          ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
                          point_baa::AbstractVector = Float32[],
-                         over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0))
+                         over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
+                         plant_sp::AbstractVector = Int[])
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -916,6 +917,25 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     stomlt = doemit ? fill(1f0, nsp) : Float32[]             # per-species WK4 for THIS plot (reset per plot)
     tallh  = doemit ? zeros(Float32, nsp) : Float32[]        # per-species best-tree height (post-floor)
     iasep_e = doemit ? zeros(Int, nsp) : Int[]               # 1=advance 2=subsequent
+    # ── Scheduled PLANT/NATURAL trees co-located on EACH plot (estab.f:970-1073 DO 322): each due PLANT/NATURAL
+    # activity adds exactly ONE tree per plot at position ITPP+ITODO with species IPNSPE=PRMS(1) (ITODO=#activities,
+    # uniform across plots — NOT a TPA distribution). FVS then runs the NBEST best/excess selection (DO 166/168/172)
+    # over the COMBINED ITP=ITPP+ITODO set, so a planted NEW-species tree can take a best slot (STEP2, estab.f:1168),
+    # pushing a natural tree into EXCESS and tripping the XCSMAX cap (estab.f:1320). jl books PLANT via establish!
+    # (separately), so here the planted trees enter ONLY the NBEST ranking as non-booked "phantoms". The natural
+    # per-species EXCESS COUNT (what drives XCSMAX) is invariant to the phantom's height — each distinct planted
+    # species consumes exactly one best slot whether it is STEP1-tall or STEP2-short (STEP3 then fills the rest with
+    # the tallest remaining natural either way), AND estab.f's DO 33 excess accumulation loops only the naturals
+    # (N=1,ITPP) — the planted tree at ITPP+ITODO is booked by establish!, not counted as natural excess. So the
+    # phantom height is set to 0: it is EXCLUDED from STEP1/STEP3 (both use the FTEMP=0.001 tallest-search floor,
+    # and 0<0.001), so it never displaces a natural there; but STEP2 (TALL(J) init 0) still promotes it as the sole
+    # representative of a NEW planted species — exactly the slot that pushes a natural species into EXCESS and can
+    # trip XCSMAX. When the planted species is ALSO a natural regen species on the plot, the taller natural wins
+    # STEP2 and the phantom is inert (matching the oracle, whose planted tree is likewise not among the naturals'
+    # best there). Empty plant_sp (no PLANT/NATURAL this tally) ⇒ _nph=0 ⇒ ITP==ITPP ⇒ byte-identical.
+    _ph_sp = doemit ? Int[Int(round(x)) for x in plant_sp if 1 <= Int(round(x)) <= nsp] : Int[]
+    _nph = length(_ph_sp)
+    _ph_ht = zeros(Float32, _nph)
     for (n, sd) in enumerate(seeds)
         rng = IEEstabRNG(sd)
         if n == 1
@@ -1103,42 +1123,49 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # ── Best-tree selection (estab.f:1090-1144 DO 166/168/172) + record booking (DO 33 best, DO 228 excess).
         if doemit && itpp >= 1
             pt_e = _ptof(n)
-            note_e = zeros(Int, itpp)
+            # Combined pool = natural regen (1..itpp) + co-located PLANT/NATURAL phantoms (itpp+1..itp), matching
+            # estab.f's ITP=ITPP+ITODO. NBEST (DO 166/168/172) ranks over the combined set; only the naturals are
+            # booked below (phantoms are booked by establish!). _nph=0 ⇒ itp==itpp ⇒ byte-identical to the pre-fix path.
+            itp = itpp + _nph
+            c_sp = Vector{Int}(undef, itp); c_ht = Vector{Float32}(undef, itp)
+            @inbounds for i in 1:itpp; c_sp[i] = e_sp[i]; c_ht[i] = e_ht[i]; end
+            @inbounds for k in 1:_nph; c_sp[itpp + k] = _ph_sp[k]; c_ht[itpp + k] = _ph_ht[k]; end
+            note_e = zeros(Int, itp)
             if p1n >= 0.00011f0                                              # ISTART=1 unless PROB1<0.00011 (estab.f:1088)
                 null_sp = zeros(Int, nsp); nbest = 0
                 for _step in 1:2                                             # STEP 1: 2 tallest regardless of species
-                    nbest >= itpp && break
+                    nbest >= itp && break
                     ftv = 0.001f0; itemp = 0
-                    @inbounds for i in 1:itpp
+                    @inbounds for i in 1:itp
                         note_e[i] == 1 && continue
-                        e_ht[i] < ftv && continue
-                        ftv = e_ht[i]; itemp = i
+                        c_ht[i] < ftv && continue
+                        ftv = c_ht[i]; itemp = i
                     end
                     itemp == 0 && break
-                    null_sp[e_sp[itemp]] = 1; note_e[itemp] = 1; nbest += 1
+                    (c_sp[itemp] >= 1) && (null_sp[c_sp[itemp]] = 1); note_e[itemp] = 1; nbest += 1
                 end
                 talls = zeros(Float32, nsp); ilsp = zeros(Int, nsp)         # STEP 2: tallest of each additional species
-                @inbounds for i in 1:itpp
+                @inbounds for i in 1:itp
                     note_e[i] == 1 && continue
-                    s = e_sp[i]; (s < 1) && continue
-                    e_ht[i] < talls[s] && continue
-                    talls[s] = e_ht[i]; ilsp[s] = i
+                    s = c_sp[i]; (s < 1) && continue
+                    c_ht[i] < talls[s] && continue
+                    talls[s] = c_ht[i]; ilsp[s] = i
                 end
                 @inbounds for s in 1:nsp
                     (null_sp[s] == 1 || ilsp[s] == 0) && continue
                     note_e[ilsp[s]] = 1; nbest += 1
                 end
-                if nbest < 4 && nbest < itpp                                 # STEP 3: tallest remaining until ≥4
+                if nbest < 4 && nbest < itp                                  # STEP 3: tallest remaining until ≥4
                     while true
                         ftv = 0.001f0; itemp = 0
-                        @inbounds for i in 1:itpp
+                        @inbounds for i in 1:itp
                             note_e[i] == 1 && continue
-                            e_ht[i] < ftv && continue
-                            ftv = e_ht[i]; itemp = i
+                            c_ht[i] < ftv && continue
+                            ftv = c_ht[i]; itemp = i
                         end
                         itemp == 0 && break
                         nbest += 1; note_e[itemp] = 1
-                        nbest >= itpp && break
+                        nbest >= itp && break
                         nbest < 4 || break
                     end
                 end
@@ -1598,7 +1625,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        prep_sumup = nothing, pasmax::Real = Inf32,
                        point_ba::AbstractVector = Float32[], over_sp::AbstractVector = Float32[],
                        over_pt::AbstractMatrix = Array{Float32}(undef, 0, 0),
-                       gentim::Real = 5f0, call_espadv::Bool = true)
+                       gentim::Real = 5f0, call_espadv::Bool = true,
+                       plant_sp::AbstractVector = Int[])
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = cos(asp); xs_st = sin(asp)                       # ESTOCK: unweighted aspect
@@ -1738,7 +1766,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             # Per-point species tables gated to the INGROWTH tally (the establishment lever); the
                             # DISTURBANCE path keeps the validated scalar/point-1 tables (empty ⇒ fallback).
                             point_baa = is_ingro ? point_ba : Float32[],
-                            over_pt = is_ingro ? over_pt : Array{Float32}(undef, 0, 0))
+                            over_pt = is_ingro ? over_pt : Array{Float32}(undef, 0, 0),
+                            plant_sp = plant_sp)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs)
 end
 
@@ -1831,6 +1860,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     npnats = count(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
                         ((year <= Int(a.year) < next_year) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)),
                    s.control.schedule)
+    # Species of the PLANT/NATURAL trees co-located on each plot THIS tally (estab.f:970-985 DO 322 IPNSPE=PRMS(1)),
+    # to merge into the AUTOES NBEST best/excess pool (ie_autoes_tally). Same due-window + non-zero-TPA filter as
+    # establish! (estab.f:415-421 deletes PRMS(2)/(3)≤0.001). Order = schedule order (DO 322 IDO=1,NTODO). Empty when
+    # no PLANT/NATURAL is due ⇒ the tally's NBEST is byte-identical. establish! still books the actual planted trees.
+    _plant_sp = Int[]
+    for a in s.control.schedule
+        ((a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+         ((year <= Int(a.year) < next_year) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc))) || continue
+        (length(a.params) >= 3 && Float32(a.params[2]) > 0.001f0 && Float32(a.params[3]) > 0.001f0) || continue
+        push!(_plant_sp, round(Int, a.params[1]))
+    end
     fire, _ntally = sched_fire ? (true, sched_ntally) :
         ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year, npnats)
     est.last_xtes = 0f0                       # consume the removal fraction (one cycle only)
@@ -2197,7 +2237,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # call_espadv = internal-NTALLY==1 (ESPADV CALLed ⇒ advance regen possible): true for a
                       # fresh disturbance (NTALLY=1) AND the ingrowth path (NTALLY 99→INGRO=1,NTALLY=1, estab.f:256);
                       # false only for a continuation (NTALLY≥2) ⇒ PADV=0 ⇒ all-subsequent.
-                      gentim = max(fint - 5f0, 0f0), call_espadv = (is_ingro || _ntally == 1))
+                      gentim = max(fint - 5f0, 0f0), call_espadv = (is_ingro || _ntally == 1),
+                      plant_sp = _plant_sp)
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
         println(stderr, "AUTOES_IN icyc=$icyc ntally=$(_ntally) seed0=$seed0 es_stream=$(Int(round(est.es_stream))) baaa=$(round(baaa,digits=2)) baa_used=$(round(max(baaa,1f0),digits=2)) time=$time  → total=$(round(sum(r.tally),digits=1))")
