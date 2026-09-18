@@ -690,6 +690,24 @@ function ie_esetpr_sample(sumup, wk6::AbstractVector, nptids::Integer, idup::Int
         su[sel] -= 1f0 / dupnpt                                            # estab.f:397 (without replacement)
         su[sel] < 0f0 && (su[sel] = 0f0)
     end
+    # estab.f:395-467 DO 203/39/202/201 — the MAIN tally loop does NOT consume IPPREP in the DO-10 build
+    # order. For each inventory point NN it reads that point's IDUP replicate preps as a contiguous block
+    # (DO 39: ISTART=NN*IDUP-IDUP+1..NN*IDUP) and then PROCESSES them GROUPED BY ASCENDING PREP-TYPE
+    # (DO 202 ITYPEP=1,4 → all NONE plots, then MECH, then BURN, then ROAD). NCOUNT — the plot index the
+    # per-plot ESTPP/ESNSPE/species draws are booked under — therefore advances in prep-grouped order within
+    # each point, NOT in raw replicate order. jl's tally loop consumes ipprep[n] linearly (n's point =
+    # div(n-1,idup)+1, so consecutive idup entries = one point), which matches DO 39's contiguous read but
+    # NOT DO 202's grouping. Sorting each point's idup-block ascending emits the preps in the exact order the
+    # ESTPP draws are paired with them (VALIDATED: bare NOTREES+PLANT-400-DF, 10 pts × 5 reps → jl per-plot
+    # IPREP now byte-matches FVSie_g16 for all 50 plots; previously 24/50 diverged, shifting high-ITPP plots
+    # onto the GF-favoring NONE prep ⇒ +49 GF / −43 tail-species ⇒ +8 TPA @2002). idup=1 (one replicate per
+    # point, the usual FIA case) ⇒ 1-element blocks ⇒ no-op ⇒ byte-identical.
+    di = Int(idup)
+    if di > 1
+        @inbounds for b in 0:(nptids - 1)
+            sort!(view(ipprep, b * di + 1 : (b + 1) * di))
+        end
+    end
     return ipprep
 end
 
