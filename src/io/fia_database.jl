@@ -409,15 +409,23 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # Growth calibration transition/measurement (GROWTH card: IDG/FINT/IHTG/FINTH/FINTM).
     # DG_TRANS=1 ⇒ the DG field is a PAST diameter (not an increment) measured DG_MEASURE yrs ago.
     _fia_present(d, "DG_TRANS")     && (c.growth_idg   = Int32(_fia_int(d, "DG_TRANS", 0)))
-    _fia_present(d, "DG_MEASURE")   && (c.growth_fint  = _fia_f32(d, "DG_MEASURE", 5f0))
+    # dbsstandin.f:700-703 / :709-711: DG_MEASURE / HTG_MEASURE replace FINT / FINTH only when > 0 (else the
+    # variant default stays); MORT_MEASURE always replaces FINTM but ≤ 0 ⇒ 5 (:715-718).
+    if _fia_present(d, "DG_MEASURE")
+        v = _fia_f32(d, "DG_MEASURE", 0f0); v > 0f0 && (c.growth_fint = v)
+    end
     # The FIA-DB DG_TRANS/DG_MEASURE pair IS a GROWTH card — mark growth_dg_set so the DG calibration
     # NORMALIZES the observed increment by YR/FINT (simulate.jl:47 gates dgscale on growth_dg_set). Without it,
     # a non-native FINT (e.g. the 9-yr FIA remeasurement) is NOT scaled ⇒ the DGSCOR self-calibration over-fits
     # (loblolly COR 0.98→0.34, matching FVS's fort.13 raw scale 1.411 once set). Only when a measured-DG col present.
     (_fia_present(d, "DG_TRANS") || _fia_present(d, "DG_MEASURE")) && (c.growth_dg_set = true)
     _fia_present(d, "HTG_TRANS")    && (c.growth_ihtg  = Int32(_fia_int(d, "HTG_TRANS", 0)))
-    _fia_present(d, "HTG_MEASURE")  && (c.growth_finth = _fia_f32(d, "HTG_MEASURE", 5f0))
-    _fia_present(d, "MORT_MEASURE") && (c.growth_fintm = _fia_f32(d, "MORT_MEASURE", 5f0))
+    if _fia_present(d, "HTG_MEASURE")
+        v = _fia_f32(d, "HTG_MEASURE", 0f0); v > 0f0 && (c.growth_finth = v)
+    end
+    if _fia_present(d, "MORT_MEASURE")
+        v = _fia_f32(d, "MORT_MEASURE", 5f0); c.growth_fintm = v <= 0f0 ? 5f0 : v
+    end
     # SITE_SPECIES (ISISP) + SITE_INDEX (SITEAR): assign to the site species only if given, else to all
     # species (dbsstandin.f:841). A SITE_INDEX ≤ 7 is a DUNNING site-CLASS code, NOT a site index in feet
     # (dbsstandin.f:763 `IF (RSTANDDATA(35).LE.7.) ... DUNNING CODE`); FVS calls DUNN to convert it, but the

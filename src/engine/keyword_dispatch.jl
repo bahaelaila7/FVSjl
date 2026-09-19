@@ -23,8 +23,6 @@ const KNOWN_NOOP = Set([
     # pure I/O / echo / debug / report control
     "SCREEN", "NOSCREEN", "STATS", "ECHOSUM", "ECHO", "NOECHO", "NOSUM",
     "NODEBUG", "DEBUG", "CALBSTAT", "REWIND", "ENDFILE", "FVSSTAND",
-    # report-table requests (output not yet emitted)
-    "TREELIST", "ATRTLIST", "CUTLIST",
     # CCADJ (sstage.f act 444): adjusts CCCOEF/CCCOEF2 used ONLY inside SSTAGE (the structural-
     # stage CLASSIFICATION, Stage et al.) — verified .sum-inert (FVSjl doesn't emit SSTAGE; the
     # coefficient never reaches DGF/CCF growth). Variant-agnostic (sstage is base). Recognize when
@@ -805,6 +803,38 @@ end
 # the activity via OPNEW(2001→2006). MISINF consumes it in the cycle its date falls in (single-cycle;
 # OPDONE), setting the tree DMR round-robin 1..LEVEL over the chosen visit order. SPDECD writes the
 # resolved species SEQUENCE INDEX back into ARRAY(2) before OPNEW, so we store the decoded index.
+"""
+    kw_listact!(s, rec, code)
+
+TREELIST (initre.f:2700-2716, act 80) / CUTLIST (:9400-9409, act 199) / ATRTLIST (:13500-13507, act 198):
+OPNEW(IDT, code, NP, ARRAY(2)) with IDT = field 1 (blank ⇒ 1; 0 ⇒ all cycles) and field 2 blank ⇒ JOLIST
+(=3, blkdat.f). NP (the stored parameter count) follows each keyword's own rule; PRMS = fields 2..NP+1.
+The list writers only act on these scheduled activities (`prtrls_requests!`).
+"""
+function kw_listact!(s::StandState, rec::KeywordRecord, code::Integer)
+    v = rec.values; pr = rec.present
+    f(i) = i <= length(v) ? Float32(v[i]) : 0f0
+    p(i) = i <= length(pr) && pr[i]
+    idt = p(1) ? Int32(trunc(f(1))) : Int32(1)
+    a = Float32[f(i) for i in 1:7]
+    p(2) || (a[2] = 3f0)                               # IF (.NOT.LNOTBK(2)) ARRAY(2)=FLOAT(JOLIST)
+    np = 2
+    if code == 80                                      # TREELIST
+        p(4) && (np = 3)
+        (p(5) && a[5] > 0f0) && (np = 4)
+        (p(6) && a[6] > 0f0) && (np = 5)
+        (p(7) && a[7] > 0f0 && (idt == 0 || idt == 1) && !(p(4) && a[4] == 1f0)) && (np = 6)
+    elseif code == 199                                 # CUTLIST
+        p(4) && (np = 3)
+        p(6) && (np = 5)
+    else                                               # ATRTLIST
+        p(4) && (np = 3)
+    end
+    acts = s.control.list_acts
+    push!(acts, ListActivity(Int32(code), idt, a[2:np+1], Int32(length(acts) + 1)))
+    return
+end
+
 function kw_mistpinf!(s::StandState, rec::KeywordRecord)
     v = rec.values; pr = rec.present
     yr = pr[1] ? Int32(nint(v[1])) : Int32(1)                         # blank date ⇒ IDT=1
@@ -1841,7 +1871,7 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         k = strip(r.name)
         isempty(k) && continue
         k in ("SUMMARY", "TREELIDB", "COMPUTDB", "CLIMREDB", "STRCLSDB", "CALBSTDB", "MISRPTS", "PPBMMAIN",
-              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIST") && (out_req = true)
+              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIDB", "ATRTLIDB") && (out_req = true)
         if k == "END"
             break
         elseif k == "DSNOUT"
@@ -1856,6 +1886,10 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_summary = true
         elseif k == "TREELIDB"
             s.control.dbs_treelist = true
+        elseif k == "CUTLIDB"
+            s.control.dbs_cutlist = true     # dbsin.f opt 17: ICUTLIST ⇒ FVS_CutList (dbscuts.f), written only for a scheduled CUTLIST
+        elseif k == "ATRTLIDB"
+            s.control.dbs_atrtlist = true    # dbsin.f opt 31: IATRTLIST ⇒ FVS_ATRTList (dbsatrtls.f), only for a scheduled ATRTLIST
         elseif k == "COMPUTDB"
             s.control.dbs_compute = true
         elseif k == "CLIMREDB"
@@ -2720,7 +2754,9 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "FMORTMLT"; kw_mult!(s, rec, :fmort)  # FFE fire-caused mortality multiplier (fmeff.f:340)
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
-        elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
+        elseif kw == "TREELIST"; kw_listact!(s, rec, 80)   # schedule a tree list (initre.f opt 17 → PRTRLS(1))
+        elseif kw == "CUTLIST";  kw_listact!(s, rec, 199)  # schedule a cut list  (initre.f opt 92 → PRTRLS(2) from CUTS)
+        elseif kw == "ATRTLIST"; kw_listact!(s, rec, 198)  # schedule an after-treatment list (opt 135 → PRTRLS(3))
         elseif kw == "STRCLASS"; kw_strclass!(s, rec)      # activate SSTAGE structural-stage classification (ksstag.f)
         elseif kw == "CARBREPT"; kw_carbrept!(s, rec)      # request the FFE Stand Carbon Report (fmcrbout.f)
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS

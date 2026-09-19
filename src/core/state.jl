@@ -28,6 +28,16 @@ struct ScheduledActivity
     params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
     aux::Float32                 # 7th param for keywords that need it (THINQFA QFATAR)
 end
+# A scheduled tree-list request (TREELIST act 80 / CUTLIST act 199 / ATRTLIST act 198; initre.f opts 17/92/135
+# → OPNEW). `idt` = the raw date field (0 = all cycles, 1..MAXCYC = cycle number, else a year); `params` =
+# PRMS(1:NPRMS) = keyword fields 2.. (field 2 blank ⇒ JOLIST=3). `seq` = keyword order (OPSORT tie-break).
+struct ListActivity
+    code::Int32
+    idt::Int32
+    params::Vector{Float32}
+    seq::Int32
+end
+
 # 3-arg form (the common case): aux defaults to 0.
 ScheduledActivity(year, icflag, params) =
     ScheduledActivity(Int32(year), Int32(icflag), params, 0f0)
@@ -318,6 +328,11 @@ mutable struct Control
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
     dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
                                               # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
+    # Tree-list activities (TREELIST/CUTLIST/ATRTLIST) and the OPDONE state of their per-cycle copies,
+    # keyed (index into list_acts, 1-based FVS cycle). See `prtrls_requests!` (prtrls.f).
+    list_acts::Vector{ListActivity}
+    list_done::Set{Tuple{Int,Int}}
+    dbs_atrtlist::Bool                        # DATABASE ATRTLIDB ⇒ emit FVS_ATRTList (dbsatrtls.f)      (IATRTLIST)
 end
 
 function Control()
@@ -384,6 +399,8 @@ function Control()
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
         false,                                                   # dm_mrt_defer
+        ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
+        false,                                                   # dbs_atrtlist (ATRTLIDB)
     )
 end
 

@@ -54,7 +54,9 @@ mutable struct TreeList
 
     # --- ages ---
     birth_age  ::Vector{Float32} # age at birth, if known                  (ABIRTH)
-    age_known  ::Vector{Bool}    # whether tree age was input              (LBIRTH)
+    age_known  ::Vector{Bool}    # age known (input or a variant site-age dub; growth uses it)
+    lbirth     ::Vector{Bool}    # tree age was INPUT (intree.f:190-194 LBIRTH; set only there, TRIPLE copies it) —
+                                 # the FVS_TreeList/ATRTList TreeAge gate (dbstrls.f: TREAGE = LBIRTH ? ABIRTH : 0)
     last_diam_year::Vector{Float32} # year of last observed diameter       (YRDLOS)
 
     # --- volumes ---
@@ -134,7 +136,7 @@ function TreeList(maxtre::Int = MAXTRE)
         0, 0,
         iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(), iz(),
         fz(), fz(), fz(), fz(), fz(), iz(), fz(), fz(), fz(),
-        fz(), zeros(Bool, maxtre), fz(),
+        fz(), zeros(Bool, maxtre), zeros(Bool, maxtre), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(), fz(),
         fz(),                                  # mort_pa
@@ -157,7 +159,7 @@ const _TREE_VEC_FIELDS = (
     :species, :plot_id, :tree_id, :history, :mort_code, :cut_code, :special,
     :decay_code, :defect, :trunc, :norm_ht, :woodland_stems,
     :dbh, :height, :tpa, :diam_growth, :ht_growth, :crown_pct, :crown_ratio,
-    :crown_width, :plot_size, :birth_age, :age_known, :last_diam_year,
+    :crown_width, :plot_size, :birth_age, :age_known, :lbirth, :last_diam_year,
     :bdft_vol, :cuft_vol, :merch_cuft_vol, :saw_cuft_vol, :merch_top_bf,
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,

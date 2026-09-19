@@ -1261,7 +1261,13 @@ function run_keyfile(keypath::AbstractString;
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
         dm_rows = (s.control.dbs_mistoe && _dm_report_variant(s.variant)) ? Tuple[] : nothing
         dm_top4 = Int[]
-        hook = tl_on ? (st, yr, pl, cy) -> push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy)) : nothing
+        # PRTRLS(1) (fvs.f:328 pre-projection with the cycle-1 options, fvs.f:412 at each cycle end): one
+        # FVS_TreeList block per TREELIST request accomplished this cycle (none without a TREELIST activity).
+        hook = tl_on ? (st, yr, pl, cy) -> begin
+            for _ in prtrls_requests!(st, 1, cy == 0 ? 1 : cy; lstart = cy == 0)
+                push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy))
+            end
+        end : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
@@ -1288,8 +1294,10 @@ function run_keyfile(keypath::AbstractString;
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
-            tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
-            cl_on && write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+            # DBSTRLS/DBSCUTS create their table on first CALL (a scheduled list request), not merely because
+            # TREELIDB/CUTLIDB was given — no accomplished request ⇒ no table (live FVS).
+            (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            (cl_on && !isempty(cl_cycles)) && write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||

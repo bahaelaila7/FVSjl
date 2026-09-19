@@ -349,7 +349,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
-                push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
+                # PRTRLS(2) (cuts.f:1738): reached only when this cycle actually removed trees; one FVS_CutList
+                # block per CUTLIST request scheduled for this cycle (FVS cycle c+1, JYR=IY(ICYC)=r.year).
+                if rem.tpa > 0f0
+                    for _ in prtrls_requests!(s, 2, c + 1)
+                        push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
+                    end
+                end
                 s.control.cutlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
