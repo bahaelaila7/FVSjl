@@ -129,6 +129,7 @@ mutable struct WpbrRec
     dout::Vector{Float32}      # DOUT(10) — canker distance out on branch (cm); 0=bole
     girdl::Vector{Float32}     # GIRDL(10) — bole-canker girdle %
     istcan::Vector{Int32}      # ISTCAN(10) — canker status code (−1 removed,0..7)
+    icred::Int32               # ICRED — crown-reduction pending (BRCGRO top-kill sets 1; BRCRED applies + clears)
 end
 
 const WPBR_MAXCAN = 10         # ILCAN array bound (BRCOM canker dimension)
@@ -136,7 +137,7 @@ const WPBR_MAXCAN = 10         # ILCAN array bound (BRCOM canker dimension)
 WpbrRec() = WpbrRec(0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 1f5, 0f0,
                     Int32(0), Int32(0), Int32(0), Int32(0),
                     zeros(Float32, WPBR_MAXCAN), zeros(Float32, WPBR_MAXCAN),
-                    zeros(Float32, WPBR_MAXCAN), zeros(Int32, WPBR_MAXCAN))
+                    zeros(Float32, WPBR_MAXCAN), zeros(Int32, WPBR_MAXCAN), Int32(0))
 
 """
     WpbrState
@@ -876,7 +877,112 @@ function wpbr_setup!(s::StandState)
         end
     end
     _wpbr_brstyp!(s, w)
+    # brsetp.f:32-35 — BRCSTA (no input cankers here), BRSTAT (THPROB/TRETN/PITCA the first BRTREG's BRECAN
+    # reads), BRCRED (no pending top-kill at setup), BRIBA when RIMETH≠0. BRTARG's per-tree RI/GI are seeded
+    # by BRTREG's own year loop (same values).
+    _wpbr_brstat!(s, w)
+    w.rimeth != 0 && (w.ridef = wpbr_briba(s.plot.basal_area, w.ribprp, w.rsf))
     w.setup_done = true
+    _wpbr_brtsta!(s, w, 0)          # fvs.f:352 BRPR at LSTART: BRTSTA only (BRSTAT skipped, brpr.f:64)
+    return nothing
+end
+
+# BRSTAT (brstat.f) — stand infection statistics, recomputed from the current tree list (PROB, ITCAN) every
+# BRPR (and once in BRSETP): THPROB = Σ host PROB, TRETN = Σ PROB of hosts with ≥1 canker (ITCAN>0), dead
+# (IBRSTAT 7) hosts excluded; PITCA = (TRETN+TBRHMR)/(THPROB+TBRHMR) capped 0.999 (0 when THPROB=0).
+# Sums run species-outer / IND1-inner, the host-block order. (TRELN/PILCA/AVxCPT are report-only.)
+function _wpbr_brstat!(s::StandState, w::WpbrState)
+    t = s.trees
+    th = [0f0, 0f0]; tr = [0f0, 0f0]
+    for (bri, recs) in _wpbr_host_blocks(s, w), i in recs
+        r = _wpbr_rec!(s, w, i)
+        r.ibrstat == 7 && continue
+        p = t.tpa[i]
+        th[bri] = _wf(th[bri] + p)
+        r.itcan > 0 && (tr[bri] = _wf(tr[bri] + p))
+    end
+    pit = [0f0, 0f0]
+    for b in 1:2
+        if th[b] > 0f0
+            v = _wf(_wf(tr[b] + w.tbrhmr[b]) / _wf(th[b] + w.tbrhmr[b]))
+            pit[b] = v > 0.999f0 ? 0.999f0 : v
+        end
+    end
+    w.thprob = (th[1], th[2]); w.tretn = (tr[1], tr[2]); w.pitca = (pit[1], pit[2])
+    return nothing
+end
+
+# BRTSTA (brtsta.f) — tree status = the highest canker status (1 if it ever had a canker, else 0), capped at 4
+# in cycle 0; escape trees (9) keep their status; a girdled/top-killed tree (5) gets tree value class IMC=3.
+function _wpbr_brtsta!(s::StandState, w::WpbrState, icyc::Int)
+    t = s.trees
+    for (_, recs) in _wpbr_host_blocks(s, w), i in recs
+        r = _wpbr_rec!(s, w, i)
+        maxno = r.itcan > 0 ? 1 : 0
+        @inbounds for m in 1:Int(r.ilcan)
+            r.istcan[m] > maxno && (maxno = Int(r.istcan[m]))
+        end
+        (icyc == 0 && maxno > 4) && (maxno = 4)
+        r.ibrstat != 9 && (r.ibrstat = Int32(maxno))
+        r.ibrstat == 5 && (t.mort_code[i] = Int32(3))
+    end
+    return nothing
+end
+
+"""
+    wpbr_brpr!(s)
+
+FVS `BRPR` (fvs.f:408, every cycle after TREGRO/DISPLY): BRCSTA only after a COMPRESS (BRCMP — not reached
+here), BRTSTA tree statuses, BRSTAT stand statistics (BRSUM/BRCOUT/BRTOUT are report-only). Inert unless a
+BRUST block is active and set up.
+"""
+function wpbr_brpr!(s::StandState)
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active || !w.setup_done) && return nothing
+    s.trees.n == 0 && return nothing
+    _wpbr_brtsta!(s, w, Int(s.control.cycle) + 1)
+    _wpbr_brstat!(s, w)
+    return nothing
+end
+
+# BRCREM (brcrem.f) — at the top of BRTREG, drop every inactive (−1) and non-lethal (1) canker of each live
+# host and compact the canker arrays (BRCDEL). The prune/excise branches (status 2/3 cankers, ITSTAT 0 +
+# LPRGO/LCLEN) need the PRUNE/EXCISE activity flags LPRGO/LEXGO, which only BRTREG's activity section sets —
+# not ported (w.activities is collected but not applied), so they are false and draw nothing.
+function _wpbr_brcrem!(s::StandState, w::WpbrState)
+    icndx = zeros(Int, WPBR_MAXCAN)
+    for (_, recs) in _wpbr_host_blocks(s, w), i in recs
+        r = _wpbr_rec!(s, w, i)
+        r.ibrstat == 7 && continue
+        nl = Int(r.ilcan); ivac = 0
+        fill!(icndx, 0)
+        @inbounds for m in 1:nl
+            icndx[m] = m
+            ic = r.istcan[m]
+            if ic == -1 || ic == 1
+                ivac += 1; icndx[m] = -m
+            end
+        end
+        ivac > 0 && _wpbr_brcdel!(r, ivac, icndx)
+    end
+    return nothing
+end
+
+# BRCDEL (brcdel.f): sort the first ILCAN index entries ascending (vacated slots are −M), then fill vacancies
+# from the highest surviving slots down (NOT order-preserving), and shrink ILCAN by IVACT.
+function _wpbr_brcdel!(r::WpbrRec, ivact::Int, indx::Vector{Int})
+    nl = Int(r.ilcan)
+    v = sort(indx[1:nl])
+    iv = ivact + 1; ir = nl + 1
+    while true
+        iv -= 1; iv < 1 && break
+        ir -= 1; ir <= ivact && break
+        ivac = -v[iv]; irec = v[ir]
+        ivac > irec && break
+        r.dup[ivac] = r.dup[irec]; r.dout[ivac] = r.dout[irec]
+        r.girdl[ivac] = r.girdl[irec]; r.istcan[ivac] = r.istcan[irec]
+    end
+    r.ilcan = Int32(nl - ivact)
     return nothing
 end
 
@@ -904,7 +1010,8 @@ function _wpbr_brecan_step!(w::WpbrState, r::WpbrRec, brhnu::Float32, sstar::Flo
     if r.ibrstat == 0
         if w.pitca[bri] < pimax
             r.ibrstat = Int32(1)
-            w.tretn = _wpbr_settuple(w.tretn, bri, w.tretn[bri] + prob)
+            w.tretn = _wpbr_settuple(w.tretn, bri, _wf(w.tretn[bri] + prob))
+            w.pitca = _wpbr_settuple(w.pitca, bri, _wf(w.tretn[bri] / w.thprob[bri]))   # brecan.f:89
         else
             r.ibrstat = Int32(9); r.estcan = 0f0; r.itcan = Int32(0)
             return 0f0
@@ -1042,22 +1149,23 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
     isempty(blocks) && return nothing
     ifint = max(1, Int(round(fint)))
 
-    # THPROB / PITCA (BRSTAT, condensed): total + infected host TPA per BR species.
-    thprob = [0f0, 0f0]
-    for (bri, recs) in blocks
-        for i in recs
-            r = _wpbr_rec!(s, w, i)
-            r.ibrstat == 7 && continue
-            thprob[bri] += old_tpa[i]
-        end
+    # brtreg.f:298-316 — BRCREM, BRSTYP, then the rust-index update: BRIBA (RIMETH=2, stand BA) or BRICAL
+    # (RIMETH≥3, exposure-time curve at stand age NAGE=IAGE+IY(ICYC+1)−IY(1)). THPROB/TRETN/PITCA are the
+    # previous BRPR's BRSTAT values (w.*), not recomputed here.
+    _wpbr_brcrem!(s, w)
+    _wpbr_brstyp!(s, w)
+    if w.rimeth == 2
+        w.ridef = wpbr_briba(s.plot.basal_area, w.ribprp, w.rsf)
+    elseif w.rimeth >= 3
+        nage = Float32(s.plot.stand_age) + Float32(cycle_year_at(s.control, Int(s.control.cycle) + 1) - cycle_year_at(s.control, 0))
+        w.ridef = w.rimeth == 3 ?
+            _wf(w.minri + _wf(w.maxri * exp(_wf(-0.5f0 * _wf(_wf(_wf(nage - w.pkage) / w.pkshp)^2))))) :
+            _wf(w.minri + _wf(w.maxri * exp(_wf(-0.5f0 * _wf(_wf(log(_wf(nage - w.pkage)) / w.pkshp)^2)))))
     end
-    w.thprob = (thprob[1], thprob[2])
-    pitca = [0f0, 0f0]
-    for bri in 1:2
-        d = thprob[bri] + w.tbrhmr[bri]
-        d > 0f0 && (pitca[bri] = min((w.tretn[bri] + w.tbrhmr[bri]) / d, 0.999f0))
-    end
-    w.pitca = (pitca[1], pitca[2])
+    # MORTS WK2 per record (exact applied kill when it reproduces the survivor; brtreg.f:490 TBRHMR+=WK2)
+    kb = s.scratch.mort_killed
+    mwk2(i) = (k = i <= length(kb) ? min(kb[i], old_tpa[i]) : -1f0;
+               (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i])
     pimax = _wf(1f0 - exp(_wf(-(_wf(100f0 / _wf(1f0 + _wf(100f0 * w.dfact[1, 1])))))))
 
     for (bri, recs) in blocks
@@ -1092,7 +1200,10 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
                 r.gi = gibr
                 star = wpbr_brstar(stht)
                 r.tstarg = _wf(r.tstarg + star)
-                r.ibrstat == 9 && continue
+                if r.ibrstat == 9                          # GO TO 36
+                    (K == ifint) && (w.tbrhmr = _wpbr_settuple(w.tbrhmr, bri, _wf(w.tbrhmr[bri] + mwk2(i))))
+                    continue
+                end
                 expc = _wpbr_brecan_step!(w, r, brhnu, star, stht,
                                           w.dfact[bri, Int(r.istoty)], pimax, bri, old_tpa[i])
                 r.estcan = _wf(r.estcan + expc)
@@ -1100,17 +1211,27 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
                     (wk2, killed, topkill, itr, nht) =
                         _wpbr_brcgro_step!(w, r, old_tpa[i], prop, brht, brhin, brdg, nlcan,
                                            hnew, dnew, htj, itrunc0, normht0, bri)
-                    if topkill
+                    if topkill                            # ITRUNC/NORMHT now; crown reduction deferred (ICRED → BRCRED)
                         t.trunc[i] = Int32(itr); t.norm_ht[i] = Int32(nht)
-                        _wpbr_brcred!(t, i)
+                        r.icred = Int32(1)
                     end
                     if killed
                         nt = old_tpa[i] - wk2; nt < 0f0 && (nt = 0f0)
                         t.tpa[i] = nt
                     end
                 end
+                # label 36 (brtreg.f:485-494): on the last year a still-live host adds its WK2 to TBRHMR
+                (K == ifint && r.ibrstat != 7) &&
+                    (w.tbrhmr = _wpbr_settuple(w.tbrhmr, bri, _wf(w.tbrhmr[bri] + mwk2(i))))
             end
         end
+    end
+    # BRCRED (brtreg.f:526, once after the year loops): crown reduction of live hosts top-killed this cycle.
+    for (_, recs) in blocks, i in recs
+        r = _wpbr_rec!(s, w, i)
+        (r.ibrstat == 7 || t.trunc[i] == 0 || r.icred == 0) && continue
+        _wpbr_brcred!(t, i)
+        r.icred = Int32(0)
     end
     # BRUPDT (brupdt.f): grow each host record's ground diameter for next cycle.
     for (_, recs) in blocks
