@@ -188,13 +188,22 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                     (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
                 end
             end
+            # bm/regent.f:394-397 — HK=H+HTG(K)≤4.5 ⇒ DG(K)=0 and DBH(K)=D+0.001*HK assigned DIRECTLY (a
+            # height-proportional DBH creep for a seedling still under breast height). Was dropped ⇒ such
+            # records stayed at D (171243999020004 PP 0.1" seedling: live 0.104 vs jl 0.100 at 2017, ~0.004"
+            # low thereafter). Copies (L=1,2) get their own bump via the stash (applied in triple_records!).
+            bump = (small && h + htg <= 4.5f0) ? 0.001f0 * (h + htg) : 0f0
             if l == 0
                 t.ht_growth[i] = htg
                 small && (t.diam_growth[i] = dgk)
+                (small && stash !== nothing && !isempty(stash.dbh0)) && (stash.dbh0[i] = d)
+                bump > 0f0 && (t.dbh[i] = d + bump)
             elseif l == 1
+                bump > 0f0 && (stash.bumpU[i] = bump)
                 stash.htgU[i] = htg; !isempty(stash.is_small) && (stash.is_small[i] = true)
                 small && (stash.dgU[i] = dgk)
             else
+                bump > 0f0 && (stash.bumpL[i] = bump)
                 stash.htgL[i] = htg
                 small && (stash.dgL[i] = dgk)
             end

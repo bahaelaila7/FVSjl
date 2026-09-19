@@ -268,9 +268,19 @@ all smaller) / total · 100`. So `1 − PCT/100` is the fraction of stand BA in 
 trees, which the diameter-growth competition term uses. (Despite the field name,
 this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/ICR.)
 """
-function stand_pct!(s::StandState)
+function stand_pct!(s::StandState; cratet_ind::Bool = false)
     t = s.trees; n = t.n
     n == 0 && return s
+    if cratet_ind                                        # BM first grow cycle: CRATET's IND (see bm_cratet_ind!)
+        idx = view(s.scratch.stat_idx, 1:n)
+        bm_cratet_ind!(s, idx)
+        pct = t.crown_ratio; cum = 0f0
+        @inbounds for k in n:-1:1
+            ii = Int(idx[k]); cum += t.dbh[ii]^2 * t.tpa[ii]; pct[ii] = cum
+        end
+        cum > 0f0 && @inbounds for ii in 1:n; pct[ii] = pct[ii] / cum * 100f0; end
+        return s
+    end
     # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
     # `CALL RDPSRT(ITRN,DBH,IND,.TRUE.)` feeding dense.f/PCTILE. RDPSRT is Scowen's UNSTABLE
     # Quickersort, so equal-DBH ties resolve by the partition order, NOT ascending index. A stable

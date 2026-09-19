@@ -121,6 +121,30 @@ end
     return cr
 end
 
+# CRATET's cycle-0 IND (bm/cratet.f:164-166, :199, :270): IND is SEEDED from IND1 (species-major SPESRT order) and
+# re-sorted by DBH with RDPSRT(.FALSE.) — Scowen's UNSTABLE quicksort, so equal-DBH ties fall by the seed order. Only
+# when the inventory has standing-dead records (IREC2<MAXTP1) does CRATET later re-sort RDPSRT(.TRUE.) from identity.
+# That IND feeds CROWN's ISORT (cratet.f:610) and the initial DENSE→PCTILE PCT (cratet.f:692) that the first cycle's
+# DGDRIV reads. A fresh identity sort inverted a tied pair on 171243999020004 (two PP 11.7"/56' records: PCT
+# 22.24/17.94 swapped ⇒ BAL swapped ⇒ DG 0.9602/0.8192 vs jl 0.9412/0.8359).
+function bm_cratet_ind!(s::StandState, idx::AbstractVector{Int32})
+    t = s.trees; n = t.n
+    dbhv = view(t.dbh, 1:n)
+    if t.ndead > 0
+        _rdpsrt!(dbhv, idx)                                   # cratet.f:270 RDPSRT(ITRN,DBH,IND,.TRUE.)
+    else
+        species_sort!(s)
+        isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+        k = 0
+        @inbounds for sp_o in 1:MAXSP
+            isct[sp_o, 1] == 0 && continue
+            for i3 in Int(isct[sp_o, 1]):Int(isct[sp_o, 2]); k += 1; idx[k] = ind1[i3]; end
+        end
+        _rdpsrt!(dbhv, idx; lseq = false)                     # cratet.f:164-166 IND=IND1; RDPSRT(.FALSE.)
+    end
+    return idx
+end
+
 # bm/crown.f — Weibull crown-ratio (all species; small trees D<1 → REGENT). RELSDI=SDIAC/SDIDEF,
 # ACRNEW=C0+C1·RELSDI·100, Weibull A/B/C (B<1→1, C<2→2), SCALE=1−0.00167·(RELDEN−100), rank-based X.
 function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.0f0, lstart::Bool = false,
@@ -130,15 +154,31 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
     relden = p.relative_density; sdiac = crown_sdi
     p_pccf = s.density.point_ccf
     rmai = lstart ? bm_rmai(p) : 0f0                        # maical RMAI (stand scalar) for the DUBSCR crown dub
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n
-        bk = bm_bratio(s.coef.species, Int(t.species[i]), t.dbh[i])
-        key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
+    # ISORT(IND(JJ)) = ITRN−JJ+1 over FVS's IND (bm/crown.f:172-175). Cycling: IND is the gradd.f:186 / esnutr.f:325
+    # RDPSRT(DBH,.TRUE.) of the ALREADY-GROWN DBH (UPDATE precedes CROWN; jl applies DBH before crown too), so the
+    # key is t.dbh — the old dbh+DG/BARK re-added this cycle's growth. LSTART: CRATET's IND (bm_cratet_ind!).
+    idx = Vector{Int32}(undef, n)
+    if lstart
+        bm_cratet_ind!(s, idx)
+    else
+        _rdpsrt!(view(t.dbh, 1:n), idx)
     end
-    _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # Visit order = bm/crown.f:185-213 `DO 70 ISPC=1,MAXSP; DO 60 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)`
+    # (species-major, IND1). Only the LSTART DUBSCR dub draws RNG (one rejection-bounded BACHLO per D<1
+    # missing-crown tree), so the order fixes which seedling gets which draw; record order handed a
+    # mixed-species seedling cohort the wrong draws (171243999020004: PP 974-TPA seedling took DF's −0.68
+    # ⇒ CR 32 vs live 17). Cycling (no draws, order-independent) keeps record order.
+    order = if lstart
+        species_sort!(s)
+        isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+        Int[Int(ind1[i3]) for sp_o in 1:MAXSP
+            for i3 in (isct[sp_o, 1] == 0 ? (1:0) : (Int(isct[sp_o, 1]):Int(isct[sp_o, 2])))]
+    else
+        collect(1:n)
+    end
+    @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue
@@ -159,7 +199,10 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
         relsdi > 1.5f0 && (relsdi = 1.5f0)
         acrnew = BM_CRC0[sp] + BM_CRC1[sp] * relsdi * 100f0
         A = BM_WEIBA[sp]
-        B = BM_WEIBB0[sp] + BM_WEIBB1[sp] * acrnew; B < 1f0 && (B = 1f0)
+        # bm/crown.f:202-206 — B floor is 1.0 only for WJ(6)/LM(12)/AS(15); every other species floors at 3.0.
+        B = BM_WEIBB0[sp] + BM_WEIBB1[sp] * acrnew
+        bfloor = (sp == 6 || sp == 12 || sp == 15) ? 1f0 : 3f0
+        B < bfloor && (B = bfloor)
         C = BM_WEIBC0[sp] + BM_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
         scale = 1f0 - 0.00167f0 * (relden - 100f0)
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
@@ -188,6 +231,30 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
         (icri < 10 && BM_CRNMLT[sp] == 1f0) && (icri = 10)
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # ---- CYCLE-0 DEAD-TREE CROWN DUB (bm/crown.f:360-380 `DO 79 I=IREC2,MAXTRE`) ----
+    # After the live loop FVS dubs MISSING crowns on the standing-dead records with DUBSCR (one main-stream
+    # rejection-bounded BACHLO each, regardless of DBH), iterating IREC2→MAXTRE = the REVERSE of jl's dead
+    # storage (FVS files dead from MAXTRE downward in read order; same layout as ie/crown.f DO 79). TPCCF =
+    # PCCF(ITRE(I)); BA/AVH/RMAI are the same stand scalars the live dub saw. Broken-top (ITRUNC>0) crowns are
+    # re-expressed on the normal height (crown.f:373-376); bounds [10,95] for all species (crown.f:378-379).
+    if lstart && t.ndead > 0
+        @inbounds for i in (n + Int(t.ndead)):-1:(n + 1)
+            Int(t.crown_pct[i]) > 0 && continue
+            sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+            pt = Int(t.plot_id[i])
+            tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
+            cr = bm_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
+            icri = trunc(Int, cr*100f0 + 0.5f0)
+            if t.trunc[i] != 0
+                hn = Float32(t.norm_ht[i]) / 100f0
+                hd = hn - Float32(t.trunc[i]) / 100f0
+                cl = (Float32(icri) / 100f0) * hn - hd
+                icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10)
+            t.crown_pct[i] = Int32(icri)
+        end
     end
     return s
 end

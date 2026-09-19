@@ -1418,8 +1418,16 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (`ie_triple_htg!`) sets it; other variants leave it false ⇒ their large-tree copies keep the
     # central HTG via copy_tree! exactly as before (gate byte-identical).
     htg_copy = do_trip ? falses(nlive) : BitVector()
+    # dbh0/bumpU/bumpL: per-copy direct DBH assignment by REGENT for sub-4.5' records (bm/regent.f:395-397
+    # `DG(K)=0; DBH(K)=D+0.001*HK`, K = the copy's future slot — TRIPLE copies neither DBH nor DG). Only BM's
+    # small_tree_growth! fills them (dbh0 = the central record's pre-REGENT DBH, 0 = untouched); all-zero
+    # leaves triple_records! copying the central DBH exactly as before.
+    dbh0  = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpU = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpL = do_trip ? zeros(Float32, nlive) : Float32[]
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
-                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy) : nothing
+                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
+                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL) : nothing
 end
 
 """
@@ -1447,6 +1455,11 @@ function triple_records!(s::StandState, stash)
         # walks after a thin, so it must match the oracle's append order exactly.
         u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
+        # REGENT's per-copy sub-4.5' DBH(K)=D+0.001*HK (BM; see stash dbh0): copies start from the central
+        # record's PRE-REGENT DBH plus their own bump, not the central's already-bumped DBH.
+        if haskey(stash, :dbh0) && stash.dbh0[i] > 0f0
+            t.dbh[u] = stash.dbh0[i] + stash.bumpU[i]; t.dbh[l] = stash.dbh0[i] + stash.bumpL[i]
+        end
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)

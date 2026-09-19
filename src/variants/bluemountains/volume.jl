@@ -19,7 +19,12 @@ function compute_volumes_bm!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = bm_bratio(sd, sp, d)
+        # bm/vols.f:150-151 (called from update.f:108 BEFORE DBH is grown): BARK=BRATIO(ISPC,D_start,H) and
+        # D=D_start+DG/BARK; that SAME start-of-cycle BARK goes into NATCRS (FW2 DBTBH / Behre DBTBH / merch-top
+        # TOPDIAM). BM's POWER bark (BARK1·D^(BARK2−1)) depends on D, so the grown-DBH ratio drifted every
+        # projected cycle (+0.3% PP cuft on 171243999020004 at 2017; cycle 0 exact). `vol_bark` is the stashed
+        # BRATIO(D_start) (simulate.jl growth apply); 0 at cycle 0 ⇒ current-DBH bark = FVS's LSTART bark.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : bm_bratio(sd, sp, d)
         dbhmin = sp == 7 ? 6.0f0 : 7.0f0
         if mdl == "FW2"
             # Top-killed trees: full cubic uses NORMAL height (norm_ht), then cftopk trims (see r4_topkill; BM
@@ -38,16 +43,21 @@ function compute_volumes_bm!(s::StandState)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # 616BEHW (region-6 Behre)
+            # Top-killed trees take the SAME path as FW2 (bm/vols.f:145-146,180-193): H=NORMHT into NATCRS, which
+            # always returns VMAX=TCF with CTKFLG=BTKFLG=.TRUE. (fvsvol.f:509-532), then CFTOPK/BFTOPK trim to the
+            # break. Missing this left broken-top minor species un-trimmed (171243999020004 WJ 12.5"/59' broken at
+            # 39': jl TCF 14.795 vs live 14.03).
+            hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0 && h >= 4.5f0) ? Float32(t.norm_ht[i]) / 100f0 : h
             fclass = bm_formcl(sp, iforst, d)                # form class keyed by BM species index (formcl.f)
             dbtbh = d * (1f0 - bark)                          # double bark thickness (fvsvol.f:153)
             dbhib = d - dbtbh
             vol2 = 0f0; vol4 = 0f0
-            v1 = if h <= 17.3f0                               # R6VOL short-tree guard (TTH≤FC_HT):
-                0.00272708f0 * dbhib * dbhib * h             # cylinder VOL(1); R6DIBS/R6VOL1 SKIPPED
+            v1 = if hv <= 17.3f0                              # R6VOL short-tree guard (TTH≤FC_HT):
+                0.00272708f0 * dbhib * dbhib * hv            # cylinder VOL(1); R6DIBS/R6VOL1 SKIPPED
             else
-                v = bm_r6vol3(d, dbtbh, fclass, h, 1)        # ZONE 1 total cubic → VOL(1)
+                v = bm_r6vol3(d, dbtbh, fclass, hv, 1)       # ZONE 1 total cubic → VOL(1)
                 mtopp = 4.5f0 * bark                         # TOPDIAM = TOPD·BARK (fvsvol.f)
-                xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, h)  # log bucking → small-end diams
+                xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, hv) # log bucking → small-end diams
                 lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)  # per-log Scribner (VOL2) + merch cubic (VOL4)
                 nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
                 for k in 1:nacc
@@ -56,10 +66,13 @@ function compute_volumes_bm!(s::StandState)
                 end
                 v
             end
-            t.cuft_vol[i] = max(v1, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(vol4, 0f0) : 0f0   # MCF=VOL(4), D≥DBHMIN
+            tcf = max(v1, 0f0)
+            mcf = d >= dbhmin ? max(vol4, 0f0) : 0f0         # MCF=VOL(4), D≥DBHMIN
+            bf  = d >= dbhmin ? max(vol2, 0f0) : 0f0         # BdFt=VOL(2) Scribner, D≥BFMIND
+            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, bmmerch, _BM_TOPD45)
+            t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= dbhmin ? max(vol2, 0f0) : 0f0         # BdFt=VOL(2) Scribner, D≥BFMIND
+            t.bdft_vol[i] = max(bf, 0f0)
         end
     end
     return s
