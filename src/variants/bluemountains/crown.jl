@@ -123,6 +123,40 @@ end
     return cr
 end
 
+# CRATET's :164-166 IND over the FULL inventory record set (live 1:n AND the not-yet-deleted dead n+1:n+ndead):
+# IND=IND1 — species-major, each species in LNKCHN (read) order with live and dead interleaved (intree.f:629,
+# lnkchn.f, setup.f) — then RDPSRT(ITRN,DBH,IND,.FALSE.) on the REAL dbh. This is the order the CRATET :195 DENSE
+# (LBKDEN backdating pass) walks for its PCTILE percentile (dense.f:241-244) and its AVH (dense.f:285-297) — i.e.
+# the calibration PCT the :630 DGDRIV reads and the AVH the :610 CROWN→DUBSCR crown dub reads. `dbhv` = real dbh of
+# records 1:ntot. Without the ingest read order (s.calib.input_seq) falls back to IND1(live) + dead by index.
+function bm_cratet166_ind(s::StandState, dbhv::AbstractVector{Float32}, nlive::Int, ntot::Int)
+    t = s.trees; iseq = s.calib.input_seq
+    ord = Vector{Int32}(undef, ntot)
+    k = 0
+    if length(iseq) == ntot
+        @inbounds for sp_o in 1:MAXSP
+            mem = Int32[j for j in 1:ntot if Int(t.species[j]) == sp_o]
+            sort!(mem; by = j -> iseq[j])
+            for j in mem; k += 1; ord[k] = j; end
+        end
+    else
+        nsave = t.n; t.n = nlive
+        species_sort!(s)
+        isct_c = s.control.sp_count_tab; ind1_c = s.scratch.idx1
+        @inbounds for sp_o in 1:MAXSP
+            if isct_c[sp_o, 1] != 0
+                for i3 in Int(isct_c[sp_o, 1]):Int(isct_c[sp_o, 2]); k += 1; ord[k] = ind1_c[i3]; end
+            end
+            for j in (nlive + 1):ntot
+                Int(t.species[j]) == sp_o && (k += 1; ord[k] = Int32(j))
+            end
+        end
+        t.n = nsave
+    end
+    _rdpsrt!(dbhv, ord; lseq = false)
+    return ord
+end
+
 # CRATET's cycle-0 IND (bm/cratet.f:164-166, :199, :270): IND is SEEDED from IND1 (species-major SPESRT order) and
 # re-sorted by DBH with RDPSRT(.FALSE.) — Scowen's UNSTABLE quicksort, so equal-DBH ties fall by the seed order. Only
 # when the inventory has standing-dead records (IREC2<MAXTP1) does CRATET later re-sort RDPSRT(.TRUE.) from identity.
@@ -135,14 +169,7 @@ function bm_cratet_ind!(s::StandState, idx::AbstractVector{Int32})
     if t.ndead > 0
         _rdpsrt!(dbhv, idx)                                   # cratet.f:270 RDPSRT(ITRN,DBH,IND,.TRUE.)
     else
-        species_sort!(s)
-        isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
-        k = 0
-        @inbounds for sp_o in 1:MAXSP
-            isct[sp_o, 1] == 0 && continue
-            for i3 in Int(isct[sp_o, 1]):Int(isct[sp_o, 2]); k += 1; idx[k] = ind1[i3]; end
-        end
-        _rdpsrt!(dbhv, idx; lseq = false)                     # cratet.f:164-166 IND=IND1; RDPSRT(.FALSE.)
+        idx .= bm_cratet166_ind(s, dbhv, n, n)               # cratet.f:164-166 IND=IND1; RDPSRT(.FALSE.)
     end
     return idx
 end
@@ -293,16 +320,22 @@ function bm_crown_init_lstart!(s::StandState)
     end
     # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3), with the dead at their
     # notre-expanded PROB (24001521010900: the ×2 dead fill the top 40 TPA ⇒ AVH 48.466 = live, 41.596 unscaled).
-    # bm/cratet.f:195 DENSE (the AVH CROWN :610 reads) runs BEFORE the missing-height dub (DO 130 :363, DO 145
-    # :464) ⇒ missing heights count as 0 in this AVH (AVHT40 at :624 recomputes after). jl dubbed them already
-    # (setup_growth! → dub_missing_heights!), so evaluate AVH on the pre-dub snapshot, then restore.
-    # 41135212010497: 0.1" PP seedlings (dubbed 1.01) fill the top-40 TPA ⇒ AVH 33.671 vs live 33.160 (=HT 0).
-    hin = s.calib.cratet_ht_in
-    use_hin = length(hin) == t.n
-    saved_ht = use_hin ? t.height[1:t.n] : Float32[]
-    use_hin && @inbounds(for i in 1:t.n; t.height[i] = hin[i]; end)
-    avht_real = stand_top_height(s; legacy_double = true)
-    use_hin && @inbounds(for i in 1:t.n; t.height[i] = saved_ht[i]; end)
+    # dense.f:285-297 AVH walk of the :195 CRATET DENSE, over the :164-166 IND (bm_cratet166_ind: LNKCHN-seeded,
+    # dead included, RDPSRT(.FALSE.) on real dbh) — the AVH the :610 CROWN→DUBSCR dub reads. The generic double
+    # sort put different equal-DBH records at the 40-TPA boundary (23899355010900 AVH 72.567 vs live 71.606).
+    # That DENSE runs BEFORE the missing-height dub (DO 130 :363, DO 145 :464) ⇒ heights are as READ (missing = 0):
+    # use the pre-dub snapshot cratet_ht_in (41135212010497: dubbed 1.01 seedlings ⇒ AVH 33.671 vs live 33.160).
+    avht_real = let ntot = t.n, ord = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n), hin = s.calib.cratet_ht_in
+        use_hin = length(hin) == ntot
+        avh = 0f0; ssumn = 0f0
+        @inbounds for k in 1:ntot
+            ii = Int(ord[k]); p = t.tpa[ii]
+            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn += p; avh += (use_hin ? hin[ii] : t.height[ii]) * p
+            ssumn >= 40f0 && break
+        end
+        ssumn > 0f0 ? avh / ssumn : 0f0
+    end
     if lbkden                                 # backdate LIVE WK3 only (after the real-DBH AVH ranking)
         t.n = nlive; _backdate_dbh!(s); t.n = nlive + Int(t.ndead)
     end

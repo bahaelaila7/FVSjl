@@ -157,10 +157,13 @@ end
 
 The DG(I) array FVS holds at the inventory row (fvs.f:301, after the LSTART calibration pass): bm/dgdriv.f DO 220
 (:746-769) — HT≤4.5 ⇒ 0; a measured increment (DG>0, HT>4.5) is kept, capped at the inside-bark DBH when IDG<2;
-every other record gets the calibration dub DG = SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D (D inside-bark, SCALE=FINT/YR,
-capped at D, then DGBND). COVER's inventory-row foliage biomass (CVCBMS DDS=(2·D·DG+DG²)/FINT) reads this array;
-jl's `diam_growth` holds only the input increments there. WK2 is the same calibrated DGF cycle 1 uses (COR at
-0 elapsed years). Side-effect free: the sort tables, scratch and COR it touches are restored.
+every other record gets the calibration dub DG = SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D with D = WK3·BARK (WK3 = the
+backdated start-of-period DBH, BARK = BRATIO at the CURRENT DBH), SCALE=FINT/YR, capped at D, then DGBND. WK2 is
+the :735 DGF(WK3) prediction (final COR, backdated density) stashed by calibrate_diameter_growth! in
+`calib.dub_wk2/dub_wk3`; when no calibration stash matches the record set (no calibration pass), WK3 = DBH and
+WK2 is re-predicted on the current stand with COR at 0 elapsed years. COVER's inventory-row foliage biomass
+(CVCBMS DDS=(2·D·DG+DG²)/FINT) reads this array; jl's `diam_growth` holds only the input increments there.
+Side-effect free: the sort tables, scratch and COR it touches are restored.
 """
 function bm_cycle0_dg(s::StandState)
     t, c = s.trees, s.calib
@@ -178,17 +181,21 @@ function bm_cycle0_dg(s::StandState)
     dhi_v = haskey(sd, :dg_bound_dbh_hi) ? sd[:dg_bound_dbh_hi] : nothing
     sc = s.control.growth_fint / 10f0
     out = zeros(Float32, n)
+    stash = length(c.dub_wk2) == n && length(c.dub_wk3) == n     # dgdriv.f:735 WK2/WK3 from the calibration
     @inbounds for i in 1:n
         t.height[i] <= 4.5f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        dib = d * bm_bratio(sd, sp, d)
+        bark = bm_bratio(sd, sp, d)
+        dib = d * bark
         if t.diam_growth[i] > 0f0
             dg = t.diam_growth[i]
             (s.control.growth_idg < 2 && dg > dib) && (dg = dib)
             out[i] = dg
         else
-            dub = sqrt(dib * dib + fexp(wk2[i] + t.old_random[i]) * sc) - dib
-            dub > dib && (dub = dib)
+            dd = stash ? c.dub_wk3[i] * bark : dib                  # D = WK3(I)*BARK (dgdriv.f:749)
+            w2 = stash ? c.dub_wk2[i] : wk2[i]
+            dub = sqrt(dd * dd + fexp(w2 + t.old_random[i]) * sc) - dd   # EXP → gfortran expf
+            dub > dd && (dub = dd)
             out[i] = dg_bound(dlo_v, dhi_v, sp, d, dub, s.control.sp_size_cap)
         end
     end

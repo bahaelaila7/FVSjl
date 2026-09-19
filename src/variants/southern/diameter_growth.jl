@@ -444,17 +444,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
         elseif s.variant isa BlueMountains && length(s.calib.input_seq) == ntot
-            # bm/cratet.f:163-166 — the calibration DENSE (:195) ranks by `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`.
-            # At that point the dead are still INSIDE ITRN at their input positions (cratet.f:199-215 deletes them
-            # AFTER this DENSE), and IND1 is SETUP's (fvs.f:158) species-major list — species 1..MAXSP, each in read
-            # order (LNKCHN appends at the tail). So the seeded UNSTABLE quicksort runs over ALL records, seeded
-            # species-major by input order; it fixes the order of current-DBH ties (PCT → DGF BAL → calibration COR).
-            # 302098779489998: WL 142 / DF 139 both 15.8" — live WK2 2.4820/3.2076; the stable sortperm gave
-            # 2.5119/3.1702 (WL COR −0.2719 vs −0.2802). Live-only or dead-appended seeds break other ties
-            # (45074836020004, recently-dead DF near an 8.0" DF tie).
-            sq = s.calib.input_seq
-            ord = sort!(collect(Int32(1):Int32(ntot)); by = j -> (Int(t.species[j]), Int(sq[j])))
-            _rdpsrt!(rankd, ord; lseq = false)
+            # bm/cratet.f:163-166 — the calibration DENSE (:195, backdating pass dense.f:241-244) ranks by
+            # `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`. The dead are still INSIDE ITRN at their input positions
+            # (cratet.f:199-215 deletes them AFTER this DENSE) and IND1 is SETUP's (fvs.f:158) species-major list, each
+            # species in read order (LNKCHN appends at the tail) ⇒ bm_cratet166_ind. It fixes the order of current-DBH
+            # ties (PCT → DGF BAL → calibration COR and the dgdriv.f:735 DO 220 dub). 302098779489998: WL 142 / DF 139
+            # both 15.8" — live WK2 2.4820/3.2076, stable sortperm 2.5119/3.1702; 1285593348290487 recs 16/17,
+            # 41137341010497 4/5. Live-only or dead-appended seeds break other ties (45074836020004).
+            ord = bm_cratet166_ind(s, rankd, nlive2, ntot)
         else
             ord = sortperm(rankd; rev = true)
         end
@@ -711,6 +708,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         lim = s.control.dg_stddev_bound * c.sigma[t.species[i]]
         oldrn[i] > lim && (oldrn[i] = lim)
         oldrn[i] < -lim && (oldrn[i] = -lim)
+    end
+
+    # BM dgdriv.f:735 — after the correction terms are final (:558/:615/:650) and OLDRN is clamped (DO 202),
+    # FVS calls DGF(WK3) AGAIN, still at the backdated diameters WK3 and the calibration-time (backdated)
+    # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
+    # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
+    # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
+    if s.variant isa BlueMountains
+        _wk2_keep = s.scratch.wk[2, 1:t.n]
+        _sft = s.plot.forest_type; _savh = s.plot.avg_height
+        s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
+        dgf!(s, s.variant)
+        c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
+        c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
+        s.plot.forest_type = _sft; s.plot.avg_height = _savh
+        s.scratch.wk[2, 1:t.n] .= _wk2_keep
     end
 
     # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
