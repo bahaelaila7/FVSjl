@@ -2963,6 +2963,57 @@ function _rd_resize_driver!(rd::RootDiseaseState, old::RDDriver, n::Int, s::Unio
     return d
 end
 
+"""
+    rd_tdel!(rd, ivac, irec)
+
+rd/rdtdel.f — called by TREDEL (base/tredel.f:95) right after TREMOV moves tree record
+IREC into the vacancy IVAC: move the WRD per-record state with it so the disease
+bookkeeping stays attached to the same tree. Without this a swap-from-end compaction
+(COMCUP each cycle, TREDEL after a thin) leaves each moved tree carrying the DELETED
+record's (≈0) PROBIU/PROBIT/FPROB, and its own state is truncated away when the driver is
+next resized — the surviving stems drop out of the disease area and escape RD and bark-
+beetle mortality. Moves exactly RDTDEL's set (WK22, RROOTT, ROOTL, RRKILL, FPROB, PROBIU,
+PROBIT, PROBL, FFPROB, PROBI/PROPI over 1:ISTEP); RDKILL/OAKL/BBKILL are NOT moved (as in
+FVS). ROOTH/XMTH are not carried by the jl driver. Gate = RDATV LGO + TPAREA≠0 (rdtdel.f).
+"""
+function rd_tdel!(rd::RootDiseaseState, ivac::Int, irec::Int)
+    rd_active(rd) || return                           # RDATV: LGO = RRTINV .OR. RRMAN
+    d = rd.driver
+    d === nothing && return
+    tparea = 0.0f0
+    @inbounds for idi in Int(rd.minrr):Int(rd.maxrr); tparea += rd.parea[idi]; end
+    tparea == 0.0f0 && return
+    (irec > d.n || ivac > d.n) && return
+    itstp = max(1, Int(rd.istep))
+    @inbounds begin
+        d.wk22[ivac]   = d.wk22[irec];   d.wk22[irec]   = -1.0f0
+        d.rroott[ivac] = d.rroott[irec]; d.rroott[irec] = -1.0f0
+        d.rootl[ivac]  = d.rootl[irec]
+        d.rrkill[ivac] = d.rrkill[irec]
+        d.fprob[ivac]  = d.fprob[irec]
+        d.probiu[ivac] = d.probiu[irec]
+        d.probit[ivac] = d.probit[irec]
+        (irec <= length(rd.probl) && ivac <= length(rd.probl)) && (rd.probl[ivac] = rd.probl[irec])
+        d.ffprob[ivac,1] = d.ffprob[irec,1]
+        d.ffprob[ivac,2] = d.ffprob[irec,2]
+        for jinf in 1:itstp, ip in 1:2
+            d.probi[ivac,jinf,ip] = d.probi[irec,jinf,ip]
+            d.propi[ivac,jinf,ip] = d.propi[irec,jinf,ip]
+        end
+    end
+    return
+end
+
+"""
+    rd_tdel_hook(s) -> Union{Nothing,Function}
+
+The `onmove` callback for `tredel_compact!`/`comcup!`: `rd_tdel!` bound to the stand's
+root-disease state when an RD driver exists, else `nothing` (no-RD stands unaffected).
+"""
+rd_tdel_hook(s) = (s.root_disease !== nothing && rd_active(s.root_disease) &&
+                   s.root_disease.driver !== nothing) ?
+                  ((iv, ir) -> rd_tdel!(s.root_disease, iv, ir)) : nothing
+
 # -----------------------------------------------------------------------------
 # RDTRIP (rd/rdtrip.f, called from prgnos/triple.f) — triple the RD per-record
 # arrays when the FVS tree list is TRIPLEd. In FVS growth order (tregro.f) GRINCR
