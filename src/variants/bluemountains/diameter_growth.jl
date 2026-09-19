@@ -151,3 +151,48 @@ function dgf!(s::StandState, ::BlueMountains)
     end
     return s
 end
+
+"""
+    bm_cycle0_dg(s) -> Vector{Float32}
+
+The DG(I) array FVS holds at the inventory row (fvs.f:301, after the LSTART calibration pass): bm/dgdriv.f DO 220
+(:746-769) — HT≤4.5 ⇒ 0; a measured increment (DG>0, HT>4.5) is kept, capped at the inside-bark DBH when IDG<2;
+every other record gets the calibration dub DG = SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D (D inside-bark, SCALE=FINT/YR,
+capped at D, then DGBND). COVER's inventory-row foliage biomass (CVCBMS DDS=(2·D·DG+DG²)/FINT) reads this array;
+jl's `diam_growth` holds only the input increments there. WK2 is the same calibrated DGF cycle 1 uses (COR at
+0 elapsed years). Side-effect free: the sort tables, scratch and COR it touches are restored.
+"""
+function bm_cycle0_dg(s::StandState)
+    t, c = s.trees, s.calib
+    sd = s.coef.species
+    n = t.n
+    isct_s = copy(s.control.sp_count_tab); ind1_s = copy(s.scratch.idx1)
+    wk2_s = s.scratch.wk[2, :]; cor_s = copy(c.dg_cor)
+    @inbounds for sp in eachindex(c.dg_cor)
+        c.dg_cor[sp] = c.dg_cor_goal[sp] + c.dg_cor_goal[sp]      # diameter_growth!'s COR at 0 elapsed years (cormlt=1)
+    end
+    species_sort!(s)
+    dgf!(s, s.variant)
+    wk2 = view(s.scratch.wk, 2, :)
+    dlo_v = haskey(sd, :dg_bound_dbh_lo) ? sd[:dg_bound_dbh_lo] : nothing
+    dhi_v = haskey(sd, :dg_bound_dbh_hi) ? sd[:dg_bound_dbh_hi] : nothing
+    sc = s.control.growth_fint / 10f0
+    out = zeros(Float32, n)
+    @inbounds for i in 1:n
+        t.height[i] <= 4.5f0 && continue
+        sp = Int(t.species[i]); d = t.dbh[i]
+        dib = d * bm_bratio(sd, sp, d)
+        if t.diam_growth[i] > 0f0
+            dg = t.diam_growth[i]
+            (s.control.growth_idg < 2 && dg > dib) && (dg = dib)
+            out[i] = dg
+        else
+            dub = sqrt(dib * dib + exp(wk2[i] + t.old_random[i]) * sc) - dib
+            dub > dib && (dub = dib)
+            out[i] = dg_bound(dlo_v, dhi_v, sp, d, dub, s.control.sp_size_cap)
+        end
+    end
+    s.control.sp_count_tab .= isct_s; s.scratch.idx1 .= ind1_s
+    s.scratch.wk[2, :] .= wk2_s; c.dg_cor .= cor_s
+    return out
+end

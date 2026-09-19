@@ -270,7 +270,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
             # (grincr.f:65-66).
             cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
-            cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+            # Inventory row: CVCBMS reads FVS's post-calibration DG array (dgdriv.f DO 220 dubs every record
+            # without a measured increment), not the raw input increments jl keeps in diam_growth.
+            if c == 0 && s.variant isa BlueMountains
+                dg_in = copy(view(s.trees.diam_growth, 1:s.trees.n))
+                s.trees.diam_growth[1:s.trees.n] .= bm_cycle0_dg(s)
+                cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+                s.trees.diam_growth[1:s.trees.n] .= dg_in
+            else
+                cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+            end
         end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
         # (fire kill + snag booking + consumption) but BEFORE UPDATE grows the stand. For a non-fire cycle

@@ -517,6 +517,49 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     return fm
 end
 
+# FMKILL's ICR=-FMICR travels with the record in FVS (the sign is part of ICR). jl keeps the kept crown %
+# in s.fire.crown_bypass, so a COMCUP swap-from-end must carry it too (composed with the RDTDEL hook).
+function _record_move_hook(s::StandState)
+    rd = rd_tdel_hook(s)
+    byp = s.fire === nothing ? nothing : s.fire.crown_bypass
+    (byp === nothing || isempty(byp)) && return rd
+    return (iv, ir) -> begin
+        rd === nothing || rd(iv, ir)
+        if ir <= length(byp)
+            iv <= length(byp) && (byp[iv] = byp[ir])
+            byp[ir] = Int32(0)
+        end
+    end
+end
+
+# Drop bypass entries past the compacted record count, so regen appended later never inherits one.
+function _trim_crown_bypass!(s::StandState)
+    s.fire === nothing && return
+    byp = s.fire.crown_bypass
+    length(byp) > s.trees.n && resize!(byp, s.trees.n)
+    return
+end
+
+"""
+    crown_ratio_update_fvs!(s; kwargs...)
+
+CROWN with FVS's negative-ICR bypass (every variant's crown.f: "IF ICR(I) IS NEGATIVE, CROWN RATIO CHANGE WAS
+COMPUTED IN A PEST DYNAMICS EXTENSION. SWITCH THE SIGN ON ICR(I) AND BYPASS CHANGE CALCULATIONS"). The bypassed
+records keep the value FMKILL set (s.fire.crown_bypass). They reach no random draw in any variant's update
+(draws are only on the ICR=0 / DBH≤0 / LSTART dub paths), so running the update and restoring them is exact.
+"""
+function crown_ratio_update_fvs!(s::StandState; kwargs...)
+    byp = s.fire === nothing ? nothing : s.fire.crown_bypass
+    crown_ratio_update!(s, s.variant; kwargs...)
+    (byp === nothing || isempty(byp)) && return
+    t = s.trees
+    @inbounds for j in 1:min(length(byp), t.n)
+        byp[j] != 0 && (t.crown_pct[j] = byp[j])
+    end
+    empty!(byp)
+    return
+end
+
 """
     mortality_and_fire!(s; fint) -> StandState
 
@@ -559,6 +602,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     end
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
+    empty!(s.fire.fmicr)                                       # FMICR of THIS burn only (set by fmburn!)
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
@@ -575,6 +619,22 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
     end
     book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
+    # FMKILL crown hand-back (fmkill.f:92-94): IF(FMICR<1) FMICR=1; IF(FMICR<|ICR|) ICR=-FMICR. The negative
+    # ICR makes the next CROWN keep FMICR instead of recomputing (crown.f "ICR(I) WAS CALCULATED ELSEWHERE");
+    # jl stores the kept value in crown_bypass, applied by crown_ratio_update_fvs!.
+    fm = s.fire.fmicr
+    if length(fm) == n
+        byp = s.fire.crown_bypass
+        resize!(byp, n); fill!(byp, Int32(0))
+        @inbounds for j in 1:n
+            f = max(fm[j], Int32(1))
+            if f < abs(t.crown_pct[j])
+                t.crown_pct[j] = f
+                byp[j] = f
+            end
+        end
+    end
+    empty!(fm)
     compute_density!(s)
     return (mort, tripled)
 end
@@ -1094,8 +1154,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    comcup!(t; onmove = rd_tdel_hook(s))    # COMCUP (grincr.f:318, end of GRINCR): drop
+    comcup!(t; onmove = _record_move_hook(s))  # COMCUP (grincr.f:318, end of GRINCR): drop
                                             # PROB≤1e-5 records before GRADD/next cycle
+    _trim_crown_bypass!(s)
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
@@ -1178,7 +1239,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
-    crown_ratio_update!(s, s.variant; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
+    crown_ratio_update_fvs!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
     if s.variant isa InlandEmpire || s.variant isa BritishColumbia

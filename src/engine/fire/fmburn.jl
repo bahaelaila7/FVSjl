@@ -187,12 +187,27 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         # serial-correlation deviates, making the survivors grow wrong (the kill stays bit-exact — same draws
         # — but the next cycle's growth drifts, ~4.4% Bdft by the 3rd post-fire cycle). D15.
         _fire_rng_save = rannget(s.rng)                   # RANNGET(SAVESO)
+        # FMICR = ICR for every record at the fire (fmmain.f:111); FMEFF shortens it below for scorched
+        # survivors and FMKILL hands it back to FVS as ICR=-FMICR (see mortality_and_fire!).
+        resize!(fs.fmicr, t.n)
+        @inbounds for i in 1:t.n; fs.fmicr[i] = t.crown_pct[i]; end
         @inbounds for i in 1:t.n
             # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
             # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
             # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
             (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
             t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
+            # FMEFF new fire-model crown length (fmeff.f:170, :401-419, :513): for the non-crown-fire part
+            # (CRBURN<1) of a record whose crown base sits below the scorch height, the scorched length CRBNL
+            # is lost: FMICR = IFIX(100·(CRL−CRBNL)/HT). CRL = HT·(FMICR/100) in FVS's own association.
+            if crfrac < 1f0 && t.height[i] > 0f0
+                crl_f = t.height[i] * (Float32(fs.fmicr[i]) / 100f0)
+                crbot = t.height[i] - crl_f
+                if sch > crbot
+                    crbnl = min(sch - crbot, crl_f)
+                    fs.fmicr[i] = unsafe_trunc(Int32, 100f0 * (crl_f - crbnl) / t.height[i])
+                end
+            end
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
             pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
