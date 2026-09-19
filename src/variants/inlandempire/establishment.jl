@@ -1847,6 +1847,23 @@ end
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return false
     est = s.estab
+    # STOCKADJ (esin.f opt 13 → activity 440, fired by ESNUTR esnutr.f:88 STOADJ=PRMS(1)). ESNUTR processes the due
+    # 440 at the TOP of every cycle's establishment seam, BEFORE (and independent of) the LAUTAL/LINGRW tally gate
+    # below, and STOADJ is a PERSISTENT stand variable (esinit.f:49 = 1.0; putstd/getstd REALS(84)): the value set by
+    # a fired STOCKADJ — or the 0.0 set at keyword-read time by NATURAL (esin.f:253) / NOAUTOES→ESNOAU (esin.f:788) —
+    # carries into every later cycle until another STOCKADJ fires. (Formerly reset to 1.0 each cycle ⇒ a STOCKADJ
+    # held for one cycle only and NATURAL/NOAUTOES never suppressed natural regen: live 364 vs jl 911 TPA.)
+    # The estab.f:217 "unlisted KODFOR ⇒ STOADJ=0" site is unreachable for IE/EM: forkod.f always rewrites KODFOR to
+    # a JFOR member (IE {103,104,105,106,621,110,113,114,116,117,118}, EM {102,108,109,111,112,115}), all in IFORCD.
+    let per0 = round(Int, fint), yr0 = Int(current_cycle_year(s)), icyc0 = Int(s.control.cycle) + 1
+        for a in s.control.schedule
+            a.icflag == Int32(440) || continue
+            ay = Int(a.year)
+            aidt = (0 < ay < 1000) ? (ay == icyc0 ? yr0 : -1) : ay     # cycle number → this cycle's year; else calendar
+            (yr0 <= aidt < yr0 + per0) || continue
+            est.stoadj = a.params[1]
+        end
+    end
     # INADV=1 bare-stand bypass (estab.f:319,511 `IF(INADV.EQ.1 .OR. NTALLY.NE.1) GO TO …`): on a bare stand FVS
     # runs the establishment scheduler REGARDLESS of the LAUTAL/LINGRW auto-tally flags (so a bare stand with
     # NOAUTALY/NOINGROW still gets the PLANT-forced / bare ingrowth — rule (4)/(3) below). est.inadv persists from
@@ -1893,18 +1910,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # strict window fires each scheduled tally exactly once; the automatic 20-yr continuation (rule 2) then handles
     # its 2nd pass. The ESTAB-END 427 sits at inv-20 (stale, >20yr) so it is correctly skipped — no regression.
     kdt = next_year - 1
-    # STOCKADJ (esin.f opt 13 → activity 440): the stockability multiplier scheduled for THIS cycle's window,
-    # default 1.0 (inert). Mirrors the TALLY date→cycle mapping (a cycle number → this cycle's year, else a
-    # calendar year). est.stoadj is then consumed by ie_autoes_run (PROB1 = logistic(…)·STOADJ, estab.f:578).
-    est.stoadj = 1f0
-    for a in s.control.schedule
-        a.icflag == Int32(440) || continue
-        ay = Int(a.year)
-        aidt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay
-        (year <= aidt < next_year) || continue
-        est.stoadj = a.params[1]
-        break
-    end
+    # STOCKADJ/STOADJ: applied (persistently) at the top of this function — see there. est.stoadj is consumed by
+    # ie_autoes_run (PROB1 = logistic(…)·STOADJ, estab.f:578) and by the STOADJ<0.0001 no-stocking gate below.
     sched_fire = false; sched_ntally = 0
     for a in s.control.schedule
         (a.icflag == 427 || a.icflag == 428 || a.icflag == 429) || continue
@@ -2012,6 +2019,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     else
         seed0 = round(Int, est.es_seed)                                       # continuation reuses seed0
     end
+    # ★ STOADJ<0.0001 NO-STOCKING BRANCH (estab.f:504 GO TO 137, :653-675 burn, :957-963 ITPP=0, :1077 GO TO 229).
+    # With STOADJ ≈ 0 (NATURAL / NOAUTOES / STOCKADJ 0.0) FVS still runs the per-plot tally loop but WITHOUT the
+    # stocking model: it skips the ESB/ESB1 calibration + PROB1/NSTORE/PNN (504→137), draws EMSQR (2), then burns
+    # 1+6+6+NOFSPE+2·NOFSPE+2·MAXTPP(IHAB) ESRANN draws (:653-675) before label 163 draws the plot's ESAVE (1) —
+    # 16+3·NOFSPE+2·MAXTPP per plot, EXACTLY the stocked-plot body length the ESAVE chain above already advanced
+    # (body_es) — and sets ITPP=NEWTPP=0 (:958-963): NO natural/advance/subsequent/excess record is created on any
+    # plot. Only the PLANT/NATURAL keyword trees (DO 322) are booked, which jl's establish! does. So: the seed chain
+    # (seed0 draw + post-tally ESS0) is already faithful; book nothing here, leave NSTORE/PNN/ESB untouched.
+    # (The :1077 NBEST skip ⇒ planted IMC=1 and :1559/:1611 are report-only.) Measured live FVSie_g16 bare PLANT
+    # stand: NOAUTOES / NATURAL / STOCKADJ 0.0 all give 364 TPA @2002 (planted only), jl was 911.
+    est.stoadj < 0.0001f0 && return false
     # ESTOCK/species-prob BAA = the per-INVENTORY-POINT basal area BAAA(NNID) (estab.f:482, dense.f:213), NOT the
     # whole-stand BA. After a heavy overstory removal the regen point is bare → BAAA≈0 → TBAAA=max(BAAA,1)=1 →
     # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual
