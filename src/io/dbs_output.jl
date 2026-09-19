@@ -1159,8 +1159,8 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # FVS_TreeList/FVS_CutList CrWidth = CRWDTH(I) (base/cwidth.f → cwcalc.f). The WESTERN variants with a ported,
 # per-tree-bit-exact cwcalc kernel compute the forest-grown value here (+ the cwcalc.f [0.5,99.9] final clamp); the
 # eastern open-grown crown_width() handles the rest (0.5 default for unknown species). Shared by both the live-tree
-# snapshot and the cut-record builder so the two tables stay consistent. (BM/SO/CA/NC excluded — their kernels are not
-# per-tree exact; see the recipe. The kernels bake in one forest's Region-6 BF ⇒ bit-exact on the reference forest.)
+# snapshot and the cut-record builder so the two tables stay consistent, and by `tree_crwdth` (THINCC/COVER/sprouts).
+# BM is the faithful BMMAP + per-forest R6 BF port (bm_cwcalc, shared with FFE); the SO/CA kernels still bake in one forest's R6 BF.
 function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
     p = s.plot
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
@@ -1173,6 +1173,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
     s.variant isa CentralCalifornia &&
         return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+    # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
@@ -1194,6 +1195,27 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     wcw === nothing &&
         return crown_width(s.coef, s.species.code2[sp], d, h, 90, 1, p.latitude, p.longitude, p.elevation)
     return clamp(wcw(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi), 0.5f0, 99.9f0)
+end
+
+# Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).
+_has_forest_crwdth(v) = v isa WestSierra || v isa Klamath || v isa CentralCalifornia || v isa BlueMountains ||
+    v isa CentralRockies || v isa OregonCoast || v isa Olympic || v isa EasternMontana || v isa InlandEmpire ||
+    v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah || v isa SoutheastAlaska ||
+    v isa BritishColumbia || v isa WestCascades || v isa PacificNorthwest || v isa EastCascades ||
+    v isa SouthCentralOregon
+
+"""
+    tree_crwdth(s, sp, d, h, crp) -> Float32
+
+CRWDTH (base/cwidth.f → cwcalc.f, IWHO=0) for the engine consumers that read the FVS CRWDTH array — THINCC and the
+THINPT canopy-cover metric (cuts.f:1228), COVER CVCW (cvcw.f:80) and new ESUCKR sprouts (esuckr.f:314-316). Western
+variants: the forest-grown `_forest_crwdth` (same value as FVS_TreeList CrWidth). Eastern variants keep the
+`crown_width(…, iwho=0)` forest-grown path they already use.
+"""
+function tree_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
+    _has_forest_crwdth(s.variant) && return _forest_crwdth(s, sp, d, h, crp)
+    p = s.plot
+    return crown_width(s.coef, s.species.code2[sp], d, h, Float32(crp), 0, p.latitude, p.longitude, p.elevation)
 end
 
 function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle::Int = -1)
