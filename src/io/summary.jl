@@ -246,6 +246,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
     cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
+    prev_rem_scuft = 0                          # last growing cycle's sawlog-cubic removal (IOSUM(22) carry)
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
@@ -415,6 +416,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
+        # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
+        # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing
+        # cycle's sawlog removal (live econ_strtecon 2005: SCuFt removed 23 = the 2000 thin's).
+        last ? (r.rem_scuft = prev_rem_scuft) : (prev_rem_scuft = r.rem_scuft)
         write_sum_row(io, r; metric = s.variant isa BritishColumbia || s.variant isa Ontario)
         collect_rows === nothing || push!(collect_rows, r)
     end

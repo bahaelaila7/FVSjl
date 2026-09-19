@@ -92,7 +92,10 @@ regime_block(r, plantyr=0, cn="") =
     # manufacturing a false divergence on every host stand. Wrap in MISTOE…END (review-gate fix 2026-09-06).
     r == "mistletoe" ? "MISTOE\n" * kwrec("MISTPINF","1","0","1.0","3.0") * "\nEND" :     # force initial infection all hosts, DMR 3 (misin.f opt10) — bites where host present
     r == "cover"     ? "COVER\nEnd" :                                                   # COVER report SECTION (cvin.f opt12 → activity 900); MUST close with END or it swallows following keywords (FVS01 INVALID). Report-only ⇒ crash/integration coverage
-    r == "econ"      ? kwrec("THINBBA","2.0","40.0") * "\nECON\n" * kwrec("ANNUCST","10.0") * "\n" * kwrec("HRVRVN","0","999","30.0") * "\nEnd" : # ECON valuation needs a harvest to value: thin + $10/ac/yr cost + $30/ccf revenue
+    # ECON valuation needs a harvest to value: thin + $10/ac/yr cost + $30/CCF revenue. HRVRVN fields (ecin.f):
+    # 1 = amount, 2 = units (1 TPA, 2 MBF, 3 CCF = FT3_100, 4/5 log-graded), 3 = min DBH, 4 = species. (The old card
+    # "HRVRVN 0 999 30.0" was amount 0 + an invalid unit ⇒ FVS ignored it ⇒ this regime only ever tested ANNUCST.)
+    r == "econ"      ? kwrec("THINBBA","2.0","40.0") * "\nECON\n" * kwrec("ANNUCST","10.0") * "\n" * kwrec("HRVRVN","30.0","3","0.0","ALL") * "\nEnd" :
     r == "climate"   ? "CLIMATE\n" * kwrec("GROWMULT","1","0","1.1") * "\n" * climate_block(cn) * "\nEnd" : # Climate-FVS: inline per-stand CLIMDATA (bites) + growth-mult weight
     # WRD (RDIN block): RRINIT field1<1 ⇒ RANDOM center placement (field1≥1 = DETERMINISTIC placement reads
     # follow-on coordinate cards and DERAILS the reader). fields 2..6 = 1 center, 10 infected + 50 uninfected
