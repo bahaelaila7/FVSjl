@@ -84,7 +84,7 @@ const EM_KFOR = Int[1, 1, 1, 1, 1, 1]
 
 # em/forkod.f: translate the user forest location code KODFOR → IFOR (1..6, the JFOR subscript that
 # MAPLOC/MAPDSQ index in the DG DGCONS) + IGL=KFOR[IFOR] (geographic location, regen/htdbh). Reservation
-# pseudo-codes 7xxx map to IFOR directly; else match KODFOR against JFOR (not found → ERRGRO(3), IFOR=1).
+# pseudo-codes 7xxx map to IFOR directly; else match KODFOR against JFOR (not found → ERRGRO(3), IFOR=2 grinit default).
 function em_forkod!(p)
     kodfor = Int(p.user_forest_code)
     ifor = 1; useigl = true
@@ -94,10 +94,12 @@ function em_forkod!(p)
         ifor = 6
     else
         idx = findfirst(==(kodfor), EM_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        # not found (ERRGRO 3): IFOR keeps its em/grinit.f:208 default 2 (Custer 108), IGL unset — NOT 1.
+        idx === nothing ? (useigl = false; ifor = 2) : (ifor = idx)
     end
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(EM_KFOR[ifor]))
+    p.user_forest_code = Int32(EM_JFOR[ifor])        # em/forkod.f:177 KODFOR=JFOR(IFOR) (reservations/unlisted → mapped NF)
     return ifor
 end
 

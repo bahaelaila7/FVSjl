@@ -1210,6 +1210,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dgL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    # per-copy DIRECT DBH (REGENT HK<4.5 ⇒ DBH(K)=…, DG(K)=0, regent.f:881); −1 = not set (the copy grows by dgU/dgL)
+    dbhU = do_trip ? fill(-1f0, nlive) : Float32[]
+    dbhL = do_trip ? fill(-1f0, nlive) : Float32[]
 
     # Attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79).
     # The attenuation clock is the cumulative elapsed time SINCE the inventory (FVS
@@ -1419,7 +1422,8 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # central HTG via copy_tree! exactly as before (gate byte-identical).
     htg_copy = do_trip ? falses(nlive) : BitVector()
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
-                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy) : nothing
+                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
+                      dbhU = dbhU, dbhL = dbhL) : nothing
 end
 
 """
@@ -1449,6 +1453,11 @@ function triple_records!(s::StandState, stash)
         copy_tree!(t, u, i); copy_tree!(t, l, i)
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+        # a small-tree copy's OWN pre-UPDATE DBH (REGENT: direct set with DG=0, or the pre-growth DBH with its increment)
+        if hasproperty(stash, :dbhU)
+            stash.dbhU[i] >= 0f0 && (t.dbh[u] = stash.dbhU[i])
+            stash.dbhL[i] >= 0f0 && (t.dbh[l] = stash.dbhL[i])
+        end
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0
         # small-tree records carry per-record height increments (REGENT random effect); large NI-section
