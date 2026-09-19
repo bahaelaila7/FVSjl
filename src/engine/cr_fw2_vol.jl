@@ -397,6 +397,150 @@ function _fw2_tcubic(dibat, h::Float32; stump_dib::Float32 = -1f0)::Float32
     return tcvol
 end
 
+"""
+SF_YHAT with sf_yhat.f's own precision (JSP≠22), for the SF_HS solver: X is formed in REAL (single operands)
+before widening to REAL*8; the REAL sub-terms (c1/2, c1/6, b2/((b1+1)(b1+2)), a4+a2/a3, a2/(2·a3²), 3·a1,
+the straight segment e1+e2·rh) stay single; Y is REAL*8; DY_DX and the slope DD_DH are REAL. Returns
+(dib, slope); slope is 0 unless `needsl`. `_fw2_sf_yhat`/`_fw2_sf_yhat_sl` keep their all-Float64 kernels
+(shared by every FW2 variant); this one is used only by `_fw2_sf_hs`.
+"""
+function _fw2_sf_yhat_f(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Float32, needsl::Bool)
+    rh > 1f0 && return (0f0, 0f0)
+    rh < 0f0 && return (f, 0f0)
+    a3 = rflw[6]; rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhc = rhfw[3]; rhlongi = rhfw[4]
+    a0, a1, a2, a4, b0, b1, b2, b4, c1, c2, e1, e2 = tapcoe
+    local y::Float64
+    dydx = 0f0; rhl = 0f0; iseg = 0
+    if rh >= rhc                                           # upper (I_SEG=1)
+        x = Float64((1f0 - rh) / (1f0 - rhc))
+        y = x * (Float64(c2) + x * (Float64(c1 / 2f0) - Float64(c1 / 6f0) * x))
+        rhl = 1f0 - rhc; iseg = 1
+        needsl && (dydx = Float32(Float64(c2) + x * (Float64(c1) - Float64(c1 / 2f0) * x)))
+    elseif rh >= rhi2                                      # middle (I_SEG=2)
+        x = Float64((rh - rhi2) / (rhc - rhi2))
+        if x > 0.0
+            sus2 = Float64(b1) * log10(x) <= -20.0 ? 0.0 : x^Float64(b1)
+            y = Float64(b0) + x * (Float64(b4) + x * (-Float64(b2 / ((b1 + 1f0) * (b1 + 2f0))) * sus2 +
+                                                     Float64(b2) / 6.0 * x))
+        else
+            y = Float64(b0)
+        end
+        if needsl
+            rhl = rhc - rhi2; iseg = 2
+            if x > 0.0
+                sus3 = Float64(b1) * log10(x) <= -20.0 ? 0.0 : x^Float64(b1 + 1f0)
+                dydx = Float32(Float64(b4) - Float64(b2) / (Float64(b1) + 1.0) * sus3 + Float64(b2) / 2.0 * x * x)
+            else
+                dydx = b4
+            end
+        end
+    elseif rhlongi > 0f0 && rh > rhi1                      # straight (I_SEG=3)
+        y = Float64(e1 + e2 * rh)
+        needsl && (iseg = 3; dydx = e2; rhl = 1f0)
+    else                                                   # lower (I_SEG=4)
+        x = Float64((rhi1 - rh) / rhi1)
+        y = Float64(a0) + x * (Float64(a4 + a2 / a3) + x * (Float64(a2 / (2f0 * a3 * a3)) + Float64(a1) * x)) +
+            Float64(a2) * log(1.0 - x / Float64(a3))
+        if needsl
+            rhl = rhi1; iseg = 4
+            dydx = Float32(Float64(a4 + a2 / a3) + Float64(a2 / (a3 * a3)) * x + Float64(3f0 * a1) * x * x -
+                           Float64(a2) / (Float64(a3) - x))
+        end
+    end
+    d = Float32(Float64(f) * y)
+    needsl || return (d, 0f0)
+    dd = dydx * f / (rhl * totalh)
+    (iseg != 2 && iseg != 3) && (dd = -dd)
+    return (d, dd)
+end
+
+"""
+SF_HS (sf_hs.f) — the height at which the SF_YHAT profile reaches inside-bark diameter `dib`, for the
+no-BRK_UP families (JSP∉22:30, NEXTRA=0 ⇒ SF_DS==SF_YHAT), e.g. the INGY I00/I13 FW2 equations.
+Newton on the profile slope from a segment-based start; converged when |ADJUST|≤TOL·TOTALH AND |ERR|≤EPSILON;
+re-started (IBREAK) on a positive slope; bisection fallback after 30 iterations. REAL*4 throughout, and the
+Fortran's quirks kept (TOOLOW/TOOHIGH are assigned diameters in two places). Its answer can sit on the other
+side of a NUMLOG/SEGMNT even-foot boundary from a diameter-tolerance bisection (BM bmt01 DF 12.7"×67':
+bisection HS 53.99994 ⇒ 2-ft top log; SF_HS ⇒ 4-ft top log, MCF 21.1 / BdFt 107 as live).
+"""
+function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float32)::Float32
+    epsilon = 0.001f0; tol = 0.0005f0
+    # SF_DS (NEXTRA=0) = SF_YHAT; above the tip DIB=0, SLOPE=-1 (sf_ds.f). INEEDSL=0 calls return no slope.
+    ds(h::Float32, sl::Bool = true) = h > totalh ? (0f0, -1f0) : _fw2_sf_yhat_f(h / totalh, tapcoe, rhfw, rflw, f, totalh, sl)
+    rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhlongi = rhfw[4]
+    hi2 = rhi2 * totalh
+    toohigh = totalh; toolow = 0f0
+    di2 = ds(hi2, false)[1]
+    local rh::Float32
+    if dib > di2
+        toohigh = hi2
+        start_found = false
+        local di1::Float32
+        if rhlongi > 0f0
+            hi1 = rhi1 * totalh
+            di1 = ds(hi1, false)[1]
+            if dib < di1
+                toolow = di1
+                rh = rhi2 - (rhi2 - rhi1) * (dib - di2) / (di1 - di2)
+                start_found = true
+            else
+                toohigh = di1
+            end
+        else
+            di1 = di2
+        end
+        if !start_found
+            dbase = ds(0f0, false)[1]
+            dbase <= dib && return 0f0
+            rz = fpow((dib - di1) / (dbase - di1), 0.25f0)
+            rh = (1f0 - rz) * rhi1
+        end
+    else
+        toolow = di2
+        rz = 1f0 - fpow(dib / di2, 2f0)
+        rh = rhi2 + (1f0 - rhi2) * rz
+    end
+    h = rh * totalh
+    ibreak = 0
+    while true                                         # label 110
+        outcome = :exhausted                           # ITER > 30 ⇒ label 200
+        for _ in 1:30                                  # label 20, ITER ≤ 30
+            d, slope = ds(h)
+            err = d - dib
+            err < 0f0 && (toohigh = h)
+            adjust = -err / slope
+            h = h + adjust
+            h > totalh && (h = (h - adjust + totalh) / 2f0)
+            h < 0f0 && (h = (h - adjust) / 2f0)
+            if !(abs(adjust) > tol * totalh || abs(err) > epsilon)
+                if slope > 0f0 && ibreak < 2
+                    ibreak += 1
+                    h = ibreak == 1 ? 0.8f0 * h : h + (totalh - h) * 0.25f0
+                    outcome = :restart
+                else
+                    outcome = :converged
+                end
+                break
+            end
+        end
+        outcome === :converged && return h
+        outcome === :restart && continue
+        break
+    end
+    hhigh = toohigh; hlow = toolow                     # label 200: bisection fallback
+    ehigh = ds(hhigh, false)[1] - dib; elow = ds(hlow, false)[1] - dib
+    elow * ehigh > 0f0 && return 0f0
+    eps = epsilon * 2f0; iter = 0
+    while true
+        htry = (hhigh + hlow) / 2f0
+        err = ds(htry, false)[1] - dib
+        abs(err) < eps && return htry
+        iter > 40 && return htry
+        iter += 1
+        err > 0f0 ? (hlow = htry) : (hhigh = htry)
+    end
+end
+
 "SF_HS surrogate: bisection for the height where the inside-bark dib == `topd`. SF_HS itself is a
 Newton+bisection solver to TOL=0.0005·H — below the 1-ft NUMLOG rounding, so a tight bisection matches."
 function _fw2_hs(dibat, topd::Float32, h::Float32)::Float32
@@ -419,8 +563,8 @@ end
 sum per-log Smalian .00272708·(DIBL²+DIBS²)·LEN with inch-class DIBs (butt = dib at breast height),
 each log 0.1-rounded. `mtop` = inside-bark merch top = TOPD·BARK."
 function _fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32, minlen::Float32, merchl::Float32;
-                         opt::Int = _NVB_R3_OPT)::Float32
-    hs = _fw2_hs(dibat, mtop, h)
+                         opt::Int = _NVB_R3_OPT, hs_solver = nothing)::Float32
+    hs = hs_solver === nothing ? _fw2_hs(dibat, mtop, h) : hs_solver(mtop)
     lmerch = hs - stump
     lmerch < merchl && return 0f0
     numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
@@ -444,8 +588,8 @@ end
 per-log SCRIB. Same region-3 log-bucking as the cubic. `cor` = MRULES Scribner flag: 'Y' (region 2/3)
 ⇒ decimal-C ×10; 'N' (region 6/EC) ⇒ ANINT(raw board feet) per log (profile.f:441-446)."
 function _fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32, minlen::Float32, merchl::Float32;
-                    cor::Char = 'Y', opt::Int = _NVB_R3_OPT)::Float32
-    hs = _fw2_hs(dibat, bftop, h)
+                    cor::Char = 'Y', opt::Int = _NVB_R3_OPT, hs_solver = nothing)::Float32
+    hs = hs_solver === nothing ? _fw2_hs(dibat, bftop, h) : hs_solver(bftop)
     lmerch = hs - stump
     lmerch < merchl && return 0f0
     numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
@@ -474,7 +618,7 @@ for DOB, not needed for cubic)."
 function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
                     bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0,
                     bftopd::Float32 = 6f0, iregn::Int = 3, board_cor::Char = 'Y',
-                    merch_opt::Int = _NVB_R3_OPT)
+                    merch_opt::Int = _NVB_R3_OPT, sf_hs::Bool = false)
     vol = zeros(Float32, 15)
     (d < 1f0 || h < 5f0) && return vol   # profile.f:117 HTTOT.LT.5 (strict; h==5.0 IS computed)
     jsp = _fw2_jsp(voleq)
@@ -496,7 +640,11 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), d * bark) : -1f0
     minl = _cr_merch_minlen(iregn); merl = _cr_merch_merchl(iregn)
     vol[1] = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) / 10.0f0    # NINT(TCVOL*10)/10 (ties away from 0)
-    vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl; opt = merch_opt)
-    vol[2] = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl; cor = board_cor, opt = merch_opt)
+    # `sf_hs=true`: MERLEN's merch-top height from the faithful SF_HS Newton (no-BRK_UP INGY families only);
+    # otherwise the legacy diameter-tolerance bisection (kept for the callers not yet re-validated on it).
+    hs_solver = (sf_hs && ingy) ? (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)) : nothing
+    vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl; opt = merch_opt, hs_solver = hs_solver)
+    vol[2] = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl; cor = board_cor, opt = merch_opt,
+                        hs_solver = hs_solver)
     return vol
 end

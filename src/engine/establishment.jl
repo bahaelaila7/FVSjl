@@ -368,7 +368,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades || s.variant isa Olympic) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC/OP = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486 RAN∈[0,1.5])
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC/OP/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -450,8 +450,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             ptree <= 0f0 && continue
             # a cycle-number date (<1000) resolves to the calendar year at that cycle (cycle_year_at) before the
             # DELAY offset — else `delay = 2 - 2016 = -2014` ⇒ age≈2019 ⇒ grossly over-sized "seedlings". A
-            # calendar-year date carries its own sub-cycle offset unchanged.
-            pyr    = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year))) : Int(a.year)
+            # calendar-year date carries its own sub-cycle offset unchanged. The date is FVS's 1-BASED cycle number
+            # (the `due` filter matches a.year == control.cycle+1) while cycle_year_at takes the 0-based cycle ⇒
+            # a.year−1. Passing a.year gave the NEXT cycle's start year (DELAY=FINT ⇒ AGE clamped to 1 ⇒ ~1-ft
+            # seedlings); live FVSbm_g16 gives `PLANT 2.0` output identical to the calendar `PLANT <IY(2)>`.
+            pyr    = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
             delay  = pyr - Int(yr)
             trage  = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
             age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
@@ -570,8 +573,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa BlueMountains || s.variant isa Utah || s.variant isa Klamath ||
+                   s.variant isa Utah || s.variant isa Klamath ||
                    s.variant isa InlandEmpire
+                # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
+                # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
+                # debug: ESSUBH 7.805 → HHT 8.41 for WL. BM takes the default RAN branch below.)
                 # Shared estb/estab.f:1035-1037 PLANT (no user height): HHT = essubh + HTADJ(default 0), floor XMIN —
                 # NO RAN draw. Only the user-specified-height branch (treeht≥0.1, estab.f:1026-1034) draws the lognormal
                 # BACHLO perturbation. jl already consumes the per-replicate EMSQR/ESDRAW draws (line ~218) for stream
@@ -597,7 +603,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if hht < 4.5f0
+            if s.variant isa BlueMountains
+                # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
+                # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
+                # birth, which fed the wrong D into the birth-cycle REGENT.
+                dbh = 0.1f0
+            elseif hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
             elseif s.variant isa EastCascades || s.variant isa Olympic
                 # ec/estab.f:626 and op/estab.f:626 both assign the establishment DBH = 0.1 flat; their
@@ -629,6 +640,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
                 (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa InlandEmpire) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # BM (strp/estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE. Read by the birth-cycle aspen REGENT
+                # (bm/regent.f:319 LESTB ⇒ SITAGE=ABIRTH) and Climate-FVS BIRTHYR.
+                s.variant isa BlueMountains && (t.birth_age[n] = Float32(per) - Float32(delay) + trage)
                 # Records go on inventory point `nn` (estab.f:313 ITRE=IPTIDS[nn]).
                 # point_ba scales each point's raw BA by PI/GROSPC with PI=NPTIDS, so with
                 # the planted TPA spread evenly over NPTIDS points each point_ba comes back
@@ -638,6 +652,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.crown_pct[n]   = Int32(0)            # crown set in phase 2 (REGENT lestb)
                 t.crown_ratio[n] = 0f0
                 t.norm_ht[n]     = Int32(0)
+                # estab.f:604-623 clears these on every new record; the slot may hold a deleted/dead record
+                # (a stale ITRUNC>0 with NORMHT=0 sent r4_topkill's cftopk/bftopk to NaN board feet). Same
+                # reset the sprout path does (sprout.jl). All are 0 on a never-used slot ⇒ inert there.
+                t.trunc[n]       = Int32(0)
+                t.defect[n]      = Int32(0); t.special[n] = Int32(0)
+                t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
                 t.sort_key[n]    = Float64(n)
                 # Newly-established trees carry NO volume in their birth cycle (FVS: VOLS runs BEFORE the new
                 # records are inserted — see grow_cycle! note "regen first gets volume from the next cycle's
@@ -701,7 +721,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # faithful ie/regent.f DO-13 STORAGE order for ALL new records (PLANT + AUTOES). Drawing it here too
         # (in SPESRT species order) would DOUBLE-consume the main stream for IE PLANT/NATURAL records and use
         # the wrong (eastern) order. So skip the crown-dub draw for IE — ie_esgent! is the sole IE crown-dub.
-        _ie_own_esgent = s.variant isa InlandEmpire
+        # BM likewise: bm/regent.f LESTB draws the crown RAN (regent.f:257-264) and the height ZZRAN (:358-360)
+        # INTERLEAVED per record on the main stream, so bm_esgent! owns the crown draw too.
+        _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0

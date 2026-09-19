@@ -282,7 +282,9 @@ function dub_missing_heights!(s::StandState)
     # such column. The per-tree dub itself uses the variant-generic `_htdbh_height` (htdbh_* coefs).
     # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
-    ht2 = any(lhtdrg) ? coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2) : nothing
+    # BM fits AA with its blkdat HT2 (bm/cratet.f BX=HT2(ISPC)); its CSV ht2/wykoff_ht2 are CR placeholders.
+    ht2 = !any(lhtdrg) ? nothing : s.variant isa BlueMountains ? BM_BLK_HT2 :
+          coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2)
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
     # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
     # `_htdbh_height` (TT defines no htdbh_p2/p3/p4). Load HT1/wykoff_ht2 unconditionally for TT.
@@ -319,6 +321,8 @@ function dub_missing_heights!(s::StandState)
         # cratet.f:342-372: calibrated-Wykoff dub when LHTDRG[sp] & IABFLG==0, else the Curtis-Arney HTDBH dub.
         h_v = if d <= 0.1f0
             1.01f0
+        elseif s.variant isa BlueMountains
+            bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
         elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1

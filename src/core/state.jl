@@ -316,6 +316,8 @@ mutable struct Control
     mistpinf::Vector{ScheduledActivity}
     dm_jran::Int32                            # MISRAN dwarf-mistletoe LCG state (misin0.f JRAN=123231, MISCOM);
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
+    dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
+                                              # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
 end
 
 function Control()
@@ -381,6 +383,7 @@ function Control()
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
+        false,                                                   # dm_mrt_defer
     )
 end
 
