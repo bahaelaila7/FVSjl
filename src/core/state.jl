@@ -808,13 +808,14 @@ mutable struct Establishment
     es_plot_dil::Vector{Float32}    # DILATE=FIRST(2,sp) each PLANT/NATURAL tree read (plot-major, es_plot_nph per plot)
     es_plot_nph::Int32
     kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
+    es_plot_note::Vector{Int}       # NBEST NOTE of each PLANT/NATURAL tree (plot-major like es_plot_dil) → IMC (estab.f:1385-1386)
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
-                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99))
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[])
 
 mutable struct DbsState
     enabled::Bool

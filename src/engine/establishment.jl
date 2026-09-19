@@ -697,6 +697,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.n = n
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
+                t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1440) ⇒ TreeList "ES" id
+                # IMC (TreeVal): estb/estab.f:1385-1386 — 1, but 2 for a planted tree NOT ranked best (NOTE≠1) while
+                # STOADJ>0; strp/estab.f:600 always 1. NOTE comes from the tally's NBEST pass (es_plot_note, plot-major).
+                _note = (use_ps && _nph > 0 && length(s.estab.es_plot_note) == nptids * idup * _nph && _kph <= _nph) ?
+                        s.estab.es_plot_note[((nn - 1) * idup + rep - 1) * _nph + _kph] : 1
+                t.mort_code[n]   = (_note != 1 && s.estab.stoadj > 0f0) ? Int32(2) : Int32(1)
                 t.species[n]     = Int32(sp)
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
@@ -778,6 +784,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         if perm != srcs
             permute_records!(t, lo, perm)
             @inbounds for i in lo:t.n; t.sort_key[i] = Float64(i); end
+            # FVS stamps IDTREE=IDCMP1+ICYC*10000+ITRN at the slot where it CREATES each record (estab.f:1260/1350/
+            # 1440); after re-laying jl's block into that slot order, re-stamp so the TreeList "ES" ids match.
+            icyc_id = (Int(s.control.cycle) + 1) * 10000
+            @inbounds for i in lo:t.n; t.tree_id[i] = Int32(10000000 + icyc_id + i); end
         end
     end
     # PHASE 2 — ESGENT → REGENT(lestb): assign each new tree its open-grown crown in

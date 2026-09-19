@@ -838,6 +838,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          emit_best::Union{Nothing,Vector{Bool}} = nothing,  # DO 33 best (true) vs DO 228 excess
                          time_h::Real = -1,     # estab.f:792 height-section TIME=FLOKDT−KDTOLD (<0 ⇒ `time`)
                          ph_dilate_out::Union{Nothing,Vector{Float32}} = nothing, # DILATE of each PLANT tree (plot-major)
+                         ph_note_out::Union{Nothing,Vector{Int}} = nothing,      # NBEST NOTE of each PLANT tree (plot-major, estab.f:1386)
                          ph_height = nothing,   # (n, dils) -> this plot's PLANT/NATURAL heights (estab.f DO 322)
                          ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
                          point_baa::AbstractVector = Float32[],
@@ -1270,12 +1271,17 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     end
                 end
             end
+            if ph_note_out !== nothing && _nph > 0                       # planted NOTE(ITPP+JJ) for establish!'s IMC
+                @inbounds for k in 1:_nph; push!(ph_note_out, note_e[itpp + k]); end
+            end
             ex_c = zeros(Float32, nsp); ex_h = zeros(Float32, nsp); ex_p = zeros(Float32, nsp)
             @inbounds for N in 1:itpp                                        # DO 33: best trees are individual records
                 I = e_sp[N]; (I < 1) && continue; hh = e_ht[N]
                 if e_esp[N] >= 0.00011f0 && note_e[N] == 1
+                    # estab.f:1232 PROB=(ESPROB(N)*300.0)/DUPNPT — REAL*4, left to right (a Float64 evaluation
+                    # rounds differently on ~1 in 3 records: live FVSie hex dump 3f49a8a3 vs Float64-path 3f49a8a2).
                     push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(e_wk4[N]),
-                                 Float64(e_esp[N]) * 300.0 / Float64(dupnpt)))
+                                 Float64((Float32(e_esp[N]) * 300f0) / Float32(dupnpt))))
                     emit_plot === nothing || push!(emit_plot, n)
                     emit_best === nothing || push!(emit_best, true)
                 else                                                        # accumulate excess per species (DO 33:199)
@@ -1290,7 +1296,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 ft2 = ex_p[I] / (ex_c[I] + 0.00001f0)                        # FTEMP2 = SUMESP/(EXCESS+1e-5)
                 xcs, ibrk = es_pasmax_xcsmax(ex_c[I], pmx)                   # XCSMAX + IBRKUP (estab.f:1288/1318-1321)
                 hh = ex_h[I] / ex_c[I]                                       # mean excess height (SUMHTS/EXCESS)
-                tpa_r = Float64(ft2) * 300.0 * Float64(xcs) / Float64(dupnpt)
+                tpa_r = Float64(((Float32(ft2) * 300f0) * Float32(xcs)) / Float32(dupnpt))   # estab.f:1321 REAL*4 (FTEMP2*300.0*XCSMAX)/DUPNPT
                 for _ib in 1:ibrk
                     push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(stomlt[I]), tpa_r))
                     emit_plot === nothing || push!(emit_plot, n)
@@ -1887,6 +1893,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     emit_plot = (_is_ie || _is_em) ? Int[] : nothing
     emit_best = (_is_ie || _is_em) ? Bool[] : nothing
     ph_dil = (_is_ie || _is_em) ? Float32[] : nothing
+    ph_note = (_is_ie || _is_em) ? Int[] : nothing
     ihtser = _IE_MYHTS[clamp(Int(idx.ihab), 1, length(_IE_MYHTS))]
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
@@ -1896,7 +1903,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
                             prob1_prep = prob1_prep, is_ie = _is_ie, pasmax = pasmax, prob1_pt = prob1_pt,
-                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, ph_dilate_out = ph_dil, time_h = time_h, ph_height = ph_height,
+                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, ph_dilate_out = ph_dil, ph_note_out = ph_note, time_h = time_h, ph_height = ph_height,
                             ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
                             # Per-point species tables gated to the INGROWTH tally (the establishment lever); the
                             # DISTURBANCE path keeps the validated scalar/point-1 tables (empty ⇒ fallback).
@@ -1905,7 +1912,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             plant_sp = plant_sp, ipprep_in = ipprep_in, ipprep_out = ipprep_out,
                             prob1_pt_ip = prob1_pt_ip)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs, emit_plot = emit_plot,
-            emit_best = emit_best, ph_dilate = ph_dil)
+            emit_best = emit_best, ph_dilate = ph_dil, ph_note = ph_note)
 end
 
 # =============================================================================
@@ -2058,7 +2065,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             pslo_es = copy(p.point_slope); pasp_es = copy(p.point_aspect)
             @inbounds for k in 1:length(pslo_es)
                 if k > length(p.point_ids) || p.point_ids[k] == 0
-                    pslo_es[k] = Float32(p.slope); pasp_es[k] = Float32(p.aspect)   # esplt2.f XXSLP/XXASP
+                    pslo_es[k] = Float32(p.slope_raw) * 0.01f0; pasp_es[k] = Float32(p.aspect_deg) * 0.0174533f0   # esplt2.f:54-55,219,224 XXSLP/XXASP
                 end
             end
         end
@@ -2135,8 +2142,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # aspect·SQSQ terms vanished ⇒ PROB1 0.463 vs live 0.617. jl already reads these per-plot values into
     # p.point_slope/p.point_aspect (used for ESTPP); use them for the stocking PN + ESB1 too. Empty (TREEDATA / no
     # per-plot topo) ⇒ fall back to the stand slope/aspect (inert where they match, e.g. iet01).
-    es_slope  = isempty(pslo_es)  ? Float32(p.slope)  : Float32(pslo_es[1])
-    es_aspect = isempty(pasp_es) ? Float32(p.aspect) : Float32(pasp_es[1])
+    # Stand fallback = XXSLP=ISLOP*0.01 / XXASP=IASPEC*0.0174533 (esplt2.f:54-55; ISLOP/IASPEC = IFIX of the raw
+    # percent/degrees, initre.f:436-437) — REAL*4 `30*0.01` = 0.29999998 (3E999999), 1 ULP below the growth-model
+    # SLOPE/100 = 0.3 (3E99999A). That ULP entered ESTOCK's √SLO·√TIME terms and lowered every plot's PROB1/ESPROB by
+    # 1-2 ULP (live FVSie hex dump of the test_ie_addtrees fixture), i.e. the whole 1-ULP birth-TPA residual.
+    es_slope  = isempty(pslo_es)  ? Float32(p.slope_raw) * 0.01f0       : Float32(pslo_es[1])
+    es_aspect = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
@@ -2437,6 +2448,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       end)
     est.kdtold = Int32(next_year - 1)                         # estab.f:1654 KDTOLD=KDT at the end of this ESTAB call
     est.es_plot_dil = r.ph_dilate === nothing ? Float32[] : r.ph_dilate
+    est.es_plot_note = r.ph_note === nothing ? Int[] : r.ph_note
     est.es_plot_nph = Int32(length(_plant_acts))
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
@@ -2527,6 +2539,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.dbh[n]         = dbh
         t.height[n]      = hht
         t.tpa[n]         = tpa_sp
+        t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1260,1350)
+        t.mort_code[n]   = bbest[bi] ? Int32(1) : Int32(2)   # IMC: best record 1 (estab.f:1206), excess 2 (:1294)
         t.plot_id[n]     = Int32(pt)
         # ABIRTH = AGEPL+GENTIM (estab.f:628/707); AUTOES natural regen ⇒ AGEPL=0, GENTIM=FINT−5. Read ONLY by
         # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL transfer distance; apply_climate_dds! +

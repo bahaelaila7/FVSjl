@@ -1198,6 +1198,11 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
 end
 
 
+# dbstrls.f / dbscuts.f / dbsatrtls.f TreeId: IDTREE > IDCMP2 (20000000, COMPRESS) ⇒ "CM"+6 digits of IDTREE−IDCMP2;
+# IDTREE > IDCMP1 (10000000, ESTAB/sprout) ⇒ "ES"+6 digits of IDTREE−IDCMP1; else the integer, left-justified.
+_fvs_tree_id(id::Integer) = id > 20000000 ? "CM" * lpad(id - 20000000, 6, '0') :
+                            id > 10000000 ? "ES" * lpad(id - 10000000, 6, '0') : string(Int(id))
+
 """
     _treelist_row(s, i, tpa, mortpa) -> Vector{Any}
 
@@ -1223,7 +1228,7 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
     # EstHt = (REAL(NORMHT)+5)/100 in REAL (Float32) arithmetic, else HT (dbstrls.f:199-203 / dbscuts.f)
     estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
     actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
-    return Any[string(Int(t.tree_id[i])), Int(i), strip(c.code_alpha[sp]),
+    return Any[_fvs_tree_id(t.tree_id[i]), Int(i), strip(c.code_alpha[sp]),
         strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
         Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
         tpa, mortpa,                                          # TPA, MortPA
@@ -1273,7 +1278,9 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
-    @inbounds for i in 1:t.n
+    # dbstrls.f: DO ISPC=1,MAXSP / DO I3=ISCT(ISPC,1),ISCT(ISPC,2) / I=IND1(I3) — species order, record order
+    # within a species (the same order cutlist_rows uses).
+    @inbounds for i in sort(collect(1:t.n); by = i -> (Int(t.species[i]), i))
         push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g)))
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
@@ -1306,7 +1313,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             # intree.f:543-544: input dead records are stored from MAXTRE DOWNWARD (IREC2), so TreeIndex = MAXTRE+1-k.
-            push!(rows, Any[string(Int(t.tree_id[i])), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
+            push!(rows, Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion

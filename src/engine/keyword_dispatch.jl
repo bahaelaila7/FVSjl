@@ -591,6 +591,10 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     rec.present[3] && (p.stand_age = nint(v[3]))
     rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
     rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
+    # IASPEC=IFIX(ASPECT), ISLOP=IFIX(SLOPE) (initre.f:436-437): the raw integer degrees/percent the establishment
+    # model decodes as IASPEC*0.0174533 / ISLOP*0.01 (esplt2.f:54-55) — NOT the growth-model SLOPE/100 (1 ULP apart).
+    rec.present[4] && (p.aspect_deg = trunc(Int32, v[4]))
+    rec.present[5] && (p.slope_raw  = trunc(Int32, v[5]))
     # BC (metric): STDINFO elevation is converted ARRAY(6)·MtoFT/100 (canada/bc/initre.f:876) — e.g. a
     # 7.0 field → common ELEV 0.229659. Downstream BC code recovers metres via ELEV·100·FTtoM. Other
     # variants store the raw field (hundreds of feet). Without this the V2 DGCON elevation term is ~30× off.

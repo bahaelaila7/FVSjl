@@ -76,6 +76,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "AGE") && (p.stand_age = Int32(_fia_int(d, "AGE", 0)))
     # ASPECT degrees → radians (TRNASP ×0.0174533); SLOPE percent → fraction (PLOT.F77)
     _fia_present(d, "ASPECT") && (p.aspect = _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0)
+    _fia_present(d, "ASPECT") && (p.aspect_deg = trunc(Int32, _fia_f32(d, "ASPECT", 0f0)))   # IASPEC=IFIX(ASPECT), initre.f:436
     # SLOPE: grinit.f:226 defaults a MISSING/NULL slope to 5.0% (→0.05 fraction) BEFORE the DB
     # overrides it — all 4 variants (sn/ne/cs/grinit.f:221-226 SLOPE=5.0). jl previously left a
     # missing slope at the 0.0 constructor default, which zeroed the DGF slope/aspect DGCON term
@@ -83,6 +84,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # with large slope coefficients (e.g. sp39 loblolly-bay FCOS=-10.15: a 0.05 slope = -0.68 in
     # ln(DDS) ⇒ ~2× DBH growth). Apply the grinit default so a missing slope matches live FVS.
     p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : 5f0 / 100f0
+    p.slope_raw = _fia_present(d, "SLOPE") ? trunc(Int32, _fia_f32(d, "SLOPE", 0f0)) : Int32(5)   # ISLOP=IFIX(SLOPE), initre.f:437
     # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710).
     # ⚠ METRIC DBs (BC/ON) store ELEVATION in METRES: the metric dbsstandin.f (FVSbc_buildDir, header
     # "METRIC-VDBSQLITE") does RSTANDDATA(9) = ELEVATION * MtoFt / 100 (:351) — metres→hundreds-of-feet —
