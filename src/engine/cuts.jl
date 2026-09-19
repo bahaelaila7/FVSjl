@@ -899,17 +899,17 @@ end
 # CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
 # IND1 (SPESRT: species groups, lineage-key order within a species — `species_sort!`) as a LOCAL vector, for cut-time
 # class sums that FVS accumulates in IND1 order (CCCLS). Built fresh so the shared `scratch.idx1` is not disturbed.
-function _ind1_order(s::StandState)::Vector{Int}
-    t = s.trees
-    ord = Int[]; sizehint!(ord, t.n)
+function _ind1_order(s::StandState)
+    t = s.trees; buf = s.scratch.ind1_buf; k = 0
+    sk = t.sort_key
     @inbounds for sp in 1:MAXSP
-        start = length(ord) + 1
+        start = k + 1
         for i in 1:t.n
-            t.species[i] == sp && push!(ord, i)
+            t.species[i] == sp && (k += 1; buf[k] = Int32(i))
         end
-        length(ord) >= start && sort!(view(ord, start:length(ord)); by = j -> t.sort_key[j])
+        k > start && sort!(view(buf, start:k); by = j -> sk[j], alg = InsertionSort)   # stable ⇒ same ties
     end
-    return ord
+    return view(buf, 1:k)
 end
 
 function _thin_cc!(s::StandState, act::ScheduledActivity)

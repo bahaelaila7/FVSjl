@@ -85,9 +85,15 @@ end
 #   DP=D*P; WK5(I)=D*DP; TSUMD2=TSUMD2+WK5(I); BATREE=0.005454154*WK5(I); BAT=BAT+BATREE; TPROB=TPROB+P
 # BA=BAT, RMSQD=SQRT(TSUMD2/TPROB). Both the D*(D*P) association and the IND1 accumulation order are part of
 # the REAL*4 result (BM 30193202010497 cyc1 BA 4261C4DB live vs 4261C4DC for record-order p·K·d²).
+# DENSE walk order for BA/RMSQD: FVS IND1. jl's IND1 reconstruction (`_ind1_order`, sort-key lineage) is
+# live-measured faithful for BM; on CS kwcov cs_serlcorr it is NOT (IND1 order flips a 2030 BdFt cell vs live while
+# the D*(D*P) association alone is inert) ⇒ the CS lineage keys diverge from FVS's LNKCHN chain there (open lead).
+# Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order.
+_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    @inbounds for i in _ind1_order(s)
+    @inbounds for i in _dense_order(s)
         d = t.dbh[i]
         ba += BA_PER_TREE * (d * (d * t.tpa[i]))
     end
@@ -96,7 +102,7 @@ end
 
 function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
-    @inbounds for i in _ind1_order(s)
+    @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
         sd2 += d * (d * p)
         tpa += p
@@ -119,7 +125,7 @@ base algorithm. Used by the mortality SDImax cap and the structure-stage PCTSMX 
 function stand_sdimax(s::StandState)
     t = s.trees; p = s.plot
     t.n == 0 && return 1f0
-    baxsp = zeros(Float32, length(p.sp_sdi_def)); totba = 0f0
+    baxsp = s.scratch.sdi_baxsp; fill!(baxsp, 0f0); totba = 0f0
     @inbounds for i in _ind1_order(s)
         tb = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
         baxsp[t.species[i]] += tb
