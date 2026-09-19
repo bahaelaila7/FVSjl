@@ -159,7 +159,7 @@ function on_varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float
             @inbounds for i in 1:n
                 tpalft = t.tpa[i] - killed[i]
                 if tpalft > 0f0
-                    temwk2[i] = -tpalft * ((1f0 - efftr[i])^npass - 1f0)   # NPASS is INTEGER (gfortran integer power)
+                    temwk2[i] = -tpalft * (fpowi(1f0 - efftr[i], npass) - 1f0)   # NPASS is INTEGER ⇒ libgcc __powisf2
                     temsum += temwk2[i]
                 end
             end

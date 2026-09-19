@@ -1515,6 +1515,16 @@ function triple_records!(s::StandState, stash)
         # ie_triple_htg!). Both are stored in htgU/htgL; htg_copy marks the large-tree case.
         if is_small[i] || htg_copy[i]
             t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
+        elseif s.variant isa Southern && t.temhtg[i] >= 0f0
+            # htgf.f:292-307 (LTRIP): each copy gets the UNCAPPED TEMHTG, then is capped against HT(ITFN) of its
+            # future slot — which TRIPLE has not written yet, so FVS reads what TREDEL left there (t.stale_ht; 0 if
+            # never used). The copy's own HT is set to the central's afterwards (SVTRIP, copy_tree! above).
+            sc4 = s.control.sp_size_cap[t.species[i], 4]
+            for (k, hk) in ((u, t.stale_ht[u]), (l, t.stale_ht[l]))
+                g = t.temhtg[i]
+                (hk + g) > sc4 && (g = max(sc4 - hk, 0.1f0))
+                t.ht_growth[k] = g
+            end
         end
         t.tpa[i] *= 0.60f0; t.mort_pa[i] *= 0.60f0
         # lineage keys: upper=3K, central=3K+1, lower=3K+2 → species-sort then visits

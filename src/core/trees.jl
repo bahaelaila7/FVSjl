@@ -124,6 +124,12 @@ mutable struct TreeList
     # contents stay), 0 for a slot never used. bm/regent.f reads ICR(K) of a tripled copy's FUTURE slot K before
     # TRIPLE fills it (see small_tree_growth!(::BlueMountains)).
     stale_icr::Vector{Int32}
+    # Same per-SLOT shadow for HT: htgf.f:292-307 caps a tripled copy's HTG against HT(ITFN) of its FUTURE slot
+    # ITFN=ITRN+2I-1 before TRIPLE (grincr.f:543) writes it — i.e. the height TREDEL left there (0 if never used).
+    stale_ht::Vector{Float32}
+    # Per-SLOT scratch: the UNCAPPED HTGF increment (htgf.f TEMHTG) of central record I, which htgf.f hands to both
+    # tripled copies before capping each against its own stale slot height (consumed by triple_records!).
+    temhtg::Vector{Float32}
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -147,6 +153,8 @@ function TreeList(maxtre::Int = MAXTRE)
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
         zeros(Int32, maxtre),                   # stale_icr
+        zeros(Float32, maxtre),                 # stale_ht
+        fill(-1f0, maxtre),                     # temhtg (−1 = not set by an HTGF cap pass this cycle)
     )
 end
 
@@ -248,7 +256,7 @@ function tredel_compact!(t::TreeList; thresh::Float32 = 0f0, onmove = nothing)
     newn = n - ndel
     # FVS leaves the vacated slots newn+1:n holding their old records (moved-from or deleted); remember their ICR
     # before jl slides the dead partition down over them (FVS keeps the dead at MAXTRE, not here).
-    @inbounds for k in (newn + 1):n; t.stale_icr[k] = t.crown_pct[k]; end
+    @inbounds for k in (newn + 1):n; t.stale_icr[k] = t.crown_pct[k]; t.stale_ht[k] = t.height[k]; end
     if t.ndead > 0
         @inbounds for k in 1:t.ndead; copy_tree!(t, newn + k, n + k); end
     end
