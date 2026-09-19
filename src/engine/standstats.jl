@@ -494,18 +494,40 @@ stay consistent. **Zeide:** Σ TPA·(D/10)^1.605 over `D ≥ DBHZEIDE` (sdical.f
 the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-327). Defaults
 (Zeide, threshold 0) reproduce the prior behavior.
 """
+# The reported stand SDI (.sum SDI = SDIBC before a thin, SDIAC after): SDICLS(0,0.,999.,1,...) (sdical.f ENTRY
+# SDICLS; fvs.f:440, grincr.f:241) — identical in every variant build. Both loops walk IND1 (SPESRT) order.
+#   pass 1 (DBH>=DBHSTAGE): SDSQ=SDSQ+(DBH**2.0)*PROB; SPROB=SPROB+PROB  → A,B
+#   pass 2: SDIC  = SDIC  + (A+B*(DBH**2.0))*PROB          (DBH>=DBHSTAGE)   — PER TREE, not SPROB*A+B*SDSQ
+#           SDIC2 = SDIC2 + PROB*(DBH/10.)**1.605           (DBH>=DBHZEIDE)
+# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. (The closed form
+# SPROB*A+B*SDSQ lives on in `stand_sdi_reineke`, which CROWN's SDICAL path uses.)
 function stand_sdi(s::StandState)
     t = s.trees
+    t.n == 0 && return 0f0
+    ord = _ind1_order(s)
     if s.control.zeide_sdi
-        thr = s.control.dbh_zeide; sdi = 0f0
-        @inbounds for i in 1:t.n
-            # sdical.f:326 `(DBH/10.)**1.605` — FVS `**` is gfortran powf, NOT Julia's openlibm `^` (differ ~0.07%);
-            # route through the companion (doctrine #8) so the reported/MYSDI Zeide SDI matches FVS bit-exactly.
-            t.dbh[i] >= thr && (sdi += t.tpa[i] * fpow(t.dbh[i] / 10f0, 1.605f0))
+        thr = s.control.dbh_zeide; sdi2 = 0f0
+        @inbounds for i in ord
+            d = t.dbh[i]
+            d >= thr && (sdi2 += t.tpa[i] * fpow(d / 10f0, 1.605f0))
         end
-        return sdi
+        return sdi2
     end
-    return stand_sdi_reineke(s)
+    thr = s.control.dbh_stage; sdsq = 0f0; sprob = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]; d < thr && continue
+        sdsq += fpow(d, 2f0) * t.tpa[i]; sprob += t.tpa[i]
+    end
+    sprob == 0f0 && return 0f0
+    k10 = fpow(10f0, -1.605f0)                     # == gfortran's folded 10.0**(-1.605) (3CCB6B13, verified)
+    a = k10 * (1f0 - 1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0)
+    b = k10 * (1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0 - 1f0)
+    sdic = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]
+        d >= thr && (sdic += (a + b * fpow(d, 2f0)) * t.tpa[i])
+    end
+    return sdic
 end
 
 "Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."

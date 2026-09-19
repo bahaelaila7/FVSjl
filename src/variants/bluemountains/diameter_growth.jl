@@ -80,7 +80,7 @@ function dgf!(s::StandState, ::BlueMountains)
     relden = p.relative_density
     ba = p.basal_area
     alba = ba > 0f0 ? flog(ba) : 0f0                              # dgf.f:370 ALOG(BA)
-    rmai = 50f0                                                 # grinit RMAI default; WP(sp1)-only term, maical.f RMAI deferred (no WP in bmt01)
+    rmai = bm_rmai(p)                                           # maical.f RMAI=ADJMAI(ISPNUM(ISISP),SITEAR(ISISP),10) ≤128 (CRATET) — WP(sp1) DDSL term (dgf.f:417)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
