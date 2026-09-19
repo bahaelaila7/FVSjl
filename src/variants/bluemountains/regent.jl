@@ -30,8 +30,8 @@ function bm_smhtgf(sp::Int, si::Float32, h::Float32, dtime::Float32)::Float32
         return ((2.0f0 + 0.420f0 * si) / (28.5f0 - 0.05f0 * si)) * dtime
     elseif sp == 4
         return ((4.2435f0 + 0.1510f0 * si) / (19.0184f0 - 0.0570f0 * si)) * dtime
-    elseif sp == 5
-        return ((0.965758f0 + 0.082969f0 * si) / (55.249612f0 - 1.288852f0 * si)) * dtime
+    elseif sp == 5                                        # MH — metric curve ×3.280833 m→ft (bm/smhtgf.f CASE(5))
+        return ((0.965758f0 + 0.082969f0 * si) / (55.249612f0 - 1.288852f0 * si)) * dtime * 3.280833f0
     elseif sp == 6
         s = clamp(si, 5.5f0, 75.0f0)
         return (s / 5.0f0) * (s * 1.5f0 - h) / (s * 1.5f0)
@@ -65,6 +65,68 @@ function bm_essubh_hht(sp::Int, si::Float32, age::Float32)::Float32
         return (si / c1) * (1f0 - c2 * exp(c3 * age))^c4 - (si / c1) * (1f0 - c2)^c4
     end
     return bm_smhtgf(sp, si, 0f0, age)                      # linear/fixed species: H unused ⇒ = coef·AGE
+end
+
+# bm/regent.f:657-829 (LSTART small-tree HEIGHT calibration, called from cratet.f:667 REGENT(.FALSE.,1)):
+# per species (DO 100 ISPC, IND1 order within ISCT), trees with DBH<5 and backdated H=HT−HTG (IHTG<2) ≥ 0.01
+# that carry a measured HTG≥0.001: EDH = POTHTG·PCTRED·VIGOR·RHCON (aspen: Sheppard EDH·RSIMOD·2.4·0.75, no
+# PCTRED/VIGOR), TERM = HTG·SCALE3 (REGYR/FINTH); HCOR = ln(ΣTERM·P/ΣEDH·P) when N ≥ NCALHT(5), trapped to
+# [0.0821,12.1825]. PCTRED from AVH (AVHT40, cratet.f:624) × RELDEN (cratet.f:195 DENSE). Skipped when IFINTH=0.
+# Writes the RAW HCOR into htg_cor_init; dgdriv.f:202-224's WCI/CORMLT attenuation (shared) then produces CON.
+# Without it BM HCOR stayed 0 ⇒ CON=1 (449704678489998 PP: live CON 0.7606 ⇒ jl small-tree HTG ×1.31).
+function bm_regent_hcor_init!(s::StandState, isct, ind1)
+    t = s.trees; c = s.calib; p = s.plot
+    finth = s.control.growth_finth
+    trunc(Int, finth) == 0 && return s                    # IF(IFINTH.EQ.0) GOTO 95
+    scale3 = _BM_RG_REGYR / finth
+    xd = p.avg_height * (c.cratet_relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
+    ab = BM_RG_AB
+    pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
+    @inbounds for sp in 1:MAXSP
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        sitear = p.sp_site_index[sp]
+        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
+        n = 0; snp = 0f0; snx = 0f0; sny = 0f0
+        for k in i1:i2
+            i = Int(ind1[k])
+            h = t.height[i]
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (t.dbh[i] >= 5.0f0 || h < 0.01f0) && continue
+            x = Float32(t.crown_pct[i]) / 100f0
+            vigor = (150.0f0 * (x^3.0f0) * exp(-6.0f0 * x)) + 0.3f0
+            vigor > 1.0f0 && (vigor = 1.0f0)
+            sp == 6 && (vigor = 1.0f0 - ((1.0f0 - vigor) / 3.0f0))
+            local edh::Float32
+            if sp == 15                                   # aspen (Sheppard), regent.f:737-750
+                relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+                ag1 = (h * 12.0f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                ag2 = ag1 + 10.0f0
+                h2 = (26.9825f0 * ag2^1.1752f0) / (2.54f0 * 12.0f0)
+                edh = (h2 - h) * rsimod * 1.0f0
+                edh = edh * 2.4f0
+                edh = edh * 0.75f0
+                edh < 0f0 && (edh = 0f0)
+            else
+                pothtg = sp == 12 ? si / 5.0f0 : bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)
+                edh = pothtg * pctred * vigor * 1.0f0      # ·RHCON(=1)
+            end
+            t.ht_growth[i] < 0.001f0 && continue          # regent.f:773
+            term = t.ht_growth[i] * scale3
+            pp = t.tpa[i]
+            snp += pp; snx += edh * pp; sny += term * pp; n += 1
+        end
+        n < 5 && continue                                 # NCALHT
+        snx = snx / snp; sny = sny / snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        hc = log(cornew)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (hc = 0f0)
+        c.htg_cor_init[sp] = hc
+    end
+    return s
 end
 
 function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32 = 10.0f0)
@@ -137,8 +199,9 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                     (zzran <= 0.5f0 && zzran >= -2.0f0) && break
                 end
             end
-            htgr = (htgr0 + zzran * 0.1f0) * scale        # XRHGRO=1
-            htgr < 0.1f0 && (htgr = 0.1f0)
+            htgr = (htgr0 + zzran * 0.1f0) * scale        # XRHGRO=1 (bm/regent.f:362) — NO floor on HTGR here:
+            # FVS floors only the BLENDED HTG(K) (:375-376). A pre-blend HTGR≥0.1 floor over-grew suppressed small
+            # trees in the XMIN..XMAX blend band (302098779489998 GF D2.1: live HTGR −0.007 ⇒ HTG 0.1194; jl 0.2211).
             htg = htgr * (1.0f0 - xwt) + xwt * large_htg; htg < 0.1f0 && (htg = 0.1f0)
             if h + htg > cap                              # regent.f:378-381 SIZCAP(ISPC,4)
                 htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)

@@ -959,3 +959,163 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     push!(s.estab.years_done, yr)
     return created
 end
+
+# =============================================================================
+# ESTAB site-prep activity bookkeeping (BURNPREP 491 / MECHPREP 493) — the IACT(,4) status that ECON's
+# MECHCST/BURNCST reads (eccalc.f OPSTUS/OPGET3). Pure status bookkeeping: it never changes establishment.
+# =============================================================================
+
+"Resolved date of a scheduled activity (a date in 1..MAXCYC is a cycle number ⇒ IY(date), OPEXPN)."
+_prep_date(s::StandState, a) = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
+
+"""
+    esetpr_mark!(s, idsdat, kdt)
+
+ESETPR (esetpr.f) status effects: for BURNPREP then MECHPREP, walk the PENDING activities (OPGET2: IACT(,4)=0)
+dated in [IDSDAT, KDT] in date order (IOPSRT; ties = input order); the LAST one found is marked done in its own
+year (OPDON2(…,IDT,…,I)), every earlier one is deleted (OPDON2(…,−1,…)). The "no-parameter BURNPREP ⇒ METH=3,
+RETURN before MECHPREP" branch is inert: ESPRIN always stores the %-of-plots parameter.
+"""
+function esetpr_mark!(s::StandState, idsdat::Integer, kdt::Integer)
+    st = s.estab.prep_status
+    for code in (Int32(491), Int32(493))
+        pend = Tuple{Int,Int}[]
+        for (i, a) in enumerate(s.control.schedule)
+            a.icflag == code || continue
+            haskey(st, i) && continue
+            d = _prep_date(s, a)
+            (idsdat <= d <= kdt) && push!(pend, (d, i))
+        end
+        isempty(pend) && continue
+        sort!(pend)
+        for (k, (d, i)) in enumerate(pend)
+            st[i] = k == length(pend) ? Int32(d) : Int32(-1)
+        end
+    end
+    return
+end
+
+"""
+    estab_prep_cancel_cycle!(s)
+
+estab.f `IF(NTALLY.GT.1) CALL OPFIND(2,MYACTS(3),NTODO) … OPDEL1`: a continuation / ingrowth tally deletes the
+pending BURNPREP/MECHPREP activities due THIS cycle.
+"""
+function estab_prep_cancel_cycle!(s::StandState)
+    y1 = Int(current_cycle_year(s)); y2 = Int(cycle_year_at(s.control, Int(s.control.cycle) + 1))
+    st = s.estab.prep_status
+    for (i, a) in enumerate(s.control.schedule)
+        (a.icflag == Int32(491) || a.icflag == Int32(493)) || continue
+        haskey(st, i) && continue
+        d = _prep_date(s, a)
+        (y1 <= d < y2) && (st[i] = Int32(-1))
+    end
+    return
+end
+
+"""
+    estab_prep_tally!(s, ntally, idsdat, kdt)
+
+The site-prep effect of one ESTAB call (estab.f): NTALLY>1 (continuation, or ESTB/AK ingrowth 99) cancels this
+cycle's preps; NTALLY=1 runs ESETPR over [IDSDAT, KDT]. Idempotent per cycle (ESNUTR runs once per cycle in FVS).
+"""
+function estab_prep_tally!(s::StandState, ntally::Integer, idsdat::Integer, kdt::Integer)
+    yr = Int32(current_cycle_year(s))
+    yr in s.estab.prep_years_done && return
+    push!(s.estab.prep_years_done, yr)
+    if ntally > 1
+        estab_prep_cancel_cycle!(s)
+    elseif ntally == 1
+        esetpr_mark!(s, idsdat, kdt)
+    end
+    return
+end
+
+"""
+    estab_prep_esnutr!(s)
+
+ESNUTR's ESTAB-call decision (strp/ls esnutr.f:145-290) for the variants whose establishment is not jl's IE/EM
+AUTOES tally — replicated ONLY to drive the site-prep status (ESETPR / NTALLY>1 cancel). Per cycle, KDT=IY(ICYC+1)−1:
+  1. a TALLYONE(428) — else TALLYTWO(429) — due this cycle (the last one, OPGET(NTODO)): NTALLY=IACTK−427,
+     IDSDAT=PRMS(1), LONE=.TRUE.; >20 yr stale ⇒ canceled (no ESTAB); a TALLYTWO whose TALLYONE was not done after
+     IDSDAT becomes NTALLY=1 (OPSTUS(428,IDSDAT,KDT,0,…));
+  2. else a TALLY(427) due this cycle: the latest disturbance date PRMS(1) ⇒ IDSDAT, NTALLY=1 (stale ⇒ canceled);
+  3. else the 20-yr continuation: NTALLY>0 ∧ KDT−IDSDAT≤19 ⇒ NTALLY+1;
+  4. else a PLANT/NATURAL due this cycle: NTALLY=1 (STRP/LS) or 99 (ESTB CI/KT, AK), IDSDAT=IY(ICYC+1)−20.
+Then ESTAB (site-prep effect) and `IF (LONE) NTALLY=0`; the chosen tally is OPDONE'd at KDT, the other tallies due
+this cycle are deleted (esnutr.f:300-310). IDSDAT −9999 ⇒ IY(1)−20 (esnutr.f:100).
+"""
+function estab_prep_esnutr!(s::StandState)
+    sched = s.control.schedule
+    any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), sched) || return
+    est = s.estab
+    yr = Int32(current_cycle_year(s))
+    yr in est.prep_years_done && return
+    icyc = Int(s.control.cycle) + 1
+    y2 = Int(cycle_year_at(s.control, icyc)); kdt = y2 - 1
+    est.prep_idsdat == Int32(-99999) && (est.prep_idsdat = est.idsdat)
+    est.prep_idsdat == Int32(-9999) && (est.prep_idsdat = Int32(Int(cycle_year_at(s.control, 0)) - 20))
+    ydate(d) = (1 <= d < 1000) ? Int(cycle_year_at(s.control, d - 1)) : d
+    due(i, a) = !haskey(est.tally_status, i) && _ec_cycle_of(s, _prep_date(s, a)) == icyc
+    tallies(code) = [i for (i, a) in enumerate(sched) if a.icflag == code && due(i, a)]
+    ntally = 0; lone = false; chosen = 0
+    t1 = tallies(Int32(428)); isempty(t1) && (t1 = tallies(Int32(429)))
+    if !isempty(t1)
+        chosen = t1[end]; a = sched[chosen]
+        ntally = Int(a.icflag) - 427
+        est.prep_idsdat = Int32(ydate(round(Int, a.params[1]))); lone = true
+        if kdt + 1 - Int(est.prep_idsdat) > 20
+            ntally = 0; chosen = 0
+        elseif ntally == 2
+            done1 = [(Int(sched[i].year), st) for (i, st) in est.tally_status
+                     if sched[i].icflag == Int32(428) && Int(est.prep_idsdat) <= _prep_date(s, sched[i]) <= kdt]
+            ist = isempty(done1) ? 0 : last(sort(done1))[2]
+            (isempty(done1) || ist <= est.prep_idsdat) && (ntally = 1)
+        end
+    else
+        t0 = tallies(Int32(427))
+        if !isempty(t0)
+            best = -1
+            for i in t0
+                d = round(Int, sched[i].params[1])
+                d > best && (best = d; chosen = i)
+            end
+            est.prep_idsdat = Int32(ydate(best)); ntally = 1
+            kdt + 1 - Int(est.prep_idsdat) > 20 && (ntally = 0; chosen = 0)
+        elseif est.prep_ntally > 0 && kdt - Int(est.prep_idsdat) <= 19
+            ntally = Int(est.prep_ntally) + 1
+        else
+            y1 = Int(current_cycle_year(s))
+            npnats = count(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+                                ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), sched)
+            if npnats > 0
+                estb_like = s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa SoutheastAlaska
+                ntally = estb_like ? 99 : 1
+                est.prep_idsdat = Int32(y2 - 20)
+            end
+        end
+    end
+    if ntally > 0
+        est.prep_ntally = Int32(ntally)
+        estab_prep_tally!(s, ntally, Int(est.prep_idsdat), kdt)
+        lone && (est.prep_ntally = Int32(0))
+    else
+        push!(est.prep_years_done, yr)
+    end
+    # esnutr.f:300-310: the executed tally is done at KDT; every other tally due this cycle is deleted
+    for code in (Int32(427), Int32(428), Int32(429)), i in tallies(code)
+        est.tally_status[i] = i == chosen ? Int32(kdt) : Int32(-1)
+    end
+    return
+end
+
+"IE/EM with the AUTOES tally switched off: the PLANT/NATURAL catch-all ESTAB call is NTALLY=99 (estb esnutr.f:355)."
+function estab_prep_npnats_estb!(s::StandState)
+    any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), s.control.schedule) || return
+    icyc = Int(s.control.cycle) + 1
+    y1 = Int(current_cycle_year(s)); y2 = Int(cycle_year_at(s.control, Int(s.control.cycle) + 1))
+    any(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+             ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), s.control.schedule) || return
+    estab_prep_tally!(s, 99, y2 - 20, y2 - 1)
+    return
+end

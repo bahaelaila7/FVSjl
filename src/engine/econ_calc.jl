@@ -69,9 +69,51 @@ end
 
 _ec_calc!(s) = (ec = s.econ; ec.calc === nothing && (ec.calc = EconCalc(nspecies(s.variant))); ec.calc)
 
-"Register an ECON Event-Monitor activity (addEvent, ecin.f:781; non-conditional path)."
+"""Register an ECON Event-Monitor activity (addEvent, ecin.f:781). Normal path: date = max(minDate, field 1).
+Inside an IF/THEN block (OPMODE LMODE, ecin.f:785-789) field 1 is a WAIT time with no minimum — captured as a
+template on the conditional (`c.if_capture`) and dated IY(ICYC)+wait when the condition fires (econ_evmon!)."""
 function _ec_add_event!(c::EconCalc, code::Int32, mindate::Int, date::Float32, params::Vector{Float32})
+    if c.if_capture !== nothing
+        push!(c.if_capture, EconEvent(code, Int32(trunc(Int, date)), Int32(0), params, Int32(0)))
+        return
+    end
     push!(c.events, EconEvent(code, Int32(max(mindate, trunc(Int, date))), Int32(length(c.events) + 1), params, Int32(0)))
+end
+
+"The ECON event activity codes an IF/THEN block may carry (ecin.f addEvent callers)."
+const ECON_EVENT_ACTS = (ECON_PRETEND_ACT, ECON_SPEC_COST_ACT, ECON_SPEC_REV_ACT, ECON_START_ACT)
+
+"""
+    econ_evmon!(s)
+
+EVMON phase 1 (grincr.f:260, before ECSTATUS(…,0)) for the ECON event templates carried by IF/THEN blocks:
+when a block's condition is true this cycle, each template is registered dated IY(ICYC)+wait (OPSCHD,
+opadd.f `IDATE(IMGL)=IDT+IDATE(II)`). Same condition evaluation (and per-cycle re-firing) as the thinning
+activities of IF blocks (cuts!); idempotent within a cycle.
+"""
+function econ_evmon!(s::StandState)
+    c = s.econ.calc
+    conds = s.control.conditionals
+    isempty(conds) && return
+    any(cd -> any(a -> a.icflag in ECON_EVENT_ACTS, cd.acts), conds) || return
+    yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+    ctx = EventCtx(fvscyc, yr, s)
+    for (cd, nm, ast) in s.control.compute_defs
+        _compute_due(Int(cd), s, yr, fvscyc) && (s.control.compute_vars[nm] = eval_event(ast, ctx))
+    end
+    for (ci, cd) in enumerate(conds)
+        any(a -> a.icflag in ECON_EVENT_ACTS, cd.acts) || continue
+        (ci, yr) in c.ev_fired && continue
+        eval_event(cd.cond, ctx) != 0f0 || continue
+        push!(c.ev_fired, (ci, yr))
+        for a in cd.acts
+            a.icflag in ECON_EVENT_ACTS || continue
+            np = a.icflag == ECON_START_ACT ? 3 : 1
+            push!(c.events, EconEvent(a.icflag, Int32(yr + Int(a.year)), Int32(length(c.events) + 1),
+                                      Float32[a.params[k] for k in 1:np], Int32(0)))
+        end
+    end
+    return
 end
 
 """
@@ -317,6 +359,7 @@ CUTS; `write_sum_file` applies CUTS ahead of `grow_cycle!`, so both call this. I
 function econ_cycle_start!(s::StandState)
     (s.econ === nothing || !s.econ.active) && return
     s.control.cycle == Int32(0) && econ_setp!(s)
+    s.econ.calc === nothing || econ_evmon!(s)             # EVMON phase 1 (grincr.f:260) precedes ECSTATUS(…,0)
     econ_status!(s, Int(s.control.cycle) + 1, 0)
     return
 end
@@ -601,11 +644,13 @@ end
 "The ESTAB activities of `code` (PLANT 430 / BURN 491 / MECH 493) as (date, done-year, params)."
 function _ec_estab_acts(s::StandState, code::Int32)
     out = _EcAct[]
-    for a in s.control.schedule
+    for (idx, a) in enumerate(s.control.schedule)
         a.icflag == code || continue
         yr = _ec_date(s, Int(a.year))
+        # IACT(,4): PLANT is done when establish! booked it; BURNPREP/MECHPREP carry the status ESTAB's ESETPR /
+        # NTALLY>1 cancel recorded (year done, −1 deleted, absent = pending) — see engine/establishment.jl.
         done = code == Int32(430) ? (Int32(yr) in s.estab.years_done ? yr : 0) :
-               (yr <= Int(current_cycle_year(s)) ? yr : 0)
+               Int(get(s.estab.prep_status, idx, Int32(0)))
         prm = code == Int32(430) ? Float32[a.params[1], a.params[2]] : Float32[a.params[2]]
         push!(out, _EcAct(yr, done, prm))
     end

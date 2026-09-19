@@ -293,7 +293,16 @@ function bm_crown_init_lstart!(s::StandState)
     end
     # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3), with the dead at their
     # notre-expanded PROB (24001521010900: the ×2 dead fill the top 40 TPA ⇒ AVH 48.466 = live, 41.596 unscaled).
+    # bm/cratet.f:195 DENSE (the AVH CROWN :610 reads) runs BEFORE the missing-height dub (DO 130 :363, DO 145
+    # :464) ⇒ missing heights count as 0 in this AVH (AVHT40 at :624 recomputes after). jl dubbed them already
+    # (setup_growth! → dub_missing_heights!), so evaluate AVH on the pre-dub snapshot, then restore.
+    # 41135212010497: 0.1" PP seedlings (dubbed 1.01) fill the top-40 TPA ⇒ AVH 33.671 vs live 33.160 (=HT 0).
+    hin = s.calib.cratet_ht_in
+    use_hin = length(hin) == t.n
+    saved_ht = use_hin ? t.height[1:t.n] : Float32[]
+    use_hin && @inbounds(for i in 1:t.n; t.height[i] = hin[i]; end)
     avht_real = stand_top_height(s; legacy_double = true)
+    use_hin && @inbounds(for i in 1:t.n; t.height[i] = saved_ht[i]; end)
     if lbkden                                 # backdate LIVE WK3 only (after the real-DBH AVH ranking)
         t.n = nlive; _backdate_dbh!(s); t.n = nlive + Int(t.ndead)
     end
@@ -304,6 +313,7 @@ function bm_crown_init_lstart!(s::StandState)
         end
     end
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end
     t.n = nlive
