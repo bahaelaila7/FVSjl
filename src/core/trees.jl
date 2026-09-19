@@ -109,6 +109,10 @@ mutable struct TreeList
     # (PLANT/existing, TRAGE≥GENTIM); AUTOES natural regen gets min(TRAGE,GENTIM)/(GENTIM+ε) < 1 (TRAGE=2 ⇒ 0.40
     # at FINT=10). Transient (used only in the birth cycle) but carried through tripling/compaction for safety.
     htimlt    ::Vector{Float32}    # birth-cycle HTG multiplier               (WK4)
+    # Establishment-model mortality immunity (IESTAT): estab.f:1269 sets IESTAT=IDSDAT+20 on every AUTOES "BEST"
+    # tree (excess 1348 / PLANT-NATURAL 1438 = 0); morts.f exempts the tree from mortality until IY(ICYC)≥IESTAT
+    # (prorated X·(1−min(1,(IESTAT−IY)/FINT))). Copied by TRIPLE (triple.f:80) and COMPRESS (comprs.f:738).
+    iestat    ::Vector{Int32}      # establishment mortality-immunity year    (IESTAT)
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -136,6 +140,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(),                                  # dg_prev
         iz(),                                  # dmr
         ones(Float32, maxtre),                 # htimlt (WK4, default 1.0 = full birth-cycle growth)
+        iz(),                                  # iestat (IESTAT, 0 = no establishment immunity)
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
     )
@@ -153,7 +158,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied

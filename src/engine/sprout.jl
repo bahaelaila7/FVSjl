@@ -807,6 +807,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.norm_ht[n]     = Int32(0)
             t.trunc[n]       = Int32(0)
             t.birth_age[n]   = Float32(ishag)          # ABIRTH
+            t.iestat[n]      = Int32(0)                # IESTAT=0 (esuckr.f record init; guards slot reuse)
             t.tree_id[n]     = Int32(10000000 + icyc * 10000 + n)  # IDTREE
             t.tree_random[n] = -999f0                  # ZRAND
             t.sort_key[n]    = Float64(n)

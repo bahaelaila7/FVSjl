@@ -624,7 +624,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
     econ_on && (s.econ.cycle_cost = 0f0; s.econ.cycle_rev = 0f0)
+    # Zero-PROB record deletion happens at the START of the next cycle in FVS, not at the end of the cycle that killed
+    # them: cuts.f:255-275 ("THEY GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY") TREDELs PROB≤1E-10 on CUTS
+    # entry, and COMCUP (grincr.f:391, after CUTS, before growth) TREDELs PROB≤1E-5. A record killed outright this
+    # cycle (MORTS/FMKILL via UPDATE in GRADD) therefore survives THROUGH this cycle's ESNUTR, so new regen/sprouts are
+    # appended AFTER it and the next cycle's swap-from-end TREDEL moves them into its slot. jl formerly ran COMCUP at
+    # the end of growth (before ESNUTR), appending regen to an already-compacted list ⇒ a different physical record
+    # order ⇒ different per-record REGENT/DGSCOR ZZRAN assignment. MEASURED FVSie_g16 24829032010900 post-SIMFIRE:
+    # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
+    tredel_compact!(s.trees; thresh = 1f-10, onmove = rd_tdel_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    comcup!(s.trees; onmove = rd_tdel_hook(s))              # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
         apply_salvage!(s)                                  # SALVAGE (act 2520) — remove snags (FMSALV from CUTS)
@@ -1055,8 +1065,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    comcup!(t; onmove = rd_tdel_hook(s))    # COMCUP (grincr.f:318, end of GRINCR): drop
-                                            # PROB≤1e-5 records before GRADD/next cycle
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried

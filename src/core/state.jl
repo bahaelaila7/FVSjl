@@ -759,11 +759,19 @@ mutable struct Establishment
     esb_shift_pt::Vector{Float32}  # PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID), frozen at the calibrating
                                 # tally (INADV=0, first tally). The ingrowth per-point PROB1 uses this instead of the
                                 # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
+    es_kdtold::Int32            # KDTOLD (estab.f:275/1654): KDT of the previous ESTAB call. A CONTINUATION tally skips the
+                                # :275 reset (GO TO 276), so its height-model TIME = FLOKDT−KDTOLD (estab.f:792) is the gap
+                                # since the last ESTAB call, not years since disturbance. −1 ⇒ none yet.
+    esb_shift_ptip::Matrix{Float32}  # ESB − ESB1(NNID, IPREP) per inventory point × site prep (npt×3). estab.f:510-545
+                                # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
+                                # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
+                                # fresh AND continuation tallies. Empty ⇒ callers fall back to esb_shift_pt / scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
-                                5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[])
+                                5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
+                                Int32(-1), Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState
     enabled::Bool

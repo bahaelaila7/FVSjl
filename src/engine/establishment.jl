@@ -629,6 +629,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
                 t.htimlt[n]      = 1.0f0     # PLANT/NATURAL: full birth-cycle HTG (TRAGE≥GENTIM ⇒ WK4≈1; guards slot reuse). #193
+                t.iestat[n]      = Int32(0)  # estab.f:1438 IESTAT=0 (PLANT/NATURAL trees get no establishment immunity)
                 # ABIRTH = AGEPL + GENTIM (estab.f:628/707) — the REGENT-start `age` already computed above IS
                 # FVS's tree age (essubh.f:93). jl left birth_age=0 ⇒ established trees ran ~AGEPL+GENTIM (=7 for a
                 # default PLANT) years too YOUNG ⇒ htgf's even-aged site curve (steeper when young) over-predicted
@@ -845,5 +846,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         compute_density!(s)
     end
     push!(s.estab.years_done, yr)
+    # estab.f:1654 KDTOLD=KDT closes every ESTAB call, including a PLANT/NATURAL-only one (MODE=1) — the next
+    # AUTOES continuation's height TIME (estab.f:792) is measured from it. estb variants (IE/EM) only.
+    (created && (s.variant isa InlandEmpire || s.variant isa EasternMontana)) &&
+        (s.estab.es_kdtold = Int32(cycle_year_at(s.control, Int(s.control.cycle) + 1) - 1))
     return created
 end

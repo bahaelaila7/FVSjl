@@ -55,7 +55,7 @@ using FVSjl
     #   (2) The distribution is HETEROGENEOUS: WK4 spans {≈0.60 advance, ≈0.20/0.00 subsequent}, not all 0.60.
     # =========================================================================
     @testset "emit path: WK4 height-class distribution (advance/subsequent/excess)" begin
-        emit = NTuple{5,Float64}[]
+        emit = NTuple{6,Float64}[]   # 6th = BEST flag (IESTAT)
         # iet01 ingrowth tally (ihab=10 ⇒ IHTSER=MYHTS(10)=4), GENTIM=5 (FINT=10), ESPADV called (ingrowth).
         tally = FVSjl.ie_autoes_tally(; kw..., pasmax = 15f0, emit = emit, ihtser = 4, gentim = 5f0,
                                       call_espadv = true)
