@@ -1536,7 +1536,7 @@ function triple_records!(s::StandState, stash)
             for (k, hk) in ((u, t.stale_ht[u]), (l, t.stale_ht[l]))
                 g = t.temhtg[i]
                 (hk + g) > sc4 && (g = max(sc4 - hk, 0.1f0))
-                t.ht_growth[k] = g
+                t.ht_growth[k] = fixhtg_scale(s, i, g)   # grincr.f:451-525 FIXHTG scales HTG(ITFN)/HTG(ITFN+1) AFTER the HTGF cap
             end
         end
         t.tpa[i] *= 0.60f0; t.mort_pa[i] *= 0.60f0

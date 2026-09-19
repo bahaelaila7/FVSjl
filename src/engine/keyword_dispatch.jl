@@ -939,23 +939,45 @@ in [d1, d2). The tripled upper/lower records (stash dgU/dgL, htgU/htgL) get the 
 (FVS scales DG(ITFN)/DG(ITFN+1)). Runs after all growth, before mortality (MORTS reads the
 scaled DG). Multiple scalers firing the same cycle compound, in keyword order.
 """
-function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
-    isempty(s.control.multipliers) && return s
-    # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
+# One-shot FIXDG/FIXHTG activity `m` fires this cycle: a fixed-year scaler matches exactly one cycle's
+# [start,end) range (IY schedule, TIMEINT/CYCLEAT-aware); a date before the first cycle fires in cycle 0
+# (Fortran OPFIND past-date behaviour).
+@inline function _fix_fires(s::StandState, m, kind::Symbol)
+    m.kind === kind || return false
     cyc_start = current_cycle_year(s)
     cyc_end = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+    return cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)
+end
+
+# grincr.f:451-525 record test for a firing FIXDG/FIXHTG activity: species (0 = all, <0 = group) and
+# PRM(3) <= DBH(I) < PRM(4), always on the PARENT record I (tripled copies ITFN/ITFN+1 follow their parent).
+@inline _fix_matches(s::StandState, m, i::Int) =
+    sp_field_matches(s.control, m.species, s.trees.species[i]) && (m.d1 <= s.trees.dbh[i] < m.d2)
+
+"""
+    fixhtg_scale(s, i, g) -> Float32
+
+Apply every FIXHTG activity firing this cycle that matches parent record `i` to height growth `g`,
+sequentially in activity order (grincr.f `HTG(ITFN)=HTG(ITFN)*PRM(2)` per activity) — used for tripled
+copies whose HTG is (re)formed after the scaler pass (htgf.f TEMHTG + SIZCAP cap happens BEFORE FIXHTG).
+"""
+function fixhtg_scale(s::StandState, i::Int, g::Float32)
+    isempty(s.control.multipliers) && return g
+    @inbounds for m in s.control.multipliers
+        _fix_fires(s, m, :fixhtg) && _fix_matches(s, m, i) && (g *= m.value)
+    end
+    return g
+end
+
+function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
+    isempty(s.control.multipliers) && return s
     t = s.trees
     nlive = stash === nothing ? t.n : stash.nlive
     isdg = kind === :fixdg
     @inbounds for m in s.control.multipliers
-        m.kind === kind || continue
-        # one-shot: a fixed-year scaler matches exactly one cycle's [start,end) range. A
-        # date before the first cycle fires in cycle 0 (Fortran OPFIND past-date behaviour).
-        (cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)) || continue
+        _fix_fires(s, m, kind) || continue
         for i in 1:nlive
-            sp_field_matches(s.control, m.species, t.species[i]) || continue
-            d = t.dbh[i]
-            (m.d1 <= d < m.d2) || continue
+            _fix_matches(s, m, i) || continue
             if isdg
                 t.diam_growth[i] *= m.value
                 stash !== nothing && (stash.dgU[i] *= m.value; stash.dgL[i] *= m.value)
