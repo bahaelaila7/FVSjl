@@ -130,6 +130,7 @@ function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
     if dens.mort_slope == 0f0
         dens.mort_slope = slp; dens.mort_intercept = cept
     end
+    haskey(ENV, "BMDBG") && println(stderr, "JLTN10 t=$t dia0=$dia0 d10=$d10 const=$const_v slp_new=$slp cept_new=$cept used=($(dens.mort_slope),$(dens.mort_intercept)) tn10=$(min(exp(dens.mort_intercept + dens.mort_slope * log(d10)), t85d10))")
     return min(exp(dens.mort_intercept + dens.mort_slope * log(d10)), t85d10)
 end
 

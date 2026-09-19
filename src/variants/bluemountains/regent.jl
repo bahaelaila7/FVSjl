@@ -157,6 +157,21 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                     if sp == 6                                    # WJ — linear site
                         dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                         dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                    elseif sp == 11
+                        # WB — bm/regent.f:459-477 CASE(11) own small-tree H→D model (GO TO 300: no HTDBH override,
+                        # not the AX/BX Wykoff jl used — that over-grew WB seedlings ~1.7×: 24001521010900 DG 1.83
+                        # vs live 1.08). TPCCF = PCCF(point) clamped [25,300]; CR = ICR(K).
+                        pt = Int(t.plot_id[i])
+                        tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+                        tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                        # CR = ICR(K) (regent.f:463). For a tripled copy K = ITRN+2I−2+L is the copy's FUTURE slot, which
+                        # TRIPLE only fills later (triple.f ICR(ITFN)=ICR(I)) ⇒ FVS reads that slot's current contents:
+                        # 0 if never used (first tripling cycle), else what TREDEL left there (t.stale_icr).
+                        cr = l == 0 ? Float32(t.crown_pct[i]) : Float32(t.stale_icr[n + 2i - 2 + l])
+                        hl = h - 4.5f0
+                        dkk = 0.000231f0*hl*cr - 0.00005f0*hl*tpccf + 0.001711f0*cr + 0.17023f0*hl + 0.3f0
+                        hl = hk - 4.5f0
+                        dk = 0.000231f0*hl*cr - 0.00005f0*hl*tpccf + 0.001711f0*cr + 0.17023f0*hl + 0.3f0
                     elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
                         # regent.f:522 — .NOT.LHTDRG OR (LHTDRG & IABFLG==1) ⇒ HTDBH (Curtis-Arney, forest-dependent).
                         # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX. But ONLY when
@@ -177,11 +192,20 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                         dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
                         dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
                     end
-                    dgk = (dk - dkk) * bark                        # XRDGRO=1
-                    dgk < 0.0f0 && (dgk = 0.0f0)
+                    # bm/regent.f:565-613 (XRDGRO=1): DKK=D below breast height; a negative DK/DKK falls back to
+                    # DG=HTG·0.2·BARK; hardwoods PY/YC/CW/OH (13,14,16,18) floor a negative DG at 0.1 (others 0);
+                    # DGMX cap; WB lifts DBH+DG to DIAM before the DDS rescale.
+                    h < 4.5f0 && (dkk = d)
+                    dgk = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dk - dkk) * bark
                     dgmx = BM_RG_DGMAX[sp] * scale
                     sp == 11 && (dgmx = fint * 0.2f0)              # WB (bm/regent.f:239)
+                    if sp == 13 || sp == 14 || sp == 16 || sp == 18
+                        dgk < 0.0f0 && (dgk = 0.1f0)
+                        dgk > dgmx && (dgk = dgmx)
+                    end
+                    dgk < 0.0f0 && (dgk = 0.0f0)
                     dgk > dgmx && (dgk = dgmx)
+                    (sp == 11 && (d + dgk) < BM_RG_DIAM[sp]) && (dgk = BM_RG_DIAM[sp] - d)
                     scale2 = _BM_RG_REGYR / fint                   # YR/FINT
                     dds = dgk * (2.0f0 * bark * d + dgk) * scale2
                     dgk = sqrt((d * bark)^2 + dds) - bark * d

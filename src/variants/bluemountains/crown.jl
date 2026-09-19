@@ -277,17 +277,27 @@ function bm_crown_init_lstart!(s::StandState)
     # _backdate_dbh! is the shared IDG-faithful dense.f port (live 1:t.n, in place); restored below.
     lbkden = s.control.growth_idg < 2
     saved_live = lbkden ? t.dbh[1:nlive] : Float32[]
-    t.n = nlive + Int(t.ndead)
-    # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3) — see #151 note below.
-    avht_real = stand_top_height(s; legacy_double = true)   # validated vs live DUBSCR AVH (dead-inclusive)
-    t.n = nlive
-    lbkden && _backdate_dbh!(s)
     # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT IMC(I)==9
     # (HISTORY 8,9, older-dead) which LOAD DBH=0 ⇒ they add 0 to BA/CCF/SDI while their HEIGHT still counts
     # toward AVH (measured on 449747082489998: live DUBSCR AVH 67.34 vs jl 1.01 without the dead heights).
+    # notre.f:119-124 expands EVERY inventory-dead record (IREC2..MAXTRE) with VP/FP/FP2×(FINT/FINTM), so the dead
+    # PROB that CRATET's DENSE sums is TREE_COUNT×FINT/FINTM (BM 10/5 ⇒ ×2; FVS divides it back only where a true
+    # density is needed — snag init cratet.f:565, dbstrls MortPA). jl's shared notre! leaves dead TPA unscaled, so
+    # scale them here for this pass (24001521010900: 5 HISTORY-8 dead at PROB 12.036/1.998 ⇒ TPCCF 77.788→77.813).
     saved = Tuple{Int,Float32}[]
+    saved_tpa = Float32[]
     if t.ndead > 0
         t.n = nlive + Int(t.ndead)
+        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        @inbounds for i in (nlive + 1):(nlive + Int(t.ndead)); push!(saved_tpa, t.tpa[i]); t.tpa[i] *= fintr; end
+    end
+    # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3), with the dead at their
+    # notre-expanded PROB (24001521010900: the ×2 dead fill the top 40 TPA ⇒ AVH 48.466 = live, 41.596 unscaled).
+    avht_real = stand_top_height(s; legacy_double = true)
+    if lbkden                                 # backdate LIVE WK3 only (after the real-DBH AVH ranking)
+        t.n = nlive; _backdate_dbh!(s); t.n = nlive + Int(t.ndead)
+    end
+    if t.ndead > 0
         @inbounds for i in (nlive + 1):(nlive + Int(t.ndead))
             (t.history[i] == 8 || t.history[i] == 9) || continue
             push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
@@ -295,6 +305,7 @@ function bm_crown_init_lstart!(s::StandState)
     end
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
+    @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end
     t.n = nlive
     lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
     s.plot.avg_height = avht_real
