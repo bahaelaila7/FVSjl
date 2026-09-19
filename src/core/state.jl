@@ -957,6 +957,11 @@ mutable struct FireState
                                        # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
     snagbin::SnagBinScratch            # preallocated FMSADD snag-binning work buffers (book_mortality_snags!) —
                                        # keeps the fire mortality path allocation-free (bit-exact; see SnagBinScratch)
+    fmicr::Vector{Int32}               # FMICR per record for the burn in progress: seeded from ICR at the fire
+                                       # (fmmain.f:111), shortened by scorch in FMEFF (fmeff.f:513); consumed by FMKILL
+    crown_bypass::Vector{Int32}        # FMKILL ICR=-FMICR (fmkill.f:92-94): per record, the fire-set crown % (0 = none)
+                                       # that the next CROWN call must keep instead of recomputing (crown.f "ICR(I) WAS
+                                       # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -965,7 +970,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch())
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
