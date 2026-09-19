@@ -595,6 +595,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
     compute_density!(s)
+    # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
+    # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
+    econ_cycle_start!(s)
     root_disease_mn2!(s, fint)           # WRD grincr.f RDMN2 seam (cycle start) — inert unless an RDIN block is active
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
@@ -640,6 +643,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # No-op for any stand without an init-year thin (pre==post state) ⇒ eastern FFE unaffected.
         ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period))
     end
+    econ_on && econ_status!(s, Int(s.control.cycle) + 1, 1)   # ECSTATUS(…,1) after CUTS (grincr.f:370)
     if econ_on
         yr = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
         s.econ.base_year < 0 && (s.econ.base_year = Int32(yr))
@@ -1105,6 +1109,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # (both measured bit-exact-or-improving vs FVS{ie,em}_g16); SN/eastern lineage sort unchanged.
     # See uses_estab_spesrt above for the per-variant measurement (UT/BM/TT/CI measured-inert, excluded).
     uses_estab_spesrt(s.variant) && s.trees.n > es_nstart && spesrt_reorder!(s.trees)
+    # ECCALC (gradd.f:239): after ESNUTR, before DENSE — this cycle's ECON cash flows + FVS_EconSummary row.
+    (s.econ !== nothing && s.econ.active) && econ_calc!(s, Int(s.control.cycle) + 1)
     compute_density!(s)                     # gradd.f DENSE-before-CROWN: refresh the POST-growth stand BA the
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
@@ -1286,10 +1292,15 @@ function run_keyfile(keypath::AbstractString;
             end
             # FVS_EconHarvestValue: log-graded HRVRVN harvest-value detail (echarv.f). Emit when an
             # active ECON run has accumulated log-graded (unit-4) revenue over the projection's cuts.
-            if s.econ !== nothing && s.econ.active &&
-               (!isempty(s.econ.log_grade_rev) || !isempty(s.econ.log_grade_ft3))
-                ehv = econ_harvest_value_rows(s.econ, s.coef)
-                isempty(ehv) || write_dbs_econharvest!(s.control.dbs_out_file, caseid, ehv)
+            # FVS_EconSummary (DBSECSUM, called from ECCALC each period): only when ECONRPTS set IDBSECON>0.
+            if s.econ !== nothing && s.econ.calc !== nothing && s.econ.calc.dbs_econ > 0 && !isempty(s.econ.calc.rows)
+                write_dbs_econsummary!(s.control.dbs_out_file, caseid, String(sid), s.econ.calc.rows)
+            end
+            # FVS_EconHarvestValue (DBSECHARV, eccalc.f:745-855): faithful per-cycle rows from revVolume (all
+            # revenue units); written only when ECONRPTS set IDBSECON=2 (dbsecharv.f:16,86).
+            if s.econ !== nothing && s.econ.calc !== nothing && s.econ.calc.dbs_econ == 2 &&
+               !isempty(s.econ.calc.hv_rows)
+                write_dbs_econharvest_rows!(s.control.dbs_out_file, caseid, s.econ.calc.hv_rows, s.coef)
             end
         end
     end
