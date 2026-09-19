@@ -1128,6 +1128,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
+    # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
+    # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
@@ -1294,10 +1297,10 @@ function run_keyfile(keypath::AbstractString;
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
-            # DBSTRLS/DBSCUTS create their table on first CALL (a scheduled list request), not merely because
-            # TREELIDB/CUTLIDB was given — no accomplished request ⇒ no table (live FVS).
+            # DBSTRLS/DBSCUTS create their table only when actually called for an accomplished list request
             (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
-            (cl_on && !isempty(cl_cycles)) && write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+            (cl_on && any(c -> !isempty(c[3]), cl_cycles)) &&
+                write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||

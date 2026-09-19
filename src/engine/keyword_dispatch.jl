@@ -1742,12 +1742,20 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # DISTURBANCE tally (NTALLY==1) in ie_autoes_establish! via ie_esetpr + ie_esetpr_sample, sampling the
             # per-plot IPPREP off the WK6 site-prep RNG vector — each prepped plot's regen uses its IPREP in the
             # advance/excess species mix (estb/esetpr.f + estab.f:373-399). Activity codes 493=MECH / 491=BURN.
+            # ESPRIN (esprin.f) validation: a blank date defaults to the ESTAB date IDSDAT (an undated ESTAB ⇒ FVS04,
+            # ignored); a date later than IDSDAT+19 is FVS04-ignored; the %-of-plots must lie in [0,100] (else
+            # FVS04-ignored — NOT clamped).
+            ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
             if r.present[1]
-                ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
-                yr  = nint(r.values[1])
-                pct = r.present[2] ? clamp(Float32(r.values[2]), 0f0, 100f0) : 0f0
-                push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
+                yr = nint(r.values[1])
+                (idsdat > 0 && yr > idsdat + 19) && continue
+            else
+                idsdat < 0 && continue
+                yr = Int32(idsdat)
             end
+            pct = r.present[2] ? Float32(r.values[2]) : 0f0
+            (0f0 <= pct <= 100f0) || continue
+            push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "NOINGROW"                                # esin.f opt 22: disable automatic ingrowth
             s.estab.lingrw = false                            # (FVS parses these INSIDE the ESTAB packet, not top-level)
         elseif k == "INGROW"                                  # esin.f opt 21: enable automatic ingrowth
@@ -1884,12 +1892,20 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             treesql = _read_dbs_sql!(kr)
         elseif k == "SUMMARY"
             s.control.dbs_summary = true
-        elseif k == "TREELIDB"
-            s.control.dbs_treelist = true
         elseif k == "CUTLIDB"
-            s.control.dbs_cutlist = true     # dbsin.f opt 17: ICUTLIST ⇒ FVS_CutList (dbscuts.f), written only for a scheduled CUTLIST
+            # dbsin.f option 17: ICUTLIST = 1 (or field 1 > 0 ⇒ that value; 2 = database only, no text report).
+            # The table is only written at a cut in a cycle with a due CUTLIST activity (prtrls.f → dbscuts.f).
+            s.control.dbs_cutlist = true
+            s.control.dbs_cutlist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
+        elseif k == "TREELIDB"
+            # dbsin.f:230-233: ITREELIST = 1, or field 1 > 0 ⇒ that value (2 = database only ⇒ PRTRLS returns after the
+            # first request's DBSTRLS). The table is written only for an accomplished TREELIST request (prtrls.f).
+            s.control.dbs_treelist = true
+            s.control.dbs_treelist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
         elseif k == "ATRTLIDB"
-            s.control.dbs_atrtlist = true    # dbsin.f opt 31: IATRTLIST ⇒ FVS_ATRTList (dbsatrtls.f), only for a scheduled ATRTLIST
+            # dbsin.f:748-751: IATRTLIST ⇒ FVS_ATRTList (dbsatrtls.f), only for an accomplished ATRTLIST request.
+            s.control.dbs_atrtlist = true
+            s.control.dbs_atrtlist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
         elseif k == "COMPUTDB"
             s.control.dbs_compute = true
         elseif k == "CLIMREDB"
@@ -2487,11 +2503,12 @@ costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest reve
 species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
 are recognized but not yet ported.
 """
-function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block::Bool = false)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
     ec.active = true
     _ec_calc!(s)                                           # ECIN: isEconToBe (faithful ECCALC engine state)
+    if_block && (ec.calc.if_capture = EconEvent[])         # OPMODE LMODE: event keywords captured as IF templates
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -2606,6 +2623,17 @@ function kw_if!(s::StandState, kr::KeywordReader)
         elseif kw == "SPECPREF"
             push!(acts, ScheduledActivity(nint(v[1]), Int32(201),
                                           ntuple(i -> Float32(v[i + 1]), 6)))
+        elseif uppercase(kw) == "ECON"
+            # ECON block inside IF/THEN (ecin.f runs with OPMODE LMODE=.TRUE.): the non-event keywords are plain
+            # inputs, applied as usual; PRETEND/SPECCST/SPECRVN/STRTECON go through addEvent's LMODE branch —
+            # field 1 is a WAIT time and the activity becomes part of this event (dated at fire time).
+            kw_econ!(s, rec, kr; if_block = true)
+            cap = s.econ.calc.if_capture
+            s.econ.calc.if_capture = nothing
+            for e in cap
+                p = ntuple(i -> i <= length(e.params) ? e.params[i] : 0f0, 6)
+                push!(acts, ScheduledActivity(e.date, e.code, p))
+            end
         end
         # unknown keywords inside IF (e.g. COMPUTE) are skipped for now
     end

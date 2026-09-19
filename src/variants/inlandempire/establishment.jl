@@ -1944,7 +1944,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # the cycle-1 latch (line ~1771); catch cycle-1 inline before it's latched. NON-bare stands (INADV=0) keep the
     # original gate exactly ⇒ byte-identical.
     _bare = est.inadv || (Int(s.control.cycle) + 1 == 1 && s.trees.n == 0)
-    (est.lautal || est.lingrw || _bare) || return false
+    if !(est.lautal || est.lingrw || _bare)
+        # NOAUTOES stand: FVS ESNUTR still calls ESTAB for a PLANT/NATURAL due this cycle — with NTALLY=99 in the
+        # estb family (esnutr.f:353-355), whose estab.f:223-230 then cancels this cycle's site preps.
+        estab_prep_npnats_estb!(s)
+        return false
+    end
     nsp = nspecies(s.variant)
     # The estb habitat bracket (esplt2.f IEND/MYGRUP, = _IE_ESTAB_IEND/MYGRUP) keys off ICL5 = the FVS/NI habitat
     # CODE. IE's p.habitat_code IS that code; EM's p.habitat_code is IEMTYP (1-118) whose NI code is EM_JTYPE[iemtyp]
@@ -2022,7 +2027,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         ie_autoes_schedule!(est, icyc, year, next_year, itrn, est.last_xtes, inv_year, npnats)
     est.last_xtes = 0f0                       # consume the removal fraction (one cycle only)
     fire || return false
-    year in est.autoes_years_done && return false   # AUTOES own re-entry guard (NOT establish!'s years_done — a PLANT this cycle must NOT suppress the natural tally, estab.f runs both together)
+    year in est.autoes_years_done && return false   # AUTOES own re-entry guard
+    estab_prep_tally!(s, _ntally, Int(est.idsdat), kdt)   # ESTAB site-prep status: ESETPR (NTALLY=1) / cancel (>1, 99) (NOT establish!'s years_done — a PLANT this cycle must NOT suppress the natural tally, estab.f runs both together)
 
     p = s.plot
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))

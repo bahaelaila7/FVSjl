@@ -462,7 +462,7 @@ function _cr_dub_ages!(s::StandState)
             bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
         end
         sitage = cr_fndag(imodty, p.sp_site_index[sp], h, bautba, relden, sp)
-        sitage > 0.0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)
+        sitage > 0.0f0 && (t.birth_age[i] = sitage)   # cratet.f FINDAG: IF(SITAGE>0)ABIRTH=SITAGE — LBIRTH (age_known) stays as input (intree.f)
     end
     return s
 end
