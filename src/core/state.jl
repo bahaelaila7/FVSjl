@@ -803,13 +803,18 @@ mutable struct Establishment
     es_plot_dil::Vector{Float32}    # DILATE=FIRST(2,sp) each PLANT/NATURAL tree read (plot-major, es_plot_nph per plot)
     es_plot_nph::Int32
     kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
+    esb_shift_ptip::Matrix{Float32}  # ESB − ESB1(NNID, IPREP) per inventory point × site prep (npt×3). estab.f:510-545
+                                # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
+                                # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
+                                # fresh AND continuation tallies. Empty ⇒ callers fall back to esb_shift_pt / scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
-                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99))
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99),
+                                Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState
     enabled::Bool

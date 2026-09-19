@@ -333,7 +333,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         push!(s.control.years_cut, yr)
         econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
-        rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = rd_tdel_hook(s))   # TREDEL (+RDTDEL): swap-from-end (oracle's exact post-thin layout)
+        rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
     # yarding (left on site, routed to fuel pools), so the REPORTED removed merch/saw/bdft are scaled by
