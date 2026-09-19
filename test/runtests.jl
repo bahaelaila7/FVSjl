@@ -125,6 +125,7 @@ using FVSjl
     include("integration/test_dbs_invref.jl")  # C6: DBS FVS_InvReference per-species reference table
     include("integration/test_dbs_cutlist.jl") # C6: DBS FVS_CutList removed-record table
     include("integration/test_dbs_atrtlist.jl")   # FVS_ATRTList (dbsatrtls.f, PRTRLS(3) gating) + DSNOUT redefinition (dbsin.f:116-122), live-verified
+    include("unit/test_list_ht2td.jl")          # FVS_TreeList/CutList Ht2TDCF/BF (HT2TD: fvsvol.f HT1PRD) vs live BM
     include("integration/test_econ_summary.jl") # C8: ECON FVS_EconSummary/HarvestValue vs live FVS (ECCALC/DBSECSUM)
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")

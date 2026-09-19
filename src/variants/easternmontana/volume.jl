@@ -85,6 +85,9 @@ function compute_volumes_em!(s::StandState)
     t = s.trees; veq = s.species.vol_eq
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0
+    # vols.f:86-90 zeroes HT2TD for every record; FVSVOL/NATCRS then fills the FW2 merch-top heights.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -96,7 +99,10 @@ function compute_volumes_em!(s::StandState)
             dbhmin = sp == 7 ? 6f0 : 7f0
             bfmind = sp == 7 ? 6f0 : 7f0
             bark = bark_ratio(ba_a, ba_b, sp, d)
-            v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1)
+            v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1,
+                           sf_hs = true, ht2td = htb)            # SF_HS merch top + HT1PRD → HT2TD (fvsvol.f)
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1])
+            d >= bfmind && (t.merch_top_bf[i] = htb[2])
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= bfmind ? v[2] : 0f0

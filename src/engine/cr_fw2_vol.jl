@@ -65,18 +65,21 @@ Shared by region-2/3 (SHP_OT) and INGY (SHP_C2) — same regression, `is_lp` pic
 Returns (RFLW::NTuple{6,Float32}, RHFW::NTuple{4,Float32}). Double-precision kernel, REAL*4 storage."
 function _fw2_shp_core(f, d::Float32, h::Float32, is_lp::Bool)
     @inline ff(i) = f[i - 9]                  # f[k] == Fortran F(k+9)
-    D = Float64(d); H = Float64(h); lnH = log(H)
-    dmedian = ff(10) * (H - 4.5)^(ff(11) + ff(12) * H)
+    # SHP_OT / SHP_C2 precision (f_other.f / f_ingy.f, IMPLICIT DOUBLE PRECISION but DBH/HT are REAL*4):
+    #  * log(HT) of a REAL*4 argument is the SINGLE-precision generic LOG (gfortran logf), widened afterwards;
+    #  * (HT-4.5) is a REAL*4 subtraction (4.5 is a default-REAL constant) before promotion to the REAL*8 power.
+    D = Float64(d); H = Float64(h); lnH = Float64(flog(h))
+    dmedian = ff(10) * dpow(Float64(h - 4.5f0), ff(11) + ff(12) * H)
     dform = D / dmedian - 1.0
     u7 = ff(13) + ff(14) * lnH + ff(15) * dform
     u9t = ff(18) + ff(19) * lnH + ff(20) * dform
     u9t = clamp(u9t, -7.0, 7.0)
-    u9 = ff(16) * exp(u9t) / (1.0 + exp(u9t))
+    u9 = ff(16) * dexp(u9t) / (1.0 + dexp(u9t))
     u8 = ff(21) + ff(22) * H + ff(23) * lnH + ff(24) * dform
     u1 = ff(25) + ff(26) * lnH + ff(27) * dform + ff(28) * dform * lnH
     u2 = ff(29) + ff(30) * dform + ff(31) * lnH + ff(32) * dform * lnH + ff(33) * D
     u3 = is_lp ?
-        ff(34) + ff(35) * dform + ff(36) * (1.0 - exp(ff(37) * H)) :
+        ff(34) + ff(35) * dform + ff(36) * (1.0 - dexp(ff(37) * H)) :
         ff(34) + ff(35) * dform + ff(36) * lnH + ff(37) * lnH * dform
     u4 = ff(38) + ff(39) * dform + ff(40) * lnH + ff(41) * D
     u5 = ff(42) + ff(43) * lnH
@@ -84,21 +87,25 @@ function _fw2_shp_core(f, d::Float32, h::Float32, is_lp::Bool)
     u1 = clamp(u1, -7.0, 7.0); u2 = clamp(u2, -7.0, 7.0)
     u3 = clamp(u3, -7.0, 7.0); u4 = clamp(u4, -7.0, 7.0)
     u5 = clamp(u5, -7.0, 7.1)
-    u6 = u6 < 1.005 ? 1.005 : (u6 > 10.0 ? 10.0 : u6)
+    # `U6 .lt. 1.005` / `U8 .gt. 0.99` compare against default-REAL (single) constants widened to double; the
+    # U8 reset value 0.99 is likewise the widened single constant.
+    u6 = u6 < Float64(1.005f0) ? 1.005 : (u6 > 10.0 ? 10.0 : u6)
     u7 = clamp(u7, -7.0, 7.0)
-    u8 > 0.99 && (u8 = 0.99)
+    u8 > Float64(0.99f0) && (u8 = Float64(0.99f0))
     u9 = u9 > 0.3 ? 0.3 : (u9 < 0.0 ? 0.0 : u9)
-    r1 = exp(u1) / (1.0 + exp(u1)); r2 = exp(u2) / (1.0 + exp(u2))
-    r3 = exp(u3) / (1.0 + exp(u3)); r4 = exp(u4) / (1.0 + exp(u4))
-    r5 = u5 <= 7.0 ? 0.5 + 0.5 * exp(u5) / (1.0 + exp(u5)) : 1.0
+    r1 = dexp(u1) / (1.0 + dexp(u1)); r2 = dexp(u2) / (1.0 + dexp(u2))
+    r3 = dexp(u3) / (1.0 + dexp(u3)); r4 = dexp(u4) / (1.0 + dexp(u4))
+    r5 = u5 <= 7.0 ? 0.5 + 0.5 * dexp(u5) / (1.0 + dexp(u5)) : 1.0
     a3 = u6
-    rhi1 = exp(u7) / (1.0 + exp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
-    rhlongi = u9
+    # RHI1/RHLONGI/RHI2/RHC are REAL*4: each double is rounded on assignment, then RHI2=RHI1+RHLONGI and the RHC
+    # test/min (RHI2+.01, (RHI2+1.)/2.0) are SINGLE-precision arithmetic on those rounded values.
+    rhi1 = Float32(dexp(u7) / (1.0 + dexp(u7))); rhi1 > 0.5f0 && (rhi1 = 0.5f0)
+    rhlongi = Float32(u9)
     rhi2 = rhi1 + rhlongi
-    rhc = u8
-    rhc < rhi2 + 0.01 && (rhc = min(rhi2 + 0.01, (rhi2 + 1.0) / 2.0))
+    rhc = Float32(u8)
+    rhc < rhi2 + 0.01f0 && (rhc = min(rhi2 + 0.01f0, (rhi2 + 1.0f0) / 2.0f0))
     rflw = (Float32(r1), Float32(r2), Float32(r3), Float32(r4), Float32(r5), Float32(a3))
-    rhfw = (Float32(rhi1), Float32(rhi2), Float32(rhc), Float32(rhlongi))
+    rhfw = (rhi1, rhi2, rhc, rhlongi)
     return rflw, rhfw
 end
 
@@ -206,13 +213,16 @@ end
 
 "SF_TAPER (sf_taper.f): RHFW/RFLW → the 12 taper-polynomial coefficients TAPCOE (REAL*4)."
 function _fw2_sf_taper(rhfw, rflw)
+    # sf_taper.f: IMPLICIT DOUBLE PRECISION, R1..R5/A3 REAL*8 (widened from RFLW), but RHI1/RHI2/RHC/RHLONGI are
+    # declared REAL*4 — so `1.0-RHC` and `RHC-RHI2` are SINGLE-precision subtractions (default-REAL constants),
+    # widened only when they meet a REAL*8 operand. LOG and `**` on REAL*8 are glibc log/pow (one rounding).
     r1 = Float64(rflw[1]); r2 = Float64(rflw[2]); r3 = Float64(rflw[3])
     r4 = Float64(rflw[4]); r5 = Float64(rflw[5]); a3 = Float64(rflw[6])
-    rhi1 = Float64(rhfw[1]); rhi2 = Float64(rhfw[2]); rhc = Float64(rhfw[3]); rhlongi = Float64(rhfw[4])
+    rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhc = rhfw[3]; rhlongi = rhfw[4]            # REAL*4
     k = 1.0
-    yc = k * (1.0 - rhc)
+    yc = k * Float64(1.0f0 - rhc)                                                 # :36 k*(1.0-rhc)
     c2 = r5 * yc; c1 = 3.0 * (yc - c2); slope = -(3.0 - r5) * k / 2.0
-    s1 = slope * (rhc - rhi2)
+    s1 = slope * Float64(rhc - rhi2)                                              # :43
     yi_min = yc - s1 * (1.0 + 2.0 * r3) / 3.0
     yi_max = yc - s1 * (5.0 + 4.0 * r3) / 9.0
     yi2 = yi_min + r4 * (yi_max - yi_min)
@@ -220,23 +230,23 @@ function _fw2_sf_taper(rhfw, rflw)
     b1 = (6.0 * yc - 6.0 * yi2 - 2.0 * s0 - 4.0 * s1) / (-3.0 * yc + 3.0 * yi2 + 2.0 * s0 + s1)
     b2 = s1 * (1.0 - r3) / (0.5 - 1.0 / (b1 + 1.0))
     b4 = s0; b0 = yi2
-    slope_rhi = r3 * s1 / (rhc - rhi2)
-    yi1 = yi2 - slope_rhi * rhlongi
-    if rhlongi > 0.0
-        e2 = (yi2 - yi1) / rhlongi; e1 = yi1 - e2 * rhi1
+    slope_rhi = r3 * s1 / Float64(rhc - rhi2)                                     # :54
+    yi1 = yi2 - slope_rhi * Float64(rhlongi)
+    if rhlongi > 0f0
+        e2 = (yi2 - yi1) / Float64(rhlongi); e1 = yi1 - e2 * Float64(rhi1)
     else
         e1 = yi2; e2 = 0.0
     end
-    s3 = -slope_rhi * rhi1; k2 = s3 / r1
-    f_a3 = 1.0 / (6.0 * a3 * a3) + log(1.0 - 1.0 / a3) + 1.0 / (3.0 * (a3 - 1.0)) + 2.0 / (3.0 * a3)
-    g_a3 = (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / (a3 * a3) - 1.0 / (a3 - 1.0)^3) / f_a3
+    s3 = -slope_rhi * Float64(rhi1); k2 = s3 / r1
+    f_a3 = 1.0 / (6.0 * a3 * a3) + dlog(1.0 - 1.0 / a3) + 1.0 / (3.0 * (a3 - 1.0)) + 2.0 / (3.0 * a3)
+    g_a3 = (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / (a3 * a3) - 1.0 / dpow(a3 - 1.0, 3.0)) / f_a3
     yb_min = yi1 + (2.0 * s3 + k2) / 3.0 + (s3 - k2) * f_a3 /
-             (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / (a3^2) - 1.0 / (a3 * a3 * a3))
+             (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / dpow(a3, 2.0) - 1.0 / (a3 * a3 * a3))
     yb_max = yi1 + (2.0 * s3 + k2) / 3.0 + (s3 - k2) / g_a3
     yb = yb_min + r2 * (yb_max - yb_min)
     a0 = yi1
     a2 = (yb - yi1 - (2.0 * s3 + k2) / 3.0) / f_a3
-    a1 = (k2 - s3 + a2 * (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / a3^2)) / 3.0
+    a1 = (k2 - s3 + a2 * (1.0 / (a3 - 1.0) - 1.0 / a3 - 1.0 / dpow(a3, 2.0))) / 3.0
     a4 = s3
     return (Float32(a0), Float32(a1), Float32(a2), Float32(a4), Float32(b0), Float32(b1),
             Float32(b2), Float32(b4), Float32(c1), Float32(c2), Float32(e1), Float32(e2))
@@ -260,7 +270,7 @@ function _fw2_sf_yhat(rh::Float32, tapcoe, rhfw, rflw, f::Float32)::Float32
     elseif rh >= rhi2                               # middle segment
         x = (R - Float64(rhi2)) / (Float64(rhc) - Float64(rhi2))
         if x > 0.0
-            sus2 = (b1 * log10(x) <= -20.0) ? 0.0 : x^b1
+            sus2 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1)
             y = b0 + x * (b4 + x * (-b2 / ((b1 + 1.0) * (b1 + 2.0)) * sus2 + b2 / 6.0 * x))
         else
             y = b0
@@ -269,7 +279,7 @@ function _fw2_sf_yhat(rh::Float32, tapcoe, rhfw, rflw, f::Float32)::Float32
         y = e1 + e2 * R
     else                                            # lower segment
         x = (Float64(rhi1) - R) / Float64(rhi1)
-        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * log(1.0 - x / a3)
+        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * dlog(1.0 - x / a3)
     end
     return Float32(Float64(f) * y)
 end
@@ -419,7 +429,7 @@ function _fw2_sf_yhat_f(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Flo
     elseif rh >= rhi2                                      # middle (I_SEG=2)
         x = Float64((rh - rhi2) / (rhc - rhi2))
         if x > 0.0
-            sus2 = Float64(b1) * log10(x) <= -20.0 ? 0.0 : x^Float64(b1)
+            sus2 = Float64(b1) * dlog10(x) <= -20.0 ? 0.0 : dpow(x, Float64(b1))
             y = Float64(b0) + x * (Float64(b4) + x * (-Float64(b2 / ((b1 + 1f0) * (b1 + 2f0))) * sus2 +
                                                      Float64(b2) / 6.0 * x))
         else
@@ -428,7 +438,7 @@ function _fw2_sf_yhat_f(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Flo
         if needsl
             rhl = rhc - rhi2; iseg = 2
             if x > 0.0
-                sus3 = Float64(b1) * log10(x) <= -20.0 ? 0.0 : x^Float64(b1 + 1f0)
+                sus3 = Float64(b1) * dlog10(x) <= -20.0 ? 0.0 : dpow(x, Float64(b1 + 1f0))
                 dydx = Float32(Float64(b4) - Float64(b2) / (Float64(b1) + 1.0) * sus3 + Float64(b2) / 2.0 * x * x)
             else
                 dydx = b4
@@ -440,7 +450,7 @@ function _fw2_sf_yhat_f(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Flo
     else                                                   # lower (I_SEG=4)
         x = Float64((rhi1 - rh) / rhi1)
         y = Float64(a0) + x * (Float64(a4 + a2 / a3) + x * (Float64(a2 / (2f0 * a3 * a3)) + Float64(a1) * x)) +
-            Float64(a2) * log(1.0 - x / Float64(a3))
+            Float64(a2) * dlog(1.0 - x / Float64(a3))
         if needsl
             rhl = rhi1; iseg = 4
             dydx = Float32(Float64(a4 + a2 / a3) + Float64(a2 / (a3 * a3)) * x + Float64(3f0 * a1) * x * x -
@@ -623,8 +633,10 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
                     bark::Float32 = 1f0, topd::Float32 = 4f0, stump::Float32 = 1f0,
                     bftopd::Float32 = 6f0, iregn::Int = 3, board_cor::Char = 'Y',
                     merch_opt::Int = _NVB_R3_OPT, sf_hs::Bool = false,
-                    log_bf = nothing, log_ft3 = nothing)   # optional ECVOL per-log capture (ECON units 4/5)
+                    log_bf = nothing, log_ft3 = nothing,   # optional ECVOL per-log capture (ECON units 4/5)
+                    ht2td = nothing)   # optional 2-slot buffer ← [HT1PRD of the cubic call, HT1PRD of the board call]
     vol = zeros(Float32, 15)
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)   # profile.f:117 early exits leave HT1PRD=0
     (d < 1f0 || h < 5f0) && return vol   # profile.f:117 HTTOT.LT.5 (strict; h==5.0 IS computed)
     jsp = _fw2_jsp(voleq)
     (_fw2_is_ingy(jsp) || (22 <= jsp <= 29)) || return vol   # supported 2-pt families (22 = Black Hills PP)
@@ -634,11 +646,15 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     tapcoe = _fw2_sf_taper(rhfw, rflw)
     # INGY: profile is inside bark, calibrated to DBHIB. SF_SHP uses the PASSED DBTBH (fvsvol DBTBH=D·(1-BARK))
     # when >0 — so DBHIB=D·BARK (cr_bratio), NOT FDBT_C2 (that's only the no-bark-input fallback). Region-2/3: DBHOB.
-    dbhib = ingy ? d * bark : d
-    yhat_bh = _fw2_sf_yhat(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0)
+    # sf_shp.f (JSP 11-21): DBHIB = DBHOB - DBTBH with the passed DBTBH = D·(1-BARK) (fvsvol.f) — formed as that
+    # REAL*4 subtraction, not D·BARK (equal in exact arithmetic, 1 ULP apart in Float32 on many trees).
+    dbtbh = d * (1f0 - bark)
+    dbhib = ingy ? d - dbtbh : d
+    # sf_2pt.f:63-66: F = DBH_IB / SF_YHAT(4.5/TOTALH) through sf_yhat.f itself (REAL*4 X, REAL*8 Y — the faithful
+    # kernel _fw2_sf_yhat_f), which the SF_HS merch-top solve also uses.
+    yhat_bh = _fw2_sf_yhat_f(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0, h, false)[1]
     yhat_bh == 0f0 && return vol
     f = dbhib / yhat_bh
-    dbtbh = d * (1f0 - bark)
     dibat = ingy ? (ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)) :
                    (ht -> _fw2_brk_ot(jsp, d, _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f), ht, dbtbh))
     # Small trees (HTTOT≤15): FWSMALL corrects the stump diameter; merch/board stay 0 (LMERCH<MERCHL).
@@ -648,6 +664,13 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     # `sf_hs=true`: MERLEN's merch-top height from the faithful SF_HS Newton (no-BRK_UP INGY families only);
     # otherwise the legacy diameter-tolerance bisection (kept for the callers not yet re-validated on it).
     hs_solver = (sf_hs && ingy) ? (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)) : nothing
+    # HT1PRD (fvsvol.f:338/485 → HT2TD): profile.f:335-342 MERLEN, VOLEQ(4:4)='F' ⇒ LMERCH = HS−STUMP (sf_hs.f at
+    # DS=TOP), clamped ≥0 (profile.f:1052), then HT1PRD = LMERCH+STUMP — both Float32. Same HS as the volume uses.
+    if ht2td !== nothing
+        _ht1prd(top) = (hs = hs_solver === nothing ? _fw2_hs(dibat, top, h) : hs_solver(top);
+                        lm = hs - stump; lm < 0f0 && (lm = 0f0); lm + stump)
+        ht2td[1] = _ht1prd(topd * bark); ht2td[2] = _ht1prd(bftopd * bark)
+    end
     vol[4] = _fw2_merch_cuft(dibat, h, topd * bark, stump, minl, merl; opt = merch_opt, hs_solver = hs_solver,
                              logs = log_ft3)
     vol[2] = _fw2_board(dibat, h, bftopd * bark, stump, minl, merl; cor = board_cor, opt = merch_opt,

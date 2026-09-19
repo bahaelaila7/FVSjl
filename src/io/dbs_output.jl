@@ -1451,8 +1451,86 @@ function write_dbs_atrtlist!(dbpath::AbstractString, caseid::AbstractString,
 end
 
 # A REAL*4 value as it reaches SQLite through a gfortran list-directed WRITE into the SQL text (9 significant
-# digits, dbscuts.f / dbsatrtls.f), then parsed back to the nearest double.
-_r9(x) = parse(Float64, @sprintf("%.9g", Float64(Float32(x))))
+# digits, dbscuts.f / dbsatrtls.f), then converted to REAL by the ORACLE's SQLite — FVS bundles SQLite 3.33.0,
+# whose sqlite3AtoF is NOT correctly rounded (see _sqlite333_atof), so it is emulated rather than parse(Float64,·).
+_r9(x) = _sqlite333_atof(@sprintf("%.9g", Float64(Float32(x))))
+
+"""
+    _sqlite333_atof(z) -> Float64
+
+SQLite 3.33.0 `sqlite3AtoF` (sqlite3.c:31590, UTF-8) as compiled into the FVS oracle: the decimal significand is
+accumulated in an i64 `s` (digits past `(LARGEST_INT64-9)/10` dropped, shifting the exponent), trailing zeros
+folded into the exponent, then `result = s / sqlite3Pow10(e)` (or `s * …`) evaluated in LONGDOUBLE_TYPE = x87
+80-bit `long double` (64-bit significand, round-to-nearest-even) and rounded to double on assignment. That double
+rounding differs from a correctly rounded parse on some inputs (e.g. "21.4665184" → 21.466518399999998, where
+Julia/SQLite ≥3.4x give 21.4665184), which is what live FVS_CutList stores. Emulated with 64-bit BigFloat.
+"""
+function _sqlite333_atof(z::AbstractString)::Float64
+    LARGEST_INT64 = typemax(Int64)
+    c = codeunits(strip(z)); n = length(c); i = 1
+    sign = 1; s = Int64(0); d = 0; esign = 1; e = 0
+    i <= n && c[i] == UInt8('-') && (sign = -1; i += 1)
+    i <= n && c[i] == UInt8('+') && sign == 1 && (i += 1)
+    isdig(b) = UInt8('0') <= b <= UInt8('9')
+    while i <= n && isdig(c[i])
+        s = s * 10 + (c[i] - UInt8('0')); i += 1
+        if s >= div(LARGEST_INT64 - 9, 10)
+            while i <= n && isdig(c[i]); i += 1; d += 1; end
+        end
+    end
+    if i <= n && c[i] == UInt8('.')
+        i += 1
+        while i <= n && isdig(c[i])
+            if s < div(LARGEST_INT64 - 9, 10)
+                s = s * 10 + (c[i] - UInt8('0')); d -= 1
+            end
+            i += 1
+        end
+    end
+    if i <= n && (c[i] == UInt8('e') || c[i] == UInt8('E'))
+        i += 1
+        if i <= n && c[i] == UInt8('-'); esign = -1; i += 1
+        elseif i <= n && c[i] == UInt8('+'); i += 1; end
+        while i <= n && isdig(c[i])
+            e = e < 10000 ? e * 10 + (c[i] - UInt8('0')) : 10000; i += 1
+        end
+    end
+    e = e * esign + d
+    if e < 0; esign = -1; e = -e; else; esign = 1; end
+    s == 0 && return sign < 0 ? -0.0 : 0.0
+    while e > 0                                            # reduce exponent
+        if esign > 0
+            s >= div(LARGEST_INT64, 10) && break
+            s *= 10
+        else
+            s % 10 != 0 && break
+            s = div(s, 10)
+        end
+        e -= 1
+    end
+    s = sign < 0 ? -s : s
+    e == 0 && return Float64(s)
+    setprecision(BigFloat, 64) do                         # x87 long double: 64-bit significand, nearest-even
+        function pow10(E)                                 # sqlite3Pow10 (non-MSVC square-and-multiply)
+            x = BigFloat(10); r = BigFloat(1)
+            while true
+                (E & 1) == 1 && (r *= x)
+                E >>= 1
+                E == 0 && break
+                x *= x
+            end
+            return r
+        end
+        bs = BigFloat(s)
+        if e > 307
+            e >= 342 && return esign < 0 ? 0.0 * s : Float64(sign) * Inf
+            scale = pow10(e - 308)
+            return esign < 0 ? Float64(Float64(bs / scale) / 1.0e308) : Float64(Float64(bs * scale) * 1.0e308)
+        end
+        scale = pow10(e)
+        return Float64(esign < 0 ? bs / scale : bs * scale)
+    end
+end
 
 """
     write_dbs_cutlist!(dbpath, caseid, standid, cycles)
