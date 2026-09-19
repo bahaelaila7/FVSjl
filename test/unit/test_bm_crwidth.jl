@@ -25,6 +25,13 @@ using FVSjl
     @test cw(15, 2.1848745, 15.396993, 81) == 7.591541f0          # AS 74605 (R6 model 2; FIA 746 has no BM BF)
     @test cw(15, 0.1, 1.01, 90) == 0.5f0                          # cwcalc.f final clamp CW ≥ 0.5
 
+    # bmt01 inventory anchors (FVSbm_clean FVS_TreeList, forest 614, BA 85.13126, EL 45, Hopkins -323.6175) — the
+    # rows the earlier bm_cwcalc(forest_bf=true) regression pinned; kept so the faithful port covers them too.
+    cwb(sp, d, h, cr) = FVSjl.bm_crwdth(sp, Float32(d), Float32(h), Float32(cr), 85.13126f0, 45f0, -323.6175f0, 614)
+    @test isapprox(cwb(3, 1.2, 11.0, 55), 5.058; atol = 0.005)   # DF (BF 1.055)
+    @test isapprox(cwb(3, 4.0, 20.0, 25), 8.273; atol = 0.005)   # DF
+    @test isapprox(cwb(8, 3.2, 17.0, 45), 9.125; atol = 0.005)   # ES (BF 1.137)
+
     # R6 bias factor table (cwcalc.f:554/613/699/751) — per forest × FIASP; absent pairs keep 1.0
     @test FVSjl.bm_cw_bf(614, "202") == 1.055f0
     @test FVSjl.bm_cw_bf(604, "202") == 1.058f0

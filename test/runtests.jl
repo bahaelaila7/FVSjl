@@ -54,7 +54,7 @@ using FVSjl
     include("unit/test_oc_crown_change.jl") # OC FVS-native (IORG=0) crown-ratio CHANGE (oc/crown.f rank-Weibull): crown_ratio_update!(::OregonCoast) was a no-op ⇒ IORG=0 crowns frozen ⇒ LP height under-grew ~0.15 ft/cyc; now LP tree1 crown 35→53 + HT bit-exact vs FVSoc_clean all 10 cyc
     include("unit/test_ws_crwidth.jl")      # WS FVS_TreeList CrWidth via R5CRWD (ws_r5crwd) — R5 skips forest-BF ⇒ per-tree bit-exact (29/29 vs FVSws_clean), the 8th variant wired past the eastern 0.5 default
     include("unit/test_ca_crwidth.jl")      # CA FVS_TreeList CrWidth via ca_cwcalc + folded forest-610 BF (SP/LP/PP) — 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum; 9th variant wired
-    include("unit/test_bm_crwidth.jl")     # BM FVS_TreeList CrWidth via bm_cwcalc→cr_cwcalc + folded forest-614 BF (forest_bf flag; FFE path BF-free) — 29/29 vs FVSbm_clean, 10th variant
+    include("unit/test_bm_crwidth.jl")     # BM CRWDTH: faithful cwcalc.f BMMAP + per-forest R6 BF (national library) — TreeList 1261/1261 cyc0, COVER 120/120, THINCC PREM bit-exact vs FVSbm_g16
     include("unit/test_so_crwidth.jl")     # SO FVS_TreeList CrWidth: so_cwcalc forest-601 BF (present) + Hopkins-index fix (so_grinit! lat/lon 42/121 default) — 33/33 vs FVSso_clean, 11th variant
     include("unit/test_nc_crwidth.jl")     # NC/Klamath FVS_TreeList CrWidth via R5CRWD reuse (nc_r5crwd→ws_r5crwd, NC→WS FIA map) — forest 505 R5, 29/29 vs FVSnc_clean, 12th variant
     include("unit/test_nc_mortality.jl")   # NC/Klamath NWCMRT density-mortality distribution (nc/nwcmrt.f) — percentile/tolerance concentration + QMD loop; fixes mature over-max-SDI TPA ~3× under-kill
@@ -62,7 +62,6 @@ using FVSjl
     include("unit/test_nc_r6_volume.jl")   # NC/Klamath Region-6 (SISKIYOU IFOR 4) VEQNNC fix: westside Flewelling F06FW2W202 DF + INGY + Behre 616BEHW — fixes large-tree total-cubic over-prediction (+30% at D=54) vs FVSnc_g16 forest 611
     include("unit/test_nc_r7_blmvol.jl")   # NC/Klamath Region-7 (HOOPA IFOR 5, forest 705) VEQNNC fix: NVEL BLMVOL Behre-hyperbola BLM taper (blmtap.f) B00BEHW/B01BEHW — fixes cyc0 TCuFt +16-22% / BdFt −8-23% vs FVSnc_g16 forest 705 (57 stands)
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
-    include("unit/test_bm_crwidth.jl")     # BM CRWDTH: cwcalc.f BMMAP + per-forest R6 BF (national library) — TreeList 1261/1261 cyc0, COVER 120/120, THINCC PREM bit-exact vs FVSbm_g16
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant
     include("unit/test_tt_crwidth.jl")     # TT FVS_TreeList CrWidth via national cwcalc.f TTMAP (+4 codes 20205/09305/10805/31206) — 4000/4000 vs FVStt_clean, 16th variant
