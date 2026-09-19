@@ -109,6 +109,8 @@ copy anything worth keeping (instrumented-oracle recipes) into the repo or `/wor
 | `ie-climate-4759041` | 29afeea2 | merged (2026-09-18; content == 583da79c) | `/workspace/.wt-regendg` | delete |
 | `ie-dfht` | 38091a40 | merged (2026-09-18 bare-plot chain) | `FVSjl/.claude/worktrees/agent-a7c278e41effcaf96` | delete |
 
+| (detached) | — | TEMP bisect worktree (fix_scalers/rootdis/kwcov regressions) | `/workspace/.wt-bisect2` | remove when bisect done |
+
 Removed already this session: `/workspace/.wt-bm-bisect` (detached, clean), `/workspace/.wt-regfix-bis` (by its fork).
 
 Non-git scratch to clean with the prune: staged oracle binaries `/workspace/.{v}work/FVS{v}_g16.new` (pending the
