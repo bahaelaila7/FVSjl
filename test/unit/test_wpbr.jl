@@ -215,6 +215,24 @@ const _WPBR_TRE_NOHOST = """
         @test rows(min_key)  == gold("min")
         @test rows(wpbr_key) == gold("full")
     end
+
+    # Scheduled WPBR activities (brtreg.f:119-259 activity section → BRCREM prune/excise, BRIBES REDFAC):
+    # dated PRUNE (incl. clean pruning) + EXCISE every cycle, dated PRNSPECS/EXSPECS changes, and dated RIBES
+    # (reduction factor on tree and stand RI) + INACT — 10 cycles on the same host stand, RUSTINDX 0.20.
+    # Goldens = live FVSie_wpbr (.sum rows). act_ribes changes the live .sum vs no activity (6 rows); the
+    # prune/excise keys were additionally verified per tree (BRCREM ITSTAT/cankers/removals/PRUNED/BRHTBC and
+    # the BRANN state) against an instrumented live copy — bit-exact except a base-IE 1-ULP HTG on one record
+    # from cycle 6 (below .sum resolution).
+    @testset "WPBR scheduled activities (PRUNE/EXCISE/specs/RIBES) — .sum bit-exact vs live" begin
+        fx = joinpath(@__DIR__, "..", "fixtures", "wpbr")
+        gold(k) = filter(l -> !isempty(strip(l)), split(strip(read(joinpath(fx, "$k.live.sum"), String)), '\n'))
+        for k in ("act_both", "act_specs", "act_ribes")
+            key = joinpath(dir, "$k.key")
+            cp(joinpath(fx, "$k.key"), key; force = true)
+            write(joinpath(dir, "$k.tre"), _WPBR_TRE)
+            @test rows(key) == gold(k)
+        end
+    end
 end
 
 # =============================================================================
