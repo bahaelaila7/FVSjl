@@ -72,7 +72,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
     cur_year = current_cycle_year(s)   # IY schedule (TIMEINT/CYCLEAT-aware)
     @inbounds for i in 1:t.n
         sp = t.species[i]; hti = t.height[i]
-        t.ht_growth[i] = 0f0
+        t.ht_growth[i] = 0f0; t.temhtg[i] = -1f0
         t.tpa[i] <= 0f0 && continue
         xht = active_multiplier(s.control, :htg, sp, cur_year)
         si = p.sp_site_index[sp]
@@ -80,6 +80,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htcon = c.htg_cor[sp]
         if htmax - hti <= 1f0
             t.ht_growth[i] = 0.10f0 * xht * scale * fexp(htcon)
+            t.temhtg[i] = t.ht_growth[i]                   # htgf.f TEMHTG (uncapped) → tripled copies
             sc4 = s.control.sp_size_cap[sp, 4]
             (hti + t.ht_growth[i]) > sc4 && (t.ht_growth[i] = max(sc4 - hti, 0.1f0))
             continue
@@ -98,6 +99,7 @@ function height_growth!(s::StandState, ::Southern; scale::Float32 = 1f0)
         htgmod = clamp(0.25f0 * hgmdcr + 0.75f0 * hgmdrh, 0.1f0, 2f0)
         htg = max(htg1 * htgmod, 0.1f0)
         t.ht_growth[i] = htg * xht * scale * fexp(htcon)
+        t.temhtg[i] = t.ht_growth[i]                       # htgf.f TEMHTG (uncapped) → tripled copies
         # htgf.f:286-288 — large-tree height cap (SIZCAP[4], set by TREESZCP). Default 999.
         # A tree already past the cap still crawls by the 0.1 floor (never shrinks).
         sc4 = s.control.sp_size_cap[sp, 4]

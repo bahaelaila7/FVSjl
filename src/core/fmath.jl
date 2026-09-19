@@ -87,4 +87,32 @@ end
 @inline fsin(x::Float32) = ccall((:sinf, "libm.so.6"), Float32, (Float32,), x)
 @inline fcos(x::Float32) = ccall((:cosf, "libm.so.6"), Float32, (Float32,), x)
 
+"""
+    fpowi(x::Float32, m::Integer) -> Float32
+
+Fortran `REAL**INTEGER` exactly as gfortran compiles it: a call to libgcc `__powisf2` (libgcc2.c) — binary
+square-and-multiply carried out in SINGLE precision (y = x if m odd else 1; repeatedly x=x*x, y=y*x on set bits;
+1/y for m<0). Julia's `Float32^Int` instead evaluates in Float64 and rounds once, which differs by 1 ULP on a
+large share of inputs; inside a cancellation such as VARMRT's `1-(1-EFFTR)**NPASS` that ULP becomes a ~1e-5
+relative error in the kill (measured vs FVSsn, treeszcp_cap cycle 1).
+"""
+@inline function fpowi(x::Float32, m::Integer)
+    n = unsigned(abs(m)); y = isodd(n) ? x : 1f0
+    while (n >>= 1) != 0
+        x = x * x
+        isodd(n) && (y = y * x)
+    end
+    return m < 0 ? 1f0 / y : y
+end
+
+# REAL*8 intrinsics as gfortran emits them: DEXP/DLOG/`**` (REAL*8 operands) are direct calls to glibc libm
+# exp/log/pow. Julia's Float64 exp/log/^ are its own implementations and can differ in the last bit, and
+# `x^3` lowers to x*x*x (two roundings) where Fortran `X**3.` is one correctly-rounded pow. Used by the
+# double-precision NVEL kernels (Flewelling SHP_C2/SHP_OT, SF_TAPER) so their REAL*4 outputs round the same.
+const _LIBM = "libm.so.6"
+@inline dexp(x::Float64) = ccall((:exp, _LIBM), Float64, (Float64,), x)
+@inline dlog(x::Float64) = ccall((:log, _LIBM), Float64, (Float64,), x)
+@inline dpow(x::Float64, y::Float64) = ccall((:pow, _LIBM), Float64, (Float64, Float64), x, y)
+@inline dlog10(x::Float64) = ccall((:log10, _LIBM), Float64, (Float64,), x)
+
 end # module FMath

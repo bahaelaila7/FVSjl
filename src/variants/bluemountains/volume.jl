@@ -13,6 +13,10 @@ function compute_volumes_bm!(s::StandState)
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100   # forkod-remapped R6 forest (619→616, 8117→614)
     ecl = econ_log_capture(s)                                       # ECVOL per-log arrays (ECON units 4/5), else nothing
+    # HT2TD(:,1:2) = 0 for every record at VOLS entry (vols.f:86-90); NATCRS/FVSVOL then fills the merch-top
+    # heights of live AND cycle-0 dead records (vols.f IPASS=2, IT=I) — FVS_TreeList/CutList/ATRTList Ht2TDBF/CF.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -39,7 +43,10 @@ function compute_volumes_bm!(s::StandState)
             lft = ecl === nothing ? nothing : NTuple{2,Float32}[]
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
                            iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true,
-                           log_bf = lbf, log_ft3 = lft)
+                           log_bf = lbf, log_ft3 = lft, ht2td = htb)
+            # fvsvol.f:337-339 HT2TD(IT,2)=MAX(HT1PRD,HT2PRD) if D≥DBHMIN (HT2PRD=0: SPFLG=0 outside R8/R9/FIANVB);
+            # fvsvol.f:362/484-487 BF call (BFPFLG=0 in R6) HT2TD(IT,1)=HT1PRD if D≥BFMIND, else 0.
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1]; t.merch_top_bf[i] = htb[2])
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
@@ -64,7 +71,14 @@ function compute_volumes_bm!(s::StandState)
             else
                 v = bm_r6vol3(d, dbtbh, fclass, hv, 1)       # ZONE 1 total cubic → VOL(1)
                 mtopp = 4.5f0 * bark                         # TOPDIAM = TOPD·BARK (fvsvol.f)
-                xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, hv) # log bucking → small-end diams
+                xlogs, ld1, xl = bm_r6dibs(d, fclass, mtopp, hv) # log bucking → small-end diams
+                # r6vol.f:121-125: HT1PRD = 1.0 + Σ XLEN(1:20) (TTH>0), identical for the CF and BF NATCRS calls
+                # (same MTOPP=TOPD·BARK); the TTH≤FC_HT cylinder branch above never reaches here (HT1PRD=0).
+                if d >= dbhmin && dbhib >= mtopp                 # r6vol.f DBHIB<MTOPP ⇒ GO TO 1000 before R6DIBS
+                    ht1 = 1.0f0
+                    for k in 1:20; ht1 += xl[k]; end
+                    t.merch_top_cf[i] = ht1; t.merch_top_bf[i] = ht1
+                end
                 lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)  # per-log Scribner (VOL2) + merch cubic (VOL4)
                 nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
                 for k in 1:nacc
@@ -233,7 +247,7 @@ function bm_r6dibs(dbhob::Float32, fclass::Int, mtopp::Float32, th::Float32)
     end
     ld1 = zeros(Int, 21)
     for i in 1:20; ld1[i] = Int(floor(ld2[i] + 0.5f0)); end    # LOGDIA(:,1)=INT(LOGDIA(:,2)+0.5)
-    return xlogs, ld1
+    return xlogs, ld1, xl                                      # xl = XL(1:20) (r6vol.f XLEN → HT1PRD)
 end
 
 # bm/NVEL r6vol1.f — ZONE-1 (IAPZ=1) per-log volumes from log small-end diameters:

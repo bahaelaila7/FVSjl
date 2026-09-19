@@ -320,8 +320,16 @@ function dub_missing_heights!(s::StandState)
         if t.height[i] > 0f0 && !tkill
             continue
         end
+        # Cycle-0 DEAD records (cratet.f DO 145, IREC2..MAXTRE) take `IF(HT.GT.0 .AND. TKILL) GO TO 142`: a
+        # top-killed dead tree WITH a measured height skips the dub and label 142 sets NORMHT=INT(HT*100+0.5) —
+        # its measured height IS its normal height (bm/cratet.f:478,530-535; same in ie/em/sn/cr/ut). Only the LIVE
+        # loop (DO 130, :428) always dubs NORMHT. Dubbing dead ones too gave broken-top snags a taller "normal"
+        # height (e.g. LP D10 HT35 → NVEL HTTOT 45 vs live 35; FVS_TreeList Ht2TDCF 45.1 vs live 23.6).
+        dead_measured = i > t.n && tkill && t.height[i] > 0f0
         # cratet.f:342-372: calibrated-Wykoff dub when LHTDRG[sp] & IABFLG==0, else the Curtis-Arney HTDBH dub.
-        h_v = if d <= 0.1f0
+        h_v = if dead_measured
+            t.height[i]                                   # unused: label 142 takes the HT>0 branch below
+        elseif d <= 0.1f0
             1.01f0
         elseif s.variant isa BlueMountains
             bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
@@ -403,7 +411,8 @@ function dub_missing_heights!(s::StandState)
         else
             # cratet.f:381-397: NORMHT/ITRUNC use Fortran INT() = truncate-toward-zero (round-half-UP via +0.5),
             # NOT Julia round() (round-half-to-EVEN) — they diverge by 1 when x is an odd integer.
-            t.norm_ht[i] = trunc(Int32, h_v * 100f0 + 0.5f0)
+            t.norm_ht[i] = dead_measured ? trunc(Int32, t.height[i] * 100f0 + 0.5f0) :   # :531-532
+                                           trunc(Int32, h_v * 100f0 + 0.5f0)
             if t.trunc[i] == 0
                 if t.height[i] > 0f0
                     t.trunc[i] = trunc(Int32, 80f0 * t.height[i] + 0.5f0)

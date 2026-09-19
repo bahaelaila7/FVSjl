@@ -187,6 +187,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
                         compute_collect::Union{Nothing,Vector} = nothing,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
+                        atrtlist_collect::Union{Nothing,Vector} = nothing,
                         carbon_collect::Union{Nothing,Vector} = nothing,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing,
@@ -382,11 +383,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
             # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
+            atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
                 s.control.cutlist_capture = nothing
+            end
+            if atrtlist_collect !== nothing
+                push!(atrtlist_collect, (r.year, per, s.control.atrtlist_capture))
+                s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
             if strclass_collect !== nothing

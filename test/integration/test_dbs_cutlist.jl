@@ -91,5 +91,29 @@ STOP
                                 "SELECT name FROM sqlite_master WHERE type='table'")] : String[]
         @test !("FVS_CutList" in tabs)
         rm(dir; recursive = true, force = true); rm(dir2; recursive = true, force = true)
+
+        # PRTRLS gating (prtrls.f:84-178 + dbsin.f opt 17): FVS writes FVS_CutList only for a SCHEDULED CUTLIST
+        # activity AND the DBS CUTLIDB flag — live FVSsn_g16 creates no table if either is missing.
+        for (nm, cutkw, dbkw) in (("no-CUTLIDB", rpad("CUTLIST", 10) * lpad("0", 10), ""),
+                                  ("no-CUTLIST", "", "CUTLIDB\n"),
+                                  ("CUTLIST-cycle1-no-cut", "CUTLIST", "CUTLIDB\n"))   # blank date ⇒ cycle 1; thin is in 1995
+            gdir = mktempdir(); gdb = joinpath(gdir, "out.db")
+            cp(tre, joinpath(gdir, "cut.tre"); force = true)
+            gkey = joinpath(gdir, "cut.key")
+            write(gkey, "STDIDENT\nCUTDB\nSTDINFO        80106   231Dd        60.0     315.0      30.0       7.0\n" *
+                  "INVYEAR       1990.0\nNUMCYCLE         3.0\nSITECODE          63      60.\n" *
+                  "DESIGN                                        11.0       1.0\n$thin\n" *
+                  (isempty(cutkw) ? "" : cutkw * "\n") *
+                  "TREEFMT\n(T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,\n" *
+                  "T52,I2,T66,5I1,T54,7I1,T75,F3.0)\nDATABASE\nDSNOUT\n$gdb\nSUMMARY\n$(dbkw)END\nTREEDATA\nPROCESS\nSTOP\n")
+            FVSjl.run_keyfile(gkey; faithful = true)
+            d = SQLite.DB(gdb)
+            try
+                @test !("FVS_CutList" in [r.name for r in SQLite.tables(d)])
+            finally
+                SQLite.close(d)
+            end
+            rm(gdir; recursive = true, force = true)
+        end
     end
 end

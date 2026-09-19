@@ -68,7 +68,7 @@ per-species GO TO(I) branches. Special species → fixed 0.5 / 5.0 ft.
 function ie_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::Integer, iphy::Integer,
                    xcos::Real, xsin::Real, slo::Real, elev::Real, disp::Real; bwaf::Real = 0.0, bwb4::Real = 0.0)::Float32
     a = Float32(age); a < 1f0 && (a = 1f0)
-    aln = log(a); baa = Float32(baa); ih = Int(ihtser); ip = Int(iprep); iph = Int(iphy)
+    aln = flog(a); baa = Float32(baa); ih = Int(ihtser); ip = Int(iprep); iph = Int(iphy)
     @inbounds uhab(s) = IE_ESSUBH_UHAB[ih, s]; @inbounds upre(s) = IE_ESSUBH_UPRE[ip, s]; @inbounds uphy(s) = IE_ESSUBH_UPHY[iph, s]
     xcos = Float32(xcos); xsin = Float32(xsin); slo = Float32(slo); elev = Float32(elev); disp = Float32(disp)
     pn = 0f0; sig = 0f0; fixed = -1f0
@@ -105,7 +105,7 @@ function ie_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::In
         fixed = 0.5f0
     end
     fixed >= 0f0 && return fixed
-    return exp(pn + disp*sig)
+    return fexp(pn + disp*sig)
 end
 
 # ie/esxcsh.f ESXCSH — per-tree height-CLASS distribution: a Weibull inverse-CDF from HTMIN(=XMIN) up to
@@ -151,9 +151,9 @@ function ie_esxcsh(sp::Integer, htmax::Real, htmin::Real, time::Real, draw::Real
     bb = _IE_ESXCSH_BB[itime, sp]; cc = _IE_ESXCSH_CC[itime, sp]; sh = _IE_ESXCSH_SHIFT[sp]
     (bb <= 0f0) && return Float32(htmin)                     # unaffected species → floor
     class = Float32(htmax) / 0.2f0 - sh
-    xuppr = 1f0 - exp(-(((class - Float32(htmin)) / bb)^cc))
+    xuppr = 1f0 - fexp(-fpow((class - Float32(htmin)) / bb, cc))
     xx = xuppr * Float32(draw)
-    hht = ((-log(1f0 - xx))^(1f0 / cc)) * bb + Float32(htmin)
+    hht = fpow(-flog(1f0 - xx), 1f0 / cc) * bb + Float32(htmin)
     return 0.2f0 * (hht + sh)
 end
 
@@ -266,29 +266,29 @@ function ie_esnspe(iser::Integer, itpp::Integer, tpp::Real, tppln::Real, baa::Re
     # P(1 species) — always
     pn = 1.399594f0 + 0.002162f0*ba + 0.0213903f0*el - 0.022173f0*rg - 0.039405f0*bw -
          1.017904f0*tpl + sh(1)
-    p1 = 1f0 / (1f0 + exp(-pn))
+    p1 = 1f0 / (1f0 + fexp(-pn))
     if itpp >= 2
         pn = -0.441879f0 + 0.577760f0*xc + 0.294070f0*xs - 0.128766f0*sl - 0.010128f0*tp -
              0.011040f0*el + 0.016568f0*rg - 0.000247f0*bw + sh(2)
-        p2 = 1f0 / (1f0 + exp(-pn))
+        p2 = 1f0 / (1f0 + fexp(-pn))
     end
     if itpp >= 3
         pn = -2.052740f0 + 0.075063f0*xc - 0.471162f0*xs - 0.840378f0*sl - 0.018585f0*el +
              0.076352f0*bw + 0.004745f0*rg + sh(3) + 0.054661f0*tp - 0.000467f0*tp*tp
-        p3 = 1f0 / (1f0 + exp(-pn))
+        p3 = 1f0 / (1f0 + fexp(-pn))
     end
     if itpp >= 4
         pn = -6.24551f0 - 1.277404f0*xc - 0.329897f0*xs + 0.425239f0*sl + 0.071878f0*bw +
              0.001371f0*rg + sh(4) + 0.056784f0*tp - 0.000239f0*tp*tp
-        p4 = 1f0 / (1f0 + exp(-pn))
+        p4 = 1f0 / (1f0 + fexp(-pn))
     end
     if itpp >= 5
         pn = -2.043228f0 - 0.052907f0*el + 0.021884f0*tp
-        p5 = 1f0 / (1f0 + exp(-pn))
+        p5 = 1f0 / (1f0 + fexp(-pn))
     end
     if itpp >= 6
         pn = -5.938035f0 + 0.020070f0*tp
-        p6 = 1f0 / (1f0 + exp(-pn))
+        p6 = 1f0 / (1f0 + fexp(-pn))
     end
     return (p1, p2, p3, p4, p5, p6)
 end
@@ -343,11 +343,11 @@ function ie_espadv(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
                    occ::AbstractVector, over::AbstractVector)::NTuple{10,Float32}
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     ba = Float32(baa); el = Float32(elev); rg = Float32(regt); bw = Float32(bwaf); b4 = Float32(bwb4)
-    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? log(ba) : 0f0
+    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? flog(ba) : 0f0
     ch(i) = (1 <= ihab <= 16) ? _IE_CHAB[ihab, i] : 0f0
     cp(i) = (1 <= iprep <= 4) ? _IE_CPRE[iprep, i] : 0f0
     ov(i) = over[i] > 9.95f0
-    logistic(pn) = 1f0 / (1f0 + exp(-pn))
+    logistic(pn) = 1f0 / (1f0 + fexp(-pn))
     p = zeros(Float32, 10)
     # WP(1) — skip if IPREP>3
     if iprep <= 3
@@ -456,11 +456,11 @@ function ie_espxcs(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
                    occ::AbstractVector, over::AbstractVector)::NTuple{10,Float32}
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     ba = Float32(baa); el = Float32(elev); rg = Float32(regt); bw = Float32(bwaf); b4 = Float32(bwb4)
-    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? log(ba) : 0f0
+    basq = ba*ba; elsq = el*el; baln = ba > 0f0 ? flog(ba) : 0f0
     fh(i) = (1 <= ihab <= 16) ? _IE_FHAB[ihab, i] : 0f0
     fp(i) = (1 <= iprep <= 4) ? _IE_FPRE[iprep, i] : 0f0
     ov(i) = over[i] > 9.95f0
-    logistic(pn) = 1f0 / (1f0 + exp(-pn))
+    logistic(pn) = 1f0 / (1f0 + fexp(-pn))
     p = zeros(Float32, 10)
     # WP(1)
     pn = -2.6601112f0 - 0.2103586f0*xc - 2.1766529f0*xs - 2.6159747f0*sl - 0.0170345f0*ba +
@@ -625,9 +625,9 @@ function ie_estpp(val::Real, ihab::Integer, xcos::Real, xsin::Real, slo::Real, r
     (ihab > 4 && ihab < 9) && (bb += 0.294473f0)
     (ihab == 9 || ihab == 10) && (bb += 1.237000f0)
     ihab > 10 && (bb += 0.465788f0)
-    bb = exp(bb)
+    bb = fexp(bb)
     cc = 0.6836f0
-    return ((-log(1f0 - Float32(val)))^(1f0/cc)) * bb + 0.9f0
+    return fpow(-flog(1f0 - Float32(val)), 1f0/cc) * bb + 0.9f0
 end
 
 # =============================================================================
@@ -736,16 +736,16 @@ normalizes into the IPPREP SUMUP).
 function ie_esprep(iser::Integer, aspect::Real, slope::Real, ba::Real, elev::Real)
     xp(k) = (1 <= iser <= 5) ? _IE_XPREP[iser, k] : 0f0
     asp = Float32(aspect); sl = Float32(slope); el = Float32(elev)
-    ca = cos(asp) * sl; sa = sin(asp) * sl; lba = log(Float32(ba) + 1f0)
+    ca = cos(asp) * sl; sa = sin(asp) * sl; lba = flog(Float32(ba) + 1f0)
     pn = 1.043151f0 + xp(1) - 0.220954f0 * ca + 0.369575f0 * sa + 0.769112f0 * sl +
          0.260178f0 * lba - 0.029689f0 * el
-    pnone = 1f0 / (1f0 + exp(-pn))
+    pnone = 1f0 / (1f0 + fexp(-pn))
     pn = -1.852031f0 + xp(2) + 0.492668f0 * ca + 0.192020f0 * sa - 0.966674f0 * sl -
          0.085920f0 * lba + 0.024939f0 * el
-    pmech = 1f0 / (1f0 + exp(-pn))
+    pmech = 1f0 / (1f0 + fexp(-pn))
     pn = -15.195303f0 + xp(3) + 0.0519477f0 * ca - 0.6135848f0 * sa - 0.0890163f0 * sl -
          0.377915f0 * lba + 0.5303707f0 * el - 0.0049081f0 * el * el
-    pburn = 1f0 / (1f0 + exp(-pn))
+    pburn = 1f0 / (1f0 + fexp(-pn))
     return (pnone, pmech, pburn)
 end
 
@@ -838,6 +838,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          emit_best::Union{Nothing,Vector{Bool}} = nothing,  # DO 33 best (true) vs DO 228 excess
                          time_h::Real = -1,     # estab.f:792 height-section TIME=FLOKDT−KDTOLD (<0 ⇒ `time`)
                          ph_dilate_out::Union{Nothing,Vector{Float32}} = nothing, # DILATE of each PLANT tree (plot-major)
+                         ph_note_out::Union{Nothing,Vector{Int}} = nothing,      # NBEST NOTE of each PLANT tree (plot-major, estab.f:1386)
                          ph_height = nothing,   # (n, dils) -> this plot's PLANT/NATURAL heights (estab.f DO 322)
                          ihtser::Integer = 0, gentim::Real = 5f0, call_espadv::Bool = true,
                          point_baa::AbstractVector = Float32[],
@@ -891,7 +892,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                                    rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
             px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, Float32(elev),
                                    rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
-            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, log(baa_p),
+            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, flog(baa_p),
                                         Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                         occ, over_p))
             padv_raw = call_espadv ? copy(pa) : zeros(Float32, 10)
@@ -905,7 +906,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             # WSBW (BWAF=SQBWAF=0) √regt=√TIME=SQREGT — mirrors the ie_estock call. The ingrowth path (tm≤2 ⇒
             # ps=0) stays BYTE-IDENTICAL, so the validated AUTOES-ingrowth tally is unperturbed.
             ps = (is_ie && round(Int, tm_sp + 0.5f0) > 2) ?
-                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, log(baa_p),
+                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, flog(baa_p),
                                    Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                    occ, over_p)) :
                  zeros(Float32, 10)
@@ -1064,7 +1065,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1
-            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), log(Float32(itpp)), Float32(baa),
+            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), Float32(baa),
                                      Float32(elev), Float32(regt), Float32(bwaf), xc, xs, sl))
             cum = cumsum(pspe ./ sum(pspe)); numspe = 6
             for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
@@ -1116,7 +1117,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     itime = trunc(Int, tmh + 0.5f0); itime < 1 && (itime = 1); itime > 20 && (itime = 20)
                     bnrm = bnorml_e[itime]
                     dil = first1[sp2]; first1[sp2] = sqrt(dil)
-                    hh = ie_esadvh(sp2, emsqr, dil, log(agev), bnrm; baa = baa_h, elev = elev, xcos = xc,
+                    hh = ie_esadvh(sp2, emsqr, dil, flog(agev), bnrm; baa = baa_h, elev = elev, xcos = xc,
                                    xsin = xs, slo = sl, ihtser = ihts, iphy = iphy_i, iprep = ip_plot,
                                    bwaf = bwaf, bwb4 = bwb4)
                     iasep_e[sp2] = 1
@@ -1270,12 +1271,17 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     end
                 end
             end
+            if ph_note_out !== nothing && _nph > 0                       # planted NOTE(ITPP+JJ) for establish!'s IMC
+                @inbounds for k in 1:_nph; push!(ph_note_out, note_e[itpp + k]); end
+            end
             ex_c = zeros(Float32, nsp); ex_h = zeros(Float32, nsp); ex_p = zeros(Float32, nsp)
             @inbounds for N in 1:itpp                                        # DO 33: best trees are individual records
                 I = e_sp[N]; (I < 1) && continue; hh = e_ht[N]
                 if e_esp[N] >= 0.00011f0 && note_e[N] == 1
+                    # estab.f:1232 PROB=(ESPROB(N)*300.0)/DUPNPT — REAL*4, left to right (a Float64 evaluation
+                    # rounds differently on ~1 in 3 records: live FVSie hex dump 3f49a8a3 vs Float64-path 3f49a8a2).
                     push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(e_wk4[N]),
-                                 Float64(e_esp[N]) * 300.0 / Float64(dupnpt)))
+                                 Float64((Float32(e_esp[N]) * 300f0) / Float32(dupnpt))))
                     emit_plot === nothing || push!(emit_plot, n)
                     emit_best === nothing || push!(emit_best, true)
                 else                                                        # accumulate excess per species (DO 33:199)
@@ -1290,7 +1296,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 ft2 = ex_p[I] / (ex_c[I] + 0.00001f0)                        # FTEMP2 = SUMESP/(EXCESS+1e-5)
                 xcs, ibrk = es_pasmax_xcsmax(ex_c[I], pmx)                   # XCSMAX + IBRKUP (estab.f:1288/1318-1321)
                 hh = ex_h[I] / ex_c[I]                                       # mean excess height (SUMHTS/EXCESS)
-                tpa_r = Float64(ft2) * 300.0 * Float64(xcs) / Float64(dupnpt)
+                tpa_r = Float64(((Float32(ft2) * 300f0) * Float32(xcs)) / Float32(dupnpt))   # estab.f:1321 REAL*4 (FTEMP2*300.0*XCSMAX)/DUPNPT
                 for _ib in 1:ibrk
                     push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(stomlt[I]), tpa_r))
                     emit_plot === nothing || push!(emit_plot, n)
@@ -1382,7 +1388,7 @@ function ie_esadvh(sp::Integer, emsqr::Real, dilate::Real, agel::Real, bnorm::Re
     else  # 11 = MH (uses WH eq w/ TPRE(iprep,11))
         pn = -0.43269f0 + 0.77433f0*al - 0.00378f0*ba + tp(11); sig = 0.54794f0
     end
-    return exp(pn + disp*sig)
+    return fexp(pn + disp*sig)
 end
 
 # =============================================================================
@@ -1415,12 +1421,12 @@ function ie_esdlay(sp::Integer, ias::Integer, draw::Real, time::Real, baa::Real;
     if ias == 1
         ibaa = Float32(baa) > 25.5f0 ? 2 : 1
         bb = _IE_DLAY_BADV[ibaa, sp]; cc = _IE_DLAY_CADV[ibaa, sp]
-        delay = ((-log(1f0 - d))^(1f0/cc)) * bb
+        delay = fpow(-flog(1f0 - d), 1f0/cc) * bb
         delay = (delay + 3f0) * (-1f0)
     else
         it = time > 12.5 ? 3 : (time > 7.5 ? 2 : 1)
         bb = _IE_DLAY_BSUB[it, sp]; cc = _IE_DLAY_CSUB[it, sp]
-        delay = ((-log(1f0 - d))^(1f0/cc)) * bb - 4f0
+        delay = fpow(-flog(1f0 - d), 1f0/cc) * bb - 4f0
     end
     return clamp(delay, 0f0, 10f0)
 end
@@ -1466,7 +1472,7 @@ function ie_espsub(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
     xc=Float32(xcos); xs=Float32(xsin); sl=Float32(slo); tm=Float32(time); ba=Float32(baa)
     baln=Float32(baaln); el=Float32(elev); elsq=el*el; srg=Float32(sqregt); sbw=Float32(sqbwaf); b4=Float32(bwb4)
     st=sqrt(tm); dh(i)=(1<=ihab<=16) ? _IE_DHAB[ihab,i] : 0f0; dp(i)=(1<=iprep<=4) ? _IE_DPRE[iprep,i] : 0f0
-    ov(i)=over[i]>9.95f0; lg(pn)=1f0/(1f0+exp(-pn)); p=zeros(Float32,10)
+    ov(i)=over[i]>9.95f0; lg(pn)=1f0/(1f0+fexp(-pn)); p=zeros(Float32,10)
     # WP(1)
     pn=-2.4158523f0+dh(1)-0.0190109f0*xc-1.3862606f0*xs-1.8366897f0*sl+dp(1)-0.0096275f0*ba-0.0480603f0*el+0.5816639f0*st
     (ifo==7||ifo==10||ifo==16)&&(pn-=1.5468744f0); ov(1)&&(pn+=1.1525173f0); p[1]=lg(pn)*Float32(occ[1])
@@ -1489,7 +1495,7 @@ function ie_espsub(ihab::Integer, iprep::Integer, ifo::Integer, iphy::Integer, x
     pn=-0.9637001f0+dh(7)-3.1974275f0*sl-0.6840911f0*xc-0.1853668f0*xs-0.0317628f0*ba+dp(7)
     ov(7)&&(pn+=1.5827047f0); (ifo in (4,5,17,19))&&(pn-=1.4140185f0); iphy==1&&(pn+=0.7254971f0); p[7]=lg(pn)*Float32(occ[7])
     # ES(8)
-    pn=-17.6667213f0+dh(8)+1.5222952f0*xc+1.0029485f0*xs-2.0576222f0*sl-0.2404502f0*baln+3.173367f0*log(el)+dp(8)+0.5579416f0*srg+0.7190073f0*sbw
+    pn=-17.6667213f0+dh(8)+1.5222952f0*xc+1.0029485f0*xs-2.0576222f0*sl-0.2404502f0*baln+3.173367f0*flog(el)+dp(8)+0.5579416f0*srg+0.7190073f0*sbw
     ov(8)&&(pn+=1.3091471f0); (ifo in (3,11,12))&&(pn-=0.5256087f0); ifo==4&&(pn+=1.1098698f0); (ifo==9||ifo==10)&&(pn+=0.3115149f0)
     ifo==14&&(pn+=2.3169837f0); ifo==19&&(pn-=0.3958037f0); ifo==5&&(pn+=0.9730915f0); ifo==17&&(pn+=0.9142514f0); ifo==20&&(pn+=0.7438718f0); p[8]=lg(pn)*Float32(occ[8])
     # AF(9)
@@ -1743,7 +1749,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # ESTOCK/species-prob TIME + REGT = years since disturbance (ESTIME): tally-1 = 10, tally-2 = 20 (a cycle
     # per tally), ingrowth = 1. NOT 1 for the disturbance re-stocking tallies (that hardcoding under-computed PN
     # ~1.6 logit → PROB1 0.55 vs the real 0.88). REGT = TIME, SQREGT = √TIME (measured, stand4_estock_inputs.txt).
-    pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
+    pn = ie_estock(idx.ihab, idx.iprep, sl, xc_st, xs_st, Float32(elev), ba, flog(ba), tm,
                    sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
     # PROB1 = logistic(PN + ESB - ESB1)·STOADJ (estab.f:579-580); esb_shift = ESB-ESB1 (inventory calibration).
     # STOADJ = the STOCKADJ keyword multiplier (default 1.0 ⇒ inert). estab.f:578 clamps STOADJ≥0.001 before the
@@ -1751,7 +1757,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # 137/229/163 — no stocking model) which jl reaches via its scheduled-NATURAL path, NOT this tally; so the
     # ≈0 case is out of scope for this multiply. The clamp keeps any positive keyword value faithful.
     sa = Float32(stoadj); sa < 0.001f0 && (sa = 0.001f0)
-    prob1 = (1f0 / (1f0 + exp(-(pn + Float32(esb_shift))))) * sa
+    prob1 = (1f0 / (1f0 + fexp(-(pn + Float32(esb_shift))))) * sa
     # estab.f:581-582 clamp FTEMP (=PROB1) to [0.0001, 0.9990] AFTER the STOADJ multiply. Critical when STOADJ>1 (or a
     # high-PN stand) would drive the logistic·STOADJ product past 1 — PROB1 sits in the NSTORE denominator (tpacre/
     # (prob1·300)), so an uncapped prob1>1 shrinks NSTORE and makes ingrowth OVER-book (measured: STOCKADJ 2.0 → jl
@@ -1775,9 +1781,9 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     if _estb && prep_sumup !== nothing && !is_ingro
         prob1_prep = Vector{Float32}(undef, 3)
         for ip in 1:3
-            pnp = ie_estock(idx.ihab, ip, sl, xc_st, xs_st, Float32(elev), ba, log(ba), tm,
+            pnp = ie_estock(idx.ihab, ip, sl, xc_st, xs_st, Float32(elev), ba, flog(ba), tm,
                             sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
-            v = (1f0 / (1f0 + exp(-(pnp + Float32(esb_shift))))) * sa
+            v = (1f0 / (1f0 + fexp(-(pnp + Float32(esb_shift))))) * sa
             v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
             prob1_prep[ip] = v
         end
@@ -1805,12 +1811,12 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             sl_pt  =       pt <= length(point_slope)  ? Float32(point_slope[pt])  : sl                 # PSLO(NNID)
             asp_pt =       pt <= length(point_aspect) ? Float32(point_aspect[pt]) : asp                # PASP(NNID)
             pn_pt = ie_estock(idx.ihab, idx.iprep, sl_pt, cos(asp_pt), sin(asp_pt), Float32(elev), ba_pt,
-                              log(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+                              flog(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
             # PER-POINT stocking shift ESB−ESB1(NNID): each point's ingrowth stocking is corrected by ITS OWN
             # inventory prediction (estab.f:557,599). Empty ⇒ the scalar esb_shift (point-1 value) — over-corrects
             # the open points of a heterogeneous multi-point stand (the M333 AUTOES over-production bug).
             shift_pt = pt <= length(esb_shift_pt) ? esb_shift_pt[pt] : Float32(esb_shift)
-            v = (1f0 / (1f0 + exp(-(pn_pt + shift_pt)))) * sa                                            # STOADJ already clamped ≥0.001 (sa)
+            v = (1f0 / (1f0 + fexp(-(pn_pt + shift_pt)))) * sa                                            # STOADJ already clamped ≥0.001 (sa)
             v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
             prob1_pt[pt] = v
         end
@@ -1835,10 +1841,10 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             shift_pt = pt <= length(esb_shift_pt) ? esb_shift_pt[pt] : Float32(esb_shift)
             for ipk in 1:3
                 pn_pt = ie_estock(idx.ihab, ipk, sl_pt, cos(asp_pt), sin(asp_pt), Float32(elev), ba_pt,
-                                  log(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
+                                  flog(ba_pt), tm, sqrt(Float32(regt)), sqrt(Float32(bwaf)), Float32(bwb4), idx.ifo)
                 shift_ip = isempty(esb_shift_ptip) ? shift_pt :
                            esb_shift_ptip[clamp(pt, 1, size(esb_shift_ptip, 1)), ipk]
-                v = (1f0 / (1f0 + exp(-(pn_pt + shift_ip)))) * sa
+                v = (1f0 / (1f0 + fexp(-(pn_pt + shift_ip)))) * sa
                 v < 0.0001f0 && (v = 0.0001f0); v > 0.9990f0 && (v = 0.9990f0)
                 prob1_pt_ip[pt, ipk] = v
             end
@@ -1900,6 +1906,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     emit_plot = (_is_ie || _is_em) ? Int[] : nothing
     emit_best = (_is_ie || _is_em) ? Bool[] : nothing
     ph_dil = (_is_ie || _is_em) ? Float32[] : nothing
+    ph_note = (_is_ie || _is_em) ? Int[] : nothing
     ihtser = _IE_MYHTS[clamp(Int(idx.ihab), 1, length(_IE_MYHTS))]
     tally = ie_autoes_tally(seed0 = seed0, nplots = Int(dupnpt), ihab = idx.ihab, iser = idx.iser,
                             ifo = idx.ifo, iprep = idx.iprep, iphy = idx.iphy, xcos = xc_sp, xsin = xs_sp,
@@ -1909,7 +1916,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
                             prob1_prep = prob1_prep, is_ie = _estb, pasmax = pasmax, prob1_pt = prob1_pt,
-                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, ph_dilate_out = ph_dil, time_h = time_h, ph_height = ph_height,
+                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, ph_dilate_out = ph_dil, ph_note_out = ph_note, time_h = time_h, ph_height = ph_height,
                             ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
                             # Per-point species tables (ESPADV/ESPSUB/ESPXCS run per inventory point with THAT point's
                             # post-growth BAAA(NNID) and OVER(·,NNID), estab.f) — every tally type, like the PROB1.
@@ -1918,7 +1925,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             plant_sp = plant_sp, ipprep_in = ipprep_in, ipprep_out = ipprep_out,
                             prob1_pt_ip = prob1_pt_ip)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs, emit_plot = emit_plot,
-            emit_best = emit_best, ph_dilate = ph_dil)
+            emit_best = emit_best, ph_dilate = ph_dil, ph_note = ph_note)
 end
 
 # =============================================================================
@@ -2071,7 +2078,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             pslo_es = copy(p.point_slope); pasp_es = copy(p.point_aspect)
             @inbounds for k in 1:length(pslo_es)
                 if k > length(p.point_ids) || p.point_ids[k] == 0
-                    pslo_es[k] = Float32(p.slope); pasp_es[k] = Float32(p.aspect)   # esplt2.f XXSLP/XXASP
+                    pslo_es[k] = Float32(p.slope_raw) * 0.01f0; pasp_es[k] = Float32(p.aspect_deg) * 0.0174533f0   # esplt2.f:54-55,219,224 XXSLP/XXASP
                 end
             end
         end
@@ -2148,8 +2155,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # aspect·SQSQ terms vanished ⇒ PROB1 0.463 vs live 0.617. jl already reads these per-plot values into
     # p.point_slope/p.point_aspect (used for ESTPP); use them for the stocking PN + ESB1 too. Empty (TREEDATA / no
     # per-plot topo) ⇒ fall back to the stand slope/aspect (inert where they match, e.g. iet01).
-    es_slope  = isempty(pslo_es)  ? Float32(p.slope)  : Float32(pslo_es[1])
-    es_aspect = isempty(pasp_es) ? Float32(p.aspect) : Float32(pasp_es[1])
+    # Stand fallback = XXSLP=ISLOP*0.01 / XXASP=IASPEC*0.0174533 (esplt2.f:54-55; ISLOP/IASPEC = IFIX of the raw
+    # percent/degrees, initre.f:436-437) — REAL*4 `30*0.01` = 0.29999998 (3E999999), 1 ULP below the growth-model
+    # SLOPE/100 = 0.3 (3E99999A). That ULP entered ESTOCK's √SLO·√TIME terms and lowered every plot's PROB1/ESPROB by
+    # 1-2 ULP (live FVSie hex dump of the test_ie_addtrees fixture), i.e. the whole 1-ULP birth-TPA residual.
+    es_slope  = isempty(pslo_es)  ? Float32(p.slope_raw) * 0.01f0       : Float32(pslo_es[1])
+    es_aspect = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
     # TIME/REGT = years since the disturbance (ESTIME): a disturbance tally is TIME = next_year − IDSDAT (10 for
     # tally-1, 20 for tally-2, …); an ingrowth tally (NTALLY=99) uses TIME=1 (SHORTY, estab.f:252-253).
     time = _ntally == 99 ? 1f0 : Float32(next_year - Int(est.idsdat))
@@ -2206,8 +2217,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             tpacre = 0f0
             @inbounds for i in 1:s.trees.n; s.trees.dbh[i] < 2.999f0 && (tpacre += s.trees.tpa[i]); end
             tpacre < 1f0 && (tpacre = 1f0)
-            esa = clamp(1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre)))), 0.10f0, 0.90f0)
-            esb = -log(1f0 / esa - 1f0)
+            esa = clamp(1f0 / (1f0 + fexp(-(-5.17397f0 + 0.85131f0 * flog(tpacre)))), 0.10f0, 0.90f0)
+            esb = -flog(1f0 / esa - 1f0)
             # BAAOLD clamped to [1,400] (estab.f:487-489: IF(BAAOLD.LT.1)=1; IF(BAAOLD.GT.400)=400). ★ MEASURED
             # NSTORE over-book fix (dense already-stocked IE stands): on a BA>400 stand the ESB1=ESTOCK(BAAOLD)
             # prediction runs off the un-clamped tail (jl baaold 536 ⇒ esb1 −10.4 vs oracle −6.45 at BAAOLD=400),
@@ -2225,7 +2236,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             baaold = clamp(baaold_raw, 1f0, 400f0)          # BAAINV clamp [1,400] (shared estb/estab.f: IE AND EM)
             asp0 = es_aspect; sl0 = es_slope                 # per-plot PSLO/PASP (from tree records), not stand
             esb1 = ie_estock(idx0.ihab, idx0.iprep, sl0, cos(asp0), sin(asp0), Float32(p.elevation),
-                             baaold, log(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
+                             baaold, flog(baaold), 0f0, 0f0, 0f0, 0f0, idx0.ifo)   # ESTOCK(BAAOLD, TIME=0)
             est.esb_shift = esb - esb1
             # ★ PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID) (estab.f:507-557 — ESB1 is computed inside the
             # per-plot loop from THAT point's BAAINV(NNID)/PSLO/PASP). The scalar esb_shift above uses point-1's
@@ -2243,7 +2254,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                     slp = pt <= length(p.point_slope)  ? Float32(p.point_slope[pt])  : sl0  # PSLO(NNID)
                     asp = pt <= length(p.point_aspect) ? Float32(p.point_aspect[pt]) : asp0 # PASP(NNID)
                     e1p = ie_estock(idx0.ihab, idx0.iprep, slp, cos(asp), sin(asp), Float32(p.elevation),
-                                    bo, log(bo), 0f0, 0f0, 0f0, 0f0, idx0.ifo)             # ESTOCK(BAAINV(NNID), TIME=0)
+                                    bo, flog(bo), 0f0, 0f0, 0f0, 0f0, idx0.ifo)             # ESTOCK(BAAINV(NNID), TIME=0)
                     shpt[pt] = esb - e1p
                 end
                 est.esb_shift_pt = shpt
@@ -2275,7 +2286,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                     for ip in 1:3
                         tip = (ip == 1 || zp[ip] < 0) ? 0f0 : Float32(max(0, ftemp_yr - zp[ip]))
                         e1 = ie_estock(idx0.ihab, ip, slp, cos(asp), sin(asp), Float32(p.elevation),
-                                       bo, log(bo), tip, sqrt(tip), 0f0, 0f0, idx0.ifo)   # ESTIME: REGT=TIME, √TIME (no WSBW)
+                                       bo, flog(bo), tip, sqrt(tip), 0f0, 0f0, idx0.ifo)   # ESTIME: REGT=TIME, √TIME (no WSBW)
                         shptip[pt, ip] = esb - e1
                     end
                 end
@@ -2290,8 +2301,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             # the ingrowth (NTALLY==99) NSTORE is handled per-point in ie_autoes_run. Without it the sprout cohort did
             # not suppress AUTOES ⇒ WL/DF/LP over-produced ~9× (flagship 2978686010690: jl 790 vs oracle 84 TPA regen).
             if _ntally == 1
-                ftemp1 = 1f0 / (1f0 + exp(-esb1))
-                esa_raw = 1f0 / (1f0 + exp(-(-5.17397f0 + 0.85131f0 * log(tpacre))))   # UNCLAMPED ESA → PNN
+                ftemp1 = 1f0 / (1f0 + fexp(-esb1))
+                esa_raw = 1f0 / (1f0 + fexp(-(-5.17397f0 + 0.85131f0 * flog(tpacre))))   # UNCLAMPED ESA → PNN
                 psmall = zeros(Float32, nptids)
                 @inbounds for i in 1:s.trees.n
                     s.trees.dbh[i] < 2.999f0 || continue
@@ -2485,6 +2496,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       end)
     est.kdtold = Int32(next_year - 1)                         # estab.f:1654 KDTOLD=KDT at the end of this ESTAB call
     est.es_plot_dil = r.ph_dilate === nothing ? Float32[] : r.ph_dilate
+    est.es_plot_note = r.ph_note === nothing ? Int[] : r.ph_note
     est.es_plot_nph = Int32(length(_plant_acts))
 
     haskey(ENV, "FVSJL_AUTOES_DEBUG") &&
@@ -2575,6 +2587,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.dbh[n]         = dbh
         t.height[n]      = hht
         t.tpa[n]         = tpa_sp
+        t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1260,1350)
+        t.mort_code[n]   = bbest[bi] ? Int32(1) : Int32(2)   # IMC: best record 1 (estab.f:1206), excess 2 (:1294)
         t.plot_id[n]     = Int32(pt)
         # ABIRTH = AGEPL+GENTIM (estab.f:628/707); AUTOES natural regen ⇒ AGEPL=0, GENTIM=FINT−5. Read ONLY by
         # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL transfer distance; apply_climate_dds! +
@@ -2591,7 +2605,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         cr = clamp(0.89722f0 - 0.0000461f0 * pccf, 0.20f0, 0.90f0)
         icr0 = floor(Int32, cr * 100f0 + 0.5f0)
         t.crown_pct[n]   = icr0
-        t.crown_ratio[n] = Float32(icr0)
+        t.crown_ratio[n] = 0f0                  # PCT(ITRN)=0.0 (estab.f:1252/1341) — the BAL percentile, NOT the crown;
+                                                # REGENT(LESTB) BAL=BAJ·(100−PCT)·1E-4 (regent.f:442) reads it
         t.norm_ht[n]     = Int32(0)
         t.sort_key[n]    = Float64(n)
         # Newly-established AUTOES trees carry NO volume in their birth cycle. Zero the volume fields so the

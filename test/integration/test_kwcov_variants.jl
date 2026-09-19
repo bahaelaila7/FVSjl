@@ -134,6 +134,11 @@ const _KCV_BROKEN = Dict{String,String}(
     #   70/69) — a tree sitting right at the 18" cap that jl vs live resolve one-TPA differently — cascading to
     #   <0.4% on the 2040 TPA/BA/volume cells. Only the last 2 cycles, off-by-1 magnitude ⇒ stand-specific rounding
     #   at the cap threshold (like ne_leavesp), NOT the cs_setsite growth-response gap. Permitted ULP-class.
+    # cs_numtrip: OPEN (not a corner) — UNMASKED 2026-09-19 by the faithful VARMRT integer power (fpowi = libgcc
+    #   __powisf2; FVScs production varmrt.o verified to call __powisf2). Before that fix jl matched live only because
+    #   a SECOND 1-ULP error cancelled the double-rounded `^`; now final-row BdFt 21412 vs live 21411 (all other cells
+    #   of all rows exact; golden re-verified reproducible from tmp/oracles/FVScs_new). Trace per-tree BdFt @2040 — queued.
+    "cs_numtrip" => "OPEN — unmasked by faithful VARMRT __powisf2 (fpowi): final-row BdFt 21412 vs live 21411; a second, previously-cancelling 1-ULP error remains to be traced (queued CS dig). NOT a corner.",
     "cs_treeszcp" => "TREESZCP 18\" cap — cap-boundary knife-edge: 2030 Mort off-by-1 (70/69) at a tree on the 18\" threshold, cascading <0.4% to 2040 TPA/BA/vol; NE+LS bit-exact (semantic faithful). Stand-specific rounding, ULP-class.",
 )
 

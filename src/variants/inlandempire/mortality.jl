@@ -17,7 +17,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = ie_bratio(sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr   # morts.f:198-199 CIOBDS=(2·D·G+G·G); SD2SQ+P·(D·D+CIOBDS)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && return s
@@ -26,15 +26,15 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)                    # morts.f:207 (1−TTB)**0.1 = powf
     aved = dsum / wprob
     # MORCON: POTEN → GMULT/REIN per size class (morts.f:646-667)
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 11) && (ifor = 8)
     it = (1 <= itype <= 30) ? itype : 1
     poten1 = IE_MORT_POT[IE_MORT_IPDG[it, ifor]]
     poten2 = IE_MORT_POT[IE_MORT_IPDG2[it, ifor]]
-    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
@@ -58,7 +58,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
               0.554421f0 / dd + IE_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))                         # morts.f:282 EXP = expf
         rip = rip * (ip == 1 ? rein1 : rein2)                 # ·POTENT
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
@@ -77,9 +77,10 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
             xchk = clamp(xchk, 0f0, 1f0)
             xest = 1f0 - xchk
         end
-        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult * xest
+        # morts.f:315-322: WKI=P·(1−(1−RIPP)**FINT)·X [·0.2 | ·0.6] — X before the species factor; **FINT = powf
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * xest * smult
         gsc = (dgi / bark) * (fint / 10f0)
-        if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
+        if (dd + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1   # morts.f:326 (D+G) with the D≤0.5→0.5 clamped D
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
         end
         wki > pr && (wki = pr)

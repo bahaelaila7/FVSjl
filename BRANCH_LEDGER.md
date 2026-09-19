@@ -61,3 +61,57 @@ modules present in `src/variants/`, full `Pkg.test` 55329/25/75 passes across va
 and (b) where a repro exists, master sitting at the oracle floor on it. It does NOT re-litigate
 whether master's *variant* is itself fully correct (e.g. NC is a "COMPLETE→retracted→re-sweep"
 open campaign item) — that is a master-level sweep question, independent of these stale branches.
+
+---
+
+# 2026-09-19 — BM regime-close campaign branches
+
+Integration branch: **`bm-regime-close`** (worktree `/workspace/.wt-bm`). Every fork branch below was landed
+into it by a **proper `git merge --no-ff`** (verified mechanically: `git merge-base --is-ancestor <branch>
+bm-regime-close`). `bm-regime-close` itself goes to `master` by proper merge after the final full-suite gate.
+
+**Prune rule:** delete a branch + its worktree only when (1) it is an ancestor of `master` (i.e. after the
+`bm-regime-close → master` merge), (2) no ACTIVE fork references its untracked `.dig/` tooling (instrumented
+oracles, hex-dump scripts), and (3) the owner approves the prune. Worktree `.dig/` dirs are untracked scratch —
+copy anything worth keeping (instrumented-oracle recipes) into the repo or `/workspace` first.
+
+| Branch | Tip | Status | Worktree | After BM→master |
+|---|---|---|---|---|
+| `bm-regime-close` | (integration) | ACTIVE — integration | `/workspace/.wt-bm` | delete after master merge |
+| `bm-cyc0-vol` | a18802df | merged (R6 MRULES, LHTDRG/HTDBH dub, SF_HS) | `.wt-bm-vol` | delete |
+| `bm-thinprsc` | d9e098b2 | no commits (found the g16 `-std=legacy` oracle bug); worktree = **master-equivalent BASELINE** used for base-vs-tip comparisons | `.wt-bm-prsc` | delete (keep worktree until BM closed) |
+| `bm-plant-seedling` | 50dded40 | merged (BM strp estab, PLANT cycle-date) | `.wt-bm-plant` | delete |
+| `bm-simfire` | 0cfe411b | merged (BM FFE 7 gaps) | `.wt-bm-fire` | delete |
+| `bm-mistletoe` | de8d5143 | merged (mistletoe post-TRIPLE order, REGENT per-copy ZZRAN) | `.wt-bm-mist` | delete |
+| `bm-rootdis` | e65c2b0f | merged (RDTDEL) | `.wt-bm-rd` | delete |
+| `bm-sprout` | b934aa7b | merged (BM ESUCKR/ESSPRT) | `.wt-bm-sprout` | delete |
+| `bm-crwdth` | 414ed34f | merged (one variant CRWDTH) | `.wt-bm-crw` | delete |
+| `bm-econ` | fb3f1ac5 | merged (ECON engine) | `.wt-bm-econ` | delete |
+| `econ-leftovers` | 52e7f988 | merged (PRETEND, THINPT, CUTLIST…) | `.wt-econ2` | delete |
+| `ie-addtrees-bridge` | 12075c1d | merged (ADDTREES at ESNUTR head) | `.wt-ie-addt` | delete |
+| `estab-stoadj` | 9dbf2623 | merged (STOADJ persistence) | `.wt-stoadj` | delete |
+| `ie-estab-draworder` | 793fd960 | merged (IE birth-height draw order, KODFOR) | `.wt-ie-draw` | delete |
+| `ieem-postfire-estab` | 635a4bc6 | merged (IE/EM post-fire estab, CUTS-entry TREDEL) | `.wt-postfire` | delete |
+| `bm-cover-strclass` | b51975e3 | merged (COVER spmaps, StrClass SSTGHP) | `.wt-bm-cov` | delete |
+| `bm-cover2` | f0d6adb5 | merged (cycle-0 COVER, unified CRATET IND) | `.wt-bm-cov2` | delete |
+| `bm-base-resid` | b7bf4886 | merged (BM base residuals r1) | `.wt-bm-base` | delete — `.dig/` tooling reused by r3 |
+| `bm-base-resid2` | 14f234d4 | merged (BM base residuals r2) | `.wt-bm-base2` | delete — `.dig/` tooling reused by r3 |
+| `bm-simfire2` | b67b81ab | merged (post-fire negative ICR) | `.wt-bm-fire2` | delete |
+| `fix-wpbr-numtrip` | a9da88f5 | merged (WPBR port, EM plant crown positions) | `.wt-regfix` | delete — `.dig/wpbr` oracle reused by wpbr-tripled |
+| `treelist-ulp` | 1fb43056 | merged via `ie-ulp-atrt` (TREELIST gating, birth TPA) | `.wt-trl` | delete — `.dig/ulp` hex oracle reused by ie-ulp3 |
+| `ie-ulp-atrt` | 111d7d82 | merged (ATRTList, DSNOUT, IE ULPs cyc≤2) | `.wt-ulp` | delete — `.dig` reused by ie-ulp3 |
+| `fix-treeszcp-wpbr` | 0d56d7d5 | merged (fpowi, PCTILE, WPBR activities) | `.wt-tsz` | delete — `.dig_wpbr` reused by wpbr-tripled |
+| `bm-base-resid3` | (moving) | **ACTIVE** fork — BM none round 3 | `.wt-bm-base3` | merge, then delete |
+| `wpbr-tripled` | (moving) | **ACTIVE** fork — WPBR tripled cycles + IE WP stand | `.wt-wpbr3` | merge, then delete |
+| `list-ht2td` | (moving) | **ACTIVE** fork — list-table Ht2TDCF/Ht2TDBF | `.wt-ht2td` | merge, then delete |
+| `ie-ulp3` | (moving) | **ACTIVE** fork — IE per-record growth cyc ≥3 | `.wt-ulp3` | merge, then delete |
+| `tiered-suite` | (moving) | **ACTIVE** fork — tiered integration suite (fixtures/goldens, test_tiered, slow tier, coverage) | `.wt-tiered` | merge, then delete |
+| `ie-climate-4759041` | 29afeea2 | merged (2026-09-18; content == 583da79c) | `/workspace/.wt-regendg` | delete |
+| `ie-dfht` | 38091a40 | merged (2026-09-18 bare-plot chain) | `FVSjl/.claude/worktrees/agent-a7c278e41effcaf96` | delete |
+
+
+Removed already this session: `/workspace/.wt-bisect2` (temp bisect, culprit f26d7cb4), `/workspace/.wt-bm-bisect` (detached, clean), `/workspace/.wt-regfix-bis` (by its fork).
+
+Non-git scratch to clean with the prune: staged oracle binaries `/workspace/.{v}work/FVS{v}_g16.new` (pending the
+owner's oracle-swap decision — see `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md`), `/workspace/relink_main_nolegacy.sh`,
+`/workspace/validate_relink.sh`.

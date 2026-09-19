@@ -314,15 +314,15 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
         ie_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0), em_ihtser(Int(s.plot.habitat_code)), 1, 3,
                   slo*cos(s.plot.aspect), slo*sin(s.plot.aspect), slo, s.plot.elevation, emsqr * dil * _IE_ES_BNORML[iage])
     else
-        em_essubh_hht(sp, log(age), clamp(s.plot.basal_area, 1f0, 400f0), slo*cos(s.plot.aspect), slo*sin(s.plot.aspect),
+        em_essubh_hht(sp, flog(age), clamp(s.plot.basal_area, 1f0, 400f0), slo*cos(s.plot.aspect), slo*sin(s.plot.aspect),
                       slo, s.plot.elevation, em_ihtser(Int(s.plot.habitat_code)), 3, 1)
     end
     hadj = isempty(s.estab.ht_adj) ? 0f0 : get(s.estab.ht_adj, Int32(sp), 0f0)
     treeht = a.params[5]
     if treeht >= 0.1f0
-        hht = treeht; xh = log(hht)
+        hht = treeht; xh = flog(hht)
         while true
-            xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
+            xxh = fexp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
             (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
         end
         hht += hadj; hht < 0.05f0 && (hht = 0.05f0)
@@ -596,7 +596,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # EM subsequent/planted base height (em/essubh.f, deterministic EXP(PN)). IHTSER from the habitat
                 # code bracket search; IPHY=3 / IPREP=1 defaults (esplt2.f). BAA=overstory competition BA clamp[1,400].
                 _slo = s.plot.slope
-                em_essubh_hht(sp, log(age), clamp(s.plot.basal_area, 1f0, 400f0),
+                em_essubh_hht(sp, flog(age), clamp(s.plot.basal_area, 1f0, 400f0),
                               _slo*cos(s.plot.aspect), _slo*sin(s.plot.aspect), _slo, s.plot.elevation,
                               em_ihtser(Int(s.plot.habitat_code)), 3, 1)
             elseif s.variant isa Klamath
@@ -636,9 +636,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                       _dil_last          # no tally dilations (no-stocking branch): planted-only FIRST(2) chain
                 hht = estb_planted_height(s, a, per, Int(yr), _emsqr, _dl)
             elseif treeht >= 0.1f0                                  # PLANT specified a height
-                hht = treeht; xh = log(hht)
+                hht = treeht; xh = flog(hht)
                 while true
-                    xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
+                    xxh = fexp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
                     (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
                 end
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
@@ -697,6 +697,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.n = n
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
+                t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1440) ⇒ TreeList "ES" id
+                # IMC (TreeVal): estb/estab.f:1385-1386 — 1, but 2 for a planted tree NOT ranked best (NOTE≠1) while
+                # STOADJ>0; strp/estab.f:600 always 1. NOTE comes from the tally's NBEST pass (es_plot_note, plot-major).
+                _note = (use_ps && _nph > 0 && length(s.estab.es_plot_note) == nptids * idup * _nph && _kph <= _nph) ?
+                        s.estab.es_plot_note[((nn - 1) * idup + rep - 1) * _nph + _kph] : 1
+                t.mort_code[n]   = (_note != 1 && s.estab.stoadj > 0f0) ? Int32(2) : Int32(1)
                 t.species[n]     = Int32(sp)
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
@@ -780,6 +786,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         if perm != srcs
             permute_records!(t, lo, perm)
             @inbounds for i in lo:t.n; t.sort_key[i] = Float64(i); end
+            # FVS stamps IDTREE=IDCMP1+ICYC*10000+ITRN at the slot where it CREATES each record (estab.f:1260/1350/
+            # 1440); after re-laying jl's block into that slot order, re-stamp so the TreeList "ES" ids match.
+            icyc_id = (Int(s.control.cycle) + 1) * 10000
+            @inbounds for i in lo:t.n; t.tree_id[i] = Int32(10000000 + icyc_id + i); end
             # the created (PLANT/NATURAL keyword) records now sit wherever the interleave put them — not at
             # nstart+1:t.n (those slots may now hold the tally's naturals). Follow them so EM's PHASE-2 crown dub
             # hits the new keyword records, as before the interleave (IE's own esgent crown-dubs every new record).
@@ -860,7 +870,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     # exp(htg_cor_small) (= RHCON·exp(HCOR)) too, as NE small_tree_growth.jl:48 does. It was OMITTED
                     # here ⇒ planted seedlings over-grew (WP: CON=0.914, live rawHTGR 7.98 vs jl 8.73; live-stamped).
                     htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) *
-                           exp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
+                           fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
                 end
                 gmod = ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
@@ -923,7 +933,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     # regent.f:224 CON = exp(htg_cor_small) (= RHCON·exp(HCOR)), as LS small_tree_growth.jl:40 applies.
                     # Was omitted here (inert for JP where CON≈1, but a latent bug for CON≠1 species — cf. the NE fix).
                     htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) *
-                           exp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
+                           fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
                 end
                 gmod = ls_balmod(sp, t.dbh[i], ba_e, rmsqd_e, lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e)
                 relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0

@@ -95,10 +95,15 @@ _dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    @inbounds for i in _dense_order(s)
-        d = t.dbh[i]
-        ba += s.variant isa BlueMountains ? BA_PER_TREE * (d * (d * t.tpa[i])) : t.tpa[i] * BA_PER_TREE * d^2
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+        # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
+        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
+        @inbounds for i in _ind1_order(s)
+            d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
+        end
+        return ba
     end
+    @inbounds for i in 1:t.n; ba += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2; end
     return ba
 end
 
@@ -318,11 +323,7 @@ function stand_pct!(s::StandState; cratet_ind::Bool = false)
     if cratet_ind                                        # BM first grow cycle: CRATET's IND (see bm_cratet_ind!)
         idx = view(s.scratch.stat_idx, 1:n)
         bm_cratet_ind!(s, idx)
-        pct = t.crown_ratio; cum = 0f0
-        @inbounds for k in n:-1:1
-            ii = Int(idx[k]); cum += t.dbh[ii]^2 * t.tpa[ii]; pct[ii] = cum
-        end
-        cum > 0f0 && @inbounds for ii in 1:n; pct[ii] = pct[ii] / cum * 100f0; end
+        _pctile!(t.crown_ratio, t, idx, n)
         return s
     end
     # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
@@ -335,19 +336,33 @@ function stand_pct!(s::StandState; cratet_ind::Bool = false)
     # converging — a 2–3× first-cycle mortality error. Use `_rdpsrt!` (single .TRUE. sort) to match.
     idx = view(s.scratch.stat_idx, 1:n)
     _rdpsrt!(view(t.dbh, 1:n), idx)                     # IND: DBH descending, FVS tie-break
-    pct = t.crown_ratio
+    _pctile!(t.crown_ratio, t, idx, n)
+    return s
+end
+
+# PCTILE (pctile.f) over DENSE's WK5 (dense.f:186-187: DP=D*P; WK5=D*DP), in FVS's exact single-precision
+# order — identical in all 24 variant builds. Cumulative from the smallest (IND bottom) up; TOT = the top
+# record's cumulative; every other record is divided by PCTIN1 = TOT/100. (NOT ×100/TOT); the top record is set
+# to exactly 100. jl's former (D*D)*P and cum/TOT*100 each differed by 1 ULP on a share of records (measured vs
+# FVSsn treeszcp_cap cycle 1: 8/27 PCT, 2 EFFTR), which VARMRT's geometric kill amplifies.
+function _pctile!(pct::AbstractVector{Float32}, t, idx, n::Int)
+    n == 1 && (pct[Int(idx[1])] = 100f0; return pct)   # pctile.f: PERCNT(1)=100, IF(N.LE.1) RETURN
     cum = 0f0
-    @inbounds for k in n:-1:1                            # accumulate from smallest up
+    @inbounds for k in n:-1:1
         ii = Int(idx[k])
-        cum += t.dbh[ii]^2 * t.tpa[ii]
+        cum += t.dbh[ii] * (t.dbh[ii] * t.tpa[ii])      # WK5 = D*(D*P)
         pct[ii] = cum
     end
-    if cum > 0f0
-        @inbounds for ii in 1:n
-            pct[ii] = pct[ii] / cum * 100f0
-        end
+    i1 = Int(idx[1])
+    tot = pct[i1]
+    pct[i1] = tot / 100f0
+    tot <= 0f0 && return pct                             # pctile.f: IF(TOT.LE.0.0) RETURN
+    pctin1 = pct[i1]
+    @inbounds for k in 2:n
+        ii = Int(idx[k]); pct[ii] = pct[ii] / pctin1
     end
-    return s
+    pct[i1] = 100f0
+    return pct
 end
 
 """
@@ -371,9 +386,18 @@ function stand_ccf(s::StandState)
         return ccf
     elseif s.variant isa InlandEmpire
         # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # dense.f:168-229 accumulates it SPECIES-MAJOR in IND1 order into a per-species subtotal RELDSP(ISPC), then
+        # RELDT=RELDT+RELDSP(ISPC) — a different Float32 summation order than a flat record-order sum.
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += ie_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Ontario
         # ON CCF = ccfcal.f (LS form) → cwcalc.f open-grown crown WIDTH (IWHO=1, CR=90) via the
