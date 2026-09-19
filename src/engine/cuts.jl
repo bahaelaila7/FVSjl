@@ -872,6 +872,21 @@ end
 # iwho=1 form CCF uses). The keyword target is a cover PERCENT → equivalent crown area
 # (cuts.f:816, CCC=1): CSDI = −(43560·ln(1−CC/100)/0.785398). REMOVE = area − CSDI;
 # CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
+# IND1 (SPESRT: species groups, lineage-key order within a species — `species_sort!`) as a LOCAL vector, for cut-time
+# class sums that FVS accumulates in IND1 order (CCCLS). Built fresh so the shared `scratch.idx1` is not disturbed.
+function _ind1_order(s::StandState)::Vector{Int}
+    t = s.trees
+    ord = Int[]; sizehint!(ord, t.n)
+    @inbounds for sp in 1:MAXSP
+        start = length(ord) + 1
+        for i in 1:t.n
+            t.species[i] == sp && push!(ord, i)
+        end
+        length(ord) >= start && sort!(view(ord, start:length(ord)); by = j -> t.sort_key[j])
+    end
+    return ord
+end
+
 function _thin_cc!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
@@ -884,19 +899,19 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     csdi = cc_target <= 0f0 ? 0f0 :
            -(43560f0 * log(1f0 - cc_target / 100f0) / 0.785398f0)
 
-    # per-tree forest-grown crown width (CRWDTH array, cwidth.f)
-    p = s.plot
+    # per-tree forest-grown crown width (CRWDTH array, cwidth.f → cwcalc.f IWHO=0) — the variant CRWDTH, so western
+    # variants use their cwcalc (was the eastern crown_width for every variant ⇒ 0.5 ft ⇒ wrong THINCC cover target)
     cw = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        sp2 = s.species.code2[t.species[i]]
-        cw[i] = crown_width(s.coef, sp2, t.dbh[i], t.height[i],
-                            Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
+        cw[i] = tree_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i])
     end
 
     grps = s.control.sp_groups                         # SPGROUP table (for ispcut<0)
     wk4 = Float32[t.tpa[i] for i in 1:n]
+    # CCCLS (sdical.f:342-409): CRA = Σ CRWDTH(I)²·WK4(I) accumulated in IND1 (SPESRT species-order) sequence —
+    # Float32 summation order matters (record-order summing put CUTEFF 1 ULP off live ⇒ ±1 residual TopHt/ACC).
     area = 0f0
-    @inbounds for i in 1:n
+    @inbounds for i in _ind1_order(s)
         d = t.dbh[i]; d <= 0f0 && continue
         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
@@ -1095,9 +1110,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         elseif ithnpa == 3
             w[i] = (d / 10f0)^1.605f0
         elseif ithnpa == 4
-            sp2 = s.species.code2[t.species[i]]
-            cw = crown_width(s.coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
-                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            cw = tree_crwdth(s, Int(t.species[i]), d, t.height[i], t.crown_pct[i])   # CWDI=CRWDTH(IT), cuts.f:1228
             w[i] = cw * cw
         end
     end

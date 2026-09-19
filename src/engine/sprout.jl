@@ -792,8 +792,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   (ie || em || bm) ? ie_em_sprout_dbh(s, issp, ht) : sprout_dbh(coef, issp, ht)  # UT ht-dbh = Wykoff BX/(ln(HT-4.5)-AX)-1 (strp/esuckr.f:303), same form as TT
             # CWCALC's CR arg is the dummy CRDUM=1.0 (esuckr.f:317), NOT the record's ICR=70 (that is the
             # discarded 6th arg IICR, cwcalc.f). Passing 70 inflated sprout CrWidth by cr_coef·69 for Bechtold spp.
-            cw = crown_width(coef, sp2, dbh, ht, 1f0, 0,
-                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            cw = tree_crwdth(s, issp, dbh, ht, 1f0)    # CRWDTH(ITRN)=CW (esuckr.f:314-316); western ⇒ variant cwcalc
             # tree-record initialization (esuckr.f:258-343)
             t.mort_code[n]   = Int32(2)                # IMC = 2 (sprout regeneration)
             t.species[n]     = Int32(issp)

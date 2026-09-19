@@ -189,6 +189,7 @@ include("variants/bluemountains/species.jl")        # BM blkdat init (18 species
 include("variants/bluemountains/site_index.jl")     # BM chunk 2: forkod/habtyp(PCOML)/ecocls/sichg/htcalc/sitset
 include("variants/bluemountains/dg_coefficients.jl")# BM chunk 3: DG coefficient arrays + BM_PSIGSQ + bm_bratio
 include("variants/bluemountains/crown.jl")          # BM chunk 5 (partial): bm_tree_ccf (CCF/RELDEN, needed by DG)
+include("variants/bluemountains/crown_width.jl")    # BM CRWDTH: cwcalc.f BMMAP + R6 forest BF via _cwcalc_national (TreeList/THINCC/COVER/sprouts)
 include("variants/bluemountains/diameter_growth.jl")# BM chunk 3: bm_dgcons! + dgf!(::BlueMountains) MSS spline
 include("variants/bluemountains/height_growth.jl")  # BM chunk 4: bm_findag + height_growth!(::BlueMountains)
 include("variants/bluemountains/regent.jl")         # BM chunk 6: bm_smhtgf + small_tree_growth!(::BlueMountains)
