@@ -450,8 +450,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             ptree <= 0f0 && continue
             # a cycle-number date (<1000) resolves to the calendar year at that cycle (cycle_year_at) before the
             # DELAY offset — else `delay = 2 - 2016 = -2014` ⇒ age≈2019 ⇒ grossly over-sized "seedlings". A
-            # calendar-year date carries its own sub-cycle offset unchanged.
-            pyr    = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year))) : Int(a.year)
+            # calendar-year date carries its own sub-cycle offset unchanged. The date is FVS's 1-BASED cycle number
+            # (the `due` filter matches a.year == control.cycle+1) while cycle_year_at takes the 0-based cycle ⇒
+            # a.year−1. Passing a.year gave the NEXT cycle's start year (DELAY=FINT ⇒ AGE clamped to 1 ⇒ ~1-ft
+            # seedlings); live FVSbm_g16 gives `PLANT 2.0` output identical to the calendar `PLANT <IY(2)>`.
+            pyr    = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
             delay  = pyr - Int(yr)
             trage  = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
             age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
