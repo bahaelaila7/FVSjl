@@ -1144,7 +1144,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
         # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
         cw = _forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])
         # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
-        # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT
+        # PtIndex=ITRE (point), MistCD=IDMR (MISGET; 0 on variants without the MISTOE model), MDefect/BDefect=decoded DEFECT
         # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
         # (dbstrls.f:200-202), ActPt=IPVEC(ITRE) (point id). All sourced from jl state.
         df = Int(t.defect[i]); pid = Int(t.plot_id[i])
@@ -1157,7 +1157,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g),      # TPA, MortPA
             Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
             Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
-            0,                                                     # MistCD
+            _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
             Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
             Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
             Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
@@ -1199,7 +1199,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
                 Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
                 0.0, Int(t.crown_pct[i]), Float64(cw),     # HtG=0, PctCr, CrWidth
-                0,                                         # MistCD
+                _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,  # MistCD = MISGET(I,IDMR) (dbstrls.f:326)
                 Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
