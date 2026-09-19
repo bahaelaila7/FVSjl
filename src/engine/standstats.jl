@@ -289,11 +289,7 @@ function stand_pct!(s::StandState; cratet_ind::Bool = false)
     if cratet_ind                                        # BM first grow cycle: CRATET's IND (see bm_cratet_ind!)
         idx = view(s.scratch.stat_idx, 1:n)
         bm_cratet_ind!(s, idx)
-        pct = t.crown_ratio; cum = 0f0
-        @inbounds for k in n:-1:1
-            ii = Int(idx[k]); cum += t.dbh[ii]^2 * t.tpa[ii]; pct[ii] = cum
-        end
-        cum > 0f0 && @inbounds for ii in 1:n; pct[ii] = pct[ii] / cum * 100f0; end
+        _pctile!(t.crown_ratio, t, idx, n)
         return s
     end
     # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
@@ -306,19 +302,33 @@ function stand_pct!(s::StandState; cratet_ind::Bool = false)
     # converging — a 2–3× first-cycle mortality error. Use `_rdpsrt!` (single .TRUE. sort) to match.
     idx = view(s.scratch.stat_idx, 1:n)
     _rdpsrt!(view(t.dbh, 1:n), idx)                     # IND: DBH descending, FVS tie-break
-    pct = t.crown_ratio
+    _pctile!(t.crown_ratio, t, idx, n)
+    return s
+end
+
+# PCTILE (pctile.f) over DENSE's WK5 (dense.f:186-187: DP=D*P; WK5=D*DP), in FVS's exact single-precision
+# order — identical in all 24 variant builds. Cumulative from the smallest (IND bottom) up; TOT = the top
+# record's cumulative; every other record is divided by PCTIN1 = TOT/100. (NOT ×100/TOT); the top record is set
+# to exactly 100. jl's former (D*D)*P and cum/TOT*100 each differed by 1 ULP on a share of records (measured vs
+# FVSsn treeszcp_cap cycle 1: 8/27 PCT, 2 EFFTR), which VARMRT's geometric kill amplifies.
+function _pctile!(pct::AbstractVector{Float32}, t, idx, n::Int)
+    n == 1 && (pct[Int(idx[1])] = 100f0; return pct)   # pctile.f: PERCNT(1)=100, IF(N.LE.1) RETURN
     cum = 0f0
-    @inbounds for k in n:-1:1                            # accumulate from smallest up
+    @inbounds for k in n:-1:1
         ii = Int(idx[k])
-        cum += t.dbh[ii]^2 * t.tpa[ii]
+        cum += t.dbh[ii] * (t.dbh[ii] * t.tpa[ii])      # WK5 = D*(D*P)
         pct[ii] = cum
     end
-    if cum > 0f0
-        @inbounds for ii in 1:n
-            pct[ii] = pct[ii] / cum * 100f0
-        end
+    i1 = Int(idx[1])
+    tot = pct[i1]
+    pct[i1] = tot / 100f0
+    tot <= 0f0 && return pct                             # pctile.f: IF(TOT.LE.0.0) RETURN
+    pctin1 = pct[i1]
+    @inbounds for k in 2:n
+        ii = Int(idx[k]); pct[ii] = pct[ii] / pctin1
     end
-    return s
+    pct[i1] = 100f0
+    return pct
 end
 
 """

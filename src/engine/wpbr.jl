@@ -130,6 +130,7 @@ mutable struct WpbrRec
     girdl::Vector{Float32}     # GIRDL(10) — bole-canker girdle %
     istcan::Vector{Int32}      # ISTCAN(10) — canker status code (−1 removed,0..7)
     icred::Int32               # ICRED — crown-reduction pending (BRCGRO top-kill sets 1; BRCRED applies + clears)
+    lexmlt::Bool               # LEXMLT — >1 excisable (status-3) canker at the last BRCGRO/BRCSTA ⇒ BRCREM won't excise
 end
 
 const WPBR_MAXCAN = 10         # ILCAN array bound (BRCOM canker dimension)
@@ -137,7 +138,7 @@ const WPBR_MAXCAN = 10         # ILCAN array bound (BRCOM canker dimension)
 WpbrRec() = WpbrRec(0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 1f5, 0f0,
                     Int32(0), Int32(0), Int32(0), Int32(0),
                     zeros(Float32, WPBR_MAXCAN), zeros(Float32, WPBR_MAXCAN),
-                    zeros(Float32, WPBR_MAXCAN), zeros(Int32, WPBR_MAXCAN), Int32(0))
+                    zeros(Float32, WPBR_MAXCAN), zeros(Int32, WPBR_MAXCAN), Int32(0), false)
 
 """
     WpbrState
@@ -204,6 +205,14 @@ mutable struct WpbrState <: AbstractWpbrState
     # --- scheduled activities (OPNEW) recorded for the future engine seam ---
     # each entry = (idt, iact, prms) — NOT acted on in the inert chunk.
     activities::Vector{Tuple{Int,Int,Vector{Float32}}}
+    act_done::Vector{Bool}     # OPDONE flag per `activities` entry (brtreg.f:258)
+    # --- per-cycle activity flags (brtreg.f:119-126, reset every BRTREG; set by due PRUNE/EXCISE/RIBES) ---
+    lprgo::Bool                # LPRGO — a PRUNE activity is due this cycle
+    lexgo::Bool                # LEXGO — an EXCISE activity is due this cycle
+    lprun::Bool                # LPRUN — PRUNE field 3 = 1
+    lclen::Bool                # LCLEN — PRUNE field 4 = 1 (clean-tree pruning)
+    lredf::Bool                # LREDF — RIBES computed a rust-index reduction factor this cycle
+    redfac::Float32            # REDFAC — that factor (BRIBES)
     # --- per-cycle BRTREG engine seam (live) ---
     recs::Dict{Tuple{Int32,Int32},WpbrRec}   # persistent per-record canker state, keyed by identity
     setup_done::Bool                          # BRSETP per-tree init has run
@@ -257,6 +266,8 @@ function wpbr_defaults!(variant)
         Int32(55), Int32(56), Int32(57),        # icin, idtout, idcout
         "(I7,1X,I1,1X,F3.0,1X,F5.1,1X,F5.1,1X,F4.0,1X,F4.0)",   # icfmt
         Tuple{Int,Int,Vector{Float32}}[],       # activities
+        Bool[],                                 # act_done
+        false, false, false, false, false, 0f0, # lprgo, lexgo, lprun, lclen, lredf, redfac
         Dict{Tuple{Int32,Int32},WpbrRec}(),     # recs
         false,                                   # setup_done
         (0f0, 0f0), (0f0, 0f0), (0f0, 0f0), (0f0, 0f0),  # thprob, tretn, tbrhmr, pitca
@@ -333,6 +344,8 @@ function kw_brin!(s::StandState, rec, kr::KeywordReader)
         elseif k == "PRUNE"                       # option 1 — schedule pruning
             idt = (r.present[1] && r.values[1] > 0.0f0) ? trunc(Int, r.values[1]) : 1
             p1 = r.present[2] ? Float32(r.values[2]) : w.srate[1]
+            # brin.f:173-175 — neither "prune" (field 3) nor "clean" (field 4) requested ⇒ error, NOT scheduled
+            (trunc(Int, r.values[3]) == 0 && trunc(Int, r.values[4]) == 0) && continue
             _wpbr_sched!(w, idt, 1001, Float32[p1, Float32(r.values[3]), Float32(r.values[4]),
                                                (r.present[5] && r.values[5] != 0.0f0) ? 1.0f0 : 0.0f0])
         elseif k == "PRNSPECS"                     # option 2 — prune thresholds
@@ -369,7 +382,7 @@ function kw_brin!(s::StandState, rec, kr::KeywordReader)
                 r.present[5] && (w.ribus[2, 2] = Float32(r.values[5]))
                 r.present[6] && (w.ribus[1, 3] = Float32(r.values[6]))
                 r.present[7] && (w.ribus[2, 3] = Float32(r.values[7]))
-                # BRIBES(REDFAC) recomputes RIDEF — deferred to the dynamics chunk.
+                _wpbr_bribes!(w, 0)                  # brin.f:437 CALL BRIBES (ICYC=0 at keyword time ⇒ RIDEF)
             else
                 _wpbr_sched!(w, idt, 1005, _wpbr_prms(r, 2, 7))
             end
@@ -494,7 +507,7 @@ end
 
 # Record a scheduled management activity (OPNEW) for the future engine seam.
 @inline function _wpbr_sched!(w::WpbrState, idt::Integer, iact::Integer, prms::Vector{Float32})
-    push!(w.activities, (Int(idt), Int(iact), prms))
+    push!(w.activities, (Int(idt), Int(iact), prms)); push!(w.act_done, false)
     return nothing
 end
 
@@ -945,25 +958,126 @@ function wpbr_brpr!(s::StandState)
     return nothing
 end
 
-# BRCREM (brcrem.f) — at the top of BRTREG, drop every inactive (−1) and non-lethal (1) canker of each live
-# host and compact the canker arrays (BRCDEL). The prune/excise branches (status 2/3 cankers, ITSTAT 0 +
-# LPRGO/LCLEN) need the PRUNE/EXCISE activity flags LPRGO/LEXGO, which only BRTREG's activity section sets —
-# not ported (w.activities is collected but not applied), so they are false and draw nothing.
+# BRCREM (brcrem.f) — at the top of BRTREG, per live host in IND1 order: drop inactive (−1) and non-lethal (1)
+# cankers; if an EXCISE activity is due (LEXGO) excise each excisable (3) canker of a tree with status ≤3 unless
+# the tree carries >1 excisable canker (LEXMLT) — BRANN < SRATE(2) removes it, else the canker is left fully
+# girdled (GIRDL=1.0); if a PRUNE activity is due (LPRGO) prune each prunable (2) canker (BRANN < SRATE(1) removes
+# it) and, for a clean-pruning request (LCLEN), prune clean (status-0) trees and trees with an excisable canker.
+# A pruned tree's crown base rises to min(HT·HTPRPR, HTMAX(1)) unless pathological pruning (LPATPR). BRANN draws
+# are consumed in exactly this order (brcrem.f:79-181).
 function _wpbr_brcrem!(s::StandState, w::WpbrState)
     icndx = zeros(Int, WPBR_MAXCAN)
+    t = s.trees
     for (_, recs) in _wpbr_host_blocks(s, w), i in recs
         r = _wpbr_rec!(s, w, i)
-        r.ibrstat == 7 && continue
-        nl = Int(r.ilcan); ivac = 0
-        fill!(icndx, 0)
-        @inbounds for m in 1:nl
-            icndx[m] = m
-            ic = r.istcan[m]
-            if ic == -1 || ic == 1
-                ivac += 1; icndx[m] = -m
+        pruned = false; ivac = 0
+        hite = t.height[i]
+        nl = Int(r.ilcan); itstat = Int(r.ibrstat)
+        if itstat == 7
+            continue
+        elseif itstat == 0 && w.lprgo && w.lclen
+            pruned = true
+        else
+            fill!(icndx, 0)
+            @inbounds for m in 1:nl
+                icndx[m] = m
+                ic = Int(r.istcan[m])
+                if ic == -1 || ic == 1
+                    ivac += 1; icndx[m] = -m
+                elseif ic == 3 && w.lexgo && itstat <= 3
+                    if !r.lexmlt
+                        if wpbr_rand!(w) < w.srate[2]
+                            ivac += 1; icndx[m] = -m
+                        else
+                            r.girdl[m] = 1.0f0
+                        end
+                    end
+                    (w.lprgo && w.lclen) && (pruned = true)
+                elseif ic == 2 && w.lprgo && itstat <= 3
+                    pruned = true
+                    if wpbr_rand!(w) < w.srate[1]
+                        ivac += 1; icndx[m] = -m
+                    end
+                end
             end
         end
+        if pruned && !w.lpatpr
+            prht = w.htmax[1]
+            prhtst = _wf(_wf(hite * w.htprpr) * 30.48f0)
+            prhtst > prht && (prhtst = prht)
+            r.brhtbc < prhtst && (r.brhtbc = prhtst)
+        end
         ivac > 0 && _wpbr_brcdel!(r, ivac, icndx)
+    end
+    return nothing
+end
+
+# BRIBES (bribes.f) — rust index from ribes bush counts: per bush row (old/new) Σ over the 3 ribes species of
+# RSF·(0.499675+0.4·ATAN(RIBUS/150−3))/0.2652. With no old bushes (or at keyword time, ICYC=0) the new-row sum
+# becomes the stand rust index RIDEF; otherwise REDFAC = new/old is applied to tree and stand RI (LREDF).
+function _wpbr_bribes!(w::WpbrState, icyc::Int)
+    w.redfac = 0f0; w.lredf = false
+    ribsum = (0f0, 0f0)
+    rs = [0f0, 0f0]
+    for ib in 1:2, ityp in 1:3
+        f = _wf(_wf(w.rsf[ityp] * _wf(0.499675f0 + _wf(0.4f0 * atan(_wf(_wf(w.ribus[ib, ityp] / 150f0) - 3f0))))) / 0.2652f0)
+        rs[ib] = _wf(rs[ib] + f)
+    end
+    nold = _wf(_wf(w.ribus[1, 1] + w.ribus[1, 2]) + w.ribus[1, 3])
+    if nold == 0f0 || icyc == 0
+        w.ridef = rs[2]
+    else
+        w.redfac = _wf(rs[2] / rs[1]); w.lredf = true
+    end
+    return nothing
+end
+
+# BRTREG activity section (brtreg.f:119-259): reset the per-cycle flags, then apply every not-yet-done WPBR
+# activity (1001-1010) dated in this cycle (OPFIND: cycle numbers 1..MAXCYC are cycles, other dates calendar
+# years assigned to the cycle whose window contains them; date then scheduling order), marking each done.
+function _wpbr_activities!(s::StandState, w::WpbrState)
+    w.lprgo = false; w.lexgo = false; w.lpatpr = false; w.lprun = false; w.lclen = false; w.lredf = false
+    icyc = Int(s.control.cycle) + 1
+    due = Int[]
+    for (k, (idt, iact, _)) in enumerate(w.activities)
+        (w.act_done[k] || !(1001 <= iact <= 1010)) && continue
+        _ec_cycle_of(s, _ec_date(s, idt)) == icyc && push!(due, k)
+    end
+    sort!(due; by = k -> (_ec_date(s, w.activities[k][1]), k))
+    for k in due
+        (_, iact, pr) = w.activities[k]
+        prm(j) = j <= length(pr) ? pr[j] : 0f0
+        if iact == 1001                                   # PRUNE
+            w.srate = (prm(1), w.srate[2]); w.lprgo = true
+            trunc(Int, prm(2)) == 1 && (w.lprun = true)
+            trunc(Int, prm(3)) == 1 && (w.lclen = true)
+            trunc(Int, prm(4)) == 1 && (w.lpatpr = true)
+        elseif iact == 1002                               # PRNSPECS
+            w.htprpr = prm(1); w.htmax = (_wf(prm(2) * 30.48f0), w.htmax[2])
+            w.outdst = _wf(prm(3) * 2.54f0); w.outnld = _wf(prm(4) * 2.54f0)
+        elseif iact == 1003                               # EXCISE
+            w.srate = (w.srate[1], prm(1)); w.lexgo = true
+        elseif iact == 1004                               # EXSPECS
+            w.exdmin = _wf(prm(1) * 2.54f0); w.htmax = (w.htmax[1], _wf(prm(2) * 30.48f0))
+            w.girmax = prm(3); w.girmrt = prm(4); w.htmin = _wf(prm(5) * 2.54f0)
+        elseif iact == 1005                               # RIBES
+            w.ribus[1, 1] = prm(1); w.ribus[2, 1] = prm(2); w.ribus[1, 2] = prm(3)
+            w.ribus[2, 2] = prm(4); w.ribus[1, 3] = prm(5); w.ribus[2, 3] = prm(6)
+            _wpbr_bribes!(w, Int(s.control.cycle) + 1)
+        elseif iact == 1006                               # INACT
+            w.ratinv = (prm(1), prm(2))
+        elseif iact == 1007                               # BRTLST (report-only)
+            w.brtl = true
+        elseif iact == 1008                               # BRCLST (report-only)
+            w.brcl = true
+        elseif iact == 1009                               # STOCK: 1-species 2-stock 3-proportion 4-resistance
+            i4 = w.brspm[trunc(Int, prm(1))]; icls = trunc(Int, prm(2))
+            w.prpstk[i4, icls] = prm(3); w.resist[i4, icls] = prm(4)
+        elseif iact == 1010                               # DEVFACT
+            i4 = w.brspm[trunc(Int, prm(1))]
+            for j in 1:4; w.dfact[i4, j] = prm(j + 1); end
+        end
+        w.act_done[k] = true
     end
     return nothing
 end
@@ -1061,6 +1175,7 @@ function _wpbr_brcgro_step!(w::WpbrState, r::WpbrRec, prob::Float32, prop::Float
     brgdy = _wf(r.brgd + dgprop)
     bcl = _wf(brhyr - htbcr)
     itrunc = itrunc0; normht = normht0; killed = false; topkill = false; wk2 = 0f0
+    excnct = 0; r.lexmlt = false                                   # brcgro.f:200-201
     @inbounds for ncan in 1:nlcan
         jcstat = Int(r.istcan[ncan]); up = r.dup[ncan]; out = r.dout[ncan]; gird = r.girdl[ncan]
         if jcstat != -1
@@ -1118,6 +1233,9 @@ function _wpbr_brcgro_step!(w::WpbrState, r::WpbrRec, prob::Float32, prop::Float
                 return (wk2, killed, topkill, itrunc, normht)
             end
         end
+        if r.istcan[ncan] == 3                            # brcgro.f:544-547
+            excnct += 1; r.lexmlt = excnct > 1
+        end
     end
     return (wk2, killed, topkill, itrunc, normht)
 end
@@ -1152,6 +1270,7 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
     # brtreg.f:298-316 — BRCREM, BRSTYP, then the rust-index update: BRIBA (RIMETH=2, stand BA) or BRICAL
     # (RIMETH≥3, exposure-time curve at stand age NAGE=IAGE+IY(ICYC+1)−IY(1)). THPROB/TRETN/PITCA are the
     # previous BRPR's BRSTAT values (w.*), not recomputed here.
+    _wpbr_activities!(s, w)            # brtreg.f:119-259 — due PRUNE/EXCISE/RIBES/… (sets LPRGO/LEXGO/LREDF…)
     _wpbr_brcrem!(s, w)
     _wpbr_brstyp!(s, w)
     if w.rimeth == 2
@@ -1180,6 +1299,7 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
                 (r.ibrstat == 7 || r.ibrstat == 77) && continue
                 # RI(J) = RIDEF·RESIST(sp,stock)·RIAF (goldens: 0.05·1·1)
                 r.ri = wpbr_ri(w.ridef, w.resist[bri, Int(r.istoty)], w.riaf[bri])
+                w.lredf && (r.ri = _wf(r.ri * w.redfac))                # brtreg.f:394
                 htj = t.height[i]; htgj = t.ht_growth[i]; dbhj = t.dbh[i]; dgj = t.diam_growth[i]
                 icrj = Int(t.crown_pct[i]); itrunc0 = Int(t.trunc[i]); normht0 = Int(t.norm_ht[i])
                 hnew = _wf(htj + _wf(htgj * prop))
@@ -1226,6 +1346,7 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
             end
         end
     end
+    w.lredf && (w.ridef = _wf(w.ridef * w.redfac))                  # brtreg.f:522
     # BRCRED (brtreg.f:526, once after the year loops): crown reduction of live hosts top-killed this cycle.
     for (_, recs) in blocks, i in recs
         r = _wpbr_rec!(s, w, i)

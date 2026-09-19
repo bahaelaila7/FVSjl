@@ -182,7 +182,7 @@ function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32
             @inbounds for i in 1:n
                 tpalft = tpa[i] - killed[i]
                 if tpalft > 0f0
-                    temwk2[i] = -tpalft * ((1f0 - efftr[i])^npass - 1f0)
+                    temwk2[i] = -tpalft * (fpowi(1f0 - efftr[i], npass) - 1f0)   # varmrt.f:156 REAL**INTEGER = libgcc __powisf2
                     temsum += temwk2[i]
                 end
             end

@@ -82,4 +82,22 @@ end
     p == C_NULL ? fpow_julia(x, q) : ccall(p, Float32, (Float32, Float32), x, q)
 end
 
+"""
+    fpowi(x::Float32, m::Integer) -> Float32
+
+Fortran `REAL**INTEGER` exactly as gfortran compiles it: a call to libgcc `__powisf2` (libgcc2.c) — binary
+square-and-multiply carried out in SINGLE precision (y = x if m odd else 1; repeatedly x=x*x, y=y*x on set bits;
+1/y for m<0). Julia's `Float32^Int` instead evaluates in Float64 and rounds once, which differs by 1 ULP on a
+large share of inputs; inside a cancellation such as VARMRT's `1-(1-EFFTR)**NPASS` that ULP becomes a ~1e-5
+relative error in the kill (measured vs FVSsn, treeszcp_cap cycle 1).
+"""
+@inline function fpowi(x::Float32, m::Integer)
+    n = unsigned(abs(m)); y = isodd(n) ? x : 1f0
+    while (n >>= 1) != 0
+        x = x * x
+        isodd(n) && (y = y * x)
+    end
+    return m < 0 ? 1f0 / y : y
+end
+
 end # module FMath
