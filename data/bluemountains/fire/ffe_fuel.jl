@@ -111,19 +111,114 @@ const _BM_ISPMAP = Int[15, 8, 3, 4, 24, 16, 11, 18, 1, 13, 14, 11, 7, 8, 41, 17,
 
 # bm/cwcalc.f BMMAP crown-width equation per species → the CR species (cr_cwcalc _CR_CWMAP) that carries
 # the SAME 5-char crown-width equation, so the western Crookston/Bechtold library (cr_cwcalc) reproduces
-# BM's CRWDTH. bmt01's species (DF/GF/WL/LP/ES/MH) all map exactly. The BM-unique equations (06405 WJ,
-# 23104 PY, 04205 YC, 74705 CW, 31206 OH) have no CR carrier => nearest-genus fallback (cornered for
-# non-bmt01 stands).
-const _BM_TO_CR_CWSP = Int[15, 8, 3, 4, 6, 16, 11, 17, 1, 13, 14, 10, 7, 7, 19, 19, 13, 19]
-# Region-6 forest bias factor BF (cwcalc.f CASE(614) UMATILLA, bmt01's forest) — per-FIASP, applied ONLY on the
-# R6-Model-2 (·BF·) eqns, NOT the log-form ones (07303 WL / 01703 GF have no BF in cwcalc.f). WP(119)=1.128,
-# DF(202)=1.055, LP(108)=1.244, ES(093)=1.137, AF(019)=1.110, PP(122)=1.035; WL/GF and the rest = 1.0 (log-form /
-# not in the 614 table). Folded into cr_cwcalc's leading coef via its `bf` kwarg ⇒ FVS_TreeList CrWidth bit-exact.
-const _BM_CWBF = Float32[1.128, 1.0, 1.055, 1.0, 1.0, 1.0, 1.244, 1.137, 1.110, 1.035, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-# `forest_bf` = apply the R6 forest BF (TreeList/CutList forest-grown CRWDTH, IWHO=0). The FFE PERCOV path (fmcba,
-# fuel_model) and StrClass call with the default forest_bf=false ⇒ BF=1, matching the oracle FFE crown-biomass
-# (bmt01_fire is BF-FREE — measured: with-BF regressed 2030 BA 131→165). Only _forest_crwdth opts in.
-@inline bm_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
-                  forest_bf::Bool = false)::Float32 =
-    (1 <= sp <= 18) ? cr_cwcalc(_BM_TO_CR_CWSP[sp], d, h, cr, barea, el, hi;
-                                bf = forest_bf ? _BM_CWBF[sp] : 1f0) : 0f0
+# BM's CRWDTH. Every carrier's _CR_CWMAP equation == BMMAP (verified mechanically). AS (sp15, 74605) was mapped to
+# CR sp19 = 09305 (Engelmann spruce) — fixed to CR sp20 (74605). The BM-unique equations (06405 WJ, 23104 PY,
+# 04205 YC, 74705 CW, 31206 OH) have no CR carrier and are ported directly in `_bm_unique_cw` (entries unused).
+const _BM_TO_CR_CWSP = Int[15, 8, 3, 4, 6, 16, 11, 17, 1, 13, 14, 10, 7, 7, 20, 19, 13, 19]
+# Region-6 forest bias factor BF (cwcalc.f:477-860): keyed by the post-FORKOD KODFOR × FIASP=CWEQN(1:3), applied only
+# on the R6 ·BF· equation forms and only for 601≤KODFOR<1000. Table MECHANICALLY EXTRACTED from the BM build's
+# cwcalc.f SELECT CASE (KODFOR) block (205 entries, all R6 forests). Previously jl baked in the 614 UMATILLA row for
+# every BM stand and the FFE/BMSTAGE callers ran BF-FREE — but FVS has ONE CRWDTH array (CWIDTH→CWCALC IWHO=0,
+# BF by the stand's forest, then the [0.5,99.9] clamp cwcalc.f:2391-2392) that FMCBA/BMSTAGE/TreeList all read.
+# Measured vs FVSbm_g16 DEBUG CWIDTH on Malheur(604) 41137075010497: BF-free DF ×0.9452 (=1/1.058, the 604 DF BF),
+# 614-baked PP ×1.035; with the forest BF every tree is exact ⇒ PERCOV 51.77→53.74 (live 53.74).
+const _R6_CWBF = Dict{Tuple{Int,String},Float32}(
+    (601, "015") => 1.044f0, (601, "019") => 0.936f0, (601, "022") => 1.301f0, (601, "073") => 0.818f0,
+    (601, "081") => 0.837f0, (601, "117") => 1.048f0, (601, "122") => 0.918f0, (601, "202") => 1.055f0,
+    (601, "263") => 1.097f0, (602, "011") => 1.032f0, (602, "108") => 1.114f0, (602, "119") => 1.09f0,
+    (602, "122") => 0.946f0, (602, "264") => 1.257f0, (603, "011") => 1.032f0, (603, "019") => 0.906f0,
+    (603, "022") => 1.123f0, (603, "073") => 0.952f0, (603, "119") => 1.128f0, (603, "242") => 0.92f0,
+    (603, "263") => 1.028f0, (603, "264") => 1.077f0, (604, "019") => 1.11f0, (604, "073") => 0.818f0,
+    (604, "093") => 1.121f0, (604, "108") => 1.196f0, (604, "119") => 1.081f0, (604, "202") => 1.058f0,
+    (605, "019") => 0.886f0, (605, "022") => 1.075f0, (605, "073") => 0.907f0, (605, "093") => 0.949f0,
+    (605, "119") => 1.081f0, (605, "202") => 1.019f0, (605, "242") => 0.973f0, (606, "011") => 1.296f0,
+    (606, "015") => 1.13f0, (606, "017") => 1.086f0, (606, "019") => 1.038f0, (606, "022") => 1.301f0,
+    (606, "042") => 1.493f0, (606, "073") => 0.907f0, (606, "108") => 0.944f0, (606, "119") => 1.081f0,
+    (606, "242") => 1.115f0, (606, "263") => 1.26f0, (606, "264") => 1.106f0, (607, "019") => 1.11f0,
+    (607, "073") => 0.879f0, (607, "093") => 1.169f0, (607, "108") => 1.196f0, (607, "202") => 1.055f0,
+    (608, "073") => 0.952f0, (608, "108") => 1.114f0, (608, "119") => 1.081f0, (608, "242") => 0.905f0,
+    (608, "264") => 0.9f0, (609, "011") => 1.032f0, (609, "098") => 1.146f0, (609, "108") => 1.114f0,
+    (609, "242") => 0.941f0, (610, "019") => 0.886f0, (610, "081") => 0.903f0, (610, "093") => 0.949f0,
+    (610, "108") => 0.944f0, (610, "117") => 1.048f0, (610, "119") => 1.081f0, (610, "122") => 0.918f0,
+    (610, "264") => 0.9f0, (610, "351") => 0.81f0, (611, "081") => 0.821f0, (611, "108") => 0.944f0,
+    (611, "122") => 0.951f0, (611, "202") => 0.961f0, (611, "242") => 0.973f0, (611, "263") => 1.028f0,
+    (611, "264") => 0.9f0, (611, "351") => 0.81f0, (612, "202") => 0.977f0, (612, "242") => 0.905f0,
+    (612, "263") => 0.924f0, (614, "017") => 1.076f0, (614, "019") => 1.11f0, (614, "073") => 0.907f0,
+    (614, "093") => 1.137f0, (614, "108") => 1.244f0, (614, "117") => 1.097f0, (614, "119") => 1.128f0,
+    (614, "122") => 1.035f0, (614, "202") => 1.055f0, (614, "242") => 1.055f0, (614, "263") => 1.106f0,
+    (615, "011") => 1.032f0, (615, "015") => 1.13f0, (615, "022") => 1.043f0, (615, "042") => 1.295f0,
+    (615, "093") => 1.325f0, (615, "108") => 1.05f0, (615, "117") => 1.097f0, (615, "119") => 1.128f0,
+    (615, "122") => 1.035f0, (615, "202") => 1.055f0, (615, "242") => 1.049f0, (615, "263") => 1.106f0,
+    (616, "073") => 0.818f0, (616, "093") => 1.07f0, (616, "108") => 1.114f0, (616, "264") => 1.077f0,
+    (617, "017") => 0.972f0, (617, "019") => 0.906f0, (617, "073") => 0.879f0, (617, "093") => 0.949f0,
+    (617, "108") => 0.969f0, (617, "117") => 1.097f0, (617, "122") => 0.946f0, (617, "202") => 0.975f0,
+    (617, "242") => 0.905f0, (617, "263") => 0.962f0, (617, "264") => 0.952f0, (618, "017") => 0.972f0,
+    (618, "019") => 0.936f0, (618, "042") => 1.127f0, (618, "093") => 0.857f0, (618, "108") => 0.903f0,
+    (618, "117") => 1.097f0, (618, "119") => 1.081f0, (618, "122") => 1.07f0, (618, "263") => 1.087f0,
+    (620, "015") => 1.095f0, (620, "022") => 1.043f0, (620, "108") => 1.05f0, (620, "117") => 1.048f0,
+    (620, "119") => 1.09f0, (620, "122") => 0.951f0, (620, "202") => 1.184f0, (620, "264") => 1.077f0,
+    (621, "017") => 1.13f0, (621, "019") => 1.038f0, (621, "093") => 1.137f0, (621, "108") => 1.216f0,
+    (621, "119") => 1.206f0, (621, "122") => 1.035f0, (621, "202") => 1.055f0, (621, "242") => 0.973f0,
+    (621, "263") => 1.097f0, (708, "011") => 1.296f0, (708, "015") => 1.13f0, (708, "017") => 1.086f0,
+    (708, "019") => 1.038f0, (708, "022") => 1.301f0, (708, "042") => 1.493f0, (708, "073") => 0.907f0,
+    (708, "108") => 0.944f0, (708, "119") => 1.081f0, (708, "242") => 1.115f0, (708, "263") => 1.26f0,
+    (708, "264") => 1.106f0, (709, "017") => 0.972f0, (709, "019") => 0.936f0, (709, "042") => 1.127f0,
+    (709, "093") => 0.857f0, (709, "108") => 0.903f0, (709, "117") => 1.097f0, (709, "119") => 1.081f0,
+    (709, "122") => 1.07f0, (709, "263") => 1.087f0, (710, "019") => 0.886f0, (710, "081") => 0.903f0,
+    (710, "093") => 0.949f0, (710, "108") => 0.944f0, (710, "117") => 1.048f0, (710, "119") => 1.081f0,
+    (710, "122") => 0.918f0, (710, "264") => 0.9f0, (710, "351") => 0.81f0, (711, "019") => 0.886f0,
+    (711, "081") => 0.903f0, (711, "093") => 0.949f0, (711, "108") => 0.944f0, (711, "117") => 1.048f0,
+    (711, "119") => 1.081f0, (711, "122") => 0.918f0, (711, "264") => 0.9f0, (711, "351") => 0.81f0,
+    (712, "081") => 0.821f0, (712, "108") => 0.944f0, (712, "122") => 0.951f0, (712, "202") => 0.961f0,
+    (712, "242") => 0.973f0, (712, "263") => 1.028f0, (712, "264") => 0.9f0, (712, "351") => 0.81f0,
+    (799, "015") => 1.044f0, (799, "019") => 0.936f0, (799, "022") => 1.301f0, (799, "073") => 0.818f0,
+    (799, "081") => 0.837f0, (799, "117") => 1.048f0, (799, "122") => 0.918f0, (799, "202") => 1.055f0,
+    (799, "263") => 1.097f0, (800, "011") => 1.032f0, (800, "098") => 1.146f0, (800, "108") => 1.114f0,
+    (800, "242") => 0.941f0)
+# BM CWEQN per species (cwcalc.f BMMAP) — FIASP = eq[1:3]; BF-bearing (·BF·) forms per the equation blocks.
+const _BM_CWEQN = ("11905", "07303", "20205", "01703", "26403", "06405", "10805", "09305", "01905", "12205",
+                   "10105", "11301", "23104", "04205", "74605", "74705", "12205", "31206")
+const _BM_CWEQN_BF = Bool[1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0]
+@inline function bm_cw_bf(sp::Int, kodfor::Int)::Float32
+    (_BM_CWEQN_BF[sp] && 601 <= kodfor < 1000) || return 1f0
+    return get(_R6_CWBF, (kodfor, _BM_CWEQN[sp][1:3]), 1f0)
+end
+"""
+    bm_cwcalc(sp, d, h, cr, barea, el, hi; kodfor) -> Float32
+
+BM forest-grown crown width CRWDTH (cwidth.f → cwcalc.f IWHO=0): the BMMAP equation via its CR carrier
+(`cr_cwcalc`), × the Region-6 forest BF for the stand's post-FORKOD `kodfor`, then the cwcalc.f [0.5, 99.9] clamp.
+The single CRWDTH that FMCBA (PERCOV), BMSTAGE and FVS_TreeList all read.
+"""
+function bm_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                   kodfor::Int)::Float32
+    (1 <= sp <= 18) || return 0f0
+    bf = bm_cw_bf(sp, kodfor)
+    cw = _bm_unique_cw(sp, d, h, cr, barea, el, bf)
+    cw < 0f0 && (cw = cr_cwcalc(_BM_TO_CR_CWSP[sp], d, h, cr, barea, el, hi; bf = bf))
+    return clamp(cw, 0.5f0, 99.9f0)                        # cwcalc.f:2391-2392
+end
+
+# The five BMMAP equations with NO CR carrier (cwcalc.f CASE blocks, ported term-for-term): 06405 WJ (sp6),
+# 23104 PY (sp13), 04205 YC (sp14), 74705 CW (sp16), 31206 OH (sp18). Previously approximated by a nearest-genus
+# CR equation (cornered for bmt01 only) — wrong PERCOV/wind on juniper/woodland stands. BAREA is FVS's clamped
+# BA (cwcalc.f: IF(BAREA.LE.1.) BAREA=1.), OMIND=1 small-tree scaling via _cr_r6m2 / the power forms. Returns −1
+# for every other species (⇒ the CR carrier).
+@inline function _bm_unique_cw(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32,
+                               bf::Float32)::Float32
+    cl = cr * h * 0.01f0; ba1 = (barea <= 1f0 ? 1f0 : barea) + 1f0
+    sp == 6  && return _cr_r6m2(5.1486f0*bf, 0.73636f0, -0.46927f0, 0.39114f0, -0.05429f0, 0f0,
+                                d, h, cl, ba1, el, 0f0, 0f0, 36f0)                 # 06405 (cwcalc.f:1203)
+    sp == 14 && return _cr_r6m2(3.3756f0*bf, 0.45445f0, -0.11523f0, 0.22547f0, 0.08756f0, -0.00894f0,
+                                d, h, cl, ba1, el, 16f0, 62f0, 59f0)               # 04205 (cwcalc.f:1168)
+    sp == 16 && return _cr_r6m2(4.4327f0*bf, 0.41505f0, -0.23264f0, 0.41477f0, 0f0, 0f0,
+                                d, h, cl, ba1, el, 0f0, 0f0, 56f0)                 # 74705 (cwcalc.f:2236)
+    if sp == 13 || sp == 18                                                         # 23104 / 31206 power forms
+        a, b, cap = sp == 13 ? (6.1297f0, 0.45424f0, 30f0) : (7.5183f0, 0.4461f0, 30f0)
+        dm = d >= 1f0 ? d : 1f0
+        cw = a * fpow(dm, b)
+        d < 1f0 && (cw *= d)
+        return cw > cap ? cap : cw
+    end
+    return -1f0
+end

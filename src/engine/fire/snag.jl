@@ -25,7 +25,10 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
                            origden::Float32, denttl::Float32;
                            fallx::Float32 = coef_col(coef, :snag_fallx)[ksp],
                            alldwn::Float32 = coef_col(coef, :snag_alldwn)[ksp],
-                           variant = nothing)::Float32
+                           variant = nothing, itype::Integer = 0)::Float32
+    # R6 (BM) FMSFALL (bm/fmsfall.f, == EC/AK/OP/PN/WC): DFALLN = BASE·FALLX·DENTTL — a fraction of the CURRENT
+    # density, BASE from FMR6SDCY+FMR6FALL. No SN linear/last-5% ramp and no ALLDWN in this form.
+    variant isa BlueMountains && return bm_r6_fall_base(ksp, d, itype) * fallx * denttl
     # BASE fall rate (fmsfall.f:128/130) is VARIANT-SPECIFIC: SN/CS use −0.001679·d+0.064311; LS uses the
     # "new equation" −0.006·d+0.18 (a much faster fall); NE uses an ALGSLP table (not yet ported — NE keeps
     # the SN form here). The small-snag LINEAR-fall breakpoint also differs: SN/CS = 12" (redcedar ksp2 keeps
@@ -310,7 +313,8 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             fx = get(fs.params.snag_fallx_ovr, Int32(sp), coef_col(coef, :snag_fallx)[sp])
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
             dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
-                                                  fallx = fx, alldwn = ad, variant = s.variant))
+                                                  fallx = fx, alldwn = ad, variant = s.variant,
+                                                  itype = Int(s.plot.habitat_code)))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -573,6 +577,8 @@ function ffe_seed_input_snags!(s::StandState)
             mcuft = ie_snag_bole_cuft(s, sp, d, h)   # IE/KT Region-1 NVEL total cubic (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
+        elseif s.variant isa BlueMountains
+            mcuft = bm_snag_bole_cuft(s, sp, d, h)    # BM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa OregonCoast
             mcuft = oc_tree_cuft(sp, d, h)   # OC BLM total cubic (R8-Clark returns 0 for 'B…' vol_eq ⇒ Jenkins over-book)
         elseif s.variant isa Olympic
@@ -590,7 +596,14 @@ function ffe_seed_input_snags!(s::StandState)
             (d >= c.sp_dbh_min[sp] && prod == "01" && ht1prd < 10f0) && (mcuft = vv[7])
         end
         bolevol = mcuft * v2t[sp] / 2000f0
-        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h)
+        # fmsadd.f ITYP=3 (input snags, identical in all 24 variants): HTDEAD = MAX(HT, NORMHT·.01) and the
+        # CURRENT height HTIH = HTIS = ITRUNC·.01 for a top-killed/broken record (else HTDEAD). The fall-cone
+        # (CWD1: LOHT=0.1 → HIHT=HTIH) then drops only the standing STUB into down wood — the broken-off top was
+        # already gone at inventory. jl seeded htcur = full height ⇒ dumped the whole bole (FIA HTTOPK stubs:
+        # 41134741010497 DF HT96/HTTOPK10 ⇒ live adds 27.8% of TVOLI, jl 100% ⇒ LARGE fuel +1.7 t/ac by the fire).
+        t.norm_ht[i] > 0 && (h = max(h, t.norm_ht[i] * 0.01f0))
+        htc = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : h
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h, htcur = htc)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
         # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
