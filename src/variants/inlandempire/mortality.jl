@@ -3,23 +3,6 @@
 # MORCON; IPDG/IPDG2/POT bit-identical to KT, PMSC[1:11]==KT). Differences: IE_MORT_PMSC(23), BAMAX=IE_BAMAXA
 # (ie/sitset.f), IFOR = p.forest_idx (ie/forkod.f), bark = ie_bratio (ie/bratio.f). Mirrors mortality!(::Kootenai).
 # =============================================================================
-"""
-    _estab_immunity!(t, i, s, fint) -> Float32
-
-Establishment-model mortality immunity (estb morts.f, e.g. ie/morts.f:299-307): AUTOES "BEST" trees carry
-IESTAT = IDSDAT+20 (estab.f:1269) and are not subject to MORTS until the cycle-start year IY(ICYC) reaches it:
-`IF(IY(ICYC).GE.IESTAT) IESTAT=0; XCHECK=clamp((IESTAT−IY)/FINT,0,1); X=X·(1−XCHECK)`. Returns the X factor
-(1 ⇒ no immunity) and applies the IESTAT reset in place. Shared by the estb variants that book IESTAT (IE, EM).
-"""
-@inline function _estab_immunity!(t, i::Int, s::StandState, fint::Float32)::Float32
-    ies = Int(t.iestat[i]); ies <= 0 && return 1f0
-    iy = Int(current_cycle_year(s))
-    iy >= ies && (t.iestat[i] = Int32(0); ies = 0)
-    xcheck = Float32(ies - iy) / fint
-    xcheck > 1f0 && (xcheck = 1f0); xcheck < 0f0 && (xcheck = 0f0)
-    return 1f0 - xcheck
-end
-
 function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
@@ -84,8 +67,17 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         # ie/morts.f:316-322 species-group rate: NI rate for sp≤12,14,23; 20% for PI/JU
         # (sp15,16); 60% for LM,PY,AS,CO,MM,PB,OH (sp13,17,18,19,20,21,22). X=1 (no MORTMULT).
         smult = (sp <= 12 || sp == 14 || sp == 23) ? 1f0 : (sp == 15 || sp == 16) ? 0.2f0 : 0.6f0
-        smult *= _estab_immunity!(t, i, s, fint)             # ie/morts.f:299-307 IESTAT "BEST"-tree immunity
-        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+        # ie/morts.f:301-311 establishment "best" trees are immune for 20 yr after the disturbance date: clear IESTAT
+        # once IY(ICYC) reaches it, else X·(1−XCHECK) with XCHECK = clamp((IESTAT−IY(ICYC))/FINT, 0, 1).
+        xest = 1f0
+        if t.iestat[i] > 0
+            iyc = Int32(current_cycle_year(s))
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = Float32(t.iestat[i] - iyc) / fint
+            xchk = clamp(xchk, 0f0, 1f0)
+            xest = 1f0 - xchk
+        end
+        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult * xest
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)

@@ -834,7 +834,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
-    compute_density!(s)
+    compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
     # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
     # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
     # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species
@@ -1210,6 +1210,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dgL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    # per-copy DIRECT DBH (REGENT HK<4.5 ⇒ DBH(K)=…, DG(K)=0, regent.f:881); −1 = not set (the copy grows by dgU/dgL)
+    dbhU = do_trip ? fill(-1f0, nlive) : Float32[]
+    dbhL = do_trip ? fill(-1f0, nlive) : Float32[]
 
     # Attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79).
     # The attenuation clock is the cumulative elapsed time SINCE the inventory (FVS
@@ -1268,6 +1271,28 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 _dib = t.dbh[i] * ci_bratio(sd, _spi, t.dbh[i])
                 _dub = sqrt(_dib * _dib + fexp(wk2[i])) - _dib     # dgdriv.f:823 (OLDRN=0, SCALE=1)
                 t.dg_prev[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _ci_scap)  # dgdriv.f:828 DGBND
+            end
+        end
+    end
+
+    # BM cycle-1 WK1 = the LSTART calibration dub (bm/dgdriv.f:735-769): DGF(WK3) then, per record, HT≤4.5 ⇒ DG=0;
+    # measured DG>0 kept; else DG=SQRT(D_ib²+EXP(WK2+OLDRN)·SCALE)−D_ib (SCALE=FINT/YR, capped at D_ib, DGBND) —
+    # INCLUDING the seeded OLDRN residual. dgdriv.f:160 WK1(I)=DG(I) hands it to cycle 1; BM's only functional
+    # reader is the WRD report (rdpr.f:213 Live_Merch_CuFt = Σ TCLAS·WK1), so it goes to rd.wk1 (snapshotted just
+    # before this call, ⇒ same timing). jl left it 0 (FVS_RD_Sum 2017 Live_Merch_CuFt 0 vs live 84.42).
+    if s.variant isa BlueMountains && Int(s.control.cycle) == 0 && s.root_disease !== nothing &&
+       length(s.root_disease.wk1) >= nlive
+        _bm_scap = s.control.sp_size_cap
+        _sc = s.control.growth_fint / 10f0                          # SCALE = FINT/YR (YR=10)
+        @inbounds for i in 1:nlive
+            if t.height[i] <= 4.5f0
+                s.root_disease.wk1[i] = 0f0
+            else
+                _spi = Int(t.species[i])
+                _dib = t.dbh[i] * bm_bratio(sd, _spi, t.dbh[i])
+                _dub = sqrt(_dib * _dib + exp(wk2[i] + t.old_random[i]) * _sc) - _dib
+                _dub > _dib && (_dub = _dib)
+                s.root_disease.wk1[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _bm_scap)
             end
         end
     end
@@ -1418,8 +1443,17 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (`ie_triple_htg!`) sets it; other variants leave it false ⇒ their large-tree copies keep the
     # central HTG via copy_tree! exactly as before (gate byte-identical).
     htg_copy = do_trip ? falses(nlive) : BitVector()
+    # dbh0/bumpU/bumpL: per-copy direct DBH assignment by REGENT for sub-4.5' records (bm/regent.f:395-397
+    # `DG(K)=0; DBH(K)=D+0.001*HK`, K = the copy's future slot — TRIPLE copies neither DBH nor DG). Only BM's
+    # small_tree_growth! fills them (dbh0 = the central record's pre-REGENT DBH, 0 = untouched); all-zero
+    # leaves triple_records! copying the central DBH exactly as before.
+    dbh0  = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpU = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpL = do_trip ? zeros(Float32, nlive) : Float32[]
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
-                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy) : nothing
+                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
+                      dbhU = dbhU, dbhL = dbhL,
+                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL) : nothing
 end
 
 """
@@ -1447,8 +1481,18 @@ function triple_records!(s::StandState, stash)
         # walks after a thin, so it must match the oracle's append order exactly.
         u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
+        # REGENT's per-copy sub-4.5' DBH(K)=D+0.001*HK (BM; see stash dbh0): copies start from the central
+        # record's PRE-REGENT DBH plus their own bump, not the central's already-bumped DBH.
+        if haskey(stash, :dbh0) && stash.dbh0[i] > 0f0
+            t.dbh[u] = stash.dbh0[i] + stash.bumpU[i]; t.dbh[l] = stash.dbh0[i] + stash.bumpL[i]
+        end
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+        # a small-tree copy's OWN pre-UPDATE DBH (REGENT: direct set with DG=0, or the pre-growth DBH with its increment)
+        if hasproperty(stash, :dbhU)
+            stash.dbhU[i] >= 0f0 && (t.dbh[u] = stash.dbhU[i])
+            stash.dbhL[i] >= 0f0 && (t.dbh[l] = stash.dbhL[i])
+        end
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0
         # small-tree records carry per-record height increments (REGENT random effect); large NI-section

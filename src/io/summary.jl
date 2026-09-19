@@ -246,6 +246,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
     cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
+    prev_rem_scuft = 0                          # last growing cycle's sawlog-cubic removal (IOSUM(22) carry)
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
@@ -264,7 +265,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if s.cover !== nothing && s.cover.active
             compute_density!(s)
             c == 0 && (cover_year0 = Int(r.year))
-            cover_fint = cycle_period_at(s.control, c == 0 ? 0 : c - 1)
+            # FINT as CVCBMS sees it (DDS=(2·D·DG+DG²)/FINT): at the inventory row (fvs.f:301, before any
+            # GRINCR) FINT is still the GROWTH/DG_MEASURE measurement period (initre.f:831, dbsstandin.f:701;
+            # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
+            # (grincr.f:65-66).
+            cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
             cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
         end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
@@ -342,6 +347,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
             # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
+            econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
@@ -414,6 +420,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
+        # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
+        # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing
+        # cycle's sawlog removal (live econ_strtecon 2005: SCuFt removed 23 = the 2000 thin's).
+        last ? (r.rem_scuft = prev_rem_scuft) : (prev_rem_scuft = r.rem_scuft)
         write_sum_row(io, r; metric = s.variant isa BritishColumbia || s.variant isa Ontario)
         collect_rows === nothing || push!(collect_rows, r)
     end

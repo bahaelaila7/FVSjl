@@ -38,7 +38,7 @@ using FVSjl
           regt = 1.0f0, bwaf = 0.0f0, bwb4 = 0.0f0, prob1 = 0.5527f0, dupnpt = 50.0f0, occ = occ, over = over)
     ihtser = 4   # MYHTS(IHAB=10) — habitat series for ESADVH/ESSUBH
 
-    emit = Vector{NTuple{6,Float64}}()   # (sp, pt, ht, wk4, tpa, best) — 6th = BEST flag (IESTAT)
+    emit = Vector{NTuple{5,Float64}}()
     tally = FVSjl.ie_autoes_tally(; kw..., is_ie = true, pasmax = 15f0, emit = emit,
                                   ihtser = ihtser, gentim = 5f0)
 

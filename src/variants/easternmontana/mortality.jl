@@ -171,8 +171,15 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
             ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
             # em/morts.f:717-723 species-group NI rate: LL(5) full, RM(6) 20%, others 60%.
             smult = sp == 5 ? 1f0 : (sp == 6 ? 0.2f0 : 0.6f0)
-            smult *= _estab_immunity!(t, i, s, fint)          # em/morts.f:705-713 IESTAT "BEST"-tree immunity (RIPP path only)
-            wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+            # em/morts.f:705-711 establishment "best"-tree immunity (ADDED-species branch only; the original-species
+            # branch above has none): clear IESTAT at IY(ICYC)≥IESTAT, else X·(1−clamp((IESTAT−IY)/FINT,0,1)).
+            xest = 1f0
+            if t.iestat[i] > 0
+                iyc = Int32(current_cycle_year(s))
+                iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+                xest = 1f0 - clamp(Float32(t.iestat[i] - iyc) / fint, 0f0, 1f0)
+            end
+            wki = pr * (1f0 - (1f0 - ripp)^fint) * smult * xest
             wki > pr && (wki = pr)
             killed[i] = wki
         end

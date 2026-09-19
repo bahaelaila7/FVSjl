@@ -79,7 +79,7 @@ function _bm_dub_ages!(s::StandState)
         sp = Int(t.species[i]); h = t.height[i]
         h <= 0f0 && continue
         sitage = bm_findag(sp, h, p.sp_site_index[sp])[1]      # SITEAR(ISPC) site index (findag.f:93)
-        sitage > 0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)   # cratet.f:660 IF(SITAGE>0)ABIRTH=SITAGE
+        sitage > 0f0 && (t.birth_age[i] = sitage)   # cratet.f FINDAG: IF(SITAGE>0)ABIRTH=SITAGE — LBIRTH (age_known) stays as input (intree.f)   # cratet.f:660 IF(SITAGE>0)ABIRTH=SITAGE
     end
     return s
 end

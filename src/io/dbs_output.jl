@@ -199,6 +199,77 @@ function write_dbs_econharvest!(dbpath::AbstractString, caseid::AbstractString, 
     return dbpath
 end
 
+"""
+    write_dbs_econharvest_rows!(dbpath, caseid, rows, coef) -> dbpath
+
+Faithful `FVS_EconHarvestValue` (dbsecharv.f DBSECHARV_insert) from `econ_calc!`'s per-cycle `hv_rows`
+(eccalc.f:745-855 — every species × revenue unit × ascending diameter class with revVolume>0). Species
+strings are JSP / PLNJSP / FIAJSP (trimmed); each dimension/volume/value binds only when ≥ 0, else NULL.
+"""
+function write_dbs_econharvest_rows!(dbpath::AbstractString, caseid::AbstractString, rows::AbstractVector, coef)
+    db = SQLite.DB(dbpath)
+    g0r(x) = x >= 0f0 ? Float64(x) : missing
+    g0i(x) = x >= 0 ? x : missing
+    try
+        _ensure_table!(db, _FVS_ECONHARVEST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconHarvestValue VALUES (" * join(fill("?", 17), ",") * ")")
+        # dbsecharv.f: the INSERT is prepared ONCE per harvest cycle (DBSECHARV_open) and a value < 0 is simply
+        # NOT re-bound — SQLite keeps the previous row's binding, so within a cycle an unbound column repeats the
+        # prior row's value (live FVS behavior). `sticky` holds those bindings; a new cycle starts all-NULL.
+        sticky = Any[missing for _ in 1:12]; cyc = nothing
+        for r in rows
+            r.year == cyc || (fill!(sticky, missing); cyc = r.year)
+            vals = (g0r(r.min_dia), g0r(r.max_dia), g0r(r.min_dbh), g0r(r.max_dbh),
+                    g0i(r.tpa_cut), g0i(r.tpa_value), g0i(r.tons), g0i(r.ft3_vol), g0i(r.ft3_value),
+                    g0i(r.bf_vol), g0i(r.bf_value), g0i(r.total))
+            for k in 1:12; vals[k] === missing || (sticky[k] = vals[k]); end
+            sp = r.sp
+            DBInterface.execute(stmt, (caseid, r.year, String(strip(coef.code_alpha[sp])),
+                String(strip(coef.code_plants[sp])), String(strip(coef.code_fia[sp])), sticky...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_EconSummary schema (dbsecsum.f:44-66) — one row per ECCALC investment period.
+const _FVS_ECONSUMMARY_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_EconSummary(
+  CaseID text not null, StandID text not null, Year int null, Period int null, Pretend_Harvest text null,
+  Undiscounted_Cost real null, Undiscounted_Revenue real null, Discounted_Cost real null,
+  Discounted_Revenue real null, PNV real null, IRR real null, BC_Ratio real null, RRR real null, SEV real null,
+  Value_of_Forest real null, Value_of_Trees real null, Mrch_Cubic_Volume int null,
+  Mrch_BoardFoot_Volume int null, Discount_Rate real null, Given_SEV real null)"""
+
+"""
+    write_dbs_econsummary!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the ECON summary (`FVS_EconSummary`, dbsecsum.f DBSECSUM) — one row per ECCALC period from
+`econ_calc!`. Binding follows dbsecsum.f: the four cost/revenue accumulators bind only when ≥ 0 (else NULL);
+IRR / BC_Ratio / RRR / SEV / Value_of_Forest / Value_of_Trees / Given_SEV bind only when calculated
+(`nothing` ⇒ NULL); REALs are widened to REAL*8 exactly as FVS does (`costUndisc8 = costUndisc`).
+"""
+function write_dbs_econsummary!(dbpath::AbstractString, caseid::AbstractString, standid::AbstractString,
+                                rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    nn(x) = x === nothing ? missing : Float64(x)
+    ge0(x) = x >= 0f0 ? Float64(x) : missing
+    try
+        _ensure_table!(db, _FVS_ECONSUMMARY_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconSummary VALUES (" * join(fill("?", 20), ",") * ")")
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, r.year, r.period, r.pretend,
+                ge0(r.cost_undisc), ge0(r.rev_undisc), ge0(r.cost_disc), ge0(r.rev_disc), Float64(r.pnv),
+                nn(r.irr), nn(r.bc), nn(r.rrr), nn(r.sev), nn(r.forest), nn(r.reprod),
+                r.ft3, r.bf, Float64(r.rate), nn(r.given)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Fuels schema (dbsfuels.f:64-86) — FFE surface + standing fuel loadings (tons/ac biomass).
 const _FVS_FUELS_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Fuels(
@@ -1088,8 +1159,8 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # FVS_TreeList/FVS_CutList CrWidth = CRWDTH(I) (base/cwidth.f → cwcalc.f). The WESTERN variants with a ported,
 # per-tree-bit-exact cwcalc kernel compute the forest-grown value here (+ the cwcalc.f [0.5,99.9] final clamp); the
 # eastern open-grown crown_width() handles the rest (0.5 default for unknown species). Shared by both the live-tree
-# snapshot and the cut-record builder so the two tables stay consistent. (BM/SO/CA/NC excluded — their kernels are not
-# per-tree exact; see the recipe. The kernels bake in one forest's Region-6 BF ⇒ bit-exact on the reference forest.)
+# snapshot and the cut-record builder so the two tables stay consistent, and by `tree_crwdth` (THINCC/COVER/sprouts).
+# BM is the faithful BMMAP + per-forest R6 BF port (bm_cwcalc, shared with FFE); the SO/CA kernels still bake in one forest's R6 BF.
 function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
     p = s.plot
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
@@ -1102,6 +1173,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
     s.variant isa CentralCalifornia &&
         return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+    # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
@@ -1125,6 +1197,70 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     return clamp(wcw(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi), 0.5f0, 99.9f0)
 end
 
+
+"""
+    _treelist_row(s, i, tpa, mortpa) -> Vector{Any}
+
+One FVS_TreeList / FVS_CutList record (dbstrls.f / dbscuts.f bind the same per-tree columns) for tree record
+`i`: [TreeId, TreeIndex, SpeciesFVS, SpeciesPLANTS, SpeciesFIA, TreeVal, SSCD, PtIndex, TPA, MortPA, DBH, DG, Ht,
+HtG, PctCr, CrWidth, MistCD, BAPctile, PtBAL, TCuFt, MCuFt, SCuFt, BdFt, MDefect, BDefect, TruncHt, EstHt, ActPt,
+Ht2TDCF, Ht2TDBF, TreeAge]. `tpa`/`mortpa` are the per-acre values the caller binds (TreeList: PROB/GROSPC and the
+mortality expansion; CutList: WK3/GROSPC and DP=0).
+"""
+function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
+    t = s.trees; c = s.coef; pbal = s.density.point_bal
+    iscr = s.variant isa CentralRockies
+    fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
+    sp = Int(t.species[i])
+    # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). Western: the forest-grown
+    # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
+    cw = _forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])
+    # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
+    # PtIndex=ITRE (point), MistCD=IDMR (MISGET; 0 on variants without the MISTOE model), MDefect/BDefect=decoded DEFECT
+    # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
+    # (dbstrls.f:200-202), ActPt=IPVEC(ITRE) (point id). All sourced from jl state.
+    df = Int(t.defect[i]); pid = Int(t.plot_id[i])
+    mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
+    # EstHt = (REAL(NORMHT)+5)/100 in REAL (Float32) arithmetic, else HT (dbstrls.f:199-203 / dbscuts.f)
+    estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
+    actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
+    return Any[string(Int(t.tree_id[i])), Int(i), strip(c.code_alpha[sp]),
+        strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
+        Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
+        tpa, mortpa,                                          # TPA, MortPA
+        Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
+        Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
+        _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
+        # PtBAL: IPTBAL = NINT(PTBALT(I)) (dbstrls.f:189, dbscuts.f) — an INTEGER column value
+        Float64(t.crown_ratio[i]), round(Int, i <= length(pbal) ? pbal[i] : 0f0, RoundNearestTiesAway),
+        Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
+        Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
+        estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
+        # TreeAge: ABIRTH only when the age was INPUT (LBIRTH, intree.f:190-195 / dbstreesin.f AGE), else 0
+        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.age_known[i] ? Float64(t.birth_age[i]) : 0.0]
+end
+
+# Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).
+_has_forest_crwdth(v) = v isa WestSierra || v isa Klamath || v isa CentralCalifornia || v isa BlueMountains ||
+    v isa CentralRockies || v isa OregonCoast || v isa Olympic || v isa EasternMontana || v isa InlandEmpire ||
+    v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah || v isa SoutheastAlaska ||
+    v isa BritishColumbia || v isa WestCascades || v isa PacificNorthwest || v isa EastCascades ||
+    v isa SouthCentralOregon
+
+"""
+    tree_crwdth(s, sp, d, h, crp) -> Float32
+
+CRWDTH (base/cwidth.f → cwcalc.f, IWHO=0) for the engine consumers that read the FVS CRWDTH array — THINCC and the
+THINPT canopy-cover metric (cuts.f:1228), COVER CVCW (cvcw.f:80) and new ESUCKR sprouts (esuckr.f:314-316). Western
+variants: the forest-grown `_forest_crwdth` (same value as FVS_TreeList CrWidth). Eastern variants keep the
+`crown_width(…, iwho=0)` forest-grown path they already use.
+"""
+function tree_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
+    _has_forest_crwdth(s.variant) && return _forest_crwdth(s, sp, d, h, crp)
+    p = s.plot
+    return crown_width(s.coef, s.species.code2[sp], d, h, Float32(crp), 0, p.latitude, p.longitude, p.elevation)
+end
+
 function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle::Int = -1)
     t = s.trees; c = s.coef; pbal = s.density.point_bal
     g = s.plot.gross_space                      # TPA is per-acre = t.tpa/g (Fortran PROB/GROSPC)
@@ -1139,30 +1275,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
     @inbounds for i in 1:t.n
-        sp = Int(t.species[i])
-        # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). Western: the forest-grown
-        # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
-        cw = _forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])
-        # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
-        # PtIndex=ITRE (point), MistCD=IDMR (MISGET; 0 on variants without the MISTOE model), MDefect/BDefect=decoded DEFECT
-        # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
-        # (dbstrls.f:200-202), ActPt=IPVEC(ITRE) (point id). All sourced from jl state.
-        df = Int(t.defect[i]); pid = Int(t.plot_id[i])
-        mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
-        estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
-        actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
-        push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
-            strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
-            Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
-            Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g),      # TPA, MortPA
-            Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
-            Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
-            _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
-            Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
-            Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
-            Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
-            estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
-            Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+        push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g)))
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
     # trees (HISTORY 6-9) at the bottom of the FVS_TreeList — TPA=0, the mortality expansion in MortPA
@@ -1191,7 +1304,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             cw = _forest_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])  # cwcalc.f forest-grown + [0.5,99.9] clamp
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
-            estht = t.norm_ht[i] > 0 ? (Float64(t.norm_ht[i]) + 5) / 100 : Float64(t.height[i])
+            estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
@@ -1204,7 +1317,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,
-                Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), Float64(t.birth_age[i])])
+                Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.age_known[i] ? Float64(t.birth_age[i]) : 0.0])
         end
     end
     return (Int(year), Int(prdlen), rows)
@@ -1258,58 +1371,54 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     return dbpath
 end
 
-# FVS_CutList schema (dbscuts.f) — the per-cycle list of REMOVED records (same per-tree columns as
-# FVS_TreeList, but TPA = removed trees/acre). The not-yet-computed columns are nullable.
+# FVS_CutList schema (dbscuts.f): the per-cycle list of REMOVED records — the FVS_TreeList per-tree columns
+# (incl. the SpeciesFVS/SpeciesPLANTS/SpeciesFIA triple), TPA = removed trees/acre (WK3/GROSPC), MortPA = 0.
 const _FVS_CUTLIST_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_CutList(
   CaseID text not null, StandID text not null, Year int, PrdLen int, TreeId text,
-  TreeIndex int, Species text, TreeVal int, SSCD int, PtIndex int, TPA real, MortPA real,
+  TreeIndex int, SpeciesFVS text, SpeciesPLANTS text, SpeciesFIA text,
+  TreeVal int, SSCD int, PtIndex int, TPA real, MortPA real,
   DBH real, DG real, Ht real, HtG real, PctCr int, CrWidth real, MistCD int, BAPctile real,
-  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, MDefect int, BDefect int,
-  TruncHt int, EstHt real, ActPt int, Ht2TDCF real, Ht2TDBF real, TreeAge real);
+  PtBAL real, TCuFt real, MCuFt real, SCuFt real, BdFt real, MDefect int, BDefect int, TruncHt int,
+  EstHt real, ActPt int, Ht2TDCF real, Ht2TDBF real, TreeAge real);
 """
 
-# Capture one removed record `i` for FVS_CutList (per-acre removed TPA = prem/GROSPC). The fillable
-# per-tree attributes; the rest (TreeVal/SSCD/PtIndex/MortPA/MistCD/MDefect/BDefect/EstHt/ActPt) are
-# nullable — exactly as FVS_TreeList. (FVSjl field `crown_ratio` is the BA percentile PCT; `crown_pct`
-# is the crown ratio ICR — the confusing names are documented in the TreeList writer.)
-function _cut_record(s::StandState, i::Integer, prem::Float32)
-    t = s.trees; c = s.coef; g = s.plot.gross_space; pbal = s.density.point_bal
-    sp = Int(t.species[i])
-    return (treeid = string(Int(t.tree_id[i])), index = Int(i),
-            species = String(strip(c.code_alpha[sp])), tpa = Float64(prem / g),
-            dbh = Float64(t.dbh[i]), dg = Float64(t.diam_growth[i]), ht = Float64(t.height[i]),
-            htg = Float64(t.ht_growth[i]), pctcr = Int(t.crown_pct[i]),
-            # CrWidth via the shared forest-grown dispatch (was t.crown_width[i], which is 0 for most variants);
-            # TruncHt via dbstrls.f (ITRUNC+5)/100 feet (was the raw hundredths ITRUNC = 100× too large).
-            crwidth = Float64(_forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])),
-            bapctile = Float64(t.crown_ratio[i]),
-            ptbal = Float64(i <= length(pbal) ? pbal[i] : 0f0), tcuft = Float64(t.cuft_vol[i]),
-            mcuft = Float64(t.merch_cuft_vol[i]), scuft = Float64(t.saw_cuft_vol[i]),
-            bdft = Float64(t.bdft_vol[i]), truncht = div(Int(t.trunc[i]) + 5, 100),
-            ht2tdcf = Float64(t.merch_top_cf[i]), ht2tdbf = Float64(t.merch_top_bf[i]),
-            treeage = Float64(t.birth_age[i]))
+"""
+    cutlist_rows(s, removed) -> Vector{Vector{Any}}
+
+DBSCUTS (dbscuts.f): one row per record with WK3(I)>0 — `removed[i]` is the record's total removed TPA over the
+cycle's cut methods (PROB at CUTS entry − WK4) — in species order (DO ISPC=1,MAXSP; I3=ISCT(ISPC,1..2); I=IND1(I3)
+= species-major, then ascending record), with TPA = WK3/GROSPC and MortPA = DP = 0. Built after DO 1700 and
+before TREDEL, so TreeIndex / PtBAL / BAPctile / volumes are the pre-compaction, pre-thin per-tree values.
+"""
+function cutlist_rows(s::StandState, removed::AbstractVector{Float32})
+    t = s.trees; g = s.plot.gross_space
+    order = sort(collect(1:min(t.n, length(removed))); by = i -> (Int(t.species[i]), i))
+    rows = Vector{Any}[]
+    for i in order
+        removed[i] > 0f0 || continue
+        push!(rows, _treelist_row(s, i, Float64(removed[i] / g), 0.0))
+    end
+    return rows
 end
 
 """
     write_dbs_cutlist!(dbpath, caseid, standid, cycles)
 
-Write the per-cycle removed-record snapshots to FVS_CutList. `cycles` is `[(year, prdlen, recs), …]`
-where `recs` are `_cut_record` NamedTuples captured by `_log_cut!` during the cycle's thin.
+Write the per-cycle removed-record rows (`cutlist_rows`) to FVS_CutList. `cycles` is `[(year, prdlen, rows), …]`.
 """
 function write_dbs_cutlist!(dbpath::AbstractString, caseid::AbstractString,
                             standid::AbstractString, cycles)
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_CUTLIST_CREATE)
-        ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 33), ",") * ")"
+        ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 35), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        for (year, prdlen, recs) in cycles, r in recs
-            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen),
-                r.treeid, r.index, r.species, missing, missing, missing, r.tpa, missing,
-                r.dbh, r.dg, r.ht, r.htg, r.pctcr, r.crwidth, missing, r.bapctile,
-                r.ptbal, r.tcuft, r.mcuft, r.scuft, r.bdft, missing, missing,
-                r.truncht, missing, missing, r.ht2tdcf, r.ht2tdbf, r.treeage))
+        # dbscuts.f builds the INSERT with a LIST-DIRECTED WRITE (WRITE(SQLStmtStr,*)), so every REAL reaches SQLite
+        # as gfortran's 9-significant-digit text (0.100000001, 10.4069967) — bind that decimal, not the widened REAL.
+        ld(v) = v isa AbstractFloat ? parse(Float64, @sprintf("%.9g", Float32(v))) : v
+        for (year, prdlen, rows) in cycles, r in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(ld, r)...))
         end
     finally
         SQLite.close(db)

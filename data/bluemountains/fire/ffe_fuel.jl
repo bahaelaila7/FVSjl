@@ -1,6 +1,6 @@
 # BM FFE surface-fuel loading (bm/fmcba.f FULIVE/FULIVI/FUINIE/FUINII), crown-biomass species map
-# (bm/fmcrow.f ISPMAP), and a crown-width remap (bm/cwcalc.f BMMAP → the CR species carrying the same
-# crown-width equation, so the western cr_cwcalc library serves BM). Reuses _cr_algslp2.
+# (bm/fmcrow.f ISPMAP), and BM's single CRWDTH `bm_cwcalc` (bm/cwcalc.f BMMAP + Region-6 forest BF, evaluated by
+# the national cwcalc library). Reuses _cr_algslp2.
 #
 # Live/dead loading mirrors CI: FLIVE(I)=ALGSLP(PERCOV,[10,60],[FULIVI,FULIVE]); STFUEL(ISZ,2)=
 # ALGSLP(PERCOV,[10,60],[FUINII,FUINIE]) (bm/fmcba.f:319-382). MAXSP=18; covtyp>18 clamps to DF(3).
@@ -109,19 +109,12 @@ end
 const _BM_ISPMAP = Int[15, 8, 3, 4, 24, 16, 11, 18, 1, 13, 14, 11, 7, 8, 41, 17, 13, 41]
 @inline bm_uses_fmcrowe(spiw::Integer) = spiw == 15 || spiw == 16 || spiw == 18
 
-# bm/cwcalc.f BMMAP crown-width equation per species → the CR species (cr_cwcalc _CR_CWMAP) that carries
-# the SAME 5-char crown-width equation, so the western Crookston/Bechtold library (cr_cwcalc) reproduces
-# BM's CRWDTH. Every carrier's _CR_CWMAP equation == BMMAP (verified mechanically). AS (sp15, 74605) was mapped to
-# CR sp19 = 09305 (Engelmann spruce) — fixed to CR sp20 (74605). The BM-unique equations (06405 WJ, 23104 PY,
-# 04205 YC, 74705 CW, 31206 OH) have no CR carrier and are ported directly in `_bm_unique_cw` (entries unused).
-const _BM_TO_CR_CWSP = Int[15, 8, 3, 4, 6, 16, 11, 17, 1, 13, 14, 10, 7, 7, 20, 19, 13, 19]
-# Region-6 forest bias factor BF (cwcalc.f:477-860): keyed by the post-FORKOD KODFOR × FIASP=CWEQN(1:3), applied only
-# on the R6 ·BF· equation forms and only for 601≤KODFOR<1000. Table MECHANICALLY EXTRACTED from the BM build's
-# cwcalc.f SELECT CASE (KODFOR) block (205 entries, all R6 forests). Previously jl baked in the 614 UMATILLA row for
-# every BM stand and the FFE/BMSTAGE callers ran BF-FREE — but FVS has ONE CRWDTH array (CWIDTH→CWCALC IWHO=0,
-# BF by the stand's forest, then the [0.5,99.9] clamp cwcalc.f:2391-2392) that FMCBA/BMSTAGE/TreeList all read.
-# Measured vs FVSbm_g16 DEBUG CWIDTH on Malheur(604) 41137075010497: BF-free DF ×0.9452 (=1/1.058, the 604 DF BF),
-# 614-baked PP ×1.035; with the forest BF every tree is exact ⇒ PERCOV 51.77→53.74 (live 53.74).
+# BM crown width CRWDTH — the ONE implementation (FVS has one CRWDTH array: CWIDTH→CWCALC IWHO=0, read by FMCBA
+# PERCOV, BMSTAGE, FVS_TreeList/CutList, THINCC/CCCLS, COVER CVCW, SSTAGE/StrClass and new ESUCKR sprouts).
+# Equation = BMMAP (cwcalc.f:102-106) evaluated by the shared national cwcalc library `_cwcalc_national`, which
+# carries every BM form (incl. the BM-unique 06405 WJ / 23104 PY / 04205 YC / 74705 CW / 31206 OH and 11905 /
+# 26403) and the cwcalc.f CASE('20205') quirk that its D<1 branch is `6.0227*1.0*…` (no BF — measured on live BM
+# DF seedlings). BF = the Region-6 forest bias factor below, scaling the leading coefficient of the '…05' forms.
 const _R6_CWBF = Dict{Tuple{Int,String},Float32}(
     (601, "015") => 1.044f0, (601, "019") => 0.936f0, (601, "022") => 1.301f0, (601, "073") => 0.818f0,
     (601, "081") => 0.837f0, (601, "117") => 1.048f0, (601, "122") => 0.918f0, (601, "202") => 1.055f0,
@@ -186,39 +179,12 @@ end
 """
     bm_cwcalc(sp, d, h, cr, barea, el, hi; kodfor) -> Float32
 
-BM forest-grown crown width CRWDTH (cwidth.f → cwcalc.f IWHO=0): the BMMAP equation via its CR carrier
-(`cr_cwcalc`), × the Region-6 forest BF for the stand's post-FORKOD `kodfor`, then the cwcalc.f [0.5, 99.9] clamp.
-The single CRWDTH that FMCBA (PERCOV), BMSTAGE and FVS_TreeList all read.
+BM forest-grown crown width CRWDTH (cwidth.f → cwcalc.f IWHO=0): the BMMAP equation × the Region-6 forest BF for
+the stand's post-FORKOD `kodfor`, then the cwcalc.f [0.5, 99.9] clamp (cwcalc.f:2391-2392, inside
+`_cwcalc_national`). `cr` = crown-ratio percent as FVS passes it (ICR; the CRDUM=1 dummy for new sprouts).
 """
 function bm_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
                    kodfor::Int)::Float32
     (1 <= sp <= 18) || return 0f0
-    bf = bm_cw_bf(sp, kodfor)
-    cw = _bm_unique_cw(sp, d, h, cr, barea, el, bf)
-    cw < 0f0 && (cw = cr_cwcalc(_BM_TO_CR_CWSP[sp], d, h, cr, barea, el, hi; bf = bf))
-    return clamp(cw, 0.5f0, 99.9f0)                        # cwcalc.f:2391-2392
-end
-
-# The five BMMAP equations with NO CR carrier (cwcalc.f CASE blocks, ported term-for-term): 06405 WJ (sp6),
-# 23104 PY (sp13), 04205 YC (sp14), 74705 CW (sp16), 31206 OH (sp18). Previously approximated by a nearest-genus
-# CR equation (cornered for bmt01 only) — wrong PERCOV/wind on juniper/woodland stands. BAREA is FVS's clamped
-# BA (cwcalc.f: IF(BAREA.LE.1.) BAREA=1.), OMIND=1 small-tree scaling via _cr_r6m2 / the power forms. Returns −1
-# for every other species (⇒ the CR carrier).
-@inline function _bm_unique_cw(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32,
-                               bf::Float32)::Float32
-    cl = cr * h * 0.01f0; ba1 = (barea <= 1f0 ? 1f0 : barea) + 1f0
-    sp == 6  && return _cr_r6m2(5.1486f0*bf, 0.73636f0, -0.46927f0, 0.39114f0, -0.05429f0, 0f0,
-                                d, h, cl, ba1, el, 0f0, 0f0, 36f0)                 # 06405 (cwcalc.f:1203)
-    sp == 14 && return _cr_r6m2(3.3756f0*bf, 0.45445f0, -0.11523f0, 0.22547f0, 0.08756f0, -0.00894f0,
-                                d, h, cl, ba1, el, 16f0, 62f0, 59f0)               # 04205 (cwcalc.f:1168)
-    sp == 16 && return _cr_r6m2(4.4327f0*bf, 0.41505f0, -0.23264f0, 0.41477f0, 0f0, 0f0,
-                                d, h, cl, ba1, el, 0f0, 0f0, 56f0)                 # 74705 (cwcalc.f:2236)
-    if sp == 13 || sp == 18                                                         # 23104 / 31206 power forms
-        a, b, cap = sp == 13 ? (6.1297f0, 0.45424f0, 30f0) : (7.5183f0, 0.4461f0, 30f0)
-        dm = d >= 1f0 ? d : 1f0
-        cw = a * fpow(dm, b)
-        d < 1f0 && (cw *= d)
-        return cw > cap ? cap : cw
-    end
-    return -1f0
+    return _cwcalc_national(_BM_CWEQN[sp], d, h, cr, barea, el, hi; bf = bm_cw_bf(sp, kodfor))
 end

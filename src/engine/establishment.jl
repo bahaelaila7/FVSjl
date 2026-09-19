@@ -294,6 +294,48 @@ Create scheduled PLANT/NATURAL regen for the current cycle (ESNUTR/ESTAB). Runs 
 the end of `grow_cycle!` (GRADD order). Idempotent per year. Returns whether any
 tree was created. No-op unless an ESTAB packet is active.
 """
+# estb_planted_height — IE/EM (estb/estab.f) DO 322 height of ONE PLANT/NATURAL keyword tree (estab.f:1010-1041):
+# ESSUBH base height from the plot's EMSQR and DILATE=FIRST(2,sp), then a user height TREEHT≥0.1 replaces it with a
+# lognormal BACHLO(ln TREEHT, 0.5) redrawn until within [0.5,2]·TREEHT (:1026-1034, :estab draws from the CURRENT
+# s.rng.es0 — the caller positions it at the plot's post-ESAVE state), +HTADJ, floor 0.05 (else +HTADJ, floor XMIN),
+# cap HHTMAX. Shared by the AUTOES tally (NBEST ranks the planted trees at these heights, :1090-1144) and by
+# establish! (which books them), so both see identical values.
+function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32, dil::Float32)::Float32
+    sp = round(Int, a.params[1])
+    pyr = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
+    delay = pyr - yr
+    gentim = max(per - 5, 0)
+    trage = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
+    age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
+    slo = s.plot.slope
+    hht = if s.variant isa InlandEmpire
+        iage = trunc(Int, (Float32(per) - Float32(delay) - Float32(gentim)) + 0.5f0)
+        iage < 1 && (iage = 1); iage > 20 && (iage = 20)
+        ie_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0), em_ihtser(Int(s.plot.habitat_code)), 1, 3,
+                  slo*cos(s.plot.aspect), slo*sin(s.plot.aspect), slo, s.plot.elevation, emsqr * dil * _IE_ES_BNORML[iage])
+    else
+        em_essubh_hht(sp, log(age), clamp(s.plot.basal_area, 1f0, 400f0), slo*cos(s.plot.aspect), slo*sin(s.plot.aspect),
+                      slo, s.plot.elevation, em_ihtser(Int(s.plot.habitat_code)), 3, 1)
+    end
+    hadj = isempty(s.estab.ht_adj) ? 0f0 : get(s.estab.ht_adj, Int32(sp), 0f0)
+    treeht = a.params[5]
+    if treeht >= 0.1f0
+        hht = treeht; xh = log(hht)
+        while true
+            xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
+            (0.5f0 * hht <= xxh <= 2f0 * hht) && (hht = xxh; break)
+        end
+        hht += hadj; hht < 0.05f0 && (hht = 0.05f0)
+    else
+        hht += hadj
+        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : _EM_ES_XMIN[sp]
+        hht < xmn && (hht = xmn)
+    end
+    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
+    hht > hmx && (hht = hmx)
+    return hht
+end
+
 function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
@@ -417,15 +459,30 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # of the height draws, so jl MUST consume them or every replicate's BACHLO height is off — which
     # (D10) shifts the sp3 seedling sizes, hence the cycle each crosses 3" DBH into the large-tree DGF,
     # which desyncs the sp13 DGSCOR serial-correlation stream and spreads the sawtimber tail.
-    s.estab.ntally += Int32(1)
-    if s.estab.ntally == Int32(1)
-        s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0)   # fresh ESDRAW (NTALLY==1)
-    end
-    esd = s.estab.es_seed
-    (esd % 2f0 == 0f0) && (esd += 1f0)                               # ESRNSD odd-force (esrann.f:56)
-    s.rng.es0 = Float64(esd)
-    for _ in 1:(nptids * idup)                                       # WK6 site-prep fill (estab.f:202-205)
-        esrann!(s.rng)
+    # IE/EM (estb/estab.f): the PLANT/NATURAL trees are booked INSIDE the tally's per-plot loop (DO 322, estab.f:975),
+    # each plot NCOUNT drawing its planted heights from the post-ESAVE state of its OWN body (:967) before the
+    # ESRNSD(ESAVE) reseed (:1075). ie_autoes_establish! (same ESNUTR seam, just before) computed those states from
+    # the tally's seed chain; use them verbatim and leave ESS0 at the post-tally ESAVE it set. No ESTAB call this
+    # cycle (no states) ⇒ the replicate chain below.
+    es_ps = s.estab.es_plot_state
+    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana) &&
+             s.estab.es_plot_year == yr && length(es_ps) == nptids * idup
+    es0_post_tally = s.rng.es0
+    pl_plot = Int32[]                  # plot NCOUNT of each record this pass creates (use_ps mode)
+    # The tally already ran ESTAB's preamble (NTALLY bookkeeping, ESDRAW, WK6 fill) for this same ESTAB call; the
+    # keyword trees are part of that call, not a second one ⇒ skip it (an extra NTALLY increment would e.g. turn a
+    # LONE tally's NTALLY=0 into 1 and fire a spurious 20-yr continuation next cycle).
+    if !use_ps
+        s.estab.ntally += Int32(1)
+        if s.estab.ntally == Int32(1)
+            s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0)   # fresh ESDRAW (NTALLY==1)
+        end
+        esd = s.estab.es_seed
+        (esd % 2f0 == 0f0) && (esd += 1f0)                               # ESRNSD odd-force (esrann.f:56)
+        s.rng.es0 = Float64(esd)
+        for _ in 1:(nptids * idup)                                       # WK6 site-prep fill (estab.f:202-205)
+            esrann!(s.rng)
+        end
     end
     # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
     # → NPTIDS·idup records total. For a BARE stand every point is identical (BAAA=0,
@@ -444,10 +501,16 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         _emd1 = esrann!(s.rng); _emd2 = esrann!(s.rng)
         _emsqr = (_emd1 < 0.5f0 ? -1f0 : 1f0) * _emd2          # estab.f:646-650 (consumed here whether or not used)
         esdraw = floor(esrann!(s.rng) * 100000f0 + 0.5f0)
+        if use_ps                                              # plot NCOUNT = (nn-1)·IDUP + rep (estab.f NCOUNT order)
+            ncount = (nn - 1) * idup + rep
+            s.rng.es0 = es_ps[ncount]; _emsqr = s.estab.es_plot_emsqr[ncount]
+        end
+        _kph = 0                                               # PLANT index within this plot (DO 322 order)
         for a in due
             sp = round(Int, a.params[1]); (1 <= sp <= MAXSP) || continue
             ptree = a.params[2] * (a.params[3] / 100f0) / dupnpt
             ptree <= 0f0 && continue
+            _kph += 1
             # a cycle-number date (<1000) resolves to the calendar year at that cycle (cycle_year_at) before the
             # DELAY offset — else `delay = 2 - 2016 = -2014` ⇒ age≈2019 ⇒ grossly over-sized "seedlings". A
             # calendar-year date carries its own sub-cycle offset unchanged. The date is FVS's 1-BASED cycle number
@@ -464,6 +527,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # H = NC-128 site-curve height at CARAGE, then HHT = (H/CARAGE)·min(5, TIME−DELAY) (avg juvenile rate
             # × available time). The `age` above is FVS's REGENT-start AGE (essubh.f:93), used by growth, not the
             # planted height. SN keeps the Curtis-Arney htcalc_height(age).
+            _dil_last = get(_ie_first2, sp, 0.1f0)                 # FIRST(2,sp) this tree reads (IE branch advances it)
             hht = if s.variant isa Northeast
                 carage = Float32(_NE_ESSUBH_REFAGE[sp])
                 (ne_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
@@ -564,7 +628,14 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # HTADJ (esin.f opt 15 → esnutr.f 442): per-species height adjustment added to HHT BEFORE the
             # XMIN/0.05 floor and HHTMAX clamp (estab.f:932/1033/1036). Default 0 (empty dict) ⇒ inert.
             hadj = isempty(s.estab.ht_adj) ? 0f0 : get(s.estab.ht_adj, Int32(sp), 0f0)
-            if treeht >= 0.1f0                                      # PLANT specified a height
+            _nph = Int(s.estab.es_plot_nph)
+            if use_ps                                               # IE/EM: the tally's exact DO 322 height
+                _ncnt = (nn - 1) * idup + rep
+                _dl = (_nph > 0 && length(s.estab.es_plot_dil) == nptids * idup * _nph && _kph <= _nph) ?
+                      s.estab.es_plot_dil[(_ncnt - 1) * _nph + _kph] :
+                      _dil_last          # no tally dilations (no-stocking branch): planted-only FIRST(2) chain
+                hht = estb_planted_height(s, a, per, Int(yr), _emsqr, _dl)
+            elseif treeht >= 0.1f0                                  # PLANT specified a height
                 hht = treeht; xh = log(hht)
                 while true
                     xxh = exp(bachlo(s.rng, xh, 0.5f0; stream = :estab))
@@ -624,12 +695,26 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             for _ in 1:ibrkup
                 n = t.n + 1; n + Int(t.ndead) > length(t.dbh) && break   # leave room for the dead block (t.n+1…t.n+ndead); else the volume loop `1:(t.n+ndead)` overruns the MAXTRE arrays (intermittent SIGSEGV on dense ESTAB stands with inventory dead records)
                 t.n = n
+                use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
+                t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
                 t.species[n]     = Int32(sp)
                 t.dbh[n]         = dbh
                 t.height[n]      = hht
                 t.tpa[n]         = ptree / brk
-                t.htimlt[n]      = 1.0f0     # PLANT/NATURAL: full birth-cycle HTG (TRAGE≥GENTIM ⇒ WK4≈1; guards slot reuse). #193
-                t.iestat[n]      = Int32(0)  # estab.f:1438 IESTAT=0 (PLANT/NATURAL trees get no establishment immunity)
+                # WK4 = HTIMLT (estb/estab.f:1436). IE/EM (estb): DO 322 calls ESSUBH (TIME=FINT) BEFORE the HTIMLT
+                # block, and ie|em/essubh.f MODIFIES its arguments: DELAY → NINT, floored at −3, capped at TIME
+                # (:49-53), and TRAGE → TIME−DELAY (:61). Then estab.f:1055-1063 GENTIM = FINT−DELAY<5 ? 0 :
+                # FINT−DELAY−5, HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) — so a standard PLANT gets 5/5.0001 =
+                # 0.99998 (MEASURED live FVSie esgent WK4), NOT 1.0: <1 sends a sub-breast-height seedling down
+                # esgent.f:60-62 (DBH=0.1+0.001·HT, DG=0) instead of REGENT's 0.1+DIAM·0.01+0.001·HK.
+                # Other variants keep the full birth-cycle HTG (1.0; guards slot reuse). #193
+                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                    _pd = Float32(clamp(delay, -3, per))
+                    _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
+                    min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
+                else
+                    1.0f0
+                end
                 # ABIRTH = AGEPL + GENTIM (estab.f:628/707) — the REGENT-start `age` already computed above IS
                 # FVS's tree age (essubh.f:93). jl left birth_age=0 ⇒ established trees ran ~AGEPL+GENTIM (=7 for a
                 # default PLANT) years too YOUNG ⇒ htgf's even-aged site curve (steeper when young) over-predicted
@@ -674,6 +759,26 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             end
         end
         es = esdraw; (es % 2f0 == 0f0) && (es += 1f0); s.rng.es0 = Float64(es)  # ESRNSD(true,esdraw)
+    end
+    use_ps && (s.rng.es0 = es0_post_tally)             # ESS0 = the tally's post-ESAVE reseed (estab.f:1075, last plot)
+    # FVS books all of a plot's records inside the per-plot loop — best (estab.f:1255) → excess (:1344) → PLANT/
+    # NATURAL (:1436) — before the next plot. jl's AUTOES tally booked its naturals (all plots) just before this
+    # pass; interleave so plot k's planted records follow plot k's naturals. Storage order drives the REGENT(LESTB)
+    # crown-dub draw order (regent.f:301, I=ITRNIN..ITRN) and the SPESRT species-major IND1 used for every later
+    # per-record draw, so the block must match the oracle's layout, not just its contents.
+    aplot = s.estab.es_aut_plot
+    if use_ps && !isempty(pl_plot) && !isempty(aplot) && Int(s.estab.es_aut_first) + length(aplot) - 1 == nstart &&
+       all(>(0), aplot)
+        lo = Int(s.estab.es_aut_first)
+        srcs = vcat(collect(lo:nstart), collect((nstart + 1):t.n))
+        tags = vcat(aplot, pl_plot)
+        cat_ = vcat(zeros(Int, length(aplot)), ones(Int, length(pl_plot)))   # 0 = natural, 1 = planted
+        order = sortperm(collect(1:length(srcs)); by = k -> (tags[k], cat_[k], k))
+        perm = srcs[order]
+        if perm != srcs
+            permute_records!(t, lo, perm)
+            @inbounds for i in lo:t.n; t.sort_key[i] = Float64(i); end
+        end
     end
     # PHASE 2 — ESGENT → REGENT(lestb): assign each new tree its open-grown crown in
     # SPESRT (species-then-record) order (regent.f:107-116). cr = 0.89722 −
@@ -846,9 +951,165 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         compute_density!(s)
     end
     push!(s.estab.years_done, yr)
-    # estab.f:1654 KDTOLD=KDT closes every ESTAB call, including a PLANT/NATURAL-only one (MODE=1) — the next
-    # AUTOES continuation's height TIME (estab.f:792) is measured from it. estb variants (IE/EM) only.
-    (created && (s.variant isa InlandEmpire || s.variant isa EasternMontana)) &&
-        (s.estab.es_kdtold = Int32(cycle_year_at(s.control, Int(s.control.cycle) + 1) - 1))
     return created
+end
+
+# =============================================================================
+# ESTAB site-prep activity bookkeeping (BURNPREP 491 / MECHPREP 493) — the IACT(,4) status that ECON's
+# MECHCST/BURNCST reads (eccalc.f OPSTUS/OPGET3). Pure status bookkeeping: it never changes establishment.
+# =============================================================================
+
+"Resolved date of a scheduled activity (a date in 1..MAXCYC is a cycle number ⇒ IY(date), OPEXPN)."
+_prep_date(s::StandState, a) = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
+
+"""
+    esetpr_mark!(s, idsdat, kdt)
+
+ESETPR (esetpr.f) status effects: for BURNPREP then MECHPREP, walk the PENDING activities (OPGET2: IACT(,4)=0)
+dated in [IDSDAT, KDT] in date order (IOPSRT; ties = input order); the LAST one found is marked done in its own
+year (OPDON2(…,IDT,…,I)), every earlier one is deleted (OPDON2(…,−1,…)). The "no-parameter BURNPREP ⇒ METH=3,
+RETURN before MECHPREP" branch is inert: ESPRIN always stores the %-of-plots parameter.
+"""
+function esetpr_mark!(s::StandState, idsdat::Integer, kdt::Integer)
+    st = s.estab.prep_status
+    for code in (Int32(491), Int32(493))
+        pend = Tuple{Int,Int}[]
+        for (i, a) in enumerate(s.control.schedule)
+            a.icflag == code || continue
+            haskey(st, i) && continue
+            d = _prep_date(s, a)
+            (idsdat <= d <= kdt) && push!(pend, (d, i))
+        end
+        isempty(pend) && continue
+        sort!(pend)
+        for (k, (d, i)) in enumerate(pend)
+            st[i] = k == length(pend) ? Int32(d) : Int32(-1)
+        end
+    end
+    return
+end
+
+"""
+    estab_prep_cancel_cycle!(s)
+
+estab.f `IF(NTALLY.GT.1) CALL OPFIND(2,MYACTS(3),NTODO) … OPDEL1`: a continuation / ingrowth tally deletes the
+pending BURNPREP/MECHPREP activities due THIS cycle.
+"""
+function estab_prep_cancel_cycle!(s::StandState)
+    y1 = Int(current_cycle_year(s)); y2 = Int(cycle_year_at(s.control, Int(s.control.cycle) + 1))
+    st = s.estab.prep_status
+    for (i, a) in enumerate(s.control.schedule)
+        (a.icflag == Int32(491) || a.icflag == Int32(493)) || continue
+        haskey(st, i) && continue
+        d = _prep_date(s, a)
+        (y1 <= d < y2) && (st[i] = Int32(-1))
+    end
+    return
+end
+
+"""
+    estab_prep_tally!(s, ntally, idsdat, kdt)
+
+The site-prep effect of one ESTAB call (estab.f): NTALLY>1 (continuation, or ESTB/AK ingrowth 99) cancels this
+cycle's preps; NTALLY=1 runs ESETPR over [IDSDAT, KDT]. Idempotent per cycle (ESNUTR runs once per cycle in FVS).
+"""
+function estab_prep_tally!(s::StandState, ntally::Integer, idsdat::Integer, kdt::Integer)
+    yr = Int32(current_cycle_year(s))
+    yr in s.estab.prep_years_done && return
+    push!(s.estab.prep_years_done, yr)
+    if ntally > 1
+        estab_prep_cancel_cycle!(s)
+    elseif ntally == 1
+        esetpr_mark!(s, idsdat, kdt)
+    end
+    return
+end
+
+"""
+    estab_prep_esnutr!(s)
+
+ESNUTR's ESTAB-call decision (strp/ls esnutr.f:145-290) for the variants whose establishment is not jl's IE/EM
+AUTOES tally — replicated ONLY to drive the site-prep status (ESETPR / NTALLY>1 cancel). Per cycle, KDT=IY(ICYC+1)−1:
+  1. a TALLYONE(428) — else TALLYTWO(429) — due this cycle (the last one, OPGET(NTODO)): NTALLY=IACTK−427,
+     IDSDAT=PRMS(1), LONE=.TRUE.; >20 yr stale ⇒ canceled (no ESTAB); a TALLYTWO whose TALLYONE was not done after
+     IDSDAT becomes NTALLY=1 (OPSTUS(428,IDSDAT,KDT,0,…));
+  2. else a TALLY(427) due this cycle: the latest disturbance date PRMS(1) ⇒ IDSDAT, NTALLY=1 (stale ⇒ canceled);
+  3. else the 20-yr continuation: NTALLY>0 ∧ KDT−IDSDAT≤19 ⇒ NTALLY+1;
+  4. else a PLANT/NATURAL due this cycle: NTALLY=1 (STRP/LS) or 99 (ESTB CI/KT, AK), IDSDAT=IY(ICYC+1)−20.
+Then ESTAB (site-prep effect) and `IF (LONE) NTALLY=0`; the chosen tally is OPDONE'd at KDT, the other tallies due
+this cycle are deleted (esnutr.f:300-310). IDSDAT −9999 ⇒ IY(1)−20 (esnutr.f:100).
+"""
+function estab_prep_esnutr!(s::StandState)
+    sched = s.control.schedule
+    any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), sched) || return
+    est = s.estab
+    yr = Int32(current_cycle_year(s))
+    yr in est.prep_years_done && return
+    icyc = Int(s.control.cycle) + 1
+    y2 = Int(cycle_year_at(s.control, icyc)); kdt = y2 - 1
+    est.prep_idsdat == Int32(-99999) && (est.prep_idsdat = est.idsdat)
+    est.prep_idsdat == Int32(-9999) && (est.prep_idsdat = Int32(Int(cycle_year_at(s.control, 0)) - 20))
+    ydate(d) = (1 <= d < 1000) ? Int(cycle_year_at(s.control, d - 1)) : d
+    due(i, a) = !haskey(est.tally_status, i) && _ec_cycle_of(s, _prep_date(s, a)) == icyc
+    tallies(code) = [i for (i, a) in enumerate(sched) if a.icflag == code && due(i, a)]
+    ntally = 0; lone = false; chosen = 0
+    t1 = tallies(Int32(428)); isempty(t1) && (t1 = tallies(Int32(429)))
+    if !isempty(t1)
+        chosen = t1[end]; a = sched[chosen]
+        ntally = Int(a.icflag) - 427
+        est.prep_idsdat = Int32(ydate(round(Int, a.params[1]))); lone = true
+        if kdt + 1 - Int(est.prep_idsdat) > 20
+            ntally = 0; chosen = 0
+        elseif ntally == 2
+            done1 = [(Int(sched[i].year), st) for (i, st) in est.tally_status
+                     if sched[i].icflag == Int32(428) && Int(est.prep_idsdat) <= _prep_date(s, sched[i]) <= kdt]
+            ist = isempty(done1) ? 0 : last(sort(done1))[2]
+            (isempty(done1) || ist <= est.prep_idsdat) && (ntally = 1)
+        end
+    else
+        t0 = tallies(Int32(427))
+        if !isempty(t0)
+            best = -1
+            for i in t0
+                d = round(Int, sched[i].params[1])
+                d > best && (best = d; chosen = i)
+            end
+            est.prep_idsdat = Int32(ydate(best)); ntally = 1
+            kdt + 1 - Int(est.prep_idsdat) > 20 && (ntally = 0; chosen = 0)
+        elseif est.prep_ntally > 0 && kdt - Int(est.prep_idsdat) <= 19
+            ntally = Int(est.prep_ntally) + 1
+        else
+            y1 = Int(current_cycle_year(s))
+            npnats = count(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+                                ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), sched)
+            if npnats > 0
+                estb_like = s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa SoutheastAlaska
+                ntally = estb_like ? 99 : 1
+                est.prep_idsdat = Int32(y2 - 20)
+            end
+        end
+    end
+    if ntally > 0
+        est.prep_ntally = Int32(ntally)
+        estab_prep_tally!(s, ntally, Int(est.prep_idsdat), kdt)
+        lone && (est.prep_ntally = Int32(0))
+    else
+        push!(est.prep_years_done, yr)
+    end
+    # esnutr.f:300-310: the executed tally is done at KDT; every other tally due this cycle is deleted
+    for code in (Int32(427), Int32(428), Int32(429)), i in tallies(code)
+        est.tally_status[i] = i == chosen ? Int32(kdt) : Int32(-1)
+    end
+    return
+end
+
+"IE/EM with the AUTOES tally switched off: the PLANT/NATURAL catch-all ESTAB call is NTALLY=99 (estb esnutr.f:355)."
+function estab_prep_npnats_estb!(s::StandState)
+    any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), s.control.schedule) || return
+    icyc = Int(s.control.cycle) + 1
+    y1 = Int(current_cycle_year(s)); y2 = Int(cycle_year_at(s.control, Int(s.control.cycle) + 1))
+    any(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
+             ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), s.control.schedule) || return
+    estab_prep_tally!(s, 99, y2 - 20, y2 - 1)
+    return
 end

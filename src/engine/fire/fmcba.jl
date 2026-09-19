@@ -68,7 +68,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # CR forest-grown crown width is cr_cwcalc (cwcalc.f IWHO=0 — the same CRWDTH FMCBA/FMSSTAGE use), NOT the
     # generic crown_width, which returns the 0.5 default for every CR species ⇒ near-zero crown area ⇒ PERCOV≈0.
     _cr_fm = s.variant isa CentralRockies
-    _bm_fm = s.variant isa BlueMountains        # BM CRWDTH via bm_cwcalc (BMMAP->cr_cwcalc western library)
+    _bm_fm = s.variant isa BlueMountains        # BM CRWDTH via bm_cwcalc (cwcalc.f BMMAP + R6 BF, national library)
     _nc_fm = s.variant isa Klamath              # NC CRWDTH via nc_cwcalc (NCMAP western Bechtold/Crookston library)
     _ws_fm = s.variant isa WestSierra           # WS CRWDTH via ws_cwcalc (WSMAP; R5 forest 511 ⇒ BF=1, same forms as NC)
     _ca_fm = s.variant isa CentralCalifornia    # CA CRWDTH via ca_cwcalc (CAMAP Crookston R6; forest 610 IFOR>5)
