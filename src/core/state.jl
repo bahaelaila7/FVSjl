@@ -605,6 +605,18 @@ mutable struct Calibration
     cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
     cal_wci::Vector{Float32}         # WC — calibration weight to input
     cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
+    # BM cratet.f:195 DENSE (whose AVH the LSTART CROWN dub at :610 reads) runs BEFORE the missing-height dub
+    # (DO 130 :363 / DO 145 :464), so it sees HT exactly as read (missing = 0). Snapshot of t.height[1:n+ndead]
+    # taken by dub_missing_heights! just before it dubs (BM only; empty otherwise).
+    cratet_ht_in::Vector{Float32}
+    # BM RELDEN left by that same cratet.f:195 DENSE (LBKDEN ⇒ dense.f:258-261 RELDEN=RELDM1 = the BACKDATED,
+    # dead-inclusive first-pass CCF), read by the REGENT(.FALSE.,1) small-tree HCOR calibration at cratet.f:667.
+    cratet_relden::Float32
+    # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
+    # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
+    # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
+    # Valid only before any record moves (cycle-0 setup). Empty when unset.
+    input_seq::Vector{Int32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -616,7 +628,10 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
-    zeros(Float32,MAXSP))                                            # cal_cortem (CalibStats ScaleFactor)
+    zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
+    Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
+    0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -809,13 +824,18 @@ mutable struct Establishment
     es_plot_nph::Int32
     kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
     es_plot_note::Vector{Int}       # NBEST NOTE of each PLANT/NATURAL tree (plot-major like es_plot_dil) → IMC (estab.f:1385-1386)
+    esb_shift_ptip::Matrix{Float32}  # ESB − ESB1(NNID, IPREP) per inventory point × site prep (npt×3). estab.f:510-545
+                                # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
+                                # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
+                                # fresh AND continuation tallies. Empty ⇒ callers fall back to esb_shift_pt / scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
-                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[])
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
+                                Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState
     enabled::Bool
@@ -1009,6 +1029,11 @@ mutable struct FireState
                                        # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
     snagbin::SnagBinScratch            # preallocated FMSADD snag-binning work buffers (book_mortality_snags!) —
                                        # keeps the fire mortality path allocation-free (bit-exact; see SnagBinScratch)
+    fmicr::Vector{Int32}               # FMICR per record for the burn in progress: seeded from ICR at the fire
+                                       # (fmmain.f:111), shortened by scorch in FMEFF (fmeff.f:513); consumed by FMKILL
+    crown_bypass::Vector{Int32}        # FMKILL ICR=-FMICR (fmkill.f:92-94): per record, the fire-set crown % (0 = none)
+                                       # that the next CROWN call must keep instead of recomputing (crown.f "ICR(I) WAS
+                                       # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1017,7 +1042,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch())
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
