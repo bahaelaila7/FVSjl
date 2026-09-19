@@ -30,8 +30,8 @@ function bm_smhtgf(sp::Int, si::Float32, h::Float32, dtime::Float32)::Float32
         return ((2.0f0 + 0.420f0 * si) / (28.5f0 - 0.05f0 * si)) * dtime
     elseif sp == 4
         return ((4.2435f0 + 0.1510f0 * si) / (19.0184f0 - 0.0570f0 * si)) * dtime
-    elseif sp == 5
-        return ((0.965758f0 + 0.082969f0 * si) / (55.249612f0 - 1.288852f0 * si)) * dtime
+    elseif sp == 5                                        # MH — metric curve ×3.280833 m→ft (bm/smhtgf.f CASE(5))
+        return ((0.965758f0 + 0.082969f0 * si) / (55.249612f0 - 1.288852f0 * si)) * dtime * 3.280833f0
     elseif sp == 6
         s = clamp(si, 5.5f0, 75.0f0)
         return (s / 5.0f0) * (s * 1.5f0 - h) / (s * 1.5f0)
