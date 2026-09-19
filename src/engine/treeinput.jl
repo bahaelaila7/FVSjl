@@ -128,6 +128,8 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         i = t.n + 1
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, Int32(pj); metric=metric)
+        # intree.f:621-623 (label 100): a live record's IMC = IMC1 clamped to 1..3 (blank/0 ⇒ 1).
+        imc = t.mort_code[i]; t.mort_code[i] = imc > 3 ? Int32(3) : imc <= 0 ? Int32(1) : imc
         t.n = i
         push!(live_seq, seqc)
     end
@@ -139,6 +141,8 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         i = t.n + t.ndead + 1
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, pj; metric=metric)
+        # intree.f:561-562: an input dead record gets IMC 7 (history 6,7 recent) or 9 (8,9 older).
+        t.mort_code[i] = (rec.history == 8 || rec.history == 9) ? Int32(9) : Int32(7)
         t.ndead += 1
         push!(dead_seq, sq)
     end
@@ -236,9 +240,9 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32; metric:
 
     # birth-age flag (intree.f:190)
     if rec.birth_age <= 0f0
-        t.birth_age[i] = 0f0; t.age_known[i] = false
+        t.birth_age[i] = 0f0; t.age_known[i] = false; t.lbirth[i] = false
     else
-        t.birth_age[i] = rec.birth_age; t.age_known[i] = true
+        t.birth_age[i] = rec.birth_age; t.age_known[i] = true; t.lbirth[i] = true
     end
     t.plot_id[i] = pj
     return t

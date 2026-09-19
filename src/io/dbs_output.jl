@@ -1198,6 +1198,11 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
 end
 
 
+# dbstrls.f / dbscuts.f / dbsatrtls.f TreeId: IDTREE > IDCMP2 (20000000, COMPRESS) ⇒ "CM"+6 digits of IDTREE−IDCMP2;
+# IDTREE > IDCMP1 (10000000, ESTAB/sprout) ⇒ "ES"+6 digits of IDTREE−IDCMP1; else the integer, left-justified.
+_fvs_tree_id(id::Integer) = id > 20000000 ? "CM" * lpad(id - 20000000, 6, '0') :
+                            id > 10000000 ? "ES" * lpad(id - 10000000, 6, '0') : string(Int(id))
+
 """
     _treelist_row(s, i, tpa, mortpa) -> Vector{Any}
 
@@ -1212,9 +1217,8 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
     iscr = s.variant isa CentralRockies
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
     sp = Int(t.species[i])
-    # Eastern variants: the OPEN-GROWN crown width (crown_width iwho=1, CR=90). Western: the forest-grown
-    # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
-    cw = _forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])
+    cw = tree_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])   # CW = CRWDTH(I) (dbstrls.f/dbscuts.f): forest-grown
+    # cwidth.f IWHO=0 for EVERY variant (live FVSsn CutList/TreeList CrWidth == forest-grown; the open-grown value was wrong)
     # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
     # PtIndex=ITRE (point), MistCD=IDMR (MISGET; 0 on variants without the MISTOE model), MDefect/BDefect=decoded DEFECT
     # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
@@ -1224,7 +1228,7 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
     # EstHt = (REAL(NORMHT)+5)/100 in REAL (Float32) arithmetic, else HT (dbstrls.f:199-203 / dbscuts.f)
     estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
     actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
-    return Any[string(Int(t.tree_id[i])), Int(i), strip(c.code_alpha[sp]),
+    return Any[_fvs_tree_id(t.tree_id[i]), Int(i), strip(c.code_alpha[sp]),
         strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
         Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
         tpa, mortpa,                                          # TPA, MortPA
@@ -1237,7 +1241,7 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
         Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
         estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
         # TreeAge: ABIRTH only when the age was INPUT (LBIRTH, intree.f:190-195 / dbstreesin.f AGE), else 0
-        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.age_known[i] ? Float64(t.birth_age[i]) : 0.0]
+        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
 end
 
 # Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).
@@ -1274,7 +1278,10 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
-    @inbounds for i in 1:t.n
+    # dbstrls.f: DO ISPC=1,MAXSP / DO I3=ISCT(ISPC,1),ISCT(ISPC,2) / I=IND1(I3) — species order, IND1 (SPESRT
+    # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
+    # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
+    @inbounds for i in _ind1_order(s)
         push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g)))
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
@@ -1284,7 +1291,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # (treeinput.jl). CR-gated (the western validation target); the eastern variants share the same latent
     # gap — enabling them needs their FVS_TreeList treelists re-validated (their compute_volumes cover only
     # live), so this stays scoped to CentralRockies for now.
-    if cycle == 0 && s.variant isa CentralRockies && t.ndead > 0
+    if cycle == 0 && t.ndead > 0
         scale = s.plot.pi / g                            # point_basal_area! per-acre scale (PI/GROSPC)
         @inbounds for i in (t.n + 1):(t.n + t.ndead)
             sp = Int(t.species[i]); dd = t.dbh[i]; pid = Int(t.plot_id[i])
@@ -1300,13 +1307,14 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
                 dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
             end
-            dbal = Float32(round(Int, dbal))              # NINT(PTBALT(I))
-            cw = _forest_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])  # cwcalc.f forest-grown + [0.5,99.9] clamp
+            dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
+            cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
             estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
-            push!(rows, Any[string(Int(t.tree_id[i])), i, strip(c.code_alpha[sp]),
+            # intree.f:543-544: input dead records are stored from MAXTRE DOWNWARD (IREC2), so TreeIndex = MAXTRE+1-k.
+            push!(rows, Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
@@ -1317,7 +1325,8 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,
-                Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.age_known[i] ? Float64(t.birth_age[i]) : 0.0])
+                Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]),
+                t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0])
         end
     end
     return (Int(year), Int(prdlen), rows)
@@ -1393,14 +1402,57 @@ before TREDEL, so TreeIndex / PtBAL / BAPctile / volumes are the pre-compaction,
 """
 function cutlist_rows(s::StandState, removed::AbstractVector{Float32})
     t = s.trees; g = s.plot.gross_space
-    order = sort(collect(1:min(t.n, length(removed))); by = i -> (Int(t.species[i]), i))
     rows = Vector{Any}[]
-    for i in order
+    for i in _ind1_order(s)                             # dbscuts.f: species-major IND1 (lineage-key) order
+        i <= length(removed) || continue
         removed[i] > 0f0 || continue
         push!(rows, _treelist_row(s, i, Float64(removed[i] / g), 0.0))
     end
     return rows
 end
+
+# FVS_ATRTList schema (dbsatrtls.f:62-98) — the same per-tree columns as FVS_CutList.
+const _FVS_ATRTLIST_CREATE = replace(_FVS_CUTLIST_CREATE, "FVS_CutList" => "FVS_ATRTList")
+
+"""
+    atrtlist_rows(s) -> Vector{Vector{Any}}
+
+DBSATRTLS (dbsatrtls.f:118-185): one row per record with PROB>0 after the thin, species-major (IND1) order,
+TPA = PROB/GROSPC, MortPA = DP = 0, TreeIndex = the pre-TREDEL record index.
+"""
+function atrtlist_rows(s::StandState)
+    t = s.trees; g = s.plot.gross_space
+    rows = Vector{Any}[]
+    for i in _ind1_order(s)                             # dbsatrtls.f:121-127 species-major IND1 order
+        t.tpa[i] > 0f0 || continue
+        push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), 0.0))
+    end
+    return rows
+end
+
+"""
+    write_dbs_atrtlist!(dbpath, caseid, standid, cycles)
+
+Write the per-cycle after-treatment rows (`atrtlist_rows`) to FVS_ATRTList (list-directed REAL text, as dbsatrtls.f).
+"""
+function write_dbs_atrtlist!(dbpath::AbstractString, caseid::AbstractString,
+                             standid::AbstractString, cycles)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_ATRTLIST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_ATRTList VALUES (" * join(fill("?", 35), ",") * ")")
+        for (year, prdlen, rows) in cycles, r in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(v -> v isa AbstractFloat ? _r9(v) : v, r)...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# A REAL*4 value as it reaches SQLite through a gfortran list-directed WRITE into the SQL text (9 significant
+# digits, dbscuts.f / dbsatrtls.f), then parsed back to the nearest double.
+_r9(x) = parse(Float64, @sprintf("%.9g", Float64(Float32(x))))
 
 """
     write_dbs_cutlist!(dbpath, caseid, standid, cycles)
@@ -1415,10 +1467,9 @@ function write_dbs_cutlist!(dbpath::AbstractString, caseid::AbstractString,
         ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 35), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         # dbscuts.f builds the INSERT with a LIST-DIRECTED WRITE (WRITE(SQLStmtStr,*)), so every REAL reaches SQLite
-        # as gfortran's 9-significant-digit text (0.100000001, 10.4069967) — bind that decimal, not the widened REAL.
-        ld(v) = v isa AbstractFloat ? parse(Float64, @sprintf("%.9g", Float32(v))) : v
+        # as gfortran's 9-significant-digit text (0.100000001, 10.4069967) — bind that decimal (`_r9`), not the widened REAL.
         for (year, prdlen, rows) in cycles, r in rows
-            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(ld, r)...))
+            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(v -> v isa AbstractFloat ? _r9(v) : v, r)...))
         end
     finally
         SQLite.close(db)
@@ -1479,4 +1530,101 @@ function write_dbs_treelist!(dbpath::AbstractString, caseid::AbstractString,
         SQLite.close(db)
     end
     return dbpath
+end
+
+# =====================================================================================================
+# Tree-list activity scheduling (TREELIST act 80 / CUTLIST act 199 / ATRTLIST act 198).
+# FVS reaches the list writers (DBSTRLS/DBSCUTS/DBSATRTLS + the .trl text) ONLY through PRTRLS
+# (prtrls.f), which acts only on a list activity SCHEDULED for the current cycle (OPFIND).
+# =====================================================================================================
+const _PRTRLS_ACT = (Int32(80), Int32(199), Int32(198))   # prtrls.f MYACT (IWHO 1/2/3)
+
+_listact_ncyc(c::Control) = Int(c.ncycle_eff > 0 ? c.ncycle_eff : c.ncycle)
+
+# OPEXPN STEP01: a date in 1..MAXCYC is a cycle number ⇒ IY(date) (only if IY(date) is defined, i.e.
+# date ≤ NCYC+1; otherwise the raw number stays and is treated as a year).
+function _listact_year(c::Control, idt::Integer)
+    (1 <= idt <= MAXCYC && idt <= _listact_ncyc(c) + 1) || return Int(idt)
+    return Int(cycle_year_at(c, Int(idt) - 1))
+end
+
+# OPCYCL: the 1-based cycle an activity dated `yr` belongs to = the first cycle with yr < IY(i+1); 0 if past the end.
+function _listact_cycle(c::Control, yr::Integer)
+    for i in 1:_listact_ncyc(c)
+        yr < Int(cycle_year_at(c, i)) && return i
+    end
+    return 0
+end
+
+"""
+    prtrls_requests!(s, iwho, icyc; lstart=false) -> Vector{Vector{Float32}}
+
+PRTRLS (prtrls.f:84-178): for list type `iwho` (1 TREELIST, 2 CUTLIST, 3 ATRTLIST) return the TEM(1:6)
+parameter vector of every request that PRTRLS accomplishes in FVS cycle `icyc` — one entry per DBS
+writer call (a duplicate request is dropped, prtrls.f:98-122) — and mark them done (OPDONE). All-cycle
+activities (date 0) are copied into every cycle (OPEXPN step04); a cycle's activities are taken in
+date/sequence order. At the pre-projection call (`lstart`, fvs.f:328) FVS has the cycle-1 option pointers
+set (OPCSET(1), fvs.f:179), so `icyc` must be 1 there; field-4 code 1 suppresses the cycle-0 list and
+code 2 marks the request done at cycle 0 (so it does not repeat at the end of cycle 1). TEM is NOT reset
+between requests (OPGET fills only TEM(1:NPRMS)) — reproduced.
+"""
+function prtrls_requests!(s::StandState, iwho::Integer, icyc::Integer; lstart::Bool = false)
+    c = s.control
+    out = Vector{Float32}[]
+    isempty(c.list_acts) && return out
+    code = _PRTRLS_ACT[iwho]
+    nall = count(a -> a.idt == 0, c.list_acts)
+    todo = Tuple{Int,Int,Int}[]                       # (date year, seq, index) — OPFIND order
+    kall = 0
+    for (k, a) in enumerate(c.list_acts)
+        a.idt == 0 && (kall += 1)
+        a.code == code || continue
+        (k, icyc) in c.list_done && continue
+        if a.idt == 0
+            # all-cycle copy: dated IY(icyc), sequence after every original (appended by OPEXPN)
+            push!(todo, (Int(cycle_year_at(c, icyc - 1)), length(c.list_acts) + (icyc - 1) * nall + kall, k))
+        else
+            yr = _listact_year(c, a.idt)
+            _listact_cycle(c, yr) == icyc || continue
+            push!(todo, (yr, Int(a.seq), k))
+        end
+    end
+    isempty(todo) && return out
+    sort!(todo)
+    ntodo = length(todo)
+    tem = zeros(Float32, 6)
+    dup = zeros(Float32, 5, 5); numreq = 0
+    for (itodo, (_, _, k)) in enumerate(todo)
+        a = c.list_acts[k]
+        nprms = length(a.params)
+        for j in 1:min(nprms, 6)
+            tem[j] = a.params[j]
+        end
+        if ntodo > 1                                  # prtrls.f:98-122 duplicate-request filter
+            key = (tem[1], tem[2], tem[3], tem[4], tem[6])
+            if itodo == 1
+                dup[1, :] .= key; numreq = 1
+            else
+                any(i -> Tuple(dup[i, :]) == key, 1:numreq) && continue
+                if numreq < 5
+                    numreq += 1; dup[numreq, :] .= key
+                end
+            end
+        end
+        if lstart                                     # prtrls.f:160-162
+            (nprms >= 3 && tem[3] == 1f0) && continue
+            (nprms >= 3 && tem[3] == 2f0) && push!(c.list_done, (k, icyc))
+        else                                          # prtrls.f:164-173
+            (nprms >= 3 && tem[3] == 2f0) && continue
+            push!(c.list_done, (k, icyc))
+        end
+        push!(out, copy(tem))
+        # prtrls.f:176-192: a database-only list flag (ITREELIST/ICUTLIST/IATRTLIST = 2) makes the matching DBS writer
+        # set KODE=0 and PRTRLS RETURNs — the remaining requests of this cycle are neither written nor marked done.
+        dbonly = iwho == 1 ? (c.dbs_treelist && c.dbs_treelist_mode == 2) :
+                 iwho == 2 ? (c.dbs_cutlist && c.dbs_cutlist_mode == 2) :
+                             (c.dbs_atrtlist && c.dbs_atrtlist_mode == 2)
+        dbonly && break
+    end
+    return out
 end
