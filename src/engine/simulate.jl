@@ -1122,6 +1122,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _ec_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _op_up ? op_bratio(Int(t.species[i]), t.dbh[i]) :
+               _ie_up ? ie_bratio(Int(t.species[i]), t.dbh[i]) :   # ie/bratio.f: IMAP-2 BRATIO=BARK1 exactly (the generic (a+b·d)/d is 1-ULP off)
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).

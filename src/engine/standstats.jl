@@ -83,6 +83,13 @@ end
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
+    if s.variant isa InlandEmpire
+        # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE.
+        @inbounds for i in _ind1_order(s)
+            d = t.dbh[i]; ba += 0.005454154f0 * (d * (d * t.tpa[i]))
+        end
+        return ba
+    end
     @inbounds for i in 1:t.n; ba += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2; end
     return ba
 end
@@ -342,9 +349,18 @@ function stand_ccf(s::StandState)
         return ccf
     elseif s.variant isa InlandEmpire
         # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # dense.f:168-229 accumulates it SPECIES-MAJOR in IND1 order into a per-species subtotal RELDSP(ISPC), then
+        # RELDT=RELDT+RELDSP(ISPC) — a different Float32 summation order than a flat record-order sum.
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += ie_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Ontario
         # ON CCF = ccfcal.f (LS form) → cwcalc.f open-grown crown WIDTH (IWHO=1, CR=90) via the
