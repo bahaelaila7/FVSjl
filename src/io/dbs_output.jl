@@ -199,6 +199,77 @@ function write_dbs_econharvest!(dbpath::AbstractString, caseid::AbstractString, 
     return dbpath
 end
 
+"""
+    write_dbs_econharvest_rows!(dbpath, caseid, rows, coef) -> dbpath
+
+Faithful `FVS_EconHarvestValue` (dbsecharv.f DBSECHARV_insert) from `econ_calc!`'s per-cycle `hv_rows`
+(eccalc.f:745-855 — every species × revenue unit × ascending diameter class with revVolume>0). Species
+strings are JSP / PLNJSP / FIAJSP (trimmed); each dimension/volume/value binds only when ≥ 0, else NULL.
+"""
+function write_dbs_econharvest_rows!(dbpath::AbstractString, caseid::AbstractString, rows::AbstractVector, coef)
+    db = SQLite.DB(dbpath)
+    g0r(x) = x >= 0f0 ? Float64(x) : missing
+    g0i(x) = x >= 0 ? x : missing
+    try
+        _ensure_table!(db, _FVS_ECONHARVEST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconHarvestValue VALUES (" * join(fill("?", 17), ",") * ")")
+        # dbsecharv.f: the INSERT is prepared ONCE per harvest cycle (DBSECHARV_open) and a value < 0 is simply
+        # NOT re-bound — SQLite keeps the previous row's binding, so within a cycle an unbound column repeats the
+        # prior row's value (live FVS behavior). `sticky` holds those bindings; a new cycle starts all-NULL.
+        sticky = Any[missing for _ in 1:12]; cyc = nothing
+        for r in rows
+            r.year == cyc || (fill!(sticky, missing); cyc = r.year)
+            vals = (g0r(r.min_dia), g0r(r.max_dia), g0r(r.min_dbh), g0r(r.max_dbh),
+                    g0i(r.tpa_cut), g0i(r.tpa_value), g0i(r.tons), g0i(r.ft3_vol), g0i(r.ft3_value),
+                    g0i(r.bf_vol), g0i(r.bf_value), g0i(r.total))
+            for k in 1:12; vals[k] === missing || (sticky[k] = vals[k]); end
+            sp = r.sp
+            DBInterface.execute(stmt, (caseid, r.year, String(strip(coef.code_alpha[sp])),
+                String(strip(coef.code_plants[sp])), String(strip(coef.code_fia[sp])), sticky...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_EconSummary schema (dbsecsum.f:44-66) — one row per ECCALC investment period.
+const _FVS_ECONSUMMARY_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_EconSummary(
+  CaseID text not null, StandID text not null, Year int null, Period int null, Pretend_Harvest text null,
+  Undiscounted_Cost real null, Undiscounted_Revenue real null, Discounted_Cost real null,
+  Discounted_Revenue real null, PNV real null, IRR real null, BC_Ratio real null, RRR real null, SEV real null,
+  Value_of_Forest real null, Value_of_Trees real null, Mrch_Cubic_Volume int null,
+  Mrch_BoardFoot_Volume int null, Discount_Rate real null, Given_SEV real null)"""
+
+"""
+    write_dbs_econsummary!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the ECON summary (`FVS_EconSummary`, dbsecsum.f DBSECSUM) — one row per ECCALC period from
+`econ_calc!`. Binding follows dbsecsum.f: the four cost/revenue accumulators bind only when ≥ 0 (else NULL);
+IRR / BC_Ratio / RRR / SEV / Value_of_Forest / Value_of_Trees / Given_SEV bind only when calculated
+(`nothing` ⇒ NULL); REALs are widened to REAL*8 exactly as FVS does (`costUndisc8 = costUndisc`).
+"""
+function write_dbs_econsummary!(dbpath::AbstractString, caseid::AbstractString, standid::AbstractString,
+                                rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    nn(x) = x === nothing ? missing : Float64(x)
+    ge0(x) = x >= 0f0 ? Float64(x) : missing
+    try
+        _ensure_table!(db, _FVS_ECONSUMMARY_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconSummary VALUES (" * join(fill("?", 20), ",") * ")")
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, r.year, r.period, r.pretend,
+                ge0(r.cost_undisc), ge0(r.rev_undisc), ge0(r.cost_disc), ge0(r.rev_disc), Float64(r.pnv),
+                nn(r.irr), nn(r.bc), nn(r.rrr), nn(r.sev), nn(r.forest), nn(r.reprod),
+                r.ft3, r.bf, Float64(r.rate), nn(r.given)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Fuels schema (dbsfuels.f:64-86) — FFE surface + standing fuel loadings (tons/ac biomass).
 const _FVS_FUELS_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Fuels(

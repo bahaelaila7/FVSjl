@@ -445,6 +445,7 @@ include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag fall BASE (FMR6SDC
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)
+include("engine/econ_calc.jl")           # C8 — faithful per-cycle ECSTATUS/ECHARV/ECCALC engine → FVS_EconSummary
 include("engine/mistletoe_report.jl")   # dwarf-mistletoe infection/mortality summary (misprt.f) → FVS_DM_* DBS tables
 include("io/summary.jl")
 include("io/dbs_output.jl")

@@ -103,6 +103,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # ECON: value this removed tree (DBH-class cost/revenue) at the removal point, before
     # the tree list is compacted (eccalc.f/echarv.f). Accumulated for the cycle's harvest.
     if s.econ !== nothing && s.econ.active
+        # ECHARV input (cuts.f:1382-1386, 1659): accumulate this method's PREM and yarding-loss pools per
+        # record; ECHARV itself is replayed once per record after all methods (econ_cuts_replay!).
+        econ_cut_accum!(s, Int(i), prem)
         s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         # Log-graded revenue (HRVRVN unit 4): bucket this tree's per-log BF (stashed by compute_volumes!)
@@ -274,12 +277,14 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
+    econ_cuts_begin!(s)                                     # ECON: DO-1700 replay state (PROB snapshot, IND2)
     @inbounds for act in acts
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431), the SPECPREF (201) and
         # SETPTHIN (248) modifiers are consumed elsewhere.
         ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17), Int32(15)) || continue
         applied = true
+        econ_cut_method!(s)                                 # IND2 = identity unless this method sorts (LSPECL)
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
@@ -311,6 +316,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     end
     if applied
         push!(s.control.years_cut, yr)
+        econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = rd_tdel_hook(s))   # TREDEL (+RDTDEL): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
@@ -567,6 +573,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     end
     order = Vector{Int32}(undef, n)
     _rdpsrt!(key, order)                             # descending, FVS tie-break
+    econ_cut_order!(s, order)                        # this method's IND2 (cuts.f:1135) for the ECON DO-1700 replay
 
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
@@ -666,6 +673,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -764,6 +772,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -933,6 +942,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
