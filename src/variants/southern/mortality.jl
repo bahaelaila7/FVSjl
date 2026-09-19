@@ -63,19 +63,24 @@ function sdi_max_check!(s::StandState)
     p = s.plot
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     zeide = s.control.zeide_sdi
-    dthresh = zeide ? s.control.dbh_zeide : s.control.dbh_stage
+    # sdichk.f:73-79 reads DENSE's stand stats: TEMD0 = RMSQD (or DR016 when LZEIDE), TEMTPA = TPROB. DENSE
+    # (dense.f DO 50 ISPC / I=IND1(I3)) sums TPROB and TSUMD2 = Σ D·(D·P) over ALL live trees (no DBH threshold);
+    # only the Zeide SUMDR0 is restricted to D>=DBHSDI, and DR016=(SUMDR0/TPROB)**(1./1.605) divides by the
+    # ALL-tree TPROB. (jl had restricted all three to D>=DBHSTAGE ⇒ a different decision/reset CONST on stands
+    # with sub-threshold trees: BM 504545927126144 CONST 46E242EA vs live 46E242DC.)
     tprob = 0f0; sumdr = 0f0; sumd2 = 0f0
-    @inbounds for i in 1:n
-        d = t.dbh[i]; d < dthresh && continue
-        pr = t.tpa[i]
-        sumdr += pr * fpow(d, 1.605f0); sumd2 += pr * (d * d); tprob += pr
+    @inbounds for i in _ind1_order(s)
+        d = t.dbh[i]; pr = t.tpa[i]
+        tprob += pr
+        sumd2 += d * (d * pr)
+        d >= s.control.dbh_sdi && (sumdr += pr * fpow(d, 1.605f0))     # dense.f:185 IF(D.GE.DBHSDI)
     end
-    tprob < 1f0 && return s
+    tprob <= 0f0 && return s
     # sdichk.f:78-81 — the over-density DECISION (TEMMAX) and the SDImax RESET use the UNFLOORED
     # RMSQD/DR016 (TEMD0). The 0.3 floor (DQ0, sdichk.f:59-61) feeds ONLY TMD0→UPLIM, a cosmetic
     # warning jl doesn't emit. So dq0 here (decision + reset) must NOT be floored. (Was floored — a GAP
     # that diverged for dense sub-inch stands, QMD<0.3.)
-    dq0 = zeide ? fpow(sumdr / tprob, 1f0 / 1.605f0) : sqrt(sumd2 / tprob)
+    dq0 = zeide ? fpow(sumdr / tprob, 1f0 / 1.605f0) : sqrt(sumd2 / tprob)   # TEMD0 = DR016 : RMSQD (DENSE)
     const_v = sdimax / PRETZSCH_SDIK
     upmax = min(pmsdiu + 0.05f0, 1f0)
     temmax = const_v * fpow(dq0, SDI_EXP)                 # sdichk.f:81 CONST*(TEMD0**(-1.605))
