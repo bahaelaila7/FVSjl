@@ -1072,7 +1072,7 @@ end
 BMSTAGE (bm/fmcfmd.f:337): a stripped SSTAGE that stratifies the stand into at most two canopy layers by
 the largest height gap (>= max(10ft, 30% of the taller tree), ladder trees < 2 TPA absorbed), returns the
 upper/lower stratum canopy cover (COVA/COVB, %) via COVOLP and a per-tree upper-layer membership flag LA.
-CRWDTH is the western forest-grown crown width (bm_cwcalc -> cr_cwcalc library).
+CRWDTH is the western forest-grown crown width (bm_cwcalc: cwcalc.f BMMAP + R6 BF).
 """
 function bm_stage(s::StandState)
     t = s.trees; n = t.n

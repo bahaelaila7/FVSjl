@@ -121,9 +121,24 @@ Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
 height"). Trees are taken in descending-DBH order; the last one is prorated to
 hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotpath.)
 """
-function stand_top_height(s::StandState)
+function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
     t.n == 0 && return 0f0
+    # BM follows FVS's IND lifecycle exactly (dense.f:285-297 / avht40.f walk the CURRENT IND, no own sort):
+    # CRATET's IND at cycle 0 (bm_cratet_ind!), a fresh RDPSRT(DBH,.TRUE.) everywhere else (gradd.f:186,
+    # cuts.f:302/1840, esnutr.f:129/325). The empirical double sort below stays for the other variants.
+    if s.variant isa BlueMountains && !legacy_double
+        idx = view(s.scratch.stat_idx, 1:t.n)
+        cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
+        avh = 0f0; ssumn = 0f0
+        for k in 1:t.n
+            ii = Int(idx[k]); p = t.tpa[ii]
+            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn += p; avh += t.height[ii] * p
+            ssumn >= 40f0 && break
+        end
+        return ssumn > 0f0 ? avh / ssumn : 0f0
+    end
     # avht40.f sorts IND with FVS's RDPSRT (Scowen quickersort, descending DBH) — NOT a stable sort. The
     # tie-break among equal-DBH trees decides WHICH tree lands at the 40-TPA boundary (and so its height
     # enters AVH), so a stable `sortperm!` (ascending-index ties) diverges from live on tie-heavy stands.
@@ -268,9 +283,19 @@ all smaller) / total · 100`. So `1 − PCT/100` is the fraction of stand BA in 
 trees, which the diameter-growth competition term uses. (Despite the field name,
 this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/ICR.)
 """
-function stand_pct!(s::StandState)
+function stand_pct!(s::StandState; cratet_ind::Bool = false)
     t = s.trees; n = t.n
     n == 0 && return s
+    if cratet_ind                                        # BM first grow cycle: CRATET's IND (see bm_cratet_ind!)
+        idx = view(s.scratch.stat_idx, 1:n)
+        bm_cratet_ind!(s, idx)
+        pct = t.crown_ratio; cum = 0f0
+        @inbounds for k in n:-1:1
+            ii = Int(idx[k]); cum += t.dbh[ii]^2 * t.tpa[ii]; pct[ii] = cum
+        end
+        cum > 0f0 && @inbounds for ii in 1:n; pct[ii] = pct[ii] / cum * 100f0; end
+        return s
+    end
     # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
     # `CALL RDPSRT(ITRN,DBH,IND,.TRUE.)` feeding dense.f/PCTILE. RDPSRT is Scowen's UNSTABLE
     # Quickersort, so equal-DBH ties resolve by the partition order, NOT ascending index. A stable

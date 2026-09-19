@@ -265,7 +265,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if s.cover !== nothing && s.cover.active
             compute_density!(s)
             c == 0 && (cover_year0 = Int(r.year))
-            cover_fint = cycle_period_at(s.control, c == 0 ? 0 : c - 1)
+            # FINT as CVCBMS sees it (DDS=(2·D·DG+DG²)/FINT): at the inventory row (fvs.f:301, before any
+            # GRINCR) FINT is still the GROWTH/DG_MEASURE measurement period (initre.f:831, dbsstandin.f:701;
+            # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
+            # (grincr.f:65-66).
+            cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
             cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
         end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN

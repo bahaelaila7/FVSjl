@@ -307,9 +307,9 @@ cycle_period_at(c::Control, cyc::Integer) = Int(c.cycle_year[cyc + 2] - c.cycle_
 Recompute the per-cycle stand density quantities the growth models read:
 basal area, average dominant height (AVH), and per-point basal area (PTBAA).
 """
-function compute_density!(s::StandState)
+function compute_density!(s::StandState; cratet_ind::Bool = false)
     s.plot.basal_area = stand_ba(s)
-    s.plot.avg_height = stand_top_height(s)
+    s.plot.avg_height = stand_top_height(s; cratet_ind = cratet_ind)
     # RMSQD (stand quadratic mean diameter, inches) — DENSE computes it into COMMON; ON's Penner
     # dgf! (ontario/diameter_growth.jl) reads it as `p.qmd*ON_INtoCM`. No other variant reads
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
@@ -317,7 +317,7 @@ function compute_density!(s::StandState)
     s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
     point_basal_area!(s)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
-    stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)
+    stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
     # KT reads RELDEN (stand CCF) from p.relative_density in dgf!/htgf — set it here (DENSE→DGF flow) at
     # whatever t.n is current: the backdated calibration density pass runs with t.n=nlive+ndead (dead-
     # inclusive RELDM1), the growth-cycle pass with t.n=nlive (live-only). (Gated: only KT's dgf! reads it.)
@@ -589,12 +589,28 @@ vols.f:190 / update.f:60): accretion = Σ(newCFV−oldCFV)·survivingTPA / fint,
 mortality = Σ killedTPA·oldCFV / fint, both ÷ gross area. Requires the cycle-start
 volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup).
 """
+# The MORTS kill WK2 per original record, EXACT: the applied kill buffer (mortality! leaves `killed` in
+# s.scratch.mort_killed and sets tpa = max(0, P − killed)) when it reproduces the observed survivor bit-for-bit, else
+# the old−new difference. Recovering WK2 by subtraction alone is inexact (P − fl(P−W) ≠ W), and the tripling seams need
+# the exact WK2 because FVS forms survivors as PROB·w − WK2·w (triple.f:30-32/75-76, then UPDATE).
+function _morts_wk2(s::StandState, old_tpa::Vector{Float32}, nlive::Int)::Vector{Float32}
+    t = s.trees; kb = s.scratch.mort_killed
+    w = Vector{Float32}(undef, nlive)
+    @inbounds for i in 1:nlive
+        k = i <= length(kb) ? min(kb[i], old_tpa[i]) : -1f0
+        w[i] = (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i]
+    end
+    return w
+end
+
 function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
-    compute_density!(s)
+    # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
+    # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
+    compute_density!(s; cratet_ind = (s.variant isa BlueMountains && s.control.cycle == Int32(0)))
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
     econ_cycle_start!(s)
@@ -903,7 +919,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             # ==== FVS-faithful MISTOE seam on a tripling cycle (gradd.f:96, after MORTS+TRIPLE, before UPDATE):
             # recover the MORTS kill (WK2), restore full PROB, TRIPLE (splitting PROB), run the spread and MISINF on
             # the tripled full-PROB records, then survivors = PROB − WK2·weight and MISMRT MAX-combines the DM kill.
-            wk2_u = Float32[old_tpa[i] - t.tpa[i] for i in 1:nlive]
+            wk2_u = _morts_wk2(s, old_tpa, nlive)
             @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end
             triple_records!(s, stash)
             n2 = t.n
@@ -929,7 +945,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             # records; RDEND combines RRKILL into WK2; UPDATE subtracts WK2. Reconstruct here: recover the
             # MORTS kill, restore t.tpa→full PROB, triple, RDTRIP the driver, run RDCNTL on full PROB, then
             # re-apply the (proportionally-tripled) WK2 and let RDEND fold in the RD kill.
-            wk2_u = Float32[old_tpa[i] - t.tpa[i] for i in 1:nlive]      # per-original MORTS kill (WK2)
+            wk2_u = _morts_wk2(s, old_tpa, nlive)                          # per-original MORTS kill (WK2)
             @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end       # restore full pre-mort PROB
             triple_records!(s, stash)                                    # splits FULL PROB .60/.25/.15
             rd_triple_driver!(s.root_disease, stash.nlive)               # RDTRIP: split RD per-record arrays
@@ -952,6 +968,25 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 m = full_prob[c] - t.tpa[c]
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
+            end
+        elseif stash !== nothing
+            # gradd.f order: MORTS sets WK2 (jl applied it eagerly), TRIPLE splits PROB and WK2 SEPARATELY
+            # (triple.f:30-32,75-76 PROB·w, WK2·w), UPDATE then subtracts ⇒ survivor = PROB·w − WK2·w. Splitting the
+            # already-reduced TPA, (PROB−WK2)·w, rounds differently (1 ULP on ~40% of records — MEASURED vs live DENSE
+            # PROB bits, bare-PLANT IE stand cycle 2). WK2 = the applied MORTS kill (scratch buffer) when it matches the
+            # observed reduction, else recovered from old−new TPA.
+            wk2_u = _morts_wk2(s, old_tpa, nlive)
+            @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end
+            triple_records!(s, stash)          # TRIPLE splits the FULL pre-mortality PROB
+            @inbounds for i in 1:nlive
+                t.tpa[i]          = max(0f0, t.tpa[i]          - wk2_u[i] * 0.60f0)
+                t.tpa[nlive+2i-1] = max(0f0, t.tpa[nlive+2i-1] - wk2_u[i] * 0.25f0)
+                t.tpa[nlive+2i]   = max(0f0, t.tpa[nlive+2i]   - wk2_u[i] * 0.15f0)
+                t.mort_pa[i] = wk2_u[i] * 0.60f0; t.mort_pa[nlive+2i-1] = wk2_u[i] * 0.25f0; t.mort_pa[nlive+2i] = wk2_u[i] * 0.15f0
+            end
+            if (s.root_disease !== nothing) && rd_active(s.root_disease) &&
+               s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
+                rd_triple_driver!(s.root_disease, stash.nlive)
             end
         else
             triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
@@ -1071,6 +1106,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # plant pool) sees them exactly like a keyword PLANT, and the .es1 summary excludes this cycle's sprouts.
     # (establish!'s own call is then a no-op: each 432 carries a `fired` guard.)
     isempty(s.estab.addtrees) || addtrees_bridge!(s, Int32(current_cycle_year(s)), round(Int, fint))
+    # IE REGENT(LESTB) height growth reads RDNEXT/BANEXT = RELDEN/BA of the gradd.f:192 DENSE (regent.f:288-295 with
+    # NTYR=5 ⇒ RDNEXT(1)=RELDEN): post-growth, BEFORE ESNUTR adds sprouts/AUTOES/PLANT (post-regen DENSE is :244).
+    # establish! recomputes density WITH the new cohort, so snapshot it here (same pattern as BM below).
+    es_ie_relden_pre, es_ie_ba_pre = s.variant isa InlandEmpire ? (stand_ccf(s), stand_ba(s)) : (-1f0, -1f0)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1108,7 +1147,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
-        atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
+        atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden,
+        relden_pre = es_ie_relden_pre, ba_pre = es_ie_ba_pre)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
+    # dgdriv.f:142 WK1(I)=DG(I) runs at the START of the next cycle's DGDRIV over ALL records, so a tree born this
+    # cycle enters next cycle's MORTS with WK1 = its birth-cycle DG (regent.f:941 LESTB NIVAR: DG(K)=DK). jl copies
+    # dg_prev in the growth-apply loop above, which runs BEFORE establishment — so the new records kept WK1=0 and
+    # took the morts.f `WK1.EQ.0 ⇒ G=DG/(BARK·10)` vigor branch (e.g. bare PLANT stand: a seedling past 4.5 ft
+    # got RIPP 0.00024 vs live 0.0104 ⇒ ~40× under-kill). Copy for the new IE records now.
+    if s.variant isa InlandEmpire
+        @inbounds for i in (es_nstart + 1):s.trees.n
+            s.trees.dg_prev[i] = s.trees.diam_growth[i]
+        end
+    end
     # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment
     # model calls ESGENT, which calls SPESRT (esgent.f:49), rebuilding IND1 in ASCENDING
     # physical order and DISCARDING the post-TRIPLE REASS (U,C,L) lineage interleave

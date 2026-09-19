@@ -103,12 +103,14 @@ end
         # LIVE-VERIFIED (FVSie_g16 --keywordfile, 2026-09-19): under top-level NOAUTOES (ESNOAU STOADJ=0,
         # esin.f:788) the estab.f STOADJ<0.0001 no-stocking branch books ONLY the planted trees — live 2002 row
         # YEAR AGE TPA BA SDI CCF TOPHT QMD = 2002 10 364 0 1 1 5 0.3 for BOTH bridge and direct (jl was 911).
-        # Cycles ≥2012 carry the documented planted birth-height :estab draw-order corner (same 50 records /
-        # 363.6 TPA, per-record heights drawn at different stream positions), so only the 2002 stand row is pinned.
-        live02 = ["2002", "10", "364", "0", "1", "1", "5", "0.3"]
+        # LIVE (FVSie_g16, 2026-09-19): EVERY cycle is now bit-exact — the former "planted birth-height :estab
+        # draw-order corner" was real: planted heights are drawn from each plot's post-ESAVE stream (estab.f:967
+        # →DO 322→:1075), plus planted HTIMLT/WK4 (:1055-1063), pre-ESNUTR RDNEXT, per-point BAA in the height
+        # section, KDTOLD-based continuation TIME, IESTAT immunity, birth-cycle WK1 and the IE/EM forkod IFOR default.
+        live = [["2002","10","364","0","1","1","5","0.3"], ["2012","20","317","7","24","15","27","2.0"],
+                ["2022","30","277","48","111","68","56","5.7"], ["2032","40","268","113","219","138","70","8.8"]]
         for rr in (ra, rp)
-            r02 = filter(l -> startswith(l, "2002"), rr)
-            @test length(r02) == 1 && split(r02[1])[1:8] == live02
+            @test [split(l)[1:8] for l in rr if !startswith(l, "1992")] == live
         end
         # Sanity: the planted regen actually shows up (non-empty stand by cycle 1).
         @test any(r -> occursin(r"^2002\s+10\s+[1-9]", r), ra)
@@ -157,5 +159,8 @@ end
         r02(rr) = split(only(filter(l -> startswith(l, "2002"), rr)))[1:8]
         @test r02(rna) == ["2002", "10", "364", "0", "1", "1", "5", "0.3"]   # live 2002
         @test r02(rs5) == ["2002", "10", "637", "0", "2", "1", "6", "0.3"]   # live 2002
+        rows8(rr) = [split(l)[1:8] for l in rr if !startswith(l, "1992")]
+        @test rows8(rs5)[2:4] == [["2012","20","700","8","30","16","28","1.4"], ["2022","30","551","55","140","80","52","4.3"],
+                                  ["2032","40","488","136","285","168","66","7.1"]]                 # live, all cycles
     end
 end

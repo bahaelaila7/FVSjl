@@ -109,6 +109,8 @@ mutable struct TreeList
     # (PLANT/existing, TRAGE≥GENTIM); AUTOES natural regen gets min(TRAGE,GENTIM)/(GENTIM+ε) < 1 (TRAGE=2 ⇒ 0.40
     # at FINT=10). Transient (used only in the birth cycle) but carried through tripling/compaction for safety.
     htimlt    ::Vector{Float32}    # birth-cycle HTG multiplier               (WK4)
+    iestat     ::Vector{Int32}   # establishment 'best tree' mortality-immunity date (IESTAT; estab.f:1269 IDSDAT+20,
+                                 # morts.f XCHECK; 0 = none). Carried by TRIPLE/COMPRS/TREMOV (triple.f:80, comprs.f:738).
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -117,6 +119,11 @@ mutable struct TreeList
     # so a tree DYING next cycle can add its YRSCYC·OLDCRW to the snag crown (FMSCRO, fmscro.f:147). idx 1=
     # size-1 … 5=size-5 (foliage excluded). 0 ⇒ no lift. Carried through tripling/compaction by copy_tree!.
     ffe_oldcrw::Matrix{Float32}  # 5 woody crown-lift sizes                (OLDCRW)
+    # Per-SLOT (not per-record; never copied by copy_tree!) shadow of FVS's ICR storage ABOVE ITRN: the value
+    # a vacated live slot keeps after TREDEL (tredel.f moves the last live record into a hole; the end slot's old
+    # contents stay), 0 for a slot never used. bm/regent.f reads ICR(K) of a tripled copy's FUTURE slot K before
+    # TRIPLE fills it (see small_tree_growth!(::BlueMountains)).
+    stale_icr::Vector{Int32}
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -136,8 +143,10 @@ function TreeList(maxtre::Int = MAXTRE)
         fz(),                                  # dg_prev
         iz(),                                  # dmr
         ones(Float32, maxtre),                 # htimlt (WK4, default 1.0 = full birth-cycle growth)
+        iz(),                                  # iestat
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
+        zeros(Int32, maxtre),                   # stale_icr
     )
 end
 
@@ -153,7 +162,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied
@@ -237,6 +246,9 @@ function tredel_compact!(t::TreeList; thresh::Float32 = 0f0, onmove = nothing)
         t.tpa[ir] = 0f0; iv += 1; ir -= 1
     end
     newn = n - ndel
+    # FVS leaves the vacated slots newn+1:n holding their old records (moved-from or deleted); remember their ICR
+    # before jl slides the dead partition down over them (FVS keeps the dead at MAXTRE, not here).
+    @inbounds for k in (newn + 1):n; t.stale_icr[k] = t.crown_pct[k]; end
     if t.ndead > 0
         @inbounds for k in 1:t.ndead; copy_tree!(t, newn + k, n + k); end
     end
@@ -262,6 +274,26 @@ next cycle, drifting the RNG from the oracle. (The COMPRESS-keyword compression 
 bottom half of comcup.f is a management option — not ported here.)
 """
 comcup!(t::TreeList; onmove = nothing) = tredel_compact!(t; thresh = 1f-5, onmove = onmove)
+
+"""
+    permute_records!(t, lo, perm)
+
+Reorder the contiguous record block `lo:lo+length(perm)-1` so that position `lo+k-1` receives the record that
+was at `perm[k]` (every per-tree vector field plus the damage/pest_vars/ffe_oldcrw columns). `perm` must be a
+permutation of that block. Used to lay newly established records out in FVS's per-plot booking order.
+"""
+function permute_records!(t::TreeList, lo::Int, perm::Vector{Int})
+    hi = lo + length(perm) - 1
+    for f in _TREE_VEC_FIELDS
+        v = getfield(t, f)
+        tmp = v[perm]
+        @inbounds for k in eachindex(perm); v[lo + k - 1] = tmp[k]; end
+    end
+    t.damage[:, lo:hi]     = t.damage[:, perm]
+    t.pest_vars[:, lo:hi]  = t.pest_vars[:, perm]
+    t.ffe_oldcrw[:, lo:hi] = t.ffe_oldcrw[:, perm]
+    return t
+end
 
 """
     spesrt_reorder!(t)

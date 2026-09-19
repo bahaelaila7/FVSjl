@@ -67,7 +67,17 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         # ie/morts.f:316-322 species-group rate: NI rate for sp≤12,14,23; 20% for PI/JU
         # (sp15,16); 60% for LM,PY,AS,CO,MM,PB,OH (sp13,17,18,19,20,21,22). X=1 (no MORTMULT).
         smult = (sp <= 12 || sp == 14 || sp == 23) ? 1f0 : (sp == 15 || sp == 16) ? 0.2f0 : 0.6f0
-        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+        # ie/morts.f:301-311 establishment "best" trees are immune for 20 yr after the disturbance date: clear IESTAT
+        # once IY(ICYC) reaches it, else X·(1−XCHECK) with XCHECK = clamp((IESTAT−IY(ICYC))/FINT, 0, 1).
+        xest = 1f0
+        if t.iestat[i] > 0
+            iyc = Int32(current_cycle_year(s))
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = Float32(t.iestat[i] - iyc) / fint
+            xchk = clamp(xchk, 0f0, 1f0)
+            xest = 1f0 - xchk
+        end
+        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult * xest
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)

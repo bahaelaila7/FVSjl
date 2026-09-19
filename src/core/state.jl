@@ -771,12 +771,30 @@ mutable struct Establishment
     prep_ntally::Int32
     prep_idsdat::Int32            # -99999 = not yet initialised from the ESTAB keyword's IDSDAT
     tally_status::Dict{Int,Int32} # schedule index of a 427/428/429 ⇒ year done (>0) / −1 deleted
+    # Per-plot ESRANN stream position for the PLANT/NATURAL trees of THIS cycle's ESTAB call (IE/EM, estb/estab.f).
+    # FVS books the keyword trees INSIDE the per-plot loop (DO 322, estab.f:975) right after that plot's ESAVE draw
+    # (:967) and before the ESRNSD(ESAVE) reseed (:1075), so plot NCOUNT's planted-height BACHLO draws continue the
+    # plot's own stream from the post-ESAVE state. ie_autoes_establish! fills these from the tally's seed chain; the
+    # scheduled-regen pass (establish!) reads them. es_plot_year = the cycle year they belong to (-1 = none).
+    es_plot_state::Vector{Float64}   # ESS0 immediately after plot NCOUNT's ESAVE draw
+    es_plot_emsqr::Vector{Float32}   # plot NCOUNT's EMSQR (estab.f:646-650), fed to ESSUBH for no-height PLANT
+    es_plot_year::Int32
+    # The AUTOES natural records booked THIS cycle (first index + their plot NCOUNT, in booking order). FVS books
+    # every record inside the per-plot loop — plot k's best (estab.f:1255) → excess (:1344) → PLANT/NATURAL (:1436)
+    # before plot k+1 — so establish! interleaves its planted records with these to reproduce the storage order
+    # that the REGENT(LESTB) crown-dub draw (regent.f:301) and the SPESRT species-major order both follow.
+    es_aut_first::Int32
+    es_aut_plot::Vector{Int32}
+    es_plot_dil::Vector{Float32}    # DILATE=FIRST(2,sp) each PLANT/NATURAL tree read (plot-major, es_plot_nph per plot)
+    es_plot_nph::Int32
+    kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
-                                Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}())
+                                Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99))
 
 mutable struct DbsState
     enabled::Bool
