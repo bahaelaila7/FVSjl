@@ -209,11 +209,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # FMCFMD falls back to fuel model 8 (byram ~370 vs the accumulated-fuel ~637 on crown-prone dense stands)
     # ⇒ under-fire. Folded in with the decay-table fix (ie/fmvinit.f DKR is decay-class-INDEPENDENT, _FM_DKR_NR)
     # so the accumulated fine fuel matches the oracle rather than over-retaining ~2.2×. (The rest of the CR
-    # family — CR/EM/CI/TT/UT/BM/WC/PN/CA/WS — shares this latent gap; fold them in + validate separately.)
+    # family — CR/EM/CI/TT/UT/WC/PN/CA/WS — shares this latent gap; fold them in + validate separately.)
+    # BM (bm/fmcba.f bm_live/dead_fuel_loading + bm/fmvinit.f DKR, both ported) folded in: without it the BM
+    # SIMFIRE sampled a (0,0) down-wood point ⇒ FMDYN picked model 8 alone (live 10+12 at SMALL 1.58/LARGE
+    # 29.87) ⇒ flame 0.8 ft SURFACE vs live 11.5 ft PASSIVE ⇒ catastrophic under-kill (41134029010497:
+    # 1078→222 TPA vs live 1078→1).
     ffe_on = s.fire !== nothing && s.fire.active &&
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
-              s.variant isa InlandEmpire || s.variant isa Kootenai)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa InlandEmpire || s.variant isa Kootenai ||
+              s.variant isa BlueMountains)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
@@ -259,7 +264,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if s.cover !== nothing && s.cover.active
             compute_density!(s)
             c == 0 && (cover_year0 = Int(r.year))
-            cover_fint = cycle_period_at(s.control, c == 0 ? 0 : c - 1)
+            # FINT as CVCBMS sees it (DDS=(2·D·DG+DG²)/FINT): at the inventory row (fvs.f:301, before any
+            # GRINCR) FINT is still the GROWTH/DG_MEASURE measurement period (initre.f:831, dbsstandin.f:701;
+            # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
+            # (grincr.f:65-66).
+            cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
             cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
         end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
@@ -337,6 +346,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
             # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
+            econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))

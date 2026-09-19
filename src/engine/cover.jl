@@ -125,17 +125,45 @@ const _CV_BINT12 = Float32[-1.94951,-4.73762,-2.05828,-2.43200,-4.17456,-2.24876
 const _CV_BCL12  = Float32[1.22023,1.98479,1.25837,1.60270,2.00749,1.37600,1.62368,1.96125,1.32649,1.58171,1.35092]
 const _CV_BINT2  = Float32[2.666072,1.756537,2.705866,3.115084,2.654572,3.059351,2.622505,3.300852,3.060169,2.452492,2.622505]
 
-# Variant → original-11-species maps (cvshap.f / cvcbms.f), indexed by variant species
-# number (1-based).  Only variants needed for the current beachhead are populated;
-# add the remaining DATA MAP** blocks from vcovr/cvshap.f as later variants are wired.
-const _CV_MAP_NI = Int[1,2,3,4,5,6,7,8,9,10,11,6]                       # KT, NC (original 11)
-const _CV_MAP_EM = Int[1,2,3,1,2,6,7,8,9,10, 2,2,2,2,2,2,2,11,2]        # EM (19 sp)
+# Variant → original-11-species maps (vcovr/cvshap.f DATA MAP** ≡ vcovr/cvcbms.f DATA MAP**, identical in
+# both routines), indexed by variant species number (1-based).  Transcribed mechanically from the Fortran
+# DATA blocks (trailing zeros dropped).  Dispatch = the cvshap.f/cvcbms.f SELECT CASE (VARACD) block.
+const _CV_MAP_NI = Int[1,2,3,4,5,6,7,8,9,10,11,6]                                       # KT, NC
+const _CV_MAP_AK = Int[8,6,4,11,5,6,7,8,9,2,2,2,11]                                     # AK
+const _CV_MAP_BM = Int[1,2,3,4,11,6,7,8,9,10,1,1,5,6,2,2,11,2]                         # BM (18 sp)
+const _CV_MAP_CA = Int[6,6,6,4,9,9,3,5,11,1,10,7,10,1,10,1,1,10,10,10,6,8,6,5,11,
+                       2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]                 # CA, OC
+const _CV_MAP_CI = Int[1,2,3,4,5,6,7,8,9,10,1,5,2,6,2,1,2,11,2]                        # CI
+const _CV_MAP_CR = Int[9,9,3,4,4,11,6,2,1,1,7,10,10,1,1,6,8,8,8,2,2,2,2,2,2,2,2,2,
+                       6,6,6,6,10,10,10,7,11,2]                                         # CR
+const _CV_MAP_EC = Int[1,2,3,4,6,4,7,8,9,10,5,11,5,1,4,4,2,6,6,2,2,2,2,2,2,2,2,2,2,2,11,2] # EC
+const _CV_MAP_EM = Int[1,2,3,1,2,6,7,8,9,10,2,2,2,2,2,2,2,11,2]                        # EM (19 sp)
+const _CV_MAP_IE = Int[1,2,3,4,5,6,7,8,9,10,11,1,1,2,10,6,5,2,2,2,2,2,11]              # IE
+const _CV_MAP_SO = Int[1,1,3,4,11,6,7,8,9,10,6,4,9,4,4,1,2,6,5,5,2,2,2,2,2,2,2,2,2,2,2,11,2] # SO
+const _CV_MAP_TT = Int[1,1,3,10,8,2,7,8,9,10,6,6,2,2,2,2,11,2]                         # TT
+const _CV_MAP_UT = Int[1,1,3,4,8,2,7,8,9,10,10,6,2,10,6,6,1,2,2,2,2,2,11,2]            # UT
+const _CV_MAP_WC = Int[4,4,4,9,9,11,4,6,6,8,7,10,1,1,10,3,6,6,5,11,2,2,2,2,2,2,2,2,
+                       6,2,1,10,5,2,2,2,2,11,11]                                        # WC, PN, OP
+const _CV_MAP_WS = Int[1,3,4,6,6,10,9,10,7,1,1,10,4,10,10,10,1,10,10,10,1,3,6,11,6,6,6,
+                       2,2,2,2,2,2,2,2,2,2,2,2,2,2,11,2]                                # WS
 
 # Return the variant→11-species map for the given variant code, or `nothing`
-# (→ default map-to-1, matching cvshap.f CASE DEFAULT) if not yet transcribed.
+# (→ default map-to-1, matching cvshap.f CASE DEFAULT) for the eastern/other variants.
 function _cover_spmap(varcode::AbstractString)
-    varcode == "EM"            && return _CV_MAP_EM
+    varcode == "EM" && return _CV_MAP_EM
     (varcode == "KT" || varcode == "NC") && return _CV_MAP_NI
+    varcode == "AK" && return _CV_MAP_AK
+    varcode == "BM" && return _CV_MAP_BM
+    (varcode == "CA" || varcode == "OC") && return _CV_MAP_CA
+    varcode == "CI" && return _CV_MAP_CI
+    varcode == "CR" && return _CV_MAP_CR
+    varcode == "EC" && return _CV_MAP_EC
+    varcode == "IE" && return _CV_MAP_IE
+    varcode == "SO" && return _CV_MAP_SO
+    varcode == "TT" && return _CV_MAP_TT
+    varcode == "UT" && return _CV_MAP_UT
+    (varcode == "WC" || varcode == "PN" || varcode == "OP") && return _CV_MAP_WC
+    varcode == "WS" && return _CV_MAP_WS
     return nothing
 end
 
@@ -154,6 +182,8 @@ end
         hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)  # western Hopkins
         return em_cwcalc(ispc, d, h, Float32(jcr), ba, el, hi)  # CR = FLOAT(ICR)
     end
+    # Other western variants: TRECW(I)=CRWDTH(I) (cvcw.f:80) = their forest-grown cwcalc CRWDTH (was 0 ⇒ no cover).
+    _has_forest_crwdth(s.variant) && return _forest_crwdth(s, ispc, d, h, jcr)
     return 0.0f0
 end
 

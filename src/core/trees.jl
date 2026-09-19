@@ -119,6 +119,11 @@ mutable struct TreeList
     # so a tree DYING next cycle can add its YRSCYC·OLDCRW to the snag crown (FMSCRO, fmscro.f:147). idx 1=
     # size-1 … 5=size-5 (foliage excluded). 0 ⇒ no lift. Carried through tripling/compaction by copy_tree!.
     ffe_oldcrw::Matrix{Float32}  # 5 woody crown-lift sizes                (OLDCRW)
+    # Per-SLOT (not per-record; never copied by copy_tree!) shadow of FVS's ICR storage ABOVE ITRN: the value
+    # a vacated live slot keeps after TREDEL (tredel.f moves the last live record into a hole; the end slot's old
+    # contents stay), 0 for a slot never used. bm/regent.f reads ICR(K) of a tripled copy's FUTURE slot K before
+    # TRIPLE fills it (see small_tree_growth!(::BlueMountains)).
+    stale_icr::Vector{Int32}
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -141,6 +146,7 @@ function TreeList(maxtre::Int = MAXTRE)
         iz(),                                  # iestat
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
+        zeros(Int32, maxtre),                   # stale_icr
     )
 end
 
@@ -240,6 +246,9 @@ function tredel_compact!(t::TreeList; thresh::Float32 = 0f0, onmove = nothing)
         t.tpa[ir] = 0f0; iv += 1; ir -= 1
     end
     newn = n - ndel
+    # FVS leaves the vacated slots newn+1:n holding their old records (moved-from or deleted); remember their ICR
+    # before jl slides the dead partition down over them (FVS keeps the dead at MAXTRE, not here).
+    @inbounds for k in (newn + 1):n; t.stale_icr[k] = t.crown_pct[k]; end
     if t.ndead > 0
         @inbounds for k in 1:t.ndead; copy_tree!(t, newn + k, n + k); end
     end

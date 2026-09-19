@@ -54,7 +54,7 @@ using FVSjl
     include("unit/test_oc_crown_change.jl") # OC FVS-native (IORG=0) crown-ratio CHANGE (oc/crown.f rank-Weibull): crown_ratio_update!(::OregonCoast) was a no-op ⇒ IORG=0 crowns frozen ⇒ LP height under-grew ~0.15 ft/cyc; now LP tree1 crown 35→53 + HT bit-exact vs FVSoc_clean all 10 cyc
     include("unit/test_ws_crwidth.jl")      # WS FVS_TreeList CrWidth via R5CRWD (ws_r5crwd) — R5 skips forest-BF ⇒ per-tree bit-exact (29/29 vs FVSws_clean), the 8th variant wired past the eastern 0.5 default
     include("unit/test_ca_crwidth.jl")      # CA FVS_TreeList CrWidth via ca_cwcalc + folded forest-610 BF (SP/LP/PP) — 29/29 bit-exact vs FVSca_clean, INERT on cat01_ffe .sum; 9th variant wired
-    include("unit/test_bm_crwidth.jl")     # BM FVS_TreeList CrWidth via bm_cwcalc→cr_cwcalc + folded forest-614 BF (forest_bf flag; FFE path BF-free) — 29/29 vs FVSbm_clean, 10th variant
+    include("unit/test_bm_crwidth.jl")     # BM CRWDTH: faithful cwcalc.f BMMAP + per-forest R6 BF (national library) — TreeList 1261/1261 cyc0, COVER 120/120, THINCC PREM bit-exact vs FVSbm_g16
     include("unit/test_so_crwidth.jl")     # SO FVS_TreeList CrWidth: so_cwcalc forest-601 BF (present) + Hopkins-index fix (so_grinit! lat/lon 42/121 default) — 33/33 vs FVSso_clean, 11th variant
     include("unit/test_nc_crwidth.jl")     # NC/Klamath FVS_TreeList CrWidth via R5CRWD reuse (nc_r5crwd→ws_r5crwd, NC→WS FIA map) — forest 505 R5, 29/29 vs FVSnc_clean, 12th variant
     include("unit/test_nc_mortality.jl")   # NC/Klamath NWCMRT density-mortality distribution (nc/nwcmrt.f) — percentile/tolerance concentration + QMD loop; fixes mature over-max-SDI TPA ~3× under-kill
@@ -124,6 +124,7 @@ using FVSjl
     include("integration/test_dbs_compute.jl") # C6: DBS FVS_Compute event-monitor vars table
     include("integration/test_dbs_invref.jl")  # C6: DBS FVS_InvReference per-species reference table
     include("integration/test_dbs_cutlist.jl") # C6: DBS FVS_CutList removed-record table
+    include("integration/test_econ_summary.jl") # C8: ECON FVS_EconSummary/HarvestValue vs live FVS (ECCALC/DBSECSUM)
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")
 include("integration/test_net01.jl")   # C5: .sum cycle-0 bit-exact + cycle-1 tracking

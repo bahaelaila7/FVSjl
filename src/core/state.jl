@@ -999,6 +999,133 @@ struct EconCostRev
 end
 EconCostRev(amount, unit, lo, hi) = EconCostRev(Float32(amount), Int32(unit), Float32(lo), Float32(hi), Int32(0))
 
+# ---------------------------------------------------------------------------
+# ECON faithful per-cycle engine state — COMMON /ECNCOM/ (ECNCOM.F77, keyword tables + control) and
+# /ECONSAVE/ (ECNCOMSAVES.F77, accumulators saved across cycles). Consumed by engine/econ_calc.jl
+# (ECSTATUS / ECHARV / ECCALC / DBSECSUM). Constants from ECNCOM.F77.
+# ---------------------------------------------------------------------------
+const ECON_MAX_KEYWORDS    = 8    # MAX_KEYWORDS
+const ECON_MAX_RATES       = 8    # MAX_RATES
+const ECON_MAX_REV_UNITS   = 5    # MAX_REV_UNITS
+const ECON_MAX_PLANT_COSTS = 2    # MAX_PLANT_COSTS
+const ECON_MAX_YEARS       = 800  # MAX_YEARS = MAXCYC*20 (undiscCost/undiscRev dimension)
+
+"An appreciation/depreciation schedule (ratesAndDurations, ecin.f:708): up to MAX_RATES (rate %, years) pairs."
+mutable struct EconSched
+    rates::Vector{Float32}    # valueRate(1:MAX_RATES), percent
+    durs::Vector{Int32}       # valueDuration(1:MAX_RATES), years (0 = unused)
+end
+EconSched() = EconSched(zeros(Float32, ECON_MAX_RATES), zeros(Int32, ECON_MAX_RATES))
+
+"A fixed amount + schedule (ANNUCST/ANNURVN/HRVFXCST/PCTFXCST/MECHCST/BURNCST)."
+mutable struct EconAmtKw
+    amt::Float32
+    sched::EconSched
+end
+"A DBH-class variable cost (HRVVRCST/PCTVRCST): amt per `units` for DBH in [lo,hi)."
+mutable struct EconVarKw
+    amt::Float32
+    units::Int32
+    lo::Float32
+    hi::Float32
+    sched::EconSched
+end
+"One HRVRVN revenue class (assignRevValues, ecin.f:850): unit-corrected price, class lower diameter."
+struct EconRevKw
+    price::Float32
+    dia::Float32
+    sched::EconSched
+end
+"PLANTCST (ecin.f:491): amt per `units` (PER_ACRE=6 / TPA_1000=7)."
+struct EconPlantKw
+    amt::Float32
+    units::Int32
+    sched::EconSched
+end
+"An ECON Event-Monitor activity (OPNEW): PRETEND 2605 / SPECCST 2607 / SPECRVN 2608 / STRTECON 2609."
+mutable struct EconEvent
+    code::Int32
+    date::Int32               # raw keyword date (≤MAXCYC ⇒ cycle number, resolved by OPEXPN)
+    seq::Int32                # registration order (OPSORT tie-break)
+    params::Vector{Float32}
+    done::Int32               # IACT(,4): 0 = not done, else year accomplished
+end
+
+mutable struct EconCalc
+    # --- /ECNCOM/ control (ecinit.f) ---
+    econ_start_year::Int32     # econStartYear (-9999 until STRTECON/ECSETP)
+    discount_pct::Float32      # discountRate (PERCENT)
+    sev_input::Float32         # sevInput
+    do_sev::Bool               # doSev
+    no_output_tables::Bool     # noOutputTables (NOTABLE 1)
+    no_log_stock_table::Bool   # noLogStockTable (NOTABLE 1/2)
+    pct_min_dbh::Float32       # pctMinDbh (PCTSPEC)
+    pct_min_units::Int32       # pctMinUnits (PCTSPEC; 0 ⇒ harvests are NOT valued, eccalc.f:210)
+    pct_min_volume::Float32    # pctMinVolume
+    is_first_econ::Bool        # isFirstEcon
+    ann_cost::Vector{EconAmtKw}
+    ann_rev::Vector{EconAmtKw}
+    fix_hrv::Vector{EconAmtKw}
+    fix_pct::Vector{EconAmtKw}
+    var_hrv::Vector{EconVarKw}
+    var_pct::Vector{EconVarKw}
+    plant::Vector{EconPlantKw}
+    mech::EconAmtKw            # mechCostAmt (amt ≤ 0 ⇒ unset)
+    burn::EconAmtKw            # burnCostAmt
+    rev::Matrix{Vector{EconRevKw}}   # hrvRev*(MAXSP, MAX_REV_UNITS, k)
+    has_rev_amt::Matrix{Bool}        # hasRevAmt(MAXSP, MAX_REV_UNITS)
+    rev_idx::Matrix{Vector{Int}}     # hrvRevDiaIndx — descending-diameter index (ECSETP RDPSRT)
+    events::Vector{EconEvent}
+    dbs_econ::Int32            # IDBSECON (dbsin.f opt 30 ECONRPTS: 0 none / 1 summary / 2 summary+harvest)
+    # --- /ECONSAVE/ (ECNCOMSAVES.F77) ---
+    start_year::Int32
+    rate::Float32
+    cost_disc::Float32; cost_undisc::Float32; rev_disc::Float32; rev_undisc::Float32
+    sev_ann_cst::Float32; sev_ann_rvn::Float32
+    undisc_cost::Vector{Float32}; undisc_rev::Vector{Float32}   # (MAX_YEARS)
+    hrv_cst::Vector{NTuple{4,Float32}}   # (time, typ, keywd, amt) — hrvCst{Time,Typ,Keywd,Amt}
+    hrv_rvn::Vector{NTuple{5,Float32}}   # (time, sp, units, keywd, amt) — hrvRvn{Time,Sp,Units,Keywd,Amt}
+    spec_cst_cnt::Int; spec_rvn_cnt::Int; mech_cnt::Int; burn_cnt::Int
+    pretend_start_year::Int32; pretend_end_year::Int32; is_pretend_active::Bool
+    # --- per-cycle harvest accumulators (ECHARV; reset by resetSavedCycleVariables) ---
+    dbh_sq::Float32
+    harvest::Vector{Float32}             # harvest(TPA:FT3_100)
+    hrv_cost_bf::Vector{Float32}; hrv_cost_ft3::Vector{Float32}; hrv_cost_tpa::Vector{Float32}
+    pct_bf::Vector{Float32}; pct_ft3::Vector{Float32}; pct_tpa::Vector{Float32}
+    rev_volume::Array{Float32,3}         # revVolume(MAXSP, MAX_REV_UNITS, MAX_KEYWORDS)
+    rows::Vector{Any}                    # FVS_EconSummary rows (DBSECSUM), one per ECCALC summary write
+    # --- CUTS DO-1700 replay (cuts.f:1600-1727): ECHARV runs ONCE per record, in the LAST method's IND2
+    #     order, with the record-I merch cubic MCFV(I) (FVS indexes by the loop position, not IT) ---
+    cut_ind2::Vector{Int32}              # IND2 of the last cut method (identity for LSPECL methods)
+    cut_prem::Vector{Float32}            # Σ PREM per record over the cycle's methods (0 ⇒ not cut)
+    cut_dsng::Vector{Float32}            # DSNG(IT) yarding-loss downed pool
+    cut_ssng::Vector{Float32}            # SSNG(IT) yarding-loss standing pool
+    cut_prob0::Vector{Float32}           # PROB at CUTS entry (DO 1700 PREM = PROB − WK4)
+    # --- ECVOL per-tree log arrays for NVEL-profile (western FW2) volumes: ordered (LOGDIA(I+1,1), LOGVOL) ---
+    tree_logs_bf::Dict{Int,Vector{NTuple{2,Float32}}}    # logDibBf/logBfVol (LOGVOL(1,·) gross Scribner)
+    tree_logs_ft3::Dict{Int,Vector{NTuple{2,Float32}}}   # logDibFt3/logFt3Vol (LOGVOL(4,·) gross cubic)
+    hv_rows::Vector{Any}                 # FVS_EconHarvestValue rows (eccalc.f:745-855 DBSECHARV_insert)
+    lbs_ft3::Vector{Float32}             # lbsFt3Amt(MAXSP) — LBSCFV pounds per cubic foot (Tons column)
+end
+function EconCalc(nsp::Integer)
+    EconCalc(Int32(-9999), 0f0, 0f0, false, false, false, 0f0, Int32(0), 0f0, true,
+             EconAmtKw[], EconAmtKw[], EconAmtKw[], EconAmtKw[], EconVarKw[], EconVarKw[], EconPlantKw[],
+             EconAmtKw(0f0, EconSched()), EconAmtKw(0f0, EconSched()),
+             [EconRevKw[] for _ in 1:nsp, _ in 1:ECON_MAX_REV_UNITS], falses(nsp, ECON_MAX_REV_UNITS),
+             [Int[] for _ in 1:nsp, _ in 1:ECON_MAX_REV_UNITS], EconEvent[], Int32(0),
+             Int32(0), 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0,
+             zeros(Float32, ECON_MAX_YEARS), zeros(Float32, ECON_MAX_YEARS),
+             NTuple{4,Float32}[], NTuple{5,Float32}[], 0, 0, 0, 0,
+             Int32(0), Int32(0), false,
+             0f0, zeros(Float32, 3),
+             zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
+             zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
+             zeros(Float32, nsp, ECON_MAX_REV_UNITS, ECON_MAX_KEYWORDS), Any[],
+             Int32[], Float32[], Float32[], Float32[], Float32[],
+             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[],
+             zeros(Float32, nsp))
+end
+
 "ECON economic-analysis state (no globals): discount rate, cost/revenue keyword tables, accumulated streams."
 mutable struct EconState
     active::Bool
@@ -1019,11 +1146,12 @@ mutable struct EconState
                                                     # gross cubic feet (R9LGCFT Smalian, renormalized to VOL(4)+VOL(7))
     log_grade_ft3::Dict{NTuple{3,Int32},Float32}    # (year, speciesIdx, dibClass_x10) => Σ removed cubic feet
                                                     # (×price/100 at emit time = the cubic FVS_EconHarvestValue rows)
+    calc::Union{Nothing,EconCalc}                   # faithful ECSTATUS/ECHARV/ECCALC engine (built at ECIN time)
 end
 EconState() = EconState(false, 0.0f0, 0f0, EconCostRev[], EconCostRev[], Int32(-1),
                         NTuple{3,Float32}[], 0f0, 0f0,
                         Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}(),
-                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}())
+                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}(), nothing)
 
 # ---------------------------------------------------------------------------
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the
