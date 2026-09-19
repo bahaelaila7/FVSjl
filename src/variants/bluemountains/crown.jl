@@ -267,32 +267,36 @@ end
 function bm_crown_init_lstart!(s::StandState)
     t = s.trees
     nlive = t.n
+    # bm/cratet.f:189-195 `LBKDEN = IDG.LT.2; CALL DENSE` — CROWN (cratet.f:610) dubs against THAT density, whose
+    # live WK3 is BACKDATED to the start of the measured-growth period (dense.f:70-128: measured-DG trees by their
+    # own increment, the rest by the stand-average BAGR) whenever ≥1 live record carries a measured increment
+    # (SN>0; else WK3=DBH). Not backdating put the DUBSCR BA/TPCCF at the current-DBH values (1127576412290487:
+    # 3 LP with past DBH ⇒ live BA 16.486 / TPCCF 80.04 vs jl 48.25 / 199.2 ⇒ every seedling crown mis-dubbed).
+    # _backdate_dbh! is the shared IDG-faithful dense.f port (live 1:t.n, in place); restored below.
+    lbkden = s.control.growth_idg < 2
+    saved_live = lbkden ? t.dbh[1:nlive] : Float32[]
+    t.n = nlive + Int(t.ndead)
+    # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3) — see #151 note below.
+    avht_real = stand_top_height(s)
+    t.n = nlive
+    lbkden && _backdate_dbh!(s)
+    # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT IMC(I)==9
+    # (HISTORY 8,9, older-dead) which LOAD DBH=0 ⇒ they add 0 to BA/CCF/SDI while their HEIGHT still counts
+    # toward AVH (measured on 449747082489998: live DUBSCR AVH 67.34 vs jl 1.01 without the dead heights).
+    saved = Tuple{Int,Float32}[]
     if t.ndead > 0
-        t.n = nlive + t.ndead
-        # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT
-        # IMC(I)==9 (HISTORY 8,9, older-dead) which LOAD DBH=0. Only HISTORY 6,7 (dead ≤5yr, IMC=7) keep their
-        # DBH. So HISTORY 8,9 contribute 0 to the DBH-based density (BA/CCF/SDI) while their height still counts
-        # toward AVH (stand_top_height, which live does NOT zero). Replicate by zeroing the 8/9 DBH for this pass.
-        # AVHT40/DENSE top-height (dense.f:285-297) sums HT over the 40 largest-DBH TPA using IND, the
-        # descending-REAL-DBH sort — NOT WK3. WK3 (with IMC9→0) drives only the BA/CCF/SDI accumulation.
-        # So the dead HISTORY 8/9 heights DO enter AVH, ranked by their real DBH. Compute AVH from real DBH
-        # FIRST (before the WK3-zeroing), then restore it after compute_density! overwrites it with the
-        # zeroed-DBH sort. Without this, the zeroed dead sink below the live seedlings and their heights are
-        # lost ⇒ DUBSCR sees AVH≈seedling-height instead of the dead-inclusive top height (measured on
-        # 449747082489998: live DUBSCR AVH 67.34 vs jl 1.01 ⇒ seedling crowns dubbed 80 not the capped 95 ⇒
-        # over-vigorous small-tree height/DBH growth, BA/SDI/CCF/QMD one-directionally high).
-        avht_real = stand_top_height(s)    # real-DBH IND sort, real HT (AVHT40 over live + all dead records)
-        saved = Tuple{Int,Float32}[]
-        @inbounds for i in (nlive + 1):(nlive + t.ndead)
+        t.n = nlive + Int(t.ndead)
+        @inbounds for i in (nlive + 1):(nlive + Int(t.ndead))
             (t.history[i] == 8 || t.history[i] == 9) || continue
             push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
         end
-        compute_density!(s)                # dead-inclusive BA / point-CCF (CRATET DENSE over all inv records)
-        @inbounds for (i, d) in saved; t.dbh[i] = d; end
-        s.plot.avg_height = avht_real      # AVHT40 top height from real DBH (dead heights included), not the WK3 sort
-        t.n = nlive
     end
+    compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    @inbounds for (i, d) in saved; t.dbh[i] = d; end
+    t.n = nlive
+    lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
+    s.plot.avg_height = avht_real
     crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory
-    compute_density!(s)                    # restore live-only density so nothing downstream sees the dead-inclusive BA
+    compute_density!(s)                    # restore current live-only density for everything downstream
     return s
 end
