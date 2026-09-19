@@ -1078,6 +1078,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
+    # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
+    # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
+    es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
@@ -1088,7 +1091,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
-        atavh = es_at_avh, atrelden = es_at_relden)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+        atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
     # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment

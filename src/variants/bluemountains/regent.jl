@@ -208,12 +208,21 @@ end
 # first-cycle height growth (BM BARE-PLANT: persistent TopHt lag ~5 ft). Same class as EM #137 / UT #184 / CI #185.
 # Mirrors small_tree_growth!'s POTHTG/PCTRED/VIGOR/CON height + DK/DKK DBH over the birth subperiod (subyr=FINT−
 # GENTIM=5), applying HT/DBH directly (esgent.f HT(I)=HT(I)+HTG(I)·WK4). Gated to the new records nstart+1:n.
+#
+# Per new record, in SPESRT order (esgent.f:49 → regent.f DO 30 ISPC / DO 25 IND1), bm/regent.f LESTB does:
+# crown RAN draw (regent.f:257-264) → VIGOR → HTGR → ZZRAN draw (:358-360) → HTG (XWT=0 under LESTB, :369) → DBH.
+# The crown and ZZRAN draws are INTERLEAVED per record on the main RANN stream, so this routine owns the crown
+# draw (establish! skips BM in its crown pass). RELDEN/AVH are the GRADD DENSE values BEFORE the regen was
+# added (relden_pre/avh_pre); establish! recomputes density including the seedlings.
 function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
     sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
-    relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    dgsd = s.control.dg_sd
     gentim = max(fint - 5.0f0, 0.0f0)
     bscale = (fint - gentim) / _BM_RG_REGYR              # birth-cycle fraction (WK4; =0.5 for fint=10)
     # REGENT(LESTB) PCTRED reads a MID-PERIOD blend of the CURRENT (post-growth) and the START-of-cycle
@@ -229,9 +238,20 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     ab = BM_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in (nstart+1):t.n
+    newidx = sort(collect((nstart+1):t.n); by = i -> (Int(t.species[i]), i))   # SPESRT species-then-record
+    @inbounds for i in newidx
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= BM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        # regent.f:257-264 LESTB crown: CR = 0.89722 − 0.0000461·PCCF + 0.07985·RAN, RAN∈[−1,1], clamp [.20,.90].
+        ran_cr = 0f0
+        while true
+            ran_cr = bachlo(s.rng, 0f0, 1f0)
+            -1f0 <= ran_cr <= 1f0 && break
+        end
+        pccf = s.density.point_ccf[Int(t.plot_id[i])]
+        cr0 = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
+        icr0 = floor(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
         h = t.height[i]
         sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
@@ -244,7 +264,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         if sp == 12
             htgr = (si / 5.0f0) * pctred * vigor * con
         elseif sp == 15
-            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+            age = t.birth_age[i]                          # regent.f:319 LESTB ⇒ SITAGE=ABIRTH (=AGEPL, estab.f:628)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
@@ -259,10 +279,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             end
         end
         htgr = (htgr + zzran * 0.1f0) * bscale           # birth-cycle subperiod (was scale=fint/REGYR)
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        xmn = BM_RG_XMIN[sp]; xmx = BM_RG_XMAX[sp]
-        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt); htg < 0.1f0 && (htg = 0.1f0)   # new tree: large-tree HTG(K)=0
+        htg = htgr; htg < 0.1f0 && (htg = 0.1f0)          # regent.f:369 LESTB ⇒ XWT=0; :376 HTG<.1 ⇒ .1
         hk = h + htg
         t.height[i] = hk; t.ht_growth[i] = htg
         bkpt = sp == 6 ? 99.0f0 : 3.0f0
