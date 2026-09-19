@@ -312,6 +312,9 @@ function dub_missing_heights!(s::StandState)
     # t.n+1 : t.n+t.ndead, so dub over BOTH partitions. The AA fit above stays live-only (FVS fits AA from live
     # measured trees, DO 15). The dead-tree heights don't enter the live .sum aggregate but DO feed the DG-
     # calibration backdating (which exposes the dead partition), so dubbing them keeps that calibration faithful.
+    # Which records reach the dub with NO input height — FVS's HT(I) is still 0 for them in anything CRATET computes
+    # before this dub (the :195 DENSE AVH that the BM DUBSCR crown dub reads, bm_crown_init_lstart!).
+    s.calib.ht_missing = BitVector([t.height[i] <= 0f0 for i in 1:(t.n + t.ndead)])
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0

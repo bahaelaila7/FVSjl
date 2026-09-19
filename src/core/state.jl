@@ -585,6 +585,13 @@ mutable struct Calibration
     cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
     cal_wci::Vector{Float32}         # WC — calibration weight to input
     cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
+    # BM dgdriv.f DO 220 dub inputs (:735 CALL DGF(WK3) after the correction terms are final, then :746-769):
+    # WK2 (predicted ln DDS at the backdated diameters WK3, final COR, calibration-time density) and WK3 itself,
+    # captured inside calibrate_diameter_growth!. Empty until the BM calibration runs; read by bm_cycle0_dg.
+    dub_wk2::Vector{Float32}
+    dub_wk3::Vector{Float32}
+    input_seq::Vector{Int32}     # read position of records 1:n+ndead at the inventory ingest (LNKCHN order; see treeinput.jl)
+    ht_missing::BitVector        # records 1:n+ndead whose input HT was missing (≤0) before the CRATET height dub
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -596,7 +603,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
-    zeros(Float32,MAXSP))                                            # cal_cortem (CalibStats ScaleFactor)
+    zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
+    Float32[], Float32[], Int32[], falses(0))                        # dub_wk2, dub_wk3 (BM DO 220 dub stash), input_seq, ht_missing
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

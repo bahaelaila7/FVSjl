@@ -443,6 +443,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
+        elseif s.variant isa BlueMountains
+            # BM: this percentile is the one bm/dense.f's BACKDATING first pass computes (dense.f:241-244, "WHEN
+            # BACKDATING, PCT DISTRIBUTION MUST BE COMPUTED HERE") from CRATET's :195 DENSE call. Its IND is the
+            # :164-166 order: IND=IND1 (species-major SPESRT, dead records still present — deleted only at :201+)
+            # then RDPSRT(ITRN,DBH,IND,.FALSE.) on the CURRENT dbh — Scowen's UNSTABLE sort, so the seed (incl. the
+            # dead records' positions) decides equal-DBH ties. That PCT is what the calibration DGF at :630 reads
+            # (the :270 re-sort comes after). A stable sortperm swapped tied records ⇒ PCT/PBAL ⇒ calibration WK2
+            # and the dgdriv.f:735 DO 220 dub of tied records (1285593348290487 16/17; 41137341010497 4/5).
+            ord = bm_cratet166_ind(s, rankd, nlive2, ntot)
         else
             ord = sortperm(rankd; rev = true)
         end
@@ -699,6 +708,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         lim = s.control.dg_stddev_bound * c.sigma[t.species[i]]
         oldrn[i] > lim && (oldrn[i] = lim)
         oldrn[i] < -lim && (oldrn[i] = -lim)
+    end
+
+    # BM dgdriv.f:735 — after the correction terms are final (:558/:615/:650) and OLDRN is clamped (DO 202),
+    # FVS calls DGF(WK3) AGAIN, still at the backdated diameters WK3 and the calibration-time (backdated)
+    # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
+    # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
+    # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
+    if s.variant isa BlueMountains
+        _wk2_keep = s.scratch.wk[2, 1:t.n]
+        _sft = s.plot.forest_type; _savh = s.plot.avg_height
+        s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
+        dgf!(s, s.variant)
+        c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
+        c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
+        s.plot.forest_type = _sft; s.plot.avg_height = _savh
+        s.scratch.wk[2, 1:t.n] .= _wk2_keep
     end
 
     # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
