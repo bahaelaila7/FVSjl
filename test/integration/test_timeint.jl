@@ -70,8 +70,8 @@ _ti_base(path) = [split(l) for l in eachline(path)
             # flips on that ULP). ⇒ the reconstruction is the CORRECT/faithful path; the residual below is purely
             # the mortality knife-edge (a sub-ULP self-thinning-line near-tie flip), a PERMITTED cornered primitive,
             # NOT a fixable reconstruction artifact. @test_broken with the exact mechanism named, not a padded bound.
-            @test_broken all(parse(Float64, jl[i][3]) == parse(Float64, ft[i][3]) for i in 1:length(jl))  # TPA — non-native mortality-timing tail
-            @test_broken all(parse(Float64, jl[i][9]) == parse(Float64, ft[i][9]) for i in 1:length(jl))  # cuft — non-native DGSCOR/transcendental tail
+            @test all(parse(Float64, jl[i][3]) == parse(Float64, ft[i][3]) for i in 1:length(jl))  # TPA — non-native mortality-timing tail
+            @test all(parse(Float64, jl[i][9]) == parse(Float64, ft[i][9]) for i in 1:length(jl))  # cuft — non-native DGSCOR/transcendental tail
         end
     end
 end

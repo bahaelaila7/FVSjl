@@ -773,6 +773,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # crown-dub draw order (regent.f:301, I=ITRNIN..ITRN) and the SPESRT species-major IND1 used for every later
     # per-record draw, so the block must match the oracle's layout, not just its contents.
     aplot = s.estab.es_aut_plot
+    created_pos = collect((nstart + 1):t.n)            # storage positions of the records THIS pass created (tracked
+                                                       # through the interleave below — PHASE 2 must crown-dub these)
     if use_ps && !isempty(pl_plot) && !isempty(aplot) && Int(s.estab.es_aut_first) + length(aplot) - 1 == nstart &&
        all(>(0), aplot)
         lo = Int(s.estab.es_aut_first)
@@ -788,6 +790,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # 1440); after re-laying jl's block into that slot order, re-stamp so the TreeList "ES" ids match.
             icyc_id = (Int(s.control.cycle) + 1) * 10000
             @inbounds for i in lo:t.n; t.tree_id[i] = Int32(10000000 + icyc_id + i); end
+            # the created (PLANT/NATURAL keyword) records now sit wherever the interleave put them — not at
+            # nstart+1:t.n (those slots may now hold the tally's naturals). Follow them so EM's PHASE-2 crown dub
+            # hits the new keyword records, as before the interleave (IE's own esgent crown-dubs every new record).
+            created_pos = [lo + k - 1 for k in eachindex(perm) if perm[k] > nstart]
         end
     end
     # PHASE 2 — ESGENT → REGENT(lestb): assign each new tree its open-grown crown in
@@ -796,7 +802,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # MAIN RANN stream (separate from the ESRANN heights). The per-cycle CROWN
     # (crown_ratio_update!, run after) then applies its ±1%/yr change limit (~85).
     if created
-        newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))
+        newidx = sort(created_pos; by = i -> (Int(t.species[i]), i))
         # NE only: REGENT(LESTB) also GROWS each new seedling its creation cycle (esgent.f:48). SN's
         # essubh assigns the full height-at-age directly, so SN needs no growth here; NE's essubh gives
         # a BASE height that this grows to the cycle-end height (the BARE-stand TopHt fix). XWT=0 for LESTB.

@@ -1,8 +1,9 @@
 # White Pine Blister Rust (WPBR) canker model — keyword reader (brin.f, "BRUST"
 # keyword, keywds.f option 75) + the BRANN Lehmer/MINSTD RNG + the BRINIT/BRBLKD
 # defaults (chunk 0) PLUS the canker generation/growth/status/mortality MATH
-# kernels (dynamics chunk). Engine-inert: no simulate.jl seam wires WPBR into a
-# projection, so a BRUST-present stand projects BYTE-IDENTICALLY to one without.
+# kernels (dynamics chunk), driven per cycle by wpbr_brtreg! (BRTREG: BRCREM/BRSTYP/BRIBA|BRICAL, year loop
+# BRECAN/BRCGRO, TBRHMR, BRCRED, BRUPDT) and wpbr_brpr! (BRPR: BRTSTA + BRSTAT). A NON-host stand projects
+# byte-identically to one without BRUST.
 #
 # VALIDATED HERE (bit-exact, 0 ULP unless noted):
 #   * BRANN  — the pristine brann.f MINSTD LCG (seed 55329) → 6-draw stream, and
@@ -19,7 +20,8 @@
 #     TSTARG (GI ≤1 ULP on one libm-powf edge, report-only), BRTARG RI + BRIBA,
 #     BRECAN RITEM/TNEWC/PLI/NUMTIM + canker placement TOUT/PLETH, BRCGRO bole
 #     girdle growth + status→kill. Fed the oracle's own hex inputs (equal-inputs
-#     dump-replay); the end-to-end .sum-DELTA is cornered by the IE #206 straddle.
+#     dump-replay); the end-to-end .sum is BIT-EXACT vs the live relink on the host stand (min + full BRUST
+#     block, forest 114→118 mapping) — the old "#206 straddle" corner was the missing BRCREM/BRTSTA/BRSTAT.
 #
 # DOCTRINE: WPBR ships nowhere (every FVS*_buildDir links the base/exbrus.f no-op
 # stub), so a numeric oracle is a RELINK (wpbr/*.o swapped for exbrus.o — recipe
@@ -204,6 +206,14 @@ const _WPBR_TRE_NOHOST = """
         # Host stand: the BRTREG driver engages (canker mortality) ⇒ .sum DIFFERS.
         @test rows(min_key)  != base
         @test rows(wpbr_key) != base
+        # End-to-end BIT-EXACT vs the live WPBR relink (FVSie_wpbr = FVSie objects with the real wpbr/*.o in
+        # place of the exbrus.f stub, main.o without -std=legacy so the TREEFMT back-tab fields read), full
+        # .sum rows for all three keys. Goldens: test/fixtures/wpbr/{ctrl,min,full}.live.sum (2026-09-19).
+        gold(k) = filter(l -> !isempty(strip(l)),
+                         split(strip(read(joinpath(@__DIR__, "..", "fixtures", "wpbr", "$k.live.sum"), String)), '\n'))
+        @test base == gold("ctrl")
+        @test rows(min_key)  == gold("min")
+        @test rows(wpbr_key) == gold("full")
     end
 end
 

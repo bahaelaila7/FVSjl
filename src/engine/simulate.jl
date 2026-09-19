@@ -1268,6 +1268,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # stand reports CFV=0 at cyc1 (verified: bare_plant 1997 cuft=0) and the regen first
     # gets volume from the next cycle's VOLS (next grow_cycle!'s compute_volumes!). The
     # crown pass above DOES set the new trees' ICR this cycle (DGF/mortality read it next).
+    # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
+    # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
+    s.wpbr !== nothing && wpbr_brpr!(s)
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
