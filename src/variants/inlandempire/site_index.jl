@@ -72,7 +72,9 @@ function ie_forkod!(p)
     else
         idx = findfirst(==(kodfor), IE_JFOR)
         if idx === nothing
-            useigl = false; ifor = 1               # not found (ERRGRO 3); default to a safe subscript
+            # not found (ERRGRO 3, forkod.f:117-124): IFOR keeps its ie/grinit.f:195 default 11 (St. Joe 118) and IGL
+            # is left unset — NOT 1 (Bitterroot). FVS prints "FOREST CODE USED IN THIS PROJECTION IS 118".
+            useigl = false; ifor = 11
         else
             ifor = idx
         end
@@ -84,6 +86,9 @@ function ie_forkod!(p)
     ifor == 15 && (ifor = 9)                        # Helena 112 -> Lolo 116
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(IE_KFOR[ifor]))
+    # forkod.f:150 KODFOR=JFOR(IFOR): every later KODFOR reader (estab.f:212 IFORCD/IFO, volume, sprouting) sees the
+    # MAPPED code (102/109→103, 112→116, 613→113, reservations → their NF, unlisted → 118), not the raw input.
+    p.user_forest_code = Int32(IE_JFOR[ifor])
     return ifor
 end
 

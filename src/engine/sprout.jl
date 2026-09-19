@@ -803,6 +803,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.crown_pct[n]   = Int32(70)               # ICR
             t.crown_ratio[n] = 70f0                    # regen convention (see establish!)
             t.crown_width[n] = cw
+            t.iestat[n] = Int32(0)                  # esuckr.f:330 IESTAT(ITRN)=0 (slot may be reused)
             t.norm_ht[n]     = Int32(0)
             t.trunc[n]       = Int32(0)
             t.birth_age[n]   = Float32(ishag)          # ABIRTH

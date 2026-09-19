@@ -761,11 +761,21 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 end
             elseif l == 1
                 stash.htgU[i] = htg; stash.is_small[i] = true
-                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dgU[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                    stash.dbhU[i] = dbh_dir >= 0.0f0 ? dbh_dir : d
+                end
             else
                 stash.htgL[i] = htg
-                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dgL[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                    stash.dbhL[i] = dbh_dir >= 0.0f0 ? dbh_dir : d
+                end
             end
+            # ↑ Each copy K carries its OWN DBH into UPDATE (TRIPLE copies the CENTRAL, whose DBH REGENT may already have
+            # SET directly — HK<4.5 ⇒ regent.f:881): a directly-set copy gets DBH(K)=its value with DG(K)=0 (⇒ next WK1=0);
+            # an increment-path copy keeps its PRE-growth DBH D and DG(K)=its increment, so UPDATE forms exactly
+            # D+DG/BRATIO(D) (MEASURED live copy 512: 0.10091+0.3169/0.915=0.4472; WK1 of copy 257 = 0).
         end
     end
     return s
@@ -780,7 +790,8 @@ end
 # (sp≤12,14,23) — the planted-conifer case. Non-NIVAR planted species (PI/JU 15,16 / TT 13,17 / CR 19,22) are rare
 # as planting stock and left un-birth-grown here (would need their special-species branches; see #186 follow-up).
 function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
+                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
     nstart >= t.n && return s
@@ -802,7 +813,12 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     # Post-fire the start-of-cycle density is the pre-fire overstory (e.g. relden 372 vs current ~9), which
     # collapses HTGRL and stunts the birth cohort ~2.5-3× (the dominant IE simfire post-fire BA deficit).
     # atba/atrelden/atavh stay on delmax/relh (the birth-DBH DADJ dub, #194); only bal/htgrl move to current.
-    ba_htg = p.basal_area; relden_htg = p.relative_density
+    # regent.f:288-295 (LESTB, NTYR=5 ⇒ one 5-yr period): RDNEXT(1)=RELDEN, BANEXT(1)=BA of the gradd.f:192 DENSE —
+    # post-growth/post-disturbance but PRE-ESNUTR (no sprouts, no AUTOES/PLANT cohort). The caller snapshots them
+    # before esuckr! (relden_pre/ba_pre); p.* here already include the new cohort (establish! recomputes density),
+    # which fed a bare planted stand RDJ≈0.19 instead of 0 ⇒ every birth HTGRL ~0.12% low (live instrumented).
+    ba_htg = ba_pre >= 0f0 ? ba_pre : p.basal_area
+    relden_htg = relden_pre >= 0f0 ? relden_pre : p.relative_density
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
