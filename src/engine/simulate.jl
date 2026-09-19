@@ -697,6 +697,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MPSVDG (mpgr.f): save the pre-growth DG for the LPOPDY MPGR resistance, BEFORE diameter_growth!
     # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
     s.mpb !== nothing && mpb_svdg!(s)
+    rd_cycle_start!(s)                     # WRD: size driver (RDESTB for last cycle's regen) + WK1=DG snapshot (dgdriv.f)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # IE cycle-1 WK1 dub (dgdriv.f:755-795 LSTART "DUB IN DBH INCREMENT FOR TREES ON WHICH IT WAS NOT
     # MEASURED"): the calibration pass sets DG(I) per dgdriv.f:774-795, and that value becomes cycle-1 WK1
