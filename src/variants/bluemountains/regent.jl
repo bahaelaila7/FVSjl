@@ -298,6 +298,45 @@ end
     return BM_HTDBH_P2[ifor, sp] > 0f0
 end
 
+# bm/htdbh.f MODE=0 (DBH→HT), Curtis-Arney with the linear D<3 segment. IFOR 1/2/3 → Malheur/Ochoco/
+# Umatilla, anything else → Wallowa-Whitman (the Fortran ELSE branch).
+@inline function bm_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
+    (ifor < 1 || ifor > 3) && (ifor = 4)
+    p2 = BM_HTDBH_P2[ifor,sp]; p3 = BM_HTDBH_P3[ifor,sp]; p4 = BM_HTDBH_P4[ifor,sp]
+    d >= 3f0 && return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+    return ((4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+end
+
+# bm/blkdat.f:168-177 Wykoff HT-DBH HT1/HT2 (the cratet dub/AA-fit coefficients). The species CSV ht1/ht2
+# columns are CR-template placeholders and differ (e.g. WJ 4.192/−5.1651 vs blkdat 3.2/−5.0).
+const BM_BLK_HT1 = Float32[5.035, 5.043, 4.929, 4.874, 4.874, 3.2, 4.954, 5.035, 4.875, 4.993,
+                           4.192, 4.192, 5.188, 5.143, 4.4421, 5.152, 4.993, 5.152]
+const BM_BLK_HT2 = Float32[-10.674, -9.123, -10.744, -10.405, -10.405, -5.0, -9.177, -10.674, -9.568, -12.43,
+                           -5.1651, -5.1651, -13.801, -13.497, -6.5405, -13.576, -12.43, -13.576]
+
+# bm/cratet.f:385-412 (live DO 130) / :486-515 (dead DO 145) missing-height / top-kill dub for D>0.1:
+# Wykoff H=exp(AX+HT2/(D+1))+4.5 (AX=AA if IABFLG==0 else HT1), WC small-tree forms for sp 13/14 & 16/18 at
+# D<5, the PP/OS D<3 linear form — then, for every species except WJ/WB/LM/AS (6/11/12/15), the inventory
+# HTDBH curve OVERRIDES H whenever .NOT.LHTDRG or IABFLG==1. The caller applies the 4.5 floor.
+function bm_cratet_dub(ifor::Int, sp::Int, d::Float32, icr::Integer,
+                       lhtdrg::Bool, iabflg::Integer, aa::Float32)::Float32
+    ax = iabflg == 0 ? aa : BM_BLK_HT1[sp]
+    h = if d < 5f0 && (sp == 13 || sp == 14)
+        exp(1.5907f0 + 0.3040f0 * d)
+    elseif d < 5f0 && (sp == 16 || sp == 18)
+        0.0994f0 + 4.9767f0 * d
+    else
+        exp(ax + BM_BLK_HT2[sp] / (d + 1f0)) + 4.5f0
+    end
+    if (sp == 10 || sp == 17) && d < 3f0
+        jcr = icr <= 0 ? 4 : clamp((icr - 1) ÷ 10 + 1, 1, 7)
+        h = 8.31485f0 + 3.03659f0 * d - 0.59200f0 * jcr
+    end
+    (sp == 6 || sp == 11 || sp == 12 || sp == 15) && return h
+    (!lhtdrg || iabflg == 1) && (h = bm_htdbh_height(ifor, sp, d))
+    return h
+end
+
 # bm/htdbh.f MODE=1 (HT→DBH), Curtis-Arney with a linear small-tree segment below HAT3 (= _ut_htdbh_dbh form).
 @inline function bm_htdbh(ifor::Int, sp::Int, h::Float32)::Float32
     (ifor < 1 || ifor > 4) && (ifor = 3)

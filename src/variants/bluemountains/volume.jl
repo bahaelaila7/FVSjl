@@ -25,7 +25,12 @@ function compute_volumes_bm!(s::StandState)
             # Top-killed trees: full cubic uses NORMAL height (norm_ht), then cftopk trims (see r4_topkill; BM
             # TOPD=4.5). Missing this made a broken-top DF/PP ~3-4% low (stand 645243390).
             hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)
+            # NVEL MRULES REGN 6 (mrules.f:302-319): COR='N' (ANINT raw Scribner per log, not ×10 decimal-C)
+            # + OPT=23 bucking — the same R6 rules EC/SO/CA pass. Omitting them rounded BM board feet to
+            # multiples of 10 and mis-bucked merch cubic (bmt01 cyc0 MCuFt 971 vs live 992, BdFt 4983 vs 5112).
+            # sf_hs: MERLEN's merch-top height via the faithful SF_HS Newton (profile.f MERLEN → sf_hs.f).
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
+                           iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
