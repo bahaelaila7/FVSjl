@@ -17,7 +17,9 @@ let
 end
 
 @inline function bm_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
+    # No D≤0 guard (bm/ccfcal.f:38-56): a zero diameter falls to the D≤0.1 ⇒ 0.001 branch for sp 1-12,15,17.
+    # The CRATET backdating DENSE zeroes IMC-9 (HISTORY 8/9) dead WK3 and still counts them at 0.001·P in the
+    # point CCF the cycle-0 crown dub reads (1127576412290487: TPCCF 79.977 → 80.037 = live, 10 dead × 6.018 TPA).
     dd = Float32(d)
     if sp == 13 || sp == 14 || sp == 16 || sp == 18
         return dd < 1f0 ? dd * (BM_RD1[sp] + BM_RD2[sp] + BM_RD3[sp]) :
