@@ -98,13 +98,14 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _nc_ba = ((_nc_fm || _ws_fm || _ca_fm || _oc_fm || _op_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
+    _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         tba[sp] += 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
-             _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)

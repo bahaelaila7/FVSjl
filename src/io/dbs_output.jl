@@ -1103,7 +1103,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     s.variant isa CentralCalifornia &&
         return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
     s.variant isa BlueMountains &&
-        return clamp(bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+        return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
           s.variant isa OregonCoast       ? oc_cwcalc :
           s.variant isa Olympic           ? op_cwcalc :

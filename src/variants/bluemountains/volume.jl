@@ -232,3 +232,28 @@ function bm_r6vol1(dbhob::Float32, fclass::Int, xlogs::Float32, ld1::Vector{Int}
     end
     return lv1, lv4
 end
+
+"""
+    bm_snag_bole_cuft(s, sp, d, h) -> Float32
+
+BM snag bole volume FMSVOL (fmsvol.f, non-eastern branch): `VOL2HT = MAX(0.005454154·H, TCF)`, TCF = the BM
+total cubic (NATCRS, METHC 6) on the snag's DBH/height with no top-kill (XHT=−1 ⇒ LTKIL=F ⇒ no CFTOPK) — the
+same equations as `compute_volumes_bm!` VOL(1): FW2 ⇒ `cr_fw2_vol(iregn=6)[1]`; 616BEHW ⇒ the ≤17.3 ft
+cylinder guard or `bm_r6vol3` zone 1. Used for input snags (FMSADD) and mortality snags; without it BM fell
+through the R8-Clark path (0 for NVEL codes) ⇒ input snags booked the Jenkins whole-tree (~5× over) and
+mortality snags the cone floor (~40× under).
+"""
+function bm_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    (d < 1f0 || h <= 0f0 || sp < 1) && return 0f0
+    x = 0.005454154f0 * h
+    eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+    bark = bm_bratio(s.coef.species, sp, d)
+    tcf = if mdl == "FW2"
+        max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)[1], 0f0)
+    else
+        iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
+        dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+        h <= 17.3f0 ? 0.00272708f0 * dbhib * dbhib * h : bm_r6vol3(d, dbtbh, bm_formcl(sp, iforst, d), h, 1)
+    end
+    return max(x, tcf)
+end
