@@ -1061,7 +1061,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
         prob_old = max(p1n - pn, 0.0001f0)
-        esprob(i) = is_ingro ? max(p1n * Float32(newtpp) / Float32(itpp), 0.0001f0) : (i <= ns ? prob_old : p1n)
+        esprob(i) = is_ingro ? max(p1n * (Float32(newtpp) / Float32(itpp)), 0.0001f0) : (i <= ns ? prob_old : p1n)   # estab.f:945-950 FTEMP2=NEWTPP/ITPP first, then FTEMP*FTEMP2
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1

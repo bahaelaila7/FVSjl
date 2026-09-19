@@ -46,17 +46,17 @@ IFOR==5 (Colville) uses R6CRWD (deferred). Returns width clamped [0.1, 99.9]."""
         if H <= 5f0
             0.8f0 * H * max(0.5f0, jcr * 0.01f0)
         elseif H >= 15f0
-            6.90396f0 * D^0.55645f0 * H^(-0.28509f0) * cl^0.20430f0
+            6.90396f0 * fpow(D, 0.55645f0) * fpow(H, -0.28509f0) * fpow(cl, 0.20430f0)
         else
             c1 = 0.8f0 * H * max(0.5f0, jcr * 0.01f0)
-            c2 = 6.90396f0 * D^0.55645f0 * H^(-0.28509f0) * cl^0.20430f0
+            c2 = 6.90396f0 * fpow(D, 0.55645f0) * fpow(H, -0.28509f0) * fpow(cl, 0.20430f0)
             w = (H - 5f0) * 0.1f0
             c1 * (1f0 - w) + c2 * w
         end
     else
         ba = barea < 1f0 ? 1f0 : Float32(barea)
-        IE_CWB1[sp] * exp(IE_CWB2[sp] + IE_CWB3[sp]*log(cl) + IE_CWB4[sp]*log(D) +
-                          IE_CWB5[sp]*log(H) + IE_CWB6[sp]*log(ba))
+        IE_CWB1[sp] * fexp(IE_CWB2[sp] + IE_CWB3[sp]*flog(cl) + IE_CWB4[sp]*flog(D) +
+                          IE_CWB5[sp]*flog(H) + IE_CWB6[sp]*flog(ba))
     end
     cw > 99.9f0 && (cw = 99.9f0)
     cw < 0.1f0 && (cw = 0.1f0)
@@ -85,14 +85,21 @@ Cycle update (D-backdated≥3 for NIVAR). LSTART dub via DUBSCR/BACHLO (RNG-corn
 function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0.0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    t.n == 0 && return s
+    if t.n == 0
+        # crown.f:191 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74 — with NO live trees FVS still dubs the missing
+        # crowns of the inventory's standing-dead records (each NIVAR/UTTVAR one main-stream DUBSCR draw). Returning
+        # here skipped those draws: an all-dead FIA stand (1627671438290487) entered cycle 1 with jl's main RANN 69
+        # draws behind live, desyncing every birth-cycle REGENT ZZRAN.
+        lstart && t.ndead > 0 && _ie_dead_crown_dub!(s, p.basal_area, s.control.dg_sd)
+        return s
+    end
     itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     ba = p.basal_area; relden = p.relative_density
-    lnba = ba > 0f0 ? log(ba) : 0f0; lnrd = relden > 0f0 ? log(relden) : 0f0
+    lnba = ba > 0f0 ? flog(ba) : 0f0; lnrd = relden > 0f0 ? flog(relden) : 0f0
     reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end
-    x1 = (!lstart && oba > 0f0) ? log(oba) : 0f0
-    x2 = (!lstart && rdm1 > 0f0) ? log(rdm1) : 0f0
+    x1 = (!lstart && oba > 0f0) ? flog(oba) : 0f0
+    x2 = (!lstart && rdm1 > 0f0) ? flog(rdm1) : 0f0
     dgsd = s.control.dg_sd
     ba_a = c.bark_a; ba_b = c.bark_b
     # ISORT: descending-DBH rank (ie/crown.f:152, for UTTVAR Weibull X). IND is DBH-descending order.
@@ -155,8 +162,8 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             xcrcon = crcon + IE_CRPARM[sp,1]*ba + IE_CRPARM[sp,2]*ba*ba + IE_CRPARM[sp,3]*lnba +
                      IE_CRPARM[sp,4]*relden + IE_CRPARM[sp,5]*relden*relden + IE_CRPARM[sp,6]*lnrd
             pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)      # P = PCT
-            pcr = xcrcon + b7*d + b8*d*d + b9*log(d) + b10*h + b11*h*h + b12*log(h) + b13*pp + b14*log(pp)
-            exppcr = exp(pcr); expdcr = 0f0
+            pcr = xcrcon + b7*d + b8*d*d + b9*flog(d) + b10*h + b11*h*h + b12*flog(h) + b13*pp + b14*flog(pp)
+            exppcr = fexp(pcr); expdcr = 0f0
             if !lstart
                 dcrcon = crcon + IE_CRPARM[sp,1]*oba + IE_CRPARM[sp,2]*oba*oba + IE_CRPARM[sp,3]*x1 +
                          IE_CRPARM[sp,4]*rdm1 + IE_CRPARM[sp,5]*rdm1*rdm1 + IE_CRPARM[sp,6]*x2
@@ -166,8 +173,8 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 # when OLDPCT<=0 (or OLDPCT>PCT under thinning — the thin branch is omitted; no removals here).
                 pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i])
                 pb < 0.01f0 && (pb = 0.01f0)
-                dcr = dcrcon + b7*db + b8*db*db + b9*log(db) + b10*hb + b11*hb*hb + b12*log(hb) + b13*pb + b14*log(pb)
-                expdcr = exp(dcr)
+                dcr = dcrcon + b7*db + b8*db*db + b9*flog(db) + b10*hb + b11*hb*hb + b12*flog(hb) + b13*pb + b14*flog(pb)
+                expdcr = fexp(dcr)
             end
             chg = exppcr - expdcr
             if !lstart || icr > 0
@@ -204,7 +211,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
                 x = d > 0f0 ? (Float32(isort[i]) / Float32(t.n)) * scale : rann!(s.rng) * scale   # crown.f:428-433
                 x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-                crnew = (A + B * (-log(1f0 - x))^(1f0/C)) * 10f0                   # crown.f:436,443
+                crnew = (A + B * fpow(-flog(1f0 - x), 1f0/C)) * 10f0                   # crown.f:436,443
                 icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
             end
         end
@@ -232,7 +239,15 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # in the .sum, so the DUBSCR mean (NIVAR BCR0-3 form; UTTVAR TPCCF/AVH/TMAI terms omitted) is immaterial —
     # only the SD (=CRSD[sp], faithful) and hence the draw COUNT/ORDER matter for the RNG sync. crown.f:684-687
     # bounds the dead ICRI to [10,95] for ALL species (not the live loop's NIVAR<5). IE-only dispatch.
-    if lstart && t.ndead > 0
+    lstart && _ie_dead_crown_dub!(s, ba, dgsd)
+    return s
+end
+
+# crown.f:633-694 DO 79 (see the comment block above its call site): cycle-0 dub of MISSING crowns on the
+# standing-dead records, in FVS's IREC2→MAXTRE order (= reverse of jl's dead storage).
+function _ie_dead_crown_dub!(s::StandState, ba::Float32, dgsd::Float32)
+    t = s.trees
+    if t.ndead > 0
         @inbounds for i in (t.n + Int(t.ndead)):-1:(t.n + 1)
             t.tpa[i] <= 0f0 && continue
             icr = Int(t.crown_pct[i]); icr > 0 && continue
@@ -277,7 +292,7 @@ end
         end
     end
     abs(cr + fcr) >= 86.0f0 && (cr = 86.0f0)            # dubscr.f:105 overflow guard
-    crf = 1.0f0 / (1.0f0 + exp(cr + fcr))
+    crf = 1.0f0 / (1.0f0 + fexp(cr + fcr))
     crf < 0.05f0 && (crf = 0.05f0); crf > 0.95f0 && (crf = 0.95f0)
     return trunc(Int, crf * 100.0f0 + 0.5f0)
 end
@@ -335,7 +350,7 @@ function ie_dub_aspen_birthage!(s::StandState)
         sp = Int(t.species[i])
         (sp == 18 || sp == 20 || sp == 21) || continue
         (t.birth_age[i] <= 0f0 && t.height[i] > 0f0) || continue
-        t.birth_age[i] = (t.height[i] * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)   # ie/findag.f
+        t.birth_age[i] = fpow(t.height[i] * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0)   # ie/findag.f
     end
     return s
 end

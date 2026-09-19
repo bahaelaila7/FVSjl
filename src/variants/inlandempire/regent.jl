@@ -52,17 +52,19 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     banext = fill(ba, nper); rdnext = fill(relden, nper)
     if nper > 1
         @inbounds for i in 1:t.n
-            d1 = t.dbh[i]; d1 < 3.0f0 && continue          # backdated dbh
+            # calibration DO 49 I=1,ITRN (regent.f:1090-1109) has NO D>=3 gate (unlike the growth pass DO 6 :246):
+            # every live record's measured increment feeds the subcycle projection.
+            d1 = t.dbh[i]                                   # WK3(I) = backdated dbh
             sp = Int(t.species[i]); pr = t.tpa[i]
             bark = ie_bratio(sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = ie_tree_ccf(sp, d1); c2 = ie_tree_ccf(sp, d2)
+            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr     # CCFCAL = CCFT·P (regent.f:1098-1106)
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
-                k += kper[j-1]; pn = pr * 0.985f0^k
-                rdnext[j] += k * ci * pn; banext[j] += k * bi * pn
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn; banext[j] += Float32(k) * bi * pn
             end
         end
     end
@@ -200,16 +202,17 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             bark = ie_bratio(sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = ie_tree_ccf(sp, d1); c2 = ie_tree_ccf(sp, d2)
+            # CCFCAL returns CCFT·P (ccfcal.f:81) ⇒ C1/C2 carry P, and FVS evaluates RDNEXT += ((K*CI)/P)*PN with
+            # PN=P*0.985**K (integer power ⇒ __powisf2) — regent.f:262-273. Cancelling the P algebraically (the old
+            # `k*ci*pn` on bare CCFT) rounds differently: IE cycle-4 subcycle-2 RDJ was 2 ULP off (bare-plot fixture).
+            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
                 k += kper[j-1]
-                pn = pr * 0.985f0^k
-                # regent.f:269 RDNEXT += K*CI/P*PN where CI uses CCFCAL (= CCFT*P). Our ie_tree_ccf is CCFT
-                # (no P), so CI here lacks the P that FVS's /P cancels ⇒ do NOT divide by pr (pn carries it).
-                rdnext[j] += k * ci * pn
-                banext[j] += k * bi * pn
+                pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn
+                banext[j] += Float32(k) * bi * pn
             end
         end
     end
@@ -260,13 +263,28 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             end
         end
     end
+    # FVS walks every REGENT tree loop species-major over IND1 (DO ISPC=1,MAXSP / DO I3=I1,I2 / I=IND1(I3)):
+    # the subcycle density feedback RDNEXT/BANEXT(J+1) (regent.f:665-670) is a Float32 running sum, so its
+    # accumulation ORDER is part of the result; record order drifted RDJ/BAJ by ULPs from subcycle 2 on.
+    _isct = s.control.sp_count_tab; _ind1 = s.scratch.idx1
+    _sp_order = Vector{Int}(undef, n); _no = 0
+    @inbounds for sp in 1:MAXSP
+        i1 = _isct[sp, 1]; i1 == 0 && continue
+        i2 = _isct[sp, 2]
+        for k in i1:i2
+            (1 <= k <= length(_ind1)) || continue
+            ii = Int(_ind1[k]); (1 <= ii <= n) || continue
+            _no += 1; _sp_order[_no] = ii
+        end
+    end
     # ---- subcycle loop (regent.f:250-620) ----
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]
         scale = Float32(kper[j]) / regyr
         ky = 0; for jj in 1:j; ky += kper[jj]; end            # KY = cumulative years thru subcycle j (regent.f:353)
-        surv = 0.985f0 ^ ky
-        for i in 1:n
+        surv = fpowi(0.985f0, ky)                              # 0.985**KY: integer power ⇒ libgcc __powisf2 (single precision)
+        for _oi in 1:_no
+            i = _sp_order[_oi]
             sp = Int(t.species[i]); d0 = t.dbh[i]
             d0 >= IE_RG_XMAX[sp] && continue
             t.tpa[i] <= 0.0f0 && continue
@@ -378,8 +396,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             # adds its CCF/BA increase to RDNEXT/BANEXT(J+1). C1/C2 use CCFCAL (= CCFT·P) ⇒ ·pr; no /P here.
             if j < nper
                 pr = t.tpa[i]
-                c1 = ie_tree_ccf(sp, d); c2 = ie_tree_ccf(sp, d2)
-                rdnext[j+1] += Float32(ky) * pr * (c2 - c1) / 10.0f0 * surv
+                # CCFCAL returns CCFT·P (ccfcal.f:81) ⇒ C1/C2 already carry P; FVS evaluates
+                # ((KY*(C2-C1))/10.)*(0.985**KY) and ((BACON*D2*D2-B1)*P)*(0.985**KY) (regent.f:443-444, 668-670).
+                c1 = ie_tree_ccf(sp, d) * pr; c2 = ie_tree_ccf(sp, d2) * pr
+                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * surv
                 banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * surv
             end
         end
@@ -398,17 +418,6 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     #   small-tree pool that tips NSTORE (INT(ΣTPA/(prob1·300)+0.5)) and thus the AUTOES ingrowth count. Iterate
     #   the maintained ISCT/IND1 (the SAME order dgdriv.f's DGSCOR draws use — the diameter randomization is
     #   validated bit-exact) so the ZZRAN stream stays RNG-aligned with live FVS's DO-30 (regent.f:696-744).
-    _isct = s.control.sp_count_tab; _ind1 = s.scratch.idx1
-    _sp_order = Vector{Int}(undef, n); _no = 0
-    @inbounds for sp in 1:MAXSP
-        i1 = _isct[sp, 1]; i1 == 0 && continue
-        i2 = _isct[sp, 2]
-        for k in i1:i2
-            (1 <= k <= length(_ind1)) || continue
-            ii = Int(_ind1[k]); (1 <= ii <= n) || continue
-            _no += 1; _sp_order[_no] = ii
-        end
-    end
     # REGENT stale-BARK (ie/regent.f): the small-tree DGK=(DK−DKK)·BARK for a CRVAR/UTVAR species uses a LEFTOVER
     # BARK — the recompute BARK=BRATIO(ISPC,DBH(K),HT(K)) (regent.f:978) happens AFTER, so DGK sees the PREVIOUS
     # tree's bark. FVS's first (subcycle) loop grows UTVAR/CRVAR species in J=1 ONLY (regent.f:407) but NIVAR every
@@ -825,8 +834,29 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     # post-growth/post-disturbance but PRE-ESNUTR (no sprouts, no AUTOES/PLANT cohort). The caller snapshots them
     # before esuckr! (relden_pre/ba_pre); p.* here already include the new cohort (establish! recomputes density),
     # which fed a bare planted stand RDJ≈0.19 instead of 0 ⇒ every birth HTGRL ~0.12% low (live instrumented).
-    ba_htg = ba_pre >= 0f0 ? ba_pre : p.basal_area
-    relden_htg = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    ba_now = ba_pre >= 0f0 ? ba_pre : p.basal_area
+    relden_now = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    # regent.f:276-294 (LESTB, label 8): BANEXT(1)=TEMBA+NYR*BAYR with BAYR=(BA-TEMBA)/ITOT, NYR=5 — and likewise
+    # RDNEXT(1)=TEMCCF+NYR*CCFYR. Algebraically = BA/RELDEN, but the Float32 divide-then-multiply round trip is not the
+    # identity (IE 4727120010690 cyc3: BAJ 417662A9 vs BA 417662A8 ⇒ birth HT 1 ULP). TEMBA/TEMCCF = ATBA/ATCCF
+    # (start of cycle), falling back to BA/RELDEN when ≤0 (regent.f:218-221). ITOT = what the regent.f:205-211 KPER
+    # loop leaves (NTYR for one subcycle, else the last KPER). LSKIPH ⇒ BAYR=CCFYR=0 (unused: no height growth).
+    temba = atba > 0f0 ? atba : ba_now
+    temccf = atrelden > 0f0 ? atrelden : relden_now
+    ntyr_lestb = Int(round(fint)) - 5
+    ba_htg = temba; relden_htg = temccf
+    if ntyr_lestb > 0
+        nper_l = ntyr_lestb ÷ Int(IE_RG_REGYR); (ntyr_lestb % Int(IE_RG_REGYR) != 0) && (nper_l += 1)
+        itot_l = ntyr_lestb; nn_l = nper_l
+        for _ in 1:nper_l
+            nn_l == 1 && break
+            kp = itot_l ÷ nn_l; itot_l -= kp; nn_l -= 1
+        end
+        bayr = (ba_now - temba) / Float32(itot_l)
+        ccfyr = (relden_now - temccf) / Float32(itot_l)
+        ba_htg = temba + 5f0 * bayr
+        relden_htg = temccf + 5f0 * ccfyr
+    end
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
@@ -951,3 +981,4 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     end
     return s
 end
+

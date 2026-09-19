@@ -56,13 +56,13 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
         # HTCON(sp): NI = HGHCH+HGSC(sp), special = 0; +ln(HCOR2) when LHCOR2 (small-tree calib).
         htcon_ni = hghch + IE_HGSC[sp]
         htcon = (sp <= 12 || sp == 14 || sp == 23) ? htcon_ni : 0.0f0
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
         con = 0.0f0
         htg = 0.0f0
         if sp <= 12 || sp == 14 || sp == 23
             dg <= 0.0f0 && continue                        # ln(DG) undefined
-            con = htcon + h2cof * hti * hti + IE_HGLD[sp] * log(d) + IE_HGLH * log(hti)
-            htg = exp(con + hdgcof * log(dg)) + IE_HTBIAS
+            con = htcon + h2cof * hti * hti + IE_HGLD[sp] * flog(d) + IE_HGLH * flog(hti)
+            htg = fexp(con + hdgcof * flog(dg)) + IE_HTBIAS
             htg < 0.1f0 && (htg = 0.1f0)
         elseif sp == 15 || sp == 16
             continue                                       # PI/JU: HTG stays 0
@@ -79,9 +79,9 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
                 temd = d <= 0.2f0 ? 0.2f0 : d
                 y1 = (temd - 0.1f0) / c1
                 y2 = (hti - 4.5f0) / c2
-                fby1 = log(y1 / (1.0f0 - y1))
-                fby2 = log(y2 / (1.0f0 - y2))
-                z = (c4 + c6 * fby2 - c7 * (c3 + c5 * fby1)) * (1.0f0 - c7^2)^(-0.5f0)
+                fby1 = flog(y1 / (1.0f0 - y1))
+                fby2 = flog(y2 / (1.0f0 - y2))
+                z = (c4 + c6 * fby2 - c7 * (c3 + c5 * fby1)) * fpow(1.0f0 - c7^2, -0.5f0)
                 if sp != 13 && sp != 17
                     zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
                     zadj < 0.0f0 && (zadj = 0.0f0)
@@ -102,7 +102,7 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
                 bark = ie_bratio(sp, d)
                 dia = d + dg / bark
                 if (0.1f0 + c1) > dia
-                    psi = c8 * ((dia - 0.1f0) / (0.1f0 + c1 - dia))^c9 * exp(z * ((1.0f0 - c7^2))^0.5f0 / c6)
+                    psi = c8 * fpow((dia - 0.1f0) / (0.1f0 + c1 - dia), c9) * fexp(z * fpow(1.0f0 - c7^2, 0.5f0) / c6)
                     h = ((psi / (1.0f0 + psi)) * c2) + 4.5f0
                     h < hti && (h = hti)
                     htg = h - hti
@@ -114,7 +114,7 @@ function height_growth!(s::StandState, ::InlandEmpire; scale::Float32 = 1.0f0)
         # tail: SCALE*XHT; sp{13,15:22} also *exp(HTCON); *MISHGF(=1); SIZCAP cap
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         if sp == 13 || (15 <= sp <= 22)
-            htg = htg * scale * xht * exp(htcon)
+            htg = htg * scale * xht * fexp(htcon)
         else
             htg = htg * scale * xht
         end
@@ -164,13 +164,13 @@ function ie_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
         (d <= 0.0f0 || hti <= 0.0f0) && continue
         htcon_ni = hghch + IE_HGSC[sp]
         htcon = htcon_ni
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
-        con = htcon + h2cof * hti * hti + IE_HGLD[sp] * log(d) + IE_HGLH * log(hti)
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
+        con = htcon + h2cof * hti * hti + IE_HGLD[sp] * flog(d) + IE_HGLH * flog(hti)
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         cap = ctl.sp_size_cap[sp, 4]
         function copy_htg(dgc::Float32)::Float32
             dgc <= 0.0f0 && return -1.0f0                 # ln(DG) undefined ⇒ leave copy flat (parent HTG)
-            h = exp(con + hdgcof * log(dgc)) + IE_HTBIAS
+            h = fexp(con + hdgcof * flog(dgc)) + IE_HTBIAS
             h < 0.1f0 && (h = 0.1f0)
             h = h * scale * xht
             if hti + h > cap

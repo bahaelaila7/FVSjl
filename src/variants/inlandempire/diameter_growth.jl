@@ -65,14 +65,16 @@ end
     xsite = si
     rel = d / rmsqd
     aspcr = cr / 10f0
-    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    # gfortran single-precision libm throughout: real-exponent ** ⇒ powf (incl. **0.5 — measured: gfortran-16 -O0
+    # emits powf, not sqrtf), EXP ⇒ expf, ALOG ⇒ logf (FMath fpow/fexp/flog).
+    pot = (0.4755f0 - 3.8336f-6 * fpow(d, 4.1488f0)) + (4.510f-2 * aspcr * fpow(d, 0.67266f0))
     pot <= 0f0 && (pot = 0.01f0)
-    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
-    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    fofr = 1.07528f0 * (1f0 - fexp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * fpow(rmsqd + 1f0, 0.73355f0)
     baact = ba >= 310f0 ? 305f0 : ba
-    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    valmod = 1f0 - fexp(-fofr * gofad * fpow((310f0 - baact) / 310f0, 0.5f0))
     predgr = pot * valmod * (0.48630f0 + 0.01258f0 * xsite)
-    return log(2f0 * d * bark * predgr + predgr * predgr)
+    return flog(2f0 * d * bark * predgr + predgr * predgr)
 end
 
 """IE per-stand DG setup (ie/dgf.f ENTRY DGCONS): fill calib.dg_const (DGCON) + calib.atten (ATTEN)."""
@@ -105,7 +107,7 @@ function ie_dgcons!(s::StandState)
                 dgcon += 0.006460f0 * xsite
             end
         end
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         # Set the linear bark (bark_a + bark_b*d)/d so the SHARED engine bark_ratio calls (DBH-apply in
         # grow_cycle!, _backdate_dbh!, etc.) reproduce ie_bratio (ie/bratio.f) — without this bark_a/bark_b
@@ -145,7 +147,7 @@ function dgf!(s::StandState, ::InlandEmpire)
         dgdsq = IE_DGDS[ispdsq, sp]; dgccf = IE_DGCCFA[ispccf, sp]
         conspp = c.dg_const[sp] + c.dg_cor[sp] + 0.01f0 * dgccf * relden
         si = p.sp_site_index[sp]
-        ald = log(d)
+        ald = flog(d)                      # gfortran single-precision ALOG (dgf.f:333)
         if sp == 15 || sp == 16
             # PI/JU logic from UT
             bark = ie_bratio(sp, d)
@@ -155,13 +157,13 @@ function dgf!(s::StandState, ::InlandEmpire)
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
         elseif sp == 18 || sp == 20 || sp == 21
             # aspen logic from Utah (DGFASP)
             bark = ie_bratio(sp, d)
             cr = Float32(t.crown_pct[i])                 # NOTE: ICR (percent), NOT *0.01
             aspdg = ie_dgfasp(d, cr, bark, si, rmsqd, ba)
-            dds = aspdg + log(ctl.dg_cor2[sp]) + c.dg_cor[sp]
+            dds = aspdg + flog(ctl.dg_cor2[sp]) + c.dg_cor[sp]
         elseif sp == 19 || sp == 22
             # CO logic from CR
             bark = ie_bratio(sp, d)
@@ -170,7 +172,7 @@ function dgf!(s::StandState, ::InlandEmpire)
             df > 36f0 && (df = 36f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr))
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr))
             dds < -9.21f0 && (dds = -9.21f0)
             dds = dds + c.dg_cor[sp] + c.dg_const[sp]
         else
@@ -179,7 +181,7 @@ function dgf!(s::StandState, ::InlandEmpire)
             bal = (1f0 - t.crown_ratio[i] / 100f0) * ba100
             dds = conspp + IE_DGLD[sp] * ald + IE_DGBAL[sp] * bal +
                   cr * (IE_DGCR[sp] + cr * IE_DGCRSQ[sp]) +
-                  dgdsq * d * d + IE_DGDBAL[sp] * bal / log(d + 1f0)
+                  dgdsq * d * d + IE_DGDBAL[sp] * bal / flog(d + 1f0)
         end
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
