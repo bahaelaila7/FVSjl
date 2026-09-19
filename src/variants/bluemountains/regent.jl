@@ -199,8 +199,9 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                     (zzran <= 0.5f0 && zzran >= -2.0f0) && break
                 end
             end
-            htgr = (htgr0 + zzran * 0.1f0) * scale        # XRHGRO=1
-            htgr < 0.1f0 && (htgr = 0.1f0)
+            htgr = (htgr0 + zzran * 0.1f0) * scale        # XRHGRO=1 (bm/regent.f:362) — NO floor on HTGR here:
+            # FVS floors only the BLENDED HTG(K) (:375-376). A pre-blend HTGR≥0.1 floor over-grew suppressed small
+            # trees in the XMIN..XMAX blend band (302098779489998 GF D2.1: live HTGR −0.007 ⇒ HTG 0.1194; jl 0.2211).
             htg = htgr * (1.0f0 - xwt) + xwt * large_htg; htg < 0.1f0 && (htg = 0.1f0)
             if h + htg > cap                              # regent.f:378-381 SIZCAP(ISPC,4)
                 htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)

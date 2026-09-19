@@ -591,6 +591,11 @@ mutable struct Calibration
     # BM RELDEN left by that same cratet.f:195 DENSE (LBKDEN ⇒ dense.f:258-261 RELDEN=RELDM1 = the BACKDATED,
     # dead-inclusive first-pass CCF), read by the REGENT(.FALSE.,1) small-tree HCOR calibration at cratet.f:667.
     cratet_relden::Float32
+    # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
+    # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
+    # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
+    # Valid only before any record moves (cycle-0 setup). Empty when unset.
+    input_seq::Vector{Int32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -604,7 +609,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
     zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
     Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
-    0f0)                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
