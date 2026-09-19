@@ -69,12 +69,16 @@ per cycle vs freshly-relinked live FVS.
   of [docs/DOCTRINE.md](docs/DOCTRINE.md) (pause at ~100 unexplained divergences, dig
   each to a named primitive or a real bug, fix upstream-first, resume). See
   [docs/PORT_STATUS.md](docs/PORT_STATUS.md) for the current per-variant state.
-  - **Inland Empire (IE) — closed to the corner floor** across the full stratified
-    regime + extension matrix (none / thin / plant / simfire / salvage + mistletoe /
-    climate / rootdis / econ / cover), bit-exact-or-cornered vs the live oracle with
-    every residual named (establishment realization, dense-phase NSTORE-INT ULP, `#206`
-    straddles, fire-threshold corners). Full write-up:
-    [docs/IE_VARIANT_PORT_AUDIT.md](docs/IE_VARIANT_PORT_AUDIT.md) → "IE CLOSE-OUT".
+  - **Inland Empire (IE) — CLOSED, bit-exact-or-cornered on every regime + extension +
+    code path** (15 faithful IE fixes; full stratified matrix none / thin / plant /
+    simfire / salvage + mistletoe / climate / rootdis / econ / cover, plus the synthetic
+    bare-plot PLANT construction), verified vs the live oracle with every residual named
+    and per-record-proven: establishment realization (ESRANN-fixed ⇒ population sign-tally),
+    dense-phase NSTORE-INT ULP, `#206` OLDRN draw-order straddles, planted birth-height
+    `:estab` draw-order (bare-plot terminal corner), fire-threshold and board-foot merch
+    discretization. Full `Pkg.test` on main-at-master: 55329 pass / 25 fail / 75 broken,
+    zero IE regressions (all 25 fails pre-existing + IE-independent). Full write-up:
+    [docs/IE_VARIANT_PORT_AUDIT.md](docs/IE_VARIANT_PORT_AUDIT.md) → "IE CLOSE-OUT" + addendum.
 
 ## Install & run
 

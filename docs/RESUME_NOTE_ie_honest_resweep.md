@@ -1,9 +1,16 @@
-# ⚑ SUPERSEDED 2026-09-18 — IE CLOSED to the corner floor (base+regime+extension, master `583da79c`)
+# ⚑ SUPERSEDED 2026-09-19 — IE FULLY CLOSED, 0 deferred / 0 unverified / no caveat (master `6caaacd7`)
 
-**Full close-out (base regimes + all extensions, no caveat): see `docs/IE_VARIANT_PORT_AUDIT.md` → "IE CLOSE-OUT".**
-9 real IE-affecting fixes merged (broken-top + Colville volume, AUTOES BAA-clamp, per-point ESPADV species-
-selection, Climate-FVS SPCALIB + regen-ABIRTH×2 + inventory-aspen-ABIRTH, WRD RDESTB coupling). All proper
-`git merge`. `Pkg.test` 55329/25/75, zero IE regressions.
+**Full close-out (every regime + every extension + every code path): see `docs/IE_VARIANT_PORT_AUDIT.md` →
+"IE CLOSE-OUT" + the 2026-09-19 addendum.** **15 real IE-affecting fixes** merged this campaign, all proper
+`git merge` (never cherry-pick): the 18-fix base/#206 chain (load-bearing = `722b2933` mistletoe pre/post-TRIPLE
+draw-count, which OVERTURNED "#206 is an irreducible ULP corner"), broken-top + Colville volume, Climate-FVS
+SPCALIB + regen-ABIRTH×2 + inventory-aspen-ABIRTH (`583da79c`), WRD RDESTB coupling (`a4a1af39`), and the
+bare-plot PLANT establishment chain (`7f7aa7bb`→`38091a40`: INADV-bypass, prep-ordering, NBEST-plant phantom,
+continuation-BAAA, per-IPREP PROB1, ESXCSH-TIME). The synthetic bare-plot fixture (`test_ie_addtrees`) is
+**bit-exact @2002** then terminates at a **PROVEN CORNER @2012→2032** = planted birth-height `:estab`
+BACHLO/ESRANN **draw-ORDER** (oracle interleaves DO-322 per-plot; jl runs PLANT in a separate `establish!` pass;
+same formula + distribution, real-population-INERT, feeds faithful self-thinning; not faithfully fixable =
+tuning-the-realization). `Pkg.test` on main-at-master: 55329 / 25 / 75, ZERO IE regressions.
 
 ────────────────────────────────────────────────────────────────────────────
 (earlier close-out note, base regimes only, master `9aa565c4`)
