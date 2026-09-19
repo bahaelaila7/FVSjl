@@ -81,17 +81,25 @@ function stand_tpa(s::StandState)
     return tot
 end
 
+# dense.f (identical in every variant build): inside DO 50 ISPC / DO 10 I3 / I=IND1(I3):
+#   DP=D*P; WK5(I)=D*DP; TSUMD2=TSUMD2+WK5(I); BATREE=0.005454154*WK5(I); BAT=BAT+BATREE; TPROB=TPROB+P
+# BA=BAT, RMSQD=SQRT(TSUMD2/TPROB). Both the D*(D*P) association and the IND1 accumulation order are part of
+# the REAL*4 result (BM 30193202010497 cyc1 BA 4261C4DB live vs 4261C4DC for record-order p·K·d²).
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    @inbounds for i in 1:t.n; ba += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2; end
+    @inbounds for i in _ind1_order(s)
+        d = t.dbh[i]
+        ba += BA_PER_TREE * (d * (d * t.tpa[i]))
+    end
     return ba
 end
 
 function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
-    @inbounds for i in 1:t.n
-        sd2 += t.tpa[i] * t.dbh[i]^2
-        tpa += t.tpa[i]
+    @inbounds for i in _ind1_order(s)
+        d = t.dbh[i]; p = t.tpa[i]
+        sd2 += d * (d * p)
+        tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
 end
@@ -233,7 +241,9 @@ function point_density!(s::StandState)
     pi_f = p.pi; gross = p.gross_space
     kt = s.variant isa Kootenai
     ie = s.variant isa InlandEmpire
-    @inbounds for i in 1:t.n
+    # dense.f accumulates PCCF/PTPA inside DO 50 ISPC / DO 10 I3 / I=IND1(I3) — IND1 (SPESRT) order, not record
+    # order; the Float32 sums round differently (BM 30193202010497 cyc1 PCCF 427D72D4 live vs 427D72D3 record-order).
+    @inbounds for i in _ind1_order(s)
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
         local ccft
