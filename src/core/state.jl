@@ -585,6 +585,11 @@ mutable struct Calibration
     cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
     cal_wci::Vector{Float32}         # WC — calibration weight to input
     cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
+    # BM dgdriv.f DO 220 dub inputs (:735 CALL DGF(WK3) after the correction terms are final, then :746-769):
+    # WK2 (predicted ln DDS at the backdated diameters WK3, final COR, calibration-time density) and WK3 itself,
+    # captured inside calibrate_diameter_growth!. Empty until the BM calibration runs; read by bm_cycle0_dg.
+    dub_wk2::Vector{Float32}
+    dub_wk3::Vector{Float32}
     # BM cratet.f:195 DENSE (whose AVH the LSTART CROWN dub at :610 reads) runs BEFORE the missing-height dub
     # (DO 130 :363 / DO 145 :464), so it sees HT exactly as read (missing = 0). Snapshot of t.height[1:n+ndead]
     # taken by dub_missing_heights! just before it dubs (BM only; empty otherwise).
@@ -609,6 +614,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
     zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
+    Float32[], Float32[],                                            # dub_wk2, dub_wk3 (BM DO 220 dub stash)
     Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
     Int32[])                                                         # input_seq (record read order, cycle-0 only)
