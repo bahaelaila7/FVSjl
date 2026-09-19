@@ -28,36 +28,80 @@ using Printf
 #   ccmin=5 (min stratum cover %), tpamin=200 (min TPA), pctsmx=30 (% MaxSDI for SE).
 const SS_THRESH_DEFAULT = (30.0f0, 5.0f0, 25.0f0, 5.0f0, 200.0f0, 30.0f0)
 
-# SSTGHP nominal DBH (sstage.f:780-870): the dominant-cohort DBH. Within the stratum (height-sorted
-# ord[dlo:dhi]), take the CANOPY COHORT = top trees until cumulative crown area exceeds 41382 sq ft
-# (~0.95 ac) — this excludes the suppressed understory. Of that cohort, find the tree at the 70th
-# crown-area PERCENTILE (PCTILE: cumulative crown area of equal-or-larger-single-crown trees), and
-# return the PROB-weighted mean DBH of the ±4-tree window around it.
-function _ss_dbhnom(ord, dlo::Int, dhi::Int, ht, dbh, tpa, crarea)
-    csum = 0.0; i3 = dhi
-    @inbounds for k in dlo:dhi
-        csum += crarea[ord[k]]
-        if csum > 41382.0; i3 = k; break; end
+# SSTGHP (sstage.f:740-873), statement-for-statement in REAL (Float32) with FVS's IFIX(x+.5) rounding.
+# For stratum INDEX range ord[i1:i2] (height-descending): IHTL/IHTS = rounded tallest/shortest height; walk the
+# stratum summing WK6 cover (SUM), PROB (SP) and crown-base·PROB (ACB), cover by species, and the 95%-cover
+# cutoff I3 (41382 = .95·43560); ICRB = IFIX(ACB/SP+.5); top-2 cover species by a strict-> scan over species
+# index; then WK4 = single-tree crown area, RDPSRT(.FALSE.) descending on ord[i1:i3], PCTILE on WK6, the record
+# nearest the 70th percentile (first minimum), and the PROB-weighted mean DBH / rounded mean height of the ±4
+# window. Returns (dbhnom::Float32, iht, ihtl, ihts, icrb, msp1, msp2). `ord` is permuted in place on i1:i3 as
+# FVS permutes INDEX (strata ranges don't overlap).
+function _ss_sstghp!(ord::Vector{Int}, i1::Int, i2::Int, ht, dbh, tpa, icr, wk6::Vector{Float32}, species)
+    (i1 == 0 || i2 == 0) && return (0f0, 0, 0, 0, 0, 0, 0)
+    ifix5(x::Float32) = trunc(Int, x + 0.5f0)
+    ihtl = ifix5(Float32(ht[ord[i1]])); ihts = ifix5(Float32(ht[ord[i2]]))
+    sum_ = 0f0; sp = 0f0; acb = 0f0; i3 = -1
+    spcov = Dict{Int,Float32}()
+    @inbounds for ii in i1:i2
+        i = ord[ii]
+        sum_ += wk6[i]; sp += Float32(tpa[i])
+        acb += (Float32(ht[i]) * (1f0 - Float32(icr[i]) * 0.01f0)) * Float32(tpa[i])
+        spcov[species[i]] = get(spcov, species[i], 0f0) + wk6[i]
+        (sum_ > 41382f0 && i3 == -1) && (i3 = ii)
     end
-    coh = [ord[k] for k in dlo:i3]                  # canopy cohort tree indices
-    isempty(coh) && return (0.0, 0.0)
-    wk4 = [crarea[i] / max(tpa[i], 1e-9) for i in coh]   # crown area per single tree
-    cohS = coh[sortperm(wk4; rev = true)]            # DESCENDING single-crown size (RDPSRT .FALSE.)
-    tot = sum(crarea[i] for i in cohS)
-    tot <= 0.0 && return (0.0, 0.0)
-    pct = zeros(length(cohS))                        # PCTILE: cum crown area of this-or-larger trees, %
-    acc = 0.0
-    @inbounds for j in length(cohS):-1:1
-        acc += crarea[cohS[j]]; pct[j] = acc / tot * 100.0
+    i3 == -1 && (i3 = i2)
+    x1 = 0f0; x2 = 0f0; msp1 = 0; msp2 = 0                  # sstage.f:803-816 (strict >, species-index order)
+    for is in sort!(collect(keys(spcov)))
+        w = spcov[is]
+        if w > x1
+            x2 = x1; x1 = w; msp2 = msp1; msp1 = is
+        elseif w > x2
+            x2 = w; msp2 = is
+        end
     end
-    # 70th percentile = "30% down from the top" (the big-crown end) — i70 nearest pct 70 (sstage.f:838)
-    i70 = argmin(abs.(pct .- 70.0))
-    k1 = max(1, i70 - 4); k2 = min(length(cohS), i70 + 4)
-    sd = 0.0; sh = 0.0; spw = 0.0
-    @inbounds for j in k1:k2
-        i = cohS[j]; sd += dbh[i] * tpa[i]; sh += ht[i] * tpa[i]; spw += tpa[i]
+    icrb = sp > 0.0001f0 ? ifix5(acb / sp) : 0
+    m = i3 - i1 + 1
+    wk4 = Dict{Int,Float32}()
+    @inbounds for ii in i1:i3
+        i = ord[ii]; wk4[i] = wk6[i] / Float32(tpa[i])
     end
-    return spw > 1e-4 ? (sd / spw, sh / spw) : (0.0, 0.0)   # (DBHNOM, nominal height)
+    key = zeros(Float32, length(ht)); for (i, v) in wk4; key[i] = v; end
+    rdpsrt!(m, key, view(ord, i1:i3), false)                 # RDPSRT(I3-I1+1,WK4,INDEX(I1),.FALSE.)
+    # PCTILE(N,INDEX(I1),WK6,WK4,T): cumulative WK6 from the bottom, / (TOT/100); top record = 100.
+    pct = Dict{Int,Float32}()
+    if m > 1
+        pct[ord[i3]] = wk6[ord[i3]]
+        for j in (i3 - 1):-1:i1
+            pct[ord[j]] = pct[ord[j + 1]] + wk6[ord[j]]
+        end
+        tot = pct[ord[i1]]
+        pctin1 = tot / 100f0
+        if tot > 0f0
+            for j in (i1 + 1):i3; pct[ord[j]] = pct[ord[j]] / pctin1; end
+            pct[ord[i1]] = 100f0
+        else
+            pct[ord[i1]] = pctin1
+        end
+    end
+    i70 = i1                                                 # N==1 ⇒ the lone record (PCTILE returns early)
+    if m > 1
+        diff = 1f30
+        for ii in i1:i3
+            d = abs(pct[ord[ii]] - 70f0)
+            if d < diff; i70 = ii; diff = d; end
+        end
+    end
+    k1 = max(i70 - 4, i1); k2 = min(i70 + 4, i3)
+    sd = 0f0; sh = 0f0; sp = 0f0
+    @inbounds for ii in k1:k2
+        i = ord[ii]
+        sd += Float32(dbh[i]) * Float32(tpa[i]); sh += Float32(ht[i]) * Float32(tpa[i]); sp += Float32(tpa[i])
+    end
+    dbhnom = 0f0; iht = 0
+    if sp > 0.0001f0
+        dbhnom = sd / sp; iht = ifix5(sh / sp)
+    end
+    return (dbhnom, iht, ihtl, ihts, icrb, msp1, msp2)
 end
 
 # COVOLP (covolp.f): canopy cover % of a tree set whose crown areas (sq ft/ac) are `crarea[idx]`.
@@ -85,7 +129,7 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     cccoef = Float64(s.control.cc_coef)
     gappct = Float64(thresh[1]); ccmin = Float64(thresh[4])
     n = 0; ht = Float64[]; dbh = Float64[]; tpa = Float64[]; crarea = Float64[]
-    species = Int[]; icr = Float64[]
+    species = Int[]; icr = Float64[]; crarea32 = Float32[]
     # CR uses cr_cwcalc (cwcalc.f IWHO=0, the CRWDTH FMSSTAGE reads), not the generic crown_width (0.5 default
     # for CR ⇒ zero cover ⇒ wrong strata/class). Eastern variants keep crown_width. Precompute CR stand inputs.
     _cr_ss = s.variant isa CentralRockies
@@ -108,13 +152,16 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
         pa = Float64(t.tpa[i])                          # PROB (raw, as SSTAGE uses it — NOT /GROSPC)
         n += 1; push!(ht, Float64(t.height[i])); push!(dbh, Float64(t.dbh[i]))
         push!(tpa, pa); push!(crarea, Float64(cw)^2 * pa * 0.785398)
+        push!(crarea32, ((Float32(cw) * Float32(cw)) * Float32(pa)) * 0.785398f0)   # WK6 in REAL (sstage.f:275-276)
         push!(species, Int(t.species[i])); push!(icr, Float64(t.crown_pct[i]))
     end
-    data = (; n, ht, dbh, tpa, crarea, species, icr, cccoef)
+    data = (; n, ht, dbh, tpa, crarea, crarea32, species, icr, cccoef)
     n == 0 && return (data..., ord = Int[], strata = NTuple{4,Int}[], oks = Bool[],
                       covers = Float64[], nstr = 0, tprob = 0.0, cover = 0.0)
     tprob = sum(tpa)
-    ord = sortperm(ht; rev = true)                  # INDEX: trees by height descending
+    # INDEX: trees by height descending — RDPSRT(NTREES,HT,INDEX,.FALSE.) (sstage.f:269), the Quickersort tie
+    # order (not a stable sort): equal-height records' order feeds the SSTGHP 95%-cover cutoff / PCTILE window.
+    ord = collect(1:n); rdpsrt!(n, ht, ord, false)
     # height-gap stratification: track the two largest gaps (sstage.f:300-388)
     diff1 = 0.0; diff2 = 0.0; id1i1 = id1i2 = id2i1 = id2i2 = 0
     iilg = 1; ilarge = ord[1]; sumprb = 0.0
@@ -194,8 +241,14 @@ function structure_class(s::StandState; iba::Int = 1, thresh = s.control.strclas
     # dominant stratum = the first OK one; its SSTGHP 70th-percentile DBH (sstage.f:487-576)
     di = findfirst(st.oks)
     dlo, dhi = st.strata[di][1], st.strata[di][2]
-    tmpdbh, _ = _ss_dbhnom(st.ord, dlo, dhi, st.ht, st.dbh, st.tpa, st.crarea)
-    dmind = st.dbh[st.ord[dhi]]
+    # SSTGHP is called for every stratum in order (sstage.f:494-513), permuting INDEX within each; DMIND =
+    # DBH(INDEX(ISkI2)) is read AFTER those permutations (sstage.f:519-535).
+    ordw = copy(st.ord); dbhs = Float32[]
+    for (lo, hi, _, _) in st.strata
+        push!(dbhs, _ss_sstghp!(ordw, lo, hi, st.ht, st.dbh, st.tpa, st.icr, st.crarea32, st.species)[1])
+    end
+    tmpdbh = Float64(dbhs[di])
+    dmind = st.dbh[ordw[dhi]]
     cls = 0
     if st.nstr == 1
         if tmpdbh < ssdbh
@@ -232,24 +285,32 @@ function structure_report(s::StandState)
     cls = structure_class(s).class
     dom = st.nstr > 0 ? findfirst(st.oks) : 0     # the dominant stratum = first OK
     strata = NamedTuple[]
+    # sstage.f:475-476: >1 tree, no valid stratum AND TPROB < TPAMIN ⇒ GOTO 80, skipping every SSTGHP call, so
+    # all stratum fields keep their sstage.f:168-200 zero init (DB: 0/"--"/status 0). (_ss_strata already turned
+    # the TPROB ≥ TPAMIN case into one all-tree stratum.) NOT the single-record path (sstage.f:238-266,
+    # NTREES≤1): that one fills stratum 1 from the lone record before its own GOTO 80 — keep emitting it.
+    (st.nstr == 0 && st.n > 1) && return (class = cls, nstr = 0, cover = st.cover, strata = strata)
+    ordw = copy(st.ord)
     for k in eachindex(st.strata)
         lo, hi, _, _ = st.strata[k]
-        dbhnom, nomht = _ss_dbhnom(st.ord, lo, hi, st.ht, st.dbh, st.tpa, st.crarea)
-        lght = st.ht[st.ord[lo]]; smht = st.ht[st.ord[hi]]   # tallest / shortest (height-sorted)
-        acb = 0.0; sp_ = 0.0; spc = Dict{Int,Float64}()      # ACB = Σ crown-base-ht·PROB (sstage.f:790)
-        @inbounds for j in lo:hi
-            i = st.ord[j]
-            acb += st.ht[i] * (1.0 - st.icr[i] * 0.01) * st.tpa[i]
-            sp_ += st.tpa[i]
-            spc[st.species[i]] = get(spc, st.species[i], 0.0) + st.crarea[i]   # crown area by species
+        if st.n == 1
+            # single-record path (sstage.f:251-265): DBHS1=DBH, IHTS1=IHTSS1=IHTLS1=IFIX(HT+.5),
+            # ICRBS1=IFIX(HT·(1-ICR·.01)+.5), SP11 = the record's species, no second species.
+            i = st.ord[1]; h32 = Float32(st.ht[i])
+            iht = trunc(Int, h32 + 0.5f0)
+            icrb = trunc(Int, h32 * (1f0 - Float32(st.icr[i]) * 0.01f0) + 0.5f0)
+            push!(strata, (; dbh = Float64(Float32(st.dbh[i])), nomht = iht, lght = iht, smht = iht, crnbase = icrb,
+                           cover = st.covers[k], sp1 = st.species[i], sp2 = 0, status = 0))
+            continue
         end
-        crnbase = sp_ > 1e-4 ? acb / sp_ : 0.0               # ICRB = mean height to crown base
-        sp = sort(collect(spc); by = x -> -x[2])             # top crown-area species
-        sp1 = isempty(sp) ? 0 : sp[1][1]; sp2 = length(sp) >= 2 ? sp[2][1] : 0
+        dbhnom, iht, ihtl, ihts, icrb, sp1, sp2 = _ss_sstghp!(ordw, lo, hi, st.ht, st.dbh, st.tpa, st.icr,
+                                                             st.crarea32, st.species)
         status = k == dom ? 2 : st.oks[k] ? 1 : 0            # D: 2=dominant, 1=OK, 0=not (IS_OK)
-        push!(strata, (; dbh = dbhnom, nomht, lght, smht, crnbase, cover = st.covers[k], sp1, sp2, status))
+        push!(strata, (; dbh = Float64(dbhnom), nomht = iht, lght = ihtl, smht = ihts, crnbase = icrb,
+                       cover = st.covers[k], sp1, sp2, status))
     end
-    return (class = cls, nstr = st.nstr, cover = st.cover, strata = strata)
+    # single-record path GOTO-80s before NSTR is counted (sstage.f:266) ⇒ Number_of_Strata 0 (as structure_class)
+    return (class = cls, nstr = st.n == 1 ? 0 : st.nstr, cover = st.cover, strata = strata)
 end
 
 const _SS_CLASS_LABEL = ("0=BG", "1=SI", "2=SE", "3=UR", "4=YM", "5=OS", "6=OM")  # SSCODES (sstage.f:73)
