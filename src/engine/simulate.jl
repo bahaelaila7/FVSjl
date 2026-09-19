@@ -307,9 +307,9 @@ cycle_period_at(c::Control, cyc::Integer) = Int(c.cycle_year[cyc + 2] - c.cycle_
 Recompute the per-cycle stand density quantities the growth models read:
 basal area, average dominant height (AVH), and per-point basal area (PTBAA).
 """
-function compute_density!(s::StandState)
+function compute_density!(s::StandState; cratet_ind::Bool = false)
     s.plot.basal_area = stand_ba(s)
-    s.plot.avg_height = stand_top_height(s)
+    s.plot.avg_height = stand_top_height(s; cratet_ind = cratet_ind)
     # RMSQD (stand quadratic mean diameter, inches) — DENSE computes it into COMMON; ON's Penner
     # dgf! (ontario/diameter_growth.jl) reads it as `p.qmd*ON_INtoCM`. No other variant reads
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
@@ -317,7 +317,7 @@ function compute_density!(s::StandState)
     s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
     point_basal_area!(s)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
-    stand_pct!(s)                      # PCT = stand BA percentile (for DGF competition)
+    stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
     # KT reads RELDEN (stand CCF) from p.relative_density in dgf!/htgf — set it here (DENSE→DGF flow) at
     # whatever t.n is current: the backdated calibration density pass runs with t.n=nlive+ndead (dead-
     # inclusive RELDM1), the growth-cycle pass with t.n=nlive (live-only). (Gated: only KT's dgf! reads it.)
@@ -594,7 +594,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
-    compute_density!(s)
+    # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
+    # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
+    compute_density!(s; cratet_ind = (s.variant isa BlueMountains && s.control.cycle == Int32(0)))
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
     econ_cycle_start!(s)
