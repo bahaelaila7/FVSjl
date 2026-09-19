@@ -697,6 +697,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MPSVDG (mpgr.f): save the pre-growth DG for the LPOPDY MPGR resistance, BEFORE diameter_growth!
     # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
     s.mpb !== nothing && mpb_svdg!(s)
+    rd_cycle_start!(s)                     # WRD: size driver (RDESTB for last cycle's regen) + WK1=DG snapshot (dgdriv.f)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # IE cycle-1 WK1 dub (dgdriv.f:755-795 LSTART "DUB IN DBH INCREMENT FOR TREES ON WHICH IT WAS NOT
     # MEASURED"): the calibration pass sets DG(I) per dgdriv.f:774-795, and that value becomes cycle-1 WK1
@@ -1054,7 +1055,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    comcup!(t)                              # COMCUP (grincr.f:318, end of GRINCR): drop
+    comcup!(t; onmove = rd_tdel_hook(s))    # COMCUP (grincr.f:318, end of GRINCR): drop
                                             # PROB≤1e-5 records before GRADD/next cycle
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
