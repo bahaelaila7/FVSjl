@@ -21,16 +21,18 @@ include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
     @test isempty(alerrs)
     foreach(e -> @warn("allowlist: $e"), alerrs)
     all_ms, ran, percase = run_fast_tier(; quick, threads = parse(Int, get(ENV, "TIERED_THREADS", "1")))
-    summary = Dict{Tuple{String,String},Vector{Int}}()    # (v,r) => [cases, exact, with-mismatch]
+    summary = Dict{Tuple{String,String},Vector{Int}}()    # (v,r) => [cases, all-outputs exact, .sum exact, with residual]
+    sumbad = Set((m.variant, m.stand, m.regime) for m in all_ms if m.file in ("sum", "CRASH"))
     for ((v, cn, r), ok) in percase
-        s = get!(summary, (v, r), [0, 0, 0]); s[1] += 1; s[ok ? 2 : 3] += 1
+        s = get!(summary, (v, r), [0, 0, 0, 0]); s[1] += 1; ok && (s[2] += 1)
+        (v, cn, r) in sumbad || (s[3] += 1); ok || (s[4] += 1)
     end
     unlisted, stale, used, over = apply_allowlist(all_ms, al, ran)
     # compact summary: variant × regime → cases / exact / with residual(s)
     println("\n== tiered fast tier ($(quick ? "quick" : "full")) ==")
-    println(rpad("variant/regime", 22), lpad("cases", 6), lpad("exact", 7), lpad("resid", 7))
+    println(rpad("variant/regime", 22), lpad("cases", 6), lpad("all-exact", 10), lpad(".sum-exact", 11), lpad("resid", 7))
     for k in sort(collect(keys(summary)))
-        s = summary[k]; println(rpad("$(k[1])/$(k[2])", 22), lpad(s[1], 6), lpad(s[2], 7), lpad(s[3], 7))
+        s = summary[k]; println(rpad("$(k[1])/$(k[2])", 22), lpad(s[1], 6), lpad(s[2], 10), lpad(s[3], 11), lpad(s[4], 7))
     end
     ncor = sum(used[i] for (i, e) in enumerate(al) if e.status == "CORNER"; init = 0)
     nopn = sum(used[i] for (i, e) in enumerate(al) if e.status == "OPEN"; init = 0)
