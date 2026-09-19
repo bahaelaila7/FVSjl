@@ -45,6 +45,6 @@ const _LR_TRE = _LR_KEY[1:end-4] * ".tre"
         @test haskey(checks, 2040) && trunc(Int, checks[2040] + 0.5) == 120   # BIT-EXACT vs live .sum
         @test haskey(checks, 2140) && trunc(Int, checks[2140] + 0.5) ==  19   # BIT-EXACT vs live .sum
         # doctrine #9: 2090 late near-SDImax ±1 kill-distribution flip (jl36/live35) exposed as @test_broken.
-        @test_broken haskey(checks, 2090) && trunc(Int, checks[2090] + 0.5) == 35
+        @test haskey(checks, 2090) && trunc(Int, checks[2090] + 0.5) == 35
     end
 end

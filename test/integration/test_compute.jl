@@ -58,8 +58,8 @@ end
             end
             # doctrine #9: QMD (col 8, ×.05 render knife-edge) and TPA (col 3, +0.5 render knife-edge)
             # tolerances exposed as @test_broken vs full bit-exactness — one per tolerant column.
-            @test_broken all(parse(Float64, comp[i][8]) == parse(Float64, ft[i][8]) for i in 1:min(ndet, length(comp), length(ft)))   # QMD
-            @test_broken all(parse(Float64, comp[i][3]) == parse(Float64, ft[i][3]) for i in 1:min(ndet, length(comp), length(ft)))   # TPA
+            @test all(parse(Float64, comp[i][8]) == parse(Float64, ft[i][8]) for i in 1:min(ndet, length(comp), length(ft)))   # QMD
+            @test all(parse(Float64, comp[i][3]) == parse(Float64, ft[i][3]) for i in 1:min(ndet, length(comp), length(ft)))   # TPA
         end
         # 2. The COMPUTE stand (MYCYC frozen at 1) NEVER thins — its FRAC(MYCYC/3)=0.333 condition is
         #    always false (proven against live via a debug-stamp of evmon: MYCYC≡1 every cycle).
