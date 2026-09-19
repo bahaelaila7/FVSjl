@@ -1324,10 +1324,12 @@ function run_keyfile(keypath::AbstractString;
         tl_on = s.control.dbs_treelist && has_db
         cp_on = s.control.dbs_compute && has_db && !isempty(s.control.compute_defs)
         cl_on = s.control.dbs_cutlist && has_db
+        al_on = s.control.dbs_atrtlist && has_db
         rows = (sum_on || outfmt === :csv) ? SummaryRow[] : nothing   # also collected for CSV output
         tl_cycles = tl_on ? Tuple[] : nothing
         cp_rows = cp_on ? Tuple[] : nothing
         cl_cycles = cl_on ? Tuple[] : nothing
+        al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
         carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
@@ -1347,7 +1349,7 @@ function run_keyfile(keypath::AbstractString;
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
-                       cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
+                       cutlist_collect = cl_cycles, atrtlist_collect = al_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
                        dm_collect = dm_rows, dm_top4 = dm_top4,
                        canprof_collect = cprof_rows, strclass_collect = strcl_rows)
@@ -1374,6 +1376,8 @@ function run_keyfile(keypath::AbstractString;
             (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
             (cl_on && any(c -> !isempty(c[3]), cl_cycles)) &&
                 write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+            (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
+                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||

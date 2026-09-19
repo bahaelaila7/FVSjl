@@ -1887,11 +1887,24 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         if k == "END"
             break
         elseif k == "DSNOUT"
-            s.control.dbs_out_file = strip(read_raw_line!(kr))   # filename on the next line
+            fname = strip(read_raw_line!(kr))                     # filename on the next line
+            if s.control.dbs_caseid_set
+                # dbsin.f:116-122: CASEID already assigned (a DSNOUT/STANDSQL DBSCASE ran with an output table requested)
+                # ⇒ FVS16 "DSNOUT DATA BASE CAN NOT BE REDEFINED" — the name is read and discarded, output stays put.
+            else
+                s.control.dbs_out_file = fname
+                # dbsin.f:127-173: DBSOPEN then DBSCASE(1) — IFORSURE=1 forces the case (dbscase.f:135 IFORSR=IFORSURE), so
+                # CASEID is assigned now whether or not an output table has been requested.
+                s.control.dbs_caseid_set = true
+            end
         elseif k == "DSNIN"
             dbs_in = strip(read_raw_line!(kr))                   # input SQLite file on the next line
         elseif k == "STANDSQL"
             standsql = _read_dbs_sql!(kr)
+            # dbsstandin.f:216 CALL DBSCASE(1) as the stand is read: IFORSURE=1 forces the case, opening DSNOUT (the DBSINIT
+            # default 'FVSOut.db' when none was given) and assigning CASEID (dbscase.f:171-235) ⇒ any later DSNOUT is
+            # rejected; tables requested afterwards go to the already-open DSNOUT (measured live: FVSOut.db).
+            s.control.dbs_caseid_set = true
         elseif k == "TREESQL"
             treesql = _read_dbs_sql!(kr)
         elseif k == "SUMMARY"

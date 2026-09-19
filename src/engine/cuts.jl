@@ -253,6 +253,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # pre-thin PROB to restore, like a MINHARV cancel.
     pretend = _ec_cut_on(s) && s.econ.calc.is_pretend_active
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
+    al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
     # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
@@ -333,6 +334,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         push!(s.control.years_cut, yr)
         econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
+        al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
@@ -1363,6 +1365,26 @@ function _cutlist_capture!(s::StandState, prob0::Vector{Float32})
     rows = cutlist_rows(s, removed)
     for _ in reqs                                        # one DBSCUTS call per accomplished request
         append!(c.cutlist_capture, rows)
+    end
+    return
+end
+
+"""
+    _atrtlist_capture!(s)
+
+cuts.f:1740 `CALL PRTRLS (3)` → dbsatrtls.f, for an applied (not PRETEND, not MINHARV-canceled) cut, right after the
+CUTLIST's PRTRLS(2): each ATRTLIST activity (code 198) due in THIS cycle (prtrls.f OPFIND(1,198), DUPCHK, TEM(3)=2
+skip, OPDONE; IATRTLIST=2 ⇒ stop after the first) writes the AFTER-TREATMENT list — every record with PROB>0 after the
+thin (dbsatrtls.f `IF (P.LE.0.0) CYCLE`), in the pre-TREDEL layout, TPA=PROB/GROSPC, MortPA=DP=0. Requires ATRTLIDB.
+"""
+function _atrtlist_capture!(s::StandState)
+    c = s.control
+    c.dbs_atrtlist || return
+    reqs = prtrls_requests!(s, 3, Int(c.cycle) + 1)
+    isempty(reqs) && return
+    rows = atrtlist_rows(s)
+    for _ in reqs
+        append!(c.atrtlist_capture, rows)
     end
     return
 end

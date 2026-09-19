@@ -1278,9 +1278,10 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # unpadded ("15","93") vs live "015"/"093" — pad on output (CR-gated; the DATA stays unpadded so
     # resolve_species still string-matches the unpadded input SPCD). Eastern codes are already 3-char.
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
-    # dbstrls.f: DO ISPC=1,MAXSP / DO I3=ISCT(ISPC,1),ISCT(ISPC,2) / I=IND1(I3) — species order, record order
-    # within a species (the same order cutlist_rows uses).
-    @inbounds for i in sort(collect(1:t.n); by = i -> (Int(t.species[i]), i))
+    # dbstrls.f: DO ISPC=1,MAXSP / DO I3=ISCT(ISPC,1),ISCT(ISPC,2) / I=IND1(I3) — species order, IND1 (SPESRT
+    # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
+    # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
+    @inbounds for i in _ind1_order(s)
         push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g)))
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
@@ -1401,13 +1402,52 @@ before TREDEL, so TreeIndex / PtBAL / BAPctile / volumes are the pre-compaction,
 """
 function cutlist_rows(s::StandState, removed::AbstractVector{Float32})
     t = s.trees; g = s.plot.gross_space
-    order = sort(collect(1:min(t.n, length(removed))); by = i -> (Int(t.species[i]), i))
     rows = Vector{Any}[]
-    for i in order
+    for i in _ind1_order(s)                             # dbscuts.f: species-major IND1 (lineage-key) order
+        i <= length(removed) || continue
         removed[i] > 0f0 || continue
         push!(rows, _treelist_row(s, i, Float64(removed[i] / g), 0.0))
     end
     return rows
+end
+
+# FVS_ATRTList schema (dbsatrtls.f:62-98) — the same per-tree columns as FVS_CutList.
+const _FVS_ATRTLIST_CREATE = replace(_FVS_CUTLIST_CREATE, "FVS_CutList" => "FVS_ATRTList")
+
+"""
+    atrtlist_rows(s) -> Vector{Vector{Any}}
+
+DBSATRTLS (dbsatrtls.f:118-185): one row per record with PROB>0 after the thin, species-major (IND1) order,
+TPA = PROB/GROSPC, MortPA = DP = 0, TreeIndex = the pre-TREDEL record index.
+"""
+function atrtlist_rows(s::StandState)
+    t = s.trees; g = s.plot.gross_space
+    rows = Vector{Any}[]
+    for i in _ind1_order(s)                             # dbsatrtls.f:121-127 species-major IND1 order
+        t.tpa[i] > 0f0 || continue
+        push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), 0.0))
+    end
+    return rows
+end
+
+"""
+    write_dbs_atrtlist!(dbpath, caseid, standid, cycles)
+
+Write the per-cycle after-treatment rows (`atrtlist_rows`) to FVS_ATRTList (list-directed REAL text, as dbsatrtls.f).
+"""
+function write_dbs_atrtlist!(dbpath::AbstractString, caseid::AbstractString,
+                             standid::AbstractString, cycles)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_ATRTLIST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_ATRTList VALUES (" * join(fill("?", 35), ",") * ")")
+        for (year, prdlen, rows) in cycles, r in rows
+            DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(v -> v isa AbstractFloat ? _r9(v) : v, r)...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
 end
 
 # A REAL*4 value as it reaches SQLite through a gfortran list-directed WRITE into the SQL text (9 significant

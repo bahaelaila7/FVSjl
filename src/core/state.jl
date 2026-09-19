@@ -336,6 +336,8 @@ mutable struct Control
     dbs_atrtlist::Bool                        # DATABASE ATRTLIDB ⇒ emit FVS_ATRTList (dbsatrtls.f)      (IATRTLIST)
     dbs_treelist_mode::Int32                  # ITREELIST value (1 table+text, 2 table only)             (ITREELIST)
     dbs_atrtlist_mode::Int32                  # IATRTLIST value                                          (IATRTLIST)
+    atrtlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_ATRTList row sink (PRTRLS(3) at cuts.f:1740), else nothing
+    dbs_caseid_set::Bool                      # CASEID assigned (dbscase.f:235) during keyword read ⇒ a later DSNOUT is rejected (dbsin.f:116-122)
 end
 
 function Control()
@@ -405,6 +407,7 @@ function Control()
         ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
         false,                                                   # dbs_atrtlist (ATRTLIDB)
         Int32(0), Int32(0),                                      # dbs_treelist_mode, dbs_atrtlist_mode
+        nothing, false,                                          # atrtlist_capture, dbs_caseid_set
     )
 end
 
