@@ -1060,6 +1060,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
     # bogus into next cycle's DGF/mortality).
+    # esnutr.f:59 CALL ESADDT(1) is the FIRST thing ESNUTR does — before the sprout logic (:121) and before every
+    # OPFIND 430/431 (:63/:163/:218/:320/:348 NPNATS) and the ESTAB tally (:401). The ADDTREES bridge must therefore
+    # schedule its .es2 PLANT/NATURAL here, so the AUTOES tally (ie_autoes_establish!, NPNATS rule 6 + the NBEST
+    # plant pool) sees them exactly like a keyword PLANT, and the .es1 summary excludes this cycle's sprouts.
+    # (establish!'s own call is then a no-op: each 432 carries a `fired` guard.)
+    isempty(s.estab.addtrees) || addtrees_bridge!(s, Int32(current_cycle_year(s)), round(Int, fint))
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the

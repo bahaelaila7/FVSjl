@@ -19,10 +19,17 @@
 #     oracle AND FVSjl (the bridge injects exactly what a native PLANT card would).
 #   • ADDTREES with NO `.es2` is BYTE-IDENTICAL to the same keyfile with no ADDTREES
 #     card — on BOTH sides (a null external model contributes nothing).
-#   • The residual oracle-vs-jl gap on the *plain PLANT path itself* (this synthetic
-#     bare NOTREES stand: oracle 911 vs jl 364 TPA @2002) is the pre-existing IE
-#     bare-plot establishment straddle (EZCRUISE/INADV; documented separately) — it is
-#     NOT introduced by the bridge, which is bit-exact to the PLANT path.
+#   • Re-measured 2026-09-19 (FVSie_g16, --keywordfile + ECHOSUM): with NOAUTOES at the TOP
+#     level (initre.f opt 72 → ESNOAU; it is NOT an ESTAB-packet keyword — inside the packet
+#     the IE oracle stops with FVS01 INVALID KEYWORD) the oracle gives bridge == direct PLANT
+#     (364 TPA @2002 both). jl also gives bridge == direct, but 911: jl runs the AUTOES tally
+#     under NOAUTOES because ESNOAU's STOADJ=0.0 (esin.f:788) is not persisted and the
+#     estab.f STOADJ<0.0001 no-stocking branch is not ported — a separate IE establishment
+#     gap, NOT a bridge defect. (With AUTOES ON the oracle's bridge ≠ direct — 555 vs 911 —
+#     and jl matches both @2002.)
+#   • The bridge must run at the TOP of ESNUTR (esnutr.f:59 CALL ESADDT(1)), before the
+#     OPFIND 430/431 NPNATS count (:348) and the ESTAB tally (:401): otherwise the AUTOES tally
+#     does not see the bridged PLANT (rule-6 catch-all + NBEST plant pool) and diverges.
 #
 # The two @tests below reproduce the two bit-exact bridge equalities purely in FVSjl
 # (no oracle at test time): the bridge == the direct keyword, and the null bridge is
@@ -48,8 +55,8 @@ function _base_key(io, extra_estab::Vector{String})
     println(io, _IE_STDINFO)
     println(io, _card("INVYEAR", "1992"))
     println(io, _card("NUMCYCLE", "4"))
+    println(io, "NOAUTOES")                  # base keyword (initre.f opt 72) — must precede the ESTAB packet
     println(io, _card("ESTAB", "1992"))
-    println(io, "NOAUTOES")
     println(io, "NOINGROW")
     for l in extra_estab; println(io, l); end
     println(io, "END")
