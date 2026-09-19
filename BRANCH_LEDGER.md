@@ -105,6 +105,7 @@ copy anything worth keeping (instrumented-oracle recipes) into the repo or `/wor
 | `wpbr-tripled` | (moving) | **ACTIVE** fork — WPBR tripled cycles + IE WP stand | `.wt-wpbr3` | merge, then delete |
 | `list-ht2td` | (moving) | **ACTIVE** fork — list-table Ht2TDCF/Ht2TDBF | `.wt-ht2td` | merge, then delete |
 | `ie-ulp3` | (moving) | **ACTIVE** fork — IE per-record growth cyc ≥3 | `.wt-ulp3` | merge, then delete |
+| `tiered-suite` | (moving) | **ACTIVE** fork — tiered integration suite (fixtures/goldens, test_tiered, slow tier, coverage) | `.wt-tiered` | merge, then delete |
 | `ie-climate-4759041` | 29afeea2 | merged (2026-09-18; content == 583da79c) | `/workspace/.wt-regendg` | delete |
 | `ie-dfht` | 38091a40 | merged (2026-09-18 bare-plot chain) | `FVSjl/.claude/worktrees/agent-a7c278e41effcaf96` | delete |
 
