@@ -279,7 +279,7 @@ function bm_crown_init_lstart!(s::StandState)
     saved_live = lbkden ? t.dbh[1:nlive] : Float32[]
     t.n = nlive + Int(t.ndead)
     # AVHT40 top height from REAL DBH/HT over live + all dead (IND = real-DBH sort, not WK3) — see #151 note below.
-    avht_real = stand_top_height(s)
+    avht_real = stand_top_height(s; legacy_double = true)   # validated vs live DUBSCR AVH (dead-inclusive)
     t.n = nlive
     lbkden && _backdate_dbh!(s)
     # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT IMC(I)==9
@@ -299,6 +299,6 @@ function bm_crown_init_lstart!(s::StandState)
     lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
     s.plot.avg_height = avht_real
     crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory
-    compute_density!(s)                    # restore current live-only density for everything downstream
+    compute_density!(s; cratet_ind = true)  # restore live-only density; CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692 DENSE)
     return s
 end

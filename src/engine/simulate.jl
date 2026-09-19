@@ -309,7 +309,7 @@ basal area, average dominant height (AVH), and per-point basal area (PTBAA).
 """
 function compute_density!(s::StandState; cratet_ind::Bool = false)
     s.plot.basal_area = stand_ba(s)
-    s.plot.avg_height = stand_top_height(s)
+    s.plot.avg_height = stand_top_height(s; cratet_ind = cratet_ind)
     # RMSQD (stand quadratic mean diameter, inches) — DENSE computes it into COMMON; ON's Penner
     # dgf! (ontario/diameter_growth.jl) reads it as `p.qmd*ON_INtoCM`. No other variant reads
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
