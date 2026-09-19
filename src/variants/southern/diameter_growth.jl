@@ -443,6 +443,18 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
+        elseif s.variant isa BlueMountains && length(s.calib.input_seq) == ntot
+            # bm/cratet.f:163-166 — the calibration DENSE (:195) ranks by `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`.
+            # At that point the dead are still INSIDE ITRN at their input positions (cratet.f:199-215 deletes them
+            # AFTER this DENSE), and IND1 is SETUP's (fvs.f:158) species-major list — species 1..MAXSP, each in read
+            # order (LNKCHN appends at the tail). So the seeded UNSTABLE quicksort runs over ALL records, seeded
+            # species-major by input order; it fixes the order of current-DBH ties (PCT → DGF BAL → calibration COR).
+            # 302098779489998: WL 142 / DF 139 both 15.8" — live WK2 2.4820/3.2076; the stable sortperm gave
+            # 2.5119/3.1702 (WL COR −0.2719 vs −0.2802). Live-only or dead-appended seeds break other ties
+            # (45074836020004, recently-dead DF near an 8.0" DF tie).
+            sq = s.calib.input_seq
+            ord = sort!(collect(Int32(1):Int32(ntot)); by = j -> (Int(t.species[j]), Int(sq[j])))
+            _rdpsrt!(rankd, ord; lseq = false)
         else
             ord = sortperm(rankd; rev = true)
         end
@@ -835,6 +847,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
+    # BM REGENT(.FALSE.,1) small-tree HEIGHT calibration (bm/regent.f:657-829; cratet.f:667) — current dbh,
+    # AVHT40 AVH (cycle-0 CRATET IND), RELDEN from the cratet.f:195 DENSE (stashed by bm_crown_init_lstart!).
+    s.variant isa BlueMountains && bm_regent_hcor_init!(s, isct, ind1)
     # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
     # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
     # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species

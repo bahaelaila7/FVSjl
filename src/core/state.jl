@@ -585,6 +585,18 @@ mutable struct Calibration
     cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
     cal_wci::Vector{Float32}         # WC — calibration weight to input
     cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
+    # BM cratet.f:195 DENSE (whose AVH the LSTART CROWN dub at :610 reads) runs BEFORE the missing-height dub
+    # (DO 130 :363 / DO 145 :464), so it sees HT exactly as read (missing = 0). Snapshot of t.height[1:n+ndead]
+    # taken by dub_missing_heights! just before it dubs (BM only; empty otherwise).
+    cratet_ht_in::Vector{Float32}
+    # BM RELDEN left by that same cratet.f:195 DENSE (LBKDEN ⇒ dense.f:258-261 RELDEN=RELDM1 = the BACKDATED,
+    # dead-inclusive first-pass CCF), read by the REGENT(.FALSE.,1) small-tree HCOR calibration at cratet.f:667.
+    cratet_relden::Float32
+    # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
+    # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
+    # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
+    # Valid only before any record moves (cycle-0 setup). Empty when unset.
+    input_seq::Vector{Int32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -596,7 +608,10 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
-    zeros(Float32,MAXSP))                                            # cal_cortem (CalibStats ScaleFactor)
+    zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
+    Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
+    0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
