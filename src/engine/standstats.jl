@@ -103,15 +103,26 @@ BA-weighted stand maximum SDI (`SDICAL`, base/sdical.f, pre-CLMAXDEN). General a
 the per-species SDImax (`plot.sp_sdi_def`) is variant coefficient data; the averaging is the same
 base algorithm. Used by the mortality SDImax cap and the structure-stage PCTSMX demotion (BTSDIX).
 """
+# SDICAL(0,XMAX) (sdical.f, byte-identical in every variant build): TREEBA=0.0054542*DBH*DBH*PROB (left-assoc,
+# REAL*4) accumulated in IND1 order (SPESRT species groups) into per-species BAXSP and TOTBA; then
+# XMAX = Σ_sp SDIDEF(sp)·BAXSP(sp) over species 1..MAXSP, / TOTBA. The per-species-then-species-sum structure
+# rounds differently from a per-tree Σ SDIDEF·TREEBA — measured on BM 448369010497 cycle 2: CONST=SDIMAX/K
+# live 464FA6A5 vs the per-tree form 464FA6A8.
 function stand_sdimax(s::StandState)
     t = s.trees; p = s.plot
-    num = 0f0; totba = 0f0
-    @inbounds for i in 1:t.n
-        tb = 0.0054542f0 * t.dbh[i]^2 * t.tpa[i]
-        num   += p.sp_sdi_def[t.species[i]] * tb
+    t.n == 0 && return 1f0
+    baxsp = zeros(Float32, length(p.sp_sdi_def)); totba = 0f0
+    @inbounds for i in _ind1_order(s)
+        tb = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
+        baxsp[t.species[i]] += tb
         totba += tb
     end
-    return totba <= 0f0 ? 1f0 : num / totba
+    totba <= 0f0 && return 1f0
+    xmax = 0f0
+    @inbounds for sp in eachindex(baxsp)
+        xmax += p.sp_sdi_def[sp] * baxsp[sp]
+    end
+    return xmax / totba
 end
 
 """

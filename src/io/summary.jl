@@ -155,6 +155,31 @@ come from `grow_cycle!` advancing to the next period. The final cycle has no
 growth period. Cumulative removed merch volume feeds MAI. Requires `state` set up
 through `setup_growth!` + `compute_forest_type!` + `compute_volumes!`.
 """
+# FVS forms the .sum volume totals by turning each per-tree volume into a per-acre value IN PLACE
+# (CFV(I)=CFV(I)*PROB(I), fvs.f:221 at the inventory / gradd.f:303 each cycle), PCTILE-ing those, then dividing
+# back (CFV(I)=CFV(I)/PROB(I), fvs.f:269 / gradd.f:350). In REAL*4 (v·p)/p is not always v, so every downstream
+# reader of the per-tree arrays before the next VOLS — the FVS_TreeList/CutList rows, the next cycle's CUTS
+# removals, ECHARV — sees the round-tripped value (e.g. MCFV 25.0 → 24.999998). gradd.f divides only when
+# PROB>0 and round-trips the biomass/carbon arrays only under LFIANVB; the inventory pass (fvs.f) does all of them.
+function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
+    t = s.trees
+    rt(v::Float32, p::Float32) = (v * p) / p
+    bio = cycle0 || s.control.fia_nvb
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]
+        p > 0f0 || continue
+        t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
+        t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p); t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
+        if bio
+            t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
+            t.cubsaw_bio[i] = rt(t.cubsaw_bio[i], p);   t.foliage_bio[i] = rt(t.foliage_bio[i], p)
+            t.abvgrd_carb[i] = rt(t.abvgrd_carb[i], p); t.merch_carb[i] = rt(t.merch_carb[i], p)
+            t.cubsaw_carb[i] = rt(t.cubsaw_carb[i], p); t.foliage_carb[i] = rt(t.foliage_carb[i], p)
+        end
+    end
+    return s
+end
+
 function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
@@ -257,6 +282,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
                         total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0)
+        _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
