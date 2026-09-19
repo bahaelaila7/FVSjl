@@ -144,6 +144,7 @@ include("integration/test_compress_tripling.jl")# COMPRESS still triples its own
 include("integration/test_growth_fint.jl")# D2: GROWTH FINT!=5 measurement period (first-cycle serial-corr old) vs live FVSsn
 include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board feet for GW-JF/Ouachita/Ozark forests vs live FVSsn
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
+    include("integration/test_tiered.jl")    # TIERED fast tier: variants × regimes × outputs vs committed live-oracle goldens (test/harness/tiered/README.md)
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)
     include("integration/test_fortbragg_coverage.jl")# C5: Fort Bragg (forest 701) KODFOR remap → nonzero volume
