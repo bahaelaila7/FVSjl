@@ -697,6 +697,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MPSVDG (mpgr.f): save the pre-growth DG for the LPOPDY MPGR resistance, BEFORE diameter_growth!
     # overwrites diam_growth. Inert unless an LPOPDY MPB block is active.
     s.mpb !== nothing && mpb_svdg!(s)
+    rd_cycle_start!(s)                     # WRD: size driver (RDESTB for last cycle's regen) + WK1=DG snapshot (dgdriv.f)
     stash = diameter_growth!(s, s.variant; tripling = trip, sfint = fint)  # DGs only; no records yet
     # IE cycle-1 WK1 dub (dgdriv.f:755-795 LSTART "DUB IN DBH INCREMENT FOR TREES ON WHICH IT WAS NOT
     # MEASURED"): the calibration pass sets DG(I) per dgdriv.f:774-795, and that value becomes cycle-1 WK1
@@ -756,14 +757,22 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # (measured stand 1143092700290487: jl 2 vs oracle 6 at cyc0, jl 6 vs oracle 18 at cyc1) — desyncing the
     # SHARED main rann! stream for every downstream DGSCOR/REGENT draw (the #206 straddle). DEFER the spread to
     # the post-triple block (right after mortality_and_fire!) when this cycle triples; the pre-mortality dmr is
-    # unchanged for the DM growth-loss (start-of-cycle, applied at diameter_growth!) and DM mortality (FVS MORTS
-    # precedes MISTOE, so it correctly reads the PRE-spread dmr either way). Non-tripling cycles keep the
-    # existing seam (MORTS/TRIPLE draw no rann!, so the RNG position is identical) — byte-identical there.
+    # unchanged for the DM growth-loss (start-of-cycle, applied at diameter_growth!). DM mortality is NOT part of
+    # MORTS: MISMRT is called inside MISTOE after the spread and MISINF (mistoe.f:517-522), so on a tripling cycle
+    # it too moves post-triple (mis_post below). Non-tripling cycles keep the existing seam (MORTS/TRIPLE draw no
+    # rann!, and spread → MISINF → DM max-combine in mortality! is the FVS order) — byte-identical there.
     mis_defer = _ie_mis_variant(s.variant) && (stash !== nothing)
+    # mis_post: on a NON-fire tripling cycle the WHOLE GRADD MISTOE call (mistoe.f: spread → MISINF :517 →
+    # MISMRT :522) runs post-TRIPLE on the tripled records at full pre-UPDATE PROB (the post-triple block
+    # below) — not just the spread. MISINF must follow the spread (else the spread intensifies the
+    # freshly-forced DMR in the same cycle) and MISMRT must read the post-spread DMR on the tripled PROB
+    # (else the DM kill uses the pre-spread DMR). dm_mrt_defer keeps MORTS from applying the DM kill.
+    # Fire cycles triple inside mortality_and_fire! and keep the previous order.
+    mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
         _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
     end
-    dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
+    mis_post || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
@@ -798,7 +807,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
     # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
+    s.control.dm_mrt_defer = mis_post
     (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf)
+    s.control.dm_mrt_defer = false
     # WRD rd/rdend.f: reconcile the RD infected-tree kill (RRKILL) with FVS's just-applied
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
     # MORTS time (GRINCR MORTS → GRADD RDTREG/RDEND). Non-fire, non-tripled RD path only;
@@ -884,7 +895,30 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             mort += m * old_cfv[i]
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
-        if rd_post_triple
+        if mis_post && !rd_post_triple
+            # ==== FVS-faithful MISTOE seam on a tripling cycle (gradd.f:96, after MORTS+TRIPLE, before UPDATE):
+            # recover the MORTS kill (WK2), restore full PROB, TRIPLE (splitting PROB), run the spread and MISINF on
+            # the tripled full-PROB records, then survivors = PROB − WK2·weight and MISMRT MAX-combines the DM kill.
+            wk2_u = Float32[old_tpa[i] - t.tpa[i] for i in 1:nlive]
+            @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end
+            triple_records!(s, stash)
+            n2 = t.n
+            full_prob = Float32[t.tpa[i] for i in 1:n2]
+            ie_mistoe!(s; fint = fint)         # mistoe.f spread (rann! over ITRN×3)
+            dm_misinf!(s)                      # mistoe.f:517 MISINF
+            @inbounds for i in 1:nlive
+                t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
+                t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
+                t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
+            end
+            ie_dm_mismrt_post!(s, full_prob, fint)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
+            mort = 0f0
+            @inbounds for c in 1:n2
+                m = full_prob[c] - t.tpa[c]
+                mort += m * t.cuft_vol[c]
+                t.mort_pa[c] = m
+            end
+        elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
             # PROB and WK2 proportionally; RDTREG (RDCNTL RDINSD/RDMORT/RDSTP) runs on the tripled full-PROB
@@ -897,12 +931,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             rd_triple_driver!(s.root_disease, stash.nlive)               # RDTRIP: split RD per-record arrays
             n2 = t.n
             full_prob = Float32[t.tpa[i] for i in 1:n2]                  # tripled pre-mort PROB (= RDTREG input)
+            if mis_post                                                  # gradd.f:96 MISTOE precedes :131 RDTREG
+                ie_mistoe!(s; fint = fint)
+                dm_misinf!(s)
+            end
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
             @inbounds for i in 1:nlive                                   # survivors = PROB − WK2 (triple.f WEIGHT split)
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
+            mis_post && ie_dm_mismrt_post!(s, full_prob, fint)           # MISMRT into WK2 before RDEND
             rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
             mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
             @inbounds for c in 1:n2
@@ -927,11 +966,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FVS's mistletoe draws — measured stand 1143092700290487 (2 DMR-6 western-larch trees): jl drew 2 vs the
     # oracle's 6 at cyc0, 6 vs 18 at cyc1 — desyncing the SHARED main rann! stream for every downstream
     # DGSCOR/REGENT draw (the #206 straddle). `mis_defer` (set at the pre-mortality seam) deferred the spread on
-    # a tripling cycle; run it HERE, after TRIPLE, on the tripled records — the FVS gradd.f:96 order/count. The
-    # DM growth-loss (start-of-cycle DMR, applied at diameter_growth!) and DM mortality (FVS MORTS precedes
-    # MISTOE ⇒ reads the PRE-spread DMR) are both unchanged. Non-tripling cycles keep the pre-mortality seam
-    # (MORTS/TRIPLE draw no rann! ⇒ identical RNG position) — byte-identical there.
-    mis_defer && ie_mistoe!(s; fint = fint)
+    # a tripling cycle. On a NON-fire tripling cycle (mis_post) the whole MISTOE call — spread, MISINF and MISMRT —
+    # already ran in the post-triple mortality block above (MISMRT is called INSIDE MISTOE at mistoe.f:522, so it
+    # reads the POST-spread DMR). Only a FIRE tripling cycle still runs the spread here. The DM growth-loss
+    # (start-of-cycle DMR, applied at diameter_growth!) is unchanged. Non-tripling cycles keep the pre-mortality
+    # seam (MORTS/TRIPLE draw no rann! ⇒ identical RNG position) — byte-identical there.
+    (mis_defer && !mis_post) && ie_mistoe!(s; fint = fint)   # fire tripling cycle only (non-fire: the seam above)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # WRD rd/rdgrow.f (+ tail rd/rdinoc.f decay): reduce the per-record DG/HTG by the infected-
     # root proportion, on the PRE-DBH-update increments (FVS RDGROW runs in RDTREG before UPDATE,
@@ -1015,12 +1055,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    comcup!(t)                              # COMCUP (grincr.f:318, end of GRINCR): drop
+    comcup!(t; onmove = rd_tdel_hook(s))    # COMCUP (grincr.f:318, end of GRINCR): drop
                                             # PROB≤1e-5 records before GRADD/next cycle
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
     # bogus into next cycle's DGF/mortality).
+    # esnutr.f:59 CALL ESADDT(1) is the FIRST thing ESNUTR does — before the sprout logic (:121) and before every
+    # OPFIND 430/431 (:63/:163/:218/:320/:348 NPNATS) and the ESTAB tally (:401). The ADDTREES bridge must therefore
+    # schedule its .es2 PLANT/NATURAL here, so the AUTOES tally (ie_autoes_establish!, NPNATS rule 6 + the NBEST
+    # plant pool) sees them exactly like a keyword PLANT, and the .es1 summary excludes this cycle's sprouts.
+    # (establish!'s own call is then a no-op: each 432 carries a `fired` guard.)
+    isempty(s.estab.addtrees) || addtrees_bridge!(s, Int32(current_cycle_year(s)), round(Int, fint))
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1039,6 +1085,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
+    # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
+    # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
+    es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
@@ -1049,7 +1098,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
-        atavh = es_at_avh, atrelden = es_at_relden)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+        atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
     # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment

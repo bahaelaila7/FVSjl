@@ -220,8 +220,10 @@ smallest-index vacancy with the largest-index survivor, repeat until the vacancy
 and survivor pointers cross. Unlike `compact_live!` this does NOT preserve order;
 it reproduces the oracle's exact post-thin physical record layout, which any
 physical-order-dependent pass (mortality kill distribution) then walks identically.
+`onmove(ivac, irec)`, when given, is called after each record move — the hook through which
+extensions that keep their own per-record arrays follow TREDEL (tredel.f:95 RDTDEL).
 """
-function tredel_compact!(t::TreeList; thresh::Float32 = 0f0)
+function tredel_compact!(t::TreeList; thresh::Float32 = 0f0, onmove = nothing)
     n = t.n; ndel = 0
     @inbounds for i in 1:n; t.tpa[i] <= thresh && (ndel += 1); end
     ndel == 0 && return t
@@ -230,7 +232,9 @@ function tredel_compact!(t::TreeList; thresh::Float32 = 0f0)
         while iv <= n && t.tpa[iv] > thresh; iv += 1; end
         while ir >= 1 && t.tpa[ir] <= thresh; ir -= 1; end
         iv >= ir && break
-        copy_tree!(t, iv, ir); t.tpa[ir] = 0f0; iv += 1; ir -= 1
+        copy_tree!(t, iv, ir)                       # TREMOV(IVAC,IREC)
+        onmove === nothing || onmove(iv, ir)        # extension per-record moves (RDTDEL, tredel.f:95)
+        t.tpa[ir] = 0f0; iv += 1; ir -= 1
     end
     newn = n - ndel
     if t.ndead > 0
@@ -257,7 +261,7 @@ Uses the same swap-from-end TREDEL as a thin. Keeping them is harmless to the `.
 next cycle, drifting the RNG from the oracle. (The COMPRESS-keyword compression in the
 bottom half of comcup.f is a management option — not ported here.)
 """
-comcup!(t::TreeList) = tredel_compact!(t; thresh = 1f-5)
+comcup!(t::TreeList; onmove = nothing) = tredel_compact!(t; thresh = 1f-5, onmove = onmove)
 
 """
     spesrt_reorder!(t)

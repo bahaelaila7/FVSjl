@@ -18,10 +18,23 @@ bin = BIN[V]; var = VAR[V]
 # column indices into parse_sum10 vals: 1=TPA 2=BA 3=SDI 4=CCF 5=TopHt 6=QMD 7=TCuFt
 mat(lv,jv) = (ad=abs(lv-jv); ad>1.0+1e-6 && (lv==0 ? true : ad/abs(lv)>=0.05))  # material: >1 abs & ≥5% rel
 
+# PLANT must use the same CALENDAR-year date as ledger_fia.jl main() (INV_YEAR+10, a cycle boundary). Omitting it
+# emits the cycle-number form `PLANT 2.0`, a different scheduler path, so the tally disagreed with the ledger.
+invyr = Dict{String,Int}()
+let db = SQLite.DB(sub)
+    for r in DBInterface.execute(db, "SELECT STAND_CN, INV_YEAR FROM FVS_STANDINIT_COND")
+        (r[:STAND_CN] === missing || r[:INV_YEAR] === missing) && continue
+        invyr[String(r[:STAND_CN])] = Int(r[:INV_YEAR])
+    end
+    SQLite.close(db)
+end
+plantyr_of(cn) = (REGIME == "plant" && haskey(invyr, cn)) ? invyr[cn] + 10 : 0
+
 rows = NamedTuple[]
 for cn in cns
-    live,_ = run_live(bin, cn, sub, REGIME, dir)
-    keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, REGIME))
+    py = plantyr_of(cn)
+    live,_ = run_live(bin, cn, sub, REGIME, dir, py)
+    keyf = joinpath(dir,"jl.key"); write(keyf, keytext(cn, sub, REGIME, py))
     jl = try FVSjl.run_keyfile(keyf; variant=var) catch e; ""; end
     L = parse_sum10(live); J = parse_sum10(jl)
     (isempty(L) || isempty(J)) && continue

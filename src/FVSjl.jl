@@ -189,7 +189,6 @@ include("variants/bluemountains/species.jl")        # BM blkdat init (18 species
 include("variants/bluemountains/site_index.jl")     # BM chunk 2: forkod/habtyp(PCOML)/ecocls/sichg/htcalc/sitset
 include("variants/bluemountains/dg_coefficients.jl")# BM chunk 3: DG coefficient arrays + BM_PSIGSQ + bm_bratio
 include("variants/bluemountains/crown.jl")          # BM chunk 5 (partial): bm_tree_ccf (CCF/RELDEN, needed by DG)
-include("variants/bluemountains/crown_width.jl")    # BM CRWDTH: cwcalc.f BMMAP + R6 forest BF via _cwcalc_national (TreeList/THINCC/COVER/sprouts)
 include("variants/bluemountains/diameter_growth.jl")# BM chunk 3: bm_dgcons! + dgf!(::BlueMountains) MSS spline
 include("variants/bluemountains/height_growth.jl")  # BM chunk 4: bm_findag + height_growth!(::BlueMountains)
 include("variants/bluemountains/regent.jl")         # BM chunk 6: bm_smhtgf + small_tree_growth!(::BlueMountains)
@@ -442,6 +441,7 @@ include("engine/fire/ec_fuel_model.jl")  # FFE F4  — EC FMDYN dynamic cover-me
 include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-group fuel-model selection (so/fmcfmd.f)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
+include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag fall BASE (FMR6SDCY + FMR6FALL; BM)
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)

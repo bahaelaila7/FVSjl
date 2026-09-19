@@ -67,14 +67,6 @@ function bm_essubh_hht(sp::Int, si::Float32, age::Float32)::Float32
     return bm_smhtgf(sp, si, 0f0, age)                      # linear/fixed species: H unused ⇒ = coef·AGE
 end
 
-@inline function _bm_rg_stash!(stash, t, i::Int)
-    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
-        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
-        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
-        !isempty(stash.is_small) && (stash.is_small[i] = true)
-    end
-end
-
 function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
@@ -87,7 +79,20 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
     ab = BM_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in 1:n
+    # TRIPLING (bm/regent.f:288 label 2 … :634-637 `L=L+1; K=ITRN+2*I-2+L; GO TO 2`): on a tripling cycle each
+    # small-tree record is grown THREE times — central (L=0), upper copy (L=1, K=ITRN+2I-1 → stash U) and lower
+    # copy (L=2, K=ITRN+2I → stash L) — and every pass re-enters label 2, so each draws its OWN ZZRAN (label 3,
+    # :357-359) and gets its OWN HTG(K) (+ its own DG(K) when D<BKPT). Drawing once and copying the central values
+    # left jl 2 ZZRAN draws per small tree short on every tripling cycle ⇒ the whole main rann! stream desynced for
+    # every downstream consumer (DGSCOR, MISTOE spread …). D≥BKPT jumps to 23 (no DG(K)): the copies keep their own
+    # large-tree tripled DG (dgU/dgL from diameter_growth!) — only their HTG is REGENT's.
+    ntrip = (stash !== nothing && !isempty(stash.htgU)) ? 3 : 1
+    # Visit order = FVS DO 30 ISPC / DO 25 I3=ISCT(ISPC,1..2) over IND1 (species-major, lineage order), which fixes
+    # which record consumes which ZZRAN draw.
+    species_sort!(s)
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    @inbounds for sp_o in 1:MAXSP, i3 in (isct[sp_o, 1] == 0 ? (1:0) : (Int(isct[sp_o, 1]):Int(isct[sp_o, 2])))
+        i = Int(ind1[i3])
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= BM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]
@@ -104,82 +109,96 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
         xcr = Float32(t.crown_pct[i]) / 100.0f0
         vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
         sp == 6 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)   # WJ pinyon (bm/regent.f:277)
-        # POTHTG + HTGR
-        local htgr::Float32
+        # POTHTG + HTGR (identical for every tripled pass: H/D/VIGOR are the central record's)
+        local htgr0::Float32
         if sp == 12
-            htgr = (si / 5.0f0) * pctred * vigor * con     # LM: regent.f:311 uses the CLAMPED SI
+            htgr0 = (si / 5.0f0) * pctred * vigor * con    # LM: regent.f:311 uses the CLAMPED SI
         elseif sp == 15                                   # aspen Sheppard (bm/regent.f:294-305)
             age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
-            htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
+            htgr0 = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
             pothtg = bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)   # SMHTGF reads raw SITEAR (unclamped); DTIME=TEMT=10
-            htgr = pothtg * pctred * vigor * con
+            htgr0 = pothtg * pctred * vigor * con
         end
-        # ZZRAN reject-loop (bm/regent.f:308-310)
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        htgr = (htgr + zzran * 0.1f0) * scale             # XRHGRO=1
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        # XWT blend with the large-tree HTG
         xmn = BM_RG_XMIN[sp]; xmx = BM_RG_XMAX[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]; htg < 0.1f0 && (htg = 0.1f0)
-        t.ht_growth[i] = htg
-        # ---- small-tree DG (bm/regent.f:388-460). BKPT=3 (WJ 99). HK=H+HTG; DK/DKK ht-dbh → DGMX → DDS.
+        large_htg = t.ht_growth[i]                        # HTG(K): htgf gives the copies the central TEMHTG
+        cap = s.control.sp_size_cap[sp, 4]
         bkpt = sp == 6 ? 99.0f0 : 3.0f0
-        d >= bkpt && (_bm_rg_stash!(stash, t, i); continue)
-        hk = h + htg
-        bark = bm_bratio(sd, sp, d)
-        if hk <= 4.5f0
-            t.diam_growth[i] = 0.0f0
-        else
-            local dk::Float32, dkk::Float32
-            # LP(7)/PP(10) have a fixed/linear ht-dbh in the regent.f CASE block (CASE 7 / CASE 10,17), but
-            # LHTDRG(7)=LHTDRG(10)=.FALSE. ⇒ regent.f:519 UNCONDITIONALLY overrides DK/DKK with HTDBH (Curtis-
-            # Arney), so those fixed formulas are DEAD CODE. LP therefore uses HTDBH like DF/GF/ES — jl's fixed
-            # -9.8752 LP branch (dk≈1.14) over-grew LP seedling DBH ~2.7× vs HTDBH (dk≈0.5). Drop it; LP falls
-            # into the HTDBH branch below (all 4 BM forests have LP P2>0).
-            if sp == 6                                    # WJ — linear site
-                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-                dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
-                # regent.f:522 — .NOT.LHTDRG OR (LHTDRG & IABFLG==1) ⇒ HTDBH (Curtis-Arney, forest-dependent).
-                # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX. But ONLY when
-                # the species actually has Curtis-Arney coeffs (P2>0): AS(15)/LM(12)/WB(11) have P2=0 (bm/regent.f
-                # routes them to the AX/BX / SMDGF branches, never HTDBH) — without this guard bm_htdbh hits
-                # log(P2=0)=-Inf ⇒ DomainError crash on real-FIA aspen/limber-pine stands.
-                ifor = Int(p.forest_idx)
-                dk = bm_htdbh(ifor, sp, hk)
-                dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
-            else                                          # AX/BX (bm/regent.f CASE 1:5,8:9,12,15 = incl AS/LM)
-                # bm/regent.f:411-414: AX = IABFLG(ISPC)==1 ? HT1(ISPC) : AA(ISPC). AA is the CRATET-fitted
-                # Wykoff intercept (0 until calibrated); IABFLG=1 (default) means Wykoff calibration did NOT
-                # occur, so the RAW HT1 intercept must be used. The AX/BX branch is reached by AS(15)/LM(12)
-                # (P2=0 ⇒ no HTDBH), which carry IABFLG=1 ⇒ AA=0 ⇒ ax=0 gave DK<0 ⇒ DG floored to 0.1
-                # (seedling DBH frozen, e.g. BM 22960605010497 aspen 0.1→2.2 became 0.1→0.2). Match FVS +
-                # the cr/regent.f:158 & sprout.f:644 pattern.
-                bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
-                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
-                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+        small = d < bkpt
+        bark = small ? bm_bratio(sd, sp, d) : 0.0f0
+        for l in 0:(ntrip - 1)
+            # ZZRAN reject-loop (bm/regent.f:357-359) — one per tripled pass
+            zzran = 0.0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
             end
-            dgk = (dk - dkk) * bark                        # XRDGRO=1
-            dgk < 0.0f0 && (dgk = 0.0f0)
-            dgmx = BM_RG_DGMAX[sp] * scale
-            sp == 11 && (dgmx = fint * 0.2f0)              # WB (bm/regent.f:239)
-            dgk > dgmx && (dgk = dgmx)
-            scale2 = _BM_RG_REGYR / fint                   # YR/FINT
-            dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
-            (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
-            t.diam_growth[i] = dgk
+            htgr = (htgr0 + zzran * 0.1f0) * scale        # XRHGRO=1
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            htg = htgr * (1.0f0 - xwt) + xwt * large_htg; htg < 0.1f0 && (htg = 0.1f0)
+            if h + htg > cap                              # regent.f:378-381 SIZCAP(ISPC,4)
+                htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+            # ---- small-tree DG (bm/regent.f:388-460). BKPT=3 (WJ 99). HK=H+HTG; DK/DKK ht-dbh → DGMX → DDS.
+            dgk = 0.0f0
+            if small
+                hk = h + htg
+                if hk > 4.5f0
+                    local dk::Float32, dkk::Float32
+                    # LP(7)/PP(10) have a fixed/linear ht-dbh in the regent.f CASE block (CASE 7 / CASE 10,17), but
+                    # LHTDRG(7)=LHTDRG(10)=.FALSE. ⇒ regent.f:519 UNCONDITIONALLY overrides DK/DKK with HTDBH (Curtis-
+                    # Arney), so those fixed formulas are DEAD CODE. LP therefore uses HTDBH like DF/GF/ES — jl's fixed
+                    # -9.8752 LP branch (dk≈1.14) over-grew LP seedling DBH ~2.7× vs HTDBH (dk≈0.5). Drop it; LP falls
+                    # into the HTDBH branch below (all 4 BM forests have LP P2>0).
+                    if sp == 6                                    # WJ — linear site
+                        dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                        dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                    elseif (!BM_LHTDRG[sp] || c.ht_dbh_iabflg[sp] == 1) && _bm_has_htdbh(Int(p.forest_idx), sp)
+                        # regent.f:522 — .NOT.LHTDRG OR (LHTDRG & IABFLG==1) ⇒ HTDBH (Curtis-Arney, forest-dependent).
+                        # BM conifers DF/GF/ES/WL have LHTDRG=false, so they use HTDBH — NOT the Wykoff AX/BX. But ONLY when
+                        # the species actually has Curtis-Arney coeffs (P2>0): AS(15)/LM(12)/WB(11) have P2=0 (bm/regent.f
+                        # routes them to the AX/BX / SMDGF branches, never HTDBH) — without this guard bm_htdbh hits
+                        # log(P2=0)=-Inf ⇒ DomainError crash on real-FIA aspen/limber-pine stands.
+                        ifor = Int(p.forest_idx)
+                        dk = bm_htdbh(ifor, sp, hk)
+                        dkk = h <= 4.5f0 ? d : bm_htdbh(ifor, sp, h)
+                    else                                          # AX/BX (bm/regent.f CASE 1:5,8:9,12,15 = incl AS/LM)
+                        # bm/regent.f:411-414: AX = IABFLG(ISPC)==1 ? HT1(ISPC) : AA(ISPC). AA is the CRATET-fitted
+                        # Wykoff intercept (0 until calibrated); IABFLG=1 (default) means Wykoff calibration did NOT
+                        # occur, so the RAW HT1 intercept must be used. The AX/BX branch is reached by AS(15)/LM(12)
+                        # (P2=0 ⇒ no HTDBH), which carry IABFLG=1 ⇒ AA=0 ⇒ ax=0 gave DK<0 ⇒ DG floored to 0.1
+                        # (seedling DBH frozen, e.g. BM 22960605010497 aspen 0.1→2.2 became 0.1→0.2). Match FVS +
+                        # the cr/regent.f:158 & sprout.f:644 pattern.
+                        bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
+                        dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
+                        dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+                    end
+                    dgk = (dk - dkk) * bark                        # XRDGRO=1
+                    dgk < 0.0f0 && (dgk = 0.0f0)
+                    dgmx = BM_RG_DGMAX[sp] * scale
+                    sp == 11 && (dgmx = fint * 0.2f0)              # WB (bm/regent.f:239)
+                    dgk > dgmx && (dgk = dgmx)
+                    scale2 = _BM_RG_REGYR / fint                   # YR/FINT
+                    dds = dgk * (2.0f0 * bark * d + dgk) * scale2
+                    dgk = sqrt((d * bark)^2 + dds) - bark * d
+                    (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
+                end
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                small && (t.diam_growth[i] = dgk)
+            elseif l == 1
+                stash.htgU[i] = htg; !isempty(stash.is_small) && (stash.is_small[i] = true)
+                small && (stash.dgU[i] = dgk)
+            else
+                stash.htgL[i] = htg
+                small && (stash.dgL[i] = dgk)
+            end
         end
-        _bm_rg_stash!(stash, t, i)
     end
     return s
 end
@@ -189,12 +208,21 @@ end
 # first-cycle height growth (BM BARE-PLANT: persistent TopHt lag ~5 ft). Same class as EM #137 / UT #184 / CI #185.
 # Mirrors small_tree_growth!'s POTHTG/PCTRED/VIGOR/CON height + DK/DKK DBH over the birth subperiod (subyr=FINT−
 # GENTIM=5), applying HT/DBH directly (esgent.f HT(I)=HT(I)+HTG(I)·WK4). Gated to the new records nstart+1:n.
+#
+# Per new record, in SPESRT order (esgent.f:49 → regent.f DO 30 ISPC / DO 25 IND1), bm/regent.f LESTB does:
+# crown RAN draw (regent.f:257-264) → VIGOR → HTGR → ZZRAN draw (:358-360) → HTG (XWT=0 under LESTB, :369) → DBH.
+# The crown and ZZRAN draws are INTERLEAVED per record on the main RANN stream, so this routine owns the crown
+# draw (establish! skips BM in its crown pass). RELDEN/AVH are the GRADD DENSE values BEFORE the regen was
+# added (relden_pre/avh_pre); establish! recomputes density including the seedlings.
 function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
     sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
-    relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    dgsd = s.control.dg_sd
     gentim = max(fint - 5.0f0, 0.0f0)
     bscale = (fint - gentim) / _BM_RG_REGYR              # birth-cycle fraction (WK4; =0.5 for fint=10)
     # REGENT(LESTB) PCTRED reads a MID-PERIOD blend of the CURRENT (post-growth) and the START-of-cycle
@@ -210,9 +238,20 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     ab = BM_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in (nstart+1):t.n
+    newidx = sort(collect((nstart+1):t.n); by = i -> (Int(t.species[i]), i))   # SPESRT species-then-record
+    @inbounds for i in newidx
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= BM_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        # regent.f:257-264 LESTB crown: CR = 0.89722 − 0.0000461·PCCF + 0.07985·RAN, RAN∈[−1,1], clamp [.20,.90].
+        ran_cr = 0f0
+        while true
+            ran_cr = bachlo(s.rng, 0f0, 1f0)
+            -1f0 <= ran_cr <= 1f0 && break
+        end
+        pccf = s.density.point_ccf[Int(t.plot_id[i])]
+        cr0 = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
+        icr0 = floor(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
         h = t.height[i]
         sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
@@ -225,7 +264,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         if sp == 12
             htgr = (si / 5.0f0) * pctred * vigor * con
         elseif sp == 15
-            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+            age = t.birth_age[i]                          # regent.f:319 LESTB ⇒ SITAGE=ABIRTH (=AGEPL, estab.f:628)
             hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
@@ -240,10 +279,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             end
         end
         htgr = (htgr + zzran * 0.1f0) * bscale           # birth-cycle subperiod (was scale=fint/REGYR)
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        xmn = BM_RG_XMIN[sp]; xmx = BM_RG_XMAX[sp]
-        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt); htg < 0.1f0 && (htg = 0.1f0)   # new tree: large-tree HTG(K)=0
+        htg = htgr; htg < 0.1f0 && (htg = 0.1f0)          # regent.f:369 LESTB ⇒ XWT=0; :376 HTG<.1 ⇒ .1
         hk = h + htg
         t.height[i] = hk; t.ht_growth[i] = htg
         bkpt = sp == 6 ? 99.0f0 : 3.0f0

@@ -1089,7 +1089,7 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # per-tree-bit-exact cwcalc kernel compute the forest-grown value here (+ the cwcalc.f [0.5,99.9] final clamp); the
 # eastern open-grown crown_width() handles the rest (0.5 default for unknown species). Shared by both the live-tree
 # snapshot and the cut-record builder so the two tables stay consistent, and by `tree_crwdth` (THINCC/COVER/sprouts).
-# BM is the faithful BMMAP + per-forest R6 BF port (bm_crwdth); the SO/CA kernels still bake in one forest's R6 BF.
+# BM is the faithful BMMAP + per-forest R6 BF port (bm_cwcalc, shared with FFE); the SO/CA kernels still bake in one forest's R6 BF.
 function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
     p = s.plot
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
@@ -1102,10 +1102,9 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
     s.variant isa CentralCalifornia &&
         return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
-    # BM: faithful cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR (bm_crwdth clamps [0.5,99.9] itself).
+    # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
-        return bm_crwdth(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi,
-                         bm_kodfor_remap(Int(p.user_forest_code)))
+        return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
           s.variant isa OregonCoast       ? oc_cwcalc :
           s.variant isa Olympic           ? op_cwcalc :
@@ -1167,7 +1166,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
         # cwcalc.f value (per-variant cwcalc) — matches live's CRWDTH (was the crown_width 0.5 default before).
         cw = _forest_crwdth(s, sp, t.dbh[i], t.height[i], t.crown_pct[i])
         # FVS_TreeList metadata columns (dbstrls.f binds): TreeVal=IMC (mort_code), SSCD=ISPECL (special),
-        # PtIndex=ITRE (point), MistCD=IDMR=0 (no dwarf mistletoe in SN), MDefect/BDefect=decoded DEFECT
+        # PtIndex=ITRE (point), MistCD=IDMR (MISGET; 0 on variants without the MISTOE model), MDefect/BDefect=decoded DEFECT
         # (cubic = (DEF−⌊DEF/1e4⌋·1e4)/100; board = DEF−⌊DEF/100⌋·100), EstHt=normht?(normht+5)/100:HT
         # (dbstrls.f:200-202), ActPt=IPVEC(ITRE) (point id). All sourced from jl state.
         df = Int(t.defect[i]); pid = Int(t.plot_id[i])
@@ -1180,7 +1179,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g),      # TPA, MortPA
             Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
             Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
-            0,                                                     # MistCD
+            _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
             Float64(t.crown_ratio[i]), Float64(i <= length(pbal) ? pbal[i] : 0f0),
             Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
             Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
@@ -1222,7 +1221,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
                 Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
                 0.0, Int(t.crown_pct[i]), Float64(cw),     # HtG=0, PctCr, CrWidth
-                0,                                         # MistCD
+                _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,  # MistCD = MISGET(I,IDMR) (dbstrls.f:326)
                 Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100

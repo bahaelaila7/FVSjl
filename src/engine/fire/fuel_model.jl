@@ -41,6 +41,30 @@ the dead moisture of extinction.
     return standard_fuel_model(s.coef, model)
 end
 
+"""
+    fmgfmv(s, model, mois) -> (load[2,4], sav[2,4], depth, mext)
+
+FMGFMV (fmgfmv.f, identical in all 24 variants): the fuel model FMFINT actually burns. Resolves `model`
+(`fuel_model_resolved`), sets the dead-herb SAV to the live-herb SAV (SURFVL(IFMD,1,4)=SURFVL(IFMD,2,2)), and —
+for any model carrying live herb EXCEPT model 2, when the live-herb moisture MOIS(2,2) < 1.2 — CURES part of the
+herb into the dead-herb class: WT = ALGSLP(MOIS(2,2), [.30,1.2]→[0,1]); dead herb = (1−WT)·herb, live herb =
+WT·herb. The Anderson-13 table only has herb in model 2 (excluded), so this bites the Scott-Burgan grass/
+grass-shrub/timber-understory models (101-204): without it jl burned GR2 with all its herb LIVE (BM juniper
+449677911489998: flame 0.47 ft vs live 5.32).
+"""
+function fmgfmv(s::StandState, model::Integer, mois::AbstractMatrix{Float32})
+    load, sav, depth, mext = fuel_model_resolved(s, model)
+    herb = load[2, 2]
+    sav = copy(sav); sav[1, 4] = sav[2, 2]
+    if herb > 0f0 && Int(model) != 2 && mois[2, 2] < 1.2f0
+        wt = _fm_algslp2(mois[2, 2], 0.30f0, 1.2f0, 0f0, 1f0)
+        load = copy(load)
+        load[1, 4] = (1f0 - wt) * herb
+        load[2, 2] = wt * herb
+    end
+    return (load, sav, depth, mext)
+end
+
 function standard_fuel_model(coef::SpeciesCoefficients, model::Integer)
     m = @view coef.ffe_fuel_models[model, :]   # [sav_1hr, sav_lwoody, l_1hr,l_10,l_100,l_lwoody,l_lherb, depth, mext]
     load = zeros(Float32, 2, 4); sav = zeros(Float32, 2, 4)
@@ -1048,7 +1072,7 @@ end
 BMSTAGE (bm/fmcfmd.f:337): a stripped SSTAGE that stratifies the stand into at most two canopy layers by
 the largest height gap (>= max(10ft, 30% of the taller tree), ladder trees < 2 TPA absorbed), returns the
 upper/lower stratum canopy cover (COVA/COVB, %) via COVOLP and a per-tree upper-layer membership flag LA.
-CRWDTH is the western forest-grown crown width (bm_cwcalc -> cr_cwcalc library).
+CRWDTH is the western forest-grown crown width (bm_cwcalc: cwcalc.f BMMAP + R6 BF).
 """
 function bm_stage(s::StandState)
     t = s.trees; n = t.n
@@ -1057,7 +1081,8 @@ function bm_stage(s::StandState)
     wk6 = zeros(Float32, n)
     _ba = s.plot.basal_area; _el = s.plot.elevation
     _hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
-    cwof(i) = bm_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _ba, _el, _hi)
+    _kf = bm_kodfor_remap(Int(s.plot.user_forest_code))   # BMSTAGE reads the same CRWDTH (forest BF + clamp)
+    cwof(i) = bm_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _ba, _el, _hi; kodfor = _kf)
     idx = Int[]; sprob = 0f0
     @inbounds for i in 1:n
         sprob += t.tpa[i]

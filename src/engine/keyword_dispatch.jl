@@ -2653,6 +2653,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NOAUTOES"                            # initre.f opt-72 → ESNOAU (esin.f:783): clear ALL auto
             s.control.lsprut = false                       # establishment — auto tallies, ingrowth, AND stump-sprouting.
             s.estab.lautal = false; s.estab.lingrw = false
+            s.estab.stoadj = 0f0                           # esin.f:788 ESNOAU: STOADJ=0.0 ("STOCKADJ IS SET TO ZERO")
         elseif kw == "AUTALLY";  s.estab.lautal = true      # esin.f opt 24 — enable automatic tallies
         elseif kw == "NOAUTALY"; s.estab.lautal = false     # esin.f opt 23 — disable automatic tallies
         elseif kw == "INGROW";   s.estab.lingrw = true      # esin.f opt 21 — enable automatic ingrowth
