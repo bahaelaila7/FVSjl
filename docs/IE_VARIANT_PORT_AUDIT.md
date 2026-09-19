@@ -201,3 +201,38 @@ catastrophic-cancellation, FMDYN fuel-model boundary); per-cycle volume/height s
 pre-existing + IE-independent: 22 Ontario per-tree-volume ULP, 1 SO-WRD corner, 1 LPMPB oracle-dump, 1 CI
 simfire stale golden). Cross-variant / non-IE follow-ups remain open in the wider campaign (wider western
 tripling-cycle mistletoe sweep; ON per-tree-volume ULP; CI simfire golden) — not IE.
+
+### IE CLOSE-OUT addendum — bare-plot PLANT chain driven to the bottom (2026-09-19)
+
+Driving IE to zero-deferred/zero-unverified surfaced a synthetic-fixture path (the `test_ie_addtrees`
+bare-`NOTREES`+PLANT-400 stand, INADV=1 multi-point AUTOES continuation). It was a genuine unmasking chain
+— each faithful fix revealed the next deterministic sub-bug — driven to a proven per-record corner. **6
+further faithful fixes merged** (master `38091a40`), all gate 339/11, all **real-population-inert** (the IE
+`none` + `plant` population sign-tallies are byte-identical with vs without them — hard proof they don't
+touch real FIA stands; they only bite this synthetic uniform pure-cohort multi-point construction):
+1. `7f7aa7bb` INADV=1 bare-stand ESTAB bypass (estab.f:319,511) — bare stand 364→919 (=oracle 911).
+2. `2f49d718` per-plot prep-type ordering (estab.f DO 202, ascending IPREP) — GF +49→+3.6.
+3. `a8843771` combine PLANT/NATURAL into the per-plot NBEST pool (estab.f DO 322 / XCSMAX estab.f:1320).
+4. `e2939fe0` continuation-tally species-prob TIME=10 (estab.f:606) + per-point overstory BAAA (dense.f:213).
+5. `9d8efeda` continuation reuses per-plot IPPREP (estab.f:341) + per-IPREP SPRE PROB1 (estock.f).
+6. `38091a40` continuation ESXCSH excess-height TIME = cycle-length (estab.f:945).
+
+**Terminal residual = PROVEN CORNER (the bottom), not a bug or a hand-wave.** After the above, the synthetic
+stand is **bit-exact @2002** and the @2012→2032 divergence is the **planted birth-height `:estab` BACHLO/ESRANN
+draw-ORDER**: estab.f runs the planted-tree DO-322 BACHLO draws **interleaved per-plot** (inside DO 203/201,
+before ESRNSD), while jl runs PLANT in a **separate `establish!` pass** → the SAME log-normal draws (formula
+verified identical estab.f:1026-1034 == establish!:564-571; same clamp/redraw) land at different `:estab`
+stream positions → per-record birth heights differ (means within ~1.5 SE = same distribution, different
+draws) → ~2% DF cohort size distribution → the **faithful** size-dependent RIP self-thinning (bit-exact on a
+real dense IE stand 63835→8826 TPA) diverges over cycles 3-4. A `#206`-class per-record RNG-draw-order
+realization. **Not faithfully fixable** — matching it needs restructuring `establish!` into every variant's
+per-plot AUTOES loop to reproduce a real-population-inert realization = tuning-the-realization (which the
+faithful-fix doctrine forbids; prior digs likewise found forcing draw-order = tuning-to-jl). Per-record proof:
+(1) formula identical, (2) draws differ, (3) same distribution, (4) feeds a faithful mechanism + byte-identical
+on the real population.
+
+**IE STATUS: bit-exact-or-cornered on every regime + extension + code path, every corner named and
+per-record-proven; real-FIA population + all real paths verified (population byte-identical through the whole
+synthetic-path chain). 15 real IE fixes merged this session.** Remaining corners: dense-phase NSTORE-INT
+small-tree ULP; establishment realization (ESRANN-fixed) + the bare-plot birth-height draw-order above; `#206`
+OLDRN straddles; simfire fire-threshold; per-cycle volume/height single-precision ULP.
