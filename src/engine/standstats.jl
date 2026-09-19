@@ -88,14 +88,16 @@ end
 # DENSE walk order for BA/RMSQD: FVS IND1. jl's IND1 reconstruction (`_ind1_order`, sort-key lineage) is
 # live-measured faithful for BM; on CS kwcov cs_serlcorr it is NOT (IND1 order flips a 2030 BdFt cell vs live while
 # the D*(D*P) association alone is inert) ⇒ the CS lineage keys diverge from FVS's LNKCHN chain there (open lead).
-# Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order.
+# Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
+# association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
+# test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
 _dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]
-        ba += BA_PER_TREE * (d * (d * t.tpa[i]))
+        ba += s.variant isa BlueMountains ? BA_PER_TREE * (d * (d * t.tpa[i])) : t.tpa[i] * BA_PER_TREE * d^2
     end
     return ba
 end
@@ -104,7 +106,7 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += d * (d * p)
+        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0

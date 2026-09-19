@@ -574,8 +574,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         sp = t.species[i]
         bkpt = break_cr === nothing ? gst_min : break_cr[sp]
         (t.dbh[i] < bkpt || t.diam_growth[i] <= 0f0) && continue
-        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = fexp(wk2[i]); end
-        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = fexp(wk2[i]); end
+        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
+        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
     end
 
     # per-species sums; remember each measured tree's residual
@@ -587,7 +587,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     @inbounds for i in 1:t.n
         sp = t.species[i]; wk3 = t.dbh[i]; dg = t.diam_growth[i]; p = t.tpa[i]
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
-        edds = fexp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
+        edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
         bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) :
                _tt_cal ? tt_bratio(Int(sp), saved_dbh[i]) :
@@ -604,7 +604,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
-        reslog = flog(term) - wk2[i]
+        reslog = log(term) - wk2[i]
         reslog_t[i] = reslog; measured[i] = true
         fn[sp] += 1f0; dev[sp] += reslog; devsq[sp] += reslog^2
         snp[sp] += p; snx[sp] += p * edds; sny[sp] += p * reslog
@@ -645,10 +645,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          s.variant isa Klamath ? NC_PSIGSQ[sp] :
                          s.variant isa Olympic ? 0.0898f0 : DG_PSIGSQ   # OP 0.0898 (op/dgdriv.f DATA PSIGSQ/MAXSP*0.0898/) / NE 0.0898 / SN default
                 temp = min(cornew * cornew / psigsq, 72f0)
-                wc = 1f0 / (1f0 + fexp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
+                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
                 corv = wc * cornew
                 # out-of-range trap (cortem = exp(COR))
-                if fexp(corv) < 0.0821f0 || fexp(corv) > 12.1825f0
+                if exp(corv) < 0.0821f0 || exp(corv) > 12.1825f0
                     corv = 0f0
                 end
                 c.dg_cor[sp] = corv
@@ -660,11 +660,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 c.cal_stdrat[sp] = sigmar[sp] > 0f0 && fn[sp] > 1f0 ?
                                    sqrt((svar / (fn[sp] - 1f0)) / sigmar[sp]^2) : 0f0
                 c.cal_wci[sp] = wc
-                c.cal_cortem[sp] = fexp(corv)      # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
+                c.cal_cortem[sp] = exp(corv)      # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
                 slop[sp] = slp; bnx[sp] = bnxv; bny[sp] = bnyv; calibrated[sp] = true
             end
         end
-        vtemp = fexp(c.sigma[sp]^2)
+        vtemp = exp(c.sigma[sp]^2)
         c.vardg[sp] = (vtemp - 1f0) * vtemp / vmlt
     end
 
@@ -681,7 +681,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 if measured[i]
                     oldrn[i] = reslog_t[i]
                 else
-                    oldrn[i] = bny[sp] + (fexp(wk2[i]) - bnx[sp]) * slop[sp]
+                    oldrn[i] = bny[sp] + (exp(wk2[i]) - bnx[sp]) * slop[sp]
                     t.dbh[i] < dn[sp] && (oldrn[i] = rn)
                     t.dbh[i] > dx[sp] && (oldrn[i] = rx)
                 end
@@ -1255,7 +1255,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # jl's dg_cor at cycle N = the value FVS USES for cycle N's DG (the pre-update one) —
     # the START clock here is correct; do NOT "fix" it to elapsed+sfint.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
-    cormlt = fexp(-0.02773f0 * elapsed)          # dgdriv.f CORMLT=EXP(-0.02773*SFINT) → gfortran expf
+    cormlt = exp(-0.02773f0 * elapsed)
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
     # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
     # HCOR = WCI + cormlt_h·DIFH, DIFH = HCOR_init − WCI (set at ICYC=1). This runs for LDGCAL
@@ -1266,7 +1266,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # the WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
-    cormlt_h = fexp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
+    cormlt_h = exp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
         c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
@@ -1318,7 +1318,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             else
                 _spi = Int(t.species[i])
                 _dib = t.dbh[i] * bm_bratio(sd, _spi, t.dbh[i])
-                _dub = sqrt(_dib * _dib + fexp(wk2[i] + t.old_random[i]) * _sc) - _dib
+                _dub = sqrt(_dib * _dib + exp(wk2[i] + t.old_random[i]) * _sc) - _dib
                 _dub > _dib && (_dub = _dib)
                 s.root_disease.wk1[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _bm_scap)
             end
