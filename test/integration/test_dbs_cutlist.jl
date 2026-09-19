@@ -1,11 +1,12 @@
-# test_dbs_cutlist.jl — C6 DBS FVS_CutList table (dbscuts.f) via the CUTLIST keyword.
+# test_dbs_cutlist.jl — C6 DBS FVS_CutList table (dbscuts.f).
 #
-# CUTLIST sends the per-cycle REMOVED records to a SQLite table with the FVS_TreeList per-tree
-# columns, but TPA = removed trees/acre. The records are captured non-invasively by `_log_cut!`
-# (a gated observer in the thinning path — zero effect when off). This SN Fortran build writes the
-# cut list only to a TEXT dataset (not FVS_CutList), so there is no Fortran table to diff; instead
-# we validate that the CutList RECONSTRUCTS the `.sum` removed columns (RTpa/RTCuFt/RMCuFt) — which
-# are themselves bit-exact vs Fortran — i.e. Σ(TPA)=RTpa and Σ(TPA·vol)=removed volume.
+# FVS writes FVS_CutList only when BOTH (a) DATABASE CUTLIDB set ICUTLIST>0 (dbsin.f opt 17) and (b) a CUTLIST
+# activity (initre.f opt 92, code 199) is due in the cycle of an applied cut (prtrls.f → dbscuts.f); a top-level
+# CUTLIST alone produces only the text report (verified on live FVSbm: no table). Rows = the REMOVED records
+# (WK3>0) in species order with the FVS_TreeList per-tree columns (SpeciesFVS/PLANTS/FIA), TPA = removed/acre.
+# The SN build has no oracle table to diff here, so we validate that the CutList RECONSTRUCTS the `.sum` removed
+# columns (RTpa/RTCuFt/RMCuFt, themselves bit-exact vs Fortran): Σ(TPA)=RTpa and Σ(TPA·vol)=removed volume.
+# The BM live A/B lives in test_econ_summary.jl (cutlist testset).
 
 using Test, FVSjl, SQLite, DBInterface
 
@@ -29,7 +30,7 @@ NUMCYCLE         3.0
 SITECODE          63      60.
 DESIGN                                        11.0       1.0
 $thin
-CUTLIST
+CUTLIST         1995
 TREEFMT
 (T24,I4,T1,I4,T31,F2.0,I1,A3,F3.1,F2.1,T45,F3.0,T63,F3.0,T60,F3.1,T48,I1,
 T52,I2,T66,5I1,T54,7I1,T75,F3.0)
@@ -37,6 +38,7 @@ DATABASE
 DSNOUT
 $db
 SUMMARY
+CUTLIDB
 END
 TREEDATA
 PROCESS
@@ -57,7 +59,7 @@ STOP
         d = SQLite.DB(db)
         try
             cols = [r.name for r in DBInterface.execute(d, "PRAGMA table_info(FVS_CutList)")]
-            @test "TPA" in cols && "Species" in cols && "BAPctile" in cols
+            @test "TPA" in cols && "SpeciesFVS" in cols && "SpeciesPLANTS" in cols && "SpeciesFIA" in cols && "BAPctile" in cols
             recs = [NamedTuple(r) for r in DBInterface.execute(d,
                 "SELECT TPA,TCuFt,MCuFt FROM FVS_CutList WHERE Year=1995")]
             @test !isempty(recs)
@@ -79,6 +81,15 @@ STOP
         finally
             SQLite.close(d)
         end
-        rm(dir; recursive = true, force = true)
+        # Negative: a top-level CUTLIST without DATABASE CUTLIDB ⇒ ICUTLIST=0 ⇒ no FVS_CutList table (dbscuts.f:61).
+        dir2 = mktempdir(); db2 = joinpath(dir2, "out.db")
+        cp(tre, joinpath(dir2, "cut.tre"); force = true)
+        key2 = joinpath(dir2, "cut.key")
+        write(key2, replace(read(key, String), "CUTLIDB\n" => "", db => db2))
+        FVSjl.run_keyfile(key2; faithful = true)
+        tabs = isfile(db2) ? [r.name for r in DBInterface.execute(SQLite.DB(db2),
+                                "SELECT name FROM sqlite_master WHERE type='table'")] : String[]
+        @test !("FVS_CutList" in tabs)
+        rm(dir; recursive = true, force = true); rm(dir2; recursive = true, force = true)
     end
 end

@@ -211,7 +211,7 @@ mutable struct Control
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
-    years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
+    years_cut::Set{Int32}                # years the cut methods were already evaluated (applied, MINHARV-canceled or ECON PRETEND) — idempotent cuts!
     yardloss_prlost::Float32             # YARDLOSS PRLOST (cuts.f:1461): proportion of harvested merch/saw/
                                          # board volume lost in yarding (0 = inactive). The reported removed
                                          # merch/saw/bdft are scaled by (1−PRLOST); total cubic + BA are not.
@@ -260,7 +260,7 @@ mutable struct Control
     dbs_summary::Bool                         # DATABASE SUMMARY ⇒ emit the FVS_Summary table          (ISUMARY)
     dbs_treelist::Bool                        # DATABASE TREELIDB ⇒ emit the FVS_TreeList table        (ITREELIST)
     dbs_compute::Bool                         # DATABASE COMPUTDB ⇒ emit the FVS_Compute table         (ICOMPUTE)
-    dbs_cutlist::Bool                         # DATABASE CUTLIST ⇒ emit the FVS_CutList table          (ICUTLIST)
+    dbs_cutlist::Bool                         # DATABASE CUTLIDB ⇒ FVS_CutList enabled (ICUTLIST>0; rows need a due CUTLIST)
     dbs_climate::Bool                         # DATABASE CLIMREDB ⇒ emit the FVS_Climate table         (ICLIM)
     dbs_canprofile::Bool                      # FFE CANFPROF keyword ⇒ emit the FVS_CanProfile table   (ICANPR)
     dbs_strclass::Bool                        # DATABASE STRCLSDB ⇒ emit the FVS_StrClass table        (ISTRCLAS)
@@ -273,7 +273,8 @@ mutable struct Control
     dbs_bm_bkp::Bool                          # DATABASE PPBMBKP  ⇒ emit FVS_BM_BKP beetle-killing-potential detail (IBMBKP)
     dbs_rd_sum::Bool                          # DATABASE RDSUM    ⇒ emit FVS_RD_Sum WRD root-disease summary (dbsin.f opt 34)
     dbs_rd_detail::Bool                       # DATABASE RDDETAIL ⇒ emit FVS_RD_Det WRD per-species patch detail (dbsin.f opt 35)
-    cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle cut-record sink (_log_cut!), else nothing
+    cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_CutList row sink (filled by cuts! at DO 1700), else nothing
+    dbs_cutlist_mode::Int32                   # ICUTLIST from DATABASE CUTLIDB (1 = table + text report, 2 = table only)
     strclass_on::Bool                         # STRCLASS keyword ⇒ compute the structural stage each cycle (LCALC)
     strclass_thresh::NTuple{6,Float32}        # STRCLASS thresholds: gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx
     growth_idg::Int32                         # GROWTH: input DIAMETER-growth data type (0=none/incr, 1/3=past DBH, 2=incr) (IDG)
@@ -370,7 +371,7 @@ function Control()
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
-        false, false, false, false, false, false, false, false, false, false, false, false, false, nothing, # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, dbs_calibstats, dbs_mistoe, mistprt_on, dbs_bm_main, dbs_bm_tree, dbs_bm_vol, dbs_bm_bkp, dbs_rd_sum, dbs_rd_detail, cutlist_capture
+        false, false, false, false, false, false, false, false, false, false, false, false, false, nothing, Int32(0), # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, dbs_calibstats, dbs_mistoe, mistprt_on, dbs_bm_main, dbs_bm_tree, dbs_bm_vol, dbs_bm_bkp, dbs_rd_sum, dbs_rd_detail, cutlist_capture, dbs_cutlist_mode
         false, SS_THRESH_DEFAULT,                               # strclass_on, strclass_thresh (SSTAGE)
         Int32(0), Int32(0), 5f0, 5f0, 5f0,                      # GROWTH: idg, ihtg, fint, finth, fintm (defaults)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
@@ -759,6 +760,17 @@ mutable struct Establishment
     esb_shift_pt::Vector{Float32}  # PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID), frozen at the calibrating
                                 # tally (INADV=0, first tally). The ingrowth per-point PROB1 uses this instead of the
                                 # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
+    # BURNPREP(491)/MECHPREP(493) activity status (IACT(,4)): schedule index ⇒ year accomplished (>0) or −1 deleted;
+    # absent = pending. Set where FVS's ESTAB does it — ESETPR on the first tally (esetpr.f OPDON2) and the
+    # NTALLY>1 cancel (estab.f OPFIND/OPDEL1). Read by ECON MECHCST/BURNCST (eccalc.f OPSTUS/OPGET3).
+    prep_status::Dict{Int,Int32}
+    prep_years_done::Set{Int32}   # cycle years whose ESTAB site-prep bookkeeping already ran (idempotent ESNUTR)
+    # bookkeeping-only replica of the ESNUTR tally state for the non-AUTOES variants (esnutr.f NTALLY/IDSDAT/LONE +
+    # the TALLY/TALLYONE/TALLYTWO activity statuses) — decides WHEN ESTAB runs and with which NTALLY; never read by
+    # the establishment model itself.
+    prep_ntally::Int32
+    prep_idsdat::Int32            # -99999 = not yet initialised from the ESTAB keyword's IDSDAT
+    tally_status::Dict{Int,Int32} # schedule index of a 427/428/429 ⇒ year done (>0) / −1 deleted
     # Per-plot ESRANN stream position for the PLANT/NATURAL trees of THIS cycle's ESTAB call (IE/EM, estb/estab.f).
     # FVS books the keyword trees INSIDE the per-plot loop (DO 322, estab.f:975) right after that plot's ESAVE draw
     # (:967) and before the ESRNSD(ESAVE) reseed (:1075), so plot NCOUNT's planted-height BACHLO draws continue the
@@ -781,6 +793,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
+                                Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99))
 
 mutable struct DbsState
@@ -1106,6 +1119,11 @@ mutable struct EconCalc
     tree_logs_ft3::Dict{Int,Vector{NTuple{2,Float32}}}   # logDibFt3/logFt3Vol (LOGVOL(4,·) gross cubic)
     hv_rows::Vector{Any}                 # FVS_EconHarvestValue rows (eccalc.f:745-855 DBSECHARV_insert)
     lbs_ft3::Vector{Float32}             # lbsFt3Amt(MAXSP) — LBSCFV pounds per cubic foot (Tons column)
+    # --- ECON keywords inside an IF/THEN block (ecin.f addEvent LMODE path): the event keywords
+    #     (PRETEND/SPECCST/SPECRVN/STRTECON) are captured as templates (date = WAIT time) while the IF
+    #     block is read, and dated IY(ICYC)+wait when the condition fires (evmon.f OPSCHD) ---
+    if_capture::Union{Nothing,Vector{EconEvent}}
+    ev_fired::Set{Tuple{Int,Int}}         # (conditional index, fire year) already scheduled (idempotent cycle start)
 end
 function EconCalc(nsp::Integer)
     EconCalc(Int32(-9999), 0f0, 0f0, false, false, false, 0f0, Int32(0), 0f0, true,
@@ -1123,7 +1141,7 @@ function EconCalc(nsp::Integer)
              zeros(Float32, nsp, ECON_MAX_REV_UNITS, ECON_MAX_KEYWORDS), Any[],
              Int32[], Float32[], Float32[], Float32[], Float32[],
              Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[],
-             zeros(Float32, nsp))
+             zeros(Float32, nsp), nothing, Set{Tuple{Int,Int}}())
 end
 
 "ECON economic-analysis state (no globals): discount rate, cost/revenue keyword tables, accumulated streams."

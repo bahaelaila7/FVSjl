@@ -1712,12 +1712,20 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # DISTURBANCE tally (NTALLY==1) in ie_autoes_establish! via ie_esetpr + ie_esetpr_sample, sampling the
             # per-plot IPPREP off the WK6 site-prep RNG vector — each prepped plot's regen uses its IPREP in the
             # advance/excess species mix (estb/esetpr.f + estab.f:373-399). Activity codes 493=MECH / 491=BURN.
+            # ESPRIN (esprin.f) validation: a blank date defaults to the ESTAB date IDSDAT (an undated ESTAB ⇒ FVS04,
+            # ignored); a date later than IDSDAT+19 is FVS04-ignored; the %-of-plots must lie in [0,100] (else
+            # FVS04-ignored — NOT clamped).
+            ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
             if r.present[1]
-                ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
-                yr  = nint(r.values[1])
-                pct = r.present[2] ? clamp(Float32(r.values[2]), 0f0, 100f0) : 0f0
-                push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
+                yr = nint(r.values[1])
+                (idsdat > 0 && yr > idsdat + 19) && continue
+            else
+                idsdat < 0 && continue
+                yr = Int32(idsdat)
             end
+            pct = r.present[2] ? Float32(r.values[2]) : 0f0
+            (0f0 <= pct <= 100f0) || continue
+            push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "NOINGROW"                                # esin.f opt 22: disable automatic ingrowth
             s.estab.lingrw = false                            # (FVS parses these INSIDE the ESTAB packet, not top-level)
         elseif k == "INGROW"                                  # esin.f opt 21: enable automatic ingrowth
@@ -1841,7 +1849,7 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         k = strip(r.name)
         isempty(k) && continue
         k in ("SUMMARY", "TREELIDB", "COMPUTDB", "CLIMREDB", "STRCLSDB", "CALBSTDB", "MISRPTS", "PPBMMAIN",
-              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIST") && (out_req = true)
+              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIDB") && (out_req = true)
         if k == "END"
             break
         elseif k == "DSNOUT"
@@ -1854,6 +1862,11 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             treesql = _read_dbs_sql!(kr)
         elseif k == "SUMMARY"
             s.control.dbs_summary = true
+        elseif k == "CUTLIDB"
+            # dbsin.f option 17: ICUTLIST = 1 (or field 1 > 0 ⇒ that value; 2 = database only, no text report).
+            # The table is only written at a cut in a cycle with a due CUTLIST activity (prtrls.f → dbscuts.f).
+            s.control.dbs_cutlist = true
+            s.control.dbs_cutlist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
         elseif k == "TREELIDB"
             s.control.dbs_treelist = true
         elseif k == "COMPUTDB"
@@ -2453,11 +2466,12 @@ costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest reve
 species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
 are recognized but not yet ported.
 """
-function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block::Bool = false)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
     ec.active = true
     _ec_calc!(s)                                           # ECIN: isEconToBe (faithful ECCALC engine state)
+    if_block && (ec.calc.if_capture = EconEvent[])         # OPMODE LMODE: event keywords captured as IF templates
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
@@ -2572,6 +2586,17 @@ function kw_if!(s::StandState, kr::KeywordReader)
         elseif kw == "SPECPREF"
             push!(acts, ScheduledActivity(nint(v[1]), Int32(201),
                                           ntuple(i -> Float32(v[i + 1]), 6)))
+        elseif uppercase(kw) == "ECON"
+            # ECON block inside IF/THEN (ecin.f runs with OPMODE LMODE=.TRUE.): the non-event keywords are plain
+            # inputs, applied as usual; PRETEND/SPECCST/SPECRVN/STRTECON go through addEvent's LMODE branch —
+            # field 1 is a WAIT time and the activity becomes part of this event (dated at fire time).
+            kw_econ!(s, rec, kr; if_block = true)
+            cap = s.econ.calc.if_capture
+            s.econ.calc.if_capture = nothing
+            for e in cap
+                p = ntuple(i -> i <= length(e.params) ? e.params[i] : 0f0, 6)
+                push!(acts, ScheduledActivity(e.date, e.code, p))
+            end
         end
         # unknown keywords inside IF (e.g. COMPUTE) are skipped for now
     end
@@ -2720,7 +2745,13 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "FMORTMLT"; kw_mult!(s, rec, :fmort)  # FFE fire-caused mortality multiplier (fmeff.f:340)
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
-        elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
+        elseif kw == "CUTLIST"
+            # initre.f opt 92: the CUTLIST ACTIVITY (code 199), IDT = field 1 (default cycle 1); PRMS = fields 2-6
+            # (dataset ref, heading code, field-4 suppression code, …). prtrls.f processes it at a cut in its own cycle;
+            # the FVS_CutList DB rows additionally need DATABASE CUTLIDB (ICUTLIST>0, dbscuts.f:61).
+            v = rec.values
+            push!(s.control.schedule, ScheduledActivity(rec.present[1] ? nint(v[1]) : Int32(1), Int32(199),
+                                                        ntuple(i -> Float32(v[i + 1]), 6)))
         elseif kw == "STRCLASS"; kw_strclass!(s, rec)      # activate SSTAGE structural-stage classification (ksstag.f)
         elseif kw == "CARBREPT"; kw_carbrept!(s, rec)      # request the FFE Stand Carbon Report (fmcrbout.f)
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS
