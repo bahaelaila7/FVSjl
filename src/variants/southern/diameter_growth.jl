@@ -835,6 +835,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
+    # BM REGENT(.FALSE.,1) small-tree HEIGHT calibration (bm/regent.f:657-829; cratet.f:667) — current dbh,
+    # AVHT40 AVH (cycle-0 CRATET IND), RELDEN from the cratet.f:195 DENSE (stashed by bm_crown_init_lstart!).
+    s.variant isa BlueMountains && bm_regent_hcor_init!(s, isct, ind1)
     # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
     # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
     # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species
