@@ -255,7 +255,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # removed merch with a one-cycle lag, but the FINAL row's MAI is loaded from the
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
-                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0))
+                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0)
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
@@ -430,7 +430,7 @@ the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
 function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0,
-                     accretion::Real = 0, mortality::Real = 0)
+                     accretion::Real = 0, mortality::Real = 0, cycle0::Bool = false)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
     # Metric variants (BC, Canada) report the .sum per HECTARE in metric units (metric/vbase/disply.f):
@@ -442,11 +442,27 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     fht  = met ? 0.3048f0    : 1f0    # ft → m
     fqmd = met ? 2.54f0      : 1f0    # in → cm
     fvol = met ? 0.0699713f0 : 1f0    # ft³/ac → m³/ha
-    tpa  = dt(stand_tpa(s) / g * fha)
+    # BM: FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:682) — a Float32
+    # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
+    # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
+    # gradd.f:186's fresh RDPSRT(.TRUE.) after. Record order flipped knife-edge rows by ±1 (41134819010497:
+    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). BM-gated (the base
+    # gradd.f is shared; other variants not yet re-validated on this order).
+    bm_ind = nothing
+    if s.variant isa BlueMountains && s.trees.n > 0
+        bm_ind = Vector{Int32}(undef, s.trees.n)
+        cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
+    end
+    pctile_tot(w) = (acc = 0f0; @inbounds(for k in length(bm_ind):-1:1; acc += w(Int(bm_ind[k])); end); acc)
+    tpa  = bm_ind === nothing ? dt(stand_tpa(s) / g * fha) :
+           dt(pctile_tot(i -> s.trees.tpa[i]) / g * fha)
     ba   = dt(stand_ba(s) / g * fba)
     sdi  = dt(stand_sdi(s) / g * fha)
     ccf  = dt(stand_ccf(s) / g)
-    toph = dt(stand_top_height(s) * fht)
+    # BM cycle-0 row: FVS's AVH (DENSE at cratet.f:692 / AVHT40 :624) walks the IND CRATET left — the IND1-seeded
+    # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
+    # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
+    toph = dt(stand_top_height(s; cratet_ind = cycle0 && s.variant isa BlueMountains) * fht)
     qmd  = round(stand_qmd(s) * fqmd; digits = 1)
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
@@ -457,8 +473,12 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         # ~50 KB/cycle + a type-instability). All vtot fields are Vector{Float32}, so assert it: concrete
         # `fld` ⇒ allocation-free, type-stable, and the sequential Float32 accumulation order is unchanged.
         fld = getfield(t, f)::Vector{Float32}; acc = 0f0
-        @inbounds for i in 1:t.n
-            acc += fld[i] * t.tpa[i]
+        if bm_ind !== nothing
+            acc = pctile_tot(i -> fld[i] * t.tpa[i])        # CFV(I)=CFV(I)*PROB(I) then PCTILE (gradd.f:288-322)
+        else
+            @inbounds for i in 1:t.n
+                acc += fld[i] * t.tpa[i]
+            end
         end
         # FVS builds the ON .sum volume in TWO rounding stages: disply.f stores the IMPERIAL per-area
         # integer IOSUM(k)=INT(O..CUR(7)/GROSPC+0.5), then sumout.f prints INT(IOSUM(k)·metricfactor)
