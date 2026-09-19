@@ -129,47 +129,53 @@ end
 # term B = (1-EXP(..))**0.966998  (correct), term C = 1-EXP(..)**0.966998  (EXP raised first) —
 # replicated faithfully (bm/htcalc.f:69-70).
 function bm_htcalc(sindx::Float32, ispc::Integer, ag::Float32)::Float32
-    lag = log(ag)
+    # bm/htcalc.f with gfortran's REAL arithmetic throughout: EXP/ALOG = expf/logf (fmath shim), REAL**REAL = powf
+    # (fpow), REAL**INTEGER = libgcc __powisf2 (_ec_powi), Fortran left-to-right grouping. Julia's native exp/log and
+    # Float32^Int (wider intermediate) drifted HGUESS ~5e-5 at some ages (GF: 41137352010497 SITHT(62) 79.69528 vs
+    # live 79.69532776 ⇒ HTG off 1e-4 ⇒ merch-log flip). SQRT is exact IEEE (native).
     if ispc == 1
-        return sindx / (0.37504453f0 * (1f0 - 0.92503f0 * exp(-0.0207959f0 * ag))^(-2.4881068f0))
+        return sindx / (0.37504453f0 * fpow(1.0f0 - 0.92503f0 * fexp(-0.0207959f0 * ag), -2.4881068f0))
     elseif ispc == 2
-        q = -0.12528f0 + 0.039636f0*ag - 0.0004278f0*ag*ag + 1.7039f-6*ag^3
-        return 4.5f0 + 1.46897f0*ag + 0.0092466f0*ag*ag - 0.00023957f0*ag^3 +
-               1.1122f-6*ag^4 + (sindx-4.5f0)*q - 73.57f0*q
+        q = -0.12528f0 + 0.039636f0*ag - 0.0004278f0*ag*ag + 1.7039f-6*_ec_powi(ag, 3)
+        return 4.5f0 + 1.46897f0*ag + 0.0092466f0*ag*ag - 0.00023957f0*_ec_powi(ag, 3) +
+               1.1122f-6*_ec_powi(ag, 4) + (sindx - 4.5f0)*q - 73.57f0*q
     elseif ispc == 3
         # DF — faithful precedence bug: term C uses EXP(..)**p (not (1-EXP)**p).
-        termB = -0.2828f0 + 1.87947f0*(1f0 - exp(-0.022399f0*ag))^0.966998f0
-        termC = -0.2828f0 + 1.87947f0*(1f0 - exp(-0.022399f0*ag)^0.966998f0)
-        return 4.5f0 + exp(-0.37496f0 + 1.36164f0*lag - 0.00243434f0*lag^4) -
-               79.97f0*termB + (sindx-4.5f0)*termC
+        fl = flog(ag)
+        termB = -0.2828f0 + 1.87947f0*fpow(1.0f0 - fexp(-0.022399f0*ag), 0.966998f0)
+        termC = -0.2828f0 + 1.87947f0*(1.0f0 - fpow(fexp(-0.022399f0*ag), 0.966998f0))
+        return 4.5f0 + fexp(-0.37496f0 + 1.36164f0*fl - 0.00243434f0*_ec_powi(fl, 4)) -
+               79.97f0*termB + (sindx - 4.5f0)*termC
     elseif ispc == 4
-        x2 = -0.30935f0 + 1.2383f0*lag + 0.001762f0*lag^4 - 5.4f-6*lag^9 +
-             2.046f-7*lag^11 - 4.04f-13*lag^18
-        x3 = -6.2056f0 + 2.097f0*lag - 0.09411f0*lag^2 - 0.00004382f0*lag^7 +
-             2.007f-11*lag^16 - 2.054f-17*lag^24
-        return exp(x2) - 84.73f0*exp(x3) + (sindx-4.5f0)*exp(x3) + 4.5f0
+        fl = flog(ag)
+        x2 = -0.30935f0 + 1.2383f0*fl + 0.001762f0*_ec_powi(fl, 4) - 5.4f-6*_ec_powi(fl, 9) +
+             2.046f-7*_ec_powi(fl, 11) - 4.04f-13*_ec_powi(fl, 18)
+        x3 = -6.2056f0 + 2.097f0*fl - 0.09411f0*_ec_powi(fl, 2) - 0.00004382f0*_ec_powi(fl, 7) +
+             2.007f-11*_ec_powi(fl, 16) - 2.054f-17*_ec_powi(fl, 24)
+        return fexp(x2) - 84.73f0*fexp(x3) + (sindx - 4.5f0)*fexp(x3) + 4.5f0
     elseif ispc == 5
-        h = (22.8741f0 + 0.950234f0*sindx)*(1f0 - exp(-0.00206465f0*sqrt(sindx)*ag))^
-            (1.365566f0 + 2.045963f0/sindx)
+        h = (22.8741f0 + 0.950234f0*sindx) *
+            fpow(1.0f0 - fexp(-0.00206465f0*sqrt(sindx)*ag), 1.365566f0 + 2.045963f0/sindx)
         return (h + 1.37f0)*3.281f0
     elseif ispc == 6
         return 0f0
     elseif ispc == 7
         return sindx*(-0.0968f0 + 0.02679f0*ag - 0.00009309f0*ag*ag)
     elseif ispc == 8
-        return 4.5f0 + (2.75780f0*sindx^0.83312f0)*(1f0 - exp(-0.015701f0*ag))^
-               (22.71944f0*sindx^(-0.63557f0))
+        return 4.5f0 + ((2.75780f0*fpow(sindx, 0.83312f0)) *
+               fpow(1.0f0 - fexp(-0.015701f0*ag), 22.71944f0*fpow(sindx, -0.63557f0)))
     elseif ispc == 9
         return sindx*(-0.07831f0 + 0.0149f0*ag - 4.0818f-5*ag*ag)
     elseif ispc == 10 || ispc == 17
-        b = -0.7864f0 + 2.49717f0*(1f0 - exp(-0.0045042f0*ag))^0.33022f0
-        return 128.8952205f0*(1f0 - exp(-0.016959f0*ag))^1.23114f0 - b*100.43f0 +
-               b*(sindx-4.5f0) + 4.5f0
+        b = -0.7864f0 + 2.49717f0*fpow(1.0f0 - fexp(-0.0045042f0*ag), 0.33022f0)
+        return (128.8952205f0*fpow(1.0f0 - fexp(-0.016959f0*ag), 1.23114f0)) - (b*100.43f0) +
+               (b*(sindx - 4.5f0)) + 4.5f0
     elseif ispc == 11 || ispc == 12 || ispc == 15
         return 0f0
     elseif ispc == 13 || ispc == 14 || ispc == 16 || ispc == 18
-        return (sindx-4.5f0)/(0.6192f0 - 5.3394f0/(sindx-4.5f0) + 240.29f0*ag^(-1.4f0) +
-               (3368.9f0/(sindx-4.5f0))*ag^(-1.4f0)) + 4.5f0
+        a14 = fpow(ag, -1.4f0)
+        return (sindx - 4.5f0) / (0.6192f0 - 5.3394f0/(sindx - 4.5f0) + 240.29f0*a14 +
+               (3368.9f0/(sindx - 4.5f0))*a14) + 4.5f0
     else
         return 0f0
     end

@@ -96,12 +96,9 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
-    dead = Tuple{Any,Int32,Int32,Int32}[]  # (record, species idx, subplot, read position) for dead trees
+    dead = Tuple{Any,Int32,Int32,Int32}[]  # (record, species idx, subplot, input seq) for dead trees
     n0 = t.n
-    # Read position of every STORED record (intree.f:629 LNKCHN is called in read order for live AND dead
-    # records alike, so each species chain / IND1 interleaves them by this order). Kept transiently in
-    # s.calib.input_seq for the cycle-0 CRATET orders that still see the dead records (BM calibration PCT).
-    live_seq = Int32[]; rdpos = Int32(0)
+    live_seq = Int32[]; seqc = Int32(0)   # intree read order of the KEPT records (see Calibration.input_seq)
 
     for rec in records
         # Subplot index (IPVEC/ITRE) is assigned to EVERY record before the dead /
@@ -122,9 +119,9 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         # Dead trees (history/ITH 6-9) are partitioned out of the live stand (intree.f:516):
         # collected here, stored after the live records so live stats use 1:n but the dead
         # remain available (mortality reporting; backdated calibration BA at current dbh).
+        seqc += Int32(1)
         if 6 <= rec.history <= 9
-            rdpos += Int32(1)
-            push!(dead, (rec, idx, Int32(pj), rdpos))
+            push!(dead, (rec, idx, Int32(pj), seqc))
             continue
         end
 
@@ -132,19 +129,20 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, Int32(pj); metric=metric)
         t.n = i
-        rdpos += Int32(1); push!(live_seq, rdpos)
+        push!(live_seq, seqc)
     end
 
     # append the dead records after the live ones (indices n+1 : n+ndead)
     t.ndead = 0
     dead_seq = Int32[]
-    for (rec, idx, pj, rp) in dead
+    for (rec, idx, pj, sq) in dead
         i = t.n + t.ndead + 1
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, pj; metric=metric)
-        t.ndead += 1; push!(dead_seq, rp)
+        t.ndead += 1
+        push!(dead_seq, sq)
     end
-    # Only meaningful for a single fresh ingest (records appended to an existing list have no joint order).
+    # single-load stands only (n0==0): record read order for the BM cratet.f:163-166 IND1 seed
     s.calib.input_seq = n0 == 0 ? vcat(live_seq, dead_seq) : Int32[]
 
     s.control.ntrees_active = Int32(t.n)

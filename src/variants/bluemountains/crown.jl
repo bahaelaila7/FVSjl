@@ -169,14 +169,7 @@ function bm_cratet_ind!(s::StandState, idx::AbstractVector{Int32})
     if t.ndead > 0
         _rdpsrt!(dbhv, idx)                                   # cratet.f:270 RDPSRT(ITRN,DBH,IND,.TRUE.)
     else
-        species_sort!(s)
-        isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
-        k = 0
-        @inbounds for sp_o in 1:MAXSP
-            isct[sp_o, 1] == 0 && continue
-            for i3 in Int(isct[sp_o, 1]):Int(isct[sp_o, 2]); k += 1; idx[k] = ind1[i3]; end
-        end
-        _rdpsrt!(dbhv, idx; lseq = false)                     # cratet.f:164-166 IND=IND1; RDPSRT(.FALSE.)
+        idx .= bm_cratet166_ind(s, dbhv, n, n)               # cratet.f:164-166 IND=IND1; RDPSRT(.FALSE.)
     end
     return idx
 end
@@ -330,13 +323,15 @@ function bm_crown_init_lstart!(s::StandState)
     # dense.f:285-297 AVH walk of the :195 CRATET DENSE, over the :164-166 IND (bm_cratet166_ind: LNKCHN-seeded,
     # dead included, RDPSRT(.FALSE.) on real dbh) — the AVH the :610 CROWN→DUBSCR dub reads. The generic double
     # sort put different equal-DBH records at the 40-TPA boundary (23899355010900 AVH 72.567 vs live 71.606).
-    avht_real = let ntot = t.n, ord = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n), hmiss = s.calib.ht_missing
+    # That DENSE runs BEFORE the missing-height dub (DO 130 :363, DO 145 :464) ⇒ heights are as READ (missing = 0):
+    # use the pre-dub snapshot cratet_ht_in (41135212010497: dubbed 1.01 seedlings ⇒ AVH 33.671 vs live 33.160).
+    avht_real = let ntot = t.n, ord = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n), hin = s.calib.cratet_ht_in
+        use_hin = length(hin) == ntot
         avh = 0f0; ssumn = 0f0
         @inbounds for k in 1:ntot
             ii = Int(ord[k]); p = t.tpa[ii]
             ssumn + p > 40f0 && (p = 40f0 - ssumn)
-            hh = (length(hmiss) == ntot && hmiss[ii]) ? 0f0 : t.height[ii]   # HT not yet dubbed at :195 (0)
-            ssumn += p; avh += hh * p
+            ssumn += p; avh += (use_hin ? hin[ii] : t.height[ii]) * p
             ssumn >= 40f0 && break
         end
         ssumn > 0f0 ? avh / ssumn : 0f0
@@ -351,6 +346,7 @@ function bm_crown_init_lstart!(s::StandState)
         end
     end
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end
     t.n = nlive

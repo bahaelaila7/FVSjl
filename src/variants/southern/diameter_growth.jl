@@ -443,14 +443,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif s.variant isa BlueMountains
-            # BM: this percentile is the one bm/dense.f's BACKDATING first pass computes (dense.f:241-244, "WHEN
-            # BACKDATING, PCT DISTRIBUTION MUST BE COMPUTED HERE") from CRATET's :195 DENSE call. Its IND is the
-            # :164-166 order: IND=IND1 (species-major SPESRT, dead records still present — deleted only at :201+)
-            # then RDPSRT(ITRN,DBH,IND,.FALSE.) on the CURRENT dbh — Scowen's UNSTABLE sort, so the seed (incl. the
-            # dead records' positions) decides equal-DBH ties. That PCT is what the calibration DGF at :630 reads
-            # (the :270 re-sort comes after). A stable sortperm swapped tied records ⇒ PCT/PBAL ⇒ calibration WK2
-            # and the dgdriv.f:735 DO 220 dub of tied records (1285593348290487 16/17; 41137341010497 4/5).
+        elseif s.variant isa BlueMountains && length(s.calib.input_seq) == ntot
+            # bm/cratet.f:163-166 — the calibration DENSE (:195, backdating pass dense.f:241-244) ranks by
+            # `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`. The dead are still INSIDE ITRN at their input positions
+            # (cratet.f:199-215 deletes them AFTER this DENSE) and IND1 is SETUP's (fvs.f:158) species-major list, each
+            # species in read order (LNKCHN appends at the tail) ⇒ bm_cratet166_ind. It fixes the order of current-DBH
+            # ties (PCT → DGF BAL → calibration COR and the dgdriv.f:735 DO 220 dub). 302098779489998: WL 142 / DF 139
+            # both 15.8" — live WK2 2.4820/3.2076, stable sortperm 2.5119/3.1702; 1285593348290487 recs 16/17,
+            # 41137341010497 4/5. Live-only or dead-appended seeds break other ties (45074836020004).
             ord = bm_cratet166_ind(s, rankd, nlive2, ntot)
         else
             ord = sortperm(rankd; rev = true)
@@ -860,6 +860,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
+    # BM REGENT(.FALSE.,1) small-tree HEIGHT calibration (bm/regent.f:657-829; cratet.f:667) — current dbh,
+    # AVHT40 AVH (cycle-0 CRATET IND), RELDEN from the cratet.f:195 DENSE (stashed by bm_crown_init_lstart!).
+    s.variant isa BlueMountains && bm_regent_hcor_init!(s, isct, ind1)
     # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
     # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
     # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species
