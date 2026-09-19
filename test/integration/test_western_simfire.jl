@@ -32,7 +32,7 @@
         # MEASURED named-primitive corner: ±1 ICR on 7/66 records from a ~0.006 EXPPCR gap driven by the CURRENT-cycle
         # PCT RDPSRT unstable-quicksort tie-break among equal-DBH tripled records — the same tie-break family cornered
         # on the CI case below (307/live-300). Asserting jl's value with the oracle documented, per this file's convention.
-        (FVSjl.InlandEmpire(),   "ie_simfire", 309, 15, 480),   # live: 305 pre, 0 post, 512 MORT (jl 313→309 after the per-point AUTOES species-selection fix b927f4a3 — MOVED TOWARD live 305; residual +4 = the RDPSRT-tie corner, was +8)
+        (FVSjl.InlandEmpire(),   "ie_simfire", 305, 15, 480),   # live: 305 pre, 0 post, 512 MORT — jl pre-fire TREES now BIT-EXACT 305 (313→309 b927f4a3 → 305 on bm-regime-close 2026-09-19; live re-derived on FVSie_g16 and FVSie_g16.new, both 305). The "+4 RDPSRT-tie corner" was not a corner.
         (FVSjl.EasternMontana(), "em_simfire", 507, 15, 280),   # live: 507 pre, 0 post, 305 MORT
         # KT (Kootenai): kt/fmcrow.f calls FMCROWW for ALL species (all-conifer, like NC/Klamath) — no eastern
         # FMCROWE. CI (CentralIdaho): ci/fmcrow.f SELECT CASE(SPIW) CASE(13,15,17,19)→FMCROWE, DEFAULT→FMCROWW.
@@ -42,7 +42,7 @@
         # 2030 TREES 1 — the crown fire FIRES and wipes the stand (surface-only regression left the overstory).
         # Residual = the same family-wide rothermel-HPA byram corner as IE/EM (2030 TREES 3/1 vs live 0).
         (FVSjl.Kootenai(),       "kt_simfire", 282, 15, 400),   # live: 282 pre, 0 post, 437 MORT
-        (FVSjl.CentralIdaho(),   "ci_simfire", 307, 15, 350),   # live: 300 pre, 0 post, 388 MORT
+        (FVSjl.CentralIdaho(),   "ci_simfire", 304, 15, 350),   # live: 300 pre, 0 post, 388 MORT (live re-derived 2026-09-19 on FVSci_g16 and .new: 300). jl 307→306→304 on bm-regime-close merges, moving toward live; residual +4 OPEN (CI campaign).
     ]
     for (v, base, pre_trees, post_trees_max, mort_min) in cases
         key = joinpath(_fixdir, base * ".key")

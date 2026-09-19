@@ -199,6 +199,77 @@ function write_dbs_econharvest!(dbpath::AbstractString, caseid::AbstractString, 
     return dbpath
 end
 
+"""
+    write_dbs_econharvest_rows!(dbpath, caseid, rows, coef) -> dbpath
+
+Faithful `FVS_EconHarvestValue` (dbsecharv.f DBSECHARV_insert) from `econ_calc!`'s per-cycle `hv_rows`
+(eccalc.f:745-855 — every species × revenue unit × ascending diameter class with revVolume>0). Species
+strings are JSP / PLNJSP / FIAJSP (trimmed); each dimension/volume/value binds only when ≥ 0, else NULL.
+"""
+function write_dbs_econharvest_rows!(dbpath::AbstractString, caseid::AbstractString, rows::AbstractVector, coef)
+    db = SQLite.DB(dbpath)
+    g0r(x) = x >= 0f0 ? Float64(x) : missing
+    g0i(x) = x >= 0 ? x : missing
+    try
+        _ensure_table!(db, _FVS_ECONHARVEST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconHarvestValue VALUES (" * join(fill("?", 17), ",") * ")")
+        # dbsecharv.f: the INSERT is prepared ONCE per harvest cycle (DBSECHARV_open) and a value < 0 is simply
+        # NOT re-bound — SQLite keeps the previous row's binding, so within a cycle an unbound column repeats the
+        # prior row's value (live FVS behavior). `sticky` holds those bindings; a new cycle starts all-NULL.
+        sticky = Any[missing for _ in 1:12]; cyc = nothing
+        for r in rows
+            r.year == cyc || (fill!(sticky, missing); cyc = r.year)
+            vals = (g0r(r.min_dia), g0r(r.max_dia), g0r(r.min_dbh), g0r(r.max_dbh),
+                    g0i(r.tpa_cut), g0i(r.tpa_value), g0i(r.tons), g0i(r.ft3_vol), g0i(r.ft3_value),
+                    g0i(r.bf_vol), g0i(r.bf_value), g0i(r.total))
+            for k in 1:12; vals[k] === missing || (sticky[k] = vals[k]); end
+            sp = r.sp
+            DBInterface.execute(stmt, (caseid, r.year, String(strip(coef.code_alpha[sp])),
+                String(strip(coef.code_plants[sp])), String(strip(coef.code_fia[sp])), sticky...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# FVS_EconSummary schema (dbsecsum.f:44-66) — one row per ECCALC investment period.
+const _FVS_ECONSUMMARY_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_EconSummary(
+  CaseID text not null, StandID text not null, Year int null, Period int null, Pretend_Harvest text null,
+  Undiscounted_Cost real null, Undiscounted_Revenue real null, Discounted_Cost real null,
+  Discounted_Revenue real null, PNV real null, IRR real null, BC_Ratio real null, RRR real null, SEV real null,
+  Value_of_Forest real null, Value_of_Trees real null, Mrch_Cubic_Volume int null,
+  Mrch_BoardFoot_Volume int null, Discount_Rate real null, Given_SEV real null)"""
+
+"""
+    write_dbs_econsummary!(dbpath, caseid, standid, rows) -> dbpath
+
+Write the ECON summary (`FVS_EconSummary`, dbsecsum.f DBSECSUM) — one row per ECCALC period from
+`econ_calc!`. Binding follows dbsecsum.f: the four cost/revenue accumulators bind only when ≥ 0 (else NULL);
+IRR / BC_Ratio / RRR / SEV / Value_of_Forest / Value_of_Trees / Given_SEV bind only when calculated
+(`nothing` ⇒ NULL); REALs are widened to REAL*8 exactly as FVS does (`costUndisc8 = costUndisc`).
+"""
+function write_dbs_econsummary!(dbpath::AbstractString, caseid::AbstractString, standid::AbstractString,
+                                rows::AbstractVector)
+    db = SQLite.DB(dbpath)
+    nn(x) = x === nothing ? missing : Float64(x)
+    ge0(x) = x >= 0f0 ? Float64(x) : missing
+    try
+        _ensure_table!(db, _FVS_ECONSUMMARY_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_EconSummary VALUES (" * join(fill("?", 20), ",") * ")")
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, r.year, r.period, r.pretend,
+                ge0(r.cost_undisc), ge0(r.rev_undisc), ge0(r.cost_disc), ge0(r.rev_disc), Float64(r.pnv),
+                nn(r.irr), nn(r.bc), nn(r.rrr), nn(r.sev), nn(r.forest), nn(r.reprod),
+                r.ft3, r.bf, Float64(r.rate), nn(r.given)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Fuels schema (dbsfuels.f:64-86) — FFE surface + standing fuel loadings (tons/ac biomass).
 const _FVS_FUELS_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Fuels(
@@ -1088,8 +1159,8 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # FVS_TreeList/FVS_CutList CrWidth = CRWDTH(I) (base/cwidth.f → cwcalc.f). The WESTERN variants with a ported,
 # per-tree-bit-exact cwcalc kernel compute the forest-grown value here (+ the cwcalc.f [0.5,99.9] final clamp); the
 # eastern open-grown crown_width() handles the rest (0.5 default for unknown species). Shared by both the live-tree
-# snapshot and the cut-record builder so the two tables stay consistent. (BM/SO/CA/NC excluded — their kernels are not
-# per-tree exact; see the recipe. The kernels bake in one forest's Region-6 BF ⇒ bit-exact on the reference forest.)
+# snapshot and the cut-record builder so the two tables stay consistent, and by `tree_crwdth` (THINCC/COVER/sprouts).
+# BM is the faithful BMMAP + per-forest R6 BF port (bm_cwcalc, shared with FFE); the SO/CA kernels still bake in one forest's R6 BF.
 function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
     p = s.plot
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
@@ -1102,8 +1173,9 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
     s.variant isa CentralCalifornia &&
         return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+    # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
-        return clamp(bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+        return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
           s.variant isa OregonCoast       ? oc_cwcalc :
           s.variant isa Olympic           ? op_cwcalc :
@@ -1123,6 +1195,27 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     wcw === nothing &&
         return crown_width(s.coef, s.species.code2[sp], d, h, 90, 1, p.latitude, p.longitude, p.elevation)
     return clamp(wcw(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi), 0.5f0, 99.9f0)
+end
+
+# Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).
+_has_forest_crwdth(v) = v isa WestSierra || v isa Klamath || v isa CentralCalifornia || v isa BlueMountains ||
+    v isa CentralRockies || v isa OregonCoast || v isa Olympic || v isa EasternMontana || v isa InlandEmpire ||
+    v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah || v isa SoutheastAlaska ||
+    v isa BritishColumbia || v isa WestCascades || v isa PacificNorthwest || v isa EastCascades ||
+    v isa SouthCentralOregon
+
+"""
+    tree_crwdth(s, sp, d, h, crp) -> Float32
+
+CRWDTH (base/cwidth.f → cwcalc.f, IWHO=0) for the engine consumers that read the FVS CRWDTH array — THINCC and the
+THINPT canopy-cover metric (cuts.f:1228), COVER CVCW (cvcw.f:80) and new ESUCKR sprouts (esuckr.f:314-316). Western
+variants: the forest-grown `_forest_crwdth` (same value as FVS_TreeList CrWidth). Eastern variants keep the
+`crown_width(…, iwho=0)` forest-grown path they already use.
+"""
+function tree_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
+    _has_forest_crwdth(s.variant) && return _forest_crwdth(s, sp, d, h, crp)
+    p = s.plot
+    return crown_width(s.coef, s.species.code2[sp], d, h, Float32(crp), 0, p.latitude, p.longitude, p.elevation)
 end
 
 function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle::Int = -1)

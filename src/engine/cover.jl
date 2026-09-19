@@ -154,6 +154,8 @@ end
         hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)  # western Hopkins
         return em_cwcalc(ispc, d, h, Float32(jcr), ba, el, hi)  # CR = FLOAT(ICR)
     end
+    # Other western variants: TRECW(I)=CRWDTH(I) (cvcw.f:80) = their forest-grown cwcalc CRWDTH (was 0 ⇒ no cover).
+    _has_forest_crwdth(s.variant) && return _forest_crwdth(s, ispc, d, h, jcr)
     return 0.0f0
 end
 

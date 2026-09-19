@@ -103,6 +103,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     # ECON: value this removed tree (DBH-class cost/revenue) at the removal point, before
     # the tree list is compacted (eccalc.f/echarv.f). Accumulated for the cycle's harvest.
     if s.econ !== nothing && s.econ.active
+        # ECHARV input (cuts.f:1382-1386, 1659): accumulate this method's PREM and yarding-loss pools per
+        # record; ECHARV itself is replayed once per record after all methods (econ_cuts_replay!).
+        econ_cut_accum!(s, Int(i), prem)
         s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         # Log-graded revenue (HRVRVN unit 4): bucket this tree's per-log BF (stashed by compute_volumes!)
@@ -274,12 +277,14 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
+    econ_cuts_begin!(s)                                     # ECON: DO-1700 replay state (PROB snapshot, IND2)
     @inbounds for act in acts
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431), the SPECPREF (201) and
         # SETPTHIN (248) modifiers are consumed elsewhere.
         ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17), Int32(15)) || continue
         applied = true
+        econ_cut_method!(s)                                 # IND2 = identity unless this method sorts (LSPECL)
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
@@ -311,6 +316,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     end
     if applied
         push!(s.control.years_cut, yr)
+        econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = rd_tdel_hook(s))   # TREDEL (+RDTDEL): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
@@ -567,6 +573,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     end
     order = Vector{Int32}(undef, n)
     _rdpsrt!(key, order)                             # descending, FVS tie-break
+    econ_cut_order!(s, order)                        # this method's IND2 (cuts.f:1135) for the ECON DO-1700 replay
 
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
@@ -666,6 +673,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -764,6 +772,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -872,6 +881,21 @@ end
 # iwho=1 form CCF uses). The keyword target is a cover PERCENT → equivalent crown area
 # (cuts.f:816, CCC=1): CSDI = −(43560·ln(1−CC/100)/0.785398). REMOVE = area − CSDI;
 # CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
+# IND1 (SPESRT: species groups, lineage-key order within a species — `species_sort!`) as a LOCAL vector, for cut-time
+# class sums that FVS accumulates in IND1 order (CCCLS). Built fresh so the shared `scratch.idx1` is not disturbed.
+function _ind1_order(s::StandState)::Vector{Int}
+    t = s.trees
+    ord = Int[]; sizehint!(ord, t.n)
+    @inbounds for sp in 1:MAXSP
+        start = length(ord) + 1
+        for i in 1:t.n
+            t.species[i] == sp && push!(ord, i)
+        end
+        length(ord) >= start && sort!(view(ord, start:length(ord)); by = j -> t.sort_key[j])
+    end
+    return ord
+end
+
 function _thin_cc!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
@@ -884,19 +908,19 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     csdi = cc_target <= 0f0 ? 0f0 :
            -(43560f0 * log(1f0 - cc_target / 100f0) / 0.785398f0)
 
-    # per-tree forest-grown crown width (CRWDTH array, cwidth.f)
-    p = s.plot
+    # per-tree forest-grown crown width (CRWDTH array, cwidth.f → cwcalc.f IWHO=0) — the variant CRWDTH, so western
+    # variants use their cwcalc (was the eastern crown_width for every variant ⇒ 0.5 ft ⇒ wrong THINCC cover target)
     cw = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        sp2 = s.species.code2[t.species[i]]
-        cw[i] = crown_width(s.coef, sp2, t.dbh[i], t.height[i],
-                            Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
+        cw[i] = tree_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i])
     end
 
     grps = s.control.sp_groups                         # SPGROUP table (for ispcut<0)
     wk4 = Float32[t.tpa[i] for i in 1:n]
+    # CCCLS (sdical.f:342-409): CRA = Σ CRWDTH(I)²·WK4(I) accumulated in IND1 (SPESRT species-order) sequence —
+    # Float32 summation order matters (record-order summing put CUTEFF 1 ULP off live ⇒ ±1 residual TopHt/ACC).
     area = 0f0
-    @inbounds for i in 1:n
+    @inbounds for i in _ind1_order(s)
         d = t.dbh[i]; d <= 0f0 && continue
         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
@@ -933,6 +957,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -1095,9 +1120,7 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         elseif ithnpa == 3
             w[i] = (d / 10f0)^1.605f0
         elseif ithnpa == 4
-            sp2 = s.species.code2[t.species[i]]
-            cw = crown_width(s.coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
-                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            cw = tree_crwdth(s, Int(t.species[i]), d, t.height[i], t.crown_pct[i])   # CWDI=CRWDTH(IT), cuts.f:1228
             w[i] = cw * cw
         end
     end

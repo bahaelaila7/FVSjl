@@ -12,6 +12,7 @@ function compute_volumes_bm!(s::StandState)
     bmmerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100   # forkod-remapped R6 forest (619→616, 8117→614)
+    ecl = econ_log_capture(s)                                       # ECVOL per-log arrays (ECON units 4/5), else nothing
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -34,12 +35,16 @@ function compute_volumes_bm!(s::StandState)
             # + OPT=23 bucking — the same R6 rules EC/SO/CA pass. Omitting them rounded BM board feet to
             # multiples of 10 and mis-bucked merch cubic (bmt01 cyc0 MCuFt 971 vs live 992, BdFt 4983 vs 5112).
             # sf_hs: MERLEN's merch-top height via the faithful SF_HS Newton (profile.f MERLEN → sf_hs.f).
+            lbf = ecl === nothing ? nothing : NTuple{2,Float32}[]
+            lft = ecl === nothing ? nothing : NTuple{2,Float32}[]
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
-                           iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true)
+                           iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true,
+                           log_bf = lbf, log_ft3 = lft)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
             tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, bmmerch, _BM_TOPD45)
+            econ_log_store!(ecl, i, bf, mcf, lbf, lft)                # vols.f:341/426 ECVOL (BFV>0 / MCFV>0)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # 616BEHW (region-6 Behre)
@@ -52,6 +57,8 @@ function compute_volumes_bm!(s::StandState)
             dbtbh = d * (1f0 - bark)                          # double bark thickness (fvsvol.f:153)
             dbhib = d - dbtbh
             vol2 = 0f0; vol4 = 0f0
+            lbf = ecl === nothing ? nothing : NTuple{2,Float32}[]
+            lft = ecl === nothing ? nothing : NTuple{2,Float32}[]
             v1 = if hv <= 17.3f0                              # R6VOL short-tree guard (TTH≤FC_HT):
                 0.00272708f0 * dbhib * dbhib * hv            # cylinder VOL(1); R6DIBS/R6VOL1 SKIPPED
             else
@@ -63,6 +70,10 @@ function compute_volumes_bm!(s::StandState)
                 for k in 1:nacc
                     vol2 += bm_anint(lv1[k])                  # r6vol.f:176 VOL(2)=Σ ANINT(LOGVOL(1))
                     vol4 += bm_anint(lv4[k] * 10f0) / 10f0    # r6vol.f:174 VOL(4)=Σ round(LOGVOL(4)·10)/10
+                    # ECVOL (ecvol.f): per log k, r6vol.f:169-189 leaves LOGVOL(1,k)=ANINT, LOGVOL(4,k)=ANINT(·10)/10
+                    # and LOGDIA(k+1,1) = R6DIBS LOGDIA(k,1) (the 600-loop shift) = ld1[k].
+                    lbf === nothing || push!(lbf, (Float32(ld1[k]), bm_anint(lv1[k])))
+                    lft === nothing || push!(lft, (Float32(ld1[k]), bm_anint(lv4[k] * 10f0) / 10f0))
                 end
                 v
             end
@@ -73,6 +84,7 @@ function compute_volumes_bm!(s::StandState)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0
             t.bdft_vol[i] = max(bf, 0f0)
+            econ_log_store!(ecl, i, t.bdft_vol[i], t.merch_cuft_vol[i], lbf, lft)   # vols.f:341/426 ECVOL
         end
     end
     return s
@@ -249,4 +261,29 @@ function bm_r6vol1(dbhob::Float32, fclass::Int, xlogs::Float32, ld1::Vector{Int}
         lv4[i] = (Float32(ld1[i])^2 * f + Float32(ld1[i-1])^2 * f) / 2f0 * 16f0
     end
     return lv1, lv4
+end
+
+"""
+    bm_snag_bole_cuft(s, sp, d, h) -> Float32
+
+BM snag bole volume FMSVOL (fmsvol.f, non-eastern branch): `VOL2HT = MAX(0.005454154·H, TCF)`, TCF = the BM
+total cubic (NATCRS, METHC 6) on the snag's DBH/height with no top-kill (XHT=−1 ⇒ LTKIL=F ⇒ no CFTOPK) — the
+same equations as `compute_volumes_bm!` VOL(1): FW2 ⇒ `cr_fw2_vol(iregn=6)[1]`; 616BEHW ⇒ the ≤17.3 ft
+cylinder guard or `bm_r6vol3` zone 1. Used for input snags (FMSADD) and mortality snags; without it BM fell
+through the R8-Clark path (0 for NVEL codes) ⇒ input snags booked the Jenkins whole-tree (~5× over) and
+mortality snags the cone floor (~40× under).
+"""
+function bm_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    (d < 1f0 || h <= 0f0 || sp < 1) && return 0f0
+    x = 0.005454154f0 * h
+    eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+    bark = bm_bratio(s.coef.species, sp, d)
+    tcf = if mdl == "FW2"
+        max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)[1], 0f0)
+    else
+        iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
+        dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+        h <= 17.3f0 ? 0.00272708f0 * dbhib * dbhib * h : bm_r6vol3(d, dbtbh, bm_formcl(sp, iforst, d), h, 1)
+    end
+    return max(x, tcf)
 end

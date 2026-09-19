@@ -1834,11 +1834,14 @@ end
 
 function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     dbs_in = ""; standsql = ""; treesql = ""          # DATABASE input block (DSNIN/StandSQL/TreeSQL)
+    out_req = false                                    # an output table was requested in this block
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        k in ("SUMMARY", "TREELIDB", "COMPUTDB", "CLIMREDB", "STRCLSDB", "CALBSTDB", "MISRPTS", "PPBMMAIN",
+              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIST") && (out_req = true)
         if k == "END"
             break
         elseif k == "DSNOUT"
@@ -1876,8 +1879,15 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_rd_sum = true    # dbsin.f opt 34: ⇒ FVS_RD_Sum WRD root-disease summary
         elseif k == "RDDETAIL"
             s.control.dbs_rd_detail = true # dbsin.f opt 35: ⇒ FVS_RD_Det WRD per-species patch detail
+        elseif k == "ECONRPTS"
+            # dbsin.f opt 30: IDBSECON=2 (summary + harvest tables); field 1 == 1 ⇒ IDBSECON=1 (summary only).
+            s.econ === nothing && (s.econ = EconState())
+            c = _ec_calc!(s)
+            c.dbs_econ = (r.present[1] && round(Int, r.values[1]) == 1) ? Int32(1) : Int32(2)
         end
     end
+    # DBSINIT defaults DSNOUT='FVSOut.db' (live FVS writes the requested tables there when no DSNOUT is given).
+    (out_req && isempty(s.control.dbs_out_file)) && (s.control.dbs_out_file = "FVSOut.db")
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
     # STDINFO/SITECODE/DESIGN/TREEDATA-card equivalent (dbsstandin.f/dbstreesin.f).
     (!isempty(dbs_in) && !isempty(standsql)) && load_fia_stand!(s, dbs_in, standsql, treesql)
@@ -2447,11 +2457,15 @@ function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
     ec.active = true
+    _ec_calc!(s)                                           # ECIN: isEconToBe (faithful ECCALC engine state)
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        # Faithful ECIN storage (econ_calc.jl) for the per-cycle ECCALC / FVS_EconSummary engine. Runs first
+        # so a supplemental '&' rate/duration record is consumed here (ecin.f ratesAndDurations reads it).
+        k == "END" || econ_keyword!(s, k, r, kr)
         if k == "END"
             break
         elseif k == "STRTECON"                             # ecin.f: field1=start year/delay, field2=DISCOUNT RATE (%),
@@ -2653,6 +2667,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NOAUTOES"                            # initre.f opt-72 → ESNOAU (esin.f:783): clear ALL auto
             s.control.lsprut = false                       # establishment — auto tallies, ingrowth, AND stump-sprouting.
             s.estab.lautal = false; s.estab.lingrw = false
+            s.estab.stoadj = 0f0                           # esin.f:788 ESNOAU: STOADJ=0.0 ("STOCKADJ IS SET TO ZERO")
         elseif kw == "AUTALLY";  s.estab.lautal = true      # esin.f opt 24 — enable automatic tallies
         elseif kw == "NOAUTALY"; s.estab.lautal = false     # esin.f opt 23 — disable automatic tallies
         elseif kw == "INGROW";   s.estab.lingrw = true      # esin.f opt 21 — enable automatic ingrowth
