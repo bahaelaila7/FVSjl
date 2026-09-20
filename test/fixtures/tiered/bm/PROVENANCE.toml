@@ -1,0 +1,14 @@
+variant = "BM"
+k = 12
+oracle = "/workspace/.bmwork/FVSbm_g16"
+oracle_sha256 = "14972398510056e4e9ece21a48e92140dc8705af3ea18f764fc6e0c4af849a84"
+oracle_build_script = "/workspace/.bmwork/build_g16.sh"
+oracle_main_std_legacy = "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "7c7396327272cc1d5fcaaa402d758c7dadc7782d"
+generated = "2026-09-19 13:15:40"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+stands = ["647500316126144", "12827438010497", "374435108489998", "1127619588290487", "374443645489998", "645155287126144", "41136808010497", "24050542010900", "177426703020004", "177518370020004", "22960873010497", "722766017290487"]
+excluded_no_live_output = []
+live_no_output_cases = 0

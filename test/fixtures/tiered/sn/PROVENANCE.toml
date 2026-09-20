@@ -1,0 +1,14 @@
+variant = "SN"
+k = 12
+oracle = "/workspace/FVSjl/tmp/oracles/FVSsn_new"
+oracle_sha256 = "3a5f391a52092a51f18be2405acd26763a878943235af5b6d67536ffe5a0b269"
+oracle_build_script = "/workspace/.snwork/build_g16.sh"
+oracle_main_std_legacy = "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "7c7396327272cc1d5fcaaa402d758c7dadc7782d"
+generated = "2026-09-19 13:16:07"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+stands = ["216786838010854", "210838699010854", "161035853010854", "651101880126144", "200267456010854", "157577477010854", "159197018010854", "205045340010854", "238813815010854", "156207237010854", "212364530010854", "830602414290487"]
+excluded_no_live_output = []
+live_no_output_cases = 0

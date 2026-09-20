@@ -287,6 +287,12 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # Test-only observer (tiered suite bit-identity snapshots, test/harness/tiered/snapshot.jl): a callback in the
+        # CURRENT TASK's local storage sees the same start-of-cycle state. Task-local ⇒ safe when stands run on
+        # parallel tasks; absent ⇒ one Dict lookup per summary row, no effect on the simulation.
+        let snap = get(task_local_storage(), :fvsjl_snapshot_hook, nothing)
+            snap === nothing || snap(s, r.year, c)
+        end
         # COVER report-only accumulator (CVCNOP): the canopy statistics of the start-of-cycle
         # (pre-thin) stand at year r.year → slot IP1=c+1. Gated on the COVER activity 900.
         if s.cover !== nothing && s.cover.active
