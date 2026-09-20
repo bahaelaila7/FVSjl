@@ -293,7 +293,7 @@ function bm_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Floa
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
     bark = bm_bratio(s.coef.species, sp, d)
     tcf = if mdl == "FW2"
-        max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)[1], 0f0)
+        max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)[1], 0f0)
     else
         iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
         dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
