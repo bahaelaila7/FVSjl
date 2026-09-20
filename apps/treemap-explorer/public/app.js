@@ -56,6 +56,8 @@ async function boot() {
   const EMPTY = {type:'FeatureCollection',features:[]};
   map = new maplibregl.Map({
     container: 'map',
+    // keeps the WebGL buffer readable so the report can embed a snapshot of the AOI (map.getCanvas().toDataURL())
+    preserveDrawingBuffer: true,
     style: {
       version: 8,
       sources: {
@@ -366,9 +368,50 @@ function renderResult(d){
     `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
   el('statsGrp').hidden = false;
   if(el('cycleBadge')) el('cycleBadge').textContent = 'cycle 0 · current';
+  aoiCells = d.cells || [];          // kept for the report's species×DBH chart
   drawChart(d.cells);
   onAoiReady(d.cells);
   setStatus(`${fmt(d.nplots)} plots · ${fmt(d.acres)} ac · ${fmt(d.npixels)} px`);
+}
+
+
+/* species × DBH stacked bar as standalone SVG MARKUP (for the report; drawChart() draws the live one).
+   `cells` is the /api/aoi or /api/simulate `dist` shape: {symbol, common?, dbh_lo, ba}. */
+function speciesDbhSVG(cells, W=420, H=240, title=''){
+  if(!cells || !cells.length) return '<div class="muted">no tree records</div>';
+  const spBA={}, spName={};
+  cells.forEach(c=>{ spBA[c.symbol]=(spBA[c.symbol]||0)+c.ba; spName[c.symbol]=c.common||''; });
+  const top=Object.keys(spBA).sort((a,b)=>spBA[b]-spBA[a]).slice(0,SP_PALETTE.length-1);
+  const color={}; top.forEach((s,i)=>color[s]=SP_PALETTE[i]);
+  const OTHER='#64748b', spOf=s=>top.includes(s)?s:'other', colOf=s=>top.includes(s)?color[s]:OTHER;
+  const classes=[...new Set(cells.map(c=>c.dbh_lo))].sort((a,b)=>a-b);
+  const stacks={}; classes.forEach(c=>stacks[c]={});
+  cells.forEach(c=>{ const k=spOf(c.symbol); stacks[c.dbh_lo][k]=(stacks[c.dbh_lo][k]||0)+c.ba; });
+  const ymax=Math.max(...classes.map(c=>Object.values(stacks[c]).reduce((a,b)=>a+b,0)),1);
+  const mL=44,mB=28,mT=10,mR=8, pw=W-mL-mR, ph=H-mT-mB, gap=pw/classes.length, bw=gap*0.72;
+  let g='';
+  for(let i=0;i<=4;i++){ const y=mT+ph-ph*i/4;
+    g+=`<line x1="${mL}" y1="${y}" x2="${W-mR}" y2="${y}" stroke="#e5e7eb"/>`
+     + `<text x="${mL-5}" y="${y+3}" text-anchor="end" font-size="10" fill="#6b7280">${fmt(ymax*i/4)}</text>`; }
+  classes.forEach((c,i)=>{
+    const x=mL+i*gap+(gap-bw)/2; let yacc=mT+ph;
+    [...top,'other'].forEach(sp=>{ const v=stacks[c][sp]; if(!v) return;
+      const h=ph*v/ymax; yacc-=h;
+      g+=`<rect x="${x}" y="${yacc}" width="${bw}" height="${Math.max(h,0.5)}" fill="${colOf(sp)}" rx="1"><title>${sp} ${c}-${c+2}": ${fmt(v,1)} ft²</title></rect>`; });
+    g+=`<text x="${x+bw/2}" y="${H-9}" text-anchor="middle" font-size="9" fill="#6b7280">${c>=40?'40+':c}</text>`;
+  });
+  g+=`<text x="${mL}" y="${H-9}" font-size="9" fill="#6b7280">DBH (in) →</text>`;
+  const legend=[...top.map(sp=>`<span style="margin-right:10px;white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;background:${color[sp]};border-radius:2px;margin-right:3px"></i>${sp}${spName[sp]?' · '+spName[sp]:''}</span>`),
+                `<span><i style="display:inline-block;width:9px;height:9px;background:${OTHER};border-radius:2px;margin-right:3px"></i>other</span>`].join('');
+  return (title?`<h4 style="margin:6px 0 2px;font-size:12px">${title}</h4>`:'')
+    + `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`
+    + `<div style="font-size:11px;color:#6b7280;margin-top:2px">${legend}</div>`;
+}
+
+/* PNG snapshot of the map (AOI + basemap + overlay) for the report. Returns a data URI or ''. */
+function mapSnapshot(){
+  try{ map.triggerRepaint(); return map.getCanvas().toDataURL('image/png'); }
+  catch(err){ console.warn('map snapshot failed', err); return ''; }
 }
 
 /* species × DBH stacked bar of basal area */
@@ -431,6 +474,7 @@ function drawChart(cells){
 /* ---------------- simulation plan builder ---------------- */
 let plan = { name:'plan', cycles:10, period:10, actions:[] };
 let lastSim = null;                        // = the ACTIVE scenario's result (drives all displays)
+let aoiCells = [];                         // AOI inventory species×DBH cells (cycle 0), for the report
 
 // --- scenarios: each = { name, plan (snapshot), result } ; one is ACTIVE -----------------
 let scenarios = [];
@@ -440,7 +484,9 @@ const MAX_SCENARIOS = 8;                    // DD9: soft cap (also = SCEN_COLORS
 function planSummary(p){
   if(!p.actions || !p.actions.length) return 'grow-only';
   return p.actions.map(a => a.kind==='thin'
-    ? `thin ${a.metric}→${a.target}${a.species&&a.species!=='all'?' '+a.species:''}@+${a.cycle*p.period}yr`
+    ? `thin ${a.metric}→${a.target}${a.species&&a.species!=='all'?' '+a.species:''}`
+      + (a.mode==='ppe' ? ` via PPE budget ${a.target_expr||''}/cycle from +${a.cycle*p.period}yr`
+                        : `@+${a.cycle*p.period}yr`)
     : `plant ${a.species}@+${a.cycle*p.period}yr`).join(', ');
 }
 function clearScenarios(){
@@ -507,13 +553,25 @@ function renderActions(){
     const d=document.createElement('div'); d.className='act '+a.kind;
     const cy = a=>`<label>at</label><input type="number" class="num" min="0" max="${plan.cycles-1}" value="${a.cycle}" data-i="${i}" data-f="cycle" title="cycles from now (0 = immediately)"><span style="color:var(--muted);font-size:11px">${a.cycle===0?'now':'+'+a.cycle*plan.period+'yr'}</span>`;
     if(a.kind==='thin'){
+      const ppe = a.mode==='ppe';
       d.innerHTML = `<span class="tag thin">Thin</span>${cy(a)}
+        <label>where</label><select data-i="${i}" data-f="mode" title="every stand, or let the PPE cross-stand harvest budget pick which stands to cut each cycle to meet a resource flow target">${_opt([['rule','every stand'],['ppe','PPE budget picks stands']],a.mode||'rule')}</select>
         <label>sp</label><input list="splist" value="${a.species||'all'}" data-i="${i}" data-f="species" style="width:80px" title="species to cut: 'all', or one/more FVS alpha codes (comma-separated)">
         <label>to</label><select data-i="${i}" data-f="metric">${_opt(['BA','TPA','SDI'],a.metric)}</select>
         <input type="number" class="num" value="${a.target}" data-i="${i}" data-f="target" title="residual (0 = clearcut)">
         <select data-i="${i}" data-f="direction">${_opt([['below','from below'],['above','from above']],a.direction)}</select>
         <label>DBH</label><input type="number" class="num" value="${a.dbh_lo}" data-i="${i}" data-f="dbh_lo">–<input type="number" class="num" value="${a.dbh_hi}" data-i="${i}" data-f="dbh_hi">″
-        <button class="rm" data-rm="${i}" title="remove">×</button>`;
+        <button class="rm" data-rm="${i}" title="remove">×</button>
+        ${ppe ? `<div class="ppeRow" style="flex-basis:100%;display:flex;gap:6px;align-items:center;margin-top:4px;padding-left:18px;border-left:2px solid var(--accent2)">
+          <span class="tag" style="background:var(--accent2);color:#06281a">PPE</span>
+          <label title="resource to harvest per cycle across the AOI (Event-Monitor expression)">target</label>
+          <input value="${a.target_expr||'1000'}" data-i="${i}" data-f="target_expr" style="width:90px">
+          <label title="stand priority — the budget cuts the highest-priority stands first">priority</label>
+          <input value="${a.priority_expr||'BBA'}" data-i="${i}" data-f="priority_expr" style="width:80px">
+          <label title="resource credited by cutting a stand">credit</label>
+          <input value="${a.credit_expr||'BBA'}" data-i="${i}" data-f="credit_expr" style="width:80px">
+          <span style="color:var(--muted);font-size:11px">the thin above is applied only to the stands the budget selects, in the cycles it selects them</span>
+        </div>` : ''}`;
     } else {
       d.innerHTML = `<span class="tag plant">Plant</span>${cy(a)}
         <label>sp</label><input list="splist" value="${a.species}" data-i="${i}" data-f="species" style="width:80px" title="species to plant: one/more FVS alpha codes (comma-separated)">
@@ -525,14 +583,14 @@ function renderActions(){
   });
   host.querySelectorAll('[data-f]').forEach(inp => inp.onchange = e => {
     const i=+e.target.dataset.i, f=e.target.dataset.f; let v=e.target.value;
-    if(!['species','metric','direction'].includes(f)) v = +v;
+    if(!['species','metric','direction','mode','target_expr','priority_expr','credit_expr'].includes(f)) v = +v;
     plan.actions[i][f] = v;
-    if(f==='cycle') renderActions();     // refresh the "+N yr" label
+    if(f==='cycle'||f==='mode') renderActions();   // refresh the "+N yr" label / show-hide the PPE row
   });
   host.querySelectorAll('[data-rm]').forEach(b => b.onclick = e => {
     plan.actions.splice(+e.currentTarget.dataset.rm,1); renderActions(); });
 }
-function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',species:'all',dbh_lo:0,dbh_hi:999}); renderActions(); }
+function addThin(){ plan.actions.push({kind:'thin',cycle:1,metric:'BA',target:80,direction:'below',species:'all',dbh_lo:0,dbh_hi:999,mode:'rule',target_expr:'1000',priority_expr:'BBA',credit_expr:'BBA'}); renderActions(); }
 function addPlant(){ plan.actions.push({kind:'plant',cycle:1,species:'DF',tpa:300,survival:85}); renderActions(); }
 
 function savePlan(){
@@ -836,16 +894,55 @@ function downloadReport(){
   const aoi = el('cards') ? el('cards').innerText.replace(/\n+/g,' · ') : '';
   const charts = activeMetrics().map(m =>
     `<div class="chart"><h3>${CMP_LABEL[m]} over time</h3>${compareChartSVG(m, 760, 300)}</div>`).join('');
+
+  // AOI snapshot — the map exactly as it is on screen (basemap + patches + any projected overlay)
+  const snap = mapSnapshot();
+  const snapHTML = snap
+    ? `<h2>Area of interest</h2><img src="${snap}" alt="AOI snapshot" style="width:100%;border:1px solid #e5e7eb;border-radius:6px">
+       <div class="muted" style="margin-top:4px">${aoiParts.length} patch(es)${aoi?' · '+aoi:''}</div>`
+    : '';
+
+  // species × DBH: the inventory now, then each scenario's END state (per-cycle `dist` from the projection)
+  const endDist = s => (s.result && s.result.dist && s.result.dist.length)
+    ? s.result.dist[s.result.dist.length-1] : null;
+  const sppCharts = [
+    aoiCells.length ? `<div class="chart">${speciesDbhSVG(aoiCells, 420, 240, 'Inventory today (cycle 0)')}</div>` : '',
+    ...scenarios.map((s,i)=>{ const d=endDist(s); if(!d) return '';
+      const yrs=(s.result.ncycles-1)*(s.result.period||s.plan.period);
+      return `<div class="chart">${speciesDbhSVG(d, 420, 240,
+        `<span style="color:${scenColor(i)}">${s.name}</span> — at +${yrs}yr`)}</div>`; })
+  ].filter(Boolean).join('');
+  const sppHTML = sppCharts
+    ? `<h2>Species × diameter (basal area ft²/ac)</h2><div class="charts">${sppCharts}</div>` : '';
+
+  // PPE harvest budget flow, for any scenario whose thin is scheduled by the budget
+  const ppeHTML = scenarios.map((s,i)=>{
+    const p = s.result && s.result.ppe; if(!p) return '';
+    const rows = (p.cycles||[]).map(c=>
+      `<tr><td>+${c.elapsed}yr</td><td>${c.ncut}/${c.nstands}</td><td>${fmt(c.resource,0)}</td>`
+      + `<td>${fmt(c.target,0)}</td><td>${Math.round(c.pct_of_target)}%</td></tr>`).join('');
+    const a = (s.plan.actions||[]).find(x=>x.kind==='thin'&&x.mode==='ppe') || {};
+    return `<h3 style="color:${scenColor(i)}">${s.name} — PPE harvest budget</h3>
+      <div class="muted">${p.variant} · ${p.nplots} stands${p.nexcluded?` · ${p.nexcluded} excluded (other variant)`:''}
+        · target <code>${a.target_expr||''}</code> · priority <code>${a.priority_expr||''}</code> · credit <code>${a.credit_expr||''}</code></div>
+      <table><tr><th>when</th><th>stands cut</th><th>resource</th><th>target</th><th>% of target</th></tr>${rows}</table>`;
+  }).filter(Boolean).join('');
+
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Forest Growth Explorer — scenario comparison</title>
     <style>body{font:14px system-ui,sans-serif;color:#0f1a14;background:#fff;max-width:960px;margin:24px auto;padding:0 16px}
-    h1{font-size:20px} h3{font-size:14px;margin:18px 0 4px} table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-    th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #e5e7eb} .muted{color:#6b7280}
+    h1{font-size:20px} h2{font-size:16px;margin-top:26px} h3{font-size:14px;margin:18px 0 4px}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+    th,td{text-align:left;padding:4px 8px;border-bottom:1px solid #e5e7eb} .muted{color:#6b7280;font-size:12px}
+    code{background:#f3f4f6;padding:1px 4px;border-radius:3px}
     .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
     svg text{fill:#374151 !important} svg line{stroke:#e5e7eb !important}</style></head><body>
     <h1>🌲 Forest Growth Explorer — scenario comparison</h1>
-    <div class="muted">Generated ${new Date().toLocaleString()} · AOI: ${aoiParts.length} patch(es)${aoi?' · '+aoi:''} · ${scenarios.length} scenarios</div>
+    <div class="muted">Generated ${new Date().toLocaleString()} · ${scenarios.length} scenarios</div>
+    ${snapHTML}
     <h2>Metrics over time</h2><div class="charts">${charts}</div>
+    ${sppHTML}
     <h2>Endpoints</h2>${compareTableHTML()}
+    ${ppeHTML ? '<h2>Harvest scheduling</h2>'+ppeHTML : ''}
     <h2>Scenarios</h2><ul>${plans}</ul></body></html>`;
   const blob=new Blob([html],{type:'text/html'}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url;

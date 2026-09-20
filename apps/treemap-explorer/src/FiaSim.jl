@@ -47,10 +47,21 @@ struct PlanAction
     species::String              # 2-letter FVS alpha code (e.g. "DF","PP")
     tpa::Float64                 # trees/acre planted
     survival::Float64            # percent 0-100
+    # thin scheduling mode:
+    #   "rule" — the thin fires on every plot in `cycle` (the original behaviour)
+    #   "ppe"  — the PPE cross-stand harvest budget picks WHICH plots are cut in each cycle to meet a
+    #            resource flow target; this thin is then applied only to the plots PPE selected, in the
+    #            cycles it selected them. `cycle` is the FIRST cycle the budget runs.
+    mode::String
+    target_expr::String          # ppe: resource target per cycle (Event-Monitor expression)
+    priority_expr::String        # ppe: stand priority
+    credit_expr::String          # ppe: resource credited by cutting a stand
 end
 PlanAction(; kind, cycle=1, metric="BA", target=0.0, direction="below",
-             dbh_lo=0.0, dbh_hi=999.0, species="", tpa=0.0, survival=100.0) =
-    PlanAction(kind, cycle, metric, target, direction, dbh_lo, dbh_hi, species, tpa, survival)
+             dbh_lo=0.0, dbh_hi=999.0, species="", tpa=0.0, survival=100.0,
+             mode="rule", target_expr="", priority_expr="", credit_expr="") =
+    PlanAction(kind, cycle, metric, target, direction, dbh_lo, dbh_hi, species, tpa, survival,
+               mode, target_expr, priority_expr, credit_expr)
 
 struct ManagementPlan
     name::String
@@ -82,7 +93,7 @@ const _THIN_TOKEN = Dict(("BA","below")=>"THINBBA", ("BA","above")=>"THINABA",
 "Emit the management keyword block for a plan (goes after DATABASE…END, before PROCESS)."
 function plan_keywords(p::ManagementPlan)::String
     io = IOBuffer()
-    thins = filter(a -> a.kind == "thin", p.actions)
+    thins = filter(a -> a.kind == "thin" && a.cycle >= 1, p.actions)
     plants = filter(a -> a.kind == "plant", p.actions)
     for a in thins
         allsp = isempty(a.species) || lowercase(a.species) == "all"
@@ -303,18 +314,26 @@ end
 Run every plot under the plan (deduped; cached). Runs are parallelized across Julia
 threads (start with `--threads=auto`); each variant is warmed up serially first so a
 plot's lazy per-variant caches are populated before the threaded fan-out.
+
+`plan_for(cn)` (optional) returns that plot's OWN `ManagementPlan` — used by the PPE thinning mode, where
+the cross-stand budget decides which plots are cut in which cycles, so every plot carries a different thin
+schedule (and its own cache key). Defaults to the shared `plan` for every plot.
 """
-function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir::AbstractString)
+function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir::AbstractString,
+                        plan_for = nothing)
     plt_cns = unique(plt_cns)
     _PROG.total[] = length(plt_cns); _PROG.done[] = 0; _PROG.running[] = true
     try
         subdb, varmap = build_subdb(plt_cns; cache_dir=cache_dir)
+        _plan(cn) = plan_for === nothing ? plan : plan_for(cn)
+        _ph(cn)   = plan_for === nothing ? plan_hash(plan) : plan_hash(_plan(cn))
+        _mgmt(cn) = plan_for === nothing ? plan_keywords(plan) : plan_keywords(_plan(cn))
         ph = plan_hash(plan)
-        mgmt = plan_keywords(plan)
         results = Dict{String,PlotResult}()
         torun = String[]
         for cn in plt_cns
-            r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$ph", nothing); end
+            cnph = _ph(cn)
+            r = lock(_MEM_LOCK) do; get(_MEM, "$cn|$cnph", nothing); end
             if r !== nothing
                 results[cn] = r; _tick!()                 # cached = instant
             elseif isempty(get(varmap, cn, ""))
@@ -330,21 +349,21 @@ function simulate_plots(plt_cns::Vector{String}, plan::ManagementPlan; cache_dir
         for cn in torun
             v = varmap[cn]; v in warmed && continue
             push!(warmed, v)
-            r = _run_one(cn, v, subdb, plan, mgmt); _tick!()
+            r = _run_one(cn, v, subdb, _plan(cn), _mgmt(cn)); _tick!()
             r === nothing && continue
             results[cn] = r
-            lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = r; end
+            let k = _ph(cn); lock(_MEM_LOCK) do; _MEM["$cn|$k"] = r; end; end
         end
 
         rest = filter(cn -> !haskey(results, cn), torun)
         out = Vector{Union{Nothing,PlotResult}}(undef, length(rest))
         Threads.@threads for i in eachindex(rest)
-            out[i] = _run_one(rest[i], varmap[rest[i]], subdb, plan, mgmt); _tick!()
+            out[i] = _run_one(rest[i], varmap[rest[i]], subdb, _plan(rest[i]), _mgmt(rest[i])); _tick!()
         end
         for (i, cn) in enumerate(rest)
             out[i] === nothing && continue
             results[cn] = out[i]
-            lock(_MEM_LOCK) do; _MEM["$cn|$ph"] = out[i]; end
+            let k = _ph(cn); lock(_MEM_LOCK) do; _MEM["$cn|$k"] = out[i]; end; end
         end
         return results
     finally

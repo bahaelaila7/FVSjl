@@ -66,6 +66,9 @@ end
 
 # --- Phase 2: run FVSjl on the AOI's plots under a management plan -----------
 const MAX_SIM_PLOTS = 200          # cap for a responsive synchronous request
+# PPE harmonises every stand onto one inventory year so the budget's cycles line up across plots
+# (FiaSim.simulate_landscape rewrites INV_YEAR in a policy-specific DB copy).
+const _PPE_YEAR = 2020
 const HA_PER_ACRE = 0.404685642
 
 # the projected layer of the last simulation: tm_id => per-cycle metrics (source for the
@@ -186,7 +189,11 @@ function _parse_plan(o)
                 metric = String(get(a, :metric, "BA")), target = Float64(get(a, :target, 0)),
                 direction = String(get(a, :direction, "below")),
                 species = String(get(a, :species, "")),
-                dbh_lo = Float64(get(a, :dbh_lo, 0)), dbh_hi = Float64(get(a, :dbh_hi, 999))))
+                dbh_lo = Float64(get(a, :dbh_lo, 0)), dbh_hi = Float64(get(a, :dbh_hi, 999)),
+                mode = String(get(a, :mode, "rule")),
+                target_expr   = String(get(a, :target_expr, "1000")),
+                priority_expr = String(get(a, :priority_expr, "BBA")),
+                credit_expr   = String(get(a, :credit_expr, "BBA"))))
         elseif kind == "plant"
             push!(acts, FiaSim.PlanAction(; kind = "plant", cycle = Int(get(a, :cycle, 1)),
                 species = String(a.species), tpa = Float64(a.tpa),
@@ -233,7 +240,43 @@ function _simulate_response(geom5070, plan)
     capped = length(cns) > MAX_SIM_PLOTS
     sim_cns = capped ? cns[1:MAX_SIM_PLOTS] : cns
     cache = joinpath(app.datadir, "derived", "sim_cache")
-    res = FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache)   # plt_cn => Vector{CycleMetrics}
+
+    # PPE thinning mode: the cross-stand harvest budget decides WHICH plots are cut in each cycle to meet
+    # the resource flow target; the plan's thin is then applied only to those plots, in those cycles. Every
+    # plot therefore carries its own thin schedule, so the projection runs with a per-plot plan.
+    ppe_act = findfirst(a -> a.kind == "thin" && a.mode == "ppe", plan.actions)
+    ppe_out = nothing
+    plan_for = nothing
+    if ppe_act !== nothing
+        a = plan.actions[ppe_act]
+        pol = FiaSim.LandscapePolicy(; common_year = _PPE_YEAR, target_expr = a.target_expr,
+                priority_expr = a.priority_expr, credit_expr = a.credit_expr,
+                cycles = plan.cycles, period = plan.period, mslabel = "ALL")
+        lsc = FiaSim.simulate_landscape(sim_cns, acres, pol; cache_dir = cache)
+        # cycle (1-based projection cycle) => set of plot CNs the budget selected
+        cutmap = Dict{String,Vector{Int}}()
+        for (i, c) in enumerate(lsc.cycles), cn in c.cut
+            push!(get!(cutmap, cn, Int[]), i)
+        end
+        others = [x for x in plan.actions if !(x.kind == "thin" && x.mode == "ppe")]
+        plan_for = function (cn)
+            cyc = get(cutmap, cn, Int[])
+            acts = copy(others)
+            for k in cyc
+                k >= a.cycle || continue                 # the budget starts at the action's cycle
+                push!(acts, FiaSim.PlanAction(; kind = "thin", cycle = k, metric = a.metric,
+                        target = a.target, direction = a.direction, species = a.species,
+                        dbh_lo = a.dbh_lo, dbh_hi = a.dbh_hi))
+            end
+            FiaSim.ManagementPlan(; name = plan.name, cycles = plan.cycles, period = plan.period,
+                                    actions = acts)
+        end
+        ppe_out = (; variant = lsc.variant, nplots = lsc.nplots, nexcluded = lsc.nexcluded,
+                     cycles = [(; elapsed = c.elapsed, target = c.target, resource = c.resource,
+                                  pct_of_target = c.pct_of_target, ncut = c.ncut,
+                                  nstands = c.nstands) for c in lsc.cycles])
+    end
+    res = FiaSim.simulate_plots(sim_cns, plan; cache_dir = cache, plan_for = plan_for)
 
     ncyc = maximum((length(v.metrics) for v in values(res)); init = 0)
     sim_acres = sum(acres[cn] for cn in keys(res); init = 0.0)
@@ -302,6 +345,7 @@ function _simulate_response(geom5070, plan)
        sim_acres = round(sim_acres; digits = 1),
        ncycles = ncyc, period = plan.period, cycles = cycles, dist = dist,
        domains = doms,        # auto-scaled color domains per map metric (for the legend)
+       ppe = ppe_out,         # PPE thinning mode: the per-cycle budget flow + how many plots it cut
        image = imgmeta)       # cached AOI raster overlay: token, corners (lon/lat), size, metrics
 end
 
