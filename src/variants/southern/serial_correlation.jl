@@ -1,3 +1,4 @@
+const _ZBDBG = Ref(0f0); const _ZODBG = Ref(0f0)   # TEMP-DEBUG
 # =============================================================================
 # serial_correlation.jl — stochastic diameter-growth serial correlation
 #
@@ -82,10 +83,13 @@ is the std-dev bound on the variation (DGSD, default 2; `<1` ⇒ no random varia
         bound = Float32(dgsd) * Float32(ssig)
         while true
             frm = bachlo(rng, 0f0, Float32(ssig))
+            _ZBDBG[] = frm; _ZODBG[] = oldrn[it]   # TEMP-DEBUG
             frm = frm * Float32(rhocp) + Float32(rho) * oldrn[it]
             abs(frm) > bound || break
         end
     end
+    _zb_dbg = _ZBDBG[]; _zo_dbg = _ZODBG[]   # TEMP-DEBUG
+    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8)); println(io, "DSC", lpad(Int(it),5), " ", join(h.((_zb_dbg, _zo_dbg, ssig, rho, rhocp, frm)), " ")); end; end   # TEMP-DEBUG
     dds = Float32(wk2_it)
     if dds > 5f0
         frm = 0f0

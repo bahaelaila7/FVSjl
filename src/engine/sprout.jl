@@ -804,6 +804,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.crown_ratio[n] = 70f0                    # regen convention (see establish!)
             t.crown_width[n] = cw
             t.iestat[n] = Int32(0)                  # esuckr.f:330 IESTAT(ITRN)=0 (slot may be reused)
+            t.zrand[n] = -999f0                     # esuckr.f:347 ZRAND(ITRN)=-999.
             t.norm_ht[n]     = Int32(0)
             t.trunc[n]       = Int32(0)
             t.birth_age[n]   = Float32(ishag)          # ABIRTH

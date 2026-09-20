@@ -697,6 +697,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.n = n
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
+                t.zrand[n]       = -999f0    # estab.f:1424 ZRAND(ITRN)=-999.
                 t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1440) ⇒ TreeList "ES" id
                 # IMC (TreeVal): estb/estab.f:1385-1386 — 1, but 2 for a planted tree NOT ranked best (NOTE≠1) while
                 # STOADJ>0; strp/estab.f:600 always 1. NOTE comes from the tally's NBEST pass (es_plot_note, plot-major).

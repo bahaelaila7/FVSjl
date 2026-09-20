@@ -113,6 +113,12 @@ mutable struct TreeList
     htimlt    ::Vector{Float32}    # birth-cycle HTG multiplier               (WK4)
     iestat     ::Vector{Int32}   # establishment 'best tree' mortality-immunity date (IESTAT; estab.f:1269 IDSDAT+20,
                                  # morts.f XCHECK; 0 = none). Carried by TRIPLE/COMPRS/TREMOV (triple.f:80, comprs.f:738).
+    # Persistent per-tree small-tree height random deviate ZRAND (ie/regent.f:513-537, :1179-1200 — the TTVAR
+    # BETA/ZRAND height model). −999 = "draw a fresh one": set at input (intree.f:369/607), for new establishment/
+    # sprout records (estab.f:1245/1334/1424, esuckr.f:347) and COMPRS (comprs.f:973); drawn once (BACHLO(0,1),
+    # |Z|≤2) in the growth OR the LSTART calibration pass and REUSED until an increment ≤0.1 resets it. Carried by
+    # TRIPLE (triple.f:84) and record moves (tremov.f:46/110/153) via copy_tree!.
+    zrand      ::Vector{Float32} # (ZRAND)
 
     # --- multi-valued attributes (k, MAXTRE) ---
     damage::Matrix{Int32}        # 6 damage-agent/severity pairs           (DAMSEV)
@@ -152,6 +158,7 @@ function TreeList(maxtre::Int = MAXTRE)
         iz(),                                  # dmr
         ones(Float32, maxtre),                 # htimlt (WK4, default 1.0 = full birth-cycle growth)
         iz(),                                  # iestat
+        fill(-999f0, maxtre),                  # zrand (−999 = draw on next use)
         zeros(Int32, 6, maxtre), zeros(Int32, 5, maxtre),
         zeros(Float32, 5, maxtre),              # ffe_oldcrw
         zeros(Int32, maxtre),                   # stale_icr
@@ -172,7 +179,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat, :zrand)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied

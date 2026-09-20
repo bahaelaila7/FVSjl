@@ -2599,6 +2599,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f
         # XCHECK; :1348 excess: 0). IDSDAT = this ESTAB call's date of disturbance (esnutr.f sets it before ESTAB).
         t.iestat[n]      = bbest[bi] ? Int32(est.idsdat) + Int32(20) : Int32(0)
+        t.zrand[n]       = -999f0                        # estab.f:1245/1334 ZRAND(ITRN)=-999.
         # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
         pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
                (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])

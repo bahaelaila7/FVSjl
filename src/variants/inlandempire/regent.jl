@@ -68,6 +68,7 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             end
         end
     end
+    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "HCI reldm1=", s.plot.relative_density_prev, " relden=", relden, " rdnext1=", rdnext[1], " pccf23=", (23 <= t.n ? s.density.point_ccf[Int(t.plot_id[23])] : -1f0), " plot23=", (23 <= t.n ? t.plot_id[23] : -1)); end; end   # TEMP-DEBUG
     @inbounds for sp in 1:23
         (sp <= 12 || sp == 14 || sp == 23) || continue    # NIVAR only
         i1 = isct[sp, 1]; i1 == 0 && continue
@@ -170,6 +171,7 @@ end
 """IE `small_tree_growth!` (ie/regent.f). Overrides DG/HTG for small trees (D<XMAX). NIVAR path is the
 bulk (iet01); special species ported faithfully."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0)
+    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "RGE", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species                                 # blkdat HT-DBH :ht1/:ht2 for the aspen log-DK
     t.n == 0 && return s
@@ -380,6 +382,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
             htgrl = con + IE_RG_RHLH[sp]*flog(h1) + IE_RG_RHCCF[sp]*rdj + IE_RG_RHBAL[sp]*bal
             h2 = h1 + fexp(htgrl) * scale * xrhgro * wk4[i]   # regent.f:596 ·WK4(I) = clgmult climate multiplier
+            _rhdump("RH1", s, i, sp, (h1, htgrl, fexp(htgrl), scale, xrhgro, wk4[i], h2, con)); _rhdump("RH0", s, i, sp, (rdj, baj, bal))   # TEMP-DEBUG
             wk3[i] = h2
             # NIVAR diameter (regent.f:598-610): skip if last subcycle or D≥3 or H2≤4.5
             d2 = d
@@ -740,6 +743,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 end
             end
             htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
+            l == 0 && _rhdump("RH2", s, i, sp, (h, wk3[i], htgr1, zzran, htgr))   # TEMP-DEBUG
             lhtg = l == 0 ? large_htg : (l == 1 ? large_htg_u : large_htg_l)  # per-copy large-tree HTG (htgf.f)
             htg = htgr * (1.0f0 - xwt_l) + xwt_l * lhtg             # blend toward the (per-copy) large-tree htgf value
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
@@ -927,6 +931,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         if !lskiph
             htgrl = con + IE_RG_RHLH[sp]*flog(h) + IE_RG_RHCCF[sp]*relden_htg + IE_RG_RHBAL[sp]*bal
             h2 = h + fexp(htgrl) * est_scale * xrhgro * wk4   # regent.f:596 EXP(HTGRL)*SCALE*XRHGRO*WK4 (left-assoc Float32)
+            _rhdump("RH1", s, i, sp, (h, htgrl, fexp(htgrl), est_scale, xrhgro, wk4, h2, con)); _rhdump("RH0", s, i, sp, (relden_htg, ba_htg, bal))   # TEMP-DEBUG
             htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         end
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
@@ -934,6 +939,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
         diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)
         d1v = diam + dadj; h > 4.5f0 && (d1v = ax * fpow(h - 4.5f0, bx) + dadj)
+        let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "RNG", lpad(Int(s.control.cycle)+1,3), lpad(i,5), " ", s.rng.s0); end; end   # TEMP-DEBUG
         zzran = 0.0f0
         if dgsd >= 1.0f0
             while true
@@ -942,6 +948,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             end
         end
         htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)
+        _rhdump("RH2", s, i, sp, (h, h + htgr1, htgr1, zzran, htgr))   # TEMP-DEBUG
         htg_regent = htgr * (1.0f0 - xwt)                # REGENT HTG(I): new tree large-tree HTG(K)=0
         # ★ ESGENT (esgent.f:56-71): scale REGENT's HTG by WK4 AGAIN (second application ⇒ effective WK4²), then
         # for WK4<1 (AUTOES) reset the sub-breast-height DBH to the birth-cycle nominal 0.1+0.001·HT (DG=0) or,
@@ -982,3 +989,8 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     return s
 end
 
+function _rhdump(tag, s, i, sp, vals)   # TEMP-DEBUG
+    f = get(ENV, "JLRH", ""); isempty(f) && return
+    h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8))
+    open(f, "a") do io; println(io, tag, lpad(Int(s.control.cycle)+1,3), lpad(i,5), lpad(Int(sp),3), " ", join(h.(vals), " ")); end
+end
