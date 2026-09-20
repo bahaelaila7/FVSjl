@@ -1,11 +1,6 @@
-# KNOWN_RESIDUALS.toml — tiered fast-tier allowlist. Every entry needs status = "CORNER" (+ proof: named FP
-# primitive + per-record evidence) or "OPEN" (+ issue: the tracked bug). Fields variant/stand/regime/file/col/year
-# accept "*". An entry that matches nothing in a full run FAILS (unexpected pass — remove it).
 
-
-# Re-drafted from measurement on the bm-regime-close tip, 2026-09-20 (after the base-resid3 REAL*4 forms,
-# list-ht2td merch-top columns + NVEL precision, and the region-6 log-rule merges). Total mismatch cells
-# fell 560120 → 539965 vs the 2026-09-19 draft; 2189 → 2173 entries.
+# Re-drafted 2026-09-20 after the GRINIT merch-spec fix (b788ac1f): FVS_InvReference merch-spec columns
+# went from 47960 mismatching cells to 0. Totals: 539964 → 492444 cells, 2173 → 1975 entries.
 
 
 [[residual]]
@@ -117,72 +112,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "BM"
@@ -528,72 +457,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "cover"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
 file = "FVS_StrClass"
 col = "PRESENCE"
 stand = "*"
@@ -667,72 +530,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "BM"
@@ -1063,72 +860,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "BM"
@@ -1518,72 +1249,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "none"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
 file = "FVS_StrClass"
 col = "PRESENCE"
 stand = "*"
@@ -1837,72 +1502,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -1936,72 +1535,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -2031,72 +1564,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "BM"
@@ -2416,72 +1883,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "BM"
@@ -2937,72 +2338,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -3289,72 +2624,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=7.0 | e.g. stand 647500316126144 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 216
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 216 cells [material=216] max|Δ|=4.5 | e.g. stand 647500316126144 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
 file = "FVS_StrClass"
 col = "PRESENCE"
 stand = "*"
@@ -3444,78 +2713,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "climate"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -3983,78 +3186,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "cover"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -4709,78 +3846,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "econ"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -5248,78 +4319,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "mistletoe"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -5787,78 +4792,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "none"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -6722,78 +5661,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "plant_cal"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -7250,78 +6123,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "plant_cyc"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -7778,78 +6585,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "rootdis"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -8493,78 +7234,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "salvage"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -9384,78 +8059,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "simfire"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -9989,78 +8598,12 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "EM"
 regime = "thinbba"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
 col = "BFVolEq"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 5310672010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=7.0 | e.g. stand 373835175489998 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 228
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 228 cells [material=228] max|Δ|=4.5 | e.g. stand 373835175489998 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -10825,72 +9368,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "climate"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_InvReference"
 col = "SiteIndex"
 stand = "*"
 year = "*"
@@ -11282,72 +9759,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
@@ -12189,72 +10600,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "econ"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_InvReference"
 col = "SiteIndex"
 stand = "*"
 year = "*"
@@ -13058,72 +11403,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "mistletoe"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_InvReference"
 col = "SiteIndex"
 stand = "*"
 year = "*"
@@ -13515,72 +11794,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
@@ -14598,72 +12811,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "plant_cal"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_InvReference"
 col = "SiteIndex"
 stand = "*"
 year = "*"
@@ -15082,72 +13229,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "plant_cyc"
 file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_InvReference"
 col = "SiteIndex"
 stand = "*"
 year = "*"
@@ -15561,72 +13642,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
@@ -16331,72 +14346,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
@@ -17189,72 +15138,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
@@ -18069,72 +15952,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-20: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawMinDBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=7.0 | e.g. stand 1287253083290487 year *: live=7.0 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFSawTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFTopDia"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 276
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-20: 276 cells [material=276] max|Δ|=4.5 | e.g. stand 1287253083290487 year *: live=4.5 jl=0.0"""
 
 [[residual]]
 variant = "IE"
