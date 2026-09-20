@@ -82,6 +82,11 @@ end
     p == C_NULL ? fpow_julia(x, q) : ccall(p, Float32, (Float32, Float32), x, q)
 end
 
+# SIN/COS of REAL*4: gfortran calls glibc sinf/cosf (libm), which can differ from Julia's native Float32
+# sin/cos by 1 ULP. Used in the per-species DG/HTG site constants (dgf.f DGCON/SMCON aspect terms).
+@inline fsin(x::Float32) = ccall((:sinf, "libm.so.6"), Float32, (Float32,), x)
+@inline fcos(x::Float32) = ccall((:cosf, "libm.so.6"), Float32, (Float32,), x)
+
 """
     fpowi(x::Float32, m::Integer) -> Float32
 

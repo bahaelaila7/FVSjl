@@ -37,7 +37,7 @@ using DBInterface
 
 # --- core (order matters: parameters → rng/units/trees → variant → state) ----
 include("core/fmath.jl")                       # gfortran-identical exp/log/pow (doctrine #8)
-using .FMath: fexp, flog, fpow, fpowi, fexp_julia, flog_julia, fpow_julia, dexp, dlog, dpow, dlog10
+using .FMath: fexp, flog, fpow, fpowi, fexp_julia, flog_julia, fpow_julia, dexp, dlog, dpow, dlog10, fsin, fcos
 include("core/parameters.jl")
 include("core/rng.jl")
 include("core/units.jl")

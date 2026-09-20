@@ -23,10 +23,10 @@ end
     dd = Float32(d)
     if sp == 13 || sp == 14 || sp == 16 || sp == 18
         return dd < 1f0 ? dd * (BM_RD1[sp] + BM_RD2[sp] + BM_RD3[sp]) :
-                          BM_RD1[sp] + BM_RD2[sp] * dd + BM_RD3[sp] * dd * dd
+                          BM_RD1[sp] + BM_RD2[sp] * dd + BM_RD3[sp] * fpow(dd, 2f0)   # ccfcal.f:53 RD3*D**2.0 (powf)
     else
         return dd >= 1f0 ? BM_RD1[sp] + dd * BM_RD2[sp] + dd * dd * BM_RD3[sp] :
-               dd > 0.1f0 ? BM_RDA[sp] * dd ^ BM_RDB[sp] : 0.001f0
+               dd > 0.1f0 ? BM_RDA[sp] * fpow(dd, BM_RDB[sp]) : 0.001f0     # ccfcal.f:44 RDA*(D**RDB) (powf)
     end
 end
 

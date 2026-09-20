@@ -63,24 +63,29 @@ function sdi_max_check!(s::StandState)
     p = s.plot
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     zeide = s.control.zeide_sdi
-    dthresh = zeide ? s.control.dbh_zeide : s.control.dbh_stage
+    # sdichk.f:73-79 reads DENSE's stand stats: TEMD0 = RMSQD (or DR016 when LZEIDE), TEMTPA = TPROB. DENSE
+    # (dense.f DO 50 ISPC / I=IND1(I3)) sums TPROB and TSUMD2 = Σ D·(D·P) over ALL live trees (no DBH threshold);
+    # only the Zeide SUMDR0 is restricted to D>=DBHSDI, and DR016=(SUMDR0/TPROB)**(1./1.605) divides by the
+    # ALL-tree TPROB. (jl had restricted all three to D>=DBHSTAGE ⇒ a different decision/reset CONST on stands
+    # with sub-threshold trees: BM 504545927126144 CONST 46E242EA vs live 46E242DC.)
     tprob = 0f0; sumdr = 0f0; sumd2 = 0f0
-    @inbounds for i in 1:n
-        d = t.dbh[i]; d < dthresh && continue
-        pr = t.tpa[i]
-        sumdr += pr * d^1.605f0; sumd2 += pr * d * d; tprob += pr
+    @inbounds for i in _ind1_order(s)
+        d = t.dbh[i]; pr = t.tpa[i]
+        tprob += pr
+        sumd2 += d * (d * pr)
+        d >= s.control.dbh_sdi && (sumdr += pr * fpow(d, 1.605f0))     # dense.f:185 IF(D.GE.DBHSDI)
     end
-    tprob < 1f0 && return s
+    tprob <= 0f0 && return s
     # sdichk.f:78-81 — the over-density DECISION (TEMMAX) and the SDImax RESET use the UNFLOORED
     # RMSQD/DR016 (TEMD0). The 0.3 floor (DQ0, sdichk.f:59-61) feeds ONLY TMD0→UPLIM, a cosmetic
     # warning jl doesn't emit. So dq0 here (decision + reset) must NOT be floored. (Was floored — a GAP
     # that diverged for dense sub-inch stands, QMD<0.3.)
-    dq0 = zeide ? (sumdr / tprob)^(1f0 / 1.605f0) : sqrt(sumd2 / tprob)
+    dq0 = zeide ? fpow(sumdr / tprob, 1f0 / 1.605f0) : sqrt(sumd2 / tprob)   # TEMD0 = DR016 : RMSQD (DENSE)
     const_v = sdimax / PRETZSCH_SDIK
     upmax = min(pmsdiu + 0.05f0, 1f0)
-    temmax = const_v * dq0^SDI_EXP
+    temmax = const_v * fpow(dq0, SDI_EXP)                 # sdichk.f:81 CONST*(TEMD0**(-1.605))
     tprob <= upmax * temmax && return s        # not over the upper limit ⇒ keep SDIDEF
-    const_v2 = exp(log(tprob + 1f0) + 1.605f0 * log(dq0)) / pmsdiu
+    const_v2 = fexp(flog(tprob + 1f0) + 1.605f0 * flog(dq0)) / pmsdiu   # sdichk.f:87
     tem2 = const_v2 * PRETZSCH_SDIK
     @inbounds for i in 1:MAXSP; p.sp_sdi_def[i] = tem2; end
     return s
@@ -90,22 +95,22 @@ end
 # line (slope/intercept) is computed ONCE per stand and PERSISTED in `dens`
 # (SLPMRT/CEPMRT, morts.f:317-322); subsequent cycles reuse it with the new d10.
 function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
-    tmd0  = min(const_v * dia0^SDI_EXP, 35000f0)
+    tmd0  = min(const_v * fpow(dia0, SDI_EXP), 35000f0)          # morts.f:349 CONST*(DIA0**(-1.605))
     t85d0 = tmd0 * pmsdiu;  t55d0 = pmsdil * tmd0
-    tmd10  = min(const_v * d10^SDI_EXP, 35000f0)
+    tmd10  = min(const_v * fpow(d10, SDI_EXP), 35000f0)         # morts.f:359
     t85d10 = tmd10 * pmsdiu; t55d10 = pmsdil * tmd10
 
     t > t85d0 && return min(t85d10, t)
 
     # solve the self-thinning line at a trial density → (slope, intercept)
     line(tem) = begin
-        d55m = (log(tem) - log(pmsdil * const_v)) / SDI_EXP
-        t55m = log(tem)
+        d55m = (flog(tem) - flog(pmsdil * const_v)) / SDI_EXP   # morts.f:403
+        t55m = flog(tem)                                       # morts.f:404
         d85m = d55m * 1.25f0
         local slp::Float32
         while true
             d85m = clamp(d85m, 0.125f0, 5f0)
-            t85m = log(const_v * exp(d85m)^SDI_EXP * pmsdiu)
+            t85m = flog(const_v * fpow(fexp(d85m), SDI_EXP) * pmsdiu)   # morts.f:409 ALOG(CONST*(EXP(D85M)**(-1.605))*PMSDIU)
             slp = (t85m - t55m) / (d85m - d55m)
             (slp > -0.5f0 && d85m < 5f0) ? (d85m += 0.1f0) : break
         end
@@ -118,7 +123,7 @@ function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
         treeit = t + 0.1f0 * t; slp = 0f0; cept = 0f0
         for _ in 1:100
             slp, cept = line(treeit)
-            diff = t - exp(cept + slp * log(dia0))
+            diff = t - fexp(cept + slp * flog(dia0))       # morts.f:420-421
             (-5f0 <= diff <= 5f0) && break
             treeit += 0.5f0 * diff
         end
@@ -130,7 +135,7 @@ function _pretzsch_tn10(dens::Density, t, dia0, d10, const_v, pmsdil, pmsdiu)
     if dens.mort_slope == 0f0
         dens.mort_slope = slp; dens.mort_intercept = cept
     end
-    return min(exp(dens.mort_intercept + dens.mort_slope * log(d10)), t85d10)
+    return min(fexp(dens.mort_intercept + dens.mort_slope * flog(d10)), t85d10)   # morts.f:433-435
 end
 
 """
@@ -205,7 +210,7 @@ function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32
             xkill = temwk2[i] * adjust
             if (tpa[i] - killed[i] - xkill) <= 0.00001f0
                 xk = tpa[i] - killed[i]
-                short_v += xkill - xk; pass1 -= efftr[i]
+                short_v += (xkill - tpa[i]) + killed[i]; pass1 -= efftr[i]   # varmrt.f SHORT+(XKILL-PROB(I)+WK2(I)) — left-assoc
                 killed[i] += xk; sumkil += xk
             else
                 killed[i] += xkill; sumkil += xkill
@@ -301,8 +306,9 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             pr = t.tpa[i]
             bark = _mbark(t.species[i], d)
             g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
-            sd2sq += pr * (d * d + 2f0 * d * g + g * g)
-            sdq0  += pr * d * d
+            ciobds = 2f0 * d * g + g * g              # morts.f:223-224 CIOBDS=(2.0*D*G+G*G); SD2SQ+P*(D*D+CIOBDS)
+            sd2sq += pr * (d * d + ciobds)            #   (d² + (2dg+g²)) — NOT Julia's left-assoc (d²+2dg)+g²
+            sdq0  += pr * fpow(d, 2f0)                # morts.f:225 P*(D)**2. — REAL exponent ⇒ gfortran powf(D,2.) (≠ D·D on ~0.07% of inputs), then ·P
             sumdr0  += pr * fpow(d, 1.605f0)          # Zeide D**1.605 (morts.f) → FFI companion (gfortran powf)
             sumdr10 += pr * fpow(d + g, 1.605f0)
             tt += pr
@@ -359,8 +365,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
         @inbounds for _ in 1:10
             tn10 = _pretzsch_tn10(s.density, tt, dia0, d10cur, const_v, pmsdil, pmsdiu)
             tn10 = clamp(tn10, 0f0, tt); tn10 < 0.1f0 && (tn10 = 0f0)
-            rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
-            tem_v2 = min(const_v * d10cur^SDI_EXP, 35000f0) * pmsdil
+            rn = 1f0 - fpow(1f0 - (tt - tn10) / tt, 1f0 / fint)          # morts.f:468 **(1./FINT) → gfortran powf
+            tem_v2 = min(const_v * fpow(d10cur, SDI_EXP), 35000f0) * pmsdil   # morts.f:514 D10**(-1.605)
             density_on = !(tt <= tem_v2 || rn <= 0f0)
             tokill = density_on ? max(tt - tn10, 0f0) : bg_tokill
             _varmrt!(killed, efftr, temwk2, s, v, t, n, tokill)
@@ -380,13 +386,13 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
                 # snt01 and every 5-yr scenario stay bit-exact.
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
                 if zeide
-                    sdr += pr * (d + g)^1.605f0
+                    sdr += pr * fpow(d + g, 1.605f0)                    # morts.f:588 (D+G)**(1.605)
                 else
-                    sdr += pr * (d * d + 2f0 * d * g + g * g)
+                    sdr += pr * (d * d + (2f0 * d * g + g * g))        # morts.f:585-586 D*D+CIOBDS
                 end
                 ttn += pr
             end
-            d10n = ttn <= 0f0 ? 0f0 : (zeide ? (sdr / ttn)^(1f0 / 1.605f0) : sqrt(sdr / ttn))
+            d10n = ttn <= 0f0 ? 0f0 : (zeide ? fpow(sdr / ttn, 1f0 / 1.605f0) : sqrt(sdr / ttn))   # morts.f:590/593
             (abs(d10cur - d10n) <= 0.1f0 || d10n <= dia0) && break
             d10cur = d10n
         end
@@ -411,8 +417,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
         if msb_d10 > s.control.msb_qmd && msb_tn > 0f0
             qmd = s.control.msb_qmd; slp = s.control.msb_slope
             const_v = sdimax / PRETZSCH_SDIK
-            cepmsb = log(const_v * qmd^(-1.605f0)) - slp * log(qmd)     # morts.f:375 (CEPMSB anchors the curve at QMDMSB)
-            tmmsb  = exp(cepmsb + slp * log(msb_d10))                   # morts.f:622
+            cepmsb = flog(const_v * fpow(qmd, -1.605f0)) - slp * flog(qmd)   # morts.f:371 ALOG(CONST*(QMDMSB**(-1.605)))-SLPMSB*ALOG(QMDMSB)
+            tmmsb  = fexp(cepmsb + slp * flog(msb_d10))                 # morts.f:622 EXP(CEPMSB+SLPMSB*ALOG(D10))
             tmore  = max(msb_tn - tmmsb * pmsdiu, 0f0)                  # morts.f:623-625 (T85MSB = TMMSB·PMSDIU)
             dlo = s.control.msb_dlo; dhi = s.control.msb_dhi
             # TPA available in the kill DBH range — DBH projected with FINT/YR, the VARIANT-NATIVE period:

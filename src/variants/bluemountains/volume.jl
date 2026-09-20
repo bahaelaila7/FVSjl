@@ -67,7 +67,7 @@ function compute_volumes_bm!(s::StandState)
             lbf = ecl === nothing ? nothing : NTuple{2,Float32}[]
             lft = ecl === nothing ? nothing : NTuple{2,Float32}[]
             v1 = if hv <= 17.3f0                              # R6VOL short-tree guard (TTH≤FC_HT):
-                0.00272708f0 * dbhib * dbhib * hv            # cylinder VOL(1); R6DIBS/R6VOL1 SKIPPED
+                0.00272708f0 * (dbhib * dbhib) * hv          # r6vol.f:104 VOL(1)=0.00272708*(DBHIB*DBHIB)*TTH (NOT (K·d)·d)
             else
                 v = bm_r6vol3(d, dbtbh, fclass, hv, 1)       # ZONE 1 total cubic → VOL(1)
                 mtopp = 4.5f0 * bark                         # TOPDIAM = TOPD·BARK (fvsvol.f)
@@ -153,7 +153,7 @@ function bm_r6vol3(dbhob::Float32, dbtbh::Float32, fclass::Int, httot::Float32, 
     dbhib = dbhob - dbtbh
     (dbhib <= 0f0 || dbhib > dbhob) && (dbhib = dbhob)
     if dbhib < topd                                            # whole stem below top diam
-        return 0.00272708f0 * dbhib * dbhib * httot
+        return 0.00272708f0 * (dbhib * dbhib) * httot                # r6vol3.f:24 0.00272708*(DBHIB*DBHIB)*HTTOT
     elseif d17 < topd                                          # two-log: butt (H17) + upper cylinder
         v = 0.00272708f0 * (dbhib * dbhib + d17 * d17) * h17
         v += 0.00272708f0 * (d17 * d17) * (httot - h17)
@@ -297,7 +297,7 @@ function bm_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Floa
     else
         iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
         dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
-        h <= 17.3f0 ? 0.00272708f0 * dbhib * dbhib * h : bm_r6vol3(d, dbtbh, bm_formcl(sp, iforst, d), h, 1)
+        h <= 17.3f0 ? 0.00272708f0 * (dbhib * dbhib) * h : bm_r6vol3(d, dbtbh, bm_formcl(sp, iforst, d), h, 1)
     end
     return max(x, tcf)
 end

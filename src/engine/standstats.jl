@@ -81,12 +81,25 @@ function stand_tpa(s::StandState)
     return tot
 end
 
+# dense.f (identical in every variant build): inside DO 50 ISPC / DO 10 I3 / I=IND1(I3):
+#   DP=D*P; WK5(I)=D*DP; TSUMD2=TSUMD2+WK5(I); BATREE=0.005454154*WK5(I); BAT=BAT+BATREE; TPROB=TPROB+P
+# BA=BAT, RMSQD=SQRT(TSUMD2/TPROB). Both the D*(D*P) association and the IND1 accumulation order are part of
+# the REAL*4 result (BM 30193202010497 cyc1 BA 4261C4DB live vs 4261C4DC for record-order p·K·d²).
+# DENSE walk order for BA/RMSQD: FVS IND1. jl's IND1 reconstruction (`_ind1_order`, sort-key lineage) is
+# live-measured faithful for BM; on CS kwcov cs_serlcorr it is NOT (IND1 order flips a 2030 BdFt cell vs live while
+# the D*(D*P) association alone is inert) ⇒ the CS lineage keys diverge from FVS's LNKCHN chain there (open lead).
+# Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
+# association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
+# test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
+_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa InlandEmpire
-        # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE.
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+        # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
+        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
         @inbounds for i in _ind1_order(s)
-            d = t.dbh[i]; ba += 0.005454154f0 * (d * (d * t.tpa[i]))
+            d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
         end
         return ba
     end
@@ -96,9 +109,10 @@ end
 
 function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
-    @inbounds for i in 1:t.n
-        sd2 += t.tpa[i] * t.dbh[i]^2
-        tpa += t.tpa[i]
+    @inbounds for i in _dense_order(s)
+        d = t.dbh[i]; p = t.tpa[i]
+        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
+        tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
 end
@@ -110,15 +124,26 @@ BA-weighted stand maximum SDI (`SDICAL`, base/sdical.f, pre-CLMAXDEN). General a
 the per-species SDImax (`plot.sp_sdi_def`) is variant coefficient data; the averaging is the same
 base algorithm. Used by the mortality SDImax cap and the structure-stage PCTSMX demotion (BTSDIX).
 """
+# SDICAL(0,XMAX) (sdical.f, byte-identical in every variant build): TREEBA=0.0054542*DBH*DBH*PROB (left-assoc,
+# REAL*4) accumulated in IND1 order (SPESRT species groups) into per-species BAXSP and TOTBA; then
+# XMAX = Σ_sp SDIDEF(sp)·BAXSP(sp) over species 1..MAXSP, / TOTBA. The per-species-then-species-sum structure
+# rounds differently from a per-tree Σ SDIDEF·TREEBA — measured on BM 448369010497 cycle 2: CONST=SDIMAX/K
+# live 464FA6A5 vs the per-tree form 464FA6A8.
 function stand_sdimax(s::StandState)
     t = s.trees; p = s.plot
-    num = 0f0; totba = 0f0
-    @inbounds for i in 1:t.n
-        tb = 0.0054542f0 * t.dbh[i]^2 * t.tpa[i]
-        num   += p.sp_sdi_def[t.species[i]] * tb
+    t.n == 0 && return 1f0
+    baxsp = s.scratch.sdi_baxsp; fill!(baxsp, 0f0); totba = 0f0
+    @inbounds for i in _ind1_order(s)
+        tb = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
+        baxsp[t.species[i]] += tb
         totba += tb
     end
-    return totba <= 0f0 ? 1f0 : num / totba
+    totba <= 0f0 && return 1f0
+    xmax = 0f0
+    @inbounds for sp in eachindex(baxsp)
+        xmax += p.sp_sdi_def[sp] * baxsp[sp]
+    end
+    return xmax / totba
 end
 
 """
@@ -229,7 +254,9 @@ function point_density!(s::StandState)
     pi_f = p.pi; gross = p.gross_space
     kt = s.variant isa Kootenai
     ie = s.variant isa InlandEmpire
-    @inbounds for i in 1:t.n
+    # dense.f accumulates PCCF/PTPA inside DO 50 ISPC / DO 10 I3 / I=IND1(I3) — IND1 (SPESRT) order, not record
+    # order; the Float32 sums round differently (BM 30193202010497 cyc1 PCCF 427D72D4 live vs 427D72D3 record-order).
+    @inbounds for i in _ind1_order(s)
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
         local ccft
@@ -499,18 +526,40 @@ stay consistent. **Zeide:** Σ TPA·(D/10)^1.605 over `D ≥ DBHZEIDE` (sdical.f
 the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-327). Defaults
 (Zeide, threshold 0) reproduce the prior behavior.
 """
+# The reported stand SDI (.sum SDI = SDIBC before a thin, SDIAC after): SDICLS(0,0.,999.,1,...) (sdical.f ENTRY
+# SDICLS; fvs.f:440, grincr.f:241) — identical in every variant build. Both loops walk IND1 (SPESRT) order.
+#   pass 1 (DBH>=DBHSTAGE): SDSQ=SDSQ+(DBH**2.0)*PROB; SPROB=SPROB+PROB  → A,B
+#   pass 2: SDIC  = SDIC  + (A+B*(DBH**2.0))*PROB          (DBH>=DBHSTAGE)   — PER TREE, not SPROB*A+B*SDSQ
+#           SDIC2 = SDIC2 + PROB*(DBH/10.)**1.605           (DBH>=DBHZEIDE)
+# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. (The closed form
+# SPROB*A+B*SDSQ lives on in `stand_sdi_reineke`, which CROWN's SDICAL path uses.)
 function stand_sdi(s::StandState)
     t = s.trees
+    t.n == 0 && return 0f0
+    ord = _ind1_order(s)
     if s.control.zeide_sdi
-        thr = s.control.dbh_zeide; sdi = 0f0
-        @inbounds for i in 1:t.n
-            # sdical.f:326 `(DBH/10.)**1.605` — FVS `**` is gfortran powf, NOT Julia's openlibm `^` (differ ~0.07%);
-            # route through the companion (doctrine #8) so the reported/MYSDI Zeide SDI matches FVS bit-exactly.
-            t.dbh[i] >= thr && (sdi += t.tpa[i] * fpow(t.dbh[i] / 10f0, 1.605f0))
+        thr = s.control.dbh_zeide; sdi2 = 0f0
+        @inbounds for i in ord
+            d = t.dbh[i]
+            d >= thr && (sdi2 += t.tpa[i] * fpow(d / 10f0, 1.605f0))
         end
-        return sdi
+        return sdi2
     end
-    return stand_sdi_reineke(s)
+    thr = s.control.dbh_stage; sdsq = 0f0; sprob = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]; d < thr && continue
+        sdsq += fpow(d, 2f0) * t.tpa[i]; sprob += t.tpa[i]
+    end
+    sprob == 0f0 && return 0f0
+    k10 = fpow(10f0, -1.605f0)                     # == gfortran's folded 10.0**(-1.605) (3CCB6B13, verified)
+    a = k10 * (1f0 - 1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0)
+    b = k10 * (1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0 - 1f0)
+    sdic = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]
+        d >= thr && (sdic += (a + b * fpow(d, 2f0)) * t.tpa[i])
+    end
+    return sdic
 end
 
 "Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."

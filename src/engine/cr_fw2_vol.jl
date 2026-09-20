@@ -660,7 +660,7 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     # Small trees (HTTOT≤15): FWSMALL corrects the stump diameter; merch/board stay 0 (LMERCH<MERCHL).
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), d * bark) : -1f0
     minl = _cr_merch_minlen(iregn); merl = _cr_merch_merchl(iregn)
-    vol[1] = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) / 10.0f0    # NINT(TCVOL*10)/10 (ties away from 0)
+    vol[1] = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1     # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1 — MULTIPLY by REAL 0.1 (≠ /10: e.g. 1334·0.1f0=133.40000915 vs 133.4f0=133.39999390)
     # `sf_hs=true`: MERLEN's merch-top height from the faithful SF_HS Newton (no-BRK_UP INGY families only);
     # otherwise the legacy diameter-tolerance bisection (kept for the callers not yet re-validated on it).
     hs_solver = (sf_hs && ingy) ? (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)) : nothing
