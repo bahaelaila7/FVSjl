@@ -236,3 +236,36 @@ per-record-proven; real-FIA population + all real paths verified (population byt
 synthetic-path chain). 15 real IE fixes merged this session.** Remaining corners: dense-phase NSTORE-INT
 small-tree ULP; establishment realization (ESRANN-fixed) + the bare-plot birth-height draw-order above; `#206`
 OLDRN straddles; simfire fire-threshold; per-cycle volume/height single-precision ULP.
+
+---
+
+# ⚠ RETRACTION — the 2026-09-19 "IE CLOSED, no caveat" claim was WRONG (corrected 2026-09-20)
+
+Work on the **BM** variant the next day surfaced real IE bugs, several in code the two variants share. The
+close-out above overstated IE's state. Every item below is a **real bug that has since been fixed** on
+`bm-regime-close`, not a corner. Kept verbatim rather than rewritten, so the failure mode stays visible.
+
+| Claim in the close-out | What it actually was | Fix |
+|---|---|---|
+| mistletoe = "CORNER (population BALANCED)" | Real bug: `ie_mistoe!` ran the spread on a tripling cycle in the wrong order. FVS runs the whole step AFTER MORTS+TRIPLE (`gradd.f:96`), spreading on tripled records, then `MISINF` (`mistoe.f:517`) and `MISMRT` (`:522`) MAX-combining with the post-spread DMR. IE mistletoe movers 11/11/6 → 0/0/2. | `187e4771`, `de8d5143` |
+| plant regime validated | Real bug (shared): a **cycle-number** PLANT/NATURAL date (`PLANT 2.0` — the common keyfile form) resolved one cycle LATE (`cycle_year_at` 0-based vs FVS 1-based). IE plant on 60 stands was BA-under 10/0; the sweep only ever used calendar-year dates. | `50dded40` |
+| simfire = "fire-threshold corner" | Real bug: post-fire establishment. IE simfire was TPA-under 36/4 (Σ−849) on 60 stands — never signed-tallied, only read from ledger buckets. EM was worse (TPA-over 56/1). | `d2dde665` + `635a4bc6` |
+| "TERMINAL PROVEN CORNER — planted birth-height `:estab` draw-ORDER, not faithfully fixable" | **Not a corner.** A chain of eight real bugs (per-plot post-ESAVE draw position `estab.f:967`/DO 322/`:1075`, NBEST rank + `FIRST(2,sp)`, planted WK4 via ESSUBH, REGENT(LESTB) pre-ESNUTR density, new-record WK1=birth DG, IESTAT 20-yr immunity, continuation TIME, TRIPLE survivor arithmetic). The bare-plot fixture is now **bit-exact vs live every cycle 2002-2032 in all five cases**. | `db738eb1` |
+| `test_ie_addtrees` fine | **Failing on master**: the bare-plot chain broke the ADDTREES bridge (918 vs 911 TPA). FVS runs `ESADDT(1)` as the FIRST statement of ESNUTR (`esnutr.f:59`), before sprouting and before the AUTOES tally. The full `Pkg.test` quoted in the close-out predated those six merges. | `12075c1d` |
+| simfire golden "+4 = RDPSRT-tie corner" | Not a corner: jl IE pre-fire TREES now **equals live (305)**; the golden was stale at 309. | `49072826` |
+| (not examined) | STOADJ was reset every cycle instead of persisting (`esinit.f:49`, zeroed by `esin.f:788` NOAUTOES / `:253` NATURAL), and the `STOADJ<1e-4` no-stocking branch was unported ⇒ under NOAUTOES jl gave 911 TPA vs live 364. Forest-code mapping also wrong (`KODFOR=JFOR(IFOR)`, unlisted default IFOR). | `9dbf2623`, `db738eb1` |
+
+**Why the close-out missed them** (now standing rules in the campaign doctrine):
+1. Regimes were judged from ledger **signature buckets** instead of a **signed population tally** — a bucket
+   labelled `structure_densephase` looks like noise; a signed count shows a one-directional bias.
+2. The harness exercised **one date form** (calendar PLANT) — never the cycle-number form real keyfiles use.
+3. Things were called **corners without a per-record proof**, which the doctrine already forbade.
+4. A full `Pkg.test` result was quoted from **before the last six merges**, which were gated only on the
+   narrow 350-test multicycle gate.
+
+**IE open items (tracked, not corners), at the time of writing:** per-record growth differs from cycle 3 on the
+bare-plot fixture (invisible in `.sum`); WPBR on tripled cycles is unported; a base IE control stand read through
+the standard TREEFMT (damage/IMC fields) diverges from live from cycle 1 (BA 100 vs 105 at 2000) — that one was
+hidden by a ±2 delta tolerance in `test_root_disease.jl:827` that called it a `#206` corner.
+
+**IE will be re-certified only when the tiered integration suite passes for it on the exact master tip.**
