@@ -429,7 +429,7 @@ BRCANK 5 4 9 4 0.294876025390625E+04 0.465787544250488E+02 0.000000000000000E+00
     # Inject the oracle's cyc5 pre-BRTREG state (tree fields + canker arrays + BRS0).
     w.brs0 = BRS0; w.ridef = RIDEF; w.dfact[1, 1] = DFACT11; w.dfact[2, 1] = DFACT11
     w.riaf[1] = 1f0; w.riaf[2] = 1f0; w.rimeth = Int32(0); w.setup_done = true
-    empty!(w.recs)
+    empty!(w.slots); empty!(w.lexslot)
     old_tpa = Float32[t.tpa[i] for i in 1:t.n]
     slot = Dict(Int(t.tree_id[i]) => i for i in 1:t.n)
     for (J, tr) in trees
@@ -448,7 +448,7 @@ BRCANK 5 4 9 4 0.294876025390625E+04 0.465787544250488E+02 0.000000000000000E+00
             r.dup[ic] = pf(c[6]); r.dout[ic] = pf(c[7]); r.girdl[ic] = pf(c[8])
             r.istcan[ic] = Int32(parse(Int, c[5]))
         end
-        w.recs[(t.plot_id[sl], t.tree_id[sl])] = r
+        FVSjl._wpbr_put!(w, sl, r)             # BR state lives in the physical record slot (BRCOM X(I))
     end
 
     # Drive the seam for exactly cycle 5 (IFINT=10) — reproduces the oracle's BRTREG.
@@ -463,7 +463,7 @@ BRCANK 5 4 9 4 0.294876025390625E+04 0.465787544250488E+02 0.000000000000000E+00
     @test t.tpa[slot[4]] === old_tpa[slot[4]]
     # (3) The killing canker: bole canker 1 girdled to exactly 100% (status 7), and the
     #     BRHTBC/UPMARK the oracle recorded at the kill.
-    r2 = w.recs[(t.plot_id[sl2], t.tree_id[sl2])]
+    r2 = w.slots[sl2]
     @test r2.ibrstat == 7 && r2.istcan[1] == 7
     @test r2.girdl[1] == 100.0f0
     @test r2.upmark === 2388.4473f0                         # oracle UPMARK at kill (cm)

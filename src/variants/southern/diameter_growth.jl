@@ -1547,5 +1547,6 @@ function triple_records!(s::StandState, stash)
         t.sort_key[u] = 3 * kk; t.sort_key[i] = 3 * kk + 1; t.sort_key[l] = 3 * kk + 2
     end
     t.n = 3 * nlive
+    s.wpbr === nothing || wpbr_brtrip!(s, nlive)   # triple.f BRTRIP (WPBR per-slot state; inert w/o BRUST)
     return s
 end

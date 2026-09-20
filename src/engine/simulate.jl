@@ -521,10 +521,16 @@ end
 # in s.fire.crown_bypass, so a COMCUP swap-from-end must carry it too (composed with the RDTDEL hook).
 function _record_move_hook(s::StandState)
     rd = rd_tdel_hook(s)
+    # BRTDEL (tredel.f, alongside RDTDEL): WPBR per-slot state follows the moved record.
+    br = (s.wpbr !== nothing && (s.wpbr isa WpbrState) && (s.wpbr::WpbrState).active) ? true : nothing
     byp = s.fire === nothing ? nothing : s.fire.crown_bypass
-    (byp === nothing || isempty(byp)) && return rd
+    if byp === nothing || isempty(byp)
+        br === nothing && return rd
+        return (iv, ir) -> (rd === nothing || rd(iv, ir); wpbr_tdel!(s, iv, ir))
+    end
     return (iv, ir) -> begin
         rd === nothing || rd(iv, ir)
+        br === nothing || wpbr_tdel!(s, iv, ir)
         if ir <= length(byp)
             iv <= length(byp) && (byp[iv] = byp[ir])
             byp[ir] = Int32(0)
@@ -617,6 +623,16 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
         m = pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
+    end
+    # WPBR BRTREG (gradd.f:126) follows FMKILL(1) (:122): on a FIRE tripling cycle it runs here, on the tripled
+    # records at full PROB (`pre`), reading WK2 = MAX(MORTS, fire) (a canker kill overrides WK2=PROB·0.99999).
+    if tripled && s.wpbr !== nothing && (s.wpbr::WpbrState).active
+        surv = Float32[t.tpa[j] for j in 1:n]
+        wpbr_brtreg!(s, fint, pre; wk2_hint = Float32[pre[j] - surv[j] for j in 1:n])
+        @inbounds for j in 1:n
+            d = surv[j] - t.tpa[j]
+            d != 0f0 && (mort += d * t.cuft_vol[j]; t.mort_pa[j] += d)
+        end
     end
     book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
     # FMKILL crown hand-back (fmkill.f:92-94): IF(FMICR<1) FMICR=1; IF(FMICR<|ICR|) ICR=-FMICR. The negative
@@ -933,7 +949,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # canker lowers ITRUNC/NORMHT and reduces the crown. Per-record canker state
     # persists across cycles in w.recs. Non-fire, non-tripled path only; inert
     # (byte-identical) unless a BRUST block is active with a host pine present.
-    if !tripled && s.wpbr !== nothing && (s.wpbr::WpbrState).active
+    # On a TRIPLING cycle FVS's BRTREG (gradd.f:126) runs AFTER GRINCR's TRIPLE, on the tripled records at full
+    # pre-UPDATE PROB (BRANN draws per tripled record) — see the post-triple blocks below (br_post).
+    br_on = s.wpbr !== nothing && (s.wpbr::WpbrState).active
+    br_post = br_on && !tripled && stash !== nothing
+    if !tripled && br_on && !br_post
         wpbr_brtreg!(s, fint, old_tpa)
     end
     # WWPB (Westwide Pine Beetle, wwpb/*.f): the landscape Parallel-Processing-
@@ -975,6 +995,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
        wsbwe_go(s.wsbwe::WsbweState)
         wsbwe_apply!(s, old_tpa, fint)
     end
+    # tripled MORTS WK2 per record (triple.f WEIGHT split of the per-original kill) — BRTREG's WK2 input
+    _wk2_trip(wk2_u, nl) = (v = zeros(Float32, 3nl);
+                            @inbounds(for i in 1:nl; v[i] = wk2_u[i] * 0.60f0; v[nl+2i-1] = wk2_u[i] * 0.25f0;
+                                                     v[nl+2i] = wk2_u[i] * 0.15f0; end); v)
     g = s.plot.gross_space
     # Mortality volume (OMORT): MORTS deaths AND the fire kill (the MAX per record), reduced t.tpa from
     # the cycle-start old_tpa at the same cycle-start CFV. Fire cycle: computed inside (on the tripled set).
@@ -1003,6 +1027,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
             ie_dm_mismrt_post!(s, full_prob, fint)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
+            br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG
             mort = 0f0
             @inbounds for c in 1:n2
                 m = full_prob[c] - t.tpa[c]
@@ -1033,6 +1058,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
             mis_post && ie_dm_mismrt_post!(s, full_prob, fint)           # MISMRT into WK2 before RDEND
+            br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG (before RDTREG's RDEND)
             rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
             mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
             @inbounds for c in 1:n2
@@ -1049,6 +1075,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             wk2_u = _morts_wk2(s, old_tpa, nlive)
             @inbounds for i in 1:nlive; t.tpa[i] = old_tpa[i]; end
             triple_records!(s, stash)          # TRIPLE splits the FULL pre-mortality PROB
+            full_prob_p = br_post ? Float32[t.tpa[i] for i in 1:t.n] : Float32[]
             @inbounds for i in 1:nlive
                 t.tpa[i]          = max(0f0, t.tpa[i]          - wk2_u[i] * 0.60f0)
                 t.tpa[nlive+2i-1] = max(0f0, t.tpa[nlive+2i-1] - wk2_u[i] * 0.25f0)
@@ -1058,6 +1085,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             if (s.root_disease !== nothing) && rd_active(s.root_disease) &&
                s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
                 rd_triple_driver!(s.root_disease, stash.nlive)
+            end
+            if br_post                         # gradd.f:126 BRTREG on the tripled full-PROB records
+                surv = Float32[t.tpa[i] for i in 1:t.n]
+                wpbr_brtreg!(s, fint, full_prob_p; wk2_hint = _wk2_trip(wk2_u, nlive))
+                @inbounds for c in 1:t.n       # a BR canker kill (WK2=PROB·0.99999) adds to OMORT/MortPA
+                    d = surv[c] - t.tpa[c]
+                    d != 0f0 && (mort += d * t.cuft_vol[c]; t.mort_pa[c] += d)
+                end
             end
         else
             triple_records!(s, stash)          # TRIPLE after mortality (splits surviving TPA)
@@ -1204,6 +1239,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
+    # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
