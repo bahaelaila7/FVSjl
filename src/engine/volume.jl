@@ -601,16 +601,22 @@ function init_merch_standards!(s::StandState)
         return s
     end
     sd = s.coef.species
+    # A species CSV carries per-species merch specs only where the variant's blkdat actually differs by
+    # species; where a column is 0 the value is the variant-wide GRINIT default (grinit.f STMP/TOPD/DBHMIN,
+    # BF*, SCF*), which `_init_merch_specs!` already put in `c` before keywords. Overwriting unconditionally
+    # zeroed them (e.g. BM: every column except stump is 0 in the CSV), which showed up as FVS_InvReference
+    # merch-spec columns written as 0 for every species.
+    keep(csv, cur) = csv > 0f0 ? csv : cur
     @inbounds for j in 1:length(c.sp_dbh_min)
-        c.sp_scf_dbhmin[j] = sd[:scf_min_dbh][j]
-        c.sp_scf_topd[j]   = sd[:scf_top_dib][j]
-        c.sp_top_diam[j]   = sd[:top_dib][j]
-        c.sp_stump_ht[j]   = sd[:stump][j]
-        c.sp_scf_stump[j]  = sd[:scf_stump][j]
-        c.sp_dbh_min[j]    = sd[:dbh_min][j]
-        c.sp_bf_dbhmin[j]  = sd[:bf_min_dbh][j]
-        c.sp_bf_topd[j]    = sd[:bf_top_dib][j]
-        c.sp_bf_stump[j]   = sd[:bf_stump][j]
+        c.sp_scf_dbhmin[j] = keep(sd[:scf_min_dbh][j], c.sp_scf_dbhmin[j])
+        c.sp_scf_topd[j]   = keep(sd[:scf_top_dib][j], c.sp_scf_topd[j])
+        c.sp_top_diam[j]   = keep(sd[:top_dib][j],     c.sp_top_diam[j])
+        c.sp_stump_ht[j]   = keep(sd[:stump][j],       c.sp_stump_ht[j])
+        c.sp_scf_stump[j]  = keep(sd[:scf_stump][j],   c.sp_scf_stump[j])
+        c.sp_dbh_min[j]    = keep(sd[:dbh_min][j],     c.sp_dbh_min[j])
+        c.sp_bf_dbhmin[j]  = keep(sd[:bf_min_dbh][j],  c.sp_bf_dbhmin[j])
+        c.sp_bf_topd[j]    = keep(sd[:bf_top_dib][j],  c.sp_bf_topd[j])
+        c.sp_bf_stump[j]   = keep(sd[:bf_stump][j],    c.sp_bf_stump[j])
     end
     c.merch_init = true
     return s

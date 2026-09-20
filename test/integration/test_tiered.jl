@@ -12,6 +12,7 @@
 #   TIERED_VARIANTS=BM,SN   → restrict variants
 using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
+include(joinpath(@__DIR__, "..", "harness", "tiered", "aggregate.jl"))
 
 @testset "tiered fast tier vs live-oracle goldens" begin
     quick = get(ENV, "TIERED", "") == "quick"
@@ -56,4 +57,5 @@ include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
         end
         @test isempty(stale)
     end
+    print_aggregate_stats(all_ms, vs)   # print-only aggregate view (never gates)
 end
