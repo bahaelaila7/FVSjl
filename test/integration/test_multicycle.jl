@@ -1,12 +1,9 @@
-# test_multicycle.jl — multi-cycle regression vs a Fortran-oracle golden fixture.
+# test_multicycle.jl — multi-cycle regression vs a live-FVSsn golden fixture (10 SN scenarios, 11 cycles).
 #
-# Closes the "automated suite only checks cyc0/cyc1" blindspot: the deep cycle-by-
-# cycle behaviour (where BAMAX, self-thinning and the DGSCOR tail live) is now in
-# Pkg.test(). Tolerances are loose enough to absorb the known untripled-cycle
-# serial-correlation tail (~1-2% on volume) but tight enough to catch a gross
-# regression like the pre-BAMAX ~20% TPA/BA overshoot. Golden values are the
-# FVSjulia oracle's per-cycle .sum rows (golden_multicycle.csv), which match the
-# Fortran baseline on these standard/numeric scenarios.
+# Closes the "automated suite only checks cyc0/cyc1" blindspot for SN: BA/SDI/QMD every cycle plus the TPA and cuft
+# series, all compared at PRINT PRECISION (the rendered .sum value; no tolerances). Golden values are live FVSsn
+# per-cycle .sum rows (golden_multicycle.csv). This is a narrow SN smoke gate; the multi-variant / multi-regime /
+# multi-output gate is test_tiered.jl (test/harness/tiered/README.md).
 using Test
 using FVSjl
 
@@ -38,19 +35,8 @@ end
             notre!(s); FVSjl.setup_growth!(s); FVSjl.compute_forest_type!(s)
             FVSjl.compute_volumes!(s)
             g = s.plot.gross_space
-            # Golden RE-GROUNDED to live FVSsn (sn_oracle.sh; was Oracle A, wrong by ~1 TPA on s12_phys_p221).
-            # jl matches live to print-rounding on EVERY scenario incl. mix_lp_hi (measured maxima with the
-            # per-cycle compute_forest_type!: TPA 0.57, BA 0.48, SDI 0.49, QMD 0.05, cuft 1.0). Uniform tight
-            # bound = one print unit. (The earlier "LP-calibration tail" was a measurement artifact — a
-            # tolerance-probe loop that omitted the per-cycle FORTYP recompute, which feeds diameter growth.)
-            # BA/SDI/QMD are rendered-== (below); only TPA + cuft carry a float bound (their rendered value
-            # can flip by one unit where the accumulated DGSCOR/untripled-tail growth straddles the print
-            # boundary). Both cornered to the EXACT measured max across every scenario/cycle (deterministic):
-            #   TPA  0.5678 @ s15_phys_p232 cyc9 (jl 102.57 vs golden 102 — real deep-cycle growth tail) → tT=0.57
-            #   cuft 1.0    @ all_LP cyc4        (jl 4095 vs 4094 — one-unit integer tail flip)            → tC=1.0
-            # (TPA was tT=1.0 = a 1.76× pad; the "≤0.57" was already in the comment but not applied.)
-            tT, rT = 0.57, 0.0
-            tC, rC = 1.0, 0.0
+            # Golden RE-GROUNDED to live FVSsn (sn_oracle.sh). Every column is compared at PRINT PRECISION (the
+            # rendered .sum value): BA/SDI/TPA/cuft as rendered integers, QMD at 1 decimal. No tolerances.
             @testset "$scn" begin
                 tpa_pairs  = Tuple{Float64,Float64}[]   # (measured per-acre TPA, golden) per cycle
                 cuft_pairs = Tuple{Float64,Float64}[]   # (measured cuft, golden) per cycle
@@ -64,18 +50,16 @@ end
                     @test trunc(Int, mba + 0.5) == trunc(Int, ba + 0.5)     # BA — rendered-integer BIT-EXACT
                     @test trunc(Int, msdi + 0.5) == trunc(Int, sdi + 0.5)   # SDI — rendered-integer BIT-EXACT
                     @test round(Float64(mqmd); digits = 1) == qmd   # QMD — rendered 1-dec BIT-EXACT
-                    push!(tpa_pairs,  (mtpa, tpa))
-                    push!(cuft_pairs, (Float64(mtcuft), tcuft))
+                    # TPA + cuft at PRINT PRECISION (the .sum renders both as integers, like BA/SDI above): the
+                    # golden holds the printed integer, so compare the rendered integers — an unrounded-vs-printed
+                    # float compare was never satisfiable and parked 10 scenarios as @test_broken spuriously.
+                    push!(tpa_pairs,  (Float64(trunc(Int, mtpa + 0.5)), Float64(trunc(Int, tpa + 0.5))))
+                    push!(cuft_pairs, (Float64(trunc(Int, Float64(mtcuft) + 0.5)), Float64(trunc(Int, tcuft + 0.5))))
                     Int(cyc) < 10 && FVSjl.grow_cycle!(s)
                 end
-                # doctrine #9: TPA (deep-cycle DGSCOR/untripled-tail growth straddling the +0.5 print boundary)
-                # and cuft (one-unit integer tail flip) exposed as @test_broken vs full bit-exactness.
-                # doctrine #9: bit-exact scenarios stay GREEN, residual scenarios (deep-cycle DGSCOR / +0.5
-                # print knife-edge tail) are EXPOSED @test_broken — decided per-scenario so nothing hides.
-                (all(a == b for (a, b) in tpa_pairs)  ? (@test  all(a == b for (a, b) in tpa_pairs))
-                                                      : (@test_broken all(a == b for (a, b) in tpa_pairs)))   # TPA
-                (all(a == b for (a, b) in cuft_pairs) ? (@test  all(a == b for (a, b) in cuft_pairs))
-                                                      : (@test_broken all(a == b for (a, b) in cuft_pairs)))  # cuft
+                # Rendered-integer TPA/cuft must match every cycle (anything that PRINTS differently fails).
+                @test all(a == b for (a, b) in tpa_pairs)    # TPA  — rendered-integer
+                @test all(a == b for (a, b) in cuft_pairs)   # cuft — rendered-integer
             end
         end
     end

@@ -704,11 +704,17 @@ mutable struct Scratch
     # `nothing` and allocate, staying bit-exact and unchanged.)
     r9_vol::Vector{Float32}
     r9_logbuf::Vector{Float32}
+    # IND1 (SPESRT) walk order for the once-per-call stand-statistic sums that FVS accumulates in IND1 order
+    # (DENSE BA/RMSQD/PCCF, SDICAL, SDICLS, SDICHK, CCCLS) — `_ind1_order` fills it and returns a view. The
+    # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
+    ind1_buf::Vector{Int32}
+    sdi_baxsp::Vector{Float32}
 end
 Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
                     zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
-                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40))
+                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
+                    zeros(Int32,MAXTRE), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
