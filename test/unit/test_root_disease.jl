@@ -808,24 +808,40 @@ TREEDATA
         @test rd.maxrr == 3                          # RRTYPE 3 (Armillaria)
     end
 
-    @testset "IE engine seam is LIVE — WRD .sum DELTA vs FVSie oracle (cornered)" begin
-        # Oracle rd−ctrl delta captured from live /workspace/.iework/FVSie_clean on
-        # this exact IE stand (rdblk1ie.f linked; RRType 3, RRInit 0 10 10 20 0.1 10 3,
-        # SArea 100, 10 cyc). FVSjl's IE baseline straddles the oracle absolute (#206
-        # OLDRN growth straddle), so the DELTA is compared, cornered within ±2.
-        IE_ORA_dTPA = Int[0, -5, -5, -4, -2, -3, -1, -2, -1, -1,  0]
-        IE_ORA_dBA  = Int[0, -3, -5, -7, -8, -9, -10, -11, -12, -13, -15]
+    @testset "IE engine seam is LIVE — ABSOLUTE .sum vs FVSie oracle (control AND rd)" begin
+        # Goldens are ABSOLUTE live rows from /workspace/.iework/FVSie_g16.new — the corrected
+        # no-legacy-main build. That build is REQUIRED for this fixture: IE_TRE's TREEFMT uses
+        # backward tabs (T52,I2,T66,5I1,T54,7I1,T75,F3.0), and a -std=legacy main.f makes gfortran
+        # return ZEROS for back-tab reads, so the plain FVSie_g16 silently drops damage/IMC/tree-value
+        # and the measured DG/HTG increments.
+        #
+        # This replaces a rd−ctrl DELTA compared within ±2. That form was blind by construction: an
+        # error shared by both runs cancels in the difference. It hid a control-stand divergence of
+        # 5 BA at 2000 and 15 BA at 2090 (jl's REGENT LHTCAL calibration draw + per-tree ZRAND
+        # persistence, regent.f:1136/513) for as long as it existed. Compare ABSOLUTES, both runs.
+        IE_LIVE_CTRL_TPA = Int[536, 423, 338, 274, 224, 188, 159, 135, 115, 100, 86]
+        IE_LIVE_CTRL_BA  = Int[ 77, 105, 131, 158, 176, 190, 200, 207, 215, 223, 229]
+        IE_LIVE_RD_TPA   = Int[536, 418, 333, 270, 222, 185, 158, 133, 114,  99, 86]
+        IE_LIVE_RD_BA    = Int[ 77, 102, 126, 151, 168, 181, 190, 196, 203, 210, 214]
         bc = split.(_datarows(FVSjl.run_keyfile(ie_ctrl; variant = ie, output = :sum)))
         br = split.(_datarows(FVSjl.run_keyfile(ie_rd;   variant = ie, output = :sum)))
         @test length(bc) == length(br) == 11
-        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:11]
-        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:11]
-        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on IE
-        @test dba[end] <= -12                        # 2090 BA loss (oracle −15; cornered)
+        ctpa = [parse(Int, bc[k][3]) for k in 1:11]; cba = [parse(Int, bc[k][4]) for k in 1:11]
+        rtpa = [parse(Int, br[k][3]) for k in 1:11]; rba = [parse(Int, br[k][4]) for k in 1:11]
+        # BASAL AREA is EXACT against live on the control run, every cycle — that is the bit that the
+        # delta form could never assert. Hold it exact so any regression in IE growth shows up here.
+        @test cba == IE_LIVE_CTRL_BA
+        # TPA is a mortality COUNT and still carries a small residual (<=3 of 536, i.e. <=0.7%,
+        # converging to 0 by 2090) on both runs. Bounded tightly and documented, NOT waved through.
         for k in 1:11
-            @test abs(dtpa[k] - IE_ORA_dTPA[k]) <= 2
-            @test abs(dba[k]  - IE_ORA_dBA[k])  <= 2
+            @test abs(ctpa[k] - IE_LIVE_CTRL_TPA[k]) <= 3
+            @test abs(rtpa[k] - IE_LIVE_RD_TPA[k])   <= 3
+            @test abs(rba[k]  - IE_LIVE_RD_BA[k])    <= 1
         end
+        # …and the WRD signal itself is live and correctly signed against the oracle's own deltas.
+        @test rtpa != ctpa
+        @test all(rba .<= cba)
+        @test cba[end] - rba[end] == IE_LIVE_CTRL_BA[end] - IE_LIVE_RD_BA[end]   # 2090 loss = oracle's 15
     end
 
     # -------------------------------------------------------------------------

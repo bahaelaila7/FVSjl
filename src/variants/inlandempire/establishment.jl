@@ -1061,11 +1061,16 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
         prob_old = max(p1n - pn, 0.0001f0)
-        esprob(i) = is_ingro ? max(p1n * Float32(newtpp) / Float32(itpp), 0.0001f0) : (i <= ns ? prob_old : p1n)
+        esprob(i) = is_ingro ? max(p1n * (Float32(newtpp) / Float32(itpp)), 0.0001f0) : (i <= ns ? prob_old : p1n)   # estab.f:945-950 FTEMP2=NEWTPP/ITPP first, then FTEMP*FTEMP2
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1
-            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), Float32(baa),
+            # estab.f:482-484 BAA=BAAA(NNID) clamp[1,400] is PER-POINT (NNID=IPTIDS(NN), the plot id), and
+            # ESNSPE reads that same /ESCOMN/ BAA (esnspe.f:31) — it takes no BAA argument. Use the per-point
+            # value here exactly as baa_p/baa_h do. TPPLN stays flog: estab.f:687 is ALOG (single precision).
+            baa_n = (!isempty(point_baa) && _ptn <= length(point_baa)) ?
+                    clamp(Float32(point_baa[_ptn]), 1f0, 400f0) : Float32(baa)
+            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), baa_n,
                                      Float32(elev), Float32(regt), Float32(bwaf), xc, xs, sl))
             cum = cumsum(pspe ./ sum(pspe)); numspe = 6
             for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
@@ -2605,6 +2610,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f
         # XCHECK; :1348 excess: 0). IDSDAT = this ESTAB call's date of disturbance (esnutr.f sets it before ESTAB).
         t.iestat[n]      = bbest[bi] ? Int32(est.idsdat) + Int32(20) : Int32(0)
+        t.zrand[n]       = -999f0                        # estab.f:1245/1334 ZRAND(ITRN)=-999.
         # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
         pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
                (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])

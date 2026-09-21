@@ -8,7 +8,12 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     n = t.n; n == 0 && return s
     ba = p.basal_area
     itype = Int(p.habitat_input)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? IE_BAMAXA[itype] : 0f0)
+    # BAMAX: a user BAMAX (keyword/DB ⇒ LBAMAX) is used as given. Otherwise ie/sitset.f:82-84 seeds BAMAXA(ITYPE)
+    # WITHOUT setting LBAMAX, so MORTS's CALL SDICAL(0,SDIMAX) (morts.f:193) re-derives BAMAX=XMAX·0.5454154·PMSDIU
+    # from the BA-weighted SDIDEF (sdical.f:203-205). The 380→SDIDEF→BAMAX round trip is NOT the identity in single
+    # precision (IE habitat 13: 380.00003), and BAMAX divides RIPP (morts.f:291) — using the raw table value moved a
+    # kill by ~5 ULP (bare-plot fixture record 241, cycle 4).
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : _ie_sdical_bamax(s, itype)
     bamax <= 0f0 && (bamax = 1f0)
     sdimax = stand_sdimax(s)
     # stand sums (morts.f:196-210, RAW record order): T, SD2SQ → DQ10; AVED (BA-weighted mean DBH)
@@ -102,4 +107,38 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
+end
+
+"""
+    _ie_sdical_bamax(s, itype) -> Float32
+
+SDICAL's non-LBAMAX BAMAX (sdical.f:95-126, 203-205), evaluated exactly as gfortran does: species BA sums over
+IND1 (`BAXSP(sp) += ((0.0054542·D)·D)·P`, TOTBA in the same order), `XMAX = (Σ_{sp=1..MAXSP} SDIDEF(sp)·BAXSP(sp))/TOTBA`
+(XMAX=1 when TOTBA≤0), then `BAMAX = (XMAX·0.5454154)·PMSDIU` with PMSDIU as a fraction (morts.f:184).
+"""
+function _ie_sdical_bamax(s::StandState, itype::Int)::Float32
+    t = s.trees; p = s.plot
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    baxsp = zeros(Float32, MAXSP); totba = 0f0
+    @inbounds for sp in 1:MAXSP
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        for k in i1:isct[sp, 2]
+            (1 <= k <= length(ind1)) || continue
+            i = Int(ind1[k]); (1 <= i <= t.n) || continue
+            treeba = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
+            baxsp[Int(t.species[i])] += treeba
+            totba += treeba
+        end
+    end
+    xmax = 0f0
+    if totba <= 0f0
+        xmax = 1f0
+    else
+        @inbounds for sp in 1:min(MAXSP, length(p.sp_sdi_def))   # DO 60 I=1,MAXSP (unused species add SDIDEF·0)
+            xmax += p.sp_sdi_def[sp] * baxsp[sp]
+        end
+        xmax = xmax / totba
+    end
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
+    return xmax * 0.5454154f0 * pmsdiu
 end

@@ -645,10 +645,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          s.variant isa Klamath ? NC_PSIGSQ[sp] :
                          s.variant isa Olympic ? 0.0898f0 : DG_PSIGSQ   # OP 0.0898 (op/dgdriv.f DATA PSIGSQ/MAXSP*0.0898/) / NE 0.0898 / SN default
                 temp = min(cornew * cornew / psigsq, 72f0)
-                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
+                wc = 1f0 / (1f0 + fexp(-0.5f0 * temp) * sqrt(svar_v / psigsq))   # gfortran single-precision EXP
                 corv = wc * cornew
                 # out-of-range trap (cortem = exp(COR))
-                if exp(corv) < 0.0821f0 || exp(corv) > 12.1825f0
+                if fexp(corv) < 0.0821f0 || fexp(corv) > 12.1825f0
                     corv = 0f0
                 end
                 c.dg_cor[sp] = corv
@@ -660,11 +660,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 c.cal_stdrat[sp] = sigmar[sp] > 0f0 && fn[sp] > 1f0 ?
                                    sqrt((svar / (fn[sp] - 1f0)) / sigmar[sp]^2) : 0f0
                 c.cal_wci[sp] = wc
-                c.cal_cortem[sp] = exp(corv)      # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
+                c.cal_cortem[sp] = fexp(corv)     # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
                 slop[sp] = slp; bnx[sp] = bnxv; bny[sp] = bnyv; calibrated[sp] = true
             end
         end
-        vtemp = exp(c.sigma[sp]^2)
+        # dgdriv.f:682 VTEMP=EXP(SIGMA**2): gfortran single-precision EXP (native Julia exp is 1 ULP off for some
+        # SIGMA, e.g. IE WP 0.2466 ⇒ VARDG 3BC9DD45 vs FVS 3BC9DD39), and VARDG feeds SSIG/RHO/RHOCP ⇒ every DGSCOR draw.
+        vtemp = fexp(c.sigma[sp] * c.sigma[sp])
         c.vardg[sp] = (vtemp - 1f0) * vtemp / vmlt
     end
 
@@ -1550,3 +1552,4 @@ function triple_records!(s::StandState, stash)
     s.wpbr === nothing || wpbr_brtrip!(s, nlive)   # triple.f BRTRIP (WPBR per-slot state; inert w/o BRUST)
     return s
 end
+
