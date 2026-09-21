@@ -103,9 +103,10 @@ copy anything worth keeping (instrumented-oracle recipes) into the repo or `/wor
 | `ie-ulp-atrt` | 111d7d82 | merged (ATRTList, DSNOUT, IE ULPs cyc≤2) | `.wt-ulp` | delete — `.dig` reused by ie-ulp3 |
 | `fix-treeszcp-wpbr` | 0d56d7d5 | merged (fpowi, PCTILE, WPBR activities) | `.wt-tsz` | delete — `.dig_wpbr` reused by wpbr-tripled |
 | `bm-base-resid3` | 352a31ef | merged 877064b5 (REAL*4 op forms; BM none 386→398/400) | `.wt-bm-base3` | delete |
-| `wpbr-tripled` | 523c2b97 | **WIP, UNVERIFIED** — fork killed by API rate limit mid-verification; it reported test_root_disease 1157/2 vs baseline 1158/1 (new failure unidentified). DO NOT MERGE until traced. | `.wt-wpbr3` | verify → merge or discard |
+| `wpbr-tripled` | 91fd73f6 | merged df8d3c38 — WPBR on tripling cycles, bit-exact on a new tripled fixture; test_wpbr 54/2 → 56/56. The "new" test_root_disease failure was a STALE BASELINE (the tip itself is 1157/2). | `.wt-wpbr3` | delete |
 | `list-ht2td` | 50907c14 | merged (Ht2TD columns + NVEL precision) | `.wt-ht2td` | delete |
-| `ie-ulp3` | e30c58ee | **WIP, UNVERIFIED** — fork killed by API rate limit mid-trace (LHTCAL grinit.f:104 / initre.f:2470-2490 lead). DO NOT MERGE until verified. | `.wt-ulp3` | verify → merge or discard |
+| `ie-ulp3` | (moving) | **ACTIVE** — IE control-stand divergence (TREEFMT back-tab fixture, print-visible from cycle 1) + per-record growth from cycle 3; also owns the dropped `ie_esnspe` per-plot-BAA finding. | `.wt-ulp3` | merge, then delete |
+| `cs-bdft` | 00fcf75f | merged 92d39ea3 — kwcov allowlist generator threw (every stem permanently "broken"); cs_numtrip + cs_treeszcp were stale. | `/workspace/.wt-cs` | delete |
 | `tiered-suite` | 98d2b6ef | merged b4ec90f1 (tiered suite + 32MB fixtures, 4 variants) | `.wt-tiered` | delete |
 | `ie-climate-4759041` | 29afeea2 | merged (2026-09-18; content == 583da79c) | `/workspace/.wt-regendg` | delete |
 | `ie-dfht` | 38091a40 | merged (2026-09-18 bare-plot chain) | `FVSjl/.claude/worktrees/agent-a7c278e41effcaf96` | delete |
