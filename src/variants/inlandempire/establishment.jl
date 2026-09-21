@@ -1065,7 +1065,12 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         wk6n = ntuple(_ -> ie_esrann!(rng), 6); wk6s = ntuple(_ -> ie_esrann!(rng), 6)
         numspe = 1
         if itpp != 1
-            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), Float32(baa),
+            # estab.f:482-484 BAA=BAAA(NNID) clamp[1,400] is PER-POINT (NNID=IPTIDS(NN), the plot id), and
+            # ESNSPE reads that same /ESCOMN/ BAA (esnspe.f:31) — it takes no BAA argument. Use the per-point
+            # value here exactly as baa_p/baa_h do. TPPLN stays flog: estab.f:687 is ALOG (single precision).
+            baa_n = (!isempty(point_baa) && _ptn <= length(point_baa)) ?
+                    clamp(Float32(point_baa[_ptn]), 1f0, 400f0) : Float32(baa)
+            pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), baa_n,
                                      Float32(elev), Float32(regt), Float32(bwaf), xc, xs, sl))
             cum = cumsum(pspe ./ sum(pspe)); numspe = 6
             for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
