@@ -2494,6 +2494,12 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                           s.rng.es0 = saved
                           hts
                       end)
+    # WPBR BRESTB (estab.f:1265/1355/1445) receives this call's height-section TIME (estab.f:792 TIME=FLOKDT−KDTOLD,
+    # the tally's `tmh`): the same expression passed as time_h above, falling back to the tally time.
+    if s.wpbr !== nothing && (s.wpbr isa WpbrState)
+        _th = (_ntally == 1 || _ntally == 99 || est.kdtold < 0) ? -1 : (next_year - 1 - Int(est.kdtold))
+        (s.wpbr::WpbrState).estb_time = _th >= 0 ? Float32(_th) : Float32(time)
+    end
     est.kdtold = Int32(next_year - 1)                         # estab.f:1654 KDTOLD=KDT at the end of this ESTAB call
     est.es_plot_dil = r.ph_dilate === nothing ? Float32[] : r.ph_dilate
     est.es_plot_note = r.ph_note === nothing ? Int[] : r.ph_note
