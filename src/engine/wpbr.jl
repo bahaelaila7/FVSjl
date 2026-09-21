@@ -214,12 +214,16 @@ mutable struct WpbrState <: AbstractWpbrState
     lredf::Bool                # LREDF — RIBES computed a rust-index reduction factor this cycle
     redfac::Float32            # REDFAC — that factor (BRIBES)
     # --- per-cycle BRTREG engine seam (live) ---
-    recs::Dict{Tuple{Int32,Int32},WpbrRec}   # persistent per-record canker state, keyed by identity
+    slots::Vector{Union{Nothing,WpbrRec}}    # per PHYSICAL record slot I (the BRCOM arrays X(I)/X(10,I)): moved by
+                                              # BRTDEL (TREDEL/COMCUP hook), BRTRIP (TRIPLE), set by BRSETP/BRESTB
+    lexslot::Vector{Bool}                     # LEXMLT(MAXTRE) — per SLOT, never copied by BRTRIP/BRTDEL (a record
+                                              # moved/tripled/established into slot k inherits slot k's LEXMLT)
     setup_done::Bool                          # BRSETP per-tree init has run
     thprob::NTuple{2,Float32}                 # THPROB — total host TPA per BR species (BRSTAT)
     tretn::NTuple{2,Float32}                  # TRETN — infected host TPA per BR species (BRECAN/BRSTAT)
     tbrhmr::NTuple{2,Float32}                 # TBRHMR — cumulative BR historical mortality per BR species
     pitca::NTuple{2,Float32}                  # PITCA — proportion of host trees infected per BR species
+    estb_time::Float32                        # estab.f TIME at this cycle's ESTAB call (:792 FLOKDT−KDTOLD) — BRESTB arg
 end
 
 # NBRSP host-species count (parameter in BRCOM.F77).
@@ -268,9 +272,10 @@ function wpbr_defaults!(variant)
         Tuple{Int,Int,Vector{Float32}}[],       # activities
         Bool[],                                 # act_done
         false, false, false, false, false, 0f0, # lprgo, lexgo, lprun, lclen, lredf, redfac
-        Dict{Tuple{Int32,Int32},WpbrRec}(),     # recs
+        Union{Nothing,WpbrRec}[], Bool[],       # slots, lexslot (BRINIT: LEXMLT(J)=.FALSE.)
         false,                                   # setup_done
         (0f0, 0f0), (0f0, 0f0), (0f0, 0f0), (0f0, 0f0),  # thprob, tretn, tbrhmr, pitca
+        0f0,                                     # estb_time
     )
 end
 
@@ -813,9 +818,9 @@ end
 #
 # The seam is BRUST-keyword-gated (w.active) and a no-host stand does nothing, so
 # a run without a BRUST block — or with no 5-needle-pine host — is BYTE-IDENTICAL.
-# Per-record canker state persists in `w.recs` keyed by (plot_id, tree_id), which
-# rides FVSjl's copy_tree! compaction the way FVS's BRTDEL/BRCMPR keep the BR
-# arrays aligned to the physical slot.
+# Per-record canker state lives in `w.slots`, indexed by the PHYSICAL record slot exactly like FVS's BRCOM
+# arrays: TREDEL/COMCUP moves carry it (BRTDEL, via _record_move_hook), TRIPLE copies it (BRTRIP, incl.
+# triple.f's BRTRIP(ITFN,I,0.6) re-copy of the lower copy), establishment seeds it (BRESTB).
 #
 # NOTE ON VALIDATION: the FVSjl growth trajectory straddles the FVS oracle on the
 # goldens stand (#206 OLDRN; FVSjl-off 2040 TPA 29 vs FVSie_wpbr-off 25), so the
@@ -846,14 +851,141 @@ end
 # a record first seen mid-run (regen/tripling, absent under NOTRIPLE/NOAUTOES) is
 # seeded here identically.
 function _wpbr_rec!(s::StandState, w::WpbrState, i::Int)::WpbrRec
-    t = s.trees
-    key = (t.plot_id[i], t.tree_id[i])
-    r = get(w.recs, key, nothing)
+    _wpbr_slots!(w, i)
+    r = w.slots[i]
     r !== nothing && return r
     r = WpbrRec()
     _wpbr_brsetp_rec!(r, s, i)
-    w.recs[key] = r
+    r.lexmlt = w.lexslot[i]
+    w.slots[i] = r
     return r
+end
+
+# Grow the per-slot arrays to cover slot `i` (new slots: no record, LEXMLT .FALSE. per BRINIT).
+@inline function _wpbr_slots!(w::WpbrState, i::Int)
+    while length(w.slots) < i; push!(w.slots, nothing); end
+    while length(w.lexslot) < i; push!(w.lexslot, false); end
+    return nothing
+end
+
+# Place record state `r` into slot `k`: LEXMLT is a per-SLOT array neither BRTRIP nor BRTDEL copies, so the
+# arriving record takes slot k's current (possibly stale) LEXMLT.
+@inline function _wpbr_put!(w::WpbrState, k::Int, r::Union{Nothing,WpbrRec})
+    _wpbr_slots!(w, k)
+    r === nothing || (r.lexmlt = w.lexslot[k])
+    w.slots[k] = r
+    return nothing
+end
+
+# Record the current per-record LEXMLT back into its slot (after BRCGRO/BRCSTA wrote it).
+function _wpbr_sync_lex!(s::StandState, w::WpbrState)
+    for (_, recs) in _wpbr_host_blocks(s, w), i in recs
+        r = w.slots[i]; r === nothing && continue
+        _wpbr_slots!(w, i); w.lexslot[i] = r.lexmlt
+    end
+    return nothing
+end
+
+# BRTRIP (brtrip.f) — copy the BR state of record `i` into slot `inut`, BRPB scaled by WT (single precision).
+# Canker arrays beyond ILCAN are never read before being rewritten, so a full copy is equivalent.
+function _wpbr_tripcopy(r::WpbrRec, wt::Float32)::WpbrRec
+    return WpbrRec(r.brage, r.brgd, r.brhtbc, r.ri, r.gi, r.tstarg, r.estcan, r.upmark, _wf(r.brpb * wt),
+                   r.istoty, r.ibrstat, r.itcan, r.ilcan, copy(r.dup), copy(r.dout), copy(r.girdl),
+                   copy(r.istcan), r.icred, false)
+end
+
+"""
+    wpbr_brtrip!(s, nrec)
+
+TRIPLE's BRTRIP calls (triple.f): for each original record I (1:nrec) the upper copy (slot nrec+2I−1) gets
+BRTRIP(ITFN,I,0.25), the lower copy (nrec+2I) BRTRIP(ITFN,I,0.15) and then — label 20 — BRTRIP(ITFN,I,0.6)
+AGAIN on that same lower slot, so the lower copy ends with BRPB(I)·0.6 while BRPB(I) itself is never scaled.
+Inert unless a BRUST block is active and set up.
+"""
+function wpbr_brtrip!(s::StandState, nrec::Int)
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active || !w.setup_done) && return nothing
+    _wpbr_slots!(w, 3nrec)
+    for i in 1:nrec
+        r = w.slots[i]
+        _wpbr_put!(w, nrec + 2i - 1, r === nothing ? nothing : _wpbr_tripcopy(r, 0.25f0))
+        _wpbr_put!(w, nrec + 2i,     r === nothing ? nothing : _wpbr_tripcopy(r, 0.6f0))
+    end
+    return nothing
+end
+
+"""
+    wpbr_tdel!(s, ivac, irec)
+
+BRTDEL (brtdel.f): TREDEL moved record IREC into vacancy IVAC — carry its BR state (all per-tree arrays; not
+LEXMLT). Called through `_record_move_hook`. Inert unless BRUST is active.
+"""
+function wpbr_tdel!(s::StandState, iv::Int, ir::Int)
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
+    ir <= length(w.slots) || return nothing
+    r = w.slots[ir]
+    _wpbr_put!(w, iv, r)
+    w.slots[ir] = nothing
+    return nothing
+end
+
+"""
+    wpbr_brestb!(s, i, time)
+
+BRESTB (brestb.f) — seed the BR state of a newly established record in slot `i` (estab.f:1265/1355/1445, called
+right after the record's birth attributes are set: HT=HHT, DBH=0.1, ICR=0). `time` is estab.f's TIME at that
+point (the :792 height-section TIME=FLOKDT−KDTOLD). Non-hosts are left untouched (FVS writes nothing).
+"""
+function wpbr_brestb!(s::StandState, i::Int, time::Real; dbh::Real = s.trees.dbh[i], icr::Integer = s.trees.crown_pct[i])
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
+    t = s.trees
+    sp = Int(t.species[i])
+    (1 <= sp <= length(w.brspm) && w.brspm[sp] > 0) || return nothing
+    r = WpbrRec()
+    tm = Float32(time)
+    r.upmark = 10000f0; r.ri = 0f0; r.brpb = 0f0; r.estcan = 0f0
+    r.itcan = Int32(0); r.ilcan = Int32(0)
+    r.brage = tm
+    iiago = trunc(Int, tm)                                   # IIAGO=IFIX(TIME)
+    r.istoty = Int32(5); r.icred = Int32(0); r.ibrstat = Int32(0)
+    brht = _wf(t.height[i] * 0.3048f0)
+    brdbh = _wf(Float32(dbh) * 2.54f0)
+    if brht < 2f0
+        r.brgd = brdbh
+    else
+        g = _wf(_wf(_wf(100f0 * brht) * brdbh) / _wf(100f0 * _wf(brht - 1.14f0)))
+        r.brgd = g < brdbh ? brdbh : g
+    end
+    icr = Int(icr)
+    if icr > 0
+        crlen = _wf(brht * _wf(Float32(icr) / 100f0))
+        r.brhtbc = _wf(_wf(brht - crlen) * 100f0)
+    else
+        r.brhtbc = 0f0
+    end
+    (gibr, tbsum) = wpbr_brgi(iiago, brht)
+    r.gi = gibr; r.tstarg = tbsum
+    _wpbr_put!(w, i, r)
+    return nothing
+end
+
+"""
+    wpbr_brestb_new!(s, nstart)
+
+The three estab.f BRESTB calls (:1265 best, :1355 excess, :1445 planted) for this cycle's new records
+`nstart+1:t.n` (IE/EM estab.f; called after the ESNUTR record layout is final and BEFORE ESGENT grows them).
+At each call site FVS has just set DBH(ITRN)=0.1 and ICR(ITRN)=0, HT(ITRN)=HHT; TIME is the ESTAB call's
+height-section TIME (`w.estb_time`). Inert unless BRUST is active.
+"""
+function wpbr_brestb_new!(s::StandState, nstart::Int)
+    w = s.wpbr
+    (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
+    for i in (nstart + 1):s.trees.n
+        wpbr_brestb!(s, i, w.estb_time; dbh = 0.1f0, icr = 0)
+    end
+    return nothing
 end
 
 # BRSETP (brsetp.f) per-record initialization: ground diameter, height-to-crown,
@@ -1258,7 +1390,7 @@ in `w.recs` for next cycle; BRUPDT grows each record's ground diameter at cycle 
 `old_tpa` is the cycle-start TPA (FVS PROB, pre-MORTS). Inert unless BRUST is active
 with hosts present.
 """
-function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
+function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32}; wk2_hint = nothing)
     w = s.wpbr
     (w === nothing || !(w isa WpbrState) || !w.active) && return nothing
     t = s.trees; n = t.n; n == 0 && return nothing
@@ -1282,7 +1414,8 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
             _wf(w.minri + _wf(w.maxri * exp(_wf(-0.5f0 * _wf(_wf(log(_wf(nage - w.pkage)) / w.pkshp)^2)))))
     end
     # MORTS WK2 per record (exact applied kill when it reproduces the survivor; brtreg.f:490 TBRHMR+=WK2)
-    kb = s.scratch.mort_killed
+    # (tripled cycles pass the exact tripled WK2 = MORTS kill·weight as `wk2_hint`)
+    kb = wk2_hint === nothing ? s.scratch.mort_killed : wk2_hint
     mwk2(i) = (k = i <= length(kb) ? min(kb[i], old_tpa[i]) : -1f0;
                (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i])
     pimax = _wf(1f0 - exp(_wf(-(_wf(100f0 / _wf(1f0 + _wf(100f0 * w.dfact[1, 1])))))))
@@ -1361,6 +1494,7 @@ function wpbr_brtreg!(s::StandState, fint::Real, old_tpa::Vector{Float32})
             r.brgd = _wf(r.brgd + _wf(t.diam_growth[i] * 2.54f0))
         end
     end
+    _wpbr_sync_lex!(s, w)                          # LEXMLT(K) written by BRCGRO lives in the slot
     return nothing
 end
 
