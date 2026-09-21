@@ -69,16 +69,23 @@ per cycle vs freshly-relinked live FVS.
   of [docs/DOCTRINE.md](docs/DOCTRINE.md) (pause at ~100 unexplained divergences, dig
   each to a named primitive or a real bug, fix upstream-first, resume). See
   [docs/PORT_STATUS.md](docs/PORT_STATUS.md) for the current per-variant state.
-  - **Inland Empire (IE) — CLOSED, bit-exact-or-cornered on every regime + extension +
-    code path** (15 faithful IE fixes; full stratified matrix none / thin / plant /
-    simfire / salvage + mistletoe / climate / rootdis / econ / cover, plus the synthetic
-    bare-plot PLANT construction), verified vs the live oracle with every residual named
-    and per-record-proven: establishment realization (ESRANN-fixed ⇒ population sign-tally),
-    dense-phase NSTORE-INT ULP, `#206` OLDRN draw-order straddles, planted birth-height
-    `:estab` draw-order (bare-plot terminal corner), fire-threshold and board-foot merch
-    discretization. Full `Pkg.test` on main-at-master: 55329 pass / 25 fail / 75 broken,
-    zero IE regressions (all 25 fails pre-existing + IE-independent). Full write-up:
-    [docs/IE_VARIANT_PORT_AUDIT.md](docs/IE_VARIANT_PORT_AUDIT.md) → "IE CLOSE-OUT" + addendum.
+  - **Blue Mountains (BM) — at the oracle floor.** Against the live oracle on a stratified
+    FIA sample: **398/400 stands bit-exact** with no management (the other two differ by one
+    unit in a single printed cell), and **zero one-directional divergence in every regime** —
+    none / thin / plant / salvage / simfire + mistletoe / climate / rootdis / econ / cover.
+    Reached by ~20 faithful fixes this campaign, including seven FFE gaps (BM's fuel loop never
+    ran), the ECON engine (`FVS_EconSummary` was never written), BM stump sprouting (7 stands
+    crashed), root-disease record moves (`RDTDEL`), BM establishment via `strp/estab.f`, one
+    variant-correct crown width for every consumer, COVER/StrClass, and faithful single-precision
+    operation forms throughout.
+  - **Inland Empire (IE) — RE-OPENED.** The 2026-09-19 "closed, no caveat" claim was wrong:
+    BM work the next day surfaced seven real IE bugs, several in shared code (mistletoe ordering,
+    cycle-number PLANT dates, post-fire establishment, the supposed "terminal corner" on planted
+    birth heights, a failing ADDTREES test, a stale simfire golden, STOADJ/forest-code mapping).
+    All are fixed, but IE is **not** certified again until the tiered integration suite passes for
+    it on the exact master tip. The retraction, with per-item evidence and the method failures that
+    let it through, is in
+    [docs/IE_VARIANT_PORT_AUDIT.md](docs/IE_VARIANT_PORT_AUDIT.md) → "RETRACTION".
 
 ## Install & run
 

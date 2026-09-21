@@ -69,9 +69,86 @@ end
 Initialize one stand from an already-open keyword reader. Applies BLOCK DATA
 defaults then processes keywords until PROCESS/STOP/EOF (the returned reason).
 """
+
+# Per-variant merchantability-spec defaults, taken verbatim from each variant's `grinit.f`
+# (STMP/TOPD/DBHMIN, BFSTMP/BFTOPD/BFMIND, SCFSTMP/SCFTOPD/SCFMIND). FVS sets these in GRINIT
+# before INITRE reads keywords, so a VOLUME/MERCH keyword still overrides them. Without them the
+# arrays stayed 0 and FVS_InvReference's merch-spec columns were written as 0 for every species.
+# Tuple order: (STMP, TOPD, DBHMIN, BFSTMP, BFTOPD, BFMIND, SCFSTMP, SCFTOPD, SCFMIND).
+const _MERCH_DEFAULTS = Dict{String,NTuple{9,Float32}}(
+    "AK" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "BC" => (30.0f0, 10.0f0, 17.5f0, 30.0f0, 10.0f0, 17.5f0, 0.0f0, 0.0f0, 0.0f0),   # metric
+    "BM" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0),
+    "CA" => (1.0f0, 0.0f0, 7.0f0, 1.0f0, 0.0f0, 7.0f0, 1.0f0, 0.0f0, 7.0f0),
+    "CI" => (1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0),
+    "CR" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "CS" => (0.5f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "EC" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0),
+    "EM" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0),
+    "IE" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0),
+    "KT" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0, 1.0f0, 4.5f0, 7.0f0),
+    "LS" => (0.5f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "NC" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "NE" => (0.5f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "OC" => (1.0f0, 0.0f0, 7.0f0, 1.0f0, 0.0f0, 7.0f0, 1.0f0, 0.0f0, 7.0f0),
+    "ON" => (30.0f0, 10.0f0, 0.0f0, 30.0f0, 10.0f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0),    # metric
+    "OP" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "PN" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "SN" => (0.5f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "SO" => (1.0f0, 0.0f0, 9.0f0, 1.0f0, 0.0f0, 9.0f0, 1.0f0, 0.0f0, 9.0f0),
+    "TT" => (1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0),
+    "UT" => (1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0, 1.0f0, 6.0f0, 8.0f0),
+    "WC" => (1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0, 1.0f0, 0.0f0, 0.0f0),
+    "WS" => (1.0f0, 4.5f0, 7.0f0, 1.0f0, 6.0f0, 10.0f0, 1.0f0, 6.0f0, 10.0f0),
+)
+
+# Per-SPECIES exceptions that each grinit.f applies after the all-species loop (e.g. BM `DBHMIN(7)=6.0`,
+# `BFMIND(7)=6.0`, `SCFMIND(7)=6.0` — lodgepole). Entries: species index => (DBHMIN, BFMIND, SCFMIND).
+const _MERCH_SP_OVERRIDES = Dict{String,Dict{Int,NTuple{3,Float32}}}(
+    "BC" => Dict(7  => (12.5f0, 12.5f0, -1f0)),      # BC has no SCF arrays in grinit
+    "BM" => Dict(7  => (6.0f0, 6.0f0, 6.0f0)),
+    "CA" => Dict(11 => (6.0f0, 6.0f0, 6.0f0)),
+    "CI" => Dict(7  => (7.0f0, 7.0f0, 7.0f0)),
+    "EC" => Dict(7  => (6.0f0, 6.0f0, 6.0f0)),
+    "EM" => Dict(7  => (6.0f0, 6.0f0, 6.0f0)),
+    "IE" => Dict(7  => (6.0f0, 6.0f0, 6.0f0)),
+    "KT" => Dict(7  => (6.0f0, 6.0f0, 6.0f0)),
+    "OC" => Dict(11 => (6.0f0, 6.0f0, 6.0f0)),
+    "TT" => Dict(7  => (7.0f0, 7.0f0, 7.0f0)),
+    "UT" => Dict(7  => (7.0f0, 7.0f0, 7.0f0)),
+)
+
+"""
+    _init_merch_specs!(s)
+
+GRINIT's per-species merchantability defaults (`grinit.f`): total-cubic stump/top/min-DBH, the
+board-foot trio and the sawtimber-cubic trio, applied to every species before keywords are read.
+"""
+function _init_merch_specs!(s::StandState)
+    d = get(_MERCH_DEFAULTS, String(variant_code(s.variant)), nothing)
+    d === nothing && return s
+    c = s.control
+    n = length(c.sp_stump_ht)
+    @inbounds for i in 1:n
+        c.sp_stump_ht[i]   = d[1]; c.sp_top_diam[i]  = d[2]; c.sp_dbh_min[i]    = d[3]
+        c.sp_bf_stump[i]   = d[4]; c.sp_bf_topd[i]   = d[5]; c.sp_bf_dbhmin[i]  = d[6]
+        c.sp_scf_stump[i]  = d[7]; c.sp_scf_topd[i]  = d[8]; c.sp_scf_dbhmin[i] = d[9]
+    end
+    ov = get(_MERCH_SP_OVERRIDES, String(variant_code(s.variant)), nothing)
+    if ov !== nothing
+        @inbounds for (sp, (dbhmin, bfmind, scfmind)) in ov
+            sp <= n || continue
+            c.sp_dbh_min[sp] = dbhmin; c.sp_bf_dbhmin[sp] = bfmind
+            scfmind >= 0f0 && (c.sp_scf_dbhmin[sp] = scfmind)
+        end
+    end
+    return s
+end
+
 function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString;
                      inherited_format::AbstractString = "")
     load_species_coefficients!(s, s.variant)      # BLOCK DATA (species, TREFMT, RNG seed)
+    _init_merch_specs!(s)                         # grinit.f per-variant merch-spec defaults (before keywords)
     # TREFMT persists across stands in FVS (it lives in COMMON; INITRE never resets it —
     # only the TREEFMT keyword changes it). A 2nd+ stand with no TREEFMT keyword inherits
     # the previous stand's format, so re-applying the BLOCK DATA default here would break

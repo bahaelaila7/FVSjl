@@ -28,6 +28,16 @@ struct ScheduledActivity
     params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
     aux::Float32                 # 7th param for keywords that need it (THINQFA QFATAR)
 end
+# A scheduled tree-list request (TREELIST act 80 / CUTLIST act 199 / ATRTLIST act 198; initre.f opts 17/92/135
+# → OPNEW). `idt` = the raw date field (0 = all cycles, 1..MAXCYC = cycle number, else a year); `params` =
+# PRMS(1:NPRMS) = keyword fields 2.. (field 2 blank ⇒ JOLIST=3). `seq` = keyword order (OPSORT tie-break).
+struct ListActivity
+    code::Int32
+    idt::Int32
+    params::Vector{Float32}
+    seq::Int32
+end
+
 # 3-arg form (the common case): aux defaults to 0.
 ScheduledActivity(year, icflag, params) =
     ScheduledActivity(Int32(year), Int32(icflag), params, 0f0)
@@ -211,7 +221,7 @@ mutable struct Control
 
     schedule::Vector{ScheduledActivity}  # parsed THIN*/harvest activities (cuts!)
     conditionals::Vector{ConditionalActivity} # IF/THEN/ENDIF event-monitor blocks
-    years_cut::Set{Int32}                # years a thin has already been applied (idempotent cuts!)
+    years_cut::Set{Int32}                # years the cut methods were already evaluated (applied, MINHARV-canceled or ECON PRETEND) — idempotent cuts!
     yardloss_prlost::Float32             # YARDLOSS PRLOST (cuts.f:1461): proportion of harvested merch/saw/
                                          # board volume lost in yarding (0 = inactive). The reported removed
                                          # merch/saw/bdft are scaled by (1−PRLOST); total cubic + BA are not.
@@ -260,7 +270,7 @@ mutable struct Control
     dbs_summary::Bool                         # DATABASE SUMMARY ⇒ emit the FVS_Summary table          (ISUMARY)
     dbs_treelist::Bool                        # DATABASE TREELIDB ⇒ emit the FVS_TreeList table        (ITREELIST)
     dbs_compute::Bool                         # DATABASE COMPUTDB ⇒ emit the FVS_Compute table         (ICOMPUTE)
-    dbs_cutlist::Bool                         # DATABASE CUTLIST ⇒ emit the FVS_CutList table          (ICUTLIST)
+    dbs_cutlist::Bool                         # DATABASE CUTLIDB ⇒ FVS_CutList enabled (ICUTLIST>0; rows need a due CUTLIST)
     dbs_climate::Bool                         # DATABASE CLIMREDB ⇒ emit the FVS_Climate table         (ICLIM)
     dbs_canprofile::Bool                      # FFE CANFPROF keyword ⇒ emit the FVS_CanProfile table   (ICANPR)
     dbs_strclass::Bool                        # DATABASE STRCLSDB ⇒ emit the FVS_StrClass table        (ISTRCLAS)
@@ -273,7 +283,8 @@ mutable struct Control
     dbs_bm_bkp::Bool                          # DATABASE PPBMBKP  ⇒ emit FVS_BM_BKP beetle-killing-potential detail (IBMBKP)
     dbs_rd_sum::Bool                          # DATABASE RDSUM    ⇒ emit FVS_RD_Sum WRD root-disease summary (dbsin.f opt 34)
     dbs_rd_detail::Bool                       # DATABASE RDDETAIL ⇒ emit FVS_RD_Det WRD per-species patch detail (dbsin.f opt 35)
-    cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle cut-record sink (_log_cut!), else nothing
+    cutlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_CutList row sink (filled by cuts! at DO 1700), else nothing
+    dbs_cutlist_mode::Int32                   # ICUTLIST from DATABASE CUTLIDB (1 = table + text report, 2 = table only)
     strclass_on::Bool                         # STRCLASS keyword ⇒ compute the structural stage each cycle (LCALC)
     strclass_thresh::NTuple{6,Float32}        # STRCLASS thresholds: gappct/ssdbh/sawdbh/ccmin/tpamin/pctsmx
     growth_idg::Int32                         # GROWTH: input DIAMETER-growth data type (0=none/incr, 1/3=past DBH, 2=incr) (IDG)
@@ -316,6 +327,17 @@ mutable struct Control
     mistpinf::Vector{ScheduledActivity}
     dm_jran::Int32                            # MISRAN dwarf-mistletoe LCG state (misin0.f JRAN=123231, MISCOM);
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
+    dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
+                                              # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
+    # Tree-list activities (TREELIST/CUTLIST/ATRTLIST) and the OPDONE state of their per-cycle copies,
+    # keyed (index into list_acts, 1-based FVS cycle). See `prtrls_requests!` (prtrls.f).
+    list_acts::Vector{ListActivity}
+    list_done::Set{Tuple{Int,Int}}
+    dbs_atrtlist::Bool                        # DATABASE ATRTLIDB ⇒ emit FVS_ATRTList (dbsatrtls.f)      (IATRTLIST)
+    dbs_treelist_mode::Int32                  # ITREELIST value (1 table+text, 2 table only)             (ITREELIST)
+    dbs_atrtlist_mode::Int32                  # IATRTLIST value                                          (IATRTLIST)
+    atrtlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_ATRTList row sink (PRTRLS(3) at cuts.f:1740), else nothing
+    dbs_caseid_set::Bool                      # CASEID assigned (dbscase.f:235) during keyword read ⇒ a later DSNOUT is rejected (dbsin.f:116-122)
 end
 
 function Control()
@@ -368,7 +390,7 @@ function Control()
         2f0, 0.74f0, 0.42f0,                                    # dg_stddev_bound(DGSD=2), dg_bjphi(0.74), dg_bjthet(0.42)
         Int32(-1), Int32(0),                                    # age_reset_year(none), age_reset_age
         "", false, false, false,                                # dbs_out_file, dbs_summary, dbs_treelist, dbs_compute (DATABASE)
-        false, false, false, false, false, false, false, false, false, false, false, false, false, nothing, # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, dbs_calibstats, dbs_mistoe, mistprt_on, dbs_bm_main, dbs_bm_tree, dbs_bm_vol, dbs_bm_bkp, dbs_rd_sum, dbs_rd_detail, cutlist_capture
+        false, false, false, false, false, false, false, false, false, false, false, false, false, nothing, Int32(0), # dbs_cutlist, dbs_climate, dbs_canprofile, dbs_strclass, dbs_calibstats, dbs_mistoe, mistprt_on, dbs_bm_main, dbs_bm_tree, dbs_bm_vol, dbs_bm_bkp, dbs_rd_sum, dbs_rd_detail, cutlist_capture, dbs_cutlist_mode
         false, SS_THRESH_DEFAULT,                               # strclass_on, strclass_thresh (SSTAGE)
         Int32(0), Int32(0), 5f0, 5f0, 5f0,                      # GROWTH: idg, ihtg, fint, finth, fintm (defaults)
         zeros(Int32, MAXCY1), Int32[], Int32(0),                 # cycle_lengths(TIMEINT), cycleat_years(CYCLEAT), ncycle_eff
@@ -381,6 +403,11 @@ function Control()
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
+        false,                                                   # dm_mrt_defer
+        ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
+        false,                                                   # dbs_atrtlist (ATRTLIDB)
+        Int32(0), Int32(0),                                      # dbs_treelist_mode, dbs_atrtlist_mode
+        nothing, false,                                          # atrtlist_capture, dbs_caseid_set
     )
 end
 
@@ -581,6 +608,23 @@ mutable struct Calibration
     cal_stdrat::Vector{Float32}      # STDRAT — ratio of standard errors
     cal_wci::Vector{Float32}         # WC — calibration weight to input
     cal_cortem::Vector{Float32}      # CORTEM = EXP(COR) at calibration time (ScaleFactor; pre CORMLT re-scale)
+    # BM dgdriv.f DO 220 dub inputs (:735 CALL DGF(WK3) after the correction terms are final, then :746-769):
+    # WK2 (predicted ln DDS at the backdated diameters WK3, final COR, calibration-time density) and WK3 itself,
+    # captured inside calibrate_diameter_growth!. Empty until the BM calibration runs; read by bm_cycle0_dg.
+    dub_wk2::Vector{Float32}
+    dub_wk3::Vector{Float32}
+    # BM cratet.f:195 DENSE (whose AVH the LSTART CROWN dub at :610 reads) runs BEFORE the missing-height dub
+    # (DO 130 :363 / DO 145 :464), so it sees HT exactly as read (missing = 0). Snapshot of t.height[1:n+ndead]
+    # taken by dub_missing_heights! just before it dubs (BM only; empty otherwise).
+    cratet_ht_in::Vector{Float32}
+    # BM RELDEN left by that same cratet.f:195 DENSE (LBKDEN ⇒ dense.f:258-261 RELDEN=RELDM1 = the BACKDATED,
+    # dead-inclusive first-pass CCF), read by the REGENT(.FALSE.,1) small-tree HCOR calibration at cratet.f:667.
+    cratet_relden::Float32
+    # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
+    # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
+    # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
+    # Valid only before any record moves (cycle-0 setup). Empty when unset.
+    input_seq::Vector{Int32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -592,7 +636,11 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
-    zeros(Float32,MAXSP))                                            # cal_cortem (CalibStats ScaleFactor)
+    zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)
+    Float32[], Float32[],                                            # dub_wk2, dub_wk3 (BM DO 220 dub stash)
+    Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
+    0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -656,11 +704,17 @@ mutable struct Scratch
     # `nothing` and allocate, staying bit-exact and unchanged.)
     r9_vol::Vector{Float32}
     r9_logbuf::Vector{Float32}
+    # IND1 (SPESRT) walk order for the once-per-call stand-statistic sums that FVS accumulates in IND1 order
+    # (DENSE BA/RMSQD/PCCF, SDICAL, SDICLS, SDICHK, CCCLS) — `_ind1_order` fills it and returns a view. The
+    # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
+    ind1_buf::Vector{Int32}
+    sdi_baxsp::Vector{Float32}
 end
 Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
                     zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
-                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40))
+                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
+                    zeros(Int32,MAXTRE), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
@@ -756,11 +810,47 @@ mutable struct Establishment
     esb_shift_pt::Vector{Float32}  # PER-INVENTORY-POINT stocking shift ESB−ESB1(NNID), frozen at the calibrating
                                 # tally (INADV=0, first tally). The ingrowth per-point PROB1 uses this instead of the
                                 # scalar esb_shift (=element[1]). Empty ⇒ ie_autoes_run falls back to the scalar.
+    # BURNPREP(491)/MECHPREP(493) activity status (IACT(,4)): schedule index ⇒ year accomplished (>0) or −1 deleted;
+    # absent = pending. Set where FVS's ESTAB does it — ESETPR on the first tally (esetpr.f OPDON2) and the
+    # NTALLY>1 cancel (estab.f OPFIND/OPDEL1). Read by ECON MECHCST/BURNCST (eccalc.f OPSTUS/OPGET3).
+    prep_status::Dict{Int,Int32}
+    prep_years_done::Set{Int32}   # cycle years whose ESTAB site-prep bookkeeping already ran (idempotent ESNUTR)
+    # bookkeeping-only replica of the ESNUTR tally state for the non-AUTOES variants (esnutr.f NTALLY/IDSDAT/LONE +
+    # the TALLY/TALLYONE/TALLYTWO activity statuses) — decides WHEN ESTAB runs and with which NTALLY; never read by
+    # the establishment model itself.
+    prep_ntally::Int32
+    prep_idsdat::Int32            # -99999 = not yet initialised from the ESTAB keyword's IDSDAT
+    tally_status::Dict{Int,Int32} # schedule index of a 427/428/429 ⇒ year done (>0) / −1 deleted
+    # Per-plot ESRANN stream position for the PLANT/NATURAL trees of THIS cycle's ESTAB call (IE/EM, estb/estab.f).
+    # FVS books the keyword trees INSIDE the per-plot loop (DO 322, estab.f:975) right after that plot's ESAVE draw
+    # (:967) and before the ESRNSD(ESAVE) reseed (:1075), so plot NCOUNT's planted-height BACHLO draws continue the
+    # plot's own stream from the post-ESAVE state. ie_autoes_establish! fills these from the tally's seed chain; the
+    # scheduled-regen pass (establish!) reads them. es_plot_year = the cycle year they belong to (-1 = none).
+    es_plot_state::Vector{Float64}   # ESS0 immediately after plot NCOUNT's ESAVE draw
+    es_plot_emsqr::Vector{Float32}   # plot NCOUNT's EMSQR (estab.f:646-650), fed to ESSUBH for no-height PLANT
+    es_plot_year::Int32
+    # The AUTOES natural records booked THIS cycle (first index + their plot NCOUNT, in booking order). FVS books
+    # every record inside the per-plot loop — plot k's best (estab.f:1255) → excess (:1344) → PLANT/NATURAL (:1436)
+    # before plot k+1 — so establish! interleaves its planted records with these to reproduce the storage order
+    # that the REGENT(LESTB) crown-dub draw (regent.f:301) and the SPESRT species-major order both follow.
+    es_aut_first::Int32
+    es_aut_plot::Vector{Int32}
+    es_plot_dil::Vector{Float32}    # DILATE=FIRST(2,sp) each PLANT/NATURAL tree read (plot-major, es_plot_nph per plot)
+    es_plot_nph::Int32
+    kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
+    es_plot_note::Vector{Int}       # NBEST NOTE of each PLANT/NATURAL tree (plot-major like es_plot_dil) → IMC (estab.f:1385-1386)
+    esb_shift_ptip::Matrix{Float32}  # ESB − ESB1(NNID, IPREP) per inventory point × site prep (npt×3). estab.f:510-545
+                                # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
+                                # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
+                                # fresh AND continuation tallies. Empty ⇒ callers fall back to esb_shift_pt / scalar.
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
-                                5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[])
+                                5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
+                                Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
+                                Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState
     enabled::Bool
@@ -954,6 +1044,11 @@ mutable struct FireState
                                        # the current cycle (so >1 SIMFIRE, e.g. fire_repeat, each fire at its own date).
     snagbin::SnagBinScratch            # preallocated FMSADD snag-binning work buffers (book_mortality_snags!) —
                                        # keeps the fire mortality path allocation-free (bit-exact; see SnagBinScratch)
+    fmicr::Vector{Int32}               # FMICR per record for the burn in progress: seeded from ICR at the fire
+                                       # (fmmain.f:111), shortened by scorch in FMEFF (fmeff.f:513); consumed by FMKILL
+    crown_bypass::Vector{Int32}        # FMKILL ICR=-FMICR (fmkill.f:92-94): per record, the fire-set crown % (0 = none)
+                                       # that the next CROWN call must keep instead of recomputing (crown.f "ICR(I) WAS
+                                       # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -962,7 +1057,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch())
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
@@ -977,6 +1072,138 @@ struct EconCostRev
     sp::Int32
 end
 EconCostRev(amount, unit, lo, hi) = EconCostRev(Float32(amount), Int32(unit), Float32(lo), Float32(hi), Int32(0))
+
+# ---------------------------------------------------------------------------
+# ECON faithful per-cycle engine state — COMMON /ECNCOM/ (ECNCOM.F77, keyword tables + control) and
+# /ECONSAVE/ (ECNCOMSAVES.F77, accumulators saved across cycles). Consumed by engine/econ_calc.jl
+# (ECSTATUS / ECHARV / ECCALC / DBSECSUM). Constants from ECNCOM.F77.
+# ---------------------------------------------------------------------------
+const ECON_MAX_KEYWORDS    = 8    # MAX_KEYWORDS
+const ECON_MAX_RATES       = 8    # MAX_RATES
+const ECON_MAX_REV_UNITS   = 5    # MAX_REV_UNITS
+const ECON_MAX_PLANT_COSTS = 2    # MAX_PLANT_COSTS
+const ECON_MAX_YEARS       = 800  # MAX_YEARS = MAXCYC*20 (undiscCost/undiscRev dimension)
+
+"An appreciation/depreciation schedule (ratesAndDurations, ecin.f:708): up to MAX_RATES (rate %, years) pairs."
+mutable struct EconSched
+    rates::Vector{Float32}    # valueRate(1:MAX_RATES), percent
+    durs::Vector{Int32}       # valueDuration(1:MAX_RATES), years (0 = unused)
+end
+EconSched() = EconSched(zeros(Float32, ECON_MAX_RATES), zeros(Int32, ECON_MAX_RATES))
+
+"A fixed amount + schedule (ANNUCST/ANNURVN/HRVFXCST/PCTFXCST/MECHCST/BURNCST)."
+mutable struct EconAmtKw
+    amt::Float32
+    sched::EconSched
+end
+"A DBH-class variable cost (HRVVRCST/PCTVRCST): amt per `units` for DBH in [lo,hi)."
+mutable struct EconVarKw
+    amt::Float32
+    units::Int32
+    lo::Float32
+    hi::Float32
+    sched::EconSched
+end
+"One HRVRVN revenue class (assignRevValues, ecin.f:850): unit-corrected price, class lower diameter."
+struct EconRevKw
+    price::Float32
+    dia::Float32
+    sched::EconSched
+end
+"PLANTCST (ecin.f:491): amt per `units` (PER_ACRE=6 / TPA_1000=7)."
+struct EconPlantKw
+    amt::Float32
+    units::Int32
+    sched::EconSched
+end
+"An ECON Event-Monitor activity (OPNEW): PRETEND 2605 / SPECCST 2607 / SPECRVN 2608 / STRTECON 2609."
+mutable struct EconEvent
+    code::Int32
+    date::Int32               # raw keyword date (≤MAXCYC ⇒ cycle number, resolved by OPEXPN)
+    seq::Int32                # registration order (OPSORT tie-break)
+    params::Vector{Float32}
+    done::Int32               # IACT(,4): 0 = not done, else year accomplished
+end
+
+mutable struct EconCalc
+    # --- /ECNCOM/ control (ecinit.f) ---
+    econ_start_year::Int32     # econStartYear (-9999 until STRTECON/ECSETP)
+    discount_pct::Float32      # discountRate (PERCENT)
+    sev_input::Float32         # sevInput
+    do_sev::Bool               # doSev
+    no_output_tables::Bool     # noOutputTables (NOTABLE 1)
+    no_log_stock_table::Bool   # noLogStockTable (NOTABLE 1/2)
+    pct_min_dbh::Float32       # pctMinDbh (PCTSPEC)
+    pct_min_units::Int32       # pctMinUnits (PCTSPEC; 0 ⇒ harvests are NOT valued, eccalc.f:210)
+    pct_min_volume::Float32    # pctMinVolume
+    is_first_econ::Bool        # isFirstEcon
+    ann_cost::Vector{EconAmtKw}
+    ann_rev::Vector{EconAmtKw}
+    fix_hrv::Vector{EconAmtKw}
+    fix_pct::Vector{EconAmtKw}
+    var_hrv::Vector{EconVarKw}
+    var_pct::Vector{EconVarKw}
+    plant::Vector{EconPlantKw}
+    mech::EconAmtKw            # mechCostAmt (amt ≤ 0 ⇒ unset)
+    burn::EconAmtKw            # burnCostAmt
+    rev::Matrix{Vector{EconRevKw}}   # hrvRev*(MAXSP, MAX_REV_UNITS, k)
+    has_rev_amt::Matrix{Bool}        # hasRevAmt(MAXSP, MAX_REV_UNITS)
+    rev_idx::Matrix{Vector{Int}}     # hrvRevDiaIndx — descending-diameter index (ECSETP RDPSRT)
+    events::Vector{EconEvent}
+    dbs_econ::Int32            # IDBSECON (dbsin.f opt 30 ECONRPTS: 0 none / 1 summary / 2 summary+harvest)
+    # --- /ECONSAVE/ (ECNCOMSAVES.F77) ---
+    start_year::Int32
+    rate::Float32
+    cost_disc::Float32; cost_undisc::Float32; rev_disc::Float32; rev_undisc::Float32
+    sev_ann_cst::Float32; sev_ann_rvn::Float32
+    undisc_cost::Vector{Float32}; undisc_rev::Vector{Float32}   # (MAX_YEARS)
+    hrv_cst::Vector{NTuple{4,Float32}}   # (time, typ, keywd, amt) — hrvCst{Time,Typ,Keywd,Amt}
+    hrv_rvn::Vector{NTuple{5,Float32}}   # (time, sp, units, keywd, amt) — hrvRvn{Time,Sp,Units,Keywd,Amt}
+    spec_cst_cnt::Int; spec_rvn_cnt::Int; mech_cnt::Int; burn_cnt::Int
+    pretend_start_year::Int32; pretend_end_year::Int32; is_pretend_active::Bool
+    # --- per-cycle harvest accumulators (ECHARV; reset by resetSavedCycleVariables) ---
+    dbh_sq::Float32
+    harvest::Vector{Float32}             # harvest(TPA:FT3_100)
+    hrv_cost_bf::Vector{Float32}; hrv_cost_ft3::Vector{Float32}; hrv_cost_tpa::Vector{Float32}
+    pct_bf::Vector{Float32}; pct_ft3::Vector{Float32}; pct_tpa::Vector{Float32}
+    rev_volume::Array{Float32,3}         # revVolume(MAXSP, MAX_REV_UNITS, MAX_KEYWORDS)
+    rows::Vector{Any}                    # FVS_EconSummary rows (DBSECSUM), one per ECCALC summary write
+    # --- CUTS DO-1700 replay (cuts.f:1600-1727): ECHARV runs ONCE per record, in the LAST method's IND2
+    #     order, with the record-I merch cubic MCFV(I) (FVS indexes by the loop position, not IT) ---
+    cut_ind2::Vector{Int32}              # IND2 of the last cut method (identity for LSPECL methods)
+    cut_prem::Vector{Float32}            # Σ PREM per record over the cycle's methods (0 ⇒ not cut)
+    cut_dsng::Vector{Float32}            # DSNG(IT) yarding-loss downed pool
+    cut_ssng::Vector{Float32}            # SSNG(IT) yarding-loss standing pool
+    cut_prob0::Vector{Float32}           # PROB at CUTS entry (DO 1700 PREM = PROB − WK4)
+    # --- ECVOL per-tree log arrays for NVEL-profile (western FW2) volumes: ordered (LOGDIA(I+1,1), LOGVOL) ---
+    tree_logs_bf::Dict{Int,Vector{NTuple{2,Float32}}}    # logDibBf/logBfVol (LOGVOL(1,·) gross Scribner)
+    tree_logs_ft3::Dict{Int,Vector{NTuple{2,Float32}}}   # logDibFt3/logFt3Vol (LOGVOL(4,·) gross cubic)
+    hv_rows::Vector{Any}                 # FVS_EconHarvestValue rows (eccalc.f:745-855 DBSECHARV_insert)
+    lbs_ft3::Vector{Float32}             # lbsFt3Amt(MAXSP) — LBSCFV pounds per cubic foot (Tons column)
+    # --- ECON keywords inside an IF/THEN block (ecin.f addEvent LMODE path): the event keywords
+    #     (PRETEND/SPECCST/SPECRVN/STRTECON) are captured as templates (date = WAIT time) while the IF
+    #     block is read, and dated IY(ICYC)+wait when the condition fires (evmon.f OPSCHD) ---
+    if_capture::Union{Nothing,Vector{EconEvent}}
+    ev_fired::Set{Tuple{Int,Int}}         # (conditional index, fire year) already scheduled (idempotent cycle start)
+end
+function EconCalc(nsp::Integer)
+    EconCalc(Int32(-9999), 0f0, 0f0, false, false, false, 0f0, Int32(0), 0f0, true,
+             EconAmtKw[], EconAmtKw[], EconAmtKw[], EconAmtKw[], EconVarKw[], EconVarKw[], EconPlantKw[],
+             EconAmtKw(0f0, EconSched()), EconAmtKw(0f0, EconSched()),
+             [EconRevKw[] for _ in 1:nsp, _ in 1:ECON_MAX_REV_UNITS], falses(nsp, ECON_MAX_REV_UNITS),
+             [Int[] for _ in 1:nsp, _ in 1:ECON_MAX_REV_UNITS], EconEvent[], Int32(0),
+             Int32(0), 0f0, 0f0, 0f0, 0f0, 0f0, 0f0, 0f0,
+             zeros(Float32, ECON_MAX_YEARS), zeros(Float32, ECON_MAX_YEARS),
+             NTuple{4,Float32}[], NTuple{5,Float32}[], 0, 0, 0, 0,
+             Int32(0), Int32(0), false,
+             0f0, zeros(Float32, 3),
+             zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
+             zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
+             zeros(Float32, nsp, ECON_MAX_REV_UNITS, ECON_MAX_KEYWORDS), Any[],
+             Int32[], Float32[], Float32[], Float32[], Float32[],
+             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[],
+             zeros(Float32, nsp), nothing, Set{Tuple{Int,Int}}())
+end
 
 "ECON economic-analysis state (no globals): discount rate, cost/revenue keyword tables, accumulated streams."
 mutable struct EconState
@@ -998,11 +1225,12 @@ mutable struct EconState
                                                     # gross cubic feet (R9LGCFT Smalian, renormalized to VOL(4)+VOL(7))
     log_grade_ft3::Dict{NTuple{3,Int32},Float32}    # (year, speciesIdx, dibClass_x10) => Σ removed cubic feet
                                                     # (×price/100 at emit time = the cubic FVS_EconHarvestValue rows)
+    calc::Union{Nothing,EconCalc}                   # faithful ECSTATUS/ECHARV/ECCALC engine (built at ECIN time)
 end
 EconState() = EconState(false, 0.0f0, 0f0, EconCostRev[], EconCostRev[], Int32(-1),
                         NTuple{3,Float32}[], 0f0, 0f0,
                         Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}(),
-                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}())
+                        Dict{Int,Dict{Int,Float32}}(), Dict{NTuple{3,Int32},Float32}(), nothing)
 
 # ---------------------------------------------------------------------------
 # StandState{V} — the whole simulation state for ONE stand. Parametric on the

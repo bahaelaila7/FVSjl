@@ -96,8 +96,9 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
     t = s.trees
     p = s.plot
     plot_ids = Int32[]            # unique record plot numbers (IPVEC)
-    dead = Tuple{Any,Int32,Int32}[]  # (record, species idx, subplot) for dead trees
+    dead = Tuple{Any,Int32,Int32,Int32}[]  # (record, species idx, subplot, input seq) for dead trees
     n0 = t.n
+    live_seq = Int32[]; seqc = Int32(0)   # intree read order of the KEPT records (see Calibration.input_seq)
 
     for rec in records
         # Subplot index (IPVEC/ITRE) is assigned to EVERY record before the dead /
@@ -118,25 +119,35 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         # Dead trees (history/ITH 6-9) are partitioned out of the live stand (intree.f:516):
         # collected here, stored after the live records so live stats use 1:n but the dead
         # remain available (mortality reporting; backdated calibration BA at current dbh).
+        seqc += Int32(1)
         if 6 <= rec.history <= 9
-            push!(dead, (rec, idx, Int32(pj)))
+            push!(dead, (rec, idx, Int32(pj), seqc))
             continue
         end
 
         i = t.n + 1
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, Int32(pj); metric=metric)
+        # intree.f:621-623 (label 100): a live record's IMC = IMC1 clamped to 1..3 (blank/0 ⇒ 1).
+        imc = t.mort_code[i]; t.mort_code[i] = imc > 3 ? Int32(3) : imc <= 0 ? Int32(1) : imc
         t.n = i
+        push!(live_seq, seqc)
     end
 
     # append the dead records after the live ones (indices n+1 : n+ndead)
     t.ndead = 0
-    for (rec, idx, pj) in dead
+    dead_seq = Int32[]
+    for (rec, idx, pj, sq) in dead
         i = t.n + t.ndead + 1
         i > MAXTRE && break
         _store_tree!(t, i, rec, idx, pj; metric=metric)
+        # intree.f:561-562: an input dead record gets IMC 7 (history 6,7 recent) or 9 (8,9 older).
+        t.mort_code[i] = (rec.history == 8 || rec.history == 9) ? Int32(9) : Int32(7)
         t.ndead += 1
+        push!(dead_seq, sq)
     end
+    # single-load stands only (n0==0): record read order for the BM cratet.f:163-166 IND1 seed
+    s.calib.input_seq = n0 == 0 ? vcat(live_seq, dead_seq) : Int32[]
 
     s.control.ntrees_active = Int32(t.n)
     # Save the IPVEC (internal point index → inventory point number) so outputs that report the actual
@@ -229,9 +240,9 @@ function _store_tree!(t::TreeList, i::Int, rec, idx::Integer, pj::Int32; metric:
 
     # birth-age flag (intree.f:190)
     if rec.birth_age <= 0f0
-        t.birth_age[i] = 0f0; t.age_known[i] = false
+        t.birth_age[i] = 0f0; t.age_known[i] = false; t.lbirth[i] = false
     else
-        t.birth_age[i] = rec.birth_age; t.age_known[i] = true
+        t.birth_age[i] = rec.birth_age; t.age_known[i] = true; t.lbirth[i] = true
     end
     t.plot_id[i] = pj
     return t

@@ -37,7 +37,7 @@ using DBInterface
 
 # --- core (order matters: parameters → rng/units/trees → variant → state) ----
 include("core/fmath.jl")                       # gfortran-identical exp/log/pow (doctrine #8)
-using .FMath: fexp, flog, fpow, fexp_julia, flog_julia, fpow_julia
+using .FMath: fexp, flog, fpow, fpowi, fexp_julia, flog_julia, fpow_julia, dexp, dlog, dpow, dlog10, fsin, fcos
 include("core/parameters.jl")
 include("core/rng.jl")
 include("core/units.jl")
@@ -441,9 +441,11 @@ include("engine/fire/ec_fuel_model.jl")  # FFE F4  — EC FMDYN dynamic cover-me
 include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-group fuel-model selection (so/fmcfmd.f)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
+include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag fall BASE (FMR6SDCY + FMR6FALL; BM)
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)
+include("engine/econ_calc.jl")           # C8 — faithful per-cycle ECSTATUS/ECHARV/ECCALC engine → FVS_EconSummary
 include("engine/mistletoe_report.jl")   # dwarf-mistletoe infection/mortality summary (misprt.f) → FVS_DM_* DBS tables
 include("io/summary.jl")
 include("io/dbs_output.jl")

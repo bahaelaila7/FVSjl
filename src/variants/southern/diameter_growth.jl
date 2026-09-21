@@ -443,6 +443,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
+        elseif s.variant isa BlueMountains && length(s.calib.input_seq) == ntot
+            # bm/cratet.f:163-166 — the calibration DENSE (:195, backdating pass dense.f:241-244) ranks by
+            # `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`. The dead are still INSIDE ITRN at their input positions
+            # (cratet.f:199-215 deletes them AFTER this DENSE) and IND1 is SETUP's (fvs.f:158) species-major list, each
+            # species in read order (LNKCHN appends at the tail) ⇒ bm_cratet166_ind. It fixes the order of current-DBH
+            # ties (PCT → DGF BAL → calibration COR and the dgdriv.f:735 DO 220 dub). 302098779489998: WL 142 / DF 139
+            # both 15.8" — live WK2 2.4820/3.2076, stable sortperm 2.5119/3.1702; 1285593348290487 recs 16/17,
+            # 41137341010497 4/5. Live-only or dead-appended seeds break other ties (45074836020004).
+            ord = bm_cratet166_ind(s, rankd, nlive2, ntot)
         else
             ord = sortperm(rankd; rev = true)
         end
@@ -636,10 +645,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          s.variant isa Klamath ? NC_PSIGSQ[sp] :
                          s.variant isa Olympic ? 0.0898f0 : DG_PSIGSQ   # OP 0.0898 (op/dgdriv.f DATA PSIGSQ/MAXSP*0.0898/) / NE 0.0898 / SN default
                 temp = min(cornew * cornew / psigsq, 72f0)
-                wc = 1f0 / (1f0 + exp(-0.5f0 * temp) * sqrt(svar_v / psigsq))
+                wc = 1f0 / (1f0 + fexp(-0.5f0 * temp) * sqrt(svar_v / psigsq))   # gfortran single-precision EXP
                 corv = wc * cornew
                 # out-of-range trap (cortem = exp(COR))
-                if exp(corv) < 0.0821f0 || exp(corv) > 12.1825f0
+                if fexp(corv) < 0.0821f0 || fexp(corv) > 12.1825f0
                     corv = 0f0
                 end
                 c.dg_cor[sp] = corv
@@ -651,11 +660,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 c.cal_stdrat[sp] = sigmar[sp] > 0f0 && fn[sp] > 1f0 ?
                                    sqrt((svar / (fn[sp] - 1f0)) / sigmar[sp]^2) : 0f0
                 c.cal_wci[sp] = wc
-                c.cal_cortem[sp] = exp(corv)      # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
+                c.cal_cortem[sp] = fexp(corv)     # CORTEM = EXP(COR) at calibration time (before any CORMLT re-scale)
                 slop[sp] = slp; bnx[sp] = bnxv; bny[sp] = bnyv; calibrated[sp] = true
             end
         end
-        vtemp = exp(c.sigma[sp]^2)
+        # dgdriv.f:682 VTEMP=EXP(SIGMA**2): gfortran single-precision EXP (native Julia exp is 1 ULP off for some
+        # SIGMA, e.g. IE WP 0.2466 ⇒ VARDG 3BC9DD45 vs FVS 3BC9DD39), and VARDG feeds SSIG/RHO/RHOCP ⇒ every DGSCOR draw.
+        vtemp = fexp(c.sigma[sp] * c.sigma[sp])
         c.vardg[sp] = (vtemp - 1f0) * vtemp / vmlt
     end
 
@@ -699,6 +710,22 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         lim = s.control.dg_stddev_bound * c.sigma[t.species[i]]
         oldrn[i] > lim && (oldrn[i] = lim)
         oldrn[i] < -lim && (oldrn[i] = -lim)
+    end
+
+    # BM dgdriv.f:735 — after the correction terms are final (:558/:615/:650) and OLDRN is clamped (DO 202),
+    # FVS calls DGF(WK3) AGAIN, still at the backdated diameters WK3 and the calibration-time (backdated)
+    # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
+    # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
+    # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
+    if s.variant isa BlueMountains
+        _wk2_keep = s.scratch.wk[2, 1:t.n]
+        _sft = s.plot.forest_type; _savh = s.plot.avg_height
+        s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
+        dgf!(s, s.variant)
+        c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
+        c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
+        s.plot.forest_type = _sft; s.plot.avg_height = _savh
+        s.scratch.wk[2, 1:t.n] .= _wk2_keep
     end
 
     # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
@@ -834,7 +861,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     # restore current diameters + current-stand density (the backdating was local)
     @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
-    compute_density!(s)
+    compute_density!(s; cratet_ind = s.variant isa BlueMountains)   # BM: CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692)
+    # BM REGENT(.FALSE.,1) small-tree HEIGHT calibration (bm/regent.f:657-829; cratet.f:667) — current dbh,
+    # AVHT40 AVH (cycle-0 CRATET IND), RELDEN from the cratet.f:195 DENSE (stashed by bm_crown_init_lstart!).
+    s.variant isa BlueMountains && bm_regent_hcor_init!(s, isct, ind1)
     # NE small-tree HCOR height calibration (ne/regent.f:411-547). The Southern block above is SN-model-specific
     # (HTCALC ht_curve + SN REGYR=5); NE uses the NC-128 ne_htcalc + BALMOD·RELHTA and REGYR=10. Runs on the
     # CURRENT (restored) dbh/density — regent uses the current dbh, not the DG-backdated one. Each LHTCAL species
@@ -1210,6 +1240,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dgL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnU = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
     rnL = do_trip ? Vector{Float32}(undef, nlive) : Float32[]
+    # per-copy DIRECT DBH (REGENT HK<4.5 ⇒ DBH(K)=…, DG(K)=0, regent.f:881); −1 = not set (the copy grows by dgU/dgL)
+    dbhU = do_trip ? fill(-1f0, nlive) : Float32[]
+    dbhL = do_trip ? fill(-1f0, nlive) : Float32[]
 
     # Attenuate COR toward the calibration goal before predicting (dgdriv.f:76-79).
     # The attenuation clock is the cumulative elapsed time SINCE the inventory (FVS
@@ -1268,6 +1301,28 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 _dib = t.dbh[i] * ci_bratio(sd, _spi, t.dbh[i])
                 _dub = sqrt(_dib * _dib + fexp(wk2[i])) - _dib     # dgdriv.f:823 (OLDRN=0, SCALE=1)
                 t.dg_prev[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _ci_scap)  # dgdriv.f:828 DGBND
+            end
+        end
+    end
+
+    # BM cycle-1 WK1 = the LSTART calibration dub (bm/dgdriv.f:735-769): DGF(WK3) then, per record, HT≤4.5 ⇒ DG=0;
+    # measured DG>0 kept; else DG=SQRT(D_ib²+EXP(WK2+OLDRN)·SCALE)−D_ib (SCALE=FINT/YR, capped at D_ib, DGBND) —
+    # INCLUDING the seeded OLDRN residual. dgdriv.f:160 WK1(I)=DG(I) hands it to cycle 1; BM's only functional
+    # reader is the WRD report (rdpr.f:213 Live_Merch_CuFt = Σ TCLAS·WK1), so it goes to rd.wk1 (snapshotted just
+    # before this call, ⇒ same timing). jl left it 0 (FVS_RD_Sum 2017 Live_Merch_CuFt 0 vs live 84.42).
+    if s.variant isa BlueMountains && Int(s.control.cycle) == 0 && s.root_disease !== nothing &&
+       length(s.root_disease.wk1) >= nlive
+        _bm_scap = s.control.sp_size_cap
+        _sc = s.control.growth_fint / 10f0                          # SCALE = FINT/YR (YR=10)
+        @inbounds for i in 1:nlive
+            if t.height[i] <= 4.5f0
+                s.root_disease.wk1[i] = 0f0
+            else
+                _spi = Int(t.species[i])
+                _dib = t.dbh[i] * bm_bratio(sd, _spi, t.dbh[i])
+                _dub = sqrt(_dib * _dib + exp(wk2[i] + t.old_random[i]) * _sc) - _dib
+                _dub > _dib && (_dub = _dib)
+                s.root_disease.wk1[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _bm_scap)
             end
         end
     end
@@ -1418,8 +1473,17 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (`ie_triple_htg!`) sets it; other variants leave it false ⇒ their large-tree copies keep the
     # central HTG via copy_tree! exactly as before (gate byte-identical).
     htg_copy = do_trip ? falses(nlive) : BitVector()
+    # dbh0/bumpU/bumpL: per-copy direct DBH assignment by REGENT for sub-4.5' records (bm/regent.f:395-397
+    # `DG(K)=0; DBH(K)=D+0.001*HK`, K = the copy's future slot — TRIPLE copies neither DBH nor DG). Only BM's
+    # small_tree_growth! fills them (dbh0 = the central record's pre-REGENT DBH, 0 = untouched); all-zero
+    # leaves triple_records! copying the central DBH exactly as before.
+    dbh0  = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpU = do_trip ? zeros(Float32, nlive) : Float32[]
+    bumpL = do_trip ? zeros(Float32, nlive) : Float32[]
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
-                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy) : nothing
+                      htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
+                      dbhU = dbhU, dbhL = dbhL,
+                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL) : nothing
 end
 
 """
@@ -1447,8 +1511,18 @@ function triple_records!(s::StandState, stash)
         # walks after a thin, so it must match the oracle's append order exactly.
         u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
+        # REGENT's per-copy sub-4.5' DBH(K)=D+0.001*HK (BM; see stash dbh0): copies start from the central
+        # record's PRE-REGENT DBH plus their own bump, not the central's already-bumped DBH.
+        if haskey(stash, :dbh0) && stash.dbh0[i] > 0f0
+            t.dbh[u] = stash.dbh0[i] + stash.bumpU[i]; t.dbh[l] = stash.dbh0[i] + stash.bumpL[i]
+        end
         t.tpa[u] = t.tpa[i] * 0.25f0; t.diam_growth[u] = dgU[i]; t.old_random[u] = rnU[i]
         t.tpa[l] = t.tpa[i] * 0.15f0; t.diam_growth[l] = dgL[i]; t.old_random[l] = rnL[i]
+        # a small-tree copy's OWN pre-UPDATE DBH (REGENT: direct set with DG=0, or the pre-growth DBH with its increment)
+        if hasproperty(stash, :dbhU)
+            stash.dbhU[i] >= 0f0 && (t.dbh[u] = stash.dbhU[i])
+            stash.dbhL[i] >= 0f0 && (t.dbh[l] = stash.dbhL[i])
+        end
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0
         # small-tree records carry per-record height increments (REGENT random effect); large NI-section
@@ -1456,6 +1530,16 @@ function triple_records!(s::StandState, stash)
         # ie_triple_htg!). Both are stored in htgU/htgL; htg_copy marks the large-tree case.
         if is_small[i] || htg_copy[i]
             t.ht_growth[u] = htgU[i]; t.ht_growth[l] = htgL[i]
+        elseif s.variant isa Southern && t.temhtg[i] >= 0f0
+            # htgf.f:292-307 (LTRIP): each copy gets the UNCAPPED TEMHTG, then is capped against HT(ITFN) of its
+            # future slot — which TRIPLE has not written yet, so FVS reads what TREDEL left there (t.stale_ht; 0 if
+            # never used). The copy's own HT is set to the central's afterwards (SVTRIP, copy_tree! above).
+            sc4 = s.control.sp_size_cap[t.species[i], 4]
+            for (k, hk) in ((u, t.stale_ht[u]), (l, t.stale_ht[l]))
+                g = t.temhtg[i]
+                (hk + g) > sc4 && (g = max(sc4 - hk, 0.1f0))
+                t.ht_growth[k] = fixhtg_scale(s, i, g)   # grincr.f:451-525 FIXHTG scales HTG(ITFN)/HTG(ITFN+1) AFTER the HTGF cap
+            end
         end
         t.tpa[i] *= 0.60f0; t.mort_pa[i] *= 0.60f0
         # lineage keys: upper=3K, central=3K+1, lower=3K+2 → species-sort then visits
@@ -1465,5 +1549,7 @@ function triple_records!(s::StandState, stash)
         t.sort_key[u] = 3 * kk; t.sort_key[i] = 3 * kk + 1; t.sort_key[l] = 3 * kk + 2
     end
     t.n = 3 * nlive
+    s.wpbr === nothing || wpbr_brtrip!(s, nlive)   # triple.f BRTRIP (WPBR per-slot state; inert w/o BRUST)
     return s
 end
+

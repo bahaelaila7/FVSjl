@@ -23,8 +23,6 @@ const KNOWN_NOOP = Set([
     # pure I/O / echo / debug / report control
     "SCREEN", "NOSCREEN", "STATS", "ECHOSUM", "ECHO", "NOECHO", "NOSUM",
     "NODEBUG", "DEBUG", "CALBSTAT", "REWIND", "ENDFILE", "FVSSTAND",
-    # report-table requests (output not yet emitted)
-    "TREELIST", "ATRTLIST", "CUTLIST",
     # CCADJ (sstage.f act 444): adjusts CCCOEF/CCCOEF2 used ONLY inside SSTAGE (the structural-
     # stage CLASSIFICATION, Stage et al.) — verified .sum-inert (FVSjl doesn't emit SSTAGE; the
     # coefficient never reaches DGF/CCF growth). Variant-agnostic (sstage is base). Recognize when
@@ -593,6 +591,10 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     rec.present[3] && (p.stand_age = nint(v[3]))
     rec.present[4] && (p.aspect = v[4] * 0.0174533f0)   # degrees → radians (utils.f)
     rec.present[5] && (p.slope  = v[5] / 100f0)         # percent → fraction (utils.f)
+    # IASPEC=IFIX(ASPECT), ISLOP=IFIX(SLOPE) (initre.f:436-437): the raw integer degrees/percent the establishment
+    # model decodes as IASPEC*0.0174533 / ISLOP*0.01 (esplt2.f:54-55) — NOT the growth-model SLOPE/100 (1 ULP apart).
+    rec.present[4] && (p.aspect_deg = trunc(Int32, v[4]))
+    rec.present[5] && (p.slope_raw  = trunc(Int32, v[5]))
     # BC (metric): STDINFO elevation is converted ARRAY(6)·MtoFT/100 (canada/bc/initre.f:876) — e.g. a
     # 7.0 field → common ELEV 0.229659. Downstream BC code recovers metres via ELEV·100·FTtoM. Other
     # variants store the raw field (hundreds of feet). Without this the V2 DGCON elevation term is ~30× off.
@@ -805,6 +807,38 @@ end
 # the activity via OPNEW(2001→2006). MISINF consumes it in the cycle its date falls in (single-cycle;
 # OPDONE), setting the tree DMR round-robin 1..LEVEL over the chosen visit order. SPDECD writes the
 # resolved species SEQUENCE INDEX back into ARRAY(2) before OPNEW, so we store the decoded index.
+"""
+    kw_listact!(s, rec, code)
+
+TREELIST (initre.f:2700-2716, act 80) / CUTLIST (:9400-9409, act 199) / ATRTLIST (:13500-13507, act 198):
+OPNEW(IDT, code, NP, ARRAY(2)) with IDT = field 1 (blank ⇒ 1; 0 ⇒ all cycles) and field 2 blank ⇒ JOLIST
+(=3, blkdat.f). NP (the stored parameter count) follows each keyword's own rule; PRMS = fields 2..NP+1.
+The list writers only act on these scheduled activities (`prtrls_requests!`).
+"""
+function kw_listact!(s::StandState, rec::KeywordRecord, code::Integer)
+    v = rec.values; pr = rec.present
+    f(i) = i <= length(v) ? Float32(v[i]) : 0f0
+    p(i) = i <= length(pr) && pr[i]
+    idt = p(1) ? Int32(trunc(f(1))) : Int32(1)
+    a = Float32[f(i) for i in 1:7]
+    p(2) || (a[2] = 3f0)                               # IF (.NOT.LNOTBK(2)) ARRAY(2)=FLOAT(JOLIST)
+    np = 2
+    if code == 80                                      # TREELIST
+        p(4) && (np = 3)
+        (p(5) && a[5] > 0f0) && (np = 4)
+        (p(6) && a[6] > 0f0) && (np = 5)
+        (p(7) && a[7] > 0f0 && (idt == 0 || idt == 1) && !(p(4) && a[4] == 1f0)) && (np = 6)
+    elseif code == 199                                 # CUTLIST
+        p(4) && (np = 3)
+        p(6) && (np = 5)
+    else                                               # ATRTLIST
+        p(4) && (np = 3)
+    end
+    acts = s.control.list_acts
+    push!(acts, ListActivity(Int32(code), idt, a[2:np+1], Int32(length(acts) + 1)))
+    return
+end
+
 function kw_mistpinf!(s::StandState, rec::KeywordRecord)
     v = rec.values; pr = rec.present
     yr = pr[1] ? Int32(nint(v[1])) : Int32(1)                         # blank date ⇒ IDT=1
@@ -905,23 +939,45 @@ in [d1, d2). The tripled upper/lower records (stash dgU/dgL, htgU/htgL) get the 
 (FVS scales DG(ITFN)/DG(ITFN+1)). Runs after all growth, before mortality (MORTS reads the
 scaled DG). Multiple scalers firing the same cycle compound, in keyword order.
 """
-function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
-    isempty(s.control.multipliers) && return s
-    # cycle window [start,end) from the IY schedule (TIMEINT/CYCLEAT-aware; uniform = +period)
+# One-shot FIXDG/FIXHTG activity `m` fires this cycle: a fixed-year scaler matches exactly one cycle's
+# [start,end) range (IY schedule, TIMEINT/CYCLEAT-aware); a date before the first cycle fires in cycle 0
+# (Fortran OPFIND past-date behaviour).
+@inline function _fix_fires(s::StandState, m, kind::Symbol)
+    m.kind === kind || return false
     cyc_start = current_cycle_year(s)
     cyc_end = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+    return cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)
+end
+
+# grincr.f:451-525 record test for a firing FIXDG/FIXHTG activity: species (0 = all, <0 = group) and
+# PRM(3) <= DBH(I) < PRM(4), always on the PARENT record I (tripled copies ITFN/ITFN+1 follow their parent).
+@inline _fix_matches(s::StandState, m, i::Int) =
+    sp_field_matches(s.control, m.species, s.trees.species[i]) && (m.d1 <= s.trees.dbh[i] < m.d2)
+
+"""
+    fixhtg_scale(s, i, g) -> Float32
+
+Apply every FIXHTG activity firing this cycle that matches parent record `i` to height growth `g`,
+sequentially in activity order (grincr.f `HTG(ITFN)=HTG(ITFN)*PRM(2)` per activity) — used for tripled
+copies whose HTG is (re)formed after the scaler pass (htgf.f TEMHTG + SIZCAP cap happens BEFORE FIXHTG).
+"""
+function fixhtg_scale(s::StandState, i::Int, g::Float32)
+    isempty(s.control.multipliers) && return g
+    @inbounds for m in s.control.multipliers
+        _fix_fires(s, m, :fixhtg) && _fix_matches(s, m, i) && (g *= m.value)
+    end
+    return g
+end
+
+function apply_fix_scalers!(s::StandState, stash, kind::Symbol, fint::Float32)
+    isempty(s.control.multipliers) && return s
     t = s.trees
     nlive = stash === nothing ? t.n : stash.nlive
     isdg = kind === :fixdg
     @inbounds for m in s.control.multipliers
-        m.kind === kind || continue
-        # one-shot: a fixed-year scaler matches exactly one cycle's [start,end) range. A
-        # date before the first cycle fires in cycle 0 (Fortran OPFIND past-date behaviour).
-        (cyc_start <= m.year < cyc_end || (m.year < cyc_start && s.control.cycle == 0)) || continue
+        _fix_fires(s, m, kind) || continue
         for i in 1:nlive
-            sp_field_matches(s.control, m.species, t.species[i]) || continue
-            d = t.dbh[i]
-            (m.d1 <= d < m.d2) || continue
+            _fix_matches(s, m, i) || continue
             if isdg
                 t.diam_growth[i] *= m.value
                 stash !== nothing && (stash.dgU[i] *= m.value; stash.dgL[i] *= m.value)
@@ -1712,12 +1768,20 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # DISTURBANCE tally (NTALLY==1) in ie_autoes_establish! via ie_esetpr + ie_esetpr_sample, sampling the
             # per-plot IPPREP off the WK6 site-prep RNG vector — each prepped plot's regen uses its IPREP in the
             # advance/excess species mix (estb/esetpr.f + estab.f:373-399). Activity codes 493=MECH / 491=BURN.
+            # ESPRIN (esprin.f) validation: a blank date defaults to the ESTAB date IDSDAT (an undated ESTAB ⇒ FVS04,
+            # ignored); a date later than IDSDAT+19 is FVS04-ignored; the %-of-plots must lie in [0,100] (else
+            # FVS04-ignored — NOT clamped).
+            ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
             if r.present[1]
-                ic  = k == "MECHPREP" ? Int32(493) : Int32(491)
-                yr  = nint(r.values[1])
-                pct = r.present[2] ? clamp(Float32(r.values[2]), 0f0, 100f0) : 0f0
-                push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
+                yr = nint(r.values[1])
+                (idsdat > 0 && yr > idsdat + 19) && continue
+            else
+                idsdat < 0 && continue
+                yr = Int32(idsdat)
             end
+            pct = r.present[2] ? Float32(r.values[2]) : 0f0
+            (0f0 <= pct <= 100f0) || continue
+            push!(sched, ScheduledActivity(max(Int32(1), yr), ic, (Float32(yr), pct, 0f0, 0f0, 0f0, 0f0)))
         elseif k == "NOINGROW"                                # esin.f opt 22: disable automatic ingrowth
             s.estab.lingrw = false                            # (FVS parses these INSIDE the ESTAB packet, not top-level)
         elseif k == "INGROW"                                  # esin.f opt 21: enable automatic ingrowth
@@ -1834,25 +1898,53 @@ end
 
 function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     dbs_in = ""; standsql = ""; treesql = ""          # DATABASE input block (DSNIN/StandSQL/TreeSQL)
+    out_req = false                                    # an output table was requested in this block
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        k in ("SUMMARY", "TREELIDB", "COMPUTDB", "CLIMREDB", "STRCLSDB", "CALBSTDB", "MISRPTS", "PPBMMAIN",
+              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIDB", "ATRTLIDB") && (out_req = true)
         if k == "END"
             break
         elseif k == "DSNOUT"
-            s.control.dbs_out_file = strip(read_raw_line!(kr))   # filename on the next line
+            fname = strip(read_raw_line!(kr))                     # filename on the next line
+            if s.control.dbs_caseid_set
+                # dbsin.f:116-122: CASEID already assigned (a DSNOUT/STANDSQL DBSCASE ran with an output table requested)
+                # ⇒ FVS16 "DSNOUT DATA BASE CAN NOT BE REDEFINED" — the name is read and discarded, output stays put.
+            else
+                s.control.dbs_out_file = fname
+                # dbsin.f:127-173: DBSOPEN then DBSCASE(1) — IFORSURE=1 forces the case (dbscase.f:135 IFORSR=IFORSURE), so
+                # CASEID is assigned now whether or not an output table has been requested.
+                s.control.dbs_caseid_set = true
+            end
         elseif k == "DSNIN"
             dbs_in = strip(read_raw_line!(kr))                   # input SQLite file on the next line
         elseif k == "STANDSQL"
             standsql = _read_dbs_sql!(kr)
+            # dbsstandin.f:216 CALL DBSCASE(1) as the stand is read: IFORSURE=1 forces the case, opening DSNOUT (the DBSINIT
+            # default 'FVSOut.db' when none was given) and assigning CASEID (dbscase.f:171-235) ⇒ any later DSNOUT is
+            # rejected; tables requested afterwards go to the already-open DSNOUT (measured live: FVSOut.db).
+            s.control.dbs_caseid_set = true
         elseif k == "TREESQL"
             treesql = _read_dbs_sql!(kr)
         elseif k == "SUMMARY"
             s.control.dbs_summary = true
+        elseif k == "CUTLIDB"
+            # dbsin.f option 17: ICUTLIST = 1 (or field 1 > 0 ⇒ that value; 2 = database only, no text report).
+            # The table is only written at a cut in a cycle with a due CUTLIST activity (prtrls.f → dbscuts.f).
+            s.control.dbs_cutlist = true
+            s.control.dbs_cutlist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
         elseif k == "TREELIDB"
+            # dbsin.f:230-233: ITREELIST = 1, or field 1 > 0 ⇒ that value (2 = database only ⇒ PRTRLS returns after the
+            # first request's DBSTRLS). The table is written only for an accomplished TREELIST request (prtrls.f).
             s.control.dbs_treelist = true
+            s.control.dbs_treelist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
+        elseif k == "ATRTLIDB"
+            # dbsin.f:748-751: IATRTLIST ⇒ FVS_ATRTList (dbsatrtls.f), only for an accomplished ATRTLIST request.
+            s.control.dbs_atrtlist = true
+            s.control.dbs_atrtlist_mode = (r.present[1] && r.values[1] > 0) ? Int32(trunc(Int, r.values[1])) : Int32(1)
         elseif k == "COMPUTDB"
             s.control.dbs_compute = true
         elseif k == "CLIMREDB"
@@ -1876,8 +1968,15 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_rd_sum = true    # dbsin.f opt 34: ⇒ FVS_RD_Sum WRD root-disease summary
         elseif k == "RDDETAIL"
             s.control.dbs_rd_detail = true # dbsin.f opt 35: ⇒ FVS_RD_Det WRD per-species patch detail
+        elseif k == "ECONRPTS"
+            # dbsin.f opt 30: IDBSECON=2 (summary + harvest tables); field 1 == 1 ⇒ IDBSECON=1 (summary only).
+            s.econ === nothing && (s.econ = EconState())
+            c = _ec_calc!(s)
+            c.dbs_econ = (r.present[1] && round(Int, r.values[1]) == 1) ? Int32(1) : Int32(2)
         end
     end
+    # DBSINIT defaults DSNOUT='FVSOut.db' (live FVS writes the requested tables there when no DSNOUT is given).
+    (out_req && isempty(s.control.dbs_out_file)) && (s.control.dbs_out_file = "FVSOut.db")
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
     # STDINFO/SITECODE/DESIGN/TREEDATA-card equivalent (dbsstandin.f/dbstreesin.f).
     (!isempty(dbs_in) && !isempty(standsql)) && load_fia_stand!(s, dbs_in, standsql, treesql)
@@ -2443,15 +2542,20 @@ costs (ANNUCST), variable harvest costs by DBH class (HRVVRCST) and harvest reve
 species + DBH (HRVRVN) into `EconState` for the discounting core; other ECON keywords
 are recognized but not yet ported.
 """
-function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
+function kw_econ!(s::StandState, rec::KeywordRecord, kr::KeywordReader; if_block::Bool = false)
     s.econ === nothing && (s.econ = EconState())
     ec = s.econ
     ec.active = true
+    _ec_calc!(s)                                           # ECIN: isEconToBe (faithful ECCALC engine state)
+    if_block && (ec.calc.if_capture = EconEvent[])         # OPMODE LMODE: event keywords captured as IF templates
     while true
         r = read_keyword!(kr)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        # Faithful ECIN storage (econ_calc.jl) for the per-cycle ECCALC / FVS_EconSummary engine. Runs first
+        # so a supplemental '&' rate/duration record is consumed here (ecin.f ratesAndDurations reads it).
+        k == "END" || econ_keyword!(s, k, r, kr)
         if k == "END"
             break
         elseif k == "STRTECON"                             # ecin.f: field1=start year/delay, field2=DISCOUNT RATE (%),
@@ -2558,6 +2662,17 @@ function kw_if!(s::StandState, kr::KeywordReader)
         elseif kw == "SPECPREF"
             push!(acts, ScheduledActivity(nint(v[1]), Int32(201),
                                           ntuple(i -> Float32(v[i + 1]), 6)))
+        elseif uppercase(kw) == "ECON"
+            # ECON block inside IF/THEN (ecin.f runs with OPMODE LMODE=.TRUE.): the non-event keywords are plain
+            # inputs, applied as usual; PRETEND/SPECCST/SPECRVN/STRTECON go through addEvent's LMODE branch —
+            # field 1 is a WAIT time and the activity becomes part of this event (dated at fire time).
+            kw_econ!(s, rec, kr; if_block = true)
+            cap = s.econ.calc.if_capture
+            s.econ.calc.if_capture = nothing
+            for e in cap
+                p = ntuple(i -> i <= length(e.params) ? e.params[i] : 0f0, 6)
+                push!(acts, ScheduledActivity(e.date, e.code, p))
+            end
         end
         # unknown keywords inside IF (e.g. COMPUTE) are skipped for now
     end
@@ -2653,6 +2768,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "NOAUTOES"                            # initre.f opt-72 → ESNOAU (esin.f:783): clear ALL auto
             s.control.lsprut = false                       # establishment — auto tallies, ingrowth, AND stump-sprouting.
             s.estab.lautal = false; s.estab.lingrw = false
+            s.estab.stoadj = 0f0                           # esin.f:788 ESNOAU: STOADJ=0.0 ("STOCKADJ IS SET TO ZERO")
         elseif kw == "AUTALLY";  s.estab.lautal = true      # esin.f opt 24 — enable automatic tallies
         elseif kw == "NOAUTALY"; s.estab.lautal = false     # esin.f opt 23 — disable automatic tallies
         elseif kw == "INGROW";   s.estab.lingrw = true      # esin.f opt 21 — enable automatic ingrowth
@@ -2705,7 +2821,9 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "FMORTMLT"; kw_mult!(s, rec, :fmort)  # FFE fire-caused mortality multiplier (fmeff.f:340)
         elseif kw == "CYCLEAT";  kw_cycleat!(s, rec)       # extra cycle-boundary year (initre.f opt 134)
         elseif kw == "SETSITE";  kw_setsite!(s, rec)       # scheduled mid-run site-index/BAMAX/SDImax change (act 120)
-        elseif kw == "CUTLIST";  s.control.dbs_cutlist = true  # emit the FVS_CutList DBS table (dbscuts.f, ICUTLIST)
+        elseif kw == "TREELIST"; kw_listact!(s, rec, 80)   # schedule a tree list (initre.f opt 17 → PRTRLS(1))
+        elseif kw == "CUTLIST";  kw_listact!(s, rec, 199)  # schedule a cut list  (initre.f opt 92 → PRTRLS(2) from CUTS)
+        elseif kw == "ATRTLIST"; kw_listact!(s, rec, 198)  # schedule an after-treatment list (opt 135 → PRTRLS(3))
         elseif kw == "STRCLASS"; kw_strclass!(s, rec)      # activate SSTAGE structural-stage classification (ksstag.f)
         elseif kw == "CARBREPT"; kw_carbrept!(s, rec)      # request the FFE Stand Carbon Report (fmcrbout.f)
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS

@@ -96,13 +96,12 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
 @inline function _log_cut!(s::StandState, t, i::Integer, prem::Float32)
     prem > 0f0 || return
     sp = Int(t.species[i])
-    # FVS_CutList (DBS): capture this removed record (per-acre removed TPA = prem/GROSPC). A pure
-    # observer, active only when the CutList sink is set — no effect on the thinning otherwise.
-    cap = s.control.cutlist_capture
-    cap === nothing || push!(cap, _cut_record(s, i, prem))
     # ECON: value this removed tree (DBH-class cost/revenue) at the removal point, before
     # the tree list is compacted (eccalc.f/echarv.f). Accumulated for the cycle's harvest.
     if s.econ !== nothing && s.econ.active
+        # ECHARV input (cuts.f:1382-1386, 1659): accumulate this method's PREM and yarding-loss pools per
+        # record; ECHARV itself is replayed once per record after all methods (econ_cuts_replay!).
+        econ_cut_accum!(s, Int(i), prem)
         s.econ.cycle_cost += harvest_value(s.econ.hrv_cost, sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         s.econ.cycle_rev  += harvest_value(s.econ.hrv_rev,  sp, t.dbh[i], prem, t.cuft_vol[i], t.bdft_vol[i])
         # Log-graded revenue (HRVRVN unit 4): bucket this tree's per-log BF (stashed by compute_volumes!)
@@ -250,7 +249,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     end
     # MINHARV gate is live whenever any threshold is set (persists across cycles once set).
     minharv_on = cc.ba_min > 0f0 || cc.tcf_min > 0f0 || cc.cf_min > 0f0 || cc.scf_min > 0f0 || cc.bf_min > 0f0
-    tpa_snap = minharv_on ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
+    # ECON PRETEND (cuts.f:381 GETISPRETENDACTIVE): the trial thin is VALUED but never performed — needs the
+    # pre-thin PROB to restore, like a MINHARV cancel.
+    pretend = _ec_cut_on(s) && s.econ.calc.is_pretend_active
+    cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
+    al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
+    tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
     # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
@@ -274,12 +278,16 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # PASS 2 — cut METHODS.
     rem = _NO_REMOVAL
     applied = false
+    last_ic = Int32(0)                                      # ICFLAG of the last cut method processed (cuts.f:535)
+    econ_cuts_begin!(s)                                     # ECON: DO-1700 replay state (PROB snapshot, IND2)
     @inbounds for act in acts
         ic = act.icflag
         # only CUTS methods here; establishment (427/430/431), the SPECPREF (201) and
         # SETPTHIN (248) modifiers are consumed elsewhere.
         ic in (Int32(3), Int32(4), Int32(5), Int32(6), Int32(7), Int32(8), Int32(10), Int32(12), Int32(14), Int32(1), Int32(11), Int32(17), Int32(15)) || continue
         applied = true
+        last_ic = ic
+        econ_cut_method!(s)                                 # IND2 = identity unless this method sorts (LSPECL)
         r = (ic == Int32(8) || ic == Int32(12)) ? _thindbh!(s, act) : # DBH-class / HT-class residual
             ic == Int32(7)  ? _thinprsc!(s, act) :                     # prescription (cut-code marked)
             ic == Int32(10) ? _thin_sdi!(s, act) :                     # THINSDI (Zeide target SDI)
@@ -297,21 +305,37 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # MINHARV (cuts.f:1556): if the cycle's total removal falls below ANY harvest minimum
     # (BA / total / merch / sawlog cubic / board feet), the whole cut is CANCELED — restore the
     # pre-thin TPA and report no removal. Default thresholds are 0, so the gate is a no-op then.
-    if applied && minharv_on
+    if applied && (minharv_on || pretend)
         t = s.trees
         ba_rem = 0f0
         @inbounds for i in 1:length(tpa_snap)
             ba_rem += (tpa_snap[i] - t.tpa[i]) * t.dbh[i]^2 * _BA_PER_TREE
         end
-        if !(ba_rem >= cc.ba_min && rem.cuft >= cc.tcf_min && rem.mcuft >= cc.cf_min &&
-             rem.scuft >= cc.scf_min && rem.bdft >= cc.bf_min)
+        met = ba_rem >= cc.ba_min && rem.cuft >= cc.tcf_min && rem.mcuft >= cc.cf_min &&
+              rem.scuft >= cc.scf_min && rem.bdft >= cc.bf_min
+        if pretend
+            # cuts.f:1566-1591 — PRETEND always takes the cancel branch; only when the minimums ARE met does it
+            # enter DO 1700, where every record jumps to 1640 (:1623) → ECHARV on PREM=PROB−WK4 → 1700 (:1675)
+            # WITHOUT removing, then skips all removal bookkeeping (:1733). ICFLAG=1 (THINAUTO last) → GO TO
+            # 2000 (:1447) before that test ⇒ nothing is valued.
+            (met && last_ic != Int32(1)) && econ_cuts_replay!(s)
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
+            _ec_cut_on(s) && empty!(s.econ.calc.cut_prem)
+            push!(s.control.years_cut, yr)   # evaluated: the 2nd (grow_cycle!) cuts! call must not value it again
+            return _NO_REMOVAL
+        end
+        if !met
+            @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
+            push!(s.control.years_cut, yr)   # evaluated (canceled): idempotent re-call is a no-op
             return _NO_REMOVAL
         end
     end
     if applied
         push!(s.control.years_cut, yr)
-        rem.tpa > 0f0 && tredel_compact!(s.trees)   # TREDEL: swap-from-end (oracle's exact post-thin layout)
+        econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
+        cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
+        al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
+        rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
     # yarding (left on site, routed to fuel pools), so the REPORTED removed merch/saw/bdft are scaled by
@@ -567,6 +591,7 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     end
     order = Vector{Int32}(undef, n)
     _rdpsrt!(key, order)                             # descending, FVS tie-break
+    econ_cut_order!(s, order)                        # this method's IND2 (cuts.f:1135) for the ECON DO-1700 replay
 
     rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
@@ -666,6 +691,7 @@ function _thin_sdi!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -764,6 +790,7 @@ function _thin_rden!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -872,6 +899,21 @@ end
 # iwho=1 form CCF uses). The keyword target is a cover PERCENT → equivalent crown area
 # (cuts.f:816, CCC=1): CSDI = −(43560·ln(1−CC/100)/0.785398). REMOVE = area − CSDI;
 # CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
+# IND1 (SPESRT: species groups, lineage-key order within a species — `species_sort!`) as a LOCAL vector, for cut-time
+# class sums that FVS accumulates in IND1 order (CCCLS). Built fresh so the shared `scratch.idx1` is not disturbed.
+function _ind1_order(s::StandState)
+    t = s.trees; buf = s.scratch.ind1_buf; k = 0
+    sk = t.sort_key
+    @inbounds for sp in 1:MAXSP
+        start = k + 1
+        for i in 1:t.n
+            t.species[i] == sp && (k += 1; buf[k] = Int32(i))
+        end
+        k > start && sort!(view(buf, start:k); by = j -> sk[j], alg = InsertionSort)   # stable ⇒ same ties
+    end
+    return view(buf, 1:k)
+end
+
 function _thin_cc!(s::StandState, act::ScheduledActivity)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
@@ -884,19 +926,19 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
     csdi = cc_target <= 0f0 ? 0f0 :
            -(43560f0 * log(1f0 - cc_target / 100f0) / 0.785398f0)
 
-    # per-tree forest-grown crown width (CRWDTH array, cwidth.f)
-    p = s.plot
+    # per-tree forest-grown crown width (CRWDTH array, cwidth.f → cwcalc.f IWHO=0) — the variant CRWDTH, so western
+    # variants use their cwcalc (was the eastern crown_width for every variant ⇒ 0.5 ft ⇒ wrong THINCC cover target)
     cw = Vector{Float32}(undef, n)
     @inbounds for i in 1:n
-        sp2 = s.species.code2[t.species[i]]
-        cw[i] = crown_width(s.coef, sp2, t.dbh[i], t.height[i],
-                            Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)
+        cw[i] = tree_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i])
     end
 
     grps = s.control.sp_groups                         # SPGROUP table (for ispcut<0)
     wk4 = Float32[t.tpa[i] for i in 1:n]
+    # CCCLS (sdical.f:342-409): CRA = Σ CRWDTH(I)²·WK4(I) accumulated in IND1 (SPESRT species-order) sequence —
+    # Float32 summation order matters (record-order summing put CUTEFF 1 ULP off live ⇒ ±1 residual TopHt/ACC).
     area = 0f0
-    @inbounds for i in 1:n
+    @inbounds for i in _ind1_order(s)
         d = t.dbh[i]; d <= 0f0 && continue
         _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps) || continue
         area += cw[i] * cw[i] * wk4[i]
@@ -933,6 +975,7 @@ function _thin_cc!(s::StandState, act::ScheduledActivity)
             key[i] = (lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
         end
         order = Vector{Int32}(undef, n); _rdpsrt!(key, order)
+        econ_cut_order!(s, order)                    # ICUT>0 ⇒ sorted IND2 (cuts.f:798-799)
         totcut = 0f0
         @inbounds for it in order
             d = t.dbh[it]; d <= 0f0 && continue
@@ -1068,7 +1111,120 @@ end
 # (0 throughout / 1 below / 2 above). Each targeted point is thinned independently to the
 # residual in its metric; the per-point metric scales the point's per-acre stocking by
 # (PI−NONSTK) (the jpnum path in CLSSTK/SDICLS/…). Ported from Oracle A cuts.jl label_475.
+# THINPT for the LINEAR point attributes (ITHNPA 1 TPA / 2 BA / 4 crown cover) — a faithful port of cuts.f
+# label 475 → 400/425 → DO 1100 (ICFLAG 15):
+#   per point JPNUM: SDIC = the point's stock over [DBHLO,DBHHI)·[0,999) × (PI−NONSTK) (CLSSTK/CCCLS, cutstk.f);
+#   CSDI>0: if SDIC+CRADIF > CSDI then REMOVE=SDIC−CSDI, CUTEFF=min(REMOVE/SDIC,1); CUTEF1=PRMS(2):
+#     CUTEF1<CUTEFF ⇒ PRMS(2)=CUTEFF (OPCHPR — the RATCHET: the next point pass re-reads PRMS(2) at label 400),
+#     else ICUT>0 ⇒ CUTEFF=CUTEF1 (cuts.f:879-887); else REMOVE=0.  CSDI=0 ⇒ REMOVE=SDIC, CUTEFF=1 (:926-928).
+#   DO 1100 over IND2 (identity when ICUT=0 ⇒ LSPECL; else ONE full-list RDPSRT of the WK2 priority, :1133),
+#   stop once REMOVE−TOTCUT ≤ 0; PREM = WK4·CUTEFF (cap WK4); CUT = PREM·w·(PI−NONSTK) (w = 1 / D²·k / CRWDTH²);
+#   XLEFT = REMOVE−(TOTCUT+CUT) < 0 ⇒ last record PREM·=(XLEFT+CUT)/CUT, CUT=REMOVE−TOTCUT (:1374-1376).
+function _thin_pt_linear!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnpa::Int32)
+    t = s.trees; n = t.n
+    csdi0, cutef1, spec_f, dbhlo, dbhhi_p, dir_f = act.params
+    ispcut = Int(round(spec_f)); icut = Int(round(dir_f))
+    valmin = dbhlo; valmax = dbhhi_p <= dbhlo ? 999f0 : dbhhi_p
+    grps = s.control.sp_groups
+    pins = Float32(s.plot.points_inv) - Float32(s.plot.nonstockable)   # PI − NONSTK
+    pmax = max(1, Int(s.plot.points_inv))
+    points = pt_point == 0 ? (1:pmax) : (Int(pt_point):Int(pt_point))
+    # CC: per-record crown width CWDI = CRWDTH(I)
+    cwv = zeros(Float32, n)
+    if ithnpa == 4
+        @inbounds for i in 1:n
+            cwv[i] = tree_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i])   # CRWDTH(I)
+        end
+    end
+    # stock summation order: CLSSTK walks IC=1..ITRN (cutstk.f); CCCLS walks IND1 = species-major then record
+    # (sdical.f DO 240 II=1,ITRN; I=IND1(II))
+    sorder = ithnpa == 4 ? sort(collect(1:n); by = i -> (Int(t.species[i]), i)) : collect(1:n)
+    # CC target: percent cover → crown area (cuts.f:815-817); ≥100% cancels the request (:822-825)
+    csdi = max(0f0, csdi0)
+    if ithnpa == 4 && csdi > 0f0
+        csdi >= 100f0 && return _NO_REMOVAL
+        csdi = (43560f0 * log(1f0 - (csdi / 100f0)) / 0.785398f0) * (-1f0)
+    end
+    # CCADJ-free CRADIF (CCCOEF=CCCOEF2=1 ⇒ CCC=1): the Float32 round-off residual FVS adds to SDIC in the test
+    cccl1 = 100f0 * csdi * 0.785398f0 / 43560f0
+    cct = 100f0 * (1f0 - exp(-0.01f0 * (100f0 * csdi * 0.785398f0 / 43560f0)))
+    cccsdi = (log(1f0 + (-cct / 100f0))) / (1f0 / 100f0) * (-1f0)
+    cradif = abs((((cccsdi / 100f0) / 0.785398f0) * 43560f0) - csdi)
+    lspecl = icut == 0
+    order = Int32.(1:n)
+    if !lspecl
+        key = Vector{Float32}(undef, n)
+        @inbounds for i in 1:n
+            key[i] = (icut == 1 ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
+        end
+        _rdpsrt!(key, order)
+        econ_cut_order!(s, order)
+    end
+    elig(i, jp) = t.plot_id[i] == jp && _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)
+    wk4 = Float32[t.tpa[i] for i in 1:n]
+    rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
+    for jp in points
+        sdic = 0f0
+        @inbounds for i in sorder
+            elig(i, jp) || continue
+            tpa_i = wk4[i] * pins
+            d = t.dbh[i]
+            sdic += ithnpa == 1 ? tpa_i :
+                    ithnpa == 2 ? tpa_i * (d * d * 0.005454154f0) :
+                    cwv[i] * cwv[i] * tpa_i
+        end
+        if csdi > 0f0
+            if sdic + cradif > csdi
+                remove = sdic - csdi
+                cuteff = remove / sdic
+                cuteff > 1f0 && (cuteff = 1f0)
+                if cutef1 < cuteff
+                    cutef1 = max(0f0, cuteff)            # OPCHPR: PRMS(2) ratchets for the next point pass
+                elseif !lspecl
+                    cuteff = cutef1
+                end
+            else
+                remove = 0f0; cuteff = 0f0
+            end
+        else
+            remove = sdic; cuteff = 1f0
+        end
+        remove > 0f0 || continue
+        totcut = 0f0
+        @inbounds for it in order
+            remove - totcut > 0f0 || break
+            elig(it, jp) || continue
+            prem = wk4[it] * cuteff
+            prem > wk4[it] && (prem = wk4[it])
+            prem <= 0f0 && continue
+            # CUT in FVS's evaluation order (cuts.f:1204-1208 / :1225-1228): CUT=PREM; BA ⇒ PREM*D*D*0.005454154;
+            # CC ⇒ PREM*CWDI*CWDI; then ×(PI−NONSTK).
+            d = t.dbh[it]
+            cut = ithnpa == 2 ? prem * d * d * 0.005454154f0 :
+                  ithnpa == 4 ? prem * cwv[it] * cwv[it] : prem
+            cut = cut * pins
+            xleft = remove - (totcut + cut)
+            if xleft < 0f0
+                prem = ((xleft + cut) / cut) * prem
+                cut = remove - totcut
+            end
+            totcut += cut
+            wk4[it] -= prem
+            _log_cut!(s, t, it, prem)                    # ESTUMP
+            rtpa  += prem;                          rcuft  += prem * t.cuft_vol[it]
+            rmcuft += prem * t.merch_cuft_vol[it];  rscuft += prem * t.saw_cuft_vol[it]
+            rbdft += prem * t.bdft_vol[it]
+        end
+    end
+    @inbounds for i in 1:n
+        t.tpa[i] = wk4[i]
+    end
+    return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
 function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnpa::Int32)
+    (ithnpa == 1 || ithnpa == 2 || ithnpa == 4) && s.trees.n > 0 &&
+        return _thin_pt_linear!(s, act, pt_point, ithnpa)
     t = s.trees; n = t.n
     n == 0 && return _NO_REMOVAL
     (ithnpa < 1 || ithnpa > 5) && return _NO_REMOVAL
@@ -1095,14 +1251,26 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         elseif ithnpa == 3
             w[i] = (d / 10f0)^1.605f0
         elseif ithnpa == 4
-            sp2 = s.species.code2[t.species[i]]
-            cw = crown_width(s.coef, sp2, d, t.height[i], Float32(t.crown_pct[i]), 0,
-                             s.plot.latitude, s.plot.longitude, s.plot.elevation)
+            cw = tree_crwdth(s, Int(t.species[i]), d, t.height[i], t.crown_pct[i])   # CWDI=CRWDTH(IT), cuts.f:1228
             w[i] = cw * cw
         end
     end
 
     wk4 = Float32[t.tpa[i] for i in 1:n]
+    # ICUT>0 (dir≠0): LSPECL=.FALSE. (cuts.f:798-799) ⇒ ONE RDPSRT of the WK2 priority over ALL ITRN records
+    # (cuts.f:1133); the per-point DO 1100 then walks that full IND2 skipping LNOCUT records (off-point /
+    # ineligible, cuts.f:1086-1089). The key is point-independent, so the order is the same on every point pass;
+    # it is also the IND2 the DO-1700 ECON replay walks. ICUT=0 keeps LSPECL ⇒ identity IND2.
+    gorder = Int32[]
+    if dir != 0
+        lbelow_g = dir == 1
+        gkey = Vector{Float32}(undef, n)
+        @inbounds for i in 1:n
+            gkey[i] = (lbelow_g ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i)
+        end
+        gorder = Vector{Int32}(undef, n); _rdpsrt!(gkey, gorder)
+        econ_cut_order!(s, gorder)
+    end
     rtpa = rcuft = rmcuft = rscuft = rbdft = 0f0
     @inline function _rmp!(i, prem)
         prem <= 0f0 && return
@@ -1152,16 +1320,12 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
                 _rmp!(i, prem)
             end
         else                                            # from below (1) / above (2)
-            lbelow = dir == 1
             remove = metric - residual                  # in metric units (already ×scale)
-            idx = Int32[i for i in 1:n if t.plot_id[i] == jp && t.dbh[i] > 0f0 &&
-                        _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)]
-            isempty(idx) && continue
-            key = Float32[(lbelow ? -t.dbh[i] : t.dbh[i]) + _cut_pref_wt(s, i) for i in idx]
-            ord = Vector{Int32}(undef, length(idx)); _rdpsrt!(key, ord)
             totcut = 0f0
-            @inbounds for k in ord
-                i = idx[k]; totcut >= remove && break
+            @inbounds for i in gorder
+                (t.plot_id[i] == jp && t.dbh[i] > 0f0 &&
+                 _cut_eligible(s, i, ispcut, valmin, valmax, 0f0, 999f0, grps)) || continue
+                totcut >= remove && break
                 cv = w[i] * scale
                 cv <= 0f0 && continue
                 prem = wk4[i]
@@ -1179,4 +1343,48 @@ function _thin_pt!(s::StandState, act::ScheduledActivity, pt_point::Int32, ithnp
         t.tpa[i] = wk4[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
+end
+
+
+"""
+    _cutlist_capture!(s, prob0)
+
+cuts.f:1740 `CALL PRTRLS (2)` → dbscuts.f, for an applied (not PRETEND, not MINHARV-canceled) cut: the CUTLIST
+activities (code 199) dated in THIS cycle (prtrls.f OPFIND(1,199); an activity in a cut-free cycle is simply never
+done) each write the removed-record rows — skipping a field-4 code-2 request (prtrls.f `TEM(3).EQ.2`) and a
+duplicate of an earlier request's parameters (DUPCHK), and stopping after the first when ICUTLIST=2 (database-only
+⇒ DBSKODE=0 ⇒ RETURN). Requires DATABASE CUTLIDB (ICUTLIST>0, dbscuts.f:61).
+"""
+function _cutlist_capture!(s::StandState, prob0::Vector{Float32})
+    c = s.control
+    c.dbs_cutlist || return
+    reqs = prtrls_requests!(s, 2, Int(c.cycle) + 1)    # OPFIND(199) in this cycle, DUPCHK, TEM(3)=2 skip, OPDONE, KODE=0 stop
+    isempty(reqs) && return
+    t = s.trees
+    removed = Float32[prob0[i] - t.tpa[i] for i in 1:min(t.n, length(prob0))]
+    rows = cutlist_rows(s, removed)
+    for _ in reqs                                        # one DBSCUTS call per accomplished request
+        append!(c.cutlist_capture, rows)
+    end
+    return
+end
+
+"""
+    _atrtlist_capture!(s)
+
+cuts.f:1740 `CALL PRTRLS (3)` → dbsatrtls.f, for an applied (not PRETEND, not MINHARV-canceled) cut, right after the
+CUTLIST's PRTRLS(2): each ATRTLIST activity (code 198) due in THIS cycle (prtrls.f OPFIND(1,198), DUPCHK, TEM(3)=2
+skip, OPDONE; IATRTLIST=2 ⇒ stop after the first) writes the AFTER-TREATMENT list — every record with PROB>0 after the
+thin (dbsatrtls.f `IF (P.LE.0.0) CYCLE`), in the pre-TREDEL layout, TPA=PROB/GROSPC, MortPA=DP=0. Requires ATRTLIDB.
+"""
+function _atrtlist_capture!(s::StandState)
+    c = s.control
+    c.dbs_atrtlist || return
+    reqs = prtrls_requests!(s, 3, Int(c.cycle) + 1)
+    isempty(reqs) && return
+    rows = atrtlist_rows(s)
+    for _ in reqs
+        append!(c.atrtlist_capture, rows)
+    end
+    return
 end

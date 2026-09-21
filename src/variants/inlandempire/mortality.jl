@@ -8,7 +8,12 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     n = t.n; n == 0 && return s
     ba = p.basal_area
     itype = Int(p.habitat_input)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? IE_BAMAXA[itype] : 0f0)
+    # BAMAX: a user BAMAX (keyword/DB ⇒ LBAMAX) is used as given. Otherwise ie/sitset.f:82-84 seeds BAMAXA(ITYPE)
+    # WITHOUT setting LBAMAX, so MORTS's CALL SDICAL(0,SDIMAX) (morts.f:193) re-derives BAMAX=XMAX·0.5454154·PMSDIU
+    # from the BA-weighted SDIDEF (sdical.f:203-205). The 380→SDIDEF→BAMAX round trip is NOT the identity in single
+    # precision (IE habitat 13: 380.00003), and BAMAX divides RIPP (morts.f:291) — using the raw table value moved a
+    # kill by ~5 ULP (bare-plot fixture record 241, cycle 4).
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : _ie_sdical_bamax(s, itype)
     bamax <= 0f0 && (bamax = 1f0)
     sdimax = stand_sdimax(s)
     # stand sums (morts.f:196-210, RAW record order): T, SD2SQ → DQ10; AVED (BA-weighted mean DBH)
@@ -17,7 +22,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = ie_bratio(sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr   # morts.f:198-199 CIOBDS=(2·D·G+G·G); SD2SQ+P·(D·D+CIOBDS)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && return s
@@ -26,15 +31,15 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)                    # morts.f:207 (1−TTB)**0.1 = powf
     aved = dsum / wprob
     # MORCON: POTEN → GMULT/REIN per size class (morts.f:646-667)
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 11) && (ifor = 8)
     it = (1 <= itype <= 30) ? itype : 1
     poten1 = IE_MORT_POT[IE_MORT_IPDG[it, ifor]]
     poten2 = IE_MORT_POT[IE_MORT_IPDG2[it, ifor]]
-    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
@@ -58,7 +63,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
               0.554421f0 / dd + IE_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))                         # morts.f:282 EXP = expf
         rip = rip * (ip == 1 ? rein1 : rein2)                 # ·POTENT
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
@@ -67,9 +72,20 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         # ie/morts.f:316-322 species-group rate: NI rate for sp≤12,14,23; 20% for PI/JU
         # (sp15,16); 60% for LM,PY,AS,CO,MM,PB,OH (sp13,17,18,19,20,21,22). X=1 (no MORTMULT).
         smult = (sp <= 12 || sp == 14 || sp == 23) ? 1f0 : (sp == 15 || sp == 16) ? 0.2f0 : 0.6f0
-        wki = pr * (1f0 - (1f0 - ripp)^fint) * smult
+        # ie/morts.f:301-311 establishment "best" trees are immune for 20 yr after the disturbance date: clear IESTAT
+        # once IY(ICYC) reaches it, else X·(1−XCHECK) with XCHECK = clamp((IESTAT−IY(ICYC))/FINT, 0, 1).
+        xest = 1f0
+        if t.iestat[i] > 0
+            iyc = Int32(current_cycle_year(s))
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = Float32(t.iestat[i] - iyc) / fint
+            xchk = clamp(xchk, 0f0, 1f0)
+            xest = 1f0 - xchk
+        end
+        # morts.f:315-322: WKI=P·(1−(1−RIPP)**FINT)·X [·0.2 | ·0.6] — X before the species factor; **FINT = powf
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * xest * smult
         gsc = (dgi / bark) * (fint / 10f0)
-        if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
+        if (dd + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1   # morts.f:326 (D+G) with the D≤0.5→0.5 clamped D
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
         end
         wki > pr && (wki = pr)
@@ -91,4 +107,38 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
+end
+
+"""
+    _ie_sdical_bamax(s, itype) -> Float32
+
+SDICAL's non-LBAMAX BAMAX (sdical.f:95-126, 203-205), evaluated exactly as gfortran does: species BA sums over
+IND1 (`BAXSP(sp) += ((0.0054542·D)·D)·P`, TOTBA in the same order), `XMAX = (Σ_{sp=1..MAXSP} SDIDEF(sp)·BAXSP(sp))/TOTBA`
+(XMAX=1 when TOTBA≤0), then `BAMAX = (XMAX·0.5454154)·PMSDIU` with PMSDIU as a fraction (morts.f:184).
+"""
+function _ie_sdical_bamax(s::StandState, itype::Int)::Float32
+    t = s.trees; p = s.plot
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    baxsp = zeros(Float32, MAXSP); totba = 0f0
+    @inbounds for sp in 1:MAXSP
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        for k in i1:isct[sp, 2]
+            (1 <= k <= length(ind1)) || continue
+            i = Int(ind1[k]); (1 <= i <= t.n) || continue
+            treeba = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
+            baxsp[Int(t.species[i])] += treeba
+            totba += treeba
+        end
+    end
+    xmax = 0f0
+    if totba <= 0f0
+        xmax = 1f0
+    else
+        @inbounds for sp in 1:min(MAXSP, length(p.sp_sdi_def))   # DO 60 I=1,MAXSP (unused species add SDIDEF·0)
+            xmax += p.sp_sdi_def[sp] * baxsp[sp]
+        end
+        xmax = xmax / totba
+    end
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
+    return xmax * 0.5454154f0 * pmsdiu
 end

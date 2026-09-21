@@ -72,6 +72,14 @@ Format per entry:
 
 ---
 
+- **UPDATE 2026-09-19 (FVSjl now reproduces it bit-exactly):** the read is of a **stale, not uninitialized**,
+  value and is fully deterministic. `HT` is a static COMMON array (zero at load, `-fno-automatic`); slot
+  `ITFN > ITRN` holds exactly what the last swap-from-end TREDEL left there (the height of the record that last
+  occupied that slot), or 0 if the slot was never used. FVSjl keeps that shadow per slot (`t.stale_ht`, captured
+  in `tredel_compact!`) and caps each copy's UNCAPPED `TEMHTG` against it (`triple_records!`, SN). Result:
+  `treeszcp_htcap` TopHt bit-exact every cycle (was "≤3–4 ft drift, irreducible UB"). It remains an FVS source
+  defect in intent (the cap uses the wrong height), but it is not undefined behaviour and not a corner.
+
 ### D38 — SN volume init (R9 Clark `r9ht`) SIGFPE-crashes on real FIA stands with short trees (≤17.3 ft: invalid-op; just >17.3 ft: FE_UNDERFLOW — `r9ht` is missing the underflow guard `r9cuft` already has at `r9clark.f:1015`)
 
 > ★★ **RESOLVED — FIX APPLIED TO LIVE FVS, ALL 4 VARIANTS (2026-07-11).** A crash is a *bug*,

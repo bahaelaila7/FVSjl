@@ -430,6 +430,8 @@ function _merge_one!(s::StandState, mem::Vector{Int})::Int
     t.species[dst]   = t.species[sel];   t.plot_id[dst]  = t.plot_id[sel]
     t.mort_code[dst] = t.mort_code[sel]; t.cut_code[dst] = t.cut_code[sel]
     t.special[dst]   = t.special[sel];   t.defect[dst] = t.defect[sel]
+    t.iestat[dst]    = t.iestat[sel]                                  # comprs.f:738 IESTAT(IREC1)=IESTAT(IREC)
+    t.zrand[dst]     = -999f0                                         # comprs.f:973 ZRAND(IREC1)=-999 (reset the serial correlation)
     # OLDRN serial-correlation deviate (dgdriv.f OLDRN) is the post-compression residual (#29). comprs.f NEVER
     # sets it on the merged record (no OLDRN in comprs.f): the record at IREC1=IND(I1) silently keeps that slot's
     # OLDRN, then the tredel→TREMOV compaction SWAPS records (tremov.f:39/92/146 swap OLDRN) — reshuffling the

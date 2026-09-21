@@ -19,10 +19,17 @@
 #     oracle AND FVSjl (the bridge injects exactly what a native PLANT card would).
 #   • ADDTREES with NO `.es2` is BYTE-IDENTICAL to the same keyfile with no ADDTREES
 #     card — on BOTH sides (a null external model contributes nothing).
-#   • The residual oracle-vs-jl gap on the *plain PLANT path itself* (this synthetic
-#     bare NOTREES stand: oracle 911 vs jl 364 TPA @2002) is the pre-existing IE
-#     bare-plot establishment straddle (EZCRUISE/INADV; documented separately) — it is
-#     NOT introduced by the bridge, which is bit-exact to the PLANT path.
+#   • Re-measured 2026-09-19 (FVSie_g16, --keywordfile + ECHOSUM): with NOAUTOES at the TOP
+#     level (initre.f opt 72 → ESNOAU; it is NOT an ESTAB-packet keyword — inside the packet
+#     the IE oracle stops with FVS01 INVALID KEYWORD) the oracle gives bridge == direct PLANT
+#     (364 TPA @2002 both); jl now matches (was 911 until STOADJ persistence + the estab.f
+#     STOADJ<0.0001 no-stocking branch were ported — see the STOADJ testset below). A NOAUTOES
+#     card INSIDE the ESTAB packet draws FVS01 INVALID KEYWORD but the run CONTINUES with the
+#     keyword ignored (measured: output == AUTOES-on); jl likewise ignores it. (With AUTOES ON
+#     the oracle's bridge ≠ direct — 555 vs 911 — and jl matches both @2002.)
+#   • The bridge must run at the TOP of ESNUTR (esnutr.f:59 CALL ESADDT(1)), before the
+#     OPFIND 430/431 NPNATS count (:348) and the ESTAB tally (:401): otherwise the AUTOES tally
+#     does not see the bridged PLANT (rule-6 catch-all + NBEST plant pool) and diverges.
 #
 # The two @tests below reproduce the two bit-exact bridge equalities purely in FVSjl
 # (no oracle at test time): the bridge == the direct keyword, and the null bridge is
@@ -48,8 +55,8 @@ function _base_key(io, extra_estab::Vector{String})
     println(io, _IE_STDINFO)
     println(io, _card("INVYEAR", "1992"))
     println(io, _card("NUMCYCLE", "4"))
+    println(io, "NOAUTOES")                  # base keyword (initre.f opt 72) — must precede the ESTAB packet
     println(io, _card("ESTAB", "1992"))
-    println(io, "NOAUTOES")
     println(io, "NOINGROW")
     for l in extra_estab; println(io, l); end
     println(io, "END")
@@ -93,6 +100,18 @@ end
         # The bridge schedules exactly the PLANT the external model returned ⇒ bit-exact vs the
         # native PLANT keyword (mirrors the oracle's ADDTREES==PLANT identity).
         @test ra == rp
+        # LIVE-VERIFIED (FVSie_g16 --keywordfile, 2026-09-19): under top-level NOAUTOES (ESNOAU STOADJ=0,
+        # esin.f:788) the estab.f STOADJ<0.0001 no-stocking branch books ONLY the planted trees — live 2002 row
+        # YEAR AGE TPA BA SDI CCF TOPHT QMD = 2002 10 364 0 1 1 5 0.3 for BOTH bridge and direct (jl was 911).
+        # LIVE (FVSie_g16, 2026-09-19): EVERY cycle is now bit-exact — the former "planted birth-height :estab
+        # draw-order corner" was real: planted heights are drawn from each plot's post-ESAVE stream (estab.f:967
+        # →DO 322→:1075), plus planted HTIMLT/WK4 (:1055-1063), pre-ESNUTR RDNEXT, per-point BAA in the height
+        # section, KDTOLD-based continuation TIME, IESTAT immunity, birth-cycle WK1 and the IE/EM forkod IFOR default.
+        live = [["2002","10","364","0","1","1","5","0.3"], ["2012","20","317","7","24","15","27","2.0"],
+                ["2022","30","277","48","111","68","56","5.7"], ["2032","40","268","113","219","138","70","8.8"]]
+        for rr in (ra, rp)
+            @test [split(l)[1:8] for l in rr if !startswith(l, "1992")] == live
+        end
         # Sanity: the planted regen actually shows up (non-empty stand by cycle 1).
         @test any(r -> occursin(r"^2002\s+10\s+[1-9]", r), ra)
         # The bridge honored IKEEP=1 (first .es2 line) — the file is kept, not deleted.
@@ -110,5 +129,38 @@ end
         noaddt_txt = FVSjl.run_keyfile(noaddt; variant = InlandEmpire(), period = 10, output = :sum)
         # Byte-identical to the no-ADDTREES packet (mirrors the oracle's null-bridge identity).
         @test _rows(addt_txt) == _rows(noaddt_txt)
+    end
+
+    # ------------------------------------------------------------------ STOADJ persistence (esinit/esin/esnutr)
+    # STOADJ is a persistent stand variable (esinit.f:49=1.0, putstd/getstd REALS(84)): zeroed at keyword-read time by
+    # NOAUTOES→ESNOAU (esin.f:788) and NATURAL (esin.f:253); a fired STOCKADJ (esnutr.f:88) persists. LIVE (FVSie_g16):
+    # NOAUTOES ≡ NATURAL ≡ STOCKADJ 0.0 on EVERY cycle of this bare stand (all 364/317/277/268), and STOCKADJ 0.5 gives
+    # 2002 637. (jl formerly reset STOADJ=1.0 each cycle ⇒ NATURAL 911 and STOCKADJ held for one cycle only.)
+    mktempdir() do dir
+        function k2(path, noaut::Bool, extra)
+            open(path, "w") do io
+                println(io, "STDIDENT"); println(io, "IESTOADJ")
+                println(io, _card("DESIGN", "", "", "", "11.0", "1.0")); println(io, "NOTREES")
+                println(io, _IE_STDINFO); println(io, _card("INVYEAR", "1992")); println(io, _card("NUMCYCLE", "4"))
+                noaut && println(io, "NOAUTOES")
+                println(io, _card("ESTAB", "1992")); println(io, "NOINGROW")
+                for l in extra; println(io, l); end
+                println(io, "END"); println(io, "PROCESS"); println(io, "STOP")
+            end
+        end
+        P = _card("PLANT", "1992", "3", "400", "100.0", "2.0", "0.5")
+        run(p) = _rows(FVSjl.run_keyfile(p; variant = InlandEmpire(), period = 10, output = :sum))
+        f_na = joinpath(dir, "na.key"); k2(f_na, true,  [P])
+        f_nt = joinpath(dir, "nt.key"); k2(f_nt, false, [_card("NATURAL", "1992", "3", "400", "100.0", "2.0", "0.5")])
+        f_s0 = joinpath(dir, "s0.key"); k2(f_s0, false, [P, _card("STOCKADJ", "1992", "0.0")])
+        f_s5 = joinpath(dir, "s5.key"); k2(f_s5, false, [P, _card("STOCKADJ", "1992", "0.5")])
+        rna, rnt, rs0, rs5 = run(f_na), run(f_nt), run(f_s0), run(f_s5)
+        @test rna == rnt == rs0                        # live: identical all cycles
+        r02(rr) = split(only(filter(l -> startswith(l, "2002"), rr)))[1:8]
+        @test r02(rna) == ["2002", "10", "364", "0", "1", "1", "5", "0.3"]   # live 2002
+        @test r02(rs5) == ["2002", "10", "637", "0", "2", "1", "6", "0.3"]   # live 2002
+        rows8(rr) = [split(l)[1:8] for l in rr if !startswith(l, "1992")]
+        @test rows8(rs5)[2:4] == [["2012","20","700","8","30","16","28","1.4"], ["2022","30","551","55","140","80","52","4.3"],
+                                  ["2032","40","488","136","285","168","66","7.1"]]                 # live, all cycles
     end
 end

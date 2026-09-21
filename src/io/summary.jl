@@ -155,6 +155,31 @@ come from `grow_cycle!` advancing to the next period. The final cycle has no
 growth period. Cumulative removed merch volume feeds MAI. Requires `state` set up
 through `setup_growth!` + `compute_forest_type!` + `compute_volumes!`.
 """
+# FVS forms the .sum volume totals by turning each per-tree volume into a per-acre value IN PLACE
+# (CFV(I)=CFV(I)*PROB(I), fvs.f:221 at the inventory / gradd.f:303 each cycle), PCTILE-ing those, then dividing
+# back (CFV(I)=CFV(I)/PROB(I), fvs.f:269 / gradd.f:350). In REAL*4 (v·p)/p is not always v, so every downstream
+# reader of the per-tree arrays before the next VOLS — the FVS_TreeList/CutList rows, the next cycle's CUTS
+# removals, ECHARV — sees the round-tripped value (e.g. MCFV 25.0 → 24.999998). gradd.f divides only when
+# PROB>0 and round-trips the biomass/carbon arrays only under LFIANVB; the inventory pass (fvs.f) does all of them.
+function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
+    t = s.trees
+    rt(v::Float32, p::Float32) = (v * p) / p
+    bio = cycle0 || s.control.fia_nvb
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]
+        p > 0f0 || continue
+        t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
+        t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p); t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
+        if bio
+            t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
+            t.cubsaw_bio[i] = rt(t.cubsaw_bio[i], p);   t.foliage_bio[i] = rt(t.foliage_bio[i], p)
+            t.abvgrd_carb[i] = rt(t.abvgrd_carb[i], p); t.merch_carb[i] = rt(t.merch_carb[i], p)
+            t.cubsaw_carb[i] = rt(t.cubsaw_carb[i], p); t.foliage_carb[i] = rt(t.foliage_carb[i], p)
+        end
+    end
+    return s
+end
+
 function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
@@ -162,6 +187,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
                         compute_collect::Union{Nothing,Vector} = nothing,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
+                        atrtlist_collect::Union{Nothing,Vector} = nothing,
                         carbon_collect::Union{Nothing,Vector} = nothing,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing,
@@ -209,11 +235,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # FMCFMD falls back to fuel model 8 (byram ~370 vs the accumulated-fuel ~637 on crown-prone dense stands)
     # ⇒ under-fire. Folded in with the decay-table fix (ie/fmvinit.f DKR is decay-class-INDEPENDENT, _FM_DKR_NR)
     # so the accumulated fine fuel matches the oracle rather than over-retaining ~2.2×. (The rest of the CR
-    # family — CR/EM/CI/TT/UT/BM/WC/PN/CA/WS — shares this latent gap; fold them in + validate separately.)
+    # family — CR/EM/CI/TT/UT/WC/PN/CA/WS — shares this latent gap; fold them in + validate separately.)
+    # BM (bm/fmcba.f bm_live/dead_fuel_loading + bm/fmvinit.f DKR, both ported) folded in: without it the BM
+    # SIMFIRE sampled a (0,0) down-wood point ⇒ FMDYN picked model 8 alone (live 10+12 at SMALL 1.58/LARGE
+    # 29.87) ⇒ flame 0.8 ft SURFACE vs live 11.5 ft PASSIVE ⇒ catastrophic under-kill (41134029010497:
+    # 1078→222 TPA vs live 1078→1).
     ffe_on = s.fire !== nothing && s.fire.active &&
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
-              s.variant isa InlandEmpire || s.variant isa Kootenai)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa InlandEmpire || s.variant isa Kootenai ||
+              s.variant isa BlueMountains)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
@@ -241,6 +272,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
     cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
+    prev_rem_scuft = 0                          # last growing cycle's sawlog-cubic removal (IOSUM(22) carry)
     for c in 0:ncyc
         compute_forest_type!(s)
         last = c == ncyc
@@ -250,17 +282,37 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # removed merch with a one-cycle lag, but the FINAL row's MAI is loaded from the
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
-                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0))
+                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0)
+        _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # Test-only observer (tiered suite bit-identity snapshots, test/harness/tiered/snapshot.jl): a callback in the
+        # CURRENT TASK's local storage sees the same start-of-cycle state. Task-local ⇒ safe when stands run on
+        # parallel tasks; absent ⇒ one Dict lookup per summary row, no effect on the simulation.
+        let snap = get(task_local_storage(), :fvsjl_snapshot_hook, nothing)
+            snap === nothing || snap(s, r.year, c)
+        end
         # COVER report-only accumulator (CVCNOP): the canopy statistics of the start-of-cycle
         # (pre-thin) stand at year r.year → slot IP1=c+1. Gated on the COVER activity 900.
         if s.cover !== nothing && s.cover.active
             compute_density!(s)
             c == 0 && (cover_year0 = Int(r.year))
-            cover_fint = cycle_period_at(s.control, c == 0 ? 0 : c - 1)
-            cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+            # FINT as CVCBMS sees it (DDS=(2·D·DG+DG²)/FINT): at the inventory row (fvs.f:301, before any
+            # GRINCR) FINT is still the GROWTH/DG_MEASURE measurement period (initre.f:831, dbsstandin.f:701;
+            # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
+            # (grincr.f:65-66).
+            cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
+            # Inventory row: CVCBMS reads FVS's post-calibration DG array (dgdriv.f DO 220 dubs every record
+            # without a measured increment), not the raw input increments jl keeps in diam_growth.
+            if c == 0 && s.variant isa BlueMountains
+                dg_in = copy(view(s.trees.diam_growth, 1:s.trees.n))
+                s.trees.diam_growth[1:s.trees.n] .= bm_cycle0_dg(s)
+                cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+                s.trees.diam_growth[1:s.trees.n] .= dg_in
+            else
+                cover_accumulate!(s.cover, s, r.year, cover_year0, cover_fint)
+            end
         end
         # FFE Stand Carbon Report row (FMCRBOUT, fmmain.f:206) — sampled at the FVS phase: AFTER FMBURN
         # (fire kill + snag booking + consumption) but BEFORE UPDATE grows the stand. For a non-fire cycle
@@ -337,10 +389,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
             # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
+            atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
+            econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
                 s.control.cutlist_capture = nothing
+            end
+            if atrtlist_collect !== nothing
+                push!(atrtlist_collect, (r.year, per, s.control.atrtlist_capture))
+                s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
             if strclass_collect !== nothing
@@ -409,6 +467,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
+        # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
+        # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing
+        # cycle's sawlog removal (live econ_strtecon 2005: SCuFt removed 23 = the 2000 thin's).
+        last ? (r.rem_scuft = prev_rem_scuft) : (prev_rem_scuft = r.rem_scuft)
         write_sum_row(io, r; metric = s.variant isa BritishColumbia || s.variant isa Ontario)
         collect_rows === nothing || push!(collect_rows, r)
     end
@@ -424,7 +487,7 @@ the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
 function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0,
-                     accretion::Real = 0, mortality::Real = 0)
+                     accretion::Real = 0, mortality::Real = 0, cycle0::Bool = false)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
     # Metric variants (BC, Canada) report the .sum per HECTARE in metric units (metric/vbase/disply.f):
@@ -436,11 +499,27 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     fht  = met ? 0.3048f0    : 1f0    # ft → m
     fqmd = met ? 2.54f0      : 1f0    # in → cm
     fvol = met ? 0.0699713f0 : 1f0    # ft³/ac → m³/ha
-    tpa  = dt(stand_tpa(s) / g * fha)
+    # BM: FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:682) — a Float32
+    # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
+    # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
+    # gradd.f:186's fresh RDPSRT(.TRUE.) after. Record order flipped knife-edge rows by ±1 (41134819010497:
+    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). BM-gated (the base
+    # gradd.f is shared; other variants not yet re-validated on this order).
+    bm_ind = nothing
+    if s.variant isa BlueMountains && s.trees.n > 0
+        bm_ind = Vector{Int32}(undef, s.trees.n)
+        cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
+    end
+    pctile_tot(w) = (acc = 0f0; @inbounds(for k in length(bm_ind):-1:1; acc += w(Int(bm_ind[k])); end); acc)
+    tpa  = bm_ind === nothing ? dt(stand_tpa(s) / g * fha) :
+           dt(pctile_tot(i -> s.trees.tpa[i]) / g * fha)
     ba   = dt(stand_ba(s) / g * fba)
     sdi  = dt(stand_sdi(s) / g * fha)
     ccf  = dt(stand_ccf(s) / g)
-    toph = dt(stand_top_height(s) * fht)
+    # BM cycle-0 row: FVS's AVH (DENSE at cratet.f:692 / AVHT40 :624) walks the IND CRATET left — the IND1-seeded
+    # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
+    # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
+    toph = dt(stand_top_height(s; cratet_ind = cycle0 && s.variant isa BlueMountains) * fht)
     qmd  = round(stand_qmd(s) * fqmd; digits = 1)
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
@@ -451,8 +530,12 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         # ~50 KB/cycle + a type-instability). All vtot fields are Vector{Float32}, so assert it: concrete
         # `fld` ⇒ allocation-free, type-stable, and the sequential Float32 accumulation order is unchanged.
         fld = getfield(t, f)::Vector{Float32}; acc = 0f0
-        @inbounds for i in 1:t.n
-            acc += fld[i] * t.tpa[i]
+        if bm_ind !== nothing
+            acc = pctile_tot(i -> fld[i] * t.tpa[i])        # CFV(I)=CFV(I)*PROB(I) then PCTILE (gradd.f:288-322)
+        else
+            @inbounds for i in 1:t.n
+                acc += fld[i] * t.tpa[i]
+            end
         end
         # FVS builds the ON .sum volume in TWO rounding stages: disply.f stores the IMPERIAL per-area
         # integer IOSUM(k)=INT(O..CUR(7)/GROSPC+0.5), then sumout.f prints INT(IOSUM(k)·metricfactor)

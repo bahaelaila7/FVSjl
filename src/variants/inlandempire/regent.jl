@@ -52,22 +52,35 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     banext = fill(ba, nper); rdnext = fill(relden, nper)
     if nper > 1
         @inbounds for i in 1:t.n
-            d1 = t.dbh[i]; d1 < 3.0f0 && continue          # backdated dbh
+            # calibration DO 49 I=1,ITRN (regent.f:1090-1109) has NO D>=3 gate (unlike the growth pass DO 6 :246):
+            # every live record's measured increment feeds the subcycle projection.
+            d1 = t.dbh[i]                                   # WK3(I) = backdated dbh
             sp = Int(t.species[i]); pr = t.tpa[i]
             bark = ie_bratio(sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = ie_tree_ccf(sp, d1); c2 = ie_tree_ccf(sp, d2)
+            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr     # CCFCAL = CCFT·P (regent.f:1098-1106)
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
-                k += kper[j-1]; pn = pr * 0.985f0^k
-                rdnext[j] += k * ci * pn; banext[j] += k * bi * pn
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn; banext[j] += Float32(k) * bi * pn
             end
         end
     end
+    # regent.f:1116-1132 assigns each species a sub-model: NIVAR (<=12,14,23), TTVAR (13,17), CRVAR (19,22),
+    # UTVAR (the rest). The DO 90 calibration loop runs for EVERY species with ISCT≠0 and LHTCAL (default .TRUE.,
+    # grinit.f:104) — not just NIVAR. That matters even where the resulting scale factor is 1.00, because the
+    # TTVAR arm DRAWS ZRAND(I)=BACHLO(0,1,RANN) (regent.f:1181) from the shared main stream and leaves the draw
+    # in the tree record for the growth pass. Skipping it desynchronised every later consumer of the stream.
+    reldm1 = s.plot.relative_density_prev
+    dens = s.density
     @inbounds for sp in 1:23
-        (sp <= 12 || sp == 14 || sp == 23) || continue    # NIVAR only
+        nivar = sp <= 12 || sp == 14 || sp == 23
+        ttvar = sp == 13 || sp == 17
+        # NOTE: the CRVAR/UTVAR arm (regent.f:1211-1271) draws nothing and is not ported here; it can only move
+        # HCOR for a CR/UT species that has >=NCALHT(5) measured small-tree records.
+        (nivar || ttvar) || continue
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
         snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
@@ -77,14 +90,43 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required
             hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2)
             pct = t.crown_ratio[i]
+            cr  = Float32(t.crown_pct[i])                 # CR = FLOAT(ICR(I)) (regent.f:1161)
+            ipccf = Int(t.plot_id[i])
+            pccf_i = (ipccf >= 1 && ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
             hk = hb
             for j in 1:nper
-                bal = banext[j] * (100.0f0 - pct) * 0.0001f0
-                htgrl = rhcon[sp] + IE_RG_RHLH[sp]*log(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
-                        IE_RG_RHBAL[sp]*bal
-                hk += exp(htgrl)                          # regent.f:1174-1175 (NO scale in the calib pass)
+                if nivar
+                    bal = banext[j] * (100.0f0 - pct) * 0.0001f0
+                    htgrl = rhcon[sp] + IE_RG_RHLH[sp]*flog(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
+                            IE_RG_RHBAL[sp]*bal
+                    hk += fexp(htgrl)                      # regent.f:1174-1175 (NO scale in the calib pass)
+                else
+                    # TTVAR (regent.f:1176-1210): PPCCF/TPCCF-driven BETA height increment around a persistent
+                    # per-tree ZRAND. EDH<=0.1 clamps and resets ZRAND to -999 so the next use redraws.
+                    ppccf = reldm1 > 0f0 ? (rdnext[j] - reldm1) / reldm1 : 0f0
+                    tpccf = pccf_i * ppccf
+                    tpccf > 300.0f0 && (tpccf = 300.0f0)
+                    tpccf < 25.0f0  && (tpccf = 25.0f0)
+                    if saved_dbh[i] <= 0f0
+                        edh_j = 0f0
+                    else
+                        beta1 = fexp(1.17527f0 - 0.42124f0*flog(tpccf))
+                        beta2 = fexp(-2.56002f0 - 0.58642f0*flog(tpccf))
+                        htg1 = beta1 + beta2*cr
+                        stddev = htg1*(1.08720f0 - 0.00230f0*cr)
+                        if t.zrand[i] == -999f0                # regent.f:911 redraw until |ZRAND|<=2
+                            while true
+                                z = bachlo(s.rng, 0.0f0, 1.0f0)
+                                (z >= -2.0f0 && z <= 2.0f0) && (t.zrand[i] = z; break)
+                            end
+                        end
+                        edh_j = htg1 + t.zrand[i]*stddev
+                        (edh_j <= 0.1f0) && (edh_j = 0.1f0; t.zrand[i] = -999f0)
+                    end
+                    hk += edh_j
+                end
             end
-            edh = hk - hb                                 # regent.f NIVAR EDH = HK−H
+            edh = nivar ? (hk - hb) : (hk - hb) * rhcon[sp]  # regent.f:1274-1278
             term = hg * scale3
             pr = t.tpa[i]
             snx += edh * pr; sny += term * pr; snp += pr; nh += 1
@@ -94,7 +136,7 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = snx > 0f0 ? sny / snx : 1f0
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end
@@ -158,7 +200,7 @@ end
 @inline function _ie_htgf_copy_large(con::Float32, hdgcof::Float32, dg::Float32,
                                      scale::Float32, xht::Float32, hti::Float32, cap::Float32)
     dg <= 0.0f0 && return 0.1f0 * scale * xht               # ln(DG) undefined ⇒ FVS's pre-tail 0.1 floor
-    v = exp(con + hdgcof * log(dg)) + IE_HTBIAS
+    v = fexp(con + hdgcof * flog(dg)) + IE_HTBIAS
     v < 0.1f0 && (v = 0.1f0)
     v = v * scale * xht
     (hti + v > cap) && (v = max(cap - hti, 0.1f0))          # htgf.f:329-331 SIZCAP on HT(ITFN)=central HT
@@ -200,16 +242,17 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             bark = ie_bratio(sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = ie_tree_ccf(sp, d1); c2 = ie_tree_ccf(sp, d2)
+            # CCFCAL returns CCFT·P (ccfcal.f:81) ⇒ C1/C2 carry P, and FVS evaluates RDNEXT += ((K*CI)/P)*PN with
+            # PN=P*0.985**K (integer power ⇒ __powisf2) — regent.f:262-273. Cancelling the P algebraically (the old
+            # `k*ci*pn` on bare CCFT) rounds differently: IE cycle-4 subcycle-2 RDJ was 2 ULP off (bare-plot fixture).
+            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
                 k += kper[j-1]
-                pn = pr * 0.985f0^k
-                # regent.f:269 RDNEXT += K*CI/P*PN where CI uses CCFCAL (= CCFT*P). Our ie_tree_ccf is CCFT
-                # (no P), so CI here lacks the P that FVS's /P cancels ⇒ do NOT divide by pr (pn carries it).
-                rdnext[j] += k * ci * pn
-                banext[j] += k * bi * pn
+                pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn
+                banext[j] += Float32(k) * bi * pn
             end
         end
     end
@@ -226,8 +269,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # per-tree height + diameter accumulators (WK3=H, WK5=D), start at HT/DBH
     wk3 = Float32[t.height[i] for i in 1:n]
     wk5 = Float32[t.dbh[i] for i in 1:n]
-    zrand_tt = fill(-999f0, n)          # TTVAR (sp13/17) persistent ZRAND per tree (regent.f:513); drawn fresh
-                                        # each call (cross-cycle persistence = accepted ZZRAN-class residual)
+    # TTVAR (sp13/17) ZRAND lives in the TREE RECORD (regent.f:513 ZRAND(I)), not in this call: it is seeded at
+    # input (intree.f:369/607), re-seeded by the cycle-0 LHTCAL calibration pass (regent.f:1181) and carried
+    # across cycles by TRIPLE/tremov, so a tree keeps its deviate until EDH<=0.1 resets it to -999.
+    zrand_tt = t.zrand
     cur_year = current_cycle_year(s)
     # WK4(I) = clgmult's per-tree CLIMATE growth multiplier (regent.f:596/598 H2=H1+…·WK4). In the oracle
     # CLGMULT fills WK4 once (dgdriv.f:153) and BOTH the large-tree DDS (dgdriv.f:217, jl apply_climate_dds!)
@@ -260,13 +305,28 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             end
         end
     end
+    # FVS walks every REGENT tree loop species-major over IND1 (DO ISPC=1,MAXSP / DO I3=I1,I2 / I=IND1(I3)):
+    # the subcycle density feedback RDNEXT/BANEXT(J+1) (regent.f:665-670) is a Float32 running sum, so its
+    # accumulation ORDER is part of the result; record order drifted RDJ/BAJ by ULPs from subcycle 2 on.
+    _isct = s.control.sp_count_tab; _ind1 = s.scratch.idx1
+    _sp_order = Vector{Int}(undef, n); _no = 0
+    @inbounds for sp in 1:MAXSP
+        i1 = _isct[sp, 1]; i1 == 0 && continue
+        i2 = _isct[sp, 2]
+        for k in i1:i2
+            (1 <= k <= length(_ind1)) || continue
+            ii = Int(_ind1[k]); (1 <= ii <= n) || continue
+            _no += 1; _sp_order[_no] = ii
+        end
+    end
     # ---- subcycle loop (regent.f:250-620) ----
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]
         scale = Float32(kper[j]) / regyr
         ky = 0; for jj in 1:j; ky += kper[jj]; end            # KY = cumulative years thru subcycle j (regent.f:353)
-        surv = 0.985f0 ^ ky
-        for i in 1:n
+        surv = fpowi(0.985f0, ky)                              # 0.985**KY: integer power ⇒ libgcc __powisf2 (single precision)
+        for _oi in 1:_no
+            i = _sp_order[_oi]
             sp = Int(t.species[i]); d0 = t.dbh[i]
             d0 >= IE_RG_XMAX[sp] && continue
             t.tpa[i] <= 0.0f0 && continue
@@ -274,7 +334,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             if !nivar
                 # UTVAR PI/JU (sp15,16): potential-height model, ONE pass only (regent.f:407 J>1 skip).
                 if (sp == 15 || sp == 16) && j == 1
-                    con = rhcon[sp] * exp(c.htg_cor_small[sp])   # non-NIVAR CON = RHCON·EXP(HCOR) (regent.f:414)
+                    con = rhcon[sp] * fexp(c.htg_cor_small[sp])   # non-NIVAR CON = RHCON·EXP(HCOR) (regent.f:414)
                     h1 = wk3[i]; d = wk5[i]
                     sitear = p.sp_site_index[sp]
                     xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
@@ -282,7 +342,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     sj = sitear                                   # POTHTG uses raw SITEAR (regent.f:459/467); H==H1 at j=1
                     pothtg = ((sj/5f0)*(sj*1.5f0 - h1)/(sj*1.5f0)) * 0.83f0
                     crx = Float32(t.crown_pct[i]) / 100f0
-                    vigor = 150f0*crx^3*exp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    vigor = 150f0*crx^3*fexp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
                     vigor = 1f0 - (1f0 - vigor)/3f0               # PI/JU cut vigor by 2/3 (regent.f:552)
                     htgrl = pothtg * pctred * vigor * con
                     h2 = h1 + htgrl * scale_ut                    # regent.f:600 (CR/UT else branch)
@@ -298,27 +358,27 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     end
                 elseif (sp == 18 || sp == 20 || sp == 21) && j == 1
                     # UTVAR aspen: Sheppard height curve (regent.f:556-582), ONE pass. CON=RHCON(=1)·EXP(HCOR).
-                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    con = rhcon[sp] * fexp(c.htg_cor_small[sp])
                     h1 = wk3[i]
                     si = p.sp_site_index[sp]
                     si > IE_RG_SHI[sp] && (si = IE_RG_SHI[sp])
                     si <= IE_RG_SLO[sp] && (si = IE_RG_SLO[sp] + 0.5f0)
                     relsi = (si - IE_RG_SLO[sp]) / (IE_RG_SHI[sp] - IE_RG_SLO[sp])
                     rsimod = 0.5f0 * (1f0 + relsi)
-                    sitage = (h1 * 12f0 * 2.54f0 / 26.9825f0) ^ 0.8509f0    # FINDAG (inverse Sheppard, regent.f:565)
-                    hite1 = 26.9825f0 * sitage ^ 1.1752f0
-                    hite2 = 26.9825f0 * (sitage + 10f0) ^ 1.1752f0
+                    sitage = fpow(h1 * 12f0 * 2.54f0 / 26.9825f0, 0.8509f0)    # FINDAG (inverse Sheppard, regent.f:565)
+                    hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+                    hite2 = 26.9825f0 * fpow(sitage + 10f0, 1.1752f0)
                     htgrl = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con * 0.75f0
                     wk3[i] = h1 + htgrl * scale_ut                          # regent.f:600 (·SCALE=NTYR/YR)
                     # (aspen subcycle DBH/density-feedback omitted — single UT pass; final assembly is authoritative)
                 elseif sp == 13 || sp == 17
                     # TTVAR (LM/PY): BETA/ZRAND height — EVERY subcycle (NOT one-pass; regent.f:507-538,598).
-                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    con = rhcon[sp] * fexp(c.htg_cor_small[sp])
                     h1 = wk3[i]
                     cr = Float32(t.crown_pct[i])
                     tpccf = clamp(relden, 25f0, 300f0)                      # PCCF≈stand CCF (single-point)
-                    beta1 = exp(1.17527f0 - 0.42124f0*log(tpccf))
-                    beta2 = exp(-2.56002f0 - 0.58642f0*log(tpccf))
+                    beta1 = fexp(1.17527f0 - 0.42124f0*flog(tpccf))
+                    beta2 = fexp(-2.56002f0 - 0.58642f0*flog(tpccf))
                     htg1 = beta1 + beta2*cr
                     stddev = htg1*(1.08720f0 - 0.00230f0*cr)
                     if zrand_tt[i] == -999f0                                # draw once (regent.f:513, no DGSD gate)
@@ -341,12 +401,12 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 elseif (sp == 19 || sp == 22) && j == 1
                     # CRVAR CO (sp19,22): POTHTG height (VIGOR NOT cut, unlike PI/JU); ONE pass. Diameter stays
                     # large-tree dgf (CO CR-logic works; CO TPA already tracks live — no seedling-DG problem).
-                    con = rhcon[sp] * exp(c.htg_cor_small[sp])
+                    con = rhcon[sp] * fexp(c.htg_cor_small[sp])
                     h1 = wk3[i]
                     sj = p.sp_site_index[sp]                       # POTHTG uses raw SITEAR
                     pothtg = ((sj/5f0)*(sj*1.5f0 - h1)/(sj*1.5f0)) * 0.83f0
                     crx = Float32(t.crown_pct[i]) / 100f0
-                    vigor = 150f0*crx^3*exp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    vigor = 150f0*crx^3*fexp(-6f0*crx) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
                     wk3[i] = h1 + pothtg * pctred * vigor * con * scale_ut
                 end
                 continue                                          # (all special species handled)
@@ -360,16 +420,16 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h1 - 4.5f0) / (ah - 4.5f0)
             relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
-            htgrl = con + IE_RG_RHLH[sp]*log(h1) + IE_RG_RHCCF[sp]*rdj + IE_RG_RHBAL[sp]*bal
-            h2 = h1 + exp(htgrl) * scale * xrhgro * wk4[i]   # regent.f:596 ·WK4(I) = clgmult climate multiplier
+            htgrl = con + IE_RG_RHLH[sp]*flog(h1) + IE_RG_RHCCF[sp]*rdj + IE_RG_RHBAL[sp]*bal
+            h2 = h1 + fexp(htgrl) * scale * xrhgro * wk4[i]   # regent.f:596 ·WK4(I) = clgmult climate multiplier
             wk3[i] = h2
             # NIVAR diameter (regent.f:598-610): skip if last subcycle or D≥3 or H2≤4.5
             d2 = d
             if !(j >= nper || d >= 3.0f0 || h2 <= 4.5f0)
                 ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
                 d1v = IE_RG_DIAM[sp] + dadj
-                h1 > 4.5f0 && (d1v = ax * (h1 - 4.5f0)^bx + dadj)
-                d2v = ax * (h2 - 4.5f0)^bx + dadj
+                h1 > 4.5f0 && (d1v = ax * fpow(h1 - 4.5f0, bx) + dadj)
+                d2v = ax * fpow(h2 - 4.5f0, bx) + dadj
                 dgj = (d2v - d1v) * xrdgro; dgj < 0.0f0 && (dgj = 0.0f0)
                 d2 = d + dgj
             end
@@ -378,8 +438,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             # adds its CCF/BA increase to RDNEXT/BANEXT(J+1). C1/C2 use CCFCAL (= CCFT·P) ⇒ ·pr; no /P here.
             if j < nper
                 pr = t.tpa[i]
-                c1 = ie_tree_ccf(sp, d); c2 = ie_tree_ccf(sp, d2)
-                rdnext[j+1] += Float32(ky) * pr * (c2 - c1) / 10.0f0 * surv
+                # CCFCAL returns CCFT·P (ccfcal.f:81) ⇒ C1/C2 already carry P; FVS evaluates
+                # ((KY*(C2-C1))/10.)*(0.985**KY) and ((BACON*D2*D2-B1)*P)*(0.985**KY) (regent.f:443-444, 668-670).
+                c1 = ie_tree_ccf(sp, d) * pr; c2 = ie_tree_ccf(sp, d2) * pr
+                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * surv
                 banext[j+1] += (0.005454154f0*d2*d2 - 0.005454154f0*d*d) * pr * surv
             end
         end
@@ -398,17 +460,6 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     #   small-tree pool that tips NSTORE (INT(ΣTPA/(prob1·300)+0.5)) and thus the AUTOES ingrowth count. Iterate
     #   the maintained ISCT/IND1 (the SAME order dgdriv.f's DGSCOR draws use — the diameter randomization is
     #   validated bit-exact) so the ZZRAN stream stays RNG-aligned with live FVS's DO-30 (regent.f:696-744).
-    _isct = s.control.sp_count_tab; _ind1 = s.scratch.idx1
-    _sp_order = Vector{Int}(undef, n); _no = 0
-    @inbounds for sp in 1:MAXSP
-        i1 = _isct[sp, 1]; i1 == 0 && continue
-        i2 = _isct[sp, 2]
-        for k in i1:i2
-            (1 <= k <= length(_ind1)) || continue
-            ii = Int(_ind1[k]); (1 <= ii <= n) || continue
-            _no += 1; _sp_order[_no] = ii
-        end
-    end
     # REGENT stale-BARK (ie/regent.f): the small-tree DGK=(DK−DKK)·BARK for a CRVAR/UTVAR species uses a LEFTOVER
     # BARK — the recompute BARK=BRATIO(ISPC,DBH(K),HT(K)) (regent.f:978) happens AFTER, so DGK sees the PREVIOUS
     # tree's bark. FVS's first (subcycle) loop grows UTVAR/CRVAR species in J=1 ONLY (regent.f:407) but NIVAR every
@@ -526,8 +577,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                         hk = h + htg
                         if hk >= 4.5f0
                             has_dg = true
-                            dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:905-906
-                            dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:907-911
+                            dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:905-906
+                            dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1f0              # regent.f:907-911
                             dgkbark = isnan(prevbark) ? bark : prevbark                            # regent.f:961 STALE BARK
                             dgk = (dk - dkk) * dgkbark * xrdgro                                    # regent.f:960
                             dgmx = IE_RG_DGMAX[sp]; dgk > dgmx && (dgk = dgmx)
@@ -639,8 +690,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                             dbh_dir = d + 0.001f0*hk                          # regent.f:883 DBH(K)=D+.001·HK, DG=0
                         else
                             has_dg = true
-                            dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
-                            dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
+                            dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)   # regent.f:906-907
+                            dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1f0              # regent.f:908-912
                             dgkbark = isnan(prevbark) ? bark : prevbark      # regent.f:961 STALE BARK
                             if dk < 0f0 || dkk < 0f0                          # regent.f:957-959
                                 dgk = htg*0.2f0*dgkbark*xrdgro
@@ -692,8 +743,8 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         large_htg_u = large_htg; large_htg_l = large_htg
         if stash !== nothing
             htcon_hg = hghch_hg + IE_HGSC[sp]
-            (s.control.htg_cor2_on && s.control.htg_cor2[sp] > 0.0f0) && (htcon_hg += log(s.control.htg_cor2[sp]))
-            con_hg = htcon_hg + h2cof_hg * h * h + IE_HGLD[sp] * log(d) + IE_HGLH * log(h)
+            (s.control.htg_cor2_on && s.control.htg_cor2[sp] > 0.0f0) && (htcon_hg += flog(s.control.htg_cor2[sp]))
+            con_hg = htcon_hg + h2cof_hg * h * h + IE_HGLD[sp] * flog(d) + IE_HGLH * flog(h)
             xht_hg = active_multiplier(s.control, :htg, sp, cur_year)
             large_htg_u = _ie_htgf_copy_large(con_hg, hdgcof_hg, stash.dgU[i], htgf_scale, xht_hg, h, cap)
             large_htg_l = _ie_htgf_copy_large(con_hg, hdgcof_hg, stash.dgL[i], htgf_scale, xht_hg, h, cap)
@@ -705,7 +756,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         relh = abs(ah - 4.5f0) < 0.01f0 ? 0.0f0 : (h - 4.5f0) / (ah - 4.5f0)
         relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
         dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
-        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * (h - 4.5f0)^bx + dadj)
+        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * fpow(h - 4.5f0, bx) + dadj)
         # TRIPLING (regent.f:801-810 "IF TRIPLING, EACH TRIPLE GETS A NEW RANDOM"): draw a FRESH ZZRAN per
         # tripled record; central (l=0) → the tree, copies (l=1,2) → the stash (htgU/htgL + is_small + dgU/dgL).
         # The DBH dub is the FAITHFUL non-ESTAB path (regent.f:955-989): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS
@@ -715,7 +766,14 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
         # (regent.f:881), a tiny-tree edge that does not fire on realistic small-tree stands (H+HTG > 4.5).
         nrec = stash !== nothing ? 3 : 1
         central_dbh = d
+        # regent.f carries the Fortran variable D ACROSS the tripling L-passes: D=DBH(I) once before label 918, then the
+        # end-of-pass `D=DBH(K)` (regent.f:1000, reached only via the D<3 small-tree path) — so pass L uses the PREVIOUS
+        # record's post-REGENT DBH (a central/copy whose HK<4.5 had DBH(K) set directly at :881) in XWT (:838), the
+        # D≥3 gate (:861) and DDS/SQRT (:984-985); DBH(K)-based terms (DIAM floor, DGBND, BRATIO) keep the own DBH.
+        dcar = d
         for l in 0:(nrec - 1)
+            xwt_l = dcar <= xmn ? 0.0f0 : (dcar - xmn) / (xmx - xmn)
+            small_l = dcar < 3.0f0
             zzran = 0.0f0
             if dgsd >= 1.0f0
                 while true
@@ -723,31 +781,31 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     (zzran <= 1.0f0 && zzran >= -1.5f0) && break
                 end
             end
-            htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
+            htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
             lhtg = l == 0 ? large_htg : (l == 1 ? large_htg_u : large_htg_l)  # per-copy large-tree HTG (htgf.f)
-            htg = htgr * (1.0f0 - xwt) + xwt * lhtg             # blend toward the (per-copy) large-tree htgf value
+            htg = htgr * (1.0f0 - xwt_l) + xwt_l * lhtg             # blend toward the (per-copy) large-tree htgf value
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
             # diameter dub (D<3 only). dg_inc = inside-bark increment (added to DBH via GRADD); dbh_dir≥0 ⇒ set DBH.
             dg_inc = 0.0f0; dbh_dir = -1.0f0
-            if small_d
+            if small_l
                 hk = h + htg
                 if hk < 4.5f0
                     dbh_dir = 0.1f0 + diam * 0.01f0 + hk * 0.001f0          # regent.f:881 (DBH set, DG=0)
                 else
-                    dk = ax * (hk - 4.5f0)^bx + dadj                        # regent.f:938
+                    dk = ax * fpow(hk - 4.5f0, bx) + dadj                        # regent.f:938
                     dk < diam && (dk = diam)
                     dk = dk + hk * 0.001f0
                     dgk = (dk - d1v) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0) # regent.f:958 (DK−D1)·XRDGRO
                     dg0 = dgk * bark                                        # DG(K)=DGK·BARK (regent.f:981)
-                    dds = dg0 * (2.0f0*bark*d + dg0) * scale2               # regent.f:984 (FINT→10yr via SCALE2)
-                    dg_inc = sqrt((d*bark)^2 + dds) - bark*d               # regent.f:985
+                    dds = dg0 * (2.0f0*bark*dcar + dg0) * scale2            # regent.f:984 (carried D)
+                    dg_inc = sqrt((dcar*bark)^2 + dds) - bark*dcar         # regent.f:985 (carried D)
                     (d + dg_inc) < diam && (dg_inc = diam - d)             # regent.f:987 DIAM floor
                     dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)  # DGBND (SIZCAP)
                 end
             end
             if l == 0
                 t.ht_growth[i] = htg
-                if small_d
+                if small_l
                     if dbh_dir >= 0.0f0
                         t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
                     else
@@ -761,11 +819,22 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 end
             elseif l == 1
                 stash.htgU[i] = htg; stash.is_small[i] = true
-                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_l
+                    stash.dgU[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                    stash.dbhU[i] = dbh_dir >= 0.0f0 ? dbh_dir : d
+                end
             else
                 stash.htgL[i] = htg
-                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_l
+                    stash.dgL[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                    stash.dbhL[i] = dbh_dir >= 0.0f0 ? dbh_dir : d
+                end
             end
+            small_l && (dcar = dbh_dir >= 0.0f0 ? dbh_dir : d)   # regent.f:1000 D=DBH(K) (post-REGENT DBH of this record)
+            # ↑ Each copy K carries its OWN DBH into UPDATE (TRIPLE copies the CENTRAL, whose DBH REGENT may already have
+            # SET directly — HK<4.5 ⇒ regent.f:881): a directly-set copy gets DBH(K)=its value with DG(K)=0 (⇒ next WK1=0);
+            # an increment-path copy keeps its PRE-growth DBH D and DG(K)=its increment, so UPDATE forms exactly
+            # D+DG/BRATIO(D) (MEASURED live copy 512: 0.10091+0.3169/0.915=0.4472; WK1 of copy 257 = 0).
         end
     end
     return s
@@ -780,7 +849,8 @@ end
 # (sp≤12,14,23) — the planted-conifer case. Non-NIVAR planted species (PI/JU 15,16 / TT 13,17 / CR 19,22) are rare
 # as planting stock and left un-birth-grown here (would need their special-species branches; see #186 follow-up).
 function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
+                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
     nstart >= t.n && return s
@@ -802,7 +872,33 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     # Post-fire the start-of-cycle density is the pre-fire overstory (e.g. relden 372 vs current ~9), which
     # collapses HTGRL and stunts the birth cohort ~2.5-3× (the dominant IE simfire post-fire BA deficit).
     # atba/atrelden/atavh stay on delmax/relh (the birth-DBH DADJ dub, #194); only bal/htgrl move to current.
-    ba_htg = p.basal_area; relden_htg = p.relative_density
+    # regent.f:288-295 (LESTB, NTYR=5 ⇒ one 5-yr period): RDNEXT(1)=RELDEN, BANEXT(1)=BA of the gradd.f:192 DENSE —
+    # post-growth/post-disturbance but PRE-ESNUTR (no sprouts, no AUTOES/PLANT cohort). The caller snapshots them
+    # before esuckr! (relden_pre/ba_pre); p.* here already include the new cohort (establish! recomputes density),
+    # which fed a bare planted stand RDJ≈0.19 instead of 0 ⇒ every birth HTGRL ~0.12% low (live instrumented).
+    ba_now = ba_pre >= 0f0 ? ba_pre : p.basal_area
+    relden_now = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    # regent.f:276-294 (LESTB, label 8): BANEXT(1)=TEMBA+NYR*BAYR with BAYR=(BA-TEMBA)/ITOT, NYR=5 — and likewise
+    # RDNEXT(1)=TEMCCF+NYR*CCFYR. Algebraically = BA/RELDEN, but the Float32 divide-then-multiply round trip is not the
+    # identity (IE 4727120010690 cyc3: BAJ 417662A9 vs BA 417662A8 ⇒ birth HT 1 ULP). TEMBA/TEMCCF = ATBA/ATCCF
+    # (start of cycle), falling back to BA/RELDEN when ≤0 (regent.f:218-221). ITOT = what the regent.f:205-211 KPER
+    # loop leaves (NTYR for one subcycle, else the last KPER). LSKIPH ⇒ BAYR=CCFYR=0 (unused: no height growth).
+    temba = atba > 0f0 ? atba : ba_now
+    temccf = atrelden > 0f0 ? atrelden : relden_now
+    ntyr_lestb = Int(round(fint)) - 5
+    ba_htg = temba; relden_htg = temccf
+    if ntyr_lestb > 0
+        nper_l = ntyr_lestb ÷ Int(IE_RG_REGYR); (ntyr_lestb % Int(IE_RG_REGYR) != 0) && (nper_l += 1)
+        itot_l = ntyr_lestb; nn_l = nper_l
+        for _ in 1:nper_l
+            nn_l == 1 && break
+            kp = itot_l ÷ nn_l; itot_l -= kp; nn_l -= 1
+        end
+        bayr = (ba_now - temba) / Float32(itot_l)
+        ccfyr = (relden_now - temccf) / Float32(itot_l)
+        ba_htg = temba + 5f0 * bayr
+        relden_htg = temccf + 5f0 * ccfyr
+    end
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR; yr = s.control.year
     ntyr = Int(round(fint))
@@ -858,7 +954,9 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         h = t.height[i]
         wk4 = t.htimlt[i]                                 # per-tree WK4=HTIMLT (PLANT/existing=1.0; AUTOES<1)
         con = rhcon[sp] + c.htg_cor_small[sp]             # CON = RHCON + HCOR
-        pct = t.crown_ratio[i]
+        # PCT(I) of a NEW record is 0 (estab.f:1252/1341) at REGENT(LESTB): FVS runs no DENSE between creating the record
+        # and ESGENT (the post-establishment DENSE is gradd.f:244). jl's establish! already re-ran stand_pct! ⇒ read 0 here.
+        pct = 0.0f0
         bal = ba_htg * (100.0f0 - pct) * 0.0001f0
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
@@ -869,15 +967,15 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         # (first application). LSKIPH ⇒ no height growth (regent.f:764 HTG=0).
         htgr1 = 0.0f0
         if !lskiph
-            htgrl = con + IE_RG_RHLH[sp]*log(h) + IE_RG_RHCCF[sp]*relden_htg + IE_RG_RHBAL[sp]*bal
-            h2 = h + exp(htgrl) * est_scale * wk4 * xrhgro
+            htgrl = con + IE_RG_RHLH[sp]*flog(h) + IE_RG_RHCCF[sp]*relden_htg + IE_RG_RHBAL[sp]*bal
+            h2 = h + fexp(htgrl) * est_scale * xrhgro * wk4   # regent.f:596 EXP(HTGRL)*SCALE*XRHGRO*WK4 (left-assoc Float32)
             htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         end
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
         ax = IE_RG_HHT1[sp]; bx = IE_RG_HHT2[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
         diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)
-        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * (h - 4.5f0)^bx + dadj)
+        d1v = diam + dadj; h > 4.5f0 && (d1v = ax * fpow(h - 4.5f0, bx) + dadj)
         zzran = 0.0f0
         if dgsd >= 1.0f0
             while true
@@ -885,7 +983,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 (zzran <= 1.0f0 && zzran >= -1.5f0) && break
             end
         end
-        htgr = htgr1 * exp(zzran * IE_RG_HSIGMA)
+        htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)
         htg_regent = htgr * (1.0f0 - xwt)                # REGENT HTG(I): new tree large-tree HTG(K)=0
         # ★ ESGENT (esgent.f:56-71): scale REGENT's HTG by WK4 AGAIN (second application ⇒ effective WK4²), then
         # for WK4<1 (AUTOES) reset the sub-breast-height DBH to the birth-cycle nominal 0.1+0.001·HT (DG=0) or,
@@ -910,7 +1008,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 t.dbh[i] = 0.1f0 + 0.001f0 * hk; t.diam_growth[i] = 0.0f0   # esgent.f:61
             elseif d < 3.0f0
                 # REGENT LESTB DBH(K)=DK on the REGENT height, then esgent HT/HTEMP shrink (esgent.f:64-65).
-                dk = ax * (hk_reg - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
+                dk = ax * fpow(hk_reg - 4.5f0, bx) + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
                 ratio = htemp > 0.0f0 ? hk / htemp : 1.0f0
                 t.dbh[i] = dk * ratio; t.diam_growth[i] = dk * ratio
             end
@@ -918,10 +1016,11 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             if hk_reg < 4.5f0                            # regent.f:881-882 REGENT HK<4.5 ⇒ nominal sub-BH DBH
                 t.dbh[i] = 0.1f0 + diam * 0.01f0 + hk_reg * 0.001f0; t.diam_growth[i] = 0.0f0
             else
-                dk = ax * (hk_reg - 4.5f0)^bx + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
+                dk = ax * fpow(hk_reg - 4.5f0, bx) + dadj; dk < diam && (dk = diam); dk = dk + hk_reg * 0.001f0
                 t.dbh[i] = dk; t.diam_growth[i] = dk    # regent.f:939,941 DBH(K)=DK; DG(K)=DK
             end
         end
     end
     return s
 end
+

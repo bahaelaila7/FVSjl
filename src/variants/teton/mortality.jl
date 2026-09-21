@@ -58,7 +58,7 @@ function _tt_ttmrt!(killed::AbstractVector{Float32}, tokill::Float32, s::StandSt
             @inbounds for i in 1:n
                 tpalft = t.tpa[i] - killed[i]
                 if tpalft > 0f0
-                    temwk2[i] = -tpalft * ((1f0 - efftr[i])^npass - 1f0); temsum += temwk2[i]
+                    temwk2[i] = -tpalft * (fpowi(1f0 - efftr[i], npass) - 1f0); temsum += temwk2[i]
                 end
             end
             minstp = npass > 50 ? 5 : (npass > 20 ? 2 : 1)

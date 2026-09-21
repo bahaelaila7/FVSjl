@@ -301,7 +301,7 @@ function _ut_dub_ages!(s::StandState)
         elseif sp == 20 || sp == 21
             sitage, _, _, _ = _ut_findag_so(sp, h, ssite)
         end
-        sitage > 0f0 && (t.birth_age[i] = sitage; t.age_known[i] = true)
+        sitage > 0f0 && (t.birth_age[i] = sitage)   # cratet.f FINDAG: IF(SITAGE>0)ABIRTH=SITAGE — LBIRTH (age_known) stays as input (intree.f)
     end
     return s
 end

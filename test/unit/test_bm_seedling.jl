@@ -62,11 +62,11 @@ function _keytext(cn)
           "STOP"], "\n") * "\n"
 end
 
-# Per-column relative tolerance. Chosen to ACCEPT the converged cornered state yet FAIL a revert of any of
-# the three fixes (which drive BA/SDI/CCF/QMD +40-130% high by the last establishing cycle). Observed cornered
-# residuals over the 11-cycle projection: BA ≤0.07, SDI ≤0.08, CCF ≤0.04, QMD ≤0.06; TopHt ≤0.12 (a cycle-boundary
-# self-thin/tie straddle, ≤3 ft absolute); TPA ≤0.11 (the documented BM late-cycle self-thin residual, open #140).
-const _TOL = Dict(:tpa=>0.15, :ba=>0.12, :sdi=>0.12, :ccf=>0.10, :topht=>0.15, :qmd=>0.10)
+# BIT-EXACT (2026-09-19, bm-base-resid): both stands match the live FVSbm golden on every .sum data row, every
+# cycle, after the CRATET backdated-DENSE / dead-PROB / IND-lifecycle / crown-order / WB small-tree / copy-ICR(K)
+# fixes. The former 10-15% tolerances masked a self-thin TPA −33 and a 2060 TopHt 25→17 regression (introduced
+# by the per-copy REGENT ZZRAN merge f5cd963c once the draw stream became faithful). Zero tolerance now.
+const _TOL = Dict(:tpa=>0.0, :ba=>0.0, :sdi=>0.0, :ccf=>0.0, :topht=>0.0, :qmd=>0.0)
 
 @testset "BM dense-seedling establishing-regime (3 small-tree fixes)" begin
     if !isfile(_DB)

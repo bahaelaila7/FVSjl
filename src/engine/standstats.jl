@@ -81,17 +81,38 @@ function stand_tpa(s::StandState)
     return tot
 end
 
+# dense.f (identical in every variant build): inside DO 50 ISPC / DO 10 I3 / I=IND1(I3):
+#   DP=D*P; WK5(I)=D*DP; TSUMD2=TSUMD2+WK5(I); BATREE=0.005454154*WK5(I); BAT=BAT+BATREE; TPROB=TPROB+P
+# BA=BAT, RMSQD=SQRT(TSUMD2/TPROB). Both the D*(D*P) association and the IND1 accumulation order are part of
+# the REAL*4 result (BM 30193202010497 cyc1 BA 4261C4DB live vs 4261C4DC for record-order p·K·d²).
+# DENSE walk order for BA/RMSQD: FVS IND1. jl's IND1 reconstruction (`_ind1_order`, sort-key lineage) is
+# live-measured faithful for BM; on CS kwcov cs_serlcorr it is NOT (IND1 order flips a 2030 BdFt cell vs live while
+# the D*(D*P) association alone is inert) ⇒ the CS lineage keys diverge from FVS's LNKCHN chain there (open lead).
+# Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
+# association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
+# test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
+_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+        # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
+        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
+        @inbounds for i in _ind1_order(s)
+            d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
+        end
+        return ba
+    end
     @inbounds for i in 1:t.n; ba += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2; end
     return ba
 end
 
 function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
-    @inbounds for i in 1:t.n
-        sd2 += t.tpa[i] * t.dbh[i]^2
-        tpa += t.tpa[i]
+    @inbounds for i in _dense_order(s)
+        d = t.dbh[i]; p = t.tpa[i]
+        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
+        tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
 end
@@ -103,15 +124,26 @@ BA-weighted stand maximum SDI (`SDICAL`, base/sdical.f, pre-CLMAXDEN). General a
 the per-species SDImax (`plot.sp_sdi_def`) is variant coefficient data; the averaging is the same
 base algorithm. Used by the mortality SDImax cap and the structure-stage PCTSMX demotion (BTSDIX).
 """
+# SDICAL(0,XMAX) (sdical.f, byte-identical in every variant build): TREEBA=0.0054542*DBH*DBH*PROB (left-assoc,
+# REAL*4) accumulated in IND1 order (SPESRT species groups) into per-species BAXSP and TOTBA; then
+# XMAX = Σ_sp SDIDEF(sp)·BAXSP(sp) over species 1..MAXSP, / TOTBA. The per-species-then-species-sum structure
+# rounds differently from a per-tree Σ SDIDEF·TREEBA — measured on BM 448369010497 cycle 2: CONST=SDIMAX/K
+# live 464FA6A5 vs the per-tree form 464FA6A8.
 function stand_sdimax(s::StandState)
     t = s.trees; p = s.plot
-    num = 0f0; totba = 0f0
-    @inbounds for i in 1:t.n
-        tb = 0.0054542f0 * t.dbh[i]^2 * t.tpa[i]
-        num   += p.sp_sdi_def[t.species[i]] * tb
+    t.n == 0 && return 1f0
+    baxsp = s.scratch.sdi_baxsp; fill!(baxsp, 0f0); totba = 0f0
+    @inbounds for i in _ind1_order(s)
+        tb = 0.0054542f0 * t.dbh[i] * t.dbh[i] * t.tpa[i]
+        baxsp[t.species[i]] += tb
         totba += tb
     end
-    return totba <= 0f0 ? 1f0 : num / totba
+    totba <= 0f0 && return 1f0
+    xmax = 0f0
+    @inbounds for sp in eachindex(baxsp)
+        xmax += p.sp_sdi_def[sp] * baxsp[sp]
+    end
+    return xmax / totba
 end
 
 """
@@ -121,9 +153,24 @@ Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
 height"). Trees are taken in descending-DBH order; the last one is prorated to
 hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotpath.)
 """
-function stand_top_height(s::StandState)
+function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
     t.n == 0 && return 0f0
+    # BM follows FVS's IND lifecycle exactly (dense.f:285-297 / avht40.f walk the CURRENT IND, no own sort):
+    # CRATET's IND at cycle 0 (bm_cratet_ind!), a fresh RDPSRT(DBH,.TRUE.) everywhere else (gradd.f:186,
+    # cuts.f:302/1840, esnutr.f:129/325). The empirical double sort below stays for the other variants.
+    if s.variant isa BlueMountains && !legacy_double
+        idx = view(s.scratch.stat_idx, 1:t.n)
+        cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
+        avh = 0f0; ssumn = 0f0
+        for k in 1:t.n
+            ii = Int(idx[k]); p = t.tpa[ii]
+            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn += p; avh += t.height[ii] * p
+            ssumn >= 40f0 && break
+        end
+        return ssumn > 0f0 ? avh / ssumn : 0f0
+    end
     # avht40.f sorts IND with FVS's RDPSRT (Scowen quickersort, descending DBH) — NOT a stable sort. The
     # tie-break among equal-DBH trees decides WHICH tree lands at the 40-TPA boundary (and so its height
     # enters AVH), so a stable `sortperm!` (ascending-index ties) diverges from live on tie-heavy stands.
@@ -207,7 +254,9 @@ function point_density!(s::StandState)
     pi_f = p.pi; gross = p.gross_space
     kt = s.variant isa Kootenai
     ie = s.variant isa InlandEmpire
-    @inbounds for i in 1:t.n
+    # dense.f accumulates PCCF/PTPA inside DO 50 ISPC / DO 10 I3 / I=IND1(I3) — IND1 (SPESRT) order, not record
+    # order; the Float32 sums round differently (BM 30193202010497 cyc1 PCCF 427D72D4 live vs 427D72D3 record-order).
+    @inbounds for i in _ind1_order(s)
         ip = Int(t.plot_id[i])
         (1 <= ip <= length(pccf)) || continue
         local ccft
@@ -268,9 +317,15 @@ all smaller) / total · 100`. So `1 − PCT/100` is the fraction of stand BA in 
 trees, which the diameter-growth competition term uses. (Despite the field name,
 this is FVS's PCT array, not the crown ratio — the crown ratio is `crown_pct`/ICR.)
 """
-function stand_pct!(s::StandState)
+function stand_pct!(s::StandState; cratet_ind::Bool = false)
     t = s.trees; n = t.n
     n == 0 && return s
+    if cratet_ind                                        # BM first grow cycle: CRATET's IND (see bm_cratet_ind!)
+        idx = view(s.scratch.stat_idx, 1:n)
+        bm_cratet_ind!(s, idx)
+        _pctile!(t.crown_ratio, t, idx, n)
+        return s
+    end
     # PCT is built over FVS's IND = the per-cycle DBH-descending order from gradd.f:186
     # `CALL RDPSRT(ITRN,DBH,IND,.TRUE.)` feeding dense.f/PCTILE. RDPSRT is Scowen's UNSTABLE
     # Quickersort, so equal-DBH ties resolve by the partition order, NOT ascending index. A stable
@@ -281,19 +336,33 @@ function stand_pct!(s::StandState)
     # converging — a 2–3× first-cycle mortality error. Use `_rdpsrt!` (single .TRUE. sort) to match.
     idx = view(s.scratch.stat_idx, 1:n)
     _rdpsrt!(view(t.dbh, 1:n), idx)                     # IND: DBH descending, FVS tie-break
-    pct = t.crown_ratio
+    _pctile!(t.crown_ratio, t, idx, n)
+    return s
+end
+
+# PCTILE (pctile.f) over DENSE's WK5 (dense.f:186-187: DP=D*P; WK5=D*DP), in FVS's exact single-precision
+# order — identical in all 24 variant builds. Cumulative from the smallest (IND bottom) up; TOT = the top
+# record's cumulative; every other record is divided by PCTIN1 = TOT/100. (NOT ×100/TOT); the top record is set
+# to exactly 100. jl's former (D*D)*P and cum/TOT*100 each differed by 1 ULP on a share of records (measured vs
+# FVSsn treeszcp_cap cycle 1: 8/27 PCT, 2 EFFTR), which VARMRT's geometric kill amplifies.
+function _pctile!(pct::AbstractVector{Float32}, t, idx, n::Int)
+    n == 1 && (pct[Int(idx[1])] = 100f0; return pct)   # pctile.f: PERCNT(1)=100, IF(N.LE.1) RETURN
     cum = 0f0
-    @inbounds for k in n:-1:1                            # accumulate from smallest up
+    @inbounds for k in n:-1:1
         ii = Int(idx[k])
-        cum += t.dbh[ii]^2 * t.tpa[ii]
+        cum += t.dbh[ii] * (t.dbh[ii] * t.tpa[ii])      # WK5 = D*(D*P)
         pct[ii] = cum
     end
-    if cum > 0f0
-        @inbounds for ii in 1:n
-            pct[ii] = pct[ii] / cum * 100f0
-        end
+    i1 = Int(idx[1])
+    tot = pct[i1]
+    pct[i1] = tot / 100f0
+    tot <= 0f0 && return pct                             # pctile.f: IF(TOT.LE.0.0) RETURN
+    pctin1 = pct[i1]
+    @inbounds for k in 2:n
+        ii = Int(idx[k]); pct[ii] = pct[ii] / pctin1
     end
-    return s
+    pct[i1] = 100f0
+    return pct
 end
 
 """
@@ -317,9 +386,18 @@ function stand_ccf(s::StandState)
         return ccf
     elseif s.variant isa InlandEmpire
         # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += ie_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # dense.f:168-229 accumulates it SPECIES-MAJOR in IND1 order into a per-species subtotal RELDSP(ISPC), then
+        # RELDT=RELDT+RELDSP(ISPC) — a different Float32 summation order than a flat record-order sum.
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += ie_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Ontario
         # ON CCF = ccfcal.f (LS form) → cwcalc.f open-grown crown WIDTH (IWHO=1, CR=90) via the
@@ -448,18 +526,40 @@ stay consistent. **Zeide:** Σ TPA·(D/10)^1.605 over `D ≥ DBHZEIDE` (sdical.f
 the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-327). Defaults
 (Zeide, threshold 0) reproduce the prior behavior.
 """
+# The reported stand SDI (.sum SDI = SDIBC before a thin, SDIAC after): SDICLS(0,0.,999.,1,...) (sdical.f ENTRY
+# SDICLS; fvs.f:440, grincr.f:241) — identical in every variant build. Both loops walk IND1 (SPESRT) order.
+#   pass 1 (DBH>=DBHSTAGE): SDSQ=SDSQ+(DBH**2.0)*PROB; SPROB=SPROB+PROB  → A,B
+#   pass 2: SDIC  = SDIC  + (A+B*(DBH**2.0))*PROB          (DBH>=DBHSTAGE)   — PER TREE, not SPROB*A+B*SDSQ
+#           SDIC2 = SDIC2 + PROB*(DBH/10.)**1.605           (DBH>=DBHZEIDE)
+# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. (The closed form
+# SPROB*A+B*SDSQ lives on in `stand_sdi_reineke`, which CROWN's SDICAL path uses.)
 function stand_sdi(s::StandState)
     t = s.trees
+    t.n == 0 && return 0f0
+    ord = _ind1_order(s)
     if s.control.zeide_sdi
-        thr = s.control.dbh_zeide; sdi = 0f0
-        @inbounds for i in 1:t.n
-            # sdical.f:326 `(DBH/10.)**1.605` — FVS `**` is gfortran powf, NOT Julia's openlibm `^` (differ ~0.07%);
-            # route through the companion (doctrine #8) so the reported/MYSDI Zeide SDI matches FVS bit-exactly.
-            t.dbh[i] >= thr && (sdi += t.tpa[i] * fpow(t.dbh[i] / 10f0, 1.605f0))
+        thr = s.control.dbh_zeide; sdi2 = 0f0
+        @inbounds for i in ord
+            d = t.dbh[i]
+            d >= thr && (sdi2 += t.tpa[i] * fpow(d / 10f0, 1.605f0))
         end
-        return sdi
+        return sdi2
     end
-    return stand_sdi_reineke(s)
+    thr = s.control.dbh_stage; sdsq = 0f0; sprob = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]; d < thr && continue
+        sdsq += fpow(d, 2f0) * t.tpa[i]; sprob += t.tpa[i]
+    end
+    sprob == 0f0 && return 0f0
+    k10 = fpow(10f0, -1.605f0)                     # == gfortran's folded 10.0**(-1.605) (3CCB6B13, verified)
+    a = k10 * (1f0 - 1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0)
+    b = k10 * (1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0 - 1f0)
+    sdic = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]
+        d >= thr && (sdic += (a + b * fpow(d, 2f0)) * t.tpa[i])
+    end
+    return sdic
 end
 
 "Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."

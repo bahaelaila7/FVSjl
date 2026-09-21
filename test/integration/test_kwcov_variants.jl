@@ -129,12 +129,6 @@ const _KCV_BROKEN = Dict{String,String}(
     #   primitive: the CS SDI-mortality threshold response to the sped-up stand — needs a live per-tree DG/mort trace
     #   to classify definitively as ULP-amplified vs a coefficient. NE/LS bit-exact ⇒ CS-specific.
     "cs_setsite" => "SETSITE — ULP-CLASS, per-tree DBS-PROVEN (2026-07-07): DBH growth BIT-EXACT (DG-diff 0); the CS height at 2010 differs by SUB-ULP (jl 5.593282699 vs live 5.593282222 = 4.8e-7 ≈ 0.7 Float32 ULP), and the ANAMORPHIC height-curve inversion (htcalc.f NC-128) is ill-conditioned at the raised site 70 ⇒ amplifies that sub-ULP Ht diff into ~0.8% HtG on 16/27 trees, cascading to TopHt→SDI-mortality timing (2010-2030) → RE-CONVERGES bit-exact @2040. Formulas + XSITE=SITEAR=70 match jl on inspection ⇒ irreducible Float32 amplification, NOT a bug (goal permits ULP-class). NE+LS bit-exact. Task #84.",
-    # cs_treeszcp: TREESZCP 18" DBH cap — NE + LS are FULL-ROW BIT-EXACT with the identical card ⇒ the size-cap
-    #   semantic is faithful. CS has a tiny cap-BOUNDARY knife-edge: at 2030 ONE mortality cell differs by 1 (c25
-    #   70/69) — a tree sitting right at the 18" cap that jl vs live resolve one-TPA differently — cascading to
-    #   <0.4% on the 2040 TPA/BA/volume cells. Only the last 2 cycles, off-by-1 magnitude ⇒ stand-specific rounding
-    #   at the cap threshold (like ne_leavesp), NOT the cs_setsite growth-response gap. Permitted ULP-class.
-    "cs_treeszcp" => "TREESZCP 18\" cap — cap-boundary knife-edge: 2030 Mort off-by-1 (70/69) at a tree on the 18\" threshold, cascading <0.4% to 2040 TPA/BA/vol; NE+LS bit-exact (semantic faithful). Stand-specific rounding, ULP-class.",
 )
 
 _kcv_rows(txt) = [split(l) for l in split(txt, "\n")
@@ -159,7 +153,11 @@ _kcv_rows(txt) = [split(l) for l in split(txt, "\n")
                 # volume + mortality columns), so semantic divergences in vols/mort can't pass silently.
                 cols(i) = 1:min(length(J[i]), length(L[i]))
                 if haskey(_KCV_BROKEN, stem)
-                    @test_broken all(J[i][c] == L[i][c] for i in 1:length(J), c in cols(i))
+                    # flatten form (`for i ... for c ...`): the product form `for i in A, c in cols(i)`
+                    # THROWS UndefVarError(:i) because the second range may not depend on the first, and
+                    # @test_broken records a throw as "broken" — so every allowlisted stem was permanently
+                    # broken and never re-validated (an unexpected pass could not surface). 2026-09-21.
+                    @test_broken all(J[i][c] == L[i][c] for i in 1:length(J) for c in cols(i))
                 else
                     for i in 1:length(J), c in cols(i)
                         @test J[i][c] == L[i][c]

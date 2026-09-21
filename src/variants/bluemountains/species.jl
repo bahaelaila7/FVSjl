@@ -29,7 +29,11 @@ function init_blockdata!(s::StandState, v::BlueMountains)
     s.control.growth_fint = 10.0f0     # BM FINT default = 10 (bm/grinit.f:203)
     s.control.zeide_sdi = false        # BM uses STAGE SDI (bm/grinit.f:157 LZEIDE=.FALSE.) — like EM/KT
     s.rng.s0 = Float64(BM_RNG_SEED); s.rng.ss = BM_RNG_SEED
-    fill!(s.control.ht_drag_sp, true)  # LHTDRG default .TRUE.
+    # bm/grinit.f:129,151-154 — LHTDRG default .FALSE.; .TRUE. only for WJ(6)/WB(11)/LM(12)/AS(15). With every
+    # species .TRUE. the cratet dub fit a Wykoff AA for the conifers and used it, instead of the inventory
+    # HTDBH Curtis-Arney curve FVS uses (bmt01 LP D8.5 missing height: jl 58.67 vs live 62.54).
+    fill!(s.control.ht_drag_sp, false)
+    s.control.ht_drag_sp[1:length(BM_LHTDRG)] .= BM_LHTDRG
     s.control.dg_sd = 1.5f0            # DGSD default (bm/grinit.f:200) — NOTE 1.5 not 2.0
     # bm/grinit.f DGSD=1.5 is the SINGLE FVS DGSD — it bounds BOTH the small-tree regent random
     # effect (dg_sd, above) AND the large-tree DGSCOR serial-correlation reject/clamp

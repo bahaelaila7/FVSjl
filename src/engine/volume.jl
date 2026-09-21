@@ -282,12 +282,21 @@ function dub_missing_heights!(s::StandState)
     # such column. The per-tree dub itself uses the variant-generic `_htdbh_height` (htdbh_* coefs).
     # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
-    ht2 = any(lhtdrg) ? coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2) : nothing
+    # BM fits AA with its blkdat HT2 (bm/cratet.f BX=HT2(ISPC)); its CSV ht2/wykoff_ht2 are CR placeholders.
+    ht2 = !any(lhtdrg) ? nothing : s.variant isa BlueMountains ? BM_BLK_HT2 :
+          coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2)
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
     # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
     # `_htdbh_height` (TT defines no htdbh_p2/p3/p4). Load HT1/wykoff_ht2 unconditionally for TT.
     tt_ht1  = s.variant isa Teton ? coef_col(s.coef, :ht1) : nothing
     tt_wht2 = s.variant isa Teton ? coef_col(s.coef, :wykoff_ht2) : nothing
+    # ie/cratet.f DO 145 (the CYCLE-0 DEAD records, II=IREC2..MAXTRE) dubs a missing height with the plain
+    # Wykoff HT-DBH — `AX=HT1(ISPC)`, `BX=HT2(ISPC)`, `AX=AA(ISPC)` only when IABFLG==0 — with NO LHTDRG gate
+    # and NO Curtis-Arney/HTDBH branch. That differs from the LIVE loop (DO 130), which jl was applying to both
+    # partitions: a dead record whose species has no AA fit fell through to the Curtis-Arney dub. Measured on the
+    # IE RD control stand: dead LM D=34.6 dubbed 80.99 vs live 61.72 (= exp(4.19200 − 5.16510/35.6) + 4.5), and
+    # because the dead records feed the dead-inclusive AVH the whole stand's crowns — hence growth — shifted.
+    ie_ht1 = s.variant isa InlandEmpire ? coef_col(s.coef, :ht1) : nothing
     if any(lhtdrg)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
@@ -310,15 +319,31 @@ function dub_missing_heights!(s::StandState)
     # t.n+1 : t.n+t.ndead, so dub over BOTH partitions. The AA fit above stays live-only (FVS fits AA from live
     # measured trees, DO 15). The dead-tree heights don't enter the live .sum aggregate but DO feed the DG-
     # calibration backdating (which exposes the dead partition), so dubbing them keeps that calibration faithful.
+    # BM: snapshot HT as read (before any dub) — bm/cratet.f:195 DENSE → AVH for the LSTART CROWN dub sees it.
+    s.variant isa BlueMountains && (s.calib.cratet_ht_in = t.height[1:(t.n + t.ndead)])
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0
         if t.height[i] > 0f0 && !tkill
             continue
         end
+        # Cycle-0 DEAD records (cratet.f DO 145, IREC2..MAXTRE) take `IF(HT.GT.0 .AND. TKILL) GO TO 142`: a
+        # top-killed dead tree WITH a measured height skips the dub and label 142 sets NORMHT=INT(HT*100+0.5) —
+        # its measured height IS its normal height (bm/cratet.f:478,530-535; same in ie/em/sn/cr/ut). Only the LIVE
+        # loop (DO 130, :428) always dubs NORMHT. Dubbing dead ones too gave broken-top snags a taller "normal"
+        # height (e.g. LP D10 HT35 → NVEL HTTOT 45 vs live 35; FVS_TreeList Ht2TDCF 45.1 vs live 23.6).
+        dead_measured = i > t.n && tkill && t.height[i] > 0f0
         # cratet.f:342-372: calibrated-Wykoff dub when LHTDRG[sp] & IABFLG==0, else the Curtis-Arney HTDBH dub.
-        h_v = if d <= 0.1f0
+        h_v = if dead_measured
+            t.height[i]                                   # unused: label 142 takes the HT>0 branch below
+        elseif d <= 0.1f0
             1.01f0
+        elseif i > t.n && s.variant isa InlandEmpire && ht2 !== nothing
+            # cratet.f DO 145: dead records take the Wykoff form regardless of LHTDRG
+            ax = iabflg[sp] == 0 ? aa[sp] : ie_ht1[sp]
+            max(fexp(ax + ht2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
+        elseif s.variant isa BlueMountains
+            bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
         elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1
@@ -397,7 +422,8 @@ function dub_missing_heights!(s::StandState)
         else
             # cratet.f:381-397: NORMHT/ITRUNC use Fortran INT() = truncate-toward-zero (round-half-UP via +0.5),
             # NOT Julia round() (round-half-to-EVEN) — they diverge by 1 when x is an odd integer.
-            t.norm_ht[i] = trunc(Int32, h_v * 100f0 + 0.5f0)
+            t.norm_ht[i] = dead_measured ? trunc(Int32, t.height[i] * 100f0 + 0.5f0) :   # :531-532
+                                           trunc(Int32, h_v * 100f0 + 0.5f0)
             if t.trunc[i] == 0
                 if t.height[i] > 0f0
                     t.trunc[i] = trunc(Int32, 80f0 * t.height[i] + 0.5f0)
@@ -586,16 +612,22 @@ function init_merch_standards!(s::StandState)
         return s
     end
     sd = s.coef.species
+    # A species CSV carries per-species merch specs only where the variant's blkdat actually differs by
+    # species; where a column is 0 the value is the variant-wide GRINIT default (grinit.f STMP/TOPD/DBHMIN,
+    # BF*, SCF*), which `_init_merch_specs!` already put in `c` before keywords. Overwriting unconditionally
+    # zeroed them (e.g. BM: every column except stump is 0 in the CSV), which showed up as FVS_InvReference
+    # merch-spec columns written as 0 for every species.
+    keep(csv, cur) = csv > 0f0 ? csv : cur
     @inbounds for j in 1:length(c.sp_dbh_min)
-        c.sp_scf_dbhmin[j] = sd[:scf_min_dbh][j]
-        c.sp_scf_topd[j]   = sd[:scf_top_dib][j]
-        c.sp_top_diam[j]   = sd[:top_dib][j]
-        c.sp_stump_ht[j]   = sd[:stump][j]
-        c.sp_scf_stump[j]  = sd[:scf_stump][j]
-        c.sp_dbh_min[j]    = sd[:dbh_min][j]
-        c.sp_bf_dbhmin[j]  = sd[:bf_min_dbh][j]
-        c.sp_bf_topd[j]    = sd[:bf_top_dib][j]
-        c.sp_bf_stump[j]   = sd[:bf_stump][j]
+        c.sp_scf_dbhmin[j] = keep(sd[:scf_min_dbh][j], c.sp_scf_dbhmin[j])
+        c.sp_scf_topd[j]   = keep(sd[:scf_top_dib][j], c.sp_scf_topd[j])
+        c.sp_top_diam[j]   = keep(sd[:top_dib][j],     c.sp_top_diam[j])
+        c.sp_stump_ht[j]   = keep(sd[:stump][j],       c.sp_stump_ht[j])
+        c.sp_scf_stump[j]  = keep(sd[:scf_stump][j],   c.sp_scf_stump[j])
+        c.sp_dbh_min[j]    = keep(sd[:dbh_min][j],     c.sp_dbh_min[j])
+        c.sp_bf_dbhmin[j]  = keep(sd[:bf_min_dbh][j],  c.sp_bf_dbhmin[j])
+        c.sp_bf_topd[j]    = keep(sd[:bf_top_dib][j],  c.sp_bf_topd[j])
+        c.sp_bf_stump[j]   = keep(sd[:bf_stump][j],    c.sp_bf_stump[j])
     end
     c.merch_init = true
     return s

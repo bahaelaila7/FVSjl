@@ -73,8 +73,10 @@ end
         # 2020 fire fired: jl 2025 TPA 64 vs CONFIRMED live 66 (ran /tmp/FVSsn_new on fire_repeat.key, 2026-07-05;
         # 2005 bit-exact 113). Δ2 = the 15-yr post-fire DG-drift + fire-kill-distribution residual on a rendered
         # integer. Was a loose `<= 70` regime threshold (would pass anything below the ~108 unburned trajectory).
-        # doctrine #9: 2025 second-fire 15-yr post-fire DG-drift + kill-distribution residual (jl64/live66) exposed.
-        haskey(r, 2025) && @test_broken r[2025][3] == 66
+        # doctrine #9: the "post-fire DG-drift" (jl 64 vs live 66) was FVS's fire crown hand-back missing in jl
+        # (fmeff.f:513 FMICR scorch + fmkill.f:92-94 ICR=-FMICR + crown.f bypass): survivors kept full crowns.
+        # With it ported, 2025 TPA is bit-exact.
+        haskey(r, 2025) && @test r[2025][3] == 66
     else
         @test_skip "fire_repeat.key not available"
     end

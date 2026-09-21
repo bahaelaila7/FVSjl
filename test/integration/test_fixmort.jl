@@ -66,7 +66,7 @@ _fmcol(r, c) = parse(Float64, r[c])
                 # needs a live per-record FIXMORT differential (stamp morts.f) — deferred as disproportionate for a
                 # single-cycle ±1 print flip. Exposed @test_broken == with the mechanism named (not a padded bound).
                 if nm == "fixmort_kpoint"
-                    @test_broken all(_fmcol(jl[i], 3) == _fmcol(ft[i], 3) for i in 1:length(jl))  # TPA — per-point FIXMORT kill-dist (deterministic, trace)
+                    @test all(_fmcol(jl[i], 3) == _fmcol(ft[i], 3) for i in 1:length(jl))  # TPA — per-point FIXMORT kill-dist (deterministic, trace)
                 end
             end
         end

@@ -1,0 +1,14 @@
+variant = "IE"
+k = 12
+oracle = "/workspace/.iework/FVSie_g16"
+oracle_sha256 = "893fad8b127c5c0f4c38e0ebaab50b208a8d2a2c116bd7386aed5328c7873214"
+oracle_build_script = "/workspace/.iework/build_g16.sh"
+oracle_main_std_legacy = "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "7c7396327272cc1d5fcaaa402d758c7dadc7782d"
+generated = "2026-09-19 13:16:57"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+stands = ["1287253083290487", "3285544010690", "39518122010690", "3027007010690", "1627682513290487", "374547584489998", "51032748020004", "4769882010690", "11855985010690", "303115495489998", "3356652010690", "3356357010690"]
+excluded_no_live_output = []
+live_no_output_cases = 0

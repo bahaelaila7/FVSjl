@@ -371,15 +371,18 @@ cycle length. Returns 0 for DMR 0. `pmc`/`maxsp` are the per-variant table (see 
 function ie_dm_mortality_rate(pmc, maxsp::Integer, sp::Integer, dmr::Integer, dbh::Real, fint::Real; dmmmlt::Real = 1.0)
     dmr == 0 && return 0.0f0
     (sp < 1 || sp > maxsp) && return 0.0
-    b0 = pmc[1, sp]; b1 = pmc[2, sp]; b2 = pmc[3, sp]
-    m = b0 + b1 * dmr + b2 * dmr * dmr
-    m *= dmmmlt
-    small = dbh < 9.0
-    small && (m *= 1.2)
-    m < 0.0 && (m = 0.0)
-    cap = small ? 0.71 : 0.5
+    # mismrt.f:155-183 is all REAL*4: DMMORT=PMCSP1+PMCSP2*IDMR+PMCSP3*IDMR**2 (IDMR**2 an exact INTEGER power),
+    # *DMMMLT, *1.2 if DBH<9, clamp [0, 0.71|0.5], then 1.0-(1.0-DMMORT)**(FINT/10.0) — a REAL-exponent powf.
+    # (Was evaluated in Float64 with (b2·dmr)·dmr ⇒ WK2 1-ULP off on the MAX-combined DM kill: BM 504545927126144.)
+    b0 = Float32(pmc[1, sp]); b1 = Float32(pmc[2, sp]); b2 = Float32(pmc[3, sp])
+    m = b0 + b1 * Float32(dmr) + b2 * Float32(dmr * dmr)
+    m *= Float32(dmmmlt)
+    small = dbh < 9.0f0
+    small && (m *= 1.2f0)
+    m < 0.0f0 && (m = 0.0f0)
+    cap = small ? 0.71f0 : 0.5f0
     m > cap && (m = cap)
-    return Float32(1.0 - (1.0 - m)^(fint / 10.0))
+    return 1.0f0 - fpow(1.0f0 - m, Float32(fint) / 10.0f0)
 end
 
 """
@@ -413,6 +416,7 @@ No-op for non-IE / uninfected. Order-independent (per-tree max).
 """
 function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
     _dm_effects_on(s) || return
+    s.control.dm_mrt_defer && return   # tripling cycle: MISMRT runs post-TRIPLE (ie_dm_mismrt_post!), not in MORTS
     t = s.trees
     _, _, pmc, maxsp = _mis_tables(s.variant)
     @inbounds for i in 1:n
@@ -421,6 +425,28 @@ function ie_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState
         rate = ie_dm_mortality_rate(pmc, maxsp, Int(t.species[i]), dmr, t.dbh[i], fint)
         wki = pr * rate
         killed[i] < wki && (killed[i] = wki)
+    end
+    return
+end
+
+"""
+    ie_dm_mismrt_post!(s, full_prob, fint)
+
+MISMRT on the post-TRIPLE record list (mistoe.f:522 → mismrt.f:155-191), for a non-fire TRIPLING cycle.
+FVS runs MISTOE in GRADD after GRINCR's MORTS+TRIPLE, so MISMRT sees the tripled records at their full
+pre-UPDATE PROB and the POST-spread / POST-MISINF DMR, and MAX-combines into WK2 (`WK2=MAX(WK2,PROB·rate)`)
+before UPDATE subtracts it. Here `t.tpa` holds PROB−WK2 (WK2 = the tripled MORTS kill) and `full_prob` the
+tripled PROB; raise the kill wherever the DM kill is larger.
+"""
+function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, fint::Float32)
+    _dm_effects_on(s) || return
+    t = s.trees
+    _, _, pmc, maxsp = _mis_tables(s.variant)
+    @inbounds for c in 1:t.n
+        dmr = Int(t.dmr[c]); dmr == 0 && continue
+        pr = full_prob[c]; pr <= 0f0 && continue
+        wki = pr * ie_dm_mortality_rate(pmc, maxsp, Int(t.species[c]), dmr, t.dbh[c], fint)
+        (pr - t.tpa[c]) < wki && (t.tpa[c] = pr - wki)
     end
     return
 end
@@ -494,6 +520,8 @@ function ie_mistoe!(s::StandState; fint::Float32)
                 if idmr != 6 && pplus > xnum
                     if dtall * 0.7f0 > t.height[i]
                         x2 = rann!(rng)
+                        xnum = x2                     # mistoe.f: the 2nd CALL RANN(XNUM) OVERWRITES XNUM, so the
+                                                      # PMINUS.GT.XNUM test below reads this draw, not the first
                         m = Int(t.dmr[i])
                         inc = if m == 1
                             x2 < 0.61f0 ? 1 : (x2 < 0.83f0 ? 2 : 3)
