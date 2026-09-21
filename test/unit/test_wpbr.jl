@@ -233,6 +233,25 @@ const _WPBR_TRE_NOHOST = """
             @test rows(key) == gold(k)
         end
     end
+
+    # TRIPLED cycles (the same host stand WITHOUT the NOTRIPLE card). BRTRIP/BRTDEL/BRESTB and the post-TRIPLE
+    # BRTREG seam only run here, so this is the case the per-record BR state exists for: each tripled copy needs
+    # its OWN canker state in its own physical slot (brtrip.f copies every BRCOM array and scales BRPB by WT,
+    # with triple.f:139 `BRTRIP(ITFN,I,0.6)` overwriting the lower copy's 0.15 write ⇒ BRPB·0.6 on a record whose
+    # PROB is 0.15). Before the tripled-cycle port jl diverged from live from 2010 (2040 TPA/BA 22/44 vs live
+    # 16/33) because BR state was keyed by (plot,tree) — shared by all three copies. Goldens = live FVSie_wpbr.
+    @testset "WPBR on TRIPLED cycles — .sum bit-exact vs live" begin
+        fx = joinpath(@__DIR__, "..", "fixtures", "wpbr")
+        gold(k) = filter(l -> !isempty(strip(l)), split(strip(read(joinpath(fx, "$k.live.sum"), String)), '\n'))
+        for k in ("trip_ctrl", "trip_brust")
+            key = joinpath(dir, "$k.key")
+            cp(joinpath(fx, "$k.key"), key; force = true)
+            write(joinpath(dir, "$k.tre"), _WPBR_TRE)
+            @test rows(key) == gold(k)
+        end
+        # and the rust must actually bite under tripling (else the test would pass on an inert seam)
+        @test gold("trip_brust") != gold("trip_ctrl")
+    end
 end
 
 # =============================================================================
