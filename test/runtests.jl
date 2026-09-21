@@ -124,6 +124,8 @@ using FVSjl
     include("integration/test_dbs_compute.jl") # C6: DBS FVS_Compute event-monitor vars table
     include("integration/test_dbs_invref.jl")  # C6: DBS FVS_InvReference per-species reference table
     include("integration/test_dbs_cutlist.jl") # C6: DBS FVS_CutList removed-record table
+    include("integration/test_dbs_atrtlist.jl")   # FVS_ATRTList (dbsatrtls.f, PRTRLS(3) gating) + DSNOUT redefinition (dbsin.f:116-122), live-verified
+    include("unit/test_list_ht2td.jl")          # FVS_TreeList/CutList Ht2TDCF/BF (HT2TD: fvsvol.f HT1PRD) vs live BM
     include("integration/test_econ_summary.jl") # C8: ECON FVS_EconSummary/HarvestValue vs live FVS (ECCALC/DBSECSUM)
     include("integration/test_init.jl")    # C2: keyword dispatch + tree loading
     include("integration/test_snt01.jl")
@@ -143,6 +145,7 @@ include("integration/test_compress_tripling.jl")# COMPRESS still triples its own
 include("integration/test_growth_fint.jl")# D2: GROWTH FINT!=5 measurement period (first-cycle serial-corr old) vs live FVSsn
 include("integration/test_r8_intl_board.jl")# D11: R8 International 1/4in board feet for GW-JF/Ouachita/Ozark forests vs live FVSsn
     include("integration/test_multicycle.jl")# C3/C4/C5: multi-cycle regression vs oracle golden
+    include("integration/test_tiered.jl")    # TIERED fast tier: variants × regimes × outputs vs committed live-oracle goldens (test/harness/tiered/README.md)
     include("integration/test_cuts_coverage.jl")# C3: CUTS keyword coverage + gap tracker (decision flow)
     include("integration/test_regen_coverage.jl")# C4: regen/ESTAB coverage + gap tracker (bare stands)
     include("integration/test_fortbragg_coverage.jl")# C5: Fort Bragg (forest 701) KODFOR remap → nonzero volume

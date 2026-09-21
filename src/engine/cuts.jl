@@ -253,6 +253,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # pre-thin PROB to restore, like a MINHARV cancel.
     pretend = _ec_cut_on(s) && s.econ.calc.is_pretend_active
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
+    al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
     # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
@@ -333,6 +334,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         push!(s.control.years_cut, yr)
         econ_cuts_replay!(s)                        # ECHARV per record in DO-1700 order (after MINHARV, before TREDEL)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
+        al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
@@ -899,17 +901,17 @@ end
 # CUTEFF = REMOVE/area; sparse (icut=0) = proportional throughout; icut=1/2 sorted.
 # IND1 (SPESRT: species groups, lineage-key order within a species — `species_sort!`) as a LOCAL vector, for cut-time
 # class sums that FVS accumulates in IND1 order (CCCLS). Built fresh so the shared `scratch.idx1` is not disturbed.
-function _ind1_order(s::StandState)::Vector{Int}
-    t = s.trees
-    ord = Int[]; sizehint!(ord, t.n)
+function _ind1_order(s::StandState)
+    t = s.trees; buf = s.scratch.ind1_buf; k = 0
+    sk = t.sort_key
     @inbounds for sp in 1:MAXSP
-        start = length(ord) + 1
+        start = k + 1
         for i in 1:t.n
-            t.species[i] == sp && push!(ord, i)
+            t.species[i] == sp && (k += 1; buf[k] = Int32(i))
         end
-        length(ord) >= start && sort!(view(ord, start:length(ord)); by = j -> t.sort_key[j])
+        k > start && sort!(view(buf, start:k); by = j -> sk[j], alg = InsertionSort)   # stable ⇒ same ties
     end
-    return ord
+    return view(buf, 1:k)
 end
 
 function _thin_cc!(s::StandState, act::ScheduledActivity)
@@ -1356,25 +1358,33 @@ duplicate of an earlier request's parameters (DUPCHK), and stopping after the fi
 function _cutlist_capture!(s::StandState, prob0::Vector{Float32})
     c = s.control
     c.dbs_cutlist || return
-    icyc = Int(c.cycle) + 1
-    y1 = Int(current_cycle_year(s)); y2 = Int(cycle_year_at(c, icyc))
-    reqs = NTuple{6,Float32}[]
-    for a in c.schedule
-        a.icflag == Int32(199) || continue
-        d = Int(a.year)
-        due = (1 <= d < 1000) ? d == icyc : (d < y2 && (icyc == 1 || d >= y1))
-        due || continue
-        a.params[3] == 2f0 && continue                  # TEM(3)=2: suppressed outside the pre-projection list
-        a.params in reqs && continue                    # DUPCHK: identical request already processed
-        push!(reqs, a.params)
-    end
+    reqs = prtrls_requests!(s, 2, Int(c.cycle) + 1)    # OPFIND(199) in this cycle, DUPCHK, TEM(3)=2 skip, OPDONE, KODE=0 stop
     isempty(reqs) && return
     t = s.trees
     removed = Float32[prob0[i] - t.tpa[i] for i in 1:min(t.n, length(prob0))]
     rows = cutlist_rows(s, removed)
-    ncopy = c.dbs_cutlist_mode == Int32(2) ? 1 : length(reqs)
-    for _ in 1:ncopy
+    for _ in reqs                                        # one DBSCUTS call per accomplished request
         append!(c.cutlist_capture, rows)
+    end
+    return
+end
+
+"""
+    _atrtlist_capture!(s)
+
+cuts.f:1740 `CALL PRTRLS (3)` → dbsatrtls.f, for an applied (not PRETEND, not MINHARV-canceled) cut, right after the
+CUTLIST's PRTRLS(2): each ATRTLIST activity (code 198) due in THIS cycle (prtrls.f OPFIND(1,198), DUPCHK, TEM(3)=2
+skip, OPDONE; IATRTLIST=2 ⇒ stop after the first) writes the AFTER-TREATMENT list — every record with PROB>0 after the
+thin (dbsatrtls.f `IF (P.LE.0.0) CYCLE`), in the pre-TREDEL layout, TPA=PROB/GROSPC, MortPA=DP=0. Requires ATRTLIDB.
+"""
+function _atrtlist_capture!(s::StandState)
+    c = s.control
+    c.dbs_atrtlist || return
+    reqs = prtrls_requests!(s, 3, Int(c.cycle) + 1)
+    isempty(reqs) && return
+    rows = atrtlist_rows(s)
+    for _ in reqs
+        append!(c.atrtlist_capture, rows)
     end
     return
 end

@@ -308,7 +308,7 @@ function compute_volumes_wc!(s::StandState)
         if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
             tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         else                                          # 616BEHW
             tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark)

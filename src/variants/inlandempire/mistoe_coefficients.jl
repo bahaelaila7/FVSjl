@@ -371,15 +371,18 @@ cycle length. Returns 0 for DMR 0. `pmc`/`maxsp` are the per-variant table (see 
 function ie_dm_mortality_rate(pmc, maxsp::Integer, sp::Integer, dmr::Integer, dbh::Real, fint::Real; dmmmlt::Real = 1.0)
     dmr == 0 && return 0.0f0
     (sp < 1 || sp > maxsp) && return 0.0
-    b0 = pmc[1, sp]; b1 = pmc[2, sp]; b2 = pmc[3, sp]
-    m = b0 + b1 * dmr + b2 * dmr * dmr
-    m *= dmmmlt
-    small = dbh < 9.0
-    small && (m *= 1.2)
-    m < 0.0 && (m = 0.0)
-    cap = small ? 0.71 : 0.5
+    # mismrt.f:155-183 is all REAL*4: DMMORT=PMCSP1+PMCSP2*IDMR+PMCSP3*IDMR**2 (IDMR**2 an exact INTEGER power),
+    # *DMMMLT, *1.2 if DBH<9, clamp [0, 0.71|0.5], then 1.0-(1.0-DMMORT)**(FINT/10.0) — a REAL-exponent powf.
+    # (Was evaluated in Float64 with (b2·dmr)·dmr ⇒ WK2 1-ULP off on the MAX-combined DM kill: BM 504545927126144.)
+    b0 = Float32(pmc[1, sp]); b1 = Float32(pmc[2, sp]); b2 = Float32(pmc[3, sp])
+    m = b0 + b1 * Float32(dmr) + b2 * Float32(dmr * dmr)
+    m *= Float32(dmmmlt)
+    small = dbh < 9.0f0
+    small && (m *= 1.2f0)
+    m < 0.0f0 && (m = 0.0f0)
+    cap = small ? 0.71f0 : 0.5f0
     m > cap && (m = cap)
-    return Float32(1.0 - (1.0 - m)^(fint / 10.0))
+    return 1.0f0 - fpow(1.0f0 - m, Float32(fint) / 10.0f0)
 end
 
 """

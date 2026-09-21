@@ -91,13 +91,18 @@ end
 function ie_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     fclass = ie_formcl(sp, ifor, d)
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
-    vol2 = 0f0; vol4 = 0f0
+    vol2 = 0f0; vol4 = 0f0; ht1 = 0f0
     v1 = if h <= 17.3f0                                    # R6VOL short-tree guard (TTH≤FC_HT): cylinder VOL(1)
         0.00272708f0 * dbhib * dbhib * h
     else
         v = bm_r6vol3(d, dbtbh, fclass, h, 1)             # ZONE 1 total cubic → VOL(1)
         mtopp = 4.5f0 * bark                              # TOPDIAM = TOPD·BARK
-        xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, h)       # log bucking → small-end diameters
+        xlogs, ld1, xl = bm_r6dibs(d, fclass, mtopp, h)   # log bucking → small-end diameters
+        # r6vol.f:121-125 HT1PRD = 1.0 + Σ XLEN(1:20) (not reached when DBHIB<MTOPP ⇒ GO TO 1000)
+        if dbhib >= mtopp
+            ht1 = 1.0f0
+            for k in 1:20; ht1 += xl[k]; end
+        end
         lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)       # per-log Scribner (VOL2) + merch cubic (VOL4)
         nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
         for k in 1:nacc
@@ -105,7 +110,7 @@ function ie_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
         end
         v
     end
-    return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
+    return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0), ht1)   # 4th = HT1PRD (fvsvol.f → HT2TD)
 end
 
 # ---------------------------------------------------------------------------
@@ -266,6 +271,9 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
     t = s.trees; veq = s.species.vol_eq
     ifor = Int(s.plot.forest_idx)
     topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0; iregn = 1
+    # vols.f:86-90 zeroes HT2TD for every record; FVSVOL/NATCRS then fills the FW2 merch-top heights.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -283,7 +291,9 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
             # vs live 9.2/7.4/29.5.)
             broken = t.trunc[i] > 0 && t.norm_ht[i] > 0
             hbase = broken ? Float32(t.norm_ht[i]) / 100f0 : h
-            tcf, mcf, bf = ie_behre_vol(sp, ifor, d, hbase, bark)
+            tcf, mcf, bf, ht1 = ie_behre_vol(sp, ifor, d, hbase, bark)
+            d >= dbhmin && (t.merch_top_cf[i] = ht1)           # fvsvol.f:337-339 (CF call, same MTOPP)
+            d >= bfmind && (t.merch_top_bf[i] = ht1)           # fvsvol.f:484-487 (BF call)
             if broken && tcf > 0f0 && hbase >= 4.5f0
                 vmax = tcf
                 tcf, mcf = cr_cftopk(tcf, mcf, d, hbase, vmax, bark, Int(t.trunc[i]), 1f0, 4.5f0)
@@ -303,7 +313,12 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
             # redcedar VMAX 27.3 → TCF 14.84 / MCF 10.61.)
             broken = t.trunc[i] > 0 && t.norm_ht[i] > 0
             hbase = broken ? Float32(t.norm_ht[i]) / 100f0 : h
-            v = cr_fw2_vol(eq, d, hbase; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn)
+            # sf_hs: MERLEN's merch-top height via the faithful SF_HS Newton (profile.f MERLEN → sf_hs.f), which also
+            # supplies HT1PRD → HT2TD (fvsvol.f:337-339 cubic, :484-487 board).
+            v = cr_fw2_vol(eq, d, hbase; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn,
+                           sf_hs = true, ht2td = htb)
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1])
+            d >= bfmind && (t.merch_top_bf[i] = htb[2])
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= bfmind ? v[2] : 0f0

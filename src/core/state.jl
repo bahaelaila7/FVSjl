@@ -28,6 +28,16 @@ struct ScheduledActivity
     params::NTuple{6,Float32}    # method parameters (post-date keyword fields)
     aux::Float32                 # 7th param for keywords that need it (THINQFA QFATAR)
 end
+# A scheduled tree-list request (TREELIST act 80 / CUTLIST act 199 / ATRTLIST act 198; initre.f opts 17/92/135
+# → OPNEW). `idt` = the raw date field (0 = all cycles, 1..MAXCYC = cycle number, else a year); `params` =
+# PRMS(1:NPRMS) = keyword fields 2.. (field 2 blank ⇒ JOLIST=3). `seq` = keyword order (OPSORT tie-break).
+struct ListActivity
+    code::Int32
+    idt::Int32
+    params::Vector{Float32}
+    seq::Int32
+end
+
 # 3-arg form (the common case): aux defaults to 0.
 ScheduledActivity(year, icflag, params) =
     ScheduledActivity(Int32(year), Int32(icflag), params, 0f0)
@@ -319,6 +329,15 @@ mutable struct Control
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
     dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
                                               # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
+    # Tree-list activities (TREELIST/CUTLIST/ATRTLIST) and the OPDONE state of their per-cycle copies,
+    # keyed (index into list_acts, 1-based FVS cycle). See `prtrls_requests!` (prtrls.f).
+    list_acts::Vector{ListActivity}
+    list_done::Set{Tuple{Int,Int}}
+    dbs_atrtlist::Bool                        # DATABASE ATRTLIDB ⇒ emit FVS_ATRTList (dbsatrtls.f)      (IATRTLIST)
+    dbs_treelist_mode::Int32                  # ITREELIST value (1 table+text, 2 table only)             (ITREELIST)
+    dbs_atrtlist_mode::Int32                  # IATRTLIST value                                          (IATRTLIST)
+    atrtlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_ATRTList row sink (PRTRLS(3) at cuts.f:1740), else nothing
+    dbs_caseid_set::Bool                      # CASEID assigned (dbscase.f:235) during keyword read ⇒ a later DSNOUT is rejected (dbsin.f:116-122)
 end
 
 function Control()
@@ -385,6 +404,10 @@ function Control()
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
         false,                                                   # dm_mrt_defer
+        ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
+        false,                                                   # dbs_atrtlist (ATRTLIDB)
+        Int32(0), Int32(0),                                      # dbs_treelist_mode, dbs_atrtlist_mode
+        nothing, false,                                          # atrtlist_capture, dbs_caseid_set
     )
 end
 
@@ -681,11 +704,17 @@ mutable struct Scratch
     # `nothing` and allocate, staying bit-exact and unchanged.)
     r9_vol::Vector{Float32}
     r9_logbuf::Vector{Float32}
+    # IND1 (SPESRT) walk order for the once-per-call stand-statistic sums that FVS accumulates in IND1 order
+    # (DENSE BA/RMSQD/PCCF, SDICAL, SDICLS, SDICHK, CCCLS) — `_ind1_order` fills it and returns a view. The
+    # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
+    ind1_buf::Vector{Int32}
+    sdi_baxsp::Vector{Float32}
 end
 Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
                     zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
-                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40))
+                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
+                    zeros(Int32,MAXTRE), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
@@ -809,6 +838,7 @@ mutable struct Establishment
     es_plot_dil::Vector{Float32}    # DILATE=FIRST(2,sp) each PLANT/NATURAL tree read (plot-major, es_plot_nph per plot)
     es_plot_nph::Int32
     kdtold::Int32                   # KDTOLD (ESHAP): KDT of the previous ESTAB call (estab.f:1654; esinit.f:59 −99)
+    es_plot_note::Vector{Int}       # NBEST NOTE of each PLANT/NATURAL tree (plot-major like es_plot_dil) → IMC (estab.f:1385-1386)
     esb_shift_ptip::Matrix{Float32}  # ESB − ESB1(NNID, IPREP) per inventory point × site prep (npt×3). estab.f:510-545
                                 # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
                                 # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
@@ -819,7 +849,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 Dict{Int32,Float32}(), Dict{Int32,Float32}(), Int32(50),
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
-                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99),
+                                Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
                                 Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState

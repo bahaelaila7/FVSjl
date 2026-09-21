@@ -25,13 +25,13 @@ const IE_CWB6 = Float32[-0.07182,-0.02341,-0.01509,0.0,0.03539,0.0,0.0,0.0,0.0,0
     d <= 0f0 && return 0f0
     D = Float32(d)
     if sp <= 12 || sp == 14 || sp == 23
-        return D >= 10f0 ? IE_RD1[sp] + D*IE_RD2[sp] + D*D*IE_RD3[sp] : IE_RDA[sp] * D^IE_RDB[sp]
+        return D >= 10f0 ? IE_RD1[sp] + D*IE_RD2[sp] + D*D*IE_RD3[sp] : IE_RDA[sp] * fpow(D, IE_RDB[sp])
     elseif sp == 19 || sp == 22
         D >= 10f0 && return IE_RD1[sp] + D*IE_RD2[sp] + D*D*IE_RD3[sp]
-        return D > 0.1f0 ? IE_RDA[sp] * D^IE_RDB[sp] : 0.001f0
+        return D > 0.1f0 ? IE_RDA[sp] * fpow(D, IE_RDB[sp]) : 0.001f0
     else  # sp 13,15,16,17,18,20,21
         D >= 1f0 && return IE_RD1[sp] + D*IE_RD2[sp] + D*D*IE_RD3[sp]
-        return D > 0.1f0 ? IE_RDA[sp] * D^IE_RDB[sp] : 0.001f0
+        return D > 0.1f0 ? IE_RDA[sp] * fpow(D, IE_RDB[sp]) : 0.001f0
     end
 end
 

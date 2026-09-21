@@ -28,7 +28,7 @@ function _varmrt_efftr!(efftr, s, ::BlueMountains, t::TreeList, n::Int)
         sp = Int(t.species[i]); d = t.dbh[i]
         if sp == 6 || (11 <= sp <= 16) || sp == 18
             pct = t.crown_ratio[i]                                     # BA percentile (stand_pct!)
-            peff = 0.84525f0 - 0.01074f0 * pct + 0.0000002f0 * (pct * pct * pct)  # PCT**3 → X·X·X
+            peff = 0.84525f0 - 0.01074f0 * pct + 0.0000002f0 * fpow(pct, 3f0)   # bmtmrt.f PCT(I)**3.0 — REAL exponent ⇒ gfortran powf (one rounding), not X·X·X
         else
             peff = (14.94435f0 - 0.69929f0 * d + 0.00868f0 * d * d) * 0.1f0
             d > 40.0f0 && (peff = 0.086f0)

@@ -155,6 +155,31 @@ come from `grow_cycle!` advancing to the next period. The final cycle has no
 growth period. Cumulative removed merch volume feeds MAI. Requires `state` set up
 through `setup_growth!` + `compute_forest_type!` + `compute_volumes!`.
 """
+# FVS forms the .sum volume totals by turning each per-tree volume into a per-acre value IN PLACE
+# (CFV(I)=CFV(I)*PROB(I), fvs.f:221 at the inventory / gradd.f:303 each cycle), PCTILE-ing those, then dividing
+# back (CFV(I)=CFV(I)/PROB(I), fvs.f:269 / gradd.f:350). In REAL*4 (v·p)/p is not always v, so every downstream
+# reader of the per-tree arrays before the next VOLS — the FVS_TreeList/CutList rows, the next cycle's CUTS
+# removals, ECHARV — sees the round-tripped value (e.g. MCFV 25.0 → 24.999998). gradd.f divides only when
+# PROB>0 and round-trips the biomass/carbon arrays only under LFIANVB; the inventory pass (fvs.f) does all of them.
+function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
+    t = s.trees
+    rt(v::Float32, p::Float32) = (v * p) / p
+    bio = cycle0 || s.control.fia_nvb
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]
+        p > 0f0 || continue
+        t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
+        t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p); t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
+        if bio
+            t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
+            t.cubsaw_bio[i] = rt(t.cubsaw_bio[i], p);   t.foliage_bio[i] = rt(t.foliage_bio[i], p)
+            t.abvgrd_carb[i] = rt(t.abvgrd_carb[i], p); t.merch_carb[i] = rt(t.merch_carb[i], p)
+            t.cubsaw_carb[i] = rt(t.cubsaw_carb[i], p); t.foliage_carb[i] = rt(t.foliage_carb[i], p)
+        end
+    end
+    return s
+end
+
 function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         stand_id::AbstractString = "", mgmt_id::AbstractString = "NONE",
                         sample_wt = nothing, variant::AbstractString = "SN",
@@ -162,6 +187,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         collect_rows::Union{Nothing,Vector} = nothing, cycle_hook = nothing,
                         compute_collect::Union{Nothing,Vector} = nothing,
                         cutlist_collect::Union{Nothing,Vector} = nothing,
+                        atrtlist_collect::Union{Nothing,Vector} = nothing,
                         carbon_collect::Union{Nothing,Vector} = nothing,
                         potfire_collect::Union{Nothing,Vector} = nothing,
                         hrvcarbon_collect::Union{Nothing,Vector} = nothing,
@@ -257,9 +283,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
                         total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0)
+        _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
         cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # Test-only observer (tiered suite bit-identity snapshots, test/harness/tiered/snapshot.jl): a callback in the
+        # CURRENT TASK's local storage sees the same start-of-cycle state. Task-local ⇒ safe when stands run on
+        # parallel tasks; absent ⇒ one Dict lookup per summary row, no effect on the simulation.
+        let snap = get(task_local_storage(), :fvsjl_snapshot_hook, nothing)
+            snap === nothing || snap(s, r.year, c)
+        end
         # COVER report-only accumulator (CVCNOP): the canopy statistics of the start-of-cycle
         # (pre-thin) stand at year r.year → slot IP1=c+1. Gated on the COVER activity 900.
         if s.cover !== nothing && s.cover.active
@@ -356,11 +389,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # idempotent, so grow_cycle!'s own cuts! call below is then a no-op.
             # FVS_CutList: arm the per-record cut sink for this (real) thin, then stash + disarm.
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
+            atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
                 s.control.cutlist_capture = nothing
+            end
+            if atrtlist_collect !== nothing
+                push!(atrtlist_collect, (r.year, per, s.control.atrtlist_capture))
+                s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
             if strclass_collect !== nothing

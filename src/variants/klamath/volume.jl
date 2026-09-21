@@ -600,7 +600,7 @@ function compute_volumes_nc!(s::StandState)
             if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
                 tcf6, mcf6, bf6 = wc_fw2_westside_vol(eq6, d, hv0, bark; topd = 6.0f0, bftopd = 6.0f0)
             elseif m6 == "FW2"                              # INGY (I00) — reuse cr_fw2_vol
-                v = cr_fw2_vol(eq6, d, hv0; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6)
+                v = cr_fw2_vol(eq6, d, hv0; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)
                 tcf6 = max(v[1], 0f0); mcf6 = max(v[4] + v[7], 0f0); bf6 = max(v[2], 0f0)
             else                                            # 616BEHW Behre
                 tcf6, mcf6, bf6 = nc_behre_vol(sp, d, hv0, bark)
@@ -668,7 +668,7 @@ function nc_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Floa
         if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
             return max(wc_fw2_westside_vol(eq6, d, h, bark; topd = 6.0f0, bftopd = 6.0f0)[1], 0f0)
         elseif m6 == "FW2"
-            return max(cr_fw2_vol(eq6, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6)[1], 0f0)
+            return max(cr_fw2_vol(eq6, d, h; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)[1], 0f0)
         else
             return max(nc_behre_vol(sp, d, h, bark)[1], 0f0)
         end

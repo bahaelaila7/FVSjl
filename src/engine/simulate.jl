@@ -1157,6 +1157,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _ec_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
                _op_up ? op_bratio(Int(t.species[i]), t.dbh[i]) :
+               _ie_up ? ie_bratio(Int(t.species[i]), t.dbh[i]) :   # ie/bratio.f: IMAP-2 BRATIO=BARK1 exactly (the generic (a+b·d)/d is 1-ULP off)
                bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
@@ -1360,10 +1361,12 @@ function run_keyfile(keypath::AbstractString;
         tl_on = s.control.dbs_treelist && has_db
         cp_on = s.control.dbs_compute && has_db && !isempty(s.control.compute_defs)
         cl_on = s.control.dbs_cutlist && has_db
+        al_on = s.control.dbs_atrtlist && has_db
         rows = (sum_on || outfmt === :csv) ? SummaryRow[] : nothing   # also collected for CSV output
         tl_cycles = tl_on ? Tuple[] : nothing
         cp_rows = cp_on ? Tuple[] : nothing
         cl_cycles = cl_on ? Tuple[] : nothing
+        al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
         carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
@@ -1373,11 +1376,17 @@ function run_keyfile(keypath::AbstractString;
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
         dm_rows = (s.control.dbs_mistoe && _dm_report_variant(s.variant)) ? Tuple[] : nothing
         dm_top4 = Int[]
-        hook = tl_on ? (st, yr, pl, cy) -> push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy)) : nothing
+        # PRTRLS(1) (fvs.f:328 pre-projection with the cycle-1 options, fvs.f:412 at each cycle end): one
+        # FVS_TreeList block per TREELIST request accomplished this cycle (none without a TREELIST activity).
+        hook = tl_on ? (st, yr, pl, cy) -> begin
+            for _ in prtrls_requests!(st, 1, cy == 0 ? 1 : cy; lstart = cy == 0)
+                push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy))
+            end
+        end : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
                        mgmt_id = mid, variant = variant_code(s.variant), date = date, time = time,
                        collect_rows = rows, cycle_hook = hook, compute_collect = cp_rows,
-                       cutlist_collect = cl_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
+                       cutlist_collect = cl_cycles, atrtlist_collect = al_cycles, carbon_collect = carb_rows, potfire_collect = pf_rows,
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
                        dm_collect = dm_rows, dm_top4 = dm_top4,
                        canprof_collect = cprof_rows, strclass_collect = strcl_rows)
@@ -1400,10 +1409,12 @@ function run_keyfile(keypath::AbstractString;
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
-            tl_on && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
-            # dbscuts.f creates FVS_CutList only when it actually writes (a due CUTLIST at a cut) — no empty table
+            # DBSTRLS/DBSCUTS create their table only when actually called for an accomplished list request
+            (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
             (cl_on && any(c -> !isempty(c[3]), cl_cycles)) &&
                 write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+            (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
+                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||
