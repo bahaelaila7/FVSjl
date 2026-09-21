@@ -1,9 +1,33 @@
 # FVSjl — port & validation status
 
-_Last updated 2026-08-31. `master` tracks the validated state (active work on the
-`fia-resweep` branch off master). Validation doctrine: **[DOCTRINE.md](DOCTRINE.md)**.
-Hard gate: `test/integration/test_multicycle.jl` = **339 pass / 11 broken,
-byte-identical**._
+_Last updated 2026-09-21. `master` tracks the validated state (active work on the
+`bm-regime-close` branch off master). Validation doctrine: **[DOCTRINE.md](DOCTRINE.md)**.
+Gates: the **tiered integration suite** (`test/integration/test_tiered.jl`, see
+[test/harness/tiered/README.md](../test/harness/tiered/README.md)) and
+`test/integration/test_multicycle.jl` = **350 pass / 0 broken** (TPA and cuft are now compared
+at print precision, like BA/SDI/QMD, so a scenario that prints what live prints passes)._
+
+## How this is gated (2026-09-20)
+
+The multicycle gate is a narrow SN-only smoke test — 10 scenarios, 5 columns, 2 thinning
+keywords. Everything it never touched used to pass silently: a whole variant's FFE fuel loop
+never running, the ECON summary table never being written, blister rust being inert, a
+regeneration date landing a cycle late. The **tiered suite** is now the real gate:
+
+* 12 stratified FIA stands × 11 regimes (none / thin / salvage / plant, both date forms /
+  simfire + mistletoe / climate / root disease / econ / cover) per variant, with **live-oracle
+  goldens** for the `.sum` AND the DBS output tables, compared at print precision;
+* a **signed population tally** per variant × regime — a one-directional bias fails even when
+  every individual cell is small;
+* a **known-residual allowlist** where every entry is either `CORNER` (with a per-record proof)
+  or `OPEN` (with the tracked bug). An unlisted mismatch fails; an entry that stops matching
+  fails ("unexpected pass — remove it"); a missing fixture fails rather than skipping;
+* **aggregate statistics** printed beside the strict per-cell result: match rate per variant and
+  per variant/regime, the magnitude distribution, and the columns carrying the most cells.
+
+Baseline on 2026-09-20 (2,506,861 compared values): **BM 94.1% · SN 92.0% · IE 77.0% ·
+EM 72.7%**, 80.4% overall. Those rates are per-tree and per-table, far stricter than the
+stand-level `.sum` — which is the point: `.sum` aggregates hide per-tree divergence.
 
 FVSjl is a Julia reimplementation of the USFS Forest Vegetation Simulator — a drop-in
 replacement for the live Fortran FVS (same `.key`/`.tre` in, same SQLite/`.sum` out).
@@ -28,6 +52,16 @@ behind one — so corners are periodically re-audited against the live oracle.)
 
 Each has growth + volume, and most have FFE/ECON/mistletoe/Climate/establishment,
 validated bit-exact-or-cornered vs the live oracle per subsystem.
+
+**Per-variant certification (the honest state, 2026-09-21).** "Ported" is not "certified":
+
+| Variant | State |
+|---|---|
+| **BM** | At the oracle floor: **398/400** stratified FIA stands bit-exact with no management (the other two differ by 1 in a single printed cell), **zero one-directional bias in all 10 regimes**. ~20 faithful fixes in the 2026-09-19/20 campaign. |
+| **IE** | **RE-OPENED.** The 2026-09-19 "closed, no caveat" claim was retracted — 7 items were real bugs (see `IE_VARIANT_PORT_AUDIT.md` → RETRACTION). All fixed; re-certification requires the tiered suite to pass on the master tip. |
+| **SN** | Tiered baseline 92.0%; residuals tracked as OPEN, not yet dug. |
+| **EM** | Tiered baseline 72.7% — one-directional volume bias in every regime. Its "COMPLETE-HONEST" claim is false; EM campaign owns it. |
+| others | Ported and subsystem-validated, but not yet swept through the tiered suite. |
 
 ## FIA behaviour-compat validation
 
