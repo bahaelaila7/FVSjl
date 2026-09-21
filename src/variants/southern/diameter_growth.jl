@@ -324,7 +324,6 @@ function _backdate_dbh!(s::StandState)
 end
 
 function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::Float32 = 5f0)
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "CAL", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
@@ -676,7 +675,6 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     @inbounds for sp in 1:MAXSP
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
-        let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, calibrated[sp] ? "CAL" : "U19", lpad(sp,3), lpad(i1,5), lpad(i2,5), " ", fn[sp], " dgcal=", s.control.dg_calib_sp[sp]); end; end   # TEMP-DEBUG
         if calibrated[sp]
             rx = bny[sp] + (px[sp] - bnx[sp]) * slop[sp]
             rn = bny[sp] + (pn[sp] - bnx[sp]) * slop[sp]
@@ -700,7 +698,6 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                     z <= bound && break
                 end
                 oldrn[i] = z
-                let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8)); println(io, "SEE", lpad(Int(i),5), lpad(sp,3), " ", h(z), " ", h(c.sigma[sp]), " ", h(bound)); end; end   # TEMP-DEBUG
             end
         end
     end
@@ -1358,7 +1355,6 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     meas_fint = (s.control.growth_dg_set && s.control.growth_fint > 0f0) ?
                 Int(round(s.control.growth_fint)) : Int(htg_period(s.variant))
     oldp = cyc == 0 ? meas_fint : max(1, cycle_period_at(s.control, cyc - 1))
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "DGE", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
     corr = covmlt / sqrt(vmlt * pvmlt)
@@ -1386,7 +1382,6 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         rho = (sig1 > 0f0 && ssigma > 0f0) ?
               flog(1f0 + corr * sqrt((evarp1 - 1f0) * (evarp2 - 1f0))) / (sig1 * ssigma) : 0f0
         rhocp = sqrt(max(1f0 - rho * rho, 0f0))
-        let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8)); println(io, "SIG", lpad(cyc+1,3), lpad(sp,3), " ", join(h.((vardg, pvmlt, vmlt, corr, covmlt, ssigma, rho, rhocp)), " ")); end; end   # TEMP-DEBUG
         frmbase = DG_FM * ssigma * rhocp
         fru = DG_FU * ssigma * rhocp           # upper-triple FRM factor (dgdriv.f:91)
         frl = DG_FL * ssigma * rhocp           # lower-triple FRM factor (dgdriv.f:89)
@@ -1456,7 +1451,6 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                   dgsd = s.control.dg_stddev_bound)
                 end
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
-                _dgdump(s, i, sp, (d_ib, wk2[i], dds5, d_ib*d_ib, frm, 0f0, dgc))   # TEMP-DEBUG
                 crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
                 t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
             end
@@ -1558,8 +1552,3 @@ function triple_records!(s::StandState, stash)
     return s
 end
 
-function _dgdump(s, i, sp, vals)   # TEMP-DEBUG
-    f = get(ENV, "JLRH", ""); isempty(f) && return
-    h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8))
-    open(f, "a") do io; println(io, "DGN", lpad(Int(s.control.cycle)+1,3), lpad(i,5), lpad(Int(sp),3), " ", join(h.(vals), " ")); end
-end

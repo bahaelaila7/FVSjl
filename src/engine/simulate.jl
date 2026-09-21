@@ -1166,8 +1166,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
         d > 0f0 && (accr += d * t.tpa[i])   # negative growth to 0 (vols.f: CFV>tcf ⇒ WK5=0)
     end
-    _jlhex_dump(s, "UPD")   # TEMP-DEBUG
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "GUP", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     # GRADD order (gradd.f): UPDATE → DENSE → ESNUTR → DENSE → CROWN → VOLS. Establish
     # scheduled regen AFTER growth+mortality (fresh, full TPA this period) but BEFORE
     # CROWN, so the new trees' crown ratio (ICR) is computed this cycle (not carried
@@ -1231,7 +1229,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             s.trees.dg_prev[i] = s.trees.diam_growth[i]
         end
     end
-    _jlhex_dump(s, "ESN")   # TEMP-DEBUG
     # estab.f:1490-1493 — "IF NEW TREES HAVE BEEN ADDED TO THE TREELIST" the establishment
     # model calls ESGENT, which calls SPESRT (esgent.f:49), rebuilding IND1 in ASCENDING
     # physical order and DISCARDING the post-TRIPLE REASS (U,C,L) lineage interleave
@@ -1463,12 +1460,3 @@ function run_keyfile(keypath::AbstractString;
 end
 
 
-function _jlhex_dump(s, tag)   # TEMP-DEBUG (not for commit)
-    f = get(ENV, "JLHEX", ""); isempty(f) && return
-    t = s.trees; h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8))
-    open(f, "a") do io
-        for i in 1:t.n
-            println(io, tag, lpad(Int(s.control.cycle)+1,3), lpad(i,5), lpad(Int(t.species[i]),3), " ", h(t.tpa[i]), " ", h(t.dbh[i]), " ", h(t.height[i]), " ", h(t.diam_growth[i]), " ", h(t.ht_growth[i]), " ", h(t.dg_prev[i]))
-        end
-    end
-end

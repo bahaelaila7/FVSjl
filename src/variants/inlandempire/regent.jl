@@ -68,9 +68,19 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             end
         end
     end
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "HCI reldm1=", s.plot.relative_density_prev, " relden=", relden, " rdnext1=", rdnext[1], " pccf23=", (23 <= t.n ? s.density.point_ccf[Int(t.plot_id[23])] : -1f0), " plot23=", (23 <= t.n ? t.plot_id[23] : -1)); end; end   # TEMP-DEBUG
+    # regent.f:1116-1132 assigns each species a sub-model: NIVAR (<=12,14,23), TTVAR (13,17), CRVAR (19,22),
+    # UTVAR (the rest). The DO 90 calibration loop runs for EVERY species with ISCT≠0 and LHTCAL (default .TRUE.,
+    # grinit.f:104) — not just NIVAR. That matters even where the resulting scale factor is 1.00, because the
+    # TTVAR arm DRAWS ZRAND(I)=BACHLO(0,1,RANN) (regent.f:1181) from the shared main stream and leaves the draw
+    # in the tree record for the growth pass. Skipping it desynchronised every later consumer of the stream.
+    reldm1 = s.plot.relative_density_prev
+    dens = s.density
     @inbounds for sp in 1:23
-        (sp <= 12 || sp == 14 || sp == 23) || continue    # NIVAR only
+        nivar = sp <= 12 || sp == 14 || sp == 23
+        ttvar = sp == 13 || sp == 17
+        # NOTE: the CRVAR/UTVAR arm (regent.f:1211-1271) draws nothing and is not ported here; it can only move
+        # HCOR for a CR/UT species that has >=NCALHT(5) measured small-tree records.
+        (nivar || ttvar) || continue
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
         snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
@@ -80,14 +90,43 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required
             hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2)
             pct = t.crown_ratio[i]
+            cr  = Float32(t.crown_pct[i])                 # CR = FLOAT(ICR(I)) (regent.f:1161)
+            ipccf = Int(t.plot_id[i])
+            pccf_i = (ipccf >= 1 && ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
             hk = hb
             for j in 1:nper
-                bal = banext[j] * (100.0f0 - pct) * 0.0001f0
-                htgrl = rhcon[sp] + IE_RG_RHLH[sp]*flog(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
-                        IE_RG_RHBAL[sp]*bal
-                hk += fexp(htgrl)                          # regent.f:1174-1175 (NO scale in the calib pass)
+                if nivar
+                    bal = banext[j] * (100.0f0 - pct) * 0.0001f0
+                    htgrl = rhcon[sp] + IE_RG_RHLH[sp]*flog(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
+                            IE_RG_RHBAL[sp]*bal
+                    hk += fexp(htgrl)                      # regent.f:1174-1175 (NO scale in the calib pass)
+                else
+                    # TTVAR (regent.f:1176-1210): PPCCF/TPCCF-driven BETA height increment around a persistent
+                    # per-tree ZRAND. EDH<=0.1 clamps and resets ZRAND to -999 so the next use redraws.
+                    ppccf = reldm1 > 0f0 ? (rdnext[j] - reldm1) / reldm1 : 0f0
+                    tpccf = pccf_i * ppccf
+                    tpccf > 300.0f0 && (tpccf = 300.0f0)
+                    tpccf < 25.0f0  && (tpccf = 25.0f0)
+                    if saved_dbh[i] <= 0f0
+                        edh_j = 0f0
+                    else
+                        beta1 = fexp(1.17527f0 - 0.42124f0*flog(tpccf))
+                        beta2 = fexp(-2.56002f0 - 0.58642f0*flog(tpccf))
+                        htg1 = beta1 + beta2*cr
+                        stddev = htg1*(1.08720f0 - 0.00230f0*cr)
+                        if t.zrand[i] == -999f0                # regent.f:911 redraw until |ZRAND|<=2
+                            while true
+                                z = bachlo(s.rng, 0.0f0, 1.0f0)
+                                (z >= -2.0f0 && z <= 2.0f0) && (t.zrand[i] = z; break)
+                            end
+                        end
+                        edh_j = htg1 + t.zrand[i]*stddev
+                        (edh_j <= 0.1f0) && (edh_j = 0.1f0; t.zrand[i] = -999f0)
+                    end
+                    hk += edh_j
+                end
             end
-            edh = hk - hb                                 # regent.f NIVAR EDH = HK−H
+            edh = nivar ? (hk - hb) : (hk - hb) * rhcon[sp]  # regent.f:1274-1278
             term = hg * scale3
             pr = t.tpa[i]
             snx += edh * pr; sny += term * pr; snp += pr; nh += 1
@@ -171,7 +210,6 @@ end
 """IE `small_tree_growth!` (ie/regent.f). Overrides DG/HTG for small trees (D<XMAX). NIVAR path is the
 bulk (iet01); special species ported faithfully."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0)
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "RGE", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species                                 # blkdat HT-DBH :ht1/:ht2 for the aspen log-DK
     t.n == 0 && return s
@@ -231,8 +269,10 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # per-tree height + diameter accumulators (WK3=H, WK5=D), start at HT/DBH
     wk3 = Float32[t.height[i] for i in 1:n]
     wk5 = Float32[t.dbh[i] for i in 1:n]
-    zrand_tt = fill(-999f0, n)          # TTVAR (sp13/17) persistent ZRAND per tree (regent.f:513); drawn fresh
-                                        # each call (cross-cycle persistence = accepted ZZRAN-class residual)
+    # TTVAR (sp13/17) ZRAND lives in the TREE RECORD (regent.f:513 ZRAND(I)), not in this call: it is seeded at
+    # input (intree.f:369/607), re-seeded by the cycle-0 LHTCAL calibration pass (regent.f:1181) and carried
+    # across cycles by TRIPLE/tremov, so a tree keeps its deviate until EDH<=0.1 resets it to -999.
+    zrand_tt = t.zrand
     cur_year = current_cycle_year(s)
     # WK4(I) = clgmult's per-tree CLIMATE growth multiplier (regent.f:596/598 H2=H1+…·WK4). In the oracle
     # CLGMULT fills WK4 once (dgdriv.f:153) and BOTH the large-tree DDS (dgdriv.f:217, jl apply_climate_dds!)
@@ -382,7 +422,6 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
             dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
             htgrl = con + IE_RG_RHLH[sp]*flog(h1) + IE_RG_RHCCF[sp]*rdj + IE_RG_RHBAL[sp]*bal
             h2 = h1 + fexp(htgrl) * scale * xrhgro * wk4[i]   # regent.f:596 ·WK4(I) = clgmult climate multiplier
-            _rhdump("RH1", s, i, sp, (h1, htgrl, fexp(htgrl), scale, xrhgro, wk4[i], h2, con)); _rhdump("RH0", s, i, sp, (rdj, baj, bal))   # TEMP-DEBUG
             wk3[i] = h2
             # NIVAR diameter (regent.f:598-610): skip if last subcycle or D≥3 or H2≤4.5
             d2 = d
@@ -743,7 +782,6 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                 end
             end
             htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)             # NIVAR multiplicative randomization (regent.f:924)
-            l == 0 && _rhdump("RH2", s, i, sp, (h, wk3[i], htgr1, zzran, htgr))   # TEMP-DEBUG
             lhtg = l == 0 ? large_htg : (l == 1 ? large_htg_u : large_htg_l)  # per-copy large-tree HTG (htgf.f)
             htg = htgr * (1.0f0 - xwt_l) + xwt_l * lhtg             # blend toward the (per-copy) large-tree htgf value
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
@@ -931,7 +969,6 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         if !lskiph
             htgrl = con + IE_RG_RHLH[sp]*flog(h) + IE_RG_RHCCF[sp]*relden_htg + IE_RG_RHBAL[sp]*bal
             h2 = h + fexp(htgrl) * est_scale * xrhgro * wk4   # regent.f:596 EXP(HTGRL)*SCALE*XRHGRO*WK4 (left-assoc Float32)
-            _rhdump("RH1", s, i, sp, (h, htgrl, fexp(htgrl), est_scale, xrhgro, wk4, h2, con)); _rhdump("RH0", s, i, sp, (relden_htg, ba_htg, bal))   # TEMP-DEBUG
             htgr1 = h2 - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         end
         xmn = IE_RG_XMIN[sp]; xmx = IE_RG_XMAX[sp]
@@ -939,7 +976,6 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
         diam = IE_RG_DIAM[sp]; bark = ie_bratio(sp, d)
         d1v = diam + dadj; h > 4.5f0 && (d1v = ax * fpow(h - 4.5f0, bx) + dadj)
-        let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "RNG", lpad(Int(s.control.cycle)+1,3), lpad(i,5), " ", s.rng.s0); end; end   # TEMP-DEBUG
         zzran = 0.0f0
         if dgsd >= 1.0f0
             while true
@@ -948,7 +984,6 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             end
         end
         htgr = htgr1 * fexp(zzran * IE_RG_HSIGMA)
-        _rhdump("RH2", s, i, sp, (h, h + htgr1, htgr1, zzran, htgr))   # TEMP-DEBUG
         htg_regent = htgr * (1.0f0 - xwt)                # REGENT HTG(I): new tree large-tree HTG(K)=0
         # ★ ESGENT (esgent.f:56-71): scale REGENT's HTG by WK4 AGAIN (second application ⇒ effective WK4²), then
         # for WK4<1 (AUTOES) reset the sub-breast-height DBH to the birth-cycle nominal 0.1+0.001·HT (DG=0) or,
@@ -989,8 +1024,3 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     return s
 end
 
-function _rhdump(tag, s, i, sp, vals)   # TEMP-DEBUG
-    f = get(ENV, "JLRH", ""); isempty(f) && return
-    h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8))
-    open(f, "a") do io; println(io, tag, lpad(Int(s.control.cycle)+1,3), lpad(i,5), lpad(Int(sp),3), " ", join(h.(vals), " ")); end
-end

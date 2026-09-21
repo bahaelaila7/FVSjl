@@ -85,7 +85,6 @@ Cycle update (D-backdated≥3 for NIVAR). LSTART dub via DUBSCR/BACHLO (RNG-corn
 function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0.0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "CRE", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     if t.n == 0
         # crown.f:191 IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74 — with NO live trees FVS still dubs the missing
         # crowns of the inventory's standing-dead records (each NIVAR/UTTVAR one main-stream DUBSCR draw). Returning
@@ -241,7 +240,6 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # only the SD (=CRSD[sp], faithful) and hence the draw COUNT/ORDER matter for the RNG sync. crown.f:684-687
     # bounds the dead ICRI to [10,95] for ALL species (not the live loop's NIVAR<5). IE-only dispatch.
     lstart && _ie_dead_crown_dub!(s, ba, dgsd)
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "CRX", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     return s
 end
 

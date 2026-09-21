@@ -290,6 +290,13 @@ function dub_missing_heights!(s::StandState)
     # `_htdbh_height` (TT defines no htdbh_p2/p3/p4). Load HT1/wykoff_ht2 unconditionally for TT.
     tt_ht1  = s.variant isa Teton ? coef_col(s.coef, :ht1) : nothing
     tt_wht2 = s.variant isa Teton ? coef_col(s.coef, :wykoff_ht2) : nothing
+    # ie/cratet.f DO 145 (the CYCLE-0 DEAD records, II=IREC2..MAXTRE) dubs a missing height with the plain
+    # Wykoff HT-DBH — `AX=HT1(ISPC)`, `BX=HT2(ISPC)`, `AX=AA(ISPC)` only when IABFLG==0 — with NO LHTDRG gate
+    # and NO Curtis-Arney/HTDBH branch. That differs from the LIVE loop (DO 130), which jl was applying to both
+    # partitions: a dead record whose species has no AA fit fell through to the Curtis-Arney dub. Measured on the
+    # IE RD control stand: dead LM D=34.6 dubbed 80.99 vs live 61.72 (= exp(4.19200 − 5.16510/35.6) + 4.5), and
+    # because the dead records feed the dead-inclusive AVH the whole stand's crowns — hence growth — shifted.
+    ie_ht1 = s.variant isa InlandEmpire ? coef_col(s.coef, :ht1) : nothing
     if any(lhtdrg)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
@@ -331,6 +338,10 @@ function dub_missing_heights!(s::StandState)
             t.height[i]                                   # unused: label 142 takes the HT>0 branch below
         elseif d <= 0.1f0
             1.01f0
+        elseif i > t.n && s.variant isa InlandEmpire && ht2 !== nothing
+            # cratet.f DO 145: dead records take the Wykoff form regardless of LHTDRG
+            ax = iabflg[sp] == 0 ? aa[sp] : ie_ht1[sp]
+            max(fexp(ax + ht2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
         elseif s.variant isa BlueMountains
             bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
         elseif lhtdrg[sp] && iabflg[sp] == 0

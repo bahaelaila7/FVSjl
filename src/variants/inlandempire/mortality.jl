@@ -6,7 +6,6 @@
 function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
-    let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; println(io, "MOE", lpad(Int(s.control.cycle)+1,3), " ", s.rng.s0); end; end   # TEMP-DEBUG
     ba = p.basal_area
     itype = Int(p.habitat_input)
     # BAMAX: a user BAMAX (keyword/DB ⇒ LBAMAX) is used as given. Otherwise ie/sitset.f:82-84 seeds BAMAXA(ITYPE)
@@ -91,7 +90,6 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
         end
         wki > pr && (wki = pr)
         sdimax < 5f0 && (wki = pr)
-        let f = get(ENV, "JLRH", ""); isempty(f) || open(f, "a") do io; h(x) = uppercase(string(reinterpret(UInt32, Float32(x)), base=16, pad=8)); println(io, "MRT", lpad(Int(s.control.cycle)+1,3), lpad(i,5), lpad(sp,3), " ", join(h.((dd, bark, g, rip, ripp, xest, wki, ba, rz, aved, bamax)), " ")); end; end   # TEMP-DEBUG
         killed[i] = wki
     end
     # Climate-FVS mortality (clmorts.f:369 CALL, after base mort, before booking): viability path, THISYR mid-cycle
