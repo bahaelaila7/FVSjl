@@ -152,6 +152,7 @@ function dgf!(s::StandState, ::WestCascades)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     slope = p.slope; asp = p.aspect
+    _xmaxpt, _zrd, _ = point_zeide!(s)   # dgf.f:352-370 SDICAL + SDICLS (RW point relative density)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i]); jspc = WC_MAPSPC[isp]
@@ -172,7 +173,7 @@ function dgf!(s::StandState, ::WestCascades)
         elseif isp == 17                               # REDWOOD (wc/dgf.f DGLT exp eq)
             conspp = c.dg_const[isp]                    # RW: COR applied AFTER, not in CONSPP
             pbal = ptba * pctfrac; pbal < 0f0 && (pbal = bal)
-            prd = 0f0                                   # PRD point-Zeide (TODO precompute; 0 baseline)
+            prd = (1 <= pt_i <= length(_xmaxpt) && _xmaxpt[pt_i] > 0f0) ? _zrd[pt_i] / _xmaxpt[pt_i] : 0f0   # dgf.f PRD=ZRD/XMAXPT (point)
             dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
                        0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
                        0.002203f0 * (slope * 100f0) * cos(asp))
