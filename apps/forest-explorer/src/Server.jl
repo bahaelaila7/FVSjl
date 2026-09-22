@@ -1,4 +1,4 @@
-# Included into TreeMapExplorer. HTTP layer (Oxygen): dynamic tiles + AOI API.
+# Included into ForestExplorer. HTTP layer (Oxygen): dynamic tiles + AOI API.
 
 using Oxygen, HTTP, JSON3
 import PNGFiles
@@ -449,7 +449,7 @@ function start_server!(app::App = init_app(); host = "127.0.0.1", port = 8080)
     # static frontend
     staticfiles(PUBLIC, "/")
 
-    @info "TreeMap Growth Explorer serving — press Ctrl-C to stop" host port public = PUBLIC
+    @info "Forest Growth Explorer serving — press Ctrl-C to stop" host port public = PUBLIC
 
     # Run Oxygen ASYNC and own the interrupt ourselves. Oxygen's own async=false
     # path flips exit_on_sigint off and blocks in wait(); the HTTP accept loop then

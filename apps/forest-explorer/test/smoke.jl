@@ -1,5 +1,5 @@
-using TreeMapExplorer
-const TME = TreeMapExplorer
+using ForestExplorer
+const TME = ForestExplorer
 
 app = TME.init_app()
 println("VAT plots: ", length(app.st.by_tm))

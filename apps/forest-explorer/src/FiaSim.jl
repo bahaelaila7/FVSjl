@@ -23,7 +23,7 @@ export ManagementPlan, PlanAction, simulate_plots, build_subdb, CycleMetrics, Pl
 
 # Resolved at RUNTIME (honors FIA_DB set when the server starts). The default is derived
 # from this module's own location — the workspace root that holds the repo — not hardcoded:
-#   <root>/apps/treemap-explorer/src/FiaSim.jl  ->  up 4 = <workspace>  ->  SQLite_FIADB_ENTIRE.db
+#   <root>/apps/forest-explorer/src/FiaSim.jl  ->  up 4 = <workspace>  ->  SQLite_FIADB_ENTIRE.db
 master_db() = get(ENV, "FIA_DB",
     normpath(joinpath(@__DIR__, "..", "..", "..", "..", "SQLite_FIADB_ENTIRE.db")))
 

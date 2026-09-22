@@ -1,4 +1,4 @@
-# TreeMap Growth Explorer
+# Forest Growth Explorer
 
 Localhost web app that displays the USFS **TreeMap 2022 CONUS** raster, lets the user
 draw/upload an AOI polygon, resolves each forested pixel to its FIA plot, simulates

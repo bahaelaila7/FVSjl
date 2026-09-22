@@ -1,5 +1,5 @@
 """
-    TreeMapExplorer
+    ForestExplorer
 
 Localhost web app: display the USFS TreeMap 2022 CONUS raster, resolve an AOI
 polygon to its FIA plots, and chart species / DBH-class distributions of the
@@ -9,7 +9,7 @@ Data (raster, VAT, tree table, offset index) lives OUTSIDE the repo, under a
 data directory resolved from the `init_app` argument, else the `TREEMAP_DATA`
 env var, else a default derived from this module's location (see `default_datadir`).
 """
-module TreeMapExplorer
+module ForestExplorer
 
 include("Raster.jl")
 include("TreeList.jl")
@@ -66,7 +66,7 @@ own location (`<repo-parent>/treemap`) — no absolute path is hard-coded.
 """
 function default_datadir()
     haskey(ENV, "TREEMAP_DATA") && return ENV["TREEMAP_DATA"]
-    # this file: <root>/apps/treemap-explorer/src/TreeMapExplorer.jl
+    # this file: <root>/apps/forest-explorer/src/ForestExplorer.jl
     # data sits beside the repo root: <root>/../treemap  ==  <repo-parent>/treemap
     normpath(joinpath(@__DIR__, "..", "..", "..", "..", "treemap"))
 end
