@@ -215,9 +215,8 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa SouthCentralOregon
         so_dgcons!(s)                     # SO DGCON (33-species uncompressed; RMAI/maical + DGSIC/DGMAI Prognosis terms) — chunk 3
-        compute_density!(s)               # current-stand density (RELDEN) for dgf! CONSPP (DGCCFA/DGMACC) term
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (so/crown.f);
-                                          # d<1 seedlings → so/dubscr.f logistic/linear + BACHLO draw — chunk 5
+        crown_init_lstart_dead_inclusive!(s)  # so/cratet.f:164-172 (identical to bm) backdated dead-inclusive DENSE →
+                                          # CROWN: DUBSCR d<1 seedlings + the cycle-0 DEAD records (so/crown.f DO 79)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa WestSierra
         ws_dgcons!(s)                     # WS DGCON (43-species uncompressed; ws/dgf.f ENTRY DGCONS) — chunk 3
@@ -1144,16 +1143,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
         # BRATIO (cr/bratio.f = cr_bratio): its bark_a/bark_b are 0, so bark_ratio would floor to 0.80
         # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
-        bark = _cr_up ? cr_bratio(sd, Int(t.species[i]), t.dbh[i], _cr_up_imod) :
-               _tt_up ? tt_bratio(Int(t.species[i]), t.dbh[i]) :
-               _bm_up ? bm_bratio(sd, Int(t.species[i]), t.dbh[i]) :
-               _ak_up ? ak_bratio(Int(t.species[i]), t.dbh[i]) :
-               _wc_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
-               _pn_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
-               _ec_up ? wc_bratio(sd, Int(t.species[i]), t.dbh[i]) :
-               _op_up ? op_bratio(Int(t.species[i]), t.dbh[i]) :
-               _ie_up ? ie_bratio(Int(t.species[i]), t.dbh[i]) :   # ie/bratio.f: IMAP-2 BRATIO=BARK1 exactly (the generic (a+b·d)/d is 1-ULP off)
-               bark_ratio(bark_a, bark_b, t.species[i], t.dbh[i])
+        bark = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # update.f:115 — the SAME BRATIO as dgdriv's DDS→DG
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
         s.variant isa OregonCoast || (t.vol_bark[i] = bark)   # stash BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150)

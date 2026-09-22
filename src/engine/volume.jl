@@ -320,7 +320,8 @@ function dub_missing_heights!(s::StandState)
     # measured trees, DO 15). The dead-tree heights don't enter the live .sum aggregate but DO feed the DG-
     # calibration backdating (which exposes the dead partition), so dubbing them keeps that calibration faithful.
     # BM: snapshot HT as read (before any dub) — bm/cratet.f:195 DENSE → AVH for the LSTART CROWN dub sees it.
-    (s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa PacificNorthwest) &&
+    (s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa PacificNorthwest ||
+     s.variant isa SouthCentralOregon) &&
         (s.calib.cratet_ht_in = t.height[1:(t.n + t.ndead)])   # pre-dub heights for the shared CRATET-DENSE AVH
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]

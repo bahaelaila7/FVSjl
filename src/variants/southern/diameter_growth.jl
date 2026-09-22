@@ -290,17 +290,7 @@ function _backdate_dbh!(s::StandState)
     _ca_bd = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class as WC/EC
     _so_bd = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path: CASE1 BARKB / juniper / BRDAT)
     _op_bd = s.variant isa Olympic            # OP bark = op_bratio (op/bratio.f 3-path) — same watchpoint class as WC (WF COR)
-    _bk(sp, d) = _cr_bd ? cr_bratio(sd, Int(sp), d, _cr_bd_imod) :
-                 _tt_bd ? tt_bratio(Int(sp), Float32(d)) :
-                 _bm_bd ? bm_bratio(sd, Int(sp), Float32(d)) :
-                 _ci_bd ? ci_bratio(sd, Int(sp), d) :
-                 _ak_bd ? ak_bratio(Int(sp), Float32(d)) :
-                 _wc_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
-                 _pn_bd ? wc_bratio(sd, Int(sp), Float32(d)) :
-                 (_ec_bd || _ca_bd) ? wc_bratio(sd, Int(sp), Float32(d)) :
-                 _so_bd ? so_bratio(sd, Int(sp), Float32(d)) :
-                 _op_bd ? op_bratio(Int(sp), Float32(d)) :        # OP bark = op_bratio (op/bratio.f 3-path) — backdating must match dgf/update
-                 _bc_bd ? bc_bratio(Int(sp)) : bark_ratio(bark_a, bark_b, sp, d)
+    _bk(sp, d) = variant_bratio(s, sp, Float32(d))   # dense.f backdating bark = the variant BRATIO (shared dispatch)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
@@ -482,18 +472,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 # cornew drifts ~0.19 more negative, crossing the exp(-2.5)=0.0821 COR out-of-range trap
                 # (dgdriv.f:640) ⇒ COR falsely zeroed for measured-DG species (e.g. aspen sp20), which then
                 # over-grows where gemdg is explosive on small DBH. 4th CR variant-bark location.
-                bk = _cr_cal ? cr_bratio(sd, Int(t.species[i]), saved_dbh[i], _cr_cal_imod) :
-                     _tt_cal ? tt_bratio(Int(t.species[i]), saved_dbh[i]) :
-                     _bm_cal ? bm_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     _ci_cal ? ci_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     _ak_cal ? ak_bratio(Int(t.species[i]), saved_dbh[i]) :
-                     _wc_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     _pn_cal ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     _so_cal ? so_bratio(sd, Int(t.species[i]), saved_dbh[i]) :
-                     _op_cal ? op_bratio(Int(t.species[i]), saved_dbh[i]) :   # OP bark = op_bratio (op/bratio.f) — COR must use it
-                     _bc_cal ? bc_bratio(Int(t.species[i])) :
-                     bark_ratio(bark_a, bark_b, t.species[i], saved_dbh[i])
+                bk = variant_bratio(s, t.species[i], saved_dbh[i])   # shared variant BRATIO
                 t.diam_growth[i] *= bk
             end
         end
@@ -589,19 +568,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = _cr_cal ? cr_bratio(sd, Int(sp), saved_dbh[i], _cr_cal_imod) :
-               _tt_cal ? tt_bratio(Int(sp), saved_dbh[i]) :
-               _bm_cal ? bm_bratio(sd, Int(sp), saved_dbh[i]) :
-               _ci_cal ? ci_bratio(sd, Int(sp), saved_dbh[i]) :
-               _ak_cal ? ak_bratio(Int(sp), saved_dbh[i]) :
-               _wc_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
-               _pn_cal ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
-               (_ec_cal || _ca_cal) ? wc_bratio(sd, Int(sp), saved_dbh[i]) :
-               _so_cal ? so_bratio(sd, Int(sp), saved_dbh[i]) :
-               _op_cal ? op_bratio(Int(sp), saved_dbh[i]) :   # OP: op_bratio (op/bratio.f) — the TERM bark MUST match
-                                                              # (shared bark_a/bark_b=0 floored to 0.80 ⇒ TERM low ⇒ RESLOG −0.098 ⇒ WF COR flips negative)
-               _bc_cal ? bc_bratio(Int(sp)) :                 # BC: constant BARK1 (shared bark_a/bark_b=0 ⇒ 0.80 floor, wrong)
-               bark_ratio(bark_a, bark_b, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435)
+        bark = variant_bratio(s, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435) — shared variant BRATIO
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
@@ -1387,18 +1354,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         frl = DG_FL * ssigma * rhocp           # lower-triple FRM factor (dgdriv.f:89)
         for k in i1:i2
             i = ind1[k]
-            bark = _cr_dg ? cr_bratio(sd, sp, t.dbh[i], _cr_imodty) :
-                   _tt_dg ? tt_bratio(Int(sp), t.dbh[i]) :
-                   _bc_dg ? bc_bratio(Int(sp)) :
-                   _bm_dg ? bm_bratio(sd, Int(sp), t.dbh[i]) :
-                   _ci_dg ? ci_bratio(sd, Int(sp), t.dbh[i]) :
-                   _wc_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
-                   _pn_dg ? wc_bratio(sd, Int(sp), t.dbh[i]) :
-                   (_ec_dg || _ca_dg) ? wc_bratio(sd, Int(sp), t.dbh[i]) :
-                   _so_dg ? so_bratio(sd, Int(sp), t.dbh[i]) :
-                   _on_dg ? on_bratio(Int(sp), t.dbh[i], t.height[i]) :   # dgdriv.f:201 BRATIO(ISPC,DBH,HT), original DBH
-                   (_nc_rw_dg && sp == 12) ? nc_bratio(sd[:bark1][12], sd[:bark2][12], Int(sd[:bark_imap][12]), t.dbh[i]) :
-                   _ak_dg ? ak_bratio(Int(sp), t.dbh[i]) : bark_ratio(bark_a, bark_b, sp, t.dbh[i])
+            bark = variant_bratio(s, sp, t.dbh[i], t.height[i])   # dgdriv.f:201 BRATIO(ISPC,DBH,HT) — shared with UPDATE
             d_ib = t.dbh[i] * bark
             # FVS bounds the 5-yr DG (DGBND, dgdriv.f:255-269) THEN scales to the cycle length
             # (gradd.f:79-90, DDS·(FINT/YR)) WITHOUT re-bounding. So DDS here is the 5-yr basis (BAIMULT

@@ -130,22 +130,9 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     # main-stream BACHLO per record), iterating IREC2→MAXTRE = the REVERSE of jl's dead storage (same layout
     # as bm/ie crown.f DO 79). QMDPLT/PRD are per inventory point (PTBAA/PTPA; ZRD/XMAXPT). Skipping this left
     # the dead crowns 0 AND consumed none of these draws, so every later DGSCOR draw was shifted.
-    if lstart && t.ndead > 0
-        @inbounds for i in (n + Int(t.ndead)):-1:(n + 1)
-            Int(t.crown_pct[i]) > 0 && continue
-            sp = Int(t.species[i]); (sp < 1 || sp > 39) && continue
-            d = t.dbh[i]; h = t.height[i]
-            pt = Int(t.plot_id[i]); prd = _prd(pt); qmdplt = _qmdplt(pt)
-            cr = _pn_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
-            icri = trunc(Int, cr * 100f0 + 0.5f0)
-            if t.trunc[i] != 0
-                hn = Float32(t.norm_ht[i]) / 100f0; hd = hn - Float32(t.trunc[i]) / 100f0
-                cl = (Float32(icri) / 100f0) * hn - hd
-                icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
-            end
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10)
-            t.crown_pct[i] = Int32(icri)
-        end
+    lstart && dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        _pn_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, _prd(pt), _qmdplt(pt))
     end
     return s
 end

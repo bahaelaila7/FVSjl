@@ -116,6 +116,12 @@ function crown_ratio_update!(s::StandState, ::SouthCentralOregon; fint::Float32 
         icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
+    # so/crown.f:319-341 DO 79 — cycle-0 dead-record crown dub (TPCCF = PCCF(ITRE(I)); same BA/AVH/RMAI).
+    lstart && dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+        _so_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, avh, rmai, tpccf)
+    end
     return s
 end
 
