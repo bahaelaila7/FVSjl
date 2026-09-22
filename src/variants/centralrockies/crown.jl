@@ -126,11 +126,7 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
     ba = p.basal_area
     relden = relden_override >= 0.0f0 ? relden_override : stand_ccf(s)
     bau = _cr_badist_bau(t)
-    # At LSTART, also dub the DEAD partition's crown (cratet.f processes IREC2..MAXTRE too) so the cycle-0
-    # FVS_TreeList dead records carry the crown ratio live shows (PctCr) — which the forest crown width
-    # (cr_cwcalc CL term) also needs. Dead crowns feed nothing else (per-tree write; density is live-only).
-    nlim = t.n + (lstart ? Int(t.ndead) : 0)
-    @inbounds for i in 1:nlim
+    @inbounds for i in 1:t.n
         t.tpa[i] <= 0.0f0 && continue
         icr_old = Int(t.crown_pct[i])
         (lstart && icr_old > 0) && continue        # inventory crown present → keep
@@ -144,6 +140,15 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
         df = d + dg / bark; df < d && (df = d)
         t.crown_pct[i] = Int32(_cr_crown_tree(imodty, sp, d, h, pcti, bau[icls], ba, hf, df, relden,
             icr_old, htg, fint, 1.0f0, 0.0f0, 99.0f0, Int(t.trunc[i]), Int(t.norm_ht[i]), lstart))
+    end
+    # cr/crown.f:239-259 DO 79 — cycle-0 dead records get their OWN GEMCR call (HF=H, DF=D) and ICRI=INT(CR*100.)
+    # (truncated, unlike the live INT(CRNEW+.5)); bounds [10,95]. Previously folded into the live loop with the
+    # live rounding (≤1-pt off). Dead crowns feed the FVS_TreeList PctCr and the cr_cwcalc crown width.
+    lstart && dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)
+        cr = cr_gemcr(imodty, sp, bau[icls], ba, h, d, h, relden, t.crown_ratio[i])
+        trunc(Int, cr * 100f0)
     end
     return s
 end

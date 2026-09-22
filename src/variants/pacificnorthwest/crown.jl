@@ -51,7 +51,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = wc_bratio(sd, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
@@ -69,7 +69,8 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     end
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 39) && continue
@@ -99,7 +100,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
             C = PN_WEIBC0[grp] + PN_WEIBC1[grp] * acrnew; C < 2f0 && (C = 2f0)
             scale = 1f0 - 0.00167f0 * (relden - 100f0)
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = A + B * (-log(1f0 - x))^(1f0 / C)
         end
@@ -132,7 +133,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     # the dead crowns 0 AND consumed none of these draws, so every later DGSCOR draw was shifted.
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
-        _pn_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, _prd(pt), _qmdplt(pt))
+        icri_round(_pn_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, _prd(pt), _qmdplt(pt)))
     end
     return s
 end

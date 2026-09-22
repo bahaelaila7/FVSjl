@@ -127,14 +127,16 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
     x2 = (!lstart && reldm1 > 0f0) ? log(reldm1) : 0f0
     dgsd = s.control.dg_sd
     ba_a = c.bark_a; ba_b = c.bark_b
-    nlim = t.n + (lstart ? Int(t.ndead) : 0)
-    @inbounds for i in 1:nlim
+    # kt/crown.f walks the LIVE records species-major (DO ISPC … I=IND1(I3)) — the lstart BACHLO draws follow that
+    # order — and dubs the cycle-0 DEAD records afterwards in their own DO 79 with DUBSCR at every size (below).
+    # They were folded into this loop (storage order, and d≥3 dead through the large-tree model).
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue
         icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = variant_bratio(s, sp, d, h)
         crcon = KT_CRHAB[sp, clamp(Int(KT_CR_MAPHAB[it, sp]), 1, 14)]
         local icri::Int
         if d >= 3.0f0
@@ -174,6 +176,10 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
         end
         icri > 95 && (icri = 95); icri < 5 && (icri = 5)
         t.crown_pct[i] = Int32(icri)
+    end
+    # kt/crown.f:390-406 DO 79 — cycle-0 dead-record DUBSCR(ISPC,D,H,BA,CR); kt_dubscr returns INT(CR*100+.5).
+    lstart && dub_dead_crowns!(s) do i
+        kt_dubscr(Int(t.species[i]), t.dbh[i], t.height[i], s.plot.basal_area, s.control.dg_sd, s.rng)
     end
     return s
 end

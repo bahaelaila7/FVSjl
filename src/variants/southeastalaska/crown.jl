@@ -103,7 +103,8 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
     xmaxpt, zrd, _ = point_zeide!(s)
     npt = length(xmaxpt)
     pb = s.density.point_ba; ptpa = s.density.point_tpa
-    @inbounds for i in 1:n
+    # ak/crown.f DO 70 ISPC … I=IND1(I3): species-major — DUBSCR/RANN draws follow this order.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 23) && continue
         icr = Int(t.crown_pct[i])
@@ -145,6 +146,14 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         icri < 10 && (icri = 10)                     # CRNMLT=1 (ak/crown.f:393)
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # so/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
+    if lstart && t.ndead > 0
+        prd, qmdplt, _ = point_crown_inputs(s)
+        dub_dead_crowns!(s) do i
+            pt = Int(t.plot_id[i])
+            icri_round(ak_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prd(pt), qmdplt(pt)))
+        end
     end
     return s
 end

@@ -235,7 +235,7 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
         C = BM_WEIBC0[sp] + BM_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
         scale = 1f0 - 0.00167f0 * (relden - 100f0)
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
         crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         if !(lstart || icr == 0)
@@ -270,7 +270,7 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-        bm_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], p.basal_area, tpccf, p.avg_height, rmai)
+        icri_round(bm_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], p.basal_area, tpccf, p.avg_height, rmai))
     end
     return s
 end

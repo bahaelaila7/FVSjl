@@ -150,7 +150,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     # rank on GROWN DBH (tt/crown.f runs after DG is applied: DBH(I) is post-growth). dbh += DG/bark.
     @inbounds for i in 1:n
-        bk = bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk
         idx[i] = Int32(i)
     end
@@ -168,7 +168,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     # over-growth (MEASURED: 2821820010690 one LP seedling CR 53→76 ⇒ cyc1 TopHt 5→9). Only the lstart DUBSCR
     # path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a species,
     # tree-index order = FVS IND1 (stable species bucket). TT-only (this method dispatches on ::Teton).
-    order = lstart ? sort(collect(1:n); by = ii -> (Int(t.species[ii]), ii)) : collect(1:n)
+    order = species_major_order(s)   # tt/crown.f DO 70 ISPC … I=IND1(I3) — every call, not just lstart (RANN d≤0 draws)
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
@@ -213,7 +213,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             C < 2f0 && (C = 2f0)
             scale = 1f0 - 0.00167f0 * (relden - 100f0)
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale   # d≤0 uses RANN (not in ttt01)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # d≤0 uses RANN (not in ttt01)
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         end
@@ -236,6 +236,25 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
         end
         icri < 0 && (icri = 0); icri > 100 && (icri = 100)
         t.crown_pct[i] = Int32(icri)
+    end
+    # tt/crown.f:387-420 DO 79 — cycle-0 dead records. CASE(15,18) crown-length form; else DUBSCR. FVS reads
+    # `TPCCF=PCCF(IITRE)` BEFORE `IITRE=ITRE(I)`, so each record uses the PREVIOUS record's point: the first dead
+    # record the last tree of the species-major live loop (crown.f:217 sets IITRE for every tree), then the prior
+    # dead record's. Reproduced as FVS runs it.
+    if lstart && t.ndead > 0
+        iitre = isempty(order) ? 0 : Int(t.plot_id[order[end]])
+        pccf = s.density.point_ccf
+        dub_dead_crowns!(s) do i
+            sp = Int(t.species[i]); h = t.height[i]
+            if sp == 15 || sp == 18
+                cl = 5.17281f0 + 0.32552f0 * h - 0.01675f0 * s.plot.basal_area
+                cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+                return trunc(Int, (cl / h) * 100f0 + 0.5f0)
+            end
+            tpccf = (1 <= iitre <= length(pccf)) ? pccf[iitre] : 0f0
+            iitre = Int(t.plot_id[i])
+            icri_round(_tt_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _tt_rmai(s)))
+        end
     end
     return s
 end

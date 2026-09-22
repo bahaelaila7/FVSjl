@@ -13,14 +13,16 @@
 
 crown.f `DO 79 I=IREC2,MAXTRE` (all variants): dub missing crowns on the cycle-0 dead records. FVS files dead
 records from MAXTRE downward in read order, so IREC2→MAXTRE is the REVERSE of jl's dead storage (t.n+1:t.n+ndead).
+`dub(i)` returns the variant's ICRI BEFORE the shared top-kill/bounds tail — most variants `INT(CR*100+.5)` after
+DUBSCR (use `icri_round`), but the crown-length forms (CR GEMCR, CI/EM/IE CL/H) truncate `INT(CR*100.)`.
 """
+@inline icri_round(cr::Real) = trunc(Int, Float32(cr) * 100f0 + 0.5f0)
 function dub_dead_crowns!(dub, s::StandState)
     t = s.trees; n = t.n
     t.ndead > 0 || return s
     @inbounds for i in (n + Int(t.ndead)):-1:(n + 1)
         Int(t.crown_pct[i]) > 0 && continue
-        cr = dub(i)
-        icri = trunc(Int, cr * 100f0 + 0.5f0)
+        icri = Int(dub(i))
         if t.trunc[i] != 0
             hn = Float32(t.norm_ht[i]) / 100f0; hd = hn - Float32(t.trunc[i]) / 100f0
             cl = (Float32(icri) / 100f0) * hn - hd
@@ -103,3 +105,24 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     return s
 end
 
+
+"""
+    point_crown_inputs(s) -> (prd, qmdplt, tpccf)
+
+The per-inventory-point inputs crown.f computes for DUBSCR (2021 edits, identical in every variant): PRD = ZRD/XMAXPT
+(SDICAL + SDICLS Zeide, live trees, 0 when XMAXPT≤0), QMDPLT = sqrt((PTBAA/PTPA)/0.005454) floored at 1 (1 when the
+point has no trees), TPCCF = PCCF(ITRE). Returned as closures over the point index.
+"""
+function point_crown_inputs(s::StandState)
+    xmaxpt, zrd, _ = point_zeide!(s)
+    dens = s.density
+    prd(pt) = (1 <= pt <= length(xmaxpt) && xmaxpt[pt] > 0f0) ? zrd[pt] / xmaxpt[pt] : 0f0
+    function qmdplt(pt)
+        baplt = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : 0f0
+        tpaplt = (1 <= pt <= length(dens.point_tpa)) ? dens.point_tpa[pt] : 0f0
+        q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+        q <= 1f0 ? 1f0 : q
+    end
+    tpccf(pt) = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+    return prd, qmdplt, tpccf
+end

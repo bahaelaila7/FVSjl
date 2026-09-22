@@ -27,7 +27,8 @@ function init_crown_ratios!(s::StandState)
     t = s.trees
     t.n == 0 && return s
     n = t.n
-    any(@views t.crown_pct[1:n] .== 0) || return s   # all crowns already set
+    # all crowns already set (live AND the cycle-0 dead records, which crown.f DO 79 also dubs)
+    (any(@views t.crown_pct[1:n] .== 0) || any(@views t.crown_pct[(n + 1):(n + Int(t.ndead))] .<= 0)) || return s
     compute_density!(s)
     # FVS's CRATET dubs missing crowns with CROWN using DENSE's CCF computed on the BACKDATED dbh
     # (DENSE/LBKDEN: past dbh = sqrt(d²·r), r from the measured DG; unmeasured trees use the stand-average
@@ -46,6 +47,27 @@ function init_crown_ratios!(s::StandState)
                         ba_override = bd_ba, lstart = true)
     @inbounds for i in 1:n
         saved[i] != 0 && (t.crown_pct[i] = saved[i])   # restore input crowns; keep only the estimated 0s
+    end
+    # crown.f DO 79 — cycle-0 dead records with a missing crown (eastern forms are deterministic, no draw):
+    #   SN  (sn/crown.f:386-401): DUBSCR(D,CR): CR = 0.70 − 0.40/24·D (D≤24) else 0.30, bounded [.05,.95]; ICRI=INT(CR·100+.5)
+    #   CS/LS/NE (crown.f DO 79): CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))) (CS's sign folded into crown_bcr4);
+    #                             ICRI = INT(CR+.5). BA = the same COMMON BA the live init dub reads.
+    v = s.variant
+    if v isa Southern
+        dub_dead_crowns!(s) do i
+            d = t.dbh[i]
+            cr = d <= 24f0 ? 0.70f0 - 0.40f0 / 24f0 * d : 0.30f0
+            cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+            icri_round(cr)
+        end
+    elseif v isa Northeast || v isa CentralStates || v isa LakeStates
+        sd = s.coef.species
+        dub_dead_crowns!(s) do i
+            sp = t.species[i]
+            den = 1f0 + sd[:crown_bcr2][sp] * bd_ba
+            cr = 10f0 * (sd[:crown_bcr1][sp] / den + sd[:crown_bcr3][sp] * (1f0 - fexp(sd[:crown_bcr4][sp] * t.dbh[i])))
+            trunc(Int, cr + 0.5f0)
+        end
     end
     return s
 end

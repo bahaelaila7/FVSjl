@@ -161,13 +161,14 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     # rank trees by projected DBH (ws/crown.f ISORT via RDPSRT on D+DG/BARK), descending → ISORT[i] ∈ 1..n
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = ws_bratio(sd, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 43) && continue
@@ -225,7 +226,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
                 1f0 - 0.00333f0 * (relden - 50f0)
             end
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         end
@@ -255,8 +256,8 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
-        ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ws_point_prd(s, pt), _ws_qmdplt(dens, pt),
-                  p.basal_area, tpccf, p.avg_height, p.mai_adj)
+        icri_round(ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ws_point_prd(s, pt), _ws_qmdplt(dens, pt),
+                  p.basal_area, tpccf, p.avg_height, p.mai_adj))
     end
     return s
 end

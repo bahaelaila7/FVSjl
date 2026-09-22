@@ -49,7 +49,7 @@ const CI_CRC1 = Float32[-0.02375,-0.01833,0.0,0.0,-0.02182,-0.01795,-0.01833,0.0
 # --- ci/dubscr.f : small-tree (DBH<1") + regen crown-ratio dub. Logistic in DBH/H/BA (+ TPCCF/AVH/MAI for
 # the 4 MAI-species 11,12,13,16). CR = 1/(1+exp(arg)); sp15 uses the linear MC map. Bounded [0.05,0.95].
 # The BACHLO random error (active because DGSD=1.7≥1, ci/grinit.f:176) is DEFERRED — deterministic mean only
-# (stochastic ZZRAN/BACHLO class, accepted-cornered). RMAI (BCR10, sp 11/12/13/16 only) also deferred → tmai=0.
+# (stochastic ZZRAN/BACHLO class). RMAI/RMAILM/RMAIAS (BCR10) now ported via _ci_temmai (was deferred → tmai=0).
 const CI_BCR0  = Float32[-0.44316,-0.83965,-0.89122,-0.62646,-0.49548,0.11847,-0.32466,-0.92007,-0.89014,-0.17561,-1.66949,-1.66949,-0.426688,-2.19723,5.0,-1.66949,0.0,-0.49548,0.0]
 const CI_BCR1  = Float32[-0.48446,-0.16106,-0.18082,-0.06141,0.00012,-0.39305,-0.20108,-0.22454,-0.18026,-0.33847,-0.209765,-0.209765,-0.093105,0.0,0.0,-0.209765,0.0,0.00012,0.0]
 const CI_BCR2  = Float32[0.05825,0.04161,0.05186,0.02360,0.00362,0.02783,0.04219,0.03248,0.02233,0.05699,0.0,0.0,0.022409,0.0,0.0,0.0,0.0,0.00362,0.0]
@@ -88,6 +88,18 @@ A BACHLO random error FCR (rejected if |FCR|>SD) perturbs the LOGIT argument bef
     return cr
 end
 
+# ci/crown.f:113-116 — the DUBSCR TEMMAI inputs. RMAIAS=ADJMAI(746,SITEAR(13),10) capped 128; RMAILM=ADJMAI(101,
+# SITEAR(11),10) — and FVS's cap line reads `IF(RMAILM.GT.128.)RMAI=128.`, so it is RMAI (the default species' value,
+# grinit.f:149 RMAI=0) that becomes 128, while RMAILM stays uncapped. Faithful to that. Species map (crown.f:392-398):
+# 11,12,16 → RMAILM; 13 → RMAIAS; else RMAI. (Replaces a deferred tmai=0.)
+function _ci_temmai(s::StandState, sp::Integer)::Float32
+    si = s.plot.sp_site_index
+    rmaias = _adjmai(746, si[13], 10f0); rmaias > 128f0 && (rmaias = 128f0)
+    rmailm = _adjmai(101, si[11], 10f0)
+    rmai = rmailm > 128f0 ? 128f0 : 0f0
+    return (sp == 11 || sp == 12 || sp == 16) ? rmailm : sp == 13 ? rmaias : rmai
+end
+
 function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
@@ -97,13 +109,14 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
     p_pccf = s.density.point_ccf
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = ci_bratio(sd, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 19) && continue
@@ -128,7 +141,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         if d < 1f0 && lstart
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-            cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, 0f0)
+            cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, _ci_temmai(s, sp))
             icri = trunc(Int, cr*100f0 + 0.5f0)
             icri < 10 && (icri = 10); icri > 95 && (icri = 95); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
@@ -143,7 +156,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         C = CI_WEIBC0[sp]; C < 2f0 && (C = 2f0)
         scale = 1f0 - 0.00167f0 * (relden - 100f0)
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
         crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         if !(lstart || icr == 0)
@@ -160,6 +173,19 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         end
         icri > 95 && (icri = 95); icri < 10 && (icri = 10)   # ci/crown.f:405-406 label-59 floor (CRNMLT=1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # ci/crown.f:426-462 DO 79 — cycle-0 dead records: 17,19 crown-length form (INT(CR*100.), no rounding), others DUBSCR.
+    lstart && dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); h = t.height[i]
+        if sp == 17 || sp == 19
+            cl = 5.17281f0 + 0.32552f0 * h - 0.01675f0 * s.plot.basal_area
+            cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+            trunc(Int, (cl / h) * 100f0)
+        else
+            pt = Int(t.plot_id[i])
+            tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+            icri_round(ci_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _ci_temmai(s, sp)))
+        end
     end
     return s
 end

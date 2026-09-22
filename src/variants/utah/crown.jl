@@ -99,7 +99,7 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
     relden = p.relative_density; sdiac = crown_sdi
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
@@ -107,7 +107,8 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
     p_pccf = s.density.point_ccf
     rmai = lstart ? _ut_rmai(s) : 0f0
-    @inbounds for i in 1:n
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue
@@ -154,7 +155,7 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
             C = UT_WEIBC0[sp] + UT_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
             scale = 1f0 - 0.00167f0 * (relden - 100f0)
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         end
@@ -173,6 +174,18 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
         end
         icri < 0 && (icri = 0); icri > 100 && (icri = 100)
         t.crown_pct[i] = Int32(icri)
+    end
+    # ut/crown.f DO 79 — cycle-0 dead records: 17 LP-PJ CL, 18/19/22 CL (rounded), else DUBSCR at the record's point.
+    lstart && dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); h = t.height[i]
+        if sp in (17, 18, 19, 22)
+            cl = sp == 17 ? -0.59373f0 + 0.67703f0 * h : 5.17281f0 + 0.32552f0 * h - 0.01675f0 * s.plot.basal_area
+            cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+            return trunc(Int, (cl / h) * 100f0 + 0.5f0)
+        end
+        pt = Int(t.plot_id[i])
+        tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+        icri_round(_ut_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _ut_rmai(s)))
     end
     return s
 end
