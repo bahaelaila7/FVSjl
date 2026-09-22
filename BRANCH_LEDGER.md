@@ -19,12 +19,12 @@ master**. `0 absent` = fully merged. `N absent` on a branch whose feature is pre
 alternative version of a feature master already has), not an unmerged fix. A coherent block of
 absent lines forming a feature master lacks = a genuine KEEP.
 
-## Result: the only genuinely-unmerged code was `b94eceda`. Keep-set = `master`, `treemap-explorer`.
+## Result: the only genuinely-unmerged code was `b94eceda`. Keep-set = `master`, `forest-explorer`.
 
 - **`b94eceda`** (branch `ie-climate-treemult`): the climate AUTOES-ABIRTH line (1/1 absent) —
   the one real unmerged fix; **merged properly into master this session** (see git log). Branch
   then redundant.
-- **`treemap-explorer`**: the Forest Growth Explorer webapp (`apps/`) — active, KEEP.
+- **`forest-explorer`**: the Forest Growth Explorer webapp (`apps/`) — active, KEEP.
 - **All other ~58 branches**: MERGED or SUPERSEDED or STALE → delete-safe (pending owner prune).
 
 ## Per-branch (added src code-lines / absent-in-master → verdict)
@@ -78,7 +78,7 @@ copy anything worth keeping (instrumented-oracle recipes) into the repo or `/wor
 | Branch | Tip | Status | Worktree | After BM→master |
 |---|---|---|---|---|
 | `bm-regime-close` | (integration) | ACTIVE — integration | `/workspace/.wt-bm` | delete after master merge |
-| `treemap-explorer` | 9fccd030 | ACTIVE — Forest Growth Explorer webapp; USER 2026-09-20: keep its development on this branch in its OWN worktree so the main checkout stays on master | `/workspace/.wt-explorer` | KEEP (long-lived) |
+| `forest-explorer` | 9fccd030 | ACTIVE — Forest Growth Explorer webapp; USER 2026-09-20: keep its development on this branch in its OWN worktree so the main checkout stays on master | `/workspace/.wt-explorer` | KEEP (long-lived) |
 | `bm-cyc0-vol` | a18802df | merged (R6 MRULES, LHTDRG/HTDBH dub, SF_HS) | `.wt-bm-vol` | delete |
 | `bm-thinprsc` | d9e098b2 | no commits (found the g16 `-std=legacy` oracle bug); worktree = **master-equivalent BASELINE** used for base-vs-tip comparisons | `.wt-bm-prsc` | delete (keep worktree until BM closed) |
 | `bm-plant-seedling` | 50dded40 | merged (BM strp estab, PLANT cycle-date) | `.wt-bm-plant` | delete |
