@@ -11,7 +11,8 @@
 # but under-grows beyond cyc0 (108.87 vs 110.2, 144.29 vs 146.6) — the KNOWN EC-variant growth
 # residual (#207 EC growth is cyc0-bit-exact; beyond that a cornered straddle), INHERITED by
 # CREDIT=BBA, NOT a MXHRVP defect. So the SELECTION LOGIC is validated bit-exact (every SELECT
-# outcome + the cyc0 numerics), and the cyc1+ numeric residual is cornered to EC growth.
+# outcome + the cyc0 numerics). The cyc1+ residual (EC under-grows live by 1.2-1.7%) is an OPEN EC growth item,
+# not a proven corner; lines pinning 326.6/432.3 are jl self-snapshots (refactor guard), the <2% lines are vs oracle.
 using Test
 using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
 
@@ -41,7 +42,7 @@ using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
     # --- cyc1/cyc2: SELECT bit-exact; CREDIT cornered to the EC growth residual (documented) ---
     #     FVSjl 2000: BBA 108.87 (oracle 110.2); 2010: 144.29 (oracle 146.6). Under-grows ≤1.6%.
     @test round(r2.selected_resource, digits = 1) ≈ 326.6 atol = 0.2  # = 3 × 108.87 (FVSjl EC growth)
-    @test round(r3.selected_resource, digits = 1) ≈ 432.9 atol = 0.2  # = 3 × 144.29
+    @test round(r3.selected_resource, digits = 1) ≈ 432.3 atol = 0.2  # jl SELF-snapshot (EC ATTEN port 2026-09-22 moved 432.9→432.3)
     @test abs(r2.selected_resource - 330.48) / 330.48 < 0.02          # within the EC-growth corner vs oracle
     @test abs(r3.selected_resource - 439.90) / 439.90 < 0.02
 end
