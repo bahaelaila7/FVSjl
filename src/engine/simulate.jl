@@ -221,10 +221,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa WestSierra
         ws_dgcons!(s)                     # WS DGCON (43-species uncompressed; ws/dgf.f ENTRY DGCONS) — chunk 3
         ws_htcons!(s)                     # WS HTCON site intercept (ws/htgf.f ENTRY HTCONS) — chunk 4a
-        compute_density!(s)               # current-stand density (point BA/CCF) for dgf! competition terms
-        s.plot.relative_density = stand_ccf(s)   # WS RELDEN (ws/ccfcal.f) for the crown-ratio SCALE
-        crown_ratio_update!(s, s.variant; lstart = true)  # rank-Weibull dub of MISSING inventory crowns (ws/crown.f);
-                                          # d<1 seedlings → ws/dubscr.f (chunk 5b stub); wst01 crowns present ⇒ bypassed
+        crown_init_lstart_dead_inclusive!(s)  # ws/cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN: Weibull
+                                          # dub of missing crowns, ws/dubscr.f for d<1 seedlings AND the cycle-0 DEAD
+                                          # records (DO 79). RELDEN is set by compute_density! for every variant now.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Olympic
         op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
