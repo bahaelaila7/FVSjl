@@ -109,6 +109,9 @@ end
     wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), Float32(d))
 
 "WC DGCONS: per-species (39) DGCON (wc/dgf.f ENTRY DGCONS). Stored in c.dg_const[sp]."
+# wc/dgf.f DATA OBSERV(19) — base-model observation counts per growth GROUP (JSPC).
+const WC_OBSERV = Float32[3664,1487,747,1467,596,2482,14999,1309,4836,2848,475,78,125,220,0,759,542,2144,8928]
+
 function wc_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     jfor = wc_jfor(Int(p.forest_idx))
@@ -131,6 +134,13 @@ function wc_dgcons!(s::StandState)
         (jspc == 14 && temel > 30f0) && (temel = 30f0)                             # group-14 elev cap
         c.dg_const[isp] = WC_DGFOR[jspc, isfor] + WC_DGEL[jspc] * temel +
                           WC_DGEL2[jspc] * temel * temel + WC_DGSITE[jspc] * log(max(xsite, 1f0)) + sasp
+    end
+    # wc/dgf.f DGCONS: `ATTEN(JSPC)=OBSERV(JSPC)` — written at the GROUP index, but dgdriv.f:364 reads
+    # XNOB=ATTEN(ISPC) by SPECIES. So species isp pooling weight = OBSERV(isp) iff isp is some group's
+    # index, else the never-written COMMON 0. Faithful to that indexing (it is what FVS runs). ATTEN pools the
+    # calibrated DG residual SD with the base SIGMAR (dgdriv.f:554); absent, SIGMA was the raw sample SD.
+    @inbounds for isp in 1:39
+        c.atten[isp] = isp in WC_MAPSPC ? WC_OBSERV[isp] : 0f0
     end
     return s
 end

@@ -97,6 +97,9 @@ const NC_DGSLSQ = Float32[-1.09400,0.0,-0.87145,-1.05045,0.87335,0.0,-1.17209,-0
 end
 
 "NC DGCONS: per-species DGCON (nc/dgf.f ENTRY DGCONS), 3 branches. Stored in c.dg_const[sp]."
+# nc/dgf.f DATA OBSERV(12) — base-model observation counts per species (ATTEN, dgdriv.f variance pooling).
+const NC_OBSERV = Float32[7019,138,7019,395,1762,125,583,6504,9,403,6504,8928]
+
 function nc_dgcons!(s::StandState)
     c = s.calib; p = s.plot; sd = s.coef.species
     ifor = Int(p.forest_idx); (ifor < 1 || ifor > 7) && (ifor = 1)
@@ -130,6 +133,10 @@ function nc_dgcons!(s::StandState)
         else                                            # POWER (sp12 RW) — no linear encoding; 0.9 fallback
             c.bark_a[sp] = 0f0;  c.bark_b[sp] = 0.9f0
         end
+    end
+    # nc/dgf.f:489 ATTEN(ISPC)=OBSERV(ISPC) — the calibrated-SIGMA pooling weight (dgdriv.f:554).
+    @inbounds for isp in 1:12
+        c.atten[isp] = NC_OBSERV[isp]
     end
     return s
 end

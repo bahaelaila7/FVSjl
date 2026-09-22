@@ -43,13 +43,13 @@ ak/ccfcal.f (MODE=1): MCW → MCA = π·(MCW/2)² → CCFT = (MCA/43560)·100. `
 end
 
 """
-    ak_point_zeide!(s) -> (xmaxpt, zrd, xmax)
+    point_zeide!(s) -> (xmaxpt, zrd, xmax)
 
 ak/sdical.f SDICAL(XMAX,XMAXPT) + SDICLS(ZRD). Per point: XMAXPT = BA-weighted SDIDEF; ZRD = Zeide SDI
 Σ PROB·(PI−NONSTK)·(D/10)^1.605 (D ≥ DBHZEIDE). XMAX = stand BA-weighted SDIDEF (or 1 if no BA). The
 BA weights use raw PROB (0.0054542·D²·PROB) — the PI/GROSPC scaling cancels in the XMAXPT ratio.
 """
-function ak_point_zeide!(s::StandState)
+function point_zeide!(s::StandState)
     p, t = s.plot, s.trees
     sdidef = p.sp_sdi_def
     # SDICAL/SDICLS sum the UNCHANGED DBH(I) — during DGF calibration the diameters are backdated in
@@ -100,7 +100,7 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
                              lstart::Bool = false, crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
-    xmaxpt, zrd, _ = ak_point_zeide!(s)
+    xmaxpt, zrd, _ = point_zeide!(s)
     npt = length(xmaxpt)
     pb = s.density.point_ba; ptpa = s.density.point_tpa
     @inbounds for i in 1:n

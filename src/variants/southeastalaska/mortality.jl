@@ -7,7 +7,7 @@
 #   WKI = P·(1 − RIP^FINT)                          [annual survival → period mortality]
 # then repeated PASS multiplication: while the post-mortality stand SDI ≥ SDIMAX·PMSDIU or BA ≥ BAMAX,
 # scale every record's kill by an increasing integer PASS (≤100) until the stand drops below the maxima.
-# SDIMAX = BA-weighted SDIDEF (ak_point_zeide! XMAX); BAMAX = SDIMAX·0.5454154·PMSDIU (no user BAMAX).
+# SDIMAX = BA-weighted SDIDEF (point_zeide! XMAX); BAMAX = SDIMAX·0.5454154·PMSDIU (no user BAMAX).
 # SDIMAX<5 ⇒ kill all. Zeide DQ10/SDI use G = DG/BRAT (outside-bark).
 # =============================================================================
 
@@ -24,7 +24,7 @@ function mortality!(s::StandState, ::SoutheastAlaska; fint::Float32 = 10.0f0, bo
     n = t.n; n == 0 && return s
     dens = s.density
     # SDICAL(0,SDIMAX): stand BA-weighted SDIDEF; BAMAX = SDIMAX·0.5454154·PMSDIU when no user BAMAX.
-    _, _, sdimax = ak_point_zeide!(s)
+    _, _, sdimax = point_zeide!(s)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
     sdiupr = sdimax * pmsdiu

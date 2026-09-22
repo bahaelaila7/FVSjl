@@ -293,7 +293,9 @@ end
 # LIVE trees. jl partitions the dead into t.n+1:t.n+ndead, so it computes the dead-inclusive scalars by temporarily
 # extending the live range, then restores live-only (the grow cycle recomputes density before use). Measured on
 # 504443988126144: dead-inclusive BA 55.56 / AVH 85.07 / TPCCF 84.3 (vs live-only 35/45/63) — matches live DUBSCR.
-function bm_crown_init_lstart!(s::StandState)
+# SHARED (one implementation per Fortran mechanism): bm/, nc/ and pn/cratet.f run the identical LSTART sequence
+# (RDPSRT(.FALSE.) IND → `LBKDEN=IDG.LT.2; CALL DENSE` over live+dead → CROWN), so BM, NC and PN all call this.
+function crown_init_lstart_dead_inclusive!(s::StandState)
     t = s.trees
     nlive = t.n
     # bm/cratet.f:189-195 `LBKDEN = IDG.LT.2; CALL DENSE` — CROWN (cratet.f:610) dubs against THAT density, whose

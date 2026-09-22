@@ -76,7 +76,7 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     # DLO=0/DHI=500) fills ZRD(pt). Inert for the DGRD=0 coastal species (AK_DGRD[sp]=0); load-bearing for
     # the interior/permafrost/hardwood species (4-7,13-23). Computed on the CURRENT t.dbh at call time
     # (backdated during LSTART calibration, current during growth), matching FVS's per-pass SDICAL/SDICLS.
-    xmaxpt, zrd, _ = ak_point_zeide!(s)
+    xmaxpt, zrd, _ = point_zeide!(s)
     npt_prd = length(xmaxpt)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
@@ -114,5 +114,5 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     return s
 end
 
-# PRD point-Zeide relative density is now wired directly in dgf! via ak_point_zeide! (crown.jl),
+# PRD point-Zeide relative density is now wired directly in dgf! via point_zeide! (crown.jl),
 # which ports ak/sdical.f SDICAL(XMAXPT) + SDICLS(ZRD). PRD = ZRD(pt)/XMAXPT(pt) per tree's point.

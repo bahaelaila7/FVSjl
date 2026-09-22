@@ -37,7 +37,7 @@ const PN_DUB_CRSD = Float32[1.3167,1.3756,1.9658,2.0426,0.5,0.5]
         cr = PN_DUB_BCR0[g] + PN_DUB_BCR1[g] * Float32(h) + PN_DUB_BCR2[g] * Float32(ba)
         sd = PN_DUB_CRSD[g]; fcr = 0f0
         while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
-        cr = ((cr + fcr) - 1f0) * 10f0 / 100f0 + 1f0 / 100f0
+        cr = (((cr + fcr) - 1f0) * 10f0 + 1f0) / 100f0     # pn/dubscr.f: CR=((CR-1.0)*10.0+1.0)/100.
     end
     cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
     return cr
@@ -48,13 +48,25 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
     sd = s.coef.species; cimap = sd[:crown_imap]
-    relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area; qmd = stand_qmd(s)
+    relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
         bk = wc_bratio(sd, Int(t.species[i]), t.dbh[i])
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
+    # pn/crown.f:87-104 (2021 edits): XMAXPT via SDICAL + per-point Zeide ZRD via SDICLS, live trees only,
+    # computed once on entry. PRD = ZRD/XMAXPT and QMDPLT = sqrt((PTBAA/PTPA)/0.005454) (floored at 1) are
+    # PER INVENTORY POINT for every tree — they feed only the RW (sp 17) logistic and DUBSCR's RW branch.
+    xmaxpt, zrd, _ = point_zeide!(s)
+    dens = s.density
+    _prd(pt) = (1 <= pt <= length(xmaxpt) && xmaxpt[pt] > 0f0) ? zrd[pt] / xmaxpt[pt] : 0f0
+    function _qmdplt(pt)
+        baplt = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : 0f0
+        tpaplt = (1 <= pt <= length(dens.point_tpa)) ? dens.point_tpa[pt] : 0f0
+        q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+        q <= 1f0 ? 1f0 : q
+    end
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
     @inbounds for i in 1:n
@@ -63,8 +75,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
         (sp < 1 || sp > 39) && continue
         (lstart && t.crown_pct[i] > 0) && continue
         icr = Int(t.crown_pct[i])
-        prd = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
-        qmdplt = qmd > 1f0 ? qmd : 1f0
+        prd = _prd(Int(t.plot_id[i])); qmdplt = _qmdplt(Int(t.plot_id[i]))
         if d < 1f0 && lstart
             icr != 0 && continue
             cr = _pn_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
@@ -113,6 +124,28 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
         end
         icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # ---- CYCLE-0 DEAD-RECORD CROWN DUB (pn/crown.f:422-475 `DO 79 I=IREC2,MAXTRE`) ----
+    # FVS dubs MISSING crowns on the inventory standing-dead records with DUBSCR (a rejection-bounded
+    # main-stream BACHLO per record), iterating IREC2→MAXTRE = the REVERSE of jl's dead storage (same layout
+    # as bm/ie crown.f DO 79). QMDPLT/PRD are per inventory point (PTBAA/PTPA; ZRD/XMAXPT). Skipping this left
+    # the dead crowns 0 AND consumed none of these draws, so every later DGSCOR draw was shifted.
+    if lstart && t.ndead > 0
+        @inbounds for i in (n + Int(t.ndead)):-1:(n + 1)
+            Int(t.crown_pct[i]) > 0 && continue
+            sp = Int(t.species[i]); (sp < 1 || sp > 39) && continue
+            d = t.dbh[i]; h = t.height[i]
+            pt = Int(t.plot_id[i]); prd = _prd(pt); qmdplt = _qmdplt(pt)
+            cr = _pn_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
+            icri = trunc(Int, cr * 100f0 + 0.5f0)
+            if t.trunc[i] != 0
+                hn = Float32(t.norm_ht[i]) / 100f0; hd = hn - Float32(t.trunc[i]) / 100f0
+                cl = (Float32(icri) / 100f0) * hn - hd
+                icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10)
+            t.crown_pct[i] = Int32(icri)
+        end
     end
     return s
 end

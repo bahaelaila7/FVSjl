@@ -142,7 +142,7 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
-        bm_crown_init_lstart!(s)          # CRATET (before DGDRIV): dead-inclusive DENSE → DUBSCR dub of missing-CR
+        crown_init_lstart_dead_inclusive!(s)          # CRATET (before DGDRIV): dead-inclusive DENSE → DUBSCR dub of missing-CR
                                           # inventory crowns. Without it dense read 0.1" seedlings keep crown_pct=0 ⇒
                                           # VIGOR floors at 0.30 ⇒ HTGR under-predicts ⇒ never cross 4.5' ⇒ DBH growth
                                           # skipped ⇒ small-tree DG/BA ~2× low (#149). bm/crown.f reads BA/AVH/TPCCF/RMAI.
@@ -172,7 +172,7 @@ function setup_growth!(s::StandState)
         # When a GROWTH keyword sets the remeasurement FINT, dgscale=yr/dfint IS that YR/FINT_meas already (so use
         # it directly); only the NO-GROWTH default (dgscale=1) needs the 10-yr-measurement 0.5. Other western
         # variants have YR=IFINT ⇒ scale 1; NC is the unique YR=5-with-10yr-default-measurement case.
-        nc_crown_init_lstart!(s)          # CRATET DENSE (DEAD-INCLUSIVE) → DUBSCR/Weibull dub of MISSING (ICR=0)
+        crown_init_lstart_dead_inclusive!(s)  # CRATET DENSE (DEAD-INCLUSIVE) → DUBSCR/Weibull dub of MISSING (ICR=0)
                                           # inventory crowns (nc/crown.f). Was MISSING (like IE #137/EM) ⇒ 0.1"
                                           # seedlings kept crown_pct=0 ⇒ htgr5 CR² term=0 ⇒ QMD frozen. Now dubs
                                           # them; the dead-inclusive AVH (standing-dead heights enter AVHT40)
@@ -197,8 +197,11 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa PacificNorthwest
         pn_dgcons!(s)                     # PN DGCON (20-group; SS g18, WO King's-SI g19, no JFOR remap) — chunk 3
-        compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING inventory crowns (pn/crown.f)
+        crown_init_lstart_dead_inclusive!(s)  # pn/cratet.f:162-164 DENSE over live+dead (LBKDEN) → CROWN: Weibull
+                                          # dub of missing live crowns + DUBSCR of D<1 AND of the cycle-0 DEAD records
+                                          # (pn/crown.f DO 79). Was live-only density + no dead dub ⇒ the dead-record
+                                          # BACHLO draws were never consumed ⇒ the whole DGSCOR stream ran 3 draws
+                                          # behind live FVS (WRD fixture S248112: ctrl BA +62 by 2090).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa EastCascades
         ec_dgcons!(s)                     # EC DGCON (32-species uncompressed; WO King's-SI sp28, MH/OS ×3.281) — chunk 3
@@ -318,21 +321,13 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     point_basal_area!(s)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
-    # KT reads RELDEN (stand CCF) from p.relative_density in dgf!/htgf — set it here (DENSE→DGF flow) at
-    # whatever t.n is current: the backdated calibration density pass runs with t.n=nlive+ndead (dead-
-    # inclusive RELDM1), the growth-cycle pass with t.n=nlive (live-only). (Gated: only KT's dgf! reads it.)
-    s.variant isa Kootenai && (s.plot.relative_density = stand_ccf(s))
-    s.variant isa InlandEmpire && (s.plot.relative_density = stand_ccf(s))   # IE RELDEN (ie/ccfcal.f) for dgf!/htgf
-    s.variant isa EasternMontana && (s.plot.relative_density = stand_ccf(s)) # EM RELDEN (em/ccfcal.f) for dgf!/htgf/crown
-    s.variant isa Teton && (s.plot.relative_density = stand_ccf(s))          # TT RELDEN (tt/ccfcal.f) for dgf! DGCCF term
-    s.variant isa Utah && (s.plot.relative_density = stand_ccf(s))           # UT RELDEN (ut/ccfcal.f) for dgf! CONSPP term
-    s.variant isa BritishColumbia && (s.plot.relative_density = bc_stand_ccf(s))  # BC RELDEN (bc/ccfcal.f) — chunk 5 CCF spine
-    s.variant isa BlueMountains && (s.plot.relative_density = stand_ccf(s))  # BM RELDEN (bm/ccfcal.f) for dgf! CONSPP term
-    s.variant isa CentralIdaho && (s.plot.relative_density = stand_ccf(s))   # CI RELDEN (ci/ccfcal.f) for dgf! CONSPP term
-    s.variant isa EastCascades && (s.plot.relative_density = stand_ccf(s))   # EC RELDEN (ec/ccfcal.f) for regent PCTRED density modifier
-    s.variant isa SouthCentralOregon && (s.plot.relative_density = stand_ccf(s))  # SO RELDEN (so/ccfcal.f) for dgf! CONSPP (DGCCFA/DGMACC) + regent
-    s.variant isa WestSierra && (s.plot.relative_density = stand_ccf(s))          # WS RELDEN (ws/ccfcal.f) for crown-ratio SCALE (ws/crown.f)
-    s.variant isa Olympic && (s.plot.relative_density = stand_ccf(s))             # OP RELDEN (op/ccfcal.f) for crown-ratio SCALE (op/crown.f)
+    # RELDEN = stand CCF, set by DENSE for EVERY variant (dense.f → CCFCAL sum). This was a per-variant whitelist
+    # (KT IE EM TT UT BC BM CI EC SO WS OP); PN/WC/NC/CA read p.relative_density in crown.f SCALE (and NC in dgf!)
+    # but were never set ⇒ RELDEN=0 ⇒ crown SCALE capped at 1.0 ⇒ every crown dubbed/updated high ⇒ one-directional
+    # growth over-prediction (PN WRD fixture S248112: BA +59 by 2090). Engine consumers (LPMPB, COVER, DFTM,
+    # establishment) likewise read 0 for any non-whitelisted variant. Set at whatever t.n is current: the backdated
+    # calibration pass runs dead-inclusive (RELDM1), the growth-cycle pass live-only — FVS's DENSE→DGF/CROWN flow.
+    s.plot.relative_density = s.variant isa BritishColumbia ? bc_stand_ccf(s) : stand_ccf(s)
     return s
 end
 

@@ -63,6 +63,9 @@ const PN_DGDS = Float32[
     -0.00154    0.0        0.0;    0.0        0.0        0.0]
 
 # pn/dgf.f ENTRY DGCONS — per-species DGCON. PN uses IFOR directly (no JFOR remap); WO King's-SI = jspc 19.
+# pn/dgf.f DATA OBSERV(20) — base-model observation counts per growth GROUP (JSPC).
+const PN_OBSERV = Float32[622,1487,747,1467,596,2482,11563,1192,4293,2848,475,78,1369,220,112,759,542,502,2144,8928]
+
 function pn_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     ifor = Int(p.forest_idx)
@@ -85,6 +88,13 @@ function pn_dgcons!(s::StandState)
         (jspc == 14 && temel > 30f0) && (temel = 30f0)                             # group-14 elev cap
         c.dg_const[isp] = PN_DGFOR[jspc, isfor] + PN_DGEL[jspc] * temel +
                           PN_DGEL2[jspc] * temel * temel + PN_DGSITE[jspc] * log(max(xsite, 1f0)) + sasp
+    end
+    # pn/dgf.f DGCONS: `ATTEN(JSPC)=OBSERV(JSPC)` — written at the GROUP index, but dgdriv.f:364 reads
+    # XNOB=ATTEN(ISPC) by SPECIES. So species isp pooling weight = OBSERV(isp) iff isp is some group's
+    # index, else the never-written COMMON 0. Faithful to that indexing (it is what FVS runs). ATTEN pools the
+    # calibrated DG residual SD with the base SIGMAR (dgdriv.f:554); absent, SIGMA was the raw sample SD.
+    @inbounds for isp in 1:39
+        c.atten[isp] = isp in PN_MAPSPC ? PN_OBSERV[isp] : 0f0
     end
     return s
 end
