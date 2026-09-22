@@ -50,7 +50,8 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
     ab = UT_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in 1:n
+    # ut/regent.f:183-223 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= UT_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]
@@ -180,7 +181,10 @@ function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     ab = UT_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in (nstart+1):t.n
+    # ut/esgent.f:44-48 `CALL SPESRT; CALL REGENT(.TRUE.,ITRNIN)`: species-major over ALL records, processing only
+    # the new ones (I≥ITRNIN) — so the ZZRAN draws follow species order, not the append order.
+    @inbounds for i in species_major_order(s)
+        i <= nstart && continue
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= UT_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]

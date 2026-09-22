@@ -84,7 +84,8 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
     avh = stand_top_height(s); ba = p.basal_area; dgsd = s.control.dg_sd   # AVHT40 top-40 (ca/htgf regent AVH), NOT p.avg_height
     scale = fint / CA_RG_REGYR                       # SCALE = FNT/REGYR (non-estab FNT=FINT)
     scale2 = s.control.year / fint                   # SCALE2 = YR/FNT
-    @inbounds for i in 1:n
+    # ca/regent.f:140-154 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= CA_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
         h = t.height[i]

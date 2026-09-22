@@ -82,15 +82,8 @@ function small_tree_growth!(s::StandState, stash, ::PacificNorthwest; fint::Floa
     # pn/regent.f:156-166 walks `DO 30 ISPC=1,MAXSP … DO 25 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)` —
     # SPECIES-MAJOR. The ZZRAN BACHLO draw is consumed per tree in that order, so iterating the arrays in storage
     # order handed every small tree another tree's draw (WRD fixture S248112: HTG off on 6/6 small trees).
-    species_sort!(s)
-    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
-    order = Int[]
-    @inbounds for spo in 1:MAXSP
-        isct[spo, 1] == 0 && continue
-        for i3 in Int(isct[spo, 1]):Int(isct[spo, 2]); push!(order, Int(ind1[i3])); end
-    end
     yr_now = current_cycle_year(s)
-    @inbounds for i in order
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= WC_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)     # XRHMLT (MULTS 3, REGHMULT)
