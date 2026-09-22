@@ -131,7 +131,7 @@ function species_sort!(s::StandState)
 end
 
 """
-    species_major_order(state) -> view of tree indices
+    species_major_order(state) -> Vector{Int} of tree indices
 
 The FVS `DO 30 ISPC=1,MAXSP … DO 25 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)` traversal as a flat index list
 (refreshes `species_sort!`). Any loop that consumes the RNG per tree in that Fortran shape (REGENT's ZZRAN,
@@ -145,5 +145,5 @@ function species_major_order(s::StandState)
         isct[sp, 1] == 0 && continue
         k += Int(isct[sp, 2]) - Int(isct[sp, 1]) + 1
     end
-    return view(s.scratch.idx1, 1:k)
+    return Int[Int(s.scratch.idx1[j]) for j in 1:k]   # Int (not the Int32 scratch) so loop bodies see storage-loop types
 end
