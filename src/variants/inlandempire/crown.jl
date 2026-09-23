@@ -137,6 +137,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
         local icri::Int
         b7=IE_CRPARM[sp,7]; b8=IE_CRPARM[sp,8]; b9=IE_CRPARM[sp,9]; b10=IE_CRPARM[sp,10]
         b11=IE_CRPARM[sp,11]; b12=IE_CRPARM[sp,12]; b13=IE_CRPARM[sp,13]; b14=IE_CRPARM[sp,14]
+        dubbed = false        # set on the label-58 DUBSCR paths, which bypass statement 55
         if crvar || lpiju
             hf = h + t.ht_growth[i]
             cl = crvar ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*ba) : (-0.59373f0 + 0.67703f0*hf)
@@ -154,6 +155,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             # draw (the regent NIVAR ZZRAN + the frozen DG serial-correlation OLDRN) desynced vs the oracle ⇒
             # dense small-tree stands scattered ±. ie_dubscr restores both the crown VALUE and the draw count.
             icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd)
+            dubbed = true
         elseif nivar
             xcrcon = crcon + IE_CRPARM[sp,1]*ba + IE_CRPARM[sp,2]*ba*ba + IE_CRPARM[sp,3]*lnba +
                      IE_CRPARM[sp,4]*relden + IE_CRPARM[sp,5]*relden*relden + IE_CRPARM[sp,6]*lnrd
@@ -196,6 +198,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
                 tmai = (sp == 13 || sp == 17) ? rmai_lm : rmai_as
                 icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd; tpccf = tpccf, avh = p.avg_height, tmai = tmai)
+                dubbed = true
             else
                 relsdi = p.sp_sdi_def[sp] > 0f0 ? crown_sdi / p.sp_sdi_def[sp] : 1f0   # SDIAC/SDIDEF (≤1.5)
                 relsdi > 1.5f0 && (relsdi = 1.5f0)
@@ -211,6 +214,10 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
             end
         end
+        # ie/crown.f:572-582 statement 55 — the NIVAR block ends `GO TO 55` (:523), the species-expansion
+        # path reaches it via :555, and label 58 (DUBSCR) sits BELOW it, so a dubbed record is NOT
+        # re-expressed on the normal height.
+        (lstart && !dubbed) && (icri = topkill_icri(t, i, icri))
         # final bounds (crown.f:382-390)
         icri > 95 && (icri = 95)
         if nivar

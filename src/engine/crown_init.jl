@@ -102,6 +102,21 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         end
     end
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    # dense.f:244 `CALL PCTILE(ITRN,IND,WK5,PCT,TOTAL)` — in the BACKDATING pass, PCT is accumulated over
+    # **IND**, which cratet.f sorted on the REAL `DBH`, while the per-tree weight `WK5 = D*D*PROB` uses the
+    # BACKDATED diameter (dense.f:184 `IF(LBKDEN.AND.LREDO) D = WK3(I)`). compute_density! above derived BOTH
+    # from the backdated diameters, so the ORDER was wrong whenever backdating reshuffles near-equal trees —
+    # and PCT feeds the PCR crown model directly (KT/IE/EM `b13*P + b14*log(P)`). MEASURED on the KT WRD
+    # fixture with blanked crowns: live P rises monotonically with the read diameter (D 7.9→45.694,
+    # 8.0→50.489, 8.2→54.573, 8.4→58.704) while jl's backdated order INVERTED it (50.92, 45.98, 32.92, 37.06).
+    # Rebuild PCT with the real-diameter IND and the backdated weights.
+    if lbkden
+        backdated = Float32[t.dbh[i] for i in 1:nlive]
+        @inbounds for i in 1:nlive; t.dbh[i] = saved_live[i]; end
+        idx = view(s.scratch.stat_idx, 1:t.n); bm_cratet_ind!(s, idx)
+        @inbounds for i in 1:nlive; t.dbh[i] = backdated[i]; end
+        _pctile!(t.crown_ratio, t, idx, t.n)
+    end
     s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end

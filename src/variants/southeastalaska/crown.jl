@@ -109,6 +109,7 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         sp = Int(t.species[i]); (sp < 1 || sp > 23) && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue           # inventory crown present ⇒ keep (ak/crown.f:217)
+        dubbed = false
         d = t.dbh[i]; h = t.height[i]; ip = Int(t.plot_id[i])
         baplt  = (1 <= ip <= length(pb))   ? pb[ip]   : 0f0
         tpaplt = (1 <= ip <= length(ptpa)) ? ptpa[ip] : 0f0
@@ -120,6 +121,7 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         if d < 1f0 && lstart
             cr = ak_dubscr(s.rng, sp, d, h, prd, qmdplt)
             icri = trunc(Int, cr * 100f0 + 0.5f0)      # CRNMLT=1, DLOW/DHI defaults ⇒ no multiplier
+            dubbed = true                              # label 58 sits BELOW statement 55
         else
             x = AK_CRINT[sp] + AK_CRHDR[sp] * log(h * 12f0 / d) + AK_CRRD[sp] * prd +
                 AK_CRDQMD[sp] * (d / qmdplt)
@@ -142,6 +144,9 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
                 (icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # CRNMLT=1
             end
         end
+        # ak/crown.f:362 statement 55 — reached from :345 `IF(LSTART .OR. ICR(I).EQ.0) GO TO 55`;
+        # label 58 (DUBSCR) is below it, so a dubbed sub-1" record is not re-expressed.
+        (lstart && !dubbed) && (icri = topkill_icri(t, i, icri))
         icri > 95 && (icri = 95)
         icri < 10 && (icri = 10)                     # CRNMLT=1 (ak/crown.f:393)
         icri < 1 && (icri = 1)
