@@ -193,6 +193,13 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     (s.variant isa EasternMontana || s.variant isa InlandEmpire || s.variant isa Kootenai ||
      s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
      s.variant isa CentralRockies || s.variant isa BritishColumbia) && fill!(s.control.ht_drag_sp, true)
+    # RMAI (grinit.f): 50.0 in AK BM CA CR CS EC EM LS NC OC OP PN SO TT UT WC; 0.0 in BC CI IE KT SN WS.
+    # Variants whose MAICAL actually computes it (AK BM CR EM IE SO TT UT) overwrite this later from their own
+    # port. jl set it NOWHERE but SO, so every other variant read 0: EC's crown DUBSCR (BCR10·RMAI) and its
+    # MH/OS dgf CONSPP term, plus the crown dubs of CA/CS/LS/NC/OC/OP/PN/WC, silently lost the constant.
+    (s.variant isa BritishColumbia || s.variant isa CentralIdaho || s.variant isa InlandEmpire ||
+     s.variant isa Kootenai || s.variant isa Southern || s.variant isa WestSierra) ||
+        (s.plot.mai_adj = 50f0)
     reason = process_keywords!(s, kr, base_path)
     finalize_design!(s)                            # INITRE end: PI:=IPTINV, GROSPC
     site_setup!(s, s.variant)                      # SITSET: fan site index to all species (variant-specific)
