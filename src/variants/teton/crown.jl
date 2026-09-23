@@ -147,16 +147,9 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     sdiac = crown_sdi
     # ISORT: whole-stand DBH rank via RDPSRT (1=smallest … n=largest). RDPSRT sorts DESCENDING (IND(1)=largest),
     # ISORT(IND(JJ)) = n−JJ+1  ⇒ largest→n, smallest→1. (once/cycle — local buffers, not the hot path.)
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    # rank on GROWN DBH (tt/crown.f runs after DG is applied: DBH(I) is post-growth). dbh += DG/bark.
-    @inbounds for i in 1:n
-        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
-        key[i] = t.dbh[i] + t.diam_growth[i] / bk
-        idx[i] = Int32(i)
-    end
-    _rdpsrt!(key, idx; lseq = false)                    # descending: idx[1] = largest DBH
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
+    # as-read at LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     p_pccf = s.density.point_ccf
     rmai = lstart ? _tt_rmai(s) : 0f0                    # RMAI stand constant, only used by the lstart dub
     # #158 dead-heavy over-growth ROOT: FVS crown.f dubs missing crowns in SPECIES-MAJOR order

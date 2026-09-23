@@ -56,11 +56,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
     _prd, _qmdplt, _ = point_crown_inputs(s)
     # ISORT: whole-stand GROWN-DBH descending rank (oc/crown.f:183 — ISORT(IND(JJ))=ITRN−JJ+1, so the
     # largest tree → n, smallest → 1). OC applies DBH growth inline in the hook, so t.dbh is grown.
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n; key[i] = t.dbh[i]; idx[i] = Int32(i); end
-    _rdpsrt!(key, idx; lseq = false)
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    isort = crown_isort(s; lstart = lstart)   # shared (crown_init.jl)
     # IORG stashed by the growth hook (op_iorg is the shared ORGANON per-tree flag). A tree beyond the
     # stashed length (fresh regen added after the hook) is FVS-native ⇒ treated as IORG=0.
     org_ran = length(c.op_iorg) >= n

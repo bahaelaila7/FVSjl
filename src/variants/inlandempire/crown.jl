@@ -116,11 +116,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # ISORT for the UTTVAR (aspen-group) Weibull X: whole-stand DBH rank (ie/crown.f:261-263 ISORT(IND)=ITRN-JJ+1,
     # so largest DBH → ITRN, smallest → 1). Ranks on t.dbh directly — post-growth at cycling (simulate.jl applies DG
     # before CROWN), inventory DBH at LSTART — matching FVS's DBH(I). Once/cycle; local buffers, not the hot path.
-    isort = Vector{Int32}(undef, t.n)
-    _srtk = Vector{Float32}(undef, t.n); _srti = Vector{Int32}(undef, t.n)
-    @inbounds for i in 1:t.n; _srtk[i] = t.dbh[i]; _srti[i] = Int32(i); end
-    _rdpsrt!(_srtk, _srti)                                         # descending: _srti[1] = largest DBH
-    @inbounds for jj in 1:t.n; isort[_srti[jj]] = Int32(t.n - jj + 1); end
+    isort = crown_isort(s; lstart = lstart)   # shared (crown_init.jl): adds cratet.f's IND1-seeded LSTART sort
     # RMAIAS/RMAILM (ie/crown.f:177-180) — stand MAI constants; only the UTTVAR D<1 LSTART DUBSCR uses them.
     rmai_as = lstart ? _ie_rmai_as(s) : 0f0
     rmai_lm = lstart ? _ie_rmai_lm(s) : 0f0

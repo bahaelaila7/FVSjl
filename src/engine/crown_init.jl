@@ -115,6 +115,39 @@ end
 
 
 """
+    crown_isort(s; lstart=false) -> Vector{Int32}
+
+crown.f `DO 11 JJ=1,ITRN; ISORT(IND(JJ)) = ITRN-JJ+1` — the whole-stand descending-DBH RANK the
+Weibull crown model draws its X from (largest ⇒ ITRN, smallest ⇒ 1). The KEY is always the CURRENT
+`DBH(I)`, never DBH+DG:
+
+* **cycling** — `gradd.f:177-186` calls `UPDATE` (which applies `DBH += DG/BRATIO`) and only THEN
+  `RDPSRT(ITRN,DBH,IND,.TRUE.)`, so IND ranks the already-grown diameter. jl's apply-loop in
+  `grow!` runs before `crown_ratio_update_fvs!` too and does NOT clear `t.diam_growth` (the
+  FVS_TreeList DG column reads it), so `t.dbh` is already the grown value — adding `DG/BRATIO`
+  again double-counts this cycle's growth.
+* **LSTART** — `cratet.f` sorts on the READ diameter, and WHICH sort depends on the stand:
+  `:188 IF(IREC2.EQ.MAXTP1) GO TO 60` skips the second sort when there are no dead records, leaving
+  the `:153 RDPSRT(ITRN,DBH,IND,.FALSE.)` whose IND was PRESET from IND1 (species order) — a
+  different tie-break among equal diameters than the sequential seed of the `:257
+  RDPSRT(ITRN,DBH,IND,.TRUE.)` that a stand WITH dead records ends on. `bm_cratet_ind!` is that
+  branch; it is variant-agnostic (every variant's cratet.f has the identical pair of calls).
+"""
+function crown_isort(s::StandState; lstart::Bool = false)
+    t = s.trees; n = t.n
+    idx = Vector{Int32}(undef, n)
+    n == 0 && return idx
+    if lstart
+        bm_cratet_ind!(s, idx)
+    else
+        _rdpsrt!(view(t.dbh, 1:n), idx)
+    end
+    isort = Vector{Int32}(undef, n)
+    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    return isort
+end
+
+"""
     point_crown_inputs(s) -> (prd, qmdplt, tpccf)
 
 The per-inventory-point inputs crown.f computes for DUBSCR (2021 edits, identical in every variant): PRD = ZRD/XMAXPT

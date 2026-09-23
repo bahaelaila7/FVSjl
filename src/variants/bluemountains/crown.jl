@@ -186,14 +186,7 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
     # ISORT(IND(JJ)) = ITRN−JJ+1 over FVS's IND (bm/crown.f:172-175). Cycling: IND is the gradd.f:186 / esnutr.f:325
     # RDPSRT(DBH,.TRUE.) of the ALREADY-GROWN DBH (UPDATE precedes CROWN; jl applies DBH before crown too), so the
     # key is t.dbh — the old dbh+DG/BARK re-added this cycle's growth. LSTART: CRATET's IND (bm_cratet_ind!).
-    idx = Vector{Int32}(undef, n)
-    if lstart
-        bm_cratet_ind!(s, idx)
-    else
-        _rdpsrt!(view(t.dbh, 1:n), idx)
-    end
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    isort = crown_isort(s; lstart = lstart)   # shared (crown_init.jl) — this BM form is the reference
     # Visit order = bm/crown.f:185-213 `DO 70 ISPC=1,MAXSP; DO 60 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)`
     # (species-major, IND1). Only the LSTART DUBSCR dub draws RNG (one rejection-bounded BACHLO per D<1
     # missing-crown tree), so the order fixes which seedling gets which draw; record order handed a
