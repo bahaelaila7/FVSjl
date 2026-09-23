@@ -45,58 +45,103 @@ already set from the ORGANON CR2 in the growth hook). `crown_sdi` is the pre-gro
 (SDIBC) FVS's SDICAL feeds into RELSDI. LSTART inventory dubbing is NOT here — OC dubs missing
 inventory crowns in `oc_organon_prepare!`/`oc/cratet.f` at setup, so this hook is cycling-only.
 """
-function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0,
+function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
     sdiac = crown_sdi
     nsd = length(p.sp_sdi_def)
+    # oc/crown.f:250-273 — PRD and QMDPLT are INVENTORY-POINT quantities (ZRD/XMAXPT from SDICAL+SDICLS,
+    # point QMD floored at 1), not stand proxies. They feed the RW/GS logistic and every DUBSCR call.
+    _prd, _qmdplt, _ = point_crown_inputs(s)
     # ISORT: whole-stand GROWN-DBH descending rank (oc/crown.f:183 — ISORT(IND(JJ))=ITRN−JJ+1, so the
     # largest tree → n, smallest → 1). OC applies DBH growth inline in the hook, so t.dbh is grown.
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n; key[i] = t.dbh[i]; idx[i] = Int32(i); end
-    _rdpsrt!(key, idx; lseq = false)
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    isort = crown_isort(s; lstart = lstart)   # shared (crown_init.jl)
     # IORG stashed by the growth hook (op_iorg is the shared ORGANON per-tree flag). A tree beyond the
     # stashed length (fresh regen added after the hook) is FVS-native ⇒ treated as IORG=0.
     org_ran = length(c.op_iorg) >= n
     # oc/crown.f DO 70 ISPC … I=IND1(I3): species-major (the RANN d≤0 draw follows this order).
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
-        (org_ran && c.op_iorg[i] == 1) && continue        # ORGANON crown already set in the hook
         sp = Int(t.species[i]); (sp < 1 || sp > 50) && continue
+        (lstart && t.crown_pct[i] > 0) && continue        # oc/crown.f:228 keep the inventory crown
+        iorg = org_ran && c.op_iorg[i] == 1
+        # Cycling: the IORG=1 crown is written straight from CR2 in the growth hook, so the record is done.
+        # At LSTART the hook has not run: oc/crown.f:281 still takes the ORGANON CR2 for a MISSING crown.
+        (iorg && !lstart) && continue
         d = t.dbh[i]; h = t.height[i]; icr = Int(t.crown_pct[i])
+        pt = Int(t.plot_id[i]); prd = _prd(pt); qmdplt = _qmdplt(pt)
+        # oc/crown.f:277 — d<1" at LSTART routes to statement 58 (ca/dubscr.f, which FVSoc links verbatim:
+        # bin/FVSoc_CmakeDir/FVSoc_sourceList.txt:71 `../../ca/dubscr.f`), NOT the Weibull path.
+        if d < 1f0 && lstart
+            icr != 0 && continue                          # oc/crown.f:409 IF(ICR.NE.0) GO TO 60
+            cr = _ca_dubscr(s.rng, sp, d, h, p.basal_area, prd, qmdplt)
+            icri = trunc(Int, cr * 100f0 + 0.5f0)
+            icri > 95 && (icri = 95); icri < 1 && (icri = 1)   # LORGANON=.TRUE. ⇒ no <10 bump (crown.f:429)
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
         grp = OC_CROWN_IMAP[sp]
         relsdi = (sp <= nsd && p.sp_sdi_def[sp] > 0f0) ? sdiac / p.sp_sdi_def[sp] : 1f0
         relsdi > 1.5f0 && (relsdi = 1.5f0)
         acrnew = OC_CRC0[grp] + OC_CRC1[grp] * relsdi * 100f0
-        A = OC_WEIBA[grp]
-        B = OC_WEIBB0[grp] + OC_WEIBB1[grp] * acrnew; B < 3f0 && (B = 3f0)
-        C = OC_WEIBC0[grp] + OC_WEIBC1[grp] * acrnew; C < 2f0 && (C = 2f0)
-        scale = 1.5f0 - relsdi                            # oc/crown.f:312 (OC form, NOT RELDEN)
-        scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0) inert
-        x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = A + B * (-flog(1f0 - x))^(1f0 / C)
-        crnew *= 10f0
-        if icr != 0                                       # ±1%/yr limit (crown.f:346-349), CRNMLT=1
+        local crnew::Float32
+        local chg::Float32 = 0f0
+        if iorg                                           # ORGANON crown (oc/crown.f:281-288) — LSTART only
+            crnew = round(c.op_cr2[i] * 100f0, RoundNearestTiesAway)   # ANINT(CR2*100)
+            chg = crnew - Float32(icr)
+        elseif sp == 23 || sp == 50                       # RW/GS logistic (oc/crown.f CASE(23,50))
+            hdr = d > 0f0 ? h * 12f0 / d : 1f0
+            xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd -
+                 0.116274f0 * (d / qmdplt)
+            x = 1f0 / (1f0 + exp(xl))
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = x * 10f0 * 10f0                       # CASE(23,50): CRNEW = X*10, then ×10
+        else
+            A = OC_WEIBA[grp]
+            B = OC_WEIBB0[grp] + OC_WEIBB1[grp] * acrnew; B < 3f0 && (B = 3f0)
+            C = OC_WEIBC0[grp] + OC_WEIBC1[grp] * acrnew; C < 2f0 && (C = 2f0)
+            scale = 1.5f0 - relsdi                        # oc/crown.f:312 (OC form, NOT RELDEN)
+            scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0)
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = (A + B * (-flog(1f0 - x))^(1f0 / C)) * 10f0
+        end
+        if !iorg && !(lstart || icr == 0)                 # ±1%/yr limit (crown.f:346-349), CRNMLT=1
             chg = crnew - Float32(icr)
             pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg                    # statement 41 (DLOW/DHI cover all)
+        end
+        # statement 41 — CRNEW = ICR + CHG (DLOW/DHI cover all d, CRNMLT=1). Reached by fallthrough from the
+        # ±1%/yr block AND by the ORGANON `GO TO 41`; the LSTART / ICR=0 paths jump straight to 9052.
+        if iorg || !(lstart || icr == 0)
+            crnew = Float32(icr) + chg
         end
         icri = trunc(Int, crnew + 0.5f0)                  # 9052
-        if icr != 0                                       # CRMAX cap (crown.f:368-380), cycling ICR>0
+        if !(lstart || icr == 0)                          # CRMAX cap (crown.f:368-380), cycling ICR>0
             htg = t.ht_growth[i]
             crln = h * Float32(icr) / 100f0
             crmax = (crln + htg) / (h + htg) * 100f0
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
+        if lstart && t.trunc[i] != 0                      # statement 55 top-kill re-expression
+            hn = Float32(t.norm_ht[i]) / 100f0
+            hd = hn - Float32(t.trunc[i]) / 100f0
+            cl = (Float32(icri) / 100f0) * hn - hd
+            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
+        end
         icri > 95 && (icri = 95)                          # statement 59 (LORGANON ⇒ no <10 bump for OC)
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # oc/crown.f DO 79 (:448) — cycle-0 dead-record DUBSCR with the record's own point PRD/QMDPLT.
+    if lstart && t.ndead > 0
+        dub_dead_crowns!(s) do i
+            pt = Int(t.plot_id[i])
+            icri_round(_ca_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], p.basal_area,
+                                  _prd(pt), _qmdplt(pt)))
+        end
     end
     return s
 end

@@ -97,14 +97,9 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
     relden = p.relative_density; sdiac = crown_sdi
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n
-        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
-        key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
-    end
-    _rdpsrt!(key, idx; lseq = false)
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
+    # as-read at LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     p_pccf = s.density.point_ccf
     rmai = lstart ? _ut_rmai(s) : 0f0
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.

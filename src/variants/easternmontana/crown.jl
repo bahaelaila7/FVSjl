@@ -126,15 +126,9 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     P = EM_CRPARM
     sdiac = crown_sdi                                  # SDIAC (pre-growth Reineke SDI) for RELSDI
     rmai_v = _em_rmai(s)                                # DUBSCR RMAI (em/maical.f)
-    # ISORT: crown.f ranks on D+DG/BARK descending (largest ⇒ rank ITRN), via RDPSRT like the other variants.
-    _k = Vector{Float32}(undef, t.n); _ix = Vector{Int32}(undef, t.n)
-    @inbounds for i in 1:t.n
-        _k[i] = t.dbh[i] + t.diam_growth[i] / variant_bratio(s, t.species[i], t.dbh[i], t.height[i])
-        _ix[i] = Int32(i)
-    end
-    _rdpsrt!(_k, _ix; lseq = false)
-    isort = Vector{Int32}(undef, t.n)
-    @inbounds for jj in 1:t.n; isort[_ix[jj]] = Int32(t.n - jj + 1); end
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling, as-read
+    # at LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     # #158-class species-major RNG order: FVS em/crown.f processes trees SPECIES-MAJOR
     # (`DO 70 ISPC=1,MAXSP; DO 60 I3=I1,I2; I=IND1(I3)`), so the per-tree DUBSCR/NIVAR BACHLO crown draw
     # (line ~90, rejection-sampled with a species-specific SD) is consumed in species order. jl dubbed in raw

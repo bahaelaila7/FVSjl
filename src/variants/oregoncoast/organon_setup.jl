@@ -533,7 +533,15 @@ function oc_organon_prepare!(s::StandState)
         end
     end
     # --- no big-6 ⇒ ORGANON does not run; FVS-native dubbing/calibration for all (cratet.f:215-219) ---
-    nbig6 == 0 && return nothing
+    c = s.calib
+    length(c.op_iorg) == n || resize!(c.op_iorg, n)
+    length(c.op_cr2) == n || resize!(c.op_cr2, n)
+    fill!(c.op_cr2, 0f0)
+    if nbig6 == 0
+        fill!(c.op_iorg, Int32(0))       # cratet.f:216-218 zeroes IORG when ORGANON is skipped
+        return nothing
+    end
+    @inbounds for i in 1:n; c.op_iorg[i] = iorg[i]; end
     # --- marshal ALL live records into the PREPARE buffer (cratet.f:227-252) ---
     species = Vector{Int32}(undef, n)
     dbh1    = Vector{Float32}(undef, n)
@@ -569,6 +577,9 @@ function oc_organon_prepare!(s::StandState)
             t.crown_pct[i] = round(Int32, res.cr[i] * 100.0f0, RoundNearestTiesAway)  # NINT (cratet.f:359)
         end
     end
+    # --- CR2 for the LSTART crown dub (oc/crown.f:281 takes ANINT(CR2·100) for an IORG=1 record whose
+    #     crown is still missing after the cratet.f:349-365 reload) ---
+    @inbounds for i in 1:n; c.op_cr2[i] = iorg[i] == 1 ? res.cr[i] : 0f0; end
     # --- store ACALIB for the growth path (cratet.f:393-401 already folded into organon_prepare_swo) ---
     copyto!(s.calib.organon_acalib, res.acalib)
     return nothing
