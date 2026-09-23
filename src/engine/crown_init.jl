@@ -51,6 +51,14 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # 3 LP with past DBH ⇒ live BA 16.486 / TPCCF 80.04 vs jl 48.25 / 199.2 ⇒ every seedling crown mis-dubbed).
     # _backdate_dbh! is the shared IDG-faithful dense.f port (live 1:t.n, in place); restored below.
     lbkden = s.control.growth_idg < 2
+    # base/fvs.f:193-196 — `SDICLS(0,0.,999.,1,SDIAC,SDIAC2,…)` runs IMMEDIATELY BEFORE `CALL CRATET`,
+    # with the source comment "SDICLS IS CALLED HERE SO CROWNS WILL DUB CORRECTLY IN VARIANTS USING THE
+    # WEIBULL DISTRIBUTION". So the LSTART dub's RELSDI = SDIAC/SDIDEF is NOT zero: it is the stand
+    # Reineke SDI over the LIVE inventory at its READ diameters (before CRATET's backdating DENSE).
+    # jl passed no crown_sdi ⇒ RELSDI=0 ⇒ ACRNEW = C0 (its maximum) ⇒ every Weibull-dubbed inventory
+    # crown came out too high. MEASURED on the OC control stand (S248112, a missing-crown LP D=11.5):
+    # live SDIAC 196.15 ⇒ ICR 76; jl with SDIAC=0 ⇒ 85.
+    sdiac = stand_sdi_reineke(s)
     saved_live = lbkden ? t.dbh[1:nlive] : Float32[]
     # #151: dense.f:83-87 — in the CRATET backdating DENSE, standing-dead records get WK3=DBH EXCEPT IMC(I)==9
     # (HISTORY 8,9, older-dead) which LOAD DBH=0 ⇒ they add 0 to BA/CCF/SDI while their HEIGHT still counts
@@ -100,7 +108,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     t.n = nlive
     lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
     s.plot.avg_height = avht_real
-    crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory
+    crown_ratio_update!(s, s.variant; lstart = true, crown_sdi = sdiac)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR overstory
     compute_density!(s; cratet_ind = true)  # restore live-only density; CRATET IND ⇒ cycle-0 PCT/AVH (cratet.f:692 DENSE)
     return s
 end
