@@ -1,14 +1,14 @@
 variant = "EM"
 k = 12
 oracle = "/workspace/.emwork/FVSem_g16"
-oracle_sha256 = "b231b60a9be3644edf43d8d34f2b0fa4caf976f2b3b2da63ff2176b6b6e5ffcc"
+oracle_sha256 = "d8d3d4aaa8dbeab9c3c5bdcc5df101aeac88e411b99c5837e3610bd31012e40c"
 oracle_build_script = "/workspace/.emwork/build_g16.sh"
-oracle_main_std_legacy = "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)"
+oracle_main_std_legacy = "no (NOLEGACY_MAIN)"
 fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
 fvs_source_dirty = "yes"
-generator_commit = "7c7396327272cc1d5fcaaa402d758c7dadc7782d"
-generated = "2026-09-19 13:17:17"
+generator_commit = "845e593ca1d45ff3b94528d9d54a312fd4c4facb"
+generated = "2026-09-23 07:58:22"
 regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
-stands = ["373835175489998", "5310672010661", "5376075010661", "2954187010690", "41442665010690", "5317149010661", "427460468489998", "5436150010661", "5300100010661", "83613036020004", "96407662010661", "750240506290487"]
+stands = ["5352355010661", "474157097489998", "3087467010690", "231908428020004", "242065538010661", "888512560290487", "684750664126144", "3006831010690", "474187636489998", "196420598020004", "196378260020004", "2999215010690"]
 excluded_no_live_output = []
 live_no_output_cases = 0
