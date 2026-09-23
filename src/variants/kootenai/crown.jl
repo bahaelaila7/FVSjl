@@ -170,6 +170,10 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
                 end
                 icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
             end
+            # kt/crown.f:350-355 statement 55 — top-killed inventory records are re-expressed on the
+            # NORMAL height. It sits ABOVE label 58, and the D<3 DUBSCR block jumps in below it, so only
+            # this (large-tree PCR) branch reaches it.
+            lstart && (icri = topkill_icri(t, i, icri))
         else
             lstart || continue                                        # cycling: D<3 keeps its crown
             icri = kt_dubscr(sp, d, h, ba, dgsd, s.rng)

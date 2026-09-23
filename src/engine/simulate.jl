@@ -90,6 +90,16 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
+        compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN before the dub
+        crown_init_lstart_dead_inclusive!(s)  # kt/cratet.f:598 `IF(MISSCR)CALL CROWN` — KT scans the live AND the
+                                          # cycle-0 dead records for a missing crown and dubs them, against the
+                                          # SAME backdated dead-inclusive DENSE as every other variant
+                                          # (kt/cratet.f:182-184 `LBKDEN = IDG.LT.2; CALL DENSE`). jl had NO LSTART
+                                          # crown call for KT at all — the same defect OC had — so every
+                                          # missing-crown inventory record kept crown_pct=0 and KT's PCR/DUBSCR
+                                          # crown model ran off it. MEASURED on the KT WRD control fixture with the
+                                          # live crowns blanked: worst |jl-live| was 31 TPA / 51 BA, the largest
+                                          # LSTART-dub residual of any variant.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa InlandEmpire
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
