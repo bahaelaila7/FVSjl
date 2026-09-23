@@ -117,3 +117,29 @@ Removed already this session: `/workspace/.wt-bisect2` (temp bisect, culprit f26
 Non-git scratch to clean with the prune: staged oracle binaries `/workspace/.{v}work/FVS{v}_g16.new` (pending the
 owner's oracle-swap decision — see `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md`), `/workspace/relink_main_nolegacy.sh`,
 `/workspace/validate_relink.sh`.
+
+---
+
+## Addendum 2026-09-23 — the westside shared-fix chain
+
+Master advanced to `b56bfeda` by a proper `git merge --no-ff` of the chain below (each branch
+built on its predecessor, so ONE merge lands all four). Full `Pkg.test` on the merged tip:
+**56533 pass / 23 fail / 45 broken**, by-name identical to the pre-merge tip (removals only).
+
+| branch | tip | worktree | content | verdict |
+|---|---|---|---|---|
+| `pn-regime-close` | d4ed4e0b | `.wt-pn` | absolute-row WRD tests; PN ATTEN/RELDEN/point-PRD; PN control BA +62 → ±1 | merged in `b56bfeda` |
+| `so-dig` | b559337e | `.wt-so` | SO point CCF, SO species-major REGENT, `variant_bratio` unification; SO control BA +14 → ±1 | merged in `b56bfeda` |
+| `deadcrown-all` | 1f3fbedb | `.wt-dead` | dead-record crown dub + species-major crown loops for the remaining variants; NC/WS DUBSCR; CI TEMMAI; RMAI grinit defaults; shared CRATET LSTART | merged in `b56bfeda` |
+| `em-crown` | 33045b01+ | `.wt-em` | EM four-class crown restructure, EM REGCAL, LHTDRG defaults | **NOT merged — under measurement** |
+| `forest-explorer` | 1b28a1d4 | `.wt-explorer` | Forest Growth Explorer webapp (`apps/forest-explorer`) | KEEP, unmerged by design |
+
+`.wt-embisect` is a throwaway bisect worktree over the `em-crown` chain (detached HEAD); delete
+with the prune.
+
+**Six shared-mechanism bugs** landed by this merge — each had been a hand-kept per-variant list
+that drifted out of sync with the Fortran, so the fix is one shared implementation, not 23 copies:
+dead-record crown dub (`crown.f DO 79`), ATTEN (`dgdriv.f` SIGMA pooling), RELDEN for every
+variant, species-major REGENT/crown draw order (`IND1`), `variant_bratio` as the single BRATIO
+dispatch, and the per-variant RMAI `grinit` default. See
+`docs/PORT_STATUS.md` "Westside shared fixes".
