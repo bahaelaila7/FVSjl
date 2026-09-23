@@ -83,7 +83,7 @@ function setup_growth!(s::StandState)
         _cr_dub_ages!(s)                  # CRATET age dub (cratet.f:552 FINDAG): ABIRTH from height for un-aged trees,
                                           # BEFORE calibration (FVS CRATET→DGDRIV order). Without it htgf's AP floors
                                           # to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (cr/crown.f);
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (cr/crown.f);
                                           # eastern variants call init_crown_ratios! here. Without it, 0.1" seedlings keep
                                           # crown_pct=0 ⇒ VARMRT CRI=0 ⇒ EFFTR (100−CRI)/100 = 20× too high ⇒ seedling
                                           # over-kill cascades to the whole stand's mortality distribution.
@@ -94,7 +94,7 @@ function setup_growth!(s::StandState)
     elseif s.variant isa InlandEmpire
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
         compute_density!(s)               # current-stand density for the crown dub
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (ie/crown.f).
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (ie/crown.f).
                                           # Was MISSING (like EM; #137 sibling) ⇒ missing-CR seedlings kept crown_pct=0
                                           # ⇒ ie regent HTG1=beta1+beta2·cr loses the crown term ⇒ never cross 4.5'
                                           # ⇒ DBH skipped ⇒ QMD frozen. IE's crown model already dubs d<3 at lstart.
@@ -136,7 +136,7 @@ function setup_growth!(s::StandState)
         _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
                                           # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
         compute_density!(s)               # density for the crown dub
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING crowns (ut/crown.f) — was MISSING
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING crowns (ut/crown.f) — was MISSING
                                           # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ ut regent VIGOR(CR)
                                           # lost the crown term ⇒ QMD freeze. UT crown model already dubs missing at lstart.
         calibrate_diameter_growth!(s; scale = dgscale)
@@ -154,7 +154,7 @@ function setup_growth!(s::StandState)
     elseif s.variant isa CentralIdaho
         ci_dgcons!(s)                     # CI DGCON (DGHAB via ICHBCL + DGFOR + elev/slope-aspect + site adj), ATTEN
         compute_density!(s)               # current-stand density for the crown dub
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns (ci/crown.f).
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (ci/crown.f).
                                           # Without it, 0.1" seedlings keep crown_pct=0 ⇒ rcr=1 starves the REGENT
                                           # small-tree height-growth crown term (CI_RG_CRSQ·rcr²) ⇒ seedlings never
                                           # reach breast height (4.5') ⇒ DBH growth skipped ⇒ small-tree DG ~35× low
@@ -182,13 +182,13 @@ function setup_growth!(s::StandState)
     elseif s.variant isa SoutheastAlaska
         ak_dgcons!(s)                     # AK DGCON (0 + ln COR2 if READCORD), ATTEN=OBSERV; AK bark via ak_bratio in the driver
         compute_density!(s)               # current-stand density for the crown dub (point BA/BAL/TPA + point-Zeide inputs)
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns
                                           # (wc/crown.f). Missing-CR seedlings would keep crown_pct=0 ⇒ the regent/
                                           # mortality crown term starves (EM #137 class). wct01's inventory crowns are
                                           # all present ⇒ this lstart pass bypasses every tree (verified vs the live
@@ -206,12 +206,12 @@ function setup_growth!(s::StandState)
     elseif s.variant isa EastCascades
         ec_dgcons!(s)                     # EC DGCON (32-species uncompressed; WO King's-SI sp28, MH/OS ×3.281) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ec/crown.f)
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ec/crown.f)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralCalifornia
         ca_dgcons!(s)                     # CA DGCON (50-species / 13-group-compressed; ln(SITEAR) form for GS/RW) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ca/crown.f)
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ca/crown.f)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa SouthCentralOregon
         so_dgcons!(s)                     # SO DGCON (33-species uncompressed; RMAI/maical + DGSIC/DGMAI Prognosis terms) — chunk 3
@@ -228,7 +228,7 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Olympic
         op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)
-        crown_ratio_update!(s, s.variant; lstart = true)  # op/crown.f LSTART dub of MISSING inventory crowns
+        crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. op/crown.f LSTART dub of MISSING inventory crowns
                                           # (Weibull rank d≥1; op/dubscr.f d<1); ORGANON-dubbed HT/CR already set by op_organon_prepare!.
         calibrate_diameter_growth!(s; scale = dgscale)     # op/dgdriv.f LSTART large-tree DG COR (SIGMAR/OBSERV/
                                           # PSIGSQ=0.0898, op_bratio in BOTH the backdating AND the TERM bark).

@@ -50,11 +50,15 @@ using FVSjl
         # FVSnc_g16 ZZDUB (same stand, cyc1 LSTART): sp4 & sp9 seedlings D=0.1, H=1.01, BA=133.541,
         # TPCCF=79.916, AVH=123.12, RMAI=50 ⇒ deterministic logit ≈ −6 ⇒ CR clamps to 0.9500 for ANY FCR draw
         # (|FCR|≤CRSD), so the crown VALUE is bit-exact without reproducing FVS's RANN stream.
-        cr4 = FVSjl.nc_dubscr(4, 0.1f0, 1.01f0, 133.541f0, 79.916f0, 123.12f0, 0.0f0, 1.0f0)
-        cr9 = FVSjl.nc_dubscr(9, 0.1f0, 1.01f0, 133.541f0, 79.916f0, 123.12f0, 0.0f0, 1.0f0)
+        # nc_dubscr now takes the rng first: nc/dubscr.f DRAWS a rejection-bounded BACHLO(0,CRSD) that the
+        # old port omitted entirely (it consumed no draw, so NC's whole stream ran ahead of live). The clamp
+        # argument below is unchanged: the logit is ≈ −6, so CR pins to 0.95 for ANY |FCR| ≤ CRSD.
+        rng = FVSjl.FVSRng()
+        cr4 = FVSjl.nc_dubscr(rng, 4, 0.1f0, 1.01f0, 133.541f0, 79.916f0, 123.12f0, 0.0f0, 1.0f0)
+        cr9 = FVSjl.nc_dubscr(rng, 9, 0.1f0, 1.01f0, 133.541f0, 79.916f0, 123.12f0, 0.0f0, 1.0f0)
         @test cr4 == 0.95f0
         @test cr9 == 0.95f0
         # Clamp bounds hold for both tails.
-        @test 0.05f0 <= FVSjl.nc_dubscr(3, 0.9f0, 8.0f0, 5.0f0, 0.0f0, 10.0f0, 0.0f0, 1.0f0) <= 0.95f0
+        @test 0.05f0 <= FVSjl.nc_dubscr(rng, 3, 0.9f0, 8.0f0, 5.0f0, 0.0f0, 10.0f0, 0.0f0, 1.0f0) <= 0.95f0
     end
 end
