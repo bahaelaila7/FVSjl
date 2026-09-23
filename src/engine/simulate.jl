@@ -102,7 +102,9 @@ function setup_growth!(s::StandState)
     elseif s.variant isa EasternMontana
         em_dgcons!(s)                     # EM DGCON/DGDSQ/DGCCF (DGHAB+DGFOR+MAPDSQ+elev/slope-aspect+site adj), ATTEN=OBSERV
         compute_density!(s)               # current-stand density for the crown dub
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns
+        # fvs.f:196 CALL SDICLS(0,0.,999.,1,SDIAC,…) runs immediately before CRATET so the Weibull dub sees a
+        # real RELSDI (see crown_init.jl). EM reaches CROWN without the shared LSTART helper, so pass it here.
+        crown_ratio_update!(s, s.variant; lstart = true, crown_sdi = stand_sdi_reineke(s))  # CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns
                                           # (em/crown.f). Was MISSING (unlike CR/BM/CI) ⇒ 0.1" seedlings kept
                                           # crown_pct=0 ⇒ _em_smhtgf beta2·cr term = 0 ⇒ HTGR under-predicts ⇒
                                           # never cross 4.5' ⇒ DBH growth skipped ⇒ QMD frozen ⇒ dense self-thin
@@ -225,6 +227,15 @@ function setup_growth!(s::StandState)
                                           # dub of missing crowns, ws/dubscr.f for d<1 seedlings AND the cycle-0 DEAD
                                           # records (DO 79). RELDEN is set by compute_density! for every variant now.
         calibrate_diameter_growth!(s; scale = dgscale)
+    elseif s.variant isa OregonCoast
+        compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN before the dub
+        crown_init_lstart_dead_inclusive!(s)  # oc/cratet.f:463-499 (== bm core) backdated dead-inclusive DENSE →
+                                          # :856 `IF(MISSCR) CALL CROWN`. oc/crown.f LSTART dubs the records whose
+                                          # crown is STILL missing after oc_organon_prepare! (which only reloads
+                                          # HT/CR for IORG=1 trees): ca/dubscr.f for d<1, the rank-Weibull /
+                                          # RW-GS logistic for d>=1, plus the cycle-0 DEAD records (DO 79 :448).
+                                          # Was entirely MISSING ⇒ every IORG=0 seedling and every dead record kept
+                                          # crown_pct=0, and the DO 79 DUBSCR draws were never consumed.
     elseif s.variant isa Olympic
         op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)

@@ -84,14 +84,9 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
     ba = p.basal_area; sdiac = crown_sdi
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # rank by (D+G) descending → ISORT (largest = rank 1)
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n
-        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
-        key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
-    end
-    _rdpsrt!(key, idx; lseq = false)
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
+    # as-read at LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     # nc/crown.f:87-104 — SDICAL XMAXPT + per-point Zeide ZRD (live trees), computed once; PRD/QMDPLT per point.
     xmaxpt, zrd, _ = point_zeide!(s)
     dens = s.density

@@ -49,12 +49,9 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     n = t.n; n == 0 && return s
     sd = s.coef.species; cimap = sd[:crown_imap]
     relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area
-    key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
-    @inbounds for i in 1:n
-        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
-        key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
-    end
-    _rdpsrt!(key, idx; lseq = false)
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling, as-read at
+    # LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     # pn/crown.f:87-104 (2021 edits): XMAXPT via SDICAL + per-point Zeide ZRD via SDICLS, live trees only,
     # computed once on entry. PRD = ZRD/XMAXPT and QMDPLT = sqrt((PTBAA/PTPA)/0.005454) (floored at 1) are
     # PER INVENTORY POINT for every tree — they feed only the RW (sp 17) logistic and DUBSCR's RW branch.
@@ -67,8 +64,6 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
         q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
         q <= 1f0 ? 1f0 : q
     end
-    isort = Vector{Int32}(undef, n)
-    @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
