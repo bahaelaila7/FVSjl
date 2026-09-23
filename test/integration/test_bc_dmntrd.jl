@@ -134,7 +134,8 @@ end
 # (~7% of mortality) with Mean_DMI held at 1-2 the whole run — a MINOR effect jl matches. DMNTRD is
 # an infection-conserving REMAP, so on this NOTRIPLE sparse-seed stand it is inert on the aggregate
 # .sum (A/B verified byte-identical vs DMNTRD-off). The checkpoints below guard the DMNTRD-inclusive
-# engine against regression.
+# engine against regression. NB the "(2137 jl SDI 1303 vs oracle 936)" figure above was measured BEFORE the
+# UPDATE-bark fix; jl now reads 1241 there.
 @testset "BC NEWSPRED YSM DMNTRD trajectory (cornered vs oracle DM dump)" begin
     key = "/workspace/.bcwork/newspred/ysm271_dm.key"
     db  = "/workspace/.bcwork/newspred/FVS-BC.YSM-SkyRanch.db"
@@ -151,6 +152,11 @@ end
         @test yr(c0) == 2018 && tpa(c0) == 2300 && sdi(c0) == 311   # DM-free ingest = oracle bit-exact
         cN = rows[end]
         @test yr(cN) == 2137
-        @test tpa(cN) == 1075 && sdi(cN) == 1303              # deterministic DMNTRD checkpoint (cornered)
+        # jl SELF-snapshot (regression guard), NOT an oracle match: live gives SDI 936 here. The 2026-09-23
+        # variant_bratio fix (BC's UPDATE was growing DBH by DG/0.80 instead of BC's constant BARK1 — the same
+        # bug behind BC's supposed "+36% baseline-BA straddle", now within ±1 BA of live on the RD fixture)
+        # moved this from 1075/1303 to 1088/1241, i.e. toward live but not onto it. BC's remaining
+        # young-dense-lodgepole self-thin gap stays OPEN for the BC campaign.
+        @test tpa(cN) == 1088 && sdi(cN) == 1241
     end
 end

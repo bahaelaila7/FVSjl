@@ -124,7 +124,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     # RMAIAS/RMAILM (ie/crown.f:177-180) — stand MAI constants; only the UTTVAR D<1 LSTART DUBSCR uses them.
     rmai_as = lstart ? _ie_rmai_as(s) : 0f0
     rmai_lm = lstart ? _ie_rmai_lm(s) : 0f0
-    order = lstart ? sort(collect(1:t.n); by = ii -> (Int(t.species[ii]), ii)) : collect(1:t.n)
+    order = species_major_order(s)   # ie/crown.f DO 70 ISPC … IND1 — every call (RANN d≤0 draws; post-TRIPLE lineage order)
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])

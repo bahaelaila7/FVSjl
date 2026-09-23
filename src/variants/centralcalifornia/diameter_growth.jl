@@ -96,6 +96,10 @@ function ca_dgcons!(s::StandState)
                               CA_DGSITE[jspc] * log(xsite) + sasp
         end
     end
+    # ca/dgf.f:454 ATTEN(ISPC)=OBSERV(JSPC) — species-indexed, group value (dgdriv.f:554 SIGMA pooling).
+    @inbounds for isp in 1:length(CA_MAPSPC)
+        c.atten[isp] = CA_OBSERV[CA_MAPSPC[isp]]
+    end
     return s
 end
 

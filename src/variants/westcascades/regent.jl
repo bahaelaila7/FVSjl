@@ -182,7 +182,8 @@ function small_tree_growth!(s::StandState, stash, ::WestCascades; fint::Float32 
     # ATAVH = AVH during the cycling growth call (grincr.f:318 sets ATAVH=AVH before TREGRO/REGENT) ⇒
     # SMHGDG's AVHT = (5/FINT)·AVH+((FINT−5)/FINT)·ATAVH = AVH. (The LSTART calibration uses ATAVH=0.)
     avht = avh
-    @inbounds for i in 1:n
+    # wc/regent.f:166-184 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= WC_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
         h = t.height[i]

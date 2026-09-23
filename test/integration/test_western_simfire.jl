@@ -42,7 +42,7 @@
         # 2030 TREES 1 — the crown fire FIRES and wipes the stand (surface-only regression left the overstory).
         # Residual = the same family-wide rothermel-HPA byram corner as IE/EM (2030 TREES 3/1 vs live 0).
         (FVSjl.Kootenai(),       "kt_simfire", 282, 15, 400),   # live: 282 pre, 0 post, 437 MORT
-        (FVSjl.CentralIdaho(),   "ci_simfire", 304, 15, 350),   # live: 300 pre, 0 post, 388 MORT (live re-derived 2026-09-19 on FVSci_g16 and .new: 300). jl 307→306→304 on bm-regime-close merges, moving toward live; residual +4 OPEN (CI campaign).
+        (FVSjl.CentralIdaho(),   "ci_simfire", 302, 15, 350),   # jl 304→302 after the 2026-09-23 crown/CRATET fixes (live 300)   # live: 300 pre, 0 post, 388 MORT (live re-derived 2026-09-19 on FVSci_g16 and .new: 300). jl 307→306→304 on bm-regime-close merges, moving toward live; residual +4 OPEN (CI campaign).
     ]
     for (v, base, pre_trees, post_trees_max, mort_min) in cases
         key = joinpath(_fixdir, base * ".key")

@@ -279,15 +279,9 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     # bark_ratio regression — for CR the calib bark_a/bark_b are zeroed (diameter_growth.jl:343) so
     # bark_ratio(0,0,…)=0.80 floor, which inflates the self-thinning grown-QMD d10 (dg/0.80 vs dg/~0.89)
     # ⇒ lower self-thin target ⇒ ~3-8% over-kill on dense stands. Same CR-bark class as the DG/DBH fixes.
-    _is_cr = s.variant isa CentralRockies
-    _is_bm = s.variant isa BlueMountains          # BM POWER bark (bm/bratio.f) — like CR's special bratio
-    _is_ec = s.variant isa EastCascades           # EC POWER bark (ec/bratio.f = wc_bratio) — same #140 class
-    _is_ca = s.variant isa CentralCalifornia      # CA POWER bark (ca/bratio.f = wc_bratio) — same #140 class
-    _cr_imodty = _is_cr ? Int(s.plot.model_type) : 0
-    _sd = s.coef.species
-    _mbark(sp, d) = _is_cr ? cr_bratio(_sd, Int(sp), d, _cr_imodty) :
-                    _is_bm ? bm_bratio(_sd, Int(sp), d) :
-                    (_is_ec || _is_ca) ? wc_bratio(_sd, Int(sp), d) : bark_ratio(bark_a, bark_b, sp, d)
+    # morts.f BRATIO(IS,D,HT(I)) — the variant's own bark (shared dispatch; was CR/BM/EC/CA-only, so SO/WS/PN/WC/
+    # CI/TT/IE/AK/OP/BC/ON projected the self-thinning DQ10 with the generic linear bark).
+    _mbark(sp, d, h = 0f0) = variant_bratio(s, sp, d, h)
     mort_b0 = s.coef.species[:mort_bkgd_intercept]; mort_b1 = s.coef.species[:mort_bkgd_dbh]
     # The SDI sums accumulate in FVS's SPECIES-SORTED IND1 order (morts.f:212-235: DO 20 ISPC,
     # DO 12 I3=I1,I2, I=IND1(I3)), NOT raw record order — Float32 addition is non-associative, so the
@@ -304,7 +298,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             d = t.dbh[i]
             d < dthresh && continue
             pr = t.tpa[i]
-            bark = _mbark(t.species[i], d)
+            bark = _mbark(t.species[i], d, t.height[i])
             g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
             ciobds = 2f0 * d * g + g * g              # morts.f:223-224 CIOBDS=(2.0*D*G+G*G); SD2SQ+P*(D*D+CIOBDS)
             sd2sq += pr * (d * d + ciobds)            #   (d² + (2dg+g²)) — NOT Julia's left-assoc (d²+2dg)+g²
@@ -376,7 +370,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             for i in 1:n
                 d = t.dbh[i]; d < dthresh && continue
                 pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
-                bark = _mbark(t.species[i], d)
+                bark = _mbark(t.species[i], d, t.height[i])
                 # morts.f:583 — the post-mortality QMD recompute uses the SAME linear
                 # FINT-extrapolated 5-yr G as the entry d10 (line 223). Using the raw
                 # sqrt fint-year growth here instead understates d10n on a 10-yr cycle
@@ -428,7 +422,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             tpacls = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]
-                bark = _mbark(t.species[i], d)
+                bark = _mbark(t.species[i], d, t.height[i])
                 dbhend = d + (t.diam_growth[i] / bark) * (fint / yr)
                 (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
             end
@@ -458,7 +452,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             # G is the OUTSIDE-bark, LINEARLY FINT-extrapolated 5-yr increment
             # (sn/morts.f:692 — `(DG/BARK)·(FINT/5)`), same trajectory as the SDI
             # self-thinning calc above. NOT the raw sqrt fint-year diam_growth.
-            g = _mort_traj_g(t.diam_growth[i], d, _mbark(sp, d), fint, yr)
+            g = _mort_traj_g(t.diam_growth[i], d, _mbark(sp, d, t.height[i]), fint, yr)
             if (d + g) >= sc[sp, 1]
                 kc = min(t.tpa[i] * sc[sp, 2] * fint / yr, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
@@ -476,7 +470,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             banew = 0f0; badead = 0f0
             for i in 1:n
                 d = t.dbh[i]
-                bark = _mbark(t.species[i], d)
+                bark = _mbark(t.species[i], d, t.height[i])
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])

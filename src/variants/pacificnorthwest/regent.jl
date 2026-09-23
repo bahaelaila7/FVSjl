@@ -79,16 +79,23 @@ function small_tree_growth!(s::StandState, stash, ::PacificNorthwest; fint::Floa
     ifor = _pn_htdbh_ifor(Int(p.forest_idx))
     scale = fint / _WC_RG_REGYR; scale2 = _WC_RG_REGYR / fint
     avht = avh
-    @inbounds for i in 1:n
+    # pn/regent.f:156-166 walks `DO 30 ISPC=1,MAXSP … DO 25 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)` —
+    # SPECIES-MAJOR. The ZZRAN BACHLO draw is consumed per tree in that order, so iterating the arrays in storage
+    # order handed every small tree another tree's draw (WRD fixture S248112: HTG off on 6/6 small trees).
+    yr_now = current_cycle_year(s)
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= WC_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
+        xrhgro = active_multiplier(s.control, :regh, sp, yr_now)     # XRHMLT (MULTS 3, REGHMULT)
+        xrdgro = active_multiplier(s.control, :regd, sp, yr_now)     # XRDMLT (MULTS 6, REGDMULT)
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
         h = t.height[i]
         cr = Float32(t.crown_pct[i]) * 0.01f0
         ip = Int(t.plot_id[i])
         ptbal = dens.point_bal[i]
         ptba = (1 <= ip <= length(dens.point_ba)) ? dens.point_ba[ip] : 0.0f0
         si = p.sp_site_index[sp]
-        con = exp(c.htg_cor_small[sp])
+        con = rhcon * exp(c.htg_cor_small[sp])            # regent.f:172 CON = RHCON(ISPC)*EXP(HCOR(ISPC))
         wk4 = t.htimlt[i]
         hg1, dg1 = pn_smhgdg(sp, h, d, cr, ptbal, ptba, si, avht)
         hk = h + hg1; dk = d + dg1
@@ -101,7 +108,7 @@ function small_tree_growth!(s::StandState, stash, ::PacificNorthwest; fint::Floa
                 (zzran <= 0.5f0 && zzran >= -2.0f0) && break
             end
         end
-        htgr = (htgr + zzran * 0.1f0) * scale * con * wk4
+        htgr = (htgr + zzran * 0.1f0) * xrhgro * scale * con * wk4
         htgr < 0.1f0 && (htgr = 0.1f0)
         xmn = WC_RG_XMIN[sp]; xmx = WC_RG_XMAX[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
@@ -132,16 +139,16 @@ function small_tree_growth!(s::StandState, stash, ::PacificNorthwest; fint::Floa
             dk2 = pn_htdbh_dbh(ifor, sp, hkk)
             dkk = h <= 4.5f0 ? d : pn_htdbh_dbh(ifor, sp, h)
             xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
-            dgsm = (dk2 - dkk) * bark; dgsm < 0.0f0 && (dgsm = 0.0f0)
+            dgsm = (dk2 - dkk) * bark * xrdgro; dgsm < 0.0f0 && (dgsm = 0.0f0)
             dds = dgsm * (2.0f0 * bark * d + dgsm) * scale2
             dgsm = sqrt((d * bark)^2 + dds) - bark * d
             dgk = dgsm * (1.0f0 - xdwt) + t.diam_growth[i] * xdwt
         else
             dgk = dgr * scale * wk4
             if d < 0.0f0 || dgk < 0.0f0
-                dgk = htg * 0.2f0 * bark
+                dgk = htg * 0.2f0 * bark * xrdgro
             else
-                dgk = dgk * bark
+                dgk = dgk * bark * xrdgro
             end
             dgk < 0.0f0 && (dgk = 0.1f0)
             dgmx = WC_RG_DGMAX[sp] * scale

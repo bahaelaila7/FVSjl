@@ -95,6 +95,62 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
 end
 
 # ws/crown.f — rank-based Weibull crown ratio. sdiac = SDIAC (stand SDI); RELDEN = stand CCF.
+# ws/dubscr.f DATA (43 species each) — generated from the Fortran source, not hand-transcribed.
+const WS_DUB_BCR0 = Float32[-1.669490, -0.426688, -0.426688, -0.426688, -0.426688, -0.426688, -0.426688, -1.669490, 6.489813, 6.489813, -1.669490, 6.489813, -0.426688, 6.489813, 6.489813, 6.489813, 6.489813, -1.669490, 6.489813, 6.489813, 6.489813, -0.426688, -0.426688, -1.669490, 6.489813, 6.489813, 6.489813, -1.669490, -1.669490, -1.669490, -1.669490, -1.669490, -1.669490, -2.19723, -2.19723, -2.19723, -2.19723, -2.19723, -2.19723, -1.669490, 5.0, -1.669490, -1.669490]
+const WS_DUB_BCR1 = Float32[-0.209765, -0.093105, -0.093105, -0.093105, -0.093105, -0.093105, -0.093105, -0.209765, 0.0, 0.0, -0.209765, 0.0, -0.093105, 0.0, 0.0, 0.0, 0.0, -0.209765, 0.0, 0.0, 0.0, -0.093105, -0.093105, -0.209765, 0.0, 0.0, 0.0, -0.209765, -0.209765, -0.209765, -0.209765, -0.209765, -0.209765, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.209765, 0.0, -0.209765, -0.209765]
+const WS_DUB_BCR2 = Float32[0.0, 0.022409, 0.022409, 0.022409, 0.022409, 0.022409, 0.022409, 0.0, -0.029815, -0.029815, 0.0, -0.029815, 0.022409, -0.029815, -0.029815, -0.029815, -0.029815, 0.0, -0.029815, -0.029815, -0.029815, 0.022409, 0.022409, 0.0, -0.029815, -0.029815, -0.029815, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const WS_DUB_BCR3 = Float32[0.003359, 0.002633, 0.002633, 0.002633, 0.002633, 0.002633, 0.002633, 0.003359, -0.009276, -0.009276, 0.003359, -0.009276, 0.002633, -0.009276, -0.009276, -0.009276, -0.009276, 0.003359, -0.009276, -0.009276, -0.009276, 0.002633, 0.002633, 0.003359, -0.009276, -0.009276, -0.009276, 0.003359, 0.003359, 0.003359, 0.003359, 0.003359, 0.003359, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.003359, 0.0, 0.003359, 0.003359]
+const WS_DUB_BCR5 = Float32[0.011032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.0, 0.011032, 0.011032, 0.011032, 0.011032, 0.011032, 0.011032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.011032, 0.0, 0.011032, 0.011032]
+const WS_DUB_BCR6 = Float32[0.0, -0.045532, -0.045532, -0.045532, -0.045532, -0.045532, -0.045532, 0.0, 0.0, 0.0, 0.0, 0.0, -0.045532, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.045532, -0.045532, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const WS_DUB_BCR8 = Float32[0.017727, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.0, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.0, 0.017727, 0.017727, 0.017727, 0.017727, 0.017727, 0.017727, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.017727, 0.0, 0.017727, 0.017727]
+const WS_DUB_BCR9 = Float32[-0.000053, 0.000022, 0.000022, 0.000022, 0.000022, 0.000022, 0.000022, -0.000053, 0.0, 0.0, -0.000053, 0.0, 0.000022, 0.0, 0.0, 0.0, 0.0, -0.000053, 0.0, 0.0, 0.0, 0.000022, 0.000022, -0.000053, 0.0, 0.0, 0.0, -0.000053, -0.000053, -0.000053, -0.000053, -0.000053, -0.000053, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.000053, 0.0, -0.000053, -0.000053]
+const WS_DUB_BCR10 = Float32[0.014098, -0.013115, -0.013115, -0.013115, -0.013115, -0.013115, -0.013115, 0.014098, 0.0, 0.0, 0.014098, 0.0, -0.013115, 0.0, 0.0, 0.0, 0.0, 0.014098, 0.0, 0.0, 0.0, -0.013115, -0.013115, 0.014098, 0.0, 0.0, 0.0, 0.014098, 0.014098, 0.014098, 0.014098, 0.014098, 0.014098, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.014098, 0.0, 0.014098, 0.014098]
+const WS_DUB_CRSD = Float32[0.5, 0.6957, 0.6957, 0.15, 0.9310, 0.6957, 0.6957, 0.4942, 2.0426, 2.0426, 0.5, 2.0426, 0.6957, 2.0426, 2.0426, 2.0426, 2.0426, 0.4942, 2.0426, 2.0426, 2.0426, 0.6957, 0.15, 0.5, 2.0426, 2.0426, 2.0426, 0.6124, 0.6124, 0.6124, 0.6124, 0.6124, 0.6124, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.6124, 0.5, 0.5, 0.6124]
+
+# ws/crown.f QMDPLT: point QMD from PTBAA/PTPA, 1.0 when the point has no trees, floored at 1.
+function _ws_qmdplt(dens, pt::Int)::Float32
+    baplt = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : 0f0
+    tpaplt = (1 <= pt <= length(dens.point_tpa)) ? dens.point_tpa[pt] : 0f0
+    q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+    return q <= 1f0 ? 1f0 : q
+end
+
+"""
+    ws_dubscr(rng, sp, d, h, prd, qmdplt, ba, tpccf, avh, rmai) -> CR fraction
+
+ws/dubscr.f — crown for a DBH<1" live seedling or a cycle-0 dead record with a missing crown. GS/RW (4,23) take
+the logistic HDR/PRD/QMDPLT form, all others the BCR regression; then ONE rejection-bounded BACHLO(0,CRSD) draw
+(|FCR|≤SD) and the species-grouped transform. Replaces a fixed-10 stub that consumed no draw, which shifted every
+later DGSCOR draw on any WS stand with a missing crown (WRD fixture S248112: FRM off by 3 draws, BA −18 by 2000).
+"""
+function ws_dubscr(rng, sp::Integer, d::Float32, h::Float32, prd::Float32, qmdplt::Float32,
+                   ba::Float32, tpccf::Float32, avh::Float32, rmai::Float32)::Float32
+    local cr::Float32
+    if sp == 4 || sp == 23
+        hdr = (h * 12f0) / d
+        cr = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+    else
+        cr = WS_DUB_BCR0[sp] + WS_DUB_BCR1[sp] * d + WS_DUB_BCR2[sp] * h + WS_DUB_BCR3[sp] * ba +
+             WS_DUB_BCR5[sp] * tpccf + WS_DUB_BCR6[sp] * (avh / h) + WS_DUB_BCR8[sp] * avh +
+             WS_DUB_BCR9[sp] * (ba * tpccf) + WS_DUB_BCR10[sp] * rmai
+    end
+    sd = WS_DUB_CRSD[sp]; fcr = 0f0
+    while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
+    if sp == 4 || sp == 23
+        cr = 1f0 / (1f0 + exp(cr + fcr))
+    elseif sp in (9, 10, 12, 14, 15, 16, 17, 19, 20, 25, 26, 27)
+        cr = cr + fcr
+        cr = ((cr - 1f0) * 10f0 + 1f0) / 100f0
+    elseif sp == 41
+        cr = ((cr - 1f0) * 10f0 + 1f0) / 100f0
+    else
+        abs(cr + fcr) >= 86f0 && (cr = 86f0)
+        cr = 1f0 / (1f0 + exp(cr + fcr))
+    end
+    cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
+    return cr
+end
+
 function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
@@ -105,13 +161,14 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     # rank trees by projected DBH (ws/crown.f ISORT via RDPSRT on D+DG/BARK), descending → ISORT[i] ∈ 1..n
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = ws_bratio(sd, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 43) && continue
@@ -132,9 +189,12 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
                 cl = -0.59373f0 + 0.67703f0 * hf
                 cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
                 icri = trunc(Int, (cl / hf) * 100f0 + 0.5f0)
-            else
-                # ws_dubscr STUB (chunk 5b) — bypassed on wst01 (crowns present). Faithful floor.
-                icri = 10
+            else                                           # ws/crown.f:469-473 CASE DEFAULT → DUBSCR
+                pt_i = Int(t.plot_id[i])
+                tpccf = (1 <= pt_i <= length(dens.point_ccf)) ? dens.point_ccf[pt_i] : 0f0
+                cr = ws_dubscr(s.rng, sp, d, h, ws_point_prd(s, pt_i), _ws_qmdplt(dens, pt_i),
+                               p.basal_area, tpccf, p.avg_height, p.mai_adj)
+                icri = trunc(Int, cr * 100f0 + 0.5f0)
             end
             icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri); continue
@@ -166,7 +226,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
                 1f0 - 0.00333f0 * (relden - 50f0)
             end
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         end
@@ -191,6 +251,13 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
         end
         icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
+    end
+    # ws/crown.f:500-560 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT; TPCCF = PCCF(ITRE(I))).
+    lstart && dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+        icri_round(ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ws_point_prd(s, pt), _ws_qmdplt(dens, pt),
+                  p.basal_area, tpccf, p.avg_height, p.mai_adj))
     end
     return s
 end

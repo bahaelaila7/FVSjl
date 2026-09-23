@@ -102,7 +102,8 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
     pctred = WS_RG_AB[1] + xden*(WS_RG_AB[2] + xden*(WS_RG_AB[3] + xden*(WS_RG_AB[4] +
              xden*(WS_RG_AB[5] + xden*WS_RG_AB[6]))))
     pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in 1:n
+    # ws/regent.f:255-277 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
+    @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= WS_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
         h = t.height[i]

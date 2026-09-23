@@ -123,6 +123,10 @@ function ec_dgcons!(s::StandState)
         isp == 9 && (dgcon += 0.3835f0)                                             # AF constant
         c.dg_const[isp] = dgcon
     end
+    # ec/dgf.f:640 ATTEN(ISPC)=OBSERV(ISPC) — the calibrated-SIGMA pooling weight (dgdriv.f:554).
+    @inbounds for isp in 1:32
+        c.atten[isp] = EC_OBSERV[isp]
+    end
     return s
 end
 

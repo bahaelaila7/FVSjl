@@ -39,21 +39,29 @@ const NC_BCR9  = Float32[-0.000053,-0.000053,0.000022,0.000022,0.000022,0.000022
 const NC_BCR10 = Float32[0.014098,0.014098,-0.013115,-0.013115,-0.013115,-0.013115,0.014098,-0.013115,-0.013115,0.014098,0.0,0.0]
 
 # nc/dubscr.f deterministic crown (FCR=0). ba/tpccf/avh stand+point context; prd/qmdplt only for RW (sp12).
-@inline function nc_dubscr(sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real,
+# nc/dubscr.f DATA CRSD — the DUBSCR random-error SD per species.
+const NC_CRSD = Float32[0.5, 0.5, 0.6957, 0.6957, 0.6957, 0.9310, 0.6124, 0.6957, 0.6957, 0.4942, 0.200, 0.1500]
+
+"""nc/dubscr.f — crown for a d<1\" seedling or cycle-0 dead record with a missing crown. Includes the
+rejection-bounded BACHLO(0,CRSD) draw that the old port omitted (it consumed no draw ⇒ NC's stream shifted on
+every stand with a missing crown). RMAI=50 (nc/grinit.f:139)."""
+@inline function nc_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real,
                            prd::Real, qmdplt::Real)::Float32
-    hf = Float32(h); hf <= 0f0 && (hf = 0.1f0)
+    hf = Float32(h); df = Float32(d)
+    local cr::Float32
     if sp == 12                                          # redwood — logistic on HDR/PRD/D:QMDPLT
-        hdr = (hf * 12f0) / max(Float32(d), 1f-4)
-        cr = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-4)) + 0.869720f0 * Float32(prd) -
-             0.116274f0 * (Float32(d) / max(Float32(qmdplt), 1f0))
+        hdr = (hf * 12f0) / df
+        cr = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * Float32(prd) - 0.116274f0 * (df / Float32(qmdplt))
     else
-        cr = NC_BCR0[sp] + NC_BCR1[sp]*Float32(d) + NC_BCR2[sp]*hf + NC_BCR3[sp]*Float32(ba) +
+        cr = NC_BCR0[sp] + NC_BCR1[sp]*df + NC_BCR2[sp]*hf + NC_BCR3[sp]*Float32(ba) +
              NC_BCR5[sp]*Float32(tpccf) + NC_BCR6[sp]*(Float32(avh)/hf) + NC_BCR8[sp]*Float32(avh) +
-             NC_BCR9[sp]*(Float32(ba)*Float32(tpccf)) + NC_BCR10[sp]*50f0   # RMAI=50 (grinit.f:139)
+             NC_BCR9[sp]*(Float32(ba)*Float32(tpccf)) + NC_BCR10[sp]*50f0
     end
-    abs(cr) >= 86f0 && (cr = 86f0)                       # dubscr.f: IF(ABS(CR+FCR).GE.86.)CR=86.
-    cr = 1f0 / (1f0 + exp(cr))
-    cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+    sd = NC_CRSD[sp]; fcr = 0f0
+    while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
+    abs(cr + fcr) >= 86f0 && (cr = 86f0)                 # dubscr.f: IF(ABS(CR+FCR).GE.86.)CR=86.
+    cr = 1f0 / (1f0 + exp(cr + fcr))
+    cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
     return cr
 end
 
@@ -75,17 +83,27 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
     sd = s.coef.species
     ba = p.basal_area; sdiac = crown_sdi
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    qmd = stand_qmd(s)
     # rank by (D+G) descending → ISORT (largest = rank 1)
     key = Vector{Float32}(undef, n); idx = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
-        bk = bark_ratio(bark_a, bark_b, Int(t.species[i]), t.dbh[i])
+        bk = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # crown.f ISORT key D+DG/BRATIO — shared variant bark
         key[i] = t.dbh[i] + t.diam_growth[i] / bk; idx[i] = Int32(i)
     end
     _rdpsrt!(key, idx; lseq = false)
     isort = Vector{Int32}(undef, n)
     @inbounds for jj in 1:n; isort[idx[jj]] = Int32(n - jj + 1); end
-    @inbounds for i in 1:n
+    # nc/crown.f:87-104 — SDICAL XMAXPT + per-point Zeide ZRD (live trees), computed once; PRD/QMDPLT per point.
+    xmaxpt, zrd, _ = point_zeide!(s)
+    dens = s.density
+    _prd(pt) = (1 <= pt <= length(xmaxpt) && xmaxpt[pt] > 0f0) ? zrd[pt] / xmaxpt[pt] : 0f0
+    function _qmdplt(pt)
+        baplt = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : 0f0
+        tpaplt = (1 <= pt <= length(dens.point_tpa)) ? dens.point_tpa[pt] : 0f0
+        q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+        q <= 1f0 ? 1f0 : q
+    end
+    # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 12) && continue
@@ -97,8 +115,7 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             pttpa = (1 <= pt <= length(s.density.point_tpa)) ? s.density.point_tpa[pt] : 0f0
             qmdplt = pttpa > 0f0 ? sqrt((ptba / pttpa) / 0.005454f0) : 1f0
             qmdplt < 1f0 && (qmdplt = 1f0)
-            # PRD = point Zeide relative density (ZRD/XMAXPT); only sp12 RW uses it — 0 baseline (RW dub cornered).
-            cr = nc_dubscr(sp, d, h, ba, tpccf, p.avg_height, 0f0, qmdplt)
+            cr = nc_dubscr(s.rng, sp, d, h, ba, tpccf, p.avg_height, _prd(pt), qmdplt)   # PRD = ZRD/XMAXPT (point)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
             lo = sp == 12 ? 5 : 10
             icri > 95 && (icri = 95); icri < lo && (icri = lo); icri < 1 && (icri = 1)
@@ -109,11 +126,10 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
         relsdi > 1.5f0 && (relsdi = 1.5f0)
         local crnew::Float32
-        if sp == 12                                       # redwood — logistic
-            hdr = d > 0f0 ? h / d : 1f0
-            prd = relsdi
-            qp = qmd > 0f0 ? d / qmd : 1f0
-            xl = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-3)) + 0.869720f0 * prd - 0.116274f0 * qp
+        if sp == 12                                       # redwood — logistic (nc/crown.f:233-277, all POINT terms)
+            pt = Int(t.plot_id[i])
+            hdr = (h * 12f0) / d
+            xl = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * _prd(pt) - 0.116274f0 * (d / _qmdplt(pt))
             x = 1f0 / (1f0 + exp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 100f0
@@ -123,7 +139,7 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             c = NC_WEIBC0[sp] + NC_WEIBC1[sp] * acrnew
             scale = 1.5f0 - relsdi
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = (b * (-log(1f0 - x))^(1f0 / c)) * 10f0    # A=WEIBA=0
         end
@@ -138,53 +154,14 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         icri > 95 && (icri = 95); icri < lo && (icri = lo)
         t.crown_pct[i] = Int32(icri)
     end
+    # nc/crown.f:404-452 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT, TPCCF = PCCF(ITRE(I))).
+    lstart && dub_dead_crowns!(s) do i
+        pt = Int(t.plot_id[i])
+        tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+        icri_round(nc_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, tpccf, p.avg_height, _prd(pt), _qmdplt(pt)))
+    end
     return s
 end
 
-# nc/cratet.f LSTART crown-init: FVS's DENSE (called during CRATET before the crown dub) runs over the FULL
-# inventory — live PLUS HISTORY 6-9 standing-dead records — so the dead-inclusive density (BA/AVH/point-CCF) is
-# what CROWN→DUBSCR sees when dubbing the D<1 / missing-CR LIVE trees. jl partitions the dead into
-# t.n+1:t.n+ndead, so we temporarily extend the live range to fold them in, then restore live-only afterward.
-# dense.f:83-87: standing-dead records load WK3=DBH EXCEPT IMC(I)==9 (HISTORY 8,9) which load DBH=0 — so
-# HISTORY 8,9 contribute 0 to the DBH-based density (BA/CCF/SDI) while their HEIGHT still enters AVH (AVHT40,
-# dense.f:285-297, sums HT over the 40 largest-REAL-DBH TPA via the descending-real-DBH IND sort — NOT WK3).
-# Measured on CN 30191796010497 (681-TPA seedling stand + a dead HISTORY-8 9.5"/57ft record): live DUBSCR
-# AVH 38.945 vs jl live-only 1.01 ⇒ seedling crowns dubbed 57/69 (live) not jl's 72 ⇒ the 0.0566·CR² htgr5
-# term ran ~4%/cycle high ⇒ compounding DG/BA/SDI over-growth ⇒ SDI self-thin fired early ⇒ over-mortality
-# (2033 TPA jl 259 vs oracle 490). Mirror of bm_crown_init_lstart!.
-function nc_crown_init_lstart!(s::StandState)
-    t = s.trees
-    nlive = t.n
-    if t.ndead > 0
-        t.n = nlive + t.ndead
-        # NOTRE (notre.f:122-124) inflates DEAD-record PROB by FINT/FINTM (DG-measurement period / mortality-
-        # observation period) so the recent dead are re-added at the right rate for the BACKDATED calibration
-        # DENSE (cratet.f:172, LBKDEN). CROWN→DUBSCR runs against THAT dead-inclusive backdated density, so the
-        # dead heights enter AVH weighted by the INFLATED PROB. NC grinit.f:169-171 FINT=10/FINTM=5 ⇒ ×2. jl
-        # carries the true dead TPA, so inflate the dead partition here (scoped), then restore. (Measured: dead
-        # PROB 13.66→27.33 ⇒ AVH 20.14→38.94 ⇒ seedling crown 65%→57%, matching live DUBSCR.)
-        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
-        saved_tpa = fintr != 1f0 ? Float32[t.tpa[j] for j in (nlive + 1):(nlive + t.ndead)] : Float32[]
-        if fintr != 1f0
-            @inbounds for j in (nlive + 1):(nlive + t.ndead); t.tpa[j] *= fintr; end
-        end
-        # AVH from real DBH FIRST (before the WK3-zeroing), since compute_density! overwrites avg_height with
-        # the zeroed-DBH sort under which the HISTORY-8/9 dead (DBH→0) sink below the live seedlings.
-        avht_real = stand_top_height(s)      # AVHT40 over live + all dead records, real DBH, real HT
-        saved = Tuple{Int,Float32}[]
-        @inbounds for i in (nlive + 1):(nlive + t.ndead)
-            (t.history[i] == 8 || t.history[i] == 9) || continue
-            push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
-        end
-        compute_density!(s)                  # dead-inclusive BA / point-CCF (CRATET DENSE over all inv records)
-        @inbounds for (i, d) in saved; t.dbh[i] = d; end
-        s.plot.avg_height = avht_real        # AVHT40 top height from real DBH (dead heights included)
-        if fintr != 1f0
-            @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead)); t.tpa[j] = saved_tpa[k]; end
-        end
-        t.n = nlive
-    end
-    crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull-dub missing-CR
-    compute_density!(s)                      # restore live-only density so nothing downstream sees dead-inclusive BA
-    return s
-end
+# nc/cratet.f LSTART crown-init = the shared `crown_init_lstart_dead_inclusive!` (bluemountains/crown.jl): nc/cratet.f
+# runs the same backdated (LBKDEN) dead-inclusive DENSE before CROWN. The former NC-local copy skipped the backdating.

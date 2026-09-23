@@ -61,7 +61,8 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
     # IORG stashed by the growth hook (op_iorg is the shared ORGANON per-tree flag). A tree beyond the
     # stashed length (fresh regen added after the hook) is FVS-native ⇒ treated as IORG=0.
     org_ran = length(c.op_iorg) >= n
-    @inbounds for i in 1:n
+    # oc/crown.f DO 70 ISPC … I=IND1(I3): species-major (the RANN d≤0 draw follows this order).
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         (org_ran && c.op_iorg[i] == 1) && continue        # ORGANON crown already set in the hook
         sp = Int(t.species[i]); (sp < 1 || sp > 50) && continue
@@ -75,7 +76,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
         C = OC_WEIBC0[grp] + OC_WEIBC1[grp] * acrnew; C < 2f0 && (C = 2f0)
         scale = 1.5f0 - relsdi                            # oc/crown.f:312 (OC form, NOT RELDEN)
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : 0.5f0 * scale   # RANN path (d=0) inert
+        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0) inert
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
         crnew = A + B * (-flog(1f0 - x))^(1f0 / C)
         crnew *= 10f0

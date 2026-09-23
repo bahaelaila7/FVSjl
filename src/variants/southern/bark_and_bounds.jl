@@ -27,6 +27,35 @@ Inside-bark / outside-bark DBH ratio for species `sp` at DBH `d` (bratio.f), whe
     return ratio
 end
 
+"""
+    variant_bratio(s, sp, d, h=0) -> Float32
+
+The variant's own BRATIO (each <v>/bratio.f), ONE dispatch for every site that converts inside⇄outside bark DG.
+DGDRIV's DDS→DG conversion (dgdriv.f DIB=DBH·BRATIO) and UPDATE's DBH+=DG/BRATIO (update.f:115) must use the SAME
+bark, or the round trip mis-grows DBH. They had drifted into two hand-kept lists: UPDATE lacked SO/CA/CI/NC-RW/BC/
+ON/WS and DGDRIV lacked WS/IE/OP, so those variants fell to the generic linear form, which floors at 0.80 when
+the variant keeps its bark coefficients elsewhere (SO WRD fixture: DF DBH +0.18" in one cycle ⇒ DQ10 high ⇒
+self-thinning over-kill, TPA −22).
+"""
+function variant_bratio(s::StandState, sp::Integer, d::Float32, h::Float32 = 0f0)::Float32
+    v = s.variant; sd = s.coef.species; isp = Int(sp)
+    v isa CentralRockies     && return cr_bratio(sd, isp, d, Int(s.plot.model_type))
+    v isa Teton              && return tt_bratio(isp, d)
+    v isa BritishColumbia    && return bc_bratio(isp)
+    v isa BlueMountains      && return bm_bratio(sd, isp, d)
+    v isa CentralIdaho       && return ci_bratio(sd, isp, d)
+    (v isa WestCascades || v isa PacificNorthwest || v isa EastCascades || v isa CentralCalifornia) &&
+        return wc_bratio(sd, isp, d)
+    v isa SouthCentralOregon && return so_bratio(sd, isp, d)
+    v isa WestSierra         && return ws_bratio(sd, isp, d)
+    v isa Ontario            && return on_bratio(isp, d, h)
+    v isa Olympic            && return op_bratio(isp, d)
+    v isa InlandEmpire       && return ie_bratio(isp, d)
+    v isa SoutheastAlaska    && return ak_bratio(isp, d)
+    (v isa Klamath && isp == 12) && return nc_bratio(sd[:bark1][12], sd[:bark2][12], Int(sd[:bark_imap][12]), d)
+    return bark_ratio(s.calib.bark_a, s.calib.bark_b, isp, d)
+end
+
 # Convenience: pull the bark columns straight from a coefficient container.
 @inline bark_ratio(c::SpeciesCoefficients, sp::Integer, d::Real) =
     bark_ratio(c.species[:bark_intercept], c.species[:bark_slope], sp, d)

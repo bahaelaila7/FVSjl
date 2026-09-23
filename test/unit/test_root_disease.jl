@@ -140,7 +140,8 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
     # -------------------------------------------------------------------------
     @testset "engine seam is LIVE — no-RD byte-identical (inert-seam guarantee)" begin
         # A stand with no RDIN block has root_disease === nothing ⇒ every seam is a
-        # no-op ⇒ its .sum is byte-identical to the pre-RD KT baseline (golden here).
+        # no-op ⇒ its .sum is byte-identical to the pre-RD KT baseline. These are a jl SELF-snapshot (the
+        # inert-seam guarantee), NOT oracle rows — KT vs live is asserted in the ABSOLUTE testset below.
         CTRL_TPA = Int[536, 448, 380, 332, 296, 264, 237, 212, 191, 175, 159]
         CTRL_BA  = Int[77, 99, 123, 146, 167, 180, 187, 193, 201, 209, 216]
         out_ctrl = _datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum))
@@ -158,25 +159,27 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test FVSjl.root_disease_treg!(s0, 10.0f0) === nothing
     end
 
-    @testset "engine seam is LIVE — WRD .sum DELTA vs oracle (cornered)" begin
-        # Oracle rd−ctrl delta (both FVSkt_clean); the thing FVSjl must reproduce.
-        ORA_dTPA = Int[0, -2, -4, -4, -3, -2, -2, -2, -2, -1, -2]
-        ORA_dBA  = Int[0, -2, -3, -5, -4, -5, -5, -6, -7, -7, -9]
+    @testset "KT WRD ABSOLUTE .sum vs live FVSkt_clean (OPEN: KT BA ±6 mid-run, TPA +7/+8 late)" begin
+        # Absolute live rows, both runs (replaces an rd−ctrl DELTA, blind to errors shared by both runs).
+        # OPEN: jl's KT control itself departs from live by up to 6 BA / 7 TPA — bounded here at today's
+        # measured maximum; the exactness @test_broken becomes an Unexpected Pass once KT is fixed.
+        LCT = Int[536, 447, 379, 333, 294, 263, 236, 211, 188, 169, 152]
+        LCB = Int[77, 99, 120, 143, 163, 181, 192, 199, 206, 209, 213]
+        LRT = Int[536, 445, 375, 329, 291, 261, 234, 209, 186, 168, 150]
+        LRB = Int[77, 97, 117, 138, 159, 176, 187, 193, 199, 202, 204]
         bc = split.(_datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum)))
         br = split.(_datarows(FVSjl.run_keyfile(rd_key;   variant = v, output = :sum)))
         @test length(bc) == length(br) == 11
-        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:11]
-        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:11]
-        # WRD signal is LIVE (rd ≠ ctrl): mortality + BA growth-loss both present.
-        @test dtpa != zeros(Int, 11)
-        @test dba[end] <= -6            # 2090 BA loss (oracle −9; cornered)
-        @test dtpa[end] <= -1           # 2090 TPA loss (oracle −2; cornered)
-        # Per-cycle delta reproduces the oracle delta bit-exact-or-CORNERED (±2,
-        # the #206 OLDRN serial-correlation growth straddle on the rounded .sum).
+        ct = [parse(Int, bc[k][3]) for k in 1:11]; cb = [parse(Int, bc[k][4]) for k in 1:11]
+        rt = [parse(Int, br[k][3]) for k in 1:11]; rb = [parse(Int, br[k][4]) for k in 1:11]
         for k in 1:11
-            @test abs(dtpa[k] - ORA_dTPA[k]) <= 2
-            @test abs(dba[k]  - ORA_dBA[k])  <= 2
+            @test abs(ct[k] - LCT[k]) <= 7
+            @test abs(cb[k] - LCB[k]) <= 6
+            @test abs(rt[k] - LRT[k]) <= 8
+            @test abs(rb[k] - LRB[k]) <= 6
         end
+        @test rt != ct && all(rb[k] <= cb[k] for k in 1:11)   # WRD signal live, never adds BA
+        @test_broken (ct, cb, rt, rb) == (LCT, LCB, LRT, LRB)
     end
 
     # -------------------------------------------------------------------------
@@ -903,14 +906,11 @@ TREEDATA
     end
 
     # -------------------------------------------------------------------------
-    # LIVE .sum-DELTA validation of the new dispatch on a representative subset
-    # with DISTINCT IRTSPC (CR: 38-sp radically-reordered Rockies; BM: 18-sp
-    # eastside; NC/Klamath: 12-sp westside fully-remapped). Oracle rd−ctrl deltas
-    # captured from the live relinked FVS<v>_clean (links rdblk1<v>.f) on the
-    # variant's own S248112 reference stand: RRType 3 (Armillaria), RRInit
-    # 0 10 10 20 0.1 10 3, SArea 100, same head/tre for ctrl and rd (ctrl strips
-    # the RDIN block). Compared as the DELTA (the FVSjl absolute baseline straddles
-    # the oracle per the #206 OLDRN self-thin straddle, which cancels in rd−ctrl).
+    # -------------------------------------------------------------------------
+    # LIVE ABSOLUTE .sum validation of every base-rd variant's WRD run (control AND rd) on the variant's own
+    # S248112 reference stand: RRType 3 (Armillaria), RRInit 0 10 10 20 0.1 10 3, SArea 100, same head/tre
+    # for ctrl and rd (ctrl strips the RDIN block). Goldens are ABSOLUTE rows from the no-legacy-main live
+    # oracles (FVS{v}_g16, 2026-09-21; FVScr_clean for CR) — see the table below.
     # -------------------------------------------------------------------------
     _wrd_head(title, stdinfo) = """
 SCREEN
@@ -928,7 +928,9 @@ TREEFMT
 T52,I2,T66,5I1,T54,7I1,T75,F3.0)
 TREEDATA
 """
-    function _wrd_delta(v, tre, stdinfo)
+    # Absolute first-11 rows (TPA, BA) of the control and rd runs. Some multi-species stands emit a trailing empty
+    # phantom-stand block in FVSjl; the oracle .sum has exactly 11 rows, so slice to the real stand.
+    function _wrd_abs(v, tre, stdinfo)
         d  = mktempdir()
         ck = joinpath(d, "c.key"); rk = joinpath(d, "r.key")
         write(ck, _wrd_head("RD CONTROL", stdinfo) * "ECHOSUM\nPROCESS\nSTOP\n")
@@ -937,10 +939,8 @@ TREEDATA
         write(joinpath(d, "r.tre"), tre)
         bc = split.(_datarows(FVSjl.run_keyfile(ck; variant = v, output = :sum)))
         br = split.(_datarows(FVSjl.run_keyfile(rk; variant = v, output = :sum)))
-        n  = min(length(bc), length(br))
-        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:n]
-        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:n]
-        return dtpa, dba
+        col(rows, c) = [parse(Int, rows[k][c]) for k in 1:min(11, length(rows))]
+        return col(bc, 3), col(bc, 4), col(br, 3), col(br, 4)
     end
 
     # Central Rockies reference stand (crt01.tre — S248112 in CR species).
@@ -976,20 +976,6 @@ TREEDATA
   29      248112       0110   011ES 05010   0253   00111    37  0
   30      248112       0111   011WF 06614   0307   00111     0  0
 """
-    @testset "CR WRD .sum DELTA vs FVScr_clean (rdblk1cr.f; cornered ±2)" begin
-        # oracle rd−ctrl from live /workspace/.crwork/FVScr_clean (10 cyc, 11 rows)
-        CR_ORA_dTPA = [0,-16,-24,-10,-6,-7,11,18, 7, 5, 4]
-        CR_ORA_dBA  = [0, -4, -9,-10,-10,-11,-6,-2,-1,-1,-2]
-        dtpa, dba = _wrd_delta(FVSjl.CentralRockies(), CR_TRE,
-                               "STDINFO          303    001010      60.0     315.0      30.0      88.0")
-        @test length(dtpa) == 11
-        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on CR
-        @test minimum(dba) <= -9                     # disease BA loss (oracle −11)
-        for k in 1:11
-            @test abs(dtpa[k] - CR_ORA_dTPA[k]) <= 2
-            @test abs(dba[k]  - CR_ORA_dBA[k])  <= 2
-        end
-    end
 
     # Blue Mountains reference stand (bmt01.tre — S248112 in BM species).
     BM_TRE = """
@@ -1024,20 +1010,6 @@ TREEDATA
   29      248112       0110   011ES 05010   0253   00111    37  0
   30      248112       0111   011WF 06614   0307   00111     0  0
 """
-    @testset "BM WRD .sum DELTA vs FVSbm_clean (rdblk1bm.f; cornered ±2)" begin
-        # oracle rd−ctrl from live /workspace/.bmwork/FVSbm_clean (weak but exact signal)
-        BM_ORA_dTPA = [0,0, 0,3,3,3,3,4,4,4,4]
-        BM_ORA_dBA  = [0,0,-1,0,-1,-1,-1,-1,-1,-1,-1]
-        dtpa, dba = _wrd_delta(FVSjl.BlueMountains(), BM_TRE,
-                               "STDINFO        614.0       12.      60.0     315.0      30.0      45.0")
-        @test length(dtpa) == 11
-        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on BM
-        @test maximum(dtpa) >= 3                      # RD self-thin shift present
-        for k in 1:11
-            @test abs(dtpa[k] - BM_ORA_dTPA[k]) <= 2
-            @test abs(dba[k]  - BM_ORA_dBA[k])  <= 2
-        end
-    end
 
     # Klamath (VARACD NC) reference stand (nctree.tre — S248112 in NC species; 5-yr cyc).
     NC_TRE = """
@@ -1072,53 +1044,10 @@ TREEDATA
   29      248112       0110   011RF 05010   0253   00111    37  0
   30      248112       0111   011WF 06614   0307   00111     0  0
 """
-    @testset "NC WRD .sum DELTA vs FVSnc_clean (rdblk1nc.f; live + early-cornered)" begin
-        # oracle rd−ctrl from live /workspace/.ncwork/FVSnc_clean (5-yr cyc, 11 rows).
-        # NC's ABSOLUTE baseline straddles the oracle in the LATE cycles (the #206
-        # OLDRN/RDPSRT self-thin realization shifts phase once the disease has thinned
-        # the dense stand), so the rd−ctrl delta only corners tightly in the pre-
-        # divergence window (rows 2:6, through 2015). Full-run liveness is still
-        # asserted (this is a baseline straddle, NOT an RD defect).
-        NC_ORA_dTPA = [0,-10,-14,-20,-25,-28,-10,-2,-5,-5,21]
-        NC_ORA_dBA  = [0, -1, -3, -7,-11,-15,-13,-13,-14,-16,-2]
-        dtpa, dba = _wrd_delta(FVSjl.Klamath(), NC_TRE,
-                               "STDINFO        505.0       84.      60.0     315.0      30.0      45.0")
-        @test length(dtpa) == 11
-        @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE on NC
-        @test minimum(dba) <= -9                     # strong disease BA loss (oracle −16)
-        @test all(dba[k] <= 0 for k in 2:11)          # disease only removes BA
-        for k in 2:6                                   # pre-divergence window
-            @test abs(dtpa[k] - NC_ORA_dTPA[k]) <= 3
-            @test abs(dba[k]  - NC_ORA_dBA[k])  <= 5
-        end
-    end
 
     # -------------------------------------------------------------------------
-    # WRD live .sum-DELTA smoke for the 9 remaining TRANSCRIBED variants
-    # (BC CI EC EM PN SO TT UT WS). The IRTSPC crosswalks were transcribed
-    # byte-for-byte from each linked bin/FVS<v>_buildDir/rdblk1<v>.f DATA and
-    # golden-tested above; here each one is LIVE-VALIDATED end-to-end: the
-    # rd−ctrl .sum DELTA from FVSjl is compared bit-exact-or-CORNERED vs the
-    # DELTA captured from the live relinked FVS<v>_clean oracle on that
-    # variant's own S248112 reference stand (host species present), RRType 3
-    # (Armillaria), RRInit 0 10 10 20 0.1 10 3, SArea 100, 10 cyc. ctrl strips
-    # the RDIN block; the FVSjl absolute baseline straddles the oracle per the
-    # #206 OLDRN self-thin straddle, which cancels in rd−ctrl. Oracle goldens
-    # were produced with /workspace/.<v>work/FVS<v>_clean (imperial variants
-    # via the same _wrd_head template; BC via its SITECODE/BEC head).
-    #
-    # Verdict summary (this session):
-    #  • CI EC PN SO — cornered across the FULL 10-cycle run (±2 TPA / ±2–3 BA).
-    #  • EM TT UT WS — LIVE + cornered in the PRE-DIVERGENCE early window; the
-    #    late cycles straddle (the #206 OLDRN/RDPSRT self-thin realization
-    #    phase-shifts once disease has thinned the dense stand — same class as
-    #    NC above, a baseline straddle, NOT an RD defect).
-    #  • BC — metric variant (trees/ha, m²/ha): RD signal LIVE and directional,
-    #    but its absolute magnitude inherits BC's documented +36% baseline-BA
-    #    straddle (FVSjl BC ctrl BA=224 vs oracle 165 @2000, TPA identical
-    #    2036=2036), so the delta is proportionally larger; compared by
-    #    direction + "FVSjl removes ≥ oracle" rather than a ±2 corner.
-    # -------------------------------------------------------------------------
+    # Reference stands for the remaining base-rd variants (CI EC EM PN SO TT UT WS BC), each S248112 in the
+    # variant's own species so the IRTSPC host map is exercised end-to-end.
     CI_TRE_RD = """
    1      248112       0101   011LP 11510   0734   00111     0  0
    2      248112       0101   031DF 001     0026   00222     0  0
@@ -1414,79 +1343,77 @@ TREEDATA
   30      248112       0111   011BG 06614   0307   00111     0  0
 """
 
-    # first-11-cycle rd−ctrl DELTA (some multi-species stands emit a trailing
-    # empty phantom-stand block in FVSjl that cancels in rd−ctrl; slice to the
-    # real 11-row stand, matching the oracle .sum which has exactly 11 rows).
-    _delta11(v, tre, stdinfo) = begin
-        dtpa, dba = _wrd_delta(v, tre, stdinfo)
-        (dtpa[1:11], dba[1:11])
-    end
-
-    # FULL-run cornered (CI EC PN SO). (name, variant, tre, stdinfo,
-    # oracle dTPA, oracle dBA, TPA tol, BA tol)
-    full_corner = [
-      ("CI", FVSjl.CentralIdaho(), CI_TRE_RD,
-       "STDINFO        412.0     520.0      60.0     315.0      30.0      50.0",
-       [0,-1,-1,-1,-1,0,0,0,0,0,0], [0,-1,-2,-2,-3,-3,-3,-4,-5,-5,-7], 2, 2),
-      ("EC", FVSjl.EastCascades(), EC_TRE_RD,
-       "STDINFO        608.0       12.      60.0     315.0      30.0      45.0",
-       [0,-15,-14,-10,-6,-6,-6,9,18,16,14], [0,-3,-6,-8,-8,-9,-9,-5,-1,-2,-2], 2, 2),
-      ("PN", FVSjl.PacificNorthwest(), PN_TRE_RD,
-       "STDINFO        612.0       40.      60.0     315.0      30.0       7.0",
-       [0,-3,-6,-8,-6,-5,-3,-3,-4,-3,-4], [0,-2,-6,-10,-11,-12,-13,-13,-12,-13,-12], 2, 3),
-      ("SO", FVSjl.SouthCentralOregon(), SO_TRE_RD,
-       "STDINFO        601.0       49.      60.0     315.0      30.0      45.0",
-       [0,-1,-1,-1,1,-2,-1,-1,0,1,3], [0,-1,-1,-1,-1,-1,-1,-2,-1,-2,-3], 2, 2),
+    # ABSOLUTE live rows, both runs. This replaces rd−ctrl DELTA assertions, which were blind by construction: an
+    # error shared by both runs cancels in the difference. Measured 2026-09-22, the deltas were hiding PN BA +62,
+    # SO BA +14/TPA ±16, EM BA +15 and WS TPA −59 on the CONTROL stands, and they passed PN while it was 62 BA off.
+    # Each row: live ctrl TPA, ctrl BA, rd TPA, rd BA (FVS{v}_g16), then the allowed |jl−live| per cell and a status.
+    #   floor = at the oracle floor (bound ≤ 2, print-rounding class).
+    #   OPEN  = a real, uninvestigated residual, bounded at today's measured maximum so it cannot silently grow,
+    #           plus an exactness @test_broken that turns into an Unexpected Pass (error) once the variant is fixed.
+    wrd_abs = [
+      ("BM", FVSjl.BlueMountains(), BM_TRE, "STDINFO        614.0       12.      60.0     315.0      30.0      45.0",
+       [536, 476, 425, 370, 302, 252, 204, 167, 139, 117, 98], [77, 98, 121, 136, 142, 146, 146, 146, 146, 146, 146],
+       [536, 476, 425, 373, 305, 255, 207, 171, 143, 121, 102], [77, 98, 120, 136, 141, 145, 145, 145, 145, 145, 145], 0, 0, "floor: bit-exact both runs"),
+      ("CR", FVSjl.CentralRockies(), CR_TRE, "STDINFO          303    001010      60.0     315.0      30.0      88.0",
+       [536, 528, 520, 489, 448, 415, 368, 286, 240, 204, 176], [77, 106, 138, 171, 198, 225, 247, 248, 249, 250, 252],
+       [536, 512, 496, 479, 442, 408, 379, 304, 247, 209, 180], [77, 102, 129, 161, 188, 214, 241, 246, 248, 249, 250], 1, 1, "floor: ±1 print-rounding cells"),
+      ("PN", FVSjl.PacificNorthwest(), PN_TRE_RD, "STDINFO        612.0       40.      60.0     315.0      30.0       7.0",
+       [536, 485, 442, 398, 358, 323, 291, 269, 251, 235, 223], [77, 113, 161, 208, 259, 304, 338, 364, 392, 409, 433],
+       [536, 482, 436, 390, 352, 318, 288, 266, 247, 232, 219], [77, 111, 155, 198, 248, 292, 325, 351, 380, 396, 421], 1, 1, "floor: ±1 (PN 2026-09-22: dead-crown dub, ATTEN, species-major REGENT, RELDEN)"),
+      ("SO", FVSjl.SouthCentralOregon(), SO_TRE_RD, "STDINFO        601.0       49.      60.0     315.0      30.0      45.0",
+       [613, 442, 361, 261, 203, 166, 144, 117, 99, 87, 75], [92, 102, 113, 124, 129, 133, 137, 140, 141, 145, 148],
+       [613, 441, 360, 260, 204, 164, 143, 116, 99, 88, 78], [92, 101, 112, 123, 128, 132, 136, 138, 140, 143, 145], 2, 1, "floor: ±1-2 (SO 2026-09-22: dead-crown dub, point CCF, variant BRATIO)"),
+      ("EC", FVSjl.EastCascades(), EC_TRE_RD, "STDINFO        608.0       12.      60.0     315.0      30.0      45.0",
+       [536, 530, 509, 476, 446, 422, 403, 372, 318, 276, 238], [77, 104, 131, 152, 172, 192, 209, 221, 221, 222, 222],
+       [536, 515, 495, 466, 440, 416, 397, 381, 336, 292, 252], [77, 101, 125, 144, 164, 183, 200, 216, 220, 220, 220], 4, 1, "OPEN: EC late-cycle TPA (≤4) — EC certification"),
+      ("CI", FVSjl.CentralIdaho(), CI_TRE_RD, "STDINFO        412.0     520.0      60.0     315.0      30.0      50.0",
+       [536, 435, 362, 306, 260, 224, 193, 169, 148, 131, 116], [77, 98, 120, 136, 152, 165, 176, 185, 191, 195, 200],
+       [536, 434, 361, 305, 259, 224, 193, 169, 148, 131, 116], [77, 97, 118, 134, 149, 162, 173, 181, 186, 190, 193], 2, 5, "OPEN: CI mid-run BA +5 — CI certification"),
+      ("NC", FVSjl.Klamath(), NC_TRE, "STDINFO        505.0       84.      60.0     315.0      30.0      45.0",
+       [536, 531, 527, 522, 518, 515, 479, 448, 421, 399, 346], [77, 96, 119, 144, 169, 202, 227, 252, 278, 302, 308],
+       [536, 521, 513, 502, 493, 487, 469, 446, 416, 394, 367], [77, 95, 116, 137, 158, 187, 214, 239, 264, 286, 306], 10, 7, "OPEN: NC late-cycle TPA/BA — NC certification"),
+      ("EM", FVSjl.EasternMontana(), EM_TRE_RD, "STDINFO        112.0     260.0      60.0     315.0      30.0      54.0",
+       [536, 526, 517, 507, 498, 488, 473, 454, 438, 423, 410], [77, 96, 114, 132, 150, 168, 184, 196, 208, 219, 230],
+       [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 19, 15, "OPEN: EM one-directional BA +15 — EM certification"),
+      ("TT", FVSjl.Teton(), TT_TRE_RD, "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
+       [536, 525, 515, 505, 494, 470, 443, 427, 411, 396, 385], [77, 99, 121, 141, 163, 183, 198, 213, 226, 241, 251],
+       [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 15, 5, "OPEN: TT mid-run TPA +15 — TT certification"),
+      ("UT", FVSjl.Utah(), UT_TRE_RD, "STDINFO        407.0     41416      60.0     315.0      30.0      83.0",
+       [536, 525, 515, 505, 505, 484, 463, 444, 429, 413, 401], [77, 101, 122, 142, 166, 181, 195, 209, 221, 235, 246],
+       [536, 511, 494, 481, 468, 462, 445, 426, 413, 395, 380], [77, 97, 114, 132, 151, 167, 181, 193, 205, 214, 222], 11, 6, "OPEN: UT cycle-4 TPA −11 — UT certification"),
+      ("WS", FVSjl.WestSierra(), WS_TRE_RD, "STDINFO        511.0       84.      60.0     315.0      30.0      45.0",
+       [536, 527, 518, 470, 421, 344, 244, 179, 131, 104, 84], [77, 123, 185, 230, 274, 299, 298, 298, 296, 294, 293],
+       [536, 511, 498, 462, 416, 364, 262, 193, 144, 111, 90], [77, 119, 174, 218, 261, 298, 298, 297, 296, 295, 293], 28, 10, "OPEN: WS TPA +28 / BA −10 (WS DUBSCR ported 2026-09-22; residual open)"),
     ]
-    for (name, v, tre, stdinfo, ot, ob, ttol, btol) in full_corner
-        @testset "$name WRD .sum DELTA vs FVS$(lowercase(name))_clean (rdblk1$(lowercase(name)).f; full-run cornered)" begin
-            dtpa, dba = _delta11(v, tre, stdinfo)
-            @test length(dtpa) == 11
-            @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE
-            @test minimum(dba) <= -2                     # disease BA loss present
+    for (name, v, tre, stdinfo, lct, lcb, lrt, lrb, ttol, btol, status) in wrd_abs
+        noadd = name != "WS"   # WS jl rd BA exceeds ctrl in mid-cycles (live never does) — part of WS OPEN
+        @testset "$name WRD ABSOLUTE .sum vs FVS$(lowercase(name)) live oracle ($status)" begin
+            ct, cb, rt, rb = _wrd_abs(v, tre, stdinfo)
+            @test length(ct) == length(rt) == 11
+            @test rt != ct || rb != cb                    # the WRD signal is live
+            if noadd
+                @test all(rb[k] <= cb[k] + 1 for k in 1:11)   # disease never adds BA (live holds it every cycle)
+            else
+                @test_broken all(rb[k] <= cb[k] + 1 for k in 1:11)
+            end
             for k in 1:11
-                @test abs(dtpa[k] - ot[k]) <= ttol       # cornered vs oracle DELTA
-                @test abs(dba[k]  - ob[k]) <= btol
+                @test abs(ct[k] - lct[k]) <= ttol
+                @test abs(cb[k] - lcb[k]) <= btol
+                @test abs(rt[k] - lrt[k]) <= ttol
+                @test abs(rb[k] - lrb[k]) <= btol
+            end
+            if startswith(status, "OPEN")
+                @test_broken (ct, cb, rt, rb) == (lct, lcb, lrt, lrb)
             end
         end
     end
 
-    # LIVE + EARLY-WINDOW cornered (EM TT UT WS); late cycles straddle (#206
-    # OLDRN self-thin, same class as NC). (name, variant, tre, stdinfo,
-    # oracle dTPA, oracle dBA, corner-window, TPA tol, BA tol)
-    early_corner = [
-      ("EM", FVSjl.EasternMontana(), EM_TRE_RD,
-       "STDINFO        112.0     260.0      60.0     315.0      30.0      54.0",
-       [0,-9,-14,-15,-16,-15,-9,-8,-8,-8,-7], [0,-2,-3,-5,-5,-6,-4,-4,-4,-4,-4], 1:5, 2, 2),
-      ("TT", FVSjl.Teton(), TT_TRE_RD,
-       "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
-       [0,-13,-18,-22,-23,-9,2,-1,-2,-2,-3], [0,-3,-7,-10,-13,-11,-9,-10,-10,-12,-12], 1:5, 2, 2),
-      ("UT", FVSjl.Utah(), UT_TRE_RD,
-       "STDINFO        407.0     41416      60.0     315.0      30.0      83.0",
-       [0,-14,-21,-24,-37,-22,-18,-18,-16,-18,-21], [0,-4,-8,-10,-15,-14,-14,-16,-16,-21,-24], 1:4, 2, 2),
-      ("WS", FVSjl.WestSierra(), WS_TRE_RD,
-       "STDINFO        511.0       84.      60.0     315.0      30.0      45.0",
-       [0,-16,-20,-8,-5,20,18,14,13,7,6], [0,-4,-11,-12,-13,-1,0,-1,0,1,0], 1:5, 2, 3),
-    ]
-    for (name, v, tre, stdinfo, ot, ob, win, ttol, btol) in early_corner
-        @testset "$name WRD .sum DELTA vs FVS$(lowercase(name))_clean (rdblk1$(lowercase(name)).f; live + early-cornered)" begin
-            dtpa, dba = _delta11(v, tre, stdinfo)
-            @test length(dtpa) == 11
-            @test dtpa != zeros(Int, 11)                 # WRD signal is LIVE
-            @test minimum(dba) <= -3                     # strong disease BA loss
-            for k in win                                  # pre-divergence window
-                @test abs(dtpa[k] - ot[k]) <= ttol
-                @test abs(dba[k]  - ob[k]) <= btol
-            end
-        end
-    end
-
-    # BC — metric; RD signal LIVE + directional, magnitude inherits the
-    # documented BC baseline-BA straddle (see header). Oracle DELTA from live
-    # /workspace/.bcwork/FVSbc_clean on the BC host stand (SITECODE/BEC head).
-    @testset "BC WRD .sum DELTA vs FVSbc_clean (rdblk1bc.f; live + directional, metric)" begin
-        BC_ORA_dTPA = [0,-89,-84,-81,-76,-74,-71,-69,-64,-61,-59]
-        BC_ORA_dBA  = [0,-11,-11,-10,-10,-9,-9,-9,-8,-8,-7]
+    # BC — metric (trees/ha, m²/ha). ABSOLUTE rows vs live /workspace/.bcwork/FVSbc_clean on the BC host stand
+    # (SITECODE/BEC head). The control run was long documented as a "+36% baseline-BA straddle" (jl BA 224 vs live
+    # 165 at 2000). It was not a straddle: UPDATE grew DBH by DG/0.80 (the generic bark floor) instead of BC's
+    # constant BARK1. With the shared variant_bratio (2026-09-22) the control is within ±1 BA / +2 TPA through 2090.
+    # The rd run still kills ~19 trees/ha more than live at 2000 — OPEN (BC WRD kill).
+    @testset "BC WRD ABSOLUTE .sum vs FVSbc live oracle (ctrl floor; rd OPEN: BC WRD kill +19/ha)" begin
         d  = mktempdir()
         ck = joinpath(d, "c.key"); rk = joinpath(d, "r.key")
         bc_head(title) = """
@@ -1512,18 +1439,21 @@ TREEDATA
         write(joinpath(d, "r.tre"), BC_TRE_RD)
         bc = split.(_datarows(FVSjl.run_keyfile(ck; variant = FVSjl.BritishColumbia(), output = :sum)))
         br = split.(_datarows(FVSjl.run_keyfile(rk; variant = FVSjl.BritishColumbia(), output = :sum)))
-        dtpa = [parse(Int, br[k][3]) - parse(Int, bc[k][3]) for k in 1:11]
-        dba  = [parse(Int, br[k][4]) - parse(Int, bc[k][4]) for k in 1:11]
-        @test dtpa != zeros(Int, 11)                     # WRD signal is LIVE on BC
-        @test all(dba[k] <= 0 for k in 2:11)             # disease only removes BA
-        @test minimum(dba) <= -14                        # strong (metric) disease loss
-        # FVSjl removes ≥ oracle every cycle — the excess tracks BC's +36%
-        # baseline-BA straddle (denser trees ⇒ larger root radius ⇒ more kill),
-        # a documented pre-existing baseline straddle, NOT a WRD defect.
-        for k in 2:11
-            @test dtpa[k] <= BC_ORA_dTPA[k] + 2          # jl at least as strong
-            @test dba[k]  <= BC_ORA_dBA[k]  + 1
+        col(rows, c) = [parse(Int, rows[k][c]) for k in 1:11]
+        ct, cb, rt, rb = col(bc, 3), col(bc, 4), col(br, 3), col(br, 4)
+        LCT = [2087, 2036, 1959, 1882, 1813, 1746, 1682, 1623, 1566, 1509, 1457]
+        LCB = [8, 165, 161, 156, 153, 148, 145, 142, 139, 136, 133]
+        LRT = [2087, 1947, 1875, 1801, 1737, 1672, 1611, 1554, 1502, 1448, 1398]
+        LRB = [8, 154, 150, 146, 143, 139, 136, 133, 131, 128, 126]
+        for k in 1:11
+            @test abs(ct[k] - LCT[k]) <= 2       # control: at the floor (print rounding)
+            @test abs(cb[k] - LCB[k]) <= 1
+            @test abs(rt[k] - LRT[k]) <= 19      # rd: OPEN, bounded at today's measured max
+            @test abs(rb[k] - LRB[k]) <= 2
         end
+        @test rt != ct                           # the WRD signal is live
+        @test all(rb[k] <= cb[k] for k in 1:11)
+        @test_broken (rt, rb) == (LRT, LRB)
     end
 
 end

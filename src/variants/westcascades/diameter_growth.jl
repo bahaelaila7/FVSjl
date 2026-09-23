@@ -109,6 +109,9 @@ end
     wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), Float32(d))
 
 "WC DGCONS: per-species (39) DGCON (wc/dgf.f ENTRY DGCONS). Stored in c.dg_const[sp]."
+# wc/dgf.f DATA OBSERV(19) — base-model observation counts per growth GROUP (JSPC).
+const WC_OBSERV = Float32[3664,1487,747,1467,596,2482,14999,1309,4836,2848,475,78,125,220,0,759,542,2144,8928]
+
 function wc_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     jfor = wc_jfor(Int(p.forest_idx))
@@ -132,6 +135,13 @@ function wc_dgcons!(s::StandState)
         c.dg_const[isp] = WC_DGFOR[jspc, isfor] + WC_DGEL[jspc] * temel +
                           WC_DGEL2[jspc] * temel * temel + WC_DGSITE[jspc] * log(max(xsite, 1f0)) + sasp
     end
+    # wc/dgf.f DGCONS: `ATTEN(JSPC)=OBSERV(JSPC)` — written at the GROUP index, but dgdriv.f:364 reads
+    # XNOB=ATTEN(ISPC) by SPECIES. So species isp pooling weight = OBSERV(isp) iff isp is some group's
+    # index, else the never-written COMMON 0. Faithful to that indexing (it is what FVS runs). ATTEN pools the
+    # calibrated DG residual SD with the base SIGMAR (dgdriv.f:554); absent, SIGMA was the raw sample SD.
+    @inbounds for isp in 1:39
+        c.atten[isp] = isp in WC_MAPSPC ? WC_OBSERV[isp] : 0f0
+    end
     return s
 end
 
@@ -142,6 +152,7 @@ function dgf!(s::StandState, ::WestCascades)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     slope = p.slope; asp = p.aspect
+    _xmaxpt, _zrd, _ = point_zeide!(s)   # dgf.f:352-370 SDICAL + SDICLS (RW point relative density)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i]); jspc = WC_MAPSPC[isp]
@@ -162,7 +173,7 @@ function dgf!(s::StandState, ::WestCascades)
         elseif isp == 17                               # REDWOOD (wc/dgf.f DGLT exp eq)
             conspp = c.dg_const[isp]                    # RW: COR applied AFTER, not in CONSPP
             pbal = ptba * pctfrac; pbal < 0f0 && (pbal = bal)
-            prd = 0f0                                   # PRD point-Zeide (TODO precompute; 0 baseline)
+            prd = (1 <= pt_i <= length(_xmaxpt) && _xmaxpt[pt_i] > 0f0) ? _zrd[pt_i] / _xmaxpt[pt_i] : 0f0   # dgf.f PRD=ZRD/XMAXPT (point)
             dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
                        0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
                        0.002203f0 * (slope * 100f0) * cos(asp))

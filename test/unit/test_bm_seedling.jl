@@ -8,7 +8,7 @@
 #      dead-inclusive AVH, which ranks trees by REAL DBH (IND) and sums real HT; jl zeroed t.dbh for the
 #      HISTORY 8/9 dead (BA/CCF WK3 semantics) BEFORE computing AVH, sinking the tall dead below the 0.1"
 #      seedlings ⇒ AVH≈seedling height (1.0) not the dead-inclusive top (67) ⇒ seedling CR dubbed ~80 not
-#      the capped 95 ⇒ over-vigorous SMHTGF height growth. (bluemountains/crown.jl bm_crown_init_lstart!)
+#      the capped 95 ⇒ over-vigorous SMHTGF height growth. (bluemountains/crown.jl crown_init_lstart_dead_inclusive!)
 #   2. SMHTGF site index (bm/smhtgf.f:78) — SMHTGF re-reads the RAW SITEAR(I); regent.f's [SLO,SHI] clamp
 #      is dead code for SMHTGF species. jl passed the clamped SI to bm_smhtgf, over-growing species whose
 #      SITEAR is below SLO (LP 23.9 → clamped 30.5). (bluemountains/regent.jl small_tree_growth!/bm_esgent!)
