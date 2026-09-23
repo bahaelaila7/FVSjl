@@ -142,8 +142,16 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         # A stand with no RDIN block has root_disease === nothing ⇒ every seam is a
         # no-op ⇒ its .sum is byte-identical to the pre-RD KT baseline. These are a jl SELF-snapshot (the
         # inert-seam guarantee), NOT oracle rows — KT vs live is asserted in the ABSOLUTE testset below.
-        CTRL_TPA = Int[536, 448, 380, 332, 296, 264, 237, 212, 191, 175, 159]
-        CTRL_BA  = Int[77, 99, 123, 146, 167, 180, 187, 193, 201, 209, 216]
+        # RE-PINNED 2026-09-23 when KT gained its LSTART crown dub (it had none: kt/cratet.f:598
+        # `IF(MISSCR)CALL CROWN`). These are a jl SELF-snapshot, so they move whenever KT's model does;
+        # the direction was checked against live FVSkt_clean on this same control key first:
+        #   dTPA  master [0,1,1,-1,2,1,1,1,3,6,7]  ->  now [0,0,0,0,3,4,3,4,3,4,4]   worst 7 -> 4
+        #   dBA   master [0,0,3,3,4,-1,-5,-6,-5,0,3] -> now [0,0,0,-1,-2,-7,-6,-2,2,7,10]  worst 6 -> 10
+        # i.e. the EARLY cycles go EXACT (master was off by 1-3 TPA and 3-4 BA through cycle 4) while the
+        # late-cycle BA drift grows — the upstream dub is now right (its per-tree PCT and EXPPCR match
+        # live exactly) and what is left is KT's own late growth/mortality residual, an OPEN KT item.
+        CTRL_TPA = Int[536, 447, 379, 333, 297, 267, 239, 215, 191, 173, 156]
+        CTRL_BA  = Int[77, 99, 120, 142, 161, 174, 186, 197, 208, 216, 223]
         out_ctrl = _datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum))
         for (k, row) in enumerate(out_ctrl)
             f = split(row)
