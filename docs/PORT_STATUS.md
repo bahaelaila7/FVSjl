@@ -183,6 +183,45 @@ EC `ecvol` col-24 ACCRETION is now `@test_broken` (its per-tree cycle-1 diffs we
 OPEN = EC (TPA 4), CI (BA 5), NC (TPA 10), EM (BA 15), TT (TPA 15), UT (TPA 11), WS (TPA 28/BA 10),
 KT (BA 6/TPA 8).
 
+## Crown initialisation, three shared fixes (2026-09-23, master `8b31b046`)
+
+The westside pass above left three more defects in the same area, each a *shared* FVS mechanism that
+FVSjl had implemented per-variant and let drift:
+
+1. **SDIAC was 0 at every LSTART crown dub.** `base/fvs.f:193-196` calls
+   `SDICLS(0,0.,999.,1,SDIAC,SDIAC2,…)` immediately before `CALL CRATET`, with the source comment
+   *"SDICLS IS CALLED HERE SO CROWNS WILL DUB CORRECTLY IN VARIANTS USING THE WEIBULL DISTRIBUTION"*.
+   FVSjl passed no `crown_sdi` there, so `RELSDI = SDIAC/SDIDEF` was 0 and `ACRNEW` sat at its maximum
+   `C0` for every Weibull-dubbed inventory crown, in every variant.
+2. **OC never ran the LSTART crown dub at all.** `oc/cratet.f:831-856` calls `CROWN` when a live or a
+   cycle-0 dead record still lacks a crown after ORGANON PREPARE, which only reloads the `IORG=1`
+   trees — so every FVS-native record with a missing crown, and every dead record, kept `crown_pct=0`.
+3. **The crown ISORT keyed the wrong diameter.** `crown.f` ranks `IND`, which is always a sort of the
+   *current* `DBH(I)`: cycling is `gradd.f:177-186` (`UPDATE` applies `DBH += DG/BRATIO`, *then*
+   `RDPSRT`), and FVSjl's apply-loop likewise precedes the crown call without clearing
+   `t.diam_growth`; LSTART is the read diameter. Eleven variants re-added a cycle of growth that had
+   already been applied. BM's correct form is now the shared `crown_isort(s; lstart)`.
+
+**Measured** on an OC control stand (S248112) carrying a missing crown on an `IORG=0` record: SDIAC
+live 196.15 vs jl 196.14972; that record's crown 0 (never dubbed) → 85 (with SDIAC=0) → **76, live's
+exact value**; `.sum` 1995 TPA live 511, jl 485 → 512.
+
+On the absolute WRD fixtures **PN (control+rd), SO (control+rd) and EC (rd) all reach BIT-EXACT**,
+joining BM at the oracle floor; NC's BA tolerance goes 7→3, CI's 5→2, UT's 6→3, while TT and UT each
+gain one TPA count. FIA ledgers: BM 400 stands unchanged at 398/400 bit-exact (same two diverging
+stands, zero signature changes), PN 5 improved / 1 worse, SO **23 → 25/40 bit-exact**.
+
+Two lessons worth keeping:
+
+* A fixture that exercises a mechanism is not the same as a fixture that *discriminates* on it. The
+  SDIAC bug was invisible on all 22 WRD fixture rows because every missing-crown record in those
+  `.tre` files is a **dead** record, which takes the `DO 79` DUBSCR path and never reads RELSDI.
+* `test/harness/fia/extract_sample.jl` now stratifies on an inventory **tree-count class**
+  (0 / 1-9 / 10-49 / 50+), balanced rather than proportional. Without it an EM draw came out 37/40
+  bare — nonstocked conditions FVS fills by AUTOES — and the committed 12-stand EM *tiered fixture*
+  came out 12/12 bare, so both instruments measured only the establishment path and were blind to the
+  growth and crown models they exist to certify. `TREE_CLASS_STRATA=0` reproduces the old draw.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live

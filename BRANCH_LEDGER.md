@@ -131,7 +131,9 @@ built on its predecessor, so ONE merge lands all four). Full `Pkg.test` on the m
 | `pn-regime-close` | d4ed4e0b | `.wt-pn` | absolute-row WRD tests; PN ATTEN/RELDEN/point-PRD; PN control BA +62 → ±1 | merged in `b56bfeda` |
 | `so-dig` | b559337e | `.wt-so` | SO point CCF, SO species-major REGENT, `variant_bratio` unification; SO control BA +14 → ±1 | merged in `b56bfeda` |
 | `deadcrown-all` | 1f3fbedb | `.wt-dead` | dead-record crown dub + species-major crown loops for the remaining variants; NC/WS DUBSCR; CI TEMMAI; RMAI grinit defaults; shared CRATET LSTART | merged in `b56bfeda` |
-| `em-crown` | 33045b01+ | `.wt-em` | EM four-class crown restructure, EM REGCAL, LHTDRG defaults | **NOT merged — under measurement** |
+| `oc-dub` | 6a131809 | `.wt-oc` | OC LSTART crown dub (oc/crown.f) + the shared SDIAC the Weibull dub was missing | merged in `8b31b046` |
+| `crown-isort` | a6d3716e | `.wt-isort` | one shared `crown_isort` (key = current DBH) + WRD tolerances reconciled | merged in `8b31b046` |
+| `em-crown` | 845e593c | `.wt-em` | EM four-class crown restructure, EM REGCAL, LHTDRG defaults, tree-count-stratified sampler | **NOT merged — EM tiered fixture being regenerated** |
 | `forest-explorer` | 1b28a1d4 | `.wt-explorer` | Forest Growth Explorer webapp (`apps/forest-explorer`) | KEEP, unmerged by design |
 
 `.wt-embisect` is a throwaway bisect worktree over the `em-crown` chain (detached HEAD); delete
