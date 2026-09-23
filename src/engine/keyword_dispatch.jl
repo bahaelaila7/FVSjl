@@ -769,9 +769,18 @@ function kw_mult!(s::StandState, rec::KeywordRecord, kind::Symbol)
     windowed = kind === :mort || kind === :fixdg || kind === :fixhtg || kind === :crn || kind === :fmort
     spfield, valfield = kind === :fmort ? (3, 2) : (2, 3)
     d1 = (windowed && pr[4]) ? Float32(v[4]) : 0f0
-    d2 = (windowed && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) : 99999f0
+    # CRNMULT's upper-DBH default is 99.0, NOT "no limit": initre.f:3439 (option 96) does
+    # `IF (ARRAY(5) .LE. 0.0) ARRAY(5)=99.0` before OPNEW stores it, so a blank or non-positive
+    # field-5 caps the band at 99 inches — trees above that get NO multiplier. The other windowed
+    # kinds (MORTMULT/FIXDG/FIXHTG/FMORTMLT) keep the open 99999 default.
+    d2 = (windowed && pr[5] && Float32(v[5]) > 0f0) ? Float32(v[5]) :
+         (kind === :crn ? 99f0 : 99999f0)
+    # CRNMULT field 6 = ARRAY(6), the "DUB FLAG" crown.f turns into ICFLG(ISPC) (a one-shot that
+    # reverts CRNMLT to 1 after the LSTART dub). Only CRNMULT reads a 6th field.
+    oneshot = kind === :crn && length(pr) >= 6 && pr[6] && Float32(v[6]) > 0f0
     push!(s.control.multipliers,
-          GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[spfield])), Float32(v[valfield]), d1, d2))
+          GrowthMultiplier(kind, Int32(nint(v[1])), Int32(nint(v[spfield])), Float32(v[valfield]),
+                           d1, d2, oneshot))
     return
 end
 
@@ -910,23 +919,57 @@ function active_mort_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
 end
 
 """
-    active_crn_mult(control, sp, year, dbh) -> Float32
+    active_crn_mult(control, sp, year, dbh; lstart=false) -> Float32
 
 The CRNMULT crown-ratio multiplier in effect for species `sp` at cycle `year`, when the
 tree's `dbh` is in the keyword's CLOSED DBH window [d1, d2] (sn/crown.f:318). Persists from
 the keyword date onward (most recent / species-specific wins). 1.0 when none applies.
+
+`lstart` selects the cycle-0 CRATET crown pass. It matters for a keyword that set the
+"DUB FLAG" (initre.f option 96 ARRAY(6) ⇒ crown.f `ICFLG(ISPC)=1`): crown.f statement 60 runs
+`IF(LSTART .AND. ICFLG(ISPC).EQ.1) THEN CRNMLT(ISPC)=1.0; ICFLG(ISPC)=0` at the END of the
+LSTART loop, so such an entry multiplies the INVENTORY DUB and is then reverted — unless its
+activity had not yet fired at LSTART (a date after the start year), in which case there is no
+later LSTART to reset it and it persists like any other entry.
 """
-function active_crn_mult(c::Control, sp::Integer, year::Integer, dbh::Real)
-    isempty(c.multipliers) && return 1f0
-    val = 1f0; d1 = 0f0; d2 = 99999f0; bestyr = typemin(Int32); bestspec = false
+function active_crn_mult(c::Control, sp::Integer, year::Integer, dbh::Real; lstart::Bool = false)
+    mult, dlow, dhi = crn_mult_band(c, sp, year; lstart = lstart)
+    return (dlow <= dbh <= dhi) ? mult : 1f0
+end
+
+"""
+    crn_mult_band(control, sp, year; lstart=false, def_mult=1, def_dlow=0, def_dhi=99) -> (mult, dlow, dhi)
+
+The per-species `CRNMLT(ISPC)` / `DLOW(ISPC)` / `DHI(ISPC)` triple every variant's `crown.f` reads.
+The DATA defaults are identical in all of them (`CRNMLT=1.0`, `DLOW=0.0`, **`DHI=99.0`**, `ICFLG=0`),
+and the CRNMULT keyword overwrites them when its scheduled activity has fired — `crown.f` only
+overwrites `DLOW`/`DHI` when the parameter is `> 0`, which is why a zero `d1` leaves the default.
+
+Returned as a TRIPLE rather than a single multiplier because `crown.f` uses them differently: the
+`CHG * CRNMLT` and `ICRI * CRNMLT` scalings are gated on the tree's DBH being inside `[DLOW, DHI]`,
+but the two `ICRI < 10` floor bumps are gated on `CRNMLT(ISPC) .EQ. 1.0` itself — the raw
+per-species value, whatever this tree's diameter is.
+"""
+function crn_mult_band(c::Control, sp::Integer, year::Integer; lstart::Bool = false,
+                       def_mult::Float32 = 1f0, def_dlow::Float32 = 0f0, def_dhi::Float32 = 99f0)
+    mult, dlow, dhi = def_mult, def_dlow, def_dhi
+    isempty(c.multipliers) && return (mult, dlow, dhi)
+    bestyr = typemin(Int32); bestspec = false
     @inbounds for m in c.multipliers
         (m.kind === :crn && sp_field_matches(c, m.species, sp) && m.year <= year) || continue
+        # crown.f statement 60 reverts a DUB-FLAG entry to 1.0 right after the LSTART pass, so it scales
+        # the inventory dub only. `c.start_year` is ISTDAT and is 0 unless a STDINFO/START date was
+        # given; the LSTART year is the FIRST CYCLE BOUNDARY (INVYEAR), which cycle_year[1] always holds.
+        (m.oneshot && !lstart && m.year <= c.cycle_year[1]) && continue
         spec = m.species != 0
         if m.year > bestyr || (m.year == bestyr && spec && !bestspec)
-            val = m.value; d1 = m.d1; d2 = m.d2; bestyr = m.year; bestspec = spec
+            mult = m.value                       # PRM(2), applied when >= 0 (crown.f:150)
+            m.d1 > 0f0 && (dlow = m.d1)          # PRM(3) — only overwritten when > 0
+            dhi = m.d2                           # PRM(4) — initre.f forces it > 0 (blank => 99)
+            bestyr = m.year; bestspec = spec
         end
     end
-    return (d1 <= dbh <= d2) ? val : 1f0
+    return (mult, dlow, dhi)
 end
 
 """

@@ -54,9 +54,14 @@ struct GrowthMultiplier
     value::Float32
     d1::Float32           # MORTMULT DBH window low  (XMDIA1, default 0)
     d2::Float32           # MORTMULT DBH window high (XMDIA2, default 99999)
+    oneshot::Bool         # CRNMULT only — initre.f opt 96 ARRAY(6) "DUB FLAG" ⇒ crown.f ICFLG(ISPC)=1:
+                          # apply the multiplier to the LSTART inventory dub, then reset CRNMLT to 1
+                          # (crown.f statement 60: IF(LSTART .AND. ICFLG(ISPC).EQ.1) CRNMLT=1; ICFLG=0)
 end
 GrowthMultiplier(kind, year, species, value) =
-    GrowthMultiplier(kind, year, species, value, 0f0, 99999f0)
+    GrowthMultiplier(kind, year, species, value, 0f0, 99999f0, false)
+GrowthMultiplier(kind, year, species, value, d1, d2) =
+    GrowthMultiplier(kind, year, species, value, d1, d2, false)
 
 # Event-monitor expression AST node (concrete types + evaluator in event_monitor.jl).
 abstract type EvNode end

@@ -183,6 +183,9 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
     relden = p.relative_density; sdiac = crown_sdi
     p_pccf = s.density.point_ccf
     rmai = lstart ? bm_rmai(p) : 0f0                        # maical RMAI (stand scalar) for the DUBSCR crown dub
+    # bm/crown.f:136-170 — the CRNMULT keyword (a scheduled activity) overwrites CRNMLT/DLOW/DHI per
+    # species; the CSV columns are the blkdat DATA defaults (1.0 / 0.0 / 99.0) it starts from.
+    cur_year = current_cycle_year(s)
     # ISORT(IND(JJ)) = ITRN−JJ+1 over FVS's IND (bm/crown.f:172-175). Cycling: IND is the gradd.f:186 / esnutr.f:325
     # RDPSRT(DBH,.TRUE.) of the ALREADY-GROWN DBH (UPDATE precedes CROWN; jl applies DBH before crown too), so the
     # key is t.dbh — the old dbh+DG/BARK re-added this cycle's growth. LSTART: CRATET's IND (bm_cratet_ind!).
@@ -204,14 +207,17 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart,
+                                           def_mult = BM_CRNMLT[sp], def_dlow = BM_CR_DLOW[sp],
+                                           def_dhi = BM_CR_DHI[sp])
         if d < 1f0 && lstart                               # bm/crown.f:336 label 58 — D<1 missing-CR at LSTART → DUBSCR
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
             cr = bm_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
             icri = trunc(Int, cr*100f0 + 0.5f0)
-            (d >= BM_CR_DLOW[sp] && d <= BM_CR_DHI[sp]) && (icri = trunc(Int, Float32(icri) * BM_CRNMLT[sp]))
+            (d >= cdlow && d <= cdhi) && (icri = trunc(Int, Float32(icri) * cmult))
             icri > 95 && (icri = 95)
-            (icri < 10 && BM_CRNMLT[sp] == 1f0) && (icri = 10)
+            (icri < 10 && cmult == 1f0) && (icri = 10)
             icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
@@ -235,22 +241,35 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = (d >= BM_CR_DLOW[sp] && d <= BM_CR_DHI[sp]) ? Float32(icr) + chg * BM_CRNMLT[sp] :
+            crnew = (d >= cdlow && d <= cdhi) ? Float32(icr) + chg * cmult :
                     Float32(icr) + chg
         end
         icri = trunc(Int, crnew + 0.5f0)
         if lstart || icr == 0
-            (d >= BM_CR_DLOW[sp] && d <= BM_CR_DHI[sp]) && (icri = trunc(Int, Float32(icri) * BM_CRNMLT[sp]))
+            (d >= cdlow && d <= cdhi) && (icri = trunc(Int, Float32(icri) * cmult))
         else
             # CRMAX cap (bm/crown.f:301-314): crown length can't exceed the height-growth-adjusted max.
             crln = h * Float32(icr) / 100f0; htg = t.ht_growth[i]
             crmax = (crln + htg) / (h + htg) * 100f0
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
-            (icri < 10 && BM_CRNMLT[sp] == 1f0) && (icri = trunc(Int, crmax + 0.5f0))
+            (icri < 10 && cmult == 1f0) && (icri = trunc(Int, crmax + 0.5f0))
+        end
+        # bm/crown.f statement 55 (:341-346) — a top-killed inventory record (ITRUNC>0) has its crown
+        # RE-EXPRESSED on the NORMAL height at LSTART: the crown length implied by ICRI on the normal
+        # height HN loses the dead top HD = HN − ITRUNC/100, and the remainder is re-stated as a
+        # fraction of HN. Was missing from the live loop (it was already in the DO 79 dead pass), so a
+        # broken-top tree kept the un-reduced crown. MEASURED on the BM RD stand with blanked inventory
+        # crowns (record 5, SP D=8.0): live `IN CROWN 9030 I,ITRUNC,NORMHT,HN,HD,ICRI,CL =
+        # 5 5600 6723 67.230 11.230 27 18.351` — jl produced the same pre-55 ICRI of 44 and then kept it.
+        if lstart && t.trunc[i] != 0
+            hn = Float32(t.norm_ht[i]) / 100f0
+            hd = hn - Float32(t.trunc[i]) / 100f0
+            cl = (Float32(icri) / 100f0) * hn - hd
+            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
         end
         # final clamps (bm/crown.f:347-349)
         icri > 95 && (icri = 95)
-        (icri < 10 && BM_CRNMLT[sp] == 1f0) && (icri = 10)
+        (icri < 10 && cmult == 1f0) && (icri = 10)
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
