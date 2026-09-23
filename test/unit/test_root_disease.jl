@@ -1359,43 +1359,41 @@ TREEDATA
        [536, 512, 496, 479, 442, 408, 379, 304, 247, 209, 180], [77, 102, 129, 161, 188, 214, 241, 246, 248, 249, 250], 1, 1, "floor: ±1 print-rounding cells"),
       ("PN", FVSjl.PacificNorthwest(), PN_TRE_RD, "STDINFO        612.0       40.      60.0     315.0      30.0       7.0",
        [536, 485, 442, 398, 358, 323, 291, 269, 251, 235, 223], [77, 113, 161, 208, 259, 304, 338, 364, 392, 409, 433],
-       [536, 482, 436, 390, 352, 318, 288, 266, 247, 232, 219], [77, 111, 155, 198, 248, 292, 325, 351, 380, 396, 421], 1, 1, "floor: ±1 (PN 2026-09-22: dead-crown dub, ATTEN, species-major REGENT, RELDEN)"),
+       [536, 482, 436, 390, 352, 318, 288, 266, 247, 232, 219], [77, 111, 155, 198, 248, 292, 325, 351, 380, 396, 421], 0, 0, "floor: BIT-EXACT both runs (2026-09-23 crown ISORT; was ±1)"),
       ("SO", FVSjl.SouthCentralOregon(), SO_TRE_RD, "STDINFO        601.0       49.      60.0     315.0      30.0      45.0",
        [613, 442, 361, 261, 203, 166, 144, 117, 99, 87, 75], [92, 102, 113, 124, 129, 133, 137, 140, 141, 145, 148],
-       [613, 441, 360, 260, 204, 164, 143, 116, 99, 88, 78], [92, 101, 112, 123, 128, 132, 136, 138, 140, 143, 145], 2, 1, "floor: ±1-2 (SO 2026-09-22: dead-crown dub, point CCF, variant BRATIO)"),
+       [613, 441, 360, 260, 204, 164, 143, 116, 99, 88, 78], [92, 101, 112, 123, 128, 132, 136, 138, 140, 143, 145], 0, 0, "floor: BIT-EXACT both runs (2026-09-23 crown ISORT; was ±1-2)"),
       ("EC", FVSjl.EastCascades(), EC_TRE_RD, "STDINFO        608.0       12.      60.0     315.0      30.0      45.0",
        [536, 530, 509, 476, 446, 422, 403, 372, 318, 276, 238], [77, 104, 131, 152, 172, 192, 209, 221, 221, 222, 222],
-       [536, 515, 495, 466, 440, 416, 397, 381, 336, 292, 252], [77, 101, 125, 144, 164, 183, 200, 216, 220, 220, 220], 4, 1, "OPEN: EC late-cycle TPA (≤4) — EC certification"),
+       [536, 515, 495, 466, 440, 416, 397, 381, 336, 292, 252], [77, 101, 125, 144, 164, 183, 200, 216, 220, 220, 220], 1, 0, "OPEN: EC control TPA ±1 in 2 cells, BA exact, rd run exact (2026-09-23 crown ISORT; was TPA ≤4) — EC certification"),
       ("CI", FVSjl.CentralIdaho(), CI_TRE_RD, "STDINFO        412.0     520.0      60.0     315.0      30.0      50.0",
        [536, 435, 362, 306, 260, 224, 193, 169, 148, 131, 116], [77, 98, 120, 136, 152, 165, 176, 185, 191, 195, 200],
-       [536, 434, 361, 305, 259, 224, 193, 169, 148, 131, 116], [77, 97, 118, 134, 149, 162, 173, 181, 186, 190, 193], 2, 5, "OPEN: CI mid-run BA +5 — CI certification"),
+       [536, 434, 361, 305, 259, 224, 193, 169, 148, 131, 116], [77, 97, 118, 134, 149, 162, 173, 181, 186, 190, 193], 3, 2, "OPEN: CI BA +5 → ±2, TPA +2 → +3 (2026-09-23 crown ISORT) — CI certification"),
       ("NC", FVSjl.Klamath(), NC_TRE, "STDINFO        505.0       84.      60.0     315.0      30.0      45.0",
        [536, 531, 527, 522, 518, 515, 479, 448, 421, 399, 346], [77, 96, 119, 144, 169, 202, 227, 252, 278, 302, 308],
-       [536, 521, 513, 502, 493, 487, 469, 446, 416, 394, 367], [77, 95, 116, 137, 158, 187, 214, 239, 264, 286, 306], 10, 7, "OPEN: NC late-cycle TPA/BA — NC certification"),
+       [536, 521, 513, 502, 493, 487, 469, 446, 416, 394, 367], [77, 95, 116, 137, 158, 187, 214, 239, 264, 286, 306], 9, 3, "OPEN: NC late-cycle TPA ≤9 / BA ≤3 (BA 7 → 3 with the 2026-09-23 crown ISORT) — NC certification"),
       ("EM", FVSjl.EasternMontana(), EM_TRE_RD, "STDINFO        112.0     260.0      60.0     315.0      30.0      54.0",
        [536, 526, 517, 507, 498, 488, 473, 454, 438, 423, 410], [77, 96, 114, 132, 150, 168, 184, 196, 208, 219, 230],
        [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 19, 15, "OPEN: EM one-directional BA +15 — EM certification"),
       ("TT", FVSjl.Teton(), TT_TRE_RD, "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
        [536, 525, 515, 505, 494, 470, 443, 427, 411, 396, 385], [77, 99, 121, 141, 163, 183, 198, 213, 226, 241, 251],
-       [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 15, 5, "OPEN: TT mid-run TPA +15 — TT certification"),
+       [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 16, 5, "OPEN: TT mid-run TPA +16 (was +15; the 2026-09-23 crown ISORT moved it one) — TT certification"),
       ("UT", FVSjl.Utah(), UT_TRE_RD, "STDINFO        407.0     41416      60.0     315.0      30.0      83.0",
        [536, 525, 515, 505, 505, 484, 463, 444, 429, 413, 401], [77, 101, 122, 142, 166, 181, 195, 209, 221, 235, 246],
-       [536, 511, 494, 481, 468, 462, 445, 426, 413, 395, 380], [77, 97, 114, 132, 151, 167, 181, 193, 205, 214, 222], 11, 6, "OPEN: UT cycle-4 TPA −11 — UT certification"),
+       [536, 511, 494, 481, 468, 462, 445, 426, 413, 395, 380], [77, 97, 114, 132, 151, 167, 181, 193, 205, 214, 222], 12, 3, "OPEN: UT TPA ≤12 (was 11), BA 6 → 3 (2026-09-23 crown ISORT) — UT certification"),
       ("WS", FVSjl.WestSierra(), WS_TRE_RD, "STDINFO        511.0       84.      60.0     315.0      30.0      45.0",
        [536, 527, 518, 470, 421, 344, 244, 179, 131, 104, 84], [77, 123, 185, 230, 274, 299, 298, 298, 296, 294, 293],
        [536, 511, 498, 462, 416, 364, 262, 193, 144, 111, 90], [77, 119, 174, 218, 261, 298, 298, 297, 296, 295, 293], 28, 10, "OPEN: WS TPA +28 / BA −10 (WS DUBSCR ported 2026-09-22; residual open)"),
     ]
     for (name, v, tre, stdinfo, lct, lcb, lrt, lrb, ttol, btol, status) in wrd_abs
-        noadd = name != "WS"   # WS jl rd BA exceeds ctrl in mid-cycles (live never does) — part of WS OPEN
+        # "disease never adds BA" now holds for EVERY variant: WS's rd BA used to exceed its own control in the
+        # mid-cycles (live never does), and the 2026-09-23 crown ISORT fix removed that. Kept as a live @test.
+        noadd = true
         @testset "$name WRD ABSOLUTE .sum vs FVS$(lowercase(name)) live oracle ($status)" begin
             ct, cb, rt, rb = _wrd_abs(v, tre, stdinfo)
             @test length(ct) == length(rt) == 11
             @test rt != ct || rb != cb                    # the WRD signal is live
-            if noadd
-                @test all(rb[k] <= cb[k] + 1 for k in 1:11)   # disease never adds BA (live holds it every cycle)
-            else
-                @test_broken all(rb[k] <= cb[k] + 1 for k in 1:11)
-            end
+            @test all(rb[k] <= cb[k] + 1 for k in 1:11)   # disease never adds BA (live holds it every cycle)
             for k in 1:11
                 @test abs(ct[k] - lct[k]) <= ttol
                 @test abs(cb[k] - lcb[k]) <= btol
