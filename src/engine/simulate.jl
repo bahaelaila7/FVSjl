@@ -176,6 +176,13 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BritishColumbia
         bc_dgcons!(s)                     # BC V3 DGCON (ZNKONST/SSKONST via BEC PrettyName match) — chunk 3, V3 zones only
+        compute_density!(s)               # current-stand density before the dub
+        crown_init_lstart_dead_inclusive!(s)  # canada/bc/cratet.f:529+ `IF(MISSCR)CALL CROWN` over the live AND the
+                                          # cycle-0 dead records, against the same backdated dead-inclusive DENSE
+                                          # (bc/cratet.f:206 `LBKDEN = IDG.LT.2`). jl had NO LSTART crown call for BC
+                                          # at all — the same defect KT and OC had. The sub-2cm DUBSCR route inside
+                                          # bc/crown.f stays deferred (documented), so this dubs the >=2cm
+                                          # missing-crown records via the V3 PCR model.
         calibrate_diameter_growth!(s; scale = dgscale)
         dm_init!(s)                       # #196 C1: seed NEWSPRED per-tree initial DMR from damage codes (inert until C6)
     elseif s.variant isa Klamath
