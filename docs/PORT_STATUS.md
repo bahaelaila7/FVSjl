@@ -144,6 +144,45 @@ external selection** is ported (the deterministic selection rule bit-exact, and 
 read-back path validated via a staged `PPE_FFERdAccess.txt`). Only `hvproj` (the external-only
 project-ahead) remains deferred.
 
+## Westside shared fixes (2026-09-23, master `b56bfeda`)
+
+Rewriting the root-disease fixture tests from `rd − ctrl` **deltas** to **absolute** live rows
+removed the cancellation that had been hiding *control-stand* bugs: PN was +62 BA over live on
+the control run, SO +14, BC's long-documented "+36% baseline-BA straddle" was a real bug, and
+EC/CI/NC/WS all carried smaller one-directional offsets. **A delta test is not a validation of
+either side** — that is the reusable lesson.
+
+Digging those out surfaced six defects that were each a *shared* FVS mechanism implemented as a
+hand-kept per-variant whitelist in FVSjl, drifted out of sync with the Fortran:
+
+1. **Dead-record crown dub** — `crown.f` `DO 79 I=IREC2,MAXTRE` dubs crowns on the DEAD records
+   too, in all 23 variants; FVSjl ran it for BM/IE/PN only. The missing records skip their
+   `DUBSCR` `BACHLO` draws, so the whole downstream DGSCOR stream is offset (PN: 3 draws).
+   Now one shared `dub_dead_crowns!` in `src/engine/crown_init.jl`.
+2. **ATTEN** (`dgdriv.f:554` SIGMA pooling) was never set for PN/WC/NC/EC/CA.
+3. **RELDEN** was set only for whitelisted variants, so PN/WC/NC/CA read 0 — which pins the crown
+   `SCALE` at 1.0 and starves the LPMPB/COVER/DFTM/establishment consumers.
+4. **Species-major draw order** — the REGENT `ZZRAN` loop walked storage order; Fortran walks
+   species-major via `IND1`. Now `species_major_order(s)`.
+5. **Point density** — `point_density!` had no SO/WS branch, so those variants fell back to the
+   generic crown width and computed `PCCF` ~100× low.
+6. **One `variant_bratio`** — DGDRIV, UPDATE, backdating, calibration and the MORTS `DQ10` each
+   carried their own bark-ratio dispatch. UPDATE lacked SO/CA/CI/NC-redwood/BC/ON/WS; MORTS was
+   CR/BM/EC/CA-only. This was the BC bug.
+
+Plus: the per-variant **RMAI `grinit` default** (50.0 in 16 variants, 0.0 in BC/CI/IE/KT/SN/WS)
+was set nowhere but SO; WS `DUBSCR` was a fixed-10 stub; NC `DUBSCR` consumed no draw and the
+redwood branch used stand rather than point density; CI `TEMMAI` was unported.
+
+Four goldens moved and were reconciled **honestly against live**, not re-pinned to silence:
+EC `ecvol` col-24 ACCRETION is now `@test_broken` (its per-tree cycle-1 diffs went 27 → 12, i.e.
+*closer* to live), BC `dmntrd` SDI 1303 → 1241 (live 936) and CI simfire pre-fire TREES 304 → 302
+(live 300) are jl self-snapshots re-pinned in the direction of live.
+
+**Still open on the fixtures** (absolute rows, control + rd): BM exact; CR/PN/SO/BC control ±1–2;
+OPEN = EC (TPA 4), CI (BA 5), NC (TPA 10), EM (BA 15), TT (TPA 15), UT (TPA 11), WS (TPA 28/BA 10),
+KT (BA 6/TPA 8).
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
