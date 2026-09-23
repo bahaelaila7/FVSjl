@@ -50,7 +50,67 @@ const EM_CRHAB  = Float32[0.09453, -0.07740, 0.07113, 0.2039, 0.06176, 0.1513, 0
 const EM_CR_MAPHAB = Int[2,2,2,2,2,2,2,2,2,2,2,2,2,3,4,4,4,4,5,6,6,7,6,1,8,1,9,10,10,6]  # ITYPE→CRHAB idx (13*2,3,4*4,5,6,6,7,6,1,8,1,9,2*10,6)
 const _EM_CRSD = 6.35f0
 
-function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, lstart::Bool = false, kwargs...)
+# em/blkdat.f DATA HT1/HT2 — the Wykoff HT-DBH intercept/slope cratet.f dubs missing heights with (and fits AA
+# against). EM's species_coefficients.csv ht1/ht2/wykoff_ht2 columns are NOT these (CR placeholders), so the dub
+# and the AA fit must read these. Verified vs live FVSem_g16 CRATET debug: sp2 default INTERCEPT 4.1539 / SLOPE −4.212.
+const EM_BLK_HT1 = Float32[4.1539, 4.1539, 4.4161, 4.1920, 4.76537, 3.2, 4.5356, 4.7537, 4.5788, 4.414,
+                           4.4421, 4.4421, 4.4421, 4.4421, 4.4421, 4.4421, 4.4421, 4.1539, 4.4421]
+const EM_BLK_HT2 = Float32[-4.212, -4.212, -6.962, -5.1651, -7.61062, -5.0, -5.692, -8.356, -7.138, -8.907,
+                           -6.5405, -6.5405, -6.5405, -6.5405, -6.5405, -6.5405, -6.5405, -4.212, -6.5405]
+
+# em/crown.f DATA — the EMVAR/UTTVAR rank-Weibull crown coefficients (generated from the Fortran).
+const EM_CR_WEIBA = Float32[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const EM_CR_WEIBB0 = Float32[0.11035, 0.11035, 0.14652, -0.82631, 0.0, 0.0, -0.00359, 0.67059, 0.73693, 0.02663, 0.0, -0.08414, 0.0, 0.0, 0.0, 0.0, -0.08414, 0.11035, 0.0]
+const EM_CR_WEIBB1 = Float32[1.10085, 1.10085, 1.09052, 1.06217, 0.0, 0.0, 1.12728, 0.99349, 0.98414, 1.11477, 0.0, 1.14765, 0.0, 0.0, 0.0, 0.0, 1.14765, 1.10085, 0.0]
+const EM_CR_WEIBC0 = Float32[0.02774, 0.02774, 1.04746, 3.31429, 0.0, 0.0, 2.60377, -4.25938, -4.16681, 2.95048, 0.0, 2.77500, 0.0, 0.0, 0.0, 0.0, 2.77500, 0.02774, 0.0]
+const EM_CR_WEIBC1 = Float32[0.35524, 0.35524, 0.39752, 0.0, 0.0, 0.0, 0.0, 1.35687, 1.33779, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.35524, 0.0]
+const EM_CR_C0 = Float32[5.68625, 5.68625, 5.92714, 6.19911, 0.0, 0.0, 5.05870, 7.41093, 7.36476, 5.61047, 0.0, 4.01678, 0.0, 0.0, 0.0, 0.0, 4.01678, 5.68625, 0.0]
+const EM_CR_C1 = Float32[-0.04470, -0.04470, -0.03346, -0.02216, 0.0, 0.0, -0.03307, -0.03467, -0.03761, -0.03557, 0.0, -0.01516, 0.0, 0.0, 0.0, 0.0, -0.01516, -0.04470, 0.0]
+
+# em/dubscr.f DATA (19 species) — generated from the Fortran source.
+const EM_DUB_BCR0 = Float32[-1.669490, -1.669490, -0.426688, -1.66949, -0.89014, 0.0, -1.669490, -0.426688, -0.426688, -1.669490, 0.0, -0.426688, 0.0, 0.0, 0.0, 0.0, -0.426688, -2.19723, 0.0]
+const EM_DUB_BCR1 = Float32[-0.209765, -0.209765, -0.093105, -0.209765, -0.18026, 0.0, -0.209765, -0.093105, -0.093105, -0.209765, 0.0, -0.093105, 0.0, 0.0, 0.0, 0.0, -0.093105, 0.0, 0.0]
+const EM_DUB_BCR2 = Float32[0.0, 0.0, 0.022409, 0.0, 0.02233, 0.0, 0.0, 0.022409, 0.022409, 0.0, 0.0, 0.022409, 0.0, 0.0, 0.0, 0.0, 0.022409, 0.0, 0.0]
+const EM_DUB_BCR3 = Float32[0.003359, 0.003359, 0.002633, 0.003359, 0.00614, 0.0, 0.003359, 0.002633, 0.002633, 0.003359, 0.0, 0.002633, 0.0, 0.0, 0.0, 0.0, 0.002633, 0.0, 0.0]
+const EM_DUB_BCR5 = Float32[0.011032, 0.011032, 0.0, 0.011032, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.011032, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const EM_DUB_BCR6 = Float32[0.0, 0.0, -0.045532, 0.0, 0.0, 0.0, 0.0, -0.045532, -0.045532, 0.0, 0.0, -0.045532, 0.0, 0.0, 0.0, 0.0, -0.045532, 0.0, 0.0]
+const EM_DUB_BCR8 = Float32[0.017727, 0.017727, 0.0, 0.017727, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.017727, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+const EM_DUB_BCR9 = Float32[-0.000053, -0.000053, 0.000022, -0.000053, 0.0, 0.0, -0.000053, 0.000022, 0.000022, -0.000053, 0.0, 0.000022, 0.0, 0.0, 0.0, 0.0, 0.000022, 0.0, 0.0]
+const EM_DUB_BCR10 = Float32[0.014098, 0.014098, -0.013115, 0.014098, 0.0, 0.0, 0.014098, -0.013115, -0.013115, 0.014098, 0.0, -0.013115, 0.0, 0.0, 0.0, 0.0, -0.013115, 0.0, 0.0]
+const EM_DUB_CRSD = Float32[0.5000, 0.5000, 0.6957, 0.5000, 0.8871, 0.0, 0.6124, 0.6957, 0.6957, 0.4942, 0.0, 0.9310, 0.0, 0.0, 0.0, 0.0, 0.9310, 0.200, 0.0]
+
+"""em/dubscr.f — crown for a record with a missing crown (the EMVAR/UTTVAR d<3 live path and the cycle-0 dead
+records). One rejection-bounded BACHLO(0,CRSD) draw when DGSD>=1, then the logistic transform. RMAI is the
+MAICAL site MAI (em/maical.f ADJMAI(ISPNUM(ISISP), SITEAR(ISISP), 10), capped 128; grinit default 50)."""
+@inline function em_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real,
+                           rmai::Real, dgsd::Real)::Float32
+    hf = Float32(h)
+    cr = EM_DUB_BCR0[sp] + EM_DUB_BCR1[sp]*Float32(d) + EM_DUB_BCR2[sp]*hf + EM_DUB_BCR3[sp]*Float32(ba) +
+         EM_DUB_BCR5[sp]*Float32(tpccf) + EM_DUB_BCR6[sp]*(Float32(avh)/hf) + EM_DUB_BCR8[sp]*Float32(avh) +
+         EM_DUB_BCR9[sp]*(Float32(ba)*Float32(tpccf)) + EM_DUB_BCR10[sp]*Float32(rmai)
+    sd = EM_DUB_CRSD[sp]; fcr = 0f0
+    while true
+        fcr = dgsd >= 1f0 ? bachlo(rng, 0f0, sd) : 0f0
+        abs(fcr) > sd && continue
+        break
+    end
+    abs(cr + fcr) >= 86f0 && (cr = 86f0)
+    cr = 1f0 / (1f0 + exp(cr + fcr))
+    cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
+    return cr
+end
+
+# em/maical.f — RMAI = ADJMAI(ISPNUM(ISISP), SITEAR(ISISP)|140 if 0, 10), capped at 128. ISISP defaults to 3.
+const EM_MAI_ISPNUM = Int[119, 117, 202, 101, 19, 101, 108, 93, 21, 122, 101, 101, 101, 101, 101, 101, 101, 122, 101]
+function _em_rmai(s::StandState)::Float32
+    isisp = Int(s.plot.site_species); (isisp < 1 || isisp > 19) && (isisp = 3)
+    sssi = s.plot.sp_site_index[isisp]; sssi == 0f0 && (sssi = 140f0)
+    r = _adjmai(EM_MAI_ISPNUM[isisp], sssi, 10f0)
+    return r > 128f0 ? 128f0 : r
+end
+
+function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, lstart::Bool = false,
+                             crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
     t.n == 0 && return s
     itype = Int(p.habitat_input); it = (1 <= itype <= 30) ? itype : 1
@@ -64,7 +124,11 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     dgsd = s.control.dg_sd
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     P = EM_CRPARM
-    nlim = t.n + (lstart ? Int(t.ndead) : 0)
+    sdiac = crown_sdi                                  # SDIAC (pre-growth Reineke SDI) for RELSDI
+    rmai_v = _em_rmai(s)                                # DUBSCR RMAI (em/maical.f)
+    # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling, as-read
+    # at LSTART) — shared crown_isort, see crown_init.jl.
+    isort = crown_isort(s; lstart = lstart)
     # #158-class species-major RNG order: FVS em/crown.f processes trees SPECIES-MAJOR
     # (`DO 70 ISPC=1,MAXSP; DO 60 I3=I1,I2; I=IND1(I3)`), so the per-tree DUBSCR/NIVAR BACHLO crown draw
     # (line ~90, rejection-sampled with a species-specific SD) is consumed in species order. jl dubbed in raw
@@ -73,14 +137,15 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     # lstart DUB path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a
     # species, tree-index order = FVS IND1 (stable species bucket). The deterministic per-tree crown update is
     # order-independent, so this is a no-op except on the RNG stream. EM-only (dispatches on ::EasternMontana).
-    order = lstart ? sort(collect(1:nlim); by = ii -> (Int(t.species[ii]), ii)) : collect(1:nlim)
+    order = species_major_order(s)   # em/crown.f DO 70 ISPC … I=IND1(I3) — LIVE records only; the cycle-0
+                                     # dead records get their own DO 79 pass below (they were folded in here).
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue
         icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = variant_bratio(s, sp, d, h)
         local icri::Int
         # em/crown.f:322-334 — CRVAR (GA/CW/BA/PW/NC/OH: sp 11,13-16,19; the CR-variant hardwood expansion)
         # use a LINEAR crown-LENGTH model, NOT the NIVAR PARM PCR/DCR logistic below and NOT DUBSCR. For a
@@ -88,10 +153,14 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         # VIGOR=150·0.95³·e^-5.7+0.3=0.731; the PARM path gave ICR≈36-62 ⇒ VIGOR clamps to 1.0 ⇒ regent HTG
         # over by 1.0/0.731≈1.37×). No RNG draw on this path (crown.f CRVAR never calls BACHLO). D<3 is NOT
         # frozen for CRVAR — the CL model updates every cycle (the freeze below is the EMVAR/UTTVAR path).
-        if sp == 11 || (13 <= sp <= 16) || sp == 19
+        crvar = sp == 11 || (13 <= sp <= 16) || sp == 19
+        lpiju = sp == 6                                    # crown.f:318 LPIJU (RM) — crown-LENGTH form, like CRVAR
+        nivar = sp == 5                                    # crown.f:314 NIVAR (LL) — the PARM PCR/DCR model
+        if crvar || lpiju
             htg = t.ht_growth[i]
             hf = h + htg                                  # crown.f:325 HF=H+HTG (H is post-growth at CROWN)
-            cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*ba  # crown.f:328 CRVAR crown-length
+            cl = crvar ? 5.17281f0 + 0.32552f0*hf - 0.01675f0*ba :   # crown.f:328 CRVAR crown-length
+                         -0.59373f0 + 0.67703f0*hf                    # crown.f:330 LPIJU crown-length
             cl < 1.0f0 && (cl = 1.0f0)                     # crown.f:331
             cl > hf && (cl = hf)                           # crown.f:332
             crnew = (cl/hf)*100.0f0                        # crown.f:333-334 CR=CL/HF; CRNEW=CR*100
@@ -116,13 +185,54 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             t.crown_pct[i] = Int32(icri)
             continue
         end
-        # em/crown.f: the DCR change-in-crown model applies to the lstart DUB (all sizes) and to CYCLING
-        # d≥3; cycling d<3 keeps its crown. (Previously d<3 at lstart used a flat-40 placeholder — never
-        # exercised because EM wasn't calling the lstart dub at all. Now that the dub is wired (simulate.jl),
-        # a 0.1" seedling with ICR=0 dubs via the same model ⇒ CR≈50-79 like live's DUBSCR, activating the
-        # _em_smhtgf beta2·cr height term instead of the crown_pct=0 freeze (#137).)
-        if d < 3.0f0 && !lstart
-            continue                                  # cycling: D<3 keeps its crown
+        # crown.f:336-340 — the size gate differs by class: EMVAR/UTTVAR fall to stmt 58 (DUBSCR) only for a
+        # sub-1" record at LSTART; NIVAR falls to 58 whenever D<3.
+        small = (crvar || lpiju) ? false : (!nivar ? (d < 1f0 && lstart) : d < 3f0)
+        if small
+            # crown.f:506-516 stmt 58: NIVAR when cycling ⇒ keep the crown (GO TO 60); EMVAR/UTTVAR with a crown
+            # already set ⇒ keep it; otherwise DUBSCR at this record's point, then the shared bounds tail.
+            (!lstart && nivar) && continue
+            (!nivar && icr != 0) && continue
+            pt_i = Int(t.plot_id[i])
+            tpccf = (1 <= pt_i <= length(s.density.point_ccf)) ? s.density.point_ccf[pt_i] : 0f0
+            icri = icri_round(em_dubscr(s.rng, sp, d, h, ba, tpccf, p.avg_height, rmai_v, dgsd))
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+            continue
+        end
+        if !nivar
+            # crown.f:341-356 EMVAR/UTTVAR — rank-Weibull crown on the RELDEN SCALE (NOT the NIVAR PARM model,
+            # which jl applied to every non-CRVAR species). A/B/C from ACRNEW(RELSDI), X = ISORT/ITRN · SCALE.
+            relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
+            relsdi > 1.5f0 && (relsdi = 1.5f0)
+            acrnew = EM_CR_C0[sp] + EM_CR_C1[sp] * relsdi * 100f0
+            A = EM_CR_WEIBA[sp]
+            B = EM_CR_WEIBB0[sp] + EM_CR_WEIBB1[sp] * acrnew; B < 1f0 && (B = 1f0)
+            C = EM_CR_WEIBC0[sp] + EM_CR_WEIBC1[sp] * acrnew; C < 2f0 && (C = 2f0)
+            scale = 1f0 - 0.00167f0 * (relden - 100f0)
+            scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(t.n)) * scale : rann!(s.rng) * scale
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+            htg = t.ht_growth[i]
+            if !lstart || icr > 0                      # crown.f:527-543 stmt 53 tail (shared with CRVAR/LPIJU)
+                chg = crnew - Float32(icr)
+                pdifpy = chg / Float32(icr) / fint
+                pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint)
+                pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
+                icri = trunc(Int, (Float32(icr) + chg) + 0.5f0)
+                if !lstart && icr != 0
+                    crln  = h * Float32(icr) / 100f0
+                    crmax = (crln + htg) / (h + htg) * 100f0
+                    icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+                    Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+                end
+            else
+                icri = trunc(Int, crnew + 0.5f0)
+            end
+            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            t.crown_pct[i] = Int32(icri)
+            continue
         end
         xcrcon = crcon + P[1]*ba + P[2]*ba*ba + P[3]*lnba + P[4]*relden + P[5]*relden*relden + P[6]*lnrd
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
@@ -147,6 +257,21 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         end
         icri > 95 && (icri = 95); icri < 5 && (icri = 5)
         t.crown_pct[i] = Int32(icri)
+    end
+    # em/crown.f:545-598 DO 79 — cycle-0 dead records: CRVAR (11,13-16,19) and LPIJU (6) take the crown-LENGTH
+    # forms with ICRI=INT(CR*100.) (truncated); everything else DUBSCR at the record's point, ICRI=INT(CR*100+.5).
+    lstart && dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        crvar = sp == 11 || (13 <= sp <= 16) || sp == 19
+        lpiju = sp == 6
+        if crvar || lpiju
+            cl = crvar ? 5.17281f0 + 0.32552f0 * h - 0.01675f0 * ba : -0.59373f0 + 0.67703f0 * h
+            cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
+            return trunc(Int, (cl / h) * 100f0)
+        end
+        pt = Int(t.plot_id[i])
+        tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+        icri_round(em_dubscr(s.rng, sp, d, h, ba, tpccf, p.avg_height, rmai_v, dgsd))
     end
     return s
 end

@@ -656,7 +656,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                     t.dbh[i] > dx[sp] && (oldrn[i] = rx)
                 end
             end
-        else
+        elseif s.control.dg_stddev_bound >= 1f0
+            # dgdriv.f:190-193 — "FEWER THAN 5 GSTS; ASSIGN OLDRN WITH RANDOM NUMBER GENERATOR. BYPASS
+            # ASSIGNMENT IF DGSD < 1": with DGSTDEV/NODGSTDEV below 1 FVS draws NOTHING here. jl drew anyway,
+            # so a DGSD<1 run consumed ~3 rann calls per uncalibrated tree that live never spends, putting the
+            # whole main stream ahead of live (MEASURED on the EM RD stand with `DGSTDEV 0.`: jl reached
+            # REGENT's first SMHTGF ZRAND at rann call 171, live at 27 — the 144-call gap is exactly this loop).
             bound = s.control.dg_stddev_bound * c.sigma[sp]
             for k in i1:i2
                 i = ind1[k]

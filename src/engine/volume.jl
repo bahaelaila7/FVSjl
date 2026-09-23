@@ -284,6 +284,7 @@ function dub_missing_heights!(s::StandState)
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
     # BM fits AA with its blkdat HT2 (bm/cratet.f BX=HT2(ISPC)); its CSV ht2/wykoff_ht2 are CR placeholders.
     ht2 = !any(lhtdrg) ? nothing : s.variant isa BlueMountains ? BM_BLK_HT2 :
+          s.variant isa EasternMontana ? EM_BLK_HT2 :
           coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2)
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
     # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
@@ -345,6 +346,10 @@ function dub_missing_heights!(s::StandState)
             max(fexp(ax + ht2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
         elseif s.variant isa BlueMountains
             bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
+        elseif s.variant isa EasternMontana
+            # em/cratet.f:337-344 / DO 145: AX = AA when IABFLG==0 else the blkdat HT1; BX = blkdat HT2.
+            ax = (lhtdrg[sp] && iabflg[sp] == 0) ? aa[sp] : EM_BLK_HT1[sp]
+            max(exp(ax + EM_BLK_HT2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
         elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1

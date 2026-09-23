@@ -439,7 +439,15 @@ grinit.f:171). `DGSD < 1` turns the random variation OFF (deterministic DG). Con
 `dgscor!` + the OLDRN bound in `diameter_growth!`/`small_tree_growth!`.
 """
 function kw_dgstdev!(s::StandState, rec::KeywordRecord)
-    rec.present[1] && (s.control.dg_stddev_bound = Float32(rec.values[1]))
+    # FVS has ONE DGSD (COMMON). jl mirrors it in two fields — `dg_stddev_bound` (dgscor!/OLDRN) and `dg_sd`
+    # (the crown/REGENT DUBSCR + ZRAND paths) — so the keyword must set BOTH, or `DGSTDEV 0.` leaves the crown
+    # dubs drawing (MEASURED on the EM RD stand: the dead-record dub still spent 7 BACHLO draws that live,
+    # with DGSD=0, never makes).
+    if rec.present[1]
+        v = Float32(rec.values[1])
+        s.control.dg_stddev_bound = v
+        s.control.dg_sd = v
+    end
     return
 end
 
