@@ -18,6 +18,10 @@ function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sam
         return "NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows"
     elseif col == "PRESENCE"
         return "NEW: DBS table presence differs from live ($(sample)) — table emission/gating gap"
+    elseif col == "ROWCOUNT"
+        # ROWCOUNT is a COUNT of rows, not a value: the numeric classifier calls a 1-vs-0 difference
+        # "ulpbig" and the generic rule then mislabels a MISSING ROW as "Float32 drift". Name it.
+        return "NEW: jl emits a different number of rows than live for this table ($(sample)) — row emission/gating gap"
     elseif file == "CRASH"
         return "jl CRASH — $(sample)"
     elseif file == "TALLY"
