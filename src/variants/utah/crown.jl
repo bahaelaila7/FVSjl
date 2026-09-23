@@ -167,6 +167,7 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
             (icri < 10 && Float32(icri) <= crmax) && (icri = trunc(Int, crmax + 0.5f0))
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri < 0 && (icri = 0); icri > 100 && (icri = 100)
         t.crown_pct[i] = Int32(icri)
     end

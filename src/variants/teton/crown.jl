@@ -227,6 +227,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             (icri < 10 && Float32(icri) <= crmax) && (icri = trunc(Int, crmax + 0.5f0))  # CRNMLT=1
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri < 0 && (icri = 0); icri > 100 && (icri = 100)
         t.crown_pct[i] = Int32(icri)
     end
@@ -262,6 +263,13 @@ end
 function tt_crown_init_lstart!(s::StandState)
     t = s.trees
     nlive = t.n
+    # base/fvs.f:193-196 SDICLS(0,0.,999.,1,SDIAC,…) runs immediately before CALL CRATET — "SO CROWNS WILL
+    # DUB CORRECTLY IN VARIANTS USING THE WEIBULL DISTRIBUTION". Computed here, on the LIVE records at their
+    # READ diameters, because TT reaches CROWN through this function instead of the shared
+    # crown_init_lstart_dead_inclusive! (which supplies it) — so TT was still dubbing with RELSDI = 0, i.e.
+    # ACRNEW pinned at its maximum C0. MEASURED on the blanked-crown TT fixture: every crown came out high
+    # (record 1 jl 90 vs live 78; record 5 pre-statement-55 jl 72 vs live 69).
+    sdiac = stand_sdi_reineke(s)
     if t.ndead > 0
         t.n = nlive + t.ndead
         # NOTRE (tt/notre.f:122-124) inflates DEAD-record PROB by FINT/FINTM (DG-measurement / mortality-observation
@@ -289,7 +297,7 @@ function tt_crown_init_lstart!(s::StandState)
         end
         t.n = nlive
     end
-    crown_ratio_update!(s, s.variant; lstart = true)   # DUBSCR-dub live D<1 seedlings + Weibull/CL-dub missing-CR
+    crown_ratio_update!(s, s.variant; lstart = true, crown_sdi = sdiac)   # DUBSCR-dub live D<1 seedlings + Weibull/CL-dub missing-CR
     # crown.f:384-408 "DUB MISSING CROWNS ON CYCLE 0 DEAD TREES": the LSTART CROWN also dubs the standing-dead
     # records' missing crowns via DUBSCR (CASE DEFAULT) — regardless of DBH (unlike the live loop, the dead loop
     # does NOT route D≥1 to the Weibull). The dubbed dead crowns are discarded (the dead don't project), but each

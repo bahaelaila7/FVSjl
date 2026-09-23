@@ -254,19 +254,7 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
             (icri < 10 && cmult == 1f0) && (icri = trunc(Int, crmax + 0.5f0))
         end
-        # bm/crown.f statement 55 (:341-346) — a top-killed inventory record (ITRUNC>0) has its crown
-        # RE-EXPRESSED on the NORMAL height at LSTART: the crown length implied by ICRI on the normal
-        # height HN loses the dead top HD = HN − ITRUNC/100, and the remainder is re-stated as a
-        # fraction of HN. Was missing from the live loop (it was already in the DO 79 dead pass), so a
-        # broken-top tree kept the un-reduced crown. MEASURED on the BM RD stand with blanked inventory
-        # crowns (record 5, SP D=8.0): live `IN CROWN 9030 I,ITRUNC,NORMHT,HN,HD,ICRI,CL =
-        # 5 5600 6723 67.230 11.230 27 18.351` — jl produced the same pre-55 ICRI of 44 and then kept it.
-        if lstart && t.trunc[i] != 0
-            hn = Float32(t.norm_ht[i]) / 100f0
-            hd = hn - Float32(t.trunc[i]) / 100f0
-            cl = (Float32(icri) / 100f0) * hn - hd
-            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
-        end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         # final clamps (bm/crown.f:347-349)
         icri > 95 && (icri = 95)
         (icri < 10 && cmult == 1f0) && (icri = 10)

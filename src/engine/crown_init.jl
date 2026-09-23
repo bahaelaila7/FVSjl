@@ -115,6 +115,35 @@ end
 
 
 """
+    topkill_icri(t, i, icri) -> Int
+
+crown.f statement 55, identical in every variant:
+
+    55 IF (.NOT.LSTART .OR. ITRUNC(I).EQ.0) GO TO 59
+       HN=REAL(NORMHT(I))/100.0
+       HD=HN-REAL(ITRUNC(I))/100.0
+       CL=(REAL(ICRI)/100.)*HN-HD
+       ICRI=INT((CL*100./HN)+.5)
+
+A top-killed INVENTORY record carries its crown ratio against the height it WOULD have had
+(`NORMHT`), not the height that is left. The dead top `HD = HN − ITRUNC/100` is subtracted from the
+crown length that `ICRI` implies on `HN`, and what remains is re-stated as a fraction of `HN`. Only
+at LSTART — a tree that is topped later during the projection is handled by the CRMAX cap instead.
+
+Caller supplies `icri` AFTER the 9052 rounding and BEFORE the statement-59 bounds. FVS divides by
+`HN` unguarded because a record with `ITRUNC > 0` always has `NORMHT > 0` by then (cratet.f resolves
+it in the missing-height dub); the guard here keeps a not-yet-resolved `NORMHT` from producing Inf.
+"""
+@inline function topkill_icri(t, i::Integer, icri::Integer)
+    t.trunc[i] == 0 && return Int(icri)
+    hn = Float32(t.norm_ht[i]) / 100f0
+    hn <= 0f0 && return Int(icri)
+    hd = hn - Float32(t.trunc[i]) / 100f0
+    cl = (Float32(icri) / 100f0) * hn - hd
+    return trunc(Int, (cl * 100f0 / hn) + 0.5f0)
+end
+
+"""
     crown_isort(s; lstart=false) -> Vector{Int32}
 
 crown.f `DO 11 JJ=1,ITRN; ISORT(IND(JJ)) = ITRN-JJ+1` — the whole-stand descending-DBH RANK the

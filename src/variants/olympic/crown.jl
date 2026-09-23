@@ -141,13 +141,7 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
             (!iorg && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
-        # topkill (LSTART & ITRUNC≠0) — inert on S248112 (no truncation).
-        if lstart && t.trunc[i] != 0
-            hn = Float32(t.norm_ht[i]) / 100f0
-            hd = hn - Float32(t.trunc[i]) / 100f0
-            cl = (Float32(icri) / 100f0) * hn - hd
-            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
-        end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri > 95 && (icri = 95)                            # statement 59
         # op/crown.f:426-428 — the ICRI<10→10 bump is SKIPPED for ORGANON trees.
         (!iorg && icri < 10) && (icri = 10)
