@@ -1,0 +1,10 @@
+StandID,Year,Removal_Code,Stratum_1_DBH,Stratum_1_Nom_Ht,Stratum_1_Lg_Ht,Stratum_1_Sm_Ht,Stratum_1_Crown_Base,Stratum_1_Crown_Cover,Stratum_1_SpeciesFVS_1,Stratum_1_SpeciesFVS_2,Stratum_1_SpeciesPLANTS_1,Stratum_1_SpeciesPLANTS_2,Stratum_1_SpeciesFIA_1,Stratum_1_SpeciesFIA_2,Stratum_1_Status_Code,Stratum_2_DBH,Stratum_2_Nom_Ht,Stratum_2_Lg_Ht,Stratum_2_Sm_Ht,Stratum_2_Crown_Base,Stratum_2_Crown_Cover,Stratum_2_SpeciesFVS_1,Stratum_2_SpeciesFVS_2,Stratum_2_SpeciesPLANTS_1,Stratum_2_SpeciesPLANTS_2,Stratum_2_SpeciesFIA_1,Stratum_2_SpeciesFIA_2,Stratum_2_Status_Code,Stratum_3_DBH,Stratum_3_Nom_Ht,Stratum_3_Lg_Ht,Stratum_3_Sm_Ht,Stratum_3_Crown_Base,Stratum_3_Crown_Cover,Stratum_3_SpeciesFVS_1,Stratum_3_SpeciesFVS_2,Stratum_3_SpeciesPLANTS_1,Stratum_3_SpeciesPLANTS_2,Stratum_3_SpeciesFIA_1,Stratum_3_SpeciesFIA_2,Stratum_3_Status_Code,Number_of_Strata,Total_Cover,Structure_Class
+5352355010661,2004,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,0,0=BG
+5352355010661,2004,1,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,0,0=BG
+5352355010661,2014,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,2,0=BG
+5352355010661,2014,1,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,2,0=BG
+5352355010661,2024,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,5,0=BG
+5352355010661,2024,1,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0,5,0=BG
+5352355010661,2034,0,2.865257740020752,21,28,1,3,7,DF,LP,PSME,PICO,202,108,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,7,1=SI
+5352355010661,2034,1,2.865257740020752,21,28,1,3,7,DF,LP,PSME,PICO,202,108,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,7,1=SI
+5352355010661,2044,0,4.882519721984863,29,36,1,4,11,DF,LP,PSME,PICO,202,108,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,11,1=SI

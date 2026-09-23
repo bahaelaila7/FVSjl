@@ -191,45 +191,123 @@ so `t.dbh`/`t.height` are read-in and `t.ht_growth` is the increment — read di
 """
 function em_regent_aspen_calib!(s::StandState)
     p, t, c = s.plot, s.trees, s.calib
-    t.n == 0 && return s
+    n = t.n; n == 0 && return s
+    dens = s.density
     slo = s.coef.species[:site_lo]; shi = s.coef.species[:site_hi]
     ihtg = s.control.growth_ihtg
-    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0   # em/grinit.f:192 FINTH default 5; DB HTG_MEASURE overrides
-    scale3 = _EM_RG_REGYR / finth                                          # em/regent.f:1094 SCALE3 = REGYR/FINTH
-    @inbounds for sp in (12, 17)
-        # (A) ABIRTH dub from CURRENT height (pothtg.f:158-161; gated ABIRTH<=0, PROB>0)
-        for i in 1:t.n
-            Int(t.species[i]) == sp || continue
-            (t.tpa[i] <= 0f0 || t.birth_age[i] > 0f0) && continue
-            h = t.height[i]; h <= 0f0 && continue
-            t.birth_age[i] = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
-            t.age_known[i] = true
-        end
-        # (B) REGENT height self-calibration CORNEW → raw HCOR → htg_cor_init
-        sitear = p.sp_site_index[sp]
-        si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
-        relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1f0 + relsi)
-        snx = 0f0; sny = 0f0; nh = 0
-        for i in 1:t.n
-            Int(t.species[i]) == sp || continue
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0   # em/grinit.f:192 FINTH default 5
+    scale3 = _EM_RG_REGYR / finth                                          # em/regent.f:1095 SCALE3 = REGYR/FINTH
+    # (A) ABIRTH dub from CURRENT height for the aspen/PB pair (pothtg.f:158-161; gated ABIRTH<=0, PROB>0).
+    @inbounds for sp in (12, 17), i in 1:n
+        Int(t.species[i]) == sp || continue
+        (t.tpa[i] <= 0f0 || t.birth_age[i] > 0f0) && continue
+        h = t.height[i]; h <= 0f0 && continue
+        t.birth_age[i] = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
+        t.age_known[i] = true
+    end
+    # (B) em/regent.f:1195-1360 REGCAL — the small-tree HEIGHT self-calibration, for EVERY species (jl ran it
+    # for the aspen pair only). Per species: EDH is the model's predicted increment over the sub-periods and
+    # CORNEW = mean(HTG·SCALE3) / mean(EDH) ⇒ HCOR = ln(CORNEW), gated at NCALHT=5 records and trapped to
+    # ±2.5σ in ln(C). The EMVAR branch calls SMHTGF, which DRAWS the persistent per-tree ZRAND — those draws
+    # land HERE, before DGDRIV, which is why jl's whole main RNG stream sat ahead of live on EM stands.
+    rhcon = em_regcons!(s)
+    ba = p.basal_area; relden = p.relative_density
+    reldm1 = p.relative_density_prev; reldm1 <= 0f0 && (reldm1 = relden)
+    temccf = relden                                     # regent.f:206-207 TEMCCF = ATCCF, else RELDEN
+    fint = Float32(s.control.year)
+    ntyr = Int(round(fint)); iyr = Int(_EM_RG_REGYR)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for k in 1:nper
+        if nn == 1; kper[k] = itot; break; end
+        kper[k] = itot ÷ nn; itot -= kper[k]; nn -= 1
+    end
+    banext = fill(ba, nper); rdnext = fill(relden, nper)
+    pctred = _em_rg_pctred(p.avg_height, relden)
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    species_sort!(s)
+    @inbounds for sp in 1:MAXSP
+        isct[sp, 1] == 0 && continue
+        nivar = sp == 5; ttvar = sp == 4
+        crvar = _em_rg_crvar(sp); utvar = (sp == 6 || sp == 12 || sp == 17)
+        emvar = !(nivar || ttvar || crvar || utvar)
+        si = p.sp_site_index[sp]
+        si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
+        relsi = (shi[sp] > slo[sp]) ? (si - slo[sp]) / (shi[sp] - slo[sp]) : 0f0
+        rsimod = 0.5f0 * (1f0 + relsi)
+        snp = 0f0; snx = 0f0; sny = 0f0; nrec = 0
+        for k in Int(isct[sp, 1]):Int(isct[sp, 2])
+            i = Int(ind1[k])
             t.tpa[i] <= 0f0 && continue
-            t.dbh[i] >= 5f0 && continue                    # DBH>=5 excluded (regent.f:1201)
-            htg = t.ht_growth[i]; htg < 0.001f0 && continue   # HTG<0.001 excluded (regent.f:1202)
-            h = t.height[i]
-            hstart = ihtg < 2 ? h - htg : h                # backdated start height (regent.f:1197)
-            hstart < 0.01f0 && continue                    # H<0.01 excluded (regent.f:1201)
-            ag1 = (hstart * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
-            ag2 = ag1 + 10f0
-            h2 = (26.9825f0 * ag2^1.1752f0) / (2.54f0 * 12f0)
-            edh = (h2 - hstart) * rsimod * 0.75f0 * 0.5f0  # RHCON=1; ·0.5 = CR/UT 10yr→5yr (regent.f:1305,1310)
+            htg = t.ht_growth[i]
+            h = t.height[i]; ihtg < 2 && (h -= htg)
+            (t.dbh[i] >= 5f0 || h < 0.01f0 || htg < 0.001f0) && continue
+            hk = h; d = t.dbh[i]; cr = Float32(t.crown_pct[i])
+            pt = Int(t.plot_id[i])
+            pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            edh = 0f0
+            for jj in 1:nper
+                baj = banext[jj]; rdj = rdnext[jj]
+                bal = baj * (100f0 - Float32(t.crown_ratio[i])) * 0.0001f0
+                ppccf = emvar ? (temccf <= 0f0 ? 0f0 : (rdj - temccf) / temccf) : (rdj - reldm1) / reldm1
+                tpccf = pccf * ppccf
+                tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                if emvar
+                    if t.zrand[i] == -999f0                      # smhtgf.f: persistent per-tree ZRAND
+                        while true
+                            z = bachlo(s.rng, 0f0, 1f0)
+                            (z < -2f0 || z > 2f0) && continue
+                            t.zrand[i] = z; break
+                        end
+                    end
+                    edh = _em_smhtgf(sp, cr, tpccf, t.zrand[i]); hk += edh
+                elseif nivar
+                    edh = exp(rhcon[sp] + _EM_RG_BH * log(hk) + _EM_RG_BCCF * rdj + _EM_RG_BBAL * bal); hk += edh
+                elseif ttvar
+                    if t.zrand[i] == -999f0
+                        while true
+                            z = bachlo(s.rng, 0f0, 1f0)
+                            (z < -2f0 || z > 2f0) && continue
+                            t.zrand[i] = z; break
+                        end
+                    end
+                    if d <= 0f0
+                        edh = 0f0
+                    else
+                        beta1 = exp(1.17527f0 - 0.42124f0 * log(tpccf))
+                        beta2 = exp(-2.56002f0 - 0.58642f0 * log(tpccf))
+                        htg1 = beta1 + beta2 * cr
+                        stddev = htg1 * (1.08720f0 - 0.00230f0 * cr)
+                        edh = htg1 + t.zrand[i] * stddev
+                        edh <= 0.1f0 && (edh = 0.1f0; t.zrand[i] = -999f0)
+                    end
+                    hk += edh
+                else                                              # CRVAR / UTVAR — EDH is the LAST sub-period's
+                    x = cr / 100f0
+                    vigor = 150f0 * x^3 * exp(-6f0 * x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    sp == 6 && (vigor = 1f0 - (1f0 - vigor) / 3f0)
+                    if sp == 12 || sp == 17
+                        ag1 = (h * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                        h2 = (26.9825f0 * (ag1 + 10f0)^1.1752f0) / (2.54f0 * 12f0)
+                        edh = (h2 - h) * rsimod * rhcon[sp] * 0.75f0
+                    else
+                        pothtg = crvar ? si / (15f0 - 4f0 * relsi) :
+                                 (sp == 15 || sp == 16) ? (si / 10f0) * (si * 1.5f0 - h) / (si * 1.5f0) :
+                                 sp == 6 ? ((si / 5f0) * (si * 1.5f0 - h) / (si * 1.5f0)) * 0.83f0 : 0f0
+                        edh = pothtg * pctred * vigor * rhcon[sp]
+                    end
+                    edh *= 0.5f0
+                end
+            end
+            edh_t = emvar ? (hk - h) * rhcon[sp] : nivar ? (hk - h) : ttvar ? (hk - h) * rhcon[sp] : edh
             pr = t.tpa[i]
-            snx += edh * pr; sny += htg * scale3 * pr; nh += 1
+            snp += pr; snx += edh_t * pr; sny += htg * scale3 * pr; nrec += 1
         end
-        nh < 5 && continue                                 # NCALHT (default 5, regent.f:1351)
-        cornew = snx > 0f0 ? sny / snx : 1f0
+        nrec < 5 && continue                                       # NCALHT (regent.f:1352)
+        snx /= snp; sny /= snp
+        cornew = snx != 0f0 ? sny / snx : 1f0
         cornew <= 0f0 && (cornew = 1f-4)
-        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)   # ±2.5σ ln(C) trap (regent.f:1372)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
     end
     return s
 end
@@ -468,7 +546,11 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         _emv_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # species order (stable within sp)
         @inbounds for oi in 1:n
             i = _emv_order[oi]; sp = Int(t.species[i])
-            (_em_orig_species(sp) && t.dbh[i] < _em_rg_cap(sp) && t.tpa[i] > 0f0 && dgsd >= 1.0f0) || continue
+            # em/smhtgf.f draws ZRAND UNCONDITIONALLY (no DGSD gate — only dgdriv's OLDRN seeding and DGSCOR
+            # are gated). Gating it here made a DGSD<1 run consume fewer draws than live (MEASURED with
+            # `DGSTDEV 0.` on the EM RD stand: live's first REGENT ZRAND lands at main-stream rann call 27,
+            # jl's at 24 — one BACHLO (3 calls) short, exactly this gate).
+            (_em_orig_species(sp) && t.dbh[i] < _em_rg_cap(sp) && t.tpa[i] > 0f0) || continue
             z = 0f0; while true; z = bachlo(s.rng, 0f0, 1f0); (-2f0 <= z <= 2f0) && break; end
             zre[i] = z
         end

@@ -183,6 +183,16 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # keyword processing so a DESIGN BAF / NUMCYCLE-period still overrides. akt01's DESIGN omits BAF ⇒
     # the 62.5 default is load-bearing for the plot expansion (TPA/BA/QMD).
     s.variant isa SoutheastAlaska && (s.plot.baf = 62.5f0; s.control.year = 10f0)
+    # LHTDRG default (grinit.f): TRUE in EM IE KT CI TT UT CR BC, FALSE elsewhere (SN/NE/CS/LS/NC/EC/WC/PN/SO/WS/
+    # CA/AK/OP/OC/BM). TRUE ⇒ cratet.f fits the per-species Wykoff HT-DBH INTERCEPT AA from that stand's measured
+    # heights (≥3 obs, AA≥0 ⇒ IABFLG=0) and dubs every missing height — live AND the cycle-0 dead records — from
+    # the FITTED curve instead of the blkdat default. jl defaulted it FALSE for every variant, so those 8 never
+    # fitted AA. MEASURED on the EM WRD control stand: dead WL D=34.6 dubbed 31.76 ft vs live 22.61
+    # (= exp(3.014759 − 4.212/35.6) + 4.5, live's fitted intercept 3.0148 vs the 4.1539 default), and the dead
+    # heights feed the dead-inclusive AVH ⇒ every crown, hence growth, shifted.
+    (s.variant isa EasternMontana || s.variant isa InlandEmpire || s.variant isa Kootenai ||
+     s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
+     s.variant isa CentralRockies || s.variant isa BritishColumbia) && fill!(s.control.ht_drag_sp, true)
     # RMAI (grinit.f): 50.0 in AK BM CA CR CS EC EM LS NC OC OP PN SO TT UT WC; 0.0 in BC CI IE KT SN WS.
     # Variants whose MAICAL actually computes it (AK BM CR EM IE SO TT UT) overwrite this later from their own
     # port. jl set it NOWHERE but SO, so every other variant read 0: EC's crown DUBSCR (BCR10·RMAI) and its
