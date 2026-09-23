@@ -179,6 +179,7 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             else                                           # crown.f:465-467 DUB (lstart, icr==0)
                 icri = trunc(Int, crnew + 0.5f0)
             end
+            lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
             icri > 95 && (icri = 95)                        # crown.f:590
             icri < 10 && (icri = 10)                        # crown.f:594 (CRNMLT=1)
             icri < 1  && (icri = 1)                         # crown.f:595
@@ -230,6 +231,7 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             else
                 icri = trunc(Int, crnew + 0.5f0)
             end
+            lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
             icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
@@ -255,6 +257,7 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             end
             icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
         end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri > 95 && (icri = 95); icri < 5 && (icri = 5)
         t.crown_pct[i] = Int32(icri)
     end
