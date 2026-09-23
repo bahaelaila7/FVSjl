@@ -270,68 +270,26 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     # per-tree accumulators over subcycles
     wk3 = Float32[t.height[i] for i in 1:n]
     dnow = Float32[t.dbh[i] for i in 1:n]
-    wk5 = Float32[t.dbh[i] for i in 1:n]        # regent.f:302 WK5(I)=DBH(I) — the per-subcycle D
-    ky = 0
     @inbounds for j in 1:nper
         baj = banext[j]; rdj = rdnext[j]; kpj = Float32(kper[j])
-        ky += kper[j]                                            # regent.f:322 KY accumulates KPER
-        ppccf = relden > 0f0 ? 1f0 + (rdj - relden) / relden : 0f0   # regent.f:326
-        for i in species_major_order(s)
-            i > n && continue
+        for i in 1:n
             sp = Int(t.species[i]); d = t.dbh[i]
             (d >= _em_rg_cap(sp) || t.tpa[i] <= 0.0f0) && continue
-            nivar = _em_rg_nivar(sp)
-            # em/regent.f:330-345 species classes. TTVAR(4)/CRVAR(11,13-16,19)/UTVAR(6,12,17) are still deferred
-            # (their models are the TT/CR/UT forms); NIVAR(5) and EMVAR (every other species) run here.
-            emvar = !(nivar || sp == 4 || sp == 11 || (13 <= sp <= 16) || sp == 19 || sp == 6 || sp == 12 || sp == 17)
-            (nivar || emvar) || continue
+            _em_rg_nivar(sp) || continue                          # EMVAR conifers + LL(5)=NIVAR
+            con = rhcon[sp] + c.htg_cor_small[sp]                # + HCOR (0 until calibrated)
             h1 = wk3[i]; h1 <= 0f0 && (h1 = 0.1f0)
-            d1 = wk5[i]
-            pct = Float32(t.crown_ratio[i])
-            if nivar
-                con = rhcon[sp] + c.htg_cor_small[sp]            # regent.f:353 NIVAR: CON=RHCON+HCOR
-                bal = baj * (100.0f0 - pct) * 0.01f0
-                htgrl = con + _EM_RG_BH * log(h1) + _EM_RG_BCCF * rdj + _EM_RG_BBAL * bal
-                h2 = h1 + exp(htgrl) * (kpj / regyr)             # XRHGRO=1 (no MULTS)
-                wk3[i] = h2
-                if !(j >= nper || d >= 3.0f0) && h2 > 4.5f0
-                    relh = (h1 - 4.5f0) / (ah - 4.5f0); relh > 1f0 && (relh = 1f0); relh < 0f0 && (relh = 0f0)
-                    dadj = delmax * relh * relh - 2.0f0 * delmax * relh + 0.65f0
-                    d1v = h1 > 4.5f0 ? _EM_RG_AX * (h1 - 4.5f0)^_EM_RG_BX + dadj : EM_RG_DIAM[sp] + dadj
-                    d2v = _EM_RG_AX * (h2 - 4.5f0)^_EM_RG_BX + dadj
-                    dgj = (d2v - d1v); dgj < 0f0 && (dgj = 0f0)
-                    dnow[i] += dgj
-                end
-                continue
-            end
-            # ---- EMVAR (em/regent.f:530-532 + 596-608): SMHTGF height, SMDGF diameter, per-subcycle density carry
-            con = rhcon[sp] * exp(c.htg_cor_small[sp])           # regent.f:355 non-NIVAR: CON=RHCON*EXP(HCOR)
-            pt_i = Int(t.plot_id[i])
-            pccf_i = (1 <= pt_i <= length(dens.point_ccf)) ? dens.point_ccf[pt_i] : 0f0
-            tpccf = pccf_i * ppccf                                # regent.f:431-433, clamped [25,300]
-            tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
-            cr = Float32(t.crown_pct[i])
-            # em/smhtgf.f: persistent per-tree ZRAND, BACHLO(0,1) rejecting |z|>2, reset to −999 when HTGRTH≤0.1.
-            if t.zrand[i] == -999f0
-                while true
-                    z = bachlo(s.rng, 0f0, 1f0)
-                    (z < -2f0 || z > 2f0) && continue
-                    t.zrand[i] = z; break
-                end
-            end
-            htgrr = d <= 0f0 ? 0f0 : _em_smhtgf(sp, cr, tpccf, t.zrand[i])
-            (d > 0f0 && htgrr <= 0.1f0) && (t.zrand[i] = -999f0)   # smhtgf.f:31-32 reset after the floor
-            h2 = h1 + htgrr * (kpj / regyr) * con                  # XRHGRO=1
+            pct = Float32(t.crown_ratio[i]); bal = baj * (100.0f0 - pct) * 0.01f0
+            htgrl = con + _EM_RG_BH * log(h1) + _EM_RG_BCCF * rdj + _EM_RG_BBAL * bal
+            h2 = h1 + exp(htgrl) * (kpj / regyr)                 # XRHGRO=1 (no MULTS)
             wk3[i] = h2
-            d2 = _em_smdgf(sp, h2, cr, pccf_i)                     # SMDGF reads the RAW PCCF, not TPCCF
-            d2 < EM_RG_DIAM[sp] && (d2 = EM_RG_DIAM[sp])           # XRDGRO=1
-            wk5[i] = d2
-            dnow[i] = d2
-            if j < nper && d < 3.0f0 && h2 > 4.5f0                 # regent.f:598-604 density carry
-                c1 = em_tree_ccf(sp, d1); c2 = em_tree_ccf(sp, d2)
-                pr = t.tpa[i]; decay = 0.985f0^ky
-                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10f0 * decay
-                banext[j+1] += (0.005454154f0 * (d2 * d2 - d1 * d1)) * pr * decay
+            # per-subcycle DG dub (D<3, H2>4.5)
+            if !(j >= nper || d >= 3.0f0) && h2 > 4.5f0
+                relh = (h1 - 4.5f0) / (ah - 4.5f0); relh > 1f0 && (relh = 1f0); relh < 0f0 && (relh = 0f0)
+                dadj = delmax * relh * relh - 2.0f0 * delmax * relh + 0.65f0
+                d1v = h1 > 4.5f0 ? _EM_RG_AX * (h1 - 4.5f0)^_EM_RG_BX + dadj : EM_RG_DIAM[sp] + dadj
+                d2v = _EM_RG_AX * (h2 - 4.5f0)^_EM_RG_BX + dadj
+                dgj = (d2v - d1v); dgj < 0f0 && (dgj = 0f0)
+                dnow[i] += dgj
             end
         end
     end
@@ -510,7 +468,11 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         _emv_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)   # species order (stable within sp)
         @inbounds for oi in 1:n
             i = _emv_order[oi]; sp = Int(t.species[i])
-            (_em_orig_species(sp) && t.dbh[i] < _em_rg_cap(sp) && t.tpa[i] > 0f0 && dgsd >= 1.0f0) || continue
+            # em/smhtgf.f draws ZRAND UNCONDITIONALLY (no DGSD gate — only dgdriv's OLDRN seeding and DGSCOR
+            # are gated). Gating it here made a DGSD<1 run consume fewer draws than live (MEASURED with
+            # `DGSTDEV 0.` on the EM RD stand: live's first REGENT ZRAND lands at main-stream rann call 27,
+            # jl's at 24 — one BACHLO (3 calls) short, exactly this gate).
+            (_em_orig_species(sp) && t.dbh[i] < _em_rg_cap(sp) && t.tpa[i] > 0f0) || continue
             z = 0f0; while true; z = bachlo(s.rng, 0f0, 1f0); (-2f0 <= z <= 2f0) && break; end
             zre[i] = z
         end
