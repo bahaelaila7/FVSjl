@@ -126,6 +126,11 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
     ba = p.basal_area
     relden = relden_override >= 0.0f0 ? relden_override : stand_ccf(s)
     bau = _cr_badist_bau(t)
+    # cr/crown.f's CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species; the three
+    # literals below were the blkdat DATA defaults (1.0 / 0.0 / 99.0) with nothing ever updating them, so the
+    # CRNMULT keyword was silently inert for CR. MEASURED on the blanked CR fixture: with the keyword, live
+    # moved and jl did not (x0.5 -> 4 TPA/1 BA apart, band 5-12" -> 17/4, DUB FLAG -> 7/1).
+    cur_year = current_cycle_year(s)
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0.0f0 && continue
         icr_old = Int(t.crown_pct[i])
@@ -139,7 +144,8 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
         hf = h + htg
         df = d + dg / bark; df < d && (df = d)
         t.crown_pct[i] = Int32(_cr_crown_tree(imodty, sp, d, h, pcti, bau[icls], ba, hf, df, relden,
-            icr_old, htg, fint, 1.0f0, 0.0f0, 99.0f0, Int(t.trunc[i]), Int(t.norm_ht[i]), lstart))
+            icr_old, htg, fint, crn_mult_band(s.control, sp, cur_year; lstart = lstart)...,
+            Int(t.trunc[i]), Int(t.norm_ht[i]), lstart))
     end
     # cr/crown.f:239-259 DO 79 — cycle-0 dead records get their OWN GEMCR call (HF=H, DF=D) and ICRI=INT(CR*100.)
     # (truncated, unlike the live INT(CRNEW+.5)); bounds [10,95]. Previously folded into the live loop with the
