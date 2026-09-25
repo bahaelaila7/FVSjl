@@ -390,6 +390,22 @@ The RMSQD test uses `stand_qmd`, because `p.qmd` is only populated for Ontario.
   so cycle-0 CCF was 58 vs live 65; it is now 65.
 - DVE hardwood board-foot volume had been zeroed as "deferred"; it is now r5harv at BFTOPD·BARK.
 
+**7. NC's first growth cycle used the wrong previous period (branch `nc-dg`).** In the first projection
+cycle, `grincr.f` sets OLDFNT = FINT, the DG measurement period from grinit. AUTCOR uses it as the previous
+period when it correlates this cycle's random DG error with the calibration residual. jl fell back to
+`htg_period` (YR), which equals FINT in every variant except NC (nc/blkdat YR=5, nc/grinit FINT=10).
+
+Measured with a separate instrumented FVSnc (`/workspace/.ncwork/FVSnc_oldrn`, which prints OLDRN and
+SSIGMA/RHO; the oracle is untouched):
+- The calibration OLDRN seeds were already bit-exact (26 of 27 trees; one WF is 10 ULP off).
+- With `DGSTDEV 0` NC already matched live, so the whole residual was the random component.
+- Live's cycle-1 CORR is 0.3906 = AUTCOR(5,10), giving RHO 0.4036. jl used AUTCOR(5,5) = 0.3196.
+
+The fix is `dg_measure_period(v)` (grinit FINT: defaults to `htg_period`, Klamath overrides to 10).
+Together with the latch in §5, every NC habtest case (611/30, 712/CWC221, 611/440, 8103, 518, 508) is
+bit-exact over 10 cycles on TPA/BA/TCuFt/MCuFt. NC's WRD absolute row (control and root disease) is also
+bit-exact and has been promoted to a passing `@test`.
+
 **Oracle changes (user-approved 2026-09-25)**, recorded in `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md` §6:
 - Debug WRITEs removed from the BM, EM, IE, SN and CR buildDirs.
 - The CR `varmrt.f` TEMSUM guard is now in `FVScr_clean`.
@@ -408,12 +424,11 @@ inside open EM residuals, and the allowlist was widened with a note on each entr
 UT's WRD absolute row became bit-exact, so it was promoted from `@test_broken` to a passing test.
 
 **Still open from this round:**
-- NC first-cycle DG: ±1–5% per tree in both directions with height growth exact. This looks like the
-  DG random-error component.
 - WS growth residual: cycle 1 BA is 136 vs 141.
 - EM and TT residuals: 3 BA.
-- One CA R5 WF board-foot log-boundary value.
-- WS DVE board-foot is still zeroed ("deferred as NC"; NC now computes it).
+- R5 WO2W board-foot: single-tree 10-bf Scribner steps on 1–2 trees per year (NC 518/508 BdFt 70; one CA
+  WF in 2020). The standalone VOLINITNVB driver could not reproduce live's merch at the treelist D/H, so
+  it needs the exact start-of-cycle volume inputs.
 - CRNMULT for OP, OC, KT and BC.
 - The SDICALC min-DBH filter on morts.f's T (`D < DBHZEIDE/DBHSTAGE`) is not applied in the EM/NC/UT/TT
   kernels. It is inert at the default 0.
