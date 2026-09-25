@@ -588,6 +588,16 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
             # ec_sitset! reads (habitat_code). `nint(v[2])` alone parsed an alpha code to 0 ⇒ the stand
             # grew on the poor CPS241 default site instead of its real ECOCLS site species/index.
             p.habitat_code = ec_hbdecd(rec.fields[2], rec.values[2])
+        elseif s.variant isa WestCascades || s.variant isa PacificNorthwest
+            # wc/habtyp.f, pn/habtyp.f: pure Region 6 — `CALL HBDECD(KODTYP,PCOML(1),NPA,ARRAY2,KARD2)`, so the
+            # field is a PCOML index (numeric) or a plant-association code (alpha), exactly like EC. These two
+            # used to fall through to the `else` below, which files the value as the SOUTHERN ecological unit
+            # and leaves habitat_code at 0 — so every WC/PN stand on the keyword path ran on its DEFAULT plant
+            # association (WC CFS551 / PN CHS133) whatever habitat the user gave. MEASURED on WC: STDINFO
+            # habitat 40 is PCOML(40) = CFS252 in live ("PLANT ASSOCIATION CODE USED ... IS CFS252", SDIDEF
+            # 900); jl read 0, fell back to CFS551, and took ITS SDI max of 815.
+            pcoml = s.variant isa WestCascades ? WC_PCOML : PN_PCOML
+            p.habitat_code = hbdecd(rec.fields[2], rec.values[2], pcoml)
         elseif s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
                s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho ||
                s.variant isa Olympic
