@@ -68,6 +68,29 @@ function ca_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
 end
 
+# ca/sitset.f VOLEQDEF for the REGION-5 forests (IFOR 1-5: 505/506/508/511/514; 518 → 514): the R5_EQN FIA
+# table ⇒ Wensel-Krumland R5TAP profile "500WO2W" (conifers + redwood) or the R5HARV California-hardwood DVE
+# "500DVEW" — the SAME NVEL kernels NC's R5 forests use (nc_wo2w_vol / nc_r5harv_vol). Per CA species 1..50,
+# read off the live FVSca_g16 "NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS" table (STDINFO 505).
+# jl used to run the R6 Behre/FW2 path on R5 stands (+10% TCuFt, +56% BdFt at cycle 0, measured).
+const CA_R5_VOL_EQ = String[
+    "500WO2W081", "500WO2W081", "500WO2W081", "500WO2W015", "500WO2W020", "500WO2W020", "500WO2W202", "500WO2W015",
+    "500WO2W015", "500WO2W108", "500WO2W108", "500WO2W108", "500WO2W108", "500WO2W108", "500WO2W116", "500WO2W117",
+    "500WO2W117", "500WO2W122", "500WO2W108", "500WO2W108", "500DVEW060", "500WO2W015", "500DVEW212", "500WO2W108",
+    "500WO2W108", "500DVEW801", "500DVEW805", "500DVEW807", "500DVEW811", "500DVEW815", "500DVEW818", "500DVEW821",
+    "500DVEW839", "500DVEW312", "500DVEW807", "500DVEW351", "500DVEW361", "500DVEW431", "500DVEW807", "500DVEW807",
+    "500DVEW818", "500DVEW631", "500DVEW818", "500DVEW818", "500DVEW818", "500DVEW807", "500DVEW807", "500DVEW981",
+    "500DVEW801", "500WO2W211"]
+
+"CA Region-5 per-tree (tcuft, merch cuft, scribner bf): WO2W / DVEW, then the vols.f CFTOPK/BFTOPK trim (TOPD 6)."
+function ca_r5_tree_vol(s::StandState, i::Int, sp::Int, d::Float32, hv::Float32, bark::Float32)
+    eq = CA_R5_VOL_EQ[sp]; c = s.control
+    tcf, mcf, bf = eq[4:6] == "WO2" ? nc_wo2w_vol(eq, d, hv) : nc_r5harv_vol(eq, d, hv, 6.0f0)
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    return r4_topkill(s.trees, i, sp, d, hv, bark, tcf, mcf, bf, merch, _R4_TOPD6)
+end
+
 function compute_volumes_ca!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; sd = s.coef.species
@@ -84,7 +107,9 @@ function compute_volumes_ca!(s::StandState)
         dbhmin = sp == 11 ? 6.0f0 : 7.0f0               # ca/grinit.f: sp-index 11 = 6, else 7
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
-        if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+        if ifor < 6                                     # Region 5 (ca/sitset.f VOLEQDEF IREGN=5)
+            tcf, mcf, bf = ca_r5_tree_vol(s, i, sp, d, hv, bark)
+        elseif mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
             tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark)   # F06 westside SHP (DF/WH)
         elseif mdl == "FW2"
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,

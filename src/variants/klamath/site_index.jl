@@ -11,13 +11,30 @@
 # BA-weighting to be wired + validated with the mortality chunk (7).
 # =============================================================================
 
-const NC_JFOR = Int[505, 510, 514, 611, 705, 800, 712]   # nc/htdbh.f forest codes → IFOR 1..7
+# nc/forkod.f DATA JFOR(11): IFOR 1..7 are the modelled forests; 8..11 (Trinity 518, Los Padres 507, Mendocino
+# 508, Simpson 715) exist only to be remapped by the FOREST MAPPING CORRECTION below.
+const NC_JFOR = Int[505, 510, 514, 611, 705, 800, 712, 518, 507, 508, 715]
+# nc/forkod.f reservation pseudo-codes → pre-correction IFOR (13 tribal lands → 10 ⇒ Six Rivers after mapping).
+const NC_FOR_RESERV = Dict{Int,Int}(
+    7806=>10, 7807=>10, 7810=>10, 7813=>10, 7815=>10, 7816=>10, 7820=>10, 7821=>10, 7824=>10,
+    7830=>10, 7831=>10, 7833=>10, 7834=>10, 7839=>2, 7841=>2, 7843=>2, 7845=>1, 8103=>4, 8105=>4)
 
-"nc/forkod: KODFOR → IFOR 1..7 (default 1 = Klamath if unrecognized)."
+"""nc/forkod.f: KODFOR → IFOR 1..7 and KODFOR = JFOR(IFOR). Reservation codes first, else a JFOR match (not found
+⇒ ERRGRO 3, IFOR stays 1 = Klamath, IGL untouched), then the mapping correction 8→3 (518→Shasta-Trinity),
+9,10→2 (507/508→Six Rivers), 11→6 (715→800). Used to match only the first 7 codes, so Trinity/Mendocino/Los
+Padres/Simpson and every reservation stand silently ran as Klamath (IFOR 1)."""
 function nc_forkod!(p)
-    idx = findfirst(==(Int(p.user_forest_code)), NC_JFOR)
-    p.forest_idx = Int32(idx === nothing ? 1 : idx)
-    return Int(p.forest_idx)
+    kodfor = Int(p.user_forest_code)
+    ifor = get(NC_FOR_RESERV, kodfor, 0); useigl = true
+    if ifor == 0
+        idx = findfirst(==(kodfor), NC_JFOR)
+        idx === nothing ? (ifor = 1; useigl = false) : (ifor = idx)
+    end
+    ifor == 8 ? (ifor = 3) : (ifor == 9 || ifor == 10) ? (ifor = 2) : ifor == 11 && (ifor = 6)
+    p.forest_idx = Int32(ifor)
+    useigl && (p.geo_location = Int32(1))     # IGL = KFOR(IFOR) = 1
+    p.user_forest_code = Int32(NC_JFOR[ifor])
+    return ifor
 end
 
 # nc/sitset.f site-index species defaults (SI array): the per-species site index when NO SITECODE, with the

@@ -52,10 +52,10 @@ Set CA's /CONTRL/ + SDI-family flags (ca/grinit.f + blkdat.f): ZEIDE SDI (LZEIDE
 function ca_grinit!(s::StandState)
     s.control.year = 10.0f0
     s.control.growth_fint = 10.0f0
-    # ca/grinit.f sets LZEIDE=.TRUE. + CALCSDI=' ', but ca/sitset.f:95 `IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.`
-    # RESETS it to false (no CALCSDI keyword) ⇒ the reported .sum SDI + Stage/Reineke mortality use REINEKE,
-    # not Zeide. (The DGF's point relative density PRD uses point-Zeide SDICZ separately, unaffected.)
-    s.control.zeide_sdi = false
+    # ca/grinit.f sets LZEIDE=.TRUE. + CALCSDI=' '; ca/sitset.f:95 `IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.` resets it
+    # ONLY inside the Region-6 (IFOR≥6) branch ⇒ R6 stands report/thin on REINEKE, R5 stands stay on ZEIDE.
+    # (The DGF's point relative density PRD uses point-Zeide SDICZ separately, unaffected.)
+    s.control.zeide_sdi = true
     s.control.dg_sd = 1.7f0             # ca/grinit.f DGSD=1.7
     s.control.dg_stddev_bound = 1.7f0
     s.rng.s0 = Float64(CA_RNG_SEED); s.rng.ss = CA_RNG_SEED

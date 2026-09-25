@@ -243,7 +243,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # habitat_code stays 0 ⇒ nc_sitset! rode a provisional uniform default (~720) instead of the ecoclass
     # (CWC221 default → DF 815 + C6 fan capped at 850 = live's "SDI MAX 850 850 815 850..."; a real PA → its
     # own RSDI). MEASURED live vs jl, CN 1127525637290487. PV_CODE priority (nc/habtyp.f).
-    if s.variant isa Klamath && Int(p.user_forest_code) in (611, 712)
+    if s.variant isa Klamath && Int(p.user_forest_code) in (611, 712, 8103, 8105)   # 8103/8105 → 611 (nc/forkod.f)
         pv = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
         pvref = ""
         if _fia_present(d, "PV_REF_CODE")

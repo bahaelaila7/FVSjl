@@ -216,65 +216,82 @@ function so_sichg(s::StandState, isisp::Integer, ssite::Float32)
     return siage
 end
 
+# so/sitset.f — faithful order:
+#  R6 (IFOR≤3 or 10): LZEIDE=.FALSE. unless SDICALC; ECOCLS the plant association (habitat_code → PCOML; CPS111
+#     when unresolved) ⇒ site species (ISFLAG row), SITEAR(ISEQ)=RSI when NO site value was keyworded, SDIDEF(ISEQ)
+#     =min(RSDI,FORMAX); then the R6 global default PP(10)/70.
+#  R5 (else): site species default WF(4) at SITEAR 50, no ECOCLS, SDIDEF = C5 per species.
+#  Site fan: ISISP ∈ {WJ 11, WB 16, AS 24} ⇒ every species by SITERANGE interpolation (TEM default 30); else SICHG
+#     → HTCALC per species (MH metric, cap 28; WJ/WB/AS by SITERANGE). DO 35 fills only UNSET species.
+#  SDIDEF DO 40: BAMAX / R6 C6-ratio from K (ISISP, or JSISP when ISISP has none) capped at FORMAX / R5 C5.
+# The old port skipped ECOCLS for the site species + SI (every R6 stand ran PP@70 whatever its PA — right only
+# for the CPS111 default), used the R6 PP/70 default on R5 forests (FVS: WF/50), overwrote keyworded SITEAR,
+# and seeded a 285 SDIDEF on R5 site species where FVS takes C5. Measured vs FVSso_g16 (STDINFO 601/60 CPS311:
+# live PP SI 85, jl 70).
 function so_sitset!(s::StandState)
     p = s.plot; maxsp = nspecies(s.variant)
     ifor = Int(p.forest_idx)
-    # so/sitset.f:81 — R6 forests (IFOR≤3 or =10) use Reineke (LZEIDE=.FALSE.); others keep Zeide.
-    (ifor <= 3 || ifor == 10) && (s.control.zeide_sdi = false)
-
+    r6 = ifor <= 3 || ifor == 10
+    nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0
-    isisp <= 0 && (isisp = 10)                                    # R6 default site species = PP(10)
-    p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 70f0)   # so/sitset.f default SITEAR
-
-    sindx = p.sp_site_index[isisp]
-    siage = so_sichg(s, isisp, sindx)
-    slossp = SO_SITELO[isisp]; shissp = SO_SITEHI[isisp]
-    @inbounds for ispc in 1:maxsp
-        ispc == isisp && continue
-        if ispc == 11 || ispc == 16 || ispc == 24       # WJ/WB/AS: no site curve → SITERANGE interpolation
-            tem = sindx < slossp ? slossp : sindx
-            v = SO_SITELO[ispc] + (tem - slossp) / (shissp - slossp) * (SO_SITEHI[ispc] - SO_SITELO[ispc])
-        else
-            v = so_htcalc(ifor, sindx, isisp, siage[ispc])
-            ispc == 5 && (v = v / 3.281f0; v > 28f0 && (v = 28f0))   # MH metric conversion, cap 28
-        end
-        v < 0f0 && (v = 0f0)
-        p.sp_site_index[ispc] = v                        # SO sitset is authoritative (overrides the generic reader)
-    end
-
-    # SDIDEF (per-species SDImax) — so/sitset.f:79-125 (R6 ECOCLS PA seed) + :231-247 fan (chunk 4c; prereq
-    # for crown+mort RELSDI). For R6 forests (IFOR≤3 or 10) so/sitset.f ECOCLS the stand's plant association
-    # (habitat_code → PCOML → PA; the CPS111 default when unresolved) and seeds the site species' SDImax from
-    # that PA's ecoclass RSDI (so/sitset.f:112-119: SDIDEF(ISEQ)=RSDI, and SDIDEF(ISISP)=RSDI on the IFLAG=1
-    # row). Without this seed every stand rode the CPS111 default RSDI 285 regardless of PA ⇒ on a non-default
-    # PA (e.g. CWS313 → 810) the SDIMAX was ~2.8× wrong (measured vs FVSso_clean). The FIA reader now decodes
-    # PV_CODE → habitat_code so this picks the stand's real PA (a no-habitat / unresolved stand still defaults
-    # to CPS111 285, so sot01 + the default case stay bit-exact vs the FVSso_g16 SDIDEF dump).
-    # Fan (IFOR≤3/10 R6, BAMAX unset): SDIDEF[i]=SDIDEF[ISISP]·C6[i]/C6[ISISP] (cap FORMAX); else C5[i].
-    # BAMAX-keyword branch (SDIDEF=BAMAX/(0.5454154·PMSDIU/100)) is a follow-on — no BAMAX (=0) here, so the
-    # R6 C6-ratio fan below is the exercised path; keep the branch for when a BAMAX keyword lands.
-    bamax = 0f0
-    if ifor <= 3 || ifor == 10
-        # so/sitset.f R6 ECOCLS: seed each of the PA's ecoclass species' SDImax; ISISP (from DB) keeps its
-        # PA RSDI on the IFLAG=1 row. Unresolved habitat ⇒ so_habtyp default CPS111 (RSDI 285, site sp PP).
-        pa = so_habtyp(Int(p.habitat_code))
-        rows = so_ecocls(pa)
+    jsisp = 0
+    if r6
+        all(isspace, s.control.sdi_method) && (s.control.zeide_sdi = false)   # IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.
+        rows = so_ecocls(so_habtyp(Int(p.habitat_code)))
         isempty(rows) && (rows = so_ecocls(SO_HAB_DEFAULT_PA))
         @inbounds for r in rows
             iseq = r.fvsseq; (iseq < 1 || iseq > maxsp) && continue
             rsdi = min(r.sdimx, SO_FORMAX)
+            (jsisp == 0 && r.iflag == 1) && (jsisp = iseq)
             (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
+            (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
             p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
             (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
         end
+        isisp <= 0 && (isisp = 10)                                    # R6 global default site species PP
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 70f0)
+    else
+        isisp <= 0 && (isisp = 4)                                     # R5 default site species WF
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 50f0)
+        jsisp = isisp
     end
-    p.sp_sdi_def[isisp] <= 0f0 && (p.sp_sdi_def[isisp] = 285f0)   # global fallback (ECOCLS CPS111 site sp)
+
+    slossp = SO_SITELO[isisp]; shissp = SO_SITEHI[isisp]
+    si = zeros(Float32, maxsp)
+    if isisp == 11 || isisp == 16 || isisp == 24
+        tem = p.sp_site_index[isisp] > 0f0 ? p.sp_site_index[isisp] : 30f0
+        tem < slossp && (tem = slossp)
+        @inbounds for i in 1:maxsp
+            si[i] = SO_SITELO[i] + (tem - slossp) / (shissp - slossp) * (SO_SITEHI[i] - SO_SITELO[i])
+            i == 5 && (si[i] = si[i] / 3.281f0; si[i] > 28f0 && (si[i] = 28f0))
+        end
+    else
+        sindx = p.sp_site_index[isisp]
+        siage = so_sichg(s, isisp, sindx)
+        @inbounds for ispc in 1:maxsp
+            v = so_htcalc(ifor, sindx, isisp, siage[ispc])
+            ispc == 5 && (v = v / 3.281f0; v > 28f0 && (v = 28f0))   # MH metric conversion, cap 28
+            if ispc == 11 || ispc == 16 || ispc == 24
+                tem = sindx; tem < slossp && (tem = slossp)
+                p.sp_site_index[ispc] <= 0f0 &&
+                    (v = SO_SITELO[ispc] + (tem - slossp) / (shissp - slossp) * (SO_SITEHI[ispc] - SO_SITELO[ispc]))
+            end
+            si[ispc] = v
+        end
+    end
+    @inbounds for i in 1:maxsp                                        # DO 35
+        p.sp_site_index[i] == 0f0 && (p.sp_site_index[i] = si[i])
+    end
+
     k = isisp
+    p.sp_sdi_def[k] <= 0f0 && (k = jsisp)
+    bamax = s.control.ba_max
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : SO_PMSDIU / 100f0   # PMSDIU/100 (a fraction)
     @inbounds for i in 1:maxsp
         p.sp_sdi_def[i] > 0f0 && continue
         if bamax > 0f0
-            p.sp_sdi_def[i] = bamax / (0.5454154f0 * (SO_PMSDIU / 100f0))
-        elseif ifor <= 3 || ifor == 10
+            p.sp_sdi_def[i] = bamax / (0.5454154f0 * pmsdiu)
+        elseif r6
             v = p.sp_sdi_def[k] * (SO_SDIDEF_C6[i] / SO_SDIDEF_C6[k])
             v > SO_FORMAX && (v = SO_FORMAX)
             p.sp_sdi_def[i] = v
@@ -282,7 +299,6 @@ function so_sitset!(s::StandState)
             p.sp_sdi_def[i] = SO_SDIDEF_C5[i]
         end
     end
-
     p.site_species = Int32(isisp)
     return s
 end
