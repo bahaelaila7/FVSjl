@@ -145,3 +145,28 @@ dead-record crown dub (`crown.f DO 79`), ATTEN (`dgdriv.f` SIGMA pooling), RELDE
 variant, species-major REGENT/crown draw order (`IND1`), `variant_bratio` as the single BRATIO
 dispatch, and the per-variant RMAI `grinit` default. See
 `docs/PORT_STATUS.md` "Westside shared fixes".
+
+---
+
+## Addendum 2026-09-25 — the crown-initialisation chain
+
+Master advanced `bb30d258` → **`5930ffb5`** by one proper `git merge --no-ff` of the chain below.
+Gate: full `Pkg.test` on the tested tip `0b23accd` = **56534 pass / 23 fail / 0 err / 44 broken**,
+by-name diff against master **0 new / 0 gone / 0 changed** (the 23 are the pre-existing ON
+volume-dump + LPMPB set). The merged tree is byte-identical to that tip.
+
+| branch | tip | worktree | content | verdict |
+|---|---|---|---|---|
+| `crnmult` | 2e4c47f7 | `.wt-isort` | CRNMULT applies (BM); shared `topkill_icri` (stmt 55); TT SDIAC | merged in `5930ffb5` |
+| `kt-lstart-dub` | cac8edba | `.wt-kt` | KT LSTART dub; shared LSTART PCT ordering; IE/AK stmt 55 | merged (via `crnmult`) |
+| `crnmult-west` | 7bc24129 | `.wt-crnw` | CRNMULT wired for CR | merged in `5930ffb5` |
+| `bc-lstart-dub` | 0b23accd | `.wt-kt` | BC LSTART dub + stmt 55; the KT/simfire golden reconciliations; the empty-stand crash guard | **the merge head** |
+
+Worktrees now merged or throwaway and safe to prune with the owner's approval:
+`.wt-isort`, `.wt-kt`, `.wt-crnw`, `.wt-oc`, `.wt-dead`, `.wt-em`, `.wt-embisect`.
+`forest-explorer` (`.wt-explorer`) remains the only KEEP.
+
+Three goldens were reconciled **from measurement**, both directions recorded in each case rather
+than only the loosening — see the commits: KT's inert-seam self-snapshot, KT's absolute tolerances
+(TPA tightened 7→4 and 8→5, BA loosened 6→10, first four cycles now exact), and KT's simfire
+pre-fire TREES 282→283, which lost an exact cell while halving the BdFt error (−814 → −479).

@@ -222,6 +222,74 @@ Two lessons worth keeping:
   came out 12/12 bare, so both instruments measured only the establishment path and were blind to the
   growth and crown models they exist to certify. `TREE_CLASS_STRATA=0` reproduces the old draw.
 
+## Crown initialisation, round two (2026-09-25, master `5930ffb5`)
+
+Five more shared defects in the same path, all found by building instruments the shipped
+fixtures could not provide.
+
+**The instruments.** `/workspace/.postswap/wrd/genblank.jl` reruns each WRD control fixture with every
+**LIVE** inventory crown BLANKED, and `gencrn.jl` layers the CRNMULT cases on top. This matters
+because the shipped fixtures **cannot** exercise the LSTART dub on a live record — every blank-crown
+record in them is a *dead* one, which takes the `DO 79` DUBSCR path and never reads RELSDI or PCT.
+All twelve fixtures do carry two top-killed live records, so blanking turns each into a full test of
+the dub: Weibull/PARM path, DUBSCR path, statement-55 top-kill, SDIAC, PCT.
+
+**The defects.**
+
+1. **CRNMULT was parsed, stored, and inert.** The record mapping was right (`initre.f:3416`, option
+   96) but a blank UPPER DBH defaults to **99.0**, not "no limit" (`initre.f:3439`), and `ARRAY(6)` —
+   the "DUB FLAG" that makes the multiplier scale the LSTART dub and then revert (`crown.f` stmt 60)
+   — was not stored at all. BM already had the `CRNMLT`/`DLOW`/`DHI` structure at all six call sites
+   but read the blkdat DEFAULTS; CR passed them as the literals `1.0/0.0/99.0`. The new shared
+   `crn_mult_band` returns the **triple**, because `crown.f` gates the `CHG*CRNMLT` scalings on the
+   tree's DBH being in band but gates the two `ICRI<10` floor bumps on `CRNMLT(ISPC) == 1.0` itself.
+2. **`crown.f` statement 55** — a top-killed inventory record has its crown re-expressed on the
+   NORMAL height at LSTART — was missing from nine variants' live loop. Now shared as `topkill_icri`.
+   IE and AK needed a `dubbed` flag: label 58 enters *below* 55, so a DUBSCR-dubbed record must not
+   be re-expressed.
+3. **TT dubbed with RELSDI = 0.** It reaches CROWN through its own `tt_crown_init_lstart!`, which
+   passed no `crown_sdi` — bypassing the fix the shared helper had received.
+4. **KT and BC had no LSTART dub at all** (`kt/cratet.f:598`, `canada/bc/cratet.f`), the same defect
+   OC had.
+5. **LSTART PCT was ordered by the BACKDATED diameter.** `dense.f:244` accumulates the percentile
+   over `IND`, which `cratet.f` sorted on the REAL `DBH`, while the weight `WK5 = D*D*PROB` uses the
+   backdated diameter (`dense.f:184`). FVSjl derived *both* from the backdated diameters. PCT feeds
+   the PCR crown model directly (`b13*P + b14*log(P)` in KT/IE/EM).
+
+**Measured**, worst |jl − live| cell (TPA/BA) over 11 cycles:
+
+| | blanked crowns, before → after | |
+|---|---|---|
+| KT | **31/51 → 4/17** | had no dub at all |
+| BC | 8/7 → 3/4 | had no dub at all |
+| EM | 12/7 → 7/4 | |
+| IE | 1/1 → **0/1** | |
+| TT | 13/7 → 11/7 | from SDIAC, not statement 55 |
+| NC | 3/3 → 5/1 | BA tightens, TPA +2 |
+| CR/BM/PN/SO | 0/0 throughout | |
+
+With CRNMULT present: BM 0/0 on all four cases (validating the harness), CR **4/1, 17/4, 7/1 → 0/0**.
+Per-record traces where it mattered: KT's PCT and EXPPCR now reproduce live exactly (45.693924 /
+0.28728095 against live 45.694 / 0.287); TT's SDIAC is 202.939 against live's 202.94.
+
+**Two lessons.**
+
+* A crash this work introduced was caught only by the **tiered** suite: `_pctile!` reads `idx[1]`
+  unguarded, so a stand with no live records *and* no dead ones threw a `BoundsError` — BM stand
+  647500316126144, all 11 regimes. The WRD fixtures and the blanked A/B both have trees, so neither
+  could see it. Different instruments fail differently; keep all of them.
+* `FVSkt_clean` **SIGFPEs on a valid CRNMULT card**. The `ICRI<5` floor is gated on `CRNMLT == 1`, so
+  an active multiplier disables FVS's own guard, the crown reaches 0, and the next cycle's
+  `PDIFPY = CHG/REAL(ICR(I))/FINT` divides by it. KT cannot be A/B'd with CRNMULT active — an oracle
+  limitation, not a port gap.
+
+**Still open here:** CRNMULT remains inert in NC/CI/EC/PN/SO/EM/TT/UT/WS/IE — all measured, and
+large (PN 83 BA, NC 57 BA). ON's statement 55 delegates to the shared eastern `_twigs_crown_update!`
+that NE/CS/LS also use, so it needs an eastern top-kill fixture first. BC's sub-2cm route is not a
+separate model: `canada/bc/dubscr.f` for V3 calls `CRNMD`, and `CRNMD` itself substitutes D = 2 cm
+and a height re-derived from the species height–DBH curve — porting it needs BC's `AA`/`BB` and the
+`LMHTDUB` flag, which may be metric-fitted.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
