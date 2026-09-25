@@ -157,38 +157,48 @@ function nc_sitset!(s::StandState)
     if (ifor == 4 || ifor == 7) && all(isspace, s.control.sdi_method)
         s.control.zeide_sdi = false
     end
-    isisp = Int(p.site_species); isisp == 0 && (isisp = 3)     # sitset.f:119 ISISP default = 3 (DF)
-    sref = p.sp_site_index[isisp]
-    sref <= 0f0 && (sref = 90f0; p.sp_site_index[isisp] = 90f0) # sitset.f:120 reference SI default = 90
-    # sitset.f DO 30/35 — fill each UNSET species' site index from the site species' index via the
-    # SICHG (site age) + HTCALC (site-species height-at-age curve) conversion. A species whose SITEAR was
-    # already set (site species / keyword / DB) keeps it (sitset.f:152 `IF(SITEAR(I).EQ.0.)`).
-    siage = nc_sichg(isisp, sref)
-    @inbounds for i in 1:12
-        p.sp_site_index[i] <= 0f0 && (p.sp_site_index[i] = nc_htcalc(sref, isisp, siage[i]))
-    end
-    # R6 ECOCLS PA seed (nc/sitset.f:82-113): seed each PA species' SDImax; SDIDEF(ISISP)=RSDI on IFLAG=1.
+    # nc/sitset.f order: R6 ECOCLS FIRST — it picks the site species (ISFLAG row) and seeds SITEAR(ISEQ)=RSI when
+    # no site value was keyworded — THEN the DF(3)/90 default, then SICHG/HTCALC for the unset species. The old
+    # port defaulted DF/90 before ECOCLS, so on R6 every PA ran as DF@90 (live 611/CPC511: PP@52, SDI fan from PP).
+    maxsp = 12
+    nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
+    isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0
     jsisp = 0
     if ifor == 4 || ifor == 7
-        pa = nc_habtyp(Int(p.habitat_code))
-        rows = nc_ecocls(pa)
+        rows = nc_ecocls(nc_habtyp(Int(p.habitat_code)))
         isempty(rows) && (rows = nc_ecocls(NC_HAB_DEFAULT_PA))
         @inbounds for r in rows
-            iseq = r.fvsseq; (iseq < 1 || iseq > 12) && continue
+            iseq = r.fvsseq; (iseq < 1 || iseq > maxsp) && continue
             rsdi = min(r.sdimx, NC_FORMAX)
             (jsisp == 0 && r.iflag == 1) && (jsisp = iseq)
             (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
+            (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
             p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
             (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
         end
+        isisp <= 0 && (isisp = 3)
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 90f0)
+    else
+        isisp <= 0 && (isisp = 3)                                 # DF
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 90f0)
+        jsisp = isisp
+    end
+    sref = p.sp_site_index[isisp]
+    siage = nc_sichg(isisp, sref)
+    @inbounds for i in 1:maxsp                                    # DO 30/35: fill only UNSET species
+        p.sp_site_index[i] == 0f0 && (p.sp_site_index[i] = nc_htcalc(sref, isisp, siage[i]))
     end
     p.site_species = Int32(isisp)
-    # DO 40 fan (nc/sitset.f:155-172): unset species → SDIDEF(K)·C6/C6(K) capped (R6) else C5(i). (BAMAX=0.)
+    # DO 40 (nc/sitset.f): BAMAX / R6 C6-ratio from K (ISISP, else JSISP) capped at FORMAX / C5.
     k = isisp
-    p.sp_sdi_def[k] <= 0f0 && (k = jsisp > 0 ? jsisp : isisp)
-    @inbounds for i in 1:12
+    p.sp_sdi_def[k] <= 0f0 && (k = jsisp)
+    bamax = s.control.ba_max
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0   # PMSDIU/100 (stored as a fraction)
+    @inbounds for i in 1:maxsp
         p.sp_sdi_def[i] > 0f0 && continue
-        if ifor == 4 || ifor == 7
+        if bamax > 0f0
+            p.sp_sdi_def[i] = bamax / (0.5454154f0 * pmsdiu)
+        elseif ifor == 4 || ifor == 7
             v = p.sp_sdi_def[k] * (NC_C6[i] / NC_C6[k])
             v > NC_FORMAX && (v = NC_FORMAX)
             p.sp_sdi_def[i] = v
