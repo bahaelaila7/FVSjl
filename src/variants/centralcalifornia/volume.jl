@@ -82,19 +82,13 @@ const CA_R5_VOL_EQ = String[
     "500DVEW818", "500DVEW631", "500DVEW818", "500DVEW818", "500DVEW818", "500DVEW807", "500DVEW807", "500DVEW981",
     "500DVEW801", "500WO2W211"]
 
-"CA Region-5 per-tree (tcuft, merch cuft, scribner bf): WO2W / DVEW, then the vols.f CFTOPK/BFTOPK trim (TOPD 6)."
-function ca_r5_tree_vol(s::StandState, i::Int, sp::Int, d::Float32, hv::Float32, bark::Float32)
-    eq = CA_R5_VOL_EQ[sp]; c = s.control
-    tcf, mcf, bf = eq[4:6] == "WO2" ? nc_wo2w_vol(eq, d, hv) : nc_r5harv_vol(eq, d, hv, 6.0f0)
-    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
-             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
-    return r4_topkill(s.trees, i, sp, d, hv, bark, tcf, mcf, bf, merch, _R4_TOPD6)
-end
-
 function compute_volumes_ca!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; sd = s.coef.species
     ifor = Int(s.plot.forest_idx)
+    c = s.control
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 50
@@ -103,12 +97,14 @@ function compute_volumes_ca!(s::StandState)
         end
         eq = _ca_r6_eqn(parse(Int, strip(s.species.fia[sp])))
         se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+        # vols.f:150 BARK=BRATIO(ISPC,D,H) is taken at the START-of-cycle DBH (before D=D+DG/BARK) — the stashed
+        # vol_bark; the grown-DBH bark only at cycle 0 / for dead records. It sets the merch/board tops (TOPD·BARK).
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
         dbhmin = sp == 11 ? 6.0f0 : 7.0f0               # ca/grinit.f: sp-index 11 = 6, else 7
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
         if ifor < 6                                     # Region 5 (ca/sitset.f VOLEQDEF IREGN=5)
-            tcf, mcf, bf = ca_r5_tree_vol(s, i, sp, d, hv, bark)
+            tcf, mcf, bf = nvel_r5_vol(CA_R5_VOL_EQ[sp], d, hv, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp])
         elseif mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
             tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark)   # F06 westside SHP (DF/WH)
         elseif mdl == "FW2"
@@ -118,6 +114,8 @@ function compute_volumes_ca!(s::StandState)
         else                                            # 616BEHW
             tcf, mcf, bf = ca_behre_vol(sp, ifor, d, hv, bark)
         end
+        # vols.f CFTOPK/BFTOPK broken-top trim — was missing on CA (R6 DF trc49 D15.9: jl 53.8 vs live 40.2 cuft).
+        tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, merch, ifor < 6 ? _R4_TOPD6 : _BM_TOPD45)
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
         t.saw_cuft_vol[i] = 0f0

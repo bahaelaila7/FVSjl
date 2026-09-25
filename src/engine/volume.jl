@@ -549,6 +549,20 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa Klamath
+        # nc/grinit.f DBHMIN=BFMIND=SCFMIND=9, stumps 1; nc/sitset.f SELECT CASE(IFOR): 4 (Siskiyou R6) top 4.5,
+        # 5/7 (Hoopa/Coos Bay BLM) top 5.0, DEFAULT (R5) 6.0. NC had no branch here ⇒ generic CSV specs, so the
+        # Siskiyou merch/board ran to a 6" top (measured vs FVSnc_g16 611: every merch tree low, e.g. DF D10 8.4 vs 9.2).
+        ifor = Int(s.plot.forest_idx)
+        topd = ifor == 4 ? 4.5f0 : (ifor == 5 || ifor == 7) ? 5.0f0 : 6.0f0
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            c.sp_dbh_min[j] = 9.0f0; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = 9.0f0; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = 9.0f0; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa SouthCentralOregon
         # so/grinit.f DBHMIN=BFMIND=SCFMIND=9.0 ALL species (no sp-11 special, unlike CA);
         # so/sitset.f:167 TOPD=BFTOPD=SCFTOPD = (IFOR∈{1,2,3,10} ? 4.5 : 6.0); stump=1. No merch CSV columns.

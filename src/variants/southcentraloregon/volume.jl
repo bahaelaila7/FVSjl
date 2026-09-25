@@ -71,11 +71,24 @@ function so_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
 end
 
+# so/sitset.f VOLEQDEF for the REGION-5 forests (IFOR 4-9: 505/506/509/511/701/514→505): voleqdef.f R5_EQN
+# (species-only, VAR='SO'), read off the live FVSso_g16 equation table at STDINFO 505. jl used to run the R6
+# INGY/Behre table on R5 stands (measured: dT/M/B up to 797/810/4772 on the shipped fixture).
+const SO_R5_VOLEQ = String[
+    "500WO2W117", "500WO2W117", "500WO2W202", "500WO2W015", "500WO2W015", "500WO2W081", "500WO2W108", "500WO2W015",
+    "500WO2W020", "500WO2W122", "500DVEW060", "I15FW2W017", "500WO2W020", "500WO2W015", "500WO2W020", "500WO2W108",
+    "500WO2W202", "500WO2W081", "500WO2W015", "500WO2W108", "500DVEW351", "500DVEW351", "500DVEW312", "500DVEW818",
+    "500DVEW818", "500DVEW801", "500DVEW815", "500DVEW807", "500DVEW431", "500DVEW801", "500DVEW801", "500WO2W108",
+    "500DVEW981"]
+
 function compute_volumes_so!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; sd = s.coef.species
     ifor = Int(s.plot.forest_idx)
     topd = (ifor <= 3 || ifor == 10) ? 4.5f0 : 6.0f0     # so/sitset.f:167 TOPD/BFTOPD
+    c = s.control
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 33
@@ -83,16 +96,22 @@ function compute_volumes_so!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = SO_VOLEQ[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = so_bratio(sd, sp, d)
+        # vols.f:150 BARK=BRATIO at the START-of-cycle DBH (stashed vol_bark; grown-DBH bark at cycle 0 / dead).
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : so_bratio(sd, sp, d)
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
-        if mdl == "FW2"                                  # all I-prefix INGY (cr_fw2_vol)
+        if !(ifor <= 3 || ifor == 10)                    # Region 5 (R5_EQN table)
+            tcf, mcf, bf = nvel_r5_vol(SO_R5_VOLEQ[sp], d, hv, bark, topd, topd)
+        elseif mdl == "FW2"                              # all I-prefix INGY (cr_fw2_vol)
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = topd, stump = 1f0,
                            iregn = 6, board_cor = 'N', merch_opt = 23)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         else                                             # 616BEHW
             tcf, mcf, bf = so_behre_vol(sp, ifor, d, hv, bark)
         end
+        # vols.f CFTOPK/BFTOPK: a broken/killed top's NORMHT volume is trimmed back to the break (was missing ⇒
+        # every top-killed SO tree kept its full-height volume; measured vs FVSso_g16 treelist, DF trc49 13.3→13.1).
+        tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, merch, topd == 4.5f0 ? _BM_TOPD45 : _R4_TOPD6)
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = d >= 9f0 ? max(mcf, 0f0) : 0f0   # so/grinit.f DBHMIN=9
         t.saw_cuft_vol[i] = 0f0

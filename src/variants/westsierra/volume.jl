@@ -43,7 +43,9 @@ function compute_volumes_ws!(s::StandState)
         end
         eq = WS_VOL_EQ[sp]; mdl = eq[4:6]
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
-        bark = ws_bratio(sd, sp, d)                       # DIB/DOB (fvsvol BARK=BRATIO)
+        # vols.f:150 BARK=BRATIO(ISPC,D,H) is taken at the START-of-cycle DBH (before D=D+DG/BARK) — the stashed
+        # vol_bark; the grown-DBH bark only at cycle 0 / for dead records. It sets the merch/board tops (TOPD·BARK).
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : ws_bratio(sd, sp, d)                       # DIB/DOB (fvsvol BARK=BRATIO)
         if mdl == "WO2"
             s5 = _nc_r5tap_sp(eq[8:10])
             if s5 == 0 || hv < 5f0
