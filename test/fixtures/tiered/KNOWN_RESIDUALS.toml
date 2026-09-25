@@ -3289,8 +3289,8 @@ col = "Stratum_2_Crown_Cover"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 9 cells [material=2 ulpbig=7] max|Δ|=7.0 | e.g. stand 11855985010690 year 2056: live=20 jl=21"""
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 9 cells [material=2 ulpbig=7] max|Δ|=7.0 | e.g. stand 11855985010690 year 2056: live=20 jl=21 | 2026-09-25 tightened 9→5 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -3410,8 +3410,8 @@ col = "Stratum_3_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 5 cells [material=2 ulpbig=3] max|Δ|=3.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2"""
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 5 cells [material=2 ulpbig=3] max|Δ|=3.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2 | 2026-09-25 tightened 5→2 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -3432,8 +3432,8 @@ col = "Stratum_3_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 7 cells [ulp2_16=3 ulpbig=4] max|Δ|=0.6197 | e.g. stand 374547584489998 year 2055: live=0.21038353443145752 jl=0.21038348972797394"""
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 7 cells [ulp2_16=3 ulpbig=4] max|Δ|=0.6197 | e.g. stand 374547584489998 year 2055: live=0.21038353443145752 jl=0.21038348972797394 | 2026-09-25 tightened 7→5 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5324,8 +5324,8 @@ col = "Stratum_2_Crown_Cover"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 9 cells [material=2 ulpbig=7] max|Δ|=7.0 | e.g. stand 11855985010690 year 2056: live=20 jl=21"""
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 9 cells [material=2 ulpbig=7] max|Δ|=7.0 | e.g. stand 11855985010690 year 2056: live=20 jl=21 | 2026-09-25 tightened 9→5 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5445,8 +5445,8 @@ col = "Stratum_3_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 5 cells [material=2 ulpbig=3] max|Δ|=3.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2"""
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 5 cells [material=2 ulpbig=3] max|Δ|=3.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2 | 2026-09-25 tightened 5→2 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5467,8 +5467,8 @@ col = "Stratum_3_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 7 cells [ulp2_16=3 ulpbig=4] max|Δ|=0.6197 | e.g. stand 374547584489998 year 2055: live=0.21038353443145752 jl=0.21038348972797394"""
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 7 cells [ulp2_16=3 ulpbig=4] max|Δ|=0.6197 | e.g. stand 374547584489998 year 2055: live=0.21038353443145752 jl=0.21038348972797394 | 2026-09-25 tightened 7→5 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5819,8 +5819,8 @@ col = "CrWidth"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 14472
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 14472 cells [material=85 ulp1=87 ulp2_16=2248 ulpbig=12052] max|Δ|=7.152 | e.g. stand 3285544010690 year 2022: live=21.191822052001953 jl=21.191932678222656"""
+max_cells = 14440
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 14472 cells [material=85 ulp1=87 ulp2_16=2248 ulpbig=12052] max|Δ|=7.152 | e.g. stand 3285544010690 year 2022: live=21.191822052001953 jl=21.191932678222656 | 2026-09-25 tightened 14472→14440 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5841,8 +5841,8 @@ col = "DG"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 11891
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 11891 cells [material=88 ulp1=25 ulp2_16=617 ulpbig=11161] max|Δ|=2.131 | e.g. stand 3285544010690 year 2022: live=0.5329780578613281 jl=0.5331611633300781"""
+max_cells = 11889
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 11891 cells [material=88 ulp1=25 ulp2_16=617 ulpbig=11161] max|Δ|=2.131 | e.g. stand 3285544010690 year 2022: live=0.5329780578613281 jl=0.5331611633300781 | 2026-09-25 tightened 11891→11889 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -5929,8 +5929,8 @@ col = "PctCr"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 1882
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 1882 cells [material=651 ulpbig=1231] max|Δ|=73.0 | e.g. stand 3285544010690 year 2042: live=57 jl=59"""
+max_cells = 1396
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 1882 cells [material=651 ulpbig=1231] max|Δ|=73.0 | e.g. stand 3285544010690 year 2042: live=57 jl=59 | 2026-09-25 tightened 1882→1396 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -7623,8 +7623,8 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 52
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 52 cells [material=20 ulp1=2 ulpbig=30] max|Δ|=16.27 | e.g. stand 1287253083290487 year 2062: live=0.7869541645050049 jl=0.7855854630470276"""
+max_cells = 51
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 52 cells [material=20 ulp1=2 ulpbig=30] max|Δ|=16.27 | e.g. stand 1287253083290487 year 2062: live=0.7869541645050049 jl=0.7855854630470276 | 2026-09-25 tightened 52→51 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8404,8 +8404,8 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 53
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 53 cells [material=27 ulp1=2 ulpbig=24] max|Δ|=9.773 | e.g. stand 1287253083290487 year 2062: live=0.17102569341659546 jl=0.17163555324077606"""
+max_cells = 52
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 53 cells [material=27 ulp1=2 ulpbig=24] max|Δ|=9.773 | e.g. stand 1287253083290487 year 2062: live=0.17102569341659546 jl=0.17163555324077606 | 2026-09-25 tightened 53→52 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8756,8 +8756,8 @@ col = "ATSDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39"""
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39 | 2026-09-25 tightened 19→18 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8877,8 +8877,8 @@ col = "SDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39"""
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39 | 2026-09-25 tightened 19→18 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8910,8 +8910,8 @@ col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 40
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 40 cells [material=6 ulpbig=34] max|Δ|=63.0 | e.g. stand 1287253083290487 year 2062: live=199 jl=220"""
+max_cells = 38
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 40 cells [material=6 ulpbig=34] max|Δ|=63.0 | e.g. stand 1287253083290487 year 2062: live=199 jl=220 | 2026-09-25 tightened 40→38 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8932,8 +8932,8 @@ col = "Tpa"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 22
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 22 cells [material=1 ulpbig=21] max|Δ|=39.0 | e.g. stand 1287253083290487 year 2062: live=221 jl=220"""
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 22 cells [material=1 ulpbig=21] max|Δ|=39.0 | e.g. stand 1287253083290487 year 2062: live=221 jl=220 | 2026-09-25 tightened 22→19 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8965,8 +8965,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 9 cells [gold_text9=5 small=4] max|Δ|=0.2 | e.g. stand 1287253083290487 year 2062: live=3.3 jl=3.4"""
+max_cells = 8
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 9 cells [gold_text9=5 small=4] max|Δ|=0.2 | e.g. stand 1287253083290487 year 2062: live=3.3 jl=3.4 | 2026-09-25 tightened 9→8 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -8976,8 +8976,8 @@ col = "ATSDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39"""
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39 | 2026-09-25 tightened 19→18 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9097,8 +9097,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 9 cells [gold_text9=5 small=4] max|Δ|=0.2 | e.g. stand 1287253083290487 year 2062: live=3.3 jl=3.4"""
+max_cells = 8
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 9 cells [gold_text9=5 small=4] max|Δ|=0.2 | e.g. stand 1287253083290487 year 2062: live=3.3 jl=3.4 | 2026-09-25 tightened 9→8 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9108,8 +9108,8 @@ col = "SDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39"""
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 19 cells [material=3 ulpbig=16] max|Δ|=2.0 | e.g. stand 1287253083290487 year 2062: live=37 jl=39 | 2026-09-25 tightened 19→18 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9141,8 +9141,8 @@ col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 40
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 40 cells [material=6 ulpbig=34] max|Δ|=63.0 | e.g. stand 1287253083290487 year 2062: live=199 jl=220"""
+max_cells = 38
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 40 cells [material=6 ulpbig=34] max|Δ|=63.0 | e.g. stand 1287253083290487 year 2062: live=199 jl=220 | 2026-09-25 tightened 40→38 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9152,8 +9152,8 @@ col = "TPA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 22
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 22 cells [material=1 ulpbig=21] max|Δ|=39.0 | e.g. stand 1287253083290487 year 2062: live=221 jl=220"""
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 22 cells [material=1 ulpbig=21] max|Δ|=39.0 | e.g. stand 1287253083290487 year 2062: live=221 jl=220 | 2026-09-25 tightened 22→19 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9196,8 +9196,8 @@ col = "CrWidth"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 234
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 234 cells [gold_text9=234] max|Δ|=0.171 | e.g. stand 3285544010690 year 2012: live=16.7573891 jl=16.8978367"""
+max_cells = 216
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 234 cells [gold_text9=234] max|Δ|=0.171 | e.g. stand 3285544010690 year 2012: live=16.7573891 jl=16.8978367 | 2026-09-25 tightened 234→216 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9295,8 +9295,8 @@ col = "PctCr"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 73
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 73 cells [material=27 ulpbig=46] max|Δ|=4.0 | e.g. stand 3285544010690 year 2012: live=31 jl=32"""
+max_cells = 37
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 73 cells [material=27 ulpbig=46] max|Δ|=4.0 | e.g. stand 3285544010690 year 2012: live=31 jl=32 | 2026-09-25 tightened 73→37 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9449,8 +9449,8 @@ col = "Stratum_2_Crown_Cover"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 20
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 20 cells [material=5 ulpbig=15] max|Δ|=61.0 | e.g. stand 374547584489998 year 2055: live=31 jl=32"""
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 20 cells [material=5 ulpbig=15] max|Δ|=61.0 | e.g. stand 374547584489998 year 2055: live=31 jl=32 | 2026-09-25 tightened 20→17 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -9581,8 +9581,8 @@ col = "Stratum_3_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2"""
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 374547584489998 year 2025: live=1 jl=2 | 2026-09-25 tightened 4→3 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "IE"
@@ -11902,8 +11902,8 @@ col = "CrWidth"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2300
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 2300 cells [material=2 ulp1=282 ulp2_16=803 ulpbig=1213] max|Δ|=3.178 | e.g. stand 216786838010854 year 2014: live=8.78940200805664 jl=8.789405822753906"""
+max_cells = 2297
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 2300 cells [material=2 ulp1=282 ulp2_16=803 ulpbig=1213] max|Δ|=3.178 | e.g. stand 216786838010854 year 2014: live=8.78940200805664 jl=8.789405822753906 | 2026-09-25 tightened 2300→2297 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "SN"
@@ -12012,8 +12012,8 @@ col = "PctCr"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 222
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 222 cells [material=43 ulpbig=179] max|Δ|=43.0 | e.g. stand 200267456010854 year 2002: live=16 jl=0"""
+max_cells = 219
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 222 cells [material=43 ulpbig=179] max|Δ|=43.0 | e.g. stand 200267456010854 year 2002: live=16 jl=0 | 2026-09-25 tightened 222→219 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "SN"
@@ -15332,8 +15332,8 @@ col = "Mort"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 38
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 38 cells [material=31 ulpbig=7] max|Δ|=113.0 | e.g. stand 474187636489998 year 2036: live=2 jl=1"""
+max_cells = 37
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 38 cells [material=31 ulpbig=7] max|Δ|=113.0 | e.g. stand 474187636489998 year 2036: live=2 jl=1 | 2026-09-25 tightened 38→37 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -15552,8 +15552,8 @@ col = "Mort"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 38
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 38 cells [material=31 ulpbig=7] max|Δ|=113.0 | e.g. stand 474187636489998 year 2016: live=1 jl=0"""
+max_cells = 37
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 38 cells [material=31 ulpbig=7] max|Δ|=113.0 | e.g. stand 474187636489998 year 2016: live=1 jl=0 | 2026-09-25 tightened 38→37 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -17477,8 +17477,8 @@ col = "ATCCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 35
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2050: live=18 jl=16"""
+max_cells = 36
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2050: live=18 jl=16 | 2026-09-25 spread 35→36 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -17554,8 +17554,8 @@ col = "CCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 35
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2050: live=18 jl=16"""
+max_cells = 36
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2050: live=18 jl=16 | 2026-09-25 spread 35→36 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -17697,8 +17697,8 @@ col = "ATCCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 35
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2040: live=11 jl=10"""
+max_cells = 36
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2040: live=11 jl=10 | 2026-09-25 spread 35→36 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -17774,8 +17774,8 @@ col = "CCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 35
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2040: live=11 jl=10"""
+max_cells = 36
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 35 cells [material=26 ulpbig=9] max|Δ|=18.0 | e.g. stand 242065538010661 year 2040: live=11 jl=10 | 2026-09-25 spread 35→36 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -18522,8 +18522,8 @@ col = "BdFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2111
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 2111 cells [material=1265 ulp1=560 ulp2_16=49 ulpbig=237] max|Δ|=129.1 | e.g. stand 5352355010661 year 2044: live=0.0 jl=10.0"""
+max_cells = 2127
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 2111 cells [material=1265 ulp1=560 ulp2_16=49 ulpbig=237] max|Δ|=129.1 | e.g. stand 5352355010661 year 2044: live=0.0 jl=10.0 | 2026-09-25 spread 2111→2127 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -18621,8 +18621,8 @@ col = "MCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2706
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 2706 cells [material=966 ulp1=376 ulp2_16=39 ulpbig=1325] max|Δ|=23.36 | e.g. stand 5352355010661 year 2044: live=0.0 jl=1.7000000476837158"""
+max_cells = 2700
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 2706 cells [material=966 ulp1=376 ulp2_16=39 ulpbig=1325] max|Δ|=23.36 | e.g. stand 5352355010661 year 2044: live=0.0 jl=1.7000000476837158 | 2026-09-25 tightened 2706→2700 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -18654,8 +18654,8 @@ col = "PctCr"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7375
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 7375 cells [material=4265 ulpbig=3110] max|Δ|=40.0 | e.g. stand 5352355010661 year 2014: live=69 jl=73"""
+max_cells = 7376
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 7375 cells [material=4265 ulpbig=3110] max|Δ|=40.0 | e.g. stand 5352355010661 year 2014: live=69 jl=73 | 2026-09-25 spread 7375→7376 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -18676,8 +18676,8 @@ col = "PtBAL"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9603
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 9603 cells [material=6133 ulpbig=3470] max|Δ|=90.0 | e.g. stand 5352355010661 year 2044: live=4.0 jl=2.0"""
+max_cells = 9614
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 9603 cells [material=6133 ulpbig=3470] max|Δ|=90.0 | e.g. stand 5352355010661 year 2044: live=4.0 jl=2.0 | 2026-09-25 spread 9603→9614 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -18698,8 +18698,8 @@ col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7607
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 7607 cells [material=813 ulp1=244 ulp2_16=31 ulpbig=6519] max|Δ|=23.36 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.10000000149011612"""
+max_cells = 7610
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 7607 cells [material=813 ulp1=244 ulp2_16=31 ulpbig=6519] max|Δ|=23.36 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.10000000149011612 | 2026-09-25 spread 7607→7610 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19017,8 +19017,8 @@ col = "ATBA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19083,8 +19083,8 @@ col = "BA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19226,8 +19226,8 @@ col = "ATBA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19292,8 +19292,8 @@ col = "BA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19325,8 +19325,8 @@ col = "MAI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 32
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 32 cells [gold_text9=9 jl_not_f32=3 material=13 small=6 ulpbig=1] max|Δ|=15.9 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.1"""
+max_cells = 33
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 32 cells [gold_text9=9 jl_not_f32=3 material=13 small=6 ulpbig=1] max|Δ|=15.9 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.1 | 2026-09-25 spread 32→33 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19479,8 +19479,8 @@ col = "ATBA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19545,8 +19545,8 @@ col = "BA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2060: live=16 jl=14 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19688,8 +19688,8 @@ col = "ATBA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19754,8 +19754,8 @@ col = "BA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4"""
+max_cells = 35
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 36 cells [material=22 ulpbig=14] max|Δ|=16.0 | e.g. stand 242065538010661 year 2040: live=3 jl=4 | 2026-09-25 tightened 36→35 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
@@ -19787,8 +19787,8 @@ col = "MAI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 32
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 32 cells [gold_text9=9 jl_not_f32=3 material=13 small=6 ulpbig=1] max|Δ|=15.9 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.1"""
+max_cells = 33
+issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-23: 32 cells [gold_text9=9 jl_not_f32=3 material=13 small=6 ulpbig=1] max|Δ|=15.9 | e.g. stand 5352355010661 year 2044: live=0.0 jl=0.1 | 2026-09-25 spread 32→33 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
 
 [[residual]]
 variant = "EM"
