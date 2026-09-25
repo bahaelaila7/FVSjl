@@ -98,11 +98,15 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         q <= 1f0 ? 1f0 : q
     end
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    # nc/crown.f CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
+    cur_year = current_cycle_year(s)
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 12) && continue
         (lstart && t.crown_pct[i] > 0) && continue
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # nc/crown.f:328/335/380 `.GE. DLOW .AND. .LE. DHI`
         if d < 1f0 && lstart                              # crown.f:265,377 — sub-1" missing-crown ⇒ DUBSCR
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
@@ -112,8 +116,10 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             qmdplt < 1f0 && (qmdplt = 1f0)
             cr = nc_dubscr(s.rng, sp, d, h, ba, tpccf, p.avg_height, _prd(pt), qmdplt)   # PRD = ZRD/XMAXPT (point)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
-            lo = sp == 12 ? 5 : 10
-            icri > 95 && (icri = 95); icri < lo && (icri = lo); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))          # nc/crown.f:380-382
+            # stmt 59 (nc/crown.f:389-391): ONE floor of 10 for every species, gated on CRNMLT == 1. The old
+            # redwood floor of 5 has no basis in crown.f (dubscr.f's 0.05 is a CR-fraction clamp that 59 then lifts).
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -142,12 +148,21 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg                      # CRNMLT=1 ⇒ no band multiplier
+            crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41, nc/crown.f:328-332
         end
         icri = trunc(Int, crnew + 0.5f0)
+        ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052, :334-337
+        # nc/crown.f:341-355 — the CRMAX cap was MISSING from the port: on a cycling update with an existing
+        # crown, the new crown LENGTH cannot exceed the old one plus all of this cycle's height growth.
+        if !(lstart || icr == 0)
+            htg = t.ht_growth[i]; crln = h * Float32(icr) / 100f0
+            crmax = (crln + htg) / (h + htg) * 100f0
+            Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
+            (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
+        end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        lo = sp == 12 ? 5 : 10
-        icri > 95 && (icri = 95); icri < lo && (icri = lo)
+        # stmt 59 (nc/crown.f:389-391): floor 10 for every species, gated on CRNMLT == 1.
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
     # nc/crown.f:404-452 DO 79 — cycle-0 dead-record crown dub (point PRD/QMDPLT, TPCCF = PCCF(ITRE(I))).
