@@ -567,6 +567,36 @@ function sn_forkod_remap!(p)
     return
 end
 
+# so/ca/nc habtyp.f — STDINFO habitat decode for the mixed Region-5/Region-6 variants. FORKOD first (initre.f
+# STDINFO), then the region split on the post-FORKOD KODFOR:
+#   SO: R5 = 505,506,509,511,701,514   R6 = 601,602,620,799
+#   CA: R5 = KODFOR<600                R6 = KODFOR≥600
+#   NC: R5 = <600, 705, 800            R6 = 611, 712
+# R6: HBDECD against PCOML (numeric 1..NPA = sequence number, alpha = PA match); on KODTYP==0 the fallback
+# treats IFIX(ARRAY2) in NR5+1..NR5+NPA as a KODTYP (ITYPE = IHB−NR5, NR5=406) — e.g. SO 455 → PCOML(49).
+# R5 decodes into R5HABT, which no jl R5 site path reads ⇒ 0. Returns ITYPE (0 ⇒ the variant's default PA).
+function r56_stdinfo_itype!(s::StandState, field::AbstractString, array2::Real)::Int32
+    p = s.plot; v = s.variant
+    local ir6::Bool, pcoml
+    if v isa SouthCentralOregon
+        so_forkod!(p); kodfor = Int(p.user_forest_code)
+        ir6 = kodfor in (601, 602, 620, 799); pcoml = SO_PCOML
+    elseif v isa CentralCalifornia
+        ca_forkod!(p); kodfor = Int(p.user_forest_code)
+        ir6 = kodfor >= 600; pcoml = CA_PCOML
+    else
+        kodfor = NC_JFOR[nc_forkod!(p)]
+        ir6 = kodfor == 611 || kodfor == 712; pcoml = NC_PCOML
+    end
+    ir6 || return Int32(0)
+    it = hbdecd(field, array2, pcoml)
+    it > 0 && return Int32(it)
+    nr5 = 406
+    ihb = trunc(Int, Float32(array2))
+    (nr5 < ihb <= nr5 + length(pcoml)) && return Int32(ihb - nr5)
+    return Int32(0)
+end
+
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
@@ -588,9 +618,26 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
             # ec_sitset! reads (habitat_code). `nint(v[2])` alone parsed an alpha code to 0 ⇒ the stand
             # grew on the poor CPS241 default site instead of its real ECOCLS site species/index.
             p.habitat_code = ec_hbdecd(rec.fields[2], rec.values[2])
+        elseif s.variant isa WestCascades || s.variant isa PacificNorthwest
+            # wc/habtyp.f, pn/habtyp.f: pure Region 6 — `CALL HBDECD(KODTYP,PCOML(1),NPA,ARRAY2,KARD2)`, so the
+            # field is a PCOML index (numeric) or a plant-association code (alpha), exactly like EC. These two
+            # used to fall through to the `else` below, which files the value as the SOUTHERN ecological unit
+            # and leaves habitat_code at 0 — so every WC/PN stand on the keyword path ran on its DEFAULT plant
+            # association (WC CFS551 / PN CHS133) whatever habitat the user gave. MEASURED on WC: STDINFO
+            # habitat 40 is PCOML(40) = CFS252 in live ("PLANT ASSOCIATION CODE USED ... IS CFS252", SDIDEF
+            # 900); jl read 0, fell back to CFS551, and took ITS SDI max of 815.
+            pcoml = s.variant isa WestCascades ? WC_PCOML : PN_PCOML
+            p.habitat_code = hbdecd(rec.fields[2], rec.values[2], pcoml)
+        elseif s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia || s.variant isa Klamath
+            # so/ca/nc habtyp.f: initre.f STDINFO runs `KODFOR=IFIX(ARRAY(1)); CALL FORKOD` BEFORE HABTYP, and
+            # HABTYP picks the decode by the (post-FORKOD) KODFOR's region. Only the R6 forests consume the
+            # habitat (sitset ECOCLS, gated on IFOR), so habitat_code carries ITYPE = the PCOML index there.
+            # These three used to fall through to the `else` below (filed as a southern ecological unit) ⇒ every
+            # keyword-path R6 stand ran on the default PA (SO CPS111 / CA+NC CWC221) whatever the user gave.
+            p.habitat_code = r56_stdinfo_itype!(s, rec.fields[2], rec.values[2])
         elseif s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana ||
                s.variant isa Teton || s.variant isa BlueMountains || s.variant isa CentralIdaho ||
-               s.variant isa Olympic
+               s.variant isa Olympic || s.variant isa Utah
             p.habitat_code = nint(v[2])                      # OP: numeric plant-association index (op/habtyp.f)
         else
             p.eco_unit = rpad(resolve_eco_unit(rec.fields[2], rec.values[2]), 10)

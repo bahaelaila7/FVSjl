@@ -137,6 +137,7 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
     # lstart DUB path draws RNG, so iterate species-major there; cycling (no draw) keeps natural order. Within a
     # species, tree-index order = FVS IND1 (stable species bucket). The deterministic per-tree crown update is
     # order-independent, so this is a no-op except on the RNG stream. EM-only (dispatches on ::EasternMontana).
+    cur_year = current_cycle_year(s)   # em/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
     order = species_major_order(s)   # em/crown.f DO 70 ISPC … I=IND1(I3) — LIVE records only; the cycle-0
                                      # dead records get their own DO 79 pass below (they were folded in here).
     @inbounds for i in order
@@ -156,6 +157,10 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         crvar = sp == 11 || (13 <= sp <= 16) || sp == 19
         lpiju = sp == 6                                    # crown.f:318 LPIJU (RM) — crown-LENGTH form, like CRVAR
         nivar = sp == 5                                    # crown.f:314 NIVAR (LL) — the PARM PCR/DCR model
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        # em/crown.f's band test is STRICT at the top — `.GE. DLOW .AND. .LT. DHI` (:432/458/467/519) — unlike
+        # the westside variants' `.LE. DHI`.
+        inband = cdlow <= d < cdhi
         if crvar || lpiju
             htg = t.ht_growth[i]
             hf = h + htg                                  # crown.f:325 HF=H+HTG (H is post-growth at CROWN)
@@ -169,19 +174,20 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
                 pdifpy = chg/Float32(icr)/fint             # crown.f:452 (no *100; crnew already in %)
                 pdifpy > 0.01f0  && (chg = Float32(icr)*0.01f0*fint)
                 pdifpy < -0.01f0 && (chg = Float32(icr)*(-0.01f0)*fint)
-                icri = trunc(Int, (Float32(icr) + chg) + 0.5f0)   # crown.f:459-463 (CRNMLT=1 default)
+                icri = trunc(Int, (Float32(icr) + (inband ? chg * cmult : chg)) + 0.5f0)   # crown.f:458-463
                 if !lstart && icr != 0                     # crown.f:470-486 crown-length max (cycling, icr>0)
                     crln  = h*Float32(icr)/100.0f0
                     crmax = (crln + htg)/(h + htg)*100.0f0
-                    icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+                    (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # crown.f:485
                     Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
                 end
             else                                           # crown.f:465-467 DUB (lstart, icr==0)
                 icri = trunc(Int, crnew + 0.5f0)
+                inband && (icri = trunc(Int, Float32(icri) * cmult))   # crown.f:467-468
             end
             lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
             icri > 95 && (icri = 95)                        # crown.f:590
-            icri < 10 && (icri = 10)                        # crown.f:594 (CRNMLT=1)
+            (cmult == 1f0 && icri < 10) && (icri = 10)      # stmt 59, crown.f:530
             icri < 1  && (icri = 1)                         # crown.f:595
             t.crown_pct[i] = Int32(icri)
             continue
@@ -197,7 +203,8 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             pt_i = Int(t.plot_id[i])
             tpccf = (1 <= pt_i <= length(s.density.point_ccf)) ? s.density.point_ccf[pt_i] : 0f0
             icri = icri_round(em_dubscr(s.rng, sp, d, h, ba, tpccf, p.avg_height, rmai_v, dgsd))
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))   # crown.f:519-520
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)   # stmt 59
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -221,18 +228,19 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
                 pdifpy = chg / Float32(icr) / fint
                 pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint)
                 pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-                icri = trunc(Int, (Float32(icr) + chg) + 0.5f0)
+                icri = trunc(Int, (Float32(icr) + (inband ? chg * cmult : chg)) + 0.5f0)   # crown.f:458-463
                 if !lstart && icr != 0
                     crln  = h * Float32(icr) / 100f0
                     crmax = (crln + htg) / (h + htg) * 100f0
-                    icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+                    (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # crown.f:485
                     Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
                 end
             else
                 icri = trunc(Int, crnew + 0.5f0)
+                inband && (icri = trunc(Int, Float32(icri) * cmult))   # crown.f:467-468
             end
             lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)   # stmt 59
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -241,7 +249,7 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
         pcr = xcrcon + P[7]*d + P[8]*d*d + P[9]*log(d) + P[10]*h + P[11]*h*h + P[12]*log(h) + P[13]*pp + P[14]*log(pp)
         exppcr = exp(pcr)
         if lstart
-            icri = trunc(Int, icr + exppcr*100f0 + 0.50005f0)
+            icri = trunc(Int, icr + (inband ? cmult * exppcr : exppcr)*100f0 + 0.50005f0)   # crown.f:430-435
             dgsd >= 1.0f0 && (icri = trunc(Int, bachlo(s.rng, Float32(icri), _EM_CRSD)))
         else
             dcrcon = crcon + P[1]*oba + P[2]*oba*oba + P[3]*x1 + P[4]*reldm1 + P[5]*reldm1*reldm1 + P[6]*x2
@@ -255,10 +263,10 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
                 pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
                 pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
             end
-            icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
+            icri = trunc(Int, Float32(icr) + (inband ? cmult * chg : chg)*100f0 + 0.50005f0)   # crown.f:430-435
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri > 95 && (icri = 95); icri < 5 && (icri = 5)
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 5) && (icri = 5)   # stmt 59 NIVAR, crown.f:528
         t.crown_pct[i] = Int32(icri)
     end
     # em/crown.f:545-598 DO 79 — cycle-0 dead records: CRVAR (11,13-16,19) and LPIJU (6) take the crown-LENGTH

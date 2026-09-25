@@ -104,6 +104,7 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
     npt = length(xmaxpt)
     pb = s.density.point_ba; ptpa = s.density.point_tpa
     # ak/crown.f DO 70 ISPC … I=IND1(I3): species-major — DUBSCR/RANN draws follow this order.
+    cur_year = current_cycle_year(s)   # ak/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 23) && continue
@@ -111,6 +112,8 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         (lstart && icr > 0) && continue           # inventory crown present ⇒ keep (ak/crown.f:217)
         dubbed = false
         d = t.dbh[i]; h = t.height[i]; ip = Int(t.plot_id[i])
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # ak/crown.f:330/338/383 `.GE. DLOW .AND. .LE. DHI`
         baplt  = (1 <= ip <= length(pb))   ? pb[ip]   : 0f0
         tpaplt = (1 <= ip <= length(ptpa)) ? ptpa[ip] : 0f0
         qmdplt = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
@@ -120,7 +123,8 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         local icri::Int
         if d < 1f0 && lstart
             cr = ak_dubscr(s.rng, sp, d, h, prd, qmdplt)
-            icri = trunc(Int, cr * 100f0 + 0.5f0)      # CRNMLT=1, DLOW/DHI defaults ⇒ no multiplier
+            icri = trunc(Int, cr * 100f0 + 0.5f0)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))   # ak/crown.f:383-384
             dubbed = true                              # label 58 sits BELOW statement 55
         else
             x = AK_CRINT[sp] + AK_CRHDR[sp] * log(h * 12f0 / d) + AK_CRRD[sp] * prd +
@@ -133,22 +137,23 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
                 pdifpy = chg / Float32(icr) / fint
                 pdifpy > 0.03f0 && (chg = Float32(icr) * 0.03f0 * fint)
                 pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-                crnew = Float32(icr) + chg           # CRNMLT=1
+                crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41, ak/crown.f:330-334
             end
             icri = trunc(Int, crnew + 0.5f0)
+            ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052, :336-340
             if !(lstart || icr == 0)                 # crown-length cap CRMAX (ak/crown.f:346-358)
                 crln = h * Float32(icr) / 100f0
                 htg = t.ht_growth[i]
                 crmax = (crln + htg) / (h + htg) * 100f0
                 Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
-                (icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # CRNMLT=1
+                (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # ak/crown.f:358
             end
         end
         # ak/crown.f:362 statement 55 — reached from :345 `IF(LSTART .OR. ICR(I).EQ.0) GO TO 55`;
         # label 58 (DUBSCR) is below it, so a dubbed sub-1" record is not re-expressed.
         (lstart && !dubbed) && (icri = topkill_icri(t, i, icri))
         icri > 95 && (icri = 95)
-        icri < 10 && (icri = 10)                     # CRNMLT=1 (ak/crown.f:393)
+        (cmult == 1f0 && icri < 10) && (icri = 10)   # stmt 59, ak/crown.f:393
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end

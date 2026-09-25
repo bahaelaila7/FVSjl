@@ -121,6 +121,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
     rmai_as = lstart ? _ie_rmai_as(s) : 0f0
     rmai_lm = lstart ? _ie_rmai_lm(s) : 0f0
     order = species_major_order(s)   # ie/crown.f DO 70 ISPC … IND1 — every call (RANN d≤0 draws; post-TRIPLE lineage order)
+    cur_year = current_cycle_year(s)   # ie/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
     @inbounds for i in order
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
@@ -138,12 +139,14 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
         b7=IE_CRPARM[sp,7]; b8=IE_CRPARM[sp,8]; b9=IE_CRPARM[sp,9]; b10=IE_CRPARM[sp,10]
         b11=IE_CRPARM[sp,11]; b12=IE_CRPARM[sp,12]; b13=IE_CRPARM[sp,13]; b14=IE_CRPARM[sp,14]
         dubbed = false        # set on the label-58 DUBSCR paths, which bypass statement 55
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d < cdhi      # ie/crown.f is STRICT at the top: `.LT. DHI` (:511/540/549/608)
         if crvar || lpiju
             hf = h + t.ht_growth[i]
             cl = crvar ? (5.17281f0 + 0.32552f0*hf - 0.01675f0*ba) : (-0.59373f0 + 0.67703f0*hf)
             cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
             crnew = (cl / hf) * 100f0
-            icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
+            icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i]; cmult = cmult, inband = inband)
         elseif nivar && (!lstart && (d - t.diam_growth[i]/bark) < 3f0)
             continue                                    # cycling: backdated D<3 keeps its crown (GOTO 60)
         elseif nivar && lstart && d < 3.0f0
@@ -155,6 +158,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
             # draw (the regent NIVAR ZZRAN + the frozen DG serial-correlation OLDRN) desynced vs the oracle ⇒
             # dense small-tree stands scattered ±. ie_dubscr restores both the crown VALUE and the draw count.
             icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))   # ie/crown.f:608-609
             dubbed = true
         elseif nivar
             xcrcon = crcon + IE_CRPARM[sp,1]*ba + IE_CRPARM[sp,2]*ba*ba + IE_CRPARM[sp,3]*lnba +
@@ -180,7 +184,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
                 pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
             end
-            icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)   # DLOW=0/DHI=99/CRNMLT=1 defaults
+            icri = trunc(Int, Float32(icr) + (inband ? cmult * chg : chg)*100f0 + 0.50005f0)   # ie/crown.f:511-515
             (lstart && dgsd >= 1f0) && (icri = trunc(Int, bachlo(s.rng, Float32(icri), IE_CRSD)))
             # NIVAR ends with `GO TO 55` (crown.f "END OF NI BLOCK") — it SKIPS the CRMAX cap (which lives on the
             # label-53 CRVAR/LPIJU path, now in _ie_crown_label53). jl formerly applied CRMAX here (NIVAR) and
@@ -198,6 +202,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
                 tmai = (sp == 13 || sp == 17) ? rmai_lm : rmai_as
                 icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd; tpccf = tpccf, avh = p.avg_height, tmai = tmai)
+                inband && (icri = trunc(Int, Float32(icri) * cmult))   # ie/crown.f:608-609
                 dubbed = true
             else
                 relsdi = p.sp_sdi_def[sp] > 0f0 ? crown_sdi / p.sp_sdi_def[sp] : 1f0   # SDIAC/SDIDEF (≤1.5)
@@ -211,7 +216,7 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                 x = d > 0f0 ? (Float32(isort[i]) / Float32(t.n)) * scale : rann!(s.rng) * scale   # crown.f:428-433
                 x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
                 crnew = (A + B * fpow(-flog(1f0 - x), 1f0/C)) * 10f0                   # crown.f:436,443
-                icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i])
+                icri = _ie_crown_label53(crnew, icr, lstart, fint, sp, d, h, t.ht_growth[i]; cmult = cmult, inband = inband)
             end
         end
         # ie/crown.f:572-582 statement 55 — the NIVAR block ends `GO TO 55` (:523), the species-expansion
@@ -221,9 +226,9 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
         # final bounds (crown.f:382-390)
         icri > 95 && (icri = 95)
         if nivar
-            icri < 5 && (icri = 5)                       # CRNMLT==1 default
+            (cmult == 1f0 && icri < 5) && (icri = 5)                        # ie/crown.f:620
         else
-            icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)   # ie/crown.f:617-618
         end
         t.crown_pct[i] = Int32(icri)
     end
@@ -302,21 +307,24 @@ end
 
 # ie/crown.f label 53: CRVAR/LPIJU change bound + ICRI (CHG=CRNEW-ICR, PDIFPY ±1%/yr, CRMAX cap).
 @inline function _ie_crown_label53(crnew::Float32, icr::Int, lstart::Bool, fint::Float32, sp::Int, d::Float32,
-                                   h::Float32, htg::Float32)
+                                   h::Float32, htg::Float32; cmult::Float32 = 1f0, inband::Bool = false)
     chg = crnew - Float32(icr)
     if !lstart || icr > 0
         pdifpy = chg / Float32(icr) / fint
         pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint)
         pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-        crnew = Float32(icr) + chg                       # CRNMLT=1 default
+        crnew = Float32(icr) + (inband ? chg * cmult : chg)   # ie/crown.f:540-544
+        icri = trunc(Int, crnew + 0.5f0)
+    else                                                  # dub path, ie/crown.f:546-550
+        icri = trunc(Int, crnew + 0.5f0)
+        inband && (icri = trunc(Int, Float32(icri) * cmult))
     end
-    icri = trunc(Int, crnew + 0.5f0)
     # CRMAX cap (crown.f:556-568) is on the LABEL-53 (CRVAR/LPIJU) path — the NIVAR block ends with GO TO 55 and
     # SKIPS it (crown.f "END OF NI BLOCK"). Skipped at LSTART or ICR==0; CRNMLT=1 default so the ICRI<10 guard fires.
     if !(lstart || icr == 0)
         crln = h * Float32(icr) / 100f0
         crmax = (crln + htg) / (h + htg) * 100f0
-        icri < 10 && (icri = trunc(Int, crmax + 0.5f0))
+        (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # ie/crown.f:567
         Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
     end
     return icri

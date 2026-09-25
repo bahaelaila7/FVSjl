@@ -170,3 +170,27 @@ Three goldens were reconciled **from measurement**, both directions recorded in 
 than only the loosening — see the commits: KT's inert-seam self-snapshot, KT's absolute tolerances
 (TPA tightened 7→4 and 8→5, BA loosened 6→10, first four cycles now exact), and KT's simfire
 pre-fire TREES 282→283, which lost an exact cell while halving the BdFt error (−814 → −479).
+
+## Addendum 2026-09-25 (b) — `crnmult-rest` merge
+
+Branch `crnmult-rest` (worktree `.wt-crn2`), off master `a5825bb8`, landed with one proper `git merge --no-ff`.
+
+It carries:
+- CRNMULT at every `crown.f` site for PN, SO, EC, WS, CA, NC, CI, TT, UT, EM, IE, WC and AK.
+- The STDINFO habitat decode for WC, PN, SO, CA, NC and UT.
+- Faithful SO, CA and NC site setup, including CA Region 5 and the full `nc/forkod`.
+- Western volume fixes: inside-bark tops from the start-of-cycle BARK, CFTOPK trims, R5 tables for SO and
+  CA, NC merch specs, and the 712 BLMVOL path.
+- The CEPMRT/SLPMRT self-thinning latch for EM, NC, UT and TT.
+- WS R5CRWD CCF and DVE board-foot.
+
+Details are in `docs/PORT_STATUS.md` "CRNMULT rollout, STDINFO habitat, site setup and western volume".
+
+Gate: the full `Pkg.test` on the final tip is compared by name against master's baseline. The tiered
+allowlist was reconciled in both directions (38 tightened, 10 widened, EM latch verified against live), and
+UT's WRD row was promoted to bit-exact.
+
+`.wt-crn2` is safe to prune once merged, with the owner's approval.
+
+The oracle-side changes of 2026-09-25 (debug WRITEs removed, CR varmrt guard) are recorded in
+`/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md` §6.

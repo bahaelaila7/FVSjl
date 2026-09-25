@@ -73,6 +73,7 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
     isort = crown_isort(s; lstart = lstart)
+    cur_year = current_cycle_year(s)   # wc/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
@@ -80,6 +81,8 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
         (sp < 1 || sp > 39) && continue
         (lstart && t.crown_pct[i] > 0) && continue        # crown.f:229 keep inventory crown
         icr = Int(t.crown_pct[i])
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # wc/crown.f `.GE. DLOW .AND. .LE. DHI`
         # RW plot-level QMD / relative density (only used by the RW branch + dubscr; cheap to always set)
         prd = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0   # PRD≈RELSDI proxy (point SDI not ported)
         qmdplt = qmd > 1f0 ? qmd : 1f0
@@ -88,7 +91,8 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
             icr != 0 && continue                          # crown.f:382 IF(ICR.NE.0) GO TO 60
             cr = _wc_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))          # DUBSCR band
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -122,19 +126,20 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
             pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg                     # CRNMLT=1 ⇒ no band multiplier
+            crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41
         end
         icri = trunc(Int, crnew + 0.5f0)
+        ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052
         # CRMAX cap (cycling only)
         if !(lstart || icr == 0)
             htg = t.ht_growth[i]
             crln = h * Float32(icr) / 100f0
             crmax = (crln + htg) / (h + htg) * 100f0
-            (icri < 10) && (icri = trunc(Int, crmax + 0.5f0))          # CRNMLT=1
+            (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)  # label 59 (CRNMLT=1)
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)  # label 59
         t.crown_pct[i] = Int32(icri)
     end
     # we/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.

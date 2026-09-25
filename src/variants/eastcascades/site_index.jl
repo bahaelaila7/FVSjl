@@ -113,8 +113,18 @@ ec_ecocls(pa::AbstractString) = filter(r -> r.pa == pa, EC_ECOCLS)
 # ITYPE=114 default, which ec_sitset! maps to the CPS241 default site). Without this an
 # alpha plant-association code parsed to habitat_code=0 ⇒ every such stand grew on the poor
 # CPS241 default instead of its real site species/index.
-function ec_hbdecd(field::AbstractString, array2::Real)::Int
-    npa = length(EC_PCOML)
+ec_hbdecd(field::AbstractString, array2::Real)::Int = hbdecd(field, array2, EC_PCOML)
+
+"""
+    hbdecd(field, array2, pcoml) -> Int
+
+base/hbdecd.f — decode a STDINFO habitat / plant-association field into its index in the variant's `PCOML`
+table: a numeric value in 1..NPA is the index itself; 0 with alpha text is matched (up to 8 chars, uppercased)
+against `PCOML`; anything else is 0, which the caller maps to its default. Shared by every Region-6 HABTYP that
+calls HBDECD (EC, WC, PN, and the R6 branch of SO/CA/NC) — only the table differs.
+"""
+function hbdecd(field::AbstractString, array2::Real, pcoml)::Int
+    npa = length(pcoml)
     ihb = trunc(Int, Float32(array2))              # IHB = IFIX(ARRAY2)
     (ihb < 0 || ihb > npa) && return 0             # out of range → default
     ihb > 0 && return ihb                          # numeric sequence number (KODTYP)
@@ -123,7 +133,7 @@ function ec_hbdecd(field::AbstractString, array2::Real)::Int
     isempty(s) && return 0                         # nothing → DEFAULT
     first(s) == '0' && return 0                    # leading '0' → HBDECD 'DEFAULT'
     key = rpad(uppercase(String(first(s, 8))), 8)  # TEMP(1:8)
-    for (i, pa) in enumerate(EC_PCOML)
+    for (i, pa) in enumerate(pcoml)
         rpad(pa, 8) == key && return i             # TEMP(1:8) .EQ. CNHB(I)(1:8)
     end
     return 0                                        # no match → default (ITYPE=114)

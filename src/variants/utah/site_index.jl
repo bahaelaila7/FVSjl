@@ -75,10 +75,11 @@ function ut_sitset!(s::StandState)
     end
     # SDIDEF: SDICON per species, unless the BAMAX keyword is set (Zeide: BAMAX/(0.5454154·PMSDIU/100)).
     bamax_kw = s.control.ba_max
-    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 85f0   # ut uses PMSDIU as a PERCENT
+    # PMSDIU/100: jl stores the SDIMAX-keyword PMSDIU as a FRACTION (kw_sdimax!: min(v,95)/100); default 85%.
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     @inbounds for i in 1:nspecies(s.variant)
         if p.sp_sdi_def[i] <= 0f0
-            p.sp_sdi_def[i] = bamax_kw > 0f0 ? bamax_kw / (0.5454154f0 * (pmsdiu / 100f0)) : UT_SDICON[i]
+            p.sp_sdi_def[i] = bamax_kw > 0f0 ? bamax_kw / (0.5454154f0 * pmsdiu) : UT_SDICON[i]
         end
     end
     return s

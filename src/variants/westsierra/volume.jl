@@ -43,7 +43,9 @@ function compute_volumes_ws!(s::StandState)
         end
         eq = WS_VOL_EQ[sp]; mdl = eq[4:6]
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
-        bark = ws_bratio(sd, sp, d)                       # DIB/DOB (fvsvol BARK=BRATIO)
+        # vols.f:150 BARK=BRATIO(ISPC,D,H) is taken at the START-of-cycle DBH (before D=D+DG/BARK) — the stashed
+        # vol_bark; the grown-DBH bark only at cycle 0 / for dead records. It sets the merch/board tops (TOPD·BARK).
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : ws_bratio(sd, sp, d)                       # DIB/DOB (fvsvol BARK=BRATIO)
         if mdl == "WO2"
             s5 = _nc_r5tap_sp(eq[8:10])
             if s5 == 0 || hv < 5f0
@@ -60,9 +62,11 @@ function compute_volumes_ws!(s::StandState)
                 _fw2_board(dibat, hv, WS_VOL_BFTOPD * bark, 1f0, 2f0, 8f0) : 0f0      # VOL(2), top=BFTOPD·bark
         else                                              # DVE — California hardwood D²H (r5harv.f)
             tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, WS_VOL_TOPD * bark)
+            bf = nc_r5harv_vol(eq, d, hv, WS_VOL_BFTOPD * bark)[3]              # BF pass: MTOPP=BFTOPD·BARK
             t.cuft_vol[i] = tcf
             t.merch_cuft_vol[i] = d >= WS_VOL_DBHMIN ? mcf : 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0   # DVE board deferred (as NC)
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= WS_VOL_BFMIND ? bf : 0f0   # r5harv Scribner (fvsvol METHB=6 ⇒ TVOL(2))
         end
     end
     return s

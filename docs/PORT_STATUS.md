@@ -290,6 +290,134 @@ separate model: `canada/bc/dubscr.f` for V3 calls `CRNMD`, and `CRNMD` itself su
 and a height re-derived from the species height–DBH curve — porting it needs BC's `AA`/`BB` and the
 `LMHTDUB` flag, which may be metric-fitted.
 
+## CRNMULT rollout, STDINFO habitat, site setup and western volume (2026-09-25, branch `crnmult-rest`)
+
+Four linked findings. The last two were **hidden by the first two**: once each variant ran on the
+habitat the user actually gave it, TPA and BA came to within ±1 of live, and that exactness exposed
+volume columns that were still wrong on master.
+
+**1. CRNMULT at every `crown.f` site in 13 more variants.** PN, SO, EC, WS and CA use the PN-family five
+sites. NC, CI, TT, UT and WC use variant-specific patterns. EM and IE have six sites, including the
+NIVAR PCR path, with a strict upper band (`.LT. DHI`); the westside variants use `.LE.`. AK is also
+done. Faithfulness fixes found along the way:
+- NC's missing CRMAX cap, and a redwood floor of 5 that has no Fortran basis.
+- CI's missing `ICRI<10` CRMAX bump.
+- TT and UT statement 59's `[10,95]` bounds on the main path.
+
+Measured with `gencrn.jl` on the blanked-crown fixtures, as worst dTPA/dBA before → after:
+
+| Variant | Before | After | Note |
+|---|---|---|---|
+| PN | 16/83 | 0/0 | |
+| SO, EC, WC | — | 0/0 | all four cases |
+| CI | 20/27 | 3/1 | |
+| NC | 150/57 | 10/8 | |
+| UT | 18/6 | 8/2 | |
+| IE | 6/29 | 1/0 | |
+| AK | 49/12 | 24/6 | effect exact through cycle 2 |
+| TT | — | — | keyword effect exact for 4 cycles |
+
+KT can't be A/B'd: `FVSkt_clean` SIGFPEs on a CRNMULT card.
+
+**2. STDINFO field 2 (habitat) was dropped for WC, PN, SO, CA, NC and UT.** `kw_stdinfo!` filed it as a
+southern ecological unit, so every keyword-path stand in these variants ran on the default plant
+association, whatever the user gave. The fix follows `habtyp.f`:
+- WC and PN are pure R6, decoded by HBDECD against PCOML.
+- SO, CA and NC split on the post-FORKOD KODFOR region. Initre runs `CALL FORKOD` before HABTYP.
+  - R6 decodes with HBDECD, plus the NR5-offset sequence fallback (SO habitat 460 → PCOML(54)).
+  - R5 decodes to 0, because no R5 site path reads it.
+- UT stores the raw KODTYP, which `ut_habtyp` CRDECDs.
+
+The WC shipped fixture went from −40 BA to bit-exact.
+
+**3. Site setup did not follow `sitset.f`.**
+- **SO and NC:** ECOCLS never picked the site species or seeded SITEAR on R6. Every R6 stand ran as
+  PP@70 (SO) or DF@90 (NC), right only for the default PA. Live 601/CPS311 uses PP SI 85; live
+  611/CPC511 uses PP SI 52.
+- **SO R5:** used the R6 default instead of WF/50 with C5 SDIDEF, and it overwrote keyworded SITEAR.
+- **CA:** had no Region-5 branch at all (R5ADJ fan, R5SDI). R5 stands keep Zeide (`ca/grinit` sets
+  LZEIDE true; only the R6 sitset resets it).
+- **`nc/forkod`:** now covers all 11 JFOR codes, the reservation codes and the mapping correction.
+  Trinity, Mendocino, Los Padres, Simpson and every reservation stand used to run as Klamath.
+- **PMSDIU:** stored as a fraction. CA divided it by 100 again, and UT defaulted it to 85.
+
+Result on the shipped PN tree list across forests (`habtest.jl`): SO and CA TPA/BA are within ±1 on
+every case (they were up to −23 and +91 BA). NC is at its known base residual (7 TPA / 1 BA, was
+175/35).
+
+**4. Western volume.** Every finding was measured per tree from `FVS_TreeList`; the tool is
+`/tmp/claude-1000/voldiff.sh`.
+- The oracle's `fvsvol.f` passes western merch/board tops **inside bark**, as TOPD·BARK and
+  BFTOPD·BARK. `vols.f:150` takes BARK at the **start-of-cycle** DBH, which jl stashes as `vol_bark`.
+  NC, CA and SO used the grown-DBH bark, and NC/CA R5 a fixed 6″ top: NC R5 MCuFt was −11% and BdFt
+  −20%. The old NC audit put this down to "TPA normalisation"; that doesn't hold, because TCuFt is
+  exact.
+- `nvel_r5_vol` is a new shared Region-5 dispatcher (WO2W / DVEW / INGY FW2). SO and CA R5 forests
+  used the R6 INGY/Behre tables; they now use `voleqdef.f R5_EQN`, which depends only on species and
+  variant.
+- The CFTOPK/BFTOPK broken-top trim was missing in SO and CA. Example: a DF broken at 49 ft, D 15.9,
+  was 53.8 cuft in jl vs live 40.2.
+- NC had no `init_merch_standards!` branch, so it ran on generic CSV specs. It now follows
+  `nc/sitset.f`: top 4.5 on Siskiyou, 5.0 on the BLM forests, 6.0 on R5.
+- NC 712 (Coos Bay BLM) now uses BLMVOL (it had been sent down the R5 path), with the `BLM712` form
+  classes and DF B02 profile/taper 2.
+
+Result: cycle 0 is per-tree bit-exact on SO 601/505, CA 610/505 and NC 611/712/518. SO and CA stay
+exact through 2020, apart from one CA WF board value 10 bf off in 2020. NC's later-cycle differences
+are only on trees whose DBH already differs (the known NC DG residual).
+
+**5. The self-thinning line is latched (EM, NC, UT, TT).** In `{em,nc,ut,tt}/morts.f` the 55%–85% line
+solved the first time (SLPMRT/CEPMRT, VARCOM) is **kept and reused in every later cycle**. It is reset only
+when RMSQD==0, or when ICYC>1 and |T−TPAMRT|>1 (TPAMRT is the post-mortality TNEW). jl's shared southern
+driver and ON already did this, but `_em_tn10_iter` and `_tt_tn10_iter` re-solved the line every cycle.
+
+Measured: with DEBUG MORTS, live UT latches 7.72198 / −0.714817 in cycle 5 and reuses it in cycle 6. jl
+killed a uniform 0.736× live's mortality on every record from 2050. That was the whole "UT base residual".
+
+Worst TPA/BA on the shipped fixture, versus master:
+
+| Variant | Master | Now |
+|---|---|---|
+| UT | 13 / 3 | 0 / 0 over 10 cycles (bit-exact) |
+| NC | 7 / 1 | 1 / 1 |
+| EM | 8 / 6 | 3 / 3 |
+| TT | 20 / 7 | 10 / 3 |
+
+The RMSQD test uses `stand_qmd`, because `p.qmd` is only populated for Ontario.
+
+**6. WS.**
+- `ws/ccfcal.f` CASE(9,10,12,14:17,19,20,25:27) is R5CRWD crown width² × 0.001803. jl had a 0.001 stub,
+  so cycle-0 CCF was 58 vs live 65; it is now 65.
+- DVE hardwood board-foot volume had been zeroed as "deferred"; it is now r5harv at BFTOPD·BARK.
+
+**Oracle changes (user-approved 2026-09-25)**, recorded in `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md` §6:
+- Debug WRITEs removed from the BM, EM, IE, SN and CR buildDirs.
+- The CR `varmrt.f` TEMSUM guard is now in `FVScr_clean`.
+- Every shipped `.sum` is byte-identical before and after.
+
+**Gate reconciliation.** The tiered fast tier moved in both directions:
+- 38 allowlist entries improved and were tightened (25 IE, 11 EM, 2 SN).
+- 10 already-OPEN EM entries grew by 1–16 cells: mistletoe CCF 35→36, TreeList BdFt 2111→2127, PtBAL
+  9603→9614, plant MAI 32→33.
+
+The EM latch was verified against live before accepting that: jl latches in the same cycle as live
+(cycle 5) and holds 7.90189 / −0.76509 in every later cycle, matching live to ~1e-5. The residual
+difference comes from EM's already-differing D10 (8.397 vs 8.347). So the spread is trajectory churn
+inside open EM residuals, and the allowlist was widened with a note on each entry.
+
+UT's WRD absolute row became bit-exact, so it was promoted from `@test_broken` to a passing test.
+
+**Still open from this round:**
+- NC first-cycle DG: ±1–5% per tree in both directions with height growth exact. This looks like the
+  DG random-error component.
+- WS growth residual: cycle 1 BA is 136 vs 141.
+- EM and TT residuals: 3 BA.
+- One CA R5 WF board-foot log-boundary value.
+- WS DVE board-foot is still zeroed ("deferred as NC"; NC now computes it).
+- CRNMULT for OP, OC, KT and BC.
+- The SDICALC min-DBH filter on morts.f's T (`D < DBHZEIDE/DBHSTAGE`) is not applied in the EM/NC/UT/TT
+  kernels. It is inert at the default 0.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live

@@ -60,6 +60,13 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
     end
     tt < 1f-6 && return s
+    # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
+    # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
+    let dens = s.density
+        stand_qmd(s) == 0f0 && (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)   # RMSQD==0 (dense.f)
+        (Int(s.control.cycle) > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
+            (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)
+    end
     if zeide
         dr10 = fpow(sumdr10 / tt, 1f0 / 1.605f0); dia0 = fpow(sumdr0 / tt, 1f0 / 1.605f0)
     else
@@ -109,11 +116,11 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
                 tn10 = t85d10
             elseif tt > t55d0
                 tn10 = abs(t85d0 - tt) <= 5f0 ? t85d10 :
-                       _em_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, false)
+                       _em_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, false; dens = s.density)
             elseif tt <= t55d10
                 tn10 = tt
             else
-                tn10 = _em_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true)
+                tn10 = _em_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true; dens = s.density)
             end
             tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
             rn = 1f0 - fpow(1f0 - (tt - tn10) / tt, 1f0 / fint)
@@ -177,6 +184,8 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
             end
         end
     end
+    # morts.f TPAMRT=TNEW: post-mortality (after the BAMAX cap) residual TPA, the reference for the next reset test.
+    s.density.tpa_mort = sum(max(0f0, t.tpa[i] - killed[i]) for i in 1:n; init = 0f0)
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

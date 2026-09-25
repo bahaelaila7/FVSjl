@@ -17,6 +17,20 @@ const CA_R6ADJ = Float32[
     0.56, 0.76, 0.28, 0.76, 0.56, 0.76, 0.76, 0.76, 0.40, 0.70,
     0.40, 0.76, 0.76, 0.40, 0.76, 0.25, 0.25, 0.25, 0.56, 1.00]
 
+# ca/sitset.f R5ADJ / R5SDI — the Region-5 (IFOR<6) site-fan multiplier and per-species default SDImax.
+const CA_R5ADJ = Float32[
+    0.90, 0.76, 0.90, 1.00, 1.00, 1.00, 1.00, 0.90, 0.90, 0.90,
+    0.90, 0.90, 0.90, 0.90, 1.00, 1.00, 0.90, 1.00, 0.90, 0.90,
+    0.76, 0.76, 1.00, 0.76, 0.90, 0.57, 0.57, 0.57, 0.57, 0.57,
+    0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57,
+    0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 0.57, 1.00]
+const CA_R5SDI = Float32[
+     592, 576, 762, 800,1000,1000, 570, 682, 687, 621,
+     679, 679, 365, 409, 365, 561, 272, 365, 365, 214,
+     272, 412,1052, 576, 365, 667, 667, 214, 214, 440,
+     406, 440, 667, 629, 440, 441, 515, 785, 406, 441,
+     283, 785, 499, 562, 452, 447, 576, 406, 452,1052]
+
 # ca/forkod.f — KODFOR → IFOR via the JFOR table (region 5+6 CA forests); KFOR = all 1 (IGL=1).
 const CA_JFOR = Int[505, 506, 508, 511, 514, 610, 611, 710, 711, 712, 518]
 
@@ -95,46 +109,60 @@ ca_habtyp(kodtyp::Integer)::String =
 
 ca_ecocls(pa::AbstractString) = filter(r -> r.pa == pa, CA_ECOCLS)
 
-# ca/sitset.f — Region-6 path (IFOR≥6): ECOCLS site-index fan via the R6ADJ ratio; SDIDEF via BAMAX or
-# the site-species default. (R5 IFOR<6 path with R5ADJ/R5SDI is not exercised by the CA ref stands.)
+# ca/sitset.f — IFOR≥6 (Region 6): ECOCLS the plant association for the site species / SI / SDImax, then the
+# R6ADJ Hann-Scrivani fan. IFOR<6 (Region 5): no ECOCLS — site species default DF(7) at SI 80, the R5ADJ fan
+# (HGUESS = SITEAR(ISISP) itself), and SDIDEF = R5SDI per species. The R5 branch used to be missing, so every
+# R5 stand (505/506/508/511/514/518) took the R6 CWC221 ecoclass defaults and the R6 fan instead.
 function ca_sitset!(s::StandState)
     p = s.plot; maxsp = nspecies(s.variant)
     formax = CA_FORMAX
+    ifor = Int(p.forest_idx)
+    r6 = ifor >= 6
     nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
-    pcom = ca_habtyp(Int(p.habitat_code))         # R6 ecoclass code (default CWC221 when undecodable)
-    isempty(pcom) && (pcom = "CWC221")
-    rows = ca_ecocls(pcom)
-    isempty(rows) && (rows = ca_ecocls("CWC221")) # ca/sitset.f ICL5==0 default when PA not found
-
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0
     jsisp = 0
-    @inbounds for r in rows
-        iseq = r.fvsseq; iseq == 0 && continue
-        rsdi = min(r.sdimx, formax)
-        (jsisp == 0 && r.iflag == 1) && (jsisp = iseq)
-        (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
-        (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
-        p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
-        (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
+    if r6
+        all(isspace, s.control.sdi_method) && (s.control.zeide_sdi = false)   # IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.
+        pcom = ca_habtyp(Int(p.habitat_code))     # ICL5==0 ⇒ CWC221 (ca/sitset.f default, = habtyp's)
+        rows = ca_ecocls(pcom)
+        isempty(rows) && (rows = ca_ecocls("CWC221"))
+        @inbounds for r in rows
+            iseq = r.fvsseq; iseq == 0 && continue
+            rsdi = min(r.sdimx, formax)
+            (jsisp == 0 && r.iflag == 1) && (jsisp = iseq)
+            (isisp <= 0 && r.iflag == 1) && (isisp = iseq)
+            (p.sp_site_index[iseq] <= 0f0 && nsiset == 0) && (p.sp_site_index[iseq] = r.site)
+            p.sp_sdi_def[iseq] <= 0f0 && (p.sp_sdi_def[iseq] = rsdi)
+            (isisp > 0 && r.iflag == 1 && p.sp_sdi_def[isisp] <= 0f0) && (p.sp_sdi_def[isisp] = rsdi)
+        end
+        isisp <= 0 && (isisp = 7)                  # R6 global default site sp = DF(7)
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 80f0)
+        hguess = p.sp_site_index[isisp] / CA_R6ADJ[isisp]   # Hann-Scrivani DF SI
+    else
+        isisp <= 0 && (isisp = 7)
+        p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 80f0)
+        hguess = p.sp_site_index[isisp]
+        jsisp = isisp
     end
-    isisp <= 0 && (isisp = 7)                      # ca/sitset.f R6 global default site sp = DF(7)
-    p.sp_site_index[isisp] <= 0f0 && (p.sp_site_index[isisp] = 80f0)   # ca/sitset.f default SI
-
-    # ca/sitset.f: HGUESS = Hann-Scrivani DF SI = SITEAR(ISISP)/R6ADJ(ISISP); fan every unset species.
-    hguess = p.sp_site_index[isisp] / CA_R6ADJ[isisp]
+    adj = r6 ? CA_R6ADJ : CA_R5ADJ
     @inbounds for i in 1:maxsp
-        p.sp_site_index[i] == 0f0 && (p.sp_site_index[i] = hguess * CA_R6ADJ[i])
+        p.sp_site_index[i] == 0f0 && (p.sp_site_index[i] = hguess * adj[i])
     end
 
-    # ca/sitset.f DO 40 — SDIDEF fan: BAMAX branch else the site-species default (K), capped at FORMAX.
+    # ca/sitset.f DO 40 — BAMAX (capped) / R6 site-species default K (capped) / R5SDI.
     k = isisp
-    p.sp_sdi_def[k] <= 0f0 && (k = jsisp > 0 ? jsisp : isisp)
+    p.sp_sdi_def[k] <= 0f0 && (k = jsisp)
     bamax = s.control.ba_max
-    pmsdiu = p.pct_sdimax_mort_hi                 # ca/grinit.f PMSDIU (only used when BAMAX>0)
+    pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0   # PMSDIU/100 (stored as a fraction)
     @inbounds for i in 1:maxsp
         p.sp_sdi_def[i] > 0f0 && continue
-        v = bamax > 0f0 ? bamax / (0.5454154f0 * (pmsdiu / 100f0)) : p.sp_sdi_def[k]
-        v > formax && (v = formax)
+        if bamax > 0f0
+            v = bamax / (0.5454154f0 * pmsdiu); v > formax && (v = formax)
+        elseif r6
+            v = p.sp_sdi_def[k]; v > formax && (v = formax)
+        else
+            v = CA_R5SDI[i]
+        end
         p.sp_sdi_def[i] = v
     end
     p.site_species = Int32(isisp)

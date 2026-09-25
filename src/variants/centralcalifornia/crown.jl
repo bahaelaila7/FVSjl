@@ -81,12 +81,16 @@ function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 =
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
     isort = crown_isort(s; lstart = lstart)
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    # ca/crown.f CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
+    cur_year = current_cycle_year(s)
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 50) && continue
         (lstart && t.crown_pct[i] > 0) && continue        # crown.f:227 keep inventory crown
         icr = Int(t.crown_pct[i])
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # `.GE. DLOW .AND. .LE. DHI`
         # GS/RW plot-level QMD / relative density (only used by the GS/RW branch + dubscr). Point SDICAL
         # deferred (no GS/RW in cat01) ⇒ stand-SDI/stand-QMD proxies, source-faithful for the exercised path.
         prd = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
@@ -96,7 +100,8 @@ function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 =
             icr != 0 && continue                          # crown.f:379 IF(ICR.NE.0) GO TO 60
             cr = _ca_dubscr(s.rng, sp, d, h, ba, prd, qmdplt)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))   # DUBSCR band scaling
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -130,19 +135,20 @@ function crown_ratio_update!(s::StandState, ::CentralCalifornia; fint::Float32 =
             pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg
+            crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41
         end
         icri = trunc(Int, crnew + 0.5f0)
+        ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052
         # CRMAX cap (cycling only)
         if !(lstart || icr == 0)
             htg = t.ht_growth[i]
             crln = h * Float32(icr) / 100f0
             crmax = (crln + htg) / (h + htg) * 100f0
-            (icri < 10) && (icri = trunc(Int, crmax + 0.5f0))          # CRNMLT=1
+            (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))          # CRNMLT=1
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)  # statement 59 (CRNMLT=1)
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)  # statement 59 (CRNMLT=1)
         t.crown_pct[i] = Int32(icri)
     end
     # ce/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
