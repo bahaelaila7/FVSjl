@@ -111,11 +111,15 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
     isort = crown_isort(s; lstart = lstart)
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    # ci/crown.f CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
+    cur_year = current_cycle_year(s)
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 19) && continue
         (lstart && t.crown_pct[i] > 0) && continue
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # ci/crown.f:342/349/403 `.GE. DLOW .AND. .LE. DHI`
         if sp == 17 || sp == 19                         # ci/crown.f CASE(17,19): CW/OH crown model at ALL sizes
             hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)   # HF=H+HTG (HTG=0 at the lstart dub)
             cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area
@@ -138,7 +142,8 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
             tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
             cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, _ci_temmai(s, sp))
             icri = trunc(Int, cr*100f0 + 0.5f0)
-            icri < 10 && (icri = 10); icri > 95 && (icri = 95); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))          # ci/crown.f:403-404
+            (cmult == 1f0 && icri < 10) && (icri = 10); icri > 95 && (icri = 95); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -158,16 +163,19 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg                      # CRNMLT=1, DLOW=0/DHI=99 ⇒ no-op branch
+            crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41, ci/crown.f:342-346
         end
         icri = trunc(Int, crnew + 0.5f0)
+        ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052, :348-351
         if !(lstart || icr == 0)
             crln = h * Float32(icr) / 100f0; htg = t.ht_growth[i]
             crmax = (h + htg) > 0f0 ? (crln + htg) / (h + htg) * 100f0 : 100f0
+            # ci/crown.f:369-370, in THIS order — the ICRI<10 bump was missing from the port.
+            (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri > 95 && (icri = 95); icri < 10 && (icri = 10)   # ci/crown.f:405-406 label-59 floor (CRNMLT=1)
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10)   # stmt 59, ci/crown.f:411-412
         t.crown_pct[i] = Int32(icri)
     end
     # ci/crown.f:426-462 DO 79 — cycle-0 dead records: 17,19 crown-length form (INT(CR*100.), no rounding), others DUBSCR.
