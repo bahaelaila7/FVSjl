@@ -62,9 +62,11 @@ function compute_volumes_ws!(s::StandState)
                 _fw2_board(dibat, hv, WS_VOL_BFTOPD * bark, 1f0, 2f0, 8f0) : 0f0      # VOL(2), top=BFTOPD·bark
         else                                              # DVE — California hardwood D²H (r5harv.f)
             tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, WS_VOL_TOPD * bark)
+            bf = nc_r5harv_vol(eq, d, hv, WS_VOL_BFTOPD * bark)[3]              # BF pass: MTOPP=BFTOPD·BARK
             t.cuft_vol[i] = tcf
             t.merch_cuft_vol[i] = d >= WS_VOL_DBHMIN ? mcf : 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0   # DVE board deferred (as NC)
+            t.saw_cuft_vol[i] = 0f0
+            t.bdft_vol[i] = d >= WS_VOL_BFMIND ? bf : 0f0   # r5harv Scribner (fvsvol METHB=6 ⇒ TVOL(2))
         end
     end
     return s

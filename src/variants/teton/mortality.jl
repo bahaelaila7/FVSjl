@@ -105,7 +105,8 @@ const TT_PP_GMULT = (Float32(1.125f0),   Float32(1.111111f0))
 # (55%<T≤85% at DIA0) Newton-iterates TREEIT (≤100) so exp(CEPT+SLP·ln(DIA0)) ≈ T. TN10 = exp(CEPT+SLP·ln(D10)),
 # capped at T85D10.
 function _tt_tn10_iter(tt::Float32, dia0::Float32, d10::Float32, const_::Float32, pmsdil::Float32,
-                       pmsdiu::Float32, t85d10::Float32, t55d0::Float32, ipath2::Bool)::Float32
+                       pmsdiu::Float32, t85d10::Float32, t55d0::Float32, ipath2::Bool;
+                       dens::Union{Nothing,Density} = nothing)::Float32
     treeit = tt + 0.1f0 * tt
     slp = 0f0; cept = 0f0; knt = 1
     while true
@@ -126,6 +127,12 @@ function _tt_tn10_iter(tt::Float32, dia0::Float32, d10::Float32, const_::Float32
         (diff <= 5f0 && diff >= -5f0) && break
         treeit += 0.5f0 * diff; knt += 1
         knt > 100 && break
+    end
+    # tt/morts.f:230 LATCH: the first solved line is kept (SLPMRT/CEPMRT, VARCOM) and reused in later cycles.
+    if dens !== nothing
+        dens.mort_slope == 0f0 && (dens.mort_slope = slp)
+        dens.mort_intercept == 0f0 && (dens.mort_intercept = cept)
+        slp = dens.mort_slope; cept = dens.mort_intercept
     end
     tn10 = exp(cept + slp * log(d10))
     tn10 >= t85d10 && (tn10 = t85d10)
@@ -149,6 +156,13 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr; dsum += d * pr
     end
     tt < 1f-6 && return s
+    # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
+    # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
+    let dens = s.density
+        stand_qmd(s) == 0f0 && (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)   # RMSQD==0 (dense.f)
+        (Int(s.control.cycle) > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
+            (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)
+    end
     dq10 = fpow(sumdr10 / tt, 1f0 / 1.605f0)   # Reineke DR10 (Zeide self-thin diameter; tt/morts.f:267 D10=DR10)
     dq0  = fpow(sumdr0 / tt, 1f0 / 1.605f0)     # DR0 = pre-growth Reineke diameter
     aved = dsum / tt
@@ -181,11 +195,11 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
             tn10 = t85d10                                              # kill to the 85% line
         elseif tt > t55d0
             tn10 = abs(t85d0 - tt) <= 5f0 ? t85d10 :
-                   _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, false)
+                   _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, false; dens = s.density)
         elseif tt <= t55d10
             tn10 = tt                                                  # below 55% at both — hold (RN=0)
         else
-            tn10 = _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true)   # IPATH=2
+            tn10 = _tt_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true; dens = s.density)   # IPATH=2
         end
         tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
         rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
@@ -299,6 +313,8 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
             end
         end
     end
+    # morts.f TPAMRT=TNEW: post-mortality (after the BAMAX cap) residual TPA, the reference for the next reset test.
+    s.density.tpa_mort = sum(max(0f0, t.tpa[i] - killed[i]) for i in 1:n; init = 0f0)
     # Dwarf-mistletoe mortality (mismrt.f): MAX-combine per-tree DM kill into killed[] before snags/removal,
     # same as the shared N-Rockies path (southern/mortality.jl). This variant has its own mortality! so it
     # must be wired here; inert on stands with no DM ratings (dmr==0 ⇒ per-tree no-op).

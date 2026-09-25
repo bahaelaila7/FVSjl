@@ -85,8 +85,9 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
         D >= 10f0 && return 0.01925f0 + 0.01676f0 * D + 0.00365f0 * D * D
         D > 0.1f0 && return 0.009187f0 * fpow(D, 1.7600f0)
         return 0.001f0
-    elseif sp in WS_CROWN_CA_SURR                          # CA-surrogate (R5CRWD crown width — chunk 5b)
-        return 0.001f0                                     # stub (absent from wst01)
+    elseif sp in WS_CROWN_CA_SURR                          # ws/ccfcal.f CASE(9,10,12,14:17,19,20,25:27)
+        cw = ws_r5crwd(Int(sp), D, Float32(h))             # R5CRWD crown width (was a 0.001 stub ⇒ CCF low)
+        return cw * cw * 0.001803f0
     end
     # CASE DEFAULT (WS-native, incl SP/DF/WF/RF): crown-width² (RD1+D·RD2)² · 0.001803
     D >= 1f0 && return ((WS_CCF_RD1[sp] + D * WS_CCF_RD2[sp])^2) * 0.001803f0
