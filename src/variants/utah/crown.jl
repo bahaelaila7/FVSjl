@@ -103,10 +103,13 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
     p_pccf = s.density.point_ccf
     rmai = lstart ? _ut_rmai(s) : 0f0
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
+    cur_year = current_cycle_year(s)   # ut/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
     @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (lstart && t.crown_pct[i] > 0) && continue
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
+        inband = cdlow <= d <= cdhi                       # ut/crown.f:276/283/348 `.GE. DLOW .AND. .LE. DHI`
         # ut/crown.f:220 — DBH<1" at LSTART routes to label 58 (small-tree dub), for ALL species.
         if d < 1f0 && lstart
             if sp == 17                                    # ut/crown.f:326 CASE(17): GB crown-length form
@@ -125,7 +128,8 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
                 cr = _ut_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
                 icri = trunc(Int, cr*100f0 + 0.5f0)
             end
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))          # ut/crown.f:348-349 (after the CASE)
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
         end
@@ -158,17 +162,20 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint)
-            crnew = Float32(icr) + chg
+            crnew = Float32(icr) + (inband ? chg * cmult : chg)   # stmt 41, ut/crown.f:276-280
         end
         icri = trunc(Int, crnew + 0.5f0)
+        ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052, :282-285
         if !(lstart || icr == 0)
             htg = t.ht_growth[i]; crln = h * Float32(icr) / 100f0
             crmax = (crln + htg) / (h + htg) * 100f0
-            (icri < 10 && Float32(icri) <= crmax) && (icri = trunc(Int, crmax + 0.5f0))
+            (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))   # ut/crown.f:303, literal
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri < 0 && (icri = 0); icri > 100 && (icri = 100)
+        # ut/crown.f statement 55 ends `GO TO 59`: [10,95] with the floor gated on CRNMLT == 1 (:355-358),
+        # not the [0,100] clamp the port used.
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
     end
     # ut/crown.f DO 79 — cycle-0 dead records: 17 LP-PJ CL, 18/19/22 CL (rounded), else DUBSCR at the record's point.
