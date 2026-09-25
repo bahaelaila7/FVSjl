@@ -90,6 +90,16 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
+        compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN before the dub
+        crown_init_lstart_dead_inclusive!(s)  # kt/cratet.f:598 `IF(MISSCR)CALL CROWN` — KT scans the live AND the
+                                          # cycle-0 dead records for a missing crown and dubs them, against the
+                                          # SAME backdated dead-inclusive DENSE as every other variant
+                                          # (kt/cratet.f:182-184 `LBKDEN = IDG.LT.2; CALL DENSE`). jl had NO LSTART
+                                          # crown call for KT at all — the same defect OC had — so every
+                                          # missing-crown inventory record kept crown_pct=0 and KT's PCR/DUBSCR
+                                          # crown model ran off it. MEASURED on the KT WRD control fixture with the
+                                          # live crowns blanked: worst |jl-live| was 31 TPA / 51 BA, the largest
+                                          # LSTART-dub residual of any variant.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa InlandEmpire
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
@@ -166,6 +176,13 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BritishColumbia
         bc_dgcons!(s)                     # BC V3 DGCON (ZNKONST/SSKONST via BEC PrettyName match) — chunk 3, V3 zones only
+        compute_density!(s)               # current-stand density before the dub
+        crown_init_lstart_dead_inclusive!(s)  # canada/bc/cratet.f:529+ `IF(MISSCR)CALL CROWN` over the live AND the
+                                          # cycle-0 dead records, against the same backdated dead-inclusive DENSE
+                                          # (bc/cratet.f:206 `LBKDEN = IDG.LT.2`). jl had NO LSTART crown call for BC
+                                          # at all — the same defect KT and OC had. The sub-2cm DUBSCR route inside
+                                          # bc/crown.f stays deferred (documented), so this dubs the >=2cm
+                                          # missing-crown records via the V3 PCR model.
         calibrate_diameter_growth!(s; scale = dgscale)
         dm_init!(s)                       # #196 C1: seed NEWSPRED per-tree initial DMR from damage codes (inert until C6)
     elseif s.variant isa Klamath

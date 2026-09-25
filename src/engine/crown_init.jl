@@ -102,6 +102,22 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         end
     end
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    # dense.f:244 `CALL PCTILE(ITRN,IND,WK5,PCT,TOTAL)` — in the BACKDATING pass, PCT is accumulated over
+    # **IND**, which cratet.f sorted on the REAL `DBH`, while the per-tree weight `WK5 = D*D*PROB` uses the
+    # BACKDATED diameter (dense.f:184 `IF(LBKDEN.AND.LREDO) D = WK3(I)`). compute_density! above derived BOTH
+    # from the backdated diameters, so the ORDER was wrong whenever backdating reshuffles near-equal trees —
+    # and PCT feeds the PCR crown model directly (KT/IE/EM `b13*P + b14*log(P)`). MEASURED on the KT WRD
+    # fixture with blanked crowns: live P rises monotonically with the read diameter (D 7.9→45.694,
+    # 8.0→50.489, 8.2→54.573, 8.4→58.704) while jl's backdated order INVERTED it (50.92, 45.98, 32.92, 37.06).
+    # Rebuild PCT with the real-diameter IND and the backdated weights.
+    if lbkden && t.n > 0                   # _pctile! indexes idx[1] unguarded; an empty stand (no live
+                                           # records AND no dead ones) reaches here with t.n == 0
+        backdated = Float32[t.dbh[i] for i in 1:nlive]
+        @inbounds for i in 1:nlive; t.dbh[i] = saved_live[i]; end
+        idx = view(s.scratch.stat_idx, 1:t.n); bm_cratet_ind!(s, idx)
+        @inbounds for i in 1:nlive; t.dbh[i] = backdated[i]; end
+        _pctile!(t.crown_ratio, t, idx, t.n)
+    end
     s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end
@@ -113,6 +129,35 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     return s
 end
 
+
+"""
+    topkill_icri(t, i, icri) -> Int
+
+crown.f statement 55, identical in every variant:
+
+    55 IF (.NOT.LSTART .OR. ITRUNC(I).EQ.0) GO TO 59
+       HN=REAL(NORMHT(I))/100.0
+       HD=HN-REAL(ITRUNC(I))/100.0
+       CL=(REAL(ICRI)/100.)*HN-HD
+       ICRI=INT((CL*100./HN)+.5)
+
+A top-killed INVENTORY record carries its crown ratio against the height it WOULD have had
+(`NORMHT`), not the height that is left. The dead top `HD = HN − ITRUNC/100` is subtracted from the
+crown length that `ICRI` implies on `HN`, and what remains is re-stated as a fraction of `HN`. Only
+at LSTART — a tree that is topped later during the projection is handled by the CRMAX cap instead.
+
+Caller supplies `icri` AFTER the 9052 rounding and BEFORE the statement-59 bounds. FVS divides by
+`HN` unguarded because a record with `ITRUNC > 0` always has `NORMHT > 0` by then (cratet.f resolves
+it in the missing-height dub); the guard here keeps a not-yet-resolved `NORMHT` from producing Inf.
+"""
+@inline function topkill_icri(t, i::Integer, icri::Integer)
+    t.trunc[i] == 0 && return Int(icri)
+    hn = Float32(t.norm_ht[i]) / 100f0
+    hn <= 0f0 && return Int(icri)
+    hd = hn - Float32(t.trunc[i]) / 100f0
+    cl = (Float32(icri) / 100f0) * hn - hd
+    return trunc(Int, (cl * 100f0 / hn) + 0.5f0)
+end
 
 """
     crown_isort(s; lstart=false) -> Vector{Int32}

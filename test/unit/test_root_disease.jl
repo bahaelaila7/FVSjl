@@ -142,8 +142,16 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         # A stand with no RDIN block has root_disease === nothing ⇒ every seam is a
         # no-op ⇒ its .sum is byte-identical to the pre-RD KT baseline. These are a jl SELF-snapshot (the
         # inert-seam guarantee), NOT oracle rows — KT vs live is asserted in the ABSOLUTE testset below.
-        CTRL_TPA = Int[536, 448, 380, 332, 296, 264, 237, 212, 191, 175, 159]
-        CTRL_BA  = Int[77, 99, 123, 146, 167, 180, 187, 193, 201, 209, 216]
+        # RE-PINNED 2026-09-23 when KT gained its LSTART crown dub (it had none: kt/cratet.f:598
+        # `IF(MISSCR)CALL CROWN`). These are a jl SELF-snapshot, so they move whenever KT's model does;
+        # the direction was checked against live FVSkt_clean on this same control key first:
+        #   dTPA  master [0,1,1,-1,2,1,1,1,3,6,7]  ->  now [0,0,0,0,3,4,3,4,3,4,4]   worst 7 -> 4
+        #   dBA   master [0,0,3,3,4,-1,-5,-6,-5,0,3] -> now [0,0,0,-1,-2,-7,-6,-2,2,7,10]  worst 6 -> 10
+        # i.e. the EARLY cycles go EXACT (master was off by 1-3 TPA and 3-4 BA through cycle 4) while the
+        # late-cycle BA drift grows — the upstream dub is now right (its per-tree PCT and EXPPCR match
+        # live exactly) and what is left is KT's own late growth/mortality residual, an OPEN KT item.
+        CTRL_TPA = Int[536, 447, 379, 333, 297, 267, 239, 215, 191, 173, 156]
+        CTRL_BA  = Int[77, 99, 120, 142, 161, 174, 186, 197, 208, 216, 223]
         out_ctrl = _datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum))
         for (k, row) in enumerate(out_ctrl)
             f = split(row)
@@ -159,10 +167,20 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test FVSjl.root_disease_treg!(s0, 10.0f0) === nothing
     end
 
-    @testset "KT WRD ABSOLUTE .sum vs live FVSkt_clean (OPEN: KT BA ±6 mid-run, TPA +7/+8 late)" begin
+    @testset "KT WRD ABSOLUTE .sum vs live FVSkt_clean (OPEN: KT BA ±10 late, TPA +4/+5)" begin
         # Absolute live rows, both runs (replaces an rd−ctrl DELTA, blind to errors shared by both runs).
-        # OPEN: jl's KT control itself departs from live by up to 6 BA / 7 TPA — bounded here at today's
-        # measured maximum; the exactness @test_broken becomes an Unexpected Pass once KT is fixed.
+        # OPEN: jl's KT control departs from live — bounded here at today's MEASURED maximum; the exactness
+        # @test_broken becomes an Unexpected Pass once KT is fixed.
+        # RECONCILED 2026-09-24, after KT gained the LSTART crown dub it never had (kt/cratet.f:598). Both
+        # directions moved and both are recorded rather than just the loosening:
+        #   ctrl dTPA [0,0,0,0,3,4,3,4,3,4,4]      worst 7 -> 4   (TIGHTENED)
+        #   ctrl dBA  [0,0,0,-1,-2,-7,-6,-2,2,7,10] worst 6 -> 10 (LOOSENED)
+        #   rd   dTPA worst 8 -> 5 (TIGHTENED);  rd dBA worst 6 -> 10 (LOOSENED)
+        # The first FOUR cycles are now EXACT on both columns of both runs, where jl used to be off by
+        # 1-3 TPA and 3-4 BA from cycle 2. That is the expected shape of a correct upstream fix: the dub's
+        # per-tree PCT and EXPPCR now reproduce live exactly, and what is left is KT's own LATE
+        # growth/mortality drift, which the dub no longer masks. Tracked as the KT BA-17 open item
+        # (the blanked-crown fixture residual).
         LCT = Int[536, 447, 379, 333, 294, 263, 236, 211, 188, 169, 152]
         LCB = Int[77, 99, 120, 143, 163, 181, 192, 199, 206, 209, 213]
         LRT = Int[536, 445, 375, 329, 291, 261, 234, 209, 186, 168, 150]
@@ -173,10 +191,10 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         ct = [parse(Int, bc[k][3]) for k in 1:11]; cb = [parse(Int, bc[k][4]) for k in 1:11]
         rt = [parse(Int, br[k][3]) for k in 1:11]; rb = [parse(Int, br[k][4]) for k in 1:11]
         for k in 1:11
-            @test abs(ct[k] - LCT[k]) <= 7
-            @test abs(cb[k] - LCB[k]) <= 6
-            @test abs(rt[k] - LRT[k]) <= 8
-            @test abs(rb[k] - LRB[k]) <= 6
+            @test abs(ct[k] - LCT[k]) <= 4
+            @test abs(cb[k] - LCB[k]) <= 10
+            @test abs(rt[k] - LRT[k]) <= 5
+            @test abs(rb[k] - LRB[k]) <= 10
         end
         @test rt != ct && all(rb[k] <= cb[k] for k in 1:11)   # WRD signal live, never adds BA
         @test_broken (ct, cb, rt, rb) == (LCT, LCB, LRT, LRB)
@@ -1374,7 +1392,7 @@ TREEDATA
        [536, 521, 513, 502, 493, 487, 469, 446, 416, 394, 367], [77, 95, 116, 137, 158, 187, 214, 239, 264, 286, 306], 9, 3, "OPEN: NC late-cycle TPA ≤9 / BA ≤3 (BA 7 → 3 with the 2026-09-23 crown ISORT) — NC certification"),
       ("EM", FVSjl.EasternMontana(), EM_TRE_RD, "STDINFO        112.0     260.0      60.0     315.0      30.0      54.0",
        [536, 526, 517, 507, 498, 488, 473, 454, 438, 423, 410], [77, 96, 114, 132, 150, 168, 184, 196, 208, 219, 230],
-       [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 19, 15, "OPEN: EM one-directional BA +15 — EM certification"),
+       [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 11, 7, "OPEN: EM TPA <=11 / BA <=7, both directions (was 19/15 one-directional; em-crown's four crown classes) — EM certification"),
       ("TT", FVSjl.Teton(), TT_TRE_RD, "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
        [536, 525, 515, 505, 494, 470, 443, 427, 411, 396, 385], [77, 99, 121, 141, 163, 183, 198, 213, 226, 241, 251],
        [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 16, 5, "OPEN: TT mid-run TPA +16 (was +15; the 2026-09-23 crown ISORT moved it one) — TT certification"),

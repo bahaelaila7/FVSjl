@@ -97,6 +97,9 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
         end
         icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)     # CRNMLT=1, DLOW/DHI defaults
+        # canada/bc/crown.f:564 statement 55 — top-killed inventory records re-expressed on the normal
+        # height. The sub-2cm records `continue` above, so only this (PCR) path reaches the bounds.
+        lstart && (icri = topkill_icri(t, i, icri))
         icri > 95 && (icri = 95)
         icri < 5 && (icri = 5)                                       # CRNMLT==1 lower bound
         t.crown_pct[i] = Int32(icri)

@@ -145,6 +145,7 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             crnew = Float32(icr) + chg                      # CRNMLT=1 ⇒ no band multiplier
         end
         icri = trunc(Int, crnew + 0.5f0)
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         lo = sp == 12 ? 5 : 10
         icri > 95 && (icri = 95); icri < lo && (icri = lo)
         t.crown_pct[i] = Int32(icri)

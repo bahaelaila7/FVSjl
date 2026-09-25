@@ -133,13 +133,7 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
             (icri < 10) && (icri = trunc(Int, crmax + 0.5f0))          # CRNMLT=1
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
-        # topkill (LSTART & ITRUNC≠0) — no truncation state on wct01 trees (inert), source-faithful.
-        if lstart && t.trunc[i] != 0
-            hn = Float32(t.norm_ht[i]) / 100f0
-            hd = hn - Float32(t.trunc[i]) / 100f0
-            cl = (Float32(icri) / 100f0) * hn - hd
-            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
-        end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri > 95 && (icri = 95); icri < 10 && (icri = 10); icri < 1 && (icri = 1)  # label 59 (CRNMLT=1)
         t.crown_pct[i] = Int32(icri)
     end

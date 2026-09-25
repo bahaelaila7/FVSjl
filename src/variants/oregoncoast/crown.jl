@@ -125,12 +125,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
             crmax = (crln + htg) / (h + htg) * 100f0
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
-        if lstart && t.trunc[i] != 0                      # statement 55 top-kill re-expression
-            hn = Float32(t.norm_ht[i]) / 100f0
-            hd = hn - Float32(t.trunc[i]) / 100f0
-            cl = (Float32(icri) / 100f0) * hn - hd
-            icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
-        end
+        lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
         icri > 95 && (icri = 95)                          # statement 59 (LORGANON ⇒ no <10 bump for OC)
         icri < 1 && (icri = 1)
         t.crown_pct[i] = Int32(icri)
