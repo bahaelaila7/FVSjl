@@ -111,7 +111,10 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         crf = icr / 10f0                                        # CR = ICR/10 passed to smhtgf
         si = p.sp_site_index[sp]
         con = exp(c.htg_cor_small[sp])                          # RHCON·exp(HCOR); HCOR=0 ⇒ 1
-        regyr = 10f0
+        # ws/regent.f:265-270 — GB(21)/MC(41) equations are 10-yr (UT/SO); every WS-native species' SMHTGF
+        # increment is 5-yr (CA/WS). A flat 10 halved every native small tree's height growth on 10-yr cycles
+        # (measured vs FVSws_g16, DGSTDEV 0: OS/WF/DF HtG 7.46/7.30/10.01 vs jl 3.73/3.65/5.01).
+        regyr = (sp == 21 || sp == 41) ? 10f0 : 5f0
         scale = fnt / regyr; scale2 = yr / fnt
         msp = WS_RG_SMTMAP[sp]
         # --- HTGRR: MC/GB use POTHTG·PCTRED·VIGOR; WS-native use ws_smhtgf DIRECTLY (no PCTRED·VIGOR) ---

@@ -142,6 +142,79 @@ end
 
 # WS-native CASE DEFAULT species = everything NOT in the surrogate branches.
 const WS_HTG_SURR = Set{Int}([21, 41, 4, 9, 10, 12, 14, 15, 16, 17, 19, 20, 23, 25, 26, 27])
+# ENTRY HTCONS zeroes HTCON only for GB(21), MC(41) and the CA-surrogate set; RW/GS (4,23) fall into its CASE
+# DEFAULT (HTCON computed), although htgf routes them to the CA branch and never reads it.
+const WS_HTCON_ZERO = Set{Int}([21, 41, 9, 10, 12, 14, 15, 16, 17, 19, 20, 25, 26, 27])
+# htgf CASE(4,9:10,12,14:17,19:20,23,25:27) — species using the CA variant's equations.
+const WS_HTG_CA = Set{Int}([4, 9, 10, 12, 14, 15, 16, 17, 19, 20, 23, 25, 26, 27])
+
+# ws/findag.f DATA AGEMAX(43) / HTMAX(43).
+const WS_FINDAG_AGEMAX = Float32[
+    0, 0, 0, 0, 0, 0, 0, 0, 400, 400,   0, 400, 0, 400, 400, 400, 400, 0, 400, 400,
+    210, 0, 0, 0, 400, 400, 400, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   400, 0, 0]
+const WS_FINDAG_HTMAX = Float32[i == 41 ? 20 : 0 for i in 1:43]
+
+"""ws/findag.f — (SITAGE, SITHT, AGMAX, HTMAX1) for tree height `h` on species `ispc`'s site curve.
+MC(41) at/above HTMAX1=20 ft jumps straight to SITAGE=AGMAX+(H−HTMAX1)/0.10. GB(21) solves the Alexander
+curve in 5-yr steps from AP=10 (BAUTBA = BAU/BA; BAU is all-zero in WS — ws/grinit.f, no BADIST).
+Everyone else steps AG by 2 on ws_htcalc until within TOLER=2 ft (or past H, or the curve flattens)."""
+function ws_findag(ispc::Int, h::Float32, sindx::Float32, ifor::Int, d1::Float32, bautba::Float32)
+    agmax = WS_FINDAG_AGEMAX[ispc]; htmax1 = WS_FINDAG_HTMAX[ispc]
+    sitage = 0f0; sitht = 0f0
+    if ispc == 41 && h >= htmax1
+        return (agmax + (h - htmax1) / 0.10f0, h, agmax, htmax1)
+    end
+    if ispc == 21
+        bautba < 0f0 && (bautba = 0f0)
+        site = sindx; tol = 2f0; ap = 10f0
+        local tage::Float32
+        while true
+            agetem = ap < 30f0 ? 30f0 : ap
+            hh = (2.75780f0 * fpow(site, 0.83312f0)) *
+                 fpow(1f0 - exp(-0.015701f0 * agetem), 22.71944f0 * fpow(site, -0.63557f0)) + 4.5f0
+            ratio = 1f0 - bautba; ratio < 0.728f0 && (ratio = 0.728f0)
+            hh *= ratio
+            if abs(hh - h) < tol || hh > h
+                tsite = site < 20f0 ? 20f0 : site
+                tage = agetem + 4.5f0 / (-0.22f0 + 0.0155f0 * tsite)
+                break
+            end
+            ap += 5f0
+            if ap > agmax
+                tage = agmax; break
+            end
+        end
+        sitage = tage; sitage <= 0f0 && (sitage = 1f0)
+        return (sitage, sitht, agmax, htmax1)
+    end
+    toler = 2f0; ag = 2f0; incrng = 0; hguess = 0f0
+    while true
+        oldhg = hguess
+        hguess = ws_htcalc(ifor, sindx, ispc, ag)
+        if hguess >= 1f0
+            if abs(hguess - h) <= toler || h < hguess
+                return (ag, hguess, agmax, htmax1)
+            end
+            dd = hguess - oldhg
+            (oldhg != 0f0 && dd >= 0.05f0) && (incrng = 1)
+            (incrng == 1 && dd < 0.05f0) && return (ag, hguess, agmax, htmax1)
+        end
+        ag += 2f0
+        ag > agmax && return (agmax, h, agmax, htmax1)
+    end
+end
+
+"Alexander (1967) RM-32 breast-height-age site curve used by ws/htgf.f CASE(21) (base-age-100 ES/AF)."
+@inline _ws_alexander(tsite::Float32, age::Float32)::Float32 =
+    (2.75780f0 * fpow(tsite, 0.83312f0)) * fpow(1f0 - exp(-0.015701f0 * age), 22.71944f0 * fpow(tsite, -0.63557f0)) + 4.5f0
+
+"ws/htgf.f SIZCAP (col 4) compliance on one record: HT+HTG ≤ cap, floor 0.1."
+@inline function _ws_sizcap(htg::Float32, h::Float32, cap::Float32)::Float32
+    if cap > 0f0 && h + htg > cap
+        htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+    end
+    return htg
+end
 
 # ws/htgf.f ENTRY HTCONS — HTCON(ISPC) site intercept (CASE DEFAULT species only; 0 for surrogate species).
 function ws_htcons!(s::StandState)
@@ -150,7 +223,7 @@ function ws_htcons!(s::StandState)
     itlat = round(Int, p.latitude)
     ilat = itlat <= 35 ? 1 : itlat == 36 ? 2 : itlat == 37 ? 3 : itlat == 38 ? 4 : 5
     @inbounds for isp in 1:43
-        if isp in WS_HTG_SURR
+        if isp in WS_HTCON_ZERO
             c.htg_cor[isp] = 0f0
         else
             sitear = p.sp_site_index[isp]
@@ -168,7 +241,10 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
     alba = ba > 0f0 ? log(ba) : 0f0
     ctl = s.control
     cor2on = ctl.htg_cor2_on
-    @inbounds for i in 1:t.n
+    sd = s.coef.species; ifor = Int(p.forest_idx); avh = p.avg_height; pccf = s.density.point_ccf
+    dgsd = ctl.dg_sd
+    # ws/htgf.f is SPECIES-MAJOR (DO 40 ISPC … I=IND1(I3)); GB's ZZRAN draws must follow that order.
+    @inbounds for i in species_major_order(s)
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
         isp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; dg = t.diam_growth[i]
@@ -178,11 +254,98 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         xht2 = (cor2on && ctl.htg_cor2[isp] > 0f0) ? ctl.htg_cor2[isp] : 1f0
         xht = 1f0                                                 # XHMULT growth multiplier (no MULTS kw)
 
-        if isp in WS_HTG_SURR
-            # chunk 4b: GB(21)/MC(41)/CA-surrogate/RW-GS(4,23) potential-height branches (need ws_findag).
-            # Absent from wst01. Faithful minimum: HTG=0.1·SCALE·XHT·XHT2 (ws/htgf.f floors HTG≥0.1).
-            htg = 0.1f0 * scale * xht * xht2
+        sindx = p.sp_site_index[isp]
+        cap = ctl.sp_size_cap[isp, 4]
+        if isp == 21
+            # ── htgf CASE(21) GB — UT-variant Alexander even-aged curve (value later overwritten by REGENT, whose
+            # XMIN/XMAX = 99/199 cover every GB; the ZZRAN draw still consumes the stream). BAU≡0 and AGERNG≡0 in
+            # WS (grinit, no BADIST) ⇒ RATIO = 1 and the uneven-aged blend never fires. ISTAGF≡0 (no keyword).
+            htg = 0f0
+            if !(d < 0.5f0 || h <= 4.5f0)
+                bark = ws_bratio(sd, isp, d)
+                tsite = sindx < 20f0 ? 20f0 : sindx
+                ap = t.birth_age[i] - (4.5f0 / (-0.22f0 + 0.0155f0 * tsite)); ap < 1f0 && (ap = 1f0)
+                agetem = ap < 30f0 ? 30f0 : ap                     # TSITE is reset to the raw SITEAR here
+                hhe1 = _ws_alexander(sindx, agetem); ap < agetem && (hhe1 = ((hhe1 - 4.5f0) / agetem) * ap + 4.5f0)
+                agefut = ap + 10f0
+                agetem = agefut < 30f0 ? 30f0 : agefut
+                hhe2 = _ws_alexander(sindx, agetem)
+                agefut < agetem && (hhe2 = ((hhe2 - 4.5f0) / agetem) * agefut + 4.5f0)
+                htg = hhe2 - hhe1                                  # ×RATIO(=1)·ADJUST(=1)
+                zzran = 0f0
+                if dgsd > 0f0
+                    while true
+                        zzran = bachlo(s.rng, 0f0, 1f0)
+                        (zzran > dgsd || zzran < -dgsd) || break
+                    end
+                end
+                htg += zzran * 0.1f0
+                htg < 0.1f0 && (htg = 0.1f0)
+            end
+            htg = htg * scale * xht * xht2                          # label 201 (MISHGF=1)
+            t.ht_growth[i] = _ws_sizcap(htg, h, cap)
+            continue
+        elseif isp == 41
+            # ── htgf CASE(41) MC — SO-variant Curtis potential ×(0.25·Hoerl CR + 0.75·Chapman-Richards RELHT).
+            # FAITHFUL QUIRK: the normal path ends at label 161 without SCALE/XHT/SIZCAP (only the H≥HTMAX path
+            # applies SCALE·XHT·XHT2), and HTMAX(41)=20 ft caps H+HTG.
+            sitage, sitht, agmax, htmax = ws_findag(41, h, sindx, ifor, d, 0f0)
+            if h >= htmax
+                t.ht_growth[i] = 0.1f0 * scale * xht * xht2
+                continue
+            end
+            local pothtg::Float32
+            if sitage > agmax
+                pothtg = 0.10f0
+            else
+                agp10 = sitage + 10f0
+                hguess = (sindx - 4.5f0) / (0.6192f0 - 5.3394f0 / (sindx - 4.5f0) +
+                         240.29f0 * fpow(agp10, -1.4f0) + (3368.9f0 / (sindx - 4.5f0)) * fpow(agp10, -1.4f0))
+                pothtg = (hguess + 4.5f0) - sitht
+            end
+            relht = avh > 0f0 ? h / avh : 0f0; relht > 1.5f0 && (relht = 1.5f0)
+            xcr = Float32(t.crown_pct[i]) / 100f0
+            hgmdcr = (100f0 * fpow(xcr, 3f0)) * exp(-5f0 * xcr); hgmdcr > 1f0 && (hgmdcr = 1f0)
+            fctrkx = fpow(1f0 / 0.10f0, 1.10f0 - 1f0) - 1f0
+            fctrrb = -1f0 * (15f0 / (1f0 - (-1.45f0)))
+            fctrxb = fpow(relht, 1f0 - (-1.45f0)) - fpow(0f0, 1f0 - (-1.45f0))
+            fctrm = -1f0 / (1.10f0 - 1f0)
+            hgmdrh = 1f0 * fpow(1f0 + fctrkx * exp(fctrrb * fctrxb), fctrm)
+            htgmod = 0.25f0 * hgmdcr + 0.75f0 * hgmdrh
+            htgmod >= 2f0 && (htgmod = 2f0); htgmod <= 0f0 && (htgmod = 0.1f0)
+            htg = pothtg * htgmod
+            (h + htg > htmax) && (htg = htmax - h)
+            htg < 0.1f0 && (htg = 0.1f0)
             t.ht_growth[i] = htg
+            continue
+        elseif isp in WS_HTG_CA
+            # ── htgf CASE(4,9:10,12,14:17,19:20,23,25:27) — CA-variant equations.
+            local htg::Float32
+            if isp == 4 || isp == 23
+                # RW/GS Castle LN(HI) on the 10-yr outside-bark DG, bounded between 217 and 380 ft.
+                brat = ws_bratio(sd, isp, d)
+                dg10 = dg / brat; h < 4.5f0 && (dg10 = 0.1f0)
+                lthtg = exp(1.412947f0 - 0.000204f0 * d * d + 0.31971f0 * log(d) + 0.394005f0 * log(sindx) +
+                            0.399888f0 * log(dg10) - 0.451708f0 * log(h))
+                hgbnd = (h >= 217f0 && h < 380f0) ? max(1f0 - ((h - 217f0) / (380f0 - 217f0)), 0.1f0) :
+                        (h < 217f0 ? 1f0 : 0.1f0)
+                htg = lthtg * hgbnd
+            else
+                # FINDAG → Dunning/Levitan potential (ws_htcalc) × Ritchie-Hann XMOD.
+                sitage, sitht, agmax, _ = ws_findag(isp, h, sindx, ifor, d, 0f0)
+                pothtg = sitage > agmax ? 0.10f0 : ws_htcalc(ifor, sindx, isp, sitage + 10f0) - sitht
+                cratio = Float32(t.crown_pct[i]) / 100f0
+                relht = avh > 0f0 ? h / avh : 1f0              # H/AVH (AVH=0 ⇒ +Inf ⇒ capped to 1)
+                relht > 1f0 && (relht = 1f0)
+                pt = Int(t.plot_id[i])
+                ((1 <= pt <= length(pccf)) ? pccf[pt] : 0f0) < 100f0 && (relht = 1f0)
+                crmod = 1f0 - exp(-4.26558f0 * cratio)
+                rhmod = exp(2.54119f0 * (fpow(relht, 0.250537f0) - 1f0))
+                htg = pothtg * (1.016605f0 * crmod * rhmod)
+            end
+            htg < 0.1f0 && (htg = 0.1f0)
+            htg = scale * xht * htg * xht2                          # MISHGF=1
+            t.ht_growth[i] = _ws_sizcap(htg, h, cap)
             continue
         end
 

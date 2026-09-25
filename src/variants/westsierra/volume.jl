@@ -34,7 +34,12 @@ const WS_VOL_DBHMIN = 7.0f0    # grinit.f:161 DBHMIN (cubic merch gate)
 const WS_VOL_BFMIND = 10.0f0   # grinit.f:167 BFMIND (board gate)
 
 function compute_volumes_ws!(s::StandState)
-    t = s.trees; sd = s.coef.species
+    s.control.merch_init || init_merch_standards!(s)
+    t = s.trees; sd = s.coef.species; c = s.control
+    # vols.f CFTOPK/BFTOPK use the per-species cubic TOPD (4.5) and board BFTOPD (6.0) separately — r4_topkill
+    # forces one top for both, so WS calls the kernels directly with the grinit arrays.
+    merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
+             scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 43
@@ -53,21 +58,31 @@ function compute_volumes_ws!(s::StandState)
                 t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
             end
             dibat = ht -> nc_r5tap_dib(s5, d, hv, Float32(ht))
-            t.cuft_vol[i] = Float32(round(_fw2_tcubic(dibat, hv) * 10.0)) / 10f0     # VOL(1)
-            t.merch_cuft_vol[i] = d >= WS_VOL_DBHMIN ?
+            tcf = Float32(round(_fw2_tcubic(dibat, hv) * 10.0)) / 10f0                 # VOL(1)
+            mcf = d >= WS_VOL_DBHMIN ?
                 nc_wo2w_merch(dibat, hv; mtopp = WS_VOL_TOPD * bark,
                               stump = 1f0, minlen = 2f0, merchl = 8f0) : 0f0          # VOL(4), top=TOPD·bark
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= WS_VOL_BFMIND ?
-                _fw2_board(dibat, hv, WS_VOL_BFTOPD * bark, 1f0, 2f0, 8f0) : 0f0      # VOL(2), top=BFTOPD·bark
+            bf = d >= WS_VOL_BFMIND ?
+                _fw2_board(dibat, hv, WS_VOL_BFTOPD * bark, 1f0, 2f0, 8f0;
+                           hs_solver = top -> nc_merlen(dibat, top, hv, 1f0) + 1f0) : 0f0   # VOL(2), BFTOPD·bark
         else                                              # DVE — California hardwood D²H (r5harv.f)
             tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, WS_VOL_TOPD * bark)
             bf = nc_r5harv_vol(eq, d, hv, WS_VOL_BFTOPD * bark)[3]              # BF pass: MTOPP=BFTOPD·BARK
-            t.cuft_vol[i] = tcf
-            t.merch_cuft_vol[i] = d >= WS_VOL_DBHMIN ? mcf : 0f0
-            t.saw_cuft_vol[i] = 0f0
-            t.bdft_vol[i] = d >= WS_VOL_BFMIND ? bf : 0f0   # r5harv Scribner (fvsvol METHB=6 ⇒ TVOL(2))
+            d >= WS_VOL_DBHMIN || (mcf = 0f0)
+            d >= WS_VOL_BFMIND || (bf = 0f0)                   # r5harv Scribner (fvsvol METHB=6 ⇒ TVOL(2))
         end
+        # vols.f CFTOPK/BFTOPK: a broken/killed top's NORMHT volume is trimmed back to the break. It was missing
+        # (measured vs FVSws_g16 treelist: DF trc49 D16.7 jl 53.8 vs live 42.5 cuft; SP trc56 50.0 vs 43.1).
+        if t.trunc[i] > 0 && tcf > 0f0 && hv >= 4.5f0
+            bk = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : bark
+            vmx = tcf
+            tcf, mcf, _ = cftopk(merch, sp, d, hv, tcf, mcf, 0f0, vmx, bk, Int(t.trunc[i]))
+            bf = bftopk(merch, sp, d, hv, bf, vmx, bk, Int(t.trunc[i]))
+        end
+        t.cuft_vol[i] = max(tcf, 0f0)
+        t.merch_cuft_vol[i] = max(mcf, 0f0)
+        t.saw_cuft_vol[i] = 0f0
+        t.bdft_vol[i] = max(bf, 0f0)
     end
     return s
 end
