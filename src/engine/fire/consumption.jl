@@ -41,22 +41,78 @@ fmdout.f:286-287 `BIOCON(1)=BURNED(litter)+BURNED(duff)`, `BIOCON(2)=rest`): the
 FOREST-FLOOR (litter=class 10, duff=class 11) converts at 0.37 (Smith & Heath NE-722) and
 all consumed WOODY classes (1–9) at 0.50 — the same split as the standing carbon pools.
 """
-function apply_fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32})::Float32
-    pr = fire_consumption_fractions(mois)
-    woody = 0f0; forest_floor = 0f0
-    @inbounds for isz in 1:11
-        f = pr[isz]
-        f > 0f0 || continue
-        for k in 1:2, l in 1:4
-            consumed = fs.cwd[isz, k, l] * f
-            fs.cwd[isz, k, l] -= consumed
-            isz >= 10 ? (forest_floor += consumed) : (woody += consumed)   # 10=litter, 11=duff
+function apply_fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn::Float32 = 100f0)
+    return fire_consumption!(fs, mois; psburn).released
+end
+
+# FMCONS PM2.5/PM10 emission factors, lb per ton consumed (fmcons.f DATA EMMFAC(IM,IL,IP,IPM), unpiled IP=1 only):
+# [IM moisture type 1..3, IL fuel class 1..11, IPM 1=PM2.5 / 2=PM10]; EMFACL(IL,IPM) live herb/shrub/crown.
+const _FM_EMMFAC = let e = zeros(Float32, 3, 11, 2)
+    for (ipm, fine, mid, big, lit, duff) in ((1, 7.9f0, 11.9f0, (22.5f0, 18.3f0, 16.2f0), 7.9f0, (23.9f0, 25.8f0, 25.8f0)),
+                                             (2, 9.3f0, 14.0f0, (26.6f0, 21.6f0, 19.1f0), 9.3f0, (28.2f0, 30.4f0, 30.4f0)))
+        for im in 1:3
+            e[im, 1, ipm] = fine; e[im, 2, ipm] = fine; e[im, 3, ipm] = mid
+            for il in 4:9; e[im, il, ipm] = big[im]; end
+            e[im, 10, ipm] = lit; e[im, 11, ipm] = duff[im]
         end
     end
-    # Live herb/shrub surface fuels also burn (FMCONS BURNLV, fmcons.f:310-311: herb PLVBRN=1.0, shrub 0.6)
+    e
+end
+const _FM_EMFACL = (21.3f0, 25.1f0)            # EMFACL(1..4, IPM): the same factor for herb, shrub and crown
+
+"""
+    fire_consumption!(fs, mois; psburn=100, burncr=0) -> NamedTuple
+
+FMCONS (fmcons.f, ICALL=0, BTYPE=0 natural unpiled fuels): burn `fs.cwd` and return the per-fire consumption
+record — `burned` (tons/ac consumed per fuel class 1..11, BURNED(3,·)), `exposr` (% mineral soil exposed),
+`burnlv` (live herb/shrub consumed), `smoke` (PM2.5, PM10 tons/ac; SMOKE·P2T as reported by FMFOUT), and the
+carbon `released`. The consumed fractions PRBURN and the live PLVBRN are scaled by PSBURN/100 (fmcons.f:196-200);
+the <1" classes burn 100% when the 1-3" class is empty (fmcons.f:125-137). `burncr` = FMEFF's BCROWN (crown
+material burned, tons/ac) enters the smoke only. Activity fuels (a harvest ≤5 yr before the fire, IYR−HARVYR≤5)
+are not tracked by jl's FFE state, so the natural-fuels path is always taken.
+"""
+function fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn::Float32 = 100f0, burncr::Float32 = 0f0)
+    pr0 = fire_consumption_fractions(mois)
+    burnz3 = 0f0
+    @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
+    small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
+    pr = ntuple(i -> (i <= 2 ? small : pr0[i]) * psburn / 100f0, 11)   # PRBURN(1,I)*PSBURN/100 (fmcons.f:197)
+    burned = zeros(Float32, 11)
+    @inbounds for isz in 1:11
+        f = pr[isz]
+        z = 0f0
+        for k in 1:2, l in 1:4; z += fs.cwd[isz, k, l]; end
+        z > 0f0 || continue
+        burned[isz] = z * f
+        for k in 1:2, l in 1:4
+            fs.cwd[isz, k, l] *= (1f0 - f)
+        end
+    end
+    # EXPOSR (fmcons.f:189-192): mineral soil exposed from the duff consumption percent PRDUF, ×PSBURN/100.
+    prduf = max(0f0, 83.7f0 - 0.426f0 * mois[1, 5] * 100f0)
+    exposr = prduf < 10f0 ? 0f0 : (-8.98f0 + 0.899f0 * prduf)
+    exposr = exposr * psburn / 100f0
+    # Live herb/shrub surface fuels also burn (FMCONS BURNLV, fmcons.f:310-311: herb PLVBRN=1.0, shrub 0.6, ×PSBURN)
     # and release at 0.5 (they're in BIOCON(2), fmdout.f:283/287). FLIVE is recomputed each cycle by fmcba!
-    # (the live fuels regrow), so this is RELEASE-ONLY — no pool to mutate. Without it the Carbon-Released
-    # under-counts by the live-fuel share (fire_carbon 5.13 vs live 5.5).
-    live_burned = fs.flive[1] + 0.6f0 * fs.flive[2]
-    return woody * 0.5f0 + forest_floor * 0.37f0 + live_burned * 0.5f0
+    # (the live fuels regrow), so this is RELEASE-ONLY — no pool to mutate.
+    burnlv = ((1f0 * psburn / 100f0) * fs.flive[1], (0.6f0 * psburn / 100f0) * fs.flive[2])   # PLVBRN·FLIVE
+    # smoke (fmcons.f:325-360): IM from the 3+" moisture; dead classes by EMMFAC, live + crown by EMFACL.
+    m4 = mois[1, 4]
+    im = m4 <= 0.20f0 ? 3 : m4 <= 0.375f0 ? 2 : 1
+    smoke = ntuple(2) do ipm
+        ts = 0f0
+        @inbounds for il in 1:11; ts += burned[il] * _FM_EMMFAC[im, il, ipm]; end
+        ts += burnlv[1] * _FM_EMFACL[ipm] + burnlv[2] * _FM_EMFACL[ipm]
+        ts += burncr * _FM_EMFACL[ipm]
+        ts * _FM_P2T
+    end
+    # Fire carbon release (fmdout.f:266-287 → fmcrbout.f:151): TOTCON = ΣBURNED(3,·) + BURNLV + BURNCR (the crown
+    # material FMEFF burned is consumed too), BIOCON(1) = litter+duff at 0.37, BIOCON(2) = the rest at 0.50.
+    totcon = 0f0
+    @inbounds for ii in 1:11; totcon = totcon + burned[ii]; end
+    totcon = totcon + burnlv[1] + burnlv[2] + burncr
+    biocon1 = burned[10] + burned[11]
+    biocon2 = totcon - biocon1
+    released = biocon1 * 0.37f0 + biocon2 * 0.50f0
+    return (; burned, exposr, burnlv, smoke, released, totcon)
 end
