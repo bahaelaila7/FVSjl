@@ -353,6 +353,10 @@ mutable struct Control
     # fminit.f default 9999/9999 ⇒ never). jl wrote FVS_Fuels whenever CARBREPT was on (live: table absent).
     dbs_fuels::Bool
     ffe_fuelout::Bool
+    # kt/cratet.f IERRCK — never initialised, so under -fno-automatic it starts 0 for the run and, once a species'
+    # √D-regression crossover has no real root (STEP1≤0), stays 1 for every later species AND stand. run_keyfile
+    # carries it from stand to stand.
+    kt_cratet_ierrck::Int32
 end
 
 function Control()
@@ -425,6 +429,7 @@ function Control()
         nothing, false,                                          # atrtlist_capture, dbs_caseid_set
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
         false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
+        Int32(0),                                                # kt_cratet_ierrck
     )
 end
 

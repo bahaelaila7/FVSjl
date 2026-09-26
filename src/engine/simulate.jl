@@ -882,6 +882,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
@@ -1373,9 +1374,12 @@ function run_keyfile(keypath::AbstractString;
     out = IOBuffer()
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
+    kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
     for s in each_stand(keypath; variant = variant, faithful = faithful)
+        s.control.kt_cratet_ierrck = kt_ierrck
         notre!(s)
         setup_growth!(s)
+        kt_ierrck = s.control.kt_cratet_ierrck
         compute_volumes!(s)
         # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
         # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.

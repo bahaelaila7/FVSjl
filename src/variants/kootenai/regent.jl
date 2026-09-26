@@ -402,7 +402,10 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 end
             end
             htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
-            htg = htgr * (1.0f0 - xwt) + xwt * large_htg
+            # kt/regent.f:522 HTG(K)=HTGR*(1-XWT)+XWT*HTG(K): K is the copy's own slot, whose large-tree HTG
+            # kt_triple_htg! (htgf.f:139-161) put in htgU/htgL — read before this loop overwrites it below.
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg = htgr * (1.0f0 - xwt) + xwt * lh
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
             dg_inc = 0.0f0; dbh_dir = -1.0f0
             if small_d
