@@ -2647,6 +2647,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # of cuft). Correct volume is filled by next cycle's compute_volumes!.
         t.cuft_vol[n]       = 0f0; t.merch_cuft_vol[n] = 0f0
         t.saw_cuft_vol[n]   = 0f0; t.bdft_vol[n]       = 0f0
+        t.merch_top_cf[n] = 0f0; t.merch_top_bf[n] = 0f0   # estab.f HT2TD(ITRN,1..2)=0 (a reused slot kept its old top heights)
         created = true
     end
     created || return false
