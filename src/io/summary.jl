@@ -340,7 +340,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
         if carbon_on && !fire_cycle
-            compute_density!(s); fmcba!(s)                    # refresh cover type + live fuels (FLIVE)
+            compute_density!(s)
+            # A FUELSOUT-only collection (no CARBREPT) must not latch CR's one-time dead-fuel load on the pre-cut
+            # stand — CR defers it post-cut (below); the CARBREPT path keeps its validated behavior.
+            fmcba!(s; load_dead = s.control.carbon_report_on || !(s.variant isa CentralRockies) || s.fire.fuels_init)
             _carb_push(s)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
