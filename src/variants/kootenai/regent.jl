@@ -370,9 +370,8 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     #      (kt/regent.f:591-604): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS scale, DBH grows via GRADD — the old code
     #      did a raw (DK−D1)·XRDGRO with NO bark/DDS/SIZCAP scaling. DBH-direct is the HK<4.5 tiny edge only. ----
     scale = fint > 0.0f0 ? 10.0f0 / fint : 1.0f0           # SCALE=YR/FINT (kt/regent.f:220), YR=10
-    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
-    @inbounds for oi in 1:n
-        i = _sp_order[oi]
+    _sp_order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
+    @inbounds for i in _sp_order
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= KT_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue
@@ -403,7 +402,10 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 end
             end
             htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
-            htg = htgr * (1.0f0 - xwt) + xwt * large_htg
+            # kt/regent.f:522 HTG(K)=HTGR*(1-XWT)+XWT*HTG(K): K is the copy's own slot, whose large-tree HTG
+            # kt_triple_htg! (htgf.f:139-161) put in htgU/htgL — read before this loop overwrites it below.
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg = htgr * (1.0f0 - xwt) + xwt * lh
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
             dg_inc = 0.0f0; dbh_dir = -1.0f0
             if small_d

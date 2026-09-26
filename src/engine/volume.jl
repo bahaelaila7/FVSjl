@@ -323,6 +323,7 @@ function dub_missing_heights!(s::StandState)
     # BM: snapshot HT as read (before any dub) — bm/cratet.f:195 DENSE → AVH for the LSTART CROWN dub sees it.
     # Pre-dub heights for the shared CRATET-DENSE AVH (every variant's cratet.f runs that DENSE before CROWN).
     s.calib.cratet_ht_in = t.height[1:(t.n + t.ndead)]
+    s.variant isa Kootenai && return kt_dub_missing_heights!(s)   # kt/cratet.f √D regression + SMHTRG (own dub)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0

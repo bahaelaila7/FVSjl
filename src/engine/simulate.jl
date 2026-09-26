@@ -133,12 +133,11 @@ function setup_growth!(s::StandState)
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
         compute_density!(s)               # density for the crown dub (fresh scalars for the ndead=0 path + dub_ages)
-        tt_crown_init_lstart!(s)          # CRATET DENSE (DEAD-INCLUSIVE) → DUBSCR/CL/Weibull dub of MISSING crowns
-                                          # (tt/crown.f). Was the LIVE-only crown_ratio_update! (EM #137 sibling) ⇒
-                                          # missing-CR seedlings dubbed against a live-only AVH (≈ seedling height) ⇒
-                                          # crown over-dubbed ⇒ tt regent VIGOR(CR)/BETA2·CR over-grows small-tree
-                                          # DBH/BA on dead-heavy stands. Now the standing-dead heights enter AVHT40
-                                          # (dead PROB ×FINT/FINTM), matching the live DUBSCR/CL dub.
+        crown_init_lstart_dead_inclusive!(s)  # tt/cratet.f (== bm core: :242 `LBKDEN=IDG.LT.2; CALL DENSE` over live+dead
+                                          # → :639 CROWN) — the shared backdated dead-inclusive DENSE, so DUBSCR reads the
+                                          # BACKDATED point CCF / BA and the pre-dub AVHT40. TT's own dead-inclusive-only
+                                          # init skipped the LBKDEN backdating: FIA 2783239010690 seedling DUBSCR TPCCF
+                                          # 353.42 vs live 355.27 ⇒ CR .52695 vs .525 ⇒ ICR 53 vs 52 ⇒ SMHTGF drift.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
         # NB: the CRATET age-50 site-curve conversion (ut/cratet.f) is ALREADY applied once in site_setup!
@@ -884,6 +883,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
@@ -1375,9 +1375,12 @@ function run_keyfile(keypath::AbstractString;
     out = IOBuffer()
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
+    kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
     for s in each_stand(keypath; variant = variant, faithful = faithful)
+        s.control.kt_cratet_ierrck = kt_ierrck
         notre!(s)
         setup_growth!(s)
+        kt_ierrck = s.control.kt_cratet_ierrck
         compute_volumes!(s)
         # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
         # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.

@@ -2080,7 +2080,9 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
     # DATABASE INPUT: pull the stand + tree list from the FIA "FVS-ready" SQLite DB, the
     # STDINFO/SITECODE/DESIGN/TREEDATA-card equivalent (dbsstandin.f/dbstreesin.f).
     (!isempty(dbs_in) && !isempty(standsql)) && load_fia_stand!(s, dbs_in, standsql, treesql)
-    return
+    # dbsin.f:356-362: an executed TreeSQL sets MORDAT=.TRUE., so INITRE's "ensure INTREE was called" fallback
+    # (initre.f:271) never reads the <stem>.tre file on top of the database trees. Tell the caller.
+    return !isempty(dbs_in) && !isempty(standsql) && !isempty(treesql)
 end
 
 """
@@ -2791,7 +2793,7 @@ keyword file path with the extension stripped (used to locate the `.tre` file fo
 TREEDATA). Returns the terminating reason (:process, :stop, :eof).
 """
 function process_keywords!(s::StandState, kr::KeywordReader, base_path::AbstractString)
-    trees_loaded = false   # an explicit TREEDATA was processed
+    trees_loaded = false   # an explicit TREEDATA (or a DATABASE TreeSQL) was processed — FVS MORDAT
     notrees      = false   # NOTREES suppresses the default tree read
     nkw          = 0       # real keywords seen (0 ⇒ bare STOP/EOF, not a stand)
     # INITRE end (initre.f:334-336): if no TREEDATA keyword ran, read the tree file once
@@ -2858,7 +2860,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "TREEFMT";  kw_treefmt!(s, kr)
         elseif kw == "IF";       kw_if!(s, kr)
         elseif kw == "ESTAB";    kw_estab!(s, rec, kr)
-        elseif kw == "DATABASE"; kw_database!(s, rec, kr)  # DBS output block (DSNOUT/SUMMARY → SQLite)
+        elseif kw == "DATABASE"; kw_database!(s, rec, kr) && (trees_loaded = true)  # DBS in/out block; TreeSQL ⇒ MORDAT
         elseif kw == "FMIN";     kw_fmin!(s, rec, kr)      # Fire & Fuels Extension block (SIMFIRE/FLAMEADJ)
         elseif kw == "ECON";     kw_econ!(s, rec, kr)      # ECON economic-analysis block (ANNUCST/HRVVRCST/HRVRVN)
         elseif kw == "CLIMATE";  kw_climate!(s, rec, kr)   # Climate-FVS block (CLIMDATA/GROWMULT/… → s.climate)
