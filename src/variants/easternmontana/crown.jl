@@ -244,6 +244,8 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             t.crown_pct[i] = Int32(icri)
             continue
         end
+        # crown.f:376 NIVAR: a tree whose BACKDATED diameter is <3" had its crown set by REGENT this cycle ⇒ keep it.
+        (!lstart && d - t.diam_growth[i]/bark < 3f0) && continue
         xcrcon = crcon + P[1]*ba + P[2]*ba*ba + P[3]*lnba + P[4]*relden + P[5]*relden*relden + P[6]*lnrd
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
         pcr = xcrcon + P[7]*d + P[8]*d*d + P[9]*log(d) + P[10]*h + P[11]*h*h + P[12]*log(h) + P[13]*pp + P[14]*log(pp)
@@ -255,7 +257,12 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             dcrcon = crcon + P[1]*oba + P[2]*oba*oba + P[3]*x1 + P[4]*reldm1 + P[5]*reldm1*reldm1 + P[6]*x2
             db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
             hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-            pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)
+            # crown.f:395-398 P=OLDPCT (the previous cycle's PCT, gradd.f:267; the first cycle's is the backdated
+            # CRATET percentile, cratet.f:481), falling back to PCT when OLDPCT<=0. The OLDPCT>PCT-after-thinning
+            # branch (ONTREM(7)>0) is not carried (as IE/BC). jl used the CURRENT PCT, which held LL crowns at 55
+            # where live FVSem_g16 drew them down 55→53→51→49.
+            pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i])
+            pb < 0.01f0 && (pb = 0.01f0)
             dcr = dcrcon + P[7]*db + P[8]*db*db + P[9]*log(db) + P[10]*hb + P[11]*hb*hb + P[12]*log(hb) + P[13]*pb + P[14]*log(pb)
             chg = exppcr - exp(dcr)
             if icr > 0

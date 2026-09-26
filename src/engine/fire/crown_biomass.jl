@@ -243,8 +243,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa Olympic ? op_bratio(Int(sp), d) :      # OP ORGANON bark (op/dgdriv.f BRATIO)
 
 
-             (s.variant isa Kootenai || s.variant isa EasternMontana ||
-              s.variant isa Teton || s.variant isa Utah) ?
+             s.variant isa EasternMontana ? em_bratio(Int(sp), d) :                  # em/bratio.f
+             (s.variant isa Kootenai || s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
                                              bark_ratio(coef, sp, d)
     dobf = 4f0 / bark_r

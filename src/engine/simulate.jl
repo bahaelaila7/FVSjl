@@ -724,6 +724,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # the initial-CRATET backdating DENSE (cratet.f:217-219) computes — NOT the plain inventory PCT. The backdating
     # runs over the un-deleted inventory (dead-inclusive) with each live diameter backdated to start-of-growth; see
     # ie_seed_backdated_oldpct!. Later cycles get OLDPCT from the post-crown snapshot (crown_ratio) below.
+    # EM runs the same cratet.f:481 OLDPCT=PCT after the same backdating DENSE (em/dense.f ≡ ie/dense.f), with em/bratio.f.
+    if s.variant isa EasternMontana && s.control.cycle == Int32(0)
+        ie_seed_backdated_oldpct!(s; bratio = em_bratio)
+        s.plot.old_ba = s.plot.basal_area                        # cycle-1 OBA/RDM1 = inventory density (as IE)
+        s.plot.relative_density_prev = s.plot.relative_density
+    end
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
         ie_seed_backdated_oldpct!(s)
         ie_dub_aspen_birthage!(s)   # cratet.f:544-563 CALL FINDAG: dub ABIRTH=SITAGE for sp18/20/21 (AS/MM/PB)
@@ -805,6 +811,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # dg_prev=0 at cycle 1 ⇒ the LM/added-species Hamilton G collapsed ⇒ ~2.5× first-cycle mortality over-kill.
     (s.variant isa BritishColumbia || s.variant isa EasternMontana) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    (s.variant isa EasternMontana && Int(s.control.cycle) == 0) && em_cycle0_wk1!(s)   # dgdriv.f DO 220 precedence
     # IE: same ie/morts.f Hamilton path (WK1=DG at dgdriv.f:142). ie/morts.f:273 override
     # (ICYC.EQ.1 .OR. WK1==0) .AND. DG>0.5 ⇒ G=DG/(BARK·10) MASKS WK1=0 for every measured-DG tree whose
     # PREDICTED cycle-1 DG>0.5 (verified on iet01 STDINFO: all 27 measured-DG trees fire the override). The
@@ -871,6 +878,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # NI-section species); height_growth! only computed the central record's HTG, leaving the copies flat.
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
@@ -1301,7 +1309,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     crown_ratio_update_fvs!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
-    if s.variant isa InlandEmpire || s.variant isa BritishColumbia
+    if s.variant isa InlandEmpire || s.variant isa BritishColumbia || s.variant isa EasternMontana
         @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
     end
     # IE: snapshot the crown-time (current) stand BA/RELDEN into OLDBA/RELDM1 so NEXT cycle's CROWN backdates
@@ -1309,7 +1317,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # RDM1[N]=RELDEN[N-1]). Previously never assigned ⇒ OBA==BA, RDM1==RELDEN ⇒ DCRCON==XCRCON ⇒ EDCR too low
     # ⇒ CHG (=EXPPCR−EXPDCR) too high ⇒ ICR +1..3 too high every cycle. Verified vs FVSie_g16 on 3307603010690:
     # per-tree ICR at CROWN goes from 33/39 one-directional +diffs to ~5 mixed ±1 (residual = a small stand-BA gap).
-    if s.variant isa InlandEmpire
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana    # EM: the same em/crown.f:212-222 OBA/RDM1
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
     end

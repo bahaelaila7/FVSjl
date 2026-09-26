@@ -51,6 +51,7 @@ function variant_bratio(s::StandState, sp::Integer, d::Float32, h::Float32 = 0f0
     v isa Ontario            && return on_bratio(isp, d, h)
     v isa Olympic            && return op_bratio(isp, d)
     v isa InlandEmpire       && return ie_bratio(isp, d)
+    v isa EasternMontana     && return em_bratio(isp, d)
     v isa SoutheastAlaska    && return ak_bratio(isp, d)
     (v isa Klamath && isp == 12) && return nc_bratio(sd[:bark1][12], sd[:bark2][12], Int(sd[:bark_imap][12]), d)
     return bark_ratio(s.calib.bark_a, s.calib.bark_b, isp, d)

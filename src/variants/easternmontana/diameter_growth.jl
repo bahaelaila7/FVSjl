@@ -79,6 +79,62 @@ function em_dgcons!(s::StandState)
     return s
 end
 
+# em/bratio.f — EM's own bark ratio. TEMD=max(D,1) (and ≤19 on the IMAP-1 zero-coefficient curve), then
+# IMAP 1: 0.9002−0.3089·(1/TEMD) | BARK1+BARK2·(1/TEMD);  IMAP 2: BARK1;  IMAP 3: BARK1+BARK2·(1/TEMD); bounded [0.80,0.99].
+# The generic bark_ratio form (b+a/d) drops the TEMD floor, so a sub-1" GA/CW/BA/PW/NC/OH took 0.80 instead of
+# 0.892−0.086 = 0.806 (measured on FVSem_g16 REGENT DEBUG: the carried BARK after a 0.3" GA is 0.806).
+const EM_BARK1 = Float32[0.934,0.934,0.867,0.969,0.937,0.000,0.969,0.956,0.937,0.890,0.892,0.950,0.892,0.892,0.892,
+                         0.892,0.950,0.934,0.892]
+const EM_BARK2 = Float32[0,0,0,0,0,0,0,0,0,0,-0.086,0,-0.086,-0.086,-0.086,-0.086,0,0,-0.086]
+const EM_BARK_IMAP = Int[2,2,2,2,2,1,2,2,2,2,3,2,3,3,3,3,2,2,3]
+@inline function em_bratio(sp::Integer, d::Real)::Float32
+    isp = Int(sp); temd = Float32(d); temd < 1f0 && (temd = 1f0)
+    ieqn = EM_BARK_IMAP[isp]; local r::Float32
+    if ieqn == 1
+        if EM_BARK1[isp] == 0f0 && EM_BARK2[isp] == 0f0
+            temd > 19f0 && (temd = 19f0)
+            r = 0.9002f0 - 0.3089f0 * (1f0 / temd)
+        else
+            r = EM_BARK1[isp] + EM_BARK2[isp] * (1f0 / temd)
+        end
+    elseif ieqn == 2
+        r = EM_BARK1[isp]
+    else
+        r = EM_BARK1[isp] + EM_BARK2[isp] * (1f0 / temd)
+    end
+    r > 0.99f0 && (r = 0.99f0); r < 0.80f0 && (r = 0.80f0)
+    return r
+end
+
+# em/dgdriv.f:770-801 (LSTART, DO 220) — the calibration pass leaves DG(I) = the measured increment when DG>0 and
+# HT>4.5 (capped at the inside-bark DBH when IDG<2); 0 for HT<=4.5; otherwise the DGF dub
+# SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D with D=WK3·BARK, capped at D, then DGBND. dgdriv.f:144 WK1(I)=DG(I) hands that to
+# cycle 1, where em/morts.f's added-species (LM/LL/RM/hardwood) Hamilton vigor G reads it. jl copied the raw
+# input DG, so every unmeasured tree had WK1=0 and G fell to the DGT floor (FVSem_g16 MORTS DEBUG, LM 1.5":
+# G 0.1330 live vs 0.0684 jl ⇒ 5.9 vs 14.3 TPA killed).
+function em_cycle0_wk1!(s::StandState)
+    t, c = s.trees, s.calib; n = t.n
+    (length(c.dub_wk2) == n && length(c.dub_wk3) == n) || return s
+    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        bark = em_bratio(sp, d)
+        if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+            dg = t.diam_growth[i]
+            (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)
+            t.dg_prev[i] = dg
+        elseif t.height[i] <= 4.5f0
+            t.dg_prev[i] = 0f0
+        else
+            dd = c.dub_wk3[i] * bark
+            dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+            dub > dd && (dub = dd)
+            t.dg_prev[i] = dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
+        end
+    end
+    return s
+end
+
 # em/dgfasp.f (Utah aspen large-tree DG) — ASPDG = ln(DDS-equiv). Identical to ie_dgfasp/_tt_dgfasp
 # (the shared UT form). cr = raw crown pct (÷10 → ASPCR inside). rmsqd = stand QMD.
 @inline function _em_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)::Float32
@@ -127,7 +183,7 @@ function dgf!(s::StandState, ::EasternMontana)
             dpp = d < 1f0 ? 1f0 : d
             batem = ba < 1f0 ? 1f0 : ba
             si = p.sp_site_index[sp]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = em_bratio(sp, d)
             df = 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
@@ -138,7 +194,7 @@ function dgf!(s::StandState, ::EasternMontana)
         elseif sp == 12 || sp == 17
             # Aspen (Utah DGFASP), also used for paper birch, em/dgf.f:535-538. Raw crown pct (÷10 inside).
             cr_raw = Float32(t.crown_pct[i])
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = em_bratio(sp, d)
             si = p.sp_site_index[sp]
             rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
@@ -151,7 +207,7 @@ function dgf!(s::StandState, ::EasternMontana)
             # adding COR+DGCON (NOT conspp — no CCF·RELDEN term).
             dpp = d < 1f0 ? 1f0 : d
             si = p.sp_site_index[sp]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = em_bratio(sp, d)
             df = 0.24506f0 + 1.01291f0 * dpp - 0.00084659f0 * ba + 0.00631f0 * si
             df > 36f0 && (df = 36f0)
             df < dpp && (df = dpp)

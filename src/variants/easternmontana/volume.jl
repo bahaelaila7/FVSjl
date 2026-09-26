@@ -106,7 +106,7 @@ function compute_volumes_em!(s::StandState)
         if startswith(eq, "I") || eq[4:6] == "FW2"   # conifers — Flewelling FW2 (same as KT)
             dbhmin = sp == 7 ? 6f0 : 7f0
             bfmind = sp == 7 ? 6f0 : 7f0
-            bark = bark_ratio(ba_a, ba_b, sp, d)
+            bark = em_bratio(sp, d)
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1,
                            sf_hs = true, ht2td = htb)            # SF_HS merch top + HT1PRD → HT2TD (fvsvol.f)
             d >= dbhmin && (t.merch_top_cf[i] = htb[1])
