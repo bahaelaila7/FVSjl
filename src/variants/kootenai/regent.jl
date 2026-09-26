@@ -473,6 +473,31 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 stash.htgL[i] = htg
                 small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
             end
+            # kt/regent.f:614-650 — a SMALL record (D<3; `IF(D.GE.3.0) GO TO 23` skips the rest) that reaches DBH≥3
+            # this cycle (DNEW=D+DG on the cycle's DDS scale) gets a fresh DUBSCR crown (one FCR draw), capped at the
+            # all-HTG-to-crown CRMAX. The tripled copies run it too: kt/dgdriv.f:253/261 already put the central DBH in
+            # their slots, so they draw as well — but their ICR(K) is overwritten by TRIPLE's ICR(ITFN)=ICR(I), so for
+            # them only the RNG draw survives. (Measured on ktt01 cycle 2: live dubs K=50,180,181,12,104,105,51,…)
+            if small_d
+                dK = dbh_dir >= 0.0f0 ? dbh_dir : central_dbh           # DBH(K): the HK<4.5 direct set, else DBH(I)
+                dgK = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                barkK = bark_ratio(c.bark_a, c.bark_b, sp, dK)
+                dds2 = dgK * (2.0f0 * barkK * dK + dgK) * (fint / 10.0f0)       # SCALE2=FINT/YR
+                dg2 = sqrt((dK * barkK)^2 + dds2) - barkK * dK; dg2 < 0.0f0 && (dg2 = 0.0f0)
+                if dK + dg2 >= 3.0f0
+                    crf = kt_dubscr_cr(sp, dK + dg2, h + htg, s.plot.basal_area, dgsd, s.rng)
+                    if l == 0
+                        temcr = crf * 100.0f0 + 0.5f0
+                        icrK = Int(t.crown_pct[i])
+                        if icrK != 0
+                            crln = h * Float32(icrK) / 100.0f0
+                            crmax = (crln + htg) / (h + htg) * 100.0f0
+                            temcr > crmax && (temcr = crmax)
+                        end
+                        t.crown_pct[i] = Int32(trunc(Int, temcr))
+                    end
+                end
+            end
         end
     end
     return s

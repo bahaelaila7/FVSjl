@@ -92,7 +92,11 @@ const KT_DUB_CRSD = Float32[0.9476f0, 0.7396f0, 0.8706f0, 0.9203f0, 0.945f0, 0.8
 const KT_CRSD_LARGE = 6.35f0   # crown.f CRSD (LSTART dub stochastic spread)
 
 # kt/dubscr.f: small-tree (D<3) crown-ratio dub — logistic. Stochastic FCR when DGSD≥1 (RNG-cornered).
-function kt_dubscr(sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32, rng)::Int
+kt_dubscr(sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32, rng)::Int =
+    trunc(Int, kt_dubscr_cr(sp, d, h, ba, dgsd, rng) * 100.0f0 + 0.5f0)
+
+# kt/dubscr.f — the crown-ratio FRACTION (callers round: crown.f INT(CR*100+.5); regent.f TEMCR=CR*100+.5 then CRMAX).
+function kt_dubscr_cr(sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32, rng)::Float32
     cr = KT_DUB_BCR0[sp] + KT_DUB_BCR1[sp]*d + KT_DUB_BCR2[sp]*h + KT_DUB_BCR3[sp]*ba
     sdv = KT_DUB_CRSD[sp]
     fcr = 0.0f0
@@ -105,7 +109,7 @@ function kt_dubscr(sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float32, 
     abs(cr + fcr) >= 86.0f0 && (cr = 86.0f0)
     crf = 1.0f0 / (1.0f0 + exp(cr + fcr))
     crf < 0.05f0 && (crf = 0.05f0); crf > 0.95f0 && (crf = 0.95f0)
-    return trunc(Int, crf * 100.0f0 + 0.5f0)
+    return crf
 end
 
 """
@@ -138,7 +142,11 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         bark = variant_bratio(s, sp, d, h)
         crcon = KT_CRHAB[sp, clamp(Int(KT_CR_MAPHAB[it, sp]), 1, 14)]
+        cmult, cdlow, cdhi = crn_mult_band(s.control, sp, current_cycle_year(s); lstart = lstart)
+        inband = cdlow <= t.dbh[i] < cdhi                              # kt/crown.f:337 .GE. DLOW .AND. .LT. DHI
         local icri::Int
+        # kt/crown.f:297 — a cycling tree that started the cycle under 3" (D−DG/BARK<3) keeps its crown
+        (!lstart && d >= 3.0f0 && d - t.diam_growth[i]/bark < 3.0f0) && continue
         if d >= 3.0f0
             xcrcon = crcon + KT_CRPARM[sp,1]*ba + KT_CRPARM[sp,2]*ba*ba + KT_CRPARM[sp,3]*lnba +
                      KT_CRPARM[sp,4]*relden + KT_CRPARM[sp,5]*relden*relden + KT_CRPARM[sp,6]*lnrd
@@ -150,7 +158,7 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
             local chg::Float32
             if lstart
                 chg = exppcr
-                icri = trunc(Int, icr + chg*100f0 + 0.50005f0)
+                icri = trunc(Int, icr + (inband ? cmult * chg : chg)*100f0 + 0.50005f0)
                 if dgsd >= 1.0f0
                     icri = trunc(Int, bachlo(s.rng, Float32(icri), KT_CRSD_LARGE))
                 end
@@ -159,7 +167,10 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
                          KT_CRPARM[sp,4]*reldm1 + KT_CRPARM[sp,5]*reldm1*reldm1 + KT_CRPARM[sp,6]*x2
                 db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
                 hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-                pb = t.crown_ratio[i]; pb < 0.01f0 && (pb = 0.01f0)     # OLDPCT ≈ current PCT
+                # kt/crown.f:306-308 P=OLDPCT (the previous cycle's PCT, gradd.f:267 / cratet.f:578), reset to PCT when
+                # OLDPCT≤0 (new records). The ONTREM(7)>0 thinning reset is not ported (no removal counter), as in IE.
+                pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i]; t.old_crown_pct[i] = pb)
+                pb < 0.01f0 && (pb = 0.01f0)
                 dcr = dcrcon + b7*db + b8*db*db + b9*log(db) + b10*hb + b11*hb*hb + b12*log(hb) + b13*pb + b14*log(pb)
                 expdcr = exp(dcr)
                 chg = exppcr - expdcr
@@ -168,7 +179,7 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
                     pdifpy > 0.01f0  && (chg = Float32(icr) * 0.01f0 * fint / 100f0)
                     pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
                 end
-                icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)
+                icri = trunc(Int, Float32(icr) + (inband ? cmult * chg : chg)*100f0 + 0.50005f0)   # :337-341
             end
             # kt/crown.f:350-355 statement 55 — top-killed inventory records are re-expressed on the
             # NORMAL height. It sits ABOVE label 58, and the D<3 DUBSCR block jumps in below it, so only
@@ -177,8 +188,9 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
         else
             lstart || continue                                        # cycling: D<3 keeps its crown
             icri = kt_dubscr(sp, d, h, ba, dgsd, s.rng)
+            inband && (icri = trunc(Int, Float32(icri) * cmult))     # kt/crown.f:369-370
         end
-        icri > 95 && (icri = 95); icri < 5 && (icri = 5)
+        icri > 95 && (icri = 95); (icri < 5 && cmult == 1f0) && (icri = 5)   # label 59
         t.crown_pct[i] = Int32(icri)
     end
     # kt/crown.f:390-406 DO 79 — cycle-0 dead-record DUBSCR(ISPC,D,H,BA,CR); kt_dubscr returns INT(CR*100+.5).
