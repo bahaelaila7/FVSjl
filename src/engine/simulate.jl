@@ -899,6 +899,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa CentralIdaho && ci_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
