@@ -286,7 +286,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
-        cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # dbstrls.f binds PrdLen = IFINT: at the end of FVS cycle ICYC (year IY(ICYC+1) = jl cycle c's start) that is
+        # the FINT of the cycle just grown (jl c−1) — so the terminal list reports the last cycle's length, not the
+        # .sum final row's 0; the inventory list (c=0, before any growth) carries the first cycle's FINT.
+        cycle_hook === nothing || cycle_hook(s, r.year, c == 0 ? per : cycle_period_at(s.control, c - 1), c)
         # Test-only observer (tiered suite bit-identity snapshots, test/harness/tiered/snapshot.jl): a callback in the
         # CURRENT TASK's local storage sees the same start-of-cycle state. Task-local ⇒ safe when stands run on
         # parallel tasks; absent ⇒ one Dict lookup per summary row, no effect on the simulation.
