@@ -708,8 +708,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
     # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
     # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
-    # CI likewise (ci/dgdriv.f:795 DGF(WK3) then DO 220): its LSTART REGCAL DO 49 reads that DG (ci_do220_dg).
-    if s.variant isa BlueMountains || s.variant isa CentralIdaho
+    # CI and KT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705 DGF(WK3) then DO 220): their LSTART REGCAL DO 49 reads
+    # that DG (ci_do220_dg / kt_do220_dg).
+    if s.variant isa BlueMountains || s.variant isa CentralIdaho || s.variant isa Kootenai
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
@@ -821,6 +822,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.variant isa InlandEmpire && ie_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # CI (ci/regent.f:1305-1500, cratet.f:707): CIVAR/TTVAR/UTVAR REGCAL — had no port (HCOR_init stayed 0).
     s.variant isa CentralIdaho && ci_regent_hcor_init!(s, isct, ind1, saved_dbh)
+    # KT (kt/regent.f:674-848, cratet.f:648): same — had no port.
+    s.variant isa Kootenai && kt_regent_hcor_init!(s, isct, ind1, saved_dbh)
 
     # NC (Klamath) regent small-tree HEIGHT calibration (nc/regent.f LSTART DO 90): raw HCOR → htg_cor_small,
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
