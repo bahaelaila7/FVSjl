@@ -194,3 +194,12 @@ UT's WRD row was promoted to bit-exact.
 
 The oracle-side changes of 2026-09-25 (debug WRITEs removed, CR varmrt guard) are recorded in
 `/workspace/ORACLE_SOURCE_AUDIT_2026-09-19.md` §6.
+
+## Addendum 2026-09-25 (c) — `nc-dg` merge
+
+Branch `nc-dg` (worktree `.wt-crn2`, off master `0b09d876`), one proper `git merge --no-ff`. It sets NC's
+cycle-1 AUTCOR OLDFNT to grinit's FINT (10) through `dg_measure_period`. This makes NC bit-exact on every
+habtest case, and its WRD absolute row is promoted to a passing test. See docs/PORT_STATUS.md item 7.
+
+Gate: the full Pkg.test on the final tip is compared by name against the master `0b09d876` log
+(`/workspace/.postswap/pkgtest_master_0b09`).
