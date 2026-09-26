@@ -76,7 +76,7 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     tt = 0f0; sd2sq = 0f0; sd0sq = 0f0; dsum = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = em_bratio(sp, d)
         g = t.diam_growth[i] / bark
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); sd0sq += pr * d * d; tt += pr; dsum += d * pr
     end
@@ -160,7 +160,7 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
             killed[i] = wki
         else
             # ADDED species (4-6,11-17,19) — KT/IE Hamilton potential-mortality (em/morts.f:661-723).
-            bark = bark_ratio(bark_a, bark_b, sp, d)
+            bark = em_bratio(sp, d)
             reldbh = d / aved
             dd = d <= 0.5f0 ? 0.5f0 : d
             dgi = t.diam_growth[i]
@@ -210,7 +210,7 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
                 banew = 0f0; badead = 0f0
                 @inbounds for i in 1:n
                     d = t.dbh[i]; sp = Int(t.species[i])
-                    bark = bark_ratio(bark_a, bark_b, sp, d)
+                    bark = em_bratio(sp, d)
                     g = t.diam_growth[i] / bark
                     ba_ = 0.0054542f0 * (d + g)^2
                     banew  += ba_ * (t.tpa[i] - killed[i])

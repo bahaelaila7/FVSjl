@@ -899,7 +899,7 @@ function compute_volumes!(s::StandState)
             # DG time; fall back to BRATIO(current DBH) at cycle-0 LSTART (no projection yet), which is
             # exactly FVS's LSTART bark. (Was: always recompute from the grown DBH ⇒ broken-top cuft ±1.)
             bark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] :
-                   bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
+                   s.variant isa EasternMontana ? em_bratio(sp, d) : bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
             tcf, mcf, scf = cftopk(merch, sp, d, h, tcf, mcf, scf, v[1], bark, Int(t.trunc[i]))
             bf = bftopk(merch, sp, d, h, bf, bfmax, bark, Int(t.trunc[i]))
         end

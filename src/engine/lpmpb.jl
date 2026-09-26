@@ -514,7 +514,8 @@ function mpb_apply!(s::StandState, old_tpa::Vector{Float32}, fint::Real)
             prob = Float32[old_tpa[i] for i in lpidx]
             pct  = Float32[t.crown_ratio[i] for i in lpidx]
             dbh  = Float32[t.dbh[i] for i in lpidx]
-            bark = Float32[bark_ratio(s.calib.bark_a, s.calib.bark_b, t.species[i], t.dbh[i]) for i in lpidx]
+            bark = Float32[s.variant isa EasternMontana ? em_bratio(t.species[i], t.dbh[i]) :
+                           bark_ratio(s.calib.bark_a, s.calib.bark_b, t.species[i], t.dbh[i]) for i in lpidx]
             pgr  = mpb_mpgr(fdg, odg, prob, pct, bark, dbh; scale = 1.0f0)
             mpb_lpopdy_ta(pgr)
         end

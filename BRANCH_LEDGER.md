@@ -215,3 +215,20 @@ Gate: the full Pkg.test on the final tip is compared by name against the master 
 (`/workspace/.postswap/pkgtest_master_566b`). The only by-name changes were three PPE MXHRVP EC self-snapshots,
 each moving toward the FVSppe oracle; they were re-pinned.
 
+## Addendum 2026-09-26 (e) — `em-vol` merge
+
+Branch `em-vol` (worktree `.wt-em2`, off master `566b618c`; master `f6b7ca75` merged in), landed with one proper
+`git merge --no-ff`. It carries:
+- EM/KT top-killed trees on NORMHT, and EM Custer PP on 203FW2W122.
+- The Fortran-shaped EM REGENT, including ESTAB.
+- `em/bratio.f`.
+- The cycle-1 WK1 dub.
+- LL crown OBA/RDM1/OLDPCT.
+- EM HTGMULT and the per-copy LL HTG.
+
+See docs/PORT_STATUS.md, "EM REGENT in the Fortran's shape".
+
+Gate: the full `Pkg.test` on the final tip, compared by name against the master `f6b7ca75` log
+(`/workspace/.postswap/pkgtest_wshtg`). The tiered EM allowlist was redrafted from measurement, and the EM WRD row
+and the new EM REGENT test pass.
+
