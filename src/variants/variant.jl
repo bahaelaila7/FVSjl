@@ -75,6 +75,9 @@ function diameter_growth! end             # dgf.f / dgdriv.f
 function height_growth! end               # htgf.f
 "Period length (yr) the height-growth equations were fit to (FVS `YR`): SN=5, NE=10."
 htg_period(::AbstractVariant) = 5f0       # /CONTRL/ YR (blkdat.f)
+# grinit.f FINT — the DG MEASUREMENT period, which grincr.f uses as cycle 1's OLDFNT (the "previous period" in
+# AUTCOR's serial correlation). Equal to YR in every variant except NC (YR=5, FINT=10).
+dg_measure_period(v::AbstractVariant) = htg_period(v)
 function height_from_dbh end              # htcalc.f / htdbh.f
 function crown_ratio! end                 # crown.f
 function mortality! end                   # morts.f

@@ -1333,8 +1333,10 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # correlation CORR used AUTCOR(NOLD=10)=0.181 instead of FVS's AUTCOR(NOLD=5)=0.148 — a ~3% over-high
     # tripled-record DG that over-projected the self-thinning QMD (live dgdriv.f DG(I) stamp; see
     # [[fvsjl-ls-morts-growth-projection-bug]]). `growth_dg_set` distinguishes an explicit 5 from the default.
+    # Default = grinit's FINT (grincr.f: ICYC=1 ⇒ OLDFNT=FINT), via dg_measure_period — equal to YR everywhere
+    # except NC (YR=5, FINT=10: measured live CORR 0.3906 = AUTCOR(5,10), jl had AUTCOR(5,5)=0.3196).
     meas_fint = (s.control.growth_dg_set && s.control.growth_fint > 0f0) ?
-                Int(round(s.control.growth_fint)) : Int(htg_period(s.variant))
+                Int(round(s.control.growth_fint)) : Int(dg_measure_period(s.variant))
     oldp = cyc == 0 ? meas_fint : max(1, cycle_period_at(s.control, cyc - 1))
     covmlt, vmlt = autcor(newp, oldp, _stand_bjrho(s))
     pvmlt = c.vmlt > 0f0 ? c.vmlt : vmlt
