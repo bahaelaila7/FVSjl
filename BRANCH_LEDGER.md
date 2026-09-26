@@ -232,3 +232,20 @@ Gate: the full `Pkg.test` on the final tip, compared by name against the master 
 (`/workspace/.postswap/pkgtest_wshtg`). The tiered EM allowlist was redrafted from measurement, and the EM WRD row
 and the new EM REGENT test pass.
 
+## Addendum 2026-09-26 (g) — `em-regcal` merge
+
+Branch `em-regcal` (worktree `.wt-emr`, off em-vol `27da808a`), landed with one proper `git merge --no-ff` after
+master was merged in. It carries the EM and IE LSTART REGCAL fixes:
+- Per-species RHCON.
+- The cratet backdating-DENSE snapshot.
+- IFINTH.
+- The cratet.f:153 tie IND.
+- CCF at D = 0.
+- IE's CR/UT arms.
+
+It also adds the test `test_regcal_em_ie.jl`. See docs/PORT_STATUS.md, "LSTART small-tree height calibration
+(REGCAL) for EM and IE".
+
+Gate: the full `Pkg.test` on the final tip, compared by name against the preceding master log. The tiered EM
+allowlist was redrafted from measurement, keeping the #247 annotation.
+

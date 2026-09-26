@@ -555,6 +555,57 @@ current PCT instead of OLDPCT. Both are fixed, along with the backdated-D < 3 sk
   - An LM backdated-PCT tie breaks in a different order (0.013 TPA).
 - **REGCAL.** The CR/UT EDH uses a static PCTRED, which is 0 at LSTART (#244).
 
+## LSTART small-tree height calibration (REGCAL) for EM and IE (2026-09-26, branch `em-regcal`)
+
+The small-tree height calibration in REGENT (label 40, called from CRATET) sets each species' HCOR from seedlings
+and saplings that carry a measured HTG. Live's `DEBUG REGENT` prints per-species "SUMS FOR SPECIES n: SNP SNX
+SNY", which gives a direct oracle; CORNEW = SNY/SNX.
+
+**EM.**
+- **RHCON.** Only NIVAR (LL) carries the NI constant REGCH + 1.0667 + RHHAB. Every other sub-model has
+  RHCON = 1.0, or RCOR2 under READCORR (`em/regent.f` REGCON). jl gave all 19 species the NI constant (0.47 on the
+  S248112 fixture), so CW's CORNEW came out 2.50 instead of 1.004 and CW height growth was about double.
+- **Stand values.** REGCAL runs inside CRATET right after the `cratet.f:182` backdating DENSE, with no DENSE in
+  between. It therefore reads that DENSE's BA, RELDEN, AVH, point PCCF and PCT, plus RELDM1 interpolated to the
+  FINTH-year start (dense.f:259). jl read the current live-only values (PCTRED 0.459 vs live 0.5379).
+  `crown_init_lstart_dead_inclusive!` now snapshots them (`Calibration.cratet_*`).
+- **NTYR = IFINTH.** The new `Control.growth_ifinth` is 5 by default and is set only by the DB `HTG_MEASURE`
+  column (dbsstandin.f:711). The GROWTH keyword never sets it: its assignment is commented out at initre.f:834. For
+  IFINTH > 5 the DO-49 subcycle density projection runs; it matches live on three FIA stands with
+  HTG_MEASURE = 10 (NPER 2).
+- **Tie order (shared with BM).** The backdated PCT, and EM's DG-calibration PCT, now use the `cratet.f:153`
+  IND (`IND=IND1; RDPSRT(.FALSE.)`, dead included). Before, jl used the identity `.TRUE.` re-sort or a stable
+  `sortperm`, which permuted PCT inside equal-DBH groups. That reached NIVAR BAL and the DGF WK2, hence the DO-220
+  WK1 dub and the LM/LL Hamilton G.
+- **CCF at D = 0 (shared with IE/UT).** The IMC = 9 dead that the backdating DENSE zeroes take `ccfcal.f`'s
+  D ≤ 0.1 branch, giving 0.001·P. jl gave 0.
+- **LESTB crown draw.** It sets ICR only; PCT stays estab.f's 0.
+
+**IE.**
+- **NTYR = IFINTH.** jl used FINT (10) with REGYR 5, which ran 2 subcycles where live runs 1. Every NIVAR SNX was
+  about 2× live, so CORNEW was halved.
+- **Stand values.** The same `cratet.f:218` snapshot is now used (RELDEN 204.36 → 205.42; RELDM1 had been 0).
+- **CR/UT arms.** These were never ported. They are now: CRVAR and PI/UJ take the UT form on the unclamped SJ,
+  the aspen group gets Sheppard, and the result is ×0.5 using the last subcycle's value.
+- **Smaller fixes.** IHTG < 2 gates the backdate, and READCORR is honoured.
+
+**Measured:**
+- New test `test/unit/test_regcal_em_ie.jl`, with fixtures under `test/fixtures/{easternmontana,inlandempire}/regcal`.
+  Each fixture is the PN inventory plus six HTG seedlings for each of 12 species, including 12-way DBH ties and
+  two dead records.
+- All 15 EM and all 14 IE per-species sums equal live, across every sub-model.
+- EM runs 3 cycles per-tree exact (0/99 trees off; em-vol was 89–99/99). Every .sum field matches except the
+  2010 stocking class, which is FORTYP/STKVAL and tracked as #251.
+- IE per-tree mismatches at 2000 fall from 91/99 on master to 29/99. The remainder is IE's growth-side TTVAR,
+  which is not yet in Fortran shape (#250).
+- Tiered fast tier: EM 130,863 → 130,769 cells (allowlist redrafted); IE and BM unchanged.
+
+**Still open:**
+- **#249** — KT and CI have no REGCAL port at all, and TT needs an audit (in progress on branch
+  `regcal-kt-ci`).
+- **#250** — the IE REGENT growth rewrite.
+- **#251** — the STKVAL stocking class.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
