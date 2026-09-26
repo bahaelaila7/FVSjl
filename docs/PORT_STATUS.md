@@ -578,6 +578,10 @@ every equation, not just INGY. S248112 cycle 0 TCuFt/MCuFt/BdFt 1640/1103/5572 �
 - REGHMULT and REGDMULT are applied.
 - S248112, 3 cycles: per-tree exact in all four setups (DGSTDEV 0 and random, with and without tripling).
 - PPE MXHRVP end-to-end now pins cycles 1–2 to the oracle (330.4816 / 439.8994).
+- The PPE composite-materialization test (`stand_thin.key`) is now pinned to **current live FVSec_g16**
+  volumes. Those volumes equal jl's on every row (1602/1064/5456 … 1780/1651/9038). FVSppe's composite volumes
+  (1624/1102/5567 at 1990) come from the historical source's volume equations. TPA is still pinned to FVSppe,
+  and is exact there.
 
 **4. ESGENT (`ec/esgent.f`).** EC was missing from the birth-cycle ESGENT dispatch, so planted records sat at
 their ESSUBH height for the whole establishment cycle (ect01 PLANT stand: 2002 BA 0 vs live 22). `ec_esgent!` is

@@ -246,6 +246,8 @@ landed with one proper `git merge --no-ff`. It carries:
 
 See docs/PORT_STATUS.md, "EC crown width, volume, REGENT and ESGENT".
 
-Gate: the full `Pkg.test` on the final tip, compared by name against the master `0df04061`-equivalent em-vol log
-(`/workspace/.postswap/pkgtest_emvol`).
+Gate: the full `Pkg.test` on tip `9a53fa31`, compared by name against the em-vol log (`/workspace/.postswap/pkgtest_emvol`,
+code-identical to master `0df04061`). The only new failures were four year-testsets (7 assertions) of the PPE composite
+test. Their volume pins came from the FVSppe historical-source oracle; jl equals current live FVSec_g16 on every row.
+They were re-pinned to live in a test-only commit, and the next branch's full suite covers the merged master.
 
