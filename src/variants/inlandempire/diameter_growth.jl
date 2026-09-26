@@ -188,3 +188,32 @@ function dgf!(s::StandState, ::InlandEmpire)
     end
     return s
 end
+
+# ie/dgdriv.f:755-795 (LSTART, DO 220) — the calibration leaves DG(I) = the measured increment when DG>0 and HT>4.5
+# (capped at the inside-bark DBH when IDG<2); 0 for HT<=4.5; otherwise the DGF dub SQRT(D²+EXP(WK2+OLDRN)·SCALE)−D
+# with D=WK3·BARK, capped at D, then DGBND. WK2/WK3 are the dgdriv.f:759 DGF(WK3) re-call after the correction terms
+# (captured by calibrate_diameter_growth! in c.dub_wk2/dub_wk3). That DG becomes cycle-1 WK1 (dgdriv.f:142), the
+# ie/morts.f Hamilton vigor G. jl had used the cycle-1 PREDICTED DG as a stand-in for the dub, so every unmeasured
+# HT>4.5 small tree carried the wrong vigor (IE REGCAL fixture: DF 1.9" live kill 4.745 vs jl 5.727).
+function ie_cycle0_wk1!(s::StandState)
+    t, c = s.trees, s.calib; n = t.n
+    (length(c.dub_wk2) == n && length(c.dub_wk3) == n) || return s
+    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
+    @inbounds for i in 1:n
+        sp = Int(t.species[i]); d = t.dbh[i]
+        bark = ie_bratio(sp, d)
+        if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+            dg = t.diam_growth[i]
+            (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)
+            t.dg_prev[i] = dg
+        elseif t.height[i] <= 4.5f0
+            t.dg_prev[i] = 0f0
+        else
+            dd = c.dub_wk3[i] * bark
+            dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+            dub > dd && (dub = dd)
+            t.dg_prev[i] = dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
+        end
+    end
+    return s
+end

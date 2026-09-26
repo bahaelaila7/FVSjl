@@ -408,7 +408,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    _TT_CUR_RMSQD[] = stand_qmd(s)    # #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
+    _TT_CUR_RMSQD[] = (s.variant isa InlandEmpire && s.calib.cratet_rmsqd > 0f0) ? s.calib.cratet_rmsqd :   # IE: the cratet
+                      stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
@@ -452,7 +453,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana) && length(s.calib.input_seq) == ntot
+        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire) &&
+               length(s.calib.input_seq) == ntot
+            # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
             # tie ⇒ DGF WK2 ⇒ the DO-220 WK1 dub ⇒ LM/LL Hamilton G 0.1253 vs live 0.1257 (cycle-1 kill 6.941 vs 6.921).
@@ -708,11 +711,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
     # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
     # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
-    if s.variant isa BlueMountains
+    # IE: ie/dgdriv.f:759 is the same DGF(WK3) re-call ahead of its DO 220 (ie_cycle0_wk1!).
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
+        (s.variant isa InlandEmpire && c.cratet_rmsqd > 0f0) && (_TT_CUR_RMSQD[] = c.cratet_rmsqd)   # same RMSQD as :391
         dgf!(s, s.variant)
+        _TT_CUR_RMSQD[] = -1.0f0
         c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
         c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
         s.plot.forest_type = _sft; s.plot.avg_height = _savh
@@ -1462,10 +1468,14 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dbh0  = do_trip ? zeros(Float32, nlive) : Float32[]
     bumpU = do_trip ? zeros(Float32, nlive) : Float32[]
     bumpL = do_trip ? zeros(Float32, nlive) : Float32[]
+    # crU/crL: a copy's OWN crown when REGENT's DUBSCR block (ie/regent.f:999-1021 `ICR(K)=ICRK`) gives the copy a
+    # crown different from the central's final one; −1 = inherit the central's (copy_tree!). IE only.
+    crU = do_trip ? fill(Int32(-1), nlive) : Int32[]
+    crL = do_trip ? fill(Int32(-1), nlive) : Int32[]
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
                       htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
                       dbhU = dbhU, dbhL = dbhL,
-                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL) : nothing
+                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL, crU = crU, crL = crL) : nothing
 end
 
 """
@@ -1504,6 +1514,10 @@ function triple_records!(s::StandState, stash)
         if hasproperty(stash, :dbhU)
             stash.dbhU[i] >= 0f0 && (t.dbh[u] = stash.dbhU[i])
             stash.dbhL[i] >= 0f0 && (t.dbh[l] = stash.dbhL[i])
+        end
+        if hasproperty(stash, :crU)
+            stash.crU[i] >= 0 && (t.crown_pct[u] = stash.crU[i])
+            stash.crL[i] >= 0 && (t.crown_pct[l] = stash.crL[i])
         end
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0

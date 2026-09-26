@@ -2605,7 +2605,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL transfer distance; apply_climate_dds! +
         # inlandempire/regent.jl clim_treemult), so byte-identical for climate-off IE. Was birth_age=0 ⇒ BIRTHYR=now
         # ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE (matches oracle ABIRTH=GENTIM=5).
-        t.birth_age[n]   = _autoes_gentim
+        t.birth_age[n]   = s.variant isa InlandEmpire ? _autoes_trage : _autoes_gentim   # IE: AGADSB=TRAGE (estab.f:816/1235); +GENTIM in ie_esgent! (:1504)
         t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f
         # XCHECK; :1348 excess: 0). IDSDAT = this ESTAB call's date of disturbance (esnutr.f sets it before ESTAB).

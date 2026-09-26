@@ -130,6 +130,18 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     c.cratet_ba = s.plot.basal_area; c.cratet_avh = avht_real
     c.cratet_pccf = copy(s.density.point_ccf); c.cratet_pct = t.crown_ratio[1:nlive]
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
+    # dense.f:249-252 second pass: RMSQD = SQRT(TSUMD2/TPROB), TSUMD2 += D·(D·P), over IND1 species-major, current DBH
+    let bk = lbkden ? t.dbh[1:nlive] : Float32[], tsumd2 = 0f0, tprob = 0f0, iseq = c.input_seq
+        lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
+        ord = length(iseq) == t.n ? sortperm(collect(1:t.n); by = j -> (Int(t.species[j]), iseq[j])) :
+              sortperm(collect(1:t.n); by = j -> (Int(t.species[j]), j))
+        @inbounds for j in ord
+            pj = t.tpa[j]; dj = t.dbh[j]
+            tprob += pj; tsumd2 += dj * (dj * pj)
+        end
+        c.cratet_rmsqd = tprob > 0f0 ? sqrt(tsumd2 / tprob) : 0f0
+        lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = bk[i]; end)
+    end
     c.cratet_reldm1 = c.cratet_relden
     if lbkden
         bk = t.dbh[1:nlive]

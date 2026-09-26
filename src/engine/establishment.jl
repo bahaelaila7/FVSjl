@@ -732,7 +732,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # clim_treemult), so setting it is byte-identical for climate-off IE but gives established regen the
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
-                (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa InlandEmpire) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                (s.variant isa CentralRockies || s.variant isa Teton) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # IE: ABIRTH is AGEPL = FINT−DELAY+TRAGE at creation (estab.f:1064/1414, the ESSUBH-clamped DELAY and
+                # the ORIGINAL TRAGE of :990) — what REGENT(LESTB) reads for aspen SITAGE (regent.f:572) — and
+                # ie_esgent! adds the cycle's final GENTIM afterwards (estab.f:1504). jl had stored AGE−GENTIM(FINT−5):
+                # planted aspen then grew from SITAGE 2 instead of live's 7 (DBH 0.7728 vs 0.7812).
+                if s.variant isa InlandEmpire
+                    _pdi = Float32(clamp(delay, -3, per))
+                    t.birth_age[n] = Float32(per) - _pdi + trage
+                    s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
+                    s.estab.gentim_cyc = Int32(s.control.cycle)
+                end
                 # BM (strp/estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE. Read by the birth-cycle aspen REGENT
                 # (bm/regent.f:319 LESTB ⇒ SITAGE=ABIRTH) and Climate-FVS BIRTHYR.
                 s.variant isa BlueMountains && (t.birth_age[n] = Float32(per) - Float32(delay) + trage)
