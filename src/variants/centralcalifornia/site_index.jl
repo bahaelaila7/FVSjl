@@ -87,11 +87,11 @@ function ca_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
     idx === nothing ? 0 : Int(idx)
 end
 
-# ca/forkod.f — set IFOR from KODFOR (cat01 610 → IFOR 6); default IFOR=1 if the code isn't in JFOR.
+# ca/forkod.f — set IFOR from KODFOR (cat01 610 → IFOR 6); an unknown code keeps the grinit IFOR=6.
 function ca_forkod!(p)
     kodfor = Int(p.user_forest_code)
     idx = findfirst(==(kodfor), CA_JFOR)
-    ifor = idx === nothing ? 1 : idx
+    ifor = idx === nothing ? 6 : idx       # not found ⇒ ERRGRO(3), IFOR keeps ca/grinit.f's 6 (not 1)
     # ca/forkod.f "FOREST MAPPING CORRECTION": TRINITY NF (518, JFOR idx 11) → SHASTA-TRINITY (514, idx 5).
     # MAPLOC/DGFOR/HTCALC forest arrays are dimensioned only 1..10, so an unmapped IFOR=11 indexes past
     # them (segfault on 518-coded stands). FVS remaps here so IFOR ∈ 1..10 downstream.

@@ -38,7 +38,7 @@ function op_forkod!(p)
         ifor = OP_FORKOD_RES[kodfor]
     else
         idx = findfirst(==(kodfor), OP_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        idx === nothing ? (useigl = false; ifor = 4) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps op/grinit.f:190's 4
     end
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(1))            # KFOR all = 1
