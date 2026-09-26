@@ -54,7 +54,7 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
             # ut/htgf.f CASE(17:19,22) small gate: DBH<0.5 | HT≤4.5 → REGENT (HTG stays 0).
             (d < 0.5f0 || h <= 4.5f0) && continue
             ssite = p.sp_site_index[sp]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = ut_bratio(s.coef.species, sp, d)
             icls = trunc(Int, d + 1f0); icls > 41 && (icls = 41); icls < 1 && (icls = 1)
             bautba = (ht_bau !== nothing && ba > 0f0) ? ht_bau[icls] / ba : 0f0
             bautba < 0f0 && (bautba = 0f0)
@@ -112,7 +112,7 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
                     z += zadja; z > 2.0f0 && (z = 2.0f0)
                 end
             end
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = ut_bratio(s.coef.species, sp, d)
             dia = d + t.diam_growth[i] / bark
             if (_UT_XI1 + cof1) > dia
                 psi = cof8 * ((dia - _UT_XI1) / (_UT_XI1 + cof1 - dia))^cof9 *

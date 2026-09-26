@@ -37,7 +37,7 @@ function compute_volumes_ut!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = ut_bratio(s.coef.species, sp, d)
         dbhmin = sp == 7 ? 7.0f0 : 8.0f0
         # Top-killed trees: full cubic (VMAX) uses the NORMAL height (norm_ht), then r4_topkill trims (see TT).
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
