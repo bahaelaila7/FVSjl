@@ -487,6 +487,9 @@ moved each one toward the FVSppe oracle:
 The same stand run alone against live FVSec agrees: 2010 BA went from 144 to 145 (live 147), and 2020 from
 180 to 181 (live 184). The snapshots were re-pinned. No other test changed by name.
 
+Three `@test_broken` rows became passing tests: the EC and WS WRD absolute rows (control and root disease
+TPA/BA equal live in every cycle; WS was TPA +28 / BA −10) and the EC `ect01` cycle-0 ACCRETION cell.
+
 **Found and still open:**
 - EC `ec_cwcalc` has no crown-width equation for species 6 and later, so TREELIST crashes on the PPE stand.
 - On that stand, EC 1990 TCuFt is 1640 vs live 1602 while TPA, BA and SDI are exact.
