@@ -90,15 +90,23 @@ function compute_volumes_em!(s::StandState)
     htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # ie/vols.f:144-145 — TKILL = H≥4.5 and ITRUNC>0 ⇒ H = NORMHT/100: a top-killed tree's full volume (and the
+        # CFTOPK/BFTOPK trim that follows) is on its NORMAL height. EM used the current height (measured: DF trc49
+        # NORMHT 55.86 — live TCuFt 12.3, jl 12.1).
+        (h >= 4.5f0 && t.trunc[i] > 0 && t.norm_ht[i] > 0) && (h = Float32(t.norm_ht[i]) / 100f0)
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]
-        if startswith(eq, "I")                      # conifers — Region-1 FW2 (same as KT)
+        # em/sitset.f VOLEQDEF: on Custer (IFOR 2, forest 108 — also the not-found default) PP gets the Region-2
+        # Black Hills 203FW2W122 instead of I00FW2W122; every other species/forest pair is forest-independent
+        # (live tables for 102/108/109/111/112/115 compared). FVS still passes REGN=KODFOR/100=1 to VOLINIT.
+        (sp == 10 && Int(s.plot.forest_idx) == 2) && (eq = "203FW2W122")
+        if startswith(eq, "I") || eq[4:6] == "FW2"   # conifers — Flewelling FW2 (same as KT)
             dbhmin = sp == 7 ? 6f0 : 7f0
             bfmind = sp == 7 ? 6f0 : 7f0
-            bark = bark_ratio(ba_a, ba_b, sp, d)
+            bark = em_bratio(sp, d)
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1,
                            sf_hs = true, ht2td = htb)            # SF_HS merch top + HT1PRD → HT2TD (fvsvol.f)
             d >= dbhmin && (t.merch_top_cf[i] = htb[1])

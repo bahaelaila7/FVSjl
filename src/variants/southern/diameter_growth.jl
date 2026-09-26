@@ -523,6 +523,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _saved_avh = s.plot.avg_height
     s.plot.avg_height = _cur_avh
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
+    # EM's LSTART dub (em/dgdriv.f:770 CALL DGF(WK3), DO 220) runs in THIS context — FORTYP 0, current AVH and the
+    # current RMSQD for aspen DGFASP (FVSem_g16 DEBUG: the dub DGF prints the same LN(DDS) as this first call,
+    # AS 3.5" 0.8561; a re-run after the RMSQD stash is cleared gave 0.8104). Keep WK2/WK3 for em_cycle0_wk1!.
+    if s.variant isa EasternMontana
+        c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
+        c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
+    end
     _TT_CUR_RMSQD[] = -1.0f0     # #191/#195: clear the current-RMSQD stash (actual growth uses stand_qmd); unconditional to avoid leaks
     s.plot.avg_height = _saved_avh
     c.calib_dbh = Float32[]

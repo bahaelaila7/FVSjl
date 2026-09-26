@@ -366,7 +366,7 @@ function ie_dub_aspen_birthage!(s::StandState)
     return s
 end
 
-function ie_seed_backdated_oldpct!(s::StandState)
+function ie_seed_backdated_oldpct!(s::StandState; bratio = nothing)
     t = s.trees; nlive = t.n
     nlive == 0 && return s
     ntot = nlive + Int(t.ndead)
@@ -376,7 +376,7 @@ function ie_seed_backdated_oldpct!(s::StandState)
     @inbounds for i in 1:nlive
         dg = t.diam_growth[i]; dg <= 0f0 && continue                 # DG≤0 → -1 (missing), excluded (dense.f:100)
         d = t.dbh[i]; d <= 0f0 && continue
-        g = dg / bark_ratio(ba_a, ba_b, Int(t.species[i]), d)
+        g = dg / (bratio === nothing ? bark_ratio(ba_a, ba_b, Int(t.species[i]), d) : bratio(Int(t.species[i]), d))
         g > d && continue                                            # growth ≥ current diameter → excluded (dense.f:105)
         bagr += 1f0 - (2f0*d*g - g*g)/(d*d); sn += 1
     end
@@ -392,7 +392,7 @@ function ie_seed_backdated_oldpct!(s::StandState)
             wk3 = d                                                  # SN≤0 ⇒ no backdating (dense.f:112 GO TO 6)
         else
             dg = t.diam_growth[i] > 0f0 ? t.diam_growth[i] : -1f0    # cratet.f:211 missing DG → -1
-            g = dg / bark_ratio(ba_a, ba_b, Int(t.species[i]), d)
+            g = dg / (bratio === nothing ? bark_ratio(ba_a, ba_b, Int(t.species[i]), d) : bratio(Int(t.species[i]), d))
             g > d && (g = d)                                         # dense.f:124
             r = 1f0 - (2f0*d*g - g*g)/(d*d)
             (g < 0f0 || r <= 0f0) && (r = bagr)                      # dense.f:127

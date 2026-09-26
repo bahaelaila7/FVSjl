@@ -107,6 +107,7 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (d <= 0f0 || h <= 0f0) && continue
+        xht = active_multiplier(s.control, :htg, sp, cur_year)   # em/htgf.f:138 XHT=XHMULT (HTGMULT keyword)
         if sp <= 3 || (7 <= sp <= 10) || sp == 18          # main Wykoff conifers
             h <= 4.5f0 && continue                          # → REGENT small-tree (chunk 6)
             cr = Float32(t.crown_pct[i]) / 100f0
@@ -118,7 +119,7 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             htmod = rlhtmd > 1f0 ? 1f0 : rlhtmd
             htg = phtg * htmod
             htg < 0.1f0 && (htg = 0.1f0)
-            t.ht_growth[i] = htg * scale
+            t.ht_growth[i] = htg * (scale * xht)          # htgf.f:366 HTG=SCALE*XHT*HTG
         elseif sp == 6
             # RM juniper: em/htgf.f:231 GO TO 30 — ALL height growth comes from REGENT. Leave 0.
             continue
@@ -129,7 +130,7 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             con = ll_htcon + ll_h2cof * h * h - 0.1997f0 * log(d) + 0.23315f0 * log(h)
             htg = dg > 0f0 ? exp(con + ll_hdgcof * log(dg)) + 0.4809f0 : 0.1f0
             htg < 0.1f0 && (htg = 0.1f0)
-            t.ht_growth[i] = htg * scale
+            t.ht_growth[i] = htg * (scale * xht)          # htgf.f:366 HTG=SCALE*XHT*HTG
         else
             # LM(4)/CO(11,13-16,19)/aspen(12,17) — Schreuder-Hafley SB height (em/htgf.f:236-358). COFLM for
             # sp4, COFAS otherwise. Young-tree accelerator at :311 DOES fire on FIA stands (IAGE=STAND_AGE, e.g. 18).
@@ -140,7 +141,7 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             cof6 = cof[6,k]; cof7 = cof[7,k]; cof8 = cof[8,k]; cof9 = cof[9,k]
             # bounds: outside the fitted SB range ⇒ HTG=0.1 (from regent for these small trees)
             if h <= 4.5f0 || (0.1f0 + cof1) <= d || (4.5f0 + cof2) <= h || d <= 0.1f0
-                t.ht_growth[i] = 0.1f0 * scale; continue
+                t.ht_growth[i] = 0.1f0 * (scale * xht); continue
             end
             temd = d <= 0.2f0 ? 0.2f0 : d
             y1 = (temd - 0.1f0) / cof1; y2 = (h - 4.5f0) / cof2
@@ -164,18 +165,48 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
                     z += zadj; z > 2.0f0 && (z = 2.0f0)
                 end
             end
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = em_bratio(sp, d)
             dia = d + t.diam_growth[i] / bark
             if (0.1f0 + cof1) > dia
                 psi = cof8 * ((dia - 0.1f0) / (0.1f0 + cof1 - dia))^cof9 *
                       exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
                 hnew = (psi / (1f0 + psi)) * cof2 + 4.5f0
                 hnew < h && (hnew = h)
-                t.ht_growth[i] = (hnew - h) * scale
+                t.ht_growth[i] = (hnew - h) * (scale * xht)
             else
-                t.ht_growth[i] = 0.1f0 * scale
+                t.ht_growth[i] = 0.1f0 * (scale * xht)
             end
         end
+    end
+    return s
+end
+
+# em/htgf.f:391-422 (LTRIP) — each tripled copy's LARGE-tree height increment. LL (sp 5, NI form) recomputes it from
+# the COPY's own DG, HTG(ITFN)=EXP(CON+HDGCOF·ln DG(ITFN))+0.4809 (floored 0.1, ·SCALE·XHT, SIZCAP on the slot's HT);
+# every other species copies the central's pre-cap TEMHTG, which copy_tree! already reproduces. REGENT's XWT blend
+# (em/regent.f:838, LL XMIN 2 … XMAX 10) reads these per-copy values for the copies.
+function em_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
+    stash === nothing && return s
+    t, p, ctl = s.trees, s.plot, s.control
+    itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
+    iht = _EM_HT_MAPHAB[itype]
+    h2cof = _EM_HGH2[iht]; hdgcof = _EM_HGLDD[iht]; htcon = _EM_HGHC[iht] - 0.5478f0
+    cur_year = current_cycle_year(s)
+    @inbounds for i in 1:stash.nlive
+        (Int(t.species[i]) == 5 && t.tpa[i] > 0f0) || continue
+        d = t.dbh[i]; h = t.height[i]
+        (d <= 0f0 || h <= 4.5f0) && continue
+        con = htcon + h2cof * h * h - 0.1997f0 * log(d) + 0.23315f0 * log(h)
+        xht = active_multiplier(ctl, :htg, 5, cur_year)
+        cap = ctl.sp_size_cap[5, 4]
+        function copy_htg(dgc::Float32)::Float32
+            v = (dgc > 0f0 ? exp(con + hdgcof * log(dgc)) : 0f0) + 0.4809f0
+            v < 0.1f0 && (v = 0.1f0)
+            v = v * scale * xht
+            (h + v > cap) && (v = max(cap - h, 0.1f0))
+            return v
+        end
+        stash.htgU[i] = copy_htg(stash.dgU[i]); stash.htgL[i] = copy_htg(stash.dgL[i]); stash.htg_copy[i] = true
     end
     return s
 end
