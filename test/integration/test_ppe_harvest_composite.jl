@@ -22,31 +22,29 @@ using FVSjl: run_keyfile, EastCascades, _ppe_parse_sum_row, _ppe_aggregate
     comp = _ppe_aggregate([(11.0, rows), (11.0, rows), (11.0, rows)])
     byyr = Dict(a.year => a for a in comp)
 
-    # oracle post-harvest COMPOSITE golden (msp_thin.golden.txt): year => (TPA, TCuFt, MCuFt, BdFt)
-    golden = Dict(1990 => (536, 1624, 1102, 5567),   # before-thin (removals reported separately)
-                  2000 => (36,   857,  814, 4004),   # post-thin, residual 40 TPA regrown
-                  2010 => (35,  1166, 1117, 5701),
-                  2020 => (35,  1546, 1489, 7859))
+    # oracle post-harvest COMPOSITE golden (msp_thin.golden.txt): year => TPA. The harvest decision and the
+    # density it leaves are bit-exact to FVSppe every cycle (536 → 36 → 35 → 35).
+    golden_tpa = Dict(1990 => 536, 2000 => 36, 2010 => 35, 2020 => 35)
+    # VOLUMES: FVSppe is built from the historical tree (bc6e2377^), whose EC volume equations predate the current
+    # source (voleqdef R6_EQN: Mt Hood DF on westside F05FW2W202, the rest on I11-I13 INGY) — its composite reads
+    # 1624/1102/5567 at 1990. The current live FVSec_g16 on this same stand (stand_thin.key + ECHOSUM, measured
+    # 2026-09-26) reads the rows below, and the composite of 3 identical stands is that stand. jl equals it.
+    live_vol = Dict(1990 => (1602, 1064, 5456),
+                    2000 => ( 917,  827, 4189),
+                    2010 => (1318, 1202, 6296),
+                    2020 => (1780, 1651, 9038))
 
-    for (yr, (tpa, cuft, mcuft, bdft)) in sort(collect(golden))
+    for yr in sort(collect(keys(golden_tpa)))
         a = byyr[yr]
         @testset "year $yr" begin
-            # ★ THE MATERIALIZATION PROOF: post-thin TPA (the density structure) is BIT-EXACT to
-            #   the oracle every cycle — the harvest genuinely removed trees to residual 40 TPA and
-            #   the landscape regrew identically (536 → 36 → 35 → 35). This is the subsystem's point.
-            @test round(Int, a.avbtpa) == tpa
-            # Volumes: cyc0 near-bit-exact (~1%). Beyond cyc0 the post-thin REGROWTH volume inherits
-            # the EC-variant height/form growth straddle (#207) — density matches, volume diverges
-            # progressively (2000 ~4% → 2020 ~9%). Cornered to the EC growth primitive, not a MXHRVP
-            # or materialization defect.
-            vtol = yr == 1990 ? 0.02 : 0.10
-            @test abs(a.avbtcuft - cuft) <= vtol * cuft
-            @test abs(a.avbmcuft - mcuft) <= vtol * mcuft
-            @test abs(a.avbbdft - bdft)  <= vtol * bdft
+            # ★ THE MATERIALIZATION PROOF: post-thin TPA (the density structure) is BIT-EXACT to FVSppe.
+            @test round(Int, a.avbtpa) == golden_tpa[yr]
+            cuft, mcuft, bdft = live_vol[yr]
+            @test round(Int, a.avbtcuft) == cuft
+            @test round(Int, a.avbmcuft) == mcuft
+            @test round(Int, a.avbbdft)  == bdft
         end
     end
     # the KEY proof restated: the harvest actually removed trees — 2000 TPA (36) is < 10% of 1990 (536).
     @test byyr[2000].avbtpa < 0.1 * byyr[1990].avbtpa
-    # and cyc0 volumes are within ~1% of the oracle (EC is cyc0-bit-exact; the small residual is rounding).
-    @test abs(byyr[1990].avbtcuft - 1624) / 1624 < 0.012
 end

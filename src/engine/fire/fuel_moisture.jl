@@ -60,6 +60,13 @@ fm_mois_table(::OregonCoast) = _FM_MOIS_NC      # oc/fmmois.f == nc/fmmois.f (BY
 fm_mois_table(::WestCascades) = _FM_MOIS_IE
 fm_mois_table(::PacificNorthwest) = _FM_MOIS_IE
 fm_mois_table(::Olympic) = _FM_MOIS_IE
+# ec/fmmois.f and so/fmmois.f are the IE-family table; ca/fmmois.f and ws/fmmois.f are the NC table (verified value
+# by value against each buildDir). All four had no method and fell to the SN default: an EC SIMFIRE at moisture
+# code 1 burned at 5/7/12/17/40/55% instead of 4/4/5/10/15/70% (ect01 FFE stand flame 3.86 vs live 5.37 ft).
+fm_mois_table(::EastCascades) = _FM_MOIS_IE
+fm_mois_table(::SouthCentralOregon) = _FM_MOIS_IE
+fm_mois_table(::CentralCalifornia) = _FM_MOIS_NC
+fm_mois_table(::WestSierra) = _FM_MOIS_NC
 fm_mois_table(::AbstractVariant) = _FM_MOIS
 
 """

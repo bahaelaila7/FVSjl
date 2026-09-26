@@ -1259,7 +1259,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
-    es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
+    es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
+        (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
@@ -1267,6 +1268,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
+    s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
         atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
