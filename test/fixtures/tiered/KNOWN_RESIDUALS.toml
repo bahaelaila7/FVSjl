@@ -42,8 +42,9 @@ col = "GrowthMult"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
+max_cells = 68
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 69 cells [small=14 tiny=54 ulpbig=1] max|Δ|=0.09723 | e.g. stand 12827438010497 year 2045: live=1.42343092 jl=1.4234306812286377"""
+# 2026-09-26 bm-clim-mort: max_cells 69 -> 68 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
 
 [[residual]]
 variant = "BM"
@@ -53,8 +54,9 @@ col = "MxDenMult"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 267
+max_cells = 244
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 267 cells [small=201 tiny=43 ulp2_16=23] max|Δ|=0.02895 | e.g. stand 647500316126144 year 2058: live=1.03125823 jl=1.0078240633010864"""
+# 2026-09-26 bm-clim-mort: max_cells 267 -> 244 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
 
 [[residual]]
 variant = "BM"
@@ -126,28 +128,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "BM"
 regime = "climate"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
 year = "*"
@@ -159,307 +139,12 @@ issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print valu
 variant = "BM"
 regime = "climate"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 1127619588290487 year 2041: live=19 jl=18"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 11 cells [material=2 ulpbig=9] max|Δ|=255.0 | e.g. stand 12827438010497 year 2035: live=19101 jl=19155"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [ulpbig=9] max|Δ|=0.8305 | e.g. stand 12827438010497 year 2035: live=21.296552658081055 jl=21.33793067932129"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [material=1 ulpbig=8] max|Δ|=49.0 | e.g. stand 12827438010497 year 2035: live=3088 jl=3094"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1127619588290487 year 2051: live=89 jl=88"""
-# 2026-09-26 integ-0926: max_cells 2 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 41
 issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [material=1 ulpbig=9] max|Δ|=29.0 | e.g. stand 12827438010497 year 2035: live=3358 jl=3359"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 41136808010497 year 2055: live=58 jl=59"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [gold_text9=1 jl_not_f32=1 small=2] max|Δ|=0.1 | e.g. stand 1127619588290487 year 2051: live=14.1 jl=14.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 1127619588290487 year 2041: live=19 jl=18"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 11 cells [material=2 ulpbig=9] max|Δ|=255.0 | e.g. stand 12827438010497 year 2035: live=19101 jl=19155"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 3 cells [gold_text9=1 jl_not_f32=2] max|Δ|=0.8 | e.g. stand 645155287126144 year 2058: live=25.0 jl=24.9"""
-# 2026-09-26 integ-0926: max_cells 3 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [material=1 ulpbig=8] max|Δ|=49.0 | e.g. stand 12827438010497 year 2035: live=3088 jl=3094"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1127619588290487 year 2051: live=89 jl=88"""
-# 2026-09-26 integ-0926: max_cells 2 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [gold_text9=1 jl_not_f32=1 small=2] max|Δ|=0.1 | e.g. stand 1127619588290487 year 2051: live=14.1 jl=14.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [material=1 ulpbig=9] max|Δ|=29.0 | e.g. stand 12827438010497 year 2035: live=3358 jl=3359"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 41136808010497 year 2055: live=58 jl=59"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
 
 [[residual]]
 variant = "BM"
@@ -22492,48 +22177,4 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [material=2 ulpbig=8] max|Δ|=7.0 | e.g. stand 474187636489998 year 2016: live=30 jl=33"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATTopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
 

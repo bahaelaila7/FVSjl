@@ -74,7 +74,8 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         dr10 = sqrt(sd2sq / tt); dia0 = sqrt(sdq0 / tt)
     end
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
@@ -164,7 +165,7 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
     # residual TPA far below the uniform result (the mature over-max-SDI TPA fix). Inert
     # (immediate break) when residual BA ≤ BAMAX. sdimax<5 (full-kill) handled above.
     if sdimax >= 5f0
-        bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+        bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * pmsdiu   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
         for _ in 1:100
             banew = 0f0; badead = 0f0
             @inbounds for i in 1:n
