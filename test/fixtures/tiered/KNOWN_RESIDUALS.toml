@@ -2708,17 +2708,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "climate"
 file = "FVS_Climate"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2022: live=0 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Climate"
 col = "SiteMult"
 stand = "*"
 year = "*"
