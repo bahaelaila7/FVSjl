@@ -1871,17 +1871,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "salvage"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
 file = "FVS_Hrv_Carbon"
 col = "PRESENCE"
 stand = "*"
@@ -2318,17 +2307,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "BM"
@@ -7712,17 +7690,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "IE"
 regime = "salvage"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
 file = "FVS_Hrv_Carbon"
 col = "PRESENCE"
 stand = "*"
@@ -8500,17 +8467,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "IE"
@@ -12904,17 +12860,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "SN"
 regime = "salvage"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
 file = "FVS_Hrv_Carbon"
 col = "PRESENCE"
 stand = "*"
@@ -13626,17 +13571,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -20294,17 +20228,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "salvage"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
 file = "FVS_Hrv_Carbon"
 col = "PRESENCE"
 stand = "*"
@@ -21148,17 +21071,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Fuels"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "EM"
