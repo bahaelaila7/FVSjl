@@ -166,6 +166,20 @@ small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
 # FFE is inactive or the SN biomass coeffs are absent, and guards on `dbh>0` so stale `mort_pa` on empty
 # records is skipped. `book_snags=false` on the fire cycle: the fire path owns snag booking there.
 function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snags::Bool = true, kwargs...)
-    book_snags && book_mortality_snags!(s, s.trees.mort_pa, s.trees.n, fint)
+    t = s.trees; n = t.n
+    n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ oc/morts.f still reaches CLMORTS
+    # Climate-FVS mortality (oc/morts.f:801 CALL CLMORTS, after the base kill WK2, before FIXMORT): CLMORTS
+    # MAX-combines each record's climate rate into WK2 against the PRE-mortality PROB. ORGANON already removed its
+    # MORTEXP kill (t.mort_pa) inline, so restore PROB, combine, and re-apply the (possibly larger) kill.
+    if s.climate !== nothing && s.climate.active
+        killed = Float32[t.mort_pa[i] for i in 1:n]
+        @inbounds for i in 1:n; t.tpa[i] += killed[i]; end
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
+        @inbounds for i in 1:n
+            killed[i] > t.tpa[i] && (killed[i] = t.tpa[i])
+            t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); t.mort_pa[i] = killed[i]
+        end
+    end
+    book_snags && book_mortality_snags!(s, t.mort_pa, n, fint)
     return s
 end

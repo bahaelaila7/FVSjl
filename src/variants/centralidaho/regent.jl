@@ -59,6 +59,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     sd = s.coef.species
     t.n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (ci/regent.f:709/947); nothing ⇒ 1
     n = t.n
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
     kodtyp = Int(p.habitat_code)
@@ -104,6 +105,8 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 htgr = pothtg * pctred * vigor * con
             end
             htgr = htgr * scale_ut                        # ZZRAN deferred; XRHGRO=1
+            # ci/regent.f:946-947 CASE(17,19): ·WK4(I), the CLGMULT climate multiplier (1 without CLIMATE)
+            (sp == 17 || sp == 19) && cw !== nothing && (htgr *= cw[i])
             htgr < 0.1f0 && (htgr = 0.1f0)
             xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
             xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)

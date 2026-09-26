@@ -108,6 +108,7 @@ end
 function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (ws/regent.f:359); nothing ⇒ 1
     sd = s.coef.species
     avh = stand_top_height(s); ba = p.basal_area; dgsd = s.control.dg_sd
     relden = p.relative_density; ifor = Int(p.forest_idx); yr = s.control.year
@@ -156,7 +157,8 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
                 (zzran <= 0.5f0 && zzran >= -2.0f0) && break
             end
         end
-        htgr = sp == 21 ? (htgr + zzran*0.2f0) * scale : (htgr + zzran*0.1f0) * scale   # XRHGRO=1 (GB ·WK4 omitted)
+        # ws/regent.f:357-362: GB (21) ·WK4(I) = the CLGMULT climate multiplier (1 without CLIMATE). XRHGRO=1.
+        htgr = sp == 21 ? (htgr + zzran*0.2f0) * scale * (cw === nothing ? 1f0 : cw[i]) : (htgr + zzran*0.1f0) * scale
         # --- blend small & large tree HTG ---
         xmn = WS_RG_XMIN[sp]; xmx = WS_RG_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)

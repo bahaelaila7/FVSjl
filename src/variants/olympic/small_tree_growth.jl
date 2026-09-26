@@ -81,6 +81,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
     p, t, c = s.plot, s.trees, s.calib
     dens = s.density
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4; nothing ⇒ 1
     avh = p.avg_height
     org_ran = length(c.op_iorg) == n
     scale = fint / OP_REG_REGYR          # SCALE = FNT/REGYR (FNT=FINT on the non-estab path)
@@ -102,7 +103,8 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
         si = ispc <= length(p.sp_site_index) ? p.sp_site_index[ispc] : 0f0
         hg5, dg5 = op_smhgdg(ispc, h, d, cr, ptbal, ptba, avh, si)
         con = exp(c.htg_cor_small[ispc])            # RHCON=1 (no READCORR); HCOR small-tree calib (0 ⇒ CON=1)
-        htgr = hg5 * scale * con                     # XRHGRO=1, WK4=1, ZZRAN=0 (DGSD<1)
+        wk4 = cw === nothing ? 1f0 : cw[i]          # op/regent.f:270-275 WK4(I) = the CLGMULT climate multiplier
+        htgr = hg5 * scale * con * wk4               # XRHGRO=1, ZZRAN=0 (DGSD<1)
         htgr < 0.1f0 && (htgr = 0.1f0)
         # --- HTG blend with the large-tree HTG (op/regent.f:282-304) ---
         xmn = OP_REG_XMIN[ispc]; xmx = OP_REG_XMAX[ispc]
@@ -122,7 +124,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
             t.dbh[i] = d + 0.001f0 * hk              # DBH set directly (shared loop adds DG=0)
         else
             bark = op_bratio(ispc, d)
-            dg = dg5 * bark                          # DG5·BARK·XRDGRO (XRDGRO=1)
+            dg = dg5 * bark * wk4                    # DG(K)=DGR·SCALE·WK4(I) (op/regent.f:389); XRDGRO=1
             dg < 0f0 && (dg = 0.1f0)
             dg > dgmx && (dg = dgmx)
             dds = dg * (2f0 * bark * d + dg) * scale2

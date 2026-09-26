@@ -112,6 +112,7 @@ reject) per tree — its per-tree VALUES bit-match live only once the cycle RNG 
 function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float32 = 10.0f0)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     t.n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # WK4 = CLGMULT (cr/regent.f:313 ·WK4(I)); nothing ⇒ 1
     dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; xminv = sd[:st_xmin]; diamv = sd[:st_diam]
     htadj = sd[:st_htadj]; brkv = sd[:st_break]; ht2v = sd[:ht2]; ht1v = sd[:ht1]
     lo = sd[:site_lo]; hi = sd[:site_hi]
@@ -169,7 +170,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
                 end
             end
             htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
-                pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, htg_large, s.control.sp_size_cap[sp, 4],
+                pctred, con, 1.0f0, 1.0f0, scale, scale2, (cw === nothing ? 1f0 : cw[i]), htg_large, s.control.sp_size_cap[sp, 4],
                 p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
                 diamv[sp], ax, ht2v[sp])
             if l == 0
