@@ -1500,9 +1500,14 @@ function run_keyfile(keypath::AbstractString;
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
                 br = s.fire.burn_reports
-                write_dbs_burnreport!(s.control.dbs_out_file, caseid, String(sid), br)
-                write_dbs_mortality!(s.control.dbs_out_file, caseid, String(sid), br)
-                write_dbs_consumption!(s.control.dbs_out_file, caseid, String(sid), br)
+                # fmfout.f: each table needs its FMIN report window AND its DATABASE toggle (dbsfmburn/-mort/-fuel)
+                ctl = s.control
+                (ctl.ffe_burnrept && ctl.dbs_burnrept) &&
+                    write_dbs_burnreport!(ctl.dbs_out_file, caseid, String(sid), br)
+                (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
+                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br)
+                (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
+                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
             pf_rows === nothing ||
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)

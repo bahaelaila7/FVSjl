@@ -261,7 +261,7 @@ shrub from the rough-age × site-index curve, ×0.40 for piedmont/mountain (231*
 other units (use the flat `ffe_live_fuel_loading`). Rough age = years since the last burn, or
 (current − inventory year + 5) when unburned, clamped to [1, 20].
 """
-function ffe_live_fuel_override(s::StandState)
+function ffe_live_fuel_override(s::StandState; burnyr_now::Integer = 0)
     eu = s.plot.eco_unit
     (startswith(eu, "232") || startswith(eu, "231") || startswith(eu, "M221")) || return nothing
     # FULIV2 keys the shrub load off the SITE SPECIES' site index; with no site species designated
@@ -276,8 +276,15 @@ function ffe_live_fuel_override(s::StandState)
     # it pre-burn makes (iyr − fire_year) negative → clamps the age to 1 → wrong (too-young) shrub load
     # (231Dd: jl 0.48 vs live 0.60/0.88). Derive the actual last-burn from the accumulated burn_reports
     # (0 before any fire), the same fix as the fire-basis (sm,lg) timing.
-    burnyr = (s.fire !== nothing && !isempty(s.fire.burn_reports)) ?
-             maximum(Int(br.year) for br in s.fire.burn_reports) : 0
+    # BURNYR (fmburn.f:470) is set only by a fire that CARRIES (FLAG(1)≠1) with SCH > PBSCOR. `burnyr_now` = the
+    # fire being burned now: sn/fmburn.f:589 re-runs FMCBA once BURNYR=IYR, so FMCONS burns the age-1 shrub load.
+    burnyr = Int(burnyr_now)
+    if s.fire !== nothing
+        pbscor = s.fire.params.pb_scor
+        for br in s.fire.burn_reports
+            (get(br, :carried, true)::Bool && (br.scorch::Float32) > pbscor) && (burnyr = max(burnyr, Int(br.year::Int)))
+        end
+    end
     iyr = current_cycle_year(s); iy1 = Int(s.control.cycle_year[1])
     age = burnyr > 0 ? iyr - burnyr : iyr - iy1 + 5
     age = clamp(Float32(trunc(age)), 1f0, 20f0)

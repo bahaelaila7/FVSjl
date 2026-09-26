@@ -1291,7 +1291,7 @@ function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractM
                iptr::Union{Nothing,Vector{Int}} = nothing)
     ic = length(eqwt); mx = _FMD_MXFMOD
     out = Tuple{Int,Float32}[]
-    (sm < 0f0 || lg < 0f0) && return out
+    (sm < 0f0 || lg < 0f0) && return push!(out, (8, 1f0))   # GOTO 999 ⇒ nothing weighted ⇒ FMD=-1 ⇒ model 8
 
     lok = falses(ic)
     for i in 1:ic
@@ -1418,8 +1418,40 @@ function _fmdyn(sm::Float32, lg::Float32, eqwt::Vector{Float32}, xpts::AbstractM
         k <= mx && fmod[k] == 0 && (fmod[k] = fmod2[i])
         k <= mx && (fwt[k] += fwt2[i])
     end
+    return _fmdyn_tail!(out, fmod, fwt, iptr)
+end
+
+# FMDYN tail (fmdyn.f label 75 onward): map through IPTR, sort by weight DESCENDING with RDPSRT (so the
+# reported FMOD order — FVS_BurnReport FuelModl1..4 — is heaviest first), keep and renormalize the top 4
+# (XWT over FWT(1:4), rest zeroed), fall back to model 8 at weight 1 when nothing is weighted (FMD=-1, also
+# the SMALL/LARGE<0 GOTO 999 path), and report NFMODS = the leading entries with FWT > 1E-6, at most 4.
+function _fmdyn_tail!(out, fmod::Vector{Int}, fwt::Vector{Float32}, iptr)
+    mx = length(fmod)
     for i in 1:mx
-        fmod[i] != 0 && push!(out, (iptr === nothing ? fmod[i] : iptr[fmod[i]], fwt[i]))
+        fmod[i] != 0 && iptr !== nothing && (fmod[i] = iptr[fmod[i]])
+    end
+    indx = zeros(Int32, mx)
+    rdpsrt!(mx, fwt, indx, true)
+    f2 = [fmod[indx[i]] for i in 1:mx]; w2 = [fwt[indx[i]] for i in 1:mx]
+    xwt = 0f0
+    for i in 1:min(4, mx); xwt += w2[i]; end
+    if xwt > 1f-6
+        for i in 1:min(4, mx); w2[i] = w2[i] / xwt; end
+        for i in 5:mx; f2[i] = 0; w2[i] = 0f0; end
+    end
+    empty!(out)
+    if !(w2[1] > 1f-6)
+        push!(out, (8, 1f0))
+        return out
+    end
+    nf = mx
+    for i in 1:mx
+        if w2[i] <= 1f-6
+            nf = i - 1; break
+        end
+    end
+    for i in 1:min(nf, 4)
+        push!(out, (f2[i], w2[i]))
     end
     return out
 end

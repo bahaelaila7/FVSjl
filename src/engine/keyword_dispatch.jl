@@ -2049,6 +2049,12 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_climate = true
         elseif k == "FUELSOUT"
             s.control.dbs_fuels = true     # dbsin.f opt 14: IFUELS ⇒ FVS_Fuels (only with the FMIN FUELOUT window)
+        elseif k == "FUELREDB"
+            s.control.dbs_fuelcons = true  # dbsin.f opt 19: IFUELC ⇒ FVS_Consumption (only with the FMIN FUELREPT window)
+        elseif k == "BURNREDB"
+            s.control.dbs_burnrept = true  # dbsin.f opt 20: IBURN ⇒ FVS_BurnReport (only with the FMIN BURNREPT window)
+        elseif k == "MORTREDB"
+            s.control.dbs_mortrept = true  # dbsin.f opt 21: IMORTF ⇒ FVS_Mortality (only with the FMIN MORTREPT window)
         elseif k == "STRCLSDB"
             s.control.dbs_strclass = true
             s.control.strclass_on = true   # the DBS emitter implies the structure calc is on (sstage.f)
@@ -2622,6 +2628,12 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             r.present[5] && (p.pb_scor = max(Float32(v[5]), 0f0))          # PBSCOR, min 0
         elseif k == "FUELOUT"
             s.control.ffe_fuelout = true   # fmin.f:1500 the all-fuels report window IY(1)..IY(1)+999 (DBSFUELS gate)
+        elseif k == "BURNREPT"
+            s.control.ffe_burnrept = true  # fmin.f:227 IFMBRB=IY(1), IFMBRE=IY(1)+999 (DBSFMBURN gate)
+        elseif k == "MORTREPT"
+            s.control.ffe_mortrept = true  # fmin.f:1359 IFMMRB/IFMMRE window (DBSFMMORT gate)
+        elseif k == "FUELREPT"
+            s.control.ffe_fuelrept = true  # fmin.f:1341 IFMFLB/IFMFLE window (DBSFMFUEL gate)
         elseif k in _FFE_REPORT_KEYWORDS
             # report-only FFE keywords (BURNREPT/FUELOUT/SNAGSUM/…): the text reports aren't emitted; the
             # equivalent data is available via the DBS path. Recognized, intentionally a no-op here.
