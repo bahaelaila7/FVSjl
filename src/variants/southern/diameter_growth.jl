@@ -360,11 +360,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # past BA/PCT/point_ba), EXCEPT the AVHT40 top height (AVH), which stays at the
     # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
-    _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
-    _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
     _ut_cal = s.variant isa Utah              # #199: UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766)
     _tt_bd_ba = 0f0; _tt_bd_ccf = 0f0; _tt_bd_pccf = Float32[]   # TT REGCAL stand values (backdated DENSE)
-    _ut_bd_ccf = 0f0                           # UT: BACKDATED CCF (RELDEN, dense.f RELDM1) for the calib PCTRED (X=AVH·RELDEN/100; AVH stays current)
     _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
@@ -421,14 +418,6 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     t.n = nlive + t.ndead
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
-    # CR REGENT height calib uses the BACKDATED CCF (dense.f RELDM1) for its density modifier PCTRED — NOT the
-    # current CCF (regent.f:466 X=AVH·RELDEN/100; RELDEN is the backdated relative density). Capture it HERE with
-    # the recently-dead (backdated) trees INCLUDED (t.n = nlive+ndead): they were alive at the period start so
-    # dense.f's RELDM1 counts them (history-8 already zeroed above). Live-only omission under-counted the CCF on
-    # stands with recent mortality (68 vs live 121 on 1855925743290487); dead-inclusive = 121.13 = live exact.
-    # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
-    _cr_cal && (_cr_bd_ccf = stand_ccf(s); _cr_bd_avht = stand_top_height(s))
-    _ut_cal && (_ut_bd_ccf = stand_ccf(s))    # #199: BACKDATED CCF (RELDEN) capture, dead-inclusive, same as CR
     # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
     _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
     t.n = nlive
@@ -784,7 +773,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # NC (Klamath) regent small-tree HEIGHT calibration (nc/regent.f LSTART DO 90): raw HCOR → htg_cor_small,
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
-    s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh)
+    s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
@@ -961,11 +950,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # (GENGYM potential HTG), aspen/paper-birch (sp20/28) use the Sheppard curve. HCOR_init = ln(Σ(HTG·SCALE3·P)/
     # Σ(EDH·P)) with ≥NCALHT(5) measured dbh<5 HTG. Runs on the CURRENT restored stand (regent uses current dbh).
     # Without this jl held con=1.0 (HCOR=0) ⇒ small-tree height under-grew (sp5 WF con 1.0 vs live 1.047).
-    if s.variant isa CentralRockies
+    if s.variant isa CentralRockies && s.control.growth_ifinth != 0             # regent.f:461 IF(IFINTH.EQ.0) GOTO 95
         htadj = sd[:st_htadj]; lo = sd[:site_lo]; hi = sd[:site_hi]
-        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
-        ccf = _cr_bd_ccf; avht = _cr_bd_avht                                            # PCTRED: BACKDATED-window CCF+AVH (dense.f RELDM1+AVH, both dead-inclusive; regent.f:466 X=AVH·RELDEN/100)
-        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        scale3 = 10f0 / s.control.growth_finth                                          # regent.f:462 SCALE3=REGYR(10)/FINTH
+        # regent.f:466 X=AVH·(RELDEN/100). cr/cratet.f runs no AVHT40 before REGENT (:590), so AVH AND RELDEN are both
+        # the cratet.f:175 backdating DENSE's (dead-inclusive, IMC=9 at D=0, pre-dub heights) — the crown-init snapshot.
+        # The former ad-hoc recompute (stand_ccf/stand_top_height on the backdated list) gave X 1.0441× live's PCTRED
+        # on the REGCAL fixture (AVH 61.6009 / RELDEN 159.3665 = live exactly from the snapshot).
+        xd = c.cratet_avh * (c.cratet_relden / 100f0); xd > 300f0 && (xd = 300f0)
         pctred = _CR_AB[1] + xd*(_CR_AB[2] + xd*(_CR_AB[3] + xd*(_CR_AB[4] + xd*(_CR_AB[5] + xd*_CR_AB[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
         @inbounds for sp in 1:MAXSP
@@ -980,7 +972,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             for k in i1:i2
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454)
-                hstart = t.height[i] - t.ht_growth[i]             # start-of-period H (IHTG<2, regent.f:534)
+                hstart = s.control.growth_ihtg < 2 ? t.height[i] - t.ht_growth[i] : t.height[i]   # cr/regent.f:523 IF(IHTG.LT.2) H=H-HTG
                 hstart < 0.01f0 && continue
                 if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:542-549)
                     # AG1 = INVERSE Sheppard from the start height H (regent.f:542), NOT birth_age — the
@@ -1021,11 +1013,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # instead of self-thinning to ~6" (#199, stand 317272705489998 QMD 1.6 vs live 6.0). Trapped to CORNEW∈
     # [0.0821,12.1825]. Validated vs FVSut_g16 mode-40 dumps: GO N=5, MEANX 0.44181, MEANY 1.11111, CORNEW
     # 2.51492 ⇒ HCOR_raw 0.92224; applied 0.699 ⇒ growth CON 2.012 (bit-exact vs the growth-phase RGDUMP).
-    if _ut_cal
+    if _ut_cal && s.control.growth_ifinth != 0                             # regent.f:596 IF(IFINTH.EQ.0) GOTO 95
         sd_ut = s.coef.species; slo_ut = sd_ut[:site_lo]; shi_ut = sd_ut[:site_hi]
-        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH
-        ccf = _ut_bd_ccf; avht = _cur_avh    # RELDEN backdated (dense.f RELDM1); AVH stays CURRENT (heights not backdated), regent.f:601
-        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        scale3 = 10f0 / s.control.growth_finth                             # regent.f:597 SCALE3=REGYR(10)/FINTH
+        # regent.f:601 X=AVH·(RELDEN/100): AVH = ut/cratet.f:658 AVHT40 (current), RELDEN = the cratet.f:250
+        # backdating DENSE's (crown-init snapshot, dead-inclusive).
+        xd = _cur_avh * (c.cratet_relden / 100f0); xd > 300f0 && (xd = 300f0)
         ab = UT_RG_AB
         pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
@@ -1041,7 +1034,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                   # backdated DBH<5 (regent.f:652)
                 hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required (regent.f:721)
-                hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2, regent.f:649)
+                hb = s.control.growth_ihtg < 2 ? t.height[i] - hg : t.height[i]   # ut/regent.f:652 IF(IHTG.LT.2) H=H-HTG
+                hb < 0.01f0 && continue
                 local edh::Float32
                 if sp == 6                                    # aspen — Sheppard inverse from backdated H (regent.f:685-693)
                     ag1 = (hb * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
