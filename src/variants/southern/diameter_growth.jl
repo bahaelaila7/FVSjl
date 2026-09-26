@@ -1147,6 +1147,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     _cr_dg = s.variant isa CentralRockies
     _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
     _em_dg = s.variant isa EasternMontana   # EM GA/CW/BA/PW/NC/OH DGSCOR-draw cap (em/dgdriv.f:229-238, from CR)
+    _ie_dg = s.variant isa InlandEmpire     # IE CO/OH (19/22) DGSCOR-draw cap (ie/dgdriv.f:230-234, from CR)
     _tt_dg = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model); DDS→DG dib must match
     _bc_dg = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant; calib.bark_a/b=0 ⇒ 0.80 floor otherwise)
     _bm_dg = s.variant isa BlueMountains     # ★#140: BM bark = bm_bratio (POWER); the linear fallback here gave
@@ -1372,21 +1373,26 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # (right-truncation is asymmetric: only GDIF>GLIM is clipped) fattens the right tail of the birth-
             # /small-tree DG ⇒ one-directional DG over-prediction ⇒ inflated DQ10 ⇒ Hamilton mortality under-kill
             # (MEASURED FVSem_g16 9866226020004 @cyc2: jl MEANDG 0.678 vs oracle 0.170, +416 TPA whole-stand).
-            crv = _cr_dg || (_em_dg && (sp == 11 || (13 <= sp <= 16) || sp == 19))
+            # IE (ie/dgdriv.f:230-234) caps only CO/OH (19/22). GLIM=WKI·0.33 and the cap is WKI+GLIM (not WKI·1.33:
+            # a different Float32 rounding). EM and IE test each tripled COPY against the CENTRAL's DG
+            # (`GDIF = DG(I)-WKI` then `IF(GDIF.GT.GLIM) DG(ITRIPU)=WKI+GLIM`, em/ie dgdriv.f), CR against the copy's own.
+            crv = _cr_dg || (_em_dg && (sp == 11 || (13 <= sp <= 16) || sp == 19)) ||
+                  (_ie_dg && (sp == 19 || sp == 22))
             wkicr = crv ? (sqrt(d_ib * d_ib + dds5) - d_ib) : 0f0
+            glim = wkicr * 0.33f0; wkcap = wkicr + glim
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
-                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
-                crv && (dgu - wkicr > wkicr * 0.33f0) && (dgu = wkicr * 1.33f0)
+                crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
                 dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
-                crv && (dgl - wkicr > wkicr * 0.33f0) && (dgl = wkicr * 1.33f0)
+                crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
                 dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr)
             else
                 if tripling
@@ -1398,7 +1404,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                   dgsd = s.control.dg_stddev_bound)
                 end
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
-                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
             end
         end

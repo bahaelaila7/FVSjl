@@ -72,10 +72,6 @@ const _RC_IE = Dict(1 => (668.18, 666.0), 3 => (688.55, 1083.0), 4 => nothing, 5
             "2020  90  3277 192  546 314  75  3.3  5315  2185     0 10546     0     0     0     0     0 192  546 314  75  3.3       0    0     0    24.3 267 12"]
     @test length(rows) >= 4
     for (k, g) in enumerate(gold)
-        gs = split(g)
-        @test rows[k][1:end-1] == gs[1:end-1]
-        # trailing size/stocking class (FORTYP/STKVAL): 1990 and 2020 differ on this branch's base (live 23/12 vs jl
-        # 22/11) — the STKVAL fix (#251) lands with em-regcal; expect these to turn into Unexpected Pass there.
-        (k == 1 || k == 4) ? (@test_broken rows[k][end] == gs[end]) : (@test rows[k][end] == gs[end])
+        @test rows[k] == split(g)
     end
 end
