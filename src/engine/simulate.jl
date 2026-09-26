@@ -716,6 +716,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
+    # clgmult.f runs every cycle inside DGDRIV even with ITRN=0 (SPWTS=0 ⇒ SPGMULT=1); jl skips growth on a bare
+    # stand, so start each cycle at 1 (apply_climate_dds! overwrites it when it runs) and clear last cycle's report.
+    (s.climate !== nothing && s.climate.active) &&
+        (fill!(s.climate.spgmult, 1f0); s.climate.pending_report = nothing)
     # Climate SPCALIB (clmorts.f:57-75 ICYC==1): set at cycle 0 from INVENTORY presence, BEFORE establishment
     # adds regen — so an empty-at-cycle-1 establishment stand correctly gets SPCALIB=−1 (matches the oracle),
     # not a mis-calibration from a later cycle's established cohort. Inert unless CLIMATE is active.
@@ -1243,6 +1247,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS AutoEstb (clauestb.f) runs BEFORE ESNUTR (gradd.f:223 < :229): schedule NATURAL regen off the
     # current (post-growth) density + species viability, for a year WITHIN this cycle (IY(ICYC+1)-1) so the
     # establish! immediately below picks it up SAME cycle. Inert unless a CLIMATE block parsed AutoEstb.
+    # FVS_Climate rows are written INSIDE CLAUESTB (clauestb.f:196-216) — post-growth/mortality/aging, pre-ESTAB — so
+    # snapshot them here (the summary writer emits this snapshot; building the row after grow_cycle! counted this
+    # cycle's regen and the post-aging ABIRTH).
+    (s.climate !== nothing && s.climate.active) &&
+        (s.climate.pending_report = climate_report(s; report_year = Int(current_cycle_year(s)), fint = fint))
     (s.climate !== nothing && s.climate.active) && clim_autoestb!(s, Int(s.control.cycle) + 1, fint)
     # AUTOES (IE/EM): the AUTOMATIC natural tally (esnutr.f scheduler → estab.f DO-99, indices 1..ITPP) must run
     # BEFORE establish! appends any scheduled PLANT/NATURAL trees (estab.f appends those at ITPP+1..ITPP+ITODO, AFTER

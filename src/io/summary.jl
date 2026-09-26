@@ -460,7 +460,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # viability sampled at report_year+fint/2 — the offset FVS uses (see climate_report). c.spmort1/2 were
             # just populated by grow_cycle!'s apply_climate_mort!.
             climate_collect === nothing || (s.climate !== nothing && s.climate.active) &&
-                push!(climate_collect, (Int(r.year), climate_report(s; report_year = Int(r.year), fint = per)))
+                push!(climate_collect, (Int(r.year), something(s.climate.pending_report,
+                                                              climate_report(s; report_year = Int(r.year), fint = per))))
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
             end

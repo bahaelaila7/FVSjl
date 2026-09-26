@@ -265,6 +265,7 @@ Compute and apply periodic mortality, reducing `trees.tpa`. Combines background
 """
 function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
+    t.n == 0 && return _clim_mort_empty!(s, fint)   # bare stand: MORTS still reaches CLMORTS (report terms)
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     yr = htg_period(v)                  # growth-model native period (FINT/YR in the G trajectory)

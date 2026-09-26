@@ -5,7 +5,7 @@
 # =============================================================================
 function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)
     ba = p.basal_area
     itype = Int(p.habitat_input)
     # BAMAX: a user BAMAX (keyword/DB ⇒ LBAMAX) is used as given. Otherwise ie/sitset.f:82-84 seeds BAMAXA(ITYPE)
