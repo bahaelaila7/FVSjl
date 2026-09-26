@@ -36,7 +36,9 @@ function compute_volumes_ci!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = ci_bratio(sd, sp, d)
+        # ci/vols.f:150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected-cycle volumes use the
+        # START-of-cycle bark (stashed vol_bark) for MTOPS=TOPD·BARK / the FW2 DBTBH; grown-DBH bark at cycle 0 / dead.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : ci_bratio(sd, sp, d)
         dbhmin = sp == 7 ? 7.0f0 : 8.0f0
         # Top-killed trees: full cubic (VMAX) uses the NORMAL height (norm_ht), then r4_topkill trims (see TT).
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
