@@ -12,6 +12,8 @@ function compute_volumes_kt!(s::StandState)
     topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # ie/vols.f:144-145 (KT compiles ie/vols.f) — top-killed: H = NORMHT/100 for the full volume + CFTOPK trim.
+        (h >= 4.5f0 && t.trunc[i] > 0 && t.norm_ht[i] > 0) && (h = Float32(t.norm_ht[i]) / 100f0)
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
