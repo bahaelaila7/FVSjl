@@ -59,7 +59,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = ut_bratio(s.coef.species, sp, d)
         g = t.diam_growth[i] / bark
         sumdr10 += pr * (d + g)^1.605f0; sumdr0 += pr * d^1.605f0; tt += pr
     end
@@ -145,7 +145,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             ttn = 0f0; sdr = 0f0
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
-                bark = bark_ratio(bark_a, bark_b, Int(t.species[i]), d)
+                bark = ut_bratio(s.coef.species, Int(t.species[i]), d)
                 g = t.diam_growth[i] / bark
                 sdr += pr * (d + g)^1.605f0; ttn += pr
             end
@@ -166,7 +166,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             banew = 0f0; badead = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]; sp = Int(t.species[i])
-                bark = bark_ratio(bark_a, bark_b, sp, d)
+                bark = ut_bratio(s.coef.species, sp, d)
                 g = t.diam_growth[i] / bark
                 ba = 0.0054542f0 * (d + g)^2
                 banew  += ba * (t.tpa[i] - killed[i])

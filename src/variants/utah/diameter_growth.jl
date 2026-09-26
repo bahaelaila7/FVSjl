@@ -94,6 +94,30 @@ function ut_dgcons!(s::StandState)
     return s
 end
 
+# ut/bratio.f — the UT bark ratio. IMAP 1 (zero-coefficient hardwoods): 0.9002−0.3089/TEMD with TEMD in [1,19];
+# IMAP 2: BARK1; IMAP 3: BARK1+BARK2/TEMD; TEMD=max(D,1). Bounded [0.80,0.99]. The shared linear bark_ratio has no
+# TEMD floor, so a UT seedling under 1" got b+a/D (WB D=0.6: 0.772→0.80) instead of b+a/1 = 0.848 — the stored DG
+# (and everything that divides by bark) was off by that ratio (UT regcal fixture WB/LP/GB DG 0.1622 vs live 0.1720).
+function ut_bratio(sd, sp::Integer, d::Real)::Float32
+    b1 = Float32(sd[:bark1][sp]); b2 = Float32(sd[:bark2][sp]); imap = round(Int, sd[:bark_imap][sp])
+    temd = Float32(d); temd < 1f0 && (temd = 1f0)
+    local br::Float32
+    if imap == 1
+        if b1 == 0f0 && b2 == 0f0
+            temd > 19f0 && (temd = 19f0)
+            br = 0.9002f0 - 0.3089f0 * (1f0 / temd)
+        else
+            br = 1f0 / (b1 + b2 * Float32(d))
+        end
+    elseif imap == 2
+        br = b1
+    else
+        br = b1 + b2 * (1f0 / temd)
+    end
+    br > 0.99f0 && (br = 0.99f0); br < 0.80f0 && (br = 0.80f0)
+    return br
+end
+
 # ut/dgf.f main body — per-tree WK2 = DDS (outside-bark). utt01 exercises CASE 1 (conifer) + CASE 6 (aspen).
 function dgf!(s::StandState, ::Utah)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
@@ -128,7 +152,7 @@ function dgf!(s::StandState, ::Utah)
         elseif sp == 6
             # Aspen (Utah DGFASP), ut/dgf.f:582-584. Raw crown pct (÷10 inside _em_dgfasp).
             cr_raw = Float32(t.crown_pct[i])
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = ut_bratio(s.coef.species, sp, d)
             si = p.sp_site_index[sp]
             rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
@@ -141,7 +165,7 @@ function dgf!(s::StandState, ::Utah)
             dpp = d < 1f0 ? 1f0 : d
             batem = ba < 1f0 ? 1f0 : ba
             si = p.sp_site_index[sp]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = ut_bratio(s.coef.species, sp, d)
             df = 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
@@ -166,7 +190,7 @@ function dgf!(s::StandState, ::Utah)
             dpp = d < 1f0 ? 1f0 : d
             batem = ba < 5f0 ? 5f0 : ba
             si = p.sp_site_index[sp]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = ut_bratio(s.coef.species, sp, d)
             df = if sp == 17
                 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
             else
