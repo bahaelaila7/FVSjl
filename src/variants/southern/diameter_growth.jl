@@ -409,7 +409,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    _TT_CUR_RMSQD[] = (s.variant isa InlandEmpire && s.calib.cratet_rmsqd > 0f0) ? s.calib.cratet_rmsqd :   # IE: the cratet
+    _TT_CUR_RMSQD[] = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
+                      s.calib.cratet_rmsqd :   # IE/EM (identical dense.f): the cratet
                       stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):

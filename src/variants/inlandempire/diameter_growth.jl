@@ -198,22 +198,8 @@ end
 function ie_cycle0_wk1!(s::StandState)
     t, c = s.trees, s.calib; n = t.n
     (length(c.dub_wk2) == n && length(c.dub_wk3) == n) || return s
-    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
-    @inbounds for i in 1:n
-        sp = Int(t.species[i]); d = t.dbh[i]
-        bark = ie_bratio(sp, d)
-        if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
-            dg = t.diam_growth[i]
-            (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)
-            t.dg_prev[i] = dg
-        elseif t.height[i] <= 4.5f0
-            t.dg_prev[i] = 0f0
-        else
-            dd = c.dub_wk3[i] * bark
-            dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
-            dub > dd && (dub = dd)
-            t.dg_prev[i] = dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
-        end
-    end
+    @inbounds for i in 1:n; t.dg_prev[i] = ie_do220_dg(s, i); end
     return s
 end
+@inline ie_do220_dg(s::StandState, i::Int, dcur::Float32 = s.trees.dbh[i])::Float32 =
+    do220_dg(s, i, dcur, ie_bratio(Int(s.trees.species[i]), dcur))

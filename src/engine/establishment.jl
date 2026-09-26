@@ -336,6 +336,14 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     return hht
 end
 
+# estab.f:1496-1505 (IE/EM, after ESGENT): ABIRTH(I)=ABIRTH(I)+GENTIM for every record established this cycle,
+# GENTIM being estab.f's final value this cycle (the last PLANT's :1053-1058 reset, else :448's FINT−5).
+function esgent_add_gentim!(s::StandState, nstart::Int, fint::Float32)
+    gentim = s.estab.gentim_cyc == Int32(s.control.cycle) ? s.estab.gentim_post : max(fint - 5f0, 0f0)
+    @inbounds for i in (nstart+1):s.trees.n; s.trees.birth_age[i] += gentim; end
+    return s
+end
+
 function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
     t = s.trees; sd = s.coef.species
@@ -735,13 +743,13 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # EM builds the identical estab.f (FVSem_buildDir/estab.f == FVSie's): ABIRTH=AGADSB/AGEXC/AGEPL (:1235/
                 # :1324/:1414) + GENTIM (:1504). EM reads it in Climate-FVS BIRTHYR and the aspen REGENT (HITE1=f(ABIRTH));
                 # birth_age=0 gave EM AutoEstb regen BIRTHYR=THISYR ⇒ DF GrowthMult 1.133 vs live 1.045 (stand 5352355010661).
-                (s.variant isa CentralRockies || s.variant isa Teton ||
-                 s.variant isa EasternMontana) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
-                # IE: ABIRTH is AGEPL = FINT−DELAY+TRAGE at creation (estab.f:1064/1414, the ESSUBH-clamped DELAY and
-                # the ORIGINAL TRAGE of :990) — what REGENT(LESTB) reads for aspen SITAGE (regent.f:572) — and
-                # ie_esgent! adds the cycle's final GENTIM afterwards (estab.f:1504). jl had stored AGE−GENTIM(FINT−5):
-                # planted aspen then grew from SITAGE 2 instead of live's 7 (DBH 0.7728 vs 0.7812).
-                if s.variant isa InlandEmpire
+                (s.variant isa CentralRockies || s.variant isa Teton) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # IE/EM: ABIRTH is AGEPL = FINT−DELAY+TRAGE at creation (estab.f:1064/1414, the ESSUBH-clamped DELAY
+                # and the ORIGINAL TRAGE of :990) — what REGENT(LESTB) reads for aspen SITAGE (ie/regent.f:572; em
+                # HITE1=f(ABIRTH)) — and esgent_add_gentim! adds the cycle's final GENTIM afterwards (estab.f:1504).
+                # jl had stored AGE−GENTIM(FINT−5): IE planted aspen then grew from SITAGE 2 instead of live's 7
+                # (DBH 0.7728 vs 0.7812).
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana
                     _pdi = Float32(clamp(delay, -3, per))
                     t.birth_age[n] = Float32(per) - _pdi + trage
                     s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0

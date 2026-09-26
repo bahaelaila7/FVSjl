@@ -56,14 +56,15 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
     end
     banext = fill(ba, nper); rdnext = fill(relden, nper)
-    if nper > 1
+    if nper > 1 && length(s.calib.dub_wk3) == t.n
         @inbounds for i in 1:t.n
             # calibration DO 49 I=1,ITRN (regent.f:1081-1100) has NO D>=3 gate (unlike the growth pass DO 6 :246):
-            # every live record's increment feeds the subcycle projection.
-            d1 = t.dbh[i]                                   # WK3(I) = backdated dbh
+            # every live record's increment feeds the subcycle projection. D1=WK3 (backdated), DG = DGDRIV's DO 220
+            # (measured, 0 for HT<=4.5, else the dub) — not the raw input DG (-1 when missing).
+            d1 = s.calib.dub_wk3[i]
             sp = Int(t.species[i]); pr = t.tpa[i]
             bark = ie_bratio(sp, d1)
-            d2 = d1 + t.diam_growth[i] / bark
+            d2 = d1 + ie_do220_dg(s, i, saved_dbh[i]) / bark    # REGCAL runs while t.dbh is still backdated
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
             c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr     # CCFCAL = CCFT·P (regent.f:1089-1090)
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
@@ -738,10 +739,7 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             t.height[i] = _IE_ES_HHTMAX[sp]; t.dbh[i] = 2.95f0
         end
     end
-    # estab.f:1496-1505 (after ESGENT): ABIRTH(I)=ABIRTH(I)+GENTIM for every new record, GENTIM being estab.f's final
-    # value this cycle (the last PLANT's reset, else :448's FINT−5).
-    gentim = s.estab.gentim_cyc == Int32(s.control.cycle) ? s.estab.gentim_post : max(fint - 5f0, 0f0)
-    @inbounds for i in (nstart+1):t.n; t.birth_age[i] += gentim; end
+    esgent_add_gentim!(s, nstart, fint)                # estab.f:1504 ABIRTH += GENTIM (after ESGENT)
     return s
 end
 
