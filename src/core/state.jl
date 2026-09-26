@@ -357,6 +357,10 @@ mutable struct Control
     # √D-regression crossover has no real root (STEP1≤0), stays 1 for every later species AND stand. run_keyfile
     # carries it from stand to stand.
     kt_cratet_ierrck::Int32
+    # IFINT as dbsstandin.f:700-703 leaves it: IFIX(FINT) whenever the DB supplies a DG_MEASURE column (-1 = never set).
+    # Before cycling, IFINT is only ever set there (grincr.f:65 sets it per cycle), so the inventory FVS_TreeList's
+    # PrdLen is this value, else the COMMON's carry-over (0 in a fresh run).
+    dbs_ifint::Int32
 end
 
 function Control()
@@ -430,6 +434,7 @@ function Control()
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
         false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
         Int32(0),                                                # kt_cratet_ierrck
+        Int32(-1),                                               # dbs_ifint
     )
 end
 
