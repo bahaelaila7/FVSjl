@@ -62,7 +62,8 @@ const TT_BCR9  = Float32[-0.000053,-0.000053,0.000022,0.0,0.000022,0.000022,-0.0
 const TT_BCR10 = Float32[0.014098,0.014098,-0.013115,0.0,-0.013115,-0.013115,0.014098,-0.013115,-0.013115,0.0,0.0,0.0,0.0,-0.013115,-0.013115,0.0,0.0,-0.013115]
 const TT_CRSD  = Float32[0.5,0.5,0.6957,0.2,0.6957,0.931,0.6124,0.6957,0.6957,0.8866,0.2,0.2,0.5,0.931,0.6957,0.5,0.2,0.6957]
 
-@inline function _tt_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real, tmai::Real)::Float32
+@inline function _tt_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real, tmai::Real,
+                            dgsd::Real)::Float32
     hf = Float32(h); hf <= 0f0 && (hf = 0.1f0)
     cr = TT_BCR0[sp] + TT_BCR1[sp]*Float32(d) + TT_BCR2[sp]*hf + TT_BCR3[sp]*Float32(ba) +
          TT_BCR5[sp]*Float32(tpccf) + TT_BCR6[sp]*(Float32(avh)/hf) + TT_BCR8[sp]*Float32(avh) +
@@ -70,7 +71,9 @@ const TT_CRSD  = Float32[0.5,0.5,0.6957,0.2,0.6957,0.931,0.6124,0.6957,0.6957,0.
     sd = TT_CRSD[sp]
     fcr = 0f0
     while true                                          # dubscr.f label 10: FCR=BACHLO(0,SD); reject |FCR|>SD
-        fcr = bachlo(rng, 0f0, sd)                      # DGSD=2.0≥1 ⇒ always draws
+        # tt/dubscr.f:150 `IF (DGSD.GE.1.0) FCR=BACHLO(0.0,SD,RANN)` — no draw when DGSTDEV < 1 (jl always drew:
+        # 3 main-stream draws ahead of live on the REGCAL fixture's dead-crown dub ⇒ every calibration ZRAND shifted).
+        fcr = Float32(dgsd) >= 1f0 ? bachlo(rng, 0f0, sd) : 0f0
         abs(fcr) > sd && continue
         break
     end
@@ -179,7 +182,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             else                                        # label 58 CASE DEFAULT → DUBSCR
                 pt = Int(t.plot_id[i])
                 tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-                cr = _tt_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
+                cr = _tt_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai, s.control.dg_sd)
                 icri = trunc(Int, cr*100f0 + 0.5f0)
             end
             inband && (icri = trunc(Int, Float32(icri) * cmult))          # tt/crown.f:364-365
@@ -254,7 +257,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             end
             tpccf = (1 <= iitre <= length(pccf)) ? pccf[iitre] : 0f0
             iitre = Int(t.plot_id[i])
-            icri_round(_tt_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _tt_rmai(s)))
+            icri_round(_tt_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _tt_rmai(s), s.control.dg_sd))
         end
     end
     return s
@@ -336,7 +339,7 @@ function tt_dub_dead_crowns!(s::StandState, nlive::Int)
             icri = trunc(Int, (cl / hf) * 100f0 + 0.5f0)
         else                                            # crown.f:404 CASE DEFAULT → DUBSCR (draws FCR)
             pt = Int(t.plot_id[i]); tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-            cr = _tt_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai)
+            cr = _tt_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai, s.control.dg_sd)
             icri = trunc(Int, cr * 100f0 + 0.5f0)
         end
         icri > 95 && (icri = 95); icri < 10 && (icri = 10)   # crown.f:417-418

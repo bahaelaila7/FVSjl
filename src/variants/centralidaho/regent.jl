@@ -325,3 +325,168 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
     end
     return s
 end
+
+# The DG(I) ci/dgdriv.f DO 220 (:797-822) leaves on record i: the measured increment (capped at the inside-bark
+# DBH when IDG<2) when DG>0 and HT>4.5; 0 when HT<=4.5; otherwise the dub from the second DGF(WK3) call (:795,
+# COR final) — needs the calibration's dub_wk2/dub_wk3 stash. Read by the LSTART REGCAL DO 49.
+@inline function ci_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32
+    t, c = s.trees, s.calib
+    sp = Int(t.species[i])
+    bark = ci_bratio(s.coef.species, sp, dcur)
+    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+        dg = t.diam_growth[i]
+        (s.control.growth_idg < 2 && dg > dcur * bark) && (dg = dcur * bark)
+        return dg
+    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
+        return 0f0
+    end
+    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
+    dd = c.dub_wk3[i] * bark
+    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+    dub > dd && (dub = dd)
+    return dg_bound(nothing, nothing, sp, dcur, dub, s.control.sp_size_cap)
+end
+
+"""
+    ci_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
+ci/regent.f:1305-1500 — the LSTART small-tree HEIGHT calibration (REGENT(.FALSE.,1) from ci/cratet.f:707). jl had
+no port, so every CI species ran HCOR_init = 0. Per species with >= NCALHT(5) sub-5" records carrying a measured
+HTG: CORNEW = Σ(HTG·SCALE3·P)/Σ(EDH·P), HCOR = ln(CORNEW), trapped to [0.0821, 12.1825] (CORNEW 1 ⇒ HCOR 0).
+EDH by sub-model:
+- CIVAR (1-10,18): 2.764559 − 0.009643·BA + 0.025303·RCR² (RCR = the crown class, BA the backdated stand BA), ×RHCON.
+  Inside the J loop FVS backdates H by HTG AGAIN (`IF(IHTG.LT.2) H=H-HTG(I)`) and drops the record if H<0.01.
+- TTVAR (11,12,16): SMHTGF over the NPER subcycles (BETA on TPCCF around the persistent ZRAND, drawn on the main
+  stream), EDH = (HK−H)·RHCON.
+- UTVAR (13,14,15,17,19): the 10-yr potential (aspen: Sheppard) ·0.5, the last subcycle's value.
+SCALE3 = REGYR/FINTH: the `SELECT CASE (ISPC)` that would give the UT species 10/FINTH reads ISPC after DO 45 has
+run it to MAXSP+1, so every species takes CASE DEFAULT. NTYR = IFINTH; PPCCF = (RDJ−TEMCCF)/TEMCCF. Stand values are
+the cratet.f:262 backdating DENSE's (crown_init_lstart_dead_inclusive! snapshot). t.dbh is the backdated WK3 here.
+"""
+function ci_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s           # regent.f:1312 IF(IFINTH.EQ.0) GOTO 100
+    ctl = s.control; sd = s.coef.species
+    rhcon = ones(Float32, 19)                           # ci REGCON: 1.0, or RCOR2 under READCORR
+    if ctl.regh_cor2_on
+        @inbounds for sp in 1:min(19, length(ctl.regh_cor2)); ctl.regh_cor2[sp] > 0f0 && (rhcon[sp] = ctl.regh_cor2[sp]); end
+    end
+    snap = c.cratet_relden > 0f0
+    ba = snap ? c.cratet_ba : p.basal_area; relden = snap ? c.cratet_relden : p.relative_density
+    avh = snap ? c.cratet_avh : p.avg_height
+    pccfv = (snap && !isempty(c.cratet_pccf)) ? c.cratet_pccf : s.density.point_ccf
+    temccf = relden                                     # TEMCCF = ATCCF (0 at LSTART) ⇒ RELDEN
+    finth = ctl.growth_finth > 0f0 ? ctl.growth_finth : 5f0
+    scale3 = CI_RG_REGYR / finth                        # CASE DEFAULT (stale ISPC = MAXSP+1)
+    ntyr = Int(ctl.growth_ifinth); iyr = Int(CI_RG_REGYR)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for k in 1:nper
+        if nn == 1; kper[k] = itot; break; end
+        kper[k] = itot ÷ nn; itot -= kper[k]; nn -= 1
+    end
+    banext = fill(ba, nper); rdnext = fill(temccf, nper)
+    if nper > 1                                         # DO 49 (regent.f:1342-1360): every record, no D gate
+        @inbounds for i in 1:t.n
+            d1 = t.dbh[i]; sp = Int(t.species[i]); pr = t.tpa[i]
+            d2 = d1 + ci_do220_dg(s, i, saved_dbh[i]) / ci_bratio(sd, sp, d1)
+            b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
+            c1 = ci_tree_ccf(sp, d1) * pr; c2 = ci_tree_ccf(sp, d2) * pr
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn; banext[j] += Float32(k) * bi * pn
+            end
+        end
+    end
+    x = avh * (relden / 100f0); x > 300f0 && (x = 300f0)
+    pctred = CI_RG_AB[1] + x*(CI_RG_AB[2] + x*(CI_RG_AB[3] + x*(CI_RG_AB[4] + x*(CI_RG_AB[5] + x*CI_RG_AB[6]))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    ihtg = ctl.growth_ihtg
+    slo_a = sd[:site_lo]; shi_a = sd[:site_hi]            # SITERANGE(2,ISPC,SLO,SHI)
+    @inbounds for sp in 1:19
+        ttvar = sp == 11 || sp == 12 || sp == 16
+        utvar = _ci_ut_species(sp)
+        civar = !(ttvar || utvar)
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        slo = slo_a[sp]; shi = shi_a[sp]
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            hg = t.ht_growth[i]
+            h = t.height[i]; ihtg < 2 && (h -= hg)
+            (saved_dbh[i] >= 5f0 || h < 0.01f0) && continue
+            hg < 0.001f0 && continue
+            hk = h; cri = Float32(t.crown_pct[i]); edh = 0f0
+            ipccf = Int(t.plot_id[i])
+            pccf_i = (1 <= ipccf <= length(pccfv)) ? pccfv[ipccf] : 0f0
+            dropped = false
+            for j in 1:nper
+                rdj = rdnext[j]
+                ppccf = temccf <= 0f0 ? 0f0 : (rdj - temccf) / temccf
+                tpccf = pccf_i * ppccf
+                tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                if civar
+                    iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9)
+                    rcr = Float32(iicr)
+                    ihtg < 2 && (h -= hg)                          # regent.f:1425 — backdated AGAIN, every J
+                    (saved_dbh[i] >= 5f0 || h < 0.01f0) && (dropped = true; break)
+                    edh = 2.764559f0 - 0.009643f0 * ba + 0.025303f0 * rcr * rcr
+                elseif ttvar                                       # ci/smhtgf.f CASE(11,12,16)
+                    if t.zrand[i] == -999f0
+                        while true
+                            z = bachlo(s.rng, 0f0, 1f0)
+                            (z < -2f0 || z > 2f0) && continue
+                            t.zrand[i] = z; break
+                        end
+                    end
+                    if saved_dbh[i] <= 0f0
+                        edh = 0f0                                  # D<=0 ⇒ 0, bypasses the 0.1 floor (GO TO 900)
+                    else
+                        beta1 = fexp(1.17527f0 - 0.42124f0 * flog(tpccf))
+                        beta2 = fexp(-2.56002f0 - 0.58642f0 * flog(tpccf))
+                        htg1 = beta1 + beta2 * cri
+                        stddev = htg1 * (1.08720f0 - 0.00230f0 * cri)
+                        edh = htg1 + t.zrand[i] * stddev
+                        edh <= 0.1f0 && (edh = 0.1f0; t.zrand[i] = -999f0)
+                    end
+                    hk += edh
+                else                                               # UTVAR
+                    si = p.sp_site_index[sp]
+                    si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
+                    relsi = (si - slo) / (shi - slo)
+                    rsimod = 0.5f0 * (1f0 + relsi)
+                    sj = p.sp_site_index[sp]
+                    pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
+                    xv = cri / 100f0
+                    vigor = 150f0 * xv^3 * fexp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    sp == 14 && (vigor = 1f0 - (1f0 - vigor) / 3f0)
+                    if sp == 13
+                        ag1 = (h * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                        h2 = (26.9825f0 * (ag1 + 10f0)^1.1752f0) / (2.54f0 * 12f0)
+                        edh = (h2 - h) * rsimod * rhcon[sp] * 0.75f0
+                        edh < 0f0 && (edh = 0f0)
+                    else
+                        edh = pothtg * pctred * vigor * rhcon[sp]
+                    end
+                    edh *= 0.5f0
+                end
+            end
+            dropped && continue
+            civar && (edh *= rhcon[sp])
+            ttvar && (edh = (hk - h) * rhcon[sp])
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                         # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+    end
+    return s
+end

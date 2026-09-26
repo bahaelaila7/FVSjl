@@ -66,7 +66,8 @@ ci/dubscr.f DUBSCR — dubbed crown ratio (fraction 0.05–0.95) for a small (<1
 A BACHLO random error FCR (rejected if |FCR|>SD) perturbs the LOGIT argument before the transform
 (DGSD=1.7≥1 ⇒ the draw always fires). Consumes the main RANN stream, matching live CROWN order.
 """
-@inline function ci_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real, tmai::Real)::Float32
+@inline function ci_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, tpccf::Real, avh::Real, tmai::Real,
+                           dgsd::Real)::Float32
     hf = Float32(h); hf <= 0f0 && (hf = 0.1f0)
     cr = CI_BCR0[sp] + CI_BCR1[sp]*Float32(d) + CI_BCR2[sp]*hf + CI_BCR3[sp]*Float32(ba) +
          CI_BCR5[sp]*Float32(tpccf) + CI_BCR6[sp]*(Float32(avh)/hf) + CI_BCR8[sp]*Float32(avh) +
@@ -74,7 +75,9 @@ A BACHLO random error FCR (rejected if |FCR|>SD) perturbs the LOGIT argument bef
     sd = CI_CRSD[sp]
     fcr = 0f0
     while true                                     # dubscr.f label 10: FCR=BACHLO(0,SD); reject |FCR|>SD
-        fcr = bachlo(rng, 0f0, sd)                 # DGSD=1.7≥1 ⇒ always draws (sd=0 ⇒ bachlo returns 0)
+        # ci/dubscr.f:68 `IF (DGSD.GE.1.0) FCR=BACHLO(0.0,SD,RANN)` — no draw when DGSTDEV < 1 (jl drew anyway,
+        # 3 main-stream draws ahead of live on the REGCAL fixture's dead-crown dub ⇒ every later ZRAND shifted).
+        fcr = Float32(dgsd) >= 1f0 ? bachlo(rng, 0f0, sd) : 0f0
         abs(fcr) > sd && continue
         break
     end
@@ -140,7 +143,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         if d < 1f0 && lstart
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-            cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, _ci_temmai(s, sp))
+            cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, _ci_temmai(s, sp), s.control.dg_sd)
             icri = trunc(Int, cr*100f0 + 0.5f0)
             inband && (icri = trunc(Int, Float32(icri) * cmult))          # ci/crown.f:403-404
             (cmult == 1f0 && icri < 10) && (icri = 10); icri > 95 && (icri = 95); icri < 1 && (icri = 1)
@@ -188,7 +191,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         else
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
-            icri_round(ci_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _ci_temmai(s, sp)))
+            icri_round(ci_dubscr(s.rng, sp, t.dbh[i], h, s.plot.basal_area, tpccf, s.plot.avg_height, _ci_temmai(s, sp), s.control.dg_sd))
         end
     end
     return s

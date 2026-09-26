@@ -99,12 +99,15 @@ function kt_site_index_setup!(s::StandState)
     p = s.plot
     kt_forkod!(p)                          # KOTFOR (forest_idx) for the DG/REGENT MAPLOC lookup
     kodtyp_in = Int(p.habitat_code)
-    if kodtyp_in > 0
+    if kodtyp_in > 0 || p.habitat_input <= 0
+        # kt/habtyp.f runs for EVERY stand: a blank/0 habitat (grinit KODTYP=0) is "not recognized" (KODTYP<10) ⇒
+        # KKTYPE=97 (Kootenai 571 → IE 570). jl skipped it at 0, leaving KKTYPE 0 ⇒ every MAPHAB(KKTYPE,·) lookup
+        # (REGENT RHCON, DG) fell to row 1 and ITYPE stayed 0 (REGCAL fixture: sp1 RHCON 1.2117 vs live 1.4341).
         kktype, itype = kt_habtyp(kodtyp_in)
         p.habitat_code  = Int32(kktype)   # KKTYPE for chunk-3 DG (MAPHAB)
         p.habitat_input = Int32(itype)    # ITYPE for sitset BAMAX/SDIDEF
     else
-        itype = Int(p.habitat_input)      # already an ITYPE, or 0
+        itype = Int(p.habitat_input)      # already an ITYPE
     end
     # sitset.f: BAMAX defaults to BAMAXA[ITYPE]; SDIDEF = BAMAX/(0.5454154*(PMSDIU/100)).
     bamax = s.control.ba_max
