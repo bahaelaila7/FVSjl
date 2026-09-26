@@ -317,6 +317,19 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # result counts, else default 260. (CWS422/626 → jl formerly fell back to ie_pa_habitat_code=520; 41691/401 →
         # jl formerly %1000-stripped to 691. MEASURED vs FVSie_g16 habtyp.f+pvref1.f: both default to 260.)
         ie_ref_present = isie && pvref > 0
+        # EM: em/habtyp.f calls PVREF1 whenever a PV reference code is present (CPVREF≠blank); only a full
+        # (PV_CODE, PV_REF_CODE) match in em/pvref1.f resolves the habitat, anything else defaults to 260 —
+        # the raw PV code is NOT used (jl fed 130 straight to em_habtyp ⇒ IEMTYP ≠ live 29 ⇒ wrong EMMD fuel
+        # models, 474157097489998 fire flame 5.03 vs live 1.95).
+        em_ref_present = s.variant isa EasternMontana && pvref > 0 && _fia_present(d, "PV_CODE")
+        if em_ref_present
+            hc = em_pvref1_kodtyp(_fia_str(d, "PV_CODE", ""), pvref)
+            # dbsstandin.f:590 ICL5 = KODTYP = IFIX(numeric PV_CODE) BEFORE HABTYP remaps KODTYP — the DGCONS
+            # habitat (rcon.f IDTYPE) keys off this RAW code, not the PVREF1/default IEMTYP (live 474157097489998:
+            # KODTYP 130 → 260 for FMCFMD, but DG on IHCODE(130)).
+            raw = tryparse(Float64, strip(_fia_str(d, "PV_CODE", "")))
+            (raw !== nothing && raw > 0) && (s.control.icl5 = Int32(trunc(raw)))
+        end
         # ★ ESTAB ICL5 fix: for IE a 6-char plant-association PV_CODE is decoded by ie/habtyp.f's PCOML block
         # (dbsstandin.f DB path keeps KARD2 as the alpha code ⇒ HBDECD→NITYPE→ICL5=JTYPE(NITYPE)), INDEPENDENT
         # of PV_REF_CODE. That North-Idaho code (NOT pvref1's HABPVR, NOT the MTYPE growth code) is what
@@ -357,7 +370,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # the code is unrecognized ⇒ the default habitat (below), NOT 9999999%1000=999 (ITYPE 30). The %1000
         # strip is only for a genuine 5-digit state-prefixed code (41780 → 780).
         # NOT run for an IE stand with a ref present (PVREF1 zeroed KODTYP ⇒ the raw numeric value is discarded).
-        if hc == 0 && !ie_ref_present && _fia_present(d, "PV_CODE")
+        if hc == 0 && !ie_ref_present && !em_ref_present && _fia_present(d, "PV_CODE")
             pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
             if pvc < 100000
                 # EM/UT/TT strip a 2-digit state prefix (41780 → 780); IE does NOT — ie/habtyp.f keeps the raw
