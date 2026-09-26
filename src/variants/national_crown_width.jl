@@ -94,6 +94,23 @@ function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float
     elseif eqn == "74708";      _cw08(0.790658f0,0.551987f0,0.446434f0,0f0,0f0,-0.048415f0, -9.9f9,9.9f9,56f0, d,h,cl,ba1,el)
     elseif eqn == "37508";      _cw08(2.725006f0,0.53601f0,0f0,0.196372f0,-0.015305f0,0f0, -9.9f9,9.9f9,53f0, d,h,cl,ba1,el)
     elseif eqn == "74608";      _cw08(2.386015f0,0.63014f0,-0.147121f0,0.274356f0,0f0,0f0, -9.9f9,9.9f9,48f0, d,h,cl,ba1,el)
+    # --- WC-added national codes (wc/cwcalc.f WCMAP): RF/RW Donnelly (no BF), IC/JP/SP R6-model-2 (BF), KP R6-m2 ---
+    elseif eqn == "02006";      _em_powf(3.1146f0,0.5780f0,65f0, d)
+    elseif eqn == "21104";      _em_powf(3.7023f0,0.52618f0,39f0, d)
+    elseif eqn == "08105";      _em_r6m2(5.0446f0*bf,0.47419f0,-0.13917f0,0.14230f0,0.04838f0,-0.00616f0, d,h,cl,ba1,el,5f0,62f0,78f0)
+    elseif eqn == "11605";      _em_r6m2(4.0217f0*bf,0.66815f0,-0.11346f0,0.09689f0,-0.06360f0,0f0, d,h,cl,ba1,el,-9.9f9,9.9f9,39f0)
+    elseif eqn == "11705";      _em_r6m2(3.5930f0*bf,0.63503f0,-0.22766f0,0.17827f0,0.04267f0,-0.00290f0, d,h,cl,ba1,el,5f0,75f0,56f0)
+    elseif eqn == "10305"       # cwcalc.f CASE('10305'), EL∈[12,49], cap 46. ⚠ The D≥OMIND line ends `(CL**0.13143)*` and its
+        #   continuation starts `&*(EXP(EL)…`, so gfortran reads `**`: CL-term RAISED to EXP(EL)**(-0.00842). The
+        #   D<OMIND branch multiplies. Reproduced as written.
+        elc = el < 12f0 ? 12f0 : (el > 49f0 ? 49f0 : el)
+        ex = _emcw_pow(_emcw_exp(elc), -0.00842f0)
+        v = if d >= 1f0
+            4.0069f0*bf * _emcw_pow(d, 0.84628f0) * _emcw_pow(h, -0.29035f0) * _emcw_pow(_emcw_pow(cl, 0.13143f0), ex)
+        else
+            (4.0069f0*bf * _emcw_pow(1f0, 0.84628f0) * _emcw_pow(h, -0.29035f0) * _emcw_pow(cl, 0.13143f0) * ex) * d
+        end
+        v > 46f0 ? 46f0 : v
     # --- BM-added national codes (bm/cwcalc.f BMMAP: WP 11905 R6-m2 no-BA, MH 26403 R1 special, CW 74705 R6-m2 no-BA/EL) ---
     elseif eqn == "11905";      _em_r6m2(5.3822f0*bf,0.57896f0,-0.19579f0,0.14875f0,0f0,-0.00685f0, d,h,cl,ba1,el,10f0,75f0,35f0)
     elseif eqn == "74705";      _em_r6m2(4.4327f0*bf,0.41505f0,-0.23264f0,0.41477f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,56f0)

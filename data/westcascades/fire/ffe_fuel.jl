@@ -135,30 +135,20 @@ function wc_dead_fuel_loading(covtyp::Int, percov::Float32)::Vector{Float32}
 end
 
 # =============================================================================
-# wc_cwcalc — WC crown width (ft) for FMCBA's PERCOV. Crookston R6 model-2 (wc/cwcalc.f WCMAP), forest 618.
-# The 5-char WCMAP code = FIA(3) + eqn#(2); eqn 05 = Crookston R6 model-2 (a·BF·D^b·H^c·CL^dd·(BA+1)^e·
-# exp(EL)^f), eqn 03 = the incense-cedar-family log form. Only the 6 wct01 species are ported; others error
-# (a follow-up crown-width chunk, mirroring the CA F4a scope). BF folded into the leading coefficient (a·BF).
+# wc_cwcalc — WC crown width (ft), the one CRWDTH (FMCBA PERCOV, FVS_TreeList/CutList CrWidth, …). wc/cwcalc.f
+# CASE('WC') CWEQN=WCMAP(ISPC) evaluated by the shared national library `_cwcalc_national`; WC is outside the
+# R5CRWD gate. BF = the Region-6 forest bias factor (cwcalc.f:477-876, `_R6_CWBF` by KODFOR×FIASP) for KODFOR in
+# 601..999 — KODFOR is wc/forkod.f's JFOR(IFOR) (613 → 605). jl had hard-coded forest 618 and 7 species; the other
+# 32 WCMAP species errored ("02206 not yet ported"), so any TreeList on a stand with e.g. noble fir crashed.
 const _WC_CWMAP = ("01105","01505","01703","01905","02006","09805","02206","04205","08105","09305",
                    "10805","11605","11705","11905","12205","20205","21104","24205","26305","26403",
                    "31206","35106","31206","37506","63102","74605","74705","81505","06405","07204",
                    "10105","10305","23104","35106","35106","35106","31206","12205","12205")
 
-function wc_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
+function wc_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                   kodfor::Int = 618)::Float32
     (1 <= sp <= 39) || return 0f0
-    eqn = _WC_CWMAP[sp]; cl = cr * h * 0.01f0; ba1 = barea + 1f0
-    if     eqn == "01505"; return _cr_r6m2(5.0312f0*1.0f0,   0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)   # WF 015 BF=1
-    elseif eqn == "10805"; return _cr_r6m2(6.6941f0*0.903f0, 0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)   # LP 108 BF=0.903
-    elseif eqn == "11705"; return _cr_r6m2(3.5930f0*1.097f0, 0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el, 5f0,75f0,56f0)   # SP 117 BF=1.097
-    elseif eqn == "12205"; return _cr_r6m2(4.7762f0*1.070f0, 0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0)  # PP 122 BF=1.070
-    elseif eqn == "20205"; return _cr_r6m2(6.0227f0*1.0f0,   0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)   # DF 202 BF=1
-    elseif eqn == "09305"; return _cr_r6m2(6.7575f0*0.857f0, 0.55048f0,-0.25204f0,0.19002f0, 0f0,     -0.00313f0, d,h,cl,ba1,el, 1f0,85f0,40f0)   # ES 093 BF=0.857
-    elseif eqn == "01703"                                                                          # GF 017 log form (no BF, no H/BA/EL)
-        dm = d >= 1f0 ? d : 1f0
-        v = 1.0303f0 * fexp(1.14079f0 + 0.20904f0*flog(cl) + 0.38787f0*flog(dm))
-        d < 1f0 && (v *= d); v > 40f0 && (v = 40f0); return v
-    else
-        error("wc_cwcalc: crown-width equation $(eqn) (WC species $(sp)) not yet ported — wct01 exercises " *
-              "only WF/GF/LP/SP/PP/DF/ES; the remaining WCMAP equations are a follow-up crown-width chunk.")
-    end
+    eq = _WC_CWMAP[sp]
+    bf = (601 <= kodfor < 1000) ? get(_R6_CWBF, (kodfor, eq[1:3]), 1f0) : 1f0
+    return _cwcalc_national(eq, d, h, cr, barea, el, hi; bf = bf)
 end

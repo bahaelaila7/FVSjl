@@ -501,13 +501,16 @@ function init_merch_standards!(s::StandState)
         return s
     end
     if s.variant isa WestCascades || s.variant isa PacificNorthwest
-        # wc/sitset.f westside merch defaults (IFOR 6 Willamette = CASE DEFAULT): TOPD=BFTOPD=SCFTOPD=4.5,
-        # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6), stump=1. WC's species CSV carries no merch columns.
+        # wc/sitset.f:192-213 westside merch defaults, stump=1. CASE DEFAULT: TOPD=BFTOPD=SCFTOPD=4.5,
+        # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6). WC CASE(7,8,9,10) — the BLM forests (708-711): TOPD=
+        # BFTOPD=SCFTOPD=5.0 and 7 for every species. WC's species CSV carries no merch columns.
+        blm = s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10
         @inbounds for j in 1:length(c.sp_dbh_min)
-            dm = j == 11 ? 6.0f0 : 7.0f0
-            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = 4.5f0; c.sp_stump_ht[j] = 1.0f0
-            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = 4.5f0; c.sp_scf_stump[j] = 1.0f0
-            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = 4.5f0; c.sp_bf_stump[j] = 1.0f0
+            dm = (j == 11 && !blm) ? 6.0f0 : 7.0f0
+            td = blm ? 5.0f0 : 4.5f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = td; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = td; c.sp_bf_stump[j] = 1.0f0
         end
         c.merch_init = true
         return s

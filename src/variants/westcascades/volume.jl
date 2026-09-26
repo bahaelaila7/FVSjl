@@ -44,19 +44,28 @@ function wc_formcl(sp::Integer, ifor::Int, d::Real)::Int
     v == 0 ? 80 : v
 end
 
-# --- WC R6_EQN westside VOLEQ (voleqdef.f VAR='WC'). Implemented for FORNUM 18 (Willamette, wct01);
-#     other westside forests fall back to region-6 Behre 616BEHW<fia> (their FW2 overrides deferred). ---
-function _wc_r6_eqn(fornum::Int, fia::Int)::String
-    beh = "616BEHW" * lpad(string(fia), 3, '0')
-    if fornum == 18                                  # Willamette (validated vs FVSwc_clean)
-        fia == 17  && return "I00FW2W017"            # GF → INGY
-        fia == 22  && return "I00FW2W108"            # NF → INGY (lodgepole eqn)
-        fia == 81  && return "I00FW2W073"            # IC → INGY (incense-cedar eqn 073)
-        fia == 202 && return "F05FW2W202"            # DF → westside Flewelling
-        fia == 263 && return "F03FW2W263"            # WH → westside Flewelling
-    end
-    return beh
-end
+# --- WC VOLEQDEF (wc/sitset.f:218-243 → voleqdef.f R6_EQN westside branch for REGN 6 / R7_EQN for the BLM
+#     REGN 7 forests; VAR='WC', DIST='  ', KODFOR = wc/forkod.f's JFOR(IFOR)). The complete WC input domain is
+#     the 10 JFOR forests × 39 species, so this is the full decision table — read off FVSwc_g16's "NATIONAL
+#     VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS" block for each forest (cubic == board for every entry). jl had
+#     only Willamette (618) and sent every other forest's DF/WH/GF/… to region-6 Behre: +25-45% cubic on
+#     603/605/615 FIA stands (DF F03/F08/F00FW2W202, INGY I11-I13 subregions). ---
+const _WC_VOLEQ_BY_FOREST = Dict{Int,NTuple{39,String}}(
+    603 => ("I12FW2W017", "616BEHW015", "616BEHW017", "I00FW2W108", "616BEHW020", "616BEHW000", "616BEHW022", "616BEHW042", "616BEHW081", "616BEHW093", "616BEHW108", "616BEHW116", "616BEHW117", "616BEHW119", "616BEHW122", "F03FW2W202", "616BEHW211", "616BEHW242", "F00FW2W263", "616BEHW264", "616BEHW312", "A16CURW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "616BEHW103", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    605 => ("616BEHW011", "616BEHW015", "616BEHW017", "616BEHW019", "616BEHW020", "616BEHW000", "616BEHW022", "616BEHW042", "616BEHW081", "616BEHW093", "616BEHW108", "616BEHW116", "616BEHW117", "616BEHW119", "616BEHW122", "F08FW2W202", "616BEHW211", "616BEHW242", "F03FW2W263", "616BEHW264", "616BEHW312", "616BEHW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "616BEHW103", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    606 => ("I12FW2W017", "616BEHW015", "I13FW2W017", "616BEHW019", "616BEHW020", "616BEHW000", "I13FW2W017", "616BEHW042", "616BEHW081", "I11FW2W093", "I11FW2W108", "616BEHW116", "616BEHW117", "616BEHW119", "I12FW2W122", "F03FW2W202", "616BEHW211", "616BEHW242", "I11FW2W260", "616BEHW264", "616BEHW312", "616BEHW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "616BEHW103", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    610 => ("616BEHW011", "I00FW2W093", "616BEHW017", "616BEHW019", "616BEHW020", "616BEHW000", "616BEHW022", "616BEHW042", "616BEHW081", "616BEHW093", "616BEHW108", "616BEHW116", "616BEHW117", "616BEHW119", "I00FW2W073", "F06FW2W202", "616BEHW211", "616BEHW242", "F06FW2W263", "616BEHW264", "616BEHW312", "616BEHW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "616BEHW103", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    615 => ("I13FW2W017", "I00FW2W017", "616BEHW017", "616BEHW019", "I00FW2W012", "616BEHW000", "616BEHW022", "616BEHW042", "I00FW2W073", "I00FW2W093", "I00FW2W108", "616BEHW116", "616BEHW117", "616BEHW119", "I00FW2W073", "F00FW2W202", "616BEHW211", "I00FW2W012", "I11FW2W260", "I00FW2W242", "616BEHW312", "616BEHW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "I00FW2W260", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    618 => ("616BEHW011", "616BEHW015", "I00FW2W017", "616BEHW019", "616BEHW020", "616BEHW000", "I00FW2W108", "616BEHW042", "I00FW2W073", "616BEHW093", "616BEHW108", "616BEHW116", "616BEHW117", "616BEHW119", "616BEHW122", "F05FW2W202", "616BEHW211", "616BEHW242", "F03FW2W263", "616BEHW264", "616BEHW312", "616BEHW351", "616BEHW352", "616BEHW375", "616BEHW431", "616BEHW746", "616BEHW747", "616BEHW815", "616BEHW064", "616BEHW072", "616BEHW101", "616BEHW103", "616BEHW231", "616BEHW492", "616BEHW500", "616BEHW768", "616BEHW920", "616BEHW000", "616BEHW999"),
+    708 => ("B00BEHW011", "B00BEHW015", "B00BEHW017", "B00BEHW015", "B00BEHW021", "B00BEHW999", "B00BEHW022", "B00BEHW042", "B00BEHW081", "B00BEHW093", "B00BEHW108", "B00BEHW116", "B00BEHW117", "B00BEHW119", "B00BEHW122", "B01BEHW202", "B00BEHW211", "B00BEHW242", "B00BEHW260", "B00BEHW260", "B00BEHW312", "B00BEHW351", "B00BEHW361", "B00BEHW999", "B00BEHW431", "B00BEHW999", "B00BEHW747", "B00BEHW800", "B00BEHW242", "B00BEHW073", "B00BEHW119", "B00BEHW108", "B00BEHW231", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999"),
+    709 => ("B00BEHW011", "B00BEHW015", "B00BEHW017", "B00BEHW015", "B00BEHW021", "B00BEHW999", "B00BEHW022", "B00BEHW042", "B00BEHW081", "B00BEHW093", "B00BEHW108", "B00BEHW116", "B00BEHW117", "B00BEHW119", "B00BEHW122", "B01BEHW202", "B00BEHW211", "B00BEHW242", "B00BEHW260", "B00BEHW260", "B00BEHW312", "B00BEHW351", "B00BEHW361", "B00BEHW999", "B00BEHW431", "B00BEHW999", "B00BEHW747", "B00BEHW800", "B00BEHW242", "B00BEHW073", "B00BEHW119", "B00BEHW108", "B00BEHW231", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999"),
+    710 => ("B00BEHW011", "B00BEHW015", "B00BEHW017", "B00BEHW015", "B00BEHW021", "B00BEHW999", "B00BEHW022", "B00BEHW042", "B00BEHW081", "B00BEHW093", "B00BEHW108", "B00BEHW116", "B00BEHW117", "B00BEHW119", "B00BEHW122", "B01BEHW202", "B00BEHW211", "B00BEHW242", "B00BEHW260", "B00BEHW260", "B00BEHW312", "B00BEHW351", "B00BEHW361", "B00BEHW999", "B00BEHW431", "B00BEHW999", "B00BEHW747", "B00BEHW800", "B00BEHW242", "B00BEHW073", "B00BEHW119", "B00BEHW108", "B00BEHW231", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999"),
+    711 => ("B00BEHW011", "B00BEHW015", "B00BEHW017", "B00BEHW015", "B00BEHW021", "B00BEHW999", "B00BEHW022", "B00BEHW042", "B00BEHW081", "B00BEHW093", "B00BEHW108", "B00BEHW116", "B00BEHW117", "B00BEHW119", "B00BEHW122", "B01BEHW202", "B00BEHW211", "B00BEHW242", "B00BEHW260", "B00BEHW260", "B00BEHW312", "B00BEHW351", "B00BEHW361", "B00BEHW999", "B00BEHW431", "B00BEHW999", "B00BEHW747", "B00BEHW800", "B00BEHW242", "B00BEHW073", "B00BEHW119", "B00BEHW108", "B00BEHW231", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999", "B00BEHW999"),
+)
+
+"VOLEQ for WC species `sp` on forest `kodfor` (post-FORKOD JFOR code); unknown codes use the grinit 618 row."
+_wc_voleq(kodfor::Int, sp::Int)::String =
+    (1 <= sp <= 39) ? get(_WC_VOLEQ_BY_FOREST, kodfor, _WC_VOLEQ_BY_FOREST[618])[sp] : "           "
 
 # ---------------------------------------------------------------------------
 # Westside Flewelling shape (f_west.f SHP_W3/W4/W5) + breast-height bark (FDBT_C1).
@@ -268,7 +277,7 @@ function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark
 end
 
 # --- Behre (616BEHW) per-tree volume — reuse the BM R6 machinery + WC form class. ---
-function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
+function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32; topd::Float32 = 4.5f0)
     fclass = wc_formcl(sp, ifor, d)
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
     vol2 = 0f0; vol4 = 0f0
@@ -276,7 +285,7 @@ function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
         0.00272708f0 * dbhib * dbhib * h            # R6VOL short-tree cylinder (R6DIBS/R6VOL1 skipped)
     else
         v = bm_r6vol3(d, dbtbh, fclass, h, 1)
-        mtopp = 4.5f0 * bark                         # TOPDIAM = TOPD·BARK
+        mtopp = topd * bark                          # TOPDIAM = TOPD·BARK
         xlogs, ld1 = bm_r6dibs(d, fclass, mtopp, h)
         lv1, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)
         nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
@@ -291,7 +300,7 @@ end
 
 function compute_volumes_wc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
-    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species
+    t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
     ifor = Int(s.plot.forest_idx)                   # forkod JFOR index (1..10) — form-class table + INGY iregn
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
@@ -301,22 +310,37 @@ function compute_volumes_wc!(s::StandState)
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
         bark = wc_bratio(sd, sp, d)
-        dbhmin = sp == 11 ? 6.0f0 : 7.0f0            # wc/sitset.f westside: LP(sp11)=6, else 7
-        # Top-killed trees: full cubic uses NORMAL height (norm_ht); the profile truncates at the break.
-        hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+        # wc/sitset.f:192-213 merch specs (init_merch_standards!): BLM IFOR 7-10 TOPD=BFTOPD=5, DBHMIN=7 for all;
+        # otherwise TOPD=BFTOPD=4.5, DBHMIN=BFMIND=7 (LP sp11 = 6).
+        dbhmin = c.sp_dbh_min[sp]; bfmind = c.sp_bf_dbhmin[sp]
+        topd = c.sp_top_diam[sp]; stmp = c.sp_stump_ht[sp]
+        bftopd = c.sp_bf_topd[sp]; bfstmp = c.sp_bf_stump[sp]
+        # wc/vols.f:145-146: a top-killed tree (H≥4.5, ITRUNC>0) is volumed at its NORMAL height NORMHT …
+        tkill = h >= 4.5f0 && t.trunc[i] > 0
+        hv = tkill ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
         if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
-            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark)
+            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N', merch_opt = 23)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         else                                          # 616BEHW
-            tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark)
+            tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark; topd = topd)
         end
-        t.cuft_vol[i] = max(tcf, 0f0)
-        t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
+        tcf = max(tcf, 0f0)
+        mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0      # fvsvol.f:513 MCF only for D≥DBHMIN
+        bf  = d >= bfmind ? max(bf, 0f0) : 0f0       # fvsvol.f:517 BBFV=0 for D<BFMIND
+        # … then trimmed to the standing broken stem by CFTOPK/BFTOPK (vols.f:191-193, 390-391; NATCRS sets
+        # CTKFLG=BTKFLG=.TRUE., VMAX=TCF, BFMAX=VMAX). jl volumed the full NORMHT stem and never truncated.
+        if tkill && tcf > 0f0
+            vmax = tcf
+            tcf, mcf = cr_cftopk(tcf, mcf, d, hv, vmax, bark, Int(t.trunc[i]), stmp, topd)
+            bf = cr_bftopk(bf, d, hv, vmax, bark, Int(t.trunc[i]), bfstmp, bftopd)
+        end
+        t.cuft_vol[i] = tcf
+        t.merch_cuft_vol[i] = mcf
         t.saw_cuft_vol[i] = 0f0
-        t.bdft_vol[i] = d >= dbhmin ? max(bf, 0f0) : 0f0
+        t.bdft_vol[i] = bf
     end
     return s
 end
