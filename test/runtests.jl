@@ -77,7 +77,8 @@ using FVSjl
     include("unit/test_ca_so_forkod_crash.jl") # CA/SO forest-index-overflow SIGSEGV: ca/so forkod.f "FOREST MAPPING CORRECTION" (CA 518→IFOR5, SO 514→4/702→8) remaps IFOR into the 1..10 array range; + SO WB(16) small-tree t.plot_id/point_ccf field fix. 3 previously-crashing FIA stands run end-to-end
     include("unit/test_forkod_default.jl")     # forkod.f KODFOR→IFOR vs a 346-code table extracted from the Fortran: not-found keeps grinit IFOR (was forced 1), CA/OC/SO BIA reservation codes
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
-    include("unit/test_bc_crwidth.jl")     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
+    include("unit/test_bc_crwidth.jl")
+    include("unit/test_bc_brokentop.jl")    # BC TREFMT (bc/blkdat.f metric layout) + broken-top NORMHT volume (bc/vols.f:137) vs FVSbc_clean     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)
     include("unit/test_lpmpb_damage.jl")   # LPMPB INVMORT: treelist MPB damage-code GREINF, cycle-1 mortality delta vs FVSie_lpmpb
