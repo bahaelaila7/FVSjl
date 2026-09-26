@@ -836,6 +836,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          emit::Union{Nothing,Vector{NTuple{5,Float64}}} = nothing,
                          emit_plot::Union{Nothing,Vector{Int}} = nothing,   # plot NCOUNT of each emit record
                          emit_best::Union{Nothing,Vector{Bool}} = nothing,  # DO 33 best (true) vs DO 228 excess
+                         emit_abirth::Union{Nothing,Vector{Float32}} = nothing,  # ABIRTH at creation (AGADSB/AGEXC)
                          time_h::Real = -1,     # estab.f:792 height-section TIME=FLOKDT−KDTOLD (<0 ⇒ `time`)
                          ph_dilate_out::Union{Nothing,Vector{Float32}} = nothing, # DILATE of each PLANT tree (plot-major)
                          ph_note_out::Union{Nothing,Vector{Int}} = nothing,      # NBEST NOTE of each PLANT tree (plot-major, estab.f:1386)
@@ -983,6 +984,13 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     stomlt = doemit ? fill(1f0, nsp) : Float32[]             # per-species WK4 for THIS plot (reset per plot)
     tallh  = doemit ? zeros(Float32, nsp) : Float32[]        # per-species best-tree height (post-floor)
     iasep_e = doemit ? zeros(Int, nsp) : Int[]               # 1=advance 2=subsequent
+    # ABIRTH at creation (estab.f:172-177 zeroes AGADSB/AGEXC ONCE per ESTAB call; they persist across plots).
+    # :816/:833 AGADSB(I)=TRAGE is indexed by SPECIES I, but :1235 books a best tree N with AGADSB(N) — the TREE
+    # index; :933 AGEXC(N)=FTEMP−DELAY is indexed by excess TREE N, but :1324 books species I's excess records with
+    # AGEXC(I). DELAY there is whatever the last ESADVH/ESSUBH call of the plot's DO 99 left (both overwrite it with
+    # FLOAT(N), ESSUBH with TIME when N>ITIME). Live FVSie DEBUG (FIA 303115495489998, climate): TRAGE 3 for most DF
+    # plots, yet the booked ABIRTH is mostly AGADSB(1)/AGADSB(2) (0 or 1) ⇒ BIRTHYR, Climate-FVS TREEMULT.
+    agadsb_e = zeros(Float32, 99); agexc_e = zeros(Float32, 99); delay_e = 0f0
     # ── Scheduled PLANT/NATURAL trees co-located on EACH plot (estab.f:970-1073 DO 322): each due PLANT/NATURAL
     # activity adds exactly ONE tree per plot at position ITPP+ITODO with species IPNSPE=PRMS(1) (ITODO=#activities,
     # uniform across plots — NOT a TPA distribution). FVS then runs the NBEST best/excess selection (DO 166/168/172)
@@ -1145,6 +1153,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     iasep_e[sp2] = 2
                 end
                 ft = trage; ft > gtim && (ft = gtim); stomlt[sp2] = ft / (gtim + 0.0001f0)   # STOMLT=min(TRAGE,GENTIM)/…
+                sp2 <= 99 && (agadsb_e[sp2] = trage); delay_e = dN      # :816/:833 AGADSB(I)=TRAGE; DELAY=FLOAT(N)|TIME
                 tv = hh                                                       # +HTADJ (=0); floor XMIN+0.2; cap HHTMAX
                 (tv - xmin_e[sp2] < 0.2f0) && (tv = xmin_e[sp2] + 0.2f0)
                 (tv > hhtmax_e[sp2]) && (tv = hhtmax_e[sp2])
@@ -1185,6 +1194,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                 hx = ie_esxcsh(j, tallh[j], xmin_e[j], _esx_tm, dhx)      # HTMAX=TALL(II), HTMIN=XMIN(II); TIME=FLOKDT−KDTOLD
                 (hx < xmin_e[j]) && (hx = xmin_e[j]); (hx > hhtmax_e[j]) && (hx = hhtmax_e[j])
                 e_sp[iplot] = j; e_ht[iplot] = hx; e_wk4[iplot] = stomlt[j]; e_esp[iplot] = Float32(_e)
+                iplot <= 99 && (agexc_e[iplot] = _esx_tm - delay_e)       # :933 AGEXC(N)=FTEMP−DELAY
             end
             nd += 1
             if docap && kx > npro                                          # a NOTE=0 (true-excess) tree
@@ -1289,6 +1299,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                                  Float64((Float32(e_esp[N]) * 300f0) / Float32(dupnpt))))
                     emit_plot === nothing || push!(emit_plot, n)
                     emit_best === nothing || push!(emit_best, true)
+                    emit_abirth === nothing || push!(emit_abirth, N <= 99 ? agadsb_e[N] : 0f0)   # :1235 AGADSB(N)
                 else                                                        # accumulate excess per species (DO 33:199)
                     ex_c[I] += 1f0; ex_h[I] += hh; ex_p[I] += e_esp[N]
                 end
@@ -1306,6 +1317,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     push!(emit, (Float64(I), Float64(pt_e), Float64(hh), Float64(stomlt[I]), tpa_r))
                     emit_plot === nothing || push!(emit_plot, n)
                     emit_best === nothing || push!(emit_best, false)
+                    emit_abirth === nothing || push!(emit_abirth, agexc_e[I])   # :1324 AGEXC(I)
                 end
             end
         end
@@ -1910,6 +1922,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     emit_recs = (_is_ie || _is_em) ? NTuple{5,Float64}[] : nothing
     emit_plot = (_is_ie || _is_em) ? Int[] : nothing
     emit_best = (_is_ie || _is_em) ? Bool[] : nothing
+    emit_abirth = (_is_ie || _is_em) ? Float32[] : nothing
     ph_dil = (_is_ie || _is_em) ? Float32[] : nothing
     ph_note = (_is_ie || _is_em) ? Int[] : nothing
     ihtser = _IE_MYHTS[clamp(Int(idx.ihab), 1, length(_IE_MYHTS))]
@@ -1921,7 +1934,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             nsp = nsp, idup = Int(idup), tally_pt = tally_pt, wk6fill = Int(dupnpt),
                             point_slope = point_slope, point_aspect = point_aspect, prep_sumup = prep_sumup,
                             prob1_prep = prob1_prep, is_ie = _estb, pasmax = pasmax, prob1_pt = prob1_pt,
-                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, ph_dilate_out = ph_dil, ph_note_out = ph_note, time_h = time_h, ph_height = ph_height,
+                            emit = emit_recs, emit_plot = emit_plot, emit_best = emit_best, emit_abirth = emit_abirth, ph_dilate_out = ph_dil, ph_note_out = ph_note, time_h = time_h, ph_height = ph_height,
                             ihtser = ihtser, gentim = Float32(gentim), call_espadv = call_espadv,
                             # Per-point species tables (ESPADV/ESPSUB/ESPXCS run per inventory point with THAT point's
                             # post-growth BAAA(NNID) and OVER(·,NNID), estab.f) — every tally type, like the PROB1.
@@ -1930,7 +1943,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             plant_sp = plant_sp, ipprep_in = ipprep_in, ipprep_out = ipprep_out,
                             prob1_pt_ip = prob1_pt_ip)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs, emit_plot = emit_plot,
-            emit_best = emit_best, ph_dilate = ph_dil, ph_note = ph_note)
+            emit_best = emit_best, emit_abirth = emit_abirth, ph_dilate = ph_dil, ph_note = ph_note)
 end
 
 # =============================================================================
@@ -2558,6 +2571,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     bwk4 = Float32[]                                     # array; each is one aggregated seedling record.
     bplot = Int32[]                                      # plot NCOUNT of each book entry (0 = collapsed path)
     bbest = Bool[]                                       # DO 33 best record (IESTAT=IDSDAT+20) vs excess/collapsed (0)
+    babirth = Float32[]                                  # ABIRTH at creation (AGADSB(N) / AGEXC(I), estab.f:1235/:1324)
     if r.emit !== nothing
         # Book each FVS DO-33 (best) / DO-228 (excess) record 1:1 — NO height/wk4 merge. FVS emits the full
         # per-plot record set (estab.f:1199-1359: best trees individual, excess aggregated per plot at the
@@ -2576,6 +2590,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             push!(book, (Float32(sp), Float32(pt), hh, dbh, Float32(tpa))); push!(bwk4, wk4)
             push!(bplot, Int32(r.emit_plot === nothing ? 0 : r.emit_plot[ri]))
             push!(bbest, r.emit_best === nothing ? false : r.emit_best[ri])
+            push!(babirth, (r.emit_abirth === nothing || ri > length(r.emit_abirth)) ? 0f0 : r.emit_abirth[ri])
         end
     else
         # Collapsed single-record path (EM / non-emit): one WK4=STOMLT(advance) record per (species, point).
@@ -2585,6 +2600,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             for pt in 1:npt_c
                 tpa_sp = Float32(r.tally_pt[sp, pt]); tpa_sp > 0f0 || continue
                 push!(book, (Float32(sp), Float32(pt), hh, dbh, tpa_sp)); push!(bwk4, _autoes_htimlt); push!(bplot, Int32(0)); push!(bbest, false)
+                push!(babirth, 0f0)
             end
         end
     end
@@ -2601,11 +2617,13 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1260,1350)
         t.mort_code[n]   = bbest[bi] ? Int32(1) : Int32(2)   # IMC: best record 1 (estab.f:1206), excess 2 (:1294)
         t.plot_id[n]     = Int32(pt)
-        # ABIRTH = AGEPL+GENTIM (estab.f:628/707); AUTOES natural regen ⇒ AGEPL=0, GENTIM=FINT−5. Read ONLY by
-        # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL transfer distance; apply_climate_dds! +
-        # inlandempire/regent.jl clim_treemult), so byte-identical for climate-off IE. Was birth_age=0 ⇒ BIRTHYR=now
-        # ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE (matches oracle ABIRTH=GENTIM=5).
-        t.birth_age[n]   = _autoes_gentim
+        # ABIRTH (IE/EM estab.f): AGADSB(N) for a best record, AGEXC(I) for an excess one (the emit path's
+        # cross-indexed values, see ie_autoes_tally), then +GENTIM after ESGENT (esgent_add_gentim!). Read by
+        # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL; apply_climate_dds! + regent clim_treemult) and the
+        # aspen REGENT SITAGE. A uniform TRAGE (3) over-aged the cohort (FIA 303115495489998 climate: 2064 TCuFt 200
+        # vs live 194); the cross-indexed values make that stand's .sum exact.
+        t.birth_age[n]   = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? babirth[bi] :
+                           _autoes_gentim      # IE/EM: AGADSB(N)/AGEXC(I) (estab.f:1235/:1324); +GENTIM after ESGENT (:1504)
         t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f
         # XCHECK; :1348 excess: 0). IDSDAT = this ESTAB call's date of disturbance (esnutr.f sets it before ESTAB).

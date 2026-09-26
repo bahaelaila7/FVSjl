@@ -652,6 +652,9 @@ mutable struct Calibration
     cratet_reldm1::Float32
     cratet_pccf::Vector{Float32}
     cratet_pct::Vector{Float32}
+    # RMSQD from that DENSE's second (current-DBH) pass (dense.f:249-252 SQRT(TSUMD2/TPROB)): live + every dead record at
+    # its DBH with the FINT/FINTM-inflated PROB. The calibration DGF/DGFASP (dgdriv.f:391/:759) reads it. 0 = unset.
+    cratet_rmsqd::Float32
     # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
     # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
     # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
@@ -673,6 +676,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
+    0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------
@@ -876,6 +880,11 @@ mutable struct Establishment
                                 # computes ESB1(NCOUNT) inside the per-plot loop with THAT plot's IPREP (and prep-specific
                                 # TIME), so the SPRE(IPREP) stocking term cancels in PN(IPREP)+ESB−ESB1(IPREP) on the
                                 # fresh AND continuation tallies. Empty ⇒ callers fall back to esb_shift_pt / scalar.
+    # estab.f's GENTIM after the last PLANT activity it processed this cycle (:1055-1059 resets it per planting to
+    # FINT−DELAY<5 ? 0 : FINT−DELAY−5), and the cycle that set it. estab.f:1504 adds the FINAL GENTIM to every new
+    # record's ABIRTH after ESGENT; with no planting that cycle it is :448's FINT−5. IE only (ie_esgent!).
+    gentim_post::Float32
+    gentim_cyc::Int32
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -883,7 +892,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0))
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1))
 
 mutable struct DbsState
     enabled::Bool

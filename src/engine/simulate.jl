@@ -103,6 +103,7 @@ function setup_growth!(s::StandState)
                                           # LSTART-dub residual of any variant.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa InlandEmpire
+        ie_cratet_site_adjust!(s)         # ie/cratet.f:80-118 LM/PY 50-yr-base SITEAR (TEMCCF from the tree list), once
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
         compute_density!(s)               # current-stand density for the crown dub
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (ie/crown.f).
@@ -735,7 +736,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.plot.relative_density_prev = s.plot.relative_density
     end
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
-        ie_seed_backdated_oldpct!(s)
+        # cratet.f:513 saves the PCT of the :219 backdating DENSE, which crown_init_lstart_dead_inclusive! already
+        # built (c.cratet_pct) over CRATET's IND1-seeded RDPSRT(.FALSE.) order; ie_seed_backdated_oldpct!'s own
+        # identity-seeded sort swapped every equal-DBH pair's OLDPCT (FIA 3027007010690: three tied pairs ⇒ crown
+        # ICR ±1 ⇒ cycle-2 DDS ±0.0154 on 11 records).
+        if length(s.calib.cratet_pct) == s.trees.n
+            copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
+        else
+            ie_seed_backdated_oldpct!(s)
+        end
         ie_dub_aspen_birthage!(s)   # cratet.f:544-563 CALL FINDAG: dub ABIRTH=SITAGE for sp18/20/21 (AS/MM/PB)
         # IE crown DCR backdates against OLDBA/RELDM1 = the PREVIOUS cycle's stand BA/RELDEN (dense.f:239-240,
         # threaded start-of-cycle; crown.f:277-281 reads them for DCRCON). Seed cycle-1's pair from the
@@ -827,7 +836,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # applied DG → next cycle's vigor) exactly; an every-cycle snapshot here instead OVER-KILLS the shelterwood
     # auto-regen path (iet01 THN3) by racing establishment/tripling churn — measured as ~2.8× cyc-2040 mort.
     # A/B (373781950489998, no regen): moves TPA toward oracle every cycle (2025 2328→2333 vs 2337, …).
-    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+    # The faithful cycle-1 WK1 is ie/dgdriv.f's DO-220 result (ie_cycle0_wk1!, from the calibration's DGF(WK3) re-call
+    # and the calibration OLDRN — so BEFORE diameter_growth! advances OLDRN). The snapshot + post-DGDRIV stand-in below
+    # is kept only as the fallback when that calibration stash is absent.
+    _ie_wk1_do220 = s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n
+    _ie_wk1_do220 && ie_cycle0_wk1!(s)
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
@@ -854,7 +868,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # HIGH cycle-1 mortality. Without this branch jl fed WK1=predicted-DG (often >0.5 for a vigorous DF seedling),
     # inflating 11.2007·G + 6.07129·G/D ⇒ RIP collapses ⇒ massive under-kill (oracle 39607788010690 cyc-1 drop
     # 1614 vs jl 344). Verified vs FVSie_g16: all 3 cyc-1 seedling records HT=1.01 ⇒ WK1=0 ⇒ mortG≈0.079. CYCLE-0 only.
-    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n
             if t.height[i] <= 4.5f0
                 t.dg_prev[i] = 0f0                                   # dgdriv.f:784-785
