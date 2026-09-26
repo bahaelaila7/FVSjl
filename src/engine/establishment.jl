@@ -732,7 +732,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # clim_treemult), so setting it is byte-identical for climate-off IE but gives established regen the
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
-                (s.variant isa CentralRockies || s.variant isa Teton) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # EM builds the identical estab.f (FVSem_buildDir/estab.f == FVSie's): ABIRTH=AGADSB/AGEXC/AGEPL (:1235/
+                # :1324/:1414) + GENTIM (:1504). EM reads it in Climate-FVS BIRTHYR and the aspen REGENT (HITE1=f(ABIRTH));
+                # birth_age=0 gave EM AutoEstb regen BIRTHYR=THISYR ⇒ DF GrowthMult 1.133 vs live 1.045 (stand 5352355010661).
+                (s.variant isa CentralRockies || s.variant isa Teton ||
+                 s.variant isa EasternMontana) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
                 # IE: ABIRTH is AGEPL = FINT−DELAY+TRAGE at creation (estab.f:1064/1414, the ESSUBH-clamped DELAY and
                 # the ORIGINAL TRAGE of :990) — what REGENT(LESTB) reads for aspen SITAGE (regent.f:572) — and
                 # ie_esgent! adds the cycle's final GENTIM afterwards (estab.f:1504). jl had stored AGE−GENTIM(FINT−5):
@@ -857,7 +861,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # BM likewise: bm/regent.f LESTB draws the crown RAN (regent.f:257-264) and the height ZZRAN (:358-360)
         # INTERLEAVED per record on the main stream, so bm_esgent! owns the crown draw too.
         # EM likewise: em/regent.f LESTB draws each new record's crown in STORAGE order (DO 13) before its ZRANDs.
-        _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana
+        _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                         s.variant isa EastCascades
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0

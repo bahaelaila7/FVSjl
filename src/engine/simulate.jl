@@ -717,6 +717,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS: realize the cycle-scheduled GrowMult/MortMult weights for this cycle (FVS ICYC = jl cycle+1)
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
+    # clgmult.f runs every cycle inside DGDRIV even with ITRN=0 (SPWTS=0 ⇒ SPGMULT=1); jl skips growth on a bare
+    # stand, so start each cycle at 1 (apply_climate_dds! overwrites it when it runs) and clear last cycle's report.
+    (s.climate !== nothing && s.climate.active) &&
+        (fill!(s.climate.spgmult, 1f0); s.climate.pending_report = nothing)
     # Climate SPCALIB (clmorts.f:57-75 ICYC==1): set at cycle 0 from INVENTORY presence, BEFORE establishment
     # adds regen — so an empty-at-cycle-1 establishment stand correctly gets SPCALIB=−1 (matches the oracle),
     # not a mis-calibration from a later cycle's established cohort. Inert unless CLIMATE is active.
@@ -1257,6 +1261,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Climate-FVS AutoEstb (clauestb.f) runs BEFORE ESNUTR (gradd.f:223 < :229): schedule NATURAL regen off the
     # current (post-growth) density + species viability, for a year WITHIN this cycle (IY(ICYC+1)-1) so the
     # establish! immediately below picks it up SAME cycle. Inert unless a CLIMATE block parsed AutoEstb.
+    # FVS_Climate rows are written INSIDE CLAUESTB (clauestb.f:196-216) — post-growth/mortality/aging, pre-ESTAB — so
+    # snapshot them here (the summary writer emits this snapshot; building the row after grow_cycle! counted this
+    # cycle's regen and the post-aging ABIRTH).
+    (s.climate !== nothing && s.climate.active) &&
+        (s.climate.pending_report = climate_report(s; report_year = Int(current_cycle_year(s)), fint = fint))
     (s.climate !== nothing && s.climate.active) && clim_autoestb!(s, Int(s.control.cycle) + 1, fint)
     # AUTOES (IE/EM): the AUTOMATIC natural tally (esnutr.f scheduler → estab.f DO-99, indices 1..ITPP) must run
     # BEFORE establish! appends any scheduled PLANT/NATURAL trees (estab.f appends those at ITPP+1..ITPP+ITODO, AFTER
@@ -1273,7 +1282,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
-    es_bm_relden_pre, es_bm_avh_pre = s.variant isa BlueMountains ? (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
+    es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
+        (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
@@ -1281,6 +1291,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
+    s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
         atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
@@ -1404,7 +1417,8 @@ function run_keyfile(keypath::AbstractString;
         cl_cycles = cl_on ? Tuple[] : nothing
         al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
-        carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        _fuels_db = s.control.dbs_fuels && s.control.ffe_fuelout      # FVS_Fuels gate (FUELSOUT + FUELOUT window)
+        carb_rows = ((s.control.carbon_report_on || _fuels_db) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
@@ -1487,9 +1501,10 @@ function run_keyfile(keypath::AbstractString;
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
-            if carb_rows !== nothing
-                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            _fuels_db && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            if carb_rows !== nothing && s.control.carbon_report_on
+                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_snagdet!(s.control.dbs_out_file, caseid, String(sid),
                                    [(r[1], r[7]) for r in carb_rows], s.coef)

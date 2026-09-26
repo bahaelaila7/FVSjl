@@ -271,6 +271,9 @@ function compute_volumes_cr!(s::StandState)
     # 1:t.n), so this is side-effect-free for the .sum; it only fills the otherwise-unused dead vol slots.
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # cr/vols.f:145-146 TKILL (H>=4.5 and ITRUNC>0): the volume and the CFTOPK/BFTOPK trim both run on the
+        # NORMAL height NORMHT/100, not the height to the break (a DF broken at 49 ft: TCuFt 12.5 vs live 13.3).
+        (h >= 4.5f0 && t.trunc[i] > 0 && t.norm_ht[i] > 0) && (h = Float32(t.norm_ht[i]) / 100f0)
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue

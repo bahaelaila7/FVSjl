@@ -555,6 +555,52 @@ current PCT instead of OLDPCT. Both are fixed, along with the backdated-D < 3 sk
   - An LM backdated-PCT tie breaks in a different order (0.013 TPA).
 - **REGCAL.** The CR/UT EDH uses a static PCTRED, which is 0 at LSTART (#244).
 
+## EC crown width, volume, REGENT and ESGENT; western fuel moisture; CR NORMHT (2026-09-26, branch `ec-cw`)
+
+Driven by the PPE MXHRVP landscape (three copies of Mt Hood stand S248112, forest 606), whose cycle-1/2 CREDIT
+was off the FVSppe oracle because of EC growth, not MXHRVP.
+
+**1. Crown width (`ec/cwcalc.f`).** `ec_cwcalc` hard-coded forest 608 for six species and errored on the other
+26, so FVS_TreeList crashed on any EC stand with WH, GF or RC. It is now ECMAP → the national dispatcher with the
+shared Region-6 forest BF, with KODFOR passed from both call sites (FMCBA PERCOV, TreeList CrWidth). Codes 02206,
+63102 and 81505 were added to the national library. S248112 1990 CrWidth: 29/29 trees equal to live.
+
+**2. Volume.** EC is an eastside variant in `voleqdef.f` R6_EQN, so it now reuses the BM forest table
+(`_bm_r6_eqn`, DISTNUM 0). jl had known only Okanogan/Wenatchee and sent every other forest to Behre. On Mt Hood,
+live runs DF on westside F05FW2W202 and the rest on I11–I13 INGY. The broken-top CFTOPK/BFTOPK trim now runs for
+every equation, not just INGY. S248112 cycle 0 TCuFt/MCuFt/BdFt 1640/1103/5572 → 1602/1064/5456 = live (#243).
+
+**3. REGENT (`ec/regent.f`, `ec/smhtgf.f`).**
+- SMHTGF reads the tree's own SITEAR, unclamped. jl had clamped it to the site species' range, so an ES at SI 148
+  grew 7.9 ft instead of 17.4.
+- DK/DKK are formed per species. The HTDBH inventory form applies only when `.NOT.LHTDRG` or IABFLG = 1.
+- Tripling gives each copy its own ZZRAN, HTG blend and small-tree DBH increment.
+- REGHMULT and REGDMULT are applied.
+- S248112, 3 cycles: per-tree exact in all four setups (DGSTDEV 0 and random, with and without tripling).
+- PPE MXHRVP end-to-end now pins cycles 1–2 to the oracle (330.4816 / 439.8994).
+- The PPE composite-materialization test (`stand_thin.key`) is now pinned to **current live FVSec_g16**
+  volumes. Those volumes equal jl's on every row (1602/1064/5456 … 1780/1651/9038). FVSppe's composite volumes
+  (1624/1102/5567 at 1990) come from the historical source's volume equations. TPA is still pinned to FVSppe,
+  and is exact there.
+
+**4. ESGENT (`ec/esgent.f`).** EC was missing from the birth-cycle ESGENT dispatch, so planted records sat at
+their ESSUBH height for the whole establishment cycle (ect01 PLANT stand: 2002 BA 0 vs live 22). `ec_esgent!` is
+REGENT(LESTB) for the new records, with the crown and height draws interleaved per record, then the HHTMAX cap.
+The ect01 PLANT stand is per-tree exact over 10 cycles (#245).
+
+**5. FFE fuel moisture.** SIMFIRE/POTFIRE moisture presets for EC and SO now use the IE table, and CA and WS use
+the NC table. They had fallen through to the SN table. Each was checked value by value against the variant's
+`fmmois.f`.
+
+**6. CR broken-top volume (`cr/vols.f` TKILL).** H = NORMHT/100 for top-killed trees, as for EM/KT. The CR
+cycle-0 .sum on the shipped PN list is now 1611/1381/3490, equal to live (#241).
+
+**Still open:**
+- **EC FFE fire behaviour (#246).** On the ect01 FFE stand, flame length is 3.92 vs 5.37 ft because the
+  fuel-model weights differ (FM10 55% vs 46%), and 2003 SIMFIRE under-kills. jl does not yet emit FVS_Fuels under
+  DATABASE FUELSOUT.
+- **BC/ON/AK NORMHT (#248).**
+
 ## LSTART small-tree height calibration (REGCAL) for EM and IE (2026-09-26, branch `em-regcal`)
 
 The small-tree height calibration in REGENT (label 40, called from CRATET) sets each species' HCOR from seedlings
@@ -594,17 +640,92 @@ SNY", which gives a direct oracle; CORNEW = SNY/SNX.
   Each fixture is the PN inventory plus six HTG seedlings for each of 12 species, including 12-way DBH ties and
   two dead records.
 - All 15 EM and all 14 IE per-species sums equal live, across every sub-model.
-- EM runs 3 cycles per-tree exact (0/99 trees off; em-vol was 89–99/99). Every .sum field matches except the
-  2010 stocking class, which is FORTYP/STKVAL and tracked as #251.
+- EM runs 3 cycles per-tree exact (0/99 trees off; em-vol was 89–99/99), and every .sum field matches live.
+  That includes the trailing size/stocking class, after the STKVAL fix below.
 - IE per-tree mismatches at 2000 fall from 91/99 on master to 29/99. The remainder is IE's growth-side TTVAR,
   which is not yet in Fortran shape (#250).
 - Tiered fast tier: EM 130,863 → 130,769 cells (allowlist redrafted); IE and BM unchanged.
+
+**STKVAL (all western variants, #251).** `stkval.f:325-333` redefines TAB3 at run time for every variant except
+CS/LS/NE/SN/ON: FIA 299 ("west other softwood") → stocking equation 8, and 998/999 → 26. The per-variant CSVs
+carry only the eastern DATA values (299 → 0, 998/999 → 25). A western OS record was therefore stocked on
+equation 25: on the EM fixture, OS SS was 9.57 vs live 4.49, so TOTSTK was 102.85 vs 97.77 and the stocking class
+was 1 vs 2. This feeds the FORTYP group array and the .sum size/stocking class; western growth does not read the
+forest type.
 
 **Still open:**
 - **#249** — KT and CI have no REGCAL port at all, and TT needs an audit (in progress on branch
   `regcal-kt-ci`).
 - **#250** — the IE REGENT growth rewrite.
-- **#251** — the STKVAL stocking class.
+
+## EM Climate-FVS wiring; FVS_Climate report timing (2026-09-26, branch `em-climate`)
+
+**Climate-FVS was a no-op for EM.** `climate_plant_symbols(::EasternMontana)` was undefined, so the plant-symbol
+list was empty and every climate hook skipped every species. The same is true of every variant except BM, IE and
+SN; #252 covers the rest.
+- EM now has its PLNJSP (em/blkdat.f:209-212). The shared `apply_climate_dds!`, schedule and AutoEstb engage
+  through it.
+- `mortality!(::EasternMontana)` calls `apply_climate_mort!` at em/morts.f:962 (CLMORTS, after the BAMAX residual
+  adjustment and before FIXMORT).
+- The CRATET FINDAG → POTHTG ABIRTH dub now covers every POTHTG species: WB/WL/LP/OS, DF, ES/AF, PP and aspen/PB.
+  Before, only the aspen pair was dubbed. clgmult's BIRTHYR reads it.
+- New PLANT/NATURAL records get ABIRTH = AGEPL + GENTIM. FVSem_buildDir/estab.f is identical to IE's.
+
+**Report timing (shared: BM, IE, EM).** FVS writes the FVS_Climate rows inside CLAUESTB (clauestb.f:196-216,
+gradd.f:223): after growth, mortality and ABIRTH aging, but before this cycle's ESTAB. The GrowthMult column is
+CLGMULT's SPGMULT, a DBH²·PROB-weighted TREEMULT computed on the pre-growth trees. jl had built the row after
+`grow_cycle!`, so it counted the cycle's own regen and the aged ABIRTH, and it weighted GrowthMult by TPA.
+- jl now snapshots the row at the CLAUESTB point.
+- It carries `ClimateState.spgmult` from `apply_climate_dds!`.
+- MORTS reaches CLMORTS even with ITRN = 0, so every `mortality!`'s zero-tree return now runs the climate
+  mortality report.
+
+**Measured:**
+- Tiered stand 231908428020004 (a lone RM, JUSC2 viability ~0.015) is equal to FVSem_g16 on every .sum row over 6
+  cycles: live kills it in 2023 and AutoEstb restocks it. jl had kept 328 TPA.
+- Tiered climate cells: EM 2244 → 2154, IE 3237 → 3122, BM 1768 → 1759.
+- The EM climate TALLY bias (over 8/9, under 0; the #247 note) is gone.
+- On stand 5352355010661, FVS_Climate value mismatches fell from about 1460 to 12.
+
+**Still open:**
+- **#253.** The residual GrowthMult/dClimMort (e.g. DF 1.0398 vs 1.0446) comes from EM's collapsed AUTOES path.
+  It books ABIRTH = GENTIM for every record, whereas live keeps per-record AGADSB/AGEXC ages (5 and 6).
+- **#252.** Wiring for the other variants is in progress on branch `clim-west`.
+
+## KT/CI/TT LSTART REGCAL; EM DO-220 dub from the post-COR DGF (2026-09-26, branches `regcal-kt-ci`, `em-climate`)
+
+**KT and CI had no small-tree height calibration at all.** `kt_regent_hcor_init!` and `ci_regent_hcor_init!` port
+kt/regent.f and ci/regent.f label 40. That includes CI's stale-ISPC SCALE3 and its second in-loop height backdate.
+`tt_regent_hcor_init!` replaces TT's two partial calibrations; they had no conifer/PP/15/18 arms, an unrandomized
+aspen, and H = 0 in the woodland POTHTG.
+
+Found along the way:
+- `kt_site_index_setup!` skipped the habitat lookup when no habitat code was given; FVS uses KKTYPE 97 / ITYPE 570.
+  On master that killed the KT fixture stand in cycle 1.
+- `ci_dubscr` and `_tt_dubscr` drew a random number even with DGSTDEV < 1.
+- CI stand CCF now sums species-major.
+
+Measured: every per-species "SUMS FOR SPECIES" equals FVSkt_clean / FVSci_g16 / FVStt_g16 on multi-species
+fixtures, and on FIA stands with two calibration subcycles. The TT root-disease absolute row is now a passing test.
+
+**DO-220 dub (EM, BM, CI, KT, TT).** dgdriv's :770 `CALL DGF(WK3)` → DO 220 runs after the correction terms are
+final, and em/dgf.f adds COR into DDS. EM had captured the first call's WK2 (COR = 0). All five variants now dub
+from the second call, with the calibration's current-RMSQD stash that aspen DGFASP reads. `test_em_wk1dub.jl`: an
+unmeasured LM of a calibrated species has G 0.1547 and kills 6.462 TPA, equal to live (it was 0.0857 / 13.12).
+
+## FVS_Fuels (FUELSOUT) gating and standing pools (2026-09-26, branch `ffe-fuels`)
+
+FVS writes FVS_Fuels only when DATABASE FUELSOUT (IFUELS) is set and the FMIN FUELOUT window covers the year
+(fmdout.f:399, fmin.f:1500). jl wrote it whenever CARBREPT was on, which produced the tiered "live=absent" presence
+residuals, and never wrote it for a FUELSOUT run. The standing live pools now follow FMDOUT:
+- crown sizes 1–3 (+OLDCRW) go to <3", and sizes 4–5 (+OLDCRW) to ≥3";
+- the stem is split by DBH;
+- VOL2HT is MAX(X, MCF) for SN-family variants and MAX(X, TCF) elsewhere;
+- the integer columns are NINT.
+
+On EC ect01 FFE at 1993, Standing_Live_ge3 went from 5.83 to 23 (live 23) and Standing_Total from 13.7 to 37
+(live 37). #246 carries on from this comparison (the init-year FMCBA-after-cut order, crown biomass, snags).
+FVS_Consumption's schema is wrong (#254).
 
 ## Known exceptions / not-yet-closed
 

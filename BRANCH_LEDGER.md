@@ -232,6 +232,25 @@ Gate: the full `Pkg.test` on the final tip, compared by name against the master 
 (`/workspace/.postswap/pkgtest_wshtg`). The tiered EM allowlist was redrafted from measurement, and the EM WRD row
 and the new EM REGENT test pass.
 
+## Addendum 2026-09-26 (f) — `ec-cw` merge
+
+Branch `ec-cw` (worktree `.wt-ec`, off master `f6b7ca75`; master `0df04061` (em-vol) merged in as `b4dc6949`),
+landed with one proper `git merge --no-ff`. It carries:
+- EC crown width through the national ECMAP dispatcher.
+- The EC eastside R6_EQN volume table and the CFTOPK trim on every equation.
+- EC REGENT (own-SI SMHTGF, per-species DK/DKK, per-copy tripling).
+- EC ESGENT.
+- Western FFE moisture presets.
+- CR NORMHT volume.
+- PPE MXHRVP pinned to the FVSppe oracle.
+
+See docs/PORT_STATUS.md, "EC crown width, volume, REGENT and ESGENT".
+
+Gate: the full `Pkg.test` on tip `9a53fa31`, compared by name against the em-vol log (`/workspace/.postswap/pkgtest_emvol`,
+code-identical to master `0df04061`). The only new failures were four year-testsets (7 assertions) of the PPE composite
+test. Their volume pins came from the FVSppe historical-source oracle; jl equals current live FVSec_g16 on every row.
+They were re-pinned to live in a test-only commit, and the next branch's full suite covers the merged master.
+
 ## Addendum 2026-09-26 (g) — `em-regcal` merge
 
 Branch `em-regcal` (worktree `.wt-emr`, off em-vol `27da808a`), landed with one proper `git merge --no-ff` after
@@ -248,4 +267,23 @@ It also adds the test `test_regcal_em_ie.jl`. See docs/PORT_STATUS.md, "LSTART s
 
 Gate: the full `Pkg.test` on the final tip, compared by name against the preceding master log. The tiered EM
 allowlist was redrafted from measurement, keeping the #247 annotation.
+
+## Addendum 2026-09-26 (h) — `em-climate` merge
+
+Branch `em-climate` (worktree `.wt-clim`, off em-regcal `9b995708`), landed with one proper `git merge --no-ff`. It
+carries:
+- The EM Climate-FVS wiring (PLNJSP, CLMORTS, the FINDAG/POTHTG ABIRTH dub, estab ABIRTH).
+- The shared FVS_Climate report timing (CLAUESTB snapshot, CLGMULT SPGMULT, zero-tree CLMORTS).
+
+See docs/PORT_STATUS.md, "EM Climate-FVS wiring; FVS_Climate report timing". The tiered EM allowlist was
+redrafted from measurement.
+
+## Addendum 2026-09-26 (i) — `regcal-kt-ci` and `ffe-fuels`, landed through `em-climate`
+
+Both branches were merged into `em-climate` with proper `--no-ff` merges (`e41b9266`, `ce59b2be`). They reach master
+with em-climate's merge and are gated by its full suite:
+- `regcal-kt-ci`: fork work at `.wt-rkc` off `01be3b1b`.
+- `ffe-fuels`: `.wt-fuel` off `9b995708`.
+
+See docs/PORT_STATUS.md, "KT/CI/TT LSTART REGCAL…" and "FVS_Fuels (FUELSOUT) gating…".
 

@@ -8,10 +8,8 @@
 #
 # This exercises "the test must exercise the semantic": HVYLDS≠HVTHIN driving the greedy subset
 # selection + the partial-cut fraction — the paths the degenerate all-selected msp.key never hit.
-# CORNERING: cyc0 BIT-EXACT (BBA=77.39206 ⇒ HVPART=0.938 == oracle 93.8%); cyc1+ HVPART is a
-# function of BBA, so it inherits the KNOWN EC-variant before-thin-BA growth straddle (37.8% vs
-# 36.2%, 4.0% vs 2.3%) — a cornered residual, NOT a MXHRVP defect. The SELECT PATTERN + the
-# fill-to-target (SELECTED RESOURCE=150) are bit-exact every cycle.
+# Every master cycle matches the oracle: HVPART 93.8% / 36.2% / 2.3%, the SELECT pattern and the fill-to-target
+# (SELECTED RESOURCE=150). The cyc1+ HVPART gap (37.8% / 4.0%) was the EC growth, closed 2026-09-26.
 using Test
 using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
 
@@ -48,9 +46,7 @@ using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
     @test isapprox(r1.hvpart, 0.93818f0; atol = 0.0005f0)         # oracle **YES= 93.8 PERCENT
     @test isapprox(r1.credit_sel[1], 77.39f0; atol = 0.005f0)     # HVYLDS = BBA = oracle 0.7739E+02
 
-    # --- cyc1/cyc2: HVPART cornered to the EC before-thin-BA growth straddle (documented) ---
-    #     FVSjl BBA 108.87 ⇒ HVPART 37.8% (oracle 36.2%); BBA 144.29 ⇒ 4.0% (oracle 2.3%).
-    @test isapprox(r2.hvpart, 0.375f0; atol = 0.002f0)            # jl SELF-snapshot (EC PSIGSQ 2026-09-26 0.378→0.375, toward oracle 0.362)
-    @test isapprox(r3.hvpart, 0.040f0; atol = 0.003f0)            # FVSjl EC growth (oracle 0.023)
-    @test abs(r2.hvpart - 0.362f0) < 0.02                         # within the EC-growth corner vs oracle
+    # --- cyc1/cyc2: HVPART matches the oracle now that EC growth does (2026-09-26 EC REGENT/SMHTGF fixes) ---
+    @test isapprox(r2.hvpart, 0.362f0; atol = 0.0005f0)           # oracle **YES= 36.2 PERCENT
+    @test isapprox(r3.hvpart, 0.023f0; atol = 0.0005f0)           # oracle **YES=  2.3 PERCENT
 end
