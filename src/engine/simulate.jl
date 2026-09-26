@@ -732,7 +732,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.plot.relative_density_prev = s.plot.relative_density
     end
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
-        ie_seed_backdated_oldpct!(s)
+        # cratet.f:513 saves the PCT of the :219 backdating DENSE, which crown_init_lstart_dead_inclusive! already
+        # built (c.cratet_pct) over CRATET's IND1-seeded RDPSRT(.FALSE.) order; ie_seed_backdated_oldpct!'s own
+        # identity-seeded sort swapped every equal-DBH pair's OLDPCT (FIA 3027007010690: three tied pairs ⇒ crown
+        # ICR ±1 ⇒ cycle-2 DDS ±0.0154 on 11 records).
+        if length(s.calib.cratet_pct) == s.trees.n
+            copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
+        else
+            ie_seed_backdated_oldpct!(s)
+        end
         ie_dub_aspen_birthage!(s)   # cratet.f:544-563 CALL FINDAG: dub ABIRTH=SITAGE for sp18/20/21 (AS/MM/PB)
         # IE crown DCR backdates against OLDBA/RELDM1 = the PREVIOUS cycle's stand BA/RELDEN (dense.f:239-240,
         # threaded start-of-cycle; crown.f:277-281 reads them for DCRCON). Seed cycle-1's pair from the
