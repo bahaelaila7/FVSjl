@@ -261,3 +261,110 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
     return s
 end
 
+
+# ec/blkdat.f DATA HHTMAX — ESGENT's cap on a newly established tree's height.
+const EC_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17, 20,22,20,20,20,20,20,20,20,20,
+                          20,50,20,20,20,20,20,20,20,20, 22,20]
+# ec/regent.f:385-397 DAT45 (the WC-logic diameter at 4.5 ft; 0 for the EC-logic species).
+@inline function _ec_dat45(sp::Int)::Float32
+    sp == 11 && return -0.674f0 + 1.522f0*log(4.5f0)
+    ((13 <= sp <= 15) || sp == 17) && return -2.089f0 + 1.980f0*log(4.5f0)
+    (sp == 18 || sp == 19) && return -0.532f0 + 1.531f0*log(4.5f0)
+    ((20 <= sp <= 30) || sp == 32) && return 3.102f0 + 0.021f0*4.5f0
+    return 0f0
+end
+
+"""
+    ec_esgent!(s, nstart; fint, atavh, atrelden, relden_pre, avh_pre)
+
+ec/esgent.f → REGENT(.TRUE.,ITRNIN): grow the records established this cycle (nstart+1:n) over the rest of the
+cycle, FNT = FINT−5 (LSKIPH when FINT≤5). Per new record in SPESRT order: the crown draw
+(CR = 0.89722 − 0.0000461·PCCF + 0.07985·RAN), then SMHTGF·PCTRED·VIGOR·CON with its ZZRAN draw (XWT=0), then
+the ESTAB diameter DBH=DK (or DK−DAT45+DIAM for a calibrated WC-logic fit), floored at DIAM, +0.001·HK, DG=DBH.
+PCTRED reads the mid-period CCF/top height (5/FINT·current + (FINT−5)/FINT·start-of-cycle). ESGENT then adds
+HTG to HT and caps it at HHTMAX. EC had no birth-cycle growth, so planted stands lagged a cycle (ect01 PLANT
+stand: 2002 BA 0 vs live 22).
+"""
+function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0)
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    sd = s.coef.species
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    dgsd = s.control.dg_sd
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / EC_RG_REGYR
+    cur_year = current_cycle_year(s)
+    ifor = ec_htdbh_ifor(p)
+    ccf = relden; avht = avh
+    if fnt > 0f0 && atrelden >= 0f0 && atavh >= 0f0      # regent.f:232-235
+        ccf = (5f0/fint)*relden + ((fint - 5f0)/fint)*atrelden
+        avht = (5f0/fint)*avh + ((fint - 5f0)/fint)*atavh
+    end
+    xden = avht * (ccf / 100f0); xden > 300f0 && (xden = 300f0)
+    pctred = Float32(EC_RG_AB[1] + xden*(EC_RG_AB[2] + xden*(EC_RG_AB[3] + xden*(EC_RG_AB[4] + xden*(EC_RG_AB[5] + xden*EC_RG_AB[6])))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    newidx = sort(collect((nstart+1):t.n); by = i -> (Int(t.species[i]), i))   # SPESRT species-then-record
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= EC_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        pccf = s.density.point_ccf[Int(t.plot_id[i])]
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        h = t.height[i]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = exp(c.htg_cor_small[sp])
+            x = Float32(icr0) / 100f0
+            vigor = 150f0 * x^3 * exp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            htgr = ec_smhtgf(sp, h, 10f0, p.sp_site_index[sp]) * pctred * vigor * con
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0); (zzran <= 0.5f0 && zzran >= -2f0) && break
+                end
+            end
+            xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+            htgr = (htgr + zzran*0.1f0) * xrhgro * scale
+            if sp in EC_HT_WCFORM
+                htgr < 0.1f0 && (htgr = 0.1f0)
+            else
+                htgr < 0f0 && (htgr = 0f0)
+            end
+            htg = htgr                                   # XWT = 0 under LESTB
+            htg < 0.1f0 && (htg = 0.1f0)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+        end
+        if d < 3f0
+            hk = h + htg
+            if hk <= 4.5f0
+                t.dbh[i] = d + 0.001f0*hk; t.diam_growth[i] = 0f0
+            else
+                dk, _ = _ec_regent_dk_dkk(s, ifor, sp, d, h, hk)
+                dat45 = (!s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1) ? 0f0 : _ec_dat45(sp)
+                dbh = (dat45 > 0f0 && hk >= 4.5f0 && s.control.ht_drag_sp[sp] && c.ht_dbh_iabflg[sp] == 0) ?
+                      dk - dat45 + EC_RG_DIAM[sp] : dk
+                (dbh < EC_RG_DIAM[sp] || hk < 4.5f0) && (dbh = EC_RG_DIAM[sp])
+                dbh = dbh + 0.001f0*hk
+                t.dbh[i] = dbh; t.diam_growth[i] = dbh
+            end
+        end
+        # esgent.f: HT = HT + HTG (WK4 = 1 without CLIMATE), capped at HHTMAX
+        t.ht_growth[i] = htg
+        hn = h + htg; hn > EC_HHTMAX[sp] && (hn = EC_HHTMAX[sp])
+        t.height[i] = hn
+    end
+    return s
+end
