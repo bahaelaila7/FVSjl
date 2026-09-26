@@ -249,19 +249,18 @@ function height_growth!(s::StandState, ::CentralRockies; scale::Float32 = 1.0f0)
     # BADIST BAU (BA-above-class) — same pre-pass as dgf! (cr/htgf.f reads BAU from DGF's BADIST).
     bau = _cr_badist_bau(t)
 
-    @inbounds for i in 1:t.n
-        t.ht_growth[i] = 0.0f0
+    @inbounds for i in 1:t.n; t.ht_growth[i] = 0.0f0; end
+    # cr/htgf.f DO 400 ISPC / DO 300 I3 / I=IND1(I3): the ZZRAN draws below follow IND1 (species-major, lineage order).
+    @inbounds for i in species_major_order(s)
         t.tpa[i] <= 0.0f0 && continue
         d = t.dbh[i]; hnow = t.height[i]
-        (d < 0.5f0 || hnow <= 4.5f0) && continue          # small trees → regent (not yet ported)
+        (d < 0.5f0 || hnow <= 4.5f0) && continue          # small trees → regent
         sp = Int(t.species[i])
         ssite = p.sp_site_index[sp]
         icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)
         bark = cr_bratio(sd, sp, d, imodty)
         xhmult = active_multiplier(s.control, :htg, sp, cur_year)
         # ZZRAN stochastic increment (htgf.f:288-294): rejection-sampled BACHLO(0,1,RANN) with |z|≤DGSD.
-        # NOTE: FVS draws in species-sorted IND1 order; this loop is tree-index order — the per-tree draw
-        # VALUES therefore only bit-match live once the cycle RNG sequence is reconciled (chunk-9 concern).
         zzran = 0.0f0
         if dgsd > 0.0f0
             while true
@@ -305,7 +304,11 @@ function _cr_htg_tree(imodty::Int, sp::Int, ssite::Float32, adjust::Float32, d::
             h30 = 5.25621f0 + 0.37515f0 * ssite - 0.00082f0 * tccf * ssite
             h30 = h30 * birth_age / 31.0f0
             thtg = h30 - hnow
-            thtg > htg && (htg = thtg)
+            # htgf.f:251-255: the H30 replacement also resets HHE2=H30, HHE1=HT — which the AGERNG>40 blend
+            # below reads as HGE=(HHE2-HHE1)*ADJUST (regcal fixture sapling AF D=1.2: large HTG 4.1776 = live, was 3.915).
+            if thtg > htg
+                htg = thtg; hhe2 = h30; hhe1 = hnow
+            end
         end
         if agerng > 40.0f0 && ba >= 70.0f0
             if pct <= 10.0f0
@@ -422,34 +425,42 @@ end
 # _cr_dub_ages! (cr/cratet.f:540-552 + FINDAG) — dub ABIRTH from the current height for inventory trees with no
 # measured age (birth_age ≤ 0 or > 999). Runs once at setup (before the first height growth); gradd.f:205 then
 # increments birth_age by FINT each cycle. Site = per-species SITEAR; BAUTBA = BAU(dbh-class)/BA.
-function _cr_dub_ages!(s::StandState)
+# cratet.f:503-522 MISSCR: any live or cycle-0 dead record with ICR≤0 (evaluated BEFORE the LSTART crown dub fills them).
+function cr_any_missing_crown(s::StandState)
+    t = s.trees
+    @inbounds for i in 1:(t.n + t.ndead)
+        t.crown_pct[i] <= 0 && return true
+    end
+    return false
+end
+
+function _cr_dub_ages!(s::StandState; misscr::Union{Nothing,Bool} = nothing)
     p, t = s.plot, s.trees
     imodty = Int(p.model_type)
+    misscr === nothing && (misscr = cr_any_missing_crown(s))
     # cratet.f:501-522: BADIST (which populates BAU, read as BAUTBA by FINDAG) runs BEFORE the age dub ONLY when
     # MISSCR — any LIVE (1:n) or cycle-0 DEAD (recent-mortality, n+1:n+ndead) tree with a missing crown ratio
     # (ICR≤0) — triggers `CALL CROWN`. Else BAU is still 0 at the dub ⇒ BAUTBA=RELDEN=0. Reproducing this gate is
     # what makes the dubbed ages (hence TopHt) match: a stand with a history-8 dead tree (no crown) uses the
     # populated BADIST; an all-live stand uses 0. (A blanket 0 or a blanket fresh-compute is wrong either way.)
-    misscr = false
-    @inbounds for i in 1:(t.n + t.ndead)
-        t.crown_pct[i] <= 0 && (misscr = true; break)
-    end
     # cratet.f:93/175 CALL DENSE runs BEFORE the findag dub (cratet.f:540) with LSTART=.TRUE. — so DENSE loads WK3
     # with BACKDATED diameters (dense.f:55/128 WK3=sqrt(d²·r), r from the measured DG; unmeasured trees use the
     # stand-avg BAGR). BADIST (badist.f:45-46) then builds the BAU "BA-above-class" array from those WK3 (backdated)
     # dbh, and findag divides BAU(ICLS)/BA where ICLS = IFIX(current-DBH+1) (cratet.f:548 D1=DBH(I), CURRENT) but the
     # BA denominator is the BACKDATED calibration-density BA. Using the CURRENT-dbh density here over-estimates BAUTBA
     # (RATIO=1−BAUTBA too low ⇒ over-aged ⇒ TopHt/volume under-grow). Measured on crt01: 4/27 ages off +5..+30 yr.
-    bau = nothing; ba = 25.0f0; relden = 0.0f0
+    # BA and RELDEN are COMMON as the cratet.f:175 backdating DENSE left them — over live AND the cycle-0 dead records
+    # (dead PROB ×FINT/FINTM, IMC-9 WK3=0) — i.e. the crown_init_lstart_dead_inclusive! snapshot, so this runs after
+    # it. RELDEN is set whether or not CROWN ran (fndag.f IMODTY 5 CCFTEM=RELDEN−125). A live-only recompute put
+    # RELDEN at 150.98 for the CR regcal fixture: DF D=10.4 H=55 aged 55 vs live 60 ⇒ HTGF AP 55 ⇒ HTG 7.764 vs 7.463.
+    c = s.calib
+    bau = nothing
+    ba = c.cratet_ba; relden = c.cratet_relden
     if misscr
         saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
         _backdate_dbh!(s)                              # DENSE: t.dbh := WK3 (backdated, calibration-period dbh)
-        bau = _cr_badist_bau(t)                        # BADIST BAU-above-class on the BACKDATED dbh
-        compute_density!(s)                            # backdated per-acre stand density (BA, CCF)
-        ba = p.basal_area <= 0.0f0 ? 25.0f0 : p.basal_area
-        relden = stand_ccf(s)
+        bau = _cr_badist_bau(t)                        # CROWN's BADIST (LSTART ⇒ TDBH=WK3) over the live records
         @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end   # restore CURRENT dbh (ICLS + downstream use it)
-        compute_density!(s)                            # restore CURRENT-dbh stand density
     end
     @inbounds for i in 1:t.n
         ab = t.birth_age[i]
@@ -459,7 +470,7 @@ function _cr_dub_ages!(s::StandState)
         bautba = 0.0f0
         if bau !== nothing
             icls = trunc(Int, t.dbh[i] + 1.0f0); icls > 41 && (icls = 41)   # CURRENT dbh (cratet.f:548 D1=DBH)
-            bautba = ba > 0.0f0 ? bau[icls] / ba : 0.0f0; bautba < 0.0f0 && (bautba = 0.0f0)
+            bautba = bau[icls] / ba; bautba < 0.0f0 && (bautba = 0.0f0)          # findag.f BAUTBA=BAU(ICLS)/BA
         end
         sitage = cr_fndag(imodty, p.sp_site_index[sp], h, bautba, relden, sp)
         sitage > 0.0f0 && (t.birth_age[i] = sitage)   # cratet.f FINDAG: IF(SITAGE>0)ABIRTH=SITAGE — LBIRTH (age_known) stays as input (intree.f)
