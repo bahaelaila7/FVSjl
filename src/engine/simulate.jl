@@ -1407,7 +1407,6 @@ function run_keyfile(keypath::AbstractString;
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
     kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
-    ifint_carry = Ref(0)                          # IFINT (CONTRL COMMON) as the previous stand left it
     for s in each_stand(keypath; variant = variant, faithful = faithful)
         s.control.kt_cratet_ierrck = kt_ierrck
         notre!(s)
@@ -1451,10 +1450,11 @@ function run_keyfile(keypath::AbstractString;
         # PRTRLS(1) (fvs.f:328 pre-projection with the cycle-1 options, fvs.f:412 at each cycle end): one
         # FVS_TreeList block per TREELIST request accomplished this cycle (none without a TREELIST activity).
         # PrdLen = IFINT (dbstrls.f): per cycle grincr.f:65 sets it to the cycle just grown; the inventory list sees
-        # the DB DG_MEASURE IFIX(FINT) (dbsstandin.f:702) or else whatever the COMMON still holds from the previous
-        # stand (0 at the start of a run).
+        # the DB DG_MEASURE IFIX(FINT) (dbsstandin.f:702) or else grinit's IFINT (10; 5 in SN/OC/OP) — the GROWTH
+        # keyword changes FINT only (initre.f:829 has the IFINT line commented out).
         hook = tl_on ? (st, yr, pl, cy) -> begin
-            pl_eff = cy == 0 ? (st.control.dbs_ifint >= 0 ? Int(st.control.dbs_ifint) : ifint_carry[]) : pl
+            pl_eff = cy == 0 ? (st.control.dbs_ifint >= 0 ? Int(st.control.dbs_ifint) :
+                                (st.variant isa Southern || st.variant isa OregonCoast || st.variant isa Olympic) ? 5 : 10) : pl
             for _ in prtrls_requests!(st, 1, cy == 0 ? 1 : cy; lstart = cy == 0)
                 push!(tl_cycles, treelist_snapshot(st, yr, pl_eff; cycle = cy))
             end
@@ -1466,10 +1466,6 @@ function run_keyfile(keypath::AbstractString;
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
                        dm_collect = dm_rows, dm_top4 = dm_top4,
                        canprof_collect = cprof_rows, strclass_collect = strcl_rows)
-        let nc = Int(s.control.ncycle_eff) < 1 ? Int(s.control.ncycle) : Int(s.control.ncycle_eff)   # IFINT left for the next stand
-            ifint_carry[] = nc >= 1 ? Int(cycle_period_at(s.control, nc - 1)) :
-                            (s.control.dbs_ifint >= 0 ? Int(s.control.dbs_ifint) : ifint_carry[])
-        end
         carb_rows === nothing ||
             write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
         # COVER report (CVOUT): "CANOPY COVER STATISTICS" table, appended after the .sum

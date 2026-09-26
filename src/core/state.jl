@@ -358,8 +358,8 @@ mutable struct Control
     # carries it from stand to stand.
     kt_cratet_ierrck::Int32
     # IFINT as dbsstandin.f:700-703 leaves it: IFIX(FINT) whenever the DB supplies a DG_MEASURE column (-1 = never set).
-    # Before cycling, IFINT is only ever set there (grincr.f:65 sets it per cycle), so the inventory FVS_TreeList's
-    # PrdLen is this value, else the COMMON's carry-over (0 in a fresh run).
+    # Before cycling only grinit (IFINT=10; 5 in SN/OC/OP) and this set it (grincr.f:65 sets it per cycle), so the
+    # inventory FVS_TreeList's PrdLen is this value, else grinit's.
     dbs_ifint::Int32
 end
 
