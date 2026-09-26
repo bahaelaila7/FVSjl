@@ -159,7 +159,9 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     # BM follows FVS's IND lifecycle exactly (dense.f:285-297 / avht40.f walk the CURRENT IND, no own sort):
     # CRATET's IND at cycle 0 (bm_cratet_ind!), a fresh RDPSRT(DBH,.TRUE.) everywhere else (gradd.f:186,
     # cuts.f:302/1840, esnutr.f:129/325). The empirical double sort below stays for the other variants.
-    if s.variant isa BlueMountains && !legacy_double
+    # CI too: ci/cratet.f:230-233/:337 and ci/gradd.f:186 are the same pair of sorts (FIA 753188889290487 cycle-1
+    # ATAVH live 71.15 = the IND1-seeded walk; the double sort gave 70.95 ⇒ every CIVAR RELHT/PCTRED off).
+    if (s.variant isa BlueMountains || s.variant isa CentralIdaho) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
         avh = 0f0; ssumn = 0f0

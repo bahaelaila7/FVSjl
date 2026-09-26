@@ -58,6 +58,11 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
+    # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (the DG measurement period: GROWTH card / FIA DG_MEASURE, else
+    # grinit's), later cycles = the previous cycle's length.
+    oldfnt = icyc1 ? ((s.control.growth_dg_set && s.control.growth_fint > 0f0) ? s.control.growth_fint :
+                      Float32(dg_measure_period(s.variant))) :
+                     Float32(max(1, cycle_period_at(s.control, Int(s.control.cycle) - 1)))
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -67,7 +72,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         dgi = t.diam_growth[i]
         ip = d <= 5f0 ? 2 : 1
         gmult = ip == 1 ? gmult1 : gmult2
-        wk1 = t.dg_prev[i]; oldfnt = 10f0
+        wk1 = t.dg_prev[i]
         dgt = wk1 / oldfnt
         d <= 1f0 && dgt < 0.05f0 && (dgt = 0.05f0)
         (1f0 < d <= 5f0) && dgt < 0.05f0 && (dgt = 0.05f0 * (5f0 - d) / 4f0)
@@ -77,7 +82,8 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         g = g * gmult
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
               0.554421f0 / dd + CI_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
-        rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
+        rlim = (11 <= sp <= 17 || sp == 19) ? 70f0 : 88.5f0          # ci/morts.f:331-338 CASE(11:17,19) vs DEFAULT
+        rip > rlim && (rip = rlim); rip < -rlim && (rip = -rlim)
         rip = 1f0 / (1f0 + exp(rip))
         rip = rip * (ip == 1 ? rein1 : rein2)
         ripp = ba * rz

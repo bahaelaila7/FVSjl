@@ -65,6 +65,7 @@ using FVSjl
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant
+    include("unit/test_ci_regent_live.jl")  # CI REGENT/HTGF tripling/morts WK1/CRATET IND: 5 FIA stands, .sum rows + every 2029 FVS_TreeList record vs live FVSci_g16
     include("unit/test_tt_crwidth.jl")     # TT FVS_TreeList CrWidth via national cwcalc.f TTMAP (+4 codes 20205/09305/10805/31206) — 4000/4000 vs FVStt_clean, 16th variant
     include("unit/test_tt_mortality.jl")   # TT/Teton morts.f label-10 D10-recalibration self-thin loop (Zeide-SDI, like UT) — fixes dense conifer cyc1 self-thin under-fire (CN 388908802489998 2967→2682)
     include("unit/test_ut_crwidth.jl")     # UT FVS_TreeList CrWidth via national cwcalc.f UTMAP (+3 codes 01505/81402/10201) — 4000/4000 vs FVSut_clean, 17th variant
