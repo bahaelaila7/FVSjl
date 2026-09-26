@@ -50,6 +50,19 @@ const SO_VOLEQ = String[
     "616BEHW768", "616BEHW815", "616BEHW920", "616BEHW431", "616BEHW475",
     "616BEHW478", "616BEHW299", "616BEHW998"]
 
+# VOLEQDEF R6_EQN for the Fremont (602) and Winema (620) forests (IFOR 2/3, also the 7710/7711 reservations) —
+# read off the live FVSso_g16 equation table at STDINFO 602/620. It differs from the Deschutes (601) / Warm
+# Springs (799) table above for 12 species (e.g. DF I00FW2W017, IC I00FW2W202, SP/SH/SF/WL Behre). jl used the
+# 601 table on every R6 forest (measured cycle-0 SP D34.6 TCuFt 238.4 vs live 291.7 on STDINFO 602).
+const SO_VOLEQ_FR = String[
+    "616BEHW119", "616BEHW117", "I00FW2W017", "I11FW2W017", "616BEHW264",
+    "I00FW2W202", "I00FW2W108", "616BEHW093", "616BEHW021", "I00FW2W122",
+    "616BEHW064", "I11FW2W017", "616BEHW019", "616BEHW011", "616BEHW022",
+    "616BEHW101", "616BEHW073", "616BEHW242", "616BEHW263", "616BEHW231",
+    "616BEHW352", "616BEHW351", "616BEHW312", "616BEHW746", "616BEHW747",
+    "616BEHW768", "616BEHW815", "616BEHW920", "616BEHW431", "616BEHW475",
+    "616BEHW478", "616BEHW299", "616BEHW998"]
+
 # SO Behre per-tree volume — reuse the BM R6 machinery + SO form class (mirrors ca_behre_vol / ec_behre_vol).
 function so_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
     fclass = so_formcl(sp, ifor, d)
@@ -95,7 +108,7 @@ function compute_volumes_so!(s::StandState)
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
-        eq = SO_VOLEQ[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+        eq = (ifor == 2 || ifor == 3) ? SO_VOLEQ_FR[sp] : SO_VOLEQ[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
         # vols.f:150 BARK=BRATIO at the START-of-cycle DBH (stashed vol_bark; grown-DBH bark at cycle 0 / dead).
         bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : so_bratio(sd, sp, d)
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h

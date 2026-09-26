@@ -33,34 +33,54 @@ const WS_SDICON = Float32[
     return ifor
 end
 
+# ws/forkod.f reservation pseudo-codes → pre-remap IFOR (31 CASEs, extracted from the source).
+const WS_FOR_RESERV = Dict{Int,Int}(
+    7712=>13, 7713=>13, 7715=>13, 7801=>2, 7808=>2, 7814=>9, 7817=>4, 7825=>9, 7827=>3, 7828=>9, 7832=>5,
+    7835=>9, 7847=>11, 7849=>11, 7850=>8, 7851=>8, 7852=>8, 7853=>8, 7854=>8, 7855=>8, 7856=>8, 7857=>8,
+    7858=>8, 7859=>11, 7860=>8, 7861=>8, 7862=>8, 7863=>11, 7865=>8, 7866=>11, 7867=>8)
+const WS_GRINIT_IFOR = 6          # ws/grinit.f IFOR=6 (517 Tahoe): the value FORKOD keeps when no code matches
+const WS_GRINIT_TLAT = 39f0       # ws/grinit.f TLAT=39.
+
+"""ws/forkod.f — KODFOR → IFOR, IGL, TLAT and KODFOR=JFOR(IFOR).
+ * 5-digit location codes (≥40000): KFOR1=KODFOR/100, KDIS=KODFOR−KFOR1·100. For the listed forests IFOR is the
+   FIRST nearest JFOR (MINLOC) and 503/511/513/515/516/517 set TLAT from the district; any other KFOR1 is
+   "not found" (ERRGRO 3, IFOR unchanged).
+ * 31 reservation pseudo-codes map to a fixed IFOR.
+ * Anything else must match JFOR exactly; not found ⇒ IFOR stays at grinit's 6 (517) and TLAT at grinit's 39.
+   A 3-digit code NEVER sets TLAT (measured: live HTGF debug ITLAT=39 for both STDINFO 516 and 505).
+ * Then IFOR 7-11→3, 12→1, 13→5; IGL=KFOR(IFOR)=1 when found; KODFOR=JFOR(IFOR).
+Previously the not-found fallback was IFOR 1 (503), 3-digit codes set TLAT from the district table (516 → 38),
+and the reservation codes were unmapped."""
 function ws_forkod!(p)
     kodfor = Int(p.user_forest_code)
-    ifor = 0
-    if kodfor >= 40000                                 # 5-digit forest×100+district → nearest JFOR
-        kfor1 = kodfor ÷ 100
-        best = typemax(Int)
-        for (i, f) in enumerate(WS_JFOR); d = abs(f - kfor1); d < best && (best = d; ifor = i); end
-    else                                               # DEFAULT: exact 3-digit forest-code match
-        for (i, f) in enumerate(WS_JFOR); kodfor == f && (ifor = i; break); end
+    ifor = WS_GRINIT_IFOR; found = false
+    if kodfor >= 40000
+        kfor1 = trunc(Int, Float32(kodfor) / 100f0)       # INT(REAL(KODFOR)/100.0)
+        kdis = kodfor - kfor1 * 100
+        if kfor1 in (501, 502, 504, 507, 512, 519, 417, 503, 511, 513, 515, 516, 517)
+            best = typemax(Int)
+            for (k, f) in enumerate(WS_JFOR)               # MINLOC: first index of the minimum
+                dd = abs(f - kfor1); dd < best && (best = dd; ifor = k)
+            end
+            found = true
+            if     kfor1 == 503; p.latitude = kdis == 53 ? 39f0 : 38f0
+            elseif kfor1 == 511; p.latitude = kdis <= 52 ? 40f0 : 39f0
+            elseif kfor1 == 513; p.latitude = kdis <= 52 ? 36f0 : 35f0
+            elseif kfor1 == 515; p.latitude = kdis == 54 ? 36f0 : 37f0
+            elseif kfor1 == 516; p.latitude = kdis == 54 ? 37f0 : 38f0
+            elseif kfor1 == 517; p.latitude = 39f0
+            end
+        end
+    elseif haskey(WS_FOR_RESERV, kodfor)
+        ifor = WS_FOR_RESERV[kodfor]; found = true
+    else
+        k = findfirst(==(kodfor), WS_JFOR)
+        k !== nothing && (ifor = k; found = true)
     end
-    ifor == 0 && (ifor = 1)                            # not-found fallback (ws errgro path)
-    # ws/forkod.f:98-118 — forest-DEPENDENT stand latitude TLAT (feeds ILAT for HGLAT2/DGLAT9); keyed on the
-    # ORIGINAL forest code KFOR1 + district KDIS, NOT the remapped IFOR. Only these 6 R5 forests set TLAT
-    # explicitly; the FVS location code is region×10000+forest×100 (511 → KFOR1=511, KDIS=0). Without this jl
-    # left latitude 0 ⇒ ILAT=1 ⇒ wrong HGLAT2/DGLAT9 band for latitude-varying species (WF/RF/…).
-    kfor1 = kodfor >= 40000 ? kodfor ÷ 100 : kodfor
-    kdis  = kodfor >= 40000 ? kodfor - kfor1 * 100 : 0
-    tlat = 0f0
-    if     kfor1 == 503; tlat = kdis == 53 ? 39f0 : 38f0
-    elseif kfor1 == 511; tlat = kdis <= 52 ? 40f0 : 39f0
-    elseif kfor1 == 513; tlat = kdis <= 52 ? 36f0 : 35f0
-    elseif kfor1 == 515; tlat = kdis == 54 ? 36f0 : 37f0
-    elseif kfor1 == 516; tlat = kdis == 54 ? 37f0 : 38f0
-    elseif kfor1 == 517; tlat = 39f0
-    end
-    tlat > 0f0 && (p.latitude = tlat)
     ifor = _ws_forkod_remap(ifor)
+    found && (p.geo_location = Int32(1))                   # IGL = KFOR(IFOR) = 1
     p.forest_idx = Int32(ifor)
+    p.user_forest_code = Int32(WS_JFOR[ifor])
     return ifor
 end
 

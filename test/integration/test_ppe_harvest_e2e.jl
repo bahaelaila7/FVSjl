@@ -41,8 +41,8 @@ using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
 
     # --- cyc1/cyc2: SELECT bit-exact; CREDIT cornered to the EC growth residual (documented) ---
     #     FVSjl 2000: BBA 108.87 (oracle 110.2); 2010: 144.29 (oracle 146.6). Under-grows ≤1.6%.
-    @test round(r2.selected_resource, digits = 1) ≈ 326.6 atol = 0.2  # = 3 × 108.87 (FVSjl EC growth)
-    @test round(r3.selected_resource, digits = 1) ≈ 432.3 atol = 0.2  # jl SELF-snapshot (EC ATTEN port 2026-09-22 moved 432.9→432.3)
+    @test round(r2.selected_resource, digits = 1) ≈ 327.3 atol = 0.2  # jl SELF-snapshot (EC per-species PSIGSQ 2026-09-26 moved 326.6→327.3, toward oracle 330.48)
+    @test round(r3.selected_resource, digits = 1) ≈ 433.7 atol = 0.2  # jl SELF-snapshot (EC ATTEN 2026-09-22 432.9→432.3; EC PSIGSQ 2026-09-26 432.3→433.7, toward oracle 439.90)
     @test abs(r2.selected_resource - 330.48) / 330.48 < 0.02          # within the EC-growth corner vs oracle
     @test abs(r3.selected_resource - 439.90) / 439.90 < 0.02
 end

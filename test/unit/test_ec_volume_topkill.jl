@@ -31,18 +31,11 @@ const F = FVSjl
 
         @test !isempty(row)
         @test length(row) == length(gold)
-        # Every .sum column bit-identical at cyc0 (Year Age TPA BA SDI CCF TopHt QMD TCuFt MCuFt _ BdFt ...)
-        # EXCEPT col 24 = ACCRETION, which projects CYCLE-1 growth and is +1 (79 vs 78) since the 2026-09-23
-        # EC fixes (ATTEN pooling, RMAI=50 grinit default, dead-record crown dub, species-major crown order).
-        # Those moved EC's cycle-1 tree list MUCH closer to live — per-tree diffs 27 → 12 records — while this
-        # one rounded cell went from matching (by compensation) to +1. OPEN, owned by the EC certification;
-        # NOT re-pinned to jl's own value, which would bless a jl-vs-jl golden.
+        # Every .sum column bit-identical at cyc0 (Year Age TPA BA SDI CCF TopHt QMD TCuFt MCuFt _ BdFt ...),
+        # including col 24 = ACCRETION (cycle-1 growth). It was +1 (79 vs 78) from the 2026-09-23 EC fixes until the
+        # per-species EC PSIGSQ (2026-09-26) brought cycle-1 growth back to live.
         for (j, g) in enumerate(gold)
-            if j == 24
-                @test_broken row[j] == g
-            else
-                @test row[j] == g
-            end
+            @test row[j] == g
         end
         # Spotlight the volume columns the fix targets: TCuFt(9)=1615, MCuFt(10)=986, BdFt(12)=5073.
         @test row[9]  == "1615"   # total cubic — was 1617 before the CFTOPK trim
