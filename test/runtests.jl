@@ -83,6 +83,7 @@ using FVSjl
     include("unit/test_wsbwe.jl")          # WSBWE beachhead: BWERAN RNG seed 55329 bit-exact vs pristine wsbwe/bweran.f + WSBW keyword reader (keywds.f opt 8) + INERT seam
     include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
+    include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
     include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
