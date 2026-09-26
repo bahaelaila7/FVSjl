@@ -120,7 +120,8 @@ function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             i = ind1[k]
             saved_dbh[i] >= 5.0f0 && continue                 # regent.f:378 DBH<5 (current dbh)
             hg = t.ht_growth[i]; hg < 0.001f0 && continue     # regent.f:379 measured HTG≥0.001
-            hb = t.height[i] - hg; hb < 0.01f0 && continue    # regent.f:376 backdated H (IHTG<2)
+            hb = s.control.growth_ihtg < 2 ? t.height[i] - hg : t.height[i]   # nc/regent.f:384 IF(IHTG.LT.2) H=H-HTG
+            hb < 0.01f0 && continue
             cr = Float32(t.crown_pct[i]) * 0.1f0              # ICR/10
             relht = avh > 0f0 ? hb / avh : 1f0; relht > 1.5f0 && (relht = 1.5f0)
             xhtgr = nc_htgr5(sp, ssite, ba, relht, cr, hb)    # predicted; RHCON=1 ⇒ EDH=XHTGR

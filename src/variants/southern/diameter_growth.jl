@@ -972,7 +972,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             for k in i1:i2
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454)
-                hstart = t.height[i] - t.ht_growth[i]             # start-of-period H (IHTG<2, regent.f:534)
+                hstart = s.control.growth_ihtg < 2 ? t.height[i] - t.ht_growth[i] : t.height[i]   # cr/regent.f:523 IF(IHTG.LT.2) H=H-HTG
                 hstart < 0.01f0 && continue
                 if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:542-549)
                     # AG1 = INVERSE Sheppard from the start height H (regent.f:542), NOT birth_age — the
@@ -1034,7 +1034,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                   # backdated DBH<5 (regent.f:652)
                 hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required (regent.f:721)
-                hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2, regent.f:649)
+                hb = s.control.growth_ihtg < 2 ? t.height[i] - hg : t.height[i]   # ut/regent.f:652 IF(IHTG.LT.2) H=H-HTG
+                hb < 0.01f0 && continue
                 local edh::Float32
                 if sp == 6                                    # aspen — Sheppard inverse from backdated H (regent.f:685-693)
                     ag1 = (hb * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
