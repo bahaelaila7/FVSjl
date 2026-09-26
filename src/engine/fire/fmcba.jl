@@ -85,6 +85,12 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # PERCOV drives the FMBURN wind reduction (WMULT 0.5 vs 0.197 ⇒ FWIND 5 vs 1.97), so the surface fire was
     # over-driven into a spurious PASSIVE crown fire (SCH 15.8 vs 2.58) ⇒ ~213 TPA + big-tree over-kill.
     _ie_fm = s.variant isa InlandEmpire || s.variant isa Kootenai
+    # EM CRWDTH via em_cwcalc (em/cwidth.f → em/cwcalc.f IWHO=0: the western Crookston/Bechtold library with
+    # BAREA=BA, EL=ELEV, HI=Hopkins index, cwcalc.f:563-576). Without it EM fell to the generic `crown_width`
+    # (0.5 ft default) ⇒ PERCOV 0.55 vs live 38.71 ⇒ WMULT 0.5 vs 0.197 ⇒ FWIND 5.0 vs 1.97 + wrong FLIVE.
+    # BAREA = the stand BA in every cycle (MEASURED vs FVSem_g16 DEBUG FMCBA: PERCOV cyc1 36.7793 = live 36.78
+    # with BA; the NC-style load-time BAREA=1 gives 38.07), unlike NC/WS/CA/OC/OP's cycle-1 clamp.
+    _em_fm = s.variant isa EasternMontana
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -96,6 +102,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # the Crookston BAREA term uses the actual FFE stand BA (~85 on wct01), NOT the BAREA=1 load-time clamp.
     # MEASURED vs FVSwc_clean cyc0: WF CW 10.31 needs (BA+1)^e with BA≈85 (BA=1 gives 8.74). So WC uses _cr_ba.
     _nc_ba = ((_nc_fm || _ws_fm || _ca_fm || _oc_fm || _op_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
+
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
@@ -116,6 +123,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
              _ie_fm ? ie_crown_width(sp, d, t.height[i], Int(t.crown_pct[i]), s.plot.basal_area) :  # IE/KT ccfcal MODE=2
+             _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
+                                _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]

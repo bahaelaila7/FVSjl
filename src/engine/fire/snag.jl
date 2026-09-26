@@ -39,7 +39,9 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     else
         base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
         modrate = min(1f0, base * fallx)               # FALLX: SNAGFALL-overridable rate correction
-        linear = d < 12f0 && ksp != 2                  # small snag (redcedar=2 keeps last-5% logic)
+        # small snag: SN/CS keep the last-5% logic for redcedar (ksp 2); em/fmsfall.f:50 has no species
+        # exception (EM ksp 2 is western larch) — every snag under 12" falls linearly.
+        linear = d < 12f0 && (ksp != 2 || variant isa EasternMontana)
     end
     linear && return modrate * origden
     x = (0.05f0 - 1f0) / (-modrate)                    # year at which 5% remain
@@ -128,7 +130,10 @@ function snag_bole_carbon(s::StandState)::Float32
         # ORIGINAL tree (dbh, HTDEAD) TRUNCATED at htcur via CFTOPK (the Behre top-kill reduction, fmsvol.f:
         # 101-142), i.e. the fat LOWER bole — NOT a normal short tree of (dbh, htcur). Scale the stored bole by
         # the CFTOPK merch ratio. No-op at the default HTX=0 (htcur ≡ height ⇒ frozen bole, bit-exact).
-        if !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+        if s.variant isa EasternMontana && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+            sp = Int(sn.sp[i])       # EM FMSVOL(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
+            b = em_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
+        elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
             # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
             # Clark volume (v4+v7 merch, v1 total — the same basis as their live-tree merch_cuft_vol / bolevol);
@@ -368,6 +373,29 @@ end
 # HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
 _snag_htr1(::AbstractVariant) = 0.1f0
 _snag_htr1(::Northeast) = 0.015f0
+_snag_htr1(::EasternMontana) = 0.0228f0   # em/fmvinit.f HTR1
+
+# CWD2 (fmcwd.f:207-246 → the label-1000 cone split): the stem piece a snag loses to top breakage (between its new
+# height LOHT and old height HIHT) goes to down wood, split across the size classes by the same cone taper as the
+# CWD1 fall, DIF = MAX(0,P(LOCUT)−P(HICUT))·TVOLI with R1 widened by LOHT (fmcwd.f:347). Not normalized (FVS adds
+# the raw cone slice). Enabled per variant as each is validated against live (EM first); the others still drop it.
+_ffe_cwd2(v) = v isa EasternMontana
+function _cwd2_slices(d::Float32, htd::Float32, loht::Float32, hiht::Float32)::NTuple{9,Float32}
+    d <= 0.1f0 && (d = 0.1f0)
+    rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
+    bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))
+    lo = max(0.10f0, loht)
+    r1 = d * 0.0416666667f0
+    htd > 4.5f0 && (r1 = r1 + (lo * ((r1 * htd) / (htd - 4.5f0))))
+    r1sq = r1 * r1
+    return ntuple(Val(9)) do j
+        bphj = bph[j + 1]; bphjm1 = bph[j]
+        (hiht <= bphj || lo > bphjm1) && return 0f0
+        hicut = min(hiht, bphjm1); locut = max(lo, bphj)
+        locut == hicut && return 0f0
+        max(0f0, _cwd_pat(locut, r1, htd, r1sq) - _cwd_pat(hicut, r1, htd, r1sq))
+    end
+end
 
 """
     ffe_snag_height_loss!(s, nyears) -> nothing
@@ -404,6 +432,18 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
         htnew = htc * (1f0 - lossfrac)^Float32(nyears)
         htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
+        if _ffe_cwd2(s.variant) && htnew < htc            # CWD2: the broken-off piece → down wood (fmsnag.f:254)
+            a = sn.fallvol[i] > 0f0 ? sn.fallvol[i] : sn.bolevol[i]       # TVOLI·V2T (tons/stem)
+            if a > 0f0
+                sl = _cwd2_slices(sn.dbh[i], htd, htnew, htc)
+                idc = ffe_dkr_cls(s, Int(sn.sp[i]))
+                for j in 1:9
+                    sl[j] > 1f-9 || continue
+                    sn.den_hard[i] > 0f0 && (fs.cwd[j, 2, idc] += sl[j] * a * sn.den_hard[i])          # K=2 hard, SCNV 1.0
+                    sn.den_soft[i] > 0f0 && (fs.cwd[j, 1, idc] += sl[j] * a * sn.den_soft[i] * 0.80f0) # K=1 soft, SCNV 0.8
+                end
+            end
+        end
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
     end
@@ -505,7 +545,8 @@ function snag_detail(s::StandState)
         (denih + denis) > 0f0 || continue
         d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
         sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
-        vol = _snag_merch_cuft_on(s, sp, d, h)
+        vol = s.variant isa EasternMontana ? em_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
+              _snag_merch_cuft_on(s, sp, d, h)
         dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
         dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
         ishard = Float32(iyr - 1 - yd) < dktime
@@ -549,13 +590,14 @@ function ffe_seed_input_snags!(s::StandState)
     (fs === nothing || !fs.active || s.trees.ndead <= 0) && return s
     t = s.trees; coef = s.coef; c = s.control; sd = coef.species
     v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
-    # Input snags PRE-EXIST the inventory: FVS books the input dead trees at IY(1)−FINTM (a measurement
-    # period before the start), so the FFE snag falldown (update_snags!, which ages by current−deathyr)
-    # ages them from the inventory rather than holding them frozen-full the first cycle. Use the cycle
-    # period as FINTM (the common no-GROWTH-keyword case).
-    per = round(Int, c.year); per < 1 && (per = 5)
-    yr = Int(current_cycle_year(s)) - per
+    # Input snags PRE-EXIST the inventory: FVS books the input dead trees at YEAR = IY(1)−IFIX(FINTM)
+    # (fmsdit.f:135, all 24 variants), FINTM = the MORTALITY observation period (GROWTH field 5 / FIA
+    # MORT_MEASURE, default 5 — grinit.f:193), NOT the cycle length. YRDEAD drives the hard→soft DKTIME flip
+    # (fmsnag.f:282): with a 10-yr cycle the old `c.year` back-dated them 10 yr, so by 2022 jl reported 14 TPA
+    # of EM 196378260020004's <12" input snags soft vs live 0 (all hard until age ≥ DKTIME≈19 yr).
+    yr = Int(current_cycle_year(s)) - unsafe_trunc(Int, c.growth_fintm)
     s.control.merch_init || init_merch_standards!(s)
+    s.variant isa EasternMontana && return _seed_input_snags_binned!(s, yr)
     @inbounds for i in (t.n + 1):(t.n + t.ndead)
         den = t.tpa[i]; d = t.dbh[i]
         (den > 0f0 && d >= 1f0) || continue
@@ -579,6 +621,8 @@ function ffe_seed_input_snags!(s::StandState)
             mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
         elseif s.variant isa BlueMountains
             mcuft = bm_snag_bole_cuft(s, sp, d, h)    # BM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
+        elseif s.variant isa EasternMontana
+            mcuft = em_snag_bole_cuft(s, sp, d, h)    # EM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa OregonCoast
             mcuft = oc_tree_cuft(sp, d, h)   # OC BLM total cubic (R8-Clark returns 0 for 'B…' vol_eq ⇒ Jenkins over-book)
         elseif s.variant isa Olympic
@@ -608,6 +652,52 @@ function ffe_seed_input_snags!(s::StandState)
         # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
         # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+    end
+    return s
+end
+
+# FMSADD ITYP=3 (fmsadd.f:98-364, identical in all 24 variants) — the input dead trees are BINNED into snag records
+# by (species, DBHCL=INT(D/2+1) capped 19, HTCL split at MIDHT when the class height range exceeds 20 ft), exactly like
+# mortality snags (book_mortality_snags!): DBHS and HTDEAD are density-weighted RUNNING means (HTDEAD over
+# MAX(HT, NORMHT·.01)), while the current height HTIH/HTIS is OVERWRITTEN by each added tree — ITRUNC·.01 for a
+# broken top, else the running HTDEAD (fmsadd.f:345-353). The dead records sit at the top of the tree arrays
+# (MAXTRE downward), so FMSADD's I=1..MAXTRE loop visits them in REVERSE input order. The bole (FMSVOL) is on the
+# record's class-mean DBHS/HTDEAD; the dead-root biomass stays per tree (×(1−CRDCAY)^10, fmsadd.f:313-320).
+# EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Enabled per variant as validated (EM).
+function _seed_input_snags_binned!(s::StandState, yr::Integer)
+    fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species
+    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
+    rng = (t.n + t.ndead):-1:(t.n + 1)                          # FMSADD I-order: last input record first
+    hof(i) = t.height[i] > 0f0 ? t.height[i] :
+             max(4.5f0, _htdbh_height(sd, Int(t.species[i]), t.dbh[i], ifor; isne = s.variant isa Northeast))
+    minht = Dict{Tuple{Int,Int},Float32}(); maxht = Dict{Tuple{Int,Int},Float32}()
+    @inbounds for i in rng
+        (t.tpa[i] > 0f0 && t.dbh[i] >= 1f0) || continue
+        k = (Int(t.species[i]), _snag_dbhcl(t.dbh[i])); h = hof(i)
+        minht[k] = min(get(minht, k, 1000f0), h); maxht[k] = max(get(maxht, k, 0f0), h)
+    end
+    keys_ = Tuple{Int,Int,Int}[]; recs = Dict{Tuple{Int,Int,Int},Vector{Float32}}()   # [den, dbhs, htdead, htih]
+    @inbounds for i in rng
+        den = t.tpa[i]; d = t.dbh[i]
+        (den > 0f0 && d >= 1f0) || continue
+        sp = Int(t.species[i]); h = hof(i); dbhcl = _snag_dbhcl(d)
+        mh = (maxht[(sp, dbhcl)] - minht[(sp, dbhcl)]) > 20f0 ? (maxht[(sp, dbhcl)] + minht[(sp, dbhcl)]) / 2f0 : 0f0
+        htcl = (mh <= 0f0 || h < mh) ? 1 : 2
+        k = (sp, dbhcl, htcl)
+        r = get!(() -> (push!(keys_, k); Float32[0f0, 0f0, 0f0, 0f0]), recs, k)
+        hd = t.norm_ht[i] > 0 ? max(h, t.norm_ht[i] * 0.01f0) : h
+        totden = r[1] + den
+        r[3] = (r[3] * r[1] + hd * den) / totden             # HTDEAD running mean (MAX(HT,NORMHT·.01))
+        r[2] = (r[2] * r[1] + d * den) / totden              # DBHS running mean
+        r[1] = totden
+        r[4] = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : r[3]   # HTIH = this tree's ITRUNC, else the running HTDEAD
+        _, _, rbio = jenkins_biomass(coef, sp, d)
+        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+    end
+    @inbounds for k in keys_
+        r = recs[k]; sp = k[1]
+        bolevol = em_snag_bole_cuft(s, sp, r[2], r[3]) * v2t[sp] / 2000f0
+        add_snag!(fs, sp, r[2], r[1], yr; bolevol = bolevol, height = r[3], htcur = r[4])
     end
     return s
 end
@@ -758,6 +848,8 @@ function ffe_add_snaginit!(s::StandState)
             mcuft = cr_snag_bole_cuft(s, sp, d, h); tcuft = mcuft
         elseif s.variant isa InlandEmpire || s.variant isa Kootenai
             mcuft = ie_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # IE/KT Region-1 NVEL total cubic (bole==fall==TCF)
+        elseif s.variant isa EasternMontana
+            mcuft = em_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # EM FMSVOL TCF (bole==fall==TCF)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # NC total cubic (bole==fall==TCF)
         elseif s.variant isa OregonCoast

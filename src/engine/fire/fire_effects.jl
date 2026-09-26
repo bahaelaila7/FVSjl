@@ -47,6 +47,12 @@ const _CR_FM_BARK_B1 = Float32[
 const _IE_FM_BARK_B1 = Float32[
     0.035, 0.063, 0.063, 0.046, 0.040, 0.035, 0.028, 0.036, 0.041, 0.063, 0.040,
     0.030, 0.030, 0.050, 0.030, 0.025, 0.025, 0.044, 0.038, 0.040, 0.027, 0.026, 0.040]
+# EM fire bark (em/fmbrkt.f) — plain DBH·B1[sp], 19 species (several borrow the IE value). Without it EM fell to
+# the SN `_FM_BARK_B1[bark_eqnum]` table ⇒ bark far too thin for the big DF/LP ⇒ fire over-kill (196378260020004
+# DF 17.5": PMORT 0.538 vs live 0.0925; LP 7.6": 0.749 vs 0.675).
+const _EM_FM_BARK_B1 = Float32[
+    0.030, 0.063, 0.063, 0.030, 0.050, 0.025, 0.028, 0.036, 0.041, 0.063,
+    0.038, 0.044, 0.038, 0.038, 0.038, 0.038, 0.027, 0.025, 0.038]
 # BM fire bark (bm/fmbrkt.f, FOFEM V5.0 Reinhardt) — plain DBH·B1[sp], 18 species.
 const _BM_FM_BARK_B1 = Float32[
     0.035, 0.063, 0.063, 0.046, 0.040, 0.025, 0.028, 0.036, 0.041, 0.063,
@@ -131,6 +137,7 @@ const _OP_FM_BARK_B1 = Float32[
     # IE (23 sp) and KT (11 sp = first 11 of IE) share ie/fmbrkt.f's plain DBH·B1 form.
     (variant isa InlandEmpire || variant isa Kootenai) && return dbh * _IE_FM_BARK_B1[Int(sp)]
     variant isa BlueMountains && return dbh * _BM_FM_BARK_B1[Int(sp)]   # bm/fmbrkt.f
+    variant isa EasternMontana && return dbh * _EM_FM_BARK_B1[Int(sp)]  # em/fmbrkt.f
     variant isa Klamath && return dbh * _NC_FM_BARK_B1[Int(sp)]         # nc/fmbrkt.f
     variant isa WestSierra && return dbh * _WS_FM_BARK_B1[Int(sp)]      # ws/fmbrkt.f
     variant isa CentralCalifornia && return dbh * _CA_FM_BARK_B1[Int(sp)]  # ca/fmbrkt.f
@@ -236,7 +243,8 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     # TPA 112 vs oracle 218) once the fuel-model selection was corrected (the low-scorch surface fire exposed it).
     # WC (like NE/LS/CR/BM/NC/WS/CA) gates the Regelbrugge-Smith groups (1-5) to VARACD=='SN'/'CS' ONLY
     # (wc/fmeff.f), so it uses the base Reinhardt crown-scorch+bark logistic (group 6) for EVERY species.
-    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa Klamath || variant isa WestSierra || variant isa CentralCalifornia || variant isa WestCascades || variant isa PacificNorthwest || variant isa EastCascades || variant isa SouthCentralOregon) ? 6 :
+    # EM likewise (em/fmeff.f:196 gates groups 1-5 to SN/CS) — its species numbers never hit the SN map anyway.
+    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa EasternMontana || variant isa Klamath || variant isa WestSierra || variant isa CentralCalifornia || variant isa WestCascades || variant isa PacificNorthwest || variant isa EastCascades || variant isa SouthCentralOregon) ? 6 :
         variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height

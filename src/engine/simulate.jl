@@ -602,11 +602,12 @@ sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md 
 """
 function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
                              stash = nothing,
-                             post_fire::Union{Nothing,Function} = nothing)
+                             post_fire::Union{Nothing,Function} = nothing,
+                             book_snags::Bool = true)
     t = s.trees
     fire_now = _fire_due(s)   # OPCYCL: fires in the cycle whose range contains fire_year (incl. mid-cycle)
     if !fire_now
-        mortality!(s, s.variant; fint = fint)                  # MORTS (FVS GRINCR order)
+        mortality!(s, s.variant; fint = fint, book_snags = book_snags)   # MORTS (FVS GRINCR order)
         return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)
     end
     # FIRE CYCLE — FVS order: MORTS (GRINCR, on the ORIGINAL ITRN records — VARMRT distributes a stand
@@ -949,7 +950,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
     # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
     s.control.dm_mrt_defer = mis_post
-    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf)
+    # MISTOE post-TRIPLE seam (mis_post, below): FVS books the cycle's snags at FMKILL(2) (gradd.f → FMSADD(YEAR,4))
+    # from the FINAL post-TRIPLE WK2 — AFTER MISMRT has MAX-combined the dwarf-mistletoe kill (mistoe.f:522). Booking
+    # inside mortality! (pre-TRIPLE, pre-MISMRT) dropped every DM-killed tree from the snag pools (EM 196378260020004
+    # cycle 1: LP snags 11.77 vs live 15.38 TPA — the 3.6 TPA MISMRT added). Defer the booking to that seam.
+    mis_book = mis_post && !rd_post_triple
+    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !mis_book)
     s.control.dm_mrt_defer = false
     # WRD rd/rdend.f: reconcile the RD infected-tree kill (RRKILL) with FVS's just-applied
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
@@ -1068,6 +1074,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
+            # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
+            mis_book && book_mortality_snags!(s, Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
