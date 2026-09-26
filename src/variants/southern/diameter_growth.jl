@@ -526,13 +526,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _saved_avh = s.plot.avg_height
     s.plot.avg_height = _cur_avh
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
-    # EM's LSTART dub (em/dgdriv.f:770 CALL DGF(WK3), DO 220) runs in THIS context — FORTYP 0, current AVH and the
-    # current RMSQD for aspen DGFASP (FVSem_g16 DEBUG: the dub DGF prints the same LN(DDS) as this first call,
-    # AS 3.5" 0.8561; a re-run after the RMSQD stash is cleared gave 0.8104). Keep WK2/WK3 for em_cycle0_wk1!.
-    if s.variant isa EasternMontana
-        c.dub_wk2 = Float32[s.scratch.wk[2, i] for i in 1:t.n]
-        c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
-    end
+    _em_dub_rmsqd = _TT_CUR_RMSQD[]   # EM's :770 dub DGF runs with the same current-RMSQD stash (aspen DGFASP)
     _TT_CUR_RMSQD[] = -1.0f0     # #191/#195: clear the current-RMSQD stash (actual growth uses stand_qmd); unconditional to avoid leaks
     s.plot.avg_height = _saved_avh
     c.calib_dbh = Float32[]
@@ -708,8 +702,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
     # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
     # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
-    if s.variant isa BlueMountains
+    # EM (em/dgdriv.f:770 CALL DGF(WK3) → DO 220) is the same second call: after the correction terms are final — em/dgf.f
+    # adds COR(ISPC) into CONSPP/DDS (:485/:538/:559), so for a calibrated species the dub is NOT the first call's WK2
+    # (which ran with COR=0). Same context: FORTYP 0, current AVH, the current-RMSQD stash for aspen DGFASP.
+    if s.variant isa BlueMountains || s.variant isa EasternMontana
         _wk2_keep = s.scratch.wk[2, 1:t.n]
+        s.variant isa EasternMontana && (_TT_CUR_RMSQD[] = _em_dub_rmsqd)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
         dgf!(s, s.variant)
@@ -717,6 +715,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
         s.plot.forest_type = _sft; s.plot.avg_height = _savh
         s.scratch.wk[2, 1:t.n] .= _wk2_keep
+        _TT_CUR_RMSQD[] = -1.0f0
     end
 
     # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
