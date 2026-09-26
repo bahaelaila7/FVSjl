@@ -43,10 +43,17 @@ function _stkval_stocking(st::StandState)
     isct = st.control.sp_count_tab; ind1 = st.scratch.idx1
     dbh = st.trees.dbh; prob = st.trees.tpa; fiajsp = coef.code_fia
     b0t = coef.stock_b0; b1t = coef.stock_b1
-    eq999 = get(coef.fia_stock_eq, 999, 26)
+    # stkval.f:325-333 REDEFINES TAB3 at run time for every WESTERN variant (SELECT CASE(VARACD): all but
+    # CS/LS/NE/SN/ON): 299 "west other softwood" → eq 8, 998/999 → eq 26. The per-variant CSVs carry only the
+    # DATA values (299 → 0, 998/999 → 25), so a western OS record was stocked on eq 25 instead of 8 (EM regcal
+    # fixture: OS SS 9.57 vs live 4.49 ⇒ TOTSTK 102.85 vs 97.77 ⇒ stocking class 1 vs live 2).
+    west = !(variant_code(st.variant) in ("CS", "LS", "NE", "SN", "ON"))
+    _eqof(ifia) = west && ifia == 299 ? 8 : (west && (ifia == 998 || ifia == 999)) ? 26 :
+                  get(coef.fia_stock_eq, ifia, 0)
+    eq999 = west ? 26 : get(coef.fia_stock_eq, 999, 26)
     @inline function _coeffs(ispc::Int)
         ifia = _fia_code(fiajsp[ispc])
-        eq = get(coef.fia_stock_eq, ifia, eq999)
+        eq = _eqof(ifia)
         (eq < 1 || eq > 36) && (eq = eq999)
         b0 = b0t[eq]; b1 = b1t[eq]
         (b0 == 0f0 || b1 == 0f0) && (eq = eq999; b0 = b0t[eq]; b1 = b1t[eq])

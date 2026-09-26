@@ -57,9 +57,6 @@ const _RC_IE = Dict(1 => (668.18, 666.0), 3 => (688.55, 1083.0), 4 => nothing, 5
             "2020  90  3932 198  581 368  61  3.0  5475  1252     0  6069     0     0     0     0     0 198  581 368  61  3.0       0    0     0    13.9 901 31"]
     @test length(rows) >= 4
     for (k, g) in enumerate(gold)
-        gs = split(g)
-        @test rows[k][1:end-1] == gs[1:end-1]
-        # the trailing size/stocking class (FORTYP/STKVAL, report-only) differs in 2010: live 32, jl 31 (task #251)
-        k == 3 ? (@test_broken rows[k][end] == gs[end]) : (@test rows[k][end] == gs[end])
+        @test rows[k] == split(g)
     end
 end

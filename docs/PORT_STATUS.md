@@ -594,17 +594,23 @@ SNY", which gives a direct oracle; CORNEW = SNY/SNX.
   Each fixture is the PN inventory plus six HTG seedlings for each of 12 species, including 12-way DBH ties and
   two dead records.
 - All 15 EM and all 14 IE per-species sums equal live, across every sub-model.
-- EM runs 3 cycles per-tree exact (0/99 trees off; em-vol was 89–99/99). Every .sum field matches except the
-  2010 stocking class, which is FORTYP/STKVAL and tracked as #251.
+- EM runs 3 cycles per-tree exact (0/99 trees off; em-vol was 89–99/99), and every .sum field matches live.
+  That includes the trailing size/stocking class, after the STKVAL fix below.
 - IE per-tree mismatches at 2000 fall from 91/99 on master to 29/99. The remainder is IE's growth-side TTVAR,
   which is not yet in Fortran shape (#250).
 - Tiered fast tier: EM 130,863 → 130,769 cells (allowlist redrafted); IE and BM unchanged.
+
+**STKVAL (all western variants, #251).** `stkval.f:325-333` redefines TAB3 at run time for every variant except
+CS/LS/NE/SN/ON: FIA 299 ("west other softwood") → stocking equation 8, and 998/999 → 26. The per-variant CSVs
+carry only the eastern DATA values (299 → 0, 998/999 → 25). A western OS record was therefore stocked on
+equation 25: on the EM fixture, OS SS was 9.57 vs live 4.49, so TOTSTK was 102.85 vs 97.77 and the stocking class
+was 1 vs 2. This feeds the FORTYP group array and the .sum size/stocking class; western growth does not read the
+forest type.
 
 **Still open:**
 - **#249** — KT and CI have no REGCAL port at all, and TT needs an audit (in progress on branch
   `regcal-kt-ci`).
 - **#250** — the IE REGENT growth rewrite.
-- **#251** — the STKVAL stocking class.
 
 ## Known exceptions / not-yet-closed
 
