@@ -568,8 +568,11 @@ fire=FIRKIL + regular=WK2−FIRKIL).
         # BM vol_eq are NVEL FW2/616BEHW ⇒ _R8CLARK_VOL returns 0 ⇒ the snag bole collapsed to the cone floor
         # (~40× under). fmsvol.f non-eastern: VOL2HT=MAX(X,TCF) on the BM total cubic.
         return bm_snag_bole_cuft(s, sp, d, h)
-    elseif s.variant isa EasternMontana
-        return em_snag_bole_cuft(s, sp, d, h)   # EM FMSVOL VOL2HT=MAX(X,TCF) on the EM total cubic (NVEL codes)
+    elseif _ffe_west_vol(s.variant)
+        # {v}/fmsvol.f non-eastern (IE/KT/CI/TT/UT/EM): VOL2HT = MAX(X,TCF), TCF = the variant's NATCRS total cubic
+        # with no top-kill. Their vol_eq are NVEL FW2/MATW/DVE/Behre codes ⇒ the R8-Clark path below returns 0 ⇒
+        # the mortality snag bole collapsed to the cone floor (IE no-fire Standing_Dead flat ~1.6 vs live 12.8).
+        return ffe_west_snag_bole(s, sp, d, h)
     else
         prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
             ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])

@@ -253,7 +253,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                   max(0.005454154f0 * t.height[i], cr_snag_bole_cuft(s, sp, d, t.height[i])) :
                   s.variant isa Klamath ?
                   max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
-                  s.variant isa EasternMontana ? em_snag_bole_cuft(s, sp, d, t.height[i]) :   # EM FMSVOL TCF
+                  _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
                   max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
             add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
             # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead

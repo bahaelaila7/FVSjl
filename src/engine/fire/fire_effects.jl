@@ -53,6 +53,13 @@ const _IE_FM_BARK_B1 = Float32[
 const _EM_FM_BARK_B1 = Float32[
     0.030, 0.063, 0.063, 0.030, 0.050, 0.025, 0.028, 0.036, 0.041, 0.063,
     0.038, 0.044, 0.038, 0.038, 0.038, 0.038, 0.027, 0.025, 0.038]
+# CI / TT / UT fire bark (ci,tt,ut/fmbrkt.f) — plain DBH·B1[sp]; they fell to the SN B1[bark_eqnum] table.
+const _CI_FM_BARK_B1 = Float32[0.035, 0.063, 0.063, 0.046, 0.040, 0.035, 0.028, 0.036, 0.041, 0.063,
+    0.030, 0.025, 0.044, 0.025, 0.044, 0.030, 0.038, 0.040, 0.038]
+const _TT_FM_BARK_B1 = Float32[0.030, 0.030, 0.063, 0.030, 0.036, 0.044, 0.028, 0.036, 0.041, 0.063,
+    0.025, 0.025, 0.024, 0.040, 0.038, 0.044, 0.030, 0.038]
+const _UT_FM_BARK_B1 = Float32[0.030, 0.030, 0.063, 0.048, 0.031, 0.044, 0.028, 0.036, 0.041, 0.063,
+    0.030, 0.025, 0.045, 0.030, 0.025, 0.025, 0.030, 0.038, 0.038, 0.044, 0.024, 0.038, 0.030, 0.045]
 # BM fire bark (bm/fmbrkt.f, FOFEM V5.0 Reinhardt) — plain DBH·B1[sp], 18 species.
 const _BM_FM_BARK_B1 = Float32[
     0.035, 0.063, 0.063, 0.046, 0.040, 0.025, 0.028, 0.036, 0.041, 0.063,
@@ -138,6 +145,9 @@ const _OP_FM_BARK_B1 = Float32[
     (variant isa InlandEmpire || variant isa Kootenai) && return dbh * _IE_FM_BARK_B1[Int(sp)]
     variant isa BlueMountains && return dbh * _BM_FM_BARK_B1[Int(sp)]   # bm/fmbrkt.f
     variant isa EasternMontana && return dbh * _EM_FM_BARK_B1[Int(sp)]  # em/fmbrkt.f
+    variant isa CentralIdaho && return dbh * _CI_FM_BARK_B1[Int(sp)]    # ci/fmbrkt.f
+    variant isa Teton && return dbh * _TT_FM_BARK_B1[Int(sp)]           # tt/fmbrkt.f
+    variant isa Utah && return dbh * _UT_FM_BARK_B1[Int(sp)]            # ut/fmbrkt.f
     variant isa Klamath && return dbh * _NC_FM_BARK_B1[Int(sp)]         # nc/fmbrkt.f
     variant isa WestSierra && return dbh * _WS_FM_BARK_B1[Int(sp)]      # ws/fmbrkt.f
     variant isa CentralCalifornia && return dbh * _CA_FM_BARK_B1[Int(sp)]  # ca/fmbrkt.f
@@ -244,8 +254,11 @@ function fire_tree_mortality(coef::SpeciesCoefficients, sp::Integer, dbh::Float3
     # WC (like NE/LS/CR/BM/NC/WS/CA) gates the Regelbrugge-Smith groups (1-5) to VARACD=='SN'/'CS' ONLY
     # (wc/fmeff.f), so it uses the base Reinhardt crown-scorch+bark logistic (group 6) for EVERY species.
     # EM likewise (em/fmeff.f:196 gates groups 1-5 to SN/CS) — its species numbers never hit the SN map anyway.
-    g = (variant isa Northeast || variant isa LakeStates || variant isa CentralRockies || variant isa BlueMountains || variant isa EasternMontana || variant isa Klamath || variant isa WestSierra || variant isa CentralCalifornia || variant isa WestCascades || variant isa PacificNorthwest || variant isa EastCascades || variant isa SouthCentralOregon) ? 6 :
-        variant isa CentralStates ? cs_fire_mortality_group(sp) : fire_mortality_group(sp)
+    # Every variant's fmeff.f:196 gates groups 1-5 to VARACD 'SN'/'CS' only, so only SN uses the SN species map and
+    # only CS the CS map; IE/KT/CI/TT/UT/OC/OP/AK/BC/ON were missing from the old explicit group-6 list (a species
+    # numbered 20/27/54/63/64/74/75/78 there — e.g. UT sp20 curl-leaf mahogany — took SN's red-maple/oak logistic).
+    g = variant isa Southern ? fire_mortality_group(sp) :
+        variant isa CentralStates ? cs_fire_mortality_group(sp) : 6
     if 1 <= g <= 5
         charht = flame * 0.7f0                          # max (uphill) char height
         xm = -(_FM_MORTB0[g] + _FM_MORTB1[g] * dbh * 2.54f0 + _FM_MORTB2[g] * charht / 3.28f0)

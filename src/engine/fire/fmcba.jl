@@ -91,6 +91,9 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # BAREA = the stand BA in every cycle (MEASURED vs FVSem_g16 DEBUG FMCBA: PERCOV cyc1 36.7793 = live 36.78
     # with BA; the NC-style load-time BAREA=1 gives 38.07), unlike NC/WS/CA/OC/OP's cycle-1 clamp.
     _em_fm = s.variant isa EasternMontana
+    # CI/TT/UT FMCBA read the common CRWDTH(I) (ci/fmcba.f:340, tt:290, ut:312) — the same forest-grown cwcalc value
+    # FVS_TreeList reports (`tree_crwdth`); they fell to the generic crown_width like EM did.
+    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -125,6 +128,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _ie_fm ? ie_crown_width(sp, d, t.height[i], Int(t.crown_pct[i]), s.plot.basal_area) :  # IE/KT ccfcal MODE=2
              _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
                                 _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
+             _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -268,7 +272,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         # when the user has not set the decay rates with FuelDcay/FuelMult (fs.params.dkr still empty). Store
         # the adjusted matrix into params.dkr so every subsequent fmcwd! reads it (mirrors the persisted DKR).
         if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = bm_adjusted_dkr(Int(s.plot.habitat_code))
+            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
         end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).

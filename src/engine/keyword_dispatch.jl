@@ -2384,6 +2384,11 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 h = EM_FM_HTX[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)
             end
             fs.params.pb_size = 10f0   # em/fmvinit.f:490 PBSIZE=10 (SN default 12) — post-burn small-snag breakpoint
+        elseif (tab = _ffe_west_htx(s.variant)) !== nothing
+            # ie/kt/ci/tt/ut fmvinit.f HTX(I,1:4) (west_ffe.jl tables): these snags lose height every year too.
+            @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
+                fs.params.snag_htx[Int32(sp)] = tab[sp]
+            end
         end
     end
     while true

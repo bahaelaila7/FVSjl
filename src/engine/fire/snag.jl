@@ -38,10 +38,18 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
         linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
     else
         base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
+        if variant !== nothing && _ffe_west_vol(variant)
+            # {v}/fmsfall.f western form: linear below 18" (EM 12"), no redcedar exception; slow-falling species
+            # ≥ 18" take BASE = MAX(0.01, BASE·0.32) (CI ksp 2/8, TT 3/8, UT 3/5/8).
+            lmax, slow = _ffe_west_fall(variant, ksp)
+            (d >= lmax && slow) && (base = max(0.01f0, base * 0.32f0))
+            modrate = min(1f0, base * fallx)
+            linear = d < lmax
+        else
         modrate = min(1f0, base * fallx)               # FALLX: SNAGFALL-overridable rate correction
-        # small snag: SN/CS keep the last-5% logic for redcedar (ksp 2); em/fmsfall.f:50 has no species
-        # exception (EM ksp 2 is western larch) — every snag under 12" falls linearly.
-        linear = d < 12f0 && (ksp != 2 || variant isa EasternMontana)
+        # small snag: SN/CS keep the last-5% logic for redcedar (ksp 2).
+        linear = d < 12f0 && ksp != 2
+        end
     end
     linear && return modrate * origden
     x = (0.05f0 - 1f0) / (-modrate)                    # year at which 5% remain
@@ -130,9 +138,9 @@ function snag_bole_carbon(s::StandState)::Float32
         # ORIGINAL tree (dbh, HTDEAD) TRUNCATED at htcur via CFTOPK (the Behre top-kill reduction, fmsvol.f:
         # 101-142), i.e. the fat LOWER bole — NOT a normal short tree of (dbh, htcur). Scale the stored bole by
         # the CFTOPK merch ratio. No-op at the default HTX=0 (htcur ≡ height ⇒ frozen bole, bit-exact).
-        if s.variant isa EasternMontana && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
-            sp = Int(sn.sp[i])       # EM FMSVOL(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
-            b = em_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
+        if _ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+            sp = Int(sn.sp[i])       # {v}/fmsvol.f(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
+            b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
         elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
             # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
@@ -319,7 +327,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
             dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
                                                   fallx = fx, alldwn = ad, variant = s.variant,
-                                                  itype = Int(s.plot.habitat_code)))
+                                                  itype = s.variant isa BlueMountains ? bm_itype(Int(s.plot.habitat_code)) : Int(s.plot.habitat_code)))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -379,7 +387,7 @@ _snag_htr1(::EasternMontana) = 0.0228f0   # em/fmvinit.f HTR1
 # height LOHT and old height HIHT) goes to down wood, split across the size classes by the same cone taper as the
 # CWD1 fall, DIF = MAX(0,P(LOCUT)−P(HICUT))·TVOLI with R1 widened by LOHT (fmcwd.f:347). Not normalized (FVS adds
 # the raw cone slice). Enabled per variant as each is validated against live (EM first); the others still drop it.
-_ffe_cwd2(v) = v isa EasternMontana
+_ffe_cwd2(v) = _ffe_west_vol(v)   # base fmcwd.f/fmsnag.f — every western-layer variant whose snags lose height
 function _cwd2_slices(d::Float32, htd::Float32, loht::Float32, hiht::Float32)::NTuple{9,Float32}
     d <= 0.1f0 && (d = 0.1f0)
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
@@ -415,7 +423,8 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
     # (after-50%) = 0.01 all four. jl formerly hardcoded 0.1 (the LS value) — inert for NE (snag_htx empty)
     # but a latent cross-variant bug; NE now populates snag_htx (=1.0), so its HTR1 must be its own 0.015.
-    HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = 2f0
+    HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = _snag_htxsft(s.variant)
+    ci75 = s.variant isa CentralIdaho
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
@@ -431,6 +440,15 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         htr = above ? HTR1 : HTR2                         # first-50% uses HTR1, after-50% uses HTR2 (fmsnght.f:154-159)
         lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
         htnew = htc * (1f0 - lossfrac)^Float32(nyears)
+        # fmsnght.f CASE('CI') KSP 1,6 (WP, RC): lose height at HTR1 only while above 75% of HTD, then stop.
+        if ci75 && (sn.sp[i] == 1 || sn.sp[i] == 6)
+            if htc > 0.75f0 * htd
+                lossfrac = clamp(HTR1 * htx[soft ? 3 : 1] * sftmult, 0f0, 1f0)
+                htnew = htc * (1f0 - lossfrac)^Float32(nyears)
+            else
+                htnew = htc
+            end
+        end
         htnew < 1.5f0 && (htnew = 0f0)                   # fmsnght.f:164 — <1.5 ft ⇒ 'fuel', snag gone
         if _ffe_cwd2(s.variant) && htnew < htc            # CWD2: the broken-off piece → down wood (fmsnag.f:254)
             a = sn.fallvol[i] > 0f0 ? sn.fallvol[i] : sn.bolevol[i]       # TVOLI·V2T (tons/stem)
@@ -545,7 +563,7 @@ function snag_detail(s::StandState)
         (denih + denis) > 0f0 || continue
         d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
         sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
-        vol = s.variant isa EasternMontana ? em_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
+        vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
               _snag_merch_cuft_on(s, sp, d, h)
         dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
         dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
@@ -597,7 +615,7 @@ function ffe_seed_input_snags!(s::StandState)
     # of EM 196378260020004's <12" input snags soft vs live 0 (all hard until age ≥ DKTIME≈19 yr).
     yr = Int(current_cycle_year(s)) - unsafe_trunc(Int, c.growth_fintm)
     s.control.merch_init || init_merch_standards!(s)
-    s.variant isa EasternMontana && return _seed_input_snags_binned!(s, yr)
+    _ffe_west_vol(s.variant) && return _seed_input_snags_binned!(s, yr)
     @inbounds for i in (t.n + 1):(t.n + t.ndead)
         den = t.tpa[i]; d = t.dbh[i]
         (den > 0f0 && d >= 1f0) || continue
@@ -615,14 +633,10 @@ function ffe_seed_input_snags!(s::StandState)
             mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
         elseif s.variant isa CentralRockies
             mcuft = cr_snag_bole_cuft(s, sp, d, h)   # CR NATCRS total cubic (R8-Clark returns 0 for NVEL vol_eq)
-        elseif s.variant isa InlandEmpire || s.variant isa Kootenai
-            mcuft = ie_snag_bole_cuft(s, sp, d, h)   # IE/KT Region-1 NVEL total cubic (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
         elseif s.variant isa BlueMountains
             mcuft = bm_snag_bole_cuft(s, sp, d, h)    # BM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
-        elseif s.variant isa EasternMontana
-            mcuft = em_snag_bole_cuft(s, sp, d, h)    # EM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
         elseif s.variant isa OregonCoast
             mcuft = oc_tree_cuft(sp, d, h)   # OC BLM total cubic (R8-Clark returns 0 for 'B…' vol_eq ⇒ Jenkins over-book)
         elseif s.variant isa Olympic
@@ -663,7 +677,8 @@ end
 # broken top, else the running HTDEAD (fmsadd.f:345-353). The dead records sit at the top of the tree arrays
 # (MAXTRE downward), so FMSADD's I=1..MAXTRE loop visits them in REVERSE input order. The bole (FMSVOL) is on the
 # record's class-mean DBHS/HTDEAD; the dead-root biomass stays per tree (×(1−CRDCAY)^10, fmsadd.f:313-320).
-# EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Enabled per variant as validated (EM).
+# EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Enabled for the western layer
+# (`_ffe_west_vol`: IE/KT/CI/TT/UT/EM), whose bole is `ffe_west_snag_bole`.
 function _seed_input_snags_binned!(s::StandState, yr::Integer)
     fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species
     v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
@@ -696,7 +711,7 @@ function _seed_input_snags_binned!(s::StandState, yr::Integer)
     end
     @inbounds for k in keys_
         r = recs[k]; sp = k[1]
-        bolevol = em_snag_bole_cuft(s, sp, r[2], r[3]) * v2t[sp] / 2000f0
+        bolevol = ffe_west_snag_bole(s, sp, r[2], r[3]) * v2t[sp] / 2000f0
         add_snag!(fs, sp, r[2], r[1], yr; bolevol = bolevol, height = r[3], htcur = r[4])
     end
     return s
@@ -846,10 +861,8 @@ function ffe_add_snaginit!(s::StandState)
             # CR vol_eq are NVEL DVE/NVB/FW2 codes ⇒ _R8CLARK_VOL returns 0. CR's FMSVOL (fmsvol.f:153) reports
             # the TOTAL cubic (TCF) for the snag bole AND the CWD1 fall, so bole==fall==TCF for CR.
             mcuft = cr_snag_bole_cuft(s, sp, d, h); tcuft = mcuft
-        elseif s.variant isa InlandEmpire || s.variant isa Kootenai
-            mcuft = ie_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # IE/KT Region-1 NVEL total cubic (bole==fall==TCF)
-        elseif s.variant isa EasternMontana
-            mcuft = em_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # EM FMSVOL TCF (bole==fall==TCF)
+        elseif _ffe_west_vol(s.variant)
+            mcuft = ffe_west_snag_bole(s, sp, d, h); tcuft = mcuft   # {v}/fmsvol.f MAX(X,TCF) (bole==fall==TCF)
         elseif s.variant isa Klamath
             mcuft = nc_snag_bole_cuft(s, sp, d, h); tcuft = mcuft   # NC total cubic (bole==fall==TCF)
         elseif s.variant isa OregonCoast

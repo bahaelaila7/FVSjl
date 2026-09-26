@@ -97,6 +97,10 @@ function bm_forkod!(p)
 end
 
 # bm/habtyp.f — KODTYP (numeric habitat code) → PA code via PCOML. KODTYP≤0 or >NPA → "" (default).
+# bm/habtyp.f:98-126: ITYPE = KODTYP for a plant-association sequence number 1..NPA (92); anything else (an
+# unmatched numeric code) takes the default ITYPE = 79 (PCOML(79) = CWG113). The FFE R6 decay/fall tables
+# (FMR6SDCY/FMR6FALL, fmcba.f DKRADJ) are indexed by this ITYPE, not by the raw input code.
+bm_itype(kodtyp::Integer)::Int = (1 <= kodtyp <= length(BM_PCOML)) ? Int(kodtyp) : 79
 function bm_habtyp(kodtyp::Integer)::String
     (kodtyp <= 0 || kodtyp > length(BM_PCOML)) && return ""
     return BM_PCOML[kodtyp]
