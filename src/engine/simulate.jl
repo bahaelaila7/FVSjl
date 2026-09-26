@@ -80,14 +80,16 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralRockies
         cr_dgcons!(s)                     # DGCON=0, ATTEN, bark inert; enables c.sigma=SIGMAR for DG serial-corr
-        compute_density!(s)               # current-stand density for the age dub (BADIST/CCF)
-        _cr_dub_ages!(s)                  # CRATET age dub (cratet.f:552 FINDAG): ABIRTH from height for un-aged trees,
-                                          # BEFORE calibration (FVS CRATET→DGDRIV order). Without it htgf's AP floors
-                                          # to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
+        compute_density!(s)               # current-stand density before the CRATET DENSE/crown dub
+        cr_misscr = cr_any_missing_crown(s)   # cratet.f:503-522 MISSCR, before the dub fills the crowns
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (cr/crown.f);
                                           # eastern variants call init_crown_ratios! here. Without it, 0.1" seedlings keep
                                           # crown_pct=0 ⇒ VARMRT CRI=0 ⇒ EFFTR (100−CRI)/100 = 20× too high ⇒ seedling
                                           # over-kill cascades to the whole stand's mortality distribution.
+        _cr_dub_ages!(s; misscr = cr_misscr)  # CRATET age dub (cratet.f:535-552 FINDAG, AFTER :522 CROWN): ABIRTH from
+                                          # height for un-aged trees, reading the :175 DENSE's BA/RELDEN snapshot and
+                                          # CROWN's BADIST. Before calibration (FVS CRATET→DGDRIV order). Without it
+                                          # htgf's AP floors to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
