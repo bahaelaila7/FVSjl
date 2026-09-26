@@ -22,7 +22,8 @@ const IE_CWB6 = Float32[-0.07182,-0.02341,-0.01509,0.0,0.03539,0.0,0.0,0.0,0.0,0
 
 """Per-tree CCF contribution (ie/ccfcal.f MODE=1), excluding the ×TPA factor."""
 @inline function ie_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
+    # D=0 (IMC=9 dead zeroed by the backdating DENSE): RDA·0**RDB=0 for the no-floor group, else the D≤0.1 0.001
+    d <= 0f0 && return (sp <= 12 || sp == 14 || sp == 23) ? 0f0 : 0.001f0
     D = Float32(d)
     if sp <= 12 || sp == 14 || sp == 23
         return D >= 10f0 ? IE_RD1[sp] + D*IE_RD2[sp] + D*D*IE_RD3[sp] : IE_RDA[sp] * fpow(D, IE_RDB[sp])

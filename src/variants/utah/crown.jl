@@ -194,7 +194,8 @@ function crown_ratio_update!(s::StandState, ::Utah; fint::Float32 = 10.0f0, lsta
 end
 
 @inline function ut_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
+    # D=0 (IMC=9 dead zeroed by the backdating DENSE) is ut/ccfcal.f's D≤0.1 branch: 0.001 (PJ/UJ 20/21: D·Σ=0)
+    d <= 0f0 && return (sp == 20 || sp == 21) ? 0f0 : 0.001f0
     dd = Float32(d)
     brk = (17 <= sp <= 19 || sp == 22) ? 10f0 : 1f0
     if dd >= brk

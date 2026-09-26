@@ -424,6 +424,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "HTG_TRANS")    && (c.growth_ihtg  = Int32(_fia_int(d, "HTG_TRANS", 0)))
     if _fia_present(d, "HTG_MEASURE")
         v = _fia_f32(d, "HTG_MEASURE", 0f0); v > 0f0 && (c.growth_finth = v)
+        c.growth_ifinth = trunc(Int32, c.growth_finth)          # dbsstandin.f:711 IFINTH = IFIX(FINTH)
     end
     if _fia_present(d, "MORT_MEASURE")
         v = _fia_f32(d, "MORT_MEASURE", 5f0); c.growth_fintm = v <= 0f0 ? 5f0 : v
