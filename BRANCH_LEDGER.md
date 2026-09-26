@@ -268,3 +268,13 @@ It also adds the test `test_regcal_em_ie.jl`. See docs/PORT_STATUS.md, "LSTART s
 Gate: the full `Pkg.test` on the final tip, compared by name against the preceding master log. The tiered EM
 allowlist was redrafted from measurement, keeping the #247 annotation.
 
+## Addendum 2026-09-26 (h) — `em-climate` merge
+
+Branch `em-climate` (worktree `.wt-clim`, off em-regcal `9b995708`), landed with one proper `git merge --no-ff`. It
+carries:
+- The EM Climate-FVS wiring (PLNJSP, CLMORTS, the FINDAG/POTHTG ABIRTH dub, estab ABIRTH).
+- The shared FVS_Climate report timing (CLAUESTB snapshot, CLGMULT SPGMULT, zero-tree CLMORTS).
+
+See docs/PORT_STATUS.md, "EM Climate-FVS wiring; FVS_Climate report timing". The tiered EM allowlist was
+redrafted from measurement.
+

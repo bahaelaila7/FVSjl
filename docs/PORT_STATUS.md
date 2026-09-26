@@ -658,6 +658,40 @@ forest type.
   `regcal-kt-ci`).
 - **#250** — the IE REGENT growth rewrite.
 
+## EM Climate-FVS wiring; FVS_Climate report timing (2026-09-26, branch `em-climate`)
+
+**Climate-FVS was a no-op for EM.** `climate_plant_symbols(::EasternMontana)` was undefined, so the plant-symbol
+list was empty and every climate hook skipped every species. The same is true of every variant except BM, IE and
+SN; #252 covers the rest.
+- EM now has its PLNJSP (em/blkdat.f:209-212). The shared `apply_climate_dds!`, schedule and AutoEstb engage
+  through it.
+- `mortality!(::EasternMontana)` calls `apply_climate_mort!` at em/morts.f:962 (CLMORTS, after the BAMAX residual
+  adjustment and before FIXMORT).
+- The CRATET FINDAG → POTHTG ABIRTH dub now covers every POTHTG species: WB/WL/LP/OS, DF, ES/AF, PP and aspen/PB.
+  Before, only the aspen pair was dubbed. clgmult's BIRTHYR reads it.
+- New PLANT/NATURAL records get ABIRTH = AGEPL + GENTIM. FVSem_buildDir/estab.f is identical to IE's.
+
+**Report timing (shared: BM, IE, EM).** FVS writes the FVS_Climate rows inside CLAUESTB (clauestb.f:196-216,
+gradd.f:223): after growth, mortality and ABIRTH aging, but before this cycle's ESTAB. The GrowthMult column is
+CLGMULT's SPGMULT, a DBH²·PROB-weighted TREEMULT computed on the pre-growth trees. jl had built the row after
+`grow_cycle!`, so it counted the cycle's own regen and the aged ABIRTH, and it weighted GrowthMult by TPA.
+- jl now snapshots the row at the CLAUESTB point.
+- It carries `ClimateState.spgmult` from `apply_climate_dds!`.
+- MORTS reaches CLMORTS even with ITRN = 0, so every `mortality!`'s zero-tree return now runs the climate
+  mortality report.
+
+**Measured:**
+- Tiered stand 231908428020004 (a lone RM, JUSC2 viability ~0.015) is equal to FVSem_g16 on every .sum row over 6
+  cycles: live kills it in 2023 and AutoEstb restocks it. jl had kept 328 TPA.
+- Tiered climate cells: EM 2244 → 2154, IE 3237 → 3122, BM 1768 → 1759.
+- The EM climate TALLY bias (over 8/9, under 0; the #247 note) is gone.
+- On stand 5352355010661, FVS_Climate value mismatches fell from about 1460 to 12.
+
+**Still open:**
+- **#253.** The residual GrowthMult/dClimMort (e.g. DF 1.0398 vs 1.0446) comes from EM's collapsed AUTOES path.
+  It books ABIRTH = GENTIM for every record, whereas live keeps per-record AGADSB/AGEXC ages (5 and 6).
+- **#252.** Wiring for the other variants is in progress on branch `clim-west`.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
