@@ -77,7 +77,7 @@ end
 function bm_regent_hcor_init!(s::StandState, isct, ind1)
     t = s.trees; c = s.calib; p = s.plot
     finth = s.control.growth_finth
-    trunc(Int, finth) == 0 && return s                    # IF(IFINTH.EQ.0) GOTO 95
+    s.control.growth_ifinth == 0 && return s              # IF(IFINTH.EQ.0) GOTO 95 (IFINTH, not FINTH: GROWTH never sets it)
     scale3 = _BM_RG_REGYR / finth
     xd = p.avg_height * (c.cratet_relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
     ab = BM_RG_AB

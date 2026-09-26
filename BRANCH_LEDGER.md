@@ -251,3 +251,20 @@ code-identical to master `0df04061`). The only new failures were four year-tests
 test. Their volume pins came from the FVSppe historical-source oracle; jl equals current live FVSec_g16 on every row.
 They were re-pinned to live in a test-only commit, and the next branch's full suite covers the merged master.
 
+## Addendum 2026-09-26 (g) — `em-regcal` merge
+
+Branch `em-regcal` (worktree `.wt-emr`, off em-vol `27da808a`), landed with one proper `git merge --no-ff` after
+master was merged in. It carries the EM and IE LSTART REGCAL fixes:
+- Per-species RHCON.
+- The cratet backdating-DENSE snapshot.
+- IFINTH.
+- The cratet.f:153 tie IND.
+- CCF at D = 0.
+- IE's CR/UT arms.
+
+It also adds the test `test_regcal_em_ie.jl`. See docs/PORT_STATUS.md, "LSTART small-tree height calibration
+(REGCAL) for EM and IE".
+
+Gate: the full `Pkg.test` on the final tip, compared by name against the preceding master log. The tiered EM
+allowlist was redrafted from measurement, keeping the #247 annotation.
+

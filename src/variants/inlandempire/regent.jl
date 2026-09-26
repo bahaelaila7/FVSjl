@@ -12,10 +12,16 @@
 # =============================================================================
 
 """
-IE regent small-tree HEIGHT calibration (ie/regent.f:1138-1337, the LHTCAL/mode-40 pass). Computes the RAW
-regent HCOR into `c.htg_cor_init[sp]` for NIVAR species: for each sub-5" tree with a measured height
-increment, accumulate the predicted regent height growth (EDH = HK−H, HK grown over the subcycles by the
-NIVAR model with HCOR=0) and the measured TERM=HTG·SCALE3; CORNEW = Σ(TERM·P)/Σ(EDH·P); HCOR_raw =
+IE regent small-tree HEIGHT calibration (ie/regent.f:1054-1337, the LHTCAL/mode-40 pass). Computes the RAW
+regent HCOR into `c.htg_cor_init[sp]` for every sub-model (NIVAR, TTVAR, CR, UT): for each sub-5" tree with a
+measured height increment, accumulate the predicted regent height growth EDH (NIVAR/TTVAR: HK−H grown over the
+NPER subcycles; CR/UT: the 10-yr potential·PCTRED·VIGOR or Sheppard increment, halved) and the measured
+TERM=HTG·SCALE3; CORNEW = Σ(TERM·P)/Σ(EDH·P); HCOR_raw =
+ln(CORNEW), trapped to [0.0821, 12.1825]. NTYR is IFINTH (5 unless the DB HTG_MEASURE set it) — jl had used
+FINT (10) ⇒ NPER 2 vs live 1 ⇒ every NIVAR SNX ≈2× live ⇒ CORNEW halved. The stand values are the cratet.f:218
+backdating DENSE's (snapshot), and the CR/UT arms (previously unported) are in. Measured: an IE fixture with
+NIVAR/TT/CR/UT seedlings carrying HTG — all 14 per-species SUMS equal FVSie_g16's.
+
 ln(CORNEW), trapped to [0.0821, 12.1825]. `calibrate_diameter_growth!`'s shared attenuation (dgdriv.f:188-194,
 `htg_cor_small = dg_cor_goal + cormlt_h·(htg_cor_init − dg_cor_goal)`) then produces the applied HCOR.
 
@@ -27,39 +33,39 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                               saved_dbh::AbstractVector)
     p, t, c = s.plot, s.trees, s.calib
     t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s           # regent.f:1064 IF(IFINTH.EQ.0) GOTO 100
     rhcon = ie_regcons!(s)                              # raw RHCON (no HCOR)
-    # BACKDATED stand density (t.dbh is backdated here): the calibration predicts the PAST growth period, so
-    # RDNEXT(1)/BANEXT(1) use the start-of-period BA/RELDEN summed over LIVE + RECENTLY-DEAD records (dense.f:79-86,
-    # the notre.f-inflated dead added back at their backdated dbh), not the current live-only stand.
-    ba = 0f0; relden = 0f0
-    @inbounds for i in 1:(t.n + t.ndead)
-        d = t.dbh[i]; pr = t.tpa[i]
-        ba += 0.005454154f0 * d * d * pr
-        relden += ie_tree_ccf(Int(t.species[i]), d) * pr
-    end
+    # REGCAL runs inside CRATET (ie/cratet.f:586) on the state its :218 backdating DENSE left — no DENSE or
+    # AVHT40 in between — so TEMBA/TEMCCF (=BA/RELDEN), AVH, RELDM1, PCCF and PCT are that DENSE's
+    # (crown_init_lstart_dead_inclusive! snapshots them).
+    snap = c.cratet_relden > 0f0
+    ba = snap ? c.cratet_ba : p.basal_area; relden = snap ? c.cratet_relden : p.relative_density
+    avh = snap ? c.cratet_avh : p.avg_height
+    reldm1 = snap ? c.cratet_reldm1 : p.relative_density_prev
+    pccfv = (snap && !isempty(c.cratet_pccf)) ? c.cratet_pccf : s.density.point_ccf
+    pctv = (snap && length(c.cratet_pct) >= t.n) ? c.cratet_pct : t.crown_ratio
     regyr = IE_RG_REGYR
     finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : Float32(htg_period(s.variant))
     scale3 = regyr / finth                              # regent.f:1065 SCALE3 = REGYR/FINTH
-    fint = s.control.growth_fint > 0f0 ? s.control.growth_fint : Float32(htg_period(s.variant))
-    ntyr = Int(round(fint)); iyr = Int(regyr)
+    # regent.f:199 LSTART ⇒ NTYR = IFINTH (5 unless the DB HTG_MEASURE set it; the GROWTH keyword never does).
+    ntyr = Int(s.control.growth_ifinth); iyr = Int(regyr)
     nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
     kper = zeros(Int, nper); itot = ntyr; nn = nper
     @inbounds for i in 1:nper
         if nn == 1; kper[i] = itot; break; end
         kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
     end
-    # per-subcycle density from the large trees (inert at calibration: diam_growth≈0 ⇒ flat = ba/relden)
     banext = fill(ba, nper); rdnext = fill(relden, nper)
     if nper > 1
         @inbounds for i in 1:t.n
-            # calibration DO 49 I=1,ITRN (regent.f:1090-1109) has NO D>=3 gate (unlike the growth pass DO 6 :246):
-            # every live record's measured increment feeds the subcycle projection.
+            # calibration DO 49 I=1,ITRN (regent.f:1081-1100) has NO D>=3 gate (unlike the growth pass DO 6 :246):
+            # every live record's increment feeds the subcycle projection.
             d1 = t.dbh[i]                                   # WK3(I) = backdated dbh
             sp = Int(t.species[i]); pr = t.tpa[i]
             bark = ie_bratio(sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr     # CCFCAL = CCFT·P (regent.f:1098-1106)
+            c1 = ie_tree_ccf(sp, d1) * pr; c2 = ie_tree_ccf(sp, d2) * pr     # CCFCAL = CCFT·P (regent.f:1089-1090)
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
@@ -68,45 +74,56 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             end
         end
     end
+    # regent.f:1104-1111 CR/UT density modifier from X = AVH·(RELDEN/100)
+    x = avh * (relden / 100f0); x > 300f0 && (x = 300f0)
+    pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
+    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
     # regent.f:1116-1132 assigns each species a sub-model: NIVAR (<=12,14,23), TTVAR (13,17), CRVAR (19,22),
-    # UTVAR (the rest). The DO 90 calibration loop runs for EVERY species with ISCT≠0 and LHTCAL (default .TRUE.,
-    # grinit.f:104) — not just NIVAR. That matters even where the resulting scale factor is 1.00, because the
-    # TTVAR arm DRAWS ZRAND(I)=BACHLO(0,1,RANN) (regent.f:1181) from the shared main stream and leaves the draw
-    # in the tree record for the growth pass. Skipping it desynchronised every later consumer of the stream.
-    reldm1 = s.plot.relative_density_prev
-    dens = s.density
+    # UTVAR (the rest). The DO 90 loop runs for EVERY species with ISCT≠0 and LHTCAL (default .TRUE.). The TTVAR
+    # arm DRAWS ZRAND(I)=BACHLO(0,1,RANN) (regent.f:1181) from the main stream and leaves it on the record.
+    ihtg = s.control.growth_ihtg
     @inbounds for sp in 1:23
         nivar = sp <= 12 || sp == 14 || sp == 23
         ttvar = sp == 13 || sp == 17
-        # NOTE: the CRVAR/UTVAR arm (regent.f:1211-1271) draws nothing and is not ported here; it can only move
-        # HCOR for a CR/UT species that has >=NCALHT(5) measured small-tree records.
-        (nivar || ttvar) || continue
+        crvar = sp == 19 || sp == 22
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
+        # CR/UT site terms (regent.f:1215-1221): SI clamped to the regent-local SLO/SHI; SJ = SITEAR unclamped.
+        sj = p.sp_site_index[sp]
+        si = sj; si > IE_RG_SHI[sp] && (si = IE_RG_SHI[sp]); si <= IE_RG_SLO[sp] && (si = IE_RG_SLO[sp] + 0.5f0)
+        relsi = IE_RG_SHI[sp] > IE_RG_SLO[sp] ? (si - IE_RG_SLO[sp]) / (IE_RG_SHI[sp] - IE_RG_SLO[sp]) : 0f0
+        rsimod = 0.5f0 * (1f0 + relsi)
         snx = 0f0; sny = 0f0; snp = 0f0; nh = 0
         for k in i1:i2
             i = ind1[k]
-            saved_dbh[i] >= 5.0f0 && continue             # DBH<5 (regent.f:1159)
-            hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required
-            hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2)
-            pct = t.crown_ratio[i]
-            cr  = Float32(t.crown_pct[i])                 # CR = FLOAT(ICR(I)) (regent.f:1161)
+            hg = t.ht_growth[i]
+            hb = t.height[i]; ihtg < 2 && (hb -= hg)      # regent.f:1154 IF(IHTG.LT.2) H=H-HTG(I)
+            (saved_dbh[i] >= 5.0f0 || hb < 0.01f0) && continue   # DBH<5, H>=0.01 (regent.f:1155)
+            hg < 0.001f0 && continue                      # measured HTG required (regent.f:1156)
+            pct = pctv[i]
+            cr  = Float32(t.crown_pct[i])                 # CR = FLOAT(ICR(I)) (regent.f:1159)
             ipccf = Int(t.plot_id[i])
-            pccf_i = (ipccf >= 1 && ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
-            hk = hb
+            pccf_i = (ipccf >= 1 && ipccf <= length(pccfv)) ? pccfv[ipccf] : 0f0
+            hk = hb; edh = 0f0
             for j in 1:nper
                 if nivar
                     bal = banext[j] * (100.0f0 - pct) * 0.0001f0
                     htgrl = rhcon[sp] + IE_RG_RHLH[sp]*flog(hk) + IE_RG_RHCCF[sp]*rdnext[j] +
                             IE_RG_RHBAL[sp]*bal
-                    hk += fexp(htgrl)                      # regent.f:1174-1175 (NO scale in the calib pass)
-                else
-                    # TTVAR (regent.f:1176-1210): PPCCF/TPCCF-driven BETA height increment around a persistent
+                    hk += fexp(htgrl)                      # regent.f:1167-1168 (NO scale in the calib pass)
+                elseif ttvar
+                    # TTVAR (regent.f:1170-1206): PPCCF/TPCCF-driven BETA height increment around a persistent
                     # per-tree ZRAND. EDH<=0.1 clamps and resets ZRAND to -999 so the next use redraws.
-                    ppccf = reldm1 > 0f0 ? (rdnext[j] - reldm1) / reldm1 : 0f0
+                    ppccf = (rdnext[j] - reldm1) / reldm1
                     tpccf = pccf_i * ppccf
                     tpccf > 300.0f0 && (tpccf = 300.0f0)
                     tpccf < 25.0f0  && (tpccf = 25.0f0)
+                    if t.zrand[i] == -999f0                # regent.f:911 redraw until |ZRAND|<=2
+                        while true
+                            z = bachlo(s.rng, 0.0f0, 1.0f0)
+                            (z >= -2.0f0 && z <= 2.0f0) && (t.zrand[i] = z; break)
+                        end
+                    end
                     if saved_dbh[i] <= 0f0
                         edh_j = 0f0
                     else
@@ -114,26 +131,36 @@ function ie_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                         beta2 = fexp(-2.56002f0 - 0.58642f0*flog(tpccf))
                         htg1 = beta1 + beta2*cr
                         stddev = htg1*(1.08720f0 - 0.00230f0*cr)
-                        if t.zrand[i] == -999f0                # regent.f:911 redraw until |ZRAND|<=2
-                            while true
-                                z = bachlo(s.rng, 0.0f0, 1.0f0)
-                                (z >= -2.0f0 && z <= 2.0f0) && (t.zrand[i] = z; break)
-                            end
-                        end
                         edh_j = htg1 + t.zrand[i]*stddev
                         (edh_j <= 0.1f0) && (edh_j = 0.1f0; t.zrand[i] = -999f0)
                     end
                     hk += edh_j
+                else
+                    # CR/UT (regent.f:1207-1264): EDH is the LAST sub-period's value (not accumulated). CRVAR and
+                    # PI/UJ (15,16) take the UT form on SJ (GED 8/16/11); the aspen group (18,20,21) Sheppard's.
+                    pothtg = (crvar || sp == 15 || sp == 16) ? ((sj / 5f0) * (sj * 1.5f0 - hb) / (sj * 1.5f0)) * 0.83f0 : 0f0
+                    xv = cr / 100f0
+                    vigor = 150f0 * xv^3 * fexp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    (sp == 15 || sp == 16) && (vigor = 1f0 - (1f0 - vigor) / 3f0)
+                    if sp == 18 || sp == 20 || sp == 21
+                        ag1 = (hb * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                        h2 = (26.9825f0 * (ag1 + 10f0)^1.1752f0) / (2.54f0 * 12f0)
+                        edh = (h2 - hb) * rsimod * rhcon[sp] * 0.75f0
+                    else
+                        edh = pothtg * pctred * vigor * rhcon[sp]
+                    end
+                    edh *= 0.5f0
                 end
             end
-            edh = nivar ? (hk - hb) : (hk - hb) * rhcon[sp]  # regent.f:1274-1278
+            nivar && (edh = hk - hb)                      # regent.f:1265-1269
+            ttvar && (edh = (hk - hb) * rhcon[sp])
             term = hg * scale3
             pr = t.tpa[i]
             snx += edh * pr; sny += term * pr; snp += pr; nh += 1
         end
         nh < 5 && continue                                # NCALHT
         snx /= snp; sny /= snp
-        cornew = snx > 0f0 ? sny / snx : 1f0
+        cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
         c.htg_cor_init[sp] = flog(cornew)
@@ -152,11 +179,13 @@ function ie_regcons!(s::StandState)
     @inbounds for sp in 1:23
         # regent.f:1479-1492 — the REGCH+RHSC+RHHAB formula is NIVAR-ONLY; every non-NIVAR (TT/CR/UT)
         # species gets RHCON = 1.0 (their CON = 1.0·EXP(HCOR); the site effect rides in via HCOR calib).
+        rc2 = (s.control.regh_cor2_on && sp <= length(s.control.regh_cor2)) ? s.control.regh_cor2[sp] : 0f0
         if sp <= 12 || sp == 14 || sp == 23
             irhhab = clamp(Int(IE_RG_MAPHAB[itype, sp]), 1, 6)
             rhcon[sp] = regch + IE_RG_RHSC[sp] + IE_RG_RHHAB[irhhab, sp]
+            rc2 > 0f0 && (rhcon[sp] += log(rc2))          # READCORR: + ln RCOR2
         else
-            rhcon[sp] = 1.0f0
+            rhcon[sp] = rc2 > 0f0 ? rc2 : 1.0f0           # READCORR: RHCON = RCOR2
         end
     end
     return rhcon

@@ -26,7 +26,8 @@ const EM_RDB = Float32[1.6667, 1.8182, 1.5571, 1.7600, 1.7560, 1.7600, 1.7600, 1
 
 # em/ccfcal.f MODE=1: per-tree CCF (before the ×P expansion the caller applies).
 @inline function em_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
+    # D=0 (the IMC=9 dead the backdating DENSE zeroes, dense.f:75) takes the D≤0.1 branch ⇒ 0.001 (LL: RDA·0**RDB=0)
+    d <= 0f0 && return sp == 5 ? 0f0 : 0.001f0
     poly()  = EM_RD1[sp] + d * EM_RD2[sp] + d * d * EM_RD3[sp]
     small() = EM_RDA[sp] * d ^ EM_RDB[sp]
     if sp == 5                                   # LL: D≥10 poly, else small (no floor)

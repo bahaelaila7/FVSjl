@@ -452,7 +452,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif s.variant isa BlueMountains && length(s.calib.input_seq) == ntot
+        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana) && length(s.calib.input_seq) == ntot
+            # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
+            # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
+            # tie ⇒ DGF WK2 ⇒ the DO-220 WK1 dub ⇒ LM/LL Hamilton G 0.1253 vs live 0.1257 (cycle-1 kill 6.941 vs 6.921).
             # bm/cratet.f:163-166 — the calibration DENSE (:195, backdating pass dense.f:241-244) ranks by
             # `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)`. The dead are still INSIDE ITRN at their input positions
             # (cratet.f:199-215 deletes them AFTER this DENSE) and IND1 is SETUP's (fvs.f:158) species-major list, each

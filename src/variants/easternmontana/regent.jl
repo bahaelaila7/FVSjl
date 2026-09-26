@@ -70,15 +70,26 @@ end
 end
 @inline _em_rg_crvar(sp::Int) = sp == 11 || (13 <= sp <= 16) || sp == 19
 
-# em/regent.f RCON entry: RHCON[sp] = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]]. Returns the RHCON vector.
+# em/regent.f:1428-1488 REGCON entry. Only the NIVAR species (LL, sp5) carries the NI habitat/site constant
+# RHCON = REGCH + 1.0667 + RHHAB[MAPHAB[ITYPE]] (+ ln RCOR2 under READCORR); every other sub-model (EMVAR, TTVAR,
+# CR/UT) has RHCON = 1.0 (or RCOR2). jl gave every species the NI constant, which the LSTART REGCAL divides into
+# CORNEW: on the S248112 CW fixture RHCON 0.4704 for 1.0 ⇒ CORNEW 2.50 vs live 1.004 ⇒ CW height growth ~2×.
 function em_regcons!(s::StandState)
-    p = s.plot
+    p = s.plot; ctl = s.control
     itype = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     igl = Int(p.geo_location); (igl < 1 || igl > 3) && (igl = 1)
     irhhab = EM_RG_MAPHAB[itype]; (irhhab < 1 || irhhab > 5) && (irhhab = 5)
     regch = EM_RG_RHGL[igl] + (_EM_RG_RSAB0 + _EM_RG_RSAB1 * cos(p.aspect) + _EM_RG_RSAB2 * sin(p.aspect)) * p.slope
-    base = regch + 1.0667f0 + EM_RG_RHHAB[irhhab]
-    rhcon = fill(base, 19)                                        # site constant is species-independent here
+    rhcon = ones(Float32, 19)
+    @inbounds for sp in 1:19
+        rc2 = (ctl.regh_cor2_on && sp <= length(ctl.regh_cor2)) ? ctl.regh_cor2[sp] : 0f0
+        if sp == 5
+            rhcon[sp] = regch + 1.0667f0 + EM_RG_RHHAB[irhhab]
+            rc2 > 0f0 && (rhcon[sp] += log(rc2))
+        else
+            rc2 > 0f0 && (rhcon[sp] = rc2)
+        end
+    end
     return rhcon
 end
 
@@ -133,11 +144,20 @@ function em_regent_aspen_calib!(s::StandState)
     # CORNEW = mean(HTG·SCALE3) / mean(EDH) ⇒ HCOR = ln(CORNEW), gated at NCALHT=5 records and trapped to
     # ±2.5σ in ln(C). The EMVAR branch calls SMHTGF, which DRAWS the persistent per-tree ZRAND — those draws
     # land HERE, before DGDRIV, which is why jl's whole main RNG stream sat ahead of live on EM stands.
+    s.control.growth_ifinth == 0 && return s           # regent.f:1093 IF(IFINTH.EQ.0) GOTO 100 (no HCOR)
     rhcon = em_regcons!(s)
-    ba = p.basal_area; relden = p.relative_density
-    reldm1 = p.relative_density_prev; reldm1 <= 0f0 && (reldm1 = relden)
+    # REGCAL runs inside CRATET (em/cratet.f:553) on the state the cratet.f:182 backdating DENSE left — nothing
+    # recomputes density in between — so BA/RELDEN/AVH/RELDM1/PCCF/PCT are that DENSE's (snapshotted by
+    # crown_init_lstart_dead_inclusive!), NOT the live-only current values jl held here. S248112 CW fixture:
+    # live AVH 61.60 / RELDEN 103.66 ⇒ PCTRED 0.5379; the current 63.44 / 119.87 gave 0.459.
+    snap = c.cratet_relden > 0f0
+    ba = snap ? c.cratet_ba : p.basal_area; relden = snap ? c.cratet_relden : p.relative_density
+    avh = snap ? c.cratet_avh : p.avg_height
+    reldm1 = snap ? c.cratet_reldm1 : p.relative_density_prev; reldm1 <= 0f0 && (reldm1 = relden)
+    pccfv = (snap && !isempty(c.cratet_pccf)) ? c.cratet_pccf : dens.point_ccf
+    pctv = (snap && length(c.cratet_pct) >= n) ? c.cratet_pct : t.crown_ratio
     temccf = relden                                     # regent.f:206-207 TEMCCF = ATCCF, else RELDEN
-    ntyr = trunc(Int, finth); iyr = Int(_EM_RG_REGYR)   # regent.f:185 LSTART ⇒ NTYR = IFINTH (IFIX(FINTH)), not FINT
+    ntyr = Int(s.control.growth_ifinth); iyr = Int(_EM_RG_REGYR)   # regent.f:185 LSTART ⇒ NTYR = IFINTH (5 unless DB HTG_MEASURE)
     nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
     kper = zeros(Int, nper); itot = ntyr; nn = nper
     @inbounds for k in 1:nper
@@ -145,7 +165,25 @@ function em_regent_aspen_calib!(s::StandState)
         kper[k] = itot ÷ nn; itot -= kper[k]; nn -= 1
     end
     banext = fill(ba, nper); rdnext = fill(relden, nper)
-    pctred = _em_rg_pctred(p.avg_height, relden)
+    # regent.f:1110-1128 DO 49 — with >1 subcycle (IFINTH>5: FIA HTG_MEASURE 6/7/10/15 are common) the start-of-
+    # subcycle BA/CCF are extrapolated from the backdated diameter WK3 and the DGDRIV DO-220 increment, for EVERY
+    # record (no D≥3 gate, unlike the growth-side copy) and in storage order.
+    if nper > 1 && length(c.dub_wk3) == n
+        @inbounds for i in 1:n
+            d1 = c.dub_wk3[i]; sp = Int(t.species[i]); pr = t.tpa[i]
+            d2 = d1 + em_do220_dg(s, i) / em_bratio(sp, d1)
+            b1 = _EM_RG_BACON * d1 * d1; b2 = _EM_RG_BACON * d2 * d2
+            c1 = em_tree_ccf(sp, d1) * pr; c2 = em_tree_ccf(sp, d2) * pr
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn
+                banext[j] += Float32(k) * bi * pn
+            end
+        end
+    end
+    pctred = _em_rg_pctred(avh, relden)
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     species_sort!(s)
     @inbounds for sp in 1:MAXSP
@@ -166,11 +204,11 @@ function em_regent_aspen_calib!(s::StandState)
             (t.dbh[i] >= 5f0 || h < 0.01f0 || htg < 0.001f0) && continue
             hk = h; d = t.dbh[i]; cr = Float32(t.crown_pct[i])
             pt = Int(t.plot_id[i])
-            pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            pccf = (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0
             edh = 0f0
             for jj in 1:nper
                 baj = banext[jj]; rdj = rdnext[jj]
-                bal = baj * (100f0 - Float32(t.crown_ratio[i])) * 0.0001f0
+                bal = baj * (100f0 - pctv[i]) * 0.0001f0
                 ppccf = emvar ? (temccf <= 0f0 ? 0f0 : (rdj - temccf) / temccf) : (rdj - reldm1) / reldm1
                 tpccf = pccf * ppccf
                 tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
@@ -254,7 +292,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                             atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
-    rhcon_ni = em_regcons!(s)                         # regent.f:1480 RHCON for NIVAR (LL); every other sub-model 1.0
+    rhcon = em_regcons!(s)                            # regent.f:1480 RHCON (NI constant for LL; 1.0/RCOR2 otherwise)
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
     dgsd = s.control.dg_sd; regyr = _EM_RG_REGYR
     yr = Float32(s.control.year)
@@ -322,7 +360,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             crn = crn + 0.07985f0 * ran
             crn > 0.90f0 && (crn = 0.90f0); crn < 0.20f0 && (crn = 0.20f0)
             icn = trunc(Int32, (crn * 100f0) + 0.5f0)
-            t.crown_pct[i] = icn; t.crown_ratio[i] = Float32(icn)
+            t.crown_pct[i] = icn                 # ICR only: PCT stays estab.f:1252's 0 (NIVAR BAL = full BAJ)
         end
     end
     ah = lestb ? temaht : avh; r = lestb ? temccf : relden   # regent.f:311-317
@@ -359,7 +397,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
             xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
             hcor = c.htg_cor_small[sp]
-            con = kind == 2 ? rhcon_ni[sp] + hcor : 1.0f0 * fexp(hcor)
+            con = kind == 2 ? rhcon[sp] + hcor : rhcon[sp] * fexp(hcor)   # regent.f:386-390
             d = t.dbh[i]; h = t.height[i]
             d >= EM_RG_XMAX[sp] && continue
             lestb && i < itrnin && continue

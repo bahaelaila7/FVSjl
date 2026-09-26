@@ -115,24 +115,28 @@ end
 function em_cycle0_wk1!(s::StandState)
     t, c = s.trees, s.calib; n = t.n
     (length(c.dub_wk2) == n && length(c.dub_wk3) == n) || return s
-    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
-    @inbounds for i in 1:n
-        sp = Int(t.species[i]); d = t.dbh[i]
-        bark = em_bratio(sp, d)
-        if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
-            dg = t.diam_growth[i]
-            (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)
-            t.dg_prev[i] = dg
-        elseif t.height[i] <= 4.5f0
-            t.dg_prev[i] = 0f0
-        else
-            dd = c.dub_wk3[i] * bark
-            dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
-            dub > dd && (dub = dd)
-            t.dg_prev[i] = dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
-        end
-    end
+    @inbounds for i in 1:n; t.dg_prev[i] = em_do220_dg(s, i); end
     return s
+end
+
+# The DG(I) that em/dgdriv.f:778-801 DO 220 leaves on record i (needs the calibration's dub_wk2/dub_wk3 stash).
+# Also read by the LSTART REGCAL DO 49 (em/regent.f:1110-1128), which runs right after DGDRIV in CRATET.
+@inline function em_do220_dg(s::StandState, i::Int)::Float32
+    t, c = s.trees, s.calib
+    sp = Int(t.species[i]); d = t.dbh[i]
+    bark = em_bratio(sp, d)
+    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+        dg = t.diam_growth[i]
+        (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)
+        return dg
+    elseif t.height[i] <= 4.5f0
+        return 0f0
+    end
+    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
+    dd = c.dub_wk3[i] * bark
+    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+    dub > dd && (dub = dd)
+    return dg_bound(nothing, nothing, sp, d, dub, s.control.sp_size_cap)
 end
 
 # em/dgfasp.f (Utah aspen large-tree DG) — ASPDG = ln(DDS-equiv). Identical to ie_dgfasp/_tt_dgfasp

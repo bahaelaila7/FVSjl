@@ -343,6 +343,11 @@ mutable struct Control
     dbs_atrtlist_mode::Int32                  # IATRTLIST value                                          (IATRTLIST)
     atrtlist_capture::Union{Nothing,Vector{Any}} # active per-cycle FVS_ATRTList row sink (PRTRLS(3) at cuts.f:1740), else nothing
     dbs_caseid_set::Bool                      # CASEID assigned (dbscase.f:235) during keyword read ⇒ a later DSNOUT is rejected (dbsin.f:116-122)
+    # IFINTH — the INTEGER HTG period the LSTART REGENT calibration reads for NTYR (em/ie/kt/tt/ci regent.f
+    # `IF(LSTART) NTYR=IFINTH`). grinit.f sets 5; the GROWTH keyword does NOT change it (initre.f:834 has the
+    # IFINTH assignment commented out — it sets FINTH only); only the DB HTG_MEASURE column does
+    # (dbsstandin.f:711 IFINTH = IFIX(FINTH)). So a keyfile GROWTH FINTH=10 still calibrates with NPER=1.
+    growth_ifinth::Int32
 end
 
 function Control()
@@ -413,6 +418,7 @@ function Control()
         false,                                                   # dbs_atrtlist (ATRTLIDB)
         Int32(0), Int32(0),                                      # dbs_treelist_mode, dbs_atrtlist_mode
         nothing, false,                                          # atrtlist_capture, dbs_caseid_set
+        Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
     )
 end
 
@@ -625,6 +631,16 @@ mutable struct Calibration
     # BM RELDEN left by that same cratet.f:195 DENSE (LBKDEN ⇒ dense.f:258-261 RELDEN=RELDM1 = the BACKDATED,
     # dead-inclusive first-pass CCF), read by the REGENT(.FALSE.,1) small-tree HCOR calibration at cratet.f:667.
     cratet_relden::Float32
+    # The rest of that cratet.f:182 DENSE's state, which em/regent.f's LSTART REGCAL (reached at cratet.f:553 with no
+    # DENSE in between) reads: TEMBA = BA (dense.f:261 BA=OLDBA, the backdated first pass), AVH (the dense.f AVH walk,
+    # heights as read), RELDM1 (dense.f:259 interpolated to FINTH years: (RELDEN_cur−RELDEN_bk)·FINTH/FINT+RELDEN_bk;
+    # =RELDEN when not backdating), the per-point PCCF (accumulated ONLY in the backdated pass, dense.f:202) and PCT
+    # (dense.f:244 PCTILE of the backdated pass). jl recomputes all of them live-only at current DBH before REGCAL.
+    cratet_ba::Float32
+    cratet_avh::Float32
+    cratet_reldm1::Float32
+    cratet_pccf::Vector{Float32}
+    cratet_pct::Vector{Float32}
     # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
     # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
     # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
@@ -645,6 +661,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     Float32[], Float32[],                                            # dub_wk2, dub_wk3 (BM DO 220 dub stash)
     Float32[],                                                       # cratet_ht_in (BM pre-dub HT snapshot)
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
+    0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     Int32[])                                                         # input_seq (record read order, cycle-0 only)
 
 # ---------------------------------------------------------------------------

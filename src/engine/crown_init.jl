@@ -81,7 +81,8 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # sort put different equal-DBH records at the 40-TPA boundary (23899355010900 AVH 72.567 vs live 71.606).
     # That DENSE runs BEFORE the missing-height dub (DO 130 :363, DO 145 :464) ⇒ heights are as READ (missing = 0):
     # use the pre-dub snapshot cratet_ht_in (41135212010497: dubbed 1.01 seedlings ⇒ AVH 33.671 vs live 33.160).
-    avht_real = let ntot = t.n, ord = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n), hin = s.calib.cratet_ht_in
+    ind153 = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n)   # cratet.f:150-153 IND (real DBH, dead included)
+    avht_real = let ntot = t.n, ord = ind153, hin = s.calib.cratet_ht_in
         use_hin = length(hin) == ntot
         avh = 0f0; ssumn = 0f0
         @inbounds for k in 1:ntot
@@ -112,14 +113,33 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # Rebuild PCT with the real-diameter IND and the backdated weights.
     if lbkden && t.n > 0                   # _pctile! indexes idx[1] unguarded; an empty stand (no live
                                            # records AND no dead ones) reaches here with t.n == 0
-        backdated = Float32[t.dbh[i] for i in 1:nlive]
-        @inbounds for i in 1:nlive; t.dbh[i] = saved_live[i]; end
-        idx = view(s.scratch.stat_idx, 1:t.n); bm_cratet_ind!(s, idx)
-        @inbounds for i in 1:nlive; t.dbh[i] = backdated[i]; end
+        # That IND is cratet.f:150-153's `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` — the one this DENSE runs on —
+        # NOT bm_cratet_ind!'s: with standing-dead records that switches to the identity .TRUE. re-sort of
+        # cratet.f:257, which only happens AFTER the dead are deleted. The two differ only in how equal-DBH ties
+        # fall, which permuted PCT inside every tie group (EM REGCAL fixture, 2 dead + 12-way ties: LL PCT
+        # 1.0/7.3/15.5/36.4 vs live 0.1/6.4/19.8/32.5 ⇒ NIVAR BAL ⇒ SNX 568.53 vs 568.28).
+        idx = view(s.scratch.stat_idx, 1:t.n); idx .= ind153
         _pctile!(t.crown_ratio, t, idx, t.n)
     end
     s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
+    # The rest of that DENSE's state for the EM LSTART REGCAL (em/cratet.f:553 — no DENSE in between): BA (=OLDBA,
+    # backdated), AVH (the AVHT40 walk above), the per-point PCCF (dense.f:202 accumulates it only in the backdated
+    # pass) and PCT (dense.f:244). RELDM1 is the dense.f:259 interpolation to the FINTH-year start; its "current"
+    # term is the second, current-DBH pass, dead-inclusive with every dead record at its DBH (dense.f:184).
+    c = s.calib
+    c.cratet_ba = s.plot.basal_area; c.cratet_avh = avht_real
+    c.cratet_pccf = copy(s.density.point_ccf); c.cratet_pct = t.crown_ratio[1:nlive]
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
+    c.cratet_reldm1 = c.cratet_relden
+    if lbkden
+        bk = t.dbh[1:nlive]
+        @inbounds for i in 1:nlive; t.dbh[i] = saved_live[i]; end
+        rcur = stand_ccf(s)
+        @inbounds for i in 1:nlive; t.dbh[i] = bk[i]; end
+        finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+        fint = s.control.growth_fint > 0f0 ? s.control.growth_fint : 10f0
+        c.cratet_reldm1 = (rcur - c.cratet_relden) * (finth / fint) + c.cratet_relden
+    end
     @inbounds for (k, i) in enumerate((nlive + 1):(nlive + length(saved_tpa))); t.tpa[i] = saved_tpa[k]; end
     t.n = nlive
     lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
