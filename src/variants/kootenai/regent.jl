@@ -370,9 +370,8 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     #      (kt/regent.f:591-604): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS scale, DBH grows via GRADD — the old code
     #      did a raw (DK−D1)·XRDGRO with NO bark/DDS/SIZCAP scaling. DBH-direct is the HK<4.5 tiny edge only. ----
     scale = fint > 0.0f0 ? 10.0f0 / fint : 1.0f0           # SCALE=YR/FINT (kt/regent.f:220), YR=10
-    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
-    @inbounds for oi in 1:n
-        i = _sp_order[oi]
+    _sp_order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
+    @inbounds for i in _sp_order
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= KT_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue

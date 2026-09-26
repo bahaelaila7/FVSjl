@@ -138,9 +138,10 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     # SPESRT's chain sort ⇒ record order WITHIN a species). The per-record ZZRAN (BACHLO) draws must happen in
     # THIS order, else the per-tree deviate — and EVERY downstream RNG draw — desyncs vs live on multi-species
     # stands (jl's record-order interleaving ≠ FVS's species grouping). Iterate species-then-record to match.
-    _sp_order = sortperm(view(t.species, 1:t.n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
-    @inbounds for oi in 1:t.n
-        i = _sp_order[oi]
+    # IND1 within a species is the SPESRT lineage order (post-TRIPLE: copy1, original, copy2), not storage order —
+    # species_major_order, as TT/IE (a storage-order walk hands each triple member the wrong ZZRAN).
+    _sp_order = species_major_order(s)
+    @inbounds for i in _sp_order
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i])
         d = t.dbh[i]
