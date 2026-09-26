@@ -453,6 +453,7 @@ include("io/dbs_output.jl")
 include("engine/simulate.jl")
 include("engine/svs.jl")                 # SVS (Stand Visualization System) data path — chunk 0
 include("variants/psigsq.jl")           # dgdriv.f PSIGSQ per variant (needs every variant type)
+include("engine/climate_plants.jl")    # Climate-FVS PLNJSP per western variant (needs every variant type)
 
 # --- more engine, extensions, cli are added in later chunks -----------------
 # include("engine/...")    # C2–C5
