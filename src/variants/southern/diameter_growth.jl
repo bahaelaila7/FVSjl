@@ -713,7 +713,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
        s.variant isa Kootenai || s.variant isa Teton
         _wk2_keep = s.scratch.wk[2, 1:t.n]
-        s.variant isa EasternMontana && (_TT_CUR_RMSQD[] = _em_dub_rmsqd)
+        _TT_CUR_RMSQD[] = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
         dgf!(s, s.variant)
