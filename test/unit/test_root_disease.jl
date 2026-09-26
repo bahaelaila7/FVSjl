@@ -1392,7 +1392,7 @@ TREEDATA
        [536, 521, 513, 502, 493, 487, 469, 446, 416, 394, 367], [77, 95, 116, 137, 158, 187, 214, 239, 264, 286, 306], 0, 0, "BIT-EXACT: NC ctrl+rd TPA/BA == live every cycle (2026-09-25 cycle-1 AUTCOR OLDFNT=FINT + CEPMRT/SLPMRT latch; was TPA ≤9, BA ≤3)"),
       ("EM", FVSjl.EasternMontana(), EM_TRE_RD, "STDINFO        112.0     260.0      60.0     315.0      30.0      54.0",
        [536, 526, 517, 507, 498, 488, 473, 454, 438, 423, 410], [77, 96, 114, 132, 150, 168, 184, 196, 208, 219, 230],
-       [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 11, 7, "OPEN: EM TPA <=11 / BA <=7, both directions (was 19/15 one-directional; em-crown's four crown classes) — EM certification"),
+       [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 0, 0, "BIT-EXACT: EM ctrl+rd TPA/BA == live every cycle (2026-09-26 Fortran-shaped REGENT, em/bratio.f, cycle-1 WK1 dub, LL crown OBA/RDM1/OLDPCT; was TPA <=11 / BA <=7)"),
       ("TT", FVSjl.Teton(), TT_TRE_RD, "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
        [536, 525, 515, 505, 494, 470, 443, 427, 411, 396, 385], [77, 99, 121, 141, 163, 183, 198, 213, 226, 241, 251],
        [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 16, 5, "OPEN: TT mid-run TPA +16 (was +15; the 2026-09-23 crown ISORT moved it one) — TT certification"),

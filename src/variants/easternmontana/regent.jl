@@ -249,7 +249,9 @@ shape: ONE subcycle loop `DO 17 J / DO 16 ISPC / DO 15 I3 (IND1)` over every sub
 the RNG draws (EMVAR/TTVAR ZRAND inside the subcycles, NIVAR/CRVAR/UTVAR ZZRAN in the assembly), the running
 RDNEXT/BANEXT(J+1) density feedback, and the Fortran variables that CARRY between trees (BARK, H1, D, HTGR) are
 all reproduced — the earlier per-sub-model passes got each of those out of step with live FVS on mixed stands."""
-function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float32 = 10.0f0)
+function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float32 = 10.0f0,
+                            lestb::Bool = false, itrnin::Int = 1,
+                            atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
     rhcon_ni = em_regcons!(s)                         # regent.f:1480 RHCON for NIVAR (LL); every other sub-model 1.0
@@ -259,7 +261,11 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     scale = yr / fint                                 # regent.f:218 SCALE=YR/FINT
     scale2 = fint / yr                                # regent.f:1024 SCALE2=FINT/YR (DUBSCR crown test)
     cur_year = current_cycle_year(s)
-    ntyr = trunc(Int, fint); iyr = Int(regyr)         # regent.f:184-200 (LSTART/LESTB branches not taken here)
+    ntyr = trunc(Int, fint); iyr = Int(regyr)         # regent.f:184-200
+    lskiph = false
+    if lestb                                          # regent.f:186-187 ESTAB: the rest of the cycle after year 5
+        ntyr -= 5; lskiph = ntyr <= 0
+    end
     nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1)
     kper = zeros(Int, 10); itot = ntyr; nn = nper
     @inbounds for k in 1:nper
@@ -270,8 +276,23 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     # regent.f:234-257 subcycle stand density from the LARGE trees (D≥3). CCFCAL returns CCFT·P (ccfcal.f), and FVS
     # evaluates RDNEXT += ((K·CI)/P)·PN with PN=P·0.985**K (integer power) — the P does NOT cancel in single precision.
     banext = zeros(Float32, 11); rdnext = zeros(Float32, 11)
-    @inbounds for j in 1:nper; banext[j] = ba; rdnext[j] = relden; end
-    if nper > 1
+    temba = atba > 0f0 ? atba : ba                    # regent.f:204-208 TEMBA/TEMCCF/TEMAHT (after-thin values)
+    temccf = atccf > 0f0 ? atccf : relden
+    temaht = atavh
+    if lestb                                          # regent.f:263-276 (label 8): interpolate from the cycle start
+        bayr = 0f0; ccfyr = 0f0
+        if !lskiph
+            bayr = (ba - temba) / Float32(itot); ccfyr = (relden - temccf) / Float32(itot)
+        end
+        nyr = 5
+        @inbounds for j in 1:nper
+            rdnext[j] = temccf + Float32(nyr) * ccfyr; banext[j] = temba + Float32(nyr) * bayr
+            nyr += kper[j]
+        end
+    else
+        @inbounds for j in 1:nper; banext[j] = ba; rdnext[j] = relden; end
+    end
+    if !lestb && nper > 1
         @inbounds for i in 1:n
             d1 = t.dbh[i]; d1 < 3.0f0 && continue
             sp = Int(t.species[i]); pr = t.tpa[i]
@@ -289,7 +310,22 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     end
     wk3 = Float32[t.height[i] for i in 1:n]           # regent.f:301-302 WK3=HT, WK5=DBH
     wk5 = Float32[t.dbh[i] for i in 1:n]
-    ah = avh; r = relden                              # regent.f:311-317 (non-ESTAB)
+    if lestb                                          # regent.f:287-299 DO 13: crown for each new record, STORAGE order
+        @inbounds for i in itrnin:n
+            pcc = (pt = Int(t.plot_id[i]); (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0)
+            crn = 0.89722f0 - 0.0000461f0 * pcc
+            ran = 0f0
+            while true
+                ran = bachlo(s.rng, 0f0, 1f0); (ran < -1f0 || ran > 1f0) && continue
+                break
+            end
+            crn = crn + 0.07985f0 * ran
+            crn > 0.90f0 && (crn = 0.90f0); crn < 0.20f0 && (crn = 0.20f0)
+            icn = trunc(Int32, (crn * 100f0) + 0.5f0)
+            t.crown_pct[i] = icn; t.crown_ratio[i] = Float32(icn)
+        end
+    end
+    ah = lestb ? temaht : avh; r = lestb ? temccf : relden   # regent.f:311-317
     delmax = (ah / 36.0f0) * (0.01232f0 * r - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
     x = ah * (r / 100.0f0); x > 300.0f0 && (x = 300.0f0)             # regent.f:324 X=AH*(R/100.)
     pctred = 1.11436f0 + x*(-0.011493f0 + x*(0.43012f-4 + x*(-0.72221f-7 + x*(0.5607f-10 - x*0.1641f-13))))
@@ -319,12 +355,14 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         for i in order
             sp = Int(t.species[i]); kind = _em_rg_kind(sp)
             (kind == 4 || kind == 5) && j > 1 && continue      # regent.f:382 CR/UT: one pass only
+            (kind == 1 || kind == 3 || kind == 4) && lskiph && continue   # regent.f:378
             xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
             xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
             hcor = c.htg_cor_small[sp]
             con = kind == 2 ? rhcon_ni[sp] + hcor : 1.0f0 * fexp(hcor)
             d = t.dbh[i]; h = t.height[i]
             d >= EM_RG_XMAX[sp] && continue
+            lestb && i < itrnin && continue
             pr = t.tpa[i]
             h1 = wk3[i]; d1 = wk5[i]; h1_c = h1
             bal = baj * (100.0f0 - t.crown_ratio[i]) * 0.0001f0
@@ -451,7 +489,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     end
     # ---- assembly (regent.f DO 30 ISPC / DO 25 I3, :686-1050) ----
     rmai_v = _em_rmai(s)
-    ltrip = stash !== nothing
+    ltrip = !lestb && stash !== nothing                # regent.f:1041 no tripling from ESTAB
     @inbounds for i in order
         sp = Int(t.species[i]); kind = _em_rg_kind(sp)
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
@@ -461,9 +499,25 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                kind == 4 ? EM_RG_DGMAX[sp] * fint / 10.0f0 : EM_RG_DGMAX[sp]
         d = t.dbh[i]; cr = Float32(t.crown_pct[i])
         d >= xmx && continue
+        lestb && i < itrnin && continue
         h = t.height[i]; hk = wk3[i]
         dk = wk5[i]; htgr = hk - h
         (kind == 1 || kind == 3) && d < diam && (d = diam)             # regent.f:751 D1=DIAM(ISPC)
+        if lskiph && kind == 1                                          # regent.f:760-770 (ESTAB, FINT<=5)
+            if h >= 4.5f0
+                dkl = _em_smdgf(sp, h, cr, pccf_of(i)); dkl < d && (dkl = d)
+                t.dbh[i] = dkl; t.diam_growth[i] = dkl > dgmx ? dgmx : dkl
+            end
+            continue
+        elseif lskiph && kind == 3                                      # regent.f:774-785
+            if h >= 4.5f0
+                hl = h - 4.5f0
+                dkl = (0.000231f0*hl*cr - 0.00005f0*hl*pccf_of(i) + 0.001711f0*cr + 0.17023f0*hl + 0.3f0) * xrdgro
+                dkl < d && (dkl = d)
+                t.dbh[i] = dkl; t.diam_growth[i] = dkl > dgmx ? dgmx : dkl
+            end
+            continue
+        end
         htgr1 = hk - h; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         icrk = Int(t.crown_pct[i])
         dbh0 = t.dbh[i]                                                 # DBH(K): DGDRIV copied it to the slots
@@ -475,7 +529,9 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
         nrec = (ltrip && kind in (2, 4, 5)) ? 3 : 1
         for l in 0:(nrec - 1)
             dbhk = dbh0; dgk_out = dg_in[l+1]; dbh_set = false
-            if kind == 1
+            if lskiph && kind == 2                                   # regent.f:771-773 HTG(K)=0, GO TO 20
+                htgr = 0f0
+            elseif kind == 1
                 hk = wk3[i]; dk = wk5[i]; htgr = hk - h
             elseif kind == 2
                 zz = 0.0f0
@@ -496,7 +552,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                 kind == 4 && (htgr = (htgr + zz * 0.2f0) * xrhgro)
                 htgr < 0.1f0 && (htgr = 0.1f0)
             end
-            xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+            xwt = (d <= xmn || lestb) ? 0.0f0 : (d - xmn) / (xmx - xmn)   # regent.f:833-835 XWT=0 from ESTAB
             htgk = htgr * (1.0f0 - xwt) + xwt * large[l+1]
             (kind == 4 && htgk < 0.1f0) && (htgk = 0.1f0)
             cap = s.control.sp_size_cap[sp, 4]
@@ -525,6 +581,10 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                     dg = (dk - dkk) * bark_c
                     dds = dg * (2.0f0 * bark_c * d + dg) * scale
                     dg = sqrt(max((d * bark_c)^2 + dds, 0f0)) - bark_c * d
+                    if lestb                                                # regent.f:895-898
+                        dbhk = dk; dbh_set = true
+                        dg > dgmx && (dg = dgmx)
+                    end
                     ((dbhk + dg) < diam && hk >= 4.5f0) && (dg = diam - dbhk)
                     dgk_out = dg
                 else
@@ -558,6 +618,19 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                             dgt = 0.0f0
                         end
                     end
+                    if lestb                                                # regent.f:966-974 ESTAB diameter
+                        dbhk = dk; dbh_set = true
+                        dg = kind == 3 ? dgt : dgk_out
+                        (kind == 3 && dg > dgmx) && (dg = dgmx)
+                        (kind == 2 || kind == 4) && (dg = dk)
+                        if kind == 4 || kind == 5
+                            dbhk < diam && (dbhk = diam)
+                            dbhk = dbhk + 0.001f0 * hk
+                            dg = dbhk
+                        end
+                        (dbhk + dg) < diam && (dg = diam - dbhk)
+                        dgk_out = dg
+                    else
                     dgk = 0.0f0
                     if kind == 2
                         dgk = (dk - d1v) * xrdgro
@@ -577,10 +650,11 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                     dg = sqrt(max((d * bark_c)^2 + dds, 0f0)) - bark_c * d
                     (dbhk + dg) < diam && (dg = diam - dbhk)
                     dgk_out = dg
+                    end
                 end
                 # label 22: DGBND
                 dgk_out = dg_bound(nothing, nothing, sp, dbhk, dgk_out, s.control.sp_size_cap)
-                if kind != 1                                                 # regent.f:1023-1041 DUBSCR crown
+                if kind != 1 && !lestb                                       # regent.f:1023-1041 DUBSCR crown
                     d = dbhk
                     bark_c = em_bratio(sp, d)
                     dds2 = (dgk_out * (2.0f0 * bark_c * d + dgk_out)) * scale2
@@ -622,45 +696,42 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     return s
 end
 
-# em/esgent.f (estb/esgent.f:53 CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle.
-# EM was OMITTED from the birth-cycle esgent list (simulate.jl had only CR + TT), so planted/established EM regen
-# missed its first-cycle height growth ⇒ the cohort stayed at the ~1' establishment height at the birth-cycle report
-# (TopHt 1 vs live 6) ⇒ ~1-cycle height/BA lag ⇒ dense self-thin under-kill (#137). Mirrors the EMVAR branch of
-# small_tree_growth! (SMHTGF height + SMDGF diameter) for the new records nstart+1:n over the birth-cycle subperiod
-# (GENTIM germination offset, like tt_esgent!). Only EMVAR conifers {1,2,3,7,8,9,10,18}; others left as-established.
-function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
-    t = s.trees; c = s.calib; dens = s.density
+# em/blkdat.f HHTMAX — ESGENT's cap on a newly established tree's height (and then DBH=2.95).
+const EM_HHTMAX = Float32[23,27,21,27,18,6,24,18,18,17,16,16,16,16,16,16,16,22,16]
+
+"""
+    em_esgent!(s, nstart; fint, atba, atccf, atavh)
+
+em/esgent.f: SPESRT, then REGENT(.TRUE.,ITRNIN) for the records established this cycle — the same Fortran-shaped
+REGENT as the growth pass, in its ESTAB mode (the crown draw per new record in storage order; FINT−5 years of
+subcycling with the density interpolated from the after-thin TEMBA/TEMCCF/TEMAHT; XWT=0; the ESTAB diameter; no
+tripling, no DUBSCR). Then per record HTG·WK4 (the establishment height multiplier HTIMLT: 1 for PLANT, 0.4 for
+natural regeneration), HT+=HTG, the WK4<1 DBH rescale, and the HHTMAX cap (DBH=2.95). jl formerly grew only the
+EMVAR conifers with a local ZRAND, so the next cycle's REGENT redrew it and planted-stand ForTyp/SizeCls diverged.
+"""
+function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0)
+    t = s.trees
     nstart >= t.n && return s
-    rhcon = em_regcons!(s)                              # RHCON (also refreshes birth-cycle density constants)
-    dgsd = s.control.dg_sd
+    species_sort!(s)                                   # esgent.f:47 CALL SPESRT
+    small_tree_growth!(s, nothing, s.variant; fint = fint, lestb = true, itrnin = nstart + 1,
+                       atba = atba, atccf = atccf, atavh = atavh)
     @inbounds for i in (nstart+1):t.n
-        t.tpa[i] <= 0.0f0 && continue
-        sp = Int(t.species[i]); d = t.dbh[i]
-        (_em_orig_species(sp) && d < _em_rg_cap(sp)) || continue
-        h = t.height[i]; cr = Float32(t.crown_pct[i])
-        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0.0f0
-        tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
-        zrand = 0.0f0
-        if dgsd >= 1.0f0
-            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        wk4 = t.htimlt[i]
+        t.ht_growth[i] = t.ht_growth[i] * wk4
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if wk4 < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.diam_growth[i] * (t.height[i] / htemp)
+            end
         end
-        htgrth = _em_smhtgf(sp, cr, tpccf, zrand)
-        con = exp(c.htg_cor_small[sp])                  # RHCON(=1)·exp(HCOR)
-        # HTG × per-tree WK4=HTIMLT birth-cycle multiplier (live em/esgent.f:23 HTG=HTG*WK4). PLANT/existing=1.0;
-        # AUTOES natural regen=0.40 (#193 — jl formerly used a constant subyr/regyr=1 ⇒ 2.5× seedling over-growth).
-        htg = htgrth * t.htimlt[i] * con; htg < 0.0f0 && (htg = 0.0f0)
-        cap = s.control.sp_size_cap[sp, 4]; (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        h2 = h + htg
-        t.height[i] = h2; t.ht_growth[i] = htg
-        if h2 > 4.5f0                                    # DBH only once the tree crosses breast height
-            bark = em_bratio(sp, d)
-            d2 = _em_smdgf(sp, h2, cr, pccf)
-            dkk = h > 4.5f0 ? _em_smdgf(sp, h, cr, pccf) : d
-            dgr = (d2 - dkk) * bark; dds = dgr * (2.0f0 * bark * d + dgr)
-            arg = (d * bark)^2 + dds
-            dgk = arg > 0.0f0 ? sqrt(arg) - bark * d : 0.0f0
-            dgk < 0.0f0 && (dgk = 0.0f0)
-            dgk > 0.0f0 && (t.dbh[i] = d + dgk / bark; t.diam_growth[i] = dgk)
+        if t.height[i] > EM_HHTMAX[sp]
+            t.height[i] = EM_HHTMAX[sp]; t.dbh[i] = 2.95f0
         end
     end
     return s
