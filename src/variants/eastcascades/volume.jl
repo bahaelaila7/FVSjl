@@ -1,10 +1,9 @@
 # =============================================================================
 # volume.jl (eastcascades) — EC volume (R6 NVEL). Chunk 8.
 #
-# EC forest-608 (Okanogan, FORNUM 8) VOLEQ (voleqdef.f R6_EQN + dumped from FVSec_clean): the FW2W species
-# route to INGY Flewelling with the Inland geosubs I11/I12 (NOT the F-prefix westside SHP nor the I00 base
-# WC used) — DF→I12FW2W202, LP→I12FW2W108, ES→I11FW2W093, WL/PP(fia 73/122)→I12FW2W122, GF(fia17)→
-# I11FW2W017 — everything else → Behre 616BEHW<fia>. The INGY path reuses the shared cr_fw2_vol (SHP_C2,
+# EC VOLEQ = voleqdef.f R6_EQN's eastside forest table (_ec_r6_eqn): INGY Flewelling with the forest's Inland
+# geosub (e.g. Okanogan DF→I12FW2W202, GF→I11FW2W017), the westside F0xFW2W for DF on Mt Hood, else region-6
+# Behre 616BEHW<fia>. The INGY path reuses the shared cr_fw2_vol (SHP_C2,
 # iregn=6); Behre reuses the BM R6 machinery + EC form class (formcl_ec.csv). Merch (ec/sitset.f westside):
 # LP(sp7)=6" DBHmin, else 7"; TOPD=BFTOPD=4.5.
 # =============================================================================
@@ -26,17 +25,11 @@ function ec_formcl(sp::Integer, ifor::Int, d::Real)::Int
     v = EC_FORMCL[ifor, sp, ifcdbh]; v == 0 ? 80 : v
 end
 
-# voleqdef.f R6_EQN, FORNUM=8 (Okanogan) + DISTNUM=0. INGY overrides by species FIA; else region-6 Behre.
-function _ec_r6_eqn(fornum::Int, fia::Int)::String
-    if fornum == 8 || fornum == 17
-        fia == 202 && return "I12FW2W202"           # DF
-        fia == 108 && return "I12FW2W108"            # LP
-        fia == 93  && return "I11FW2W093"            # ES
-        (fia == 122 || fia == 73) && return "I12FW2W122"   # PP / WL
-        fia == 17  && return "I11FW2W017"            # GF
-    end
-    return "616BEHW" * lpad(string(fia), 3, '0')     # region-6 Behre default
-end
+# voleqdef.f R6_EQN — EC is an EASTSIDE variant (VAR not in the westside list), so it takes the same eastside
+# forest table as BM (_bm_r6_eqn); ec/sitset.f passes DIST='  ' ⇒ DISTNUM 0. jl formerly knew only Okanogan/
+# Wenatchee and sent every other forest to Behre — Mt Hood (606) runs DF on westside F05FW2W202 and SF/GF/NF/ES/
+# LP/PP/WH on I11-I13 INGY (FVSec_g16 NVEL table), so its cycle-0 TCuFt was +2.4%.
+_ec_r6_eqn(fornum::Int, fia::Int)::String = _bm_r6_eqn(fornum, 0, fia)
 
 # EC Behre per-tree volume — reuse the BM R6 machinery + EC form class.
 function ec_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32)
@@ -82,15 +75,14 @@ function compute_volumes_ec!(s::StandState)
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
                            iregn = 6, board_cor = 'N', merch_opt = 23)   # MRULES REGN 6: COR='N', OPT=23
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
-            # Broken/killed-top reduction (fvsvol.f vols.f:193 CFTOPK/BFTOPK): the full cubic above used
-            # the NORMAL height (norm_ht/hv, cratet.f), so trim it back to the standing break (t.trunc/100)
-            # via the Behre taper. EC merch TOPD=4.5 (== BM). Measured on ect01 (rec-6 WL D8.0, rec-22 DF
-            # D10.4 broken-top) — the missing trim was the whole TCuFt +2 corner (oracle w/ CFTOPK off = 1617
-            # = jl-pre-fix; with CFTOPK on = 1615). Merch/board trims don't fire here (break above merch top).
-            tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ecmerch, _BM_TOPD45)
         else                                            # 616BEHW
             tcf, mcf, bf = ec_behre_vol(sp, ifor, d, hv, bark)
         end
+        # Broken/killed-top reduction (vols.f:193 CFTOPK/BFTOPK) — for EVERY equation, not just INGY: the volume
+        # above used the NORMAL height (norm_ht/hv, cratet.f), so trim it back to the standing break via the Behre
+        # taper. EC merch TOPD=4.5 (== BM). ect01 (Okanogan): rec-6 WL / rec-22 DF broken tops, TCuFt 1617→1615.
+        # Mt Hood (606) runs WL on Behre and DF on westside F05FW2W, which the INGY-only trim skipped.
+        tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ecmerch, _BM_TOPD45)
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
         t.saw_cuft_vol[i] = 0f0

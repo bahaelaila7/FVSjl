@@ -847,7 +847,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # BM likewise: bm/regent.f LESTB draws the crown RAN (regent.f:257-264) and the height ZZRAN (:358-360)
         # INTERLEAVED per record on the main stream, so bm_esgent! owns the crown draw too.
         # EM likewise: em/regent.f LESTB draws each new record's crown in STORAGE order (DO 13) before its ZRANDs.
-        _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana
+        _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                         s.variant isa EastCascades
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0

@@ -75,6 +75,15 @@ function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float
     elseif eqn == "81402";      _em_bech2(0.3309f0,0.8918f0,0f0,0.0510f0,0f0, d,cr,hi,-9.9f9,9.9f9,19f0,false)
     elseif eqn == "10201";      _em_bech1(7.4251f0,0.8991f0, d,25f0)
     # --- AK-added national codes (R10): R6-model-2 SF/YC/SS/RC, Donnelly RA, and the '08' form ---
+    # --- EC-added national codes: NF Donnelly (no BF), GC→TO Bechtold-m2 with a BAREA term, WO R6-m2 (BF) ---
+    elseif eqn == "02206";      _em_powf(3.0614f0,0.6276f0,40f0, d)
+    elseif eqn == "63102"                   # cwcalc.f CASE('63102'): HI∈[-55,15], MIND=5, cap 41
+        hv = hi < -55f0 ? -55f0 : (hi > 15f0 ? 15f0 : hi)
+        dm = d >= 5f0 ? d : 5f0
+        v = 3.1150f0 + 0.7966f0*dm + 0.0745f0*cr + (-0.0053f0*barea) + (0.0523f0*hv)
+        d < 5f0 && (v *= d / 5f0)
+        v > 41f0 ? 41f0 : v
+    elseif eqn == "81505";      _em_r6m2(2.4857f0*bf,0.70862f0,0f0,0.10168f0,0f0,0f0, d,h,cl,ba1,el,-9.9f9,9.9f9,39f0)
     elseif eqn == "01105";      _em_r6m2(4.4799f0*bf,0.45976f0,-0.10425f0,0.11866f0,0.06762f0,-0.00715f0, d,h,cl,ba1,el,4f0,72f0,33f0)
     elseif eqn == "04205";      _em_r6m2(3.3756f0*bf,0.45445f0,-0.11523f0,0.22547f0,0.08756f0,-0.00894f0, d,h,cl,ba1,el,16f0,62f0,59f0)
     elseif eqn == "09805";      _em_r6m2(8.48f0*bf,0.70692f0,-0.38812f0,0.17127f0,0f0,0f0, d,h,cl,ba1,el,1f0,999f0,50f0)

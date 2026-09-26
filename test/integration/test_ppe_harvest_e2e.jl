@@ -7,12 +7,9 @@
 #   1990: BBA 77.39, SELECTED 232.18 (23.2%)   2000: 110.2, 330.48 (33.0)   2010: 146.6, 439.90 (44.0)
 #
 # This reconstructs that landscape from FVSjl standalone stands and runs the coordinator.
-# CORNERING: FVSjl's before-thin BA (=BBA) is BIT-EXACT at cyc0 (77.39206 == oracle 0.7739E+02)
-# but under-grows beyond cyc0 (108.87 vs 110.2, 144.29 vs 146.6) — the KNOWN EC-variant growth
-# residual (#207 EC growth is cyc0-bit-exact; beyond that a cornered straddle), INHERITED by
-# CREDIT=BBA, NOT a MXHRVP defect. So the SELECTION LOGIC is validated bit-exact (every SELECT
-# outcome + the cyc0 numerics). The cyc1+ residual (EC under-grows live by 1.2-1.7%) is an OPEN EC growth item,
-# not a proven corner; lines pinning 326.6/432.3 are jl self-snapshots (refactor guard), the <2% lines are vs oracle.
+# Every master cycle is now BIT-EXACT vs the oracle: the cyc1+ CREDIT gap (jl 108.87/144.29 BBA vs 110.2/146.6) was
+# the EC growth, not MXHRVP. Four EC fixes closed it on this Mt Hood (606) stand (2026-09-26): SMHTGF on the tree's
+# own site index, the species DK/DKK forms, per-copy REGENT tripling, and per-species PSIGSQ.
 using Test
 using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
 
@@ -39,10 +36,7 @@ using FVSjl: ppe_run_landscape_harvest!, PPEStand, EastCascades
     @test isapprox(r1.pct_of_target, 23.2f0; atol = 0.05f0)                 # oracle PERCENT OF TARGET
     @test r1.nonselected_supply < 1f-3                                      # ~1.5e-5 running-subtraction residual
 
-    # --- cyc1/cyc2: SELECT bit-exact; CREDIT cornered to the EC growth residual (documented) ---
-    #     FVSjl 2000: BBA 108.87 (oracle 110.2); 2010: 144.29 (oracle 146.6). Under-grows ≤1.6%.
-    @test round(r2.selected_resource, digits = 1) ≈ 327.3 atol = 0.2  # jl SELF-snapshot (EC per-species PSIGSQ 2026-09-26 moved 326.6→327.3, toward oracle 330.48)
-    @test round(r3.selected_resource, digits = 1) ≈ 433.7 atol = 0.2  # jl SELF-snapshot (EC ATTEN 2026-09-22 432.9→432.3; EC PSIGSQ 2026-09-26 432.3→433.7, toward oracle 439.90)
-    @test abs(r2.selected_resource - 330.48) / 330.48 < 0.02          # within the EC-growth corner vs oracle
-    @test abs(r3.selected_resource - 439.90) / 439.90 < 0.02
+    # --- cyc1/cyc2: SELECT and CREDIT bit-exact vs the oracle (0.3304816E+03 / 0.4398994E+03) ---
+    @test isapprox(r2.selected_resource, 330.4816f0; atol = 0.01f0)    # oracle 0.3304816E+03
+    @test isapprox(r3.selected_resource, 439.8994f0; atol = 0.01f0)    # oracle 0.4398994E+03
 end

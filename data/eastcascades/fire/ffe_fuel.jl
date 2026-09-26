@@ -7,11 +7,8 @@
 # pools interpolated by PERCOV over XCOV=[10,60] between the initiating (10%) and established (60%) tables.
 # Transcribed VERBATIM from ec/fmcba.f. Reuses `_cr_algslp2` + `_cr_r6m2`.
 #
-# ec_cwcalc (crown width for FMCBA's PERCOV): ect01 is forest 608 (OKANOGAN, R6 IFOR≤4). EC's base cwidth.f
-# fills CRWDTH via CWCALC (cwcalc.f), which for VARACD='EC' selects the Crookston R6 model-2 equations via
-# ECMAP + the forest-608 BF (bark/crown factor). The 5-char ECMAP code = FIA(3)+eqn#(2); eqn 05 = Crookston
-# R6 model-2, eqn 03 = the western-larch log form. Only the 6 ect01 species (DF/ES/LP/PP/SF/WL) are ported;
-# the remaining ECMAP equations are a follow-up crown-width chunk (mirrors the WC/CA F4a scope).
+# ec_cwcalc (crown width for FMCBA's PERCOV and the TreeList CrWidth): cwcalc.f ECMAP (all 32 species) through the
+# national SELECT CASE, with the Region-6 forest bias factor BF for the stand's KODFOR.
 # =============================================================================
 
 # ec/fmcba.f DATA FULIVE — established (60% cover) (herb, shrub) per species 1..32.
@@ -131,29 +128,19 @@ const _EC_MAPDRY = Int[
 # ec/fmcba.f ENTRY ECMOIST — the moist/dry habitat flag for FMCFMD (1 ⇒ moist-mixed MMIXCT, else dry-mixed).
 @inline ec_moist(itype::Integer)::Int = (1 <= itype <= length(_EC_MAPDRY)) ? _EC_MAPDRY[itype] : 0
 
-# ec/cwcalc.f ECMAP — EC crown width (ft) for FMCBA's PERCOV. Crookston R6 model-2 (a·BF·D^b·H^c·CL^dd·
-# (BA+1)^e·exp(EL)^f), forest-608 (OKANOGAN) BF applied to the leading coefficient. WL (073, eqn 03) uses the
-# western-larch log form (no BF). Only the 6 ect01 species are ported; others error (follow-up chunk).
-function ec_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
+# cwcalc.f ECMAP — the 5-char CWEQN (FIA code + model) per EC species, dispatched through the national
+# SELECT CASE (_cwcalc_national). The Region-6 forest bias factor BF (cwcalc.f:468-876, _R6_CWBF by KODFOR×FIASP)
+# multiplies the leading coefficient of the Crookston-R6 model-2 ('…05') forms only; 1.0 outside 601…999.
+# jl formerly hard-coded forest 608 for six species and errored on the other 26 (TREELIST on any EC stand with,
+# e.g., a western redcedar crashed).
+const _EC_CWEQN = ("11905", "07303", "20205", "01105", "24205", "01703", "10805", "09305", "01905", "12205",
+                   "26305", "26403", "23104", "10105", "02206", "01505", "07204", "04205", "06405", "31206",
+                   "32102", "35106", "37506", "63102", "35106", "74605", "74705", "81505", "35106", "31206",
+                   "26403", "74605")
+function ec_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                   kodfor::Int = 608)::Float32
     (1 <= sp <= 32) || return 0f0
-    cl = cr * h * 0.01f0; ba1 = barea + 1f0
-    if     sp == 3   # DF 20205 BF=1
-        return _cr_r6m2(6.0227f0,       0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)
-    elseif sp == 8   # ES 09305 BF=1 (093 not in forest-608 BF list); no (BA+1) term
-        return _cr_r6m2(6.7575f0,       0.55048f0,-0.25204f0,0.19002f0, 0f0,      -0.00313f0, d,h,cl,ba1,el, 1f0,85f0,40f0)
-    elseif sp == 7   # LP 10805 BF=1.114
-        return _cr_r6m2(6.6941f0*1.114f0, 0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)
-    elseif sp == 10  # PP 12205 BF=1
-        return _cr_r6m2(4.7762f0,       0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0)
-    elseif sp == 4   # SF 01105 BF=1; EL floor 4
-        return _cr_r6m2(4.4799f0,       0.45976f0,-0.10425f0,0.11866f0, 0.06762f0,-0.00715f0, d,h,cl,ba1,el, 4f0,72f0,33f0)
-    elseif sp == 2   # WL 07303 log form (no BF), uses ALOG(BAREA) directly
-        dm = d >= 1f0 ? d : 1f0
-        v = 1.02478f0 * fexp(0.99889f0 + 0.19422f0*flog(cl) + 0.59423f0*flog(dm) -
-                             0.09078f0*flog(h) - 0.02341f0*flog(barea))
-        d < 1f0 && (v *= d); v > 40f0 && (v = 40f0); return v
-    else
-        error("ec_cwcalc: crown-width equation for EC species $(sp) not yet ported — ect01 exercises only " *
-              "DF/ES/LP/PP/SF/WL; the remaining ECMAP equations are a follow-up crown-width chunk.")
-    end
+    eq = _EC_CWEQN[sp]
+    bf = (601 <= kodfor < 1000) ? get(_R6_CWBF, (kodfor, eq[1:3]), 1f0) : 1f0
+    return _cwcalc_national(eq, d, h, cr, barea, el, hi; bf = bf)
 end

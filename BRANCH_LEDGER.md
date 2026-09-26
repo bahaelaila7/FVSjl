@@ -232,6 +232,25 @@ Gate: the full `Pkg.test` on the final tip, compared by name against the master 
 (`/workspace/.postswap/pkgtest_wshtg`). The tiered EM allowlist was redrafted from measurement, and the EM WRD row
 and the new EM REGENT test pass.
 
+## Addendum 2026-09-26 (f) — `ec-cw` merge
+
+Branch `ec-cw` (worktree `.wt-ec`, off master `f6b7ca75`; master `0df04061` (em-vol) merged in as `b4dc6949`),
+landed with one proper `git merge --no-ff`. It carries:
+- EC crown width through the national ECMAP dispatcher.
+- The EC eastside R6_EQN volume table and the CFTOPK trim on every equation.
+- EC REGENT (own-SI SMHTGF, per-species DK/DKK, per-copy tripling).
+- EC ESGENT.
+- Western FFE moisture presets.
+- CR NORMHT volume.
+- PPE MXHRVP pinned to the FVSppe oracle.
+
+See docs/PORT_STATUS.md, "EC crown width, volume, REGENT and ESGENT".
+
+Gate: the full `Pkg.test` on tip `9a53fa31`, compared by name against the em-vol log (`/workspace/.postswap/pkgtest_emvol`,
+code-identical to master `0df04061`). The only new failures were four year-testsets (7 assertions) of the PPE composite
+test. Their volume pins came from the FVSppe historical-source oracle; jl equals current live FVSec_g16 on every row.
+They were re-pinned to live in a test-only commit, and the next branch's full suite covers the merged master.
+
 ## Addendum 2026-09-26 (g) — `em-regcal` merge
 
 Branch `em-regcal` (worktree `.wt-emr`, off em-vol `27da808a`), landed with one proper `git merge --no-ff` after

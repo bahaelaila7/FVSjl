@@ -1189,7 +1189,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa BritishColumbia   ? bc_cwcalc :
           s.variant isa WestCascades      ? wc_cwcalc :
           s.variant isa PacificNorthwest  ? pn_cwcalc :
-          s.variant isa EastCascades      ? ec_cwcalc :
+          s.variant isa EastCascades      ? ((a...) -> ec_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
           s.variant isa SouthCentralOregon ? so_cwcalc :
           nothing
     wcw === nothing &&
