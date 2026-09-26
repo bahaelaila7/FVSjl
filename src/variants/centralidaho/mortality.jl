@@ -27,11 +27,12 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     icindx = Int(p.habitat_input)
     itype = (1 <= icindx <= 130) ? Int(CI_NIHMAP[icindx]) : 1
     (itype < 1 || itype > 30) && (itype = 1)
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     # CI (Zeide) BAMAX = SDIMAX·0.5454154·PMSDIU (ci/morts.f — verified live 265.15 = 571.92·0.5454154·0.85),
     # NOT the site BAMAXA. PMSDIU default 0.85 (fraction).
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi / 100f0 : 0.85f0
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * pmsdiu   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     bamax <= 0f0 && (bamax = 1f0)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n

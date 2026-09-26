@@ -101,9 +101,10 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
     bc_lv2atv(zone) && return bc_v2_mortality!(s; fint = fint, book_snags = book_snags)
     beccls = bc_beccls(zone, series)
     ba = p.basal_area
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ CLMAXDEN)
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ CLMAXDEN)
     # BAMAX: user (control.ba_max) or SDICAL Stage default = SDImax·0.5454154·PMSDIU (PMSDIU=0.85). sdical.f:204
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * 0.85f0
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * 0.85f0   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     bamax <= 0f0 && (bamax = 1f0)
     # stand sums (morts.f:436-472): T, SD2SQ → DQ10; AVED (BA-weighted mean DBH, inches)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
@@ -200,8 +201,9 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ bc/morts.f:423 GOTO 100 ⇒ CLMORTS
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     ba = p.basal_area
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ CLMAXDEN)
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * 0.85f0
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ CLMAXDEN)
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * 0.85f0   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     bamax <= 0f0 && (bamax = 1f0)
     icyc = Int(s.control.cycle)
     oldfnt = fint                                   # OLDFNT=FINT at cyc1 (grincr.f:59); uniform-cycle prev=cur

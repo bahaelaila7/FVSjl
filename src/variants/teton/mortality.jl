@@ -170,7 +170,8 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     # DIA0<0.3 reset (morts.f 374-376)
     if dq0 < 0.3f0; dq10 = 0.3f0 + dq10 - dq0; dq0 = 0.3f0; end
     # SDI self-thinning boundary (morts.f 455-485)
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
@@ -178,7 +179,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     tmd0  = const_ * dq0^(-1.605f0);  tmd0  > 35000f0 && (tmd0  = 35000f0)
     t85d0  = tmd0  * pmsdiu; t55d0  = tmd0  * pmsdil
     # BAMAX defaults from weighted SDImax (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU); PP consumes RZ/BAMAX.
-    bamax = sdimax * 0.5454154f0 * pmsdiu        # LBAMAX=false default (no user BAMAX keyword in ttpp)
+    bamax = sdimax0 * 0.5454154f0 * pmsdiu       # LBAMAX=false default (no user BAMAX keyword in ttpp)   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     dia0 = dq0
     d10 = dq10
     # tt/morts.f label-10 D10-RECALIBRATION LOOP (IPASS ≤ 10). Selective (percentile) mortality raises the
@@ -291,7 +292,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     # ADJFAC=(BANEW−BAMAX)/BADEAD, iterating ≤100× until residual BA ≤ BAMAX. This own-copy had OMITTED it (the
     # shared southern/mortality.jl + NC/UT have it). Inert (immediate break) whenever residual BA ≤ BAMAX, so it
     # cannot regress ttt01 or below-cap stands. BA uses tt_bratio (== tt/morts.f BRATIO) and g=diam_growth/bark.
-    let bamax = sdimax * 0.5454154f0 * pmsdiu
+    let bamax = sdimax0 * 0.5454154f0 * pmsdiu
         if sdimax >= 5f0 && bamax > 0f0
             for _ in 1:100
                 banew = 0f0; badead = 0f0

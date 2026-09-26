@@ -326,7 +326,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     d10  = zeide ? fpow(sumdr10 / tt, 1f0 / 1.605f0) : sqrt(sd2sq / tt)
     dia0 < 0.3f0 && (d10 = 0.3f0 + d10 - dia0; dia0 = 0.3f0)
 
-    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # morts.f SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
+    sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)   # morts.f SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     # preallocated VARMRT work buffers (sliced to the live count; no per-cycle allocation in the hot path)
     efftr  = @view s.scratch.mort_efftr[1:n]
     temwk2 = @view s.scratch.mort_temwk2[1:n]
@@ -467,7 +468,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     # stand maximum BAMAX = SDImax·0.5454154·PMSDIU, scale up every record's kill by
     # adjfac=(BA−BAMAX)/BAdead and re-test, iterating until BA ≤ BAMAX (max 100). This
     # caps the stand at its self-thinning BA — without it dense stands grow unbounded.
-    bamax = sdimax * 0.5454154f0 * pmsdiu
+    bamax = sdimax0 * 0.5454154f0 * pmsdiu   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     if bamax > 0f0
         @inbounds for _ in 1:100
             banew = 0f0; badead = 0f0
