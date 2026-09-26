@@ -121,6 +121,41 @@ end
     end
 end
 
+# ec/regent.f:380-458 — DK (diameter at the grown height) / DKK (at the start height) by species form, then the
+# inventory HTDBH override when height-diameter calibration is off for the species or did not happen
+# (`.NOT.LHTDRG .OR. IABFLG==1`). jl used HTDBH for every species, so a DF whose Wykoff intercept AA was
+# calibrated (IABFLG=0) got the wrong seedling DBH.
+function _ec_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, d::Float32, h::Float32, hk::Float32)
+    sd = s.coef.species; c = s.calib
+    local dk::Float32, dkk::Float32
+    if sp == 11 || (13 <= sp <= 15) || (17 <= sp <= 30) || sp == 32      # WC logic
+        if sp == 11
+            dkk = -0.674f0 + 1.522f0*log(h); dk = -0.674f0 + 1.522f0*log(hk)
+        elseif (13 <= sp <= 15) || sp == 17
+            dkk = -2.089f0 + 1.980f0*log(h); dk = -2.089f0 + 1.980f0*log(hk)
+        elseif sp == 18 || sp == 19
+            dkk = -0.532f0 + 1.531f0*log(h); dk = -0.532f0 + 1.531f0*log(hk)
+        else
+            dkk = 3.102f0 + 0.021f0*h; dk = 3.102f0 + 0.021f0*hk
+        end
+        dkk < 0f0 && (dk = d)                                              # regent.f: IF(DKK.LT.0.0) DK=D (sic)
+    elseif sp == 10                                                        # PP (EC logic)
+        dk = (hk - 8.31485f0 + 0.59200f0*7f0) / 3.03659f0
+        dkk = (h - 8.31485f0 + 0.59200f0*7f0) / 3.03659f0
+        h < 4.5f0 && (dkk = d)
+    else                                                                   # 1-9,12,16,31: inverse Wykoff
+        bx = sd[:ht2][sp]
+        ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]
+        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0
+        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0
+    end
+    if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
+        dk = ec_htdbh_dbh(ifor, sp, hk)
+        dkk = h <= 4.5f0 ? d : ec_htdbh_dbh(ifor, sp, h)
+    end
+    return (dk, dkk)
+end
+
 function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
@@ -130,6 +165,7 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
     ifor = ec_htdbh_ifor(p)
     isisp = Int(p.site_species); (isisp < 1 || isisp > 32) && (isisp = 10)
     scale = fint / EC_RG_REGYR; scale2 = EC_RG_REGYR / fint
+    cur_year = current_cycle_year(s)
     # density modifier PCTRED (ec/regent.f): X = AVH·(RELDEN/100), capped 300; 5th-order polynomial.
     xden = avh * (relden / 100f0); xden > 300f0 && (xden = 300f0)
     pctred = Float32(EC_RG_AB[1] + xden*(EC_RG_AB[2] + xden*(EC_RG_AB[3] + xden*(EC_RG_AB[4] + xden*(EC_RG_AB[5] + xden*EC_RG_AB[6])))))
@@ -139,70 +175,89 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= EC_RG_XMAX[sp] || t.tpa[i] <= 0f0) && continue
         h = t.height[i]
-        # site index for smhtgf = the tree's own SITEAR, clamped to the site species' [SLO+0.5, SHI]
+        # ec/smhtgf.f:98 reads SI=SITEAR(ISPC) — the tree's OWN site index, UNCLAMPED. ec/regent.f's clamped
+        # SI (=SITEAR(ISISP) bounded to the site species' [SLO+0.5, SHI]) is a dead local. jl clamped the tree's SI
+        # to the site species' range, so on Mt Hood (site species GF, SHI 110) ES's SI 148 became 110 and its
+        # seedlings grew 7.9 ft instead of live's 17.4 ft in one cycle.
         si = p.sp_site_index[sp]
-        si > EC_RG_SHI[isisp] && (si = EC_RG_SHI[isisp])
-        si <= EC_RG_SLO[isisp] && (si = EC_RG_SLO[isisp] + 0.5f0)
         con = exp(c.htg_cor_small[sp])                  # RHCON=1 default ⇒ CON = exp(HCOR)
         x = Float32(t.crown_pct[i]) / 100f0
         vigor = 150f0 * x^3 * exp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
         pothtg = ec_smhtgf(sp, h, 10f0, si)
-        htgr = pothtg * pctred * vigor * con
-        zzran = 0f0
-        if dgsd >= 1f0
-            while true
-                zzran = bachlo(s.rng, 0f0, 1f0)
-                (zzran <= 0.5f0 && zzran >= -2f0) && break
-            end
-        end
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         wcform = sp in EC_HT_WCFORM
-        if wcform
-            htgr = (htgr + zzran*0.1f0) * scale; htgr < 0.1f0 && (htgr = 0.1f0)
-        else
-            htgr = (htgr + zzran*0.1f0) * scale; htgr < 0f0 && (htgr = 0f0)
-        end
         xmn = EC_RG_XMIN[sp]; xmx = EC_RG_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-        htg = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
-        htg < 0.1f0 && (htg = 0.1f0)
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
-        t.ht_growth[i] = htg
-        if d >= 3f0                                     # DBH from large-tree dgf; only HTG overridden
-            _ec_rg_stash!(stash, t, i); continue
-        end
         bark = wc_bratio(sd, sp, d)
-        hk = h + htg
-        if hk <= 4.5f0
-            t.diam_growth[i] = 0f0; t.dbh[i] = d + 0.001f0*hk
-            _ec_rg_stash!(stash, t, i); continue
+        large0 = t.ht_growth[i]
+        ltrip = stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
+        # ec/regent.f label 2 … `L=L+1; K=ITRN+2*I-2+L; GO TO 2`: the central record and each tripled copy get
+        # their OWN ZZRAN, HTG blend (toward that record's large-tree HTG) and, below 3", their own DBH increment;
+        # at or above 3" a copy keeps its own DGDRIV DG. jl ran one pass and copied the central onto both copies.
+        for l in 0:(ltrip ? 2 : 0)
+            htgr = pothtg * pctred * vigor * con
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2f0) && break
+                end
+            end
+            if wcform                                    # regent.f:336-340 (WK4 climate multiplier = 1 w/o CLIMATE)
+                htgr = (htgr + zzran*0.1f0) * xrhgro * scale; htgr < 0.1f0 && (htgr = 0.1f0)
+            else
+                htgr = (htgr + zzran*0.1f0) * xrhgro * scale; htgr < 0f0 && (htgr = 0f0)
+            end
+            large = l == 0 ? large0 : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large0)
+            htg = htgr*(1f0 - xwt) + xwt*large
+            htg < 0.1f0 && (htg = 0.1f0)
+            (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+            dg = 0f0; dbh_set = -1f0
+            if d < 3f0
+                hk = h + htg
+                if hk <= 4.5f0
+                    dbh_set = d + 0.001f0*hk
+                else
+                    dk, dkk = _ec_regent_dk_dkk(s, ifor, sp, d, h, hk)
+                    if dk < 0f0 || dkk < 0f0
+                        dg = htg * 0.2f0 * bark * xrdgro
+                        dk = d + dg
+                    else
+                        dg = (dk - dkk) * bark * xrdgro
+                    end
+                    # regent.f:489-493 hardwoods (20:30,32): the linear height-DBH form degenerates to 0.021·HG, so
+                    # with a calibrated Wykoff fit (LHTDRG and IABFLG==0) FVS substitutes the rule of thumb 0.1·HTG.
+                    ((20 <= sp <= 30 || sp == 32) && s.control.ht_drag_sp[sp] && c.ht_dbh_iabflg[sp] == 0) &&
+                        (dg = 0.1f0 * htg * xrdgro)
+                    dg < 0f0 && (dg = 0f0)
+                    dgmx = EC_RG_DGMAX[sp] * scale
+                    dg > dgmx && (dg = dgmx)
+                    dds = dg*(2f0*bark*d + dg)*scale2
+                    dg = sqrt((d*bark)^2 + dds) - bark*d
+                    (d + dg) < EC_RG_DIAM[sp] && (dg = EC_RG_DIAM[sp] - d)
+                end
+                dg = wc_dgbnd(sp, dbh_set >= 0f0 ? dbh_set : d, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                if d < 3f0
+                    t.diam_growth[i] = dg
+                    dbh_set >= 0f0 && (t.dbh[i] = dbh_set)
+                end
+            else
+                stash.is_small[i] = true
+                if l == 1
+                    stash.htgU[i] = htg
+                    d < 3f0 && (stash.dgU[i] = dg; stash.dbhU[i] = dbh_set >= 0f0 ? dbh_set : d)
+                else
+                    stash.htgL[i] = htg
+                    d < 3f0 && (stash.dgL[i] = dg; stash.dbhL[i] = dbh_set >= 0f0 ? dbh_set : d)
+                end
+            end
         end
-        dk  = ec_htdbh_dbh(ifor, sp, hk)
-        dkk = h <= 4.5f0 ? d : ec_htdbh_dbh(ifor, sp, h)
-        local dg::Float32
-        if dk < 0f0 || dkk < 0f0
-            dg = htg * 0.2f0 * bark                      # xrdgro = 1
-            dk = d + dg
-        else
-            dg = (dk - dkk) * bark
-        end
-        dg < 0f0 && (dg = 0f0)
-        dgmx = EC_RG_DGMAX[sp] * scale
-        dg > dgmx && (dg = dgmx)
-        dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
-        (t.dbh[i] + dg) < EC_RG_DIAM[sp] && (dg = EC_RG_DIAM[sp] - t.dbh[i])
-        dg = wc_dgbnd(sp, t.dbh[i], dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
-        t.diam_growth[i] = dg
-        _ec_rg_stash!(stash, t, i)
     end
     return s
 end
 
-@inline function _ec_rg_stash!(stash, t, i::Int)
-    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
-        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
-        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
-        !isempty(stash.is_small) && (stash.is_small[i] = true)
-    end
-end
