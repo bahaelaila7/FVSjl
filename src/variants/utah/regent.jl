@@ -50,6 +50,9 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
     ab = UT_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    # WK4 = CLGMULT's per-tree climate multiplier (dgdriv.f fills it before REGENT; 1 without CLIMATE).
+    wk4 = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)
+    cur_year = current_cycle_year(s)
     # ut/regent.f:183-223 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
     @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -85,7 +88,14 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
                 (zzran <= 0.5f0 && zzran >= -2.0f0) && break
             end
         end
-        htgr = (htgr + zzran * 0.1f0) * scale         # XRHGRO=1
+        # ut/regent.f:344-350 SELECT CASE(ISPC): the CR-surrogate hardwoods (17:19,22) take ZZRAN·0.2 and the
+        # CLGMULT climate multiplier WK4(I); every other species ZZRAN·0.1 and no WK4. XRHGRO = REGHMULT.
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        if 17 <= sp <= 19 || sp == 22
+            htgr = (htgr + zzran * 0.2f0) * xrhgro * scale * (wk4 === nothing ? 1f0 : wk4[i])
+        else
+            htgr = (htgr + zzran * 0.1f0) * xrhgro * scale
+        end
         htgr < 0.1f0 && (htgr = 0.1f0)
         # XWT blend with large-tree HTG
         xmn = UT_RG_XMIN[sp]; xmx = UT_RG_XMAX[sp]

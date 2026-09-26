@@ -275,6 +275,8 @@ function setup_growth!(s::StandState)
         # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
         # it; the VARDG-driven tripled-record spread + multi-cycle COR attenuation land with that chunk.
     end
+    cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
+                                          # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)
     return s
 end
 
@@ -718,7 +720,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
     # clgmult.f runs every cycle inside DGDRIV even with ITRN=0 (SPWTS=0 ⇒ SPGMULT=1); jl skips growth on a bare
-    # stand, so start each cycle at 1 (apply_climate_dds! overwrites it when it runs) and clear last cycle's report.
+    # stand, so start each cycle at 1 (climate_growth_wk4! overwrites it when it runs) and clear last cycle's report.
     (s.climate !== nothing && s.climate.active) &&
         (fill!(s.climate.spgmult, 1f0); s.climate.pending_report = nothing)
     # Climate SPCALIB (clmorts.f:57-75 ICYC==1): set at cycle 0 from INVENTORY presence, BEFORE establishment
@@ -1182,6 +1184,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
+    # gradd.f:205 ABIRTH(I)=ABIRTH(I)+FINT is shared by every variant; jl ages it where something reads ABIRTH:
+    # the CR/TT/UT/IE/EM/BM growth models, and Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant.
+    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire ||
+              s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Kootenai ||
+              s.variant isa Klamath || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
+              s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia ||
+              s.variant isa WestSierra || s.variant isa OregonCoast || s.variant isa Olympic ||
+              s.variant isa BritishColumbia
     _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
     _pn_up = s.variant isa PacificNorthwest   # PN bark = wc_bratio (POWER, all imap=1) — same as WC
     _ec_up = s.variant isa EastCascades   # EC bark = wc_bratio (per-species bark_imap POWER/linear)
@@ -1212,10 +1222,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # EXECUTE) and KEEPS diam_growth/ht_growth for the FVS_TreeList DG/HtG report — so this shared
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
-        s.variant isa OregonCoast && continue
+        s.variant isa OregonCoast && (t.birth_age[i] += fint; continue)   # gradd.f:205 ages OC's ABIRTH too
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up || _ut_up || _ie_up || _em_up || _bm_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
+        _age_up && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old

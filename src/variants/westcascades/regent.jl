@@ -174,6 +174,7 @@ end
 function small_tree_growth!(s::StandState, stash, ::WestCascades; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (regent.f:266/371 ·WK4(I)); nothing ⇒ 1
     sd = s.coef.species; dens = s.density
     avh = p.avg_height; dgsd = s.control.dg_sd
     ifor = _wc_htdbh_ifor(Int(p.forest_idx))
@@ -193,7 +194,7 @@ function small_tree_growth!(s::StandState, stash, ::WestCascades; fint::Float32 
         ptba = (1 <= ip <= length(dens.point_ba)) ? dens.point_ba[ip] : 0.0f0
         si = p.sp_site_index[sp]
         con = exp(c.htg_cor_small[sp])                      # RHCON(=1)·exp(HCOR)
-        wk4 = t.htimlt[i]                                   # per-tree height multiplier (1 for inventory)
+        wk4 = t.htimlt[i] * (cw === nothing ? 1f0 : cw[i])   # growth-cycle WK4 = CLGMULT (HTIMLT=1 outside the birth cycle)
         # --- SMHGDG twice (each 5-yr) ⇒ 10-yr HTGR/DGR (regent.f:234-255) ---
         hg1, dg1 = wc_smhgdg(sp, h, d, cr, ptbal, ptba, si, avht)
         hk = h + hg1; dk = d + dg1

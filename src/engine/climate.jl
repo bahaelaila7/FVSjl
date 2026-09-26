@@ -241,21 +241,49 @@ unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGR
 end
 
 """
-    apply_climate_dds!(s, wk2, thisyr)
+    climate_growth_wk4!(s, thisyr) -> Union{Nothing,Vector{Float32}}
 
-Apply the Climate-FVS growth multiplier to the large-tree DDS (`wk2` = ln(DDS)), mirroring
-dgdriv.f:217 `DDS = EXP(WK2)·WK4` where WK4 = clgmult's per-tree TREEMULT — so here `wk2[i] +=
-log(treemult[i])`. Per cycle: XGSITE + per-species VSCORE at `thisyr`; per tree: BIRTHYR = thisyr −
-birth_age, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP), and `clim_treemult`. No-op when climate is
-inactive or the required attribute columns are absent.
+dgdriv.f's `CALL CLGMULT(WK4)`: the per-tree TREEMULT (`clim_wk4`) plus clgmult.f's report side effect, SPGMULT =
+the DBH²·PROB-weighted TREEMULT per species (clgmult.f:48 zeroes it; it stays 0 on clgmult's early return). The
+DG drivers apply it as dgdriv.f:217 DDS=EXP(WK2+XDGROW)·WK4 — multiplying the DDS, never folding ln(WK4) into WK2,
+because DGSCOR damps the residual on the un-multiplied WK2 (dgscor.f:25-29).
 """
-function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr::Real)
+function climate_growth_wk4!(s::StandState, thisyr::Real)
     c = s.climate
-    (c === nothing || !c.active) && return s
+    (c === nothing || !c.active) && return nothing
     fill!(c.spgmult, 0f0)                                         # clgmult.f:48 SPGMULT=0 (stays 0 on the early return)
+    wk4 = clim_wk4(s, thisyr)
+    wk4 === nothing && return nothing
+    t = s.trees; ns = length(c.plant_symbols)
+    spw = zeros(Float32, ns)
+    @inbounds for i in 1:t.n
+        t.dbh[i] <= 0f0 && continue
+        sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
+        xwt = t.dbh[i] * t.dbh[i] * t.tpa[i]                    # clgmult.f:199 XWT = DBH²·PROB (BA weight)
+        spw[sp] += xwt; c.spgmult[sp] += wk4[i] * xwt
+    end
+    @inbounds for sp in 1:ns                                      # clgmult.f:203-209
+        c.spgmult[sp] = spw[sp] > 0f0 ? c.spgmult[sp] / spw[sp] : 1f0
+    end
+    return wk4
+end
+
+"""
+    clim_wk4(s, thisyr) -> Union{Nothing,Vector{Float32}}
+
+CLGMULT's per-tree growth multiplier WK4 (clgmult.f:79-230) at THISYR = IY(ICYC)+FINT/2: XGSITE + per-species
+VSCORE, per tree BIRTHYR = THISYR − ABIRTH, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP) and `clim_treemult`.
+`nothing` when climate is inactive or the required attribute columns are absent (clgmult leaves WK4 = 1). dgdriv.f
+applies it as DDS=EXP(WK2+XDGROW)·WK4 (`climate_growth_wk4!`); the variants whose regent.f scales HTGR by WK4(I)
+(UT/TT/CI/CR/PN/WC/EC/WS/OP) read the same vector — DGDRIV fills WK4 earlier in the same cycle and ABIRTH is not
+aged until GRADD, so recomputing it at the same THISYR is identical. Pure (no report state touched).
+"""
+function clim_wk4(s::StandState, thisyr::Real)
+    c = s.climate
+    (c === nothing || !c.active) && return nothing
     cd = c.data; ix = c.indices; t = s.trees
     (ix[:mtcm] == 0 || ix[:mmin] == 0 || ix[:dd0] == 0 || ix[:d100] == 0 ||
-     ix[:dd5] == 0 || ix[:gsp] == 0) && return s
+     ix[:dd5] == 0 || ix[:gsp] == 0) && return nothing
     ty = Float32(thisyr)
     A(sym, yr) = algslp(yr, cd.years, view(cd.attrs, :, ix[sym]))
     smi(yr) = (g = A(:gsp, yr); g > 0f0 ? A(:dd5, yr) / g : 0f0)
@@ -266,7 +294,7 @@ function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr:
     @inbounds for sp in 1:ns
         _, vscore[sp] = species_vscore(cd, c.plant_symbols[sp], ty)
     end
-    spw = zeros(Float32, ns); fill!(c.spgmult, 0f0)
+    wk4 = ones(Float32, t.n)
     @inbounds for i in 1:t.n
         t.dbh[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
@@ -276,14 +304,9 @@ function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr:
         xpp = leites_xpp(smi_now, smi(birthyr), A(:d100, birthyr))
         xr  = clim_xrelgr(c.plant_symbols[sp], xdf, xpp, xwl)
         _, tm = clim_treemult(xgsite, xr, vscore[sp], c.growmult[sp])
-        tm > 0f0 && (wk2[i] += log(tm))
-        xwt = t.dbh[i] * t.dbh[i] * t.tpa[i]                    # clgmult.f:199 XWT = DBH²·PROB (BA weight)
-        spw[sp] += xwt; c.spgmult[sp] += tm * xwt
+        wk4[i] = tm
     end
-    @inbounds for sp in 1:ns                                      # clgmult.f:203-209
-        c.spgmult[sp] = spw[sp] > 0f0 ? c.spgmult[sp] / spw[sp] : 1f0
-    end
-    return s
+    return wk4
 end
 
 # --- Climate mortality (clmorts.f) — viability → survival → mortality rate ---
@@ -497,7 +520,12 @@ function clim_maxden_mult(s::StandState, thisyr::Real, clmxdenmult::Real)::Float
     c = s.climate; cd = c.data; ns = length(c.plant_symbols); p = s.plot
     firstyr = Float32(c.inv_year); ty = Float32(thisyr)
     sumwf = 0f0; weisumf = 0f0; sumwc = 0f0; weisumc = 0f0; maxf = 0f0; maxc = 0f0
+    anycol = false
     @inbounds for sp in 1:ns
+        # clmaxden.f:55-59/68 loops only species with a viability column (INDXSPECIES(I)>0); none ⇒ RETURN (×1).
+        # species_vscore returns (1,1) for a missing column, which would count it as fully viable.
+        findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
+        anycol = true
         vf = clamp(-1f0 + 2.5f0 * species_vscore(cd, c.plant_symbols[sp], firstyr)[1], 0f0, 1f0)
         vc = clamp(-1f0 + 2.5f0 * species_vscore(cd, c.plant_symbols[sp], ty)[1], 0f0, 1f0)
         sdidef = p.sp_sdi_def[sp]
@@ -505,6 +533,7 @@ function clim_maxden_mult(s::StandState, thisyr::Real, clmxdenmult::Real)::Float
         sumwf += vf; weisumf += vf * sdidef
         sumwc += vc; weisumc += vc * sdidef
     end
+    anycol || return 1f0
     sumwf += (1f0 - maxf); sumwc += (1f0 - maxc)
     fscore = sumwf > 0f0 ? weisumf / sumwf : 0f0
     cscore = sumwc > 0f0 ? weisumc / sumwc : 0f0
@@ -518,6 +547,24 @@ function clim_maxden_mult(s::StandState, thisyr::Real, clmxdenmult::Real)::Float
     end
     m = 1f0 + (xx - 1f0) * Float32(clmxdenmult)
     return m < 0f0 ? 0f0 : m
+end
+
+"""
+    clim_sdical_xmax(s, xmax, fint; icyc = s.control.cycle + 1) -> Float32
+
+sdical.f:216 `CALL CLMAXDEN(SDIDEF,XMAX)` — every SDICAL scales its XMAX by the climate max-density multiplier
+(clmaxden.f) from the SECOND cycle on (ICYC≤1 ⇒ MXDENMLT=1), at CURRENTYEAR = IY(ICYC)+(IY(ICYC+1)−IY(ICYC))/2 in
+INTEGER arithmetic, with CLMXDENMULT = the latest MxDenMult activity (≤ICYC). Identity when climate is inactive.
+The morts.f SDI-max (and the BAMAX = XMAX·0.5454154·PMSDIU cap derived from it) must go through this.
+"""
+function clim_sdical_xmax(s::StandState, xmax::Real, fint::Real; icyc::Integer = Int(s.control.cycle) + 1,
+                          cyear::Real = current_cycle_year(s))::Float32
+    c = s.climate
+    (c === nothing || !c.active) && return Float32(xmax)
+    icyc <= 1 && return Float32(xmax)
+    clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
+    cy = Float32(round(Int, cyear) + div(round(Int, fint), 2))
+    return Float32(xmax) * clim_maxden_mult(s, cy, clmx)
 end
 
 """
@@ -538,11 +585,7 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
     active === nothing && return s
     aestock = active[2]; aesntrees = active[3]; nespecies = active[4]
     t = s.trees; cd = c.data; ns = length(c.plant_symbols)
-    xmax = stand_sdimax(s)                                             # SDICAL XMAX
-    if icyc > 1                                                        # clmaxden.f:48 (ICYC≤1 ⇒ MXDENMLT=1)
-        clmxden = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmxden = e[2]); end
-        xmax *= clim_maxden_mult(s, Float32(current_cycle_year(s)) + Float32(fint) / 2f0, clmxden)
-    end
+    xmax = clim_sdical_xmax(s, stand_sdimax(s), fint; icyc = icyc)     # SDICAL XMAX (+CLMAXDEN from ICYC 2)
     rmsqd = max(5f0, stand_qmd(s))
     tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)                 # 0.02483133 = 10^-1.605
     tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
@@ -550,8 +593,13 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
     (ptrees * aesntrees > 0f0) || return s
     ty = Float32(current_cycle_year(s)) + Float32(fint) / 2f0
     pot = zeros(Float32, ns)
-    @inbounds for sp in 1:ns; pot[sp] = species_vscore(cd, c.plant_symbols[sp], ty)[1]; end   # raw viability
-    order = sortperm(pot; rev = true)                                 # RDPSRT desc (ties rare among viabilities)
+    # clauestb.f:65-72 POTESTAB = raw viability at THISYR, 0 where the species has no viability column
+    # (INDXSPECIES=0) — species_vscore's 1.0 fallback would make such a species "fully viable" and establish it.
+    @inbounds for sp in 1:ns
+        findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
+        pot[sp] = species_vscore(cd, c.plant_symbols[sp], ty)[1]
+    end
+    order = Vector{Int32}(undef, ns); _rdpsrt!(pot, order)            # clauestb.f:75 RDPSRT(MAXSP,POTESTAB,ISPINDX,.TRUE.)
     nspec = 0
     for sp in order; pot[sp] < 0.4f0 && break; nspec += 1; end
     nspec == 0 && return s
@@ -615,12 +663,10 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
         spba[sp]  += d * d * pr * 0.005454154f0
         sptpa[sp] += pr
     end
-    icyc = max(1, Int(s.control.cycle))
-    mxden = 1f0
-    if icyc > 1
-        clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
-        mxden = clim_maxden_mult(s, ty, clmx)
-    end
+    # The report is snapshotted INSIDE clauestb (pre-advance: s.control.cycle = ICYC−1) ⇒ ICYC = cycle+1. MXDENMLT is
+    # the CLMAXDEN value of clauestb's own SDICAL call (CURRENTYEAR in integer arithmetic; 1 at ICYC≤1).
+    icyc = Int(s.control.cycle) + 1
+    mxden = clim_sdical_xmax(s, 1f0, fint; icyc = icyc, cyear = report_year)
     potestab = _climate_potestab(s, c, cd, ty, fint, icyc)
     tba = sum(spba); ttpa = sum(sptpa)
     spimp = zeros(Float32, ns)
@@ -650,22 +696,18 @@ function _climate_potestab(s::StandState, c, cd, ty::Real, fint::Real, icyc::Int
         e[1] <= icyc && (aestock = e[2]; aesntrees = e[3]; nespecies = e[4])
     end
     t = s.trees
-    xmax = stand_sdimax(s)
-    if icyc > 1
-        clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
-        xmax *= clim_maxden_mult(s, Float32(ty), clmx)
-    end
+    xmax = clim_sdical_xmax(s, stand_sdimax(s), fint; icyc = icyc, cyear = Float32(ty) - Float32(fint) / 2f0)   # clauestb.f:37 SDICAL
     rmsqd = max(5f0, stand_qmd(s))
     tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)
     tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
     ptrees = tmaxtrs > 1f0 ? clamp(2f0 - 4f0 * (tprob / tmaxtrs), 0f0, 1f0) : 1f0
     (ptrees * aesntrees > 0f0) || return pot
-    sc = fill(-1f0, ns)                                            # −1 = no viability column (INDXSPECIES=0 gate)
+    sc = zeros(Float32, ns)                                        # 0 = no viability column (clauestb.f:66 INDXSPECIES=0)
     @inbounds for sp in 1:ns
         findfirst(==(c.plant_symbols[sp]), cd.labels) === nothing && continue
         sc[sp] = species_vscore(cd, c.plant_symbols[sp], Float32(ty))[1]
     end
-    order = sortperm(sc; rev = true)
+    order = Vector{Int32}(undef, ns); _rdpsrt!(sc, order)          # clauestb.f:75 RDPSRT(...,.TRUE.): its tie order
     nspec = 0; for sp in order; sc[sp] < 0.4f0 && break; nspec += 1; end
     nspec == 0 && return pot
     nspec > nespecies && (nspec = round(Int, nespecies))
@@ -674,7 +716,7 @@ function _climate_potestab(s::StandState, c, cd, ty::Real, fint::Real, icyc::Int
     ttoadd = sc[top[1]] > 0.8f0 ? aesntrees : aesntrees * sc[top[1]]
     ssum = 0f0; @inbounds for sp in top; ssum += sc[sp]; end
     ssum > 0.001f0 || return pot
-    tprob > tmaxtrs * aestock * 0.01f0 && return pot
+    # (the report's POTESTAB is written BEFORE clauestb.f:219's LAESTB/stocking returns — no stocking gate here)
     @inbounds for sp in top
         xx = ptrees * ttoadd * (sc[sp] / ssum)
         xx <= 1f0 && (xx = 0f0)

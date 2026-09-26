@@ -91,7 +91,7 @@ end
 @inline function _tt_utvar_regent(sp::Int, h::Float32, d::Float32, cr::Float32, sitear::Float32,
                                   pctred::Float32, con::Float32, bark::Float32,
                                   dgmax::Float32, diam::Float32, scale2::Float32,
-                                  htg_large::Float32 = 0f0)::Tuple{Float32,Float32}
+                                  htg_large::Float32 = 0f0; wk4::Float32 = 1f0)::Tuple{Float32,Float32}
     if sp == 14
         # MM (Rocky Mtn maple) — UTVAR FINDAG aspen-height + Wykoff DBH (regent.f:464-486, 907-914).
         # HEIGHT: FINDAG SITAGE (aspen inverse-height age, findag.f CASE 6,14, metric), AG2=SITAGE+10,
@@ -139,6 +139,9 @@ end
     # ⅔ VIGOR cut is ISPC==6 only (regent.f:284); PM/UJ/RM empirically need it (validated), MC/BI do not.
     (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
     htgrl = pothtg * pctred * vigor * con
+    # tt/regent.f:766-771 SELECT CASE(ISPC): the CR-surrogate NC/OH (15,18) take ·WK4(I) — the CLGMULT climate
+    # multiplier (1 without CLIMATE) — before the 0.1-ft floor below.
+    (sp == 15 || sp == 18) && (htgrl *= wk4)
     # regent.f:780 (Dixon 3/4/09 "PREVENT NEGATIVE HEIGHT GROWTH"): UTVAR floors HTGR to 0.1 ft, NOT 0.
     # This is load-bearing for tall woodland trees whose pothtg goes negative (H > SJ·1.5): the 0.1-ft
     # floor drives DG=(DK−DKK)·bark≈0.1" via the H-D below. Clamping to 0 (old jl) froze UJ/PM/RM DBH.
@@ -404,6 +407,7 @@ end
 function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (tt/regent.f:770); nothing ⇒ 1
     ba = p.basal_area; relden = p.relative_density
     dgsd = s.control.dg_sd; regyr = _TT_REGYR
     si6 = p.sp_site_index[6]
@@ -633,7 +637,8 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             bark = tt_bratio(sp, d)
             scale2 = htg_period(s.variant) / fint                     # YR/NTYR
             htgr, dg = _tt_utvar_regent(sp, h, d, cr, sitear, pctred, con, bark,
-                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2, t.ht_growth[i])
+                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2, t.ht_growth[i];
+                                        wk4 = cw === nothing ? 1f0 : cw[i])
             cap = s.control.sp_size_cap[sp, 4]
             (h + htgr > cap) && (htgr = max(cap - h, 0.1f0))
             t.ht_growth[i] = htgr

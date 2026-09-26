@@ -95,12 +95,13 @@ weighting) → WKI = P·(1−(1−RIPP)^FINT); climate-death when weighted SDIma
 """
 function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ bc/morts.f:423 GOTO 100 ⇒ CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     zone, series = bc_stand_zone(s)
     bc_lv2atv(zone) && return bc_v2_mortality!(s; fint = fint, book_snags = book_snags)
     beccls = bc_beccls(zone, series)
     ba = p.basal_area
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ CLMAXDEN)
     # BAMAX: user (control.ba_max) or SDICAL Stage default = SDImax·0.5454154·PMSDIU (PMSDIU=0.85). sdical.f:204
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * 0.85f0
     bamax <= 0f0 && (bamax = 1f0)
@@ -113,7 +114,7 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
         wprob += pr; dsum += d * pr
     end
-    tt < 1f-6 && return s
+    tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
     dq10 = sqrt(sd2sq / tt)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
@@ -129,7 +130,6 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
         if bax <= BC_BABRK[i]; bacls = i; break; end
     end
     sqrtbax = sqrt(bax)
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -172,6 +172,11 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
     # on _dm_effects_variant (BC included) + self-inert when no tree carries DMR. BC's spatial NEWSPRED
     # analogue of the N-Rockies ie_dm_mortality_combine! call in each variant's mortality!.
     ie_dm_mortality_combine!(killed, s, fint, n)
+    @label morts45
+    # Climate-FVS mortality (bc/morts.f:711 CALL CLMORTS — after the base mortality, before FIXMORT / booking),
+    # THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
@@ -192,9 +197,10 @@ const BC_MORT_IPDG2_44 = 41    # IPDG2(ITYPE=4,IFOR=4)
 """BC V2 mortality — Hamilton RIP (morts.f:554-578) + shared BAMAX-approach tail. Imperial (BA ft²/acre, D in)."""
 function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ bc/morts.f:423 GOTO 100 ⇒ CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     ba = p.basal_area
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ CLMAXDEN)
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * 0.85f0
     bamax <= 0f0 && (bamax = 1f0)
     icyc = Int(s.control.cycle)
@@ -211,7 +217,7 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
         g = t.diam_growth[i] / bc_bratio(sp)
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr; wprob += pr; dsum += d * pr
     end
-    tt < 1f-6 && return s
+    tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
     dq10 = sqrt(sd2sq / tt)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
@@ -220,7 +226,6 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     rz = 1f0 - (1f0 - ttb)^0.1f0
     aved = dsum / wprob
     sqrtba = sqrt(ba)
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -261,6 +266,11 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     # on _dm_effects_variant (BC included) + self-inert when no tree carries DMR. BC's spatial NEWSPRED
     # analogue of the N-Rockies ie_dm_mortality_combine! call in each variant's mortality!.
     ie_dm_mortality_combine!(killed, s, fint, n)
+    @label morts45
+    # Climate-FVS mortality (bc/morts.f:711 CALL CLMORTS — after the base mortality, before FIXMORT / booking),
+    # THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

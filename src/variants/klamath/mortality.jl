@@ -38,7 +38,8 @@ end
 
 function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     yr = htg_period(s.variant)          # NC growth model is 5-yr native (YR=5); the cycle is FINT=10
     # Grown-stand sums (morts.f:186-263). G is the OUTSIDE-bark end-of-cycle increment `(DG/BARK)·(FINT/5)`
@@ -59,7 +60,7 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         sd2sq += pr * (d * d + ciobds); sdq0 += pr * fpow(d, 2f0)
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
     end
-    tt < 1f-6 && return s
+    tt < 1f0 && @goto morts45   # morts.f IF(T.LT.1.0) GO TO 45 — still reaches CLMORTS
     # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
     # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
     let dens = s.density
@@ -73,11 +74,10 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         dr10 = sqrt(sd2sq / tt); dia0 = sqrt(sdq0 / tt)
     end
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     efftr  = @view s.scratch.mort_efftr[1:n]
     temwk2 = @view s.scratch.mort_temwk2[1:n]
 
@@ -186,6 +186,11 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
     end
     # morts.f TPAMRT=TNEW: post-mortality (after the BAMAX cap) residual TPA, the reference for the next reset test.
     s.density.tpa_mort = sum(max(0f0, t.tpa[i] - killed[i]) for i in 1:n; init = 0f0)
+    @label morts45
+    # Climate-FVS mortality (nc/morts.f CALL CLMORTS — after the base mortality and TPAMRT, immediately before
+    # FIXMORT), THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

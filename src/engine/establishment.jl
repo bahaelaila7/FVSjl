@@ -736,14 +736,23 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # height growth as planted stands approached the site asymptote (late-cycle TopHt jl-high). CR-gated:
                 # the eastern variants share this latent gap but are separately validated (avoid unvalidated churn).
                 # CR/TT: western even-aged htgf reads birth_age. IE joins for CLIMATE ONLY: IE growth does NOT
-                # read birth_age (only the Climate-FVS BIRTHYR does — apply_climate_dds! + inlandempire/regent.jl
+                # read birth_age (only the Climate-FVS BIRTHYR does — climate_growth_wk4! + inlandempire/regent.jl
                 # clim_treemult), so setting it is byte-identical for climate-off IE but gives established regen the
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
                 # EM builds the identical estab.f (FVSem_buildDir/estab.f == FVSie's): ABIRTH=AGADSB/AGEXC/AGEPL (:1235/
                 # :1324/:1414) + GENTIM (:1504). EM reads it in Climate-FVS BIRTHYR and the aspen REGENT (HITE1=f(ABIRTH));
                 # birth_age=0 gave EM AutoEstb regen BIRTHYR=THISYR ⇒ DF GrowthMult 1.133 vs live 1.045 (stand 5352355010661).
-                (s.variant isa CentralRockies || s.variant isa Teton) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # #252: every western variant whose estab.f carries ABIRTH(ITRN)=AGEPL… + ABIRTH(I)=ABIRTH(I)+GENTIM
+                # (the strp estab.f of UT/NC/PN/WC/EC/SO/CA/WS/OC/OP, the IE-family one of CI/KT, and BC's) — needed by
+                # Climate-FVS BIRTHYR (clgmult/clmorts) now that those variants are climate-wired. BM keeps its own
+                # measured AGEPL form below; IE/EM take the per-record AGEPL form below.
+                (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah ||
+                 s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa Klamath ||
+                 s.variant isa PacificNorthwest || s.variant isa WestCascades || s.variant isa EastCascades ||
+                 s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia || s.variant isa WestSierra ||
+                 s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa BritishColumbia) &&
+                    (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
                 # IE/EM: ABIRTH is AGEPL = FINT−DELAY+TRAGE at creation (estab.f:1064/1414, the ESSUBH-clamped DELAY
                 # and the ORIGINAL TRAGE of :990) — what REGENT(LESTB) reads for aspen SITAGE (ie/regent.f:572; em
                 # HITE1=f(ABIRTH)) — and esgent_add_gentim! adds the cycle's final GENTIM afterwards (estab.f:1504).

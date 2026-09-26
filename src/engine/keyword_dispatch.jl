@@ -1726,7 +1726,11 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         # CLIMREPT/SETATTR: recognized, applied in a later chunk
         end
     end
-    if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years)
+    # Variants built with the exclim.f stubs (AK, ON and the eastern SN/CS/LS/NE builds) have no Climate-FVS: the
+    # stub CLIN raises FVS11 ("REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM") and CLGMULT/CLMORTS/CLMAXDEN/
+    # CLAUESTB are no-ops, so the run is the no-climate run with no FVS_Climate table (live FVSak_g16: .sum identical
+    # with and without the block). The block is still consumed here; it just never activates.
+    if cdata !== nothing && !isempty(cdata.labels) && !isempty(cdata.years) && climate_extension_linked(s.variant)
         ns = nspecies(s.variant)
         s.climate = ClimateState(true, cdata, resolve_climate_indices(cdata.labels),
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns),

@@ -62,6 +62,8 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
                        msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg, calib1=calib1) : nothing
     fscale = fint/5f0
+    # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
+    cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue
         sp = isp_fvs[i]
@@ -69,7 +71,7 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         # DIAMETER: DDS from ORGANON (IORG=1) or the FVS-native DGF (IORG=0); both → DG via the shared
         # sqrt path, DBH grows outside-bark by DG/BARK (oc/dgdriv.f:536-557, update.f).
         dds = (iorg && g !== nothing) ? g.dds[i] : wk2[i]
-        dg = oc_organon_dg(sp, d0, dds)
+        dg = oc_organon_dg(sp, d0, dds, cw === nothing ? 1f0 : cw[i])
         bark = oc_bratio(sp, d0)
         t.vol_bark[i] = bark             # BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150); the shared
                                          # apply-loop skips OC so this pre-growth value survives.
@@ -166,6 +168,20 @@ small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
 # FFE is inactive or the SN biomass coeffs are absent, and guards on `dbh>0` so stale `mort_pa` on empty
 # records is skipped. `book_snags=false` on the fire cycle: the fire path owns snag booking there.
 function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snags::Bool = true, kwargs...)
-    book_snags && book_mortality_snags!(s, s.trees.mort_pa, s.trees.n, fint)
+    t = s.trees; n = t.n
+    n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ oc/morts.f still reaches CLMORTS
+    # Climate-FVS mortality (oc/morts.f:801 CALL CLMORTS, after the base kill WK2, before FIXMORT): CLMORTS
+    # MAX-combines each record's climate rate into WK2 against the PRE-mortality PROB. ORGANON already removed its
+    # MORTEXP kill (t.mort_pa) inline, so restore PROB, combine, and re-apply the (possibly larger) kill.
+    if s.climate !== nothing && s.climate.active
+        killed = Float32[t.mort_pa[i] for i in 1:n]
+        @inbounds for i in 1:n; t.tpa[i] += killed[i]; end
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
+        @inbounds for i in 1:n
+            killed[i] > t.tpa[i] && (killed[i] = t.tpa[i])
+            t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); t.mort_pa[i] = killed[i]
+        end
+    end
+    book_snags && book_mortality_snags!(s, t.mort_pa, n, fint)
     return s
 end
