@@ -137,6 +137,9 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     if t.ndead > 0
         nd = Int(t.ndead)
         c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
+        # pctile.f with N=1 sets PERCNT(1) — array ELEMENT 1, an unused slot when the lone record is a dead one filed at
+        # MAXTRE — and returns, so that dead record's PCT stays 0 (jl files it at index 1 and _pctile! gave it 100).
+        (nlive == 0 && nd == 1) && (c.cratet_dead_pct[1] = 0f0)
         ntot = t.n
         xb = zeros(Float32, MAXPLT); ptb = zeros(Float32, ntot)
         pif = s.plot.pi; gr = s.plot.gross_space
