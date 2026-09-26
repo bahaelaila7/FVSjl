@@ -1403,7 +1403,8 @@ function run_keyfile(keypath::AbstractString;
         cl_cycles = cl_on ? Tuple[] : nothing
         al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
-        carb_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        _fuels_db = s.control.dbs_fuels && s.control.ffe_fuelout      # FVS_Fuels gate (FUELSOUT + FUELOUT window)
+        carb_rows = ((s.control.carbon_report_on || _fuels_db) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
@@ -1486,9 +1487,10 @@ function run_keyfile(keypath::AbstractString;
             end
             s.control.dbs_calibstats &&
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
-            if carb_rows !== nothing
-                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            _fuels_db && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            if carb_rows !== nothing && s.control.carbon_report_on
+                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
                 write_dbs_snagdet!(s.control.dbs_out_file, caseid, String(sid),
                                    [(r[1], r[7]) for r in carb_rows], s.coef)

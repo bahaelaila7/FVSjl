@@ -90,17 +90,27 @@ function ffe_fuel_loadings(s::StandState)
     end
     snag_lt3 += sum(@view fs.cwd2b[:, 1:4, :]) * _FM_P2T     # CWD2B crown sizes 0-3 (idx 1-4)
     snag_ge3 += sum(@view fs.cwd2b[:, 5:6, :]) * _FM_P2T     # CWD2B crown sizes 4-5 (idx 5-6)
-    # standing live: foliage + woody crown + stem, split by tree DBH (fmdout.f:218-258)
+    # standing live (fmdout.f:217-258): TOTFOL = foliage; TOTLIV(1) = crown sizes 1-3 (+OLDCRW) of EVERY tree + the
+    # stem of trees with D≤3; TOTLIV(2) = crown sizes 4-5 (+OLDCRW) + the stem of trees with D>3. The stem is FMSVL2
+    # ('L', LMERCH=.FALSE., no top-kill ⇒ the actual height): VOL2HT = MAX(0.005454154·H, MCF) for CS/LS/NE/SN,
+    # MAX(0.005454154·H, TCF) for every other variant (fmsvol.f:150-156). jl had split the whole crown by tree DBH and
+    # used the SN R8-Clark TCF for every variant — EC ect01 1993: live <3" 0.108 / ≥3" 5.831 vs live 5.831 / 23.
     t = s.trees; v2t = coef_col(coef, :v2t); foliage = 0f0; live_lt3 = 0f0; live_ge3 = 0f0
+    snfam = variant_code(s.variant) in ("CS", "LS", "NE", "SN")
+    ocw = t.ffe_oldcrw
     @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
-        sp = Int(t.species[i]); d = t.dbh[i]
-        xv = crown_biomass(s, sp, d, t.height[i], Int(round(t.crown_pct[i])))
-        foliage += xv[1] * t.tpa[i] * _FM_P2T
-        woody = 0f0; for sz in 1:5; woody += xv[sz+1]; end
-        stem = _fm_cuft(s, sp, d, t.height[i]) * v2t[sp]
-        (d <= 3f0 ? (live_lt3 += (woody + stem) * t.tpa[i] * _FM_P2T) :
-                    (live_ge3 += (woody + stem) * t.tpa[i] * _FM_P2T))
+        pr = t.tpa[i]; pr > 0f0 || continue
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        foliage += xv[1] * pr * _FM_P2T
+        for j in 1:3; live_lt3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
+        for j in 4:5; live_ge3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
+        # western TCF: the tree's total cubic (== NATCRS/CFVOL at its height for a sound tree; a top-killed tree's
+        # FMSVL2 volume at the actual height without CFTOPK is not recomputed here)
+        vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
+                     max(0.005454154f0 * h, t.cuft_vol[i])
+        stem = vt * v2t[sp] * _FM_P2T * pr
+        d <= 3f0 ? (live_lt3 += stem) : (live_ge3 += stem)
     end
     stand_total = snag_lt3 + snag_ge3 + foliage + live_lt3 + live_ge3
     return (; litter, duff, lt3, ge3, s3to6, s6to12, ge12, herb, shrub, surf_total,
