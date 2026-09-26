@@ -415,6 +415,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # variant default stays); MORT_MEASURE always replaces FINTM but ≤ 0 ⇒ 5 (:715-718).
     if _fia_present(d, "DG_MEASURE")
         v = _fia_f32(d, "DG_MEASURE", 0f0); v > 0f0 && (c.growth_fint = v)
+        c.dbs_ifint = trunc(Int32, c.growth_fint)          # dbsstandin.f:702 IFINT = IFIX(FINT)
     end
     # The FIA-DB DG_TRANS/DG_MEASURE pair IS a GROWTH card — mark growth_dg_set so the DG calibration
     # NORMALIZES the observed increment by YR/FINT (simulate.jl:47 gates dgscale on growth_dg_set). Without it,

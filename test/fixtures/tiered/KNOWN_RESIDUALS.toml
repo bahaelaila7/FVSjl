@@ -11,6 +11,9 @@
 # 2026-09-26 (ie-regent): IE + EM redrafted after the Fortran-shaped IE REGENT (+ESTAB), the IE/EM cycle-1 OLDPCT/WK1
 # dubs, the CO/OH DGSCOR cap, and the estab.f per-record AUTOES ABIRTH (AGADSB(N)/AGEXC(I)): IE 209168 (master) ->
 # 87424 cells, EM 130672 -> 130649; no stand-regime worse in either.
+# 2026-09-26 (ie-dbs): removed 15 entries made stale by the FVS_TreeList/CutList writer fixes (PrdLen=IFINT,
+# MortPA=WK2, cycle-0 dead PCT/PTBALT, AUTOES ITRUNC/HT2TD clears, calibration PCTILE/IND1): PrdLen IE/EM/BM/SN,
+# TruncHt IE/EM, IE thinbba FVS_CutList x9. Remaining max_cells were not lowered.
 
 [[residual]]
 variant = "BM"
@@ -1146,17 +1149,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4037
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 4037 cells [ulp1=633 ulp2_16=2378 ulpbig=1026] max|Δ|=0.000267 | e.g. stand 12827438010497 year 2055: live=0.00020325786317698658 jl=0.00020325928926467896"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 999
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 999 cells [material=999] max|Δ|=10.0 | e.g. stand 12827438010497 year 2055: live=10 jl=0"""
 
 [[residual]]
 variant = "BM"
@@ -5419,17 +5411,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5773
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 5773 cells [material=5773] max|Δ|=10.0 | e.g. stand 11855985010690 year 2056: live=10 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -5491,17 +5472,6 @@ year = "*"
 status = "OPEN"
 max_cells = 218
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 218 cells [ulpbig=218] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=2"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 97
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 97 cells [material=97] max|Δ|=97.0 | e.g. stand 11855985010690 year 2036: live=0 jl=44"""
 
 [[residual]]
 variant = "IE"
@@ -8554,17 +8524,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 116
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 116 cells [gold_text9=116] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=9.17116165 jl=9.17116261"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "BdFt"
 stand = "*"
 year = "*"
@@ -8576,100 +8535,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 5 cells [gold_text9=5] max|Δ|=1.9e-6 | e.g. stand 1627682513290487 year 2031: live=12.3964014 jl=12.3964005"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "DG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=6] max|Δ|=1.907e-6 | e.g. stand 1627682513290487 year 2031: live=0.329224586 jl=0.329223633"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "EstHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 3 cells [gold_text9=3] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=81.8087921 jl=81.8087845"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 3 cells [gold_text9=3] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=81.8087921 jl=81.8087845"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht2TDBF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2 cells [gold_text9=2] max|Δ|=1.52e-5 | e.g. stand 1627682513290487 year 2031: live=64.4075241 jl=64.4075089"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht2TDCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2 cells [gold_text9=2] max|Δ|=1.52e-5 | e.g. stand 1627682513290487 year 2031: live=64.4075241 jl=64.4075089"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "HtG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 9 cells [gold_text9=9] max|Δ|=4.29e-6 | e.g. stand 1627682513290487 year 2031: live=4.03251791 jl=4.0325141"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "MCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 48
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 48 cells [gold_text9=38 jl_not_f32=5 small=4 ulpbig=1] max|Δ|=0.8 | e.g. stand 374547584489998 year 2025: live=53.7000046 jl=53.8000031"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 1 cells [gold_text9=1] max|Δ|=1.2e-7 | e.g. stand 3356357010690 year 2012: live=1.39999998 jl=1.4000001"""
 
 [[residual]]
 variant = "IE"
@@ -11277,17 +11148,6 @@ year = "*"
 status = "OPEN"
 max_cells = 219
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 222 cells [material=43 ulpbig=179] max|Δ|=43.0 | e.g. stand 200267456010854 year 2002: live=16 jl=0 | 2026-09-25 tightened 222→219 (self-thinning latch (EM/NC/UT/TT) + west volume round; EM latch verified vs live DEBUG MORTS)"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1124
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1124 cells [material=1117 ulpbig=7] max|Δ|=7.0 | e.g. stand 216786838010854 year 2004: live=8 jl=5"""
 
 [[residual]]
 variant = "SN"
@@ -17716,17 +17576,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3932
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3932 cells [material=3921 ulpbig=11] max|Δ|=10.0 | e.g. stand 5352355010661 year 2044: live=10 jl=0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -17777,17 +17626,6 @@ year = "*"
 status = "OPEN"
 max_cells = 67
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 67 cells [material=54 ulpbig=13] max|Δ|=2.0 | e.g. stand 196420598020004 year 2062: live=1 jl=2"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=53.0 | e.g. stand 684750664126144 year 2038: live=0 jl=26"""
 
 [[residual]]
 variant = "EM"

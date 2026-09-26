@@ -438,7 +438,8 @@ pre-UPDATE PROB and the POST-spread / POST-MISINF DMR, and MAX-combines into WK2
 before UPDATE subtracts it. Here `t.tpa` holds PROB−WK2 (WK2 = the tripled MORTS kill) and `full_prob` the
 tripled PROB; raise the kill wherever the DM kill is larger.
 """
-function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, fint::Float32)
+function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, fint::Float32;
+                            wk2::Union{Nothing,AbstractVector{Float32}} = nothing)
     _dm_effects_on(s) || return
     t = s.trees
     _, _, pmc, maxsp = _mis_tables(s.variant)
@@ -446,7 +447,12 @@ function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, f
         dmr = Int(t.dmr[c]); dmr == 0 && continue
         pr = full_prob[c]; pr <= 0f0 && continue
         wki = pr * ie_dm_mortality_rate(pmc, maxsp, Int(t.species[c]), dmr, t.dbh[c], fint)
-        (pr - t.tpa[c]) < wki && (t.tpa[c] = pr - wki)
+        # mismrt.f:191 IF(WK2(ITREE).LT.WKI) WK2(ITREE)=WKI — compare against WK2 itself when the caller tracks it
+        cur = wk2 === nothing ? pr - t.tpa[c] : wk2[c]
+        if cur < wki
+            t.tpa[c] = pr - wki
+            wk2 === nothing || (wk2[c] = wki)
+        end
     end
     return
 end

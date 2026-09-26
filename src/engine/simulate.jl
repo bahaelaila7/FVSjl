@@ -621,7 +621,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     nrec = t.n
     pre  = Float32[t.tpa[i] for i in 1:nrec]
     mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
-    mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]          # per-ORIGINAL density+bkgd+cap kill (WK2)
+    mk   = _morts_wk2(s, pre, nrec)                            # per-ORIGINAL density+bkgd+cap kill (MORTS WK2 itself)
     @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
     tripled = stash !== nothing
     if tripled                                                 # split TPA + the MORTS kill onto the 3 records
@@ -1075,8 +1075,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     mort = mortf
     if !tripled
         mort = 0f0
+        # FVS_TreeList MortPA (dbstrls.f DP=WK2/GROSPC) and OMORT (Σ WK2·CFV) read MORTS's WK2 itself, not the
+        # PROB−(PROB−WK2) difference, which rounds to the survivor's ULP (±10-20 ULP of WK2 on small kills).
+        wk2_0 = _morts_wk2(s, old_tpa, nlive)
         @inbounds for i in 1:nlive
-            m = old_tpa[i] - t.tpa[i]
+            m = wk2_0[i]
             mort += m * old_cfv[i]
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
@@ -1096,11 +1099,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
-            ie_dm_mismrt_post!(s, full_prob, fint)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
+            wk2t = _wk2_trip(wk2_u, nlive)            # triple.f WK2·WEIGHT per record
+            ie_dm_mismrt_post!(s, full_prob, fint; wk2 = wk2t)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
             br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG
             mort = 0f0
             @inbounds for c in 1:n2
-                m = full_prob[c] - t.tpa[c]
+                # MortPA/OMORT = WK2; a record BRTREG re-killed falls back to the survivor difference
+                m = t.tpa[c] == full_prob[c] - wk2t[c] ? wk2t[c] : full_prob[c] - t.tpa[c]
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
@@ -1127,12 +1132,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
-            mis_post && ie_dm_mismrt_post!(s, full_prob, fint)           # MISMRT into WK2 before RDEND
+            wk2t = _wk2_trip(wk2_u, nlive)
+            mis_post && ie_dm_mismrt_post!(s, full_prob, fint; wk2 = wk2t)   # MISMRT into WK2 before RDEND
             br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG (before RDTREG's RDEND)
             rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
             mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
             @inbounds for c in 1:n2
-                m = full_prob[c] - t.tpa[c]
+                # WK2 where BRTREG/RDEND left the record's kill untouched; else the survivor difference
+                m = t.tpa[c] == full_prob[c] - wk2t[c] ? wk2t[c] : full_prob[c] - t.tpa[c]
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
@@ -1462,9 +1469,14 @@ function run_keyfile(keypath::AbstractString;
         dm_top4 = Int[]
         # PRTRLS(1) (fvs.f:328 pre-projection with the cycle-1 options, fvs.f:412 at each cycle end): one
         # FVS_TreeList block per TREELIST request accomplished this cycle (none without a TREELIST activity).
+        # PrdLen = IFINT (dbstrls.f): per cycle grincr.f:65 sets it to the cycle just grown; the inventory list sees
+        # the DB DG_MEASURE IFIX(FINT) (dbsstandin.f:702) or else grinit's IFINT (10; 5 in SN/OC/OP) — the GROWTH
+        # keyword changes FINT only (initre.f:829 has the IFINT line commented out).
         hook = tl_on ? (st, yr, pl, cy) -> begin
+            pl_eff = cy == 0 ? (st.control.dbs_ifint >= 0 ? Int(st.control.dbs_ifint) :
+                                (st.variant isa Southern || st.variant isa OregonCoast || st.variant isa Olympic) ? 5 : 10) : pl
             for _ in prtrls_requests!(st, 1, cy == 0 ? 1 : cy; lstart = cy == 0)
-                push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy))
+                push!(tl_cycles, treelist_snapshot(st, yr, pl_eff; cycle = cy))
             end
         end : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
