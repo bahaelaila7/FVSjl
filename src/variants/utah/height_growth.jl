@@ -272,16 +272,25 @@ ut/cratet.f:662-696 — dub ABIRTH from the current height for inventory trees w
 (17:19,22 = cr_fndag IMODTY 4); SO inversion (20,21). Sets AGERNG's input; only CR-surrogate htgf reads
 ABIRTH. Runs once at setup (before calibration); gradd.f:205 then ages birth_age by FINT each cycle.
 """
-function _ut_dub_ages!(s::StandState)
+ut_any_missing_crown(s::StandState) = any(i -> s.trees.crown_pct[i] <= 0, 1:(s.trees.n + s.trees.ndead))
+
+function _ut_dub_ages!(s::StandState; misscr::Union{Nothing,Bool} = nothing)
     p, t = s.plot, s.trees
     any(j -> (sp = Int(t.species[j]);
               sp == 6 || sp == 13 || sp == 24 || _ut_ht_crsurr(sp) || sp == 20 || sp == 21), 1:t.n) || return s
-    misscr = false
-    @inbounds for i in 1:(t.n + t.ndead)
-        t.crown_pct[i] <= 0 && (misscr = true; break)
+    misscr === nothing && (misscr = ut_any_missing_crown(s))
+    # ut/cratet.f:677 FINDAG runs AFTER :644 CROWN with COMMON BA as the :250 backdating DENSE left it (live + cycle-0
+    # dead, the crown_init_lstart_dead_inclusive! snapshot) and BAU from CROWN's LSTART BADIST on the backdated WK3
+    # (only when MISSCR; else BAU=0). Same mechanism as CR (cr-cyc1 c720dde8): jl dubbed before the crown init on the
+    # current live-only density.
+    bau = nothing
+    if misscr
+        saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
+        _backdate_dbh!(s)                              # DENSE: t.dbh := WK3 (backdated)
+        bau = _cr_badist_bau(t)                        # CROWN's BADIST (LSTART ⇒ TDBH=WK3)
+        @inbounds for i in 1:t.n; t.dbh[i] = saved_dbh[i]; end
     end
-    bau = misscr ? _cr_badist_bau(t) : nothing
-    ba = p.basal_area <= 0f0 ? 25f0 : p.basal_area
+    ba = s.calib.cratet_ba > 0f0 ? s.calib.cratet_ba : (p.basal_area <= 0f0 ? 25f0 : p.basal_area)
     @inbounds for i in 1:t.n
         sp = Int(t.species[i]); h = t.height[i]; h <= 0f0 && continue
         ab = t.birth_age[i]
