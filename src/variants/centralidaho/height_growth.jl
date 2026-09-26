@@ -42,8 +42,8 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
         htg = 0.0f0
         if !_ci_is_weibull(sp)
             dg <= 0.0f0 && continue                            # ln(DG) undefined
-            con = htcon + h2cof * hti * hti + CI_HGLD[sp] * log(d) + CI_HGLH * log(hti)
-            htg = exp(con + hdgcof * log(dg)) + CI_HTBIAS
+            con = htcon + h2cof * hti * hti + CI_HGLD[sp] * flog(d) + CI_HGLH * flog(hti)
+            htg = fexp(con + hdgcof * flog(dg)) + CI_HTBIAS
             htg < 0.1f0 && (htg = 0.1f0)
         else
             iicr = trunc(Int, Float32(t.crown_pct[i]) / 10.0f0 + 0.5f0)
@@ -87,7 +87,7 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
         end
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         if _ci_is_weibull(sp) || sp == 14 || sp == 15            # 11-17,19 → ×exp(HTCON)
-            htg = htg * scale * xht * exp(htcon)
+            htg = htg * scale * xht * fexp(htcon)
         else
             htg = htg * scale * xht
         end
@@ -127,11 +127,11 @@ function ci_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
         (d <= 0.0f0 || hti <= 0.0f0 || t.diam_growth[i] <= 0.0f0) && continue   # central skipped ⇒ copies flat
         htcon = hghch + CI_HGSC[sp]
         (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
-        con = htcon + h2cof * hti * hti + CI_HGLD[sp] * log(d) + CI_HGLH * log(hti)
+        con = htcon + h2cof * hti * hti + CI_HGLD[sp] * flog(d) + CI_HGLH * flog(hti)
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         cap = ctl.sp_size_cap[sp, 4]
         function copy_htg(dgc::Float32)::Float32
-            e = dgc > 0.0f0 ? exp(con + hdgcof * log(dgc)) : 0.0f0     # ALOG(0)=-Inf ⇒ EXP term 0
+            e = dgc > 0.0f0 ? fexp(con + hdgcof * flog(dgc)) : 0.0f0     # ALOG(0)=-Inf ⇒ EXP term 0
             h = e + CI_HTBIAS; h < 0.1f0 && (h = 0.1f0)
             h = h * scale * xht
             (hti + h > cap) && (h = max(cap - hti, 0.1f0))

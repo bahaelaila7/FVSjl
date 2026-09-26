@@ -372,6 +372,9 @@ mutable struct Control
     # Before cycling only grinit (IFINT=10; 5 in SN/OC/OP) and this set it (grincr.f:65 sets it per cycle), so the
     # inventory FVS_TreeList's PrdLen is this value, else grinit's.
     dbs_ifint::Int32
+    # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
+    # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
+    sdical_bamax::Float32
 end
 
 function Control()
@@ -447,6 +450,7 @@ function Control()
         Int32(0),                                                # kt_cratet_ierrck
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
+        0f0,                                                     # sdical_bamax
     )
 end
 

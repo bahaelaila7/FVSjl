@@ -35,8 +35,8 @@ const CI_RG_BREAK = Float32[3,3,3,3,3,3,3,3,3,3, 3,3,3, 99,99, 3, 1, 3, 1]
 """ci/regent.f sp17/19 (CW/OH) Curtis-Arney height→DBH inverse (P2=1709.7229,P3=5.8887,P4=−0.2286)."""
 @inline function _ci_ut_htdbh(ht::Float32)::Float32
     p2 = 1709.7229f0; p3 = 5.8887f0; p4 = -0.2286f0
-    hat3 = 4.5f0 + p2 * exp(-p3 * 3.0f0^p4)
-    ht >= hat3 ? exp(log((log(ht - 4.5f0) - log(p2)) / (-p3)) * (1.0f0 / p4)) :
+    hat3 = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))
+    ht >= hat3 ? fexp(flog((flog(ht - 4.5f0) - flog(p2)) / (-p3)) * (1.0f0 / p4)) :
                  ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
 end
 
@@ -60,8 +60,8 @@ function _ci_smhtgf!(s::StandState, i::Int, cri::Float32, tpccf::Float32)::Float
         t.tree_random[i] = zr
     end
     t.dbh[i] <= 0f0 && return 0f0                                  # :24-27 D≤0 ⇒ 0, no floor/reset
-    beta1 = exp(1.17527f0 - 0.42124f0 * log(tpccf))
-    beta2 = exp(-2.56002f0 - 0.58642f0 * log(tpccf))
+    beta1 = fexp(1.17527f0 - 0.42124f0 * flog(tpccf))
+    beta2 = fexp(-2.56002f0 - 0.58642f0 * flog(tpccf))
     htg1 = beta1 + beta2 * cri
     stddev = htg1 * (1.08720f0 - 0.00230f0 * cri)
     htg = htg1 + zr * stddev
@@ -132,7 +132,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
-                k += kper[j-1]; pn = pr * 0.985f0^k
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
                 rdnext[j] += Float32(k) * ci / pr * pn
                 banext[j] += Float32(k) * bi * pn
             end
@@ -160,7 +160,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
             scale = ttvar ? Float32(kper[j]) / regyr : utvar ? Float32(ntyr) / yr : Float32(ntyr) / regyr
             xrhgro = active_multiplier(ctl, :regh, sp, cur_year)
             xrdgro = active_multiplier(ctl, :regd, sp, cur_year)
-            con = exp(c.htg_cor_small[sp])                            # RHCON(=1)·EXP(HCOR)
+            con = fexp(c.htg_cor_small[sp])                            # RHCON(=1)·EXP(HCOR)
             h1 = wk3[i]; d1 = wk5[i]
             cri = Float32(t.crown_pct[i])
             tpccf = pccf_of(i) * ppccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
@@ -185,13 +185,13 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 si = p.sp_site_index[sp]; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
                 rsimod = 0.5f0 * (1.0f0 + (si - slo) / (shi - slo))
                 sitage = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-                hite1 = 26.9825f0 * sitage^1.1752f0; hite2 = 26.9825f0 * (sitage + 10.0f0)^1.1752f0
+                hite1 = 26.9825f0 * fpow(sitage, 1.1752f0); hite2 = 26.9825f0 * fpow(sitage + 10.0f0, 1.1752f0)
                 htgrl = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
             else                                                      # 14,15,17,19: POTHTG·PCTRED·VIGOR·CON
                 sj = p.sp_site_index[sp]
                 pothtg = ((sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
                 xx = cri / 100.0f0
-                vigor = 150.0f0 * xx^3 * exp(-6.0f0 * xx) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                vigor = 150.0f0 * fpow(xx, 3.0f0) * fexp(-6.0f0 * xx) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
                 sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
                 htgrl = pothtg * pctred * vigor * con
             end
@@ -222,7 +222,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
             end
             if upd && j < nper
                 c1 = ci_tree_ccf(sp, d1) * pr; c2 = ci_tree_ccf(sp, d2) * pr
-                f = 0.985f0^ky
+                f = fpowi(0.985f0, ky)
                 rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * f
                 banext[j+1] += (CI_RG_BACON * (d2 * d2 - d1 * d1)) * pr * f
             end
@@ -279,8 +279,8 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 else
                     dk = 0f0; dkk = 0f0
                     if civar
-                        dk = exp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * log(hk) + CI_RG_DHCR[sp] * log(rcr))
-                        dkk = h < 4.5f0 ? d : exp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * log(h) + CI_RG_DHCR[sp] * log(rcr))
+                        dk = fexp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * flog(hk) + CI_RG_DHCR[sp] * flog(rcr))
+                        dkk = h < 4.5f0 ? d : fexp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * flog(h) + CI_RG_DHCR[sp] * flog(rcr))
                     elseif utvar
                         if sp == 14
                             sit = p.sp_site_index[sp]
@@ -297,8 +297,8 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                                     dkk = h <= 4.5f0 ? d : _ci_ut_htdbh(h)
                                 end
                             else                                      # 13,17,19 Wykoff inverse
-                                dk = (bx / (log(hk - 4.5f0) - ax)) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
-                                dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1.0f0
+                                dk = (bx / (flog(hk - 4.5f0) - ax)) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+                                dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1.0f0
                             end
                         end
                     else                                              # TTVAR
@@ -412,18 +412,18 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
         h0 = t.height[i]
         if _ci_ut_species(sp)                            # UTVAR aspen/juniper/MC/CW/hardwood
             sitear = p.sp_site_index[sp]; sj = sitear
-            con = exp(c.htg_cor_small[sp])
+            con = fexp(c.htg_cor_small[sp])
             if sp == 13
                 slo = slo_a[sp]; shi = shi_a[sp]
                 si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
                 relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
                 age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-                hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+                hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
                 htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
             else
                 pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h0) / (sj * 1.5f0) * 0.83f0
                 xcr = Float32(t.crown_pct[i]) / 100.0f0
-                vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                vigor = 150.0f0 * fpow(xcr, 3.0f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
                 sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
                 htgr = pothtg * pctred * vigor * con
             end
@@ -472,7 +472,7 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
                 CI_RG_CR[sp]*rcr + CI_RG_BAL[sp]*tbal + CI_RG_HDM1[sp]*rhdm1 +
                 CI_RG_HDM2[sp]*rhdm2 + CI_RG_PTBA[sp]*ptba
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
-        con = exp(c.htg_cor_small[sp])
+        con = fexp(c.htg_cor_small[sp])
         h2 = h0 + htgrl * bscale * xrhgro * con          # birth-cycle fraction (was scale_h)
         htgr1 = h2 - h0; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         htgr = htgr1 < 0.1f0 ? 0.1f0 : htgr1
@@ -659,7 +659,7 @@ function ci_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         snx /= snp; sny /= snp
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
-        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : flog(cornew)
     end
     return s
 end

@@ -34,6 +34,9 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi / 100f0 : 0.85f0
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * pmsdiu   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
     bamax <= 0f0 && (bamax = 1f0)
+    # ci/morts.f:244 CALL SDICAL leaves the common BAMAX = XMAX·0.5454154·PMSDIU (sdical.f:204, XMAX before the
+    # :216 CLMAXDEN) unless the user set BAMAX — the value the cycle-end CROWN reads for RELSDI.
+    s.control.ba_max > 0f0 || (s.control.sdical_bamax = stand_sdimax(s) * 0.5454154f0 * pmsdiu)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
