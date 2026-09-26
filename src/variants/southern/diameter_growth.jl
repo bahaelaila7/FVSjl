@@ -1243,7 +1243,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (simulate.jl:948 = this cycle's applied DG). Unlike IE (simulate.jl:711-718, which copies diam_growth),
     # CI's dense small trees grow by the SMALL-tree model, whose DG ≠ the large-tree DGF dub, so WK1 must be
     # the actual DGF value from wk2 here, not diam_growth.
-    if s.variant isa CentralIdaho && Int(s.control.cycle) == 0
+    # Only the FALLBACK now: with the calibration's DO-220 stash present, simulate.jl seeds cycle-1 WK1 from
+    # ci_do220_dg BEFORE this call (the measured increment when there is one, the DGF(WK3) dub with the calibration
+    # OLDRN otherwise) — this block used to overwrite that with the cycle-1 DGF dub for every record, discarding the
+    # measured DG (FIA 753188889290487 LP WK1 1.08 → 0.47 ⇒ cycle-1 LP kill 2× live).
+    if s.variant isa CentralIdaho && Int(s.control.cycle) == 0 && length(c.dub_wk2) != nlive
         _ci_scap = s.control.sp_size_cap
         @inbounds for i in 1:nlive
             if t.height[i] <= 4.5f0

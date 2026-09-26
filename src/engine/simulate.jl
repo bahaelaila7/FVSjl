@@ -845,6 +845,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _ie_wk1_do220 && ie_cycle0_wk1!(s)
     (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # CI: ci/dgdriv.f:169-172 WK1(I)=DG(I) at the top of DGDRIV — at cycle 1 that is the DO-220 calibration DG (the
+    # measured increment, capped at the inside-bark DBH when IDG<2; 0 at HT≤4.5; else the DGF dub), which ci/morts.f
+    # reads as the vigor term G=WK1/(BARK·OLDFNT). jl fed its own cycle-1 prediction: FIA 753188889290487 LP (past DBH
+    # 6.8→8.0, DG_MEASURE 10) WK1 0.47 vs live ~1.13 ⇒ G halved ⇒ LP cycle-1 kill 1.152 vs live 0.568 of 6.
+    (s.variant isa CentralIdaho && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = ci_do220_dg(s, i, t.dbh[i]); end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
