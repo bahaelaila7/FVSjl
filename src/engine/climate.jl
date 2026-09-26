@@ -666,12 +666,10 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
         spba[sp]  += d * d * pr * 0.005454154f0
         sptpa[sp] += pr
     end
-    icyc = max(1, Int(s.control.cycle))
-    mxden = 1f0
-    if icyc > 1
-        clmx = 1f0; @inbounds for e in c.mxden; e[1] <= icyc && (clmx = e[2]); end
-        mxden = clim_maxden_mult(s, ty, clmx)
-    end
+    # The report is snapshotted INSIDE clauestb (pre-advance: s.control.cycle = ICYC−1) ⇒ ICYC = cycle+1. MXDENMLT is
+    # the CLMAXDEN value of clauestb's own SDICAL call (CURRENTYEAR in integer arithmetic; 1 at ICYC≤1).
+    icyc = Int(s.control.cycle) + 1
+    mxden = clim_sdical_xmax(s, 1f0, fint; icyc = icyc, cyear = report_year)
     potestab = _climate_potestab(s, c, cd, ty, fint, icyc)
     tba = sum(spba); ttpa = sum(sptpa)
     spimp = zeros(Float32, ns)

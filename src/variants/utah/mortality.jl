@@ -51,7 +51,7 @@ end
 
 function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n   # no early return on ITRN=0: grincr.f:535 always CALLs MORTS, and T<1 ⇒ label 45 still runs CLMORTS
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # grincr.f:535 always CALLs MORTS ⇒ CLMORTS on a bare stand
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # grown-stand sums (ut/morts.f): T (total tpa), Reineke DR10/DR0 (LZEIDE path, ut/morts.f:218-219,260-263).
     # Using QMD over-stated D10 on dense sub-1" cohorts ⇒ TMD10 uncapped ⇒ TN10 low ⇒ RN self-thin OVER-KILL

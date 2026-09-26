@@ -735,8 +735,16 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # EM builds the identical estab.f (FVSem_buildDir/estab.f == FVSie's): ABIRTH=AGADSB/AGEXC/AGEPL (:1235/
                 # :1324/:1414) + GENTIM (:1504). EM reads it in Climate-FVS BIRTHYR and the aspen REGENT (HITE1=f(ABIRTH));
                 # birth_age=0 gave EM AutoEstb regen BIRTHYR=THISYR ⇒ DF GrowthMult 1.133 vs live 1.045 (stand 5352355010661).
+                # #252: every western variant whose estab.f carries ABIRTH(ITRN)=AGEPL… + ABIRTH(I)=ABIRTH(I)+GENTIM
+                # (the strp estab.f of UT/NC/PN/WC/EC/SO/CA/WS/OC/OP, the IE-family one of CI/KT, and BC's) — needed by
+                # Climate-FVS BIRTHYR (clgmult/clmorts) now that those variants are climate-wired. BM keeps its own
+                # measured AGEPL form below.
                 (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa InlandEmpire ||
-                 s.variant isa EasternMontana) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                 s.variant isa EasternMontana || s.variant isa Utah || s.variant isa CentralIdaho ||
+                 s.variant isa Kootenai || s.variant isa Klamath || s.variant isa PacificNorthwest ||
+                 s.variant isa WestCascades || s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
+                 s.variant isa CentralCalifornia || s.variant isa WestSierra || s.variant isa OregonCoast ||
+                 s.variant isa Olympic || s.variant isa BritishColumbia) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
                 # BM (strp/estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE. Read by the birth-cycle aspen REGENT
                 # (bm/regent.f:319 LESTB ⇒ SITAGE=ABIRTH) and Climate-FVS BIRTHYR.
                 s.variant isa BlueMountains && (t.birth_age[n] = Float32(per) - Float32(delay) + trage)
