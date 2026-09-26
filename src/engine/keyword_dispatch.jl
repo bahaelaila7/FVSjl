@@ -1732,7 +1732,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns),
                                  fill(1f0, ns), invyr,
                                  grow_events, mort_events, autoestb_events, mxden_events,
-                                 Float32[], zeros(Float32, ns), zeros(Float32, ns))
+                                 Float32[], zeros(Float32, ns), zeros(Float32, ns), ones(Float32, ns), nothing)
     end
     return s
 end
@@ -2047,6 +2047,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_compute = true
         elseif k == "CLIMREDB"
             s.control.dbs_climate = true
+        elseif k == "FUELSOUT"
+            s.control.dbs_fuels = true     # dbsin.f opt 14: IFUELS ⇒ FVS_Fuels (only with the FMIN FUELOUT window)
         elseif k == "STRCLSDB"
             s.control.dbs_strclass = true
             s.control.strclass_on = true   # the DBS emitter implies the structure calc is on (sstage.f)
@@ -2618,6 +2620,8 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             r.present[3] && (p.pb_time = max(Float32(v[3]), 1f0))          # PBTIME, min 1
             r.present[4] && (p.pb_size = max(Float32(v[4]), 0f0))          # PBSIZE, min 0
             r.present[5] && (p.pb_scor = max(Float32(v[5]), 0f0))          # PBSCOR, min 0
+        elseif k == "FUELOUT"
+            s.control.ffe_fuelout = true   # fmin.f:1500 the all-fuels report window IY(1)..IY(1)+999 (DBSFUELS gate)
         elseif k in _FFE_REPORT_KEYWORDS
             # report-only FFE keywords (BURNREPT/FUELOUT/SNAGSUM/…): the text reports aren't emitted; the
             # equivalent data is available via the DBS path. Recognized, intentionally a no-op here.

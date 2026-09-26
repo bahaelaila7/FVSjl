@@ -443,3 +443,127 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     end
     return s
 end
+
+# kt/dgdriv.f DO 220 (:707-731) DG(I) — measured (capped at inside-bark DBH when IDG<2), 0 at HT<=4.5, else the dub
+# from the second DGF(WK3) (:705, COR final; dub_wk2/dub_wk3 stash). Read by the LSTART REGCAL DO 49.
+@inline function kt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32
+    t, c = s.trees, s.calib
+    sp = Int(t.species[i])
+    bark = bark_ratio(c.bark_a, c.bark_b, sp, dcur)
+    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+        dg = t.diam_growth[i]
+        (s.control.growth_idg < 2 && dg > dcur * bark) && (dg = dcur * bark)
+        return dg
+    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
+        return 0f0
+    end
+    sc = s.control.growth_fint / 10f0
+    dd = c.dub_wk3[i] * bark
+    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
+    dub > dd && (dub = dd)
+    return dg_bound(nothing, nothing, sp, dcur, dub, s.control.sp_size_cap)
+end
+
+"""
+    kt_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
+kt/regent.f:674-848 — the LSTART small-tree HEIGHT calibration (REGENT(.FALSE.,1) from kt/cratet.f:648), which jl had
+never ported (HCOR_init 0 for every KT species). Per species with >= NCALHT(5) sub-5" records carrying a measured
+HTG, EDH = HK−H grown over the NPER subcycles by the KT small-tree model:
+- species 1-10: EDH = BHAB + BLH·HK + HTH2·HT2MOD·HK² + RHBA·ln(BAJ) + RHBAL·BAL + HTPCC1·MANAGD·PCCF + (HTCR+HTCR2·CR)·CR,
+  floored at 0, HK += EDH·CON (CON = RCOR2 under READCORR, else 1); BAL = BAJ·(100−PCT)·0.01;
+- species 11 (the NI form): EDH = exp(BHAB + RHLH·ln HK + RHCCF·RDJ + RHBAL·BALMH), BALMH = BAJ·(100−PCT)·0.0001.
+CORNEW = Σ(HTG·SCALE3·P)/Σ(EDH·P) (SCALE3 = REGYR/FINTH), HCOR = ln(CORNEW) trapped to [0.0821, 12.1825]. NTYR = IFINTH.
+Stand values (TEMBA/TEMCCF, PCCF, PCT) come from the kt/cratet.f:184 backdating DENSE snapshot. ALBA is reset per
+species and only updated when BAJ > 0 (as FVS). t.dbh is the backdated WK3 here.
+"""
+function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    ctl = s.control
+    ctl.growth_ifinth == 0 && return s                  # regent.f:681 IF(IFINTH.EQ.0) GOTO 100
+    rhcon = kt_regcons!(s)
+    if ctl.regh_cor2_on                                 # REGCON: sp11 + ln RCOR2 (1-10 carry RCOR2 as CON below)
+        length(ctl.regh_cor2) >= 11 && ctl.regh_cor2[11] > 0f0 && (rhcon[11] += log(ctl.regh_cor2[11]))
+    end
+    snap = c.cratet_relden > 0f0
+    temba = snap ? c.cratet_ba : p.basal_area; temccf = snap ? c.cratet_relden : p.relative_density
+    pccfv = (snap && !isempty(c.cratet_pccf)) ? c.cratet_pccf : s.density.point_ccf
+    pctv = (snap && length(c.cratet_pct) >= t.n) ? c.cratet_pct : t.crown_ratio
+    finth = ctl.growth_finth > 0f0 ? ctl.growth_finth : 5f0
+    scale3 = KT_RG_REGYR / finth
+    ntyr = Int(ctl.growth_ifinth); iyr = Int(KT_RG_REGYR)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for k in 1:nper
+        if nn == 1; kper[k] = itot; break; end
+        kper[k] = itot ÷ nn; itot -= kper[k]; nn -= 1
+    end
+    banext = fill(temba, nper); rdnext = fill(temccf, nper)
+    if nper > 1                                         # DO 49 (regent.f:699-717)
+        @inbounds for i in 1:t.n
+            d1 = t.dbh[i]; sp = Int(t.species[i]); pr = t.tpa[i]
+            d2 = d1 + kt_do220_dg(s, i, saved_dbh[i]) / bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
+            c1 = kt_tree_ccf(sp, d1) * pr; c2 = kt_tree_ccf(sp, d2) * pr
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn; banext[j] += Float32(k) * bi * pn
+            end
+        end
+    end
+    ihtg = ctl.growth_ihtg
+    dum1 = p.managed == Int32(1) ? 1f0 : 0f0
+    @inbounds for sp in 1:11
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        alba = 0f0
+        bhab = rhcon[sp]; blh = KT_RG_RHLH[sp]; bccf = KT_RG_RHCCF[sp]
+        hths2 = KT_RG_HTH2[sp] * KT_RG_HT2MOD[sp]; bba = KT_RG_RHBA[sp]
+        htcrs = KT_RG_HTCR[sp]; htcrs2 = KT_RG_HTCR2[sp]
+        bbal = KT_RG_RHBAL[sp]; bbalmh = 0f0
+        sp == 11 && (bbalmh = bbal; bbal = 0f0)
+        con = (ctl.regh_cor2_on && sp <= length(ctl.regh_cor2) && ctl.regh_cor2[sp] > 0f0) ? ctl.regh_cor2[sp] : 1f0
+        htpc1 = KT_RG_HTPCC1[sp] * dum1
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            hg = t.ht_growth[i]
+            h = t.height[i]; ihtg < 2 && (h -= hg)
+            (saved_dbh[i] >= 5f0 || h < 0.01f0) && continue
+            hg < 0.001f0 && continue
+            ipccf = Int(t.plot_id[i])
+            pccf1 = (1 <= ipccf <= length(pccfv)) ? pccfv[ipccf] : 0f0
+            cr = Float32(t.crown_pct[i]) / 100f0
+            hk = h
+            for j in 1:nper
+                baj = banext[j]; rdj = rdnext[j]
+                baj > 0f0 && (alba = log(baj))
+                bal = baj * (100f0 - pctv[i]) * 0.01f0
+                balmh = baj * (100f0 - pctv[i]) * 0.0001f0
+                if sp != 11
+                    edh = bhab + blh * hk + hths2 * hk * hk + bba * alba + bbal * bal + htpc1 * pccf1 +
+                          (htcrs + htcrs2 * cr) * cr
+                    edh < 0f0 && (edh = 0f0)
+                    hk += edh * con
+                else
+                    edh = exp(bhab + blh * log(hk) + bccf * rdj + bbalmh * balmh)
+                    edh < 0f0 && (edh = 0f0)
+                    hk += edh
+                end
+            end
+            edh = hk - h
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                         # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+    end
+    return s
+end

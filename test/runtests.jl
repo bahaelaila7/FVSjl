@@ -83,6 +83,7 @@ using FVSjl
     include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
+    include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
     include("unit/test_ppe_sort.jl")       # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (master stand ordering) — bit-exact vs gfortran-16 golden (recovered PPE source)

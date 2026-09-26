@@ -1395,7 +1395,7 @@ TREEDATA
        [536, 517, 503, 492, 482, 473, 464, 446, 430, 415, 403], [77, 94, 111, 127, 145, 162, 180, 192, 204, 215, 226], 0, 0, "BIT-EXACT: EM ctrl+rd TPA/BA == live every cycle (2026-09-26 Fortran-shaped REGENT, em/bratio.f, cycle-1 WK1 dub, LL crown OBA/RDM1/OLDPCT; was TPA <=11 / BA <=7)"),
       ("TT", FVSjl.Teton(), TT_TRE_RD, "STDINFO        415.0     41416      60.0     315.0      30.0      65.0",
        [536, 525, 515, 505, 494, 470, 443, 427, 411, 396, 385], [77, 99, 121, 141, 163, 183, 198, 213, 226, 241, 251],
-       [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 16, 5, "OPEN: TT mid-run TPA +16 (was +15; the 2026-09-23 crown ISORT moved it one) — TT certification"),
+       [536, 512, 497, 483, 471, 461, 445, 426, 409, 394, 382], [77, 96, 114, 131, 150, 172, 189, 203, 216, 229, 239], 0, 0, "BIT-EXACT: TT ctrl+rd TPA/BA == live every cycle (2026-09-26 TT REGCAL port + DUBSCR DGSD gate; was TPA +16)"),
       ("UT", FVSjl.Utah(), UT_TRE_RD, "STDINFO        407.0     41416      60.0     315.0      30.0      83.0",
        [536, 525, 515, 505, 505, 484, 463, 444, 429, 413, 401], [77, 101, 122, 142, 166, 181, 195, 209, 221, 235, 246],
        [536, 511, 494, 481, 468, 462, 445, 426, 413, 395, 380], [77, 97, 114, 132, 151, 167, 181, 193, 205, 214, 222], 0, 0, "BIT-EXACT: UT ctrl+rd TPA/BA == live every cycle (2026-09-25 CEPMRT/SLPMRT latch; was TPA ≤12, BA 3)"),

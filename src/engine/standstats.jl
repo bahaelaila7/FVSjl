@@ -467,10 +467,19 @@ function stand_ccf(s::StandState)
         end
         return ccf
     elseif s.variant isa CentralIdaho
-        # CI CCF is the same direct per-species polynomial (ci/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += ci_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # CI CCF is the same direct per-species polynomial (ci/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN,
+        # accumulated SPECIES-MAJOR (dense.f RELDSP(ISPC) subtotals, as IE). The flat record-order sum was a few ULP
+        # off: REGCAL fixture backdated RELDEN 215.12527 vs live 215.1252 ⇒ CW/OH SNX 610.90 vs 610.91.
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += ci_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Teton
         # TT CCF is the same direct per-species polynomial (tt/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.

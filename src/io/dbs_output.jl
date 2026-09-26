@@ -301,8 +301,11 @@ function write_dbs_fuels!(dbpath::AbstractString, caseid::AbstractString,
                 Float64(f.s3to6), Float64(f.s6to12), Float64(f.ge12),
                 Float64(f.herb), Float64(f.shrub), Float64(f.surf_total),
                 Float64(f.snag_lt3), Float64(f.snag_ge3), Float64(f.foliage),
-                Float64(f.live_lt3), Float64(f.live_ge3), Float64(f.stand_total),
-                round(Int, f.total_biomass), round(Int, f.consumed), round(Int, f.removed)))
+                Float64(f.live_lt3),
+                # fmdout.f:399-403 passes NINT(TOTLIV(2)), NINT(TOTSTD), NINT(TOTFUL), NINT(TOTCON), NINT(TONREM)
+                round(Int, f.live_ge3, RoundNearestTiesAway), round(Int, f.stand_total, RoundNearestTiesAway),
+                round(Int, f.total_biomass, RoundNearestTiesAway), round(Int, f.consumed, RoundNearestTiesAway),
+                round(Int, f.removed, RoundNearestTiesAway)))
         end
     finally
         SQLite.close(db)

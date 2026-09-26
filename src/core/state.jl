@@ -348,6 +348,11 @@ mutable struct Control
     # IFINTH assignment commented out — it sets FINTH only); only the DB HTG_MEASURE column does
     # (dbsstandin.f:711 IFINTH = IFIX(FINTH)). So a keyfile GROWTH FINTH=10 still calibrates with NPER=1.
     growth_ifinth::Int32
+    # FVS_Fuels DBS table (dbsfuels.f via fmdout.f:399): written only when DATABASE FUELSOUT set IFUELS (dbsin.f:1400)
+    # AND the FMIN FUELOUT "all fuels report" window covers the year (fmin.f:1500 IFLALB=IY(1), IFLALE=IY(1)+999;
+    # fminit.f default 9999/9999 ⇒ never). jl wrote FVS_Fuels whenever CARBREPT was on (live: table absent).
+    dbs_fuels::Bool
+    ffe_fuelout::Bool
 end
 
 function Control()
@@ -419,6 +424,7 @@ function Control()
         Int32(0), Int32(0),                                      # dbs_treelist_mode, dbs_atrtlist_mode
         nothing, false,                                          # atrtlist_capture, dbs_caseid_set
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
+        false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
     )
 end
 
