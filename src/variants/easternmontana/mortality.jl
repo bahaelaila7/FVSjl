@@ -94,7 +94,11 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     # DIA0<0.3 reset (morts.f 374-376)
     if dq0 < 0.3f0; dq10 = 0.3f0 + dq10 - dq0; dq0 = 0.3f0; end
     # SDI self-thinning boundary (morts.f 455-485)
-    sdimax = stand_sdimax(s)
+    # em/morts.f:454 CALL SDICAL(0,SDIMAX): SDIMAX is the CLMAXDEN-adjusted XMAX (sdical.f:216) — it sets CONST and
+    # the SDIMAX<5 kill-all (climate made the site unable to support trees). BAMAX (sdical.f:204) is set from the
+    # XMAX BEFORE CLMAXDEN, so the BA terms below use `sdimax0`.
+    sdimax0 = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, sdimax0, fint)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
@@ -133,7 +137,7 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     # SDI-derived value (identical to the residual-BA cap below). jl previously used EM_BAMAXA[itype] here, which
     # (being smaller than the SDI-derived BAMAX on this LM regime) inflated RZ ⇒ ~2.5× LM mortality over-kill
     # (em_LM cyc1 killed ~3 TPA vs live ~1.2). MEASURED vs FVSem_g16 TREELIST. EM-only (own mortality!, ::EasternMontana).
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax0 * 0.5454154f0 * pmsdiu
     bamax <= 0f0 && (bamax = 1f0)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
@@ -204,7 +208,7 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     # habitat BAMAXA only feeds SDIDEF→SDIMAX at setup). NOT the `bamax` (=EM_BAMAXA) used by the BADIST weighting
     # above. Scales every record's kill up by ADJFAC=(BANEW−BAMAX)/BADEAD, iterating ≤100× until residual BA ≤ BAMAX.
     # This own-copy had OMITTED it (shared southern/mortality.jl + NC/UT/TT have it). Inert when residual BA ≤ BAMAX.
-    let bamax_cap = sdimax * 0.5454154f0 * pmsdiu
+    let bamax_cap = sdimax0 * 0.5454154f0 * pmsdiu
         if sdimax >= 5f0 && bamax_cap > 0f0
             for _ in 1:100
                 banew = 0f0; badead = 0f0

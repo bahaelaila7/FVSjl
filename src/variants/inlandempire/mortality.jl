@@ -15,7 +15,7 @@ function mortality!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0f0, book_
     # kill by ~5 ULP (bare-plot fixture record 241, cycle 4).
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : _ie_sdical_bamax(s, itype)
     bamax <= 0f0 && (bamax = 1f0)
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # ie/morts.f:193 SDICAL ⇒ CLMAXDEN-adjusted (SDIMAX<5 kill-all)
     # stand sums (morts.f:196-210, RAW record order): T, SD2SQ → DQ10; AVED (BA-weighted mean DBH)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
