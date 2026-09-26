@@ -40,7 +40,7 @@ function ut_forkod!(p)
         ifor = r
     else
         idx = findfirst(==(kodfor), UT_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)   # not found → ERRGRO(3), IFOR stays 1
+        idx === nothing ? (useigl = false; ifor = 3) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps ut/grinit.f's 3 (Fishlake 408)
     end
     # Forest mapping correction (ut/forkod.f:172-188): Cache 7→6, Humboldt 8→3, Toiyabe 9→3.
     ifor == 7 ? (ifor = 6) : ifor == 8 ? (ifor = 3) : ifor == 9 && (ifor = 3)

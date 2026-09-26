@@ -15,12 +15,14 @@
 # so/forkod.f — location code → IFOR via the JFOR table (11 R6-Oregon/NE-Cal forests).
 const SO_JFOR = Int[601, 602, 620, 505, 506, 509, 511, 701, 514, 799, 702]
 
+const SO_FOR_RESERV = Dict{Int,Int}(7711=>2, 7836=>6, 7838=>5, 7844=>6)
 function so_forkod!(p)
     kodfor = Int(p.user_forest_code)
     ifor = 0
-    # reservation pseudo-code crosswalk (so/forkod.f): 7710→602, others → R6 forests
-    if kodfor == 7711 || kodfor == 7710
-        ifor = 2                       # Fort McDermitt → Fremont(602)=IFOR 2
+    # reservation pseudo-codes (so/forkod.f first SELECT CASE): 7711 Fort McDermitt → Fremont 602 (IFOR 2),
+    # 7836/7844 → 509 (IFOR 6), 7838 → 506 (IFOR 5). 7710 is NOT a case (falls to the JFOR search ⇒ default 1).
+    if haskey(SO_FOR_RESERV, kodfor)
+        ifor = SO_FOR_RESERV[kodfor]
     else
         for (i, f) in enumerate(SO_JFOR)
             kodfor == f && (ifor = i; break)

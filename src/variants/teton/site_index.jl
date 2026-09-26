@@ -36,7 +36,7 @@ function tt_forkod!(p)
         ifor = 2                      # Fort Hall Reservation → Caribou NF (405)
     else
         idx = findfirst(==(kodfor), TT_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        idx === nothing ? (useigl = false; ifor = 3) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps tt/grinit.f:211's 3 (Targhee 415)
     end
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(0))   # IGL = KFOR(IFOR); KFOR uninitialized ⇒ 0
