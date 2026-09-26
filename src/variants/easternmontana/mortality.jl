@@ -228,6 +228,10 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
     end
     # morts.f TPAMRT=TNEW: post-mortality (after the BAMAX cap) residual TPA, the reference for the next reset test.
     s.density.tpa_mort = sum(max(0f0, t.tpa[i] - killed[i]) for i in 1:n; init = 0f0)
+    # Climate-FVS mortality (em/morts.f:962 CALL CLMORTS — after the BAMAX residual adjustment, before FIXMORT):
+    # viability path at THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     # Dwarf-mistletoe mortality (mismrt.f): MAX-combine per-tree DM kill into killed[] before snags/removal,
     # same as the shared N-Rockies path (southern/mortality.jl). This variant has its own mortality! so it
     # must be wired here; inert on stands with no DM ratings (dmr==0 ⇒ per-tree no-op).

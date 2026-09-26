@@ -131,14 +131,11 @@ function em_regent_aspen_calib!(s::StandState)
     ihtg = s.control.growth_ihtg
     finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0   # em/grinit.f:192 FINTH default 5
     scale3 = _EM_RG_REGYR / finth                                          # em/regent.f:1095 SCALE3 = REGYR/FINTH
-    # (A) ABIRTH dub from CURRENT height for the aspen/PB pair (pothtg.f:158-161; gated ABIRTH<=0, PROB>0).
-    @inbounds for sp in (12, 17), i in 1:n
-        Int(t.species[i]) == sp || continue
-        (t.tpa[i] <= 0f0 || t.birth_age[i] > 0f0) && continue
-        h = t.height[i]; h <= 0f0 && continue
-        t.birth_age[i] = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
-        t.age_known[i] = true
-    end
+    # (A) ABIRTH dub (em/cratet.f:517 FINDAG → em/pothtg.f), every record with ABIRTH<=0, on the current HT. POTHTG
+    # sets ABIRTH=EFAGE for WB/WL/LP/OS (label 100), DF (200), ES/AF (300), PP (400) and the aspen/PB pair (500,
+    # PROB>0 only); the other species keep 0. Climate-FVS reads it (clgmult BIRTHYR = THISYR − ABIRTH), and REGENT's
+    # aspen Sheppard model reads it for 12/17. jl dubbed only the aspen pair.
+    em_findag_abirth!(s)
     # (B) em/regent.f:1195-1360 REGCAL — the small-tree HEIGHT self-calibration, for EVERY species (jl ran it
     # for the aspen pair only). Per species: EDH is the model's predicted increment over the sub-periods and
     # CORNEW = mean(HTG·SCALE3) / mean(EDH) ⇒ HCOR = ln(CORNEW), gated at NCALHT=5 records and trapped to
@@ -269,6 +266,63 @@ function em_regent_aspen_calib!(s::StandState)
         cornew = snx != 0f0 ? sny / snx : 1f0
         cornew <= 0f0 && (cornew = 1f-4)
         c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+    end
+    return s
+end
+
+# em/findag.f + em/pothtg.f — the CRATET ABIRTH (effective age) dub. SI50 (DF) / SI100 (WB, LP-PP, WL, OS) come from
+# the site species' SITEAR as findag.f builds them; EFAGE inverts each species group's height-age curve.
+# em/blkdat.f:209-212 PLNJSP — the USDA PLANTS symbols Climate-FVS reads the per-species viability columns by.
+const _EM_PLNJSP = String["PIAL","LAOC","PSME","PIFL2","LALY","JUSC2","PICO","PIEN","ABLA","PIPO",
+                          "FRPE","POTR5","POBAT","POBA2","PODEM","POAN3","BEPA","2TN","2TB"]
+climate_plant_symbols(::EasternMontana) = _EM_PLNJSP
+
+function em_findag_abirth!(s::StandState)
+    t = s.trees; p = s.plot
+    isisp = Int(p.site_species); sitisp = (1 <= isisp <= length(p.sp_site_index)) ? p.sp_site_index[isisp] : 0f0
+    @inbounds for i in 1:t.n
+        t.birth_age[i] > 0f0 && continue
+        sp = Int(t.species[i]); h = t.height[i]
+        si50 = 0f0; si100 = 0f0
+        if sp == 3
+            si50 = 1.0096f0 + 0.6279f0 * sitisp
+            isisp == 3 && (si50 = sitisp)
+        end
+        if sp == 1 || (7 <= sp <= 10)
+            si100 = sitisp
+            isisp == 3 && (si100 = (sitisp - 1.0096f0) / 0.6279f0)
+        end
+        (sp == 2 || sp == 18) && (si100 = p.sp_site_index[sp])
+        efage = NaN32
+        if sp == 1 || sp == 7 || sp == 2 || sp == 18                  # pothtg.f label 100
+            ccf = 125f0
+            a = 9.72443f0 - 0.00091f0 * si100 * ccf - h
+            b = -0.23733f0 + 0.0149f0 * si100
+            cc = 0.00160f0 - 0.00005f0 * si100
+            tem = b * b - 4f0 * a * cc; tem < 0f0 && (tem = 0f0)
+            efage = cc != 0f0 ? (-b + sqrt(tem)) / (2f0 * cc) : -a / b
+        elseif sp == 3                                                  # label 200
+            temht = h - 4.5f0; temht == 1f0 && (temht = 1.1f0)
+            temsi = si50 - 4.5f0
+            term1 = (42.397f0 * temsi^0.3197f0) / temht - 1f0
+            term1 < 0f0 && continue
+            efage = exp((log(term1) + 1.0232f0 * log(temsi) - 9.7278f0) / (-1.2934f0))
+        elseif sp == 8 || sp == 9                                       # label 300
+            h >= si100 && continue
+            term1 = log((1f0 - ((h / si100)^(1f0 - 0.302381f0))) / 0.931764f0)
+            efage = term1 / (-0.01679f0)
+        elseif sp == 10                                                 # label 400
+            term1 = ((3.635794f0 * si100^0.916307f0) / h) - 1f0
+            term1 <= 0f0 && continue
+            term2 = log(term1) - 6.09478f0 + 0.277025f0 * log(si100)
+            efage = exp(term2 / (-0.96483f0))
+        elseif sp == 12 || sp == 17                                     # label 500 (PROB>0 only)
+            (t.tpa[i] <= 0f0 || h <= 0f0) && continue
+            efage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
+        end
+        isnan(efage) && continue
+        t.birth_age[i] = efage
+        t.age_known[i] = true
     end
     return s
 end
