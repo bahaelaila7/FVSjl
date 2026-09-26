@@ -660,6 +660,10 @@ mutable struct Calibration
     # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
     # Valid only before any record moves (cycle-0 setup). Empty when unset.
     input_seq::Vector{Int32}
+    # The cycle-0 dead records' PCT and PTBALT from that same CRATET DENSE (dead index k = record t.n+k), which
+    # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
+    cratet_dead_pct::Vector{Float32}
+    cratet_dead_ptbal::Vector{Float32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -677,7 +681,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
-    Int32[])                                                         # input_seq (record read order, cycle-0 only)
+    Int32[],                                                         # input_seq (record read order, cycle-0 only)
+    Float32[], Float32[])                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

@@ -82,6 +82,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # That DENSE runs BEFORE the missing-height dub (DO 130 :363, DO 145 :464) ⇒ heights are as READ (missing = 0):
     # use the pre-dub snapshot cratet_ht_in (41135212010497: dubbed 1.01 seedlings ⇒ AVH 33.671 vs live 33.160).
     ind153 = bm_cratet166_ind(s, view(t.dbh, 1:t.n), nlive, t.n)   # cratet.f:150-153 IND (real DBH, dead included)
+    dbh_real = t.dbh[1:t.n]                   # real DBH of live + dead, before backdating/zeroing (PTBAL's WK5)
     avht_real = let ntot = t.n, ord = ind153, hin = s.calib.cratet_ht_in
         use_hin = length(hin) == ntot
         avh = 0f0; ssumn = 0f0
@@ -129,6 +130,26 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     c = s.calib
     c.cratet_ba = s.plot.basal_area; c.cratet_avh = avht_real
     c.cratet_pccf = copy(s.density.point_ccf); c.cratet_pct = t.crown_ratio[1:nlive]
+    # The cycle-0 DEAD records keep this DENSE's PCT and PTBALT for good: later DENSEs run over ITRN=IREC1 (live only),
+    # so dbstrls.f's dead rows (:308-440) report them. PTBAL (dense.f:280) runs after the SECOND, current-DBH pass:
+    # WK5 = DBH·(DBH·PROB) at the READ diameter (dead PROB ×FINT/FINTM), per point in IND (real-DBH RDPSRT) order,
+    # XBALT += WK5·.005454154·PI/GROSPC (ptbal.f:144-145).
+    if t.ndead > 0
+        nd = Int(t.ndead)
+        c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
+        ntot = t.n
+        xb = zeros(Float32, MAXPLT); ptb = zeros(Float32, ntot)
+        pif = s.plot.pi; gr = s.plot.gross_space
+        @inbounds for k in 1:ntot
+            ii = Int(ind153[k]); ip = Int(t.plot_id[ii]); (1 <= ip <= MAXPLT) || continue
+            ptb[ii] = xb[ip]
+            d = dbh_real[ii]
+            xb[ip] = xb[ip] + (d * (d * t.tpa[ii])) * 0.005454154f0 * pif / gr
+        end
+        c.cratet_dead_ptbal = ptb[(nlive + 1):(nlive + nd)]
+    else
+        c.cratet_dead_pct = Float32[]; c.cratet_dead_ptbal = Float32[]
+    end
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     # dense.f:249-252 second pass: RMSQD = SQRT(TSUMD2/TPROB), TSUMD2 += D·(D·P), over IND1 species-major, current DBH
     let bk = lbkden ? t.dbh[1:nlive] : Float32[], tsumd2 = 0f0, tprob = 0f0, iseq = c.input_seq

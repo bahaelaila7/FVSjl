@@ -1303,14 +1303,23 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             # larger DEAD trees too (only stand BA/SDI excludes dead — that's a separate sum, so the .sum stays
             # bit-exact). Ties: the descending sort is stable on array index, so a record of equal DBH is
             # already accumulated iff its index is lower.
+            # PTBALT/PCT of a cycle-0 dead record are what CRATET's dead-inclusive DENSE left (crown_init snapshot);
+            # the recompute below is only the fallback for a path that never ran that DENSE.
+            kd = i - t.n
+            snap = kd <= length(s.calib.cratet_dead_ptbal)
             dbal = 0f0
-            for j in 1:(t.n + t.ndead)
-                j == i && continue
-                (Int(t.plot_id[j]) == pid) || continue
-                (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
-                dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
+            if snap
+                dbal = s.calib.cratet_dead_ptbal[kd]
+            else
+                for j in 1:(t.n + t.ndead)
+                    j == i && continue
+                    (Int(t.plot_id[j]) == pid) || continue
+                    (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
+                    dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
+                end
             end
             dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
+            dpct = (snap && kd <= length(s.calib.cratet_dead_pct)) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
             cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
@@ -1324,7 +1333,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
                 0.0, Int(t.crown_pct[i]), Float64(cw),     # HtG=0, PctCr, CrWidth
                 _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,  # MistCD = MISGET(I,IDMR) (dbstrls.f:326)
-                Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
+                Float64(dpct), Float64(dbal),              # BAPctile (PCT), PtBAL
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,
