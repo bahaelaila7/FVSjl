@@ -1383,7 +1383,7 @@ TREEDATA
        [613, 441, 360, 260, 204, 164, 143, 116, 99, 88, 78], [92, 101, 112, 123, 128, 132, 136, 138, 140, 143, 145], 0, 0, "floor: BIT-EXACT both runs (2026-09-23 crown ISORT; was ±1-2)"),
       ("EC", FVSjl.EastCascades(), EC_TRE_RD, "STDINFO        608.0       12.      60.0     315.0      30.0      45.0",
        [536, 530, 509, 476, 446, 422, 403, 372, 318, 276, 238], [77, 104, 131, 152, 172, 192, 209, 221, 221, 222, 222],
-       [536, 515, 495, 466, 440, 416, 397, 381, 336, 292, 252], [77, 101, 125, 144, 164, 183, 200, 216, 220, 220, 220], 1, 0, "OPEN: EC control TPA ±1 in 2 cells, BA exact, rd run exact (2026-09-23 crown ISORT; was TPA ≤4) — EC certification"),
+       [536, 515, 495, 466, 440, 416, 397, 381, 336, 292, 252], [77, 101, 125, 144, 164, 183, 200, 216, 220, 220, 220], 0, 0, "BIT-EXACT: EC ctrl+rd TPA/BA == live every cycle (2026-09-26 per-species EC PSIGSQ; was TPA ±1 in 2 cells)"),
       ("CI", FVSjl.CentralIdaho(), CI_TRE_RD, "STDINFO        412.0     520.0      60.0     315.0      30.0      50.0",
        [536, 435, 362, 306, 260, 224, 193, 169, 148, 131, 116], [77, 98, 120, 136, 152, 165, 176, 185, 191, 195, 200],
        [536, 434, 361, 305, 259, 224, 193, 169, 148, 131, 116], [77, 97, 118, 134, 149, 162, 173, 181, 186, 190, 193], 3, 2, "OPEN: CI BA +5 → ±2, TPA +2 → +3 (2026-09-23 crown ISORT) — CI certification"),
@@ -1401,7 +1401,7 @@ TREEDATA
        [536, 511, 494, 481, 468, 462, 445, 426, 413, 395, 380], [77, 97, 114, 132, 151, 167, 181, 193, 205, 214, 222], 0, 0, "BIT-EXACT: UT ctrl+rd TPA/BA == live every cycle (2026-09-25 CEPMRT/SLPMRT latch; was TPA ≤12, BA 3)"),
       ("WS", FVSjl.WestSierra(), WS_TRE_RD, "STDINFO        511.0       84.      60.0     315.0      30.0      45.0",
        [536, 527, 518, 470, 421, 344, 244, 179, 131, 104, 84], [77, 123, 185, 230, 274, 299, 298, 298, 296, 294, 293],
-       [536, 511, 498, 462, 416, 364, 262, 193, 144, 111, 90], [77, 119, 174, 218, 261, 298, 298, 297, 296, 295, 293], 28, 10, "OPEN: WS TPA +28 / BA −10 (WS DUBSCR ported 2026-09-22; residual open)"),
+       [536, 511, 498, 462, 416, 364, 262, 193, 144, 111, 90], [77, 119, 174, 218, 261, 298, 298, 297, 296, 295, 293], 0, 0, "BIT-EXACT: WS ctrl+rd TPA/BA == live every cycle (2026-09-26 WS htgf surrogates, REGENT, forkod, point PRD, PSIGSQ; was TPA +28 / BA −10)"),
     ]
     for (name, v, tre, stdinfo, lct, lcb, lrt, lrb, ttol, btol, status) in wrd_abs
         # "disease never adds BA" now holds for EVERY variant: WS's rd BA used to exceed its own control in the

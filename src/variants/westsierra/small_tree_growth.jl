@@ -71,23 +71,38 @@ const WS_RG_CASURR  = Set([4,9,10,12,14,15,16,17,19,20,23,25,26,27])
 end
 
 # DK/DKK helper — breast-height crossing DBH for a target height (regent.f:419-511, MSP-grouped for WS-native).
-@inline function _ws_regent_dk(ifor::Int, sp::Int, msp::Int, hk::Float32, sitear::Float32)::Float32
-    if sp in WS_RG_CASURR                                       # CA-surrogate → ws_htdbh (chunk 4b)
-        return ws_htdbh_dbh(ifor, sp, hk)
-    elseif sp == 41                                             # MC linear
-        return 3.1020f0 + 0.0210f0 * hk
-    elseif sp == 21                                             # GB linear
-        dk = (hk - 4.5f0) * 10f0 / (sitear - 4.5f0)
-        return dk < 0.1f0 ? 0.1f0 : dk
-    else                                                        # WS-native MSP groups
-        if msp == 1                                             # pines
-            return -0.6197f0 + 0.2626f0 * hk
-        elseif msp == 2                                         # firs
-            return -0.6096f0 + 0.2433f0 * hk
-        else                                                    # msp 3/4 oak/tanoak ln-form
-            return -9.92422f0 / (log(hk - 4.5f0) - 4.80420f0) - 1f0
-        end
+"""ws/regent.f:417-541 — (DK, DKK): the DBH the tree would have at HK (end) and at H (start).
+First the species' own form: CA-surrogate/RW/GS Wykoff inverse HT2/(ln(H−4.5)−AX)−1 (AX = calibrated AA;
+HT1 only matters when IABFLG=1, where the HTDBH override below replaces it anyway); MC(41) linear
+3.1020+0.0210·H with DK≥DKK+0.01; GB(21) the CR/UT site line (H−4.5)·10/(SITEAR−4.5) floored at 0.1; WS-native
+MSP pine/fir linear or the oak ln-form. DKK=D below breast height. Then for the CA/SO species (4,9:10,12,
+14:17,19:20,23,25:27,41) the inventory HTDBH replaces DK/DKK when .NOT.LHTDRG or (LHTDRG and IABFLG=1)."""
+function _ws_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float32, h::Float32, hk::Float32,
+                           sitear::Float32)
+    local dk::Float32, dkk::Float32
+    if sp in WS_RG_CASURR || sp == 4 || sp == 23
+        bx = coef_col(s.coef, :wykoff_ht2)[sp]; ax = s.calib.ht_dbh_aa[sp]
+        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0
+        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0
+    elseif sp == 41
+        dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0f0 && (dkk = d)
+        dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+    elseif sp == 21
+        dk = (hk - 4.5f0) * 10f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+        dkk = (h - 4.5f0) * 10f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+        h < 4.5f0 && (dkk = d)
+    else
+        ihdw = msp == 3 || msp == 4
+        ax, bx = msp == 1 ? (-0.6197f0, 0.2626f0) : msp == 2 ? (-0.6096f0, 0.2433f0) : (4.80420f0, -9.92422f0)
+        dk = ihdw ? bx / (log(hk - 4.5f0) - ax) - 1f0 : ax + bx * hk
+        dkk = h <= 4.5f0 ? d : (ihdw ? bx / (log(h - 4.5f0) - ax) - 1f0 : ax + bx * h)
     end
+    if (sp in WS_RG_CASURR || sp == 4 || sp == 23 || sp == 41) &&
+       (!s.control.ht_drag_sp[sp] || s.calib.ht_dbh_iabflg[sp] == 1)
+        dk = ws_htdbh_dbh(ifor, sp, hk)
+        dkk = h <= 4.5f0 ? d : ws_htdbh_dbh(ifor, sp, h)
+    end
+    return (dk, dkk)
 end
 
 function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 10.0f0)
@@ -111,7 +126,10 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         crf = icr / 10f0                                        # CR = ICR/10 passed to smhtgf
         si = p.sp_site_index[sp]
         con = exp(c.htg_cor_small[sp])                          # RHCON·exp(HCOR); HCOR=0 ⇒ 1
-        regyr = 10f0
+        # ws/regent.f:265-270 — GB(21)/MC(41) equations are 10-yr (UT/SO); every WS-native species' SMHTGF
+        # increment is 5-yr (CA/WS). A flat 10 halved every native small tree's height growth on 10-yr cycles
+        # (measured vs FVSws_g16, DGSTDEV 0: OS/WF/DF HtG 7.46/7.30/10.01 vs jl 3.73/3.65/5.01).
+        regyr = (sp == 21 || sp == 41) ? 10f0 : 5f0
         scale = fnt / regyr; scale2 = yr / fnt
         msp = WS_RG_SMTMAP[sp]
         # --- HTGRR: MC/GB use POTHTG·PCTRED·VIGOR; WS-native use ws_smhtgf DIRECTLY (no PCTRED·VIGOR) ---
@@ -146,23 +164,53 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         t.ht_growth[i] < 0.1f0 && (t.ht_growth[i] = 0.1f0)
         cap = s.control.sp_size_cap[sp, 4]
         (cap > 0f0 && h + t.ht_growth[i] > cap) && (t.ht_growth[i] = max(cap - h, 0.1f0))
-        # --- small-tree DBH: D < XMAX only (already gated); DK/DKK breast-height crossing ---
+        # --- small-tree DBH (ws/regent.f:405-665) ---
+        # BKPT: GB grows its DBH in REGENT at every size (99"), RW/GS below 7", everyone else below 3". At or
+        # above BKPT FVS jumps to label 23: the large-tree DG stays untouched (no DIAM floor, no DGBND).
+        bkpt = sp == 21 ? 99f0 : (sp == 4 || sp == 23) ? 7f0 : 3f0
+        if d >= bkpt
+            _ca_rg_stash!(stash, t, i); continue
+        end
         htg = t.ht_growth[i]; hk = h + htg
         bark = ws_bratio(sd, sp, d)
-        dk = _ws_regent_dk(ifor, sp, msp, hk, si)
-        dkk = h <= 4.5f0 ? d : _ws_regent_dk(ifor, sp, msp, h, si)
-        # --- DG conversion (LESTB=false): XDWT blend of small (DK−DKK) and large (DGLT) DG ---
-        xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
-        dgsm = (dk - dkk) * bark
-        dgsm < 0f0 && (dgsm = 0f0)
-        dds = dgsm*(2f0*bark*d + dgsm)*scale2
-        dgsm = sqrt((d*bark)^2 + dds) - bark*d
-        dgsm < 0f0 && (dgsm = 0f0)
-        dglt = t.diam_growth[i]
-        dg = dgsm*(1f0 - xdwt) + dglt*xdwt
-        (t.dbh[i] + dg) < WS_RG_DIAM[sp] && (dg = WS_RG_DIAM[sp] - t.dbh[i])
-        dg = dg_bound(nothing, nothing, sp, t.dbh[i], dg, s.control.sp_size_cap)   # ws/dgbnd.f = SIZCAP
-        t.diam_growth[i] = dg
+        if hk <= 4.5f0
+            t.diam_growth[i] = 0f0; t.dbh[i] = d + 0.001f0 * hk           # regent.f:413-415
+        else
+            dk, dkk = _ws_regent_dk_dkk(s, ifor, sp, msp, d, h, hk, si)
+            local dg::Float32
+            if sp == 21                                               # UT (orig. CR): DG by subtraction, ×SCALE2
+                dgmx = 2f0 * scale
+                if dk < 0f0 || dkk < 0f0
+                    dg = htg * 0.2f0 * bark
+                else
+                    dg = (dk - dkk) * bark                            # ×XRDGRO (=1)
+                end
+                dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
+                dds = dg * (2f0 * bark * d + dg) * scale2
+                dg = sqrt((d * bark)^2 + dds) - bark * d
+            elseif sp == 41                                           # SO (orig. WC): no DDS rescale
+                h < 4.5f0 && (dkk = d)
+                dgmx = 5f0 * scale
+                dg = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dk - dkk) * bark
+                (s.control.ht_drag_sp[41] && s.calib.ht_dbh_iabflg[41] == 0) && (dg = 0.1f0 * htg)
+                dg < 0f0 && (dg = 0.1f0); dg > dgmx && (dg = dgmx)
+            else                                                      # CA/WS: blend small & large-tree DG
+                xdwt = if sp == 4 || sp == 23
+                    xmn = WS_RG_XMIN[sp]; d <= xmn ? 0f0 : (d - xmn) / (bkpt - xmn)
+                else
+                    d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0) / 1.5f0
+                end
+                dgsm = (dk - dkk) * bark
+                dgsm < 0f0 && (dgsm = 0f0)
+                dds = dgsm * (2f0 * bark * d + dgsm) * scale2
+                dgsm = sqrt((d * bark)^2 + dds) - bark * d
+                dgsm < 0f0 && (dgsm = 0f0)
+                dg = dgsm * (1f0 - xdwt) + t.diam_growth[i] * xdwt
+            end
+            (t.dbh[i] + dg) < WS_RG_DIAM[sp] && (dg = WS_RG_DIAM[sp] - t.dbh[i])
+            t.diam_growth[i] = dg
+        end
+        t.diam_growth[i] = dg_bound(nothing, nothing, sp, t.dbh[i], t.diam_growth[i], s.control.sp_size_cap)   # DGBND
         _ca_rg_stash!(stash, t, i)
     end
     return s

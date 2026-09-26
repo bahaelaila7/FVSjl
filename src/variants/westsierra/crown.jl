@@ -159,6 +159,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     sd = s.coef.species
     relden = p.relative_density; sdiac = crown_sdi
     dens = s.density
+    prdf = ws_point_prd_fn(s)                                     # ZRD/XMAXPT per point (ws/crown.f:160,321)
     # rank trees by projected DBH (ws/crown.f ISORT via RDPSRT on D+DG/BARK), descending → ISORT[i] ∈ 1..n
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling,
     # as-read at LSTART) — shared crown_isort, see crown_init.jl.
@@ -192,7 +193,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
             else                                           # ws/crown.f:469-473 CASE DEFAULT → DUBSCR
                 pt_i = Int(t.plot_id[i])
                 tpccf = (1 <= pt_i <= length(dens.point_ccf)) ? dens.point_ccf[pt_i] : 0f0
-                cr = ws_dubscr(s.rng, sp, d, h, ws_point_prd(s, pt_i), _ws_qmdplt(dens, pt_i),
+                cr = ws_dubscr(s.rng, sp, d, h, prdf(pt_i), _ws_qmdplt(dens, pt_i),
                                p.basal_area, tpccf, p.avg_height, p.mai_adj)
                 icri = trunc(Int, cr * 100f0 + 0.5f0)
                 inband && (icri = trunc(Int, Float32(icri) * cmult))   # DUBSCR band scaling
@@ -212,7 +213,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
             tpaplt = (1 <= pt_i <= length(dens.point_tpa)) ? dens.point_tpa[pt_i] : 0f0
             qmdplt = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
             qmdplt < 1f0 && (qmdplt = 1f0)
-            prd = ws_point_prd(s, pt_i)
+            prd = prdf(pt_i)
             hdr = (h * 12f0) / d
             x = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
             x = 1f0 / (1f0 + exp(x))
@@ -254,7 +255,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         tpccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
-        icri_round(ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ws_point_prd(s, pt), _ws_qmdplt(dens, pt),
+        icri_round(ws_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prdf(pt), _ws_qmdplt(dens, pt),
                   p.basal_area, tpccf, p.avg_height, p.mai_adj))
     end
     return s

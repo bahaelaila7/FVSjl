@@ -205,6 +205,7 @@ function dgf!(s::StandState, ::WestSierra)
     ba = p.basal_area; avh = p.avg_height
     slope = p.slope; asp = p.aspect
     cosa = cos(asp)
+    prdf = ws_point_prd_fn(s)                                     # ZRD/XMAXPT per point (ws/dgf.f:506-525)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i])
@@ -251,7 +252,7 @@ function dgf!(s::StandState, ::WestSierra)
             dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + cor + c.dg_const[isp]
             dds < -9.21f0 && (dds = -9.21f0)
         elseif isp == 4 || isp == 23                             # GS/RW (Castle 2019 DGLT-exp)
-            prd = ws_point_prd(s, pt_i)
+            prd = prdf(pt_i)
             bark = ws_bratio(sd, isp, d)
             dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
                        0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
@@ -303,11 +304,12 @@ end
 
 # PRD = ZRD(point)/XMAXPT(point) per-point Zeide relative density — SDICAL/SDICLS engine-gap (AK #209
 # class). Only CASE(4,23) GS/RW consume it. Stub 0 until SDICAL is ported (inert on GS/RW-free stands).
-@inline function ws_point_prd(s::StandState, pt::Int)
-    d = s.density
-    if isdefined(d, :point_zeide_rd) && 1 <= pt <= length(getfield(d, :point_zeide_rd))
-        return getfield(d, :point_zeide_rd)[pt]
-    end
-    return 0f0
+"""PRD(pt) = ZRD(pt)/XMAXPT(pt) — ws/dgf.f:506-525 (SDICAL IWHO=2 + SDICLS per point, all species and sizes) and
+ws/crown.f:321. One point_zeide! pass per call site; returns a closure over the point index (0 when XMAXPT≤0).
+The old ws_point_prd read a Density field that never existed and returned 0 for every point, so RW/GS DG
+(−0.42078·PRD) and every WS DUBSCR crown ran with PRD=0 (measured: live RW PRD 0.0665, DGLT 2.3795 vs jl 2.4471)."""
+function ws_point_prd_fn(s::StandState)
+    xmaxpt, zrd, _ = point_zeide!(s)
+    return pt -> (1 <= pt <= length(xmaxpt) && xmaxpt[pt] > 0f0) ? zrd[pt] / xmaxpt[pt] : 0f0
 end
 

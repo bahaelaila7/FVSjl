@@ -312,7 +312,12 @@ function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32; mtopp::Float
     stump = 1.0f0; minl = 2.0f0; merl = 8.0f0                   # mrules.f REGN 5 defaults
     tcf = Float32(round(_fw2_tcubic(dibat, h) * 10.0)) / 10.0f0  # VOL(1)=NINT(TCVOL*10)/10
     mcf = nc_wo2w_merch(dibat, h; mtopp = mtopp, stump = stump, minlen = minl, merchl = merl)  # VOL(4) (SPFLG=0)
-    bf  = _fw2_board(dibat, h, bftop, stump, minl, merl)         # VOL(2) Scribner
+    # The board pass's merch height is profile.f MERLEN (tenth-inch-truncated 0.1-ft search, nc_merlen), exactly
+    # as the cubic pass uses — NOT _fw2_hs's diameter-tolerance bisection, which lands a hair off (96.97 vs 97.0,
+    # 33.08 vs 32.9 ft) and shifts a 16-ft log boundary ⇒ single-tree ±10-bf Scribner steps. Verified against the
+    # standalone VOLINITNVB oracle driver on WS/NC trees (SP 450, DF 470, OS 40 — the old path gave 440/460/50).
+    bf  = _fw2_board(dibat, h, bftop, stump, minl, merl;
+                     hs_solver = top -> nc_merlen(dibat, top, h, stump) + stump)   # VOL(2) Scribner
     return (max(tcf, 0f0), max(mcf, 0f0), max(bf, 0f0))
 end
 

@@ -433,6 +433,68 @@ UT's WRD absolute row became bit-exact, so it was promoted from `@test_broken` t
 - The SDICALC min-DBH filter on morts.f's T (`D < DBHZEIDE/DBHSTAGE`) is not applied in the EM/NC/UT/TT
   kernels. It is inert at the default 0.
 
+## WS height growth, REGENT and site; per-variant PSIGSQ (2026-09-26, branch `ws-htg`)
+
+**1. WS `htgf.f` surrogate branches.** Four branches were stubs; all are ported and measured on a species-swap
+fixture (the PN tree list with RW/GS/MC above and below HTMAX, and GB large and small) against `FVSws_g16`:
+- **GB** uses the Alexander curve. BAU and AGERNG are identically 0 in WS, and the ZZRAN draws run
+  species-major.
+- **MC** uses Curtis potential plus Hoerl/Chapman-Richards modifiers, with no SCALE on the normal path and
+  HTMAX 20.
+- **The CA surrogates** use FINDAG, `ws_htcalc` and the Ritchie–Hann XMOD.
+- **RW/GS** use the Castle LTHTG form.
+- `ws/findag.f` AGEMAX/HTMAX are per species.
+
+**2. WS REGENT (`ws/regent.f`).**
+- REGYR is 10 only for GB and MC; every other species uses 5.
+- BKPT is 99 for GB, 7 for RW/GS and 3 for the rest. At or above it the large-tree DG is left untouched.
+- Below 4.5 ft, DBH is set directly and DG is 0.
+- The CA/SO species take the HTDBH override when `!LHTDRG` or IABFLG = 1.
+- GB DG was the dgf large-tree value (0.549 vs live 0.054). It is now the subtraction form, capped at
+  2·SCALE and DDS-scaled.
+
+**3. WS point PRD.** `ws_point_prd` read a Density field that does not exist, so PRD was 0 everywhere. That
+affected the RW/GS DG term (−0.42078·PRD) and every WS DUBSCR crown. It now runs `point_zeide!` per point.
+Live RW PRD is 0.0665, and DGLT matches.
+
+**4. WS site and volume.**
+- `ws/forkod.f`: an unmatched forest code keeps grinit IFOR 6 (517), the reservation codes are mapped, and
+  TLAT is set only for 5-digit codes (grinit default 39).
+- CFTOPK/BFTOPK broken-top trims are applied.
+- The R5 WO2W board pass uses MERLEN (`nc_merlen`), in WS and in NC's `nc_wo2w_vol`.
+- SO Fremont (IFOR 2/3) uses its own volume-equation table.
+
+**5. Per-variant PSIGSQ (`dgdriv.f`).** Every variant fell through to SN's 0.089827273. `src/variants/psigsq.jl`
+now carries each variant's own DATA:
+- SN and AK use 0.089827273.
+- CS, LS, NE, ON, CA, WC, PN, OC and OP use 0.0898.
+- SO, WS and EC use per-species tables.
+
+PSIGSQ enters the empirical-Bayes COR shrinkage. On SO WF, WC was 0.5701 vs live 0.5783.
+
+Result: WS 516/505, SO ×5, CA ×4, UT ×3 and NC ×6 habtest cases are exact. On the species-swap fixture,
+`DGSTDEV 0` is byte-identical over 11 rows, and with the random component on, one year differs by 1 bdft.
+
+**Gate reconciliation.** Three PPE MXHRVP assertions are jl self-snapshots of EC growth. The EC PSIGSQ fix
+moved each one toward the FVSppe oracle:
+
+| Assertion | Before | After | Oracle |
+|---|---|---|---|
+| 2000 selected resource | 326.6 | 327.3 | 330.48 |
+| 2010 selected resource | 432.3 | 433.7 | 439.90 |
+| 2000 HVPART | 0.378 | 0.375 | 0.362 |
+
+The same stand run alone against live FVSec agrees: 2010 BA went from 144 to 145 (live 147), and 2020 from
+180 to 181 (live 184). The snapshots were re-pinned. No other test changed by name.
+
+Three `@test_broken` rows became passing tests: the EC and WS WRD absolute rows (control and root disease
+TPA/BA equal live in every cycle; WS was TPA +28 / BA −10) and the EC `ect01` cycle-0 ACCRETION cell.
+
+**Found and still open:**
+- EC `ec_cwcalc` has no crown-width equation for species 6 and later, so TREELIST crashes on the PPE stand.
+- On that stand, EC 1990 TCuFt is 1640 vs live 1602 while TPA, BA and SDI are exact.
+- WS default-branch tripled-copy HTG.
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live

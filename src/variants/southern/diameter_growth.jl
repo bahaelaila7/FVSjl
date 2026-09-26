@@ -218,8 +218,27 @@ function dgf!(s::StandState, ::Southern)
     return s
 end
 
-"Empirical-Bayes prior variance for DG calibration (dgdriv.f PSIGSQ)."
+"Empirical-Bayes prior variance for DG calibration (dgdriv.f PSIGSQ) — SN (90*0.089827273) and AK (23*0.089827273)."
 const DG_PSIGSQ = 0.089827273f0
+
+# ws/dgdriv.f, so/dgdriv.f, ec/dgdriv.f DATA PSIGSQ (per species; read from the compiled buildDir sources).
+const WS_PSIGSQ = Float32[0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0970, 0.0970, 0.0636, 0.0898, 0.0898,
+    0.0586, 0.0898, 0.0970, 0.0898, 0.0898, 0.0898, 0.0898, 0.0636, 0.0898, 0.0898, 0.07, 0.1556, 0.0858,
+    0.0586, 0.0898, 0.0898, 0.0898, 0.0636, 0.0636, 0.0636, 0.0636, 0.0636, 0.0636, 0.0858, 0.0858, 0.0858,
+    0.0858, 0.0858, 0.0858, 0.0636, 0.0898, 0.0408, 0.0636]
+const SO_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0898, 0.0636,
+    0.0858, 0.0970, 0.0970, 0.0970, 0.0898, 0.0408, 0.0586, 0.0858, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898,
+    0.1433, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.1556, 0.0898]
+const EC_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636, 0.0970, 0.0970, 0.0636,
+    0.0898, 0.0858, 0.0898, 0.0898, 0.0898, 0.1433, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898,
+    0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0898, 0.0858, 0.0898]
+
+"""dgdriv.f PSIGSQ(ISPC) per variant. Every variant's own DATA statement, verified against the compiled buildDir
+sources (2026-09-26). SO/WS/EC used to fall through to SN's 0.089827273, and CS/LS/ON/CA/WC/PN/OC to it
+as well where their DATA is exactly 0.0898 — measured on SO WF: WC 0.5701 vs live 0.5783 ⇒ COR −0.06213 vs
+live −0.06303 ⇒ a one-signed ~0.1% WF DG drift from the first cycle."""
+dg_psigsq(::AbstractVariant, sp::Int) = DG_PSIGSQ                                   # SN, AK
+# (per-variant methods live in src/variants/psigsq.jl, included after every variant type is defined)
 
 """
     calibrate_diameter_growth!(state; scale=1f0)
@@ -607,18 +626,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                          bnyv * (dist / 2f0) + regcor * (1f0 - dist / 2f0)
                 svar = devsq[sp] - dev[sp]^2 / fn[sp]
                 svar_v = (svar / (fn[sp] - 1f0)) / fn[sp]
-                psigsq = s.variant isa Northeast ? 0.0898f0 :
-                         s.variant isa CentralRockies ? 0.07f0 :
-                         s.variant isa Kootenai ? KT_PSIGSQ[sp] :
-                         s.variant isa EasternMontana ? EM_PSIGSQ[sp] :
-                         s.variant isa Teton ? TT_PSIGSQ[sp] :
-                         s.variant isa Utah ? UT_PSIGSQ[sp] :
-                         s.variant isa BlueMountains ? BM_PSIGSQ[sp] :
-                         s.variant isa BritishColumbia ? BC_PSIGSQ[sp] :
-                         s.variant isa CentralIdaho ? CI_PSIGSQ[sp] :
-                         s.variant isa InlandEmpire ? IE_PSIGSQ[sp] :
-                         s.variant isa Klamath ? NC_PSIGSQ[sp] :
-                         s.variant isa Olympic ? 0.0898f0 : DG_PSIGSQ   # OP 0.0898 (op/dgdriv.f DATA PSIGSQ/MAXSP*0.0898/) / NE 0.0898 / SN default
+                psigsq = dg_psigsq(s.variant, sp)
                 temp = min(cornew * cornew / psigsq, 72f0)
                 wc = 1f0 / (1f0 + fexp(-0.5f0 * temp) * sqrt(svar_v / psigsq))   # gfortran single-precision EXP
                 corv = wc * cornew
