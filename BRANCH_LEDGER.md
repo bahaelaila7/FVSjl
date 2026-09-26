@@ -232,3 +232,20 @@ Gate: the full `Pkg.test` on the final tip, compared by name against the master 
 (`/workspace/.postswap/pkgtest_wshtg`). The tiered EM allowlist was redrafted from measurement, and the EM WRD row
 and the new EM REGENT test pass.
 
+## Addendum 2026-09-26 (f) — `ec-cw` merge
+
+Branch `ec-cw` (worktree `.wt-ec`, off master `f6b7ca75`; master `0df04061` (em-vol) merged in as `b4dc6949`),
+landed with one proper `git merge --no-ff`. It carries:
+- EC crown width through the national ECMAP dispatcher.
+- The EC eastside R6_EQN volume table and the CFTOPK trim on every equation.
+- EC REGENT (own-SI SMHTGF, per-species DK/DKK, per-copy tripling).
+- EC ESGENT.
+- Western FFE moisture presets.
+- CR NORMHT volume.
+- PPE MXHRVP pinned to the FVSppe oracle.
+
+See docs/PORT_STATUS.md, "EC crown width, volume, REGENT and ESGENT".
+
+Gate: the full `Pkg.test` on the final tip, compared by name against the master `0df04061`-equivalent em-vol log
+(`/workspace/.postswap/pkgtest_emvol`).
+

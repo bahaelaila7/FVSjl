@@ -555,6 +555,48 @@ current PCT instead of OLDPCT. Both are fixed, along with the backdated-D < 3 sk
   - An LM backdated-PCT tie breaks in a different order (0.013 TPA).
 - **REGCAL.** The CR/UT EDH uses a static PCTRED, which is 0 at LSTART (#244).
 
+## EC crown width, volume, REGENT and ESGENT; western fuel moisture; CR NORMHT (2026-09-26, branch `ec-cw`)
+
+Driven by the PPE MXHRVP landscape (three copies of Mt Hood stand S248112, forest 606), whose cycle-1/2 CREDIT
+was off the FVSppe oracle because of EC growth, not MXHRVP.
+
+**1. Crown width (`ec/cwcalc.f`).** `ec_cwcalc` hard-coded forest 608 for six species and errored on the other
+26, so FVS_TreeList crashed on any EC stand with WH, GF or RC. It is now ECMAP → the national dispatcher with the
+shared Region-6 forest BF, with KODFOR passed from both call sites (FMCBA PERCOV, TreeList CrWidth). Codes 02206,
+63102 and 81505 were added to the national library. S248112 1990 CrWidth: 29/29 trees equal to live.
+
+**2. Volume.** EC is an eastside variant in `voleqdef.f` R6_EQN, so it now reuses the BM forest table
+(`_bm_r6_eqn`, DISTNUM 0). jl had known only Okanogan/Wenatchee and sent every other forest to Behre. On Mt Hood,
+live runs DF on westside F05FW2W202 and the rest on I11–I13 INGY. The broken-top CFTOPK/BFTOPK trim now runs for
+every equation, not just INGY. S248112 cycle 0 TCuFt/MCuFt/BdFt 1640/1103/5572 → 1602/1064/5456 = live (#243).
+
+**3. REGENT (`ec/regent.f`, `ec/smhtgf.f`).**
+- SMHTGF reads the tree's own SITEAR, unclamped. jl had clamped it to the site species' range, so an ES at SI 148
+  grew 7.9 ft instead of 17.4.
+- DK/DKK are formed per species. The HTDBH inventory form applies only when `.NOT.LHTDRG` or IABFLG = 1.
+- Tripling gives each copy its own ZZRAN, HTG blend and small-tree DBH increment.
+- REGHMULT and REGDMULT are applied.
+- S248112, 3 cycles: per-tree exact in all four setups (DGSTDEV 0 and random, with and without tripling).
+- PPE MXHRVP end-to-end now pins cycles 1–2 to the oracle (330.4816 / 439.8994).
+
+**4. ESGENT (`ec/esgent.f`).** EC was missing from the birth-cycle ESGENT dispatch, so planted records sat at
+their ESSUBH height for the whole establishment cycle (ect01 PLANT stand: 2002 BA 0 vs live 22). `ec_esgent!` is
+REGENT(LESTB) for the new records, with the crown and height draws interleaved per record, then the HHTMAX cap.
+The ect01 PLANT stand is per-tree exact over 10 cycles (#245).
+
+**5. FFE fuel moisture.** SIMFIRE/POTFIRE moisture presets for EC and SO now use the IE table, and CA and WS use
+the NC table. They had fallen through to the SN table. Each was checked value by value against the variant's
+`fmmois.f`.
+
+**6. CR broken-top volume (`cr/vols.f` TKILL).** H = NORMHT/100 for top-killed trees, as for EM/KT. The CR
+cycle-0 .sum on the shipped PN list is now 1611/1381/3490, equal to live (#241).
+
+**Still open:**
+- **EC FFE fire behaviour (#246).** On the ect01 FFE stand, flame length is 3.92 vs 5.37 ft because the
+  fuel-model weights differ (FM10 55% vs 46%), and 2003 SIMFIRE under-kills. jl does not yet emit FVS_Fuels under
+  DATABASE FUELSOUT.
+- **BC/ON/AK NORMHT (#248).**
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
