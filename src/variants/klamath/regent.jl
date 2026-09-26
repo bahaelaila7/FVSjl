@@ -98,27 +98,16 @@ produces the applied htg_cor_small = WCI + cormlt_h·(HCOR_init−WCI), WCI=dg_c
 diameter COR), cormlt_h=exp(−0.02773·elapsed_end). At cyc1 (elapsed 0, +5) ⇒ CON=exp(0.8705·HCOR_raw). Verified
 vs FVSnc_g16 dumps: BO raw HCOR −0.8059 (CORNEW 0.4467) → applied −0.7016 (CON 0.4958) → cyc1 HTG/DG bit-exact."""
 function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
-                              saved_dbh::AbstractVector)
+                              saved_dbh::AbstractVector, avh::Float32)
     p, t, c = s.plot, s.trees, s.calib
     t.n == 0 && return s
-    # BACKDATED stand BA = regent.f's XBA=BA, the plot common BA that DENSE loads backdated to start-of-period
-    # (dense.f:64-86): LIVE trees at their backdated dbh PLUS the RECENT-dead (tree HISTORY 6/7 ⇒ IMC 7) at their
-    # dbh, while OLDER dead (HISTORY 8/9 ⇒ IMC 9) load dbh=0 and drop out (dense.f:86 `IF(IMC(I).EQ.9)WK3=0`).
-    # Measured vs FVSnc_g16: 248669823489998 (dead=27.6" HISTORY-8 ⇒ excluded) 217.047==217.047; 449542210489998
-    # (4 dead HISTORY-6 ⇒ included at TPA 75) live-only 53.031 + recent-dead 2.466 = 55.497 == oracle 55.497. The
-    # earlier "all-dead-included" form wrongly added the HISTORY-8 27.6" record (BA 217→251), which suppressed the
-    # predicted HTGR5 enough to push CORNEW past the 12.18 trap ⇒ the calibration was WRONGLY rejected. (regent.f:390)
-    ba = 0f0
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]; ba += 0.005454154f0 * d * d * t.tpa[i]
-    end
-    @inbounds for j in (t.n + 1):(t.n + t.ndead)
-        h = t.history[j]
-        (h == 6 || h == 7) || continue          # older dead (8/9) load dbh 0 in DENSE ⇒ excluded
-        d = t.dbh[j]; ba += 0.005454154f0 * d * d * t.tpa[j]
-    end
+    s.control.growth_ifinth == 0 && return s                  # regent.f:359 IF(IFINTH.EQ.0) GOTO 100
+    # regent.f:388-390 XBA=BA: the plot BA the nc/cratet.f:172 backdating DENSE left (dead-inclusive at FINT/FINTM-
+    # scaled PROB, IMC=9 older dead at D=0) — the crown-init snapshot. RELHT=H/AVH uses AVH from cratet.f:530 AVHT40
+    # (current heights), passed in. The former ad-hoc BA (live backdated + unscaled HISTORY-6/7 dead) and the
+    # backdated-state AVH put every species' SNX ~2.7% off live on the REGCAL fixture.
+    ba = c.cratet_ba
     ba <= 0f0 && (ba = 0.1f0)
-    avh = p.avg_height
     regyr = NC_REGYR
     finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 10f0   # NC measured HTG period = IFINT=10
     scale3 = regyr / finth                                                 # regent.f:363 SCALE3=REGYR/FINTH

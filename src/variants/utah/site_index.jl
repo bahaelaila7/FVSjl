@@ -85,10 +85,12 @@ function ut_sitset!(s::StandState)
     return s
 end
 
-# ut/cratet.f — adjust SITEAR to a 50-YEAR age base for the species whose growth eqns were fit on a
+# ut/cratet.f:99-150 — adjust SITEAR to a 50-YEAR age base for the species whose growth eqns were fit on a
 # 50-yr-base site index: WB/LM/LP/OS (1,2,7,23) via Alexander-Tackle-Dahms RM-29; WF/BS/ES/AF (4,5,8,9)
-# via Alexander RM-32; PP (10) via Meyer 1961 (TB-630). Uses stand CCF (floored 125, DBH-only open-grown).
-# Inert unless one of these species/site-species is present (why utt01 — PJ/woodland — was bit-exact).
+# via Alexander RM-32; PP (10) via Meyer 1961 (TB-630). RM-29 reads the stand CCF TEMCCF = Σ CCFCAL(mode 1)·PROB
+# over the IREC1 live records (floored 125) — PROB as NOTRE expanded it, so this runs at CRATET time. Called from
+# setup_growth!; at site_setup! (INITRE) the raw .tre PROB left TEMCCF at the 125 floor (REGCAL fixture: live
+# TEMCCF 469.15 ⇒ LP SITEAR 17.09 vs jl 30.07, WB/LM/OS likewise).
 function ut_cratet_site_adjust!(s::StandState)
     p, t = s.plot, s.trees
     temccf = 0f0
@@ -118,7 +120,8 @@ function ut_site_index_setup!(s::StandState)
     ut_forkod!(s.plot)          # IFOR → p.forest_idx (DG DGFOR/DGDS); IGL → p.geo_location
     s.plot.habitat_input = ut_habtyp(Int(s.plot.habitat_code))   # KODTYP → ITYPE (ut/habtyp.f)
     ut_sitset!(s)               # SITEAR (p.sp_site_index) + SDIDEF (p.sp_sdi_def)
-    ut_cratet_site_adjust!(s)   # CRATET 50-yr-base site adjust (WB/LM/WF/BS/LP/ES/AF/PP/OS)
+    # The CRATET 50-yr-base site adjust (ut_cratet_site_adjust!) runs from setup_growth! — CRATET time — not here:
+    # its TEMCCF sums CCFT·PROB over the NOTRE-expanded PROB (fvs.f INITRE→SITSET, then NOTRE, then CRATET).
     return s
 end
 
