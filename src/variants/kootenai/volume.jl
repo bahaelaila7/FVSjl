@@ -4,6 +4,13 @@
 # Merch standards from kt/grinit.f: cubic TOPD=4.5/DBHMIN=7 (sp7 lodgepole=6); board BFTOPD=4.5/BFMIND=7
 # (sp7=6); stump=1. KT bark = bark_ratio(KT_BKRAT) (kt/bratio.f), NOT cr_bratio.
 # =============================================================================
+# kt/ktfctr.f — merch-to-total cubic ratio for top-killed trees (0 ⇒ fall back to the Behre trim).
+const KT_RCF1 = Float32[0.620, 1.133, 0.709, 0.592, 0.0, 0.0, 0.688, 0.0, 0.0, 1.047, 0.0]
+const KT_RCF2 = Float32[3.358, 3.561, 3.475, 3.595, 0.0, 0.0, 3.580, 0.0, 0.0, 3.450, 0.0]
+const KT_RCF3 = Float32[3.137, 3.418, 3.229, 3.329, 0.0, 0.0, 3.405, 0.0, 0.0, 3.290, 0.0]
+kt_ktfctr(sp::Int, dtop::Float32, d::Float32)::Float32 =
+    (sp <= 4 || sp == 7 || sp == 10) ? 1f0 - (KT_RCF1[sp] * dtop^KT_RCF2[sp] / (d^KT_RCF3[sp])) : 0f0
+
 function compute_volumes_kt!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; sd = s.coef.species
@@ -29,7 +36,15 @@ function compute_volumes_kt!(s::StandState)
         bf  = d >= bfmind ? v[2] : 0f0
         if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0     # broken-top reduction (Behre taper)
             vmax = tcf
+            mcf0 = mcf
             tcf, mcf = cr_cftopk(tcf, mcf, d, h, vmax, bark, Int(t.trunc[i]), stump, topd)
+            # kt/cftopk.f:52-58 — KT's own merch ratio for a top-killed tree: KTFCTR's RCF (LP/WL/DF/GF/WH/…
+            # sp 1-4,7,10) replaces the Behre merch trim, MCF=RCF·TCF(trimmed). ktt01 WL/DF broken tops: MCF 7.000
+            # vs live 6.767 without it.
+            if mcf0 > 0f0
+                rcf = kt_ktfctr(sp, topd, d)
+                rcf > 0f0 && (mcf = rcf * tcf)
+            end
             bf = cr_bftopk(bf, d, h, vmax, bark, Int(t.trunc[i]), stump, bftopd)
         end
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
