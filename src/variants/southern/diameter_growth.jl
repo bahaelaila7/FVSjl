@@ -363,6 +363,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
     _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
     _ut_cal = s.variant isa Utah              # #199: UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766)
+    _tt_bd_ba = 0f0; _tt_bd_ccf = 0f0; _tt_bd_pccf = Float32[]   # TT REGCAL stand values (backdated DENSE)
     _ut_bd_ccf = 0f0                           # UT: BACKDATED CCF (RELDEN, dense.f RELDM1) for the calib PCTRED (X=AVH·RELDEN/100; AVH stays current)
     _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
@@ -428,6 +429,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
     _cr_cal && (_cr_bd_ccf = stand_ccf(s); _cr_bd_avht = stand_top_height(s))
     _ut_cal && (_ut_bd_ccf = stand_ccf(s))    # #199: BACKDATED CCF (RELDEN) capture, dead-inclusive, same as CR
+    # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
+    _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
     t.n = nlive
     @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead))
         t.dbh[j] = saved_dead[k]
@@ -708,9 +711,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # density, with IFORTP still 0 — and DO 220 (:746-769) dubs every unmeasured record from THAT WK2.
     # Stash WK2/WK3 here (same context as the first calibration DGF call above: FORTYP 0, current-stand AVH)
     # for bm_cycle0_dg; re-running dgf! later on the CURRENT stand under-predicts DDS (denser stand).
-    # CI and KT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705 DGF(WK3) then DO 220): their LSTART REGCAL DO 49 reads
-    # that DG (ci_do220_dg / kt_do220_dg).
-    if s.variant isa BlueMountains || s.variant isa CentralIdaho || s.variant isa Kootenai
+    # CI, KT and TT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705, tt/dgdriv.f DGF(WK3) then DO 220): their LSTART REGCAL
+    # DO 49 reads that DG (ci_do220_dg / kt_do220_dg / tt_do220_dg).
+    if s.variant isa BlueMountains || s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa Teton
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
@@ -764,56 +767,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         end
     end
 
-    # TT UTVAR regent-height calibration (PM/UJ/RM): HCOR = ln(Σ(HTG·SCALE3·P)/Σ(EDH·P)),
-    # EDH = POTHTG·PCTRED·VIGOR·RHCON·0.5 (regent.f REGCON 1299-1356). RHCON=1. SCALE3=REGYR/FINTH=10/5=2.
-    if s.variant isa Teton
-        scale3_tt = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0
-        avh = stand_top_height(s); relden_c = stand_ccf(s)
-        xp = avh * (relden_c / 100f0); xp > 300f0 && (xp = 300f0)
-        pctred_c = 1.11436f0 + xp * (-0.011493f0 + xp * (0.43012f-4 + xp * (-0.72221f-7 +
-                   xp * (0.5607f-10 - xp * 0.1641f-13))))
-        pctred_c > 1f0 && (pctred_c = 1f0); pctred_c < 0.01f0 && (pctred_c = 0.01f0)
-        for sp in (4, 11, 12, 13, 16)
-            isct[sp, 1] == 0 && continue
-            i1 = isct[sp, 1]; i2 = isct[sp, 2]; sitear = s.plot.sp_site_index[sp]
-            snx = 0f0; sny = 0f0; nh = 0
-            for k in i1:i2
-                i = ind1[k]
-                # regent.f:1235 `IF(DBH(I).GE.5.0.OR.H.LT.0.01) GO TO 60`: the small-tree HEIGHT calibration
-                # EXCLUDES trees ≥5" DBH (and start-of-period height <0.01), then requires measured HTG>0.001.
-                # H is the BACKDATED start-of-period height (regent.f:1234 IHTG<2 ⇒ H=HT−HTG). Omitting the
-                # DBH≥5 gate counted large woodland trees carrying a measured HTG toward NCALHT (default 5),
-                # spuriously firing REGCON HCOR on UTVAR junipers whose <5" cohort alone is under NCALHT — the
-                # M331D dense-juniper CON=exp(HCOR)≈3.75 height (and cascaded DBH) over-growth (stand
-                # 387680993489998: 6 junipers w/ HTG but only 2 are <5" ⇒ oracle N=2<5 ⇒ HCOR=0, jl counted 6).
-                saved_dbh[i] >= 5f0 && continue
-                hg = t.ht_growth[i]; hg < 0.001f0 && continue      # measured HTG (observed)
-                (t.height[i] - hg) < 0.01f0 && continue            # backdated start-of-period H ≥ 0.01
-                cr = Float32(t.crown_pct[i]); x = cr / 100f0
-                # ★ REGCON POTHTG uses H=0 (evaluated once, NOT the tree's current H): (SJ·1.5−0)/(SJ·1.5)=1
-                # ⇒ POTHTG=(SJ/5)·0.83; AND the ·0.5 (UT 10yr→5yr) IS applied. (My earlier current-H/no-0.5
-                # form coincidentally matched PM because H≈½·SJ·1.5, but broke UJ where H>½·SJ·1.5.)
-                pothtg = (sitear / 5f0) * 0.83f0
-                vigor = (150f0 * x * x * x * exp(-6f0 * x)) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
-                vigor = 1f0 - ((1f0 - vigor) / 3f0)
-                edh = pothtg * pctred_c * vigor * 0.5f0            # ·RHCON=1 · 0.5 (regent.f:1304)
-                p = t.tpa[i]; snx += edh * p; sny += hg * scale3_tt * p; nh += 1
-            end
-            nh < 5 && continue                                     # NCALHT
-            cornew = snx > 0f0 ? sny / snx : 1f0; cornew <= 0f0 && (cornew = 1f-4)
-            hc = log(cornew)                                        # raw HCOR (regent.f:1364)
-            # dgdriv.f:213 attenuation. PM/UJ/RM have NO dgf DG COR (regent-DG) ⇒ dg_cor=0 ⇒ WCI=0 ⇒
-            # HCOR_used = CORMLT·HCOR_raw, CORMLT=exp(−0.02773·SFINT), SFINT=YR=10 (validated: 0.758·1.83=1.39).
-            cormlt = exp(-0.02773f0 * htg_period(s.variant))
-            c.htg_cor_init[sp] = hc; c.htg_cor_small[sp] = cormlt * hc
-        end
-    end
-
-    # TT aspen(6)/MM(14) regent small-tree HEIGHT calibration (tt/regent.f:1097-1362, the SMHTGF-aspen
-    # LSTART CORNEW pass). The Teton block just above handles the UTVAR species (4,11,12,13,16); this seeds
-    # htg_cor_init for the aspen closed-form species so the shared attenuation below produces CON=exp(HCOR)
-    # (was CON=1 ⇒ ~3.6× small-tree HEIGHT over-growth on the M331D woodland aspen cluster). TT-guarded.
-    s.variant isa Teton && tt_regent_hcor_aspen_init!(s, isct, ind1, saved_dbh)
+    # TT (tt/regent.f:1095-1380, cratet.f:713): the full LSTART REGCAL — TTVAR (SMHTGF, ZRAND draws), CIVAR (10),
+    # UTVAR (POTHTG on the stale H / Sheppard MM) — on the backdated DENSE stand captured above and the AVHT40 AVH.
+    s.variant isa Teton && tt_regent_hcor_init!(s, isct, ind1, saved_dbh, _tt_bd_ba, _tt_bd_ccf, _tt_bd_pccf, _cur_avh)
 
     # IE regent small-tree HEIGHT calibration (ie/regent.f:1138-1337): compute the RAW regent HCOR into
     # htg_cor_init for NIVAR species via the NIVAR EDH model. Without it, IE NIVAR species had htg_cor_init=0,
