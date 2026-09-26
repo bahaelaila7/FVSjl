@@ -91,11 +91,13 @@ function ci_sitset!(s::StandState, icindx::Int, ifor::Int)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 85.0f0
     bamax = s.control.ba_max
     if bamax > 0f0
+        s.control.sdical_bamax = bamax              # user BAMAX (LBAMAX): SDICAL never overwrites it
         @inbounds for i in 1:19
             p.sp_sdi_def[i] <= 0f0 && (p.sp_sdi_def[i] = bamax / (0.5454154f0 * (pmsdiu / 100f0)))
         end
     else
         bamax = CI_BAMAXA[icindx]
+        s.control.sdical_bamax = bamax              # ci/sitset.f:160 BAMAX=BAMAXA(ICINDX) (the common CROWN reads)
         @inbounds for i in 1:19
             if ifor < 2
                 p.sp_sdi_def[i] <= 0f0 && (p.sp_sdi_def[i] = bamax / (0.5454154f0 * (pmsdiu / 100f0)))

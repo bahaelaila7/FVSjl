@@ -357,6 +357,9 @@ mutable struct Control
     # √D-regression crossover has no real root (STEP1≤0), stays 1 for every later species AND stand. run_keyfile
     # carries it from stand to stand.
     kt_cratet_ierrck::Int32
+    # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
+    # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
+    sdical_bamax::Float32
 end
 
 function Control()
@@ -430,6 +433,7 @@ function Control()
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
         false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
         Int32(0),                                                # kt_cratet_ierrck
+        0f0,                                                     # sdical_bamax
     )
 end
 
