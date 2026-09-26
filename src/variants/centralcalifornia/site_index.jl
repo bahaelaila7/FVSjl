@@ -88,16 +88,24 @@ function ca_habitat_kodtyp(pv::AbstractString, pvref::AbstractString)
 end
 
 # ca/forkod.f — set IFOR from KODFOR (cat01 610 → IFOR 6); an unknown code keeps the grinit IFOR=6.
+# ca/forkod.f first SELECT CASE (KODFOR): BIA reservation pseudo-codes → IFOR (IGL still KFOR(IFOR)=1).
+const CA_FOR_RESERV = Dict{Int,Int}(7801=>4, 7803=>4, 7804=>3, 7805=>3, 7809=>3, 7811=>4, 7812=>4, 7818=>4,
+    7822=>3, 7823=>4, 7826=>4, 7827=>4, 7829=>4, 7837=>2, 7842=>1, 7846=>1, 7864=>4, 8104=>7)
 function ca_forkod!(p)
     kodfor = Int(p.user_forest_code)
-    idx = findfirst(==(kodfor), CA_JFOR)
-    ifor = idx === nothing ? 6 : idx       # not found ⇒ ERRGRO(3), IFOR keeps ca/grinit.f's 6 (not 1)
+    useigl = true
+    ifor = get(CA_FOR_RESERV, kodfor, 0)
+    if ifor == 0
+        idx = findfirst(==(kodfor), CA_JFOR)
+        # not found ⇒ ERRGRO(3), USEIGL=.FALSE., IFOR keeps ca/grinit.f's 6 (not 1)
+        idx === nothing ? (useigl = false; ifor = 6) : (ifor = idx)
+    end
     # ca/forkod.f "FOREST MAPPING CORRECTION": TRINITY NF (518, JFOR idx 11) → SHASTA-TRINITY (514, idx 5).
     # MAPLOC/DGFOR/HTCALC forest arrays are dimensioned only 1..10, so an unmapped IFOR=11 indexes past
     # them (segfault on 518-coded stands). FVS remaps here so IFOR ∈ 1..10 downstream.
     ifor == 11 && (ifor = 5)
     p.forest_idx = Int32(ifor)
-    p.geo_location = Int32(1)                     # ca/forkod.f KFOR = all 1
+    useigl && (p.geo_location = Int32(1))         # ca/forkod.f KFOR = all 1; IGL untouched when not found
     p.user_forest_code = Int32(CA_JFOR[ifor])
     return ifor
 end
