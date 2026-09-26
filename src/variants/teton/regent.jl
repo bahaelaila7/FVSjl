@@ -457,7 +457,10 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     # ZRAND is drawn INSIDE the subcycle loop (below), exactly where tt/smhtgf.f:70-73 draws it: on any call that
     # finds ZRAND(I)=-999 — the first subcycle of a new tree, or ANY later subcycle after a floored (≤0.1 ft)
     # increment reset it — with NO DGSD gate (SMHTGF has none; only REGENT's ZZRAN/DUBSCR draws test DGSD).
-    zorder = sort(collect(1:n); by = ii -> (Int(t.species[ii]), ii))
+    # IND1 is the SPESRT species-major order with the post-TRIPLE lineage order inside a species (a triple walks as
+    # copy1, original, copy2 — measured on FIA 2783239010690 cycle 2: live SMHTGF order I=167,54,168), NOT raw index
+    # order; with raw order the J=1 draws landed on the wrong member of every triple.
+    zorder = species_major_order(s)
     wk3 = Float32[t.height[i] for i in 1:n]         # subcycle height
     wk5 = Float32[t.dbh[i] for i in 1:n]            # subcycle DBH
     # KNOWN faithful gap: buildDir HTGR=POTHTG·PCTRED·VIGOR·CON (regent.f:350, RHCON=1 @ line 880). Tested a
@@ -664,7 +667,7 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     scale2 = htg_period(s.variant) / fint       # DDS period scaling (YR/NTYR), = regular cycle
     si6 = p.sp_site_index[6]
     # REGENT(LESTB) walks the new records species-major (DO 16 ISPC; DO 15 I3) — the SMHTGF ZRAND draw order.
-    @inbounds for i in sort(collect((nstart+1):t.n); by = ii -> (Int(t.species[ii]), ii))
+    @inbounds for i in filter(>(nstart), species_major_order(s))
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= TT_RG_XMAX[sp] || !_tt_rg_default(sp)) && continue
