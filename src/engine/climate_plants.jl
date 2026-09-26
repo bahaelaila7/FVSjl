@@ -126,3 +126,8 @@ const _BC_PLNJSP = String[
     "SOFT", "HARD"
 ]
 climate_plant_symbols(::BritishColumbia) = _BC_PLNJSP
+
+# Which builds link the real Climate-FVS (clin.f, clgmult.f, ...) rather than the exclim.f stubs
+# (bin/FVS<v>_buildDir/exclim.f present ⇒ stubbed: ak, on, sn, cs, ls, ne).
+climate_extension_linked(::AbstractVariant) = true
+climate_extension_linked(::Union{SoutheastAlaska,Ontario,Southern,CentralStates,LakeStates,Northeast}) = false

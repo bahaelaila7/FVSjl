@@ -241,34 +241,31 @@ unless PS>0.99 (then max of the three), capped at 3; TREEMULT = 1+(PS−1)·CLGR
 end
 
 """
-    apply_climate_dds!(s, wk2, thisyr)
+    climate_growth_wk4!(s, thisyr) -> Union{Nothing,Vector{Float32}}
 
-Apply the Climate-FVS growth multiplier to the large-tree DDS (`wk2` = ln(DDS)), mirroring
-dgdriv.f:217 `DDS = EXP(WK2)·WK4` where WK4 = clgmult's per-tree TREEMULT — so here `wk2[i] +=
-log(treemult[i])`. Per cycle: XGSITE + per-species VSCORE at `thisyr`; per tree: BIRTHYR = thisyr −
-birth_age, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP), and `clim_treemult`. No-op when climate is
-inactive or the required attribute columns are absent.
+dgdriv.f's `CALL CLGMULT(WK4)`: the per-tree TREEMULT (`clim_wk4`) plus clgmult.f's report side effect, SPGMULT =
+the DBH²·PROB-weighted TREEMULT per species (clgmult.f:48 zeroes it; it stays 0 on clgmult's early return). The
+DG drivers apply it as dgdriv.f:217 DDS=EXP(WK2+XDGROW)·WK4 — multiplying the DDS, never folding ln(WK4) into WK2,
+because DGSCOR damps the residual on the un-multiplied WK2 (dgscor.f:25-29).
 """
-function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr::Real)
+function climate_growth_wk4!(s::StandState, thisyr::Real)
     c = s.climate
-    (c === nothing || !c.active) && return s
+    (c === nothing || !c.active) && return nothing
     fill!(c.spgmult, 0f0)                                         # clgmult.f:48 SPGMULT=0 (stays 0 on the early return)
     wk4 = clim_wk4(s, thisyr)
-    wk4 === nothing && return s
+    wk4 === nothing && return nothing
     t = s.trees; ns = length(c.plant_symbols)
     spw = zeros(Float32, ns)
     @inbounds for i in 1:t.n
         t.dbh[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
-        tm = wk4[i]
-        tm > 0f0 && (wk2[i] += log(tm))
         xwt = t.dbh[i] * t.dbh[i] * t.tpa[i]                    # clgmult.f:199 XWT = DBH²·PROB (BA weight)
-        spw[sp] += xwt; c.spgmult[sp] += tm * xwt
+        spw[sp] += xwt; c.spgmult[sp] += wk4[i] * xwt
     end
     @inbounds for sp in 1:ns                                      # clgmult.f:203-209
         c.spgmult[sp] = spw[sp] > 0f0 ? c.spgmult[sp] / spw[sp] : 1f0
     end
-    return s
+    return wk4
 end
 
 """
@@ -277,7 +274,7 @@ end
 CLGMULT's per-tree growth multiplier WK4 (clgmult.f:79-230) at THISYR = IY(ICYC)+FINT/2: XGSITE + per-species
 VSCORE, per tree BIRTHYR = THISYR − ABIRTH, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP) and `clim_treemult`.
 `nothing` when climate is inactive or the required attribute columns are absent (clgmult leaves WK4 = 1). dgdriv.f
-applies it as DDS=EXP(WK2+XDGROW)·WK4 (`apply_climate_dds!`); the variants whose regent.f scales HTGR by WK4(I)
+applies it as DDS=EXP(WK2+XDGROW)·WK4 (`climate_growth_wk4!`); the variants whose regent.f scales HTGR by WK4(I)
 (UT/TT/CI/CR/PN/WC/EC/WS/OP) read the same vector — DGDRIV fills WK4 earlier in the same cycle and ABIRTH is not
 aged until GRADD, so recomputing it at the same THISYR is identical. Pure (no report state touched).
 """

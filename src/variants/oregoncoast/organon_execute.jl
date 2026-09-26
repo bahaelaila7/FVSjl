@@ -82,10 +82,10 @@ The shared FVS large-tree DDS→DG conversion for an ORGANON tree (`oc/dgdriv.f:
 XDMULT=WK4=1, OLDRN=0, FRM=1): `D=DBH·BARK`, `DG=√(D²+exp(DDS))−D`. The StandState apply-loop then
 grows the outside-bark DBH by `DG/BARK`. (DGBND capping is applied by the shared engine.)
 """
-@inline function oc_organon_dg(is::Integer, dbh::Float32, dds::Float32)
+@inline function oc_organon_dg(is::Integer, dbh::Float32, dds::Float32, wk4::Float32 = 1f0)
     bark = oc_bratio(is, dbh)
     d = dbh*bark
-    return sqrt(d*d + fexp(dds)) - d
+    return sqrt(d*d + fexp(dds)*wk4) - d          # DDS=EXP(WK2)·WK4 (WK4 = CLGMULT, 1 without CLIMATE)
 end
 
 """

@@ -142,9 +142,11 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
             buf.iorg[i] == 1 && (wk2[i] = g.dds[i])
         end
     end
-    # DDS→DG for EVERY tree (op/dgdriv.f:521-554): DG=sqrt(d_ib²+EXP(WK2+ln XDMULT))−d_ib, then DGBND.
+    # DDS→DG for EVERY tree (op/dgdriv.f:521-554): DG=sqrt(d_ib²+EXP(WK2+ln XDMULT)·WK4)−d_ib, then DGBND.
+    # WK4 = CLGMULT (op/dgdriv.f:463) — Climate-FVS scales the ORGANON-folded DDS too; 1 without CLIMATE.
     sizcap = s.control.sp_size_cap
     cur_year = current_cycle_year(s)
+    cw = climate_growth_wk4!(s, Float32(cur_year) + sfint / 2f0)
     @inbounds for i in 1:n
         d = t.dbh[i]
         if d <= 0f0
@@ -156,6 +158,7 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
         bark = op_bratio(sp, d)
         dib = d * bark
         dds = fexp(wk2[i] + xdgrow)
+        cw === nothing || (dds *= cw[i])
         dg = sqrt(dib * dib + dds) - dib
         t.diam_growth[i] = op_dgbnd(sp, d, dg, sizcap)
     end

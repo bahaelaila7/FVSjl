@@ -62,6 +62,8 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
                        msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg, calib1=calib1) : nothing
     fscale = fint/5f0
+    # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
+    cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue
         sp = isp_fvs[i]
@@ -69,7 +71,7 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         # DIAMETER: DDS from ORGANON (IORG=1) or the FVS-native DGF (IORG=0); both → DG via the shared
         # sqrt path, DBH grows outside-bark by DG/BARK (oc/dgdriv.f:536-557, update.f).
         dds = (iorg && g !== nothing) ? g.dds[i] : wk2[i]
-        dg = oc_organon_dg(sp, d0, dds)
+        dg = oc_organon_dg(sp, d0, dds, cw === nothing ? 1f0 : cw[i])
         bark = oc_bratio(sp, d0)
         t.vol_bark[i] = bark             # BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150); the shared
                                          # apply-loop skips OC so this pre-growth value survives.

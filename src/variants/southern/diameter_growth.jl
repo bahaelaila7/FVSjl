@@ -1327,10 +1327,12 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (corr 0.148 vs FVS 0.181 ⇒ a residual serial-correlation DG error). SN unchanged (YR=5).
     cyc = Int(s.control.cycle)
     newp = max(1, cycle_period_at(s.control, cyc))
-    # Climate-FVS: scale the large-tree DDS by clgmult's TREEMULT (dgdriv.f:153 CALL CLGMULT(WK4);
-    # :217 DDS=EXP(WK2)·WK4). THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
-    (s.climate !== nothing && s.climate.active) &&
-        apply_climate_dds!(s, wk2, Float32(current_cycle_year(s)) + Float32(newp) / 2f0)
+    # Climate-FVS: dgdriv.f:153 CALL CLGMULT(WK4); :217 DDS=EXP(WK2+XDGROW)·WK4. WK4 multiplies the DDS only —
+    # WK2 itself stays the un-multiplied ln(DDS), which DGSCOR reads for its DDS>4/DDS>5 residual damping
+    # (dgscor.f:25-29). Folding ln(WK4) into wk2 pushed large trees across those thresholds and zeroed/damped
+    # their FRM (EC 212810748020004: 40"+ DF all DG≈0.8 vs live's 0.6–1.4 spread). THISYR = IY(ICYC)+FINT/2.
+    _cw = (s.climate !== nothing && s.climate.active) ?
+          climate_growth_wk4!(s, Float32(current_cycle_year(s)) + Float32(newp) / 2f0) : nothing
     # The FIRST projection cycle's `old` period is the DG MEASUREMENT period (dgdriv PVMLT basis) — the GROWTH
     # keyword FINT when overridden from its universal 5-yr default, else the variant native YR (htg_period:
     # 5 SN / 10 NE). Live-stamped: growth_fint10 (GROWTH 10) ⇒ AUTCOR(new=5, old=10) CORR=0.3906, not
@@ -1390,6 +1392,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # of the time by 1 ULP for xbai=1.5). xbai=1 ⇒ xdgrow=flog(1)=0 ⇒ fexp(wk2+0)=fexp(wk2), bit-identical
             # to the old ·1.0 ⇒ every non-BAIMULT scenario is untouched (verified 0-diff).
             dds5 = fexp(wk2[i] + xdgrow)                    # YR-yr DDS (BAIMULT: EXP(WK2+ln XDMULT)); YR=5 SN / 10 NE
+            _cw === nothing || (dds5 *= _cw[i])             # ·WK4 (Climate-FVS TREEMULT; dgdriv.f:217)
             # DG bound+scale applied inline (pillar-2: was a per-tree `bsc` closure). `_bsc(dg5)` local macro-
             # style: identical call `_bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, size_cap, yr)`.
             # exp routed through the gfortran companion (fexp, doctrine #8): the tripled records carry

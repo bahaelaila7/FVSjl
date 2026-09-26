@@ -728,7 +728,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # height growth as planted stands approached the site asymptote (late-cycle TopHt jl-high). CR-gated:
                 # the eastern variants share this latent gap but are separately validated (avoid unvalidated churn).
                 # CR/TT: western even-aged htgf reads birth_age. IE joins for CLIMATE ONLY: IE growth does NOT
-                # read birth_age (only the Climate-FVS BIRTHYR does — apply_climate_dds! + inlandempire/regent.jl
+                # read birth_age (only the Climate-FVS BIRTHYR does — climate_growth_wk4! + inlandempire/regent.jl
                 # clim_treemult), so setting it is byte-identical for climate-off IE but gives established regen the
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
