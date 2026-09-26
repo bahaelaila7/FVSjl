@@ -147,12 +147,13 @@ function setup_growth!(s::StandState)
         # 3626079010690: raw 46 → 30 (correct=live) → 20.8 (wrong), dropping DGCON ~0.178 ⇒ conifer DG/BA
         # under-grew ~8%. utt01 masked it (DF site species, not in the conversion groups). Removed the dup call.
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
-        _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
-                                          # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
         compute_density!(s)               # density for the crown dub
+        ut_misscr = ut_any_missing_crown(s)   # ut/cratet.f:622-644 MISSCR, before the dub fills the crowns
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING crowns (ut/crown.f) — was MISSING
                                           # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ ut regent VIGOR(CR)
                                           # lost the crown term ⇒ QMD freeze. UT crown model already dubs missing at lstart.
+        _ut_dub_ages!(s; misscr = ut_misscr)  # ut/cratet.f:677 FINDAG after CROWN, on the CRATET-DENSE BA + backdated BAU
+                                          # (CR-surrogate 17:19,22 htgf + aspen/oak/MC ABIRTH); no-op without aged species.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
