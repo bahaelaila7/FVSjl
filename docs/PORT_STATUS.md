@@ -495,6 +495,66 @@ TPA/BA equal live in every cycle; WS was TPA +28 / BA −10) and the EC `ect01` 
 - On that stand, EC 1990 TCuFt is 1640 vs live 1602 while TPA, BA and SDI are exact.
 - WS default-branch tripled-copy HTG.
 
+## EM REGENT in the Fortran's shape, em/bratio.f, cycle-1 WK1, LL crown (2026-09-26, branch `em-vol`)
+
+**1. REGENT (`em/regent.f`).** jl ran the five EM small-tree sub-models (EMVAR SMHTGF/SMDGF, NIVAR LL, TTVAR LM,
+CRVAR, UTVAR) as separate passes. `small_tree_growth!` is now one subcycle loop (`DO 17 J / DO 16 ISPC / IND1`) and
+one DO-30 assembly with the 918 tripling loop-back. That makes three things match live:
+- the order of the random draws;
+- the running RDNEXT/BANEXT(J+1) density feedback;
+- the variables Fortran carries from tree to tree: BARK (the CR/UT DGK), H1 (the NIVAR RELH), D (across tripled
+  copies) and HTGR (CR/UT).
+
+Along the way:
+- EMVAR ZRAND is persistent: drawn at −999, reset when the increment floors at 0.1.
+- TPCCF is PCCF·PPCCF.
+- SMDGF runs at every height, floored at DIAM; DKK = SMDGF(HT) even below 4.5 ft.
+- The calibration NPER comes from IFINTH.
+- The NIVAR ZZRAN bound is [−1.5, 1] on HTGR1·e^(Z·HSIGMA).
+- The DO-6 CCF carries P.
+- XMAX/XMIN for OH (species 19) are 2.0/0.5.
+- **ESTAB** (`em/esgent.f`) runs the same routine in LESTB mode:
+  - the DO-13 crown draw in storage order;
+  - FINT−5 years of subcycling from TEMBA/TEMCCF/TEMAHT;
+  - XWT = 0, the ESTAB diameter, no tripling or DUBSCR;
+  - then HTG·WK4 and the HHTMAX cap.
+
+**2. `em/bratio.f`.** EM bark had been mapped onto the generic b + a/d form, which drops TEMD = max(D,1) (and the
+≤ 19 cap on the RM curve). A sub-1" GA/CW/BA/PW/NC/OH therefore got 0.80 instead of 0.806. `em_bratio` is now wired
+into `variant_bratio` and every EM call site.
+
+**3. Cycle-1 mortality WK1.** jl passed the raw input DG, so every unmeasured tree had WK1 = 0 and the added-species
+Hamilton G fell to the DGT floor: an LM of 1.5" killed 14.3 TPA vs live's 5.9. `em_cycle0_wk1!` now follows the
+`dgdriv.f` DO-220 precedence:
+- a measured DG is kept;
+- HT ≤ 4.5 gives 0;
+- otherwise √(D² + e^(WK2+OLDRN)·SCALE) − D, where WK2/WK3 come from the first calibration DGF with the current
+  RMSQD.
+
+**4. LL crown (`em/crown.f`).** OBA/RDM1 were never threaded (OBA == BA, so DCRCON == XCRCON), and DCR used the
+current PCT instead of OLDPCT. Both are fixed, along with the backdated-D < 3 skip. LL crowns now step
+55 → 53 → 51 → 49 as in live; jl had held them at 55.
+
+**5. HTGF.** HTGMULT (XHT) is applied, and each LL tripled copy gets its own large-tree HTG (`em_triple_htg!`).
+
+**Measured against FVSem_g16:**
+- habtest `em` 102/250 and 114/0 are bit-exact on TPA, BA, TCuFt, MCuFt and BdFt over 10 cycles (before: up to
+  3 TPA / 3 BA / 853 BdFt off).
+- A species-swap fixture with seedlings of every sub-model is exact per tree in cycle 1 with DGSTDEV 0, with the
+  random component on, and with tripling. It is committed as `test/unit/test_em_regent_dk.jl`.
+- The EM WRD absolute row is now a passing bit-exact test.
+- The EM tiered fast tier dropped from 177,864 to 130,863 mismatch cells; the allowlist was redrafted from
+  measurement (751 → 711 entries).
+
+**Still open:**
+- **Climate tally.** The climate TALLY is now one-directional (TPA over = 8, BA over = 9). The gap was already
+  there: master was +277 TPA on stand 231908428020004, where live kills the stand in 2023. The REGENT fixes
+  removed the stands that used to balance it. Tracked as task #247.
+- **Two small residuals:**
+  - The aspen calibration DGFASP uses RMSQD 2.998 in live vs the current QMD 2.853 in jl (source not yet found).
+  - An LM backdated-PCT tie breaks in a different order (0.013 TPA).
+- **REGCAL.** The CR/UT EDH uses a static PCTRED, which is 0 at LSTART (#244).
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live
