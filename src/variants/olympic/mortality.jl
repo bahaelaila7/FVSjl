@@ -126,7 +126,7 @@ function _op_rip_mortality!(killed::AbstractVector{Float32}, s::StandState, n::I
     xsite2 = length(p.sp_site_index) >= 19 ? p.sp_site_index[19] : 0f0   # SITEAR(19=WH)
     avh    = p.avg_height
     sizcap = s.control.sp_size_cap
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # op/morts.f SDICAL (+ sdical.f:216 CLMAXDEN)
     year   = current_cycle_year(s)
     fscale = fint / 5f0
     is_stale = Int(t.species[n])            # op/morts.f:480 BARK=BRATIO(IS,...): IS is the stale ISP(ITRN)
@@ -197,7 +197,7 @@ end
 
 function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags::Bool = true)
     t, c = s.trees, s.calib
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
     killed = zeros(Float32, n)
     if c.op_org_ran && length(c.op_mortexp) == n
         # ORGANON MORTEXP for ALL records (op/morts.f:331-336): WKI = MORTEXP·(FINT/5), capped at PROB.
@@ -213,6 +213,11 @@ function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags:
         _op_rip_mortality!(killed, s, n, fint)
     end
     # FIXMORT (morts.f:582-857) applies after both paths; inert without a FIXMORT keyword.
+    @label morts45
+    # Climate-FVS mortality (op/morts.f CALL CLMORTS — after the base mortality and TPAMRT, immediately before
+    # FIXMORT), THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end

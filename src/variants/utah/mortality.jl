@@ -51,7 +51,7 @@ end
 
 function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # grincr.f:535 always CALLs MORTS ⇒ CLMORTS on a bare stand
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # grown-stand sums (ut/morts.f): T (total tpa), Reineke DR10/DR0 (LZEIDE path, ut/morts.f:218-219,260-263).
     # Using QMD over-stated D10 on dense sub-1" cohorts ⇒ TMD10 uncapped ⇒ TN10 low ⇒ RN self-thin OVER-KILL
@@ -59,11 +59,11 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = ut_bratio(s.coef.species, sp, d)
         g = t.diam_growth[i] / bark
         sumdr10 += pr * (d + g)^1.605f0; sumdr0 += pr * d^1.605f0; tt += pr
     end
-    tt < 1f-6 && return s
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
     # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
     let dens = s.density
@@ -71,13 +71,16 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
         (Int(s.control.cycle) > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
             (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)
     end
+    # ut/morts.f:241 IF(T.LT.1.0) GO TO 45 — a (near-)empty stand skips the base mortality and the TPAMRT update
+    # but still reaches CLMORTS / FIXMORT (label 45 on). jl returned outright, leaving the climate report's SPMORT
+    # stale from the previous cycle.
+    tt < 1f0 && @goto morts45
     dr10 = (sumdr10 / tt)^(1f0 / 1.605f0); dia0 = (sumdr0 / tt)^(1f0 / 1.605f0)
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # morts.f:323 SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     pmsdil = p.pct_sdimax_mort_lo > 0f0 ? p.pct_sdimax_mort_lo : 0.55f0
     const_ = sdimax / 0.02483133f0
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     efftr  = @view s.scratch.mort_efftr[1:n]
     temwk2 = @view s.scratch.mort_temwk2[1:n]
 
@@ -142,7 +145,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             ttn = 0f0; sdr = 0f0
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
-                bark = bark_ratio(bark_a, bark_b, Int(t.species[i]), d)
+                bark = ut_bratio(s.coef.species, Int(t.species[i]), d)
                 g = t.diam_growth[i] / bark
                 sdr += pr * (d + g)^1.605f0; ttn += pr
             end
@@ -163,7 +166,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             banew = 0f0; badead = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]; sp = Int(t.species[i])
-                bark = bark_ratio(bark_a, bark_b, sp, d)
+                bark = ut_bratio(s.coef.species, sp, d)
                 g = t.diam_growth[i] / bark
                 ba = 0.0054542f0 * (d + g)^2
                 banew  += ba * (t.tpa[i] - killed[i])
@@ -182,6 +185,10 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     # Dwarf-mistletoe mortality (mismrt.f): MAX-combine per-tree DM kill into killed[] (inert without DM ratings).
     # morts.f TPAMRT=TNEW: post-mortality (after the BAMAX cap) residual TPA, the reference for the next reset test.
     s.density.tpa_mort = sum(max(0f0, t.tpa[i] - killed[i]) for i in 1:n; init = 0f0)
+    @label morts45
+    # Climate-FVS mortality (ut/morts.f:769 CALL CLMORTS — after TPAMRT, before FIXMORT), THISYR = IY(ICYC)+FINT/2.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

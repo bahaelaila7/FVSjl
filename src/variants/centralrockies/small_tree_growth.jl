@@ -112,6 +112,7 @@ reject) per tree — its per-tree VALUES bit-match live only once the cycle RNG 
 function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float32 = 10.0f0)
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     t.n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # WK4 = CLGMULT (cr/regent.f:313 ·WK4(I)); nothing ⇒ 1
     dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; xminv = sd[:st_xmin]; diamv = sd[:st_diam]
     htadj = sd[:st_htadj]; brkv = sd[:st_break]; ht2v = sd[:ht2]; ht1v = sd[:ht1]
     lo = sd[:site_lo]; hi = sd[:site_hi]
@@ -138,9 +139,10 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     # SPESRT's chain sort ⇒ record order WITHIN a species). The per-record ZZRAN (BACHLO) draws must happen in
     # THIS order, else the per-tree deviate — and EVERY downstream RNG draw — desyncs vs live on multi-species
     # stands (jl's record-order interleaving ≠ FVS's species grouping). Iterate species-then-record to match.
-    _sp_order = sortperm(view(t.species, 1:t.n); alg = Base.Sort.MergeSort)   # stable ⇒ record order within sp
-    @inbounds for oi in 1:t.n
-        i = _sp_order[oi]
+    # IND1 within a species is the SPESRT lineage order (post-TRIPLE: copy1, original, copy2), not storage order —
+    # species_major_order, as TT/IE (a storage-order walk hands each triple member the wrong ZZRAN).
+    _sp_order = species_major_order(s)
+    @inbounds for i in _sp_order
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i])
         d = t.dbh[i]
@@ -169,7 +171,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
                 end
             end
             htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
-                pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, htg_large, s.control.sp_size_cap[sp, 4],
+                pctred, con, 1.0f0, 1.0f0, scale, scale2, (cw === nothing ? 1f0 : cw[i]), htg_large, s.control.sp_size_cap[sp, 4],
                 p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
                 diamv[sp], ax, ht2v[sp])
             if l == 0

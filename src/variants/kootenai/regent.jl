@@ -315,7 +315,8 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d1)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
-            c1 = kt_tree_ccf(sp, d1); c2 = kt_tree_ccf(sp, d2)   # CCFCAL per-tree (no tpa) — matches C1/C2 in regent
+            # CCFCAL returns CCFT·P (kt/ccfcal.f MODE=1), so RDNEXT(J)+K·CI/P·PN nets one P; kt_tree_ccf is per tree.
+            c1 = kt_tree_ccf(sp, d1) * pr; c2 = kt_tree_ccf(sp, d2) * pr
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
             k = 0
             for j in 2:nper
@@ -332,15 +333,20 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     wk3 = Float32[t.height[i] for i in 1:n]
     ah = avh
     # ---- subcycle height loop (regent.f:321-460) ----
+    ind1 = species_major_order(s)                     # DO 16 ISPC / DO 15 I3=I1,I2 / I=IND1(I3)
+    ky = 0
     @inbounds for j in 1:nper
+        ky += kper[j]                                  # kt/regent.f:319 KY=KY+KPER(J)
         baj = banext[j]; rdj = rdnext[j]
         alba = baj > 0.0f0 ? log(baj) : 0.0f0
         kpj = Float32(kper[j])
-        for i in 1:n
+        for i in ind1
             sp = Int(t.species[i]); d = t.dbh[i]
             d >= KT_RG_XMAX[sp] && continue
             t.tpa[i] <= 0.0f0 && continue
-            con = exp(c.htg_cor_small[sp])                # RHCON·EXP(HCOR); HCOR=0 until KT calib branch
+            # kt/regent.f:329-331 CON = RCOR2 (READCORR, LRCOR2) · EXP(HCOR)
+            con = ((s.control.lrcor2 && s.control.sp_rcor2[sp] > 0f0) ? s.control.sp_rcor2[sp] : 1f0) *
+                  exp(c.htg_cor_small[sp])
             h1 = wk3[i]
             pct = t.crown_ratio[i]
             bal = baj * (100.0f0 - pct) * 0.01f0
@@ -361,6 +367,32 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 htgrl < 0.0f0 && (htgrl = 0.0f0)
                 wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro
             end
+            # kt/regent.f:411-447 — UPDATE DENSITY FOR NEXT SUBCYCLE: a small tree (D<3) whose subcycle height passed
+            # 4.5 ft adds its dubbed-diameter BA/CCF increase (1.5%/yr mortality) to BANEXT/RDNEXT(J+1). jl skipped it,
+            # so subcycle 2 saw a thinner stand (ktt01 BAJ 97.254 / RDJ 103.87 vs live 97.548 / 116.27) ⇒ HTGRL high.
+            h2 = wk3[i]
+            if j < nper && d < 3.0f0 && h2 > 4.5f0
+                pr = t.tpa[i]
+                relh = (h1 - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
+                dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
+                d1 = KT_RG_DIAM[sp] + dadj
+                local d2::Float32
+                if sp == 11
+                    h1 > 4.5f0 && (d1 = 0.0729f0*(h1 - 4.5f0)^1.1988f0 + dadj)
+                    d2 = 0.0729f0*(h2 - 4.5f0)^1.1988f0 + dadj
+                else
+                    h1 > 4.5f0 && (d1 = KT_RG_HCON[sp]*h1 + KT_RG_DCON[sp] + dadj)
+                    d2 = KT_RG_HCON[sp]*h2 + KT_RG_DCON[sp] + dadj
+                end
+                xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
+                dgj = (d2 - d1) * xrdgro; dgj < 0.0f0 && (dgj = 0.0f0)
+                d2 = d + dgj
+                c1 = kt_tree_ccf(sp, d) * pr; c2 = kt_tree_ccf(sp, d2) * pr     # CCFCAL(…,P,…) = CCFT·P
+                b1 = 0.005454154f0 * d * d
+                f = 0.985f0^ky
+                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * f
+                banext[j+1] += (0.005454154f0 * d2 * d2 - b1) * pr * f
+            end
         end
     end
     # ---- final: HTGR1 + ZZRAN + XWT blend + DG dub (kt/regent.f DO 30, species-sorted). A FRESH ZZRAN per
@@ -370,9 +402,8 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     #      (kt/regent.f:591-604): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS scale, DBH grows via GRADD — the old code
     #      did a raw (DK−D1)·XRDGRO with NO bark/DDS/SIZCAP scaling. DBH-direct is the HK<4.5 tiny edge only. ----
     scale = fint > 0.0f0 ? 10.0f0 / fint : 1.0f0           # SCALE=YR/FINT (kt/regent.f:220), YR=10
-    _sp_order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
-    @inbounds for oi in 1:n
-        i = _sp_order[oi]
+    _sp_order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
+    @inbounds for i in _sp_order
         sp = Int(t.species[i]); d = t.dbh[i]
         d >= KT_RG_XMAX[sp] && continue
         t.tpa[i] <= 0.0f0 && continue
@@ -403,7 +434,10 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 end
             end
             htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
-            htg = htgr * (1.0f0 - xwt) + xwt * large_htg
+            # kt/regent.f:522 HTG(K)=HTGR*(1-XWT)+XWT*HTG(K): K is the copy's own slot, whose large-tree HTG
+            # kt_triple_htg! (htgf.f:139-161) put in htgU/htgL — read before this loop overwrites it below.
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg = htgr * (1.0f0 - xwt) + xwt * lh
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
             dg_inc = 0.0f0; dbh_dir = -1.0f0
             if small_d
@@ -438,6 +472,31 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             else
                 stash.htgL[i] = htg
                 small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+            end
+            # kt/regent.f:614-650 — a SMALL record (D<3; `IF(D.GE.3.0) GO TO 23` skips the rest) that reaches DBH≥3
+            # this cycle (DNEW=D+DG on the cycle's DDS scale) gets a fresh DUBSCR crown (one FCR draw), capped at the
+            # all-HTG-to-crown CRMAX. The tripled copies run it too: kt/dgdriv.f:253/261 already put the central DBH in
+            # their slots, so they draw as well — but their ICR(K) is overwritten by TRIPLE's ICR(ITFN)=ICR(I), so for
+            # them only the RNG draw survives. (Measured on ktt01 cycle 2: live dubs K=50,180,181,12,104,105,51,…)
+            if small_d
+                dK = dbh_dir >= 0.0f0 ? dbh_dir : central_dbh           # DBH(K): the HK<4.5 direct set, else DBH(I)
+                dgK = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                barkK = bark_ratio(c.bark_a, c.bark_b, sp, dK)
+                dds2 = dgK * (2.0f0 * barkK * dK + dgK) * (fint / 10.0f0)       # SCALE2=FINT/YR
+                dg2 = sqrt((dK * barkK)^2 + dds2) - barkK * dK; dg2 < 0.0f0 && (dg2 = 0.0f0)
+                if dK + dg2 >= 3.0f0
+                    crf = kt_dubscr_cr(sp, dK + dg2, h + htg, s.plot.basal_area, dgsd, s.rng)
+                    if l == 0
+                        temcr = crf * 100.0f0 + 0.5f0
+                        icrK = Int(t.crown_pct[i])
+                        if icrK != 0
+                            crln = h * Float32(icrK) / 100.0f0
+                            crmax = (crln + htg) / (h + htg) * 100.0f0
+                            temcr > crmax && (temcr = crmax)
+                        end
+                        t.crown_pct[i] = Int32(trunc(Int, temcr))
+                    end
+                end
             end
         end
     end

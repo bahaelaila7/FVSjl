@@ -309,7 +309,11 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             tt += pr
         end
     end
-    tt < 1f0 && return s
+    n = t.n
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    # morts.f `IF(T.LT.1.0) GO TO 45` (every variant): a (near-)empty stand skips the base mortality and the TPAMRT
+    # update but still reaches label 45 on — CLMORTS (the Climate-FVS report terms), FIXMORT, the DM combine.
+    tt < 1f0 && @goto morts45
     # Reset the persisted self-thinning line when the stand TPA changed materially
     # since last cycle — i.e. after a thin or ingrowth (morts.f:160, |t−TPAMRT|>1).
     # For a closed stand t≈TPAMRT so the line persists (snt01 unaffected); after a
@@ -322,10 +326,8 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     d10  = zeide ? fpow(sumdr10 / tt, 1f0 / 1.605f0) : sqrt(sd2sq / tt)
     dia0 < 0.3f0 && (d10 = 0.3f0 + d10 - dia0; dia0 = 0.3f0)
 
-    sdimax = stand_sdimax(s)
-    n = t.n
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # morts.f SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     # preallocated VARMRT work buffers (sliced to the live count; no per-cycle allocation in the hot path)
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     efftr  = @view s.scratch.mort_efftr[1:n]
     temwk2 = @view s.scratch.mort_temwk2[1:n]
 
@@ -499,6 +501,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
     end
     s.density.tpa_mort = surv
 
+    @label morts45
     # Climate-FVS mortality (morts.f:777 CALL CLMORTS, AFTER TPAMRT is locked, BEFORE FIXMORT): the
     # viability FYRMORT + transfer-distance DMORT path MAX-combined into killed[] (clmorts.f:258-259
     # WK2=PROB·max(FYRMORT,DMORT)). THISYR = IY(ICYC)+FINT/2 (clmorts.f:78). Shared across every variant

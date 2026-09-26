@@ -17,7 +17,10 @@ const TT_RDA = Float32[0.009187, 0.009187, 0.017299, 0.009187, 0.007875, 0.00891
 const TT_RDB = Float32[1.76, 1.76, 1.5571, 1.76, 1.736, 1.78, 1.76, 1.736, 1.756, 1.768, 1.76, 1.76, 0.0, 1.78, 1.725, 0.0, 1.76, 1.725]
 
 @inline function tt_tree_ccf(sp::Integer, d::Real)::Float32
-    d <= 0f0 && return 0f0
+    # D=0 (the IMC=9 dead the CRATET backdating DENSE zeroes, dense.f:86) is tt/ccfcal.f's D≤0.1 branch: 0.001, except
+    # WJ/RM-type D·Σ (13,16) and the RDA·D**RDB form of sp 10, which are 0 there. The dead then add 0.001·P to the
+    # point CCF the LSTART DUBSCR reads (2783239010690: TPCCF 353.42 → live 355.27 ⇒ seedling ICR 53 → live 52).
+    d <= 0f0 && return (sp == 10 || sp == 13 || sp == 16) ? 0f0 : 0.001f0
     poly()  = TT_RD1[sp] + d * TT_RD2[sp] + d * d * TT_RD3[sp]
     small() = TT_RDA[sp] * d ^ TT_RDB[sp]
     brk = (sp == 10 || sp == 15 || sp == 18) ? 10f0 : 1f0
@@ -263,87 +266,3 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     return s
 end
 
-# tt/cratet.f LSTART crown-init: the CRATET backdating DENSE (cratet.f:242 LBKDEN=IDG<2, dense.f:81-86) runs over
-# the FULL inventory (live + HISTORY 6-9 standing-dead records), and that dead-inclusive density (BA / AVH / point-
-# CCF) is what CROWN→DUBSCR sees when dubbing the D<1 / missing-CR LIVE trees. jl partitions the dead into
-# t.n+1:t.n+ndead, so temporarily extend the live range to compute the dead-inclusive scalars, then restore live-only.
-# The NC #137 sibling: without it, dense read seedlings dub their crown against a LIVE-ONLY AVH (≈ seedling height)
-# ⇒ DUBSCR BCR8·AVH ⇒ crown ~high ⇒ TT regent HTG1=BETA1+BETA2·CR / VIGOR(CR) over-predicts ⇒ small-tree DBH/BA
-# over-growth on dead-heavy stands (CN 2825168010690, 20 dead + 2 live: BA 0→5, QMD 0.4→1.3 cyc1 vs oracle ~0/0.4).
-function tt_crown_init_lstart!(s::StandState)
-    t = s.trees
-    nlive = t.n
-    # base/fvs.f:193-196 SDICLS(0,0.,999.,1,SDIAC,…) runs immediately before CALL CRATET — "SO CROWNS WILL
-    # DUB CORRECTLY IN VARIANTS USING THE WEIBULL DISTRIBUTION". Computed here, on the LIVE records at their
-    # READ diameters, because TT reaches CROWN through this function instead of the shared
-    # crown_init_lstart_dead_inclusive! (which supplies it) — so TT was still dubbing with RELSDI = 0, i.e.
-    # ACRNEW pinned at its maximum C0. MEASURED on the blanked-crown TT fixture: every crown came out high
-    # (record 1 jl 90 vs live 78; record 5 pre-statement-55 jl 72 vs live 69).
-    sdiac = stand_sdi_reineke(s)
-    if t.ndead > 0
-        t.n = nlive + t.ndead
-        # NOTRE (tt/notre.f:122-124) inflates DEAD-record PROB by FINT/FINTM (DG-measurement / mortality-observation
-        # period) for the BACKDATED calibration DENSE. TT grinit.f:194-196 FINT=10/FINTM=5 ⇒ ×2. jl carries the true
-        # dead TPA, so inflate the dead partition here (scoped), then restore — the dead heights then enter AVH weighted
-        # by the inflated PROB, matching the live DUBSCR AVH.
-        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
-        saved_tpa = fintr != 1f0 ? Float32[t.tpa[j] for j in (nlive + 1):(nlive + t.ndead)] : Float32[]
-        if fintr != 1f0
-            @inbounds for j in (nlive + 1):(nlive + t.ndead); t.tpa[j] *= fintr; end
-        end
-        # AVHT40 top height from REAL DBH FIRST (before the WK3-zeroing): compute_density! overwrites avg_height with
-        # the zeroed-DBH sort, under which the HISTORY-8/9 dead (DBH→0, dense.f:86) sink below the live seedlings.
-        avht_real = stand_top_height(s)      # AVHT40 over live + all dead records, real DBH, real HT
-        saved = Tuple{Int,Float32}[]
-        @inbounds for i in (nlive + 1):(nlive + t.ndead)
-            (t.history[i] == 8 || t.history[i] == 9) || continue
-            push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0   # dense.f:86 IMC==9 (HISTORY 8/9) load WK3=0 for BA/CCF/SDI
-        end
-        compute_density!(s)                  # dead-inclusive BA / point-CCF (CRATET DENSE over all inv records)
-        @inbounds for (i, d) in saved; t.dbh[i] = d; end
-        s.plot.avg_height = avht_real        # AVHT40 top height from real DBH (dead heights included)
-        if fintr != 1f0
-            @inbounds for (k, j) in enumerate((nlive + 1):(nlive + t.ndead)); t.tpa[j] = saved_tpa[k]; end
-        end
-        t.n = nlive
-    end
-    crown_ratio_update!(s, s.variant; lstart = true, crown_sdi = sdiac)   # DUBSCR-dub live D<1 seedlings + Weibull/CL-dub missing-CR
-    # crown.f:384-408 "DUB MISSING CROWNS ON CYCLE 0 DEAD TREES": the LSTART CROWN also dubs the standing-dead
-    # records' missing crowns via DUBSCR (CASE DEFAULT) — regardless of DBH (unlike the live loop, the dead loop
-    # does NOT route D≥1 to the Weibull). The dubbed dead crowns are discarded (the dead don't project), but each
-    # DUBSCR draws a BACHLO FCR, so SKIPPING them de-syncs the RNG stream (~3·ndead RANN draws) ⇒ the live
-    # seedlings' subsequent SMHTGF ZRAND lands at the wrong stream position ⇒ height/DBH over-growth on dead-heavy
-    # stands (measured on 2825168010690: oracle 93 RANN draws ahead of jl at the first SMHTGF ⇒ jl ZRAND +0.21 vs
-    # oracle −0.61). Replicate the draws here (dead-inclusive BA/AVH still active), then restore live-only density.
-    if t.ndead > 0
-        tt_dub_dead_crowns!(s, nlive)
-    end
-    compute_density!(s)                      # restore live-only density so nothing downstream sees the dead-inclusive BA
-    return s
-end
-
-# crown.f:384-408 — dub the cycle-0 standing-dead records' missing crowns. CASE(15,18) use the NC/OH crown-length
-# form (no draw); CASE DEFAULT calls DUBSCR (draws a BACHLO FCR). The crowns are set on the (discarded) dead records
-# only to advance the RNG stream identically to FVS. Runs with the dead-inclusive BA/AVH (s.plot) still active.
-function tt_dub_dead_crowns!(s::StandState, nlive::Int)
-    p, t = s.plot, s.trees
-    rmai = _tt_rmai(s)
-    p_pccf = s.density.point_ccf
-    @inbounds for i in (nlive + 1):(nlive + t.ndead)
-        t.crown_pct[i] > 0 && continue                  # crown.f:387 IF(ICR(I).GT.0) skip
-        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        if sp == 15 || sp == 18                         # crown.f:394 CASE(15,18): CL form (no draw), uses H (not H+HTG)
-            hf = h <= 0f0 ? 0.1f0 : h
-            cl = 5.17281f0 + 0.32552f0 * hf - 0.01675f0 * p.basal_area
-            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
-            icri = trunc(Int, (cl / hf) * 100f0 + 0.5f0)
-        else                                            # crown.f:404 CASE DEFAULT → DUBSCR (draws FCR)
-            pt = Int(t.plot_id[i]); tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
-            cr = _tt_dubscr(s.rng, sp, d, h, p.basal_area, tpccf, p.avg_height, rmai, s.control.dg_sd)
-            icri = trunc(Int, cr * 100f0 + 0.5f0)
-        end
-        icri > 95 && (icri = 95); icri < 10 && (icri = 10)   # crown.f:417-418
-        t.crown_pct[i] = Int32(icri)
-    end
-    return s
-end

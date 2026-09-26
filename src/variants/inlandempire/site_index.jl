@@ -101,15 +101,8 @@ function ie_sitset!(s::StandState, itype::Int)
             p.sp_site_index[sp] = Float32(IE_MAPSIT[itype, sp])
         end
     end
-    # ie/cratet.f:107-116 — sp13/17 (LM/PY) SITEAR CONVERSION (Alexander/Tackle/Dahms 1967, RM-29) from the
-    # input/MAPSIT SI + stand CCF (TEMCCF≥125). Without it jl uses the raw MAPSIT (43) instead of the converted
-    # 28.33 ⇒ wrong DGCON 0.001766·XSITE term ⇒ TT over-grows/under-kills. TEMCCF floors at 125.
-    temccf = max(stand_ccf(s), 125f0)
-    @inbounds for sp in (13, 17)
-        si = p.sp_site_index[sp]
-        p.sp_site_index[sp] = 9.89311f0 - 0.19177f0*50f0 + 0.00124f0*(50f0*50f0) -
-            0.00082f0*(temccf - 125f0)*si + 0.01387f0*50f0*si - 0.0000455f0*(50f0*50f0)*si
-    end
+    # (the sp13/17 LM/PY 50-yr-base SITEAR conversion is CRATET's, not SITSET's: ie_cratet_site_adjust!, run once
+    #  from the IE setup in setup_growth! once the tree list exists — it was ALSO done here, i.e. twice.)
     bamax = s.control.ba_max
     bamax <= 0f0 && (bamax = IE_BAMAXA[itype])
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
@@ -132,13 +125,14 @@ function ie_site_index_setup!(s::StandState)
     (itype < 1 || itype > 30) && (itype = 4)
     p.habitat_input = Int32(itype)                   # ITYPE for dgf!/ie_dgcons! (MAPHAB/MAPCCF)
     ie_sitset!(s, itype)
-    ie_cratet_site_adjust!(s)                        # CRATET 50-yr-base site adjust (WB/LM: sp13,17)
     return s
 end
 
-# ie/cratet.f — adjust SITEAR to a 50-YEAR age base for WB/LM (13,17), whose growth eqns were
-# fit on a 50-yr-base site index (Alexander-Tackle-Dahms RM-29). Uses stand CCF (floored 125,
-# DBH-only open-grown). Inert unless a WB/LM tree/site-species is present.
+# ie/cratet.f:80-118 — adjust SITEAR to a 50-YEAR age base for LM/PY (13,17), whose growth eqns were fit on a
+# 50-yr-base site index (Alexander-Tackle-Dahms RM-29). TEMCCF = Σ CCFCAL(ISP,DBH,P) over the live records 1..IREC1
+# (floored 125). Runs ONCE, at CRATET (setup_growth!), after the tree list is loaded. jl had run it twice (SITSET and
+# site setup, both before the trees existed ⇒ TEMCCF 125 twice): LM 35 → 23.70 → 17.14 vs live's 19.52 (TEMCCF 270.4)
+# ⇒ DGCON(13) off by 0.001766·ΔSI (calibration DGF LN(DDS) −0.0042 on every LM).
 function ie_cratet_site_adjust!(s::StandState)
     p, t = s.plot, s.trees
     temccf = 0f0

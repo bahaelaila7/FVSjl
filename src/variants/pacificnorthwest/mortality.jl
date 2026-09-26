@@ -10,13 +10,14 @@
 
 function mortality!(s::StandState, ::PacificNorthwest; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sd = s.coef.species
     ba = p.basal_area; avh = p.avg_height
     xsite1 = p.sp_site_index[16]                            # PN: RAW DF SITEAR (no King conversion)
     xsite2 = p.sp_site_index[19]                            # WH SI
     dbhstage = s.control.dbh_stage
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     ciobds = @view s.scratch.mort_efftr[1:n]; g1 = @view s.scratch.mort_temwk2[1:n]
     @inbounds for i in 1:n
         d = t.dbh[i]; sp = Int(t.species[i])
@@ -26,7 +27,6 @@ function mortality!(s::StandState, ::PacificNorthwest; fint::Float32 = 10.0f0, b
     dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n; wprob += t.tpa[i]; dsum += t.dbh[i] * t.tpa[i]; end
     aved = wprob > 0f0 ? dsum / wprob : 0.0001f0
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     @inbounds for i in 1:n
         pr = t.tpa[i]; pr <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -63,6 +63,11 @@ function mortality!(s::StandState, ::PacificNorthwest; fint::Float32 = 10.0f0, b
             end
         end
     end
+    @label morts45
+    # Climate-FVS mortality (pn/morts.f CALL CLMORTS — after the base mortality and TPAMRT, immediately before
+    # FIXMORT), THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end

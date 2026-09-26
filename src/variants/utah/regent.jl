@@ -50,6 +50,9 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
     ab = UT_RG_AB
     pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    # WK4 = CLGMULT's per-tree climate multiplier (dgdriv.f fills it before REGENT; 1 without CLIMATE).
+    wk4 = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)
+    cur_year = current_cycle_year(s)
     # ut/regent.f:183-223 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
     @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -85,7 +88,14 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
                 (zzran <= 0.5f0 && zzran >= -2.0f0) && break
             end
         end
-        htgr = (htgr + zzran * 0.1f0) * scale         # XRHGRO=1
+        # ut/regent.f:344-350 SELECT CASE(ISPC): the CR-surrogate hardwoods (17:19,22) take ZZRAN·0.2 and the
+        # CLGMULT climate multiplier WK4(I); every other species ZZRAN·0.1 and no WK4. XRHGRO = REGHMULT.
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        if 17 <= sp <= 19 || sp == 22
+            htgr = (htgr + zzran * 0.2f0) * xrhgro * scale * (wk4 === nothing ? 1f0 : wk4[i])
+        else
+            htgr = (htgr + zzran * 0.1f0) * xrhgro * scale
+        end
         htgr < 0.1f0 && (htgr = 0.1f0)
         # XWT blend with large-tree HTG
         xmn = UT_RG_XMIN[sp]; xmx = UT_RG_XMAX[sp]
@@ -104,7 +114,7 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
         # ---- small-tree DG (ut/regent.f:380-560). DK/DKK are a 10-YR diameter increment; NO XWT blend
         # (the HTG blend enters via HK=H+HTG). Clamp to DGMX, DDS→DG rescale by SCALE2=YR/FINT, DIAM floor.
         hk = h + htg
-        bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+        bark = ut_bratio(s.coef.species, sp, d)
         if hk <= 4.5f0
             # ut/regent.f:383-385 — sub-breast-height seedling: DG(K)=0.0, DBH(K)=D+0.001·HK.
             # The 0.001·HK nudge is applied EVERY cycle (not a one-time birth detail): it slowly
@@ -123,10 +133,20 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
             elseif (11 <= sp <= 17) || sp == 24        # PJ/GB linear-site
                 dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            elseif sp == 20 || sp == 21                # MC/BI linear
-                dk = 3.1020f0 + 0.0210f0 * hk
+            elseif sp == 20 || sp == 21                # MC/BI (SO/WC origin), ut/regent.f:408-465
                 dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
-                dk < dkk && (dk = dkk + 0.01f0)
+                dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+                # :430-465 inventory Curtis-Arney dub whenever the Wykoff calibration is off or did not happen
+                # (`.NOT.LHTDRG .OR. IABFLG==1`) — always for MC (LHTDRG(20)=.FALSE.). jl kept the linear
+                # placeholder, so MC seedlings grew DG 0.0019 vs live 0.0139 (UT regcal fixture, 2000).
+                if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
+                    p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
+                    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+                    ca(hh) = hh >= hat3 ? exp(log((log(hh - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4)) :
+                                          ((hh - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) + 0.3f0
+                    dk = ca(hk)
+                    dkk = h <= 4.5f0 ? d : ca(h)
+                end
             else                                       # conifers: WYKOFF HT-DBH DK=BX/(ln(HK-4.5)−AX)−1
                 # ut/regent.f:398-403 sets BX=HT2, AX=HT1 (IABFLG=1, uncalibrated) or AA (IABFLG=0, calibrated);
                 # the BX/AX branch (466-472) is taken for ALL non-MC/BI conifers (LHTDRG=.TRUE.). The Curtis-Arney
@@ -138,9 +158,22 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
                 dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
                 dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
             end
-            dgk = (dk - dkk) * bark                     # XRDGRO=1
-            dgk < 0.0f0 && (dgk = 0.0f0)
+            xrdgro = active_multiplier(s.control, :regd, sp, cur_year)   # XRDGRO = REGDMULT
             dgmx = UT_RG_DGMAX[sp] * scale
+            if sp == 20 || sp == 21                     # ut/regent.f:516-532 CASE(20,21)
+                h < 4.5f0 && (dkk = d)
+                if dk < 0.0f0 || dkk < 0.0f0
+                    dgk = htg * 0.2f0 * bark * xrdgro; dk = d + dgk
+                else
+                    dgk = (dk - dkk) * bark * xrdgro
+                end
+                (s.control.ht_drag_sp[sp] && c.ht_dbh_iabflg[sp] == 0) && (dgk = 0.1f0 * htg * xrdgro)
+                dgk < 0.0f0 && (dgk = 0.1f0)
+                dgk > dgmx && (dgk = dgmx)
+            else
+                dgk = (dk - dkk) * bark * xrdgro
+            end
+            dgk < 0.0f0 && (dgk = 0.0f0)
             dgk > dgmx && (dgk = dgmx)
             scale2 = _UT_RG_REGYR / fint                # YR/FINT (=1 for 10-yr ⇒ transform is identity)
             dds = dgk * (2.0f0 * bark * d + dgk) * scale2

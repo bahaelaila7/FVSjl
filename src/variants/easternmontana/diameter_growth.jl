@@ -121,10 +121,15 @@ end
 
 # The DG(I) that em/dgdriv.f:778-801 DO 220 leaves on record i (needs the calibration's dub_wk2/dub_wk3 stash).
 # Also read by the LSTART REGCAL DO 49 (em/regent.f:1110-1128), which runs right after DGDRIV in CRATET.
-@inline function em_do220_dg(s::StandState, i::Int)::Float32
+# ie/dgdriv.f:755-795 is the same DO 220 (ie_do220_dg); only the bark ratio differs. `d` is the CURRENT DBH(I)
+# (BARK=BRATIO(ISPC,DBH(I),HT(I)), the IB-DBH cap and DGBND read it; WK3 is the stashed backdated dub_wk3) — callers
+# inside the calibration, where jl's t.dbh is still backdated, pass the saved current dbh.
+@inline em_do220_dg(s::StandState, i::Int)::Float32 =
+    do220_dg(s, i, s.trees.dbh[i], em_bratio(Int(s.trees.species[i]), s.trees.dbh[i]))
+
+@inline function do220_dg(s::StandState, i::Int, d::Float32, bark::Float32)::Float32
     t, c = s.trees, s.calib
-    sp = Int(t.species[i]); d = t.dbh[i]
-    bark = em_bratio(sp, d)
+    sp = Int(t.species[i])
     if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
         dg = t.diam_growth[i]
         (s.control.growth_idg < 2 && dg > d * bark) && (dg = d * bark)

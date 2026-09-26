@@ -91,7 +91,7 @@ end
 @inline function _tt_utvar_regent(sp::Int, h::Float32, d::Float32, cr::Float32, sitear::Float32,
                                   pctred::Float32, con::Float32, bark::Float32,
                                   dgmax::Float32, diam::Float32, scale2::Float32,
-                                  htg_large::Float32 = 0f0)::Tuple{Float32,Float32}
+                                  htg_large::Float32 = 0f0; wk4::Float32 = 1f0)::Tuple{Float32,Float32}
     if sp == 14
         # MM (Rocky Mtn maple) — UTVAR FINDAG aspen-height + Wykoff DBH (regent.f:464-486, 907-914).
         # HEIGHT: FINDAG SITAGE (aspen inverse-height age, findag.f CASE 6,14, metric), AG2=SITAGE+10,
@@ -139,6 +139,9 @@ end
     # ⅔ VIGOR cut is ISPC==6 only (regent.f:284); PM/UJ/RM empirically need it (validated), MC/BI do not.
     (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
     htgrl = pothtg * pctred * vigor * con
+    # tt/regent.f:766-771 SELECT CASE(ISPC): the CR-surrogate NC/OH (15,18) take ·WK4(I) — the CLGMULT climate
+    # multiplier (1 without CLIMATE) — before the 0.1-ft floor below.
+    (sp == 15 || sp == 18) && (htgrl *= wk4)
     # regent.f:780 (Dixon 3/4/09 "PREVENT NEGATIVE HEIGHT GROWTH"): UTVAR floors HTGR to 0.1 ft, NOT 0.
     # This is load-bearing for tall woodland trees whose pothtg goes negative (H > SJ·1.5): the 0.1-ft
     # floor drives DG=(DK−DKK)·bark≈0.1" via the H-D below. Clamping to 0 (old jl) froze UJ/PM/RM DBH.
@@ -404,6 +407,7 @@ end
 function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f0)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (tt/regent.f:770); nothing ⇒ 1
     ba = p.basal_area; relden = p.relative_density
     dgsd = s.control.dg_sd; regyr = _TT_REGYR
     si6 = p.sp_site_index[6]
@@ -454,19 +458,13 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     # 1st) ⇒ conifer SMHTGF HTGRL=HTG1+ZRAND·STDDEV landed on the wrong deviate ⇒ dense over-growth. Draw
     # species-major (index order within species = FVS IND1). Same root as the crown-dub reorder above; both are
     # needed for the RNG stream to track FVS. TT-only (this method dispatches on ::Teton).
-    zorder = sort(collect(1:n); by = ii -> (Int(t.species[ii]), ii))
-    @inbounds for i in zorder
-        (t.dbh[i] >= TT_RG_XMAX[Int(t.species[i])] || t.tpa[i] <= 0f0) && continue
-        _tt_rg_default(Int(t.species[i])) || continue
-        if dgsd >= 1.0f0
-            zr = t.tree_random[i]
-            if zr == 0f0 || zr == -999f0            # 0 = inventory default (first draw); -999 = reset
-                z = 0f0
-                while true; z = bachlo(s.rng, 0.0f0, 1.0f0); (-2f0 <= z <= 2f0) && break; end
-                t.tree_random[i] = z
-            end
-        end
-    end
+    # ZRAND is drawn INSIDE the subcycle loop (below), exactly where tt/smhtgf.f:70-73 draws it: on any call that
+    # finds ZRAND(I)=-999 — the first subcycle of a new tree, or ANY later subcycle after a floored (≤0.1 ft)
+    # increment reset it — with NO DGSD gate (SMHTGF has none; only REGENT's ZZRAN/DUBSCR draws test DGSD).
+    # IND1 is the SPESRT species-major order with the post-TRIPLE lineage order inside a species (a triple walks as
+    # copy1, original, copy2 — measured on FIA 2783239010690 cycle 2: live SMHTGF order I=167,54,168), NOT raw index
+    # order; with raw order the J=1 draws landed on the wrong member of every triple.
+    zorder = species_major_order(s)
     wk3 = Float32[t.height[i] for i in 1:n]         # subcycle height
     wk5 = Float32[t.dbh[i] for i in 1:n]            # subcycle DBH
     # KNOWN faithful gap: buildDir HTGR=POTHTG·PCTRED·VIGOR·CON (regent.f:350, RHCON=1 @ line 880). Tested a
@@ -487,7 +485,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
         # MEASURED vs FVStt (stand 335 cyc1 i6): oracle J=2 TPCCF=65.18=57.33·1.1369 HTGRL=1.079 vs jl raw
         # TPCCF=57.33 HTGRL=1.121. SMDGF (DBH, regent.f:574) keeps the RAW PCCF — only the height model uses PPCCF.
         ppccf = relden > 0f0 ? 1f0 + (rdj - relden) / relden : 0f0
-        for i in 1:n
+        for i in zorder                                # species-major = FVS `DO 16 ISPC; DO 15 I3` (ZRAND RNG order)
             sp = Int(t.species[i]); d = t.dbh[i]; pr = t.tpa[i]
             (d >= TT_RG_XMAX[sp] || pr <= 0f0) && continue
             _tt_rg_default(sp) || continue
@@ -502,12 +500,21 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             # height/DBH over-grew ~1.9× (11796095010690 +34% BA). At J=1 aspen SCALE=KPER(1)/REGYR=kpj/regyr matches.
             # (sp14 MM is UTVAR with SCALE=NTYR/YR — separate; jl handles it via aspen coefs, not fixed here.)
             (sp == 6 && j > 1) && continue
+            # ★#158 ZRAND (tt/smhtgf.f:70-73): draw when ZRAND=-999 (0 = jl inventory default), persisted across
+            # subcycles, cycles and tripled sub-records (the tripling copy list inherits t.tree_random). The draw
+            # sits in the species-major subcycle loop, so a tree reset at J=1 redraws at J=2 in species order.
+            zr = t.tree_random[i]
+            if zr == 0f0 || zr == -999f0
+                z = 0f0
+                while true; z = bachlo(s.rng, 0.0f0, 1.0f0); (-2f0 <= z <= 2f0) && break; end
+                t.tree_random[i] = z
+            end
             htgrl = _tt_smhtgf(sp, h1, cr, tpccf, t.tree_random[i], si6)
-            # smhtgf.f: if the estimated increment ≤ 0.1 ft, floor to 0.1 and reset ZRAND (redraw next
-            # cycle). Reset only on the final subcycle so the persisted draw is not corrupted mid-cycle.
+            # smhtgf.f:131-133: an increment ≤ 0.1 ft floors to 0.1 and resets ZRAND to -999 on EVERY call, so the
+            # next SMHTGF call (the next subcycle, or next cycle) draws a fresh deviate.
             if htgrl <= 0.1f0
                 htgrl = 0.1f0
-                (dgsd >= 1.0f0 && j == nper) && (t.tree_random[i] = -999f0)
+                t.tree_random[i] = -999f0
             end
             # CON = RHCON·exp(HCOR) — the REGENT small-tree HEIGHT self-calibration (regent.f:420,552:
             # `H2=H1+HTGRL*SCALE*XRHGRO*CON`). For aspen(6)/MM(14) HCOR = the CORNEW calibration seeded in
@@ -630,7 +637,8 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             bark = tt_bratio(sp, d)
             scale2 = htg_period(s.variant) / fint                     # YR/NTYR
             htgr, dg = _tt_utvar_regent(sp, h, d, cr, sitear, pctred, con, bark,
-                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2, t.ht_growth[i])
+                                        TT_RG_DGMAX[sp], TT_RG_DIAM[sp], scale2, t.ht_growth[i];
+                                        wk4 = cw === nothing ? 1f0 : cw[i])
             cap = s.control.sp_size_cap[sp, 4]
             (h + htgr > cap) && (htgr = max(cap - h, 0.1f0))
             t.ht_growth[i] = htgr
@@ -662,8 +670,9 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     gentim = max(fint - 5.0f0, 0.0f0)
     subcyc = (fint - gentim) / _TT_REGYR        # birth-cycle subcycles (=1 for fint=10)
     scale2 = htg_period(s.variant) / fint       # DDS period scaling (YR/NTYR), = regular cycle
-    si6 = p.sp_site_index[6]; dgsd = s.control.dg_sd
-    @inbounds for i in (nstart+1):t.n
+    si6 = p.sp_site_index[6]
+    # REGENT(LESTB) walks the new records species-major (DO 16 ISPC; DO 15 I3) — the SMHTGF ZRAND draw order.
+    @inbounds for i in filter(>(nstart), species_major_order(s))
         t.tpa[i] <= 0.0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= TT_RG_XMAX[sp] || !_tt_rg_default(sp)) && continue
@@ -672,19 +681,17 @@ function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
         tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
         # birth-cycle ZRAND: esgent.f → REGENT → SMHTGF draws ZRAND(I) for the new tree and stores it,
         # so the NEXT cycle's small_tree_growth persists the same deviate (t.tree_random inheritance).
-        zrand = 0.0f0
-        if dgsd >= 1.0f0
-            zr0 = t.tree_random[i]
-            if zr0 == 0f0 || zr0 == -999f0
-                while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
-                t.tree_random[i] = zrand
-            else
-                zrand = zr0
-            end
+        # tt/smhtgf.f:70-73 has no DGSD gate; a ≤0.1-ft increment floors to 0.1 and resets ZRAND (:131-133).
+        zrand = t.tree_random[i]
+        if zrand == 0f0 || zrand == -999f0
+            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
+            t.tree_random[i] = zrand
         end
         esp = _tt_rg_esp(sp)                     # MM(14)→AS(6) coefficient mapping
         htgrl = _tt_smhtgf(esp, h, cr, tpccf, zrand, si6)
-        htg = htgrl * subcyc; htg < 0.0f0 && (htg = 0.0f0)
+        htgrl <= 0.1f0 && (htgrl = 0.1f0; t.tree_random[i] = -999f0)
+        # regent.f:552 H2=H1+HTGRL·SCALE·XRHGRO·CON, CON=RHCON·EXP(HCOR) (RHCON=1 for TT)
+        htg = htgrl * subcyc * exp(c.htg_cor_small[sp]); htg < 0.0f0 && (htg = 0.0f0)
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         h2 = h + htg

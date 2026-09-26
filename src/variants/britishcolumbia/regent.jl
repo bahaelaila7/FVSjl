@@ -120,9 +120,8 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     # so the 3 copies get 3 DIFFERENT random heights AND the RNG stream advances 3×/tree like live FVS. Without
     # it BC drew 1 ZZRAN/tree (27 vs live's 81 on all_BC_essf) ⇒ copies identical + every downstream draw desynced.
     nrec = stash !== nothing ? 3 : 1
-    order = sortperm(view(t.species, 1:n); alg = Base.Sort.MergeSort)
-    @inbounds for oi in 1:n
-        i = order[oi]
+    order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
+    @inbounds for i in order
         sp = Int(t.species[i]); d = t.dbh[i]
         xmn = v2 ? BC_RG_V2_XMIN[sp] : BC_RG_XMIN[sp]; xmx = v2 ? BC_RG_V2_XMAX[sp] : BC_RG_XMAX[sp]
         (d >= xmx || t.tpa[i] <= 0f0 || (!v2 && ip[sp] < 1)) && continue

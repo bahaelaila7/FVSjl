@@ -51,7 +51,7 @@
         #   TCuFt 4366    4256     4252     (err -110 -> -114)
         # Pinned to jl's value with live documented, per this file's convention; the +1 tree is a downstream
         # RNG/mortality effect of the dub's DUBSCR draws and stays an OPEN KT item.
-        (FVSjl.Kootenai(),       "kt_simfire", 283, 15, 400),   # live: 282 pre, 0 post, 437 MORT
+        (FVSjl.Kootenai(),       "kt_simfire", 282, 15, 400),   # live: 282 pre, 0 post, 437 MORT — jl 283→282 = live after kt-crown (integ-0926)
         (FVSjl.CentralIdaho(),   "ci_simfire", 302, 15, 350),   # jl 304→302 after the 2026-09-23 crown/CRATET fixes (live 300)   # live: 300 pre, 0 post, 388 MORT (live re-derived 2026-09-19 on FVSci_g16 and .new: 300). jl 307→306→304 on bm-regime-close merges, moving toward live; residual +4 OPEN (CI campaign).
     ]
     for (v, base, pre_trees, post_trees_max, mort_min) in cases

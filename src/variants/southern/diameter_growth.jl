@@ -360,11 +360,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # past BA/PCT/point_ba), EXCEPT the AVHT40 top height (AVH), which stays at the
     # CURRENT stand value — see the dgf! call below.
     saved_dbh = Float32[t.dbh[i] for i in 1:t.n]
-    _cr_bd_ccf = 0f0                           # CR: BACKDATED stand CCF (dense.f RELDM1) for the REGENT height calib PCTRED
-    _cr_bd_avht = 0f0                          # CR: BACKDATED-window AVHT40 (dense.f AVH) for the same PCTRED (X=AVH·RELDEN/100)
     _ut_cal = s.variant isa Utah              # #199: UT regent mode-40 small-tree HEIGHT calibration (ut/regent.f:589-766)
     _tt_bd_ba = 0f0; _tt_bd_ccf = 0f0; _tt_bd_pccf = Float32[]   # TT REGCAL stand values (backdated DENSE)
-    _ut_bd_ccf = 0f0                           # UT: BACKDATED CCF (RELDEN, dense.f RELDM1) for the calib PCTRED (X=AVH·RELDEN/100; AVH stays current)
     _bc_bd_ba = 0f0; _bc_bd_relden = 0f0; _bc_bd_pct = Float32[]   # BC: BACKDATED BA/RELDEN/percentile for V2 small-tree HCOR calib (regent.f REGCAL uses the backdated stand)
     _cur_avh = s.plot.avg_height   # current-stand AVHT40 top height (used by the calibration DGF below)
     # NOTRE inflates DEAD-record PROB by FINT/FINTM (cycle-growth period / mortality-observation period) so the
@@ -409,7 +406,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    _TT_CUR_RMSQD[] = stand_qmd(s)    # #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
+    _TT_CUR_RMSQD[] = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
+                      s.calib.cratet_rmsqd :   # IE/EM (identical dense.f): the cratet
+                      stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
@@ -421,14 +420,6 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     end
     t.n = nlive + t.ndead
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
-    # CR REGENT height calib uses the BACKDATED CCF (dense.f RELDM1) for its density modifier PCTRED — NOT the
-    # current CCF (regent.f:466 X=AVH·RELDEN/100; RELDEN is the backdated relative density). Capture it HERE with
-    # the recently-dead (backdated) trees INCLUDED (t.n = nlive+ndead): they were alive at the period start so
-    # dense.f's RELDM1 counts them (history-8 already zeroed above). Live-only omission under-counted the CCF on
-    # stands with recent mortality (68 vs live 121 on 1855925743290487); dead-inclusive = 121.13 = live exact.
-    # AVH stays CURRENT (not backdated), as in live. (18th-bug fix + factor-2 dead-inclusion correction.)
-    _cr_cal && (_cr_bd_ccf = stand_ccf(s); _cr_bd_avht = stand_top_height(s))
-    _ut_cal && (_ut_bd_ccf = stand_ccf(s))    # #199: BACKDATED CCF (RELDEN) capture, dead-inclusive, same as CR
     # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
     _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
     t.n = nlive
@@ -455,7 +446,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana) && length(s.calib.input_seq) == ntot
+        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire) &&
+               length(s.calib.input_seq) == ntot
+            # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
             # tie ⇒ DGF WK2 ⇒ the DO-220 WK1 dub ⇒ LM/LL Hamilton G 0.1253 vs live 0.1257 (cycle-1 kill 6.941 vs 6.921).
@@ -709,9 +702,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # adds COR(ISPC) into CONSPP/DDS (:485/:538/:559), so for a calibrated species the dub is NOT the first call's WK2
     # (which ran with COR=0). Same context: FORTYP 0, current AVH, the current-RMSQD stash for aspen DGFASP.
     # CI, KT and TT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705, tt/dgdriv.f DGF(WK3) then DO 220): their LSTART REGCAL
-    # DO 49 reads that DG (ci_do220_dg / kt_do220_dg / tt_do220_dg).
+    # DO 49 reads that DG (ci_do220_dg / kt_do220_dg / tt_do220_dg). IE too (ie/dgdriv.f:759 → DO 220, ie_cycle0_wk1!).
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-       s.variant isa Kootenai || s.variant isa Teton
+       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         _TT_CUR_RMSQD[] = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
@@ -784,7 +777,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # NC (Klamath) regent small-tree HEIGHT calibration (nc/regent.f LSTART DO 90): raw HCOR → htg_cor_small,
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
-    s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh)
+    s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
@@ -961,11 +954,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # (GENGYM potential HTG), aspen/paper-birch (sp20/28) use the Sheppard curve. HCOR_init = ln(Σ(HTG·SCALE3·P)/
     # Σ(EDH·P)) with ≥NCALHT(5) measured dbh<5 HTG. Runs on the CURRENT restored stand (regent uses current dbh).
     # Without this jl held con=1.0 (HCOR=0) ⇒ small-tree height under-grew (sp5 WF con 1.0 vs live 1.047).
-    if s.variant isa CentralRockies
+    if s.variant isa CentralRockies && s.control.growth_ifinth != 0             # regent.f:461 IF(IFINTH.EQ.0) GOTO 95
         htadj = sd[:st_htadj]; lo = sd[:site_lo]; hi = sd[:site_hi]
-        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH(default 5)
-        ccf = _cr_bd_ccf; avht = _cr_bd_avht                                            # PCTRED: BACKDATED-window CCF+AVH (dense.f RELDM1+AVH, both dead-inclusive; regent.f:466 X=AVH·RELDEN/100)
-        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        scale3 = 10f0 / s.control.growth_finth                                          # regent.f:462 SCALE3=REGYR(10)/FINTH
+        # regent.f:466 X=AVH·(RELDEN/100). cr/cratet.f runs no AVHT40 before REGENT (:590), so AVH AND RELDEN are both
+        # the cratet.f:175 backdating DENSE's (dead-inclusive, IMC=9 at D=0, pre-dub heights) — the crown-init snapshot.
+        # The former ad-hoc recompute (stand_ccf/stand_top_height on the backdated list) gave X 1.0441× live's PCTRED
+        # on the REGCAL fixture (AVH 61.6009 / RELDEN 159.3665 = live exactly from the snapshot).
+        xd = c.cratet_avh * (c.cratet_relden / 100f0); xd > 300f0 && (xd = 300f0)
         pctred = _CR_AB[1] + xd*(_CR_AB[2] + xd*(_CR_AB[3] + xd*(_CR_AB[4] + xd*(_CR_AB[5] + xd*_CR_AB[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
         @inbounds for sp in 1:MAXSP
@@ -980,7 +976,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             for k in i1:i2
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                       # large trees excluded (regent.f:454)
-                hstart = t.height[i] - t.ht_growth[i]             # start-of-period H (IHTG<2, regent.f:534)
+                hstart = s.control.growth_ihtg < 2 ? t.height[i] - t.ht_growth[i] : t.height[i]   # cr/regent.f:523 IF(IHTG.LT.2) H=H-HTG
                 hstart < 0.01f0 && continue
                 if sp == 20 || sp == 28                           # aspen/paper birch Sheppard curve (regent.f:542-549)
                     # AG1 = INVERSE Sheppard from the start height H (regent.f:542), NOT birth_age — the
@@ -1021,11 +1017,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # instead of self-thinning to ~6" (#199, stand 317272705489998 QMD 1.6 vs live 6.0). Trapped to CORNEW∈
     # [0.0821,12.1825]. Validated vs FVSut_g16 mode-40 dumps: GO N=5, MEANX 0.44181, MEANY 1.11111, CORNEW
     # 2.51492 ⇒ HCOR_raw 0.92224; applied 0.699 ⇒ growth CON 2.012 (bit-exact vs the growth-phase RGDUMP).
-    if _ut_cal
+    if _ut_cal && s.control.growth_ifinth != 0                             # regent.f:596 IF(IFINTH.EQ.0) GOTO 95
         sd_ut = s.coef.species; slo_ut = sd_ut[:site_lo]; shi_ut = sd_ut[:site_hi]
-        scale3 = s.control.growth_finth > 0f0 ? 10f0 / s.control.growth_finth : 2f0   # REGYR(10)/FINTH
-        ccf = _ut_bd_ccf; avht = _cur_avh    # RELDEN backdated (dense.f RELDM1); AVH stays CURRENT (heights not backdated), regent.f:601
-        xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
+        scale3 = 10f0 / s.control.growth_finth                             # regent.f:597 SCALE3=REGYR(10)/FINTH
+        # regent.f:601 X=AVH·(RELDEN/100): AVH = ut/cratet.f:658 AVHT40 (current), RELDEN = the cratet.f:250
+        # backdating DENSE's (crown-init snapshot, dead-inclusive).
+        xd = _cur_avh * (c.cratet_relden / 100f0); xd > 300f0 && (xd = 300f0)
         ab = UT_RG_AB
         pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
         pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
@@ -1041,7 +1038,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 i = ind1[k]
                 t.dbh[i] >= 5f0 && continue                   # backdated DBH<5 (regent.f:652)
                 hg = t.ht_growth[i]; hg < 0.001f0 && continue # measured HTG required (regent.f:721)
-                hb = t.height[i] - hg; hb < 0.01f0 && continue # backdated H (IHTG<2, regent.f:649)
+                hb = s.control.growth_ihtg < 2 ? t.height[i] - hg : t.height[i]   # ut/regent.f:652 IF(IHTG.LT.2) H=H-HTG
+                hb < 0.01f0 && continue
                 local edh::Float32
                 if sp == 6                                    # aspen — Sheppard inverse from backdated H (regent.f:685-693)
                     ag1 = (hb * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
@@ -1144,6 +1142,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     _cr_dg = s.variant isa CentralRockies
     _cr_imodty = _cr_dg ? Int(s.plot.model_type) : 0
     _em_dg = s.variant isa EasternMontana   # EM GA/CW/BA/PW/NC/OH DGSCOR-draw cap (em/dgdriv.f:229-238, from CR)
+    _ie_dg = s.variant isa InlandEmpire     # IE CO/OH (19/22) DGSCOR-draw cap (ie/dgdriv.f:230-234, from CR)
     _tt_dg = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model); DDS→DG dib must match
     _bc_dg = s.variant isa BritishColumbia   # BC bark = bc_bratio (constant; calib.bark_a/b=0 ⇒ 0.80 floor otherwise)
     _bm_dg = s.variant isa BlueMountains     # ★#140: BM bark = bm_bratio (POWER); the linear fallback here gave
@@ -1289,10 +1288,12 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (corr 0.148 vs FVS 0.181 ⇒ a residual serial-correlation DG error). SN unchanged (YR=5).
     cyc = Int(s.control.cycle)
     newp = max(1, cycle_period_at(s.control, cyc))
-    # Climate-FVS: scale the large-tree DDS by clgmult's TREEMULT (dgdriv.f:153 CALL CLGMULT(WK4);
-    # :217 DDS=EXP(WK2)·WK4). THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
-    (s.climate !== nothing && s.climate.active) &&
-        apply_climate_dds!(s, wk2, Float32(current_cycle_year(s)) + Float32(newp) / 2f0)
+    # Climate-FVS: dgdriv.f:153 CALL CLGMULT(WK4); :217 DDS=EXP(WK2+XDGROW)·WK4. WK4 multiplies the DDS only —
+    # WK2 itself stays the un-multiplied ln(DDS), which DGSCOR reads for its DDS>4/DDS>5 residual damping
+    # (dgscor.f:25-29). Folding ln(WK4) into wk2 pushed large trees across those thresholds and zeroed/damped
+    # their FRM (EC 212810748020004: 40"+ DF all DG≈0.8 vs live's 0.6–1.4 spread). THISYR = IY(ICYC)+FINT/2.
+    _cw = (s.climate !== nothing && s.climate.active) ?
+          climate_growth_wk4!(s, Float32(current_cycle_year(s)) + Float32(newp) / 2f0) : nothing
     # The FIRST projection cycle's `old` period is the DG MEASUREMENT period (dgdriv PVMLT basis) — the GROWTH
     # keyword FINT when overridden from its universal 5-yr default, else the variant native YR (htg_period:
     # 5 SN / 10 NE). Live-stamped: growth_fint10 (GROWTH 10) ⇒ AUTCOR(new=5, old=10) CORR=0.3906, not
@@ -1352,6 +1353,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # of the time by 1 ULP for xbai=1.5). xbai=1 ⇒ xdgrow=flog(1)=0 ⇒ fexp(wk2+0)=fexp(wk2), bit-identical
             # to the old ·1.0 ⇒ every non-BAIMULT scenario is untouched (verified 0-diff).
             dds5 = fexp(wk2[i] + xdgrow)                    # YR-yr DDS (BAIMULT: EXP(WK2+ln XDMULT)); YR=5 SN / 10 NE
+            _cw === nothing || (dds5 *= _cw[i])             # ·WK4 (Climate-FVS TREEMULT; dgdriv.f:217)
             # DG bound+scale applied inline (pillar-2: was a per-tree `bsc` closure). `_bsc(dg5)` local macro-
             # style: identical call `_bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dg5, sfint, size_cap, yr)`.
             # exp routed through the gfortran companion (fexp, doctrine #8): the tripled records carry
@@ -1369,21 +1371,26 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             # (right-truncation is asymmetric: only GDIF>GLIM is clipped) fattens the right tail of the birth-
             # /small-tree DG ⇒ one-directional DG over-prediction ⇒ inflated DQ10 ⇒ Hamilton mortality under-kill
             # (MEASURED FVSem_g16 9866226020004 @cyc2: jl MEANDG 0.678 vs oracle 0.170, +416 TPA whole-stand).
-            crv = _cr_dg || (_em_dg && (sp == 11 || (13 <= sp <= 16) || sp == 19))
+            # IE (ie/dgdriv.f:230-234) caps only CO/OH (19/22). GLIM=WKI·0.33 and the cap is WKI+GLIM (not WKI·1.33:
+            # a different Float32 rounding). EM and IE test each tripled COPY against the CENTRAL's DG
+            # (`GDIF = DG(I)-WKI` then `IF(GDIF.GT.GLIM) DG(ITRIPU)=WKI+GLIM`, em/ie dgdriv.f), CR against the copy's own.
+            crv = _cr_dg || (_em_dg && (sp == 11 || (13 <= sp <= 16) || sp == 19)) ||
+                  (_ie_dg && (sp == 19 || sp == 22))
             wkicr = crv ? (sqrt(d_ib * d_ib + dds5) - d_ib) : 0f0
+            glim = wkicr * 0.33f0; wkcap = wkicr + glim
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
-                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
-                crv && (dgu - wkicr > wkicr * 0.33f0) && (dgu = wkicr * 1.33f0)
+                crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
                 dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
-                crv && (dgl - wkicr > wkicr * 0.33f0) && (dgl = wkicr * 1.33f0)
+                crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
                 dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr)
             else
                 if tripling
@@ -1395,7 +1402,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                   dgsd = s.control.dg_stddev_bound)
                 end
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
-                crv && (dgc - wkicr > wkicr * 0.33f0) && (dgc = wkicr * 1.33f0)
+                crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
             end
         end
@@ -1424,10 +1431,14 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     dbh0  = do_trip ? zeros(Float32, nlive) : Float32[]
     bumpU = do_trip ? zeros(Float32, nlive) : Float32[]
     bumpL = do_trip ? zeros(Float32, nlive) : Float32[]
+    # crU/crL: a copy's OWN crown when REGENT's DUBSCR block (ie/regent.f:999-1021 `ICR(K)=ICRK`) gives the copy a
+    # crown different from the central's final one; −1 = inherit the central's (copy_tree!). IE only.
+    crU = do_trip ? fill(Int32(-1), nlive) : Int32[]
+    crL = do_trip ? fill(Int32(-1), nlive) : Int32[]
     return do_trip ? (nlive = nlive, dgU = dgU, dgL = dgL, rnU = rnU, rnL = rnL,
                       htgU = htgU, htgL = htgL, is_small = is_small, htg_copy = htg_copy,
                       dbhU = dbhU, dbhL = dbhL,
-                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL) : nothing
+                      dbh0 = dbh0, bumpU = bumpU, bumpL = bumpL, crU = crU, crL = crL) : nothing
 end
 
 """
@@ -1466,6 +1477,10 @@ function triple_records!(s::StandState, stash)
         if hasproperty(stash, :dbhU)
             stash.dbhU[i] >= 0f0 && (t.dbh[u] = stash.dbhU[i])
             stash.dbhL[i] >= 0f0 && (t.dbh[l] = stash.dbhL[i])
+        end
+        if hasproperty(stash, :crU)
+            stash.crU[i] >= 0 && (t.crown_pct[u] = stash.crU[i])
+            stash.crL[i] >= 0 && (t.crown_pct[l] = stash.crL[i])
         end
         # the record's period mortality (MortPA) splits with the surviving TPA (0.60/0.25/0.15)
         t.mort_pa[u] = t.mort_pa[i] * 0.25f0; t.mort_pa[l] = t.mort_pa[i] * 0.15f0

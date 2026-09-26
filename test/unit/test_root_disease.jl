@@ -150,8 +150,11 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         # i.e. the EARLY cycles go EXACT (master was off by 1-3 TPA and 3-4 BA through cycle 4) while the
         # late-cycle BA drift grows — the upstream dub is now right (its per-tree PCT and EXPPCR match
         # live exactly) and what is left is KT's own late growth/mortality residual, an OPEN KT item.
-        CTRL_TPA = Int[536, 447, 379, 333, 297, 267, 239, 215, 191, 173, 156]
-        CTRL_BA  = Int[77, 99, 120, 142, 161, 174, 186, 197, 208, 216, 223]
+        # RE-PINNED 2026-09-26 (integ-0926: kt-crown's OLDPCT/crown-multiplier/re-dub + triple-HTG + density
+        # feedback): jl now EQUALS live FVSkt_clean on this control key in every cycle (dTPA/dBA all 0; the
+        # 2026-09-23 pins were off by up to 4 TPA / 10 BA). Still a jl self-snapshot, but now identical to live.
+        CTRL_TPA = Int[536, 447, 379, 333, 294, 263, 236, 211, 188, 169, 152]
+        CTRL_BA  = Int[77, 99, 120, 143, 163, 181, 192, 199, 206, 209, 213]
         out_ctrl = _datarows(FVSjl.run_keyfile(ctrl_key; variant = v, output = :sum))
         for (k, row) in enumerate(out_ctrl)
             f = split(row)

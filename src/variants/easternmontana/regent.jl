@@ -826,5 +826,6 @@ function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
             t.height[i] = EM_HHTMAX[sp]; t.dbh[i] = 2.95f0
         end
     end
+    esgent_add_gentim!(s, nstart, fint)                # estab.f:1504 ABIRTH += GENTIM (after ESGENT)
     return s
 end

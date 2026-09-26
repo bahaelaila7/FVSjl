@@ -74,12 +74,13 @@ term G since the past-DG WK1 isn't threaded yet — refine when the full-cycle d
 """
 function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     ba = p.basal_area
     itype = Int(p.habitat_input)
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : ((1 <= itype <= 30) ? KT_BAMAXA[itype] : 0f0)
     bamax <= 0f0 && (bamax = 1f0)
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # stand sums (morts.f:196-210, RAW record order): T, SD2SQ → DQ10; AVED (BA-weighted mean DBH)
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
@@ -90,7 +91,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
         wprob += pr; dsum += d * pr
     end
-    tt < 1f-6 && return s
+    tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
     dq10 = sqrt(sd2sq / tt)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
@@ -108,7 +109,6 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -152,6 +152,11 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     # FIXMORT (morts.f:781): forced-mortality override applied AFTER the BA-check, before the DM combine —
     # same as southern/mortality.jl:499. This variant has its own mortality! so it must be wired here;
     # inert unless a FIXMORT keyword scheduled events (apply_fixmort! returns early on empty).
+    @label morts45
+    # Climate-FVS mortality (kt/morts.f CALL CLMORTS — after the base mortality and TPAMRT, immediately before
+    # FIXMORT), THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

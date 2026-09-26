@@ -25,6 +25,7 @@ function setup_growth!(s::StandState)
     # for other variants and for OC stands without a big-6 tree.
     s.variant isa OregonCoast && oc_organon_prepare!(s)
     s.variant isa Olympic && op_organon_prepare!(s)   # OP ORGANON NWO PREPARE (op/cratet.f) — dub valid-ORGANON HT/CR + ACALIB
+    s.variant isa Utah && ut_cratet_site_adjust!(s)   # ut/cratet.f:99-150 50-yr-base SITEAR (TEMCCF on NOTRE-expanded PROB)
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
@@ -79,14 +80,16 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralRockies
         cr_dgcons!(s)                     # DGCON=0, ATTEN, bark inert; enables c.sigma=SIGMAR for DG serial-corr
-        compute_density!(s)               # current-stand density for the age dub (BADIST/CCF)
-        _cr_dub_ages!(s)                  # CRATET age dub (cratet.f:552 FINDAG): ABIRTH from height for un-aged trees,
-                                          # BEFORE calibration (FVS CRATET→DGDRIV order). Without it htgf's AP floors
-                                          # to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
+        compute_density!(s)               # current-stand density before the CRATET DENSE/crown dub
+        cr_misscr = cr_any_missing_crown(s)   # cratet.f:503-522 MISSCR, before the dub fills the crowns
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (cr/crown.f);
                                           # eastern variants call init_crown_ratios! here. Without it, 0.1" seedlings keep
                                           # crown_pct=0 ⇒ VARMRT CRI=0 ⇒ EFFTR (100−CRI)/100 = 20× too high ⇒ seedling
                                           # over-kill cascades to the whole stand's mortality distribution.
+        _cr_dub_ages!(s; misscr = cr_misscr)  # CRATET age dub (cratet.f:535-552 FINDAG, AFTER :522 CROWN): ABIRTH from
+                                          # height for un-aged trees, reading the :175 DENSE's BA/RELDEN snapshot and
+                                          # CROWN's BADIST. Before calibration (FVS CRATET→DGDRIV order). Without it
+                                          # htgf's AP floors to 1 ⇒ tall trees over-grow height 2-3× (the TopHt drift).
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Kootenai
         kt_dgcons!(s)                     # KT DGCON (DGHAB+DGFOR+elev/slope-aspect), ATTEN=OBSERV, bark=BKRAT
@@ -102,6 +105,7 @@ function setup_growth!(s::StandState)
                                           # LSTART-dub residual of any variant.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa InlandEmpire
+        ie_cratet_site_adjust!(s)         # ie/cratet.f:80-118 LM/PY 50-yr-base SITEAR (TEMCCF from the tree list), once
         ie_dgcons!(s)                     # IE DGCON (DGHAB+DGFOR+MAPDSQ/MAPCCF+elev/slope-aspect+site adj), ATTEN=OBSERV
         compute_density!(s)               # current-stand density for the crown dub
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING (ICR=0) inventory crowns (ie/crown.f).
@@ -132,12 +136,11 @@ function setup_growth!(s::StandState)
         _tt_dub_ages!(s)                  # NC/OH (sp15,18) GENGYM height needs ABIRTH dubbed from height (cratet FINDAG,
                                           # IMODTY=4); no-op unless the stand has NC/OH. Other TT species use SBB (no age).
         compute_density!(s)               # density for the crown dub (fresh scalars for the ndead=0 path + dub_ages)
-        tt_crown_init_lstart!(s)          # CRATET DENSE (DEAD-INCLUSIVE) → DUBSCR/CL/Weibull dub of MISSING crowns
-                                          # (tt/crown.f). Was the LIVE-only crown_ratio_update! (EM #137 sibling) ⇒
-                                          # missing-CR seedlings dubbed against a live-only AVH (≈ seedling height) ⇒
-                                          # crown over-dubbed ⇒ tt regent VIGOR(CR)/BETA2·CR over-grows small-tree
-                                          # DBH/BA on dead-heavy stands. Now the standing-dead heights enter AVHT40
-                                          # (dead PROB ×FINT/FINTM), matching the live DUBSCR/CL dub.
+        crown_init_lstart_dead_inclusive!(s)  # tt/cratet.f (== bm core: :242 `LBKDEN=IDG.LT.2; CALL DENSE` over live+dead
+                                          # → :639 CROWN) — the shared backdated dead-inclusive DENSE, so DUBSCR reads the
+                                          # BACKDATED point CCF / BA and the pre-dub AVHT40. TT's own dead-inclusive-only
+                                          # init skipped the LBKDEN backdating: FIA 2783239010690 seedling DUBSCR TPCCF
+                                          # 353.42 vs live 355.27 ⇒ CR .52695 vs .525 ⇒ ICR 53 vs 52 ⇒ SMHTGF drift.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Utah
         # NB: the CRATET age-50 site-curve conversion (ut/cratet.f) is ALREADY applied once in site_setup!
@@ -274,6 +277,8 @@ function setup_growth!(s::StandState)
         # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
         # it; the VARDG-driven tripled-record spread + multi-cycle COR attenuation land with that chunk.
     end
+    cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
+                                          # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)
     return s
 end
 
@@ -717,7 +722,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # BEFORE growth/mortality read growmult/mortmult. Inert unless a CLIMATE block parsed GrowMult/MortMult events.
     (s.climate !== nothing && s.climate.active) && apply_climate_schedule!(s, Int(s.control.cycle) + 1)
     # clgmult.f runs every cycle inside DGDRIV even with ITRN=0 (SPWTS=0 ⇒ SPGMULT=1); jl skips growth on a bare
-    # stand, so start each cycle at 1 (apply_climate_dds! overwrites it when it runs) and clear last cycle's report.
+    # stand, so start each cycle at 1 (climate_growth_wk4! overwrites it when it runs) and clear last cycle's report.
     (s.climate !== nothing && s.climate.active) &&
         (fill!(s.climate.spgmult, 1f0); s.climate.pending_report = nothing)
     # Climate SPCALIB (clmorts.f:57-75 ICYC==1): set at cycle 0 from INVENTORY presence, BEFORE establishment
@@ -735,11 +740,27 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.plot.relative_density_prev = s.plot.relative_density
     end
     if s.variant isa InlandEmpire && s.control.cycle == Int32(0)
-        ie_seed_backdated_oldpct!(s)
+        # cratet.f:513 saves the PCT of the :219 backdating DENSE, which crown_init_lstart_dead_inclusive! already
+        # built (c.cratet_pct) over CRATET's IND1-seeded RDPSRT(.FALSE.) order; ie_seed_backdated_oldpct!'s own
+        # identity-seeded sort swapped every equal-DBH pair's OLDPCT (FIA 3027007010690: three tied pairs ⇒ crown
+        # ICR ±1 ⇒ cycle-2 DDS ±0.0154 on 11 records).
+        if length(s.calib.cratet_pct) == s.trees.n
+            copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
+        else
+            ie_seed_backdated_oldpct!(s)
+        end
         ie_dub_aspen_birthage!(s)   # cratet.f:544-563 CALL FINDAG: dub ABIRTH=SITAGE for sp18/20/21 (AS/MM/PB)
         # IE crown DCR backdates against OLDBA/RELDM1 = the PREVIOUS cycle's stand BA/RELDEN (dense.f:239-240,
         # threaded start-of-cycle; crown.f:277-281 reads them for DCRCON). Seed cycle-1's pair from the
         # inventory (pre-growth) density — analog of the OLDPCT seed above (matches oracle OBA[1]=inventory BA).
+        s.plot.old_ba = s.plot.basal_area
+        s.plot.relative_density_prev = s.plot.relative_density
+    end
+    # KT: kt/cratet.f:578 OLDPCT=PCT right before the LSTART CROWN — the PCT of the backdating DENSE, which the shared
+    # crown_init_lstart_dead_inclusive! snapshots as cratet_pct — and cycle-1 OBA/RDM1 = inventory density (kt/crown.f
+    # is IE's crown model; same seeds as IE above).
+    if s.variant isa Kootenai && s.control.cycle == Int32(0)
+        length(s.calib.cratet_pct) == s.trees.n && copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
     end
@@ -827,7 +848,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # applied DG → next cycle's vigor) exactly; an every-cycle snapshot here instead OVER-KILLS the shelterwood
     # auto-regen path (iet01 THN3) by racing establishment/tripling churn — measured as ~2.8× cyc-2040 mort.
     # A/B (373781950489998, no regen): moves TPA toward oracle every cycle (2025 2328→2333 vs 2337, …).
-    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+    # The faithful cycle-1 WK1 is ie/dgdriv.f's DO-220 result (ie_cycle0_wk1!, from the calibration's DGF(WK3) re-call
+    # and the calibration OLDRN — so BEFORE diameter_growth! advances OLDRN). The snapshot + post-DGDRIV stand-in below
+    # is kept only as the fallback when that calibration stash is absent.
+    _ie_wk1_do220 = s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n
+    _ie_wk1_do220 && ie_cycle0_wk1!(s)
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
@@ -854,7 +880,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # HIGH cycle-1 mortality. Without this branch jl fed WK1=predicted-DG (often >0.5 for a vigorous DF seedling),
     # inflating 11.2007·G + 6.07129·G/D ⇒ RIP collapses ⇒ massive under-kill (oracle 39607788010690 cyc-1 drop
     # 1614 vs jl 344). Verified vs FVSie_g16: all 3 cyc-1 seedling records HT=1.01 ⇒ WK1=0 ⇒ mortG≈0.079. CYCLE-0 only.
-    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0) &&
+    (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n
             if t.height[i] <= 4.5f0
                 t.dg_prev[i] = 0f0                                   # dgdriv.f:784-785
@@ -883,6 +909,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
@@ -1167,6 +1194,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _cr_up = s.variant isa CentralRockies; _cr_up_imod = _cr_up ? Int(s.plot.model_type) : 0
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
+    # gradd.f:205 ABIRTH(I)=ABIRTH(I)+FINT is shared by every variant; jl ages it where something reads ABIRTH:
+    # the CR/TT/UT/IE/EM/BM growth models, and Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant.
+    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire ||
+              s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Kootenai ||
+              s.variant isa Klamath || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
+              s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia ||
+              s.variant isa WestSierra || s.variant isa OregonCoast || s.variant isa Olympic ||
+              s.variant isa BritishColumbia
     _wc_up = s.variant isa WestCascades   # WC bark = wc_bratio (POWER a·Dᵇ for bark_imap=1; linear cannot express it)
     _pn_up = s.variant isa PacificNorthwest   # PN bark = wc_bratio (POWER, all imap=1) — same as WC
     _ec_up = s.variant isa EastCascades   # EC bark = wc_bratio (per-species bark_imap POWER/linear)
@@ -1197,10 +1232,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # EXECUTE) and KEEPS diam_growth/ht_growth for the FVS_TreeList DG/HtG report — so this shared
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
-        s.variant isa OregonCoast && continue
+        s.variant isa OregonCoast && (t.birth_age[i] += fint; continue)   # gradd.f:205 ages OC's ABIRTH too
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        (_cr_up || _tt_up || _ut_up || _ie_up || _em_up || _bm_up) && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
+        _age_up && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
@@ -1323,7 +1358,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     crown_ratio_update_fvs!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
     # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
-    if s.variant isa InlandEmpire || s.variant isa BritishColumbia || s.variant isa EasternMontana
+    if s.variant isa InlandEmpire || s.variant isa BritishColumbia || s.variant isa EasternMontana ||
+       s.variant isa Kootenai
         @inbounds for i in 1:s.trees.n; s.trees.old_crown_pct[i] = s.trees.crown_ratio[i]; end
     end
     # IE: snapshot the crown-time (current) stand BA/RELDEN into OLDBA/RELDM1 so NEXT cycle's CROWN backdates
@@ -1331,7 +1367,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # RDM1[N]=RELDEN[N-1]). Previously never assigned ⇒ OBA==BA, RDM1==RELDEN ⇒ DCRCON==XCRCON ⇒ EDCR too low
     # ⇒ CHG (=EXPPCR−EXPDCR) too high ⇒ ICR +1..3 too high every cycle. Verified vs FVSie_g16 on 3307603010690:
     # per-tree ICR at CROWN goes from 33/39 one-directional +diffs to ~5 mixed ±1 (residual = a small stand-BA gap).
-    if s.variant isa InlandEmpire || s.variant isa EasternMontana    # EM: the same em/crown.f:212-222 OBA/RDM1
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai   # EM/KT: same crown.f OBA/RDM1
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
     end
@@ -1374,9 +1410,12 @@ function run_keyfile(keypath::AbstractString;
     out = IOBuffer()
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
+    kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
     for s in each_stand(keypath; variant = variant, faithful = faithful)
+        s.control.kt_cratet_ierrck = kt_ierrck
         notre!(s)
         setup_growth!(s)
+        kt_ierrck = s.control.kt_cratet_ierrck
         compute_volumes!(s)
         # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
         # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.

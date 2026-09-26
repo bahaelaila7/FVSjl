@@ -39,6 +39,7 @@ using FVSjl
     include("unit/test_climate_spcalib.jl") # Climate-FVS SPCALIB first-cycle presence-calibration (clmorts.f chunk C): PP ViabMort series bit-exact vs oracle FVS_Climate (present low-viability species no longer over-die early)
     include("unit/test_climate_dbs.jl")     # FVS_Climate DBS table (dbsclsum.f, CLIMREDB): climate_report + write_dbs_climate! — Viability/ViabMort bit-exact vs FVSie_clean, BA/TPA/etc cornered on the OLDRN straddle
     include("unit/test_climate_mortmult2.jl") # Climate MORTMULT field 4 = CLMRTMLT2 (clmorts.f:223/237): the SPMORT2/DMORT transfer-distance-mortality multiplier — dClimMort doubling bit-exact vs FVSie_clean (0.20628→0.41256), field4=1.0 inert
+    include("unit/test_climate_west.jl")    # Climate-FVS western wiring (#252): UT/EC .sum + FVS_Climate exact, KT/OP climate columns exact vs live; AK exclim stubs ⇒ CLIMATE inert
     include("unit/test_dm_dbs.jl")          # FVS_DM_Stnd_Sum/Spp_Sum DBS tables (dbsmis.f, MISRPTS): mistletoe_report + write_dbs_dm_* — cyc0 bit-exact vs FVSie_clean .out (all columns incl DM mortality)
     include("unit/test_mistmult.jl")        # MISTMULT DM spread-probability multipliers (misin.f opt 1: YPLMLT/YNGMLT → cr_mistoe!/ie_mistoe!): mult=1.0 byte-identical (RNG-safe), cyc0 bit-exact vs FVScr_clean, inc=2.0 signed delta matches oracle (cyc1+ cornered on the DM-report AUTOES-regen projection straddle)
     include("unit/test_mistpinf.jl")        # MISTPINF forced initial DM infection (misin.f opt 10 → misinf.f MISINF, activity 2006 + MISRAN JRAN LCG): no-card byte-identical (RNG-safe), LEVEL=1 introduction cycle bit-exact vs FVScr_clean (all 3 methods), out-of-range cards rejected; LEVEL>1/partial-prop cornered on the central-record-DMR / tripled-treelist round-robin gap
@@ -82,7 +83,10 @@ using FVSjl
     include("unit/test_wsbwe.jl")          # WSBWE beachhead: BWERAN RNG seed 55329 bit-exact vs pristine wsbwe/bweran.f + WSBW keyword reader (keywds.f opt 8) + INERT seam
     include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
+    include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
+    include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
+    include("unit/test_cr_cyc1_heights.jl")  # CR cycle-1 heights vs live: FINDAG ABIRTH on CRATET-DENSE RELDEN; H30 HHE reset
     include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16

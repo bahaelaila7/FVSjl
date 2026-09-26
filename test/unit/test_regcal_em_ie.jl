@@ -59,4 +59,19 @@ const _RC_IE = Dict(1 => (668.18, 666.0), 3 => (688.55, 1083.0), 4 => nothing, 5
     for (k, g) in enumerate(gold)
         @test rows[k] == split(g)
     end
+    # IE end-to-end: 3 cycles, every printed .sum field equal to FVSie_g16 — needs the Fortran-shaped IE REGENT, the
+    # DO-220 cycle-1 WK1 dub, the calibration's cratet IND / dead-inclusive RMSQD and the single LM site conversion.
+    fx = joinpath(_RC_FX, "inlandempire", "regcal")
+    rows = cd(fx) do
+        txt = FVSjl.run_keyfile("regcal.key"; variant = FVSjl.InlandEmpire(), output = :sum)
+        [split(strip(l)) for l in split(txt, '\n') if occursin(r"^\d{4}\s", strip(l))]
+    end
+    gold = ["1990  60  6427 129  455 246  63  1.9  4215  1012     0  5233     0     0     0     0     0 129  455 246  63  1.9      10  108    46    16.9 201 23",
+            "2000  70  5201 156  506 289  68  2.3  4827  1428     0  7026     0     0     0     0     0 156  506 289  68  2.3      10  109    59    20.4 201 22",
+            "2010  80  4107 175  531 306  72  2.8  5320  1848     0  9308     0     0     0     0     0 175  531 306  72  2.8      10   62    62    23.1 267 12",
+            "2020  90  3277 192  546 314  75  3.3  5315  2185     0 10546     0     0     0     0     0 192  546 314  75  3.3       0    0     0    24.3 267 12"]
+    @test length(rows) >= 4
+    for (k, g) in enumerate(gold)
+        @test rows[k] == split(g)
+    end
 end

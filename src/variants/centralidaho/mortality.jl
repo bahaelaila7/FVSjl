@@ -21,12 +21,13 @@ const CI_MORT_MAPFOR = Int[10, 1, 1, 10, 1, 1]               # ci/morts.f:198 DA
 
 function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     ba = p.basal_area
     icindx = Int(p.habitat_input)
     itype = (1 <= icindx <= 130) ? Int(CI_NIHMAP[icindx]) : 1
     (itype < 1 || itype > 30) && (itype = 1)
-    sdimax = stand_sdimax(s)
+    sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
     # CI (Zeide) BAMAX = SDIMAX·0.5454154·PMSDIU (ci/morts.f — verified live 265.15 = 571.92·0.5454154·0.85),
     # NOT the site BAMAXA. PMSDIU default 0.85 (fraction).
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi / 100f0 : 0.85f0
@@ -40,7 +41,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
         sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
         wprob += pr; dsum += d * pr
     end
-    tt < 1f-6 && return s
+    tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
     dq10 = sqrt(sd2sq / tt)
     deltba = 0.005454154f0 * dq10 * dq10 * tt - ba
     ba10 = ba + (bamax - ba) / bamax * deltba
@@ -56,7 +57,6 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
-    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -101,6 +101,11 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     # FIXMORT (morts.f:781): forced-mortality override applied AFTER the BA-check, before the DM combine —
     # same as southern/mortality.jl:499. This variant has its own mortality! so it must be wired here;
     # inert unless a FIXMORT keyword scheduled events (apply_fixmort! returns early on empty).
+    @label morts45
+    # Climate-FVS mortality (ci/morts.f CALL CLMORTS — after the base mortality and TPAMRT, immediately before
+    # FIXMORT), THISYR = IY(ICYC)+FINT/2. Inert unless a CLIMATE keyword activated s.climate.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
     _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)

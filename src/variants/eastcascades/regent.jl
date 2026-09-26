@@ -159,6 +159,7 @@ end
 function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
+    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (ec/regent.f:339); nothing ⇒ 1
     sd = s.coef.species
     avh = p.avg_height; dgsd = s.control.dg_sd
     relden = p.relative_density
@@ -205,8 +206,8 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
                     (zzran <= 0.5f0 && zzran >= -2f0) && break
                 end
             end
-            if wcform                                    # regent.f:336-340 (WK4 climate multiplier = 1 w/o CLIMATE)
-                htgr = (htgr + zzran*0.1f0) * xrhgro * scale; htgr < 0.1f0 && (htgr = 0.1f0)
+            if wcform                                    # regent.f:336-340 ·WK4(I) = the CLGMULT climate multiplier
+                htgr = (htgr + zzran*0.1f0) * xrhgro * scale * (cw === nothing ? 1f0 : cw[i]); htgr < 0.1f0 && (htgr = 0.1f0)
             else
                 htgr = (htgr + zzran*0.1f0) * xrhgro * scale; htgr < 0f0 && (htgr = 0f0)
             end
