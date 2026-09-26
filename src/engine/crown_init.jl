@@ -103,7 +103,15 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
             push!(saved, (i, t.dbh[i])); t.dbh[i] = 0f0
         end
     end
+    # dense.f walks its BA/PCCF/CCF sums DO 50 ISPC / DO 10 I3 / I=IND1(I3), and SETUP's IND1 at CRATET is species-major
+    # over ALL records in READ order — the dead still interleaved at their input positions (cratet.f deletes them
+    # later). jl's IND1 (sort_key) files the dead after the live, so on a dead-bearing stand the Float32 sums ran in
+    # another order (IE 3356357010690: calibration BA 2 ULP off ⇒ DO-220 DGF WK2 2-8 ULP ⇒ cycle-1 WK1/MORTS kill).
+    # Key the pass on the read order, then restore.
+    sk_saved = (t.ndead > 0 && length(s.calib.input_seq) == t.n) ? t.sort_key[1:t.n] : nothing
+    sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = Float64(s.calib.input_seq[i]); end)
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = sk_saved[i]; end)
     # dense.f:244 `CALL PCTILE(ITRN,IND,WK5,PCT,TOTAL)` — in the BACKDATING pass, PCT is accumulated over
     # **IND**, which cratet.f sorted on the REAL `DBH`, while the per-tree weight `WK5 = D*D*PROB` uses the
     # BACKDATED diameter (dense.f:184 `IF(LBKDEN.AND.LREDO) D = WK3(I)`). compute_density! above derived BOTH
