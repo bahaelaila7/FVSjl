@@ -692,6 +692,41 @@ CLGMULT's SPGMULT, a DBH²·PROB-weighted TREEMULT computed on the pre-growth tr
   It books ABIRTH = GENTIM for every record, whereas live keeps per-record AGADSB/AGEXC ages (5 and 6).
 - **#252.** Wiring for the other variants is in progress on branch `clim-west`.
 
+## KT/CI/TT LSTART REGCAL; EM DO-220 dub from the post-COR DGF (2026-09-26, branches `regcal-kt-ci`, `em-climate`)
+
+**KT and CI had no small-tree height calibration at all.** `kt_regent_hcor_init!` and `ci_regent_hcor_init!` port
+kt/regent.f and ci/regent.f label 40. That includes CI's stale-ISPC SCALE3 and its second in-loop height backdate.
+`tt_regent_hcor_init!` replaces TT's two partial calibrations; they had no conifer/PP/15/18 arms, an unrandomized
+aspen, and H = 0 in the woodland POTHTG.
+
+Found along the way:
+- `kt_site_index_setup!` skipped the habitat lookup when no habitat code was given; FVS uses KKTYPE 97 / ITYPE 570.
+  On master that killed the KT fixture stand in cycle 1.
+- `ci_dubscr` and `_tt_dubscr` drew a random number even with DGSTDEV < 1.
+- CI stand CCF now sums species-major.
+
+Measured: every per-species "SUMS FOR SPECIES" equals FVSkt_clean / FVSci_g16 / FVStt_g16 on multi-species
+fixtures, and on FIA stands with two calibration subcycles. The TT root-disease absolute row is now a passing test.
+
+**DO-220 dub (EM, BM, CI, KT, TT).** dgdriv's :770 `CALL DGF(WK3)` → DO 220 runs after the correction terms are
+final, and em/dgf.f adds COR into DDS. EM had captured the first call's WK2 (COR = 0). All five variants now dub
+from the second call, with the calibration's current-RMSQD stash that aspen DGFASP reads. `test_em_wk1dub.jl`: an
+unmeasured LM of a calibrated species has G 0.1547 and kills 6.462 TPA, equal to live (it was 0.0857 / 13.12).
+
+## FVS_Fuels (FUELSOUT) gating and standing pools (2026-09-26, branch `ffe-fuels`)
+
+FVS writes FVS_Fuels only when DATABASE FUELSOUT (IFUELS) is set and the FMIN FUELOUT window covers the year
+(fmdout.f:399, fmin.f:1500). jl wrote it whenever CARBREPT was on, which produced the tiered "live=absent" presence
+residuals, and never wrote it for a FUELSOUT run. The standing live pools now follow FMDOUT:
+- crown sizes 1–3 (+OLDCRW) go to <3", and sizes 4–5 (+OLDCRW) to ≥3";
+- the stem is split by DBH;
+- VOL2HT is MAX(X, MCF) for SN-family variants and MAX(X, TCF) elsewhere;
+- the integer columns are NINT.
+
+On EC ect01 FFE at 1993, Standing_Live_ge3 went from 5.83 to 23 (live 23) and Standing_Total from 13.7 to 37
+(live 37). #246 carries on from this comparison (the init-year FMCBA-after-cut order, crown biomass, snags).
+FVS_Consumption's schema is wrong (#254).
+
 ## Known exceptions / not-yet-closed
 
 - **ADDTREES** (ESTAB opt 28, `estb/esaddt.f`) — **PORTED + oracle-validated** (staged-read A/B vs live

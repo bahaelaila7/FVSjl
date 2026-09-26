@@ -278,3 +278,12 @@ carries:
 See docs/PORT_STATUS.md, "EM Climate-FVS wiring; FVS_Climate report timing". The tiered EM allowlist was
 redrafted from measurement.
 
+## Addendum 2026-09-26 (i) — `regcal-kt-ci` and `ffe-fuels`, landed through `em-climate`
+
+Both branches were merged into `em-climate` with proper `--no-ff` merges (`e41b9266`, `ce59b2be`). They reach master
+with em-climate's merge and are gated by its full suite:
+- `regcal-kt-ci`: fork work at `.wt-rkc` off `01be3b1b`.
+- `ffe-fuels`: `.wt-fuel` off `9b995708`.
+
+See docs/PORT_STATUS.md, "KT/CI/TT LSTART REGCAL…" and "FVS_Fuels (FUELSOUT) gating…".
+
