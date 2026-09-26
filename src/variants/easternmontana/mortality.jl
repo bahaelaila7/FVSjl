@@ -69,7 +69,7 @@ end
 
 function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; n == 0 && return _clim_mort_empty!(s, fint)
     ba = p.basal_area
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     # grown-stand sums (morts.f): T (total tpa), DQ10 (QMD of DBH+DG), AVED (BA-weighted mean DBH)

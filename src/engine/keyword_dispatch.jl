@@ -1732,7 +1732,7 @@ function kw_climate!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                                  climate_plant_symbols(s.variant), fill(1f0, ns), fill(1f0, ns),
                                  fill(1f0, ns), invyr,
                                  grow_events, mort_events, autoestb_events, mxden_events,
-                                 Float32[], zeros(Float32, ns), zeros(Float32, ns))
+                                 Float32[], zeros(Float32, ns), zeros(Float32, ns), ones(Float32, ns), nothing)
     end
     return s
 end

@@ -732,7 +732,11 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # clim_treemult), so setting it is byte-identical for climate-off IE but gives established regen the
                 # correct BIRTHYR=THISYR-ABIRTH so the Leites XDF/XPP/XWL transfer distance is nonzero (was: birth_age
                 # =0 ⇒ BIRTHYR=now ⇒ XRELGR≡1 ⇒ under-grown diameter/volume under CLIMATE — matches oracle ABIRTH 5-8).
-                (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa InlandEmpire) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
+                # EM builds the identical estab.f (FVSem_buildDir/estab.f == FVSie's): ABIRTH=AGADSB/AGEXC/AGEPL (:1235/
+                # :1324/:1414) + GENTIM (:1504). EM reads it in Climate-FVS BIRTHYR and the aspen REGENT (HITE1=f(ABIRTH));
+                # birth_age=0 gave EM AutoEstb regen BIRTHYR=THISYR ⇒ DF GrowthMult 1.133 vs live 1.045 (stand 5352355010661).
+                (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa InlandEmpire ||
+                 s.variant isa EasternMontana) && (t.birth_age[n] = age)   # ABIRTH=AGEPL+GENTIM (estab.f:628/707)
                 # BM (strp/estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE. Read by the birth-cycle aspen REGENT
                 # (bm/regent.f:319 LESTB ⇒ SITAGE=ABIRTH) and Climate-FVS BIRTHYR.
                 s.variant isa BlueMountains && (t.birth_age[n] = Float32(per) - Float32(delay) + trage)

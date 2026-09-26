@@ -74,6 +74,13 @@ mutable struct ClimateState <: AbstractClimateState
     # species (clmorts.f:223/266 SPMORT2). Populated each cycle so climate_report emits the APPLIED values.
     spmort1::Vector{Float32}
     spmort2::Vector{Float32}
+    # SPGMULT (clgmult.f:197-209): per-species DBH²·PROB-weighted mean TREEMULT, set by THIS cycle's CLGMULT (inside
+    # DGDRIV, on the pre-growth trees and pre-aging ABIRTH) — what the FVS_Climate GrowthMult column reports. 1 when the
+    # species has no BA weight (SPWTS=0, incl. a bare stand), 0 if CLGMULT returned before computing it.
+    spgmult::Vector{Float32}
+    # The FVS_Climate rows for the current cycle, snapshotted where FVS writes them: CLAUESTB (gradd.f:223) — after
+    # growth, mortality and the ABIRTH aging, BEFORE this cycle's ESNUTR/ESTAB. `nothing` until taken.
+    pending_report::Union{Nothing,Vector{NamedTuple}}
 end
 
 """
@@ -243,11 +250,23 @@ birth_age, the Leites XDF/XWL/XPP, XRELGR (by PLNJSP), and `clim_treemult`. No-o
 inactive or the required attribute columns are absent.
 """
 function apply_climate_dds!(s::StandState, wk2::AbstractVector{Float32}, thisyr::Real)
+    c = s.climate
+    (c === nothing || !c.active) && return s
+    fill!(c.spgmult, 0f0)                                         # clgmult.f:48 SPGMULT=0 (stays 0 on the early return)
     wk4 = clim_wk4(s, thisyr)
     wk4 === nothing && return s
-    @inbounds for i in 1:s.trees.n
+    t = s.trees; ns = length(c.plant_symbols)
+    spw = zeros(Float32, ns)
+    @inbounds for i in 1:t.n
+        t.dbh[i] <= 0f0 && continue
+        sp = Int(t.species[i]); (sp < 1 || sp > ns) && continue
         tm = wk4[i]
-        tm > 0f0 && tm != 1f0 && (wk2[i] += log(tm))
+        tm > 0f0 && (wk2[i] += log(tm))
+        xwt = t.dbh[i] * t.dbh[i] * t.tpa[i]                    # clgmult.f:199 XWT = DBH²·PROB (BA weight)
+        spw[sp] += xwt; c.spgmult[sp] += tm * xwt
+    end
+    @inbounds for sp in 1:ns                                      # clgmult.f:203-209
+        c.spgmult[sp] = spw[sp] > 0f0 ? c.spgmult[sp] / spw[sp] : 1f0
     end
     return s
 end
@@ -260,7 +279,7 @@ VSCORE, per tree BIRTHYR = THISYR − ABIRTH, the Leites XDF/XWL/XPP, XRELGR (by
 `nothing` when climate is inactive or the required attribute columns are absent (clgmult leaves WK4 = 1). dgdriv.f
 applies it as DDS=EXP(WK2+XDGROW)·WK4 (`apply_climate_dds!`); the variants whose regent.f scales HTGR by WK4(I)
 (UT/TT/CI/CR/PN/WC/EC/WS/OP) read the same vector — DGDRIV fills WK4 earlier in the same cycle and ABIRTH is not
-aged until GRADD, so recomputing it at the same THISYR is identical.
+aged until GRADD, so recomputing it at the same THISYR is identical. Pure (no report state touched).
 """
 function clim_wk4(s::StandState, thisyr::Real)
     c = s.climate
@@ -381,6 +400,15 @@ If the climate rate exceeds the base, `killed[i] = tpa[i]·fyrmort[sp]` (clmorts
 No-op when climate is inactive. (The SPMORT2 transfer-distance DMORT path, clmorts.f:145-237, needs the
 DE* attributes + LDMORT gate — chunk-M2; the viability path drives the warming-scenario stand die-off.)
 """
+# MORTS → CLMORTS runs even with ITRN=0 (grincr.f:535 is unconditional), so the per-species SPMORT1/SPMORT2 report
+# terms are set on a bare stand too (live FVS_Climate: PP ViabMort 0.245 on a bare 1994 stand). The zero-tree return
+# of each mortality! routes through here.
+function _clim_mort_empty!(s::StandState, fint::Real)
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, Float32[], Float32(current_cycle_year(s)) + Float32(fint) / 2f0, fint)
+    return s
+end
+
 function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thisyr::Real, fint::Real)
     c = s.climate
     (c === nothing || !c.active) && return s
@@ -627,7 +655,6 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
     mtcm_now = have_grow ? A(:mtcm, ty) : 0f0; mmin_now = have_grow ? A(:mmin, ty) : 0f0
     smi_now = have_grow ? smi(ty) : 0f0
     spba = zeros(Float32, ns); sptpa = zeros(Float32, ns)
-    gm_num = zeros(Float32, ns); gm_wt = zeros(Float32, ns)
     spviab = ones(Float32, ns); vscore = ones(Float32, ns)
     @inbounds for sp in 1:ns
         spviab[sp], vscore[sp] = species_vscore(cd, c.plant_symbols[sp], ty)
@@ -638,15 +665,6 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
         pr = t.tpa[i]
         spba[sp]  += d * d * pr * 0.005454154f0
         sptpa[sp] += pr
-        if have_grow
-            by = ty - t.birth_age[i]
-            xdf = leites_xdf(mtcm_now, A(:mtcm, by))
-            xwl = leites_xwl(mmin_now, A(:mmin, by), A(:dd0, by))
-            xpp = leites_xpp(smi_now, smi(by), A(:d100, by))
-            xr  = clim_xrelgr(c.plant_symbols[sp], xdf, xpp, xwl)
-            _, tm = clim_treemult(xgsite, xr, vscore[sp], c.growmult[sp])
-            gm_num[sp] += tm * pr; gm_wt[sp] += pr
-        end
     end
     icyc = max(1, Int(s.control.cycle))
     mxden = 1f0
@@ -666,7 +684,7 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
     out = NamedTuple[]
     @inbounds for sp in 1:ns
         (spimp[sp] > 0.05f0 || spviab[sp] > 0.4f0) && (findfirst(==(c.plant_symbols[sp]), cd.labels) !== nothing) || continue
-        gm = gm_wt[sp] > 0f0 ? gm_num[sp] / gm_wt[sp] : 1f0
+        gm = c.spgmult[sp]                                   # this cycle's CLGMULT SPGMULT (clauestb.f:205)
         push!(out, (sp = sp, viab = spviab[sp], ba = spba[sp], tpa = sptpa[sp],
                     mort1 = c.spmort1[sp], mort2 = c.spmort2[sp], gmult = gm,
                     sitgm = xgsite^c.growmult[sp], mxden = mxden, potestab = potestab[sp]))
