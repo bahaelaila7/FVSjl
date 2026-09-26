@@ -170,6 +170,9 @@ function compute_volumes!(s::StandState, ::BritishColumbia)
         if d <= 0f0 || h <= 0f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
         else
+            # bc/vols.f:137-138: a top-killed tree (H≥4.5, ITRUNC>0) is volumed at its NORMAL height NORMHT
+            # (CRATET's dubbed full height), truncated at ITRUNC — not at the recorded HT.
+            (h >= 4.5f0 && t.trunc[i] > 0) && (h = Float32(t.norm_ht[i]) / 100f0)
             vn, vm = bc_tree_vol(Int(t.species[i]), d, h, Int(t.trunc[i]))
             t.cuft_vol[i] = vn; t.merch_cuft_vol[i] = vm
         end
