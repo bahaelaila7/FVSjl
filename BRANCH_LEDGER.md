@@ -203,3 +203,15 @@ habtest case, and its WRD absolute row is promoted to a passing test. See docs/P
 
 Gate: the full Pkg.test on the final tip is compared by name against the master `0b09d876` log
 (`/workspace/.postswap/pkgtest_master_0b09`).
+
+## Addendum 2026-09-26 (d) — `ws-htg` merge
+
+Branch `ws-htg` (worktree `.wt-ws`, off master `0b09d876`; master `566b618c` merged in as `f22ece52`), landed with one
+proper `git merge --no-ff`. It ports the WS `htgf.f` surrogate branches, WS REGENT, WS forkod, WS point PRD,
+R5 board MERLEN and the SO Fremont volume table, and gives every variant its own PSIGSQ. See docs/PORT_STATUS.md
+("WS height growth, REGENT and site; per-variant PSIGSQ").
+
+Gate: the full Pkg.test on the final tip is compared by name against the master `566b618c` log
+(`/workspace/.postswap/pkgtest_master_566b`). The only by-name changes were three PPE MXHRVP EC self-snapshots,
+each moving toward the FVSppe oracle; they were re-pinned.
+
