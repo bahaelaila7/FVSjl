@@ -431,7 +431,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.rem_bdft = di(rem.bdft / g)
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
-                r.at_qmd = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QDBHAT=ATAVD (REAL)
+                r.at_qmd = Float64(stand_qmd(s))   # QDBHAT=ATAVD (REAL): FVS_Summary binds it whole; the .sum prints F5.1
                 # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
                 # variants keep their validated per-acre float accumulation.
                 prev_increment = met ? Float32(r.rem_mcuft) : rem.mcuft / g
@@ -583,7 +583,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
     # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
     toph = dt(stand_top_height(s; cratet_ind = cycle0 && _fvs_ind_lifecycle(s.variant)))
-    qmd  = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QSDBT=ORMSQD (REAL) for metric
+    qmd  = Float64(stand_qmd(s))   # QSDBT=ORMSQD (REAL): sumout.f:209 binds it whole to FVS_Summary; the .sum prints F5.1
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
     # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips
