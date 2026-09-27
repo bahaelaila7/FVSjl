@@ -282,7 +282,8 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
                 htg += zzran * 0.1f0
                 htg < 0.1f0 && (htg = 0.1f0)
             end
-            htg = htg * scale * xht * xht2                          # label 201 (MISHGF=1)
+            htg = htg * scale * xht * xht2                          # label 201
+            htg *= mis_hg_mult(s, i)                                # ws/htgf.f:460 MISHGF
             t.ht_growth[i] = _ws_sizcap(htg, h, cap)
             continue
         elseif isp == 41
@@ -344,7 +345,8 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
                 htg = pothtg * (1.016605f0 * crmod * rhmod)
             end
             htg < 0.1f0 && (htg = 0.1f0)
-            htg = scale * xht * htg * xht2                          # MISHGF=1
+            htg = scale * xht * htg * xht2
+            htg *= mis_hg_mult(s, i)                                # ws/htgf.f:784 MISHGF
             t.ht_growth[i] = _ws_sizcap(htg, h, cap)
             continue
         end
@@ -370,7 +372,8 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
             exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dg + 1f0)) + 4.5f0
         (h + htg) > htmax && (htg = htmax - h)
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = htg * scale * xht * xht2                            # × SCALE·XHT·XHT2 (MISHGF=1)
+        htg = htg * scale * xht * xht2                            # × SCALE·XHT·XHT2
+        htg *= mis_hg_mult(s, i)                                  # ws/htgf.f:914 MISHGF (before TEMHTG)
         t.temhtg[i] = htg                                         # htgf.f:918 TEMHTG → the tripled copies (ws_triple_htg!)
         # SIZCAP: HT+HTG ≤ species size cap (col 4).
         sizcap = ctl.sp_size_cap[isp, 4]

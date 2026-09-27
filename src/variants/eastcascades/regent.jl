@@ -369,3 +369,48 @@ function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     end
     return s
 end
+
+"""ec/regent.f LSTART small-tree HEIGHT calibration (label 40; called from ec/cratet.f:726). PCTRED from
+X=AVH·RELDEN/100 (AVH = the cratet.f:684 AVHT40, RELDEN = the cratet.f:231 backdating DENSE's). Per species (IND1
+order, LHTCAL default .TRUE.): current DBH<5, backdated H=HT−HTG (IHTG<2) ≥0.01, measured HTG≥0.001 ⇒
+EDH = SMHTGF(ISPC, H, REGYR)·PCTRED·VIGOR·RHCON floored at 0.1 (SMHTGF reads SITEAR(ISPC); the SLO/SHI-clamped
+SITEAR(ISISP) in regent.f is a dead local, as in the growth path), TERM = HTG·REGYR/FINTH; CORNEW = mean TERM /
+mean EDH when N≥NCALHT(5), ≤0 ⇒ 1E−4, trapped to [0.0821, 12.1825] else 1. HCOR = ln(CORNEW) → htg_cor_init."""
+function ec_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                  # regent.f IF(IFINTH.EQ.0) GOTO 95
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = EC_RG_REGYR / finth
+    relden = c.cratet_relden
+    x = avh * (relden / 100f0); x > 300f0 && (x = 300f0)
+    pctred = Float32(EC_RG_AB[1] + x*(EC_RG_AB[2] + x*(EC_RG_AB[3] + x*(EC_RG_AB[4] + x*(EC_RG_AB[5] + x*EC_RG_AB[6])))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            h = t.height[i]
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (saved_dbh[i] >= 5f0 || h < 0.01f0) && continue
+            xv = Float32(t.crown_pct[i]) / 100f0
+            vigor = 150f0 * xv^3 * exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            edh = ec_smhtgf(sp, h, EC_RG_REGYR, p.sp_site_index[sp]) * pctred * vigor * rhcon
+            edh < 0.1f0 && (edh = 0.1f0)
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end

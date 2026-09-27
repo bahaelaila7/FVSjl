@@ -115,7 +115,8 @@ function height_growth!(s::StandState, ::CentralCalifornia; scale::Float32 = 1.0
             htg = pothtg * xmod
         end
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = scale * htg * exp(htcon)              # XHT=1 (no HTGMULT), MISHGF=1 (no DM)
+        htg = scale * htg * exp(htcon)              # XHT=1 (no HTGMULT)
+        htg *= mis_hg_mult(s, i)                    # ca/htgf.f:243 MISHGF (label 161, before TEMHTG/SIZCAP)
         cap = s.control.sp_size_cap[ispc, 4]
         (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
         t.ht_growth[i] = htg

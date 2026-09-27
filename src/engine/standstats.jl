@@ -310,7 +310,7 @@ function point_density!(s::StandState)
             ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
-            ccft = ws_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # ws/ccfcal.f MODE=1 (same gap as SO)
+            ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -531,7 +531,7 @@ function stand_ccf(s::StandState)
         # WS CCF = ws/ccfcal.f MODE=1 (crown-width² (RD1+D·RD2)²·0.001803 native; GB/MC/CA specials);
         # stand CCF = Σ CCFT·P = RELDEN, read by the crown-ratio SCALE (ws/crown.f).
         @inbounds for i in 1:t.n
-            ccf += ws_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+            ccf += ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])
         end
         return ccf
     end
