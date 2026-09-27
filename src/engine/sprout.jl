@@ -689,7 +689,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # keys on, NOT the 5-digit KODFOR. (forkod's SELECT CASE remaps a few non-canonical aliases, e.g. 7207→809;
     # those rare cases would need the full forkod port — see INDEX.) snt01=80106 ⇒ IFORDI=801 (not special).
     isefor = Int(s.plot.user_forest_code) ÷ 100
-    icyc = Int(s.control.cycle)
+    icyc = Int(s.control.cycle) + 1   # FVS ICYC (1-based) of this cycle — ESNUTR runs inside GRADD of cycle ICYC
     ne = s.variant isa Northeast     # NE ESUCKR (NSPREC/ESSPRT NE tables + SPRTHT/Wykoff DBH) vs SN model
     cs = s.variant isa CentralStates # CS ESUCKR (cs/essprt.f CASE('CS') tables; structure == NE, aspen=sp76)
     ls = s.variant isa LakeStates    # LS ESUCKR (ls/essprt.f CASE('LS','ON') tables; structure == NE/CS, aspen=sp41)
@@ -808,7 +808,9 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.norm_ht[n]     = Int32(0)
             t.trunc[n]       = Int32(0)
             t.birth_age[n]   = Float32(ishag)          # ABIRTH
-            t.tree_id[n]     = Int32(10000000 + icyc * 10000 + n)  # IDTREE
+            # IDTREE=10000000+ICYC*10000+ITRN (esuckr.f:332) ⇒ TreeList "ES<ICYC><ITRN>" (MEASURED FVSem_g16
+            # 888512560290487 simfire: the cycle-2 fire's aspen suckers are ES020037…, jl wrote ES010037…)
+            t.tree_id[n]     = Int32(10000000 + icyc * 10000 + n)
             t.tree_random[n] = -999f0                  # ZRAND
             t.sort_key[n]    = Float64(n)
             # zero the carried-over fields (the slot may hold a previously-deleted record)

@@ -328,6 +328,23 @@ end
     @test isapprox(parse(Float64, rows[findfirst(r -> r[iy] == "1998", rows)][ic]), 472.7095642089844; rtol = 1e-5)
 end
 
+# esuckr.f:332 IDTREE=10000000+ICYC*10000+ITRN — ICYC is FVS's 1-based cycle of the ESNUTR call; jl used its 0-based
+# counter, so every sprout record's TreeId named the previous cycle (MEASURED FVSem_g16 888512560290487 simfire: the
+# cycle-2 fire's aspen suckers are ES020037…, jl ES010037…). Golden: the live TreeList's 2041 AS records.
+@testset "Sprout records carry FVS's 1-based cycle in IDTREE (esuckr.f:332) vs FVSem_g16" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "em_sprout")
+    d = mktempdir()
+    key = replace(read(joinpath(fx, "888512560290487_simfire_tl.key"), String),
+                  "\nout.db\n" => "\n" * joinpath(d, "out.db") * "\n",
+                  "\nstands.db\n" => "\n" * joinpath(fixture_dir("EM"), "stands.db") * "\n")
+    kp = joinpath(d, "x.key"); write(kp, key)
+    FVSjl.run_keyfile(kp; variant = FVSjl.EasternMontana())
+    got = _keyed(db_table_rows(joinpath(d, "out.db"), "FVS_TreeList")...)
+    _, grows = read_csv(joinpath(fx, "888512560290487_simfire_tl.AS2041.csv"))
+    @test length(grows) == 72
+    @test count(r -> !haskey(got, (r[1], strip(r[2]), r[3])), grows) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
