@@ -68,9 +68,6 @@ end
 # OPTION 10 — DESIGN (initre.f:743): plot design.
 function kw_design!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
-    # ON note: for Ontario, fields 1-4 arrive here already zeroed by the initre KEYRDR field-overflow
-    # emulation in process_keywords! (see comment there) — so BAF/FPA/BRK stay at their metric defaults
-    # and IPTINV=nint(0)=0 (→ clamped to 1 in finalize_design!). Field 5 (nonstockable) is untouched.
     rec.present[1] && (p.baf = v[1])
     rec.present[2] && (p.fixed_plot_inv = v[2])
     rec.present[3] && (p.min_dbh_var_plot = v[3])
@@ -678,9 +675,9 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p.latitude  == 0f0 && (p.latitude  = lat0)
     p.longitude == 0f0 && (p.longitude = long0)
     p.elevation == 0f0 && (p.elevation = elev0)
-    # ON forkod.f: a zeroed/unrecognized forest (ont01's location field is lost to the initre LNOTBK
-    # overflow) resolves to the US Superior default (KODFOR 915/916) → TLAT=46.78, TLONG=92.11,
-    # ELEV=16 (hundreds of ft) if still unset. Feeds the Hopkins index for hardwood open-grown crowns.
+    # ON forkod.f: a zeroed/unrecognized forest resolves to the US Superior default (KODFOR 915/916) →
+    # TLAT=46.78, TLONG=92.11, ELEV=16 (hundreds of ft) if still unset. Feeds the Hopkins index for
+    # hardwood open-grown crowns.
     if s.variant isa Ontario
         p.latitude  == 0f0 && (p.latitude  = 46.78f0)
         p.longitude == 0f0 && (p.longitude = 92.11f0)
@@ -2832,25 +2829,11 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
                       load_trees!(s, base_path * ".tre"); reason)
     while true
         rec = read_keyword!(kr)
-        # ── ON (metric Ontario) KEYRDR field-1-4 overflow ────────────────────────────────────────
-        # canada/on (and metric/vbase) initre.f declares the keyword ARRAY/LNOTBK/KARD as length 7,
-        # but base/keyrdr.f decodes NF=12 fields and its post-decode `DO 50 I=1,NF: LNOTBK(I)=KARD(I)
-        # .NE.' '` writes LNOTBK(8:12) PAST the caller's 7-long LNOTBK, into the adjacent ARRAY — the
-        # gfortran stack layout puts ARRAY(1:4) exactly there, so those four get overwritten with the
-        # (blank ⇒ .FALSE. ⇒ 0.0) trailing-field flags AFTER the numeric read. Measured on FVSon_g16
-        # AND the production-object FVSon_clean (byte-identical .sum): every initre-read card loses
-        # fields 1-4 while fields 5+ survive — STDINFO age(f3)=0 & aspect(f4)=0 (slope f5=30, elev f6=
-        # 300 survive), INVYEAR year(f1)=0, NUMCYCLE(f1) rejected, DESIGN IPTINV(f4)=0. LNOTBK itself
-        # (fields 1-4) is NOT overflowed, so the field still reads as PRESENT with value 0 (i.e. the
-        # handler's `present[i] && (x=v[i])` assigns 0, it does not fall through to a default). Emulate:
-        # keep `present`, zero `values[1:4]`. Gated to Ontario — every other variant is byte-identical.
-        # (Extension sub-keywords read inside kw_estab!/kw_database!/… go through esin/dbsin in FVS, a
-        # different stack frame, and are not zeroed here — matching the Fortran.)
-        if s.variant isa Ontario
-            @inbounds for fi in 1:4
-                rec.present[fi] && (rec.values[fi] = 0f0)
-            end
-        end
+        # (ON note: an earlier port zeroed fields 1-4 of every initre-read card for Ontario, emulating the
+        # KEYRDR stack smash of the stale METRIC canada/on initre.f/esin.f/dbsin.f ARRAY/KARD/LNOTBK(7)
+        # buffers vs keyrdr.f's NF=12. The live oracle FVSon_g16 was rebuilt 2026-09-02 with those buffers
+        # at (12) — the base/CA/BC declaration — and now reads every field (ont01: INVYEAR 2004, STDINFO
+        # age 15, DESIGN IPTINV 11, NUMCYCLE honoured), so the emulation is gone.)
         rec.status == KW_EOF && return finish(:eof)
         rec.status == KW_STOP && return finish(:stop)
         kw = strip(rec.name)

@@ -1178,6 +1178,8 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     s.variant isa WestSierra && return clamp(ws_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     # NC/Klamath (forest 505 = Region-5) uses R5CRWD too — reuse ws_r5crwd via the NC→WS FIA-species map.
     s.variant isa Klamath && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    # ON: canada/on/cwidth.f → cwcalc.f IWHO=0 (the ON_JSP2 US-code remap + eastern forest-grown equations).
+    s.variant isa Ontario && return on_forest_crown_width(sp, d, crp, p.latitude, p.longitude, p.elevation)
     hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
     # CA/BM: the FVS_TreeList forest-grown CRWDTH applies the R6 forest BF (cwcalc.f IWHO=0), UNLIKE the FFE PERCOV
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
@@ -1259,7 +1261,7 @@ _has_forest_crwdth(v) = v isa WestSierra || v isa Klamath || v isa CentralCalifo
     v isa CentralRockies || v isa OregonCoast || v isa Olympic || v isa EasternMontana || v isa InlandEmpire ||
     v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah || v isa SoutheastAlaska ||
     v isa BritishColumbia || v isa WestCascades || v isa PacificNorthwest || v isa EastCascades ||
-    v isa SouthCentralOregon
+    v isa SouthCentralOregon || v isa Ontario
 
 """
     tree_crwdth(s, sp, d, h, crp) -> Float32

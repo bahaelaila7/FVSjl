@@ -225,6 +225,10 @@ function point_basal_area!(s::StandState)
         npts = max(npts, Int(t.plot_id[i]))
         pbal[i] = 0f0
     end
+    # ptbal.f SELECT CASE (VARACD): the eastern TWIGS variants CS/LS/NE/ON leave PTBALT = PTBAA = 0 and return
+    # (live FVSon_g16 FVS_TreeList_East_Metric PtBAL is 0 on every record).
+    (s.variant isa CentralStates || s.variant isa LakeStates || s.variant isa Northeast ||
+     s.variant isa Ontario) && return s
     # FVS ptbal.f accumulates PTBALT per point in IND order = RDPSRT(ITRN,DBH,IND,.TRUE.) — Scowen's UNSTABLE
     # Quickersort DBH-descending, NOT a stable sort. Use the ported `_rdpsrt!` so equal-DBH tie-break matches
     # FVS's IND (a stable sortperm! diverges on tie-heavy points; inert for IE which uses PCT not PTBALT, but
