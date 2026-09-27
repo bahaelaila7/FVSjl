@@ -148,8 +148,13 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             crb, rfinal, hpa, fire_type = (s.variant isa Klamath || s.variant isa OregonCoast ||
                                            s.variant isa InlandEmpire || s.variant isa EasternMontana ||
                                            s.variant isa Kootenai || s.variant isa CentralIdaho ||
-                                           s.variant isa Olympic || s.variant isa BlueMountains) ?
-                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind; fire_basis = true) :  # IE/EM/KT/CI/OP fmcfir.f == nc/fmcfir.f FM10 path (RACT=3.34·FM10@SWIND·0.4)
+                                           s.variant isa Olympic || s.variant isa BlueMountains ||
+                                           s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah ||
+                                           s.variant isa WestCascades || s.variant isa PacificNorthwest) ?
+                  # cr/tt/ut/wc/pn/ie/em/kt/ci/op fmcfir.f are byte-identical (comments aside) to nc/fmcfir.f: RACT =
+                  # 3.34·SFRATE(2) with FM10 at the FIXED midflame SWIND·0.4 (fmcfir.f:143,173). CR on S248112 1990:
+                  # RFINAL 27.38 (shared path) vs live 65.761.
+                  nc_crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind; fire_basis = true) :
                   crown_fire_result(s, cf2.cbd, cf2.actcbh, Int(fmois), wind, s.variant; fire_basis = true)
             # FLAMEADJ override (fmburn.f:507,514): if the user set CRBURN on FLAMEADJ (UCRBURN=`crburn`≥0), it
             # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
