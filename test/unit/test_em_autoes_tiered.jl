@@ -185,6 +185,20 @@ end
     end
 end
 
+# evtstv.f:356-377/:396-400 + disply.f:391: an inventory age of 0 on a STOCKED stand sets MAIFLG=1, which turns MAI off
+# on every later row (unless a clearcut/bare-ground NEWSTD restarts it); ZERO=AGE−(IY(ICYC)−IY(ICYC−1))=0 does the same.
+# jl only zeroed MAI after a RESETAGE to 0 (MEASURED FVSem_g16 474187636489998, AGE 0 / 48 TPA at 2016: live MAI 0.0
+# on every row, jl 15.9/13.1/11.5/11.3/12.0).
+@testset "MAI is off after an inventory age of 0 on a stocked stand (evtstv.f MAIFLG) vs FVSem_g16" begin
+    for r in ("none", "thinbba")
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("EM", "474187636489998", r; dir = d)
+        @test !crashed
+        ms = compare_case("EM", "474187636489998", r, txt, db)
+        @test count(m -> m.col == "MAI", ms) == 0
+    end
+end
+
 # dbstrls.f:215-216: at the inventory (ICYC=0, TEM=0) the TreeList DG is WORK1(I), which dgdriv.f:785-805 set to the
 # measured increment when DG>0 .AND. HT>4.5 and to 0 otherwise — not the calibration's −1 "missing" sentinel
 # (MEASURED FVSem_g16 3006831010690 1989: every no-DG record DG 0, jl −1 on 11 records).
