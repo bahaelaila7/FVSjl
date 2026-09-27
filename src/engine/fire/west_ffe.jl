@@ -17,7 +17,7 @@
 
 "Western variants whose FFE snag bole / live-carbon stem use `ffe_west_nocut` (fmsvol.f non-eastern branch)."
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
-                   v isa EasternMontana || v isa CentralRockies
+                   v isa EasternMontana || v isa CentralRockies || v isa SoutheastAlaska
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -31,7 +31,10 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     _ffe_west_vol(v) || return nothing
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0, 1f0, false)
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-    if v isa EasternMontana
+    if v isa SoutheastAlaska                                   # ak: NVEL F32/DVE/CUR/DEM (ak_tree_vol), NATCRS CTKFLG=T
+        tcf, mcf, _ = ak_tree_vol(s, sp, d, h)
+        return (max(tcf, 0f0), max(mcf, 0f0), ak_bratio(sp, d), true)
+    elseif v isa EasternMontana
         tcf, mcf = em_nocut_cuft(s, sp, d, h)
         return (tcf, mcf, em_bratio(sp, d), startswith(eq, "I") || mdl == "FW2")
     elseif v isa CentralRockies                                # cr: NVEL DVE / NVB / FW2 (compute_volumes_cr!)
@@ -108,7 +111,8 @@ const _UT_FM_HTX = NTuple{4,Float32}[(0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (
 const _CR_FM_HTX = NTuple{4,Float32}[(1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.9f0, 0.9f0, 0.9f0, 0.9f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.9f0, 0.9f0, 0.9f0, 0.9f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (1.494f0, 1.494f0, 1.494f0, 1.494f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0978f0, 0.0978f0, 0.0978f0, 0.0978f0), (0.0462f0, 0.0462f0, 0.0462f0, 0.0462f0), (0.0f0, 0.0f0, 0.0f0, 0.0f0)]
 
 "{v}/fmvinit.f HTX table for the western layer (EM keeps its own EM_FM_HTX seeding), else `nothing`."
-_ffe_west_htx(v) = v isa InlandEmpire ? _IE_FM_HTX : v isa Kootenai ? _KT_FM_HTX : v isa CentralIdaho ? _CI_FM_HTX :
+_ffe_west_htx(v) = v isa SoutheastAlaska ? _AK_FM_HTX :
+                   v isa InlandEmpire ? _IE_FM_HTX : v isa Kootenai ? _KT_FM_HTX : v isa CentralIdaho ? _CI_FM_HTX :
                    v isa Teton ? _TT_FM_HTX : v isa Utah ? _UT_FM_HTX : v isa CentralRockies ? _CR_FM_HTX : nothing
 _snag_htr1(::InlandEmpire) = 0.0228f0
 _snag_htr1(::Kootenai) = 0.0228f0
@@ -116,6 +120,9 @@ _snag_htr1(::CentralIdaho) = 0.0228f0
 _snag_htr1(::Teton) = 0.0228f0
 _snag_htr1(::Utah) = 0.0228f0
 _snag_htr1(::CentralRockies) = 0.0228f0
+_snag_htr1(::SoutheastAlaska) = 0.02f0      # ak/fmvinit.f:140 HTR1
+"HTR2 (after-50% snag height-loss rate, {v}/fmvinit.f): 0.01 everywhere but AK (ak/fmvinit.f:141 HTR2=0.02)."
+_snag_htr2(v) = v isa SoutheastAlaska ? 0.02f0 : 0.01f0
 "HTXSFT (soft-snag height-loss multiplier, {v}/fmvinit.f): UT/CR 10, the default 2 elsewhere."
 _snag_htxsft(v) = (v isa Utah || v isa CentralRockies) ? 10f0 : 2f0
 

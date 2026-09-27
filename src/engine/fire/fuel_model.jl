@@ -181,6 +181,7 @@ fmd_xpts(::CentralIdaho) = _FMD_XPTS_IE     # ci/fmcfmd.f XPTS verified identica
 fmd_xpts(::BlueMountains) = _FMD_XPTS_IE     # bm/fmcfmd.f ICLSS=14, XPTS identical to ie
 fmd_xpts(::Teton) = _FMD_XPTS_CR            # TT/UT ICLSS=12 (models 1-12), same XPTS breakpoints as CR
 fmd_xpts(::Utah) = _FMD_XPTS_CR
+fmd_xpts(::SoutheastAlaska) = _FMD_XPTS_NE   # ak/fmcfmd.f ICLSS=13: models 1-9 (5,15), 10/11 (15,30), 12 (30,60), 13 (45,100)
 fmd_xpts(::AbstractVariant) = _FMD_XPTS
 const _FMD_ICLSS = 14
 
@@ -310,6 +311,13 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # fmcba.f habitat arrays (MAPFGS/MAPDRY) differ, handled inside wc_select_fuel_models by variant.
     if s.variant isa PacificNorthwest || s.variant isa Olympic   # OP FIRE-VPN == wc/fmcfmd (rules byte-identical; _op_covgrp)
         return wc_select_fuel_models(s, mois, sm, lg)
+    end
+
+    # AK (ak/fmcfmd.f): model 8 + the natural fuels {10,12,13} (EQWT(10)=1−AFWT; the ≤5-yr post-activity model 11
+    # AFWT/SLCHNG/LATFUEL is the shared deferred path — no activity ⇒ AFWT=0), resolved by FMDYN over ICLSS=13.
+    if s.variant isa SoutheastAlaska
+        eqwt[8] = 1f0; eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0
+        return _fmdyn(sm, lg, eqwt, fmd_xpts(s.variant))
     end
 
     # EC (ec/fmcfmd.f) — the "detailed low fuel model selection": 15 cover-type metagroups, dominant ICT,

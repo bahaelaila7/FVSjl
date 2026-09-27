@@ -2401,6 +2401,12 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
             end
         end
+        if s.variant isa SoutheastAlaska
+            # ak/fmvinit.f:472-476: PBSCOR 0, PBSOFT 0, PBSMAL 0, PBSIZE 12, PBTIME 7 — NO post-burn accelerated
+            # snag fall (the SN defaults PBSOFT 1 / PBSMAL 0.9 felled the 2003-fire snags within PBTIME).
+            fs.params.pb_soft = 0f0; fs.params.pb_smal = 0f0; fs.params.pb_scor = 0f0
+            fs.params.pb_size = 12f0; fs.params.pb_time = 7f0
+        end
     end
     while true
         r = read_keyword!(kr)
@@ -2663,14 +2669,6 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # is not silently unfaithful. (See docs/audit/INDEX.md "SYSTEMATIC GAP — FMIN handler".)
             @warn "FMIN/FFE keyword not yet ported — IGNORED (using defaults; result may diverge from FVS)" keyword=k
         end
-    end
-    # AK (SoutheastAlaska) has no FFE port yet: none of ak/fmvinit.f (species fire parameters), ak/fmcba.f (cover-type
-    # fuel loads) or ak/fmcfmd.f (fuel-model selection) exists in jl, so the generic FFE machinery reads eastern/SN
-    # tables AK doesn't carry (first: `dkr_cls` on the first cut of akt01's "FFE TEST" stand). Keep the FMIN block
-    # parsed (so its keywords don't leak into the base keyword stream) but leave the fire model OFF, loudly.
-    if s.variant isa SoutheastAlaska
-        fs.active = false
-        @warn "AK FFE is not ported — the FMIN block is parsed but the fire/fuel model stays OFF (SIMFIRE etc. inert; the stand diverges from FVSak after any FFE event)"
     end
     return
 end

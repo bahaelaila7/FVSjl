@@ -29,6 +29,7 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
     # R6 (BM) FMSFALL (bm/fmsfall.f, == EC/AK/OP/PN/WC): DFALLN = BASE·FALLX·DENTTL — a fraction of the CURRENT
     # density, BASE from FMR6SDCY+FMR6FALL. No SN linear/last-5% ramp and no ALLDWN in this form.
     variant isa BlueMountains && return bm_r6_fall_base(ksp, d, itype) * fallx * denttl
+    variant isa SoutheastAlaska && return ak_r6_fall_base(ksp, d) * fallx * denttl   # vbase fmsfall.f (FVSak == FVSpn)
     # BASE fall rate (fmsfall.f:128/130) is VARIANT-SPECIFIC: SN/CS use −0.001679·d+0.064311; LS uses the
     # "new equation" −0.006·d+0.18 (a much faster fall); NE uses an ALGSLP table (not yet ported — NE keeps
     # the SN form here). The small-snag LINEAR-fall breakpoint also differs: SN/CS = 12" (redcedar ksp2 keeps
@@ -376,6 +377,11 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     return fallen
 end
 
+"""FMSNGDK DKTIME (fmsngdk.f): the R6 variants ('PN','WC','BM','EC','AK','OP') take JYRSOFT·DECAYX from FMR6SDCY
+(ported for AK); the others `(1.24·DECAYX·D) + (13.82·DECAYX)` in FVS's exact Float32 order."""
+@inline _ffe_dktime(v, sp::Integer, d::Float32, dcx::Float32)::Float32 =
+    v isa SoutheastAlaska ? Float32(ak_r6sdcy(sp, d)[1]) * dcx : (1.24f0 * dcx * d) + (13.82f0 * dcx)
+
 # Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
 # HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
@@ -423,7 +429,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
     # (after-50%) = 0.01 all four. jl formerly hardcoded 0.1 (the LS value) — inert for NE (snag_htx empty)
     # but a latent cross-variant bug; NE now populates snag_htx (=1.0), so its HTR1 must be its own 0.015.
-    HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = _snag_htxsft(s.variant)
+    HTR1 = _snag_htr1(s.variant); HTR2 = _snag_htr2(s.variant); HTXSFT = _snag_htxsft(s.variant)
     ci75 = s.variant isa CentralIdaho
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
@@ -518,7 +524,7 @@ function snag_summary(s::StandState)
         # NOT the factored `DECAYX·(1.24·D+13.82)`. At the age≈DKTIME near-tie boundary this sub-ULP order
         # difference flips boundary cohorts' hard/soft classification. (XMOD=1 for SN.)
         dcx = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]])
-        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
+        dktime = _ffe_dktime(s.variant, Int(sn.sp[i]), d, dcx)
         if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
             ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
         end
@@ -566,7 +572,7 @@ function snag_detail(s::StandState)
         vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
               _snag_merch_cuft_on(s, sp, d, h)
         dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
-        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
+        dktime = _ffe_dktime(s.variant, sp, d, dcx)
         ishard = Float32(iyr - 1 - yd) < dktime
         dh  = ishard ? denih : 0f0
         ds  = denis + (ishard ? 0f0 : denih)

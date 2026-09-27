@@ -71,13 +71,16 @@ to the down-wood pool as it falls. `xv` is the `crown_biomass` tuple (foliage, w
 function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32, dkcl::Integer)
     fs = s.fire; coef = s.coef
     cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
-    tsoft = (1.24f0 * dbh + 13.82f0) *
-            get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
+    dcx = get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
+    # fmscro.f:75 TSOFT = FMSNGDK(VARACD,SP,DBH): AK = the R6 JYRSOFT·DECAYX (fmsngdk.f 'AK' case).
+    ak = s.variant isa SoutheastAlaska
+    tsoft = ak ? _ffe_dktime(s.variant, sp, dbh, dcx) : (1.24f0 * dbh + 13.82f0) * dcx
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
         # ILIFE = ceil(RLIFE), floor 1 (fmscro.f:126-131: INT(RLIFE) then +1 if truncated or ≤0) — NOT round.
-        ilife = clamp(ceil(Int, min(tsoft, _fm_tfall(cls, sz, sp))), 1, 60)
+        tfl = ak ? _AK_FM_TFALL[sp][sz + 1] : _fm_tfall(cls, sz, sp)   # ak/fmvinit.f TFALL(SP,SIZE)
+        ilife = clamp(ceil(Int, min(tsoft, tfl)), 1, 60)
         annual = amt / ilife
         for yr in 1:ilife
             fs.cwd2b[dkcl, sz + 1, yr] += annual

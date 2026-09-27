@@ -150,6 +150,7 @@ _fm_dkr_default(::EasternMontana) = _FM_DKR_NR   # em/fmvinit.f:87-96 — NO ×0
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_NR     # ci/fmvinit.f:118-128 — NO ×0.45
 _fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmvinit.f:23-25 — DKR(I,J)=DKR(I,1)*0.45 (== CR)
 _fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmvinit.f — DKR ×0.45 (== CR)
+_fm_dkr_default(::SoutheastAlaska) = _FM_DKR_AK   # ak/fmvinit.f DKR(11,4) (data/southeastalaska/fire/ffe_fuel.jl)
 # NC (Klamath) base decay table (nc/fmvinit.f:70-92) — decay-class-INDEPENDENT and MUCH slower than the SN
 # default (woody 0.0125-0.025 vs SN 0.07-0.11); subsequently ×DCYMLT (nc/fmcba.f:405, Dunning-code/site index).
 # Without this NC fell through to the SN `_FM_DKR` ⇒ LARGE down-wood decayed ~3.7× too fast ⇒ low fuel-model

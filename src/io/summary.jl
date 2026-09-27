@@ -243,7 +243,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
               s.variant isa BlueMountains || _ffe_west_vol(s.variant) ||
-              s.variant isa WestCascades || s.variant isa PacificNorthwest)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa SoutheastAlaska)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     # WC/PN (wc/pn fmmain.f run FMSDIT + the annual FMSNAG/FMCWD/FMCADD loop like every FFE variant) were off this
     # list ⇒ no inventory snags, no fuel dynamics: pnt01 stand 4's 2003 SIMFIRE sampled SMALL/LARGE 0.46/0.00 vs live
     # 3.79/11.65 ⇒ fuel models 2/5 instead of live 5/10 (FMDYN 0.66/0.34), flame 4.33 vs 6.09 ft, 2013 TPA 127 vs 71.
