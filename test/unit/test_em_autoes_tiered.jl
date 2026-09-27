@@ -146,4 +146,16 @@ end
         @test split(row(got, y)) == split(row(live, y))
     end
 end
+
+# LOAD (ESHAP): FIA-DB tree records carry plot site data (esplt1.f IPINFO=2 ⇒ esplt2.f:274 LOAD=1), so the first
+# disturbance tally takes each plot's site prep from the plot data (1 = none) — no ESPREP default sampling. jl always
+# sampled ESPREP ⇒ MECH plots (IPREP 2) where live has none. MEASURED FVSem_g16 196378260020004 thinbba @2031
+# "PNONE= 0 PMECH= 0 PBURN= 0", every plot IPREP 1; jl IPREP 2 on plots 2+ (UPRE term ⇒ other heights/species).
+@testset "EM/IE AUTOES site prep from plot data when LOAD=1 (esplt2.f/estab.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "thinbba"; dir = d)
+    @test !crashed
+    ms = compare_case("EM", STAND, "thinbba", txt, db)
+    @test count(m -> m.year == "2032" && m.file == "FVS_StrClass", ms) == 0
+end
 end # module

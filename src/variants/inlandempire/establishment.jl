@@ -2382,6 +2382,9 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # date → normalized SUMUP for ie_autoes_tally's per-plot IPPREP sampler. No keyword ⇒ prep_sumup=nothing ⇒
     # every plot IPREP=1 (byte-identical to the pre-wire behaviour).
     prep_sumup = nothing
+    # LOAD (ESHAP): estab.f:167-170 clears it once the call is >20 yr past the inventory, :246 on an ingrowth call;
+    # esetpr.f (below) on a MECHPREP/BURNPREP. Never set again ⇒ a later disturbance tally samples ESPREP.
+    (kdt + 1 - inv_year > 20 || is_ingro) && (est.load = false)
     if _ntally == 1 && !is_ingro
         pmech_pct = nothing; pburn_pct = nothing
         for a in s.control.schedule
@@ -2392,8 +2395,13 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             a.icflag == Int32(493) ? (pmech_pct = a.params[2]) : (pburn_pct = a.params[2])
         end
         if pmech_pct !== nothing || pburn_pct !== nothing
+            est.load = false                                                    # esetpr.f IP=0
             es = ie_esetpr(pmech_pct, pburn_pct)
             prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
+        elseif est.load
+            # estab.f:338-348 LOAD=1: IPPREP from the plot data (no SITEPREP on the tree rows ⇒ 1 = NONE on every
+            # plot); ESPREP is not called. The DO 183 WK6 draws are still consumed by the tally.
+            prep_sumup = nothing
         else
             # estab.f:365-370 (shared estb/estab.f — IE AND EM) — the user supplied NO site-prep keyword ⇒ ESPREP DEFAULT proportions by habitat
             # series drive the per-plot IPPREP (MEASURED FVSie_g16 na_def: NONE/MECH/BURN ≈ 0.48/0.26/0.26). This

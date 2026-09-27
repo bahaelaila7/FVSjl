@@ -931,6 +931,11 @@ mutable struct Establishment
     esb1_scalar::Float32
     esb1_pt::Vector{Float32}
     esb1_ptip::Matrix{Float32}
+    # LOAD (ESHAP): 1 ⇒ the disturbance tally takes each plot's site prep from the plot data (IPPREP, default 1 = none)
+    # instead of sampling ESPREP's default proportions. esplt2.f:274 sets it when plot site data came with the tree
+    # records (IPINFO 1-4: every FIA-DB stand with ≥1 tree row); estab.f:167-170 (>20 yr past inventory), :246 (an
+    # ingrowth call) and esetpr.f (a MECHPREP/BURNPREP) clear it — permanently (it is never set again).
+    load::Bool
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -939,7 +944,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
                                 Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1),
-                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0))
+                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false)
 
 mutable struct DbsState
     enabled::Bool

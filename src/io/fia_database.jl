@@ -622,6 +622,10 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     #   (zero tree rows) is the only IPINFO=0 case. (MEASURED: 4733242010690 has 1 DB tree row but s.trees.n=0.)
     npt_inv = max(1, Int(p.points_inv) - Int(p.nonstockable))          # IPTINV-NONSTK (esplt2.f nptids)
     npt = length(recs) == 0 ? npt_trees : max(npt_trees, npt_inv)
+    # esplt1.f:68 IPINFO=2 for tree records carrying plot site data ⇒ esplt2.f:274 LOAD=1 (the establishment site
+    # prep comes from the plot data, not ESPREP's default proportions) — MEASURED FVSem_g16 196378260020004 thinbba
+    # disturbance tally: "PNONE= 0 PMECH= 0 PBURN= 0", no ESPREP draw, every plot IPREP 1.
+    length(recs) > 0 && (s.estab.load = true)
     # Always populate for DATABASE input (this reader is DATABASE-only; TREEDATA uses a different path so iet01 etc.
     # keep the empty→stand-slope fallback). A NULL DB slope ⇒ 0, which is the CORRECT establishment slope live uses.
     if npt >= 1
