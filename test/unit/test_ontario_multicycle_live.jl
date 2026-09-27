@@ -79,3 +79,12 @@ end
         @test (stem, first(_onm_run(stem, 5))) == (stem, _onm_live_rows(stem))
     end
 end
+
+# (3) canada/on/varmrt.f: X = … + MB3(J)*DM**2 (= MB3*(DM*DM)), and a background-regime VARMRT (TOKILL=0) totals the
+# MORTS WK2 with a SEQUENTIAL `DO I=1,ITRN: TOKILL=TOKILL+WK2(I)` (Julia's `sum` is pairwise). Either one-ULP drift
+# moves every record's kill (EFFTR → TEMWK2 → ADJUST).
+@testset "ON ont_all 5-cycle: TPH/MortPH/DBH/Ht per record == live (VARMRT EFFTR + TOKILL)" begin
+    for col in (:TPH, :MortPH, :DBH, :Ht), (k, lv, jv) in _onm_col(col)
+        @test (k, col, jv) == (k, col, lv)
+    end
+end

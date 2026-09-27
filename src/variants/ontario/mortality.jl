@@ -138,7 +138,7 @@ function on_varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float
         dm = t.dbh[i] * ON_INtoCM
         balm = (1f0 - (t.crown_ratio[i] / 100f0)) * ba * ON_FT2pACRtoM2pHA
         x = ON_MB0[j] + (ON_MB1[j] * dm) + (ON_MB2[j] / (dm + ON_MB6[j])) +
-            (ON_MB3[j] * dm * dm) + (ON_MB4[j] * dm / dqm) + (ON_MB5[j] * balm) + (ON_MB7[j] * sim)
+            (ON_MB3[j] * (dm * dm)) + (ON_MB4[j] * dm / dqm) + (ON_MB5[j] * balm) + (ON_MB7[j] * sim)
         xc = min(max(x, -88f0), 88f0)
         peff = 1f0 / (1f0 + on_expf(xc))     # SURV/YR
         peff = 1f0 - peff                    # MORT/YR
@@ -357,7 +357,12 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
         # distribute (morts.f:637-642): density excess by VARMRT, else the background total
         sumtre = density_on ? (tt - tn10) : 0f0
         sumtre < 0f0 && (sumtre = 0f0)
-        tokill = density_on ? sumtre : sum(@view killed[1:n])
+        # varmrt.f: TOKILL=0 ⇒ DO I=1,ITRN: TOKILL=TOKILL+WK2(I) — a sequential REAL sum (Julia's `sum` is pairwise)
+        tokill = sumtre
+        if !density_on
+            tokill = 0f0
+            @inbounds for i in 1:n; tokill += killed[i]; end
+        end
         if tn10 >= 0.1f0
             on_varmrt!(killed, efftr, temwk2, s, t, n, tokill, d10cur)
         end
