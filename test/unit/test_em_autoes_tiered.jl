@@ -305,6 +305,17 @@ end
     @test _treelist_diffcells("196420598020004", r.db, ("2012",); cols = ("PtBAL",)) == 0
 end
 
+# misinf.f DO 135 sums SPTPAT over IND1 (species-major); with MISTPINF proportion 1.0 the (NEWCNT+P) ≤ NEWINF test
+# for the last tree visited is a Float32 knife edge. jl summed in record order, so one tripled record stayed
+# uninfected (MEASURED FVSem_g16 196420598020004 MISTPINF 1 0 1.0 3.0: record 61 MistCD live 3, jl 0 ⇒ its DM
+# mortality and every later cycle's growth/spread drifted — 118 tiered cells, now 0).
+@testset "MISTPINF forced infection sums SPTPAT over IND1 (misinf.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", "196420598020004", "mistletoe"; dir = d)
+    @test !crashed
+    @test isempty(compare_case("EM", "196420598020004", "mistletoe", txt, db))
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

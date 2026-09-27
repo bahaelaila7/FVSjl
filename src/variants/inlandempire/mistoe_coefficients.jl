@@ -933,8 +933,11 @@ function dm_misinf!(s::StandState)
     end
 
     # species TPA totals + validity translation (misinf.f:160-211).
+    # SPTPAT(ISPC) sums PROB(IND1(I3)) over ISCT(ISPC,1..2) (misinf.f DO 135) — IND1 order, not record order: the
+    # (NEWCNT+P) ≤ NEWINF test below is a Float32 knife edge for the last tree when NEWPRP=1 (MEASURED FVSem_g16
+    # 196420598020004 MISTPINF 1.0: record 61 infected live, the record-order sum left it uninfected in jl).
     sptpat = zeros(Float32, maxsp)
-    @inbounds for i in 1:n
+    @inbounds for i in _ind1_order(s)
         sp = Int(t.species[i]); (1 <= sp <= maxsp) && (sptpat[sp] += t.tpa[i])
     end
     newinf = zeros(Float32, maxsp); newcnt = zeros(Float32, maxsp); newflg = false; nutype = -1
