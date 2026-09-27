@@ -149,12 +149,13 @@ function setup_growth!(s::StandState)
         # 3626079010690: raw 46 → 30 (correct=live) → 20.8 (wrong), dropping DGCON ~0.178 ⇒ conifer DG/BA
         # under-grew ~8%. utt01 masked it (DF site species, not in the conversion groups). Removed the dup call.
         ut_dgcons!(s)                     # UT DGCON (DGSIC·XSITE + DGFOR + aspect/slope/elev), DGDSQ, DGCCF, ATTEN, bark
-        _ut_dub_ages!(s)                  # CR-surrogate (17:19,22) htgf needs ABIRTH dubbed from height (cratet FINDAG);
-                                          # no-op unless the stand has an aged UT species (6,13,17:22,24). Others use SBB (no age).
         compute_density!(s)               # density for the crown dub
+        ut_misscr = ut_any_missing_crown(s)   # ut/cratet.f:622-644 MISSCR, before the dub fills the crowns
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET dub of MISSING crowns (ut/crown.f) — was MISSING
                                           # (EM #137 sibling): missing-CR seedlings kept crown_pct=0 ⇒ ut regent VIGOR(CR)
                                           # lost the crown term ⇒ QMD freeze. UT crown model already dubs missing at lstart.
+        _ut_dub_ages!(s; misscr = ut_misscr)  # ut/cratet.f:677 FINDAG after CROWN, on the CRATET-DENSE BA + backdated BAU
+                                          # (CR-surrogate 17:19,22 htgf + aspen/oak/MC ABIRTH); no-op without aged species.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa BlueMountains
         bm_dgcons!(s)                     # BM DGCON + SMCON (habitat-group SMHAB) + DGDSQ/DGCCF/ATTEN, POWER bark
@@ -620,7 +621,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     nrec = t.n
     pre  = Float32[t.tpa[i] for i in 1:nrec]
     mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
-    mk   = Float32[pre[i] - t.tpa[i] for i in 1:nrec]          # per-ORIGINAL density+bkgd+cap kill (WK2)
+    mk   = _morts_wk2(s, pre, nrec)                            # per-ORIGINAL density+bkgd+cap kill (MORTS WK2 itself)
     @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
     tripled = stash !== nothing
     if tripled                                                 # split TPA + the MORTS kill onto the 3 records
@@ -713,7 +714,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
-    compute_density!(s; cratet_ind = (s.variant isa BlueMountains && s.control.cycle == Int32(0)))
+    compute_density!(s; cratet_ind = ((s.variant isa BlueMountains || s.variant isa CentralIdaho) &&
+                                      s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
     econ_cycle_start!(s)
@@ -855,6 +857,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _ie_wk1_do220 && ie_cycle0_wk1!(s)
     (s.variant isa InlandEmpire && Int(s.control.cycle) == 0 && !_ie_wk1_do220) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # CI: ci/dgdriv.f:169-172 WK1(I)=DG(I) at the top of DGDRIV — at cycle 1 that is the DO-220 calibration DG (the
+    # measured increment, capped at the inside-bark DBH when IDG<2; 0 at HT≤4.5; else the DGF dub), which ci/morts.f
+    # reads as the vigor term G=WK1/(BARK·OLDFNT). jl fed its own cycle-1 prediction: FIA 753188889290487 LP (past DBH
+    # 6.8→8.0, DG_MEASURE 10) WK1 0.47 vs live ~1.13 ⇒ G halved ⇒ LP cycle-1 kill 1.152 vs live 0.568 of 6.
+    (s.variant isa CentralIdaho && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = ci_do220_dg(s, i, t.dbh[i]); end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
@@ -909,6 +917,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Deterministic (no RNG) ⇒ stream untouched. Restores the copy height spread the oracle produces.
     s.variant isa InlandEmpire && ie_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa CentralIdaho && ci_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
@@ -1066,8 +1075,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     mort = mortf
     if !tripled
         mort = 0f0
+        # FVS_TreeList MortPA (dbstrls.f DP=WK2/GROSPC) and OMORT (Σ WK2·CFV) read MORTS's WK2 itself, not the
+        # PROB−(PROB−WK2) difference, which rounds to the survivor's ULP (±10-20 ULP of WK2 on small kills).
+        wk2_0 = _morts_wk2(s, old_tpa, nlive)
         @inbounds for i in 1:nlive
-            m = old_tpa[i] - t.tpa[i]
+            m = wk2_0[i]
             mort += m * old_cfv[i]
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
@@ -1087,11 +1099,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
-            ie_dm_mismrt_post!(s, full_prob, fint)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
+            wk2t = _wk2_trip(wk2_u, nlive)            # triple.f WK2·WEIGHT per record
+            ie_dm_mismrt_post!(s, full_prob, fint; wk2 = wk2t)   # mistoe.f:522 MISMRT → WK2=MAX(WK2,PROB·rate)
             br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG
             mort = 0f0
             @inbounds for c in 1:n2
-                m = full_prob[c] - t.tpa[c]
+                # MortPA/OMORT = WK2; a record BRTREG re-killed falls back to the survivor difference
+                m = t.tpa[c] == full_prob[c] - wk2t[c] ? wk2t[c] : full_prob[c] - t.tpa[c]
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
@@ -1118,12 +1132,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
                 t.tpa[nlive+2i]   = full_prob[nlive+2i]   - wk2_u[i] * 0.15f0
             end
-            mis_post && ie_dm_mismrt_post!(s, full_prob, fint)           # MISMRT into WK2 before RDEND
+            wk2t = _wk2_trip(wk2_u, nlive)
+            mis_post && ie_dm_mismrt_post!(s, full_prob, fint; wk2 = wk2t)   # MISMRT into WK2 before RDEND
             br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG (before RDTREG's RDEND)
             rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
             mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
             @inbounds for c in 1:n2
-                m = full_prob[c] - t.tpa[c]
+                # WK2 where BRTREG/RDEND left the record's kill untouched; else the survivor difference
+                m = t.tpa[c] == full_prob[c] - wk2t[c] ? wk2t[c] : full_prob[c] - t.tpa[c]
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
@@ -1453,9 +1469,14 @@ function run_keyfile(keypath::AbstractString;
         dm_top4 = Int[]
         # PRTRLS(1) (fvs.f:328 pre-projection with the cycle-1 options, fvs.f:412 at each cycle end): one
         # FVS_TreeList block per TREELIST request accomplished this cycle (none without a TREELIST activity).
+        # PrdLen = IFINT (dbstrls.f): per cycle grincr.f:65 sets it to the cycle just grown; the inventory list sees
+        # the DB DG_MEASURE IFIX(FINT) (dbsstandin.f:702) or else grinit's IFINT (10; 5 in SN/OC/OP) — the GROWTH
+        # keyword changes FINT only (initre.f:829 has the IFINT line commented out).
         hook = tl_on ? (st, yr, pl, cy) -> begin
+            pl_eff = cy == 0 ? (st.control.dbs_ifint >= 0 ? Int(st.control.dbs_ifint) :
+                                (st.variant isa Southern || st.variant isa OregonCoast || st.variant isa Olympic) ? 5 : 10) : pl
             for _ in prtrls_requests!(st, 1, cy == 0 ? 1 : cy; lstart = cy == 0)
-                push!(tl_cycles, treelist_snapshot(st, yr, pl; cycle = cy))
+                push!(tl_cycles, treelist_snapshot(st, yr, pl_eff; cycle = cy))
             end
         end : nothing
         write_sum_file(out, s; period = Int(period), stand_id = String(sid),
@@ -1539,9 +1560,14 @@ function run_keyfile(keypath::AbstractString;
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
                 br = s.fire.burn_reports
-                write_dbs_burnreport!(s.control.dbs_out_file, caseid, String(sid), br)
-                write_dbs_mortality!(s.control.dbs_out_file, caseid, String(sid), br)
-                write_dbs_consumption!(s.control.dbs_out_file, caseid, String(sid), br)
+                # fmfout.f: each table needs its FMIN report window AND its DATABASE toggle (dbsfmburn/-mort/-fuel)
+                ctl = s.control
+                (ctl.ffe_burnrept && ctl.dbs_burnrept) &&
+                    write_dbs_burnreport!(ctl.dbs_out_file, caseid, String(sid), br)
+                (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
+                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br)
+                (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
+                    write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
             pf_rows === nothing ||
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)

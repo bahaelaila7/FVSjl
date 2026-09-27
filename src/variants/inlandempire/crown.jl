@@ -272,7 +272,21 @@ function _ie_dead_crown_dub!(s::StandState, ba::Float32, dgsd::Float32)
                 cl < 1f0 && (cl = 1f0); cl > h && (cl = h)
                 icri = trunc(Int, (cl / h) * 100f0)
             else                                                       # NIVAR + UTTVAR → DUBSCR (draws)
-                icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd)
+                # crown.f:658-678: TPCCF = PCCF(ITRE(I)) of the dead record's own point, the stand AVH, and TEMMAI =
+                # RMAILM (13,17) / RMAIAS (18,20,21) / RMAI (default; BCR10=0 there). Only UTTVAR has nonzero terms.
+                pt = Int(t.plot_id[i])
+                tpccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+                tmai = (sp == 13 || sp == 17) ? _ie_rmai_lm(s) : (sp == 18 || sp == 20 || sp == 21) ? _ie_rmai_as(s) :
+                       s.plot.mai_adj
+                icri = ie_dubscr(s.rng, sp, d, h, ba, dgsd; tpccf = tpccf, avh = s.plot.avg_height, tmai = tmai)
+            end
+            # crown.f:683-687: a top-killed record re-states the crown on its normal height — HN=NORMHT/100,
+            # HD=HN−ITRUNC/100, CL=(ICRI/100)·HN−HD, ICRI=INT(CL·100/HN+.5) — before the [10,95] bounds.
+            if t.trunc[i] != 0
+                hn = Float32(t.norm_ht[i]) / 100f0
+                hd = hn - Float32(t.trunc[i]) / 100f0
+                cl = (Float32(icri) / 100f0) * hn - hd
+                icri = trunc(Int, (cl * 100f0 / hn) + 0.5f0)
             end
             icri > 95 && (icri = 95); icri < 10 && (icri = 10)         # crown.f:684-686 dead bounds (all species)
             t.crown_pct[i] = Int32(icri)

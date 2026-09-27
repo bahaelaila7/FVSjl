@@ -419,7 +419,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         t.history[j] == 8 && (t.dbh[j] = 0f0)
     end
     t.n = nlive + t.ndead
+    # dense.f sums BA/PCCF over IND1 = SETUP's species-major list in READ order with the dead interleaved (they are
+    # deleted only after this DENSE); jl's sort_key files them after the live. Key this pass on the read order.
+    _sk_saved = (t.ndead > 0 && length(s.calib.input_seq) == t.n) ? t.sort_key[1:t.n] : nothing
+    _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = Float64(s.calib.input_seq[i]); end)
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
+    _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = _sk_saved[i]; end)
     # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
     _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
     t.n = nlive
@@ -436,8 +441,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # by backdated dbh; recompute crown_ratio here.
     let nlive2 = t.n, ntot = t.n + t.ndead
         rankd = Float32[i <= nlive2 ? saved_dbh[i] : t.dbh[i] for i in 1:ntot]   # current dbh
-        wk5   = Float32[i <= nlive2 ? t.dbh[i]^2 * t.tpa[i] :                     # live: backdated
-                        (t.history[i] == 8 ? 0f0 : t.dbh[i]^2 * t.tpa[i]) for i in 1:ntot]  # dead: current/0
+        # dense.f:184-186 WK5 = D·(D·P) (D = WK3: backdated live, current dead, 0 for the older dead)
+        wk5   = Float32[i <= nlive2 ? t.dbh[i] * (t.dbh[i] * t.tpa[i]) :          # live: backdated
+                        (t.history[i] == 8 ? 0f0 : t.dbh[i] * (t.dbh[i] * t.tpa[i])) for i in 1:ntot]  # dead: current/0
         # Rank order: FVS's IND from `RDPSRT(ITRN,DBH,IND,.TRUE.)` (gradd.f:186 / dense.f PCTILE) is
         # Scowen's UNSTABLE quicksort — on a current-dbh TIE between a live tree and a same-dbh recently-
         # dead tree, it can order the dead one first, dropping the live tree below 100th percentile. KT
@@ -446,8 +452,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire) &&
-               length(s.calib.input_seq) == ntot
+        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
+                s.variant isa CentralIdaho) && length(s.calib.input_seq) == ntot
+            # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
+            # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
+            # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.
             # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
@@ -463,12 +472,23 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         else
             ord = sortperm(rankd; rev = true)
         end
-        tot = sum(wk5); cum = 0f0
-        if tot > 0f0
+        # pctile.f exactly: cumulate from the bottom of IND, TOT = the top record's cumulative, PCTIN1 = TOT/100,
+        # PCT = cum/PCTIN1, top record = 100 (N=1: PERCNT(1)=100, the array's element 1). `sum`+`cum/tot*100` rounded
+        # differently (1 ULP on mid-distribution records ⇒ DGF BAL ⇒ the DO-220 dub WK1).
+        if ntot == 1
+            nlive2 >= 1 && (t.crown_ratio[1] = 100f0)
+        elseif ntot > 1
+            cumv = zeros(Float32, ntot); cum = 0f0
             @inbounds for k in ntot:-1:1
-                ii = Int(ord[k])
-                cum += wk5[ii]
-                ii <= nlive2 && (t.crown_ratio[ii] = cum / tot * 100f0)
+                ii = Int(ord[k]); cum += wk5[ii]; cumv[ii] = cum
+            end
+            i1 = Int(ord[1]); tot = cumv[i1]
+            if tot > 0f0
+                pctin1 = tot / 100f0
+                @inbounds for k in 2:ntot
+                    ii = Int(ord[k]); ii <= nlive2 && (t.crown_ratio[ii] = cumv[ii] / pctin1)
+                end
+                i1 <= nlive2 && (t.crown_ratio[i1] = 100f0)
             end
         end
     end
@@ -1243,7 +1263,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (simulate.jl:948 = this cycle's applied DG). Unlike IE (simulate.jl:711-718, which copies diam_growth),
     # CI's dense small trees grow by the SMALL-tree model, whose DG ≠ the large-tree DGF dub, so WK1 must be
     # the actual DGF value from wk2 here, not diam_growth.
-    if s.variant isa CentralIdaho && Int(s.control.cycle) == 0
+    # Only the FALLBACK now: with the calibration's DO-220 stash present, simulate.jl seeds cycle-1 WK1 from
+    # ci_do220_dg BEFORE this call (the measured increment when there is one, the DGF(WK3) dub with the calibration
+    # OLDRN otherwise) — this block used to overwrite that with the cycle-1 DGF dub for every record, discarding the
+    # measured DG (FIA 753188889290487 LP WK1 1.08 → 0.47 ⇒ cycle-1 LP kill 2× live).
+    if s.variant isa CentralIdaho && Int(s.control.cycle) == 0 && length(c.dub_wk2) != nlive
         _ci_scap = s.control.sp_size_cap
         @inbounds for i in 1:nlive
             if t.height[i] <= 4.5f0

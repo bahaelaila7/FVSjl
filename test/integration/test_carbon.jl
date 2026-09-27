@@ -653,7 +653,7 @@ end
     SQLite.close(db)
     @test length(rows) == 1 && rows[1].Year == 2003
     @test rows[1].Flame == Float64(b.flame)
-    @test rows[1].M1 == Float64(b.mois[1,1]) * 100              # moisture reported as percent
+    @test rows[1].M1 == Float64(b.mois[1,1] * 100f0)            # moisture as percent, REAL arithmetic (fmfout.f)
     @test rows[1].Slope == 0                                   # SN surface-fire path: no slope term
 
     # FVS_Mortality: killed vs total TPA by DBH class (Total = killed + remaining, pre-fire)
@@ -665,7 +665,8 @@ end
     db2 = SQLite.DB(dbpath)
     mort = [(; SP = strip(r.SpeciesFVS), K3 = r.Killed_class3, T3 = r.Total_class3, BA = r.Bakill)
             for r in DBInterface.execute(db2, "SELECT * FROM FVS_Mortality")]
-    cons = [(; ST = r.Surface_Total) for r in DBInterface.execute(db2, "SELECT * FROM FVS_Consumption")]
+    cons = [(; TC = r.Total_Consumption, LI = r.Litter_Consumption, D = r.Duff_Consumption)
+            for r in DBInterface.execute(db2, "SELECT * FROM FVS_Consumption")]
     SQLite.close(db2)
     # FVS_Mortality emits one row per present species + an 'ALL' aggregate row (dbsfmmort.f) — assert on ALL.
     allrow = only(filter(m -> m.SP == "ALL", mort))
@@ -673,8 +674,10 @@ end
     @test allrow.K3 == Float64(b.clskil[3])                    # 14" tree → class 3 (10-20")
     # per-species class-3 kills sum to the ALL aggregate
     @test sum(m.K3 for m in mort if m.SP != "ALL") == Float64(b.clskil[3])
-    @test length(cons) == 1 && cons[1].ST == Float64(b.consumed.surf_total)   # DBS round-trips the Float32 exactly (was ≈)
-    @test b.consumed.surf_total >= 0f0                        # fire consumes (≥0) surface fuel
+    c = b.consumption                                         # FMFOUT consumption row (dbsfmfuel.f columns)
+    @test length(cons) == 1 && cons[1].TC == Float64(c.total)   # DBS round-trips the Float32 exactly
+    @test cons[1].LI == Float64(c.litter) && cons[1].D == Float64(c.duff)
+    @test c.total >= c.litter + c.duff >= 0f0                   # total = all consumed classes + live + crowns
 end
 
 @testset "Input-snag seeding — inventory Stand-Dead from input dead records (FMSADD ITYP=3)" begin

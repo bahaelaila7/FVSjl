@@ -81,7 +81,7 @@ function wc_forkod!(p)
         ifor = 1                                  # Yakama Nation Reservation → Gifford Pinchot (603)
     else
         idx = findfirst(==(kodfor), WC_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        idx === nothing ? (useigl = false; ifor = 6) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps wc/grinit.f's 6
     end
     ifor == 11 && (ifor = 2)                      # 613 Mt Baker-Snoqualmie → Mt Baker-Snoqualmie (605)
     p.forest_idx = Int32(ifor)

@@ -42,8 +42,8 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
         htg = 0.0f0
         if !_ci_is_weibull(sp)
             dg <= 0.0f0 && continue                            # ln(DG) undefined
-            con = htcon + h2cof * hti * hti + CI_HGLD[sp] * log(d) + CI_HGLH * log(hti)
-            htg = exp(con + hdgcof * log(dg)) + CI_HTBIAS
+            con = htcon + h2cof * hti * hti + CI_HGLD[sp] * flog(d) + CI_HGLH * flog(hti)
+            htg = fexp(con + hdgcof * flog(dg)) + CI_HTBIAS
             htg < 0.1f0 && (htg = 0.1f0)
         else
             iicr = trunc(Int, Float32(t.crown_pct[i]) / 10.0f0 + 0.5f0)
@@ -87,7 +87,7 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
         end
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         if _ci_is_weibull(sp) || sp == 14 || sp == 15            # 11-17,19 → ×exp(HTCON)
-            htg = htg * scale * xht * exp(htcon)
+            htg = htg * scale * xht * fexp(htcon)
         else
             htg = htg * scale * xht
         end
@@ -96,6 +96,48 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
             htg = cap - hti; htg < 0.1f0 && (htg = 0.1f0)
         end
         t.ht_growth[i] = htg
+    end
+    return s
+end
+
+"""
+    ci_triple_htg!(s, stash; scale)
+
+ci/htgf.f:481-512 (LTRIP): the NI-section species (CASE DEFAULT: 1-10, 18) give each tripled copy its own HTG
+from the COPY's spread DG — `EXP(CON+HDGCOF·ALOG(DG(ITFN)))+BIAS`, floored at 0.1, ×SCALE·XHT, with the central
+record's CON; species 11-17/19 copy TEMHTG (the central value), which copy_tree! already gives them. height_growth!
+only computed the central HTG, so every NI copy inherited it (CI FIA 753185544290487 cycle 1: DF copies HTG 4.336
+/4.336 vs live 4.899/3.846). No MISHGF on copies. Deterministic (no draw); small trees are overwritten afterwards
+by REGENT, as in FVS (REGENT runs after HTGF and blends HTG(K) of each copy's own slot).
+"""
+function ci_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
+    stash === nothing && return s
+    p, t, ctl = s.plot, s.trees, s.control
+    icindx = Int(p.habitat_input)
+    itype = (1 <= icindx <= 130) ? Int(CI_NIHMAP[icindx]) : 1
+    (itype < 1 || itype > 30) && (itype = 1)
+    hghch = CI_HGHC[itype]; h2cof = CI_HGH2[itype]; hdgcof = CI_HGLDD[itype]
+    cur_year = current_cycle_year(s)
+    dgU = stash.dgU; dgL = stash.dgL; htgU = stash.htgU; htgL = stash.htgL; htg_copy = stash.htg_copy
+    @inbounds for i in 1:stash.nlive
+        t.tpa[i] <= 0.0f0 && continue
+        sp = Int(t.species[i])
+        (_ci_is_weibull(sp) || sp == 14 || sp == 15) && continue          # CASE(11:17,19): TEMHTG
+        d = t.dbh[i]; hti = t.height[i]
+        (d <= 0.0f0 || hti <= 0.0f0 || t.diam_growth[i] <= 0.0f0) && continue   # central skipped ⇒ copies flat
+        htcon = hghch + CI_HGSC[sp]
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
+        con = htcon + h2cof * hti * hti + CI_HGLD[sp] * flog(d) + CI_HGLH * flog(hti)
+        xht = active_multiplier(ctl, :htg, sp, cur_year)
+        cap = ctl.sp_size_cap[sp, 4]
+        function copy_htg(dgc::Float32)::Float32
+            e = dgc > 0.0f0 ? fexp(con + hdgcof * flog(dgc)) : 0.0f0     # ALOG(0)=-Inf ⇒ EXP term 0
+            h = e + CI_HTBIAS; h < 0.1f0 && (h = 0.1f0)
+            h = h * scale * xht
+            (hti + h > cap) && (h = max(cap - hti, 0.1f0))
+            return h
+        end
+        htgU[i] = copy_htg(dgU[i]); htgL[i] = copy_htg(dgL[i]); htg_copy[i] = true
     end
     return s
 end

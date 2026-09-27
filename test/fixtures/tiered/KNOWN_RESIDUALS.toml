@@ -11,6 +11,9 @@
 # 2026-09-26 (ie-regent): IE + EM redrafted after the Fortran-shaped IE REGENT (+ESTAB), the IE/EM cycle-1 OLDPCT/WK1
 # dubs, the CO/OH DGSCOR cap, and the estab.f per-record AUTOES ABIRTH (AGADSB(N)/AGEXC(I)): IE 209168 (master) ->
 # 87424 cells, EM 130672 -> 130649; no stand-regime worse in either.
+# 2026-09-26 (ie-dbs): removed 15 entries made stale by the FVS_TreeList/CutList writer fixes (PrdLen=IFINT,
+# MortPA=WK2, cycle-0 dead PCT/PTBALT, AUTOES ITRUNC/HT2TD clears, calibration PCTILE/IND1): PrdLen IE/EM/BM/SN,
+# TruncHt IE/EM, IE thinbba FVS_CutList x9. Remaining max_cells were not lowered.
 
 [[residual]]
 variant = "BM"
@@ -42,8 +45,9 @@ col = "GrowthMult"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
+max_cells = 68
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 69 cells [small=14 tiny=54 ulpbig=1] max|Δ|=0.09723 | e.g. stand 12827438010497 year 2045: live=1.42343092 jl=1.4234306812286377"""
+# 2026-09-26 bm-clim-mort: max_cells 69 -> 68 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
 
 [[residual]]
 variant = "BM"
@@ -53,8 +57,9 @@ col = "MxDenMult"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 267
+max_cells = 244
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 267 cells [small=201 tiny=43 ulp2_16=23] max|Δ|=0.02895 | e.g. stand 647500316126144 year 2058: live=1.03125823 jl=1.0078240633010864"""
+# 2026-09-26 bm-clim-mort: max_cells 267 -> 244 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
 
 [[residual]]
 variant = "BM"
@@ -126,28 +131,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "BM"
 regime = "climate"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
 year = "*"
@@ -159,307 +142,12 @@ issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print valu
 variant = "BM"
 regime = "climate"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 1127619588290487 year 2041: live=19 jl=18"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 11 cells [material=2 ulpbig=9] max|Δ|=255.0 | e.g. stand 12827438010497 year 2035: live=19101 jl=19155"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [ulpbig=9] max|Δ|=0.8305 | e.g. stand 12827438010497 year 2035: live=21.296552658081055 jl=21.33793067932129"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [material=1 ulpbig=8] max|Δ|=49.0 | e.g. stand 12827438010497 year 2035: live=3088 jl=3094"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1127619588290487 year 2051: live=89 jl=88"""
-# 2026-09-26 integ-0926: max_cells 2 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 41
 issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [material=1 ulpbig=9] max|Δ|=29.0 | e.g. stand 12827438010497 year 2035: live=3358 jl=3359"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 41136808010497 year 2055: live=58 jl=59"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [gold_text9=1 jl_not_f32=1 small=2] max|Δ|=0.1 | e.g. stand 1127619588290487 year 2051: live=14.1 jl=14.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 1127619588290487 year 2041: live=19 jl=18"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=61 jl=60"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 11 cells [material=2 ulpbig=9] max|Δ|=255.0 | e.g. stand 12827438010497 year 2035: live=19101 jl=19155"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 1127619588290487 year 2051: live=63 jl=62"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 3 cells [gold_text9=1 jl_not_f32=2] max|Δ|=0.8 | e.g. stand 645155287126144 year 2058: live=25.0 jl=24.9"""
-# 2026-09-26 integ-0926: max_cells 3 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 9 cells [material=1 ulpbig=8] max|Δ|=49.0 | e.g. stand 12827438010497 year 2035: live=3088 jl=3094"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1127619588290487 year 2051: live=89 jl=88"""
-# 2026-09-26 integ-0926: max_cells 2 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [gold_text9=1 jl_not_f32=1 small=2] max|Δ|=0.1 | e.g. stand 1127619588290487 year 2051: live=14.1 jl=14.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 645155287126144 year 2068: live=137 jl=135"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [material=1 ulpbig=9] max|Δ|=29.0 | e.g. stand 12827438010497 year 2035: live=3358 jl=3359"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 41136808010497 year 2055: live=58 jl=59"""
-# 2026-09-26 integ-0926: max_cells 1 -> 4 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
 
 [[residual]]
 variant = "BM"
@@ -1466,17 +1154,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 999
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 999 cells [material=999] max|Δ|=10.0 | e.g. stand 12827438010497 year 2055: live=10 jl=0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -1972,89 +1649,12 @@ issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON RE
 variant = "BM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Duff_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=3.576e-7 | e.g. stand 647500316126144 year 2028: live=15.000000953674316 jl=15.000000596046448"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Flame_length"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=0.01437 | e.g. stand 41136808010497 year 2015: live=3.114032030105591 jl=3.1203041076660156"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [material=2] max|Δ|=3.0 | e.g. stand 12827438010497 year 2015: live=5 jl=2"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [material=2] max|Δ|=3.0 | e.g. stand 12827438010497 year 2015: live=2 jl=5"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [material=1] max|Δ|=5.0 | e.g. stand 22960873010497 year 2017: live=5 jl=10"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Hundred_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=7.451e-8 | e.g. stand 647500316126144 year 2028: live=5.0 jl=5.000000074505806"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Herb_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 647500316126144 year 2028: live=70.0 jl=69.9999988079071"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Woody_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 647500316126144 year 2028: live=70.0 jl=69.9999988079071"""
 
 [[residual]]
 variant = "BM"
@@ -2071,17 +1671,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "One_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=8.941e-8 | e.g. stand 647500316126144 year 2028: live=4.0 jl=3.999999910593033"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Scorch_height"
 stand = "*"
 year = "*"
@@ -2093,67 +1682,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Slope"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 647500316126144 year 2028: live=5 jl=5.000000074505806"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Ten_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=8.941e-8 | e.g. stand 647500316126144 year 2028: live=4.0 jl=3.999999910593033"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Thousand_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.49e-7 | e.g. stand 647500316126144 year 2028: live=10.0 jl=10.000000149011612"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 4 cells [jl_not_f32=2 material=2] max|Δ|=66.45 | e.g. stand 12827438010497 year 2015: live=56.0 jl=42.058759927749634"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Weight2"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 4 cells [jl_not_f32=2 material=2] max|Δ|=43.34 | e.g. stand 12827438010497 year 2015: live=42.0 jl=55.75133562088013"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 2 cells [jl_not_f32=1 material=1] max|Δ|=22.11 | e.g. stand 12827438010497 year 2015: live=2.0 jl=2.1899040788412094"""
 
 [[residual]]
 variant = "BM"
@@ -2275,17 +1809,6 @@ year = "*"
 status = "OPEN"
 max_cells = 60
 issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 60 cells [material=32 ulpbig=28] max|Δ|=5.46 | e.g. stand 647500316126144 year 2038: live=1.407926082611084 jl=1.385288119316101"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Consumption"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "BM"
@@ -5734,17 +5257,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5773
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 5773 cells [material=5773] max|Δ|=10.0 | e.g. stand 11855985010690 year 2056: live=10 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -5806,17 +5318,6 @@ year = "*"
 status = "OPEN"
 max_cells = 218
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 218 cells [ulpbig=218] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=2"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 97
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 97 cells [material=97] max|Δ|=97.0 | e.g. stand 11855985010690 year 2036: live=0 jl=44"""
 
 [[residual]]
 variant = "IE"
@@ -7901,78 +7402,12 @@ issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner
 variant = "IE"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Duff_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=3.576e-7 | e.g. stand 11855985010690 year 2016: live=15.000000953674316 jl=15.000000596046448"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Flame_length"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [ulpbig=9] max|Δ|=0.1548 | e.g. stand 11855985010690 year 2016: live=12.756767272949219 jl=12.694443702697754"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 5 cells [material=5] max|Δ|=2.0 | e.g. stand 1627682513290487 year 2031: live=12 jl=10"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 5 cells [material=5] max|Δ|=2.0 | e.g. stand 1627682513290487 year 2031: live=10 jl=12"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Hundred_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=7.451e-8 | e.g. stand 11855985010690 year 2016: live=5.0 jl=5.000000074505806"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Herb_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 11855985010690 year 2016: live=70.0 jl=69.9999988079071"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Woody_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 11855985010690 year 2016: live=70.0 jl=69.9999988079071"""
 
 [[residual]]
 variant = "IE"
@@ -7989,56 +7424,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "One_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=8.941e-8 | e.g. stand 11855985010690 year 2016: live=4.0 jl=3.999999910593033"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Scorch_height"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [ulpbig=9] max|Δ|=0.89 | e.g. stand 11855985010690 year 2016: live=62.64405059814453 jl=62.34687805175781"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Slope"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 10 cells [jl_not_f32=10] max|Δ|=1.192e-6 | e.g. stand 11855985010690 year 2016: live=40 jl=40.00000059604645"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Ten_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=8.941e-8 | e.g. stand 11855985010690 year 2016: live=4.0 jl=3.999999910593033"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Thousand_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 12 cells [jl_not_f32=12] max|Δ|=1.49e-7 | e.g. stand 11855985010690 year 2016: live=10.0 jl=10.000000149011612"""
 
 [[residual]]
 variant = "IE"
@@ -8186,17 +7577,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 [[residual]]
 variant = "IE"
 regime = "simfire"
-file = "FVS_Consumption"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
 file = "FVS_Down_Wood_Cov"
 col = "PRESENCE"
 stand = "*"
@@ -8312,8 +7692,8 @@ col = "Total_class1"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 16
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 16 cells [ulp1=5 ulp2_16=11] max|Δ|=0.0009766 | e.g. stand 11855985010690 year 2016: live=2242.730224609375 jl=2242.730712890625"""
+max_cells = 17
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 16→17) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 16 cells [ulp1=5 ulp2_16=11] max|Δ|=0.0009766 | e.g. stand 11855985010690 year 2016: live=2242.730224609375 jl=2242.730712890625"""
 
 [[residual]]
 variant = "IE"
@@ -8869,17 +8249,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 116
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 116 cells [gold_text9=116] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=9.17116165 jl=9.17116261"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "BdFt"
 stand = "*"
 year = "*"
@@ -8891,100 +8260,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 5 cells [gold_text9=5] max|Δ|=1.9e-6 | e.g. stand 1627682513290487 year 2031: live=12.3964014 jl=12.3964005"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "DG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=6] max|Δ|=1.907e-6 | e.g. stand 1627682513290487 year 2031: live=0.329224586 jl=0.329223633"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "EstHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 3 cells [gold_text9=3] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=81.8087921 jl=81.8087845"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 3 cells [gold_text9=3] max|Δ|=7.6e-6 | e.g. stand 1627682513290487 year 2031: live=81.8087921 jl=81.8087845"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht2TDBF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2 cells [gold_text9=2] max|Δ|=1.52e-5 | e.g. stand 1627682513290487 year 2031: live=64.4075241 jl=64.4075089"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "Ht2TDCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2 cells [gold_text9=2] max|Δ|=1.52e-5 | e.g. stand 1627682513290487 year 2031: live=64.4075241 jl=64.4075089"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "HtG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 9 cells [gold_text9=9] max|Δ|=4.29e-6 | e.g. stand 1627682513290487 year 2031: live=4.03251791 jl=4.0325141"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "MCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 48
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 48 cells [gold_text9=38 jl_not_f32=5 small=4 ulpbig=1] max|Δ|=0.8 | e.g. stand 374547584489998 year 2025: live=53.7000046 jl=53.8000031"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 1 cells [gold_text9=1] max|Δ|=1.2e-7 | e.g. stand 3356357010690 year 2012: live=1.39999998 jl=1.4000001"""
 
 [[residual]]
 variant = "IE"
@@ -11597,17 +10878,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 variant = "SN"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1124
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1124 cells [material=1117 ulpbig=7] max|Δ|=7.0 | e.g. stand 216786838010854 year 2004: live=8 jl=5"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -12829,100 +12099,12 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 variant = "SN"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Duff_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=5.96e-7 | e.g. stand 216786838010854 year 2009: live=40.0 jl=40.00000059604645"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Flame_length"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=0.00232 | e.g. stand 216786838010854 year 2009: live=1.809544563293457 jl=1.80953848361969"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 8 cells [material=2 ulpbig=6] max|Δ|=5.0 | e.g. stand 216786838010854 year 2009: live=9 jl=8"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 8 cells [material=2 ulpbig=6] max|Δ|=3.0 | e.g. stand 216786838010854 year 2009: live=8 jl=9"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=8 jl=9"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl4"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 200267456010854 year 2007: live=8 jl=10"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Hundred_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=2.682e-7 | e.g. stand 216786838010854 year 2009: live=12.0 jl=11.999999731779099"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Herb_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 216786838010854 year 2009: live=55.0 jl=55.000001192092896"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Woody_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.192e-6 | e.g. stand 216786838010854 year 2009: live=55.0 jl=55.000001192092896"""
 
 [[residual]]
 variant = "SN"
@@ -12939,56 +12121,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "One_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=7.451e-8 | e.g. stand 216786838010854 year 2009: live=5.0 jl=5.000000074505806"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Scorch_height"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=0.01261 | e.g. stand 216786838010854 year 2009: live=4.551972389221191 jl=4.551961421966553"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Slope"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 10 cells [jl_not_f32=10] max|Δ|=2.682e-7 | e.g. stand 210838699010854 year 2003: live=11 jl=10.999999940395355"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Ten_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=2.98e-8 | e.g. stand 216786838010854 year 2009: live=7.0 jl=7.000000029802322"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Thousand_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 12 cells [jl_not_f32=12] max|Δ|=1.788e-7 | e.g. stand 216786838010854 year 2009: live=17.0 jl=17.000000178813934"""
 
 [[residual]]
 variant = "SN"
@@ -13011,17 +12149,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 8 cells [material=8] max|Δ|=60.0 | e.g. stand 216786838010854 year 2009: live=20.0 jl=79.99999523162842"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 2 cells [jl_not_f32=1 material=1] max|Δ|=34.98 | e.g. stand 200267456010854 year 2007: live=10.0 jl=9.600485861301422"""
 
 [[residual]]
 variant = "SN"
@@ -13154,17 +12281,6 @@ year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 37 cells [material=3 ulp1=2 ulp2_16=2 ulpbig=30] max|Δ|=2.484 | e.g. stand 216786838010854 year 2024: live=12.817903518676758 jl=13.051276206970215"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Consumption"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -17892,8 +17008,8 @@ col = "BdFt"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 1649
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 1649 cells [material=894 ulp1=403 ulp2_16=43 ulpbig=309] max|Δ|=30.0 | e.g. stand 474187636489998 year 2036: live=16.0 jl=15.976635932922363"""
+max_cells = 1651
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 1649→1651) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 1649 cells [material=894 ulp1=403 ulp2_16=43 ulpbig=309] max|Δ|=30.0 | e.g. stand 474187636489998 year 2036: live=16.0 jl=15.976635932922363"""
 
 [[residual]]
 variant = "EM"
@@ -17914,8 +17030,8 @@ col = "DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 9379
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 9379 cells [material=70 ulp1=586 ulp2_16=1233 ulpbig=7490] max|Δ|=3.867 | e.g. stand 5352355010661 year 2044: live=6.709760665893555 jl=6.709761619567871"""
+max_cells = 9380
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 9379→9380) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 9379 cells [material=70 ulp1=586 ulp2_16=1233 ulpbig=7490] max|Δ|=3.867 | e.g. stand 5352355010661 year 2044: live=6.709760665893555 jl=6.709761619567871"""
 
 [[residual]]
 variant = "EM"
@@ -17925,8 +17041,8 @@ col = "DG"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 8006
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 8006 cells [material=12 ulp1=20 ulp2_16=723 ulpbig=7251] max|Δ|=1.333 | e.g. stand 5352355010661 year 2044: live=2.6512451171875 jl=2.651245594024658"""
+max_cells = 8007
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 8006→8007) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 8006 cells [material=12 ulp1=20 ulp2_16=723 ulpbig=7251] max|Δ|=1.333 | e.g. stand 5352355010661 year 2044: live=2.6512451171875 jl=2.651245594024658"""
 
 [[residual]]
 variant = "EM"
@@ -18031,17 +17147,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_TreeList"
-col = "PrdLen"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3932
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3932 cells [material=3921 ulpbig=11] max|Δ|=10.0 | e.g. stand 5352355010661 year 2044: live=10 jl=0"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"
@@ -18092,17 +17197,6 @@ year = "*"
 status = "OPEN"
 max_cells = 67
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 67 cells [material=54 ulpbig=13] max|Δ|=2.0 | e.g. stand 196420598020004 year 2062: live=1 jl=2"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=53.0 | e.g. stand 684750664126144 year 2038: live=0 jl=26"""
 
 [[residual]]
 variant = "EM"
@@ -20341,17 +19435,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Duff_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=3.576e-7 | e.g. stand 5352355010661 year 2004: live=15.000000953674316 jl=15.000000596046448"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Flame_length"
 stand = "*"
 year = "*"
@@ -20367,8 +19450,8 @@ col = "FuelModl1"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=6.0 | e.g. stand 5352355010661 year 2004: live=2 jl=8"""
+max_cells = 4
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 3→4) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=6.0 | e.g. stand 5352355010661 year 2004: live=2 jl=8"""
 
 [[residual]]
 variant = "EM"
@@ -20396,56 +19479,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Hundred_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=7.451e-8 | e.g. stand 5352355010661 year 2004: live=5.0 jl=5.000000074505806"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Herb_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=1.192e-6 | e.g. stand 5352355010661 year 2004: live=70.0 jl=69.9999988079071"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Live_Woody_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=1.192e-6 | e.g. stand 5352355010661 year 2004: live=70.0 jl=69.9999988079071"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Midflame_Wind"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=3.716 | e.g. stand 888512560290487 year 2031: live=3.0623512268066406 jl=5.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "One_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=8.941e-8 | e.g. stand 5352355010661 year 2004: live=4.0 jl=3.999999910593033"""
 
 [[residual]]
 variant = "EM"
@@ -20468,39 +19507,6 @@ year = "*"
 status = "OPEN"
 max_cells = 7
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=7] max|Δ|=33.89 | e.g. stand 5352355010661 year 2004: live=34.622859954833984 jl=0.8368693590164185"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Slope"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 5 cells [jl_not_f32=5] max|Δ|=2.146e-6 | e.g. stand 242065538010661 year 2020: live=5 jl=5.000000074505806"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Ten_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=8.941e-8 | e.g. stand 5352355010661 year 2004: live=4.0 jl=3.999999910593033"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Thousand_Hr_Moisture"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-26: 7 cells [jl_not_f32=7] max|Δ|=1.49e-7 | e.g. stand 5352355010661 year 2004: live=10.0 jl=10.000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -20655,17 +19661,6 @@ year = "*"
 status = "OPEN"
 max_cells = 58
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 58 cells [material=40 ulpbig=18] max|Δ|=15.44 | e.g. stand 474187636489998 year 2036: live=4.416850566864014 jl=4.159252643585205"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Consumption"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "EM"
@@ -21401,8 +20396,8 @@ col = "DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 264
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 264 cells [gold_text9=264] max|Δ|=0.2567 | e.g. stand 196420598020004 year 2022: live=5.60572815 jl=5.60499907"""
+max_cells = 265
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 264→265) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 264 cells [gold_text9=264] max|Δ|=0.2567 | e.g. stand 196420598020004 year 2022: live=5.60572815 jl=5.60499907"""
 
 [[residual]]
 variant = "EM"
@@ -21412,8 +20407,8 @@ col = "DG"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 265
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 265 cells [gold_text9=265] max|Δ|=0.2405 | e.g. stand 196420598020004 year 2022: live=0.265066147 jl=0.264433861"""
+max_cells = 266
+issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 265→266) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 265 cells [gold_text9=265] max|Δ|=0.2405 | e.g. stand 196420598020004 year 2022: live=0.265066147 jl=0.264433861"""
 
 [[residual]]
 variant = "EM"
@@ -22492,48 +21487,4 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [material=2 ulpbig=8] max|Δ|=7.0 | e.g. stand 474187636489998 year 2016: live=30 jl=33"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "TopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "sum"
-col = "ATTopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "41136808010497"
-year = "2055"
-status = "OPEN"
-max_cells = 1
-issue = """NEW 2026-09-26 integ-0926: clim-west's faithful climate DDS·WK4 (bm/dgdriv.f:236, WK2 left un-multiplied for DGSCOR) moves this stand's mortality earlier (2015 Mort 58 vs live 60; the old ln(WK4)-in-WK2 fold had masked it) — mortality residual not yet dug | stand 41136808010497 year 2055: live=79 jl=78"""
 

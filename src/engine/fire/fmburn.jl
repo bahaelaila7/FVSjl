@@ -166,6 +166,12 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         end
     end
 
+    # sn/fmburn.f:470,589: a carrying fire with SCH > PBSCOR sets BURNYR=IYR and SN re-runs FMCBA, so the live
+    # herb/shrub FMCONS burns is the post-burn (rough age 1) FULIV2 load, not the pre-fire one.
+    if s.variant isa Southern && fire_carries && sch > fs.params.pb_scor
+        ovr = ffe_live_fuel_override(s; burnyr_now = Int(year))
+        ovr === nothing || (fs.flive = ovr)
+    end
     # pre-fire total live TPA by FVS_Mortality DBH class (LOWDBH bins, 7 non-cumulative classes), both the
     # stand aggregate (the ALL row) and PER-SPECIES (FVS_Mortality emits one row per species + an ALL row).
     totcls = zeros(Float32, 7); clskil = zeros(Float32, 7)
@@ -180,6 +186,28 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     killed = 0f0; killed_ba = 0f0; killed_vol = 0f0
     v2t = coef_col(coef, :v2t)
     is_sprout = coef_col(coef, :is_sprouting)            # ESTUMP sprout-species filter (fmkill.f:80 → estump.f)
+    # BCROWN (fmeff.f:118-130): crown material burned, tons/ac → BURNCR (FVS_Consumption Consumption_Crowns + smoke).
+    # A crown fire first burns CRBURN·PSBURN/100 of the crown debris still waiting to fall (CWD2B) — before this
+    # fire's kills are pooled, so only earlier material burns. Only when FMEFF runs (the fire carries).
+    bcrown = 0f0
+    if fire_carries && crfrac > 0f0
+        @inbounds for isz in axes(fs.cwd2b, 2), idc in axes(fs.cwd2b, 1), itm in axes(fs.cwd2b, 3)   # DO ISZ/IDC/ITM
+            bcr = crfrac * fs.cwd2b[idc, isz, itm] * psburn / 100f0
+            fs.cwd2b[idc, isz, itm] -= bcr
+            bcrown += bcr * _FM_P2T
+        end
+    end
+    if mortcode == 0 && fire_carries
+        # MKODE=0 (no FFE mortality): FMEFF still runs its RANN draws (rolled back) and books the scorched crown
+        # material as burned (fmeff.f:450-453, weight 1.0; the crown-fire term needs MKODE≠0), but kills nothing.
+        _rs0 = rannget(s.rng)
+        @inbounds for i in 1:t.n
+            (rann!(s.rng) * 100f0 > psburn) && continue
+            t.tpa[i] > 0f0 || continue
+            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, false)
+        end
+        rannput!(s.rng, _rs0)
+    end
     if mortcode != 0 && fire_carries                      # FLAG(1) gate: skip mortality if the fire doesn't carry
         # FMEFF brackets its per-tree RANN draws with RANNGET(SAVESO) (fmeff.f:143) … RANNPUT(SAVESO)
         # (fmeff.f:569): the fire's draws are ROLLED BACK, so the fire consumes ZERO NET main-stream RNG.
@@ -197,6 +225,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
             (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
             t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
+            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
             # FMEFF new fire-model crown length (fmeff.f:170, :401-419, :513): for the non-crown-fire part
             # (CRBURN<1) of a record whose crown base sits below the scorch height, the scorched length CRBNL
             # is lost: FMICR = IFIX(100·(CRL−CRBNL)/HT). CRL = HT·(FMICR/100) in FVS's own association.
@@ -234,13 +263,15 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             end
             killed += curkil
             killed_ba += curkil * 0.005454154f0 * d * d   # fire-killed basal area (ft²/ac, fmfout.f:303)
-            killed_vol += curkil * t.merch_cuft_vol[i]    # SN: merch cubic volume killed (fmfout.f:306)
+            # fmfout.f:304-308: CS/LS/NE/SN report merch cubic (MCFV) killed, every other variant TOTAL cubic (CFV)
+            vk = _fm_volkill_merch(s.variant) ? t.merch_cuft_vol[i] : t.cuft_vol[i]
+            killed_vol += curkil * vk
             c = _fm_mort_class(d)
             if c >= 1
                 clskil[c] += curkil
                 get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += curkil
                 sp_bak[sp] = get(sp_bak, sp, 0f0) + curkil * 0.005454154f0 * d * d
-                sp_vol[sp] = get(sp_vol, sp, 0f0) + curkil * t.merch_cuft_vol[i]
+                sp_vol[sp] = get(sp_vol, sp, 0f0) + curkil * vk
             end
             # Fire-killed trees become standing snags. Carry the MERCH bole (mcf·v2t/2000) — the same basis
             # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
@@ -290,17 +321,30 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
     # loadings (FVS_Consumption) are the before−after difference in the FFE fuel pools.
-    fuel_before = ffe_fuel_loadings(s)
-    carbon_released = apply_fire_consumption!(fs, mois)
-    fuel_after = ffe_fuel_loadings(s)
-    consumed = NamedTuple{keys(fuel_before)}(map(-, values(fuel_before), values(fuel_after)))
+    # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
+    # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
+    cons = if fire_carries
+        c = fire_consumption!(fs, mois; psburn, burncr = bcrown)
+        fs.exposr_last = c.exposr
+        c
+    else
+        (; burned = zeros(Float32, 11), exposr = fs.exposr_last, burnlv = (0f0, 0f0), smoke = (0f0, 0f0),
+           released = 0f0, totcon = 0f0)
+    end
+    carbon_released = cons.released
+    # ICRB (fmfout.f:215-218): the resolved CRBURN as a percent; a fire that does not carry keeps FMBURN's
+    # CRBURN (−1 unless FLAMEADJ set it) ⇒ −1.
+    crb_rep = fire_carries ? crfrac : (crburn >= 0f0 ? crburn : -1f0)
+    icrb = unsafe_trunc(Int32, crb_rep * 100f0 + 0.5f0)
+    icrb < 0 && (icrb = Int32(-1))
+    consumption = _fm_consumption_row(s, cons, bcrown, icrb)
     # per-species mortality rows (FVS_Mortality emits one row per present species + the ALL aggregate),
     # sorted by species index for determinism (FMFOUT/dbsfmmort.f).
     species_mort = NamedTuple[]
     @inbounds for sp in sort!(collect(keys(sp_tot)))
         kil = get(sp_kil, sp, zeros(Float32, 7))
         push!(species_mort, (; fvs = strip(coef.code_alpha[sp]), plants = strip(coef.code_plants[sp]),
-              fia = strip(coef.code_fia[sp]), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
+              fia = lpad(strip(coef.code_fia[sp]), 3, '0'), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
               bakill = get(sp_bak, sp, 0f0), volkill = get(sp_vol, sp, 0f0)))
     end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
@@ -309,9 +353,63 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     (crburn >= 0f0 || flmult != 1f0) && (fire_type = "USER_DEF")
     push!(fs.burn_reports, (; year = Int(year), mois = copy(mois), wind = fwind, flame = flame,
           slope = s.plot.slope, scorch = sch, fire_type = fire_type, models = collect(models), killed = killed, killed_ba = killed_ba,
-          killed_vol = killed_vol, released = carbon_released,
-          clskil = Tuple(clskil), totcls = Tuple(totcls), species_mort = species_mort, consumed = consumed))
+          killed_vol = killed_vol, released = carbon_released, totcon = cons.totcon, carried = fire_carries,
+          clskil = Tuple(clskil), totcls = Tuple(totcls), species_mort = species_mort, consumption = consumption))
     return FireResult(killed, flame, byram, sch, carbon_released)
+end
+
+_fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeast || v isa Southern
+
+# FMEFF BCROWN share of one record (fmeff.f:372-374 crown fire, :444-453 scorch), tons/ac, on the PRE-kill FMPROB
+# (TPA) and the fire-time FMICR (= ICR; call before the scorch shortening). `mk` = MKODE≠0: the crown-fire part (CRBURN·FMPROB burns all foliage + half the
+# 0-0.25" crown and its crown-lift) needs MKODE≠0, and the scorched part is weighted (1−CRBURN), else 1.0.
+function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
+    t = s.trees
+    fmprob = t.tpa[i]; h = t.height[i]
+    xc = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
+    yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
+    b = 0f0
+    if crfrac > 0f0 && mk
+        b += crfrac * fmprob * _FM_P2T * xc[1]
+        b += 0.5f0 * crfrac * fmprob * _FM_P2T * (xc[2] + yrscyc * ol1)
+    end
+    crfrac >= 1f0 && return b
+    crl = h * (Float32(t.crown_pct[i]) / 100f0)                                    # FMICR = ICR at the fire (fmmain.f:111)
+    crbot = h - crl
+    if sch > crbot
+        crbnl = min(sch - crbot, crl)
+        propcr = crl > 0f0 ? crbnl / crl : 0f0
+        crw1bn = 0.5f0 * propcr * xc[2]
+        w = mk ? (1f0 - crfrac) : 1f0
+        b += w * fmprob * _FM_P2T * xc[1] * propcr
+        b += (crw1bn + 0.5f0 * yrscyc * ol1) * w * fmprob * _FM_P2T
+    end
+    return b
+end
+
+# FMFOUT fuel-consumption report values (fmfout.f:180-226) → one FVS_Consumption row (dbsfmfuel.f column order).
+function _fm_consumption_row(s::StandState, cons, burncr::Float32, icrb::Int32)
+    fs = s.fire; b = cons.burned
+    cwd5(j, k) = (x = 0f0; @inbounds for l in 1:4; x += fs.cwd[j, k, l]; end; x)   # CWD(3,J,K,5), unpiled only
+    suml3 = 0f0; sumg3 = 0f0; totg3 = 0f0
+    for ii in 1:3
+        ij = ii + 3; ik = ii + 6
+        suml3 = suml3 + b[ii]
+        sumg3 = sumg3 + b[ij] + b[ik]
+        totg3 = totg3 + cwd5(ij, 1) + cwd5(ij, 2) + cwd5(ik, 1) + cwd5(ik, 2)
+    end
+    burng12 = b[6] + b[7] + b[8] + b[9]
+    pduff = 0f0
+    rem11 = cwd5(11, 1) + cwd5(11, 2)
+    b[11] + rem11 > 0f0 && (pduff = 100f0 * (b[11] / (b[11] + rem11)))
+    ctl = s.control
+    sumg3 + totg3 > 0f0 && (ctl.ffe_pgr3 = 100f0 * (sumg3 / (sumg3 + totg3)))
+    blive = cons.burnlv[1] + cons.burnlv[2]
+    bdtot = suml3 + sumg3 + b[11] + b[10] + blive + burncr
+    return (; min_soil_exp = cons.exposr, litter = b[10], duff = b[11], lt3 = suml3, ge3 = sumg3,
+            s3to6 = b[4], s6to12 = b[5], ge12 = burng12, herb_shrub = blive, crowns = burncr, total = bdtot,
+            pct_duff = pduff, pct_ge3 = ctl.ffe_pgr3, pct_crowning = icrb,
+            smoke25 = cons.smoke[1], smoke10 = cons.smoke[2])
 end
 
 # PM2.5 smoke emission factors (fmcons.f:60-70): dead surface fuel by moisture-type (lb/ton consumed) and

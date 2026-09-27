@@ -18,8 +18,12 @@
 
 # oc/forkod.f:61 JFOR (KODFOR → IFOR index). 518→IFOR 11 remaps to 5 (Trinity→Shasta-Trinity).
 const OC_JFOR = Int[505,506,508,511,514,610,611,710,711,712,518]
-"oc/forkod.f — decode KODFOR (location code) → IFOR (1..10). 0/unknown ⇒ 9 (Medford default region)."
+# oc/forkod.f first SELECT CASE (KODFOR): BIA reservation pseudo-codes → IFOR (same table as ca/forkod.f).
+const OC_FOR_RESERV = Dict{Int,Int}(7801=>4, 7803=>4, 7804=>3, 7805=>3, 7809=>3, 7811=>4, 7812=>4, 7818=>4,
+    7822=>3, 7823=>4, 7826=>4, 7827=>4, 7829=>4, 7837=>2, 7842=>1, 7846=>1, 7864=>4, 8104=>7)
+"oc/forkod.f — decode KODFOR (location code) → IFOR (1..10). 0/unknown ⇒ 9 (oc/grinit.f IFOR default)."
 function oc_forkod(kodfor::Integer)
+    haskey(OC_FOR_RESERV, Int(kodfor)) && return OC_FOR_RESERV[Int(kodfor)]
     for (i, jf) in enumerate(OC_JFOR)
         kodfor == jf && (return i == 11 ? 5 : i)          # 518→11→5 mapping (forkod.f:212-218)
     end

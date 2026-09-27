@@ -990,12 +990,14 @@ function write_dbs_burnreport!(dbpath, caseid::AbstractString, standid::Abstract
             m = b.mois                                   # 2×5: dead 1/10/100/1000hr+duff, live woody/herb
             fm = b.models                                # vector of (model, weight); pad to 4
             mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
-            ww(i) = i <= length(fm) ? Float64(fm[i][2])*100 : 0.0   # fraction → % (live BurnReport weights are %)
-            slp = hasproperty(b, :slope) ? Float64(b.slope)*100 : 0.0  # stand slope 0..1 → % (dbsfmburn.f Slope col)
+            # dbsfmburn.f:149 WTB = INT(WT·100.+0.5) (a whole percent bound as double); fmfout.f passes
+            # MOIS·100 and INT(FMSLOP·100) — all REAL (Float32) arithmetic before the bind.
+            ww(i) = i <= length(fm) ? Float64(unsafe_trunc(Int, Float32(fm[i][2]) * 100f0 + 0.5f0)) : 0.0
+            slp = hasproperty(b, :slope) ? unsafe_trunc(Int, Float32(b.slope) * 100f0) : 0
             ftype = hasproperty(b, :fire_type) ? String(b.fire_type) : "SURFACE"  # Fire_Type (fmcfir.f CFTMP)
             DBInterface.execute(stmt, (caseid, standid, Int(b.year),
-                Float64(m[1,1])*100, Float64(m[1,2])*100, Float64(m[1,3])*100, Float64(m[1,4])*100,
-                Float64(m[1,5])*100, Float64(m[2,1])*100, Float64(m[2,2])*100,
+                Float64(m[1,1]*100f0), Float64(m[1,2]*100f0), Float64(m[1,3]*100f0), Float64(m[1,4]*100f0),
+                Float64(m[1,5]*100f0), Float64(m[2,1]*100f0), Float64(m[2,2]*100f0),
                 Float64(b.wind), slp, Float64(b.flame), Float64(b.scorch), ftype,
                 mw(1), ww(1), mw(2), ww(2), mw(3), ww(3), mw(4), ww(4)))
         end
@@ -1039,25 +1041,30 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
     return dbpath
 end
 
-# FVS_Consumption schema (dbsfuels.f:58, same 22 cols as FVS_Fuels) — fuel CONSUMED by the fire (tons/ac).
-const _FVS_CONSUMPTION_CREATE = replace(_FVS_FUELS_CREATE, "FVS_Fuels(" => "FVS_Consumption(")
+# FVS_Consumption schema (dbsfmfuel.f:58-77) — the FFE fuel-consumption & physical-effects report (FMFOUT).
+const _FVS_CONSUMPTION_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Consumption(
+  CaseID text not null, StandID text not null, Year Int null, Min_Soil_Exp real null,
+  Litter_Consumption real null, Duff_Consumption real null, Consumption_lt3 real null, Consumption_ge3 real null,
+  Consumption_3to6 real null, Consumption_6to12 real null, Consumption_ge12 real null,
+  Consumption_Herb_Shrub real null, Consumption_Crowns real null, Total_Consumption real null,
+  Percent_Consumption_Duff real null, Percent_Consumption_ge3 real null, Percent_Trees_Crowning int null,
+  Smoke_Production_25 real null, Smoke_Production_10 real null)"""
 
-"Write fuel consumed by the fire (before−after loadings) to FVS_Consumption (dbsfuels.f)."
+"Write one FVS_Consumption row per fire (dbsfmfuel.f): the FMFOUT consumption values, REAL bound as double."
 function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::AbstractString, burns::AbstractVector)
     isempty(burns) && return dbpath
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_CONSUMPTION_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Consumption VALUES (" * join(fill("?", 22), ",") * ")")
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Consumption VALUES (" * join(fill("?", 19), ",") * ")")
         for b in burns
-            f = b.consumed
-            DBInterface.execute(stmt, (caseid, standid, Int(b.year),
-                Float64(f.litter), Float64(f.duff), Float64(f.lt3), Float64(f.ge3),
-                Float64(f.s3to6), Float64(f.s6to12), Float64(f.ge12),
-                Float64(f.herb), Float64(f.shrub), Float64(f.surf_total),
-                Float64(f.snag_lt3), Float64(f.snag_ge3), Float64(f.foliage),
-                Float64(f.live_lt3), Float64(f.live_ge3), Float64(f.stand_total),
-                round(Int, f.total_biomass), round(Int, f.consumed), round(Int, f.removed)))
+            c = b.consumption
+            DBInterface.execute(stmt, (caseid, standid, Int(b.year), Float64(c.min_soil_exp),
+                Float64(c.litter), Float64(c.duff), Float64(c.lt3), Float64(c.ge3),
+                Float64(c.s3to6), Float64(c.s6to12), Float64(c.ge12), Float64(c.herb_shrub), Float64(c.crowns),
+                Float64(c.total), Float64(c.pct_duff), Float64(c.pct_ge3), Int(c.pct_crowning),
+                Float64(c.smoke25), Float64(c.smoke10)))
         end
     finally
         SQLite.close(db)
@@ -1303,14 +1310,23 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             # larger DEAD trees too (only stand BA/SDI excludes dead — that's a separate sum, so the .sum stays
             # bit-exact). Ties: the descending sort is stable on array index, so a record of equal DBH is
             # already accumulated iff its index is lower.
+            # PTBALT/PCT of a cycle-0 dead record are what CRATET's dead-inclusive DENSE left (crown_init snapshot);
+            # the recompute below is only the fallback for a path that never ran that DENSE.
+            kd = i - t.n
+            snap = kd <= length(s.calib.cratet_dead_ptbal)
             dbal = 0f0
-            for j in 1:(t.n + t.ndead)
-                j == i && continue
-                (Int(t.plot_id[j]) == pid) || continue
-                (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
-                dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
+            if snap
+                dbal = s.calib.cratet_dead_ptbal[kd]
+            else
+                for j in 1:(t.n + t.ndead)
+                    j == i && continue
+                    (Int(t.plot_id[j]) == pid) || continue
+                    (t.dbh[j] > dd || (t.dbh[j] == dd && j < i)) || continue
+                    dbal += t.tpa[j] * BA_PER_TREE * t.dbh[j]^2 * scale
+                end
             end
             dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
+            dpct = (snap && kd <= length(s.calib.cratet_dead_pct)) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
             cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
@@ -1324,7 +1340,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 Float64(dd), 0.0, Float64(t.height[i]),    # DBH, DG=0, Ht
                 0.0, Int(t.crown_pct[i]), Float64(cw),     # HtG=0, PctCr, CrWidth
                 _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,  # MistCD = MISGET(I,IDMR) (dbstrls.f:326)
-                Float64(t.crown_ratio[i]), Float64(dbal),  # BAPctile, PtBAL
+                Float64(dpct), Float64(dbal),              # BAPctile (PCT), PtBAL
                 Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,

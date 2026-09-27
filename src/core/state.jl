@@ -357,6 +357,24 @@ mutable struct Control
     # √D-regression crossover has no real root (STEP1≤0), stays 1 for every later species AND stand. run_keyfile
     # carries it from stand to stand.
     kt_cratet_ierrck::Int32
+    # Fire-event DBS tables (fmfout.f): each needs BOTH its FMIN report keyword (window IY(1)..IY(1)+999, fmin.f
+    # BURNREPT/MORTREPT/FUELREPT; fminit.f default never) AND its DATABASE toggle (dbsin.f BURNREDB IBURN /
+    # MORTREDB IMORTF / FUELREDB IFUELC; dbsfmburn/dbsfmmort/dbsfmfuel RETURN when 0).
+    dbs_burnrept::Bool
+    ffe_burnrept::Bool
+    dbs_mortrept::Bool
+    ffe_mortrept::Bool
+    dbs_fuelcons::Bool
+    ffe_fuelrept::Bool
+    ffe_pgr3::Float32                  # FMFOUT PGR3 (% of ≥3" fuel consumed): a -fno-automatic local that keeps the
+                                       # previous fire's value when there is no ≥3" fuel at all (fmfout.f:207)
+    # IFINT as dbsstandin.f:700-703 leaves it: IFIX(FINT) whenever the DB supplies a DG_MEASURE column (-1 = never set).
+    # Before cycling only grinit (IFINT=10; 5 in SN/OC/OP) and this set it (grincr.f:65 sets it per cycle), so the
+    # inventory FVS_TreeList's PrdLen is this value, else grinit's.
+    dbs_ifint::Int32
+    # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
+    # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
+    sdical_bamax::Float32
 end
 
 function Control()
@@ -430,6 +448,9 @@ function Control()
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
         false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
         Int32(0),                                                # kt_cratet_ierrck
+        false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
+        Int32(-1),                                               # dbs_ifint
+        0f0,                                                     # sdical_bamax
     )
 end
 
@@ -660,6 +681,10 @@ mutable struct Calibration
     # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
     # Valid only before any record moves (cycle-0 setup). Empty when unset.
     input_seq::Vector{Int32}
+    # The cycle-0 dead records' PCT and PTBALT from that same CRATET DENSE (dead index k = record t.n+k), which
+    # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
+    cratet_dead_pct::Vector{Float32}
+    cratet_dead_ptbal::Vector{Float32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -677,7 +702,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
-    Int32[])                                                         # input_seq (record read order, cycle-0 only)
+    Int32[],                                                         # input_seq (record read order, cycle-0 only)
+    Float32[], Float32[])                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -1091,6 +1117,8 @@ mutable struct FireState
     crown_bypass::Vector{Int32}        # FMKILL ICR=-FMICR (fmkill.f:92-94): per record, the fire-set crown % (0 = none)
                                        # that the next CROWN call must keep instead of recomputing (crown.f "ICR(I) WAS
                                        # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
+    exposr_last::Float32               # EXPOSR (FMCOM): % mineral soil exposed by the last FMCONS burn; a fire that
+                                       # does not carry (FLAG(1)) skips FMCONS and FVS_Consumption reports the stale value
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1099,7 +1127,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[])
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

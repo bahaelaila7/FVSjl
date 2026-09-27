@@ -7,6 +7,12 @@
 
 const BC_RNG_SEED = 55329.0f0
 
+# bc/blkdat.f:37-39 TREFMT — the metric-variant record layout (F5.1 DBH, F4.1 DG, 2F5.1 HT/THT), the same as ON.
+# The shared SN default (F4.1/F3.1/2F3.0) misreads a BC .tre record: HT lands blank and the real height is read
+# as the top-kill height THT, so every tree became top-killed at its own height (ITRUNC=HT).
+const BC_TREE_FORMAT =
+    "(I4,T1,I7,F6.0,I1,A3,F5.1,F4.1,2F5.1,F5.1,I1,3(I2,I2),2I1,I2,2I3,2I1,F3.0)"
+
 function init_blockdata!(s::StandState, v::BritishColumbia)
     sd = s.species
     alpha = s.coef.code_alpha; fia = s.coef.code_fia; plants = s.coef.code_plants
@@ -23,7 +29,7 @@ function init_blockdata!(s::StandState, v::BritishColumbia)
     hab = s.coef.valid_habitat
     copyto!(s.plot.valid_habitat, 1, hab, 1, min(length(hab), length(s.plot.valid_habitat)))
 
-    s.control.tree_format = DEFAULT_TREE_FORMAT
+    s.control.tree_format = BC_TREE_FORMAT
     s.control.year = 10.0f0
     s.control.growth_fint = 10.0f0
     s.control.zeide_sdi = false        # BC uses STAGE SDI (bc/grinit.f LZEIDE=.FALSE.)

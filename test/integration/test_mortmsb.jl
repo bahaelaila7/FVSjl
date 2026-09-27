@@ -76,7 +76,9 @@ _msb_base(path) = [split(l) for l in eachline(path)
     # col9/col10 (TCuFt/MCuFt) ±1 print flip = the DGSCOR diameter serial-correlation floor (see the corrected
     # verdict above): a sub-ULP grown DBH → dbh²-driven cubic Δ~0.02% → adjacent print integer. A permitted COR
     # primitive (WK3/DGSCOR), NOT sum-order and NOT the SN HTGF transcendentals (now fpow/fexp/flog-routed, inert here).
-    @test_broken all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 TCuFt — DGSCOR diameter floor
-    @test_broken all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 MCuFt — DGSCOR diameter floor
+    # 2026-09-26: the ±1 flip was NOT a DGSCOR floor — the calibration DENSE's PCT (pctile.f TOT/PCTIN1 order, WK5=D·(D·P))
+    # and read-order IND1 sums now match live, and col9/col10 are bit-exact every cycle.
+    @test all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 TCuFt
+    @test all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 MCuFt
     @test fired   # the test must exercise the MSBMRT path, not a degenerate no-fire stand
 end

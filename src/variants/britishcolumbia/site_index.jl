@@ -20,7 +20,7 @@ function bc_site_index_setup!(s::StandState)
     itype = kodtyp > 0 ? bc_kodtyp_itype(kodtyp) : max(Int(p.habitat_input), 1)
     (itype < 1 || itype > 30) && (itype = 21)
     p.habitat_input = Int32(itype)                            # DG reads MAPHAB(ITYPE) (IE structure)
-    p.forest_idx <= 0 && (p.forest_idx = Int32(1))
+    p.forest_idx <= 0 && (p.forest_idx = Int32(4))    # bc/grinit.f:201 IFOR=4; bc/forkod.f never changes it
     # SDImax (Stage): SDIDEF = BAMAX/(0.5454154·PMSDIU/100). BAMAX from user (control.ba_max) or the
     # BC site-series default (sitset.f SELECT CASE Zone/SubZone/Series, in m²/ha → convert to ft²/ac).
     # ⚠ full sitset table is chunk-2 TODO; ICHmw2/01 (all_BC, the hardcoded zone) = 89 m²/ha (oracle .out

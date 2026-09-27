@@ -35,173 +35,343 @@ const CI_RG_BREAK = Float32[3,3,3,3,3,3,3,3,3,3, 3,3,3, 99,99, 3, 1, 3, 1]
 """ci/regent.f sp17/19 (CW/OH) Curtis-Arney height→DBH inverse (P2=1709.7229,P3=5.8887,P4=−0.2286)."""
 @inline function _ci_ut_htdbh(ht::Float32)::Float32
     p2 = 1709.7229f0; p3 = 5.8887f0; p4 = -0.2286f0
-    hat3 = 4.5f0 + p2 * exp(-p3 * 3.0f0^p4)
-    ht >= hat3 ? exp(log((log(ht - 4.5f0) - log(p2)) / (-p3)) * (1.0f0 / p4)) :
+    hat3 = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))
+    ht >= hat3 ? fexp(flog((flog(ht - 4.5f0) - flog(p2)) / (-p3)) * (1.0f0 / p4)) :
                  ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
 end
 
-# Push the regent growth into the tripling stash so the upper/lower sub-records use the REGENT growth, not the
-# stale/explosive large-tree dgf DG/HTG (diameter_growth! balloons tiny DBH). FVS computes HTG(K) for EVERY tripled
-# record (ci/regent.f DO 25 L-loop) ⇒ copies always get the regent HTG (is_small); the D<BKPT diameter dub (DG(K))
-# is applied per-record too, so dgU/dgL carry it only when the central got dubbed (small=true, D<BKPT=3 for CIVAR).
-# ZZRAN stays deferred (intentional, regent.f:934 = grow-phase RNG desync class) ⇒ copies == central deterministically.
-@inline function _ci_rg_stash!(stash, t, i::Int, small::Bool)
-    if stash !== nothing && !isempty(stash.htgU) && i <= length(stash.htgU)
-        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
-        !isempty(stash.is_small) && (stash.is_small[i] = true)
-        if small && !isempty(stash.dgU) && i <= length(stash.dgU)
-            stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
-        end
+# ci/blkdat.f DATA HT1/HT2 — the Wykoff intercept/slope REGENT's UTVAR 13/17/19 diameter dub inverts (AX=HT1 when
+# IABFLG=1, else the cratet-fitted AA). (The species CSV ht1/ht2 columns are NOT CI's blkdat values for every species.)
+const CI_BLK_HT1 = Float32[5.19988, 5.16306, 4.94866, 5.02706, 5.02706, 5.16306, 4.80016, 5.09964, 4.91417, 4.993,
+                           4.19200, 4.19200, 4.44210, 3.2000, 5.1520, 4.19200, 4.44210, 4.80016, 4.44210]
+const CI_BLK_HT2 = Float32[-9.26718, -9.25656, -9.75378, -11.21681, -11.21681, -9.25656, -6.51738, -10.79269, -9.36400,
+                           -12.430, -5.16510, -5.16510, -6.54050, -5.0000, -13.5760, -5.16510, -6.54050, -6.51738, -6.54050]
+const CI_RG_BACON = 0.005454154f0
+@inline _ci_ttvar(sp::Int) = sp == 11 || sp == 12 || sp == 16            # ci/regent.f:508 CASE(11,12,16) TTVAR
+@inline _ci_bkpt(sp::Int) = (sp == 17 || sp == 19) ? 1.0f0 : (sp == 14 || sp == 15) ? 99.0f0 : 3.0f0   # :490-500
+
+# ci/smhtgf.f for the TTVAR species (11,12,16): the persistent ZRAND (drawn whenever it is -999 — jl's inventory
+# default 0 too — no DGSD gate), BETA1/BETA2 from the subcycle point CCF, reset to -999 on a ≤0.1 increment.
+function _ci_smhtgf!(s::StandState, i::Int, cri::Float32, tpccf::Float32)::Float32
+    t = s.trees
+    zr = t.tree_random[i]
+    if zr == 0f0 || zr == -999f0
+        while true; zr = bachlo(s.rng, 0f0, 1f0); (-2f0 <= zr <= 2f0) && break; end
+        t.tree_random[i] = zr
     end
+    t.dbh[i] <= 0f0 && return 0f0                                  # :24-27 D≤0 ⇒ 0, no floor/reset
+    beta1 = fexp(1.17527f0 - 0.42124f0 * flog(tpccf))
+    beta2 = fexp(-2.56002f0 - 0.58642f0 * flog(tpccf))
+    htg1 = beta1 + beta2 * cri
+    stddev = htg1 * (1.08720f0 - 0.00230f0 * cri)
+    htg = htg1 + zr * stddev
+    htg > 0.1f0 && return htg
+    t.tree_random[i] = -999f0
+    return 0.1f0
 end
 
+@inline function _ci_zzran(s::StandState, dgsd::Float32)::Float32
+    z = 0f0
+    if dgsd >= 1.0f0
+        while true; z = bachlo(s.rng, 0f0, 1f0); (z > 0.5f0 || z < -2.0f0) || break; end
+    end
+    return z
+end
+
+"""
+    small_tree_growth!(s, stash, ::CentralIdaho; fint)
+
+ci/regent.f (growth call, LESTB=.FALSE.) in Fortran shape:
+
+* DO 17 J=1,NPER subcycles (KPER, NPER=ceil(NTYR/5)), walking IND1 (DO 16 ISPC / DO 15 I3). CIVAR (1-10,18) and UTVAR
+  (13,14,15,17,19) species run at J=1 only with SCALE=NTYR/REGYR resp. NTYR/YR; the TTVAR species (11,12,16) run
+  every subcycle through ci/smhtgf.f (persistent ZRAND) with TPCCF=PCCF·PPCCF ∈[25,300], SCALE=KPER(J)/REGYR and the
+  climate WK4. Each record then feeds the next subcycle's BANEXT/RDNEXT (UPDATE DENSITY, :740-780) with its projected
+  D2; the large-tree projection (:266-289) carries CCFCAL's ·P.
+* DO 30 / DO 25 (:803-1300): per record K (the central, then the two tripled copies — each with a fresh ZZRAN for
+  CIVAR/UTVAR; TTVAR copies take the central's values), HTGR = HTGR1 + ZZRAN term, floored 0.1, blended by XWT with
+  K's OWN large-tree HTG (ci_triple_htg! for the NI copies), SIZCAP; below BKPT the diameter dub (CIVAR HT-DBH,
+  UTVAR juniper/MC/Wykoff-inverse, TTVAR WK5 vs DKK) on the DDS scale, the D+0.001·HK direct set when HK<4.5, the
+  DIAM floor and DGBND.
+"""
 function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 = 10.0f0)
-    p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    p, t, c, dens, ctl = s.plot, s.trees, s.calib, s.density, s.control
     sd = s.coef.species
-    t.n == 0 && return s
+    n = t.n; n == 0 && return s
     cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (ci/regent.f:709/947); nothing ⇒ 1
-    n = t.n
+    wk4(i) = cw === nothing ? 1.0f0 : cw[i]
     ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
     kodtyp = Int(p.habitat_code)
     rhdm1 = (500 <= kodtyp < 600) ? 1.0f0 : 0.0f0
     rhdm2 = (600 <= kodtyp < 700) ? 1.0f0 : 0.0f0
-    regyr = CI_RG_REGYR
-    ntyr = Int(round(fint))                               # NTYR (grow cycle; LSTART/ESTAB partial-cycle deferred)
-    scale_h = Float32(ntyr) / regyr                       # ci/regent.f:518 CIVAR SCALE = NTYR/REGYR (single pass)
-    scale2 = 1.0f0                                        # SCALE2 = YR/NTYR = 1 for a full cycle ⇒ DDS round-trip identity
-    scale_ut = 1.0f0                                      # UTVAR SCALE = NTYR/YR = 1 for a full cycle (regent.f:514)
+    regyr = CI_RG_REGYR; yr = 10.0f0
+    ntyr = trunc(Int, fint)                                   # :283 NTYR=INT(FINT)
+    iyr = trunc(Int, regyr)
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
+    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    @inbounds for k in 1:nper
+        if nn == 1; kper[k] = itot; break; end
+        kper[k] = itot ÷ nn; itot -= kper[k]; nn -= 1
+    end
+    scale2 = yr / Float32(ntyr)                               # SCALE2 = YR/NTYR (every sub-model, LSKIPH false)
+    dgsd = ctl.dg_sd
     cur_year = current_cycle_year(s)
     slo_a = sd[:site_lo]; shi_a = sd[:site_hi]
-    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)   # PCTRED input X = AH·(R/100) (regent.f:446)
+    aa = c.ht_dbh_aa; iabflg = c.ht_dbh_iabflg; lhtdrg = ctl.ht_drag_sp
+    pccfv = dens.point_ccf
+    pccf_of(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
+    # ---- BANEXT/RDNEXT large-tree projection (:262-289), storage order DO 6 I=1,ITRN ----
+    banext = fill(ba, nper); rdnext = fill(relden, nper)
+    if nper > 1
+        @inbounds for i in 1:n
+            d1 = t.dbh[i]; d1 < 3.0f0 && continue
+            is = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
+            d2 = d1 + t.diam_growth[i] / ci_bratio(sd, is, d1)
+            b1 = CI_RG_BACON * d1 * d1; b2 = CI_RG_BACON * d2 * d2
+            c1 = ci_tree_ccf(is, d1) * pr; c2 = ci_tree_ccf(is, d2) * pr     # CCFCAL: CCFT·P
+            bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
+            k = 0
+            for j in 2:nper
+                k += kper[j-1]; pn = pr * fpowi(0.985f0, k)
+                rdnext[j] += Float32(k) * ci / pr * pn
+                banext[j] += Float32(k) * bi * pn
+            end
+        end
+    end
+    wk3 = Float32[t.height[i] for i in 1:n]
+    wk5 = Float32[t.dbh[i] for i in 1:n]
+    xd = avh * (relden / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)   # :446 X=AH·(R/100)
     pctred = CI_RG_AB[1] + xd*(CI_RG_AB[2] + xd*(CI_RG_AB[3] + xd*(CI_RG_AB[4] + xd*(CI_RG_AB[5] + xd*CI_RG_AB[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    # CIVAR (sp 1-10,18) small-tree height+DBH — single pass (regent.f:528 J>1 skips). Verified vs the PRISTINE
-    # FVSci_clean via the DEBUG keyword: seedling I=24 H=1.01→HK=5.267, DK=0.5179, DKK=0.1 ⇒ DG=0.387 (matches).
-    # ZZRAN random height (regent.f:934) DEFERRED = deterministic mean HTGR=HTGR1 (grow-phase RNG desync class).
-    # TT(11,12,16)=SMHTGF and UT(13,14,15,17,19)=aspen/juniper get the CIVAR form as a fallback (rare/deferred).
-    @inbounds for i in 1:n
-        sp = Int(t.species[i]); d0 = t.dbh[i]
-        d0 >= CI_RG_XMAX[sp] && continue
-        t.tpa[i] <= 0.0f0 && continue
-        (sp < 1 || sp > 19) && continue
-        h0 = t.height[i]
-        # ---- UTVAR path: aspen(13)/juniper(14)/MC(15)/cottonwood(17)/hardwood(19) borrowed from UT variant
-        # (ci/regent.f UTVAR branch). POTHTG·PCTRED·VIGOR·CON height; per-species DBH. ZZRAN deferred (det. mean).
-        if _ci_ut_species(sp)
-            sitear = p.sp_site_index[sp]; sj = sitear
-            con = exp(c.htg_cor_small[sp])                # RHCON=1
-            if sp == 13                                   # aspen: FINDAG site-age from height (Sheppard)
+    ind1 = species_major_order(s)
+    # ---- DO 17 J=1,NPER ----
+    ky = 0
+    @inbounds for j in 1:nper
+        ky += kper[j]
+        baj = banext[j]; rdj = rdnext[j]
+        ppccf = relden > 0f0 ? 1.0f0 + (rdj - relden) / relden : 0f0
+        for i in ind1
+            sp = Int(t.species[i]); (1 <= sp <= 19) || continue
+            ttvar = _ci_ttvar(sp); utvar = _ci_ut_species(sp); civar = !(ttvar || utvar)
+            ((civar || utvar) && j > 1) && continue                  # :528
+            d = t.dbh[i]; h = t.height[i]
+            d >= CI_RG_XMAX[sp] && continue
+            pr = t.tpa[i]; pr <= 0f0 && continue
+            scale = ttvar ? Float32(kper[j]) / regyr : utvar ? Float32(ntyr) / yr : Float32(ntyr) / regyr
+            xrhgro = active_multiplier(ctl, :regh, sp, cur_year)
+            xrdgro = active_multiplier(ctl, :regd, sp, cur_year)
+            con = fexp(c.htg_cor_small[sp])                            # RHCON(=1)·EXP(HCOR)
+            h1 = wk3[i]; d1 = wk5[i]
+            cri = Float32(t.crown_pct[i])
+            tpccf = pccf_of(i) * ppccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+            local htgrl::Float32
+            if civar
+                pt = Int(t.plot_id[i])
+                ptbaa = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : ba
+                pct = t.crown_ratio[i]
+                ptbali = ptbaa * (1.0f0 - pct / 100.0f0)
+                relht = avh > 0f0 ? h / avh : 1.5f0; relht > 1.5f0 && (relht = 1.5f0)
+                tbal = (1.0f0 - pct / 100.0f0) * ba
+                iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9)
+                rcr = Float32(iicr)
+                htgrl = CI_RG_CNST[sp] + CI_RG_HTBA[sp]*relht*ptbaa + CI_RG_PBAL[sp]*ptbali +
+                        CI_RG_STBA[sp]*ba + CI_RG_RLHT[sp]*relht + CI_RG_CRSQ[sp]*rcr*rcr +
+                        CI_RG_CR[sp]*rcr + CI_RG_BAL[sp]*tbal + CI_RG_HDM1[sp]*rhdm1 +
+                        CI_RG_HDM2[sp]*rhdm2 + CI_RG_PTBA[sp]*ptbaa
+            elseif ttvar
+                htgrl = _ci_smhtgf!(s, i, cri, tpccf)
+            elseif sp == 13                                           # aspen: FINDAG age, Sheppard curve
                 slo = slo_a[sp]; shi = shi_a[sp]
-                si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
-                relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
-                age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-                hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
-                htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
-            else                                          # 14,15,17,19: POTHTG·PCTRED·VIGOR·CON
-                pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h0) / (sj * 1.5f0) * 0.83f0
-                xcr = Float32(t.crown_pct[i]) / 100.0f0
-                vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
-                sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)   # juniper
-                htgr = pothtg * pctred * vigor * con
+                si = p.sp_site_index[sp]; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
+                rsimod = 0.5f0 * (1.0f0 + (si - slo) / (shi - slo))
+                sitage = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+                hite1 = 26.9825f0 * fpow(sitage, 1.1752f0); hite2 = 26.9825f0 * fpow(sitage + 10.0f0, 1.1752f0)
+                htgrl = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+            else                                                      # 14,15,17,19: POTHTG·PCTRED·VIGOR·CON
+                sj = p.sp_site_index[sp]
+                pothtg = ((sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
+                xx = cri / 100.0f0
+                vigor = 150.0f0 * fpow(xx, 3.0f0) * fexp(-6.0f0 * xx) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
+                htgrl = pothtg * pctred * vigor * con
             end
-            htgr = htgr * scale_ut                        # ZZRAN deferred; XRHGRO=1
-            # ci/regent.f:946-947 CASE(17,19): ·WK4(I), the CLGMULT climate multiplier (1 without CLIMATE)
-            (sp == 17 || sp == 19) && cw !== nothing && (htgr *= cw[i])
-            htgr < 0.1f0 && (htgr = 0.1f0)
-            xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
-            xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
-            htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]; htg < 0.1f0 && (htg = 0.1f0)
-            hcap = s.control.sp_size_cap[sp, 4]           # SIZCAP(sp,4) max height (regent.f:955)
-            (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
-            t.ht_growth[i] = htg
-            # ci/regent.f:993 `IF(D .GE. BKPT) GO TO 23` — for BKPT≤D<XMAX (aspen sp13: [3,4)) the tree keeps its
-            # large-tree dgf DG; only the XWT-blended HEIGHT growth (above) applies. Skip the small-tree DBH dub.
-            if d0 >= CI_RG_BREAK[sp]
-                _ci_rg_stash!(stash, t, i, false)
-                continue
-            end
-            hk = h0 + htg
-            bark = ci_bratio(sd, sp, d0)
-            if hk <= 4.5f0
-                t.diam_growth[i] = 0.0f0
+            h2 = civar ? h1 + htgrl * scale * xrhgro * con :
+                 ttvar ? h1 + htgrl * scale * xrhgro * con * wk4(i) : h1 + htgrl * scale * xrhgro
+            wk3[i] = h2
+            # UPDATE DENSITY FOR NEXT SUBCYCLE (:717-781)
+            local d2::Float32
+            upd = true
+            if civar
+                d2 = d; wk5[i] = d2
+            elseif ttvar
+                rd = pccf_of(i); hless4 = h2 - 4.5f0
+                d2 = 0.000231f0*hless4*cri - 0.00005f0*hless4*rd + 0.001711f0*cri + 0.17023f0*hless4 + 0.3f0
+                d2 *= xrdgro; d2 < CI_RG_DIAM[sp] && (d2 = CI_RG_DIAM[sp])
+                wk5[i] = d2
+                (j >= nper || d >= 3.0f0 || h2 <= 4.5f0) && (upd = false)
+            elseif sp == 13
+                rd = pccf_of(i)
+                d2 = -0.41227f0 + 0.16944f0*h2 + 0.003191f0*cri - 0.00220f0*rd
             else
-                local dk::Float32, dkk::Float32
-                if sp == 14                               # juniper linear-site
-                    dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-                    dkk = h0 < 4.5f0 ? d0 : (h0 - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-                elseif sp == 15                           # mountain-mahogany linear
-                    dk = 3.1020f0 + 0.0210f0 * hk
-                    dkk = 3.1020f0 + 0.0210f0 * h0; dkk < 0.0f0 && (dkk = d0); dk < dkk && (dk = dkk + 0.01f0)
-                else                                      # 17,19 cottonwood/hardwood Curtis-Arney
-                    dk = _ci_ut_htdbh(hk)
-                    dkk = h0 <= 4.5f0 ? d0 : _ci_ut_htdbh(h0)
+                d2 = d; wk5[i] = d2
+                if (sp == 17 || sp == 19) && d >= _ci_bkpt(sp)
+                    upd = false
+                elseif h2 <= 4.5f0
+                    d2 = d + 0.001f0 * h2; wk5[i] = d2
                 end
-                dg = (dk - dkk) * bark; dg < 0.0f0 && (dg = 0.0f0)
-                dgmx = CI_RG_DGMAX[sp] * scale_ut; dg > dgmx && (dg = dgmx)
-                dds = dg * (2.0f0 * bark * d0 + dg) * scale2
-                dg = sqrt((d0 * bark)^2 + dds) - bark * d0
-                (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
-                t.diam_growth[i] = dg
             end
-            _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])   # copies use the regent growth (UTVAR); dgU/dgL only if dubbed
-            continue
+            if upd && j < nper
+                c1 = ci_tree_ccf(sp, d1) * pr; c2 = ci_tree_ccf(sp, d2) * pr
+                f = fpowi(0.985f0, ky)
+                rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * f
+                banext[j+1] += (CI_RG_BACON * (d2 * d2 - d1 * d1)) * pr * f
+            end
         end
-        pt = Int(t.plot_id[i])
-        ptba = (1 <= pt <= length(dens.point_ba)) ? dens.point_ba[pt] : ba
-        pct = t.crown_ratio[i]
-        relht = avh > 0f0 ? h0 / avh : 1.5f0; relht > 1.5f0 && (relht = 1.5f0)
-        ptbali = ptba * (1.0f0 - pct / 100.0f0)
-        tbal = (1.0f0 - pct / 100.0f0) * ba
-        iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
+    end
+    # ---- DO 30 ISPC / DO 25 I3 (+ L-loop over the tripled records) ----
+    @inbounds for i in ind1
+        sp = Int(t.species[i]); (1 <= sp <= 19) || continue
+        ttvar = _ci_ttvar(sp); utvar = _ci_ut_species(sp); civar = !(ttvar || utvar)
+        bkpt = _ci_bkpt(sp)
+        scale = ttvar ? yr / fint : utvar ? Float32(ntyr) / yr : Float32(ntyr) / regyr
+        xrdgro = active_multiplier(ctl, :regd, sp, cur_year)
+        xmx = CI_RG_XMAX[sp]; xmn = CI_RG_XMIN[sp]
+        dgmx = ttvar ? fint * CI_RG_DGMAX[sp] : CI_RG_DGMAX[sp] * scale
+        d = t.dbh[i]
+        cri = Float32(t.crown_pct[i])
+        iicr = ((Int(t.crown_pct[i]) - 1) ÷ 10) + 1; iicr > 9 && (iicr = 9)
         rcr = Float32(iicr)
-        htgrl = CI_RG_CNST[sp] + CI_RG_HTBA[sp]*relht*ptba + CI_RG_PBAL[sp]*ptbali +
-                CI_RG_STBA[sp]*ba + CI_RG_RLHT[sp]*relht + CI_RG_CRSQ[sp]*rcr*rcr +
-                CI_RG_CR[sp]*rcr + CI_RG_BAL[sp]*tbal + CI_RG_HDM1[sp]*rhdm1 +
-                CI_RG_HDM2[sp]*rhdm2 + CI_RG_PTBA[sp]*ptba
-        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
-        con = exp(c.htg_cor_small[sp])                    # CON = RHCON·exp(HCOR); RHCON=1
-        h2 = h0 + htgrl * scale_h * xrhgro * con
-        htgr1 = h2 - h0; htgr1 < 0.0f0 && (htgr1 = 0.0f0) # HTGR1 = HK−H (regent.f:907-908)
-        htgr = htgr1                                      # + ZZRAN*0.1*SCALE deferred
-        htgr < 0.1f0 && (htgr = 0.1f0)                    # Dixon 3/4/09 floor (regent.f:961)
-        # Blend the small-tree (regent) HTGR with the large-tree HTG(K) via XWT (regent.f:973-979): for a tree
-        # with XMN<D<XMAX the final height increment is a diameter-weighted mix of the regent prediction and the
-        # large-tree htgf increment already in t.ht_growth[i]. jl previously used pure HTGR (XWT=0) — correct only
-        # for D≤XMN; trees between XMN and XMAX (e.g. 2-5" CIVAR conifers) then under-grew (the large-tree htgf
-        # increment is much bigger for young vigorous stems). Both HK and the DBH below flow from the blended HTG
-        # (regent.f:998 HK=H+HTG(K)), matching live.
-        xmn = CI_RG_XMIN[sp]; xmx = CI_RG_XMAX[sp]
-        xwt = d0 <= xmn ? 0.0f0 : (d0 - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
-        hcap = s.control.sp_size_cap[sp, 4]               # SIZCAP(sp,4) max height (regent.f:983-986)
-        (hcap > 0f0 && h0 + htg > hcap) && (htg = max(hcap - h0, 0.1f0))
-        t.ht_growth[i] = htg
-        # ci/regent.f:993 `IF(D .GE. BKPT) GO TO 23` — the CIVAR conifers have BKPT=3 but XMAX=5 (sp1-10,18) or
-        # XMAX=3 (sp11,12,16). For the [3,5) band the tree takes the XWT-blended HEIGHT growth (above) but KEEPS
-        # its large-tree dgf DG. Omitting this overwrote medium conifers' large-tree DG with the smaller
-        # height-derived increment ⇒ QMD/BA under-growth as stems mature past 3" (the UT lever bug).
-        if d0 >= CI_RG_BREAK[sp]
-            _ci_rg_stash!(stash, t, i, false)
-            continue
+        d >= xmx && continue
+        t.tpa[i] <= 0f0 && continue
+        h = t.height[i]; hkw = wk3[i]
+        dk5 = wk5[i]
+        htgr1 = hkw - h
+        (ttvar && d < CI_RG_DIAM[sp]) && (d = CI_RG_DIAM[sp])
+        civar && htgr1 < 0.0f0 && (htgr1 = 0.0f0)
+        dbh_i = t.dbh[i]                                              # DBH(I) (DGDRIV put it in the copy slots too)
+        large_htg = t.ht_growth[i]
+        nrec = (stash !== nothing && !ttvar) ? 3 : 1
+        for l in 0:(nrec - 1)
+            htgr = htgr1
+            if !ttvar
+                zz = _ci_zzran(s, dgsd)
+                if civar
+                    htgr = htgr1 + zz * 0.1f0 * scale
+                elseif sp == 17 || sp == 19
+                    htgr = (htgr1 + zz * 0.2f0 * (Float32(ntyr) / 10.0f0)) * wk4(i)
+                else                                                  # 13,14,15
+                    htgr = htgr1 + zz * 0.1f0 * (Float32(ntyr) / 10.0f0)
+                end
+            end
+            htgr < 0.1f0 && (htgr = 0.1f0)                            # Dixon 3/4/09
+            xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg = htgr * (1.0f0 - xwt) + xwt * lh
+            capH = ctl.sp_size_cap[sp, 4]
+            if h + htg > capH
+                htg = capH - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+            dbhK = dbh_i; dgK = 0f0; below = d < bkpt
+            if below
+                hk = h + htg
+                if !ttvar && hk < 4.5f0
+                    dgK = 0.0f0; dbhK = d + 0.001f0 * hk             # :993-996 DBH(K)=D+0.001·HK
+                else
+                    dk = 0f0; dkk = 0f0
+                    if civar
+                        dk = fexp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * flog(hk) + CI_RG_DHCR[sp] * flog(rcr))
+                        dkk = h < 4.5f0 ? d : fexp(CI_RG_DHCN[sp] + CI_RG_DHHT[sp] * flog(h) + CI_RG_DHCR[sp] * flog(rcr))
+                    elseif utvar
+                        if sp == 14
+                            sit = p.sp_site_index[sp]
+                            dk = (hk - 4.5f0) * 10.0f0 / (sit - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                            dkk = (h - 4.5f0) * 10.0f0 / (sit - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+                            h < 4.5f0 && (dkk = d)
+                        else
+                            bx = CI_BLK_HT2[sp]; ax = iabflg[sp] == 1 ? CI_BLK_HT1[sp] : aa[sp]
+                            if sp == 15
+                                dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
+                                dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+                                if !lhtdrg[sp] || iabflg[sp] == 1
+                                    dk = _ci_ut_htdbh(hk)
+                                    dkk = h <= 4.5f0 ? d : _ci_ut_htdbh(h)
+                                end
+                            else                                      # 13,17,19 Wykoff inverse
+                                dk = (bx / (flog(hk - 4.5f0) - ax)) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+                                dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1.0f0
+                            end
+                        end
+                    else                                              # TTVAR
+                        if hk >= 4.5f0
+                            rd = pccf_of(i); hless4 = h - 4.5f0
+                            dkk = 0.000231f0*hless4*cri - 0.00005f0*hless4*rd + 0.001711f0*cri + 0.17023f0*hless4 + 0.3f0
+                            dk = dk5
+                            bark = ci_bratio(sd, sp, d)
+                            dgK = (dk - dkk) * bark
+                            dds = dgK * (2.0f0 * bark * d + dgK) * scale2
+                            dgK = sqrt((d * bark)^2 + dds) - bark * d
+                        else
+                            dgK = 0.0f0
+                        end
+                    end
+                    # non-LESTB (:1178-1271)
+                    if civar
+                        h < 4.5f0 && (dkk = d)
+                        dgK = (dk - dkk) * ci_bratio(sd, sp, d) * xrdgro     # (stale BARK; recomputed below)
+                        dgK < 0f0 && (dgK = 0f0)
+                    elseif utvar
+                        bark = ci_bratio(sd, sp, d)
+                        if sp == 15
+                            h < 4.5f0 && (dkk = d)
+                            if dk < 0f0 || dkk < 0f0
+                                dgK = htg * 0.2f0 * bark * xrdgro; dk = d + dgK
+                            else
+                                dgK = (dk - dkk) * bark * xrdgro
+                            end
+                            (lhtdrg[sp] && iabflg[sp] == 0) && (dgK = 0.1f0 * htg * xrdgro)
+                            dgK < 0f0 && (dgK = 0.1f0)
+                            dgK > dgmx && (dgK = dgmx)
+                        else                                          # 13,14,17,19
+                            if dk < 0f0 || dkk < 0f0
+                                dgK = htg * 0.2f0 * bark * xrdgro; dk = d + dgK
+                            else
+                                dgK = (dk - dkk) * bark * xrdgro
+                            end
+                            dgK > dgmx && (dgK = dgmx)
+                        end
+                    end
+                    dgK < 0f0 && (dgK = 0f0)
+                    barkK = ci_bratio(sd, sp, dbhK)                  # BRATIO(ISPC,DBH(K),HT(K))
+                    if civar
+                        dgK = (dk - dkk) * barkK * xrdgro; dgK < 0f0 && (dgK = 0f0)
+                    elseif utvar
+                        dgK > dgmx && (dgK = dgmx)
+                    end
+                    dds = dgK * (2.0f0 * barkK * d + dgK) * scale2
+                    dgK = sqrt((d * barkK)^2 + dds) - barkK * d
+                    (dbhK + dgK) < CI_RG_DIAM[sp] && (dgK = CI_RG_DIAM[sp] - dbhK)
+                end
+                dgK = dg_bound(nothing, nothing, sp, dbhK, dgK, ctl.sp_size_cap)   # DGBND
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                if below
+                    t.dbh[i] = dbhK; t.diam_growth[i] = dgK
+                end
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                below && (stash.dgU[i] = dgK; stash.dbhU[i] = dbhK)
+            else
+                stash.htgL[i] = htg
+                below && (stash.dgL[i] = dgK; stash.dbhL[i] = dbhK)
+            end
         end
-        hk = h0 + htg                                     # HK = H + HTG(K) (blended, regent.f:998)
-        if hk < 4.5f0
-            t.diam_growth[i] = 0.0f0
-            _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])
-            continue
+        # TTVAR tripling (:1277-1290): both copies take the central's DBH/DG/HT/HTG/ICR
+        if ttvar && stash !== nothing
+            stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]; stash.is_small[i] = true
+            stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
+            stash.dbhU[i] = t.dbh[i]; stash.dbhL[i] = t.dbh[i]
         end
-        dhcn = CI_RG_DHCN[sp]; dhht = CI_RG_DHHT[sp]; dhcr = CI_RG_DHCR[sp]
-        dk = exp(dhcn + dhht * log(hk) + dhcr * log(rcr))
-        dkk = h0 < 4.5f0 ? d0 : exp(dhcn + dhht * log(h0) + dhcr * log(rcr))   # regent.f:1009-1012
-        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
-        bark = ci_bratio(sd, sp, d0)                      # BRATIO(ISPC,DBH,HT)
-        dg = (dk - dkk) * bark * xrdgro; dg < 0.0f0 && (dg = 0.0f0)            # regent.f:1245
-        dds = dg * (2.0f0 * bark * d0 + dg) * scale2                          # regent.f:1251
-        dg = sqrt((d0 * bark)^2 + dds) - bark * d0                            # regent.f:1253
-        dg < 0.0f0 && (dg = 0.0f0)
-        (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)              # regent.f:1256 min-DBH floor
-        t.diam_growth[i] = dg
-        _ci_rg_stash!(stash, t, i, d0 < CI_RG_BREAK[sp])   # copies use the regent growth (CIVAR/NIVAR); dgU/dgL only if dubbed
     end
     return s
 end
@@ -242,18 +412,18 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
         h0 = t.height[i]
         if _ci_ut_species(sp)                            # UTVAR aspen/juniper/MC/CW/hardwood
             sitear = p.sp_site_index[sp]; sj = sitear
-            con = exp(c.htg_cor_small[sp])
+            con = fexp(c.htg_cor_small[sp])
             if sp == 13
                 slo = slo_a[sp]; shi = shi_a[sp]
                 si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
                 relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
                 age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-                hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+                hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
                 htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
             else
                 pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h0) / (sj * 1.5f0) * 0.83f0
                 xcr = Float32(t.crown_pct[i]) / 100.0f0
-                vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+                vigor = 150.0f0 * fpow(xcr, 3.0f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
                 sp == 14 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
                 htgr = pothtg * pctred * vigor * con
             end
@@ -302,7 +472,7 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
                 CI_RG_CR[sp]*rcr + CI_RG_BAL[sp]*tbal + CI_RG_HDM1[sp]*rhdm1 +
                 CI_RG_HDM2[sp]*rhdm2 + CI_RG_PTBA[sp]*ptba
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
-        con = exp(c.htg_cor_small[sp])
+        con = fexp(c.htg_cor_small[sp])
         h2 = h0 + htgrl * bscale * xrhgro * con          # birth-cycle fraction (was scale_h)
         htgr1 = h2 - h0; htgr1 < 0.0f0 && (htgr1 = 0.0f0)
         htgr = htgr1 < 0.1f0 ? 0.1f0 : htgr1
@@ -489,7 +659,7 @@ function ci_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         snx /= snp; sny /= snp
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
-        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : flog(cornew)
     end
     return s
 end

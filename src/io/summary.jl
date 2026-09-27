@@ -286,7 +286,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
-        cycle_hook === nothing || cycle_hook(s, r.year, per, c)
+        # dbstrls.f binds PrdLen = IFINT: at the end of FVS cycle ICYC (year IY(ICYC+1) = jl cycle c's start) that is
+        # the FINT of the cycle just grown (jl c−1) — so the terminal list reports the last cycle's length, not the
+        # .sum final row's 0; the inventory list (c=0, before any growth) carries the first cycle's FINT.
+        cycle_hook === nothing || cycle_hook(s, r.year, c == 0 ? per : cycle_period_at(s.control, c - 1), c)
         # Test-only observer (tiered suite bit-identity snapshots, test/harness/tiered/snapshot.jl): a callback in the
         # CURRENT TASK's local storage sees the same start-of-cycle state. Task-local ⇒ safe when stands run on
         # parallel tasks; absent ⇒ one Dict lookup per summary row, no effect on the simulation.
@@ -322,15 +325,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # Carbon-Released-from-Fire: 0 unless a SIMFIRE burned in r.year (fmburn! records it in burn_reports);
         # convert tons-C/ac → the report units (same factor as stand_carbon_report's pools, carbon.jl).
         _carb_push(st) = begin
-            rel = 0f0
+            rel = 0f0; tcon = 0f0
             if st.fire !== nothing
                 @inbounds for br in st.fire.burn_reports
-                    br.year == Int(r.year) && (rel = br.released)
+                    br.year == Int(r.year) && (rel = br.released; tcon = get(br, :totcon, 0f0)::Float32)
                 end
             end
             uf = st.control.carbon_units == 1 ? 0.90718474f0 / 0.40468564f0 :
                  st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
-            push!(carbon_collect, (r.year, stand_carbon_report(st), ffe_fuel_loadings(st),
+            # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
+            fl = merge(ffe_fuel_loadings(st), (consumed = tcon,))
+            push!(carbon_collect, (r.year, stand_carbon_report(st), fl,
                                    snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
@@ -523,7 +528,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # BM cycle-0 row: FVS's AVH (DENSE at cratet.f:692 / AVHT40 :624) walks the IND CRATET left — the IND1-seeded
     # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
     # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
-    toph = dt(stand_top_height(s; cratet_ind = cycle0 && s.variant isa BlueMountains) * fht)
+    toph = dt(stand_top_height(s; cratet_ind = cycle0 && (s.variant isa BlueMountains || s.variant isa CentralIdaho)) * fht)
     qmd  = round(stand_qmd(s) * fqmd; digits = 1)
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop

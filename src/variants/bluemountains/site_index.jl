@@ -89,7 +89,7 @@ function bm_forkod!(p)
         # forest_idx=5 (clamped to 1 in bm_dgcons!) picked the wrong DGFOR column ⇒ DGCON off by DGFOR[1,sp]-
         # DGFOR[4,sp] (PP −0.0598) ⇒ systematic under-thin on Whitman(619)-forest stands.
         idx == 5 && (idx = 4)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        idx === nothing ? (useigl = false; ifor = 4) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps bm/grinit.f's 4 (Wallowa-Whitman 616)
     end
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(1))    # IGL = KFOR(IFOR) = 1

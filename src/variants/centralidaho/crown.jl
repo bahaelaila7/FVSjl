@@ -123,45 +123,53 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         (lstart && t.crown_pct[i] > 0) && continue
         cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
         inband = cdlow <= d <= cdhi                       # ci/crown.f:342/349/403 `.GE. DLOW .AND. .LE. DHI`
-        if sp == 17 || sp == 19                         # ci/crown.f CASE(17,19): CW/OH crown model at ALL sizes
-            hf = h + t.ht_growth[i]; hf <= 0f0 && (hf = 0.1f0)   # HF=H+HTG (HTG=0 at the lstart dub)
-            cl = 5.17281f0 + 0.32552f0*hf - 0.01675f0*p.basal_area
-            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
-            icri = trunc(Int, (cl/hf)*100f0 + 0.5f0)
-            if !lstart && t.crown_pct[i] > 0            # cycling: limit change to 1%/yr (label 53)
-                icr0 = Float32(t.crown_pct[i]); chg = Float32(icri) - icr0; pdifpy = chg/icr0/fint
-                pdifpy > 0.01f0 && (chg = icr0*0.01f0*fint); pdifpy < -0.01f0 && (chg = icr0*(-0.01f0)*fint)
-                icri = trunc(Int, icr0 + chg + 0.5f0)
-            end
-            icri > 95 && (icri = 95); icri < 10 && (icri = 10)
-            t.crown_pct[i] = Int32(icri)
-            continue
+        # ci/crown.f:210-219 RELSDI per species: WB/PY/AS/MC/LM/.. (CASE 11:16) use the stand SDI over the species
+        # SDIDEF; every other species BA/BAMAX (the common BAMAX the last SDICAL left). Capped at 1.5.
+        relsdi = if 11 <= sp <= 16
+            p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
+        else
+            p.basal_area / s.control.sdical_bamax
         end
-        # ci/crown.f:290 — DBH<1" at LSTART jumps to label 58: dub via DUBSCR (small-tree logistic),
-        # NOT the Weibull path, and NOT skipped. Floor to 10 (CRNMLT=1). (17/19 use the Weibull-loop
-        # CW/OH model at all sizes; here they fall through to Weibull like the rest — sp15 handled in dubscr.)
-        if d < 1f0 && lstart
+        relsdi > 1.5f0 && (relsdi = 1.5f0)
+        icr = Int(t.crown_pct[i])
+        if sp == 17 || sp == 19
+            # ci/crown.f:275-283 CASE(17,19) CW/OH crown length at every size (before the D<1 LSTART dub test),
+            # then the shared label-53 tail
+            hf = h + t.ht_growth[i]
+            cl = 5.17281f0 + 0.32552f0 * hf - 0.01675f0 * p.basal_area
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            crnew = (cl / hf) * 100f0
+        elseif d < 1f0 && lstart
+            # ci/crown.f:285 — DBH<1" at LSTART jumps to label 58: dub via DUBSCR (small-tree logistic).
             pt = Int(t.plot_id[i])
             tpccf = (1 <= pt <= length(p_pccf)) ? p_pccf[pt] : 0f0
             cr = ci_dubscr(s.rng, sp, d, t.height[i], p.basal_area, tpccf, p.avg_height, _ci_temmai(s, sp), s.control.dg_sd)
             icri = trunc(Int, cr*100f0 + 0.5f0)
             inband && (icri = trunc(Int, Float32(icri) * cmult))          # ci/crown.f:403-404
-            (cmult == 1f0 && icri < 10) && (icri = 10); icri > 95 && (icri = 95); icri < 1 && (icri = 1)
+            icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)
             t.crown_pct[i] = Int32(icri)
             continue
+        elseif sp == 14
+            # ci/crown.f:287-294 CASE(14) crown-length model
+            hf = h + t.ht_growth[i]
+            cl = -0.59373f0 + 0.67703f0 * hf
+            cl < 1f0 && (cl = 1f0); cl > hf && (cl = hf)
+            crnew = (cl / hf) * 100f0
+        else
+            acrnew = CI_CRC0[sp] + CI_CRC1[sp] * relsdi * 100f0
+            A = CI_WEIBA[sp]
+            B = CI_WEIBB0[sp] + CI_WEIBB1[sp] * acrnew
+            C = CI_WEIBC0[sp]                             # + WEIBC1(=0)·ACRNEW
+            # ci/crown.f:227-232: B floor 1 for 11-17,19, else 3; C floor 2
+            (sp in 11:17 || sp == 19) ? (B < 1f0 && (B = 1f0)) : (B < 3f0 && (B = 3f0))
+            C < 2f0 && (C = 2f0)
+            scale = 1f0 - 0.00167f0 * (relden - 100f0)
+            scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
+            x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
+            x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
         end
-        icr = Int(t.crown_pct[i])
-        relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
-        relsdi > 1.5f0 && (relsdi = 1.5f0)
-        acrnew = CI_CRC0[sp] + CI_CRC1[sp] * relsdi * 100f0
-        A = CI_WEIBA[sp]
-        B = CI_WEIBB0[sp] + CI_WEIBB1[sp] * acrnew; B < 1f0 && (B = 1f0)
-        C = CI_WEIBC0[sp]; C < 2f0 && (C = 2f0)
-        scale = 1f0 - 0.00167f0 * (relden - 100f0)
-        scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
-        x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
-        x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        # label 53 (ci/crown.f:325-370): limit the change to 1%/yr of ICR, CRNMULT band, round, CRMAX cap
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
@@ -172,13 +180,13 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
         ((lstart || icr == 0) && inband) && (icri = trunc(Int, Float32(icri) * cmult))   # 9052, :348-351
         if !(lstart || icr == 0)
             crln = h * Float32(icr) / 100f0; htg = t.ht_growth[i]
-            crmax = (h + htg) > 0f0 ? (crln + htg) / (h + htg) * 100f0 : 100f0
-            # ci/crown.f:369-370, in THIS order — the ICRI<10 bump was missing from the port.
+            crmax = (crln + htg) / (h + htg) * 100f0
+            # ci/crown.f:369-370, in THIS order
             (cmult == 1f0 && icri < 10) && (icri = trunc(Int, crmax + 0.5f0))
             Float32(icri) > crmax && (icri = trunc(Int, crmax + 0.5f0))
         end
         lstart && (icri = topkill_icri(t, i, icri))   # crown.f stmt 55 (crown_init.jl)
-        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10)   # stmt 59, ci/crown.f:411-412
+        icri > 95 && (icri = 95); (cmult == 1f0 && icri < 10) && (icri = 10); icri < 1 && (icri = 1)   # stmt 59, :411-413
         t.crown_pct[i] = Int32(icri)
     end
     # ci/crown.f:426-462 DO 79 — cycle-0 dead records: 17,19 crown-length form (INT(CR*100.), no rounding), others DUBSCR.

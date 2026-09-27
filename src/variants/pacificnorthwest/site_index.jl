@@ -82,7 +82,7 @@ function pn_forkod!(p)
         ifor = 1                                  # → 609 Olympic
     else
         idx = findfirst(==(kodfor), PN_JFOR)
-        idx === nothing ? (useigl = false; ifor = 1) : (ifor = idx)
+        idx === nothing ? (useigl = false; ifor = 2) : (ifor = idx)   # not found ⇒ ERRGRO(3), IFOR keeps pn/grinit.f's 2 (Siuslaw 612)
     end
     p.forest_idx = Int32(ifor)
     useigl && (p.geo_location = Int32(1))
