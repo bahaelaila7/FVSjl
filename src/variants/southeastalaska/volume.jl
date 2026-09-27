@@ -67,8 +67,8 @@ const _AK_VOL_EVOD = 2
 #  • VOL(4) cubic (line 573-587): butt = dib-class at 4.5; Σ ANINT(.00272708·(DIBL²+DIBS²)·LEN·10)/10.
 #  • VOL(2) board (line 464-542, REGN 10 32-ft rule): pair 16-ft logs into 32-ft, DIB=INT(raw small-end
 #    of the pair's top), LEN=LOGLEN(2k)+LOGLEN(2k-1); odd top log kept as a 16-ft; Σ SCRIB(DIB,LEN)·10.
-function _ak_buck(dibat, h::Float32, mtop::Float32)
-    hs = _fw2_hs(dibat, mtop, h)
+function _ak_buck(dibat, h::Float32, mtop::Float32; hs_solver = nothing)
+    hs = hs_solver === nothing ? _fw2_hs(dibat, mtop, h) : hs_solver(mtop)
     lmerch = hs - _AK_VOL_STUMP
     lmerch < _AK_VOL_MERCHL && return (0f0, 0f0)
     n16 = trunc(Int, lmerch / (_AK_VOL_MAXLEN + _AK_VOL_TRIM))   # F3 reset (pre-SEGMNT LMERCH)
@@ -119,7 +119,8 @@ function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32, m = _AK_MERCH_CA
     tapcoe = _fw2_sf_taper(rhfw, rflw)
     bark = ak_bratio(sp, d)                             # AK variant bark (ak/bratio.f) = DBT_USER path
     dbhib = d * bark                                    # inside-bark DBH (bit-exact vs live SF2PT DBH_IB)
-    yhat_bh = _fw2_sf_yhat(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0)
+    # sf_2pt.f:63-66 F = DBH_IB / SF_YHAT(4.5/TOTALH) through sf_yhat.f's own precision (as cr_fw2_vol)
+    yhat_bh = _fw2_sf_yhat_f(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0, h, false)[1]
     yhat_bh == 0f0 && return (0f0, 0f0, 0f0)
     f = dbhib / yhat_bh
     dibat = ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)   # inside-bark section diameter
@@ -127,8 +128,11 @@ function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32, m = _AK_MERCH_CA
     tcf = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1   # profile.f:293 NINT(TCVOL*10.0)*1E-1
     # Merch cubic (VOL4) + Scribner board (VOL2) share ONE bucking to the MTOPP=TOPD·bark top
     # (profile.f: board reuses the cubic logs). FVS-side gates: DBHMIN=9 (cubic), SCFMIND=9 (board).
-    mcf, bf = _ak_buck(dibat, h, m.topd * bark)
-    m.bftopd != m.topd && (bf = _ak_buck(dibat, h, m.bftopd * bark)[2])
+    # MERLEN (profile.f:1004, VOLEQ(4:4)='F'): merch-top height from SF_HS — the Newton/bisection solver itself,
+    # not a diameter-tolerance bisection (the two straddle an even-foot SEGMNT boundary, e.g. YC 22.5"×59').
+    hs_solver = top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)
+    mcf, bf = _ak_buck(dibat, h, m.topd * bark; hs_solver = hs_solver)
+    m.bftopd != m.topd && (bf = _ak_buck(dibat, h, m.bftopd * bark; hs_solver = hs_solver)[2])
     d < m.dbhmin && (mcf = 0f0)
     d < m.bfmind && (bf = 0f0)
     return (tcf, mcf, bf)
