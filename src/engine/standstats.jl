@@ -153,6 +153,11 @@ Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
 height"). Trees are taken in descending-DBH order; the last one is prorated to
 hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotpath.)
 """
+# Variants whose AVHT40/DENSE walk FVS's own IND lifecycle: CRATET's IND at cycle 0 ({v}/cratet.f RDPSRT(.FALSE.) on
+# IND1 / RDPSRT(.TRUE.) with dead records), then gradd.f:186's fresh RDPSRT(DBH,.TRUE.). The cratet.f sort blocks are
+# byte-identical in bm/ci/ut/tt (bm 159-166/270, ci 226-233/337, ut 214-221/325, tt 207-214/318).
+_fvs_ind_lifecycle(v) = v isa BlueMountains || v isa CentralIdaho || v isa Utah || v isa Teton
+
 function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
     t.n == 0 && return 0f0
@@ -161,7 +166,7 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     # cuts.f:302/1840, esnutr.f:129/325). The empirical double sort below stays for the other variants.
     # CI too: ci/cratet.f:230-233/:337 and ci/gradd.f:186 are the same pair of sorts (FIA 753188889290487 cycle-1
     # ATAVH live 71.15 = the IND1-seeded walk; the double sort gave 70.95 ⇒ every CIVAR RELHT/PCTRED off).
-    if (s.variant isa BlueMountains || s.variant isa CentralIdaho) && !legacy_double
+    if _fvs_ind_lifecycle(s.variant) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
         avh = 0f0; ssumn = 0f0
