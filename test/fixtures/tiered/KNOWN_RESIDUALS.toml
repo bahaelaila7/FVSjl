@@ -7483,8 +7483,8 @@ col = "Belowground_Dead"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 51
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 51 cells [ulp1=9 ulp2_16=12 ulpbig=30] max|Δ|=0.01734 | e.g. stand 11855985010690 year 2036: live=3.49619460105896 jl=3.4916903972625732"""
+max_cells = 52
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 51→52) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 51 cells [ulp1=9 ulp2_16=12 ulpbig=30] max|Δ|=0.01734 | e.g. stand 11855985010690 year 2036: live=3.49619460105896 jl=3.4916903972625732"""
 
 [[residual]]
 variant = "IE"
@@ -7930,17 +7930,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "simfire"
 file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2016: live=486 jl=485"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -8156,17 +8145,6 @@ year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2026: live=931 jl=939"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2016: live=486 jl=485"""
 
 [[residual]]
 variant = "IE"
@@ -13851,8 +13829,8 @@ col = "SiteMult"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 260
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 260 cells [tiny=260] max|Δ|=1.177e-7 | e.g. stand 474187636489998 year 2056: live=1.08596611 jl=1.0859661102294922"""
+max_cells = 262
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 260→262) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 260 cells [tiny=260] max|Δ|=1.177e-7 | e.g. stand 474187636489998 year 2056: live=1.08596611 jl=1.0859661102294922"""
 
 [[residual]]
 variant = "EM"
@@ -13873,8 +13851,8 @@ col = "ViabMort"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 49
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [small=1 tiny=48] max|Δ|=5.965e-8 | e.g. stand 474187636489998 year 2046: live=0.0278182626 jl=0.027818262577056885"""
+max_cells = 51
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 49→51) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [small=1 tiny=48] max|Δ|=5.965e-8 | e.g. stand 474187636489998 year 2046: live=0.0278182626 jl=0.027818262577056885"""
 
 [[residual]]
 variant = "EM"
@@ -13884,8 +13862,8 @@ col = "Viability"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 328
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 328 cells [tiny=328] max|Δ|=4.987e-10 | e.g. stand 474187636489998 year 2056: live=0.52216363 jl=0.5221636295318604"""
+max_cells = 330
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 328→330) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 328 cells [tiny=328] max|Δ|=4.987e-10 | e.g. stand 474187636489998 year 2056: live=0.52216363 jl=0.5221636295318604"""
 
 [[residual]]
 variant = "EM"
@@ -13895,8 +13873,8 @@ col = "dClimMort"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 55
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 55 cells [small=27 tiny=28] max|Δ|=0.006821 | e.g. stand 474187636489998 year 2056: live=0.52744925 jl=0.5274292230606079"""
+max_cells = 57
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 55→57) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 55 cells [small=27 tiny=28] max|Δ|=0.006821 | e.g. stand 474187636489998 year 2056: live=0.52744925 jl=0.5274292230606079"""
 
 [[residual]]
 variant = "EM"
@@ -14137,8 +14115,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 8
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 8 cells [gold_text9=5 jl_not_f32=2 small=1] max|Δ|=0.6 | e.g. stand 474187636489998 year 2036: live=5.0 jl=4.9"""
+max_cells = 9
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 8→9) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 8 cells [gold_text9=5 jl_not_f32=2 small=1] max|Δ|=0.6 | e.g. stand 474187636489998 year 2036: live=5.0 jl=4.9"""
 
 [[residual]]
 variant = "EM"
@@ -14236,8 +14214,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 8
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 8 cells [gold_text9=5 jl_not_f32=2 small=1] max|Δ|=0.6 | e.g. stand 474187636489998 year 2036: live=5.0 jl=4.9"""
+max_cells = 9
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 8→9) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 8 cells [gold_text9=5 jl_not_f32=2 small=1] max|Δ|=0.6 | e.g. stand 474187636489998 year 2036: live=5.0 jl=4.9"""
 
 [[residual]]
 variant = "EM"
@@ -15743,8 +15721,8 @@ col = "Mort_BA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 474187636489998 year 2046: live=1 jl=0"""
+max_cells = 2
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 1→2) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 474187636489998 year 2046: live=1 jl=0"""
 
 [[residual]]
 variant = "EM"
@@ -19127,39 +19105,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "FuelModl1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 3→4) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=6.0 | e.g. stand 5352355010661 year 2004: live=2 jl=8"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=10.0 | e.g. stand 888512560290487 year 2031: live=0 jl=10"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "FuelModl3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [material=1] max|Δ|=8.0 | e.g. stand 196378260020004 year 2022: live=8 jl=0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Midflame_Wind"
 stand = "*"
 year = "*"
@@ -19210,17 +19155,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=42.56 | e.g. stand 888512560290487 year 2031: live=0.0 jl=31.5275639295578"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [material=1] max|Δ|=15.0 | e.g. stand 196378260020004 year 2022: live=15.0 jl=0.0"""
 
 [[residual]]
 variant = "EM"
@@ -20242,8 +20176,8 @@ col = "Stratum_1_Crown_Cover"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 196420598020004 year 2022: live=24 jl=25"""
+max_cells = 8
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 7→8) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 196420598020004 year 2022: live=24 jl=25"""
 
 [[residual]]
 variant = "EM"
@@ -20330,8 +20264,8 @@ col = "Stratum_2_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 17 cells [material=4 ulpbig=13] max|Δ|=14.0 | e.g. stand 474157097489998 year 2056: live=2 jl=1"""
+max_cells = 21
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 17→21) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 17 cells [material=4 ulpbig=13] max|Δ|=14.0 | e.g. stand 474157097489998 year 2056: live=2 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -20385,8 +20319,8 @@ col = "Stratum_2_Sm_Ht"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [material=3 ulpbig=10] max|Δ|=29.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
+max_cells = 15
+issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 13→15) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [material=3 ulpbig=10] max|Δ|=29.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
 
 [[residual]]
 variant = "EM"
