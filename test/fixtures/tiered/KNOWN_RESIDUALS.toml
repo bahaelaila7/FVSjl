@@ -8495,17 +8495,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "simfire"
 file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2016: live=486 jl=485"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -8721,17 +8710,6 @@ year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2026: live=931 jl=939"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2016: live=486 jl=485"""
 
 [[residual]]
 variant = "IE"
@@ -12367,17 +12345,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 216786838010854 year 2029: live=0 jl=1"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -13066,17 +13033,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=0.155 | e.g. stand 216786838010854 year 2009: live=0.019999999552965164 jl=0.17499999701976776"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 216786838010854 year 2029: live=0 jl=1"""
 
 [[residual]]
 variant = "SN"
