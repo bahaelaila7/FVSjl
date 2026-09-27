@@ -105,4 +105,13 @@ end
     @test !any(m -> m.col == "Standing_Dead" && m.year == "2006", _ccol("Standing_Dead"))
 end
 
+# fmcwd.f:311-403 (CWD1/CWD2/CWD3): each size class books MAX(0,P2−P1)·TVOLI of the fallen stem, P(h)=(1−h/HTD)³ between
+# breakpoints, from LOHT (hard 0.10, soft 1.0) up — NOT renormalized to the whole stem, nothing for HTD≤4.5 ft, and only
+# pieces with DIF·density > 1E-6. jl renormalized (+1/P(0.10) ≈ 0.3% per fallen snag) and dumped short snags whole into
+# the DBH class (MEASURED FVSie_g16 2006 FMSNAG: hard 3-6" +0.182612 vs jl +0.183183; 2016 hard <0.25" 0.0907 vs 0.0967).
+@testset "Snag-fall CWD split at fmcwd.f's un-normalized cone volumes vs FVSie_g16" begin
+    @test all(m -> _crel(m) < 1e-6, _ccol("Forest_Down_Dead_Wood"))
+    @test all(m -> _crel(m) < 1e-6, _ccol("Forest_Floor"))
+end
+
 end # module

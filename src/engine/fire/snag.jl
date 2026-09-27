@@ -295,17 +295,15 @@ const _CWD_BP = (0f0, 0.25f0, 1f0, 3f0, 6f0, 12f0, 20f0, 35f0, 50f0, 9999f0)
 const _FM_NZERO = 0.01f0    # NZERO: snag density treated as zero; DZERO = NZERO/50 (fmvinit.f:125)
 
 """
-    _cwd_cone_fractions(d, ht) -> (frac_soft::NTuple{9,Float32}, frac_hard::NTuple{9,Float32})
+    _cwd_cone_fractions(d, ht, htcur = ht) -> (frac_soft::NTuple{9,Float32}, frac_hard::NTuple{9,Float32})
 
-Fraction of a fallen bole's volume in each CWD size class 1..9, summing to 1 — the cone-taper
-distribution of FVS's FMCWD/CWD1 (fmcwd.f label 1000). The standing stem is modeled as a cone
-(DBH `d` in at 4.5 ft, total height `ht` ft); each diameter-class breakpoint BP falls at a height
-BPH, and the normalized conic volume `P(h)=r(h)²·(ht−h)/(R1²·ht)` between successive breakpoints
-(clipped to the [0.1 ft, ht] bole) is that class's share. Replaces the prior single-class dump
-(whole bole into the DBH class), which overloaded the 6–12" class. Normalized to sum 1 so the bole
-TOTAL is unchanged (carbon DDW preserved); only the per-class split — FMCFMD's (SMALL,LARGE) input —
-is corrected. A bole too short to taper (`ht ≤ 4.6`) or with no taperable volume falls back to its
-DBH class.
+The share of a fallen snag's total stem volume TVOLI that FVS's FMCWD (CWD1/CWD3, fmcwd.f label 1000) books into
+each down-wood size class 1..9, per hardness. The stem is a cone of height HTD=`ht`; breakpoint diameter BP(j) sits at
+BPH(j) = MAX(0.10, HTD − 0.5·BP(j)·RHRAT/12), RHRAT = (12·HTD − 54)/(0.5·D) (fmcwd.f:311-322), and class j takes
+DIF = MAX(0, P(LOCUT) − P(HICUT))·TVOLI with P(h) = (R1(1−h/HTD))²(HTD−h)/(R1²·HTD) (fmcwd.f:388-395), integrated from
+LOHT (hard 0.10, soft 1.0 — which also widens R1 when HTD > 4.5, fmcwd.f:343-349) up to the snag's current height.
+The shares are NOT renormalized: the base stub below LOHT is dropped, and a snag no taller than 4.5 ft (RHRAT ≤ 0 ⇒
+every BPH(j≥1) ≥ HTD) books nothing at all.
 """
 # Cone-taper cumulative-volume profile P(h) — the ORIGINAL `pat` closure, hoisted to module scope as a
 # pure function so it captures nothing and allocates no closure object per call (pillar-2, bit-identical
@@ -313,32 +311,16 @@ DBH class.
 @inline _cwd_pat(h::Float32, r1::Float32, htd::Float32, r1sq::Float32) =
     (r2 = r1 * (1f0 - h / htd); (r2 * r2 * (htd - h)) / (r1sq * htd))
 
-# Returns (frac_soft, frac_hard) — two NTuple{9,Float32} cone-taper size-class splits, one per snag hardness.
-# FVS fmcwd.f runs the DO-20 K-loop for K=1 (soft) and K=2 (hard) with a DIFFERENT low integration bound
-# LOHT(K) (fmcwd.f:175/177 → :343 MAX(0.10,·): soft = 1.0, hard = 0.10) that enters BOTH the cone-base radius
-# R1 (fmcwd.f:347 `R1 += LOHT(K)·R1·HTD/(HTD−4.5)`) and the LOCUT integration floor (fmcwd.f:367). A larger
-# LOHT ⇒ a fatter R1 ⇒ a larger R1SQ normalizer inside P ⇒ SMALLER per-class volumes and thus a smaller TOTAL
-# soft deposit (the fat 0.10–1.0 ft base is dropped, not renormalized). FVS scales each class by the fixed
-# stem volume TVOLI (hardness-invariant), so the soft reduction is real and must survive. jl's hard path is
-# bit-exact via `frac_hard = raw_hard / pat_hard(0.10)` with `a = TVOLI·V2T·pat_hard(0.10)`; the faithful soft
-# analogue therefore normalizes by the SAME invariant base `pat_hard(0.10)` (NOT pat_soft(1.0)) — algebra:
-# a·frac_soft[j] = raw_soft[j]·TVOLI·V2T = raw_soft[j]·a/pat_hard(0.10) ⇒ frac_soft[j]=raw_soft[j]/pat_hard(0.10),
-# where raw_soft uses r1_soft (loht=1.0) + floor 1.0. Hard snags (den_soft=0: ordinary mortality + fire kills)
-# multiply frac_soft by DFIS=0, so carbon_snt / fire scenarios are unchanged (frac_hard is bit-identical to the
-# prior single-tuple return). Only SNAGPSFT / seeded-soft snags (DFIS>0) exercise frac_soft.
 function _cwd_cone_fractions(d::Float32, ht::Float32, htcur::Float32 = ht)
-    d <= 0.1f0 && (d = 0.1f0)
-    # One-hot at the DBH size class for the untaperable fallbacks (same split for both hardnesses).
-    onehot(k) = ntuple(j -> j == k ? 1f0 : 0f0, Val(9))
-    ht <= 4.6f0 && (oh = onehot(_cwd_size_class(d)); return (oh, oh))
+    d <= 0.1f0 && (d = 0.1f0)                          # fmcwd.f:306 IF(DIAM.LE.0.1) DIAM=0.1
     htd = ht
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
     # BPH(j) = height (ft) where stem diameter = BP(j); index j+1. Hardness-independent (FVS DO-10, uses HTD).
     bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))
-    r1a = d * 0.0416666667f0                       # radius (ft) at DBH (= d/12 * 0.5)
-    ext = (r1a * htd) / (htd - 4.5f0)              # cone-base extension unit (× LOHT(K), fmcwd.f:347)
-    # Per-hardness raw conic bins (P(locut)−P(hicut)), integrated from `loht` to `hiht`.
-    raw_bins(loht, r1) = (r1sq = r1 * r1; hiht = min(max(htcur, loht), htd);
+    r1a = d * 0.0416666667f0                           # radius (ft) at DBH (= d/12 * 0.5)
+    # Per-hardness conic bins (P(locut)−P(hicut)), integrated from `loht` to `hiht` (fmcwd.f DO 21).
+    raw_bins(loht) = (r1 = htd > 4.5f0 ? r1a + (loht * ((r1a * htd) / (htd - 4.5f0))) : r1a;   # fmcwd.f:346-348
+        r1sq = r1 * r1; hiht = min(max(htcur, loht), htd);
         ntuple(Val(9)) do j
             bphj = bph[j + 1]; bphjm1 = bph[j]        # BPH(j), BPH(j-1)
             (hiht <= bphj || loht > bphjm1) && return 0f0
@@ -346,17 +328,7 @@ function _cwd_cone_fractions(d::Float32, ht::Float32, htcur::Float32 = ht)
             locut == hicut && return 0f0
             max(0f0, _cwd_pat(locut, r1, htd, r1sq) - _cwd_pat(hicut, r1, htd, r1sq))
         end)
-    # HARD (K=2): loht=0.10, r1 with 0.10 extension — bit-identical to the prior single-tuple path.
-    r1h = r1a + 0.10f0 * ext
-    raw_h = raw_bins(0.10f0, r1h)
-    total_full = _cwd_pat(0.10f0, r1h, htd, r1h * r1h)   # invariant base = pat_hard(0.10) (TVOLI reference)
-    total_full <= 0f0 && (oh = onehot(_cwd_size_class(d)); return (oh, oh))
-    frac_h = ntuple(j -> raw_h[j] / total_full, Val(9))
-    # SOFT (K=1): loht=1.0, r1 with 1.0 extension — fatter cone, dropped 0.10–1.0 base; SAME normalizer.
-    r1s = r1a + 1.0f0 * ext
-    raw_s = raw_bins(1.0f0, r1s)
-    frac_s = ntuple(j -> raw_s[j] / total_full, Val(9))
-    return (frac_s, frac_h)
+    return (raw_bins(1.0f0), raw_bins(0.10f0))         # (SOFT K=1 LOHT 1.0, HARD K=2 LOHT 0.10)
 end
 
 """
@@ -482,9 +454,11 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # overshoot. addS → soft pool, addH → hard pool.
             addS = a * dfis * 0.80f0                        # soft-snag fall → soft down-wood (index 1)
             addH = a * dfih                                 # hard-snag fall → hard down-wood (index 2)
+            # fmcwd.f:399-403: a class piece books only when DIF·density > 1E-6 cuft/ac (TVOLI = a/V2T)
+            tcf = a / (coef_col(coef, :v2t)[sp] / 2000f0)
             for j in 1:9
-                frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
-                frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
+                (frac_h[j] > 0f0 && frac_h[j] * tcf * dfih > 1f-6) && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard: loht 0.10
+                (frac_s[j] > 0f0 && frac_s[j] * tcf * dfis > 1f-6) && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft: loht 1.0
             end
             fallen += dfall
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
