@@ -454,14 +454,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         # Scowen's UNSTABLE quicksort — on a current-dbh TIE between a live tree and a same-dbh recently-
         # dead tree, it can order the dead one first, dropping the live tree below 100th percentile. KT
         # needs this exact tie-break (validated: a dead 16.1" ties live tree1, live PCT=89.068 not 100).
-        # SN/CR are validated with the stable `sortperm`; keep it for them.
+        # Every other variant ranks by cratet.f's IND=IND1; RDPSRT(.FALSE.) (bm_cratet166_ind): measured on SN tiered
+        # (26735 vs 27063 residual cells with the stable sortperm) and the EC/NC FIA samples (EC 65 -> 69 exact rows).
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # PN compiles wc/cratet.f
-                s.variant isa CentralCalifornia || s.variant isa SouthCentralOregon || s.variant isa WestSierra) &&
-               length(s.calib.input_seq) == ntot
+        elseif length(s.calib.input_seq) == ntot   # every variant's cratet.f has the IND=IND1; RDPSRT(.FALSE.) block
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
             # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.

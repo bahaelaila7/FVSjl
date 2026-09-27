@@ -156,9 +156,11 @@ hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotp
 # Variants whose AVHT40/DENSE walk FVS's own IND lifecycle: CRATET's IND at cycle 0 ({v}/cratet.f RDPSRT(.FALSE.) on
 # IND1 / RDPSRT(.TRUE.) with dead records), then gradd.f:186's fresh RDPSRT(DBH,.TRUE.). The cratet.f sort blocks are
 # byte-identical in bm/ci/ut/tt (bm 159-166/270, ci 226-233/337, ut 214-221/325, tt 207-214/318) and ca/so
-# (139-142/246), ws (215-218/322); their gradd.f:186 is the same fresh RDPSRT(DBH,IND,.TRUE.).
-_fvs_ind_lifecycle(v) = v isa BlueMountains || v isa CentralIdaho || v isa Utah || v isa Teton ||
-                        v isa CentralCalifornia || v isa SouthCentralOregon || v isa WestSierra
+# (139-142/246), ws (215-218/322); their gradd.f:186 is the same fresh RDPSRT(DBH,IND,.TRUE.). The block is in
+# EVERY variant's cratet.f (cr 139-146/250, kt 144-151/259, ie 182-189/293, em 146-153/257, ec 195-202/306,
+# nc/wc 136-143/247, ak 150-157/267, bc 124-131, oc 463-470, op 452-459, sn 150-157, ls 135-142), so it is the
+# base-code lifecycle, not a per-variant choice.
+_fvs_ind_lifecycle(v) = true
 
 function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
