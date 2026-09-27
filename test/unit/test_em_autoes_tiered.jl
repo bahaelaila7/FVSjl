@@ -185,6 +185,17 @@ end
     end
 end
 
+# dbstrls.f:215-216: at the inventory (ICYC=0, TEM=0) the TreeList DG is WORK1(I), which dgdriv.f:785-805 set to the
+# measured increment when DG>0 .AND. HT>4.5 and to 0 otherwise — not the calibration's −1 "missing" sentinel
+# (MEASURED FVSem_g16 3006831010690 1989: every no-DG record DG 0, jl −1 on 11 records).
+@testset "Inventory-year TreeList DG is WORK1, not the −1 sentinel (dbstrls.f:215) vs FVSem_g16" begin
+    r = _run_stand("3006831010690")
+    @test !r.crashed
+    @test _treelist_diffcells("3006831010690", r.db, ("1989",); cols = ("DG",)) == 0
+    r6 = _run_stand("684750664126144")
+    @test _treelist_diffcells("684750664126144", r6.db, ("2018",); cols = ("DG",)) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

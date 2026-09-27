@@ -1292,7 +1292,7 @@ HtG, PctCr, CrWidth, MistCD, BAPctile, PtBAL, TCuFt, MCuFt, SCuFt, BdFt, MDefect
 Ht2TDCF, Ht2TDBF, TreeAge]. `tpa`/`mortpa` are the per-acre values the caller binds (TreeList: PROB/GROSPC and the
 mortality expansion; CutList: WK3/GROSPC and DP=0).
 """
-function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
+function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64; cycle0::Bool = false)
     t = s.trees; c = s.coef; pbal = s.density.point_bal
     iscr = s.variant isa CentralRockies
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
@@ -1312,7 +1312,11 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
         strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
         Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
         tpa, mortpa,                                          # TPA, MortPA
-        Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
+        # DG: at the inventory (ICYC=0 and TEM=0) dbstrls.f:215-216 binds WORK1(I), which dgdriv.f:785-805 set to the
+        # measured increment when DG>0 .AND. HT>4.5 and to 0 otherwise — not the calibration's −1 "missing" sentinel
+        # (MEASURED FVSem_g16 3006831010690 1989: every no-DG record DG 0, jl −1).
+        Float64(t.dbh[i]), Float64(cycle0 ? (t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0 ? t.diam_growth[i] : 0f0) :
+                                            t.diam_growth[i]), Float64(t.height[i]),
         Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
         _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
         # PtBAL: IPTBAL = NINT(PTBALT(I)) (dbstrls.f:189, dbscuts.f) — an INTEGER column value
@@ -1363,7 +1367,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
     met = _metric_variant(s.variant)
     @inbounds for i in _ind1_order(s)
-        r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g))
+        r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g); cycle0 = cycle == 0)
         push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead

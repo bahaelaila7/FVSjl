@@ -12771,17 +12771,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_TreeList"
-col = "DG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8007
-issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 8006→8007) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 8006 cells [material=12 ulp1=20 ulp2_16=723 ulpbig=7251] max|Δ|=1.333 | e.g. stand 5352355010661 year 2044: live=2.6512451171875 jl=2.651245594024658"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
 col = "HtG"
 stand = "*"
 year = "*"
