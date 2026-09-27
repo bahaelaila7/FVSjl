@@ -247,3 +247,62 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
     end
     return s
 end
+
+"""ws/regent.f LSTART small-tree HEIGHT calibration (label 40; called from cratet.f:770). PCTRED from
+X=AVH·RELDEN/100 (AVH = cratet.f:728 AVHT40, RELDEN = the cratet.f:247 backdating DENSE's). Per species (IND1
+order): current DBH<5, backdated H=HT−HTG (IHTG<2) ≥0.01, measured HTG≥0.001 ⇒ EDH·RHCON with EDH = MC(41)
+POTHTG·PCTRED·VIGOR, GB(21) the same with the 2/3 VIGOR knock-down, else SMHTGF(D, ICR/10, BA, BAL, SITEAR,
+H_back); TERM = HTG·SCALE3 (SCALE3 = REGYR/FINTH, REGYR 10 for 21/41 else 5); CORNEW = mean TERM / mean EDH when
+N≥NCALHT(5), ≤0 ⇒ 1E−4, trapped to [0.0821, 12.1825] else 1. HCOR = ln(CORNEW) → htg_cor_init."""
+function ws_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s
+    ba = c.cratet_ba; relden = c.cratet_relden
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    x = avh * (relden / 100f0); x > 300f0 && (x = 300f0)
+    pctred = WS_RG_AB[1] + x*(WS_RG_AB[2] + x*(WS_RG_AB[3] + x*(WS_RG_AB[4] + x*(WS_RG_AB[5] + x*WS_RG_AB[6]))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        si = p.sp_site_index[sp]
+        regyr = (sp == 21 || sp == 41) ? 10f0 : 5f0
+        scale3 = regyr / finth
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            d = saved_dbh[i]; h = t.height[i]
+            pct = i <= length(c.cratet_pct) ? c.cratet_pct[i] : t.crown_ratio[i]
+            bal = ((100f0 - pct) / 100f0) * ba
+            icr = Float32(t.crown_pct[i]); cr = icr / 10f0
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            xv = icr / 100f0
+            vigor = 150f0 * fpow(xv, 3f0) * exp(-6f0*xv) + 0.3f0
+            vigor > 1f0 && (vigor = 1f0)
+            local edh::Float32
+            if sp == 41
+                edh = ((1.47043f0 + 0.23317f0*si) / (31.56252f0 - 0.05586f0*si)) * 10f0 * pctred * vigor
+            elseif sp == 21
+                vigor = 1f0 - (1f0 - vigor)/3f0
+                edh = ((si/5f0) * (si*1.5f0 - h)/(si*1.5f0)) * 0.83f0 * pctred * vigor
+            else
+                edh = ws_smhtgf(sp, d, cr, ba, bal, si, h)
+            end
+            edh *= rhcon
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end

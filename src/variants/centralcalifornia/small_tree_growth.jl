@@ -158,3 +158,48 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
     end
     return s
 end
+
+"""ca/regent.f LSTART small-tree HEIGHT calibration (label 40, :375-472; called from cratet.f:571). Per species
+(IND1 order, LHTCAL default .TRUE.): records with current DBH<5, backdated H=HT−HTG (IHTG<2) ≥0.01 and a measured
+HTG≥0.001 give EDH = SMHTGF(D, H_back, ICR/10, BA, BAL, SITEAR, RELHT)·RHCON and TERM = HTG·SCALE3 (SCALE3 =
+REGYR/FINTH); CORNEW = (ΣTERM·P/ΣP)/(ΣEDH·P/ΣP) when N≥NCALHT(5), ≤0 ⇒ 1E−4, trapped to [0.0821, 12.1825] else 1.
+RELHT = HT(I)/AVH on the CURRENT height (computed before the IHTG backdate, :410-414) and AVH from cratet.f:529
+AVHT40; BA/PCT are the cratet.f:171 backdating DENSE's (the crown-init snapshot). HCOR = ln(CORNEW) is the raw
+htg_cor_init the shared dgdriv.f:175/196 attenuation turns into the applied CON."""
+function ca_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                  # regent.f:382 IF(IFINTH.EQ.0) GOTO 95
+    ba = c.cratet_ba
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = CA_RG_REGYR / finth                              # regent.f:383 SCALE3 = REGYR/FINTH
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        si = p.sp_site_index[sp]
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            d = saved_dbh[i]; h = t.height[i]
+            pct = i <= length(c.cratet_pct) ? c.cratet_pct[i] : t.crown_ratio[i]
+            bal = ((100f0 - pct) / 100f0) * ba
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = h / avh
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            edh = ca_smhtgf(sp, d, h, cr, ba, bal, si, relht) * rhcon
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                    # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        c.htg_cor_init[sp] = log(cornew)
+    end
+    return s
+end

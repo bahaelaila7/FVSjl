@@ -805,6 +805,11 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒
+    # HCOR_init stayed 0 (CA FIA 1123865229290487: live DF small-tree scale factor 0.73, jl 1.00).
+    s.variant isa CentralCalifornia && ca_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    s.variant isa SouthCentralOregon && so_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    s.variant isa WestSierra && ws_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
