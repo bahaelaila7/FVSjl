@@ -10,8 +10,12 @@
 #  * NVB broken tops (fvsvol.f:85-88 BRKHT=ITRNC/100 for LIVE top-killed trees; nsvb.f VOL(1)=Vtotib·Rrem and
 #    HT1PRD capped at BRKHT; vols.f:191 no CFTOPK for 'NVB', BFTOPK with BFMAX=truncated TVOL(1)): jl ran CFTOPK
 #    on the full NVB volume (PN RA on 612; CR region-3 CB/ES/WF/AS — 89 broken-top CR records were off).
-# Fixture: FIA sub-DB with WC stands on 708/709/710/711, PN stands on 609 (SS), 612 (RA), 800, 708, 709, 712, and
-# three CR region-3 (forest 302/308) stands with top-killed NVB-equation trees.
+#  * A16CURW351 (WC 603 red alder): PROFILE with the R10TAP red-alder taper + R10HTS merch length under region-6
+#    MRULES; jl sent it to region-6 Behre (167/167 RA records wrong on 5 stands).
+#  * WC/PN species slots 6/38 ('__') carried FIA 999/998; live FIAJSP is blank there, so FIA 999 is OT (39)
+#    and 998 falls to SPCTRN -> OT.
+# Fixture: FIA sub-DB with WC stands on 708/709/710/711 and 603 (RA; a dead FIA-998 tree), PN stands on 609 (SS),
+# 612 (RA), 800, 708, 709, 712, and three CR region-3 (forest 302/308) stands with top-killed NVB-equation trees.
 using FVSjl, Test, SQLite, DBInterface
 
 @testset "BLMVOL + PN + NVB broken-top volume/crown width vs live (cycle-0 treelist)" begin

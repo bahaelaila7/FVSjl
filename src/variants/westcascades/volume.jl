@@ -298,6 +298,72 @@ function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32;
     return (max(v1, 0f0), max(vol4, 0f0), max(vol2, 0f0))
 end
 
+# --- A16CURW351: red alder on Gifford Pinchot (603). volinit.f:454-472 sends MDL='CUR' to R10VOL only for REGN 10
+#     (or A01/A02), so on REGN 6 it is PROFILE with the Region-10 red-alder taper R10TAP (DVREDA, shared with AK:
+#     `_ak_cur_dib`), the merch length from R10HTS (profile.f:225, `_ak_cur_lmerch`; MERLEN only if that is 0,
+#     profile.f:322-339), and MRULES region 6 (mrules.f:302: OPT 23, EVOD 2, MAXLEN 16, MINLEN 2, TRIM 0.5,
+#     MERCHL 8, COR 'N'). TCUBIC 4-ft Smalian, VOL(1)=NINT(TCVOL·10)·0.1 (profile.f:293); GETDIB inch classes
+#     (INT, +1 above .501), top log floored at MTOPP, DEM/CUR stump D/36 for D>36 (profile.f:1143).
+
+"MERLEN (profile.f:978) non-Flewelling branch: 0.1-ft bisection to the height where INT((DIB+.005)·10) ≥ TOP1."
+function _cur_merlen(dibat, h::Float32, top::Float32, stump::Float32)::Float32
+    top1 = Float32(round((top + 0.005f0) * 10.0f0, RoundNearestTiesAway))      # ANINT((DS+.005)*10)
+    first = 1; last = trunc(Int, h + 0.5f0) * 10
+    for _ in 1:last
+        first == last && break
+        half = (first + last + 1) ÷ 2
+        dib = Float32(trunc(Int, (dibat(Float32(half) / 10.0f0) + 0.005f0) * 10.0f0))
+        top1 <= dib ? (first = half) : (last = half - 1)
+    end
+    lm = Float32(first) / 10.0f0 - stump
+    return lm < 0f0 ? 0f0 : lm
+end
+
+"PROFILE log products for A16CURW351: merch cubic VOL(4) (`board=false`) or Scribner VOL(2) (`board=true`)."
+function _cur_profile_logs(d::Float32, h::Float32, dibat, mtop::Float32, stump::Float32, board::Bool)::Float32
+    lmerch = _ak_cur_lmerch(d, h, mtop, stump)
+    lmerch <= 0f0 && (lmerch = _cur_merlen(dibat, h, mtop, stump))
+    lmerch < 8f0 && return 0f0                                        # MERCHL
+    lmerch / (16f0 + 0.5f0) > 20f0 && return 0f0                      # ERRFLAG 12
+    numseg = _nvb_numlog(23, 2, lmerch, 16f0, 2f0, 0.5f0)
+    numseg == 0 && return 0f0
+    loglen, numseg = _nvb_segmnt(23, 2, lmerch, 16f0, 2f0, 0.5f0, numseg)
+    raw = zeros(Float32, numseg + 1)
+    raw[1] = dibat(4.5f0)                                             # STUMP ≤ 4.5: butt large end at DBH
+    ht2 = d > 36f0 ? d / 36f0 : stump
+    @inbounds for i in 1:numseg
+        ht2 += 0.5f0 + loglen[i]
+        raw[i + 1] = dibat(ht2)
+    end
+    raw[numseg + 1] < mtop && (raw[numseg + 1] = mtop)
+    v = 0f0
+    if board
+        @inbounds for i in 1:numseg
+            v += Float32(round(_scrib(_fw2_dclass(raw[i + 1]), loglen[i], 'N'), RoundNearestTiesAway))
+        end
+    else
+        dibl = _fw2_dclass(raw[1])
+        @inbounds for i in 1:numseg
+            dibs = _fw2_dclass(raw[i + 1])
+            logv = 0.00272708f0 * (dibl * dibl + dibs * dibs) * loglen[i]
+            v += Float32(round(logv * 10.0f0, RoundNearestTiesAway)) / 10.0f0
+            dibl = dibs
+        end
+    end
+    return v
+end
+
+"NATCRS for A16CURW351: cubic call (MTOPP=TOPD·BARK → VOL(1), VOL(4)); board call for D ≥ BFMIND (BFTOPD·BARK)."
+function wc_cur_vol(d::Float32, h::Float32, bark::Float32; topd::Float32, bftopd::Float32, stump::Float32,
+                    bfmind::Float32)
+    (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)                  # profile.f:117
+    dibat = ht -> _ak_cur_dib(d, h, Float32(ht))
+    tcf = _nint(_fw2_tcubic(dibat, h) * 10.0f0) * 1f-1
+    mcf = _cur_profile_logs(d, h, dibat, topd * bark, stump, false)
+    bf = d >= bfmind ? _cur_profile_logs(d, h, dibat, bftopd * bark, stump, true) : 0f0
+    return (tcf, mcf, bf)
+end
+
 function compute_volumes_wc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
@@ -328,6 +394,8 @@ function compute_volumes_wc!(s::StandState)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         elseif se[1] == 'B' || se[1] == 'b'           # BLM forests (R7_EQN B00BEHW/B01BEHW202) → NVEL BLMVOL
             tcf, mcf, bf = _blm_natcrs(eq, wc_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind)
+        elseif mdl == "CUR"                           # A16CURW351 (603 RA) → PROFILE + R10TAP red alder
+            tcf, mcf, bf = wc_cur_vol(d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp, bfmind = bfmind)
         else                                          # 616BEHW
             tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark; topd = topd)
         end
