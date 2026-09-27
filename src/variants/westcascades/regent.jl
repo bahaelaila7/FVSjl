@@ -163,6 +163,8 @@ end
     return (hg5, dg5)
 end
 
+# PN's small-tree path (pacificnorthwest/regent.jl) still copies the central record's DG/HTG onto both tripled
+# copies through this helper; WC now builds each copy from its own REGENT slot (_wc_regent_slot).
 @inline function _wc_rg_stash!(stash, t, i::Int)
     if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
         stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
@@ -171,19 +173,107 @@ end
     end
 end
 
+# One REGENT pass for record I (or, with its tripled copies, for slot K) from label 2 to label 23 of
+# wc/regent.f:230-440. `h`,`d` are record I's values (H=HT(I), D=DBH(I) stay fixed across the L-loop), `lh` the
+# slot's large-tree HTG (HTG(K)), `hg`/`dgr` the SMHGDG 10-yr increments (deterministic in H/D ⇒ shared by the
+# copies). Draws ZZRAN when DGSD≥1. Returns (htg, dbh_direct (<0 ⇒ none), dg, dg_set) — dg_set=false when
+# D≥DGMIN (GO TO 23 leaves DG(K) as DGDRIV set it).
+@inline function _wc_regent_slot(s::StandState, sp::Int, h::Float32, d::Float32, hg::Float32, dgr::Float32,
+                                 lh::Float32, con::Float32, wk4::Float32, scale::Float32, scale2::Float32,
+                                 lestb::Bool, ifor::Int)
+    dgsd = s.control.dg_sd
+    zzran = 0.0f0
+    if dgsd >= 1.0f0                                              # regent.f:257-260
+        while true
+            zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+            (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+        end
+    end
+    htgr = (hg + zzran * 0.1f0) * scale * con * wk4               # XRHGRO=1
+    htgr < 0.1f0 && (htgr = 0.1f0)
+    xmn = WC_RG_XMIN[sp]; xmx = WC_RG_XMAX[sp]
+    xwt = (d <= xmn || lestb) ? 0.0f0 : (d - xmn) / (xmx - xmn)   # regent.f:273-274
+    lhk = lh
+    if sp == 17                                                   # regent.f:276-283 (RW blended twice)
+        !lestb && (htgr = (htgr + lhk) / 2.0f0)
+        lhk = htgr * (1.0f0 - xwt) + xwt * lhk
+    end
+    htg = htgr * (1.0f0 - xwt) + xwt * lhk
+    htg < 0.1f0 && (htg = 0.1f0)
+    cap = s.control.sp_size_cap[sp, 4]
+    if (h + htg) > cap
+        htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+    end
+    return _wc_regent_dg(s, sp, h, d, htg, dgr, wk4, scale, scale2, lestb, ifor)
+end
+
+# wc/regent.f label 4 → 23: the small-tree diameter for a slot whose HTG is `htg`.
+@inline function _wc_regent_dg(s::StandState, sp::Int, h::Float32, d::Float32, htg::Float32, dgr::Float32,
+                               wk4::Float32, scale::Float32, scale2::Float32, lestb::Bool, ifor::Int)
+    d >= WC_RG_DGMIN[sp] && return (htg, -1.0f0, 0.0f0, false)   # regent.f:305 GO TO 23
+    hk = h + htg
+    hk < 4.5f0 && return (htg, d + 0.001f0 * hk, 0.0f0, true)    # regent.f:311-313 DG=0, DBH=D+0.001·HK
+    sd = s.coef.species
+    xmn = WC_RG_XMIN[sp]
+    local dbhk::Float32, dgk::Float32
+    dbhk = d
+    if sp == 17                                                   # redwood — HTDBH inverse from HK (regent.f:318-345)
+        dk2 = wc_htdbh_dbh(ifor, sp, hk)
+        dkk = h <= 4.5f0 ? d : wc_htdbh_dbh(ifor, sp, h)
+        if lestb
+            dbhk = dk2 < WC_RG_DIAM[sp] ? WC_RG_DIAM[sp] : dk2    # regent.f:348-352
+            dbhk = dbhk + 0.001f0 * hk
+            dgk = dbhk
+        else
+            bark = wc_bratio(sd, sp, d)
+            xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
+            dgsm = (dk2 - dkk) * bark; dgsm < 0.0f0 && (dgsm = 0.0f0)
+            dds = dgsm * (2.0f0 * bark * d + dgsm) * scale2
+            dgsm = sqrt((d * bark)^2 + dds) - bark * d
+            dgk = dgsm * (1.0f0 - xdwt)                            # + DG(K)·XDWT added by the caller (slot's own DG)
+            return (htg, -2.0f0, dgk, true)                         # -2 ⇒ caller adds XDWT·DG(K)
+        end
+    else
+        dgk = dgr * scale * wk4                                   # regent.f:346 DG(K)=DGR·SCALE·WK4(I)
+        if lestb                                                  # regent.f:353-357
+            dbhk = dgk
+            (dbhk < WC_RG_DIAM[sp] || hk < 4.5f0) && (dbhk = WC_RG_DIAM[sp])
+        else
+            bark = wc_bratio(sd, sp, d)
+            if d < 0.0f0 || dgk < 0.0f0
+                dgk = htg * 0.2f0 * bark                          # XRDGRO=1
+            else
+                dgk = dgk * bark
+            end
+            dgk < 0.0f0 && (dgk = 0.1f0)
+            dgmx = WC_RG_DGMAX[sp] * scale
+            dgk > dgmx && (dgk = dgmx)
+            dds = dgk * (2.0f0 * bark * d + dgk) * scale2
+            dgk = sqrt((d * bark)^2 + dds) - bark * d
+        end
+    end
+    (dbhk + dgk) < WC_RG_DIAM[sp] && (dgk = WC_RG_DIAM[sp] - dbhk)   # regent.f:398-400 (DBH(K)+DG(K)<DIAM)
+    dgk = wc_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+    return lestb ? (htg, dbhk, dgk, true) : (htg, -1.0f0, dgk, true)
+end
+
 function small_tree_growth!(s::StandState, stash, ::WestCascades; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
     cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (regent.f:266/371 ·WK4(I)); nothing ⇒ 1
     sd = s.coef.species; dens = s.density
-    avh = p.avg_height; dgsd = s.control.dg_sd
+    avh = p.avg_height
     ifor = _wc_htdbh_ifor(Int(p.forest_idx))
     scale = fint / _WC_RG_REGYR                             # SCALE = FINT/REGYR
     scale2 = _WC_RG_REGYR / fint                            # SCALE2 = YR/FNT  (YR=10)
-    # ATAVH = AVH during the cycling growth call (grincr.f:318 sets ATAVH=AVH before TREGRO/REGENT) ⇒
-    # SMHGDG's AVHT = (5/FINT)·AVH+((FINT−5)/FINT)·ATAVH = AVH. (The LSTART calibration uses ATAVH=0.)
+    # ATAVH = AVH during the cycling growth call (grincr.f:318 sets ATAVH=AVH before TREGRO/REGENT at :449) ⇒
+    # SMHGDG's MODE-1 AVHT = (5/FINT)·AVH+((FINT−5)/FINT)·ATAVH = AVH.
     avht = avh
-    # wc/regent.f:166-184 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
+    # Tripled copies (regent.f:463-466): with LTRIP each record I is followed by its two copies K=ITRN+2I−2+L (L=1,2),
+    # each running labels 2-23 again — a FRESH ZZRAN draw, its own HTG blend against the copy's large-tree HTG and,
+    # for D<DGMIN, its own diameter. H and D stay record I's. The copies live in the tripling stash here.
+    trip = stash !== nothing && !isempty(stash.dgU)
+    # wc/regent.f:166-184 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draws follow it.
     @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
         (d >= WC_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
@@ -199,69 +289,122 @@ function small_tree_growth!(s::StandState, stash, ::WestCascades; fint::Float32 
         hg1, dg1 = wc_smhgdg(sp, h, d, cr, ptbal, ptba, si, avht)
         hk = h + hg1; dk = d + dg1
         hg2, dg2 = wc_smhgdg(sp, hk, dk, cr, ptbal, ptba, si, avht)
-        htgr = hg1 + hg2; dgr = dg1 + dg2
-        # --- ZZRAN reject-loop (regent.f:257-260); DGSD=1.7 ≥ 1 ⇒ draw ---
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+        hg = hg1 + hg2; dgr = dg1 + dg2
+        large_htg = t.ht_growth[i]
+        dg_main = t.diam_growth[i]
+        nrec = trip ? 3 : 1
+        dbh_main = d
+        for l in 0:(nrec - 1)
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg, dbhd, dgk, dgset = _wc_regent_slot(s, sp, h, d, hg, dgr, lh, con, wk4, scale, scale2, false, ifor)
+            if dbhd == -2.0f0                                  # redwood: + XDWT·DG(K) of this slot
+                xmn = WC_RG_XMIN[sp]
+                xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
+                dgslot = l == 0 ? dg_main : (l == 1 ? stash.dgU[i] : stash.dgL[i])
+                dgk = dgk + dgslot * xdwt
+                (d + dgk) < WC_RG_DIAM[sp] && (dgk = WC_RG_DIAM[sp] - d)
+                dgk = wc_dgbnd(sp, d, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+                dbhd = -1.0f0
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                if dgset
+                    if dbhd >= 0.0f0
+                        t.dbh[i] = dbhd; t.diam_growth[i] = 0.0f0; dbh_main = dbhd
+                    else
+                        t.diam_growth[i] = dgk
+                    end
+                end
+            else
+                # copy slot: HTG always; DG only when regent.f reached label 4 with D<DGMIN (else the DGDRIV
+                # tripled DG stays in the stash). HK<4.5 ⇒ DBH(K)=D+0.001·HK with DG(K)=0 (regent.f label 4), set
+                # directly on the copy; otherwise the copy grows from the PRE-REGENT D (not a bumped central DBH).
+                if dgset
+                    dbk = dbhd >= 0.0f0 ? dbhd : d
+                    dgc = dbhd >= 0.0f0 ? 0.0f0 : dgk
+                    if l == 1
+                        stash.dbhU[i] = dbk; stash.dgU[i] = dgc
+                    else
+                        stash.dbhL[i] = dbk; stash.dgL[i] = dgc
+                    end
+                end
+                l == 1 ? (stash.htgU[i] = htg) : (stash.htgL[i] = htg)
+                stash.is_small[i] = true
             end
         end
-        htgr = (htgr + zzran * 0.1f0) * scale * con * wk4    # XRHGRO=1
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        # --- XWT blend with the large-tree HTG ---
-        xmn = WC_RG_XMIN[sp]; xmx = WC_RG_XMAX[sp]
-        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        if sp == 17
-            lthg = t.ht_growth[i]
-            htgr = (htgr + lthg) / 2.0f0
-            t.ht_growth[i] = htgr * (1.0f0 - xwt) + xwt * lthg   # regent.f:282 (pre-final RW blend)
+    end
+    return s
+end
+
+"""
+    wc_esgent!(s, nstart; fint, atavh, avh_pre, ptba_pre, pccf_pre)
+
+wc/esgent.f → REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), IND1 species order:
+the open-grown crown draw (CR=0.89722−0.0000461·PCCF+0.07985·RAN, regent.f:196-203), SMHGDG MODE 1 twice
+(CR=ICR, PTBAL=PTBALT=PTBAA(point) estab.f:655, AVHT=(5/FINT)·AVH+((FINT−5)/FINT)·ATAVH) and a ZZRAN draw,
+FNT=FINT−5 (LSKIPH when FINT≤5), XWT=0, and the ESTAB DBH (DBH=DG(K) floored at DIAM). Then esgent.f's
+HT += HTG·WK4, the WK4<1 DBH rescale, and the HHTMAX cap. ESGENT runs inside ESTAB, before gradd.f:244's DENSE,
+so PCCF/PTBAA/AVH are the post-growth PRE-regen values (gradd.f:192 DENSE) passed in.
+"""
+function wc_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atavh::Float32 = 0f0,
+                    avh_pre::Float32 = 0f0, ptba_pre::Vector{Float32} = Float32[],
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0                          # regent.f:143-150
+    scale = fnt / _WC_RG_REGYR
+    scale2 = _WC_RG_REGYR / fnt
+    avht = fnt > 0f0 ? (5f0 / fint) * avh_pre + ((fint - 5f0) / fint) * atavh : avh_pre   # regent.f:158-161 / smhgdg.f:198
+    ifor = _wc_htdbh_ifor(Int(p.forest_idx))
+    newidx = filter(>(nstart), species_major_order(s))
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        (d >= WC_RG_XMAX[sp]) && continue
+        ip = Int(t.plot_id[i])
+        pccf = (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip]
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
         end
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
-        htg < 0.1f0 && (htg = 0.1f0)
-        cap = s.control.sp_size_cap[sp, 4]
-        if (h + htg) > cap
-            htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        h = t.height[i]
+        wk4 = t.htimlt[i]
+        local htg::Float32, dbhk::Float32, dgk::Float32
+        if lskiph                                              # regent.f:217-221: DGR=0, HTG=0, GO TO 4
+            htg, dbhd, dgk, dgset = _wc_regent_dg(s, sp, h, d, 0f0, 0f0, wk4, scale, scale2, true, ifor)
+        else
+            ptba = (1 <= ip <= length(ptba_pre)) ? ptba_pre[ip] : 0f0
+            si = p.sp_site_index[sp]
+            con = exp(c.htg_cor_small[sp])
+            hg1, dg1 = wc_smhgdg(sp, h, d, Float32(icr0) * 0.01f0, ptba, ptba, si, avht)
+            hg2, dg2 = wc_smhgdg(sp, h + hg1, d + dg1, Float32(icr0) * 0.01f0, ptba, ptba, si, avht)
+            htg, dbhd, dgk, dgset = _wc_regent_slot(s, sp, h, d, hg1 + hg2, dg1 + dg2, 0f0, con, wk4,
+                                                    scale, scale2, true, ifor)
+        end
+        if dgset
+            if dbhd >= 0f0
+                t.dbh[i] = dbhd; t.diam_growth[i] = dgk
+            end
+        end
+        # esgent.f: HTEMP=HT+HTG; HTG=HTG·WK4; HT=HT+HTG; WK4<1 ⇒ DBH rescale; HT ≤ HHTMAX
+        htemp = h + htg
+        htg = htg * wk4
+        hn = h + htg
+        if wk4 < 1f0
+            if hn < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * hn; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (hn / htemp); t.diam_growth[i] = t.dbh[i] * (hn / htemp)
+            end
         end
         t.ht_growth[i] = htg
-        # --- small-tree DG (regent.f:304-437): only D<DGMIN (large-tree DG kept otherwise) ---
-        if d >= WC_RG_DGMIN[sp]
-            _wc_rg_stash!(stash, t, i); continue
-        end
-        hkk = h + htg
-        if hkk < 4.5f0
-            t.diam_growth[i] = 0.0f0
-            t.dbh[i] = d + 0.001f0 * hkk                     # DBH(K)=D+0.001·HK (regent.f:317)
-            _wc_rg_stash!(stash, t, i); continue
-        end
-        bark = wc_bratio(sd, sp, d)
-        local dgk::Float32
-        if sp == 17                                          # redwood — Curtis-Arney DBH from HT
-            dk2 = wc_htdbh_dbh(ifor, sp, hkk)
-            dkk = h <= 4.5f0 ? d : wc_htdbh_dbh(ifor, sp, h)
-            xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
-            dgsm = (dk2 - dkk) * bark; dgsm < 0.0f0 && (dgsm = 0.0f0)
-            dds = dgsm * (2.0f0 * bark * d + dgsm) * scale2
-            dgsm = sqrt((d * bark)^2 + dds) - bark * d
-            dgk = dgsm * (1.0f0 - xdwt) + t.diam_growth[i] * xdwt
-        else
-            dgk = dgr * scale * wk4                           # DG(K)=DGR·SCALE·WK4
-            if d < 0.0f0 || dgk < 0.0f0
-                dgk = htg * 0.2f0 * bark                      # XRDGRO=1
-            else
-                dgk = dgk * bark                             # XRDGRO=1
-            end
-            dgk < 0.0f0 && (dgk = 0.1f0)
-            dgmx = WC_RG_DGMAX[sp] * scale
-            dgk > dgmx && (dgk = dgmx)
-            dds = dgk * (2.0f0 * bark * d + dgk) * scale2     # 10-yr DDS (identity at FINT=10)
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
-        end
-        (t.dbh[i] + dgk) < WC_RG_DIAM[sp] && (dgk = WC_RG_DIAM[sp] - t.dbh[i])
-        dgk = wc_dgbnd(sp, t.dbh[i], dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
-        t.diam_growth[i] = dgk
-        _wc_rg_stash!(stash, t, i)
+        hn > _OP_ES_HHTMAX[sp] && (hn = _OP_ES_HHTMAX[sp])      # wc/blkdat.f:73 HHTMAX (= op)
+        t.height[i] = hn
     end
     return s
 end
