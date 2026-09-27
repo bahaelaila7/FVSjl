@@ -341,7 +341,7 @@ function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32; mtopp::Float
     sp == 0 && return (0f0, 0f0, 0f0)
     dibat = ht -> nc_r5tap_dib(sp, d, h, Float32(ht))
     stump = 1.0f0; minl = 2.0f0; merl = 8.0f0                   # mrules.f REGN 5 defaults
-    tcf = Float32(round(_fw2_tcubic(dibat, h) * 10.0)) / 10.0f0  # VOL(1)=NINT(TCVOL*10)/10
+    tcf = _nint(_fw2_tcubic(dibat, h) * 10.0f0) * 1f-1          # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1 (×REAL 0.1, not /10)
     mcf = nc_wo2w_merch(dibat, h; mtopp = mtopp, stump = stump, minlen = minl, merchl = merl)  # VOL(4) (SPFLG=0)
     # The board pass's merch height is profile.f MERLEN (tenth-inch-truncated 0.1-ft search, nc_merlen), exactly
     # as the cubic pass uses — NOT _fw2_hs's diameter-tolerance bisection, which lands a hair off (96.97 vs 97.0,
