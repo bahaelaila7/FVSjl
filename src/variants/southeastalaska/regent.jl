@@ -160,7 +160,9 @@ function _ak_regent_slot(s::StandState, sp::Int, h::Float32, d::Float32, bark::F
             dgsm = _AK_RG_DGSM[]
             dgsm < 0f0 && (dgsm = 0f0)
             dds = (dgsm * (2.0f0 * bark * d + dgsm)) * scale2
-            dgsm = sqrt((d * bark)^2 + dds) - bark * d
+            # regent.f:430 (D*BARK)**2.0 is REAL**REAL = glibc powf, which is NOT always x·x (1 ULP off for D·BARK
+            # 3FB2F0C2: 3FD3F889 vs 3FD3F888) — FIA 720755825290487 2059 AS rec 227 DG 0.50658375 vs live 0.50658381.
+            dgsm = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
             _AK_RG_DGSM[] = dgsm
             dg = dgsm * (1.0f0 - xdwt) + xdwt * dgk
         end
