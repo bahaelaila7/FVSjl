@@ -281,13 +281,15 @@ function compute_volumes_cr!(s::StandState)
         eq = veq[sp]
         mdl = length(eq) >= 6 ? eq[4:6] : "   "
         nvb = startswith(eq, "NVB")
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        vbark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : cr_bratio(sd, sp, d, imodty)
         v = if mdl == "DVE"
             cr_dve_vol(eq, d, h; unt = d >= scfmin[sp] ? 1 : 3)
         elseif nvb
-            bark = cr_bratio(sd, sp, d, imodty)
-            cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
+            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
+            cr_fw2_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, sf_hs = true)   # TCF+MCF+board; MERLEN via SF_HS (profile.f:203)
         else
             zeros(Float32, 15)
         end
@@ -300,7 +302,7 @@ function compute_volumes_cr!(s::StandState)
         # FULL-height cubic + board volumes reduced to the standing broken stem via the Behre taper. VMAX=full
         # cubic (v[1]); H=t.height=NORMHT; board specs BFSTMP=1/BFTOPD=6 (grinit.f:91, sitset.f:527).
         if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
-            bk = cr_bratio(sd, sp, d, imodty); vmax = tcf
+            bk = vbark; vmax = tcf
             tcf, mcf = cr_cftopk(tcf, mcf, d, h, vmax, bk, Int(t.trunc[i]), stump, topd)
             bf = cr_bftopk(bf, d, h, vmax, bk, Int(t.trunc[i]), 1f0, 6f0)
         end

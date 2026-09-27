@@ -51,7 +51,7 @@ function compute_volumes_ci!(s::StandState)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4, sf_hs = true)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0
