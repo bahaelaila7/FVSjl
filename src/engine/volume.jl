@@ -403,8 +403,12 @@ function dub_missing_heights!(s::StandState)
             # ca/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH (Curtis-Arney) missing-height dub. IFOR unused.
             ca_htdbh_height(Int(sp), d)
         elseif s.variant isa SouthCentralOregon
-            # so/cratet.f LHTDRG=.FALSE. all species ⇒ forest-dependent Curtis HTDBH (MODE=0).
-            so_htdbh_height(Int(s.plot.forest_idx), Int(sp), d)
+            # so/cratet.f LHTDRG=.FALSE. all species ⇒ forest-dependent Curtis HTDBH (MODE=0) — except WJ/WB/AS
+            # (ISPC 11/16/24), which bypass HTDBH (:415 `GO TO 105`, :532 `GO TO 106`) and keep the blkdat Wykoff
+            # EXP(HT1+HT2/(D+1))+4.5. jl sent them to HTDBH (P2=0 ⇒ 4.5 ft) ⇒ a broken-top AS/WB/WJ lost its normal
+            # height (NORMHT fell back to the broken HT) ⇒ volume far low (WB D9.6: TCF 5.86 vs live 6.71).
+            so_wykoff_nohtdbh(Int(sp)) ? so_wykoff_dub(Int(sp), d, iabflg[sp] == 0 ? aa[sp] : nothing) :
+                                         so_htdbh_height(Int(s.plot.forest_idx), Int(sp), d)
         elseif s.variant isa WestSierra
             # ws/cratet.f:447-451 — MIXED LHTDRG (unlike the other westside variants): the NATIVE conifers
             # (LHTDRG=.TRUE.) with a calibrated AA are handled by the top calibrated-Wykoff branch above; every
