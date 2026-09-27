@@ -43,7 +43,9 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
     has_crsurr = any(j -> _ut_ht_crsurr(Int(t.species[j])), 1:t.n)
     ht_bau = has_crsurr ? _cr_badist_bau(t) : nothing
     agerng = has_crsurr ? _cr_agerng(t) : 0f0
-    @inbounds for i in 1:t.n
+    # ut/htgf.f:260-268 DO 40 ISPC / DO 30 I3 / I=IND1(I3): the CR-surrogate ZZRAN draws (:418) follow the
+    # species-major IND1 (post-TRIPLE lineage) order, not storage order (bare UT PLANT: NC HTG permuted from 2022).
+    @inbounds for i in species_major_order(s)
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]

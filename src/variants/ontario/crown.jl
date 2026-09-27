@@ -167,8 +167,118 @@ const ON_CW_EQS = Dict{String,CrownWidthEq}(
     "95101" => CrownWidthEq(:bechtold, 1.6871f0, 1.211f0, 0.0f0, 0.1194f0, -0.0264f0, 0f0, 999.0f0, 61.0f0),
     "97203" => CrownWidthEq(:ek, 2.829f0, 3.456f0, 0f0, 0f0, 0f0, 0.8575f0, 999f0, 72.0f0),
     "97501" => CrownWidthEq(:bechtold, 9.0023f0, 1.3933f0, 0.0f0, 0.0f0, -0.0785f0, 0f0, 999.0f0, 49.0f0),
+    # forest-grown (IWHO=0) equations for the CRWDTH path (cwcalc.f ELSE branches; data/lakestates CSV)
+    "01201" => CrownWidthEq(:bechtold, 0.6564f0, 0.8403f0, 0.0f0, 0.0792f0, 0.0f0, 0.0f0, 999.0f0, 34.0f0),
+    "07101" => CrownWidthEq(:bechtold, -0.3276f0, 1.3865f0, 0.0f0, 0.0517f0, 0.0f0, 0.0f0, 999.0f0, 29.0f0),
+    "09101" => CrownWidthEq(:bechtold, 1.8336f0, 0.9932f0, 0.0f0, 0.0431f0, 0.1012f0, 0.0f0, 999.0f0, 27.0f0),
+    "09401" => CrownWidthEq(:bechtold, 0.3789f0, 0.8658f0, 0.0f0, 0.0878f0, 0.0f0, 0.0f0, 999.0f0, 30.0f0),
+    "09501" => CrownWidthEq(:bechtold, -0.8566f0, 0.9693f0, 0.0f0, 0.0573f0, 0.0f0, 0.0f0, 999.0f0, 27.0f0),
+    "10501" => CrownWidthEq(:bechtold, 0.7478f0, 0.8712f0, 0.0f0, 0.0913f0, 0.0f0, 0.0f0, 999.0f0, 25.0f0),
+    "12501" => CrownWidthEq(:bechtold, -3.6548f0, 1.9565f0, -0.0409f0, 0.0577f0, 0.0f0, 0.0f0, 24.0f0, 0.0f0),
+    "12901" => CrownWidthEq(:bechtold, 0.3914f0, 0.9923f0, 0.0f0, 0.108f0, 0.0f0, 0.0f0, 999.0f0, 45.0f0),
+    "31601" => CrownWidthEq(:bechtold, 2.7563f0, 1.4212f0, -0.0143f0, 0.0993f0, -0.0276f0, 0.0f0, 50.0f0, 0.0f0),
+    "31801" => CrownWidthEq(:bechtold, 4.9399f0, 1.0727f0, 0.0f0, 0.1096f0, -0.0493f0, 0.0f0, 999.0f0, 54.0f0),
+    "37501" => CrownWidthEq(:bechtold, 2.8399f0, 1.2398f0, 0.0f0, 0.0855f0, -0.0282f0, 0.0f0, 999.0f0, 42.0f0),
+    "40701" => CrownWidthEq(:bechtold, 4.5453f0, 1.3721f0, 0.0f0, 0.043f0, 0.0f0, 0.0f0, 999.0f0, 54.0f0),
+    "54401" => CrownWidthEq(:bechtold, 2.9672f0, 1.3066f0, 0.0f0, 0.0585f0, 0.0f0, 0.0f0, 999.0f0, 61.0f0),
+    "74201" => CrownWidthEq(:bechtold, 3.4375f0, 1.4092f0, 0.0f0, 0.0f0, 0.0f0, 0.0f0, 999.0f0, 80.0f0),
+    "74601" => CrownWidthEq(:bechtold, 0.7315f0, 1.318f0, 0.0f0, 0.0966f0, 0.0f0, 0.0f0, 999.0f0, 39.0f0),
+    "76201" => CrownWidthEq(:bechtold, 3.0237f0, 1.1119f0, 0.0f0, 0.1112f0, -0.0493f0, 0.0f0, 999.0f0, 52.0f0),
+    "80201" => CrownWidthEq(:bechtold, 3.2375f0, 1.5234f0, 0.0f0, 0.0455f0, -0.0324f0, 0.0f0, 999.0f0, 69.0f0),
+    "82301" => CrownWidthEq(:bechtold, 1.7827f0, 1.6549f0, 0.0f0, 0.0343f0, 0.0f0, 0.0f0, 999.0f0, 61.0f0),
+    "83301" => CrownWidthEq(:bechtold, 2.8908f0, 1.4077f0, 0.0f0, 0.0643f0, 0.0f0, 0.0f0, 999.0f0, 82.0f0),
+    "83701" => CrownWidthEq(:bechtold, 2.8974f0, 1.3697f0, 0.0f0, 0.0671f0, 0.0f0, 0.0f0, 999.0f0, 52.0f0),
+    "97201" => CrownWidthEq(:bechtold, 1.7296f0, 2.0732f0, 0.0f0, 0.059f0, -0.0869f0, 0.0f0, 999.0f0, 50.0f0),
 )
 
+
+# ON species JSP2 US-code → FOREST-grown CWEQ (cwcalc.f IWHO=0: the ELSE branch of each IF(IWHO.EQ.1), or the single
+# CWEQ of species without one) — the equation CWIDTH (cwidth.f:83, IWHO=0) uses for CRWDTH.
+const ON_CW_FOREST = Dict{String,String}(
+    "AB" => "53101",
+    "AC" => "40701",
+    "AE" => "97201",
+    "AH" => "39101",
+    "AP" => "76102",
+    "BA" => "54301",
+    "BC" => "76201",
+    "BE" => "31301",
+    "BF" => "01201",
+    "BG" => "69301",
+    "BH" => "40201",
+    "BK" => "90101",
+    "BL" => "97201",
+    "BM" => "31801",
+    "BN" => "60201",
+    "BO" => "83701",
+    "BP" => "74101",
+    "BR" => "82301",
+    "BS" => "09501",
+    "BT" => "74301",
+    "BW" => "95101",
+    "CC" => "76102",
+    "CH" => "60201",
+    "CK" => "82601",
+    "CW" => "74201",
+    "DM" => "97201",
+    "DW" => "49101",
+    "EH" => "26101",
+    "GA" => "54401",
+    "HB" => "46201",
+    "HH" => "70101",
+    "HT" => "49101",
+    "JP" => "10501",
+    "MA" => "55201",
+    "MM" => "31301",
+    "NC" => "49101",
+    "NP" => "80901",
+    "NS" => "09101",
+    "OS" => "06801",
+    "PB" => "37501",
+    "PH" => "40301",
+    "PL" => "76102",
+    "PR" => "76102",
+    "QA" => "74601",
+    "RC" => "06801",
+    "RE" => "97201",
+    "RL" => "97501",
+    "RM" => "31601",
+    "RN" => "12501",
+    "RO" => "83301",
+    "RP" => "12501",
+    "SC" => "13001",
+    "SH" => "40701",
+    "SM" => "31801",
+    "SS" => "93101",
+    "ST" => "31301",
+    "SV" => "31701",
+    "SW" => "80201",
+    "SY" => "73101",
+    "TA" => "07101",
+    "WA" => "54101",
+    "WC" => "24101",
+    "WI" => "97201",
+    "WN" => "60201",
+    "WO" => "80201",
+    "WP" => "12901",
+    "WS" => "09401",
+    "YB" => "37101",
+)
+
+"""
+    on_forest_crown_width(ispc, d, cr, lat, long, elev) -> Float32
+
+Forest-grown crown width (ft) CRWDTH for ON species index `ispc` (cwidth.f → cwcalc.f IWHO=0) at DBH `d` (in) and
+crown percent `cr` (FLOAT(ICR)), with the same [0.5, 99.9] final clamp. Feeds FVS_TreeList CrWidth, THINCC, COVER.
+"""
+@inline function on_forest_crown_width(ispc::Integer, d::Real, cr::Real, lat::Real, long::Real, elev::Real)::Float32
+    (1 <= ispc <= length(ON_JSP2)) || return 0.5f0
+    eqn = get(ON_CW_FOREST, ON_JSP2[ispc], "")
+    cw = eqn == "" ? 0f0 : _cw_eval(ON_CW_EQS[eqn], Float32(d), Float32(cr), hopkins_index(lat, long, elev))
+    cw < 0.5f0 && (cw = 0.5f0)
+    cw > 99.9f0 && (cw = 99.9f0)
+    return cw
+end
 
 """
     on_open_crown_width(ispc, d, lat, long, elev) -> Float32

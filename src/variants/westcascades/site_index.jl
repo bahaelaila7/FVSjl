@@ -132,6 +132,10 @@ function wc_sitset!(s::StandState)
     nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
     pcom = wc_habtyp(Int(p.habitat_code))
     isempty(pcom) && (pcom = "CFS551")            # wc/habtyp.f default PA (ITYPE=52 → PCOML[52])
+    # wc/habtyp.f:126/139/146 ITYPE = KODTYP (1..NPA) else the default 52 — read by PNFGS/PNWET (wc/fmcba.f
+    # MAPFGS/MAPDRY) in FMCFMD. jl left it 0 ⇒ every WC/PN stand took the grass branch (DFCT ⇒ model 2).
+    kod = Int(p.habitat_code)
+    p.habitat_input = Int32((1 <= kod <= length(WC_PCOML)) ? kod : WC_HAB_DEFAULT)
     rows = wc_ecocls(pcom)
 
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0

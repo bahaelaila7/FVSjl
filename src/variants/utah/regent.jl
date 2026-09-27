@@ -29,14 +29,6 @@ const _UT_RG_REGYR = 10.0f0
 #  LHTDRG=.FALSE. species — i.e. MC/BI, which use their own linear DK — so it is NEVER hit for UT conifers.
 #  It was wrongly used for the uncalibrated conifer DG; replaced by the Wykoff BX/AX(HT1) curve below.)
 
-# em/regent.f stash push — tripled sub-records use the small-tree DG/HTG, not stale large-tree DG.
-@inline function _ut_rg_stash!(stash, t, i::Int)
-    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
-        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
-        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
-        !isempty(stash.is_small) && (stash.is_small[i] = true)
-    end
-end
 
 function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
@@ -80,214 +72,283 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
             (11 <= sp <= 17 || sp == 24) && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
             htgr = pothtg * pctred * vigor * con
         end
-        # ZZRAN reject-loop (ut/regent.f:340-342): redraw until ∈[−2,0.5]
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        # ut/regent.f:344-350 SELECT CASE(ISPC): the CR-surrogate hardwoods (17:19,22) take ZZRAN·0.2 and the
-        # CLGMULT climate multiplier WK4(I); every other species ZZRAN·0.1 and no WK4. XRHGRO = REGHMULT.
+        # ut/regent.f:563-567: with tripling the SAME loop body (label 2) runs again for each tripled copy
+        # (L=1,2; K=ITRN+2I-2+L): a fresh ZZRAN, the XWT blend with the COPY's large-tree HTG (htgf.f:736-762
+        # TEMHTG), its own SIZCAP check, HK=H+HTG(K) and DBH(K)/DG(K) — all from the central's D=DBH(I), H=HT(I).
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
-        if 17 <= sp <= 19 || sp == 22
-            htgr = (htgr + zzran * 0.2f0) * xrhgro * scale * (wk4 === nothing ? 1f0 : wk4[i])
-        else
-            htgr = (htgr + zzran * 0.1f0) * xrhgro * scale
-        end
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        # XWT blend with large-tree HTG
         xmn = UT_RG_XMIN[sp]; xmx = UT_RG_XMAX[sp]
         xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]; htg < 0.1f0 && (htg = 0.1f0)
         cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        t.ht_growth[i] = htg
-        # ut/regent.f:383 IF(D.GE.BKPT) GO TO 23 — for BKPT≤D<XMAX the tree gets the regent (XWT-blended)
-        # HEIGHT growth above but KEEPS its large-tree DGDRIV diameter growth: the small-tree HT-DBH DG below
-        # is applied ONLY for D<BKPT. Omitting this over-wrote medium conifers' large-tree DG with a smaller
-        # height-derived increment (QMD/BA under-growth as trees mature past 3").
-        if d >= UT_RG_BREAK[sp]
-            continue
-        end
-        # ---- small-tree DG (ut/regent.f:380-560). DK/DKK are a 10-YR diameter increment; NO XWT blend
-        # (the HTG blend enters via HK=H+HTG). Clamp to DGMX, DDS→DG rescale by SCALE2=YR/FINT, DIAM floor.
-        hk = h + htg
+        large_htg = t.ht_growth[i]
         bark = ut_bratio(s.coef.species, sp, d)
-        if hk <= 4.5f0
-            # ut/regent.f:383-385 — sub-breast-height seedling: DG(K)=0.0, DBH(K)=D+0.001·HK.
-            # The 0.001·HK nudge is applied EVERY cycle (not a one-time birth detail): it slowly
-            # accretes DBH while the seedling is below 4.5 ft, and at D≈0.1" it crosses the CCF
-            # discontinuity in ut/ccfcal.f (D≤0.1 → CCFT=0.001 vs D>0.1 → RDA·D^RDB ≈5× smaller),
-            # so omitting it left dense tiny-seedling woodland stands at a ~5× inflated stand CCF
-            # (RELDEN), perturbing PCTRED/density for the whole stand. Direct dbh write matches the
-            # sibling EC/KT/PN regent seedling nudge; diam_growth stays 0 so the apply-loop adds nothing.
-            t.diam_growth[i] = 0.0f0
-            t.dbh[i] = d + 0.001f0 * hk
-        else
-            local dk::Float32, dkk::Float32
-            if sp == 10                                # PP Wykoff
-                dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
-                dkk = h < 4.5f0 ? d : (h - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
-            elseif (11 <= sp <= 17) || sp == 24        # PJ/GB linear-site
-                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-                dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            elseif sp == 20 || sp == 21                # MC/BI (SO/WC origin), ut/regent.f:408-465
-                dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
-                dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
-                # :430-465 inventory Curtis-Arney dub whenever the Wykoff calibration is off or did not happen
-                # (`.NOT.LHTDRG .OR. IABFLG==1`) — always for MC (LHTDRG(20)=.FALSE.). jl kept the linear
-                # placeholder, so MC seedlings grew DG 0.0019 vs live 0.0139 (UT regcal fixture, 2000).
-                if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
-                    p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
-                    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
-                    ca(hh) = hh >= hat3 ? exp(log((log(hh - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4)) :
-                                          ((hh - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) + 0.3f0
-                    dk = ca(hk)
-                    dkk = h <= 4.5f0 ? d : ca(h)
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)   # XRDGRO = REGDMULT
+        nrec = stash !== nothing && !isempty(stash.htgU) && i <= length(stash.htgU) ? 3 : 1
+        for l in 0:(nrec - 1)
+            # ZZRAN reject-loop (ut/regent.f:340-342): redraw until ∈[−2,0.5]
+            zzran = 0.0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
                 end
-            else                                       # conifers: WYKOFF HT-DBH DK=BX/(ln(HK-4.5)−AX)−1
-                # ut/regent.f:398-403 sets BX=HT2, AX=HT1 (IABFLG=1, uncalibrated) or AA (IABFLG=0, calibrated);
-                # the BX/AX branch (466-472) is taken for ALL non-MC/BI conifers (LHTDRG=.TRUE.). The Curtis-Arney
-                # P2/P3/P4 curve is NEVER reached for UT (only LHTDRG=.FALSE. species, i.e. MC/BI, which have their
-                # own linear DK above) — jl previously used it for the uncalibrated branch ⇒ DK too small ⇒ ~30%
-                # small-tree DG under-growth (WB HK=12.4: Curtis-Arney 1.135 vs Wykoff 1.4303; oracle=1.4303).
-                ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
-                bx = sd[:ht2][sp]
-                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
-                dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
             end
-            xrdgro = active_multiplier(s.control, :regd, sp, cur_year)   # XRDGRO = REGDMULT
-            dgmx = UT_RG_DGMAX[sp] * scale
-            if sp == 20 || sp == 21                     # ut/regent.f:516-532 CASE(20,21)
-                h < 4.5f0 && (dkk = d)
-                if dk < 0.0f0 || dkk < 0.0f0
-                    dgk = htg * 0.2f0 * bark * xrdgro; dk = d + dgk
-                else
-                    dgk = (dk - dkk) * bark * xrdgro
-                end
-                (s.control.ht_drag_sp[sp] && c.ht_dbh_iabflg[sp] == 0) && (dgk = 0.1f0 * htg * xrdgro)
-                dgk < 0.0f0 && (dgk = 0.1f0)
-                dgk > dgmx && (dgk = dgmx)
+            # ut/regent.f:344-350 SELECT CASE(ISPC): the CR-surrogate hardwoods (17:19,22) take ZZRAN·0.2 and the
+            # CLGMULT climate multiplier WK4(I); every other species ZZRAN·0.1 and no WK4. XRHGRO = REGHMULT.
+            # No floor on HTGR itself — only on the blended HTG(K) (ut/regent.f:360).
+            htgk = if 17 <= sp <= 19 || sp == 22
+                (htgr + zzran * 0.2f0) * xrhgro * scale * (wk4 === nothing ? 1f0 : wk4[i])
             else
-                dgk = (dk - dkk) * bark * xrdgro
+                (htgr + zzran * 0.1f0) * xrhgro * scale
             end
-            dgk < 0.0f0 && (dgk = 0.0f0)
-            dgk > dgmx && (dgk = dgmx)
-            scale2 = _UT_RG_REGYR / fint                # YR/FINT (=1 for 10-yr ⇒ transform is identity)
-            dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
-            (d + dgk) < UT_RG_DIAM[sp] && (dgk = UT_RG_DIAM[sp] - d)
-            t.diam_growth[i] = dgk
+            lh = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            htg = htgk * (1.0f0 - xwt) + xwt * lh; htg < 0.1f0 && (htg = 0.1f0)
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            # ut/regent.f:383 IF(D.GE.BKPT) GO TO 23 — for BKPT≤D<XMAX the record gets the regent (XWT-blended)
+            # HEIGHT growth but KEEPS its large-tree DGDRIV diameter growth.
+            below = d < UT_RG_BREAK[sp]
+            dbhk = d; dgk = 0f0; direct = false
+            if below
+                hk = h + htg
+                if hk <= 4.5f0
+                    # ut/regent.f:384-386: DG(K)=0.0, DBH(K)=D+0.001·HK — the 0.001·HK nudge every cycle
+                    # (see the CCF note in the git history: omitting it left tiny-seedling woodland stands at a ~5×
+                    # inflated CCF). diam_growth stays 0 so the apply-loop adds nothing.
+                    dgk = 0.0f0; dbhk = d + 0.001f0 * hk; direct = true
+                else
+                    dgk = _ut_rg_dk_dg(s, c, sd, sp, d, h, hk, htg, bark, xrdgro, sitear, scale, fint)
+                end
+                dgk = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)   # CALL DGBND(ISPC,DBH(K),DG(K))
+            end
+            if l == 0
+                t.ht_growth[i] = htg
+                if below
+                    direct && (t.dbh[i] = dbhk)
+                    t.diam_growth[i] = dgk
+                end
+            elseif l == 1
+                stash.htgU[i] = htg; stash.is_small[i] = true
+                below && (stash.dgU[i] = dgk; stash.dbhU[i] = dbhk)
+            else
+                stash.htgL[i] = htg
+                below && (stash.dgL[i] = dgk; stash.dbhL[i] = dbhk)
+            end
         end
-        _ut_rg_stash!(stash, t, i)
     end
     return s
 end
 
-# ut/esgent.f (CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle. UT was OMITTED
-# from the birth-cycle esgent dispatch (simulate.jl had only CR/TT/EM), so planted/established UT seedlings never
-# got their first-cycle height growth ⇒ the cohort stayed at the ~plant height (PP HHT=3.0) at the birth-cycle
-# report (BARE-PLANT: TopHt 3 vs live 6, BA ~half thru age 60). Mirrors small_tree_growth!'s HTGR over the birth
-# subperiod (subyr=FINT−GENTIM=5, germination offset like tt_esgent!), then DBH once the seedling crosses 4.5 ft.
+# ut/regent.f:388-556 (non-LESTB): DK/DKK from the HT-DBH relation for species ISPC, DG(K) by subtraction with the
+# REGDMULT multiplier and bounds, rescaled to the projection length (SCALE2 = YR/FINT). D, H = the central record's.
+function _ut_rg_dk_dg(s, c, sd, sp::Int, d::Float32, h::Float32, hk::Float32, htg::Float32, bark::Float32,
+                      xrdgro::Float32, sitear::Float32, scale::Float32, fint::Float32)::Float32
+    local dk::Float32, dkk::Float32
+    if sp == 10                                # PP Wykoff
+        dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
+        dkk = h < 4.5f0 ? d : (h - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
+    elseif (11 <= sp <= 17) || sp == 24        # PJ/GB linear-site
+        dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h < 4.5f0 ? d : (h - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+    elseif sp == 20 || sp == 21                # MC/BI (SO/WC origin), ut/regent.f:408-465
+        dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0.0f0 && (dkk = d)
+        dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+        # :430-465 inventory Curtis-Arney dub whenever the Wykoff calibration is off or did not happen
+        # (`.NOT.LHTDRG .OR. IABFLG==1`) — always for MC (LHTDRG(20)=.FALSE.).
+        if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
+            p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
+            hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+            ca(hh) = hh >= hat3 ? exp(log((log(hh - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4)) :
+                                  ((hh - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) + 0.3f0
+            dk = ca(hk)
+            dkk = h <= 4.5f0 ? d : ca(h)
+        end
+    else                                       # conifers: WYKOFF HT-DBH DK=BX/(ln(HK-4.5)−AX)−1
+        # ut/regent.f:398-403 BX=HT2, AX=HT1 (IABFLG=1) or AA (IABFLG=0); the BX/AX branch (466-472) is taken for
+        # all LHTDRG=.TRUE. species (every non-MC/BI conifer).
+        ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
+        bx = sd[:ht2][sp]
+        dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+    end
+    dgmx = UT_RG_DGMAX[sp] * scale
+    local dgk::Float32
+    if sp == 20 || sp == 21                     # ut/regent.f:516-532 CASE(20,21)
+        h < 4.5f0 && (dkk = d)
+        if dk < 0.0f0 || dkk < 0.0f0
+            dgk = htg * 0.2f0 * bark * xrdgro
+        else
+            dgk = (dk - dkk) * bark * xrdgro
+        end
+        (s.control.ht_drag_sp[sp] && c.ht_dbh_iabflg[sp] == 0) && (dgk = 0.1f0 * htg * xrdgro)
+        dgk < 0.0f0 && (dgk = 0.1f0)
+        dgk > dgmx && (dgk = dgmx)
+    else
+        if dk < 0.0f0 || dkk < 0.0f0           # ut/regent.f:535-540 CASE DEFAULT
+            dgk = htg * 0.2f0 * bark * xrdgro
+        else
+            dgk = (dk - dkk) * bark * xrdgro
+        end
+    end
+    dgk < 0.0f0 && (dgk = 0.0f0)
+    dgk > dgmx && (dgk = dgmx)
+    scale2 = _UT_RG_REGYR / fint                # YR/FINT (=1 for 10-yr ⇒ transform is identity)
+    dds = dgk * (2.0f0 * bark * d + dgk) * scale2
+    dgk = sqrt((d * bark)^2 + dds) - bark * d
+    (d + dgk) < UT_RG_DIAM[sp] && (dgk = UT_RG_DIAM[sp] - d)
+    return dgk
+end
+
+# ut_esgent! — ut/esgent.f: SPESRT, REGENT(.TRUE.,ITRNIN) over this cycle's new records (ITRNIN = nstart+1), then the
+# WK4=HTIMLT tail. ut/regent.f LESTB (:147-560):
+# - FNT=FINT−5 (LSKIPH when FINT≤5), SCALE=FNT/REGYR, SCALE2=YR/FNT, DGMX=DGMAX·SCALE.
+# - PCTRED from the mid-period CCF=(5/FINT)·RELDEN+((FINT−5)/FINT)·ATCCF, AVHT likewise from AVH/ATAVH (:162-171), where
+#   RELDEN/AVH are GRADD's post-growth PRE-regen DENSE values (establish! has re-DENSEd with the seedlings, so the caller
+#   passes pre-regen snapshots).
+# - species-major records; each new record first draws its crown (:230-241, PCCF(ITRE(I)), main stream) and then its
+#   ZZRAN — the two draws interleave per record. Aspen POTHTG from the Sheppard curve at SITAGE=ABIRTH (:284-287);
+#   HTGR=(HTGR+ZZRAN·0.1)·XRHGRO·SCALE (·0.2·WK4 for 17:19,22, WK4=HTIMLT here); XWT=0; HTG floored at 0.1; SIZCAP.
+# - HK≤4.5 ⇒ DBH=D+0.001·HK, DG=0; else DBH(K)=DK (PP linear, PJ/WJ/oak (HK−4.5)·10/(SI−4.5), 20/21 SO equations,
+#   else Wykoff with AX=HT1|AA), floored at DIAM, +0.001·HK, DG=DBH (:483-497); DGBND.
+# esgent.f:51-65 then scales HTG by WK4 (<1 resets sub-4.5' DBH to 0.1+0.001·HT, else rescales DBH/DG by HT/HTEMP) and caps
+# HT at HHTMAX; estab.f:707 adds GENTIM to ABIRTH.
 function ut_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0)
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
     sd = s.coef.species; slo = sd[:site_lo]; shi = sd[:site_hi]
-    relden = p.relative_density; avh = p.avg_height; dgsd = s.control.dg_sd
-    gentim = max(fint - 5.0f0, 0.0f0)
-    bscale = (fint - gentim) / _UT_RG_REGYR            # birth-cycle time fraction (=0.5 for fint=10)
-    # REGENT(LESTB) density modifier PCTRED reads a MID-PERIOD blend of the CURRENT (post-growth) and the
-    # START-of-cycle (post-thin, pre-growth) CCF/top-height, NOT the current stand alone (ut/regent.f:162-171:
-    #   CCF =(5/FINT)*RELDEN+((FINT-5)/FINT)*ATCCF ; AVHT=(5/FINT)*AVH+((FINT-5)/FINT)*ATAVH ; X=AVHT*(CCF/100)).
-    # ATCCF/ATAVH are grincr.f:318-320 post-thin values (== simulate.jl es_at_relden/es_at_avh). By establishment
-    # time p.avg_height reflects the GROWN stand (top height ≫ start), inflating X and driving PCTRED toward its
-    # floor ⇒ birth-cycle HTG collapses ⇒ seedlings cross 4.5 ft too slowly ⇒ one-directional BA under-production.
-    # #194-class start-of-cycle density fix, mirror of IE. Missing (-1) sentinel ⇒ legacy current-only (defensive;
-    # the UT call site passes the trio). X>300 clamp per ut/regent.f:172.
-    w0 = fint > 0f0 ? 5.0f0 / fint : 1.0f0; w1 = 1.0f0 - w0
-    ccf = atrelden >= 0f0 ? w0*relden + w1*atrelden : relden
-    avht = atavh >= 0f0 ? w0*avh + w1*atavh : avh
-    xd = avht * (ccf / 100.0f0); xd > 300.0f0 && (xd = 300.0f0)
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    dgsd = s.control.dg_sd
+    cur_year = current_cycle_year(s)
+    n = t.n
+    @inbounds for i in (nstart + 1):n; t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0; end   # estab.f:641-642
+    lskiph = false; fnt = fint
+    if fint <= 5f0
+        lskiph = true
+    else
+        fnt = fnt - 5f0
+    end
+    scale = fnt / _UT_RG_REGYR
+    ccf = relden; avht = avh
+    if fnt > 0f0
+        atccf = atrelden >= 0f0 ? atrelden : relden; atah = atavh >= 0f0 ? atavh : avh
+        ccf = (5f0 / fint) * relden + ((fint - 5f0) / fint) * atccf
+        avht = (5f0 / fint) * avh + ((fint - 5f0) / fint) * atah
+    end
+    xd = avht * (ccf / 100f0); xd > 300f0 && (xd = 300f0)
     ab = UT_RG_AB
-    pctred = ab[1] + xd*(ab[2] + xd*(ab[3] + xd*(ab[4] + xd*(ab[5] + xd*ab[6]))))
-    pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    # ut/esgent.f:44-48 `CALL SPESRT; CALL REGENT(.TRUE.,ITRNIN)`: species-major over ALL records, processing only
-    # the new ones (I≥ITRNIN) — so the ZZRAN draws follow species order, not the append order.
-    @inbounds for i in species_major_order(s)
-        i <= nstart && continue
-        sp = Int(t.species[i]); d = t.dbh[i]
-        (d >= UT_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
-        h = t.height[i]
+    pctred = ab[1] + xd * (ab[2] + xd * (ab[3] + xd * (ab[4] + xd * (ab[5] + xd * ab[6]))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    order = sort(collect((nstart + 1):n); by = i -> (Int(t.species[i]), i))   # SPESRT order of the new records
+    @inbounds for i in order
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf                 # ut/regent.f:233-240
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr = trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr; t.crown_ratio[i] = Float32(icr)
+        d >= UT_RG_XMAX[sp] && continue
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+        con = fexp(c.htg_cor_small[sp])                      # RHCON=1
         sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
-        relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+        rsimod = 0.5f0 * (1f0 + (si - slo[sp]) / (shi[sp] - slo[sp]))
         sj = sitear
-        con = exp(c.htg_cor_small[sp])
-        if _ut_rg_conifer(sp)
-            pothtg = sj / 5.0f0
-            xcr = Float32(t.crown_pct[i]) / 100.0f0
-            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
-            htgr = pothtg * pctred * vigor * con
-        elseif sp == 6
-            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
-            htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
+        local htg::Float32
+        if lskiph
+            htg = 0f0
         else
-            pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0) * 0.83f0
-            xcr = Float32(t.crown_pct[i]) / 100.0f0
-            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
-            (11 <= sp <= 17 || sp == 24) && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
-            htgr = pothtg * pctred * vigor * con
-        end
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        htg = (htgr + zzran * 0.1f0) * bscale           # birth-cycle subperiod (WK4 in esgent.f)
-        htg < 0.0f0 && (htg = 0.0f0)
-        # XWT blend uses the large-tree HTG(K), which is 0 for brand-new seedlings ⇒ htg = htgr·(1−xwt).
-        xmn = UT_RG_XMIN[sp]; xmx = UT_RG_XMAX[sp]
-        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        htg = htg * (1.0f0 - xwt)
-        cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.0f0))
-        h2 = h + htg
-        t.height[i] = h2; t.ht_growth[i] = htg
-        # REGENT(LESTB) diameter for the birth record is the ABSOLUTE dubbed DK, NOT the DDS growth-increment
-        # reconstruction (ut/regent.f:483-497 `IF(LESTB) … DBH(K)=DK ; IF(DBH<DIAM) DBH=DIAM ; DBH=DBH+0.001*HK ;
-        # DG(K)=DBH(K)`). The former code ran the LESTB=F increment path (:498-552 DG=(DK−DKK)*BARK, DDS-rescaled,
-        # capped at DGMX=DGMAX·SCALE): with the tiny birth DKK≈D the reconstruction ≈DK, but the DGMX cap on a
-        # half-cycle (bscale≈0.5) clips the increment ⇒ the whole synchronized PLANT cohort enters the next cycle
-        # well under DK ⇒ a seed-invariant, one-directional BA/QMD deficit that compounds. Mirror of the IE fix.
-        if h2 > 4.5f0
-            hk = h2
-            local dk::Float32
-            if sp == 10
-                dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
-            elseif (11 <= sp <= 17) || sp == 24
-                dk = (hk - 4.5f0) * 10.0f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-            elseif sp == 20 || sp == 21
-                dk = 3.1020f0 + 0.0210f0 * hk   # (ut/regent.f refines via P2/P3/P4 inv-eqns + DAT45 offset for
-                                                 #  LHTDRG species; SO/WC-origin sp 20/21 are ~absent in UT FIA)
+            local htgr::Float32
+            if sp == 6                                       # regent.f:273-297 aspen, LESTB ⇒ SITAGE=ABIRTH(I)
+                sitage = t.birth_age[i]
+                hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+                hite2 = 26.9825f0 * fpow(sitage + 10f0, 1.1752f0)
+                pothtg = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con
+                htgr = pothtg * 0.75f0
             else
-                ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
-                bx = sd[:ht2][sp]
-                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+                pothtg = _ut_rg_conifer(sp) ? sj / 5f0 : ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
+                x = Float32(t.crown_pct[i]) / 100f0
+                vigor = (150f0 * fpow(x, 3f0) * fexp(-6f0 * x)) + 0.3f0
+                vigor > 1f0 && (vigor = 1f0)
+                ((11 <= sp <= 17) || sp == 24) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
+                htgr = pothtg * pctred * vigor * con
             end
-            dbh = dk
-            dbh < UT_RG_DIAM[sp] && (dbh = UT_RG_DIAM[sp])   # regent.f:495 IF(DBH<DIAM) DBH=DIAM
-            dbh = dbh + hk * 0.001f0                          # regent.f:496 DBH=DBH+0.001*HK
-            t.dbh[i] = dbh; t.diam_growth[i] = dbh            # regent.f:497 DG(K)=DBH(K)
-        else
-            # regent.f:383-385 HK≤4.5 ⇒ DBH=D+0.001*HK, DG=0 (birth record stays sub-breast-height).
-            t.dbh[i] = d + 0.001f0 * h2; t.diam_growth[i] = 0.0f0
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2f0) && break
+                end
+            end
+            htgr = (17 <= sp <= 19 || sp == 22) ? (htgr + zzran * 0.2f0) * xrhgro * scale * t.htimlt[i] :
+                                                  (htgr + zzran * 0.1f0) * xrhgro * scale
+            htg = htgr                                       # XWT=0 under LESTB (:359)
+            htg < 0.1f0 && (htg = 0.1f0)
+            cap = s.control.sp_size_cap[sp, 4]
+            if h + htg > cap; htg = cap - h; htg < 0.1f0 && (htg = 0.1f0); end
         end
+        t.ht_growth[i] = htg
+        d >= UT_RG_BREAK[sp] && continue                     # regent.f:381 GO TO 23
+        hk = h + htg
+        diam = UT_RG_DIAM[sp]
+        local dbh::Float32, dg::Float32
+        if hk <= 4.5f0
+            dg = 0f0; dbh = d + 0.001f0 * hk
+        else
+            local dk::Float32
+            dat45 = 0f0
+            if sp == 10
+                dk = (hk - 8.31485f0 + 0.59200f0 * 7f0) / 3.03659f0
+            elseif (11 <= sp <= 17) || sp == 24
+                dk = (hk - 4.5f0) * 10f0 / (sitear - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+            elseif sp == 20 || sp == 21                      # SO (from WC) equations (:402-468)
+                dat45 = 3.1020f0 + 0.0210f0 * 4.5f0
+                dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0f0 && (dkk = d)
+                dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+                if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
+                    p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
+                    hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
+                    dk = hk >= hat3 ? fexp(flog((flog(hk - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4) :
+                                      (((hk - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4)) - 4.51f0)) + 0.3f0
+                end
+            else
+                bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]
+                dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)
+            end
+            if (sp == 20 || sp == 21) && dat45 > 0f0 && hk >= 4.5f0 && s.control.ht_drag_sp[sp] &&
+               c.ht_dbh_iabflg[sp] == 0
+                dbh = dk - dat45 + diam
+            else
+                dbh = dk
+            end
+            dbh < diam && (dbh = diam)
+            dbh = dbh + 0.001f0 * hk
+            dg = dbh
+            (dbh + dg) < diam && (dg = diam - dbh)
+        end
+        dg = dg_bound(nothing, nothing, sp, dbh, dg, s.control.sp_size_cap)   # DGBND
+        t.dbh[i] = dbh; t.diam_growth[i] = dg
     end
+    @inbounds for i in (nstart + 1):n                       # esgent.f:51-65
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * t.htimlt[i]
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if t.htimlt[i] < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > _UT_ES_HHTMAX[sp] && (t.height[i] = _UT_ES_HHTMAX[sp])
+    end
+    esgent_add_gentim!(s, nstart, fint)                     # estab.f:707 ABIRTH += GENTIM
     return s
 end
