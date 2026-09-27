@@ -453,7 +453,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
         elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest) &&   # PN compiles wc/cratet.f
+                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # PN compiles wc/cratet.f
+                s.variant isa CentralCalifornia || s.variant isa SouthCentralOregon || s.variant isa WestSierra) &&
                length(s.calib.input_seq) == ntot
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
@@ -462,6 +463,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             # the BM shape. 302076170489998: SF I=9 / WH I=2 both 10.1" (and RC 13 / WH 4 both 7.1") — live DGF BAL
             # 208.2742/210.4278, stable sortperm swapped them ⇒ SF COR 1.0154053 vs live 1.014536.
             # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
+            # CA/SO: {ca,so}/cratet.f:139-142, WS: ws/cratet.f:215-218 — the same IND=IND1; RDPSRT(.FALSE.) before the
+            # LBKDEN DENSE ({ca,so}:171, ws:247).
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
             # tie ⇒ DGF WK2 ⇒ the DO-220 WK1 dub ⇒ LM/LL Hamilton G 0.1253 vs live 0.1257 (cycle-1 kill 6.941 vs 6.921).
