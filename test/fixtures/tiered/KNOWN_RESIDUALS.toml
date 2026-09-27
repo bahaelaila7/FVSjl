@@ -1818,17 +1818,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -2242,17 +2231,6 @@ year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 37 cells [ulp1=1 ulp2_16=2 ulpbig=34] max|Δ|=0.2574 | e.g. stand 647500316126144 year 2038: live=1.149999976158142 jl=1.2000000476837158"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
 
 [[residual]]
 variant = "BM"
@@ -5810,17 +5788,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 [[residual]]
 variant = "IE"
 regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 97
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 97 cells [material=97] max|Δ|=97.0 | e.g. stand 11855985010690 year 2036: live=0 jl=44"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
 file = "sum"
 col = "ATBA"
 stand = "*"
@@ -7395,17 +7362,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=0 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -8149,17 +8105,6 @@ year = "*"
 status = "OPEN"
 max_cells = 29
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [ulp2_16=1 ulpbig=28] max|Δ|=0.9057 | e.g. stand 11855985010690 year 2016: live=0.37094685435295105 jl=0.699999988079071"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -14731,17 +14676,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EM
 variant = "EM"
 regime = "climate"
 file = "FVS_Climate"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 684750664126144 year 2058: live=1 jl=0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
 col = "SiteMult"
 stand = "*"
 year = "*"
@@ -14825,28 +14759,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
 
 [[residual]]
 variant = "EM"
@@ -14968,17 +14880,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 26 cells [material=10 ulpbig=16] max|Δ|=422.0 | e.g. stand 474187636489998 year 2056: live=204 jl=203"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 684750664126144 year 2048: live=115 jl=114"""
 
 [[residual]]
 variant = "EM"
@@ -15160,17 +15061,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "climate"
 file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=2.0 | e.g. stand 684750664126144 year 2048: live=115 jl=114"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "sum"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -15258,28 +15148,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "cover"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
 file = "FVS_StrClass"
 col = "Number_of_Strata"
 stand = "*"
@@ -15331,17 +15199,6 @@ year = "*"
 status = "OPEN"
 max_cells = 68
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 68 cells [material=3 ulp1=9 ulp2_16=4 ulpbig=52] max|Δ|=2.125 | e.g. stand 474187636489998 year 2036: live=8.10938835144043 jl=8.107958793640137"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 8 cells [ulpbig=8] max|Δ|=1.0 | e.g. stand 3006831010690 year 2039: live=49 jl=50"""
 
 [[residual]]
 variant = "EM"
@@ -16061,28 +15918,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "econ"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -16238,17 +16073,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "econ"
 file = "FVS_Summary"
-col = "RMCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=28.0 | e.g. stand 684750664126144 year 2028: live=995 jl=992"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Summary"
 col = "RTCuFt"
 stand = "*"
 year = "*"
@@ -16277,17 +16101,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 35 cells [material=34 ulpbig=1] max|Δ|=40.0 | e.g. stand 474157097489998 year 2036: live=86 jl=81"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Summary"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 2999215010690 year 2018: live=2 jl=3"""
 
 [[residual]]
 variant = "EM"
@@ -16480,17 +16293,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "econ"
 file = "sum"
-col = "RMCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=28.0 | e.g. stand 684750664126144 year 2028: live=995 jl=992"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "sum"
 col = "RTCuFt"
 stand = "*"
 year = "*"
@@ -16519,17 +16321,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 35 cells [material=34 ulpbig=1] max|Δ|=40.0 | e.g. stand 474157097489998 year 2036: live=86 jl=81"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "sum"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 2999215010690 year 2018: live=2 jl=3"""
 
 [[residual]]
 variant = "EM"
@@ -16897,28 +16688,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "mistletoe"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -17069,17 +16838,6 @@ year = "*"
 status = "OPEN"
 max_cells = 25
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 25 cells [material=15 ulpbig=10] max|Δ|=14.0 | e.g. stand 474157097489998 year 2066: live=296 jl=297"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_Summary"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 3006831010690 year 2039: live=3 jl=2"""
 
 [[residual]]
 variant = "EM"
@@ -17272,17 +17030,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "mistletoe"
 file = "sum"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 3006831010690 year 2039: live=3 jl=2"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "sum"
 col = "TCuFt"
 stand = "*"
 year = "*"
@@ -17348,28 +17095,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "none"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
 file = "FVS_StrClass"
 col = "Number_of_Strata"
 stand = "*"
@@ -17421,17 +17146,6 @@ year = "*"
 status = "OPEN"
 max_cells = 68
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 68 cells [material=3 ulp1=9 ulp2_16=4 ulpbig=52] max|Δ|=2.125 | e.g. stand 474187636489998 year 2036: live=8.10938835144043 jl=8.107958793640137"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 8 cells [ulpbig=8] max|Δ|=1.0 | e.g. stand 3006831010690 year 2039: live=49 jl=50"""
 
 [[residual]]
 variant = "EM"
@@ -18096,17 +17810,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=53.0 | e.g. stand 684750664126144 year 2038: live=0 jl=26"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
 file = "sum"
 col = "ATBA"
 stand = "*"
@@ -18327,28 +18030,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "plant_cal"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -18756,28 +18437,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -19181,28 +18840,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
 
 [[residual]]
 variant = "EM"
@@ -19791,17 +19428,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EM
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 5352355010661 year 2044: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -19885,28 +19511,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
 
 [[residual]]
 variant = "EM"
@@ -20627,17 +20231,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EM
 variant = "EM"
 regime = "simfire"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 474187636489998 year 2066: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -20736,28 +20329,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 [[residual]]
 variant = "EM"
 regime = "simfire"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -20798,17 +20369,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=42.16 | e.g. stand 888512560290487 year 2031: live=8.546037673950195 jl=12.436532020568848"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Killed_class4"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=0.7276 | e.g. stand 3087467010690 year 1998: live=0.1150411069393158 jl=0.8426664471626282"""
 
 [[residual]]
 variant = "EM"
@@ -21507,17 +21067,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 3006831010690 year 1999: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "TCuFt"
 stand = "*"
 year = "*"
@@ -21568,28 +21117,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "SDIMax"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 57 cells [material=57] max|Δ|=134.0 | e.g. stand 474157097489998 year *: live=696 jl=775"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "SiteIndex"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 65
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 65 cells [material=63 ulpbig=2] max|Δ|=34.0 | e.g. stand 474157097489998 year *: live=62 jl=44"""
 
 [[residual]]
 variant = "EM"
@@ -22167,17 +21694,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "RMCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=28.0 | e.g. stand 684750664126144 year 2028: live=995 jl=992"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "RTCuFt"
 stand = "*"
 year = "*"
@@ -22206,17 +21722,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 35 cells [material=34 ulpbig=1] max|Δ|=40.0 | e.g. stand 474157097489998 year 2036: live=86 jl=81"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 2999215010690 year 2018: live=2 jl=3"""
 
 [[residual]]
 variant = "EM"
@@ -22409,17 +21914,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "sum"
-col = "RMCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=28.0 | e.g. stand 684750664126144 year 2028: live=995 jl=992"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "sum"
 col = "RTCuFt"
 stand = "*"
 year = "*"
@@ -22448,17 +21942,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 35 cells [material=34 ulpbig=1] max|Δ|=40.0 | e.g. stand 474157097489998 year 2036: live=86 jl=81"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "sum"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the EM campaign (not yet dug) | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 2999215010690 year 2018: live=2 jl=3"""
 
 [[residual]]
 variant = "EM"

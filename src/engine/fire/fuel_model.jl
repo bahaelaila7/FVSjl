@@ -745,7 +745,13 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # in fmcba/structure_class — cr_cwcalc, not the 0.5-default crown_width — makes this return the right
     # class, e.g. crt01 MCCT → IFMST 3 → model 10.)
     sawdbh = ict == 6 ? 12f0 : 18f0
-    ifmst = structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
+    uttt = s.variant isa Teton || s.variant isa Utah
+    # tt/ut fmcfmd.f:381-383: UT/TT call FMSSTAGE with the common TPAMIN/CCMIN/PCTSMX/SAWDBH/SSDBH/GAPPCT (the
+    # STRCLASS/KSSTAG values), only CR hard-codes the Oct-04 workshop set (:388-398).
+    ifmst = uttt ? structure_class(s).class :
+                   structure_class(s; thresh = (20f0, 5f0, sawdbh, 5f0, 200f0, 30f0)).class
+    fmavh = stand_top_height(s)                    # FMAVH (UT/TT MCCT/LPCT rules)
+    tiny = 0f0                                     # TINY: set on a loopback into PJCT when SMALL ≤ 0
     imodty = Int(s.plot.model_type)
     # USCT = dominant UNDERSTORY cover-type group (fmcfmd.f:348-364): argmax(USBA), else ICT.
     usct = ict; ybest = -1f0; usbatot = 0f0
@@ -776,7 +782,9 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             @inbounds for i in 1:t.n
                 t.tpa[i] > 0f0 || continue
                 spi = Int(t.species[i]); dd = t.dbh[i]; hh2 = t.height[i]; pr = t.tpa[i]
-                (23 <= spi <= 27) && (xh += hh2 * pr; psum += pr)
+                # oak species for X (tt/ut/cr fmcfmd.f OBCT): UT sp 13, CR 23-27, TT has no oak (GO TO 60 ⇒ X=0)
+                _oak = s.variant isa Utah ? spi == 13 : s.variant isa Teton ? false : (23 <= spi <= 27)
+                _oak && (xh += hh2 * pr; psum += pr)
                 xv = crown_biomass(s, spi, dd, hh2, Int(t.crown_pct[i]))   # BL over ALL trees (NO USHT filter)
                 bl += xv[1] * pr * p2t
                 for j in 2:6
@@ -799,6 +807,12 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 w4 = _fm_algslp2(x, 2f0, 6f0, 0f0, 1f0); eqwt[4] = w4; eqwt[5] = 1f0 - w4
             end
         end
+    elseif ict == 2 && uttt                        # PJCT, UT/TT (tt/fmcfmd.f:545-555)
+        if (sm + lg + tiny) > 0f0 && fwind > 7f0 && percov > 20f0
+            eqwt[ldry ? 6 : 5] = 1f0
+        else
+            eqwt[8] = 1f0
+        end
     elseif ict == 2                                # PJCT pinyon-juniper (fmcfmd.f:530-543, CR) — pure PERCOV
         if percov <= 25f0
             eqwt[2] = 1f0
@@ -817,6 +831,17 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         else
             (ifmst >= 4 && avgdbh > 12f0) ? (eqwt[10] = 1f0) : (eqwt[8] = 1f0)
         end
+    elseif ict == 5 && uttt                        # SFCT, UT/TT (tt/fmcfmd.f:727-733)
+        eqwt[ifmst <= 2 ? 2 : 8] = 1f0
+    elseif ict == 6 && uttt                        # LPCT, UT/TT (tt/fmcfmd.f:754-783)
+        sifm = unsafe_trunc(Int, s.plot.sp_site_index[7])          # SIFM = INT(SITEAR(7)), SIBRK = 20
+        if sifm < 20
+            eqwt[5] = 1f0
+        elseif sumtpa > 1000f0
+            eqwt[(fmavh <= 10f0 || fwind > 7f0) ? 5 : 8] = 1f0
+        else
+            eqwt[ifmst <= 2 ? 2 : 8] = 1f0
+        end
     elseif ict == 5                                # SFCT spruce-fir (fmcfmd.f:695-727, CR)
         if ifmst == 0
             eqwt[2] = 1f0
@@ -834,6 +859,22 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             eqwt[8] = 1f0
         else                                       # IFMST 3,4,6
             eqwt[10] = 1f0
+        end
+    elseif ict == 7 && uttt                        # MCCT, UT/TT (tt/fmcfmd.f:873-930)
+        if percov <= 50f0
+            if sumtpa > 1000f0
+                eqwt[ldry ? 2 : (fmavh <= 10f0 ? 5 : 8)] = 1f0
+            else
+                # UT: pinyon-juniper present with spruce-fir or white fir (sp 4, LWFOK) ⇒ 5 (6 dry)
+                lwfok = s.variant isa Utah && any(i -> t.tpa[i] > 0f0 && t.species[i] == 4, 1:t.n)
+                if s.variant isa Utah && ctba[2] > 0f0 && (ctba[5] > 0f0 || lwfok)
+                    eqwt[ldry ? 6 : 5] = 1f0
+                else
+                    eqwt[ldry ? 2 : 8] = 1f0
+                end
+            end
+        else
+            eqwt[lppdom ? 9 : 8] = 1f0
         end
     elseif ict == 7                                # MCCT mixed conifer (fmcfmd.f:827-869, CR)
         if lppdom
@@ -871,7 +912,8 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 (t.tpa[i] > 0f0 && t.height[i] > 10f0) || continue
                 spi = Int(t.species[i])
                 _fm_asct_excl(s.variant, spi) && continue    # per-variant CVR10 exclusion set
-                cw = cr_cwcalc(spi, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi)
+                cw = uttt ? tree_crwdth(s, spi, t.dbh[i], t.height[i], t.crown_pct[i]) :   # XW=CRWDTH(I)
+                            cr_cwcalc(spi, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi)
                 area += Float64(cw)^2 * Float64(t.tpa[i]) * 0.785398
             end
             pccu = cccoef * (area / 43560.0)
@@ -883,6 +925,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             redo_ict = 1                           # ⇒ reprocess as OBCT
         elseif ctba[2] > 1f0
             redo_ict = 2                           # ⇒ reprocess as PJCT
+            sm <= 0f0 && (tiny = 1f-3)
         end
     elseif ict == 3                                # PPCT ponderosa (fmcfmd.f:562-665, CR)
         if percov > 60f0                           # PERCOV>60 branch (fmcfmd.f:643-665) — no understory biomass
@@ -921,11 +964,12 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 if fwind > 7f0
                     if y <= 50f0
                         (usct == 1 || usct == 2) ? (redo_ict = usct) : (eqwt[5] = 1f0)  # OBCT/PJCT loopback
+                        (redo_ict == 2 && sm <= 0f0) && (tiny = 1f-3)
                     else
                         eqwt[6] = 1f0
                     end
                 else
-                    eqwt[5] = 1f0
+                    eqwt[uttt ? 8 : 5] = 1f0       # tt/fmcfmd.f:632-636: UT/TT model 8, CR model 5
                 end
             else
                 eqwt[2] = 1f0
@@ -985,7 +1029,10 @@ habitat code via the growth-port em_habtyp. Activity fuels (11/14) deferred like
 function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
     percov = s.fire.percov
     eqwt = zeros(Float32, _FMD_ICLSS)
-    iemtyp = em_habtyp(Int(s.plot.habitat_code))[1]              # EM habitat subscript (em/habtyp.f JTYPE bucket)
+    # fmcba.f:451 ENTRY EMMD: M1=MD1(IEMTYP). em_site_index_setup! already stores IEMTYP (em/habtyp.f's JTYPE
+    # subscript) in p.habitat_code (site_index.jl:174) — re-running em_habtyp on it double-mapped (hab 323 →
+    # IEMTYP 48 → em_habtyp(48) → 1 ⇒ MD1/MD2 = 8/8 instead of 2/8), dropping live's model-2 candidate.
+    iemtyp = Int(s.plot.habitat_code)
     m1, m2 = em_md_models(iemtyp)                               # EMMD: (MD1,MD2)[iemtyp]
     wt2 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0   # ALGSLP(PERCOV,[30,50],[0,1])
     eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)

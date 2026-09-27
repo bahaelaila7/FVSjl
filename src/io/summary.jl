@@ -244,7 +244,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
-              s.variant isa BlueMountains)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa BlueMountains || _ffe_west_vol(s.variant))   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+    # CI/TT/UT/CR (ci/tt/ut/cr fmsdit.f + FMSNAG/FMCWD/FMCADD, the same annual loop as IE/EM) were off this list ⇒ no
+    # inventory snags and no fuel dynamics: S248112 no-fire DDW 2.40 flat vs live 4.65→4.34 (CI), Standing_Dead 0.
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
         fill!(s.fire.crown_lift_annual, 0f0)
@@ -339,7 +341,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
         fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
-        if carbon_on && !fire_cycle
+        # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
+        # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
+        if carbon_on && !fire_cycle && !last
             compute_density!(s)
             # A FUELSOUT-only collection (no CARBREPT) must not latch CR's one-time dead-fuel load on the pre-cut
             # stand — CR defers it post-cut (below); the CARBREPT path keeps its validated behavior.
@@ -452,7 +456,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     ffe_defer_init = true
                 end
             end
-            chook = fire_cycle ? (st -> (compute_density!(st); fmcba!(st); _carb_push(st))) : nothing
+            # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start; between FMBURN and FMCRBOUT only SN re-runs it
+            # (sn/fmburn.f:589, the post-burn FULIV2 shrub age), so EM's fire-year FLIVE is the PRE-fire load (live
+            # 196378260020004 2022 Shrub_Herb 0.263 = ½·(0.285+0.242); a post-fire FMCBA gave 0.392).
+            chook = fire_cycle ? (st -> (compute_density!(st); _ffe_west_vol(st.variant) || fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
                              fuel_period = fire_this_cycle ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
