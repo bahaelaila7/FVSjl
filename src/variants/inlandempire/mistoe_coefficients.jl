@@ -570,6 +570,7 @@ const EC_MIS_DGP = reshape(Float32[
     v isa PacificNorthwest && return (PN_MIS_FIT, PN_MIS_DGP, PN_MIS_PMC, 39)  # misintpn.f
     v isa EastCascades  && return (EC_MIS_FIT, EC_MIS_DGP, EC_MIS_PMC, 32)  # misintec.f
     v isa WestSierra    && return (WS_MIS_FIT, WS_MIS_DGP, WS_MIS_PMC, 43)  # misintws.f
+    v isa CentralCalifornia && return (CA_MIS_FIT, CA_MIS_DGP, CA_MIS_PMC, 50)  # misintca.f
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
@@ -608,12 +609,14 @@ end
 # because their DGBND has a DGMAX envelope where min(DG·m,cap) ≠ min(DG,cap)·m.
 @inline _mis_dg_in_driver(v)::Bool = v isa WestCascades || v isa PacificNorthwest ||   # pn/dgdriv.f == wc/dgdriv.f
     v isa EastCascades ||                      # ec/dgdriv.f:286,313,320,328 MISDGF before DGBND :290,:334-336
-    v isa WestSierra                           # ws/dgdriv.f:301,328,335,343 MISDGF before DGBND :305,:349-351
+    v isa WestSierra ||                        # ws/dgdriv.f:301,328,335,343 MISDGF before DGBND :305,:349-351
+    v isa CentralCalifornia                    # ca/dgdriv.f:221,248,... MISDGF before DGBND :225
 @inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
     v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho ||
     v isa WestCascades || v isa PacificNorthwest ||   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
     v isa EastCascades ||                            # EC: the same mistoe/mis*.f (misintec.f DATA)
-    v isa WestSierra                                 # WS: misintws.f
+    v isa WestSierra ||                              # WS: misintws.f
+    v isa CentralCalifornia                          # CA: misintca.f
 
 """
     mis_hg_mult(s, i) -> Float32
@@ -629,7 +632,7 @@ variants whose live HGPDMR is not all 1.0 carry an HGP table (_mis_hgp); everyon
     m = @inbounds hgp[dmr + 1, sp]
     return m > 1f0 ? 1f0 : (m < 0f0 ? 0f0 : m)
 end
-@inline _mis_hgp(v) = v isa WestSierra ? WS_MIS_HGP : nothing
+@inline _mis_hgp(v) = v isa WestSierra ? WS_MIS_HGP : v isa CentralCalifornia ? CA_MIS_HGP : nothing
 
 @inline ie_dm_dg_mult(dgp, maxsp::Integer, sp::Integer, dmr::Integer) =
     (sp < 1 || sp > maxsp) ? 1f0 : @inbounds dgp[dmr + 1, sp]
