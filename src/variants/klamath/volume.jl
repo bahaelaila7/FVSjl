@@ -114,72 +114,103 @@ function _nc_r5_spec(fia::AbstractString)::Int
     return -1
 end
 
-"R5HARV DVE cubic+board (r5harv.f). Returns (tcuft VOL(1), MERCH-cuft = VOL(4)+VOL(7), scribner-bf VOL(2)) —
-the FVS .sum aggregates MCF = VOL(4)+VOL(7) (fvsvol.f:512) and BDFT = VOL(2). `mtopp` = merch top DIB (TOPC):
-[3,5)→CV4, [5,7)→CV6, [7,9]→CV8, <3→CVT (whole stem). Misc-hardwood power-law branch (NC's MA/BO/TO/OH);
-juniper & giant-sequoia special branches included but unreachable in NC. ⚠ These are the FULL (unbroken-height)
-volumes — the driver applies CFTOPK/BFTOPK (r4_topkill) for broken tops exactly as fvsvol.f:193/391 does for
-METHC=6 (both WO2W conifers AND DVE hardwoods go through NATCRS→CFTOPK; the DVE path is NOT skipped)."
+"R5HARV DVE cubic+board (r5harv.f) as DVEST returns it (dvest.f:170 `VOL(2)=ANINT(VOL(2))` — board feet to the
+nearest whole foot; VOL(1)/VOL(4) are NOT rounded since the 2025/05/07 NVEL change). Returns (tcuft VOL(1),
+MERCH-cuft = VOL(4)+VOL(7), scribner-bf VOL(2)) — the FVS .sum aggregates MCF = VOL(4)+VOL(7) (fvsvol.f:512) and
+BDFT = VOL(2). `mtopp` = merch top DIB (TOPC): [3,5)→CV4, [5,7)→CV6, [7,9]→CV8, <3→CVT (whole stem).
+Precision is Fortran's: COFA/COFB/COFC/COEFSEQ* are REAL*8 arrays DATA-initialised from default-REAL literals
+(⇒ Float64(Float32(lit))), each power product is evaluated in double and stored to a REAL CVx; everything after
+(CV6, BA, TARIF, the Scribner ratios, juniper, red alder) is single precision with glibc powf/expf/log10f.
+⚠ These are the FULL (unbroken-height) volumes — the driver applies CFTOPK/BFTOPK (r4_topkill) for broken tops
+exactly as fvsvol.f:193/391 does for METHC=6 (both WO2W conifers AND DVE hardwoods go through NATCRS→CFTOPK)."
 function nc_r5harv_vol(voleq::AbstractString, d::Float32, h::Float32, mtopp::Float32)
     length(voleq) < 10 && return (0f0, 0f0, 0f0)
-    d < 1f0 && return (0f0, 0f0, 0f0)
+    d < 1f0 && return (0f0, 0f0, 0f0)                  # r5harv.f:84 ERRFLAG=3
     spec = _nc_r5_spec(voleq[8:10])
     spec < 0 && return (0f0, 0f0, 0f0)
-    D = Float64(d); H = Float64(h); TOPC = Float64(mtopp); IV = 10.0
-    if spec == 0                                       # juniper (060/064)
-        if D < 5 || H < 10
-            cvts = 0.00272708 * D * D * H; v = 0.0
+    D = d; H = h; TOPC = mtopp
+    vol1 = 0f0; vol2 = 0f0; vol4 = 0f0; vol7 = 0f0
+    if spec == 0                                       # juniper (060/064), r5harv.f:158-178
+        if D < 5f0 || H < 10f0
+            cvts = 0.00272708f0 * D * D * H; v = 0f0
         else
-            f = 0.307 + 0.00086*H - 0.0037*D*H/(H - 4.5)
-            ba = 0.005454154*D*D
-            cvts = ba*f*H*(H/(H - 4.5))^2
-            v = TOPC > 0 ? (cvts + 3.48)/(1.18052 + 0.32736*exp(-0.1*D)) - 2.948 : cvts
+            f = 0.307f0 + 0.00086f0*H - 0.0037f0*D*H / (H - 4.5f0)
+            ba = 0.005454154f0 * D * D
+            cvts = ba * f * H * fpowi(H / (H - 4.5f0), 2)
+            v = TOPC > 0f0 ? (cvts + 3.48f0) / (1.18052f0 + 0.32736f0 * fexp(-0.1f0 * D)) - 2.948f0 : cvts
         end
-        vol4 = round(v*10 + 0.5)/10.0
-        return (Float32(cvts), Float32(max(vol4,0.0)), 0f0)
-    elseif spec == 14                                  # giant sequoia
-        vol4 = NC_R5_SEQC[1]*D^NC_R5_SEQC[2]*H^NC_R5_SEQC[3]
-        return (Float32(vol4), Float32(vol4), 0f0)     # VOL(1)=VOL(4)
-    end
-    # SPEC 1 red alder shares the misc formula's shape via its own TARIF branch in Fortran; NC never uses
-    # 351, so the misc power-law covers every NC DVE species (SPEC 3/9/10/12). Faithful misc branch:
-    a = NC_R5_COFA[spec]; b = NC_R5_COFB[spec]; cc = NC_R5_COFC[spec]
-    cv4 = a[1]*D^a[2]*H^a[3]*IV^a[4]
-    cv8 = b[1]*D^b[2]*H^b[3]*IV^b[4]
-    cv6 = (cv4 > 0 && cv8 > 0) ? cv4 - (cv4 - cv8)*0.4 : 0.0
-    cvt = cc[1]*D^cc[2]*H^cc[3]*IV^cc[4]
-    cuftgros = TOPC >= 3 && TOPC < 5 ? cv4 :
-               TOPC >= 5 && TOPC < 7 ? cv6 :
-               TOPC >= 7 && TOPC <= 9 ? cv8 :
-               TOPC < 3 ? cvt : 0.0
-    topwood = cv4 - cuftgros
-    # SCRIBNER board VOL(2) (r5harv.f:342-408). TOPB=MTOPP. D<11 ⇒ cubic×4 board/cube ratio; D≥11 ⇒ TARIF
-    # → RS616/SV616 (5"top) / SV816 (7"top). NC MTOPP∈[5,7) ⇒ CV6·4 / SV616.
-    board = 0.0
-    if D >= 5.0
-        if D < 11.0
-            board = (TOPC >= 5 && TOPC < 7) ? cv6*4.0 :
-                    (TOPC >= 7 && TOPC <= 9) ? cv8*4.0 : 0.0
-        else
-            ba = 0.005454154*D*D
-            tarif = (cv8*0.912733)/((0.983 - 0.983*0.65^(D-8.6))*(ba - 0.087266))
-            tarif <= 0.0 && (tarif = 0.01)
-            b4 = tarif/0.912733
-            dlog = log10(D); balog = log10(b4)
-            rs616l = 0.174439 + 0.117594*dlog*balog - 8.210585/D^2 +
-                     0.236693*balog - 0.00001345*b4^2 - 0.00001937*D^2
-            sv616 = (10.0^rs616l)*cv6
-            sv816 = (0.99 - 0.58*(0.484^(D-9.5)))*sv616
-            board = (TOPC >= 5 && TOPC < 7) ? sv616 :
-                    (TOPC >= 7 && TOPC <= 9) ? sv816 : 0.0
+        vol4 = round(v*10f0 + 0.5f0, RoundNearestTiesAway) / 10.0f0     # VOL(4)=ANINT(V*10+0.5)/10.0
+        vol1 = cvts
+    elseif spec == 1                                   # red alder (351), r5harv.f:180-285
+        ba = D * D * 0.005454154f0
+        term1 = (1.033f0 * (1.0f0 + 1.382937f0 * fexp(-4.015292f0 * (D / 10.0f0)))) * (ba + 0.087266f0) - 0.174533f0
+        dlog = _r5_log10(D); hlog = _r5_log10(H)
+        cvts = fpow(10.0f0, -2.672775f0 + 1.920617f0 * dlog + 1.074024f0 * hlog)
+        tarif = (cvts * 0.912733f0) / term1
+        tarif <= 0f0 && (tarif = 0.01f0)
+        cv4 = tarif * (ba - 0.087266f0) / 0.912733f0
+        cv8 = cv4 * (0.983f0 - 0.983f0 * fpow(0.65f0, D - 8.6f0))
+        cvt = tarif * (0.9679f0 - 0.1051f0 * fpow(0.5523f0, D - 1.5f0)) * term1 / 0.912733f0
+        cv6 = cv4 * (0.993f0 - 0.993f0 * fpow(0.62f0, D - 6.0f0))
+        vol4 = TOPC >= 3f0 && TOPC < 5f0 ? cv4 : TOPC >= 5f0 && TOPC < 7f0 ? cv6 :
+               TOPC >= 7f0 && TOPC <= 9f0 ? cv8 : TOPC < 3f0 ? cvt : 0f0
+        vol1 = cvt
+        vol4 <= 0f0 && (vol4 = 0f0)
+        if D >= 7.0f0
+            b4 = tarif / 0.912733f0
+            balog = _r5_log10(b4)
+            rs616l = 0.174439f0 + 0.117594f0 * dlog * balog - 8.210585f0 / fpowi(D, 2) + 0.236693f0 * balog -
+                     0.00001345f0 * fpowi(b4, 2) - 0.00001937f0 * fpowi(D, 2)
+            sv616 = fpow(10.0f0, rs616l) * cv6
+            sv816 = (0.99f0 - 0.58f0 * fpow(0.484f0, D - 9.5f0)) * sv616
+            vol2 = TOPC >= 5f0 && TOPC < 7f0 ? sv616 : TOPC >= 7f0 && TOPC <= 9f0 ? sv816 : 0f0
+            vol7 = TOPC <= 0f0 ? 0f0 : TOPC == 6f0 ? cv4 - cv6 : TOPC == 8f0 ? cv4 - cv8 : 0f0
+        end
+    elseif spec == 14                                  # giant sequoia, r5harv.f:293-296
+        b = NC_R5_SEQB; c = NC_R5_SEQC
+        vol2 = Float32(_r8(b[1]) * dpow(Float64(D), _r8(b[2])) * dpow(Float64(H), _r8(b[3])))
+        vol4 = Float32(_r8(c[1]) * dpow(Float64(D), _r8(c[2])) * dpow(Float64(H), _r8(c[3])))
+        vol1 = vol4
+    else                                               # misc hardwoods, r5harv.f:300-408
+        a = NC_R5_COFA[spec]; b = NC_R5_COFB[spec]; cc = NC_R5_COFC[spec]
+        cv4 = _r5_pw(a, D, H); cv8 = _r5_pw(b, D, H)
+        cv6 = (cv4 > 0f0 && cv8 > 0f0) ? cv4 - ((cv4 - cv8) * 0.4f0) : 0f0
+        cvt = _r5_pw(cc, D, H)
+        cuftgros = TOPC >= 3f0 && TOPC < 5f0 ? cv4 : TOPC >= 5f0 && TOPC < 7f0 ? cv6 :
+                   TOPC >= 7f0 && TOPC <= 9f0 ? cv8 : TOPC < 3f0 ? cvt : 0f0
+        vol4 = cuftgros; vol7 = cv4 - cuftgros; vol1 = cvt
+        if D >= 5.0f0                                  # SCRIBNER VOL(2), TOPB = MTOPP
+            if D < 11.0f0
+                vol2 = TOPC >= 5f0 && TOPC < 7f0 ? cv6 * 4f0 : TOPC >= 7f0 && TOPC <= 9f0 ? cv8 * 4f0 : 0f0
+            else
+                ba = fpowi(D, 2) * 0.005454154f0
+                tarif = (cv8 * 0.912733f0) / ((0.983f0 - 0.983f0 * fpow(0.65f0, D - 8.6f0)) * (ba - 0.087266f0))
+                tarif <= 0f0 && (tarif = 0.01f0)
+                b4 = tarif / 0.912733f0
+                dlog = _r5_log10(D); balog = _r5_log10(b4)
+                rs616l = 0.174439f0 + 0.117594f0 * dlog * balog - 8.210585f0 / fpowi(D, 2) + 0.236693f0 * balog -
+                         0.00001345f0 * fpowi(b4, 2) - 0.00001937f0 * fpowi(D, 2)
+                sv616 = fpow(10.0f0, rs616l) * cv6
+                sv816 = (0.99f0 - 0.58f0 * fpow(0.484f0, D - 9.5f0)) * sv616
+                vol2 = TOPC >= 5f0 && TOPC < 7f0 ? sv616 : TOPC >= 7f0 && TOPC <= 9f0 ? sv816 : 0f0
+            end
         end
     end
-    if mtopp > d                                        # r5harv.f:410-412 top>DBH ⇒ no merch/board
-        cuftgros = 0.0; board = 0.0
+    if mtopp > d                                       # r5harv.f:410-412 top>DBH ⇒ no merch/board (every branch)
+        vol2 = 0f0; vol4 = 0f0
     end
-    mcf = cuftgros + topwood                             # fvsvol.f:512 MCF = VOL(4)+VOL(7)
-    return (Float32(cvt), Float32(max(mcf,0.0)), Float32(max(board,0.0)))
+    vol2 = round(vol2, RoundNearestTiesAway)           # dvest.f:170 VOL(2) = ANINT(VOL(2))
+    vol7 < 0f0 && (vol7 = 0f0)                         # volinit.f:559 IF(VOL(7).LT.0.0) VOL(7)=0.0
+    return (vol1, max(vol4 + vol7, 0f0), max(vol2, 0f0))
 end
+
+# REAL*8 DATA from a default-REAL literal (gfortran: the constant is REAL(4), widened on assignment).
+@inline _r8(x::Float64) = Float64(Float32(x))
+# COFx(1)·DBHOB**COFx(2)·HTTOT**COFx(3)·IV**COFx(4) in REAL*8 (REAL**REAL*8 ⇒ glibc pow), stored to a REAL CVx.
+@inline _r5_pw(c, D::Float32, H::Float32) =
+    Float32(_r8(c[1]) * dpow(Float64(D), _r8(c[2])) * dpow(Float64(H), _r8(c[3])) * dpow(10.0, _r8(c[4])))
+# gfortran LOG10 of a REAL → glibc log10f
+@inline _r5_log10(x::Float32) = ccall((:log10f, "libm.so.6"), Float32, (Float32,), x)
 
 # ---------------------------------------------------------------------------
 # WO2W: R5TAP — Wensel & Krumland (Region-5 California) profile taper (r5tap.f).
