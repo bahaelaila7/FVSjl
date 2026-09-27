@@ -23,21 +23,23 @@ const _M = FVSjl
     @test _M.NC_R7_VOL_EQ[1]  == "B00BEHW999"   # OS
     @test _M.NC_R7_VOL_EQ[12] == "B00BEHW211"   # redwood
     # PROFILE / TAPEQU from BLMTAPEQ (blmvol.f:937-1070): DF→(1,1), SP→(4,13), PP→(3,11), RF→(7,32), IC→(9,51)
-    @test _M.NC_R7_PROFILE[3] == 1  && _M.NC_R7_TAPEQU[3]  == 1   # DF
-    @test _M.NC_R7_PROFILE[2] == 4  && _M.NC_R7_TAPEQU[2]  == 13  # SP
-    @test _M.NC_R7_PROFILE[10] == 3 && _M.NC_R7_TAPEQU[10] == 11  # PP
-    @test _M.NC_R7_PROFILE[9] == 7  && _M.NC_R7_TAPEQU[9]  == 32  # RF
-    @test _M.NC_R7_PROFILE[1] == 10 && _M.NC_R7_TAPEQU[1]  == 56  # OS → all-other/misc
+    # (BLMTAPEQ returns (TAPEQU, PROFILE); the kernel is the shared engine blm_vol.jl, keyed by NC_R7_VOL_EQ)
+    tp(sp) = _M._blm_tapeq(_M.NC_R7_VOL_EQ[sp])
+    @test tp(3)  == (1, 1)    # DF
+    @test tp(2)  == (13, 4)   # SP
+    @test tp(10) == (11, 3)   # PP
+    @test tp(9)  == (32, 7)   # RF
+    @test tp(1)  == (56, 10)  # OS → all-other/misc
 
     # --- DOUBLE_BARK (blmvol.f:838-934) ---
-    @test isapprox(_M.nc_blm_double_bark(1, 12.7f0), 0.903563f0 * 12.7f0^0.989388f0; atol = 1f-4)  # DF
-    @test isapprox(_M.nc_blm_double_bark(13, 20.0f0), 0.859045f0 * 20.0f0; atol = 1f-4)             # sugar pine
-    @test isapprox(_M.nc_blm_double_bark(56, 25.0f0), 25.0f0 / 1.071f0; atol = 1f-4)                # misc
+    @test isapprox(_M._blm_double_bark(1, 12.7f0), 0.903563f0 * 12.7f0^0.989388f0; atol = 1f-4)  # DF
+    @test isapprox(_M._blm_double_bark(13, 20.0f0), 0.859045f0 * 20.0f0; atol = 1f-4)             # sugar pine
+    @test isapprox(_M._blm_double_bark(56, 25.0f0), 25.0f0 / 1.071f0; atol = 1f-4)                # misc
 
     # --- BLMTAP taper (blmtap.f TLH=0): DIB decreases with height; ~D17 near the base ---
     d17 = floor(20.0f0 * 80f0 / 100f0 + 0.5f0)   # ANINT(0.8*20)=16
-    dib_low  = _M.nc_blmtap_dib(1, 20.0f0, 100.0f0 + 1.5f0, 17.8f0, d17)
-    dib_high = _M.nc_blmtap_dib(1, 20.0f0, 100.0f0 + 1.5f0, 80.0f0, d17)
+    dib_low  = _M._blm_tap(20.0f0, 100.0f0 + 1.5f0, 17.8f0, d17, 16.3f0, 1)
+    dib_high = _M._blm_tap(20.0f0, 100.0f0 + 1.5f0, 80.0f0, d17, 16.3f0, 1)
     @test dib_low > dib_high > 0f0
 
     # --- Per-tree VOL(1)/VOL(4)/VOL(2) — BIT-EXACT vs the standalone BLMVOL oracle (5 species/profiles) ---

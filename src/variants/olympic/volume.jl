@@ -3,10 +3,8 @@
 #
 # OP's VOLEQDEF equations are BLM Behre (`B00/B01 BEHW`+FIA — dumped from the live FVSop_clean
 # "NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS" table, forest 708); `volinit.f:367` routes
-# `VOLEQ(1:1)=='B'` to BLMVOL. The NVEL BLM kernel (blmvol.f + blmtap.f) is BYTE-IDENTICAL between
-# the OC and OP buildDirs, so the whole taper/bucking machinery is REUSED from OC's organon_volume.jl
-# (`oc_blmtapeq`, `oc_blmtapeq_tapequ`, `oc_double_bark`, `oc_blmtap`, `oc_blmtcub`, `oc_blmmlen`,
-# `oc_numlog`, `oc_segmnt!`, `oc_blmgdib!`, `oc_scrib`). Only the OP-specific data differ:
+# `VOLEQ(1:1)=='B'` to BLMVOL. The NVEL BLM kernel (blmvol.f + blmtap.f) is BYTE-IDENTICAL across the
+# buildDirs; it is the one engine implementation `blm_vol` (src/engine/blm_vol.jl). Only the OP data differ:
 #   • OP_VOLEQ    — op/voleqdef.f 39-species BLM Behre equations (DF = B01BEHW202).
 #   • op_formcl   — op/formcl.f per-species BLM708 (Salem) form class (forest_idx 4; no DBH-class dep).
 #   • op_bratio   — op/bratio.f bark (organon_nwo.jl), NOT oc_bratio.
@@ -43,67 +41,20 @@ const OP_FORMCL_BLM708 = Int[
 "blmvol.f BLMVOL total-cubic driver for OP (mirror of oc_tree_cuft, MTOPP=TOPD·BARK with TOPD=5.0)."
 function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
     dbh <= 0f0 && return 0f0
-    veq = OP_VOLEQ[sp]
-    profile = oc_blmtapeq(veq)
-    tapequ = oc_blmtapeq_tapequ(veq)
-    dbhib = oc_double_bark(tapequ, dbh)
-    dbhib <= 0.0001f0 && return 0f0
     # MTOPP = TOPD·BARK with BARK = BRATIO at the START-of-cycle DBH (vols.f:150-151, `BARK=BRATIO(D)`
     # BEFORE `D=D+DG/BARK`). Pass the stashed `vol_bark` via `topbark`; fall back to the grown-DBH bark
     # (cyc0 / no stash, where pre-growth==current). The 0.001 pre-vs-grown bark difference flips a Scribner
     # log class on broken-top trees (op2c tree 19: last log 16ft/dib4 vs the oracle's 14ft/dib5).
     mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))
-    tth = ht + 1.5f0
-    fclass = Float32(op_formcl(sp))
-    if tth > 0f0
-        tth <= 17.8f0 && return 0.00272708f0*(dbhib*dbhib)*tth
-        smd_17 = trunc(sqrt(dbhib*dbhib - (dbhib*dbhib)*17.3f0/tth) + 0.5f0)
-        smd_17 < mtopp && return 0.00272708f0*(dbhib*dbhib)*tth
-    end
-    d17 = round((dbh*fclass)/100.0f0, RoundNearestTiesAway)
-    return oc_blmtcub(profile, dbh, tth, d17, 16.3f0)
+    return blm_vol(OP_VOLEQ[sp], mtopp, ht, dbh, op_formcl(sp))[1]
 end
 
 "blmvol.f BLM merch-cubic VOL(4) + Scribner VOL(2) for OP (mirror of oc_tree_mvol, TOPD=5.0)."
 function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
     dbh <= 0f0 && return (0f0, 0f0)
-    veq = OP_VOLEQ[sp]
-    profile = oc_blmtapeq(veq)
-    tapequ = oc_blmtapeq_tapequ(veq)
-    dbhib = oc_double_bark(tapequ, dbh)
-    dbhib <= 0.0001f0 && return (0f0, 0f0)
     mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))   # BRATIO(D_start) top bark (vols.f:150) — see op_tree_cuft
-    tth = ht + 1.5f0
-    if tth > 0f0
-        tth <= 17.8f0 && return (0f0, 0f0)
-        smd_17 = trunc(sqrt(dbhib*dbhib - (dbhib*dbhib)*17.3f0/tth) + 0.5f0)
-        smd_17 < mtopp && return (0f0, 0f0)
-    end
-    fclass = Float32(op_formcl(sp))
-    d17 = round((dbh*fclass)/100.0f0, RoundNearestTiesAway)
-    stump = 1.0f0
-    lmerch = oc_blmmlen(profile, tth, dbh, d17, stump, mtopp)
-    lmerch < 8.0f0 && return (0f0, 0f0)
-    numseg = oc_numlog(lmerch)
-    loglen = zeros(Float32, 20)
-    numseg = oc_segmnt!(loglen, lmerch, numseg)
-    numseg == 0 && return (0f0, 0f0)
-    logdia = zeros(Float32, 22)
-    oc_blmgdib!(logdia, profile, mtopp, tth, dbh, dbhib, d17, stump, 0.3f0, numseg, loglen)
-    v4 = 0f0
-    dibl = round(dbhib, RoundNearestTiesAway)
-    @inbounds for i in 1:numseg
-        dibs = round(logdia[i+1], RoundNearestTiesAway)
-        logv = 0.00272708f0*(dibl*dibl + dibs*dibs)*loglen[i]
-        v4 += round(logv*10.0f0, RoundNearestTiesAway)/10.0f0
-        dibl = dibs
-    end
-    v2 = 0f0
-    @inbounds for i in 1:numseg
-        dib = round(logdia[i+1], RoundNearestTiesAway)
-        v2 += round(oc_scrib(dib, loglen[i]), RoundNearestTiesAway)
-    end
-    return (v4 < 0f0 ? 0f0 : v4, v2 < 0f0 ? 0f0 : v2)
+    _, v2, v4 = blm_vol(OP_VOLEQ[sp], mtopp, ht, dbh, op_formcl(sp); bfpflg = true)
+    return (v4, v2)
 end
 
 """
