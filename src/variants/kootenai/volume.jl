@@ -17,6 +17,9 @@ function compute_volumes_kt!(s::StandState)
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     iregn = 1                                    # KT = Northern (Region 1)
     topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0
+    # vols.f:86-90 zeroes HT2TD for every record; FVSVOL/NATCRS then fills the FW2 merch-top heights.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         # ie/vols.f:144-145 (KT compiles ie/vols.f) — top-killed: H = NORMHT/100 for the full volume + CFTOPK trim.
@@ -29,10 +32,15 @@ function compute_volumes_kt!(s::StandState)
         bfmind = sp == 7 ? 6f0 : 7f0
         # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
         # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
-        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : bark_ratio(ba_a, ba_b, sp, d)
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : KT_BKRAT[sp]   # kt/bratio.f BRATIO = BKRAT(IS)
         v = startswith(veq[sp], "I") ?
-            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn, sf_hs = true) :
+            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn, sf_hs = true,
+                       ht2td = htb) :
             zeros(Float32, 15)
+        if startswith(veq[sp], "I")                       # fvsvol.f:337-339 cubic / :484-487 board HT1PRD → HT2TD
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1])
+            d >= bfmind && (t.merch_top_bf[i] = htb[2])
+        end
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
         bf  = d >= bfmind ? v[2] : 0f0

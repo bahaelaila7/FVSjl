@@ -839,7 +839,11 @@ function compute_volumes!(s::StandState)
     # (v[7] is read after vb is computed). Allocated once here (per compute_volumes! call), not per tree.
     _vbuf = Vector{Float32}(undef, 15); _vbbuf = Vector{Float32}(undef, 15)
     _logbuf = Vector{Float32}(undef, 40)   # sawtimber log-length scratch (both calls run sequentially)
-    @inbounds for i in 1:t.n
+    # vols.f:86-90 zeroes HT2TD for every record at VOLS entry; NATCRS (fvsvol.f) then stores the merch-top heights.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    # vols.f IPASS=2 (ILOW=IREC2..MAXTRE): the cycle-0 input dead records are volumed too (IT=I ⇒ HT2TD); they sit
+    # after the live records here and never feed the stand totals, only their FVS_TreeList rows.
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
@@ -858,7 +862,16 @@ function compute_volumes!(s::StandState)
         mtops = topd[sp]
         ldref = log_grade ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
         lcref = log_grade_cuft ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
-        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl, buf = _vbuf, logbuf = _logbuf)
+        v, ht1prd, ht2prd = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl, buf = _vbuf, logbuf = _logbuf)
+        # r9clark.f:320-322 returns HT1PRD = sawHt after the merch-length zeroing (sawHt < MERCHL+TRIM+STUMP ⇒ 0;
+        # prod '02' leaves HT1PRD at its input 0) and HT2PRD = plpHt (r9clark.f:260-262, SPFLG=1 or prod '02').
+        nv_ht1 = prod == "01" && ht1prd >= (8f0 + 0.5f0) + stump ? ht1prd : 0f0
+        if d >= dbhmin[sp]                                 # fvsvol.f:337-339 (IT>0 .AND. D≥DBHMIN)
+            t.merch_top_cf[i] = max(nv_ht1, ht2prd)        # HT2TD(IT,2) = MAX(HT1PRD,HT2PRD)
+            bfsplit = bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
+                                  bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
+            d >= bfmin[sp] && !bfsplit && (t.merch_top_bf[i] = nv_ht1)   # BFPFLG=1 ⇒ HT2TD(IT,1) = HT1PRD
+        end
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
@@ -894,6 +907,7 @@ function compute_volumes!(s::StandState)
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
                 vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl, buf = _vbbuf, logbuf = _logbuf)
+                t.merch_top_bf[i] = bf_ht1prd >= (8f0 + 0.5f0) + bfstm[sp] ? bf_ht1prd : 0f0   # fvsvol.f:485 HT2TD(IT,1)=HT1PRD
                 bf = vb[10]; bfmax = vb[1]                # BFMAX = board-equation total (fvsvol.f BFVOL)
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))
@@ -934,9 +948,9 @@ function compute_volumes!(s::StandState)
         t.bdft_vol[i]       = bf
         # Stash this tree's per-log-DIB gross BF for the cut path's log-graded revenue accumulation.
         # Only when board feet survived (defect/Region-8 zeroing) so empties don't pollute the lookup.
-        log_grade && bf > 0f0 && ldref !== nothing && !isempty(ldref[]) && (s.econ.tree_log_bf[i] = ldref[])
+        log_grade && i <= t.n && bf > 0f0 && ldref !== nothing && !isempty(ldref[]) && (s.econ.tree_log_bf[i] = ldref[])
         # Cubic stash: gate on merch cubic surviving (mcf>0), so defect/Region-8-zeroed trees don't pollute.
-        log_grade_cuft && mcf > 0f0 && lcref !== nothing && !isempty(lcref[]) && (s.econ.tree_log_ft3[i] = lcref[])
+        log_grade_cuft && i <= t.n && mcf > 0f0 && lcref !== nothing && !isempty(lcref[]) && (s.econ.tree_log_ft3[i] = lcref[])
     end
     return s
 end
