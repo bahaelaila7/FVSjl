@@ -88,6 +88,7 @@ function sdi_max_check!(s::StandState)
     const_v2 = fexp(flog(tprob + 1f0) + 1.605f0 * flog(dq0)) / pmsdiu   # sdichk.f:87
     tem2 = const_v2 * PRETZSCH_SDIK
     @inbounds for i in 1:MAXSP; p.sp_sdi_def[i] = tem2; end
+    errgro!(s, 41)                                        # sdichk.f:106 CALL ERRGRO(.TRUE.,41)
     return s
 end
 
