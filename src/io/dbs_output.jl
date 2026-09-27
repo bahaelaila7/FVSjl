@@ -560,8 +560,12 @@ function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
                 sp = r.sp
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
                     strip(coef.code_alpha[sp]), strip(coef.code_plants[sp]), strip(coef.code_fia[sp]),
-                    Float64(r.viab), Float64(r.ba), Float64(r.tpa), Float64(r.mort1), Float64(r.mort2),
-                    Float64(r.gmult), Float64(r.sitgm), Float64(r.mxden), Float64(r.potestab)))
+                    # dbsclsum.f:66-76 builds the INSERT with a list-directed WRITE(SQLStmtStr,*): each REAL*4 reaches
+                    # SQLite as 9-significant-digit text (e.g. 0.775909066), not a bound double (jl stored the exact
+                    # Float32, 0.7759090662002563 — every FVS_Climate real cell off). _r9 = that text through the
+                    # oracle's SQLite 3.33 atof (the same path dbscuts/dbsatrtls take).
+                    _r9(r.viab), _r9(r.ba), _r9(r.tpa), _r9(r.mort1), _r9(r.mort2),
+                    _r9(r.gmult), _r9(r.sitgm), _r9(r.mxden), _r9(r.potestab)))
             end
         end
     finally

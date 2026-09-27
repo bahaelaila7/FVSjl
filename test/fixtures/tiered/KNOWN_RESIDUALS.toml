@@ -98,17 +98,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "climate"
 file = "FVS_Climate"
-col = "Viability"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 426
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 426 cells [tiny=426] max|Δ|=4.98e-10 | e.g. stand 647500316126144 year 2058: live=0.539018154 jl=0.5390181541442871"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
 col = "dClimMort"
 stand = "*"
 year = "*"
@@ -2177,17 +2166,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "climate"
 file = "FVS_Climate"
-col = "SiteMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 431
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 431 cells [tiny=431] max|Δ|=4.691e-9 | e.g. stand 1287253083290487 year 2032: live=1.02941334 jl=1.0294133424758911"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Climate"
 col = "TPA"
 stand = "*"
 year = "*"
@@ -2205,17 +2183,6 @@ year = "*"
 status = "OPEN"
 max_cells = 100
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 100 cells [small=1 tiny=99] max|Δ|=5.959e-8 | e.g. stand 1287253083290487 year 2052: live=0.165636539 jl=0.16563653945922852"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Climate"
-col = "Viability"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 535
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 535 cells [tiny=535] max|Δ|=4.987e-10 | e.g. stand 1287253083290487 year 2032: live=0.804927289 jl=0.8049272894859314"""
 
 [[residual]]
 variant = "IE"
@@ -11908,17 +11875,6 @@ year = "*"
 status = "OPEN"
 max_cells = 51
 issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 49→51) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [small=1 tiny=48] max|Δ|=5.965e-8 | e.g. stand 474187636489998 year 2046: live=0.0278182626 jl=0.027818262577056885"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "Viability"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 330
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 328→330) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 328 cells [tiny=328] max|Δ|=4.987e-10 | e.g. stand 474187636489998 year 2056: live=0.52216363 jl=0.5221636295318604"""
 
 [[residual]]
 variant = "EM"

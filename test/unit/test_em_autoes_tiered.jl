@@ -184,4 +184,16 @@ end
         @test count(m -> m.col == "MAI", ms) == 0
     end
 end
+
+# dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
+# 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
+# every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
+@testset "FVS_Climate reals pass through the list-directed text (dbsclsum.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "climate"; dir = d)
+    @test !crashed
+    ms = compare_case("EM", STAND, "climate", txt, db)
+    @test count(m -> m.file == "FVS_Climate" && m.col in ("Viability", "SiteMult", "GrowthMult", "BA", "TPA",
+                                                           "dClimMort", "ViabMort", "MxDenMult"), ms) == 0
+end
 end # module
