@@ -146,11 +146,11 @@ site_setup!(s::StandState, ::CentralIdaho) = ci_site_index_setup!(s)
 
 # ci/blkdat.f:256-265 Wykoff HT-DBH (HT1 intercept, HT2 slope) and ci/cratet.f:105-114 SMHD1/SMHD2 (D≤3 linear dub).
 # CRATET fits the calibrated intercept AA = mean(ln(H−4.5) − HT2/(D+1)) with THESE HT2 values (cratet.f:369-381),
-# not the CSV :ht2/:wykoff_ht2 columns (which are other equations' coefficients). Same values as ci-regent's
-# CI_BLK_HT1/HT2 (centralidaho/regent.jl on that branch) — dedupe to one table when both are on master.
-const CI_CRATET_HT1 = Float32[5.19988, 5.16306, 4.94866, 5.02706, 5.02706, 5.16306, 4.80016, 5.09964, 4.91417, 4.993,
+# not the CSV :ht2/:wykoff_ht2 columns (which are other equations' coefficients). The one copy of these tables:
+# REGENT (centralidaho/regent.jl) reads the same blkdat HT1/HT2.
+const CI_BLK_HT1 = Float32[5.19988, 5.16306, 4.94866, 5.02706, 5.02706, 5.16306, 4.80016, 5.09964, 4.91417, 4.993,
                            4.19200, 4.19200, 4.44210, 3.2000, 5.1520, 4.19200, 4.44210, 4.80016, 4.44210]
-const CI_CRATET_HT2 = Float32[-9.26718, -9.25656, -9.75378, -11.21681, -11.21681, -9.25656, -6.51738, -10.79269,
+const CI_BLK_HT2 = Float32[-9.26718, -9.25656, -9.75378, -11.21681, -11.21681, -9.25656, -6.51738, -10.79269,
                            -9.36400, -12.430, -5.16510, -5.16510, -6.54050, -5.0000, -13.5760, -5.16510, -6.54050,
                            -6.51738, -6.54050]
 const CI_SMHD1 = Float32[1.74189, 5.30838, 3.05990, 2.77647, 2.77647, 5.30838, 0.74322, 2.88424, 2.74231, 1.74189,
@@ -168,7 +168,7 @@ the fitted AA when ≥3 measured trees gave AA≥0 (and LHTDRG), else blkdat HT1
 inventory curve unless calibrated; every other species a D≤3 linear SMHD line, else Wykoff.
 """
 function ci_cratet_dub(sp::Int, d::Float32, aa::Float32, lhtdrg::Bool, calibrated::Bool)::Float32
-    bb = CI_CRATET_HT2[sp]
+    bb = CI_BLK_HT2[sp]
     if sp in (11, 12, 13, 14, 16, 17, 19)
         return fexp(aa + bb / (d + 1f0)) + 4.5f0
     elseif sp == 15
