@@ -96,15 +96,32 @@ function mortality!(s::StandState, ::WestCascades; fint::Float32 = 10.0f0, book_
         rip = wc_mort_rip(sp, d, cr, bal, ptbal, t.height[i], avh, ba, xsite1, xsite2)
         rip < 0.001f0 && (rip = 0.001f0)                    # morts.f:425 floor
         wki = pr * (1.0f0 - (1.0f0 - rip)^fint)             # X=1 (no MORTMULT default)
+        # morts.f:428-436 SIZE CAP: a tree growing past SIZCAP(1) dies at least at SIZCAP(2)·FINT/10 per cycle
+        # (unless SIZCAP(3)=1). G = DG/BARK·FINT/10 on the floored D.
+        gsc = (t.diam_growth[i] / wc_bratio(sd, sp, d)) * (fint / 10.0f0)
+        if (d + gsc) >= s.control.sp_size_cap[sp, 1] && trunc(Int, s.control.sp_size_cap[sp, 3]) != 1
+            wki = max(wki, pr * s.control.sp_size_cap[sp, 2] * fint / 10.0f0)
+        end
         wki > pr && (wki = pr)
         sdimax < 5.0f0 && (wki = pr)                        # climate: site can't support trees
         killed[i] = wki
+    end
+    # morts.f:285-290/436 — the initial pass runs inside DO 50 ISPC and resets TA=0 per species, accumulating
+    # TA+=PROB−WKI with no DBH filter; nothing resets it before the first GOTO 59, so PASS 1's TA also carries the
+    # LAST present species' initial sum (SD2SQA/SUMDR10A are not accumulated there). That inflates PASS 1's SDIA.
+    ta_carry = 0f0
+    if n > 0
+        lastsp = 0
+        @inbounds for i in 1:n; t.tpa[i] > 0f0 && (lastsp = max(lastsp, Int(t.species[i]))); end
+        @inbounds for i in 1:n
+            (Int(t.species[i]) == lastsp && t.tpa[i] > 0f0) && (ta_carry += t.tpa[i] - killed[i])
+        end
     end
     # --- density self-thin: scale kill by the smallest integer PASS s.t. SDIA<SDIMAX AND BAA<550 ---
     if sdimax >= 5.0f0
         pass = 1
         while pass <= 100
-            sd2sqa = 0f0; ta = 0f0
+            sd2sqa = 0f0; ta = pass == 1 ? ta_carry : 0f0
             @inbounds for i in 1:n
                 pr = t.tpa[i]; wki = killed[i] * pass; wki > pr && (wki = pr)
                 d = t.dbh[i]; d < dbhstage && continue
@@ -129,6 +146,9 @@ function mortality!(s::StandState, ::WestCascades; fint::Float32 = 10.0f0, book_
     (s.climate !== nothing && s.climate.active) &&
         apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
+    # MISMRT (mistoe.f:522 → mismrt.f:185-191, misintwc.f APMC): WK2=MAX(WK2,PROB·rate); deferred to
+    # post-TRIPLE on a tripling cycle (dm_mrt_defer). Inert unless a record carries DMR.
+    _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

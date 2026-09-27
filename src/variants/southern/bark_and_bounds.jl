@@ -97,8 +97,10 @@ increment to the `sfint`-year cycle (gradd.f:79-90: `DDS=(DG·(2·d_ib+DG))·(FI
 `DG=sqrt(d_ib²+DDS)−d_ib`) WITHOUT re-bounding. `sfint==5` ⇒ identity (just the bound).
 """
 @inline function _bound_scale(dlo_v, dhi_v, sp::Integer, dbh::Real, d_ib::Real, dg5::Real,
-                              sfint::Real, sizcap::AbstractMatrix, yr::Real = 5f0)::Float32
-    dg = dg_bound(dlo_v, dhi_v, sp, dbh, dg5, sizcap)
+                              sfint::Real, sizcap::AbstractMatrix, yr::Real = 5f0, wcbnd::Bool = false)::Float32
+    # wcbnd: the wc/dgbnd.f form (WC/PN) — DGMAX envelope + DG≥0 floor, then the same SIZCAP cap.
+    dg = wcbnd ? wc_dgbnd(Int(sp), Float32(dbh), Float32(dg5), sizcap[sp, 1], sizcap[sp, 3]) :
+                 dg_bound(dlo_v, dhi_v, sp, dbh, dg5, sizcap)
     s = Float32(sfint); y = Float32(yr)             # YR = the DG model's native period (SN 5, NE 10)
     (s != y && dg > 0f0) || return dg               # gradd.f:79 IF(FINT.NE.YR .AND. DG.GT.0)
     dib = Float32(d_ib)
