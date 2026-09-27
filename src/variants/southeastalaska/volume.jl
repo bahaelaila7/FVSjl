@@ -300,6 +300,13 @@ function _ak_cur_lmerch(d::Float32, h::Float32, top::Float32, stump::Float32)::F
     return lm < 0f0 ? 0f0 : lm
 end
 
+# HT1PRD of a PROFILE R10 red-alder tree (CUR, R10TAP) — shared by AK (A32CURW351) and WC (A16CURW351): R10HTS returns
+# LMERCH but leaves HT1PRD unset (profile.f:225-228, the assignment is commented out); only an LMERCH <= 0 runs MERLEN,
+# which sets HT1PRD = LMERCH + STUMP (profile.f:322-342). Live FVSak synthetic AD/RA 3-29": Ht2TDCF/BF 0 on all 118
+# records with MCuFt > 0.
+_cur_ht1prd(d::Float32, h::Float32, top::Float32, stump::Float32)::Float32 =
+    _ak_cur_lmerch(d, h, top, stump) > 0f0 ? 0f0 : _cur_merlen(ht -> _ak_cur_dib(d, h, Float32(ht)), h, top, stump) + stump
+
 # R10VOL small-tree branch (r10vol.f:~60-80): taken by volinit.f for every A01/A02 (DEM) tree and for CUR trees
 # with (HTTYPE F and HTTOT<=40) or DBHOB<9 (REGN 10). FSTGRO (D<=3.5 or H<18) sets VOL(1) only; SECGRO sets
 # VOL(1)=VOL(4)=ANINT(CUBVOL*10.0)/10.0 (the driver's DBHMIN gate then decides MCF). REAL arithmetic as written.
@@ -379,9 +386,8 @@ function _ak_cur_vol(sp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3, bk::Fl
     dibat = ht -> _ak_cur_dib(d, h, ht)
     tcf = _nint(_fw2_tcubic(dibat, h) * 10f0) * 1f-1                   # profile.f:293 NINT(TCVOL*10.0)*1E-1
     mtop = m.topd * bark                                    # cubic call MTOPP = TOPD·BARK
-    if ht2td !== nothing                                    # profile.f:337-342 HT1PRD = LMERCH+STUMP (cubic, board)
-        _ht1prd(top) = (lm = _ak_cur_lmerch(d, h, top, stump); lm < 0f0 && (lm = 0f0); lm + stump)
-        ht2td[1] = _ht1prd(mtop); ht2td[2] = _ht1prd(m.bftopd * bark)
+    if ht2td !== nothing                                    # HT1PRD of the cubic and the board call (fvsvol.f HT2TD)
+        ht2td[1] = _cur_ht1prd(d, h, mtop, stump); ht2td[2] = _cur_ht1prd(d, h, m.bftopd * bark, stump)
     end
     mcf, bf = _ak_cur_buck(dibat, _ak_cur_lmerch(d, h, mtop, stump), mtop, stump)
     if m.bftopd != m.topd                                   # board call MTOPP = BFTOPD·BARK
