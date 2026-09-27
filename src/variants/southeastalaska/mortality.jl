@@ -24,7 +24,8 @@ function mortality!(s::StandState, ::SoutheastAlaska; fint::Float32 = 10.0f0, bo
     n = t.n; n == 0 && return s
     dens = s.density
     # SDICAL(0,SDIMAX): stand BA-weighted SDIDEF; BAMAX = SDIMAX·0.5454154·PMSDIU when no user BAMAX.
-    _, _, sdimax = point_zeide!(s)
+    xmaxpt_m, _, sdimax = point_zeide!(s)
+    ak_es_stash_xmaxpt!(s, xmaxpt_m, sdimax)   # morts.f:202 SDICAL XMAXPT — read by the next DENSE (ESTAB PRDA)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
     bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
     sdiupr = sdimax * pmsdiu

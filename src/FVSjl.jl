@@ -257,7 +257,8 @@ include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chun
 include("variants/southeastalaska/site_index.jl")      # AK site index (ak/sitset.f SITEAR) + SDImax + forkod — chunk 2 (SITEAR validated)
 include("variants/southeastalaska/height_growth.jl")   # AK large-tree height growth (ak/htgf.f) — chunk 4 (validated bit-exact cyc0)
 include("variants/southeastalaska/crown.jl")           # AK crown ratio (ak/crown.f logistic + dubscr) + point-Zeide (sdical) — chunk 5
-include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f) — chunk 6 STUB (no-op)
+include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f + htcalc.f) + ESGENT + LSTART HCOR
+include("variants/southeastalaska/establishment.jl")   # AK establishment (estb/esnutr.f + ak/estab.f 2020 refit)
 include("variants/southeastalaska/mortality.jl")       # AK mortality (ak/morts.f logistic survival + SDI/BA iterative pass) — chunk 7
 include("../data/southeastalaska/volume_coefficients.jl") # AK R10 F32 Flewelling profile coeffs (SHP_AK/FDBT_AK)
 include("variants/southeastalaska/volume.jl")          # AK Region-10 volume (VOLEQDEF→NVEL): F32 Flewelling (chunk 8)

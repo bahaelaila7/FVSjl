@@ -920,6 +920,9 @@ mutable struct Establishment
     # the ≤19-yr continuation ⇒ NTALLY+1, a lone PLANT/NATURAL ⇒ 1; 0 = no ESTAB call) and the cycle year it is for.
     cyc_ntally::Int32
     cyc_ntally_year::Int32
+    # AK (ak/estab.f) full-establishment-model state SAVEd across ESTAB calls (the per-regen-plot ESB1/PNN/PLPROB/
+    # NSTORE/PROB1/XSTORE/IPPREP vectors, IFT0, the site-prep dates, the SAVEd locals). `nothing` for other variants.
+    ak_state::Any
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -927,7 +930,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1))
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1), nothing)
 
 mutable struct DbsState
     enabled::Bool
