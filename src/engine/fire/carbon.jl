@@ -17,12 +17,16 @@ Standing live-tree carbon pools in tons C/acre (FFE Stand Carbon Report, fmcrbou
 the per-tree Jenkins aboveground / merchantable / belowground (root) biomass summed over
 the tree list (weighted by TPA) and converted to carbon at the 0.5 biomass→carbon ratio.
 """
+# FMCBIO's merch gate DBHMIN(KSP): the variant's cubic merch standard once set, else the species CSV value.
+_jenkins_dbhmin(s::StandState, sp::Int) = (s.control.merch_init && sp <= length(s.control.sp_dbh_min)) ?
+                                          s.control.sp_dbh_min[sp] : coef_col(s.coef, :dbh_min)[sp]
+
 function stand_live_carbon(s::StandState)
     t = s.trees; coef = s.coef
     above = 0f0; merch = 0f0; root = 0f0
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        a, m, r = jenkins_biomass(coef, t.species[i], t.dbh[i])
+        a, m, r = jenkins_biomass(coef, t.species[i], t.dbh[i]; dbhmin = _jenkins_dbhmin(s, Int(t.species[i])))
         above += a * t.tpa[i]
         merch += m * t.tpa[i]
         root  += r * t.tpa[i]
@@ -340,52 +344,131 @@ function harvested_carbon_report(s::StandState, year::Integer, habitat::Integer)
     return (; products, landfill, energy, emissions, stored, removed)
 end
 
-"""
-    stand_carbon_report(s) -> (; aboveground, merch, belowground, standing_dead,
-                                 down_wood, forest_floor, shrub_herb, total)
-
-The Stand Carbon Report pools in **metric tons C / hectare** (CARBREPT, CARBCALC method 1 = Jenkins;
-fmcrbout.f), matching the report columns. The live aboveground / merchantable / belowground (root)
-pools come from `stand_live_carbon` (Jenkins biomass × 0.5 × TPA) — bit-exact vs the Fortran report.
-The standing-dead / down-wood / forest-floor / shrub-herb pools come from the FFE surface-fuel model
-(`fmcba!`) and are zero unless it has populated `fire.cwd`/`fire.flive`; down-wood and forest floor
-(at the 0.5 / 0.37 carbon fractions) reconcile bit-exact, while shrub-herb tracks `FLIVE`, which
-carries the FFE live-fuel-loading residual. `total` = above + below + snag + ddw + floor + shrub
-(fmcrbout.f:178). NB the FFE pools require `fmcba!` to have run this cycle (the per-cycle FFE fuel
-update — only triggered on a fire event in the current main path; that lifecycle wiring is the
-remaining increment).
-"""
-function stand_carbon_report(s::StandState)
-    lc = stand_live_carbon(s)
-    # CARBCALC FLD1 method: 0 = FFE crown+stem biomass (FVS default), 1 = JENKINS national biomass. Belowground
-    # (roots) is the Jenkins value in BOTH methods (fmcrbout.f:144-146); only Above/Merch differ.
-    # CARBCALC FLD2 units (fminit.f:909-914): 0 = US tons/acre (default for the USA SN variant — NO conversion),
-    # 1 = metric tons/ha (× _TONAC_TO_MTHA), 2 = metric tons/acre (× 0.90718474, mass only). The validated
-    # carbon_{ffe,jenkins,snt} scenarios all set FLD2=1 ⇒ unchanged; a stand with no CARBCALC now reports US t/ac.
-    uf = s.control.carbon_units == 1 ? _TONAC_TO_MTHA :
-         s.control.carbon_units == 2 ? 0.90718474f0 : 1f0
-    if s.control.carbon_method == 0
-        fc = ffe_live_carbon(s)
-        above = fc.aboveground * uf
-        merch = fc.merch       * uf
+# FMMAIN (gradd.f:118) runs after grincr.f:543's TRIPLE, so in a tripling cycle FMDOUT/FMCRBOUT loop over the tripled list:
+# records 1..ITRN at PROB·0.60, then per record the copies ITRN+2I-1 (PROB·0.25) and ITRN+2I (PROB·0.15) (triple.f) — same
+# D/H/ICR, different FMPROB. jl samples the cycle-top report before its own triple_records!, so `vtrip` replays that
+# record walk (the fire-cycle sample runs after jl's triple and passes vtrip=false).
+@inline function _fm_record_walk(f, t::TreeList, vtrip::Bool)
+    n = t.n
+    if vtrip
+        @inbounds for i in 1:n; f(i, t.tpa[i] * 0.60f0); end
+        @inbounds for i in 1:n; f(i, t.tpa[i] * 0.25f0); f(i, t.tpa[i] * 0.15f0); end
     else
-        above = lc.aboveground * uf
-        merch = lc.merch       * uf
+        @inbounds for i in 1:n; f(i, t.tpa[i]); end
     end
-    below = lc.belowground * uf
-    sd  = standing_dead_carbon(s) * uf
-    bd  = belowground_dead_carbon(s) * uf
-    dw  = down_wood_carbon(s)     * uf
-    ff  = forest_floor_carbon(s)  * uf
-    sh  = shrub_herb_carbon(s)    * uf
-    # Total stand carbon (fmcrbout.f:178-180): V(9)=V(1)+V(3)+V(5)+V(6)+V(7)+V(8), PLUS the belowground-DEAD
-    # root pool V(4) only when LDCAY (the dead-root decay model is active, i.e. CRDCAY>0). SN defaults
-    # CRDCAY=0.0425>0 (fminit.f:918 / _FM_CRDCAY), so LDCAY is true and below-dead IS part of the total — jl
-    # previously omitted it (the carbon_snt test validates the below-dead column but not the total, so it hid).
-    total = above + below + sd + dw + ff + sh + (_FM_CRDCAY > 0f0 ? bd : 0f0)
-    return (; aboveground = above, merch = merch, belowground = below, belowground_dead = bd,
-            standing_dead = sd, down_wood = dw, forest_floor = ff, shrub_herb = sh, total = total)
+    return nothing
 end
+
+# Is the cycle about to start a TRIPLE (grincr.f:74 LTRIP=(ICYC.LE.ICL4 .AND. ITRN.LE.MAXTRE/3 .AND. .NOT.NOTRIP))?
+_fm_will_triple(s::StandState) = !s.control.no_tripling && Int(s.control.cycle) < Int(s.control.icl4) &&
+                                 s.trees.n > 0 && s.trees.n <= (MAXTRE - Int(s.trees.ndead)) ÷ 3
+
+"""
+    fmdout_bio(s; vtrip=false) -> NamedTuple
+
+fmdout.f:98-286, the accumulators FMCRBOUT reads, in FVS's own loop order and REAL*4 arithmetic:
+SMALL2/LARGE2 over CWD(3,J,K,5) (= Σ_I Σ_L CWD(I,J,K,L), no piles here), TOTLIT/TOTDUF, the snag stems then the CWD2B/
+CWD2B2 crown debris (DO ISZ / IDC / ITM) into TOTSNG(1|2), and per live record TOTFOL, TOTLIV(1)/(2) crowns
+((CROWNW+OLDCRW)·P2T·FMPROB, P2T·FMPROB·(CROWNW+OLDCRW)) plus the FMSVL2 stem FMPROB·VT·V2T (V2T already /2000,
+fmvinit.f:481). BIOLIVE=TOTFOL+TOTLIV(1)+TOTLIV(2), BIOSNAG=TOTSNG(1)+TOTSNG(2), BIODDW=SMALL2+LARGE2,
+BIOFLR=TOTLIT+TOTDUF, BIOSHRB=FLIVE(1)+FLIVE(2).
+"""
+function fmdout_bio(s::StandState; vtrip::Bool = false)
+    fs = s.fire; t = s.trees; coef = s.coef
+    cw = fs.cwd
+    c35(j, k) = (a = 0f0; @inbounds(for l in 1:4; a += cw[j, k, l]; end); a)
+    small2 = 0f0; large2 = 0f0
+    for isz in 1:3
+        jsz = isz + 3; ksz = isz + 6
+        small2 = small2 + c35(isz, 1) + c35(isz, 2)
+        large2 = large2 + c35(jsz, 1) + c35(jsz, 2) + c35(ksz, 1) + c35(ksz, 2)
+    end
+    totduf = c35(11, 1) + c35(11, 2); totlit = c35(10, 1) + c35(10, 2)
+    sn = fs.snags; tsng1 = 0f0; tsng2 = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
+        b = _snag_bole_tons(s, i)
+        v = b * sn.den_soft[i] + b * sn.den_hard[i]          # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
+        sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
+    end
+    c2 = fs.cwd2b; c22 = fs.cwd2b2; tfm = size(c2, 3)
+    @inbounds for isz in 0:3, idc in 1:4, itm in 1:tfm
+        tsng1 += _FM_P2T * (c2[idc, isz + 1, itm] + c22[idc, isz + 1, itm])
+        (isz > 0 && isz < 3) && (tsng2 += _FM_P2T * (c2[idc, isz + 4, itm] + c22[idc, isz + 4, itm]))
+    end
+    v2t = coef_col(coef, :v2t); ocw = t.ffe_oldcrw
+    snfam = variant_code(s.variant) in ("CS", "LS", "NE", "SN")
+    totfol = 0f0; tl1 = 0f0; tl2 = 0f0
+    _fm_record_walk(t, vtrip) do i, pr
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        totfol += xv[1] * pr * _FM_P2T
+        for j in 1:3
+            tl1 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr
+            j < 3 && (tl2 += _FM_P2T * pr * (xv[j + 4] + ocw[j + 3, i]))
+        end
+        # FMSVL2('L', LMERCH=.FALSE., no top-kill): MAX(X,MCF) for CS/LS/NE/SN, MAX(X,TCF) for the western variants
+        vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
+             _ffe_west_vol(s.variant) ? max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1]) :
+                     max(0.005454154f0 * h, t.cuft_vol[i])
+        v2tp = v2t[sp] / 2000f0
+        d <= 3f0 ? (tl1 += pr * vt * v2tp) : (tl2 += pr * vt * v2tp)
+    end
+    return (totfol = totfol, totliv1 = tl1, totliv2 = tl2, totsng1 = tsng1, totsng2 = tsng2,
+            small2 = small2, large2 = large2, totlit = totlit, totduf = totduf,
+            biolive = totfol + tl1 + tl2, biosnag = tsng1 + tsng2, bioddw = small2 + large2,
+            bioflr = totlit + totduf, bioshrb = fs.flive[1] + fs.flive[2])
+end
+
+"""
+    stand_carbon_report(s; vtrip=false) -> (; aboveground, merch, belowground, belowground_dead, standing_dead,
+                                             down_wood, forest_floor, shrub_herb, total)
+
+The Stand Carbon Report pools V(1..9) exactly as fmcrbout.f:93-183 forms them: per record (the FMMAIN list, see
+`_fm_record_walk`) the Jenkins FMCBIO ABIO/MBIO/RBIO × FMPROB (V(3) always; V(1)/V(2) for CARBCALC method 1), or for the
+FFE method V(2) += FMPROB·VT·V2T with FMSVL2 LMERCH=LVWEST (western MCF, eastern MAX(X,MCF)) and V(1)=BIOLIVE;
+V(4..8)=BIOROOT/BIOSNAG/BIODDW/BIOFLR/BIOSHRB (`fmdout_bio`); ×0.5 (×0.37 for the floor); ICMETRC 1 ⇒ ×TItoTM/ACRtoHA,
+2 ⇒ ×TItoTM; V(9)=V(1)+V(3)+V(5)+V(6)+V(7)+V(8) (+V(4) when LDCAY).
+"""
+function stand_carbon_report(s::StandState; vtrip::Bool = false)
+    t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
+    ffe = s.control.carbon_method == 0
+    west = _ffe_west_vol(s.variant)
+    v1 = 0f0; v2 = 0f0; v3 = 0f0
+    _fm_record_walk(t, vtrip) do i, pr
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        abio, mbio, rbio = jenkins_biomass(coef, sp, d; dbhmin = _jenkins_dbhmin(s, sp))
+        abio = abio * pr; mbio = mbio * pr; rbio = rbio * pr
+        v3 += rbio
+        if !ffe
+            v1 += abio; v2 += mbio
+        else
+            vt = west ? ffe_west_nocut(s, sp, d, h)[2] : max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h))
+            v2 += pr * vt * (v2t[sp] / 2000f0)
+        end
+    end
+    fb = (s.fire !== nothing && s.fire.active) ? fmdout_bio(s; vtrip = vtrip) : nothing
+    ffe && (v1 = fb === nothing ? 0f0 : fb.biolive)
+    v4 = s.fire === nothing ? 0f0 : s.fire.bioroot
+    v5 = fb === nothing ? 0f0 : fb.biosnag; v6 = fb === nothing ? 0f0 : fb.bioddw
+    v7 = fb === nothing ? 0f0 : fb.bioflr;  v8 = fb === nothing ? 0f0 : fb.bioshrb
+    v1 *= 0.50f0; v2 *= 0.50f0; v3 *= 0.50f0; v4 *= 0.50f0; v5 *= 0.50f0; v6 *= 0.50f0; v8 *= 0.50f0
+    v7 *= 0.37f0
+    if s.control.carbon_units == 1                         # V(I)·TItoTM/ACRtoHA (METRIC.F77 0.90718, 0.4046945)
+        cv(x) = x * _TITOTM / _ACRTOHA
+        v1 = cv(v1); v2 = cv(v2); v3 = cv(v3); v4 = cv(v4); v5 = cv(v5); v6 = cv(v6); v7 = cv(v7); v8 = cv(v8)
+    elseif s.control.carbon_units == 2
+        v1 *= _TITOTM; v2 *= _TITOTM; v3 *= _TITOTM; v4 *= _TITOTM; v5 *= _TITOTM; v6 *= _TITOTM; v7 *= _TITOTM; v8 *= _TITOTM
+    end
+    total = v1 + v3 + v5 + v6 + v7 + v8
+    _FM_CRDCAY > 0f0 && (total = total + v4)               # LDCAY (dead-root decay on)
+    return (; aboveground = v1, merch = v2, belowground = v3, belowground_dead = v4,
+            standing_dead = v5, down_wood = v6, forest_floor = v7, shrub_herb = v8, total = total)
+end
+
+# METRIC.F77 parameters the carbon reports convert with (TItoTM, ACRtoHA).
+const _TITOTM  = 0.90718f0
+const _ACRTOHA = 0.4046945f0
 
 # The fixed header block of the Stand Carbon Report exactly as the Fortran prints it to the `.out`
 # (fmcrbout.f FORMATs 700-709, with the FVS `1X,I5,1X` line-prefix stripped as it is in the file).

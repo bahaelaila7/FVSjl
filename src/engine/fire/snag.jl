@@ -224,10 +224,20 @@ next refinement.) Falls back to Jenkins aboveground for cohorts with `bolevol` u
 """
 function snag_bole_carbon(s::StandState)::Float32
     fs = s.fire; fs === nothing && return 0f0
-    sn = fs.snags; coef = s.coef; c = 0f0
+    sn = fs.snags; c = 0f0
     @inbounds for i in eachindex(sn.sp)
         den = sn.den_hard[i] + sn.den_soft[i]
         den > 0f0 || continue
+        c += _snag_bole_tons(s, i) * den
+    end
+    return c * 0.5f0
+end
+
+# The per-stem bole biomass (tons) of snag record `i` as FMDOUT's FMSVOL(I,HTIx)·V2T sees it: the stored death-time bole,
+# Jenkins for a record without one, reduced for a broken top (see snag_bole_carbon).
+function _snag_bole_tons(s::StandState, i::Int)::Float32
+    fs = s.fire; sn = fs.snags; coef = s.coef
+    @inbounds begin
         b = sn.bolevol[i]
         b <= 0f0 && (b = let (a, _, _) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
         # SNAGBRK: a snag that lost height (htcur < HTDEAD) has a smaller bole. FVS's FMSVOL computes the
@@ -265,9 +275,8 @@ function snag_bole_carbon(s::StandState)::Float32
                 b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
             end
         end
-        c += b * den
     end
-    return c * 0.5f0
+    return b
 end
 
 # CWD down-wood size class (1–9) from a stem diameter, matching the FUINI breakpoints

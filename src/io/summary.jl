@@ -362,18 +362,18 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # post-fire cycle-start-size stand) — else the fire's snag/AGL/Released effects surface one row late.
         # Carbon-Released-from-Fire: 0 unless a SIMFIRE burned in r.year (fmburn! records it in burn_reports);
         # convert tons-C/ac → the report units (same factor as stand_carbon_report's pools, carbon.jl).
-        _carb_push(st) = begin
+        _carb_push(st; vtrip::Bool = false) = begin
             rel = 0f0; tcon = 0f0
             if st.fire !== nothing
                 @inbounds for br in st.fire.burn_reports
                     br.year == Int(r.year) && (rel = br.released; tcon = get(br, :totcon, 0f0)::Float32)
                 end
             end
-            uf = st.control.carbon_units == 1 ? 0.90718474f0 / 0.40468564f0 :
-                 st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
+            uf = st.control.carbon_units == 1 ? 0.90718f0 / 0.4046945f0 :     # METRIC.F77 TItoTM / ACRtoHA
+                 st.control.carbon_units == 2 ? 0.90718f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
             fl = merge(ffe_fuel_loadings(st), (consumed = tcon,))
-            push!(carbon_collect, (r.year, stand_carbon_report(st), fl,
+            push!(carbon_collect, (r.year, stand_carbon_report(st; vtrip = vtrip), fl,
                                    snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
@@ -392,7 +392,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
             fmcba!(s)
-            _carb_push(s)
+            _carb_push(s; vtrip = _fm_will_triple(s))   # FMMAIN runs on the tripled list in a tripling cycle
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)

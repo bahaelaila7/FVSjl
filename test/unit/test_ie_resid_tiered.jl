@@ -5,8 +5,11 @@ using Test
 using FVSjl
 include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
 
-_case(cn, r) = (d = mktempdir(); txt, db, crashed, _ = run_case("IE", cn, r; dir = d);
-                (txt = txt, db = db, crashed = crashed, ms = compare_case("IE", cn, r, txt, db)))
+function _case(cn, r)
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("IE", cn, r; dir = d)
+    return (txt = txt, db = db, crashed = crashed, ms = compare_case("IE", cn, r, txt, db))
+end
 
 # fvsvol.f:90-96 hands VOLINIT IREGN=KODFOR/100; mrules.f then gives region 6 (the Colville, KODFOR 621) COR='N' (raw
 # Scribner) and OPT 23, region 1 COR='Y' and OPT 22. jl hard-wired region 1 for IE (MEASURED FVSie_g16 374547584489998
@@ -73,4 +76,18 @@ end
         @test count(r -> !haskey(got, (r[1], strip(r[2]), r[3])) || !_nsame(r[j], got[(r[1], strip(r[2]), r[3])][ix[c]]), grows) == 0
     end
 end
+# ---- FFE carbon: IE 11855985010690 SALVAGE (FMIN SALVAGE + CARBREPT) vs FVSie_g16 FVS_Carbon ----------------------------
+const _SALV = Ref{Any}(nothing)
+_salv() = (_SALV[] === nothing && (_SALV[] = _case("11855985010690", "salvage")); _SALV[].ms)
+_crel(m) = (g = parse(Float64, m.gold); abs(parse(Float64, m.got) - g) / max(abs(g), 1e-12))
+_ccol(col) = filter(m -> m.file == "FVS_Carbon" && m.col == col, _salv())
+
+# fmcrbout.f:98-146 V(1)=BIOLIVE (fmdout.f TOTFOL+TOTLIV crowns+stems, FMPROB-weighted over FMMAIN's record list),
+# V(2)=Σ FMPROB·FMSVL2(merch)·V2T, V(3)=Σ RBIO·FMPROB in REAL*4 at TItoTM/ACRtoHA=0.90718/0.4046945; jl rebuilt the
+# report from separate Jenkins/pool helpers (MEASURED IE/EM FVS_Carbon aboveground rows off in the 6th-7th digit).
+@testset "FFE carbon V(1)/V(2) at fmdout.f/fmcrbout.f precision vs FVSie_g16" begin
+    @test isempty(_ccol("Aboveground_Total_Live"))
+    @test isempty(_ccol("Aboveground_Merch_Live"))
+end
+
 end # module
