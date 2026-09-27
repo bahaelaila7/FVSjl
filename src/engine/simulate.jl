@@ -940,6 +940,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa CentralIdaho && ci_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa WestSierra && ws_triple_htg!(s, stash)   # ws/htgf.f:921-956 copy HTG = TEMHTG·DG(copy)/DG
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)

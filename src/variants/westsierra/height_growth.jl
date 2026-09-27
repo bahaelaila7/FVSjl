@@ -245,7 +245,7 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
     dgsd = ctl.dg_sd
     # ws/htgf.f is SPECIES-MAJOR (DO 40 ISPC … I=IND1(I3)); GB's ZZRAN draws must follow that order.
     @inbounds for i in species_major_order(s)
-        t.ht_growth[i] = 0f0
+        t.ht_growth[i] = 0f0; t.temhtg[i] = -1f0
         t.tpa[i] <= 0f0 && continue
         isp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; dg = t.diam_growth[i]
         icr = Float32(t.crown_pct[i])
@@ -371,6 +371,7 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         (h + htg) > htmax && (htg = htmax - h)
         htg < 0.1f0 && (htg = 0.1f0)
         htg = htg * scale * xht * xht2                            # × SCALE·XHT·XHT2 (MISHGF=1)
+        t.temhtg[i] = htg                                         # htgf.f:918 TEMHTG → the tripled copies (ws_triple_htg!)
         # SIZCAP: HT+HTG ≤ species size cap (col 4).
         sizcap = ctl.sp_size_cap[isp, 4]
         if sizcap > 0f0 && (h + htg) > sizcap
@@ -378,6 +379,40 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
             htg < 0.1f0 && (htg = 0.1f0)
         end
         t.ht_growth[i] = htg
+    end
+    return s
+end
+
+"""
+    ws_triple_htg!(s, stash)
+
+ws/htgf.f:921-956 (CASE DEFAULT, LTRIP): each tripled copy's large-tree HTG is the central's scaled TEMHTG
+(pre-SIZCAP) times the copy's spread DG over the central's, HTG(ITFN)=TEMHTG·DG(ITFN)/DGI (DGI=MAX(DG(I),0.01)),
+then re-capped at label 131 by HTMAX from the COPY's DG (EXP(MXHTG1+MXHTG2/(DBH+DG(ITFN)+1))+4.5, oaks squared;
+floor 0.1) and SIZCAP. height_growth! only grew the central (copy_tree! handed both copies its HTG). The other
+WS branches (GB, MC, CA-surrogate) give the copies TEMHTG = the central's value and are left to copy_tree!.
+Deterministic (no draws). Runs after height_growth!, before small_tree_growth! (HTGF → REGENT).
+"""
+function ws_triple_htg!(s::StandState, stash)
+    (stash === nothing || isempty(stash.dgU)) && return s
+    t, ctl = s.trees, s.control
+    @inbounds for i in 1:stash.nlive
+        tem = t.temhtg[i]; tem < 0f0 && continue
+        isp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        dgi = t.diam_growth[i]; dgi < 0.01f0 && (dgi = 0.01f0)
+        cap = ctl.sp_size_cap[isp, 4]
+        oak = isp in (28, 29, 30, 31, 32, 33, 40, 43)
+        for l in 1:2
+            dgc = l == 1 ? stash.dgU[i] : stash.dgL[i]
+            hc = tem * dgc / dgi
+            htmax = oak ? exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / ((d + dgc + 1f0)^2)) + 4.5f0 :
+                          exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dgc + 1f0)) + 4.5f0
+            (h + hc) > htmax && (hc = htmax - h)
+            hc < 0.1f0 && (hc = 0.1f0)
+            (cap > 0f0 && (h + hc) > cap) && (hc = max(cap - h, 0.1f0))
+            l == 1 ? (stash.htgU[i] = hc) : (stash.htgL[i] = hc)
+        end
+        stash.htg_copy[i] = true
     end
     return s
 end
