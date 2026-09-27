@@ -2389,6 +2389,18 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:nspecies(s.variant)
                 fs.params.snag_htx[Int32(sp)] = (1f0, 1f0, 1f0, 1f0)
             end
+        elseif s.variant isa EasternMontana
+            # em/fmvinit.f: HTX(I,1:4) = 0.9/1.0/1.1 per species (HTR1 0.0228, HTR2 0.01, HTXSFT 2) — EM snags
+            # lose height every year (LP input cohort 196378260020004: live 51.5→40.4 ft by 2022, jl held 53.6).
+            @inbounds for sp in 1:nspecies(s.variant)
+                h = EM_FM_HTX[sp]; fs.params.snag_htx[Int32(sp)] = (h, h, h, h)
+            end
+            fs.params.pb_size = 10f0   # em/fmvinit.f:490 PBSIZE=10 (SN default 12) — post-burn small-snag breakpoint
+        elseif (tab = _ffe_west_htx(s.variant)) !== nothing
+            # ie/kt/ci/tt/ut fmvinit.f HTX(I,1:4) (west_ffe.jl tables): these snags lose height every year too.
+            @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
+                fs.params.snag_htx[Int32(sp)] = tab[sp]
+            end
         end
     end
     while true

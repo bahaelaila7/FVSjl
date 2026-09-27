@@ -86,6 +86,10 @@ function ffe_fuel_loadings(s::StandState)
     @inbounds for i in eachindex(sn.sp)
         den = sn.den_hard[i] + sn.den_soft[i]; den > 0f0 || continue
         b = sn.bolevol[i]; b <= 0f0 && (b = let (a,_,_) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
+        # EM snags lose height (FMSNGHT): FMDOUT's SNVIH is FMSVOL(XHT=HTIH) — the broken-top bole (fmdout.f:141),
+        # the same basis snag_bole_carbon uses; the untruncated bolevol over-stated Standing_Snag_ge3 (7.14 vs 6.92).
+        (_ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0) &&
+            (b = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)
         (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
     end
     snag_lt3 += sum(@view fs.cwd2b[:, 1:4, :]) * _FM_P2T     # CWD2B crown sizes 0-3 (idx 1-4)
@@ -108,6 +112,7 @@ function ffe_fuel_loadings(s::StandState)
         # western TCF: the tree's total cubic (== NATCRS/CFVOL at its height for a sound tree; a top-killed tree's
         # FMSVL2 volume at the actual height without CFTOPK is not recomputed here)
         vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
+             _ffe_west_vol(s.variant) ? max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1]) :   # FMSVL2: actual HT, no CFTOPK
                      max(0.005454154f0 * h, t.cuft_vol[i])
         stem = vt * v2t[sp] * _FM_P2T * pr
         d <= 3f0 ? (live_lt3 += stem) : (live_ge3 += stem)
@@ -168,6 +173,16 @@ function ffe_live_carbon(s::StandState)
         # FMSVL2 MCF = 11.2 (verified live via DEBUG FMDOUT), .sum merch_cuft_vol = 13.2. So for broken-top trees
         # (SN R8-Clark path) the stem merch is RECOMPUTED at the actual height to match FMSVL2; non-broken trees
         # (299/300) keep merch_cuft_vol bit-exact. See docs/TOLERANCE_AUDIT.md 2026-07-05y.
+        if _ffe_west_vol(s.variant)
+            # Western FMSVOL ({v}/fmsvol.f:146-151): BIOLIVE's stem is FMSVL2 LMERCH=.FALSE. ⇒ MAX(X,TCF) (fmdout.f:247)
+            # while the merch pool uses LMERCH=LVWEST=.TRUE. ⇒ MCF (fmcrbout.f:127) — both NATCRS on the actual
+            # height, no CFTOPK. jl used the merch cubic for both (EM Aboveground_Total_Live 11.67 vs live 14.70;
+            # IE 12.04 vs 15.57 on S248112 1990).
+            tcf, mcf, _, _ = ffe_west_nocut(s, sp, d, h)
+            above += t.tpa[i] * (crown + max(0.005454154f0 * h, tcf) * v2t[sp]) * _FM_P2T
+            merch += t.tpa[i] * (mcf * v2t[sp]) * _FM_P2T
+            continue
+        end
         mcf = _ffe_stem_mcf(s, i, sp, d, h)
         stem = max(0.005454154f0 * h, mcf) * v2t[sp]                  # MAX(X,MCF) × V2T = stem biomass (lb)
         above += t.tpa[i] * (crown + stem) * _FM_P2T                   # BIOLIVE = crown + stem, lb→tons

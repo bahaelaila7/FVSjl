@@ -25,9 +25,23 @@ const EM_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0586, 0.0970, 0.07, 0.0636, 
 
 # em/dgf.f ENTRY DGCONS — per-species per-stand DG constants (needs IEMTYP=habitat_code, ITYPE=habitat_input,
 # IFOR=forest_idx, ELEV/ASPECT/SLOPE, SITEAR). Fills calib.dg_const(DGCON)/dg_dsq(DGDSQ)/dg_ccf(DGCCF)/atten.
+# em/rcon.f IHCODE: RCON's IDTYPE = the index of ICL5 (the RAW input habitat code, dbsstandin.f:590) in this list,
+# 118 when absent (⇒ DGCONS JDTYPE 30). Distinct from HABTYP's IEMTYP, which FMCFMD's EMMD uses.
+const EM_IHCODE = Int[
+     10, 65, 70, 74, 79, 91, 92, 93, 95,100,110,120,130,140,141,161,170,171,172,180,
+    181,182,200,210,220,221,230,250,260,261,262,280,281,282,283,290,291,292,293,310,
+    311,312,313,315,320,321,322,323,330,331,332,340,350,360,370,371,400,410,430,440,
+    450,460,461,470,480,591,610,620,624,625,630,632,640,641,642,650,651,653,654,655,
+    660,661,662,663,670,674,690,691,692,700,710,720,730,731,732,733,740,750,751,770,
+    780,790,791,792,810,820,830,832,850,860,870,900,910,920,930,940,950,999]
+
 function em_dgcons!(s::StandState)
     c = s.calib; p = s.plot; ctl = s.control; sd = s.coef.species
     jdtype = Int(p.habitat_code); jdtype > 117 && (jdtype = 30); jdtype < 1 && (jdtype = 1)
+    if ctl.icl5 > 0                      # rcon.f:26-31 — IDTYPE from ICL5 (set by the FIA PV-ref path)
+        k = findfirst(==(Int(ctl.icl5)), EM_IHCODE)
+        jdtype = k === nothing ? 30 : k  # IDTYPE 118 ⇒ JDTYPE 30 (dgf.f:625)
+    end
     itype  = Int(p.habitat_input); (itype < 1 || itype > 30) && (itype = 1)
     ifor   = Int(p.forest_idx);    (ifor < 1 || ifor > 7) && (ifor = 1)
     elev = p.elevation; aspect = p.aspect; slope = p.slope

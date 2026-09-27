@@ -142,6 +142,7 @@ include("variants/inlandempire/regent.jl")           # IE REGENT small-tree grow
 # --- easternmontana (EM) — next western Rockies cluster variant (KT-engine discount); chunk 0 scaffold ---
 include("variants/easternmontana/easternmontana.jl")  # EM singleton + registration (MAXSP 19, western Wykoff DDS)
 include("variants/easternmontana/species.jl")         # EM blkdat init (19 species, seed 55329, Stage SDI) + SPCTRN col 10
+include("variants/easternmontana/pvref1_data.jl")     # EM PVREF1 (PVCODE,PVREF)->HABPVR crosswalk table (em/pvref1.f)
 include("variants/easternmontana/site_index.jl")      # EM habtyp (JTYPE/NIHMAP→ITYPE) + sitset (site index/SDIDEF) — site_setup!
 include("variants/easternmontana/crown.jl")           # EM per-tree CCF (em/ccfcal.f MODE=1 polynomial) — em_tree_ccf
 include("variants/national_crown_width.jl")           # shared cwcalc.f SELECT CASE(CWEQN) — _cwcalc_national (IE/KT/CI/…)
@@ -442,6 +443,7 @@ include("engine/fire/ec_fuel_model.jl")  # FFE F4  — EC FMDYN dynamic cover-me
 include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-group fuel-model selection (so/fmcfmd.f)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
+include("engine/fire/west_ffe.jl")       # FFE — western FMSVOL basis (no-cut NATCRS TCF/MCF) for snags + live stem
 include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag fall BASE (FMR6SDCY + FMR6FALL; BM)
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)

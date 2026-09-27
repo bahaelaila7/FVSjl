@@ -281,13 +281,15 @@ function compute_volumes_cr!(s::StandState)
         eq = veq[sp]
         mdl = length(eq) >= 6 ? eq[4:6] : "   "
         nvb = startswith(eq, "NVB")
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        vbark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : cr_bratio(sd, sp, d, imodty)
         v = if mdl == "DVE"
             cr_dve_vol(eq, d, h; unt = d >= scfmin[sp] ? 1 : 3)
         elseif nvb
-            bark = cr_bratio(sd, sp, d, imodty)
-            cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
+            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
+            cr_fw2_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, sf_hs = true)   # TCF+MCF+board; MERLEN via SF_HS (profile.f:203)
         else
             zeros(Float32, 15)
         end
@@ -300,7 +302,7 @@ function compute_volumes_cr!(s::StandState)
         # FULL-height cubic + board volumes reduced to the standing broken stem via the Behre taper. VMAX=full
         # cubic (v[1]); H=t.height=NORMHT; board specs BFSTMP=1/BFTOPD=6 (grinit.f:91, sitset.f:527).
         if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
-            bk = cr_bratio(sd, sp, d, imodty); vmax = tcf
+            bk = vbark; vmax = tcf
             tcf, mcf = cr_cftopk(tcf, mcf, d, h, vmax, bk, Int(t.trunc[i]), stump, topd)
             bf = cr_bftopk(bf, d, h, vmax, bk, Int(t.trunc[i]), 1f0, 6f0)
         end
@@ -310,19 +312,13 @@ function compute_volumes_cr!(s::StandState)
     return s
 end
 
-# CR FFE snag bole cubic (FMSVOL VOL2HT) for an ARBITRARY (dbh,ht) — the fmsvol.f→NATCRS path. Needed to
-# book a binned snag record's bole on its class-MEAN dbh/ht: `_R8CLARK_VOL` CANNOT produce it — CR `vol_eq`
-# are NVEL DVE/NVB/FW2 codes, not R8-Clark, so the Clark lookup misses (err≠0) and returns 0 ⇒ the snag bole
-# collapsed to the tiny-tree cone floor (0.005454·H).
-#
-# BASIS = TOTAL cubic (TCF = v[1]), NOT merch. FMSVOL is called by the snag reports (fmsout.f:123 SNAGOUT)
-# and CWD1 with DEBUG/LMERCH both FALSE (fmsvol.f:65 inits LMERCH=.FALSE.), and for a non-top-killed snag
-# fmsvol.f:153 sets `VOL2HT = MAX(X,TCF)` — the TOTAL cube, not MCF. (The LMERCH=T→MCF and LTKIL→MCF
-# branches are for merch-flagged / broken-top snags; the SNAGBRK top-loss reduction is applied separately in
-# snag_bole_carbon via CFTOPK.) Verified vs live crt01.sng CURR VOLUME: MCF ran ~15-18% low; TCF matches.
-# Contrast the SN path (merch): SN's fmsvol.f differs and SN Stand-Dead validated to MCF — CR is TCF.
-function cr_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
-    (d < 1f0 || h <= 0f0) && return 0f0
+# CR NATCRS total + merch cubic for an ARBITRARY (dbh, ht) with NO top-kill — the fmsvol.f→NATCRS path (XHT=−1 ⇒
+# LTKIL=F): the same DVE/NVB/FW2 kernels as compute_volumes_cr! minus the CFTOPK trim, MCF gated at DBHMIN
+# (IMODTY 3: 9", else 5"). `_R8CLARK_VOL` cannot produce it — CR vol_eq are NVEL codes, not R8-Clark. The FFE
+# snag bole / live-carbon stem take TCF (fmsvol.f VOL2HT=MAX(X,TCF), fmdout.f:247); merch carbon takes MCF
+# (fmcrbout.f:127). Verified vs live crt01.sng CURR VOLUME: TCF matches, MCF ran ~15-18% low.
+function cr_nocut_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::NTuple{2,Float32}
+    (d < 1f0 || h <= 0f0) && return (0f0, 0f0)
     c = s.control; sd = s.coef.species
     imodty = Int(s.plot.model_type); is3 = imodty == 3
     topd = is3 ? 6f0 : 4f0; stump = 1f0
@@ -336,7 +332,10 @@ function cr_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Floa
         elseif mdl == "FW2"
             cr_fw2_vol(eq, d, h; bark = cr_bratio(sd, sp, d, imodty), topd = topd, stump = stump, iregn = iregn)
         else
-            return 0f0
+            return (0f0, 0f0)
         end
-    return max(v[1], 0f0)                    # TCF (total cubic), fmsvol.f:153 VOL2HT=MAX(X,TCF)
+    return (max(v[1], 0f0), d >= (is3 ? 9f0 : 5f0) ? max(v[4] + v[7], 0f0) : 0f0)
 end
+
+"CR total cubic on (d, h) with no top-kill (the FMCFMD oak-brush live bole basis)."
+cr_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32 = cr_nocut_cuft(s, sp, d, h)[1]

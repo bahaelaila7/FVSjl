@@ -85,6 +85,15 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # PERCOV drives the FMBURN wind reduction (WMULT 0.5 vs 0.197 ⇒ FWIND 5 vs 1.97), so the surface fire was
     # over-driven into a spurious PASSIVE crown fire (SCH 15.8 vs 2.58) ⇒ ~213 TPA + big-tree over-kill.
     _ie_fm = s.variant isa InlandEmpire || s.variant isa Kootenai
+    # EM CRWDTH via em_cwcalc (em/cwidth.f → em/cwcalc.f IWHO=0: the western Crookston/Bechtold library with
+    # BAREA=BA, EL=ELEV, HI=Hopkins index, cwcalc.f:563-576). Without it EM fell to the generic `crown_width`
+    # (0.5 ft default) ⇒ PERCOV 0.55 vs live 38.71 ⇒ WMULT 0.5 vs 0.197 ⇒ FWIND 5.0 vs 1.97 + wrong FLIVE.
+    # BAREA = the stand BA in every cycle (MEASURED vs FVSem_g16 DEBUG FMCBA: PERCOV cyc1 36.7793 = live 36.78
+    # with BA; the NC-style load-time BAREA=1 gives 38.07), unlike NC/WS/CA/OC/OP's cycle-1 clamp.
+    _em_fm = s.variant isa EasternMontana
+    # CI/TT/UT FMCBA read the common CRWDTH(I) (ci/fmcba.f:340, tt:290, ut:312) — the same forest-grown cwcalc value
+    # FVS_TreeList reports (`tree_crwdth`); they fell to the generic crown_width like EM did.
+    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -96,6 +105,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # the Crookston BAREA term uses the actual FFE stand BA (~85 on wct01), NOT the BAREA=1 load-time clamp.
     # MEASURED vs FVSwc_clean cyc0: WF CW 10.31 needs (BA+1)^e with BA≈85 (BA=1 gives 8.74). So WC uses _cr_ba.
     _nc_ba = ((_nc_fm || _ws_fm || _ca_fm || _oc_fm || _op_fm) && s.control.cycle <= Int32(1)) ? 1f0 : _cr_ba
+
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
@@ -109,13 +119,16 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
-             _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
+             _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
              _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # PN R6 Crookston (pn/cwcalc.f; forest-612 BF)
              _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
              _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
              _ie_fm ? ie_crown_width(sp, d, t.height[i], Int(t.crown_pct[i]), s.plot.basal_area) :  # IE/KT ccfcal MODE=2
+             _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
+                                _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
+             _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
@@ -259,7 +272,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         # when the user has not set the decay rates with FuelDcay/FuelMult (fs.params.dkr still empty). Store
         # the adjusted matrix into params.dkr so every subsequent fmcwd! reads it (mirrors the persisted DKR).
         if s.variant isa BlueMountains && size(fs.params.dkr, 1) != 11
-            fs.params.dkr = bm_adjusted_dkr(Int(s.plot.habitat_code))
+            fs.params.dkr = bm_adjusted_dkr(bm_itype(Int(s.plot.habitat_code)))   # habtyp.f ITYPE (79 if unmatched)
         end
         # NC decay-rate DCYMLT (nc/fmcba.f:395-414): scale the NC base DKR by the Dunning-code/site-index
         # multiplier at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).

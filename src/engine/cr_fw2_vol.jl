@@ -473,14 +473,19 @@ Fortran's quirks kept (TOOLOW/TOOHIGH are assigned diameters in two places). Its
 side of a NUMLOG/SEGMNT even-foot boundary from a diameter-tolerance bisection (BM bmt01 DF 12.7"×67':
 bisection HS 53.99994 ⇒ 2-ft top log; SF_HS ⇒ 4-ft top log, MCF 21.1 / BdFt 107 as live).
 """
-function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float32)::Float32
+function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float32; brk = nothing)::Float32
     epsilon = 0.001f0; tol = 0.0005f0
     # SF_DS (NEXTRA=0) = SF_YHAT; above the tip DIB=0, SLOPE=-1 (sf_ds.f). INEEDSL=0 calls return no slope.
     ds(h::Float32, sl::Bool = true) = h > totalh ? (0f0, -1f0) : _fw2_sf_yhat_f(h / totalh, tapcoe, rhfw, rflw, f, totalh, sl)
+    # JSP 22-30 (region-2/3 outside-bark profiles): after every SF_DS, sf_hs.f calls BRK_UP(…,HTUP,D,DOB,DBT), which
+    # (brk_up.f) sets DOB=D and overwrites D with BRK_OT's INSIDE-bark diameter at HTUP. `brk(htup, d)` does that
+    # (identity for the INGY families). The HTUP sf_hs.f passes is kept verbatim: HI2/HI1/0.0 for the start guess,
+    # HI2 inside the Newton loop (not the current H — FVS's own argument), HHIGH/HLOW/HTRY in the bisection.
+    bu(htup::Float32, d::Float32) = brk === nothing ? d : brk(htup, d)
     rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhlongi = rhfw[4]
     hi2 = rhi2 * totalh
     toohigh = totalh; toolow = 0f0
-    di2 = ds(hi2, false)[1]
+    di2 = bu(hi2, ds(hi2, false)[1])
     local rh::Float32
     if dib > di2
         toohigh = hi2
@@ -488,7 +493,7 @@ function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float3
         local di1::Float32
         if rhlongi > 0f0
             hi1 = rhi1 * totalh
-            di1 = ds(hi1, false)[1]
+            di1 = bu(hi1, ds(hi1, false)[1])
             if dib < di1
                 toolow = di1
                 rh = rhi2 - (rhi2 - rhi1) * (dib - di2) / (di1 - di2)
@@ -500,7 +505,7 @@ function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float3
             di1 = di2
         end
         if !start_found
-            dbase = ds(0f0, false)[1]
+            dbase = bu(0f0, ds(0f0, false)[1])
             dbase <= dib && return 0f0
             rz = fpow((dib - di1) / (dbase - di1), 0.25f0)
             rh = (1f0 - rz) * rhi1
@@ -516,6 +521,7 @@ function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float3
         outcome = :exhausted                           # ITER > 30 ⇒ label 200
         for _ in 1:30                                  # label 20, ITER ≤ 30
             d, slope = ds(h)
+            d = bu(hi2, d)                             # sf_hs.f: BRK_UP(…,HI2,D,…) — HI2, not H
             err = d - dib
             err < 0f0 && (toohigh = h)
             adjust = -err / slope
@@ -538,12 +544,12 @@ function _fw2_sf_hs(tapcoe, rhfw, rflw, f::Float32, totalh::Float32, dib::Float3
         break
     end
     hhigh = toohigh; hlow = toolow                     # label 200: bisection fallback
-    ehigh = ds(hhigh, false)[1] - dib; elow = ds(hlow, false)[1] - dib
+    ehigh = bu(hhigh, ds(hhigh, false)[1]) - dib; elow = bu(hlow, ds(hlow, false)[1]) - dib
     elow * ehigh > 0f0 && return 0f0
     eps = epsilon * 2f0; iter = 0
     while true
         htry = (hhigh + hlow) / 2f0
-        err = ds(htry, false)[1] - dib
+        err = bu(htry, ds(htry, false)[1]) - dib
         abs(err) < eps && return htry
         iter > 40 && return htry
         iter += 1
@@ -661,9 +667,12 @@ function cr_fw2_vol(voleq::AbstractString, d::Float32, h::Float32;
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), d * bark) : -1f0
     minl = _cr_merch_minlen(iregn); merl = _cr_merch_merchl(iregn)
     vol[1] = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1     # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1 — MULTIPLY by REAL 0.1 (≠ /10: e.g. 1334·0.1f0=133.40000915 vs 133.4f0=133.39999390)
-    # `sf_hs=true`: MERLEN's merch-top height from the faithful SF_HS Newton (no-BRK_UP INGY families only);
+    # `sf_hs=true`: MERLEN's merch-top height from the faithful SF_HS Newton (INGY, and JSP 22-30 with BRK_UP);
     # otherwise the legacy diameter-tolerance bisection (kept for the callers not yet re-validated on it).
-    hs_solver = (sf_hs && ingy) ? (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)) : nothing
+    hs_solver = !sf_hs ? nothing :
+                ingy ? (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top)) :
+                (top -> _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, top;
+                                   brk = (hu, dd) -> _fw2_brk_ot(jsp, d, dd, hu, dbtbh)))   # JSP 22-30 BRK_UP
     # HT1PRD (fvsvol.f:338/485 → HT2TD): profile.f:335-342 MERLEN, VOLEQ(4:4)='F' ⇒ LMERCH = HS−STUMP (sf_hs.f at
     # DS=TOP), clamped ≥0 (profile.f:1052), then HT1PRD = LMERCH+STUMP — both Float32. Same HS as the volume uses.
     if ht2td !== nothing

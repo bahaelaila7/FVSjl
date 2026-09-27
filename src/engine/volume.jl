@@ -284,7 +284,7 @@ function dub_missing_heights!(s::StandState)
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
     # BM fits AA with its blkdat HT2 (bm/cratet.f BX=HT2(ISPC)); its CSV ht2/wykoff_ht2 are CR placeholders.
     ht2 = !any(lhtdrg) ? nothing : s.variant isa BlueMountains ? BM_BLK_HT2 :
-          s.variant isa EasternMontana ? EM_BLK_HT2 :
+          s.variant isa EasternMontana ? EM_BLK_HT2 : s.variant isa CentralIdaho ? CI_BLK_HT2 :
           coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2)
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
     # AX=AA(calibrated,IABFLG==0) else HT1(default); PP(sp10,D≤3) linear special. NOT the shared Curtis-Arney
@@ -351,6 +351,12 @@ function dub_missing_heights!(s::StandState)
             # em/cratet.f:337-344 / DO 145: AX = AA when IABFLG==0 else the blkdat HT1; BX = blkdat HT2.
             ax = (lhtdrg[sp] && iabflg[sp] == 0) ? aa[sp] : EM_BLK_HT1[sp]
             max(exp(ax + EM_BLK_HT2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
+        elseif s.variant isa CentralIdaho
+            # ci/cratet.f:437-481 (live) / :556-570 (dead): Wykoff with the blkdat HT2 and AA = the fitted intercept
+            # when calibrated else blkdat HT1, a D≤3 SMHD line, and MC's own curve — never Curtis-Arney HTDBH.
+            # Measured: broken-top DF D5.1 NORMHT 28.72 (live) vs 29.66 (jl, CSV HT2 + fit) ⇒ FW2 TCF 1.603 vs 1.667.
+            cal = lhtdrg[sp] && iabflg[sp] == 0
+            ci_cratet_dub(Int(sp), d, cal ? aa[sp] : CI_BLK_HT1[sp], lhtdrg[sp], cal)
         elseif lhtdrg[sp] && iabflg[sp] == 0
             exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
         elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1
@@ -501,13 +507,16 @@ function init_merch_standards!(s::StandState)
         return s
     end
     if s.variant isa WestCascades || s.variant isa PacificNorthwest
-        # wc/sitset.f westside merch defaults (IFOR 6 Willamette = CASE DEFAULT): TOPD=BFTOPD=SCFTOPD=4.5,
-        # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6), stump=1. WC's species CSV carries no merch columns.
+        # wc/sitset.f:192-213 westside merch defaults, stump=1. CASE DEFAULT: TOPD=BFTOPD=SCFTOPD=4.5,
+        # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6). WC CASE(7,8,9,10) — the BLM forests (708-711): TOPD=
+        # BFTOPD=SCFTOPD=5.0 and 7 for every species. WC's species CSV carries no merch columns.
+        blm = s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10
         @inbounds for j in 1:length(c.sp_dbh_min)
-            dm = j == 11 ? 6.0f0 : 7.0f0
-            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = 4.5f0; c.sp_stump_ht[j] = 1.0f0
-            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = 4.5f0; c.sp_scf_stump[j] = 1.0f0
-            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = 4.5f0; c.sp_bf_stump[j] = 1.0f0
+            dm = (j == 11 && !blm) ? 6.0f0 : 7.0f0
+            td = blm ? 5.0f0 : 4.5f0
+            c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = td; c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = td; c.sp_bf_stump[j] = 1.0f0
         end
         c.merch_init = true
         return s

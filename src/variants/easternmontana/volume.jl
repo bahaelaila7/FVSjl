@@ -106,7 +106,9 @@ function compute_volumes_em!(s::StandState)
         if startswith(eq, "I") || eq[4:6] == "FW2"   # conifers — Flewelling FW2 (same as KT)
             dbhmin = sp == 7 ? 6f0 : 7f0
             bfmind = sp == 7 ? 6f0 : 7f0
-            bark = em_bratio(sp, d)
+            # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+            # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+            bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : em_bratio(sp, d)
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1,
                            sf_hs = true, ht2td = htb)            # SF_HS merch top + HT1PRD → HT2TD (fvsvol.f)
             d >= dbhmin && (t.merch_top_cf[i] = htb[1])
@@ -147,3 +149,69 @@ function compute_volumes_em!(s::StandState)
     end
     return s
 end
+
+"""
+    em_nocut_cuft(s, sp, d, h) -> (tcf, mcf)
+
+EM NATCRS total and merchantable cubic on the given DBH/height with NO top-kill (FMSVOL/FMSVL2 call NATCRS
+with XHT=−1 ⇒ LTKIL=F ⇒ no CFTOPK) — the same VOL(1)/VOL(4)+VOL(7) equations as `compute_volumes_em!`:
+FW2 conifers ⇒ `cr_fw2_vol(iregn=1)` (PP on Custer ⇒ 203FW2W122; MCF gated at DBHMIN 6 LP / 7 else), DVE
+hardwoods ⇒ R2OLDV aspen / R1KEMP / R1ALLEN (MCF = TCF at DBH ≥ 7).
+"""
+function em_nocut_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::NTuple{2,Float32}
+    (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0)
+    eq = s.species.vol_eq[sp]
+    (sp == 10 && Int(s.plot.forest_idx) == 2) && (eq = "203FW2W122")
+    if startswith(eq, "I") || eq[4:6] == "FW2"
+        v = cr_fw2_vol(eq, d, h; bark = em_bratio(sp, d), topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)
+        dbhmin = sp == 7 ? 6f0 : 7f0
+        return (max(v[1], 0f0), d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0)
+    elseif length(eq) >= 6 && eq[4:6] == "DVE"
+        fia = strip(eq)[8:10]
+        if eq[1] == '2' && fia == "746"
+            tcf, mcf, _ = _em_r2oldv_aspen(d, h)
+            return (max(tcf, 0f0), max(mcf, 0f0))
+        end
+        r1kemp = eq[1] == '1' && eq[2:3] == "02"; r1allen = eq[1] == '1' && eq[2:3] == "01"
+        tcf = r1kemp ? _em_r1kemp_cubic(fia, d, h) : r1allen ? _em_r1allen_cubic(fia, d, h) : 0f0
+        tcf = max(tcf, 0f0)
+        return (tcf, ((r1kemp || r1allen) && d >= 7f0) ? tcf : 0f0)
+    end
+    return (0f0, 0f0)
+end
+
+"""
+    em_snag_bole_cuft(s, sp, d, h) -> Float32
+
+EM snag bole volume FMSVOL (em/fmsvol.f, non-eastern branch): `VOL2HT = MAX(0.005454154·H, TCF)`, TCF = the EM
+total cubic (NATCRS) on the snag's DBH/height with no top-kill (XHT=−1 ⇒ LTKIL=F ⇒ no CFTOPK) — the same VOL(1)
+equations as `compute_volumes_em!`: FW2 conifers ⇒ `cr_fw2_vol(iregn=1)[1]` (PP on Custer ⇒ 203FW2W122), DVE
+hardwoods ⇒ R2OLDV aspen / R1KEMP / R1ALLEN cubic. Used for input snags (FMSADD), mortality and fire snags.
+Without it EM fell through the R8-Clark path (0 for NVEL codes) ⇒ input snags booked the Jenkins whole-tree
+(2012 Standing_Snag_ge3 19.96 vs live 12.38) and mortality snags the cone floor.
+"""
+function em_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
+    h <= 0f0 && return 0f0                       # D<1 ⇒ NATCRS TCF=0 ⇒ VOL2HT = the cone X (not 0)
+    return max(0.005454154f0 * h, em_nocut_cuft(s, sp, d, h)[1])
+end
+
+"""
+    em_snag_vol_at(s, sp, d, htd, htcur) -> Float32
+
+EM FMSVOL(II, XHT=HTIH) (em/fmsvol.f): the snag's death-form tree (DBHS, HTDEAD) through NATCRS, then CFTOPK at
+IHT = INT(XHT·100) — the fat lower bole below the broken top, NOT a short (d, htcur) tree — and
+VOL2HT = MAX(0.005454154·HTDEAD, TCF). FW2 conifers only take the CFTOPK trim (same as `compute_volumes_em!`).
+"""
+function em_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, htcur::Float32)::Float32
+    htd <= 0f0 && return 0f0                     # D<1 ⇒ NATCRS TCF=0 ⇒ VOL2HT = the cone X (not 0)
+    x = 0.005454154f0 * htd
+    tcf, mcf = em_nocut_cuft(s, sp, d, htd)
+    eq = s.species.vol_eq[sp]
+    if htcur < htd && tcf > 0f0 && (startswith(eq, "I") || eq[4:6] == "FW2")
+        tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, em_bratio(sp, d), unsafe_trunc(Int, htcur * 100f0), 1f0, 4.5f0)
+    end
+    return max(x, tcf)
+end
+
+# em/fmvinit.f:180-420 HTX(I,1:4) per species (snag height-loss multiplier; equals FALLX for every EM species).
+const EM_FM_HTX = Float32[0.9, 0.9, 0.9, 1.0, 1.0, 1.0, 1.1, 1.1, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]

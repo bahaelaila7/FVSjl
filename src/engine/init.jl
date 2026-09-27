@@ -193,6 +193,7 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     (s.variant isa EasternMontana || s.variant isa InlandEmpire || s.variant isa Kootenai ||
      s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
      s.variant isa CentralRockies || s.variant isa BritishColumbia) && fill!(s.control.ht_drag_sp, true)
+    s.variant isa CentralIdaho && length(s.control.ht_drag_sp) >= 15 && (s.control.ht_drag_sp[15] = false)   # ci/grinit.f:130 LHTDRG(15)=.FALSE. (MC)
     # RMAI (grinit.f): 50.0 in AK BM CA CR CS EC EM LS NC OC OP PN SO TT UT WC; 0.0 in BC CI IE KT SN WS.
     # Variants whose MAICAL actually computes it (AK BM CR EM IE SO TT UT) overwrite this later from their own
     # port. jl set it NOWHERE but SO, so every other variant read 0: EC's crown DUBSCR (BCR10·RMAI) and its

@@ -42,10 +42,7 @@ end
 
 # ci/blkdat.f DATA HT1/HT2 — the Wykoff intercept/slope REGENT's UTVAR 13/17/19 diameter dub inverts (AX=HT1 when
 # IABFLG=1, else the cratet-fitted AA). (The species CSV ht1/ht2 columns are NOT CI's blkdat values for every species.)
-const CI_BLK_HT1 = Float32[5.19988, 5.16306, 4.94866, 5.02706, 5.02706, 5.16306, 4.80016, 5.09964, 4.91417, 4.993,
-                           4.19200, 4.19200, 4.44210, 3.2000, 5.1520, 4.19200, 4.44210, 4.80016, 4.44210]
-const CI_BLK_HT2 = Float32[-9.26718, -9.25656, -9.75378, -11.21681, -11.21681, -9.25656, -6.51738, -10.79269, -9.36400,
-                           -12.430, -5.16510, -5.16510, -6.54050, -5.0000, -13.5760, -5.16510, -6.54050, -6.51738, -6.54050]
+# CI_BLK_HT1/HT2 (ci/blkdat.f:256-265 Wykoff HT1/HT2) are defined once in centralidaho/site_index.jl.
 const CI_RG_BACON = 0.005454154f0
 @inline _ci_ttvar(sp::Int) = sp == 11 || sp == 12 || sp == 16            # ci/regent.f:508 CASE(11,12,16) TTVAR
 @inline _ci_bkpt(sp::Int) = (sp == 17 || sp == 19) ? 1.0f0 : (sp == 14 || sp == 15) ? 99.0f0 : 3.0f0   # :490-500
