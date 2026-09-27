@@ -1181,8 +1181,12 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
     # CA/BM: the FVS_TreeList forest-grown CRWDTH applies the R6 forest BF (cwcalc.f IWHO=0), UNLIKE the FFE PERCOV
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
+    # CA: cwcalc.f:385 sends IFOR≤5 (the R5 forests 505/506/508/511/514) to R5CRWD (MAPCA == OC's) — only the R6/BLM
+    # forests (IFOR 6-11) take the CAMAP Crookston/Bechtold path with the forest BF.
+    s.variant isa CentralCalifornia && Int(p.forest_idx) <= 5 && return clamp(oc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     s.variant isa CentralCalifornia &&
-        return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+        return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true,
+                               kodfor = Int(p.user_forest_code)), 0.5f0, 99.9f0)
     # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
