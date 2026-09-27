@@ -250,6 +250,17 @@ end
     @test isapprox(parse(Float64, r32[iu]), 341.2525329589844; rtol = 1e-5)
 end
 
+# rdpr.f DO 800/750 sums the RD report species-major over IND1 (ISCT), dividing each term by PAREA+1E-9; jl summed in
+# record order (MEASURED FVSem_g16 196378260020004 rootdis 2012: UnInf_TPA live 310.4727783, record order 310.4727173).
+@testset "FVS_RD_Sum sums over IND1 species-major (rdpr.f DO 800) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "rootdis"; dir = d)
+    @test !crashed
+    hdr, rows = db_table_rows(db, "FVS_RD_Sum")
+    iy = findfirst(==("Year"), hdr); iu = findfirst(==("UnInf_TPA"), hdr)
+    @test parse(Float64, rows[findfirst(r -> r[iy] == "2012", rows)][iu]) == 310.4727783203125
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

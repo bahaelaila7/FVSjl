@@ -226,15 +226,16 @@ const _RD_TYPE_CHAR = ("P", "S", "A", "W") # CHTYPE (rd/rdpr.f DATA CHTYPE/'P','
 function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage::Integer)
     d = rd.driver::RDDriver; t = s.trees; n = t.n
     idi = Int(rd.minrr)                                       # single active disease type (KT path)
-    parea = rd.parea[idi]; pinv = 1.0f0 / (parea + 1.0f-9)
+    # rdpr.f DIVIDES every term by (PAREA(IRRSP)+1.0E-9) — not a multiply by its reciprocal (rounds differently)
+    parea = rd.parea[idi]; pden = parea + 1.0f-9
     # stumps (PROBDA/DBHDA over 2 pools × 5 size × up-to-41 age slots)
     tstmps = 0.0f0; bastpa = 0.0f0
     istep = max(1, Int(rd.istep))
     @inbounds for m in 1:istep, k in 1:5, l in 1:2
         p = d.probda[idi, l, k, m]
-        tstmps += p * pinv
+        tstmps += p / pden
         dd = d.dbhda[idi, l, k, m]
-        bastpa += p * (3.141593f0 * (dd / 24.0f0)^2) * pinv
+        bastpa += p * (3.141593f0 * (dd / 24.0f0)^2) / pden
     end
     # live tree list restricted to the disease area AND the active-disease-type host
     # species. rdpr.f DO-800 (rdpr.f:186-216) walks by species (ISCT) and SKIPS any species
@@ -248,21 +249,24 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
     # walks the filtered host set (_rd_host_order skips IDI≠MAXRR), so this only aligns the DBS report.
     tun = 0.0f0; tin = 0.0f0; tdie = 0.0f0; tdvol = 0.0f0; bapa = 0.0f0; cfvpa = 0.0f0
     irt = rd.irtspc; maxrr = Int(rd.maxrr)
-    @inbounds for i in 1:n
+    # rdpr.f DO 800/750 walks species 1..MAXSP and, within each, IND1(ISCT(KSP,1):ISCT(KSP,2)) — the species-major
+    # IND1 order, not record order (Float32 sums: MEASURED FVSem_g16 196378260020004 rootdis 2012 UnInf_TPA live
+    # 310.47278, record-order 310.47272).
+    @inbounds for i in _ind1_order(s)
         ksp = Int(t.species[i]); ksp == 0 && continue
         idi_rec = maxrr < 3 ? Int(RD_IDITYP[Int(irt[ksp])]) : maxrr
         (idi_rec <= 0 || idi_rec != idi) && continue         # rdpr.f:188 IDI≠IRRSP ⇒ skip
         tclas = d.probiu[i] + d.probit[i]
-        tun   += d.probiu[i] * pinv
-        tin   += d.probit[i] * pinv
-        tdie  += d.rdkill[i] * pinv
+        tun   += d.probiu[i] / pden
+        tin   += d.probit[i] / pden
+        tdie  += d.rdkill[i] / pden
         # CFV as RDPR sees it: GRADD converts CFV to per-acre (CFV·PROB) for the percentile tables
         # and divides back only IF PROB>0 (gradd.f DO 160/170) ⇒ a record left with PROB=0 reads CFV=0.
         p_i   = t.tpa[i]
         cfv_i = p_i > 0.0f0 ? (t.cuft_vol[i] * p_i) / p_i : 0.0f0
-        tdvol += d.rdkill[i] * cfv_i * pinv
-        bapa  += tclas * (3.14159f0 * (t.dbh[i] / 24.0f0)^2) * pinv
-        cfvpa += tclas * (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0) * pinv   # rdpr.f: TCLAS·WK1(I) (WK1 = start-of-cycle DG)
+        tdvol += d.rdkill[i] * cfv_i / pden
+        bapa  += tclas * (3.14159f0 * (t.dbh[i] / 24.0f0)^2) / pden
+        cfvpa += tclas * (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0) / pden   # rdpr.f: TCLAS·WK1(I) (WK1 = start-of-cycle DG)
     end
     rrrate = idi <= length(d.rrrate) ? d.rrrate[idi] : 0.0f0
     ncent  = idi <= length(rd.ncents) ? Int(rd.ncents[idi]) : 0
