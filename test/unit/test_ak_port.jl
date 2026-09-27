@@ -181,7 +181,7 @@ end
     @test isempty(bad)
 end
 
-@testset "AK FFE stand FVS_Fuels/FVS_Consumption (1993 cut, 2003 fire+salvage) + QMD vs live FVSak" begin
+@testset "AK FFE stand FVS_Fuels/FVS_Consumption (1993 cut, 2003 fire+salvage, to 2033) + QMD vs live FVSak" begin
     # akffe_db.key = akffe.key + DATABASE (SUMMARY, FUELSOUT, FUELREDB, BURNREDB, MORTREDB); akffe_db.live.csv = live
     # FVS_Fuels pools at 1993 (THINDBH cut with YARDLOSS .5 .7 .5) and 2003 (SALVAGE + SIMFIRE), the 2003 FVS_Consumption,
     # Biomass_Removed and every FVS_Summary QMD (Float32 bit patterns). Exercises: fmsadd.f snag-record binning of the
@@ -197,7 +197,7 @@ end
         db = FVSjl.SQLite.DB(joinpath(dir, "OUT.db"))
         hx(x) = string(reinterpret(UInt32, Float32(x)), base = 16, pad = 8)
         out = Dict{Tuple{String,String},String}()
-        for y in (1993, 2003), r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_Fuels WHERE Year = $y")
+        for y in (1993, 2003, 2013, 2023, 2033), r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_Fuels WHERE Year = $y")
             for (k, v) in pairs(r)
                 v isa AbstractFloat && (out[("FVS_Fuels_$y", String(k))] = hx(v))
                 k == :Biomass_Removed && (out[("FVS_Fuels_$(y)_int", "Biomass_Removed")] = string(Int(v)))
@@ -212,7 +212,7 @@ end
         FVSjl.SQLite.close(db)
         out
     end
-    @test length(live) >= 45
+    @test length(live) >= 95
     # QMD and Biomass_Removed: exact. Fuel/consumption pools: within 1e-5 relative — the fmdout.f/fmcons.f pool sums
     # still accumulate in a different Float32 order in jl (a few ULP). Before these ports: 1993 Surface_lt3 2% and
     # Standing_Snag_lt3 35% off; 2003 Standing_Snag_lt3 1.1%, Litter_Consumption 0.1%, Biomass_Removed 0 vs 1.

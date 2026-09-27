@@ -312,7 +312,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # PROPCR=1 (foliage gone, size-1 halved). Live-validated per-tree vs FVSsn CROWNW at the fire:
             # sugar-maple d1.28 size-1 0.2725→0.136 (PROPCR 1), beech d6.9 ×0.822 (PROPCR≈0.36). Sizes 2-5
             # are above the flames / too coarse to burn ⇒ unchanged, so the fine down-wood path is intact.
-            xc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
+            xc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
             ol = crown_lift_at_death(t, i, cyclen)             # YRSCYC·OLDCRW (fmscro.f:147)
             crl = t.height[i] * Float32(t.crown_pct[i]) / 100f0
             sl  = crl > 0f0 ? clamp(sch - (t.height[i] - crl), 0f0, crl) : 0f0
@@ -386,7 +386,7 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
-    xc = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
+    xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
     yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
     b = 0f0
     if crfrac > 0f0 && mk
@@ -695,7 +695,7 @@ function canopy_crfill(s::StandState)::Vector{Float32}
         fm_canopy_lsw(sp, s.variant) || continue
         icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
-        xv = crown_biomass(s, sp, t.dbh[i], h, Int(round(icr)))
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
         crbio > 0f0 || continue
         # Black-Hills-ponderosa special crown-shape distribution (fmpocr.f:129-221): spread CRBIO over the
@@ -954,6 +954,9 @@ function _ak_fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::F
         fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
         xs = (0f0, propcr * (c1 + crw1bn) - crw1bn, propcr * xc[3], propcr * xc[4], propcr * xc[5], propcr * xc[6])
         fmscro!(s, sp, d, xs, ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp, dk)
+        # fmeff.f:494-506: the record's CROWNW becomes TCROWN·(1−PROPCR) and GROW=−1 (kept through the next FMSDIT)
+        @inbounds for k in 1:6; t.ffe_crownw[k, i] = xc[k] * (1f0 - propcr); end
+        t.ffe_grow[i] = Int32(-1)
     else
         xk = (xc[1], xc[2] + yrs * oc(1), xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
               xc[6] + yrs * oc(5))

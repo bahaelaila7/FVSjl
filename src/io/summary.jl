@@ -416,6 +416,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if !last
             # FMSDIT (grincr.f:227, before CUTS): FMCROW's height percentiles for this cycle's CROWNW.
             ffe_on && ffe_snapshot_hpct!(s)
+            ffe_on && ak_fmcrow!(s)                 # AK FMCROW at FMSDIT: per-record HPCT, GROW, CROWNW(I,0:5)
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||
