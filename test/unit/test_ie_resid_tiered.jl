@@ -90,4 +90,11 @@ _ccol(col) = filter(m -> m.file == "FVS_Carbon" && m.col == col, _salv())
     @test isempty(_ccol("Aboveground_Merch_Live"))
 end
 
+# fmcrbout.f:273 BIOROOT·(1−CRDCAY)**NYRS and fmsadd.f:317 (1−CRDCAY)**10 are REAL**INTEGER ⇒ libgcc __powisf2 (fpowi),
+# not Julia's Float64-rounded `^` (MEASURED gfortran-16 -O0 `(1.0-0.0425)**10` = Z'3F25D106', Julia 3F25D105).
+@testset "Dead-root decay (1-CRDCAY)**N as __powisf2 (fmcrbout.f:273, fmsadd.f:317) vs gfortran" begin
+    @test FVSjl.fpowi(1f0 - FVSjl._FM_CRDCAY, 10) === reinterpret(Float32, 0x3F25D106)
+    @test all(m -> _crel(m) < 1e-6, _ccol("Belowground_Dead"))
+end
+
 end # module

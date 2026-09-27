@@ -800,7 +800,7 @@ function ffe_seed_input_snags!(s::StandState)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
         # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
-        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
     end
     return s
 end
@@ -827,7 +827,7 @@ function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
         hd = t.norm_ht[i] > 0 ? max(h, t.norm_ht[i] * 0.01f0) : h
         push!(items, (sp, d, h, h, hd, den, t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : -1f0))
         _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
     end
     return fmsadd_bin!(s, items, yr; ityp = 3, bolefn = _r6_snag_bolefn(s))
 end
@@ -860,7 +860,7 @@ function _seed_input_snags_binned!(s::StandState, yr::Integer)
         r[1] = totden
         r[4] = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : r[3]   # HTIH = this tree's ITRUNC, else the running HTDEAD
         _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
     end
     @inbounds for k in keys_
         r = recs[k]; sp = k[1]
@@ -1037,7 +1037,9 @@ function ffe_add_snaginit!(s::StandState)
         slot = _fmsadd_binned(s.variant) ? _fmsadd_slot!(fs, _fmsadd_ctx(fs)) : 0
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc, slot = slot)
         _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age
+        # fmsadd.f:386-390: XDCAY=(1-CRDCAY)**PRMS(5) — a REAL exponent (libm powf), 1 when PRMS(5)<=0
+        xd = agef > 0f0 ? fpow(1f0 - _FM_CRDCAY, Float32(agef)) : 1f0
+        fs.bioroot += rbio * den * xd
     end
     return s
 end
