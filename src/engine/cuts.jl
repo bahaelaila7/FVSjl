@@ -128,6 +128,11 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
         mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
         accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+        # Dead coarse roots of the cut trees: FMSCUT BIOROOT += RBIO·(WK3−SSNG) (fmscut.f:68) plus FMSADD's
+        # RBIO·SNGNEW for the standing yarding-loss snags (fmsadd.f:320, fresh ⇒ XDCAY 1) = RBIO·PREM in all.
+        let (_, _, rbio) = jenkins_biomass(s.coef, sp, t.dbh[i])
+            s.fire.bioroot += rbio * prem
+        end
         # ACTIVITY FUELS (FMSCUT, fmscut.f:88-96): the cut tree's CROWN slash → the surface fuel bed, for ANY
         # cut (not just YARDLOSS). Foliage (xv[1]) → litter cwd[10]; branch classes 1-5 (xv[2:6]) → woody
         # cwd[1:5]; all category 2, species decay class IDC. Scale = removed-TPA `prem` × P2T (cwd is TONS,

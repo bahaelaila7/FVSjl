@@ -204,6 +204,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             bcr = crfrac * fs.cwd2b[idc, isz, itm] * psburn / 100f0
             fs.cwd2b[idc, isz, itm] -= bcr
             bcrown += bcr * _FM_P2T
+            bcr = crfrac * fs.cwd2b2[idc, isz, itm] * psburn / 100f0   # fmeff.f:127-130 the CWD2B2 pool too
+            fs.cwd2b2[idc, isz, itm] -= bcr
+            bcrown += bcr * _FM_P2T
         end
     end
     if mortcode == 0 && fire_carries
