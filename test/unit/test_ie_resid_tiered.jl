@@ -36,4 +36,30 @@ end
         @test count(m -> m.col in ("QMD", "ATQMD"), _case(cn, "none").ms) == 0
     end
 end
+
+# The thinbba stand 3027007010690 with a TREELIST added: FVSie_g16's FVS_TreeList (TPA, DBH, Ht, PctCr) 1996-2046.
+function _thin_tl()
+    fx = joinpath(@__DIR__, "..", "fixtures", "ie_thin")
+    d = mktempdir()
+    key = replace(read(joinpath(fx, "3027007010690_thinbba_tl.key"), String),
+                  "\nout.db\n" => "\n" * joinpath(d, "out.db") * "\n",
+                  "\nstands.db\n" => "\n" * joinpath(fixture_dir("IE"), "stands.db") * "\n")
+    kp = joinpath(d, "x.key"); write(kp, key)
+    FVSjl.run_keyfile(kp; variant = FVSjl.InlandEmpire())
+    hdr, rows = db_table_rows(joinpath(d, "out.db"), "FVS_TreeList")
+    ix = Dict(c => findfirst(==(c), hdr) for c in ("Year", "TreeId", "TreeIndex", "TPA", "DBH", "Ht", "PctCr"))
+    got = Dict((r[ix["Year"]], strip(r[ix["TreeId"]]), r[ix["TreeIndex"]]) => r for r in rows)
+    ghdr, grows = read_csv(joinpath(fx, "3027007010690_thinbba_tl.TreeList.csv"))
+    return got, ix, grows
+end
+_nsame(a, b) = a == b || (let x = tryparse(Float64, a), y = tryparse(Float64, b); x !== nothing && x == y end)
+
+# crown.f:479-480 resets OLDPCT to the current PCT when OLDPCT>PCT in a cycle that removed trees (ONTREM(7)>0) — a thin
+# lowers every survivor's start-of-cycle percentile. jl omitted the thin branch (MEASURED FVSie_g16 3027007010690
+# THINBBA 2006: LP PctCr at 2016 live 47/48/50, jl 44/42/44 on 25 records). Same line in em/kt/bc crown.f.
+@testset "IE crown OLDPCT reset after a thin (crown.f:479-480) vs FVSie_g16" begin
+    got, ix, grows = _thin_tl()
+    @test length(grows) == 1785
+    @test count(r -> r[1] == "2016" && !_nsame(r[7], got[(r[1], strip(r[2]), r[3])][ix["PctCr"]]), grows) == 0
+end
 end # module

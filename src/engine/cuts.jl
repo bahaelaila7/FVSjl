@@ -385,6 +385,9 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         xcuf = autoes_pre_cuft > 0f0 ? rem.cuft / autoes_pre_cuft : 0f0
         s.estab.last_xtes = max(xtpa, xcuf)
     end
+    # ONTREM(7): this cycle's removed TPA (cuts.f), read by crown.f:479's OLDPCT reset; cleared at the cycle end
+    # (fvs.f:432). cuts! can run twice per cycle (the .sum writer's pre-growth call, then grow_cycle!'s idempotent one).
+    rem.tpa > 0f0 && (s.control.total_removal = rem.tpa)
     return rem
 end
 

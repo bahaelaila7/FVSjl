@@ -1318,28 +1318,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "econ"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=63 jl=64"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=75 jl=76"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
 year = "*"
@@ -1351,320 +1329,12 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "IE"
 regime = "econ"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2071: live=166 jl=169"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2071: live=54 jl=57"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=12 ulpbig=9] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2061: live=33 jl=34"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=63 jl=64"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 30 cells [material=16 ulpbig=14] max|Δ|=922.0 | e.g. stand 1627682513290487 year 2071: live=10290 jl=10459"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=75 jl=76"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 38
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 38 cells [ulpbig=38] max|Δ|=0.7372 | e.g. stand 1627682513290487 year 2071: live=27.477365493774414 jl=27.614776611328125"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 29
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [material=14 ulpbig=15] max|Δ|=83.0 | e.g. stand 1627682513290487 year 2071: live=1657 jl=1690"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 62
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2071: live=166 jl=169"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=10 ulpbig=18] max|Δ|=107.0 | e.g. stand 1627682513290487 year 2071: live=2038 jl=2069"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2071: live=54 jl=57"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=49 jl=50"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=55 jl=56"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.1 | e.g. stand 11855985010690 year 2056: live=5.0 jl=4.9"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2051: live=135 jl=136"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=43 jl=45"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=12 ulpbig=9] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2041: live=14 jl=15"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=49 jl=50"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 30 cells [material=16 ulpbig=14] max|Δ|=922.0 | e.g. stand 1627682513290487 year 2051: live=7924 jl=7982"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=55 jl=56"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 24
-P26-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 29
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [material=14 ulpbig=15] max|Δ|=83.0 | e.g. stand 1627682513290487 year 2051: live=1351 jl=1357"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.1 | e.g. stand 11855985010690 year 2056: live=5.0 jl=4.9"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2051: live=135 jl=136"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=10 ulpbig=18] max|Δ|=107.0 | e.g. stand 1627682513290487 year 2051: live=1541 jl=1548"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=43 jl=45"""
 
 [[residual]]
 variant = "IE"
@@ -2660,17 +2330,6 @@ issue = """NEW: jl emits a different number of rows than live for this table () 
 variant = "IE"
 regime = "thinbba"
 file = "FVS_StrClass"
-col = "Stratum_1_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 59
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 59 cells [material=51 ulpbig=8] max|Δ|=8.0 | e.g. stand 1627682513290487 year 2061: live=59 jl=61"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
 col = "Stratum_1_Crown_Cover"
 stand = "*"
 year = "*"
@@ -2693,100 +2352,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "thinbba"
 file = "FVS_StrClass"
-col = "Stratum_1_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 31
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 31 cells [material=8 ulpbig=23] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=129 jl=130"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 26
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 26 cells [material=8 ulpbig=18] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=123 jl=122"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 20
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 20 cells [material=12 ulpbig=8] max|Δ|=23.0 | e.g. stand 11855985010690 year 2056: live=112 jl=109"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [material=3 ulpbig=1] max|Δ|=14.0 | e.g. stand 11855985010690 year 2046: live=4 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 17 cells [material=5 ulpbig=12] max|Δ|=61.0 | e.g. stand 11855985010690 year 2056: live=7 jl=6"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
 col = "Stratum_2_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 70
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 70 cells [material=3 ulpbig=67] max|Δ|=23.32 | e.g. stand 1627682513290487 year 2061: live=1.459452509880066 jl=1.6203365325927734"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 41
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 41 cells [material=31 ulpbig=10] max|Δ|=36.0 | e.g. stand 1627682513290487 year 2061: live=33 jl=34"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 38
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 38 cells [material=17 ulpbig=21] max|Δ|=67.0 | e.g. stand 1627682513290487 year 2061: live=16 jl=17"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=92.0 | e.g. stand 1627682513290487 year 2061: live=3 jl=2"""
 
 [[residual]]
 variant = "IE"
@@ -2814,28 +2385,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=63 jl=64"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=75 jl=76"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
 year = "*"
@@ -2847,320 +2396,12 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "IE"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2071: live=166 jl=169"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2071: live=54 jl=57"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=12 ulpbig=9] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2061: live=33 jl=34"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=63 jl=64"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 30 cells [material=16 ulpbig=14] max|Δ|=922.0 | e.g. stand 1627682513290487 year 2071: live=10290 jl=10459"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2071: live=75 jl=76"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 38
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 38 cells [ulpbig=38] max|Δ|=0.7372 | e.g. stand 1627682513290487 year 2071: live=27.477365493774414 jl=27.614776611328125"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 29
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [material=14 ulpbig=15] max|Δ|=83.0 | e.g. stand 1627682513290487 year 2071: live=1657 jl=1690"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 62
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2071: live=166 jl=169"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=10 ulpbig=18] max|Δ|=107.0 | e.g. stand 1627682513290487 year 2071: live=2038 jl=2069"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2071: live=54 jl=57"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=49 jl=50"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=55 jl=56"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.1 | e.g. stand 11855985010690 year 2056: live=5.0 jl=4.9"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2051: live=135 jl=136"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=43 jl=45"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=12 ulpbig=9] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2041: live=14 jl=15"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=3 ulpbig=12] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=49 jl=50"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 30 cells [material=16 ulpbig=14] max|Δ|=922.0 | e.g. stand 1627682513290487 year 2051: live=7924 jl=7982"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 15 cells [material=4 ulpbig=11] max|Δ|=4.0 | e.g. stand 1627682513290487 year 2061: live=55 jl=56"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 24
-P26-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 29
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [material=14 ulpbig=15] max|Δ|=83.0 | e.g. stand 1627682513290487 year 2051: live=1351 jl=1357"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.1 | e.g. stand 11855985010690 year 2056: live=5.0 jl=4.9"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 21
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 21 cells [material=10 ulpbig=11] max|Δ|=11.0 | e.g. stand 1627682513290487 year 2051: live=135 jl=136"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=10 ulpbig=18] max|Δ|=107.0 | e.g. stand 1627682513290487 year 2051: live=1541 jl=1548"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 19 cells [material=9 ulpbig=10] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=43 jl=45"""
 
 [[residual]]
 variant = "SN"
@@ -8212,3 +7453,36 @@ max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
 
 
+
+[[residual]]
+variant = "IE"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFVS_2"
+stand = "1627682513290487"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=DF jl=WH"""
+
+[[residual]]
+variant = "IE"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesPLANTS_2"
+stand = "1627682513290487"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=PSME jl=TSHE"""
+
+[[residual]]
+variant = "IE"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFIA_2"
+stand = "1627682513290487"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=202 jl=263"""

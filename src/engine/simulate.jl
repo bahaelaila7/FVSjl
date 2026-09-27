@@ -1444,6 +1444,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
     # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
     s.wpbr !== nothing && wpbr_brpr!(s)
+    s.control.total_removal = 0f0            # fvs.f:432 ONTREM(7)=0 for the next cycle
     # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO — so after GRADD's ESNUTR). estab.f:1247/1336/1426 call
     # RDESTB for every record ESTAB books, entering it into the disease area (PROBIU=PROB·PAREA, FPROB=PROB): size the
     # driver over this cycle's regen HERE, then report — post DBH-UPDATE (grown DBH for Live_BA), post the end-of-period
