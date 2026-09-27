@@ -127,4 +127,10 @@ end
     @test all(m -> _crel(m) < 1e-6, _ccol("Forest_Shrub_Herb"))
 end
 
+# fmcrbout.f V(3) is taken in FMMAIN (gradd.f:118), after REGENT set seedling DBH(K)=0.1+DIAM·.01+HK·.001
+# (ie/regent.f:882) — jl's pre-growth sample read 0.1 (MEASURED 2006: 0.1060 vs 0.1 ⇒ Belowground_Live 7.19485 vs 7.19215).
+@testset "Belowground_Live on FMMAIN's post-REGENT DBH (gradd.f:118) vs FVSie_g16" begin
+    @test isempty(_ccol("Belowground_Live"))
+end
+
 end # module

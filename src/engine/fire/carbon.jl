@@ -466,6 +466,42 @@ function stand_carbon_report(s::StandState; vtrip::Bool = false)
             standing_dead = v5, down_wood = v6, forest_floor = v7, shrub_herb = v8, total = total)
 end
 
+"""
+    carbon_report_fmmain_v3(rep, s, stash, vtrip) -> NamedTuple
+
+fmcrbout.f:98-112 V(3) = Σ RBIO(DBH(I))·FMPROB(I) is taken inside FMMAIN (gradd.f:118), after GRINCR's REGENT has
+reset the DBH of the small trees it sizes directly — e.g. ie/regent.f:882 `DBH(K)=0.1+DIAM(ISPC)*.01+HK*0.001` for a
+seedling still under 4.5 ft, per tripled record K. jl samples the non-fire report before growth, so re-derive V(3)
+(and the stand total) from the post-REGENT DBH once `small_tree_growth!` has run: the central record's `t.dbh`, a
+tripled copy's `stash.dbhU/dbhL` (−1 ⇒ unchanged). Every other pool is REGENT-independent and kept.
+(MEASURED FVSie_g16 11855985010690 2006: seedlings DBH 0.1060/0.1054 vs 0.1 ⇒ Belowground_Live 7.19485 vs 7.19215.)
+"""
+function carbon_report_fmmain_v3(rep, s::StandState, stash, vtrip::Bool)
+    t = s.trees; coef = s.coef; n = t.n
+    trip = vtrip && stash !== nothing && hasproperty(stash, :dbhU) && length(stash.dbhU) >= n
+    v3 = 0f0
+    rb(i, d, pr) = (sp = Int(t.species[i]); (_, _, r) = jenkins_biomass(coef, sp, d; dbhmin = _jenkins_dbhmin(s, sp)); r * pr)
+    @inbounds if vtrip
+        for i in 1:n; v3 += rb(i, t.dbh[i], t.tpa[i] * 0.60f0); end
+        for i in 1:n
+            du = trip && stash.dbhU[i] >= 0f0 ? stash.dbhU[i] : t.dbh[i]
+            dl = trip && stash.dbhL[i] >= 0f0 ? stash.dbhL[i] : t.dbh[i]
+            v3 += rb(i, du, t.tpa[i] * 0.25f0); v3 += rb(i, dl, t.tpa[i] * 0.15f0)
+        end
+    else
+        for i in 1:n; v3 += rb(i, t.dbh[i], t.tpa[i]); end
+    end
+    v3 *= 0.50f0
+    if s.control.carbon_units == 1
+        v3 = v3 * _TITOTM / _ACRTOHA
+    elseif s.control.carbon_units == 2
+        v3 *= _TITOTM
+    end
+    total = rep.aboveground + v3 + rep.standing_dead + rep.down_wood + rep.forest_floor + rep.shrub_herb
+    _FM_CRDCAY > 0f0 && (total = total + rep.belowground_dead)
+    return merge(rep, (belowground = v3, total = total))
+end
+
 # METRIC.F77 parameters the carbon reports convert with (TItoTM, ACRtoHA).
 const _TITOTM  = 0.90718f0
 const _ACRTOHA = 0.4046945f0

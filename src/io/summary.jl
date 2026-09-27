@@ -386,13 +386,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # cycle's CUTS (grincr.f:292 → cuts.f:1823 FMSCUT slash + YARDLOSS snags), so a thinned cycle reports the POST-
         # cut stand and the one-time dead-fuel load (fmcba.f:457) reads the post-cut FMTBA/PERCOV. Growing cycles run
         # this right after cuts! below; the final (post-projection) row keeps the cycle-top call (no cut happens).
+        carb_v3_pending = nothing   # (carbon_collect index, vtrip) of this cycle's pre-growth FMCRBOUT row
         _ffe_reports! = function ()
         # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
             fmcba!(s)
-            _carb_push(s; vtrip = _fm_will_triple(s))   # FMMAIN runs on the tripled list in a tripling cycle
+            _vt = _fm_will_triple(s)
+            _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
+            carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
@@ -529,7 +532,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
                               st.variant isa Northeast)
             chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
-            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
+            _v3p = carb_v3_pending; carb_v3_pending = nothing
+            fhook = _v3p === nothing ? nothing :
+                    ((st, stash) -> (e = carbon_collect[_v3p[1]];
+                                     carbon_collect[_v3p[1]] = Base.setindex(e, carbon_report_fmmain_v3(e[2], st, stash, _v3p[2]), 2)))
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = fhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)

@@ -725,7 +725,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
-                     wwpb_barrier::Union{Nothing,Function} = nothing)
+                     wwpb_barrier::Union{Nothing,Function} = nothing,
+                     fmmain_hook::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
@@ -948,6 +949,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH, before UPDATE)
+    fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
