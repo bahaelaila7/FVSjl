@@ -119,7 +119,7 @@ function height_growth!(s::StandState, ::Ontario; scale::Float32 = 1.0f0)
         sp = Int(t.species[i])
         bark  = on_bratio(sp, t.dbh[i], t.height[i])          # BRATIO(ISP,DBH,HT), current dims
         dbh10 = t.dbh[i] + t.diam_growth[i] / bark
-        x = t.tpa[i] * dbh10 * dbh10
+        x = t.tpa[i] * (dbh10 * dbh10)                       # htgf.f DO 20: X = PROB(I)*DBH10**2 (P*(D*D))
         ba10     += 0.0054542f0 * x
         xtrees   += t.tpa[i]
         sumdbhsq += x
