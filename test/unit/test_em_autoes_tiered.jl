@@ -158,4 +158,16 @@ end
     ms = compare_case("EM", STAND, "thinbba", txt, db)
     @test count(m -> m.year == "2032" && m.file == "FVS_StrClass", ms) == 0
 end
+
+# estab.f:1248-1256 (and the PLANT block :1427-1439): a booked record's DG/HTG, OLDPCT/OLDRN, WK1/WK2 are zeroed
+# and MISPUTZ(ITRN,0) clears its mistletoe rating. After a thin TREDEL leaves removed records in the slots the new
+# cohort reuses; jl kept their MortPA (WK2) and DMR (MEASURED FVSem_g16 196378260020004 thinbba @2032: ES020123
+# MistCD live 0 / jl 3, ES020115-120 MortPA live 0 / jl 0.2-2.5) ⇒ mistletoe loss/spread on the cohort from 2042.
+@testset "EM/IE booked records clear the reused slot (estab.f WK1/WK2/MISPUTZ) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "thinbba"; dir = d)
+    @test !crashed
+    ms = compare_case("EM", STAND, "thinbba", txt, db)
+    @test count(m -> !(m.file == "FVS_Summary" && m.col == "MAI"), ms) == 0
+end
 end # module

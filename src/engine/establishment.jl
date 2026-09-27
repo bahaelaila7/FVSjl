@@ -823,6 +823,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
                 t.zrand[n]       = -999f0    # estab.f:1424 ZRAND(ITRN)=-999.
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                    # estb/estab.f:1427-1439: DG=HTG=0, OLDPCT=OLDRN=0, WK1=WK2=0, MISPUTZ(ITRN,0) — clear a reused slot.
+                    t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
+                    t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
+                    t.dg_prev[n] = 0f0; t.mort_pa[n] = 0f0; t.dmr[n] = Int32(0)
+                end
                 t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1440) ⇒ TreeList "ES" id
                 # IMC (TreeVal): estb/estab.f:1385-1386 — 1, but 2 for a planted tree NOT ranked best (NOTE≠1) while
                 # STOADJ>0; strp/estab.f:600 always 1. NOTE comes from the tally's NBEST pass (es_plot_note, plot-major).

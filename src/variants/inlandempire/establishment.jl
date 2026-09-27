@@ -2669,6 +2669,13 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # XCHECK; :1348 excess: 0). IDSDAT = this ESTAB call's date of disturbance (esnutr.f sets it before ESTAB).
         t.iestat[n]      = bbest[bi] ? Int32(est.idsdat) + Int32(20) : Int32(0)
         t.zrand[n]       = -999f0                        # estab.f:1245/1334 ZRAND(ITRN)=-999.
+        # estab.f:1248-1256/1337-1345: DG=HTG=0, OLDPCT=OLDRN=0, WK1=WK2=0 and MISPUTZ(ITRN,0) — a slot vacated by
+        # TREDEL (a thin) still holds the removed record's WK2 (MortPA), mistletoe rating and serial-correlation
+        # residual. MEASURED FVSem_g16 196378260020004 thinbba @2032: ES records MortPA 0 / MistCD 0 in live, jl
+        # carried 0.22-2.52 MortPA and DMR 3 (which then drove mistletoe growth loss and spread).
+        t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
+        t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
+        t.dg_prev[n] = 0f0; t.mort_pa[n] = 0f0; t.dmr[n] = Int32(0)
         # Crown: the REGENT(LESTB) open-grown crown (regent.f:178) CR=0.89722−0.0000461·PCCF, clamped [0.20,0.90].
         pccf = pt <= length(s.density.point_ccf) ? s.density.point_ccf[pt] :
                (isempty(s.density.point_ccf) ? 0f0 : s.density.point_ccf[1])
