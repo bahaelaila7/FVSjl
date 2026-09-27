@@ -121,7 +121,7 @@ function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32)
     f = dbhib / yhat_bh
     dibat = ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)   # inside-bark section diameter
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), dbhib) : -1f0
-    tcf = Float32(round(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0)) / 10.0f0
+    tcf = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1   # profile.f:293 NINT(TCVOL*10.0)*1E-1
     # Merch cubic (VOL4) + Scribner board (VOL2) share ONE bucking to the MTOPP=TOPD·bark top
     # (profile.f: board reuses the cubic logs). FVS-side gates: DBHMIN=9 (cubic), SCFMIND=9 (board).
     mcf, bf = _ak_buck(dibat, h, _AK_VOL_TOPD * bark)
@@ -317,7 +317,7 @@ function _ak_cur_vol(sp::Int, d::Float32, h::Float32)
     mtop = _AK_VOL_TOPD * bark                              # MTOPP = BFTOPD·bark = 7·ak_bratio
     stump = d > 36f0 ? d / 36f0 : _AK_VOL_STUMP             # DEM/CUR stump fix (profile.f:1145)
     dibat = ht -> _ak_cur_dib(d, h, ht)
-    tcf = Float32(round(_fw2_tcubic(dibat, h) * 10f0)) / 10f0
+    tcf = _nint(_fw2_tcubic(dibat, h) * 10f0) * 1f-1                   # profile.f:293 NINT(TCVOL*10.0)*1E-1
     lmerch = _ak_cur_lmerch(d, h, mtop, stump)
     mcf, bf = _ak_cur_buck(dibat, lmerch, mtop, stump)
     return (tcf, mcf, bf)

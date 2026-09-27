@@ -145,3 +145,11 @@ function so_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
         return _don(7.5183f0, 0.4461f0, 30f0)
     end
 end
+
+# so/cwcalc.f DATA SOMAP (the table in the header comment) — the TreeList CRWDTH for the R6 forests goes through the
+# shared national SELECT CASE with the per-KODFOR BF (cwcalc.f CASE(601,799)/602/620); so_cwcalc above bakes in 601.
+const _SO_CWMAP = ("11905","11705","20205","01505","26403","08105","10805","09305","02105","12205","06405",
+                   "01703","01905","01105","02206","10105","07303","24205","26305","23104","31206","35106",
+                   "31206","74605","74705","35106","81505","31206","63102","47502","47502","12205","31206")
+@inline so_r5crwd(sp::Int, d::Float32, h::Float32)::Float32 =
+    (1 <= sp <= 33) ? r5crwd_eqn(SO_R5CRWD_MAPSO[sp], d, h) : 0f0

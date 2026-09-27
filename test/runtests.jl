@@ -64,6 +64,7 @@ using FVSjl
     include("unit/test_wc_fia_volume.jl")    # WC FIA volume: VOLEQ by forest (voleqdef R6_EQN/R7_EQN table), broken-top NORMHT+CFTOPK/BFTOPK, all WCMAP crown-width eqns + R6 BF — cycle-0 treelist vs FVSwc_g16 (4 stands)
     include("unit/test_blm_pn_volume.jl")    # NVEL BLMVOL (WC 708-711, PN 708/709/712) + PN VOLEQ by forest/merch specs/cwcalc + NVB broken tops (PN RA, CR region 3) — cycle-0 treelist vs FVSwc/pn/cr live (13 stands)
     include("unit/test_nc_r7_blmvol.jl")   # NC/Klamath Region-7 (HOOPA IFOR 5, forest 705) VEQNNC fix: NVEL BLMVOL Behre-hyperbola BLM taper (blmtap.f) B00BEHW/B01BEHW — fixes cyc0 TCuFt +16-22% / BdFt −8-23% vs FVSnc_g16 forest 705 (57 stands)
+    include("unit/test_westside_volume.jl") # NC/CA/SO/WS/EC cycle-0 per-tree volume vs live (westside-vol): R5HARV DVEST ANINT board + REAL precision + red alder/sequoia/VOL(7)≥0, profile.f NINT(TCVOL*10)*1E-1, CA VOLEQ by forest (518 R5, 710-712 BLMVOL), SO WJ/WB/AS Wykoff NORMHT dub, EC constant BARK1, CA R5CRWD/CAMAP CrWidth (24 stands)
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant
