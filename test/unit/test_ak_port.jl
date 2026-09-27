@@ -121,14 +121,14 @@ end
         rows_by_id("jl.sum")
     end
     exact = ("10705712010497", "10706339010497", "10708179010497", "10708351010497", "1549083042290487",
-             "24731081010497", "24739066010497", "38178692010760", "644808316126144", "666740939126144",
-             "720755825290487")
+             "24731081010497", "24739066010497", "38178692010760", "644808316126144", "644916319126144",
+             "666740939126144", "720755825290487")
     for sid in exact
         ks = [k for k in keys(live) if k[1] == sid]
         @test length(ks) == 7
         @test all(k -> get(jl, k, nothing) == live[k], ks)
     end
-    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 82
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) == 84
     # every .sum column of the exact stands — incl. MAI: 720755825290487 has no inventory AGE (0) but trees, so
     # evtstv.f MAIFLG shuts MAI off (0.0) for every row
     function lines_by_id(path)

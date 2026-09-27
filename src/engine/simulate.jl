@@ -801,7 +801,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
+    # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
+    # FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into slot 511, live PBAL 255.53
+    # (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002 ⇒ DG/LTHG/HTG ⇒ mortality.
+    ncomcup = s.variant isa SoutheastAlaska ? count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n) : 0
     comcup!(s.trees; onmove = _record_move_hook(s))         # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
+    ncomcup > 0 && compute_density!(s)
     _trim_crown_bypass!(s)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
