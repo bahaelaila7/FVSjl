@@ -28,4 +28,12 @@ end
         @test count(m -> m.file in ("sum", "FVS_TreeList") || m.col in ("Tpa", "BA", "SDI", "CCF"), c.ms) == 0
     end
 end
+# dense.f:179-188 sums TPROB/TSUMD2 over IND1 species-major with WK5=D*(D*P) (dense.f is byte-identical in the IE build);
+# RMSQD=SQRT(TSUMD2/TPROB) is FVS_Summary QMD/ATQMD. jl summed IE in record order with P·D² (MEASURED FVSie_g16
+# 3285544010690 2012 QMD live 7.00555182, jl 7.00555038 — 1,280 QMD/ATQMD cells across the IE suite).
+@testset "IE QMD (RMSQD) over IND1 with dense.f's WK5 (dense.f:179-188) vs FVSie_g16" begin
+    for cn in ("3285544010690", "51032748020004", "374547584489998")
+        @test count(m -> m.col in ("QMD", "ATQMD"), _case(cn, "none").ms) == 0
+    end
+end
 end # module
