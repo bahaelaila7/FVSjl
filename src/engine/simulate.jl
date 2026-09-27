@@ -1150,7 +1150,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.mort_pa[c] = m
             end
             # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
-            mis_book && book_mortality_snags!(s, Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
+            # AK: fmkill.f books SNGNEW from the WK2 array itself (= t.mort_pa here), not PROB−survivor, which rounds
+            # to the survivor's ULP — FMSADD's density-weighted HTDEAD then drifts (akffe YC 8.4"×5' ⇒ 4.9999995 live).
+            mis_book && book_mortality_snags!(s, s.variant isa SoutheastAlaska ? Float32[t.mort_pa[c] for c in 1:n2] :
+                                                 Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL

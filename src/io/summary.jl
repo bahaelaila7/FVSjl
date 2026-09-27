@@ -356,6 +356,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                  st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
             fl = merge(ffe_fuel_loadings(st), (consumed = tcon,))
+            # AK: FMDOUT TONREM = TONRMS (+TONRMH+TONRMC) → Biomass_Removed, then TONRMS=0 (fmdout.f:274-289)
+            if st.variant isa SoutheastAlaska && st.fire !== nothing
+                fl = merge(fl, (removed = st.fire.ak_tonrms,)); st.fire.ak_tonrms = 0f0
+            end
             push!(carbon_collect, (r.year, stand_carbon_report(st), fl,
                                    snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end

@@ -258,6 +258,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             pmort = clamp(pmort, 0f0, 1f0)
             curkil = pmort * t.tpa[i]
             crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
+            fmprob0 = t.tpa[i]                                        # FMPROB(I) before the kill (fmeff.f:487)
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             # Fire-killed sprouting trees feed the ESUCKR stump-sprout pool exactly as cutting does: FVS
@@ -295,7 +296,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                   max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
                   _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
                   max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+            if s.variant isa SoutheastAlaska   # fmeff.f FMSADD(IYR,1): binned into (sp,DBHCL,HTCL) records after the loop
+                push!(fs.ak_cut_snags, (Float32(sp), d, t.height[i], curkil))
+            else
+                add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+            end
             # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead
             # trees. But FIRST consume the fire-REACHED fine crown the way FMEFF does (fmeff.f:457-460)
             # BEFORE it is booked as snags: in the scorched crown zone the fire burns 100% of the foliage
@@ -320,13 +325,18 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             xvc = (xc[1] * (1f0 - propcr),                     # foliage burned over the scorched length
                    xc[2] * (1f0 - 0.5f0 * propcr) + ol2,       # half the scorched 0-0.25" branches burned
                    xc[3] + ol[3], xc[4] + ol[4], xc[5] + ol[5], xc[6] + ol[6])
-            fmscro!(s, sp, d, xvc, curkil, clamp(ffe_dkr_cls(s, sp), 1, 4))  # FUELPOOL-overridable
+            if s.variant isa SoutheastAlaska
+                _ak_fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen)
+            else
+                fmscro!(s, sp, d, xvc, curkil, clamp(ffe_dkr_cls(s, sp), 1, 4))  # FUELPOOL-overridable
+            end
             # Fire-killed coarse ROOTS → the dead-root pool (BIOROOT, fmsadd.f:320 BIOROOT+=RBIO·SNGNEW·XDCAY).
             # Freshly killed ⇒ XDCAY=(1−CRDCAY)^0=1, same age-0 basis as ordinary mortality (mortality.jl). The
             # snag-FALL path transfers only the BOLE (not roots), so this is the sole root booking (no double-count).
             _, _, rbio = jenkins_biomass(coef, sp, d)
             fs.bioroot += rbio * curkil
         end
+        (s.variant isa SoutheastAlaska && !isempty(fs.ak_cut_snags)) && _ak_bin_add_snags!(s, Int(year))
         rannput!(s.rng, _fire_rng_save)                   # RANNPUT(SAVESO): roll back the fire's RANN draws
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
@@ -906,4 +916,48 @@ function potential_fire(s::StandState)
     # PREWND/POTEMP): SN severe 20/70°F + moderate 8/60°F; NE severe 25/80°F + moderate 15/50°F.
     sw, st, mw, mt = potfire_env(s.variant)
     return (; severe = scenario(1, 1, sw, st, 1), moderate = scenario(2, 3, mw, mt, 1))
+end
+
+
+# fmeff.f:353-527 (ICALL=0) — the crowns FMEFF books via FMSCRO for one burned record, in its three parts:
+#  * crown-fire share (CRBURN>0, MKODE≠0): CROWNW(0)=0, CROWNW(1)=½·CROWNW(1), OLDCRW(1) halved; DTHISC=FMPROB·CRBURN;
+#  * surface part, crown base below the scorch height: killed trees get CROWNW(0)−PROPCR·CROWNW(0), CROWNW(1)−CRW1BN
+#    (CRW1BN=½·PROPCR·CROWNW(1)) and OLDCRW(1) halved, DTHISC=(1−CRBURN)·PMORT·FMPROB; the SURVIVORS' scorched crown
+#    too coarse to burn is dead as well — CROWNW(0)=0, CROWNW(1)=PROPCR·(CROWNW(1)+CRW1BN)−CRW1BN, CROWNW(2:5)=
+#    PROPCR·CROWNW, OLDCRW=0, DTHISC=((1−CRBURN)−(1−CRBURN)·PMORT)·FMPROB;
+#  * surface part, crown above the scorch: killed trees keep the whole crown and the WHOLE OLDCRW(1),
+#    DTHISC=(1−CRBURN)·PMORT·FMPROB.
+# FMSCRO: ANNUAL = CROWNW + YRSCYC·OLDCRW (size>0; OLDCRW<0.0000625 ⇒ 0). CRL = HT·(FMICR/100). AK only: the shared
+# path books one crown for the whole kill (foliage on the crown-fire share, OLDCRW(1) always halved) and skips the
+# survivors — akffe 2003 CWD2B foliage +86 lb, 0-¼" −276 lb vs live FMSCRO debug.
+function _ak_fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Float32, pmort::Float32,
+                           crburn::Float32, sch::Float32, cyclen)
+    t = s.trees
+    yrs = Float32(cyclen); dk = clamp(ffe_dkr_cls(s, sp), 1, 4)
+    oc(sz) = (v = t.ffe_oldcrw[sz, i]; v < 0.0000625f0 ? 0f0 : v)
+    och = (v = 0.5f0 * t.ffe_oldcrw[1, i]; v < 0.0000625f0 ? 0f0 : v)      # OLDCRW(1) halved
+    if crburn > 0f0
+        xcf = (0f0, 0.5f0 * xc[2] + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
+               xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xcf, fp * crburn, dk)
+    end
+    crburn >= 1f0 && return
+    ht = t.height[i]
+    crl = ht * (Float32(t.crown_pct[i]) / 100f0)
+    crbot = ht - crl
+    if sch > crbot
+        crbnl = sch - crbot; crbnl > crl && (crbnl = crl)
+        propcr = crl > 0f0 ? crbnl / crl : 0f0
+        crw1bn = 0.5f0 * propcr * xc[2]
+        c0 = xc[1] - propcr * xc[1]; c1 = xc[2] - crw1bn
+        xk = (c0, c1 + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4), xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
+        xs = (0f0, propcr * (c1 + crw1bn) - crw1bn, propcr * xc[3], propcr * xc[4], propcr * xc[5], propcr * xc[6])
+        fmscro!(s, sp, d, xs, ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp, dk)
+    else
+        xk = (xc[1], xc[2] + yrs * oc(1), xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
+              xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
+    end
+    return
 end

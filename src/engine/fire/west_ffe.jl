@@ -125,11 +125,13 @@ end
 FMSVOL(II, XHT=HTIH): the snag's death-form tree (DBHS, HTDEAD) through NATCRS, then CFTOPK at IHT=INT(XHT·100)
 when the snag has lost height (the fat lower bole, not a short tree), VOL2HT = MAX(0.005454154·HTDEAD, TCF).
 """
-function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, htcur::Float32)
+function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, htcur::Float32; always::Bool = false)
     w = ffe_west_nocut(s, sp, d, htd); w === nothing && return nothing
     htd <= 0f0 && return 0f0
     tcf, mcf, bark, trim = w
-    if htcur < htd && tcf > 0f0 && trim
+    # `always`: fmsvol.f FMSVOL passes XHT=HTIH (> −1) ⇒ LTKIL ⇒ CFTOPK at INT(XHT·100)/100 on EVERY snag — even an
+    # un-broken one (HTRUNC then truncates HTDEAD to 0.01 ft, and TCF·VOLTK/VOLT rounds).
+    if (htcur < htd || always) && tcf > 0f0 && trim
         # CFTOPK reads the species' STMP/TOPD (WC/PN BLM forests TOPD 5); the other layer variants keep 1 / 4.5.
         stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest) ?
                      (s.control.sp_stump_ht[sp], s.control.sp_top_diam[sp]) : (1f0, 4.5f0)

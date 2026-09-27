@@ -167,8 +167,12 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
             if ssng > 0f0
-                add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                          bolevol = bolevol, fallvol = fallvol, height = t.height[i])
+                if s.variant isa SoutheastAlaska     # fmsadd.f bins the cut snags into records after the loop
+                    push!(s.fire.ak_cut_snags, (Float32(sp), t.dbh[i], t.height[i], ssng))
+                else
+                    add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
+                              bolevol = bolevol, fallvol = fallvol, height = t.height[i])
+                end
                 # fmscut.f:157 FMSADD(IY,2) → fmsadd.f:306 FMSCRO(I,…,UNFIRE=SNGNEW,ITYP=2): a standing yarding-loss
                 # snag keeps its crown, scheduled into CWD2B2 like any new snag (its crown is NOT in the CTCRWN slash).
                 # AK only here (base code): akffe 1993 Standing_Snag_lt3 0.01872 live vs 0.01228 without it.
@@ -202,38 +206,85 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     return
 end
 
-# fmcwd.f ENTRY CWD3 (+ the shared label-1000 cone split): the DOWNED yarding-loss bole of a cut tree. TVOLI =
-# FMSVL2(…,'D') = MAX(0.005454154·H, TCF) at the tree's current (D, H) (NATCRS, current bark); each size class j gets
-# DIF = MAX(0, P(LOCUT)−P(HICUT))·TVOLI·DIH of the hard (K=2, LOHT=0.10) cone — NOT renormalized — booked only if
-# DIF > 1E-6, as ADD = DIF·V2T·SCNV(2)=1 into CWD(1,j,2,DKRCLS). A stem with HT ≤ 4.5 (RHRAT ≤ 0) puts every
-# breakpoint above the top, so it adds nothing. AK only here (the shared jl path normalizes the split and dumps short
-# stems whole into the DBH class): akffe 1993 THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only),
-# jl 4.747E-3.
-function _cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32)
-    dih <= 0f0 && return
-    htd = hth
+# fmcwd.f label 1000 — the shared cone split behind CWD1 (a snag falls), CWD2 and CWD3 (a cut tree's downed
+# yarding loss): for K=1 (soft: DIS, LOHT(1)) and K=2 (hard: DIH, LOHT(2)) each size class j gets
+# DIF = MAX(0, P(LOCUT)−P(HICUT))·TVOLI·DEN of the cone (R1 widened by LOHT(K) when HTD>4.5), NOT renormalized,
+# booked only if DIF > 1E-6, as ADD = DIF·V2T·SCNV(K) (SCNV = .80 soft, 1.00 hard) into CWD(1,j,K,DKRCLS). A stem
+# with HTD ≤ 4.5 (RHRAT ≤ 0) puts every breakpoint above its top and adds nothing. TVOLI = FMSVL2(…,'D') =
+# MAX(0.005454154·HTD, NATCRS TCF) at (DIAM, HTD). AK only (the shared jl path renormalizes the split — 1/P(0.1)
+# too much — and dumps short stems whole into the DBH class).
+function _ak_fm_cwd_split!(s::StandState, sp::Int, dbh::Float32, htd::Float32, dis::Float32, dih::Float32,
+                           hiht_s::Float32, hiht_h::Float32, loht_s::Float32, loht_h::Float32)
+    (dis + dih) <= 0f0 && return
     tvoli = max(0.005454154f0 * htd, ak_tree_vol(s, sp, dbh, htd)[1])
     diam = dbh <= 0.1f0 ? 0.1f0 : dbh
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * diam)
     bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))   # BPH(0:9) → 1:10
-    loht = 0.10f0; hiht = htd
-    r1 = diam * 0.0416666667f0
-    htd > 4.5f0 && (r1 = r1 + (loht * ((r1 * htd) / (htd - 4.5f0))))
-    r1sq = r1 * r1
     v2t = coef_col(s.coef, :v2t)[sp] / 2000f0              # fmvinit.f:466 V2T = lb/cuft / 2000
     idc = ffe_dkr_cls(s, sp)
-    @inbounds for j in 1:9
-        (hiht <= bph[j + 1] || loht > bph[j]) && continue
-        hicut = hiht > bph[j] ? bph[j] : hiht
-        locut = loht <= bph[j + 1] ? bph[j + 1] : loht
-        locut == hicut && continue
-        r2 = r1 * (1f0 - (hicut / htd)); p1 = ((r2 * r2) * (htd - hicut)) / (r1sq * htd)
-        r2 = r1 * (1f0 - (locut / htd)); p2 = ((r2 * r2) * (htd - locut)) / (r1sq * htd)
-        dif = max(0f0, p2 - p1) * tvoli
-        dif = dif * dih
-        dif > 1f-6 && (s.fire.cwd[j, 2, idc] += dif * v2t * 1.00f0)
+    @inbounds for k in 1:2
+        den = k == 1 ? dis : dih
+        den <= 0f0 && continue
+        loht = max(0.10f0, k == 1 ? loht_s : loht_h); hiht = k == 1 ? hiht_s : hiht_h
+        r1 = diam * 0.0416666667f0
+        htd > 4.5f0 && (r1 = r1 + (loht * ((r1 * htd) / (htd - 4.5f0))))
+        r1sq = r1 * r1
+        scnv = k == 1 ? 0.80f0 : 1.00f0
+        for j in 1:9
+            (hiht <= bph[j + 1] || loht > bph[j]) && continue
+            hicut = hiht > bph[j] ? bph[j] : hiht
+            locut = loht <= bph[j + 1] ? bph[j + 1] : loht
+            locut == hicut && continue
+            r2 = r1 * (1f0 - (hicut / htd)); p1 = ((r2 * r2) * (htd - hicut)) / (r1sq * htd)
+            r2 = r1 * (1f0 - (locut / htd)); p2 = ((r2 * r2) * (htd - locut)) / (r1sq * htd)
+            dif = max(0f0, p2 - p1) * tvoli
+            dif = dif * den
+            dif > 1f-6 && (s.fire.cwd[j, k, idc] += dif * v2t * scnv)
+        end
     end
     return
+end
+
+# fmcwd.f ENTRY CWD3 (the downed yarding loss of a cut tree): HIHT(2)=HTH, LOHT(2)=.1, hard only. akffe 1993
+# THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only), the shared path 4.747E-3.
+_cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32) =
+    _ak_fm_cwd_split!(s, sp, dbh, hth, 0f0, dih, 0f0, hth, 1.0f0, 0.10f0)
+
+# fmscut.f:157 FMSADD(IY(ICYC),2) — the cut's standing yarding-loss snags become snag RECORDS exactly like mortality
+# snags (fmsadd.f:119-153/273-340): per (species, 2-in DBHCL) the height range of this call's snags splits a class at
+# MIDHT=(MAXHT+MINHT)/2 when it exceeds 20 ft, and each (sp,DBHCL,HTCL) record holds the density-weighted running mean
+# DBHS/HTDEAD (zero-initialized, so even the first record is averaged). akffe 1993: WH 0.1"×2' (13.5), 1.2"×11' (4.5),
+# 1.9"×13' (4.5) ⇒ ONE record D 0.58 / H 6.0 / 22.5 (live FMDOUT I=5), not three snags. AK only.
+_ak_flush_cut_snags!(s::StandState) = _ak_bin_add_snags!(s, Int(current_cycle_year(s)))
+# Also the fire kill (fmeff.f → FMSADD(IYR,1), fmburn.jl): the same (sp,DBHCL,HTCL) records from FIRKIL.
+function _ak_bin_add_snags!(s::StandState, yr::Int)
+    fs = s.fire; lst = fs.ak_cut_snags
+    minht = Dict{Tuple{Int,Int},Float32}(); maxht = Dict{Tuple{Int,Int},Float32}()
+    for (spf, d, h, _) in lst
+        k = (Int(spf), _snag_dbhcl(d))
+        minht[k] = min(get(minht, k, 1000f0), h); maxht[k] = max(get(maxht, k, 0f0), h)
+    end
+    keys_ = Tuple{Int,Int,Int}[]; recs = Dict{Tuple{Int,Int,Int},Vector{Float32}}()   # [DEND, DBHS, HTDEAD]
+    for (spf, d, h, den) in lst
+        sp = Int(spf); dbhcl = _snag_dbhcl(d); k2 = (sp, dbhcl)
+        mh = (maxht[k2] - minht[k2]) > 20f0 ? (maxht[k2] + minht[k2]) / 2f0 : 0f0
+        htcl = (mh <= 0f0 || h < mh) ? 1 : 2
+        k = (sp, dbhcl, htcl)
+        r = get!(() -> (push!(keys_, k); Float32[0f0, 0f0, 0f0]), recs, k)
+        totden = r[1] + den
+        r[3] = (r[3] * r[1] + h * den) / totden
+        r[2] = (r[2] * r[1] + d * den) / totden
+        r[1] = totden
+    end
+    v2t = coef_col(s.coef, :v2t)
+    for k in keys_
+        r = recs[k]; sp = k[1]
+        vol = max(0.005454154f0 * r[3], ak_tree_vol(s, sp, r[2], r[3])[1])   # FMSVL2 'D' total (the carbon bole)
+        add_snag!(fs, sp, r[2], r[1], yr; bolevol = vol * v2t[sp] / 2000f0, fallvol = vol * v2t[sp] / 2000f0,
+                  height = r[3])
+    end
+    empty!(lst)
+    return s
 end
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
@@ -389,6 +440,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
+    (s.variant isa SoutheastAlaska && s.fire !== nothing && !isempty(s.fire.ak_cut_snags)) && _ak_flush_cut_snags!(s)
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
     # yarding (left on site, routed to fuel pools), so the REPORTED removed merch/saw/bdft are scaled by
     # (1−PRLOST). Total cubic (CFCUT) and BA are NOT scaled — they reflect the full physical removal.

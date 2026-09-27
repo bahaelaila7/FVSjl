@@ -634,7 +634,15 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         htcl = (mh <= 0f0 || h < mh) ? 1 : 2                                    # fmsadd.f:279-287
         k3 = ((sp - 1) * 19 + (dbhcl - 1)) * 2 + htcl
         g = Int(sb.gkey[k3])
-        if g == 0
+        if g == 0 && s.variant isa SoutheastAlaska
+            # fmsadd.f:233-237 zero-initializes DEND/DBHS/HTDEAD, so the FIRST record is also averaged:
+            # HTDEAD = (0·0 + HT·SNGNEW)/SNGNEW, which is not always HT in Float32 (akffe YC 8.4"×5.0' tripled kill ⇒
+            # HTDEAD 4.9999995 ⇒ PROFILE HTTOT<5 ⇒ TCF 0 ⇒ Standing_Snag_ge3). AK only here (base code).
+            ng += 1
+            sb.gsp[ng] = sp; sb.gden[ng] = 0f0 + den; sb.gkey[k3] = Int32(ng)
+            sb.ght[ng] = (0f0 * 0f0 + h * den) / sb.gden[ng]
+            sb.gdbh[ng] = (0f0 * 0f0 + d * den) / sb.gden[ng]
+        elseif g == 0
             ng += 1
             sb.gsp[ng] = sp; sb.gdbh[ng] = d; sb.ght[ng] = h; sb.gden[ng] = den; sb.gkey[k3] = Int32(ng)
         else

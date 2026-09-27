@@ -153,7 +153,9 @@ end
 # D>=BFMIND, a separate board call with MTOPP=BFTOPD·BARK.
 function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3, bk::Float32 = -1f0;
                      ht2td = nothing)
-    (d < 1f0 || h <= 4.5f0) && return (0f0, 0f0, 0f0)   # need H>4.5 for the breast-height scaling
+    # profile.f:126-131 PROFILE returns no volume for DBHOB<1 or HTTOT<5 (HT1PRD=0) — not H≤4.5: a 4.9999995-ft snag
+    # (FMSADD's density-weighted HTDEAD of three 5.0-ft records) has TCF 0 in live, so FMDOUT's SNVIH = 0.005454154·H.
+    (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)
     fcoef = _ak_vol_fcoef(jsp)
     rflw, rhfw = _ak_shp_core(fcoef, d, h)              # f_alaska.f SHP_AK (SHP_OT form, REAL*4 DMEDIAN/DFORM)
     tapcoe = _fw2_sf_taper(rhfw, rflw)

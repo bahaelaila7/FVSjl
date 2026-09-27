@@ -181,12 +181,13 @@ end
     @test isempty(bad)
 end
 
-@testset "AK FFE stand FVS_Fuels (inventory year) + FVS_Summary QMD vs live FVSak" begin
-    # akffe_db.key = akffe.key + DATABASE (SUMMARY, FUELSOUT, FUELREDB, BURNREDB, MORTREDB); akffe_db.live.csv = the
-    # live 1993 FVS_Fuels pools and every FVS_Summary QMD as Float32 bit patterns. 1993 carries the THINDBH cut with
-    # YARDLOSS .5 .7 .5: fmsadd.f FMSCRO books the standing loss-snags' crowns (Standing_Snag_lt3), and fmcwd.f CWD3
-    # cone-splits the downed loss boles without renormalizing and skips stems ≤ 4.5 ft (Surface_lt3). QMD = dense.f
-    # RMSQD over IND1 with D·(D·P).
+@testset "AK FFE stand FVS_Fuels/FVS_Consumption (1993 cut, 2003 fire+salvage) + QMD vs live FVSak" begin
+    # akffe_db.key = akffe.key + DATABASE (SUMMARY, FUELSOUT, FUELREDB, BURNREDB, MORTREDB); akffe_db.live.csv = live
+    # FVS_Fuels pools at 1993 (THINDBH cut with YARDLOSS .5 .7 .5) and 2003 (SALVAGE + SIMFIRE), the 2003 FVS_Consumption,
+    # Biomass_Removed and every FVS_Summary QMD (Float32 bit patterns). Exercises: fmsadd.f snag-record binning of the
+    # cut / fire snags (density-weighted DBHS/HTDEAD), FMSCRO crowns of the yarding-loss snags, fmeff.f's crown-fire /
+    # scorched-killed / scorched-survivor crown parts, fmcwd.f's raw cone split (CWD1/CWD3), FMSVOL snag volumes (total
+    # cubic + CFTOPK) in FMDOUT and FMSALV (CWDCUT, TONRMS), and dense.f's IND1 RMSQD.
     fx = joinpath(@__DIR__, "..", "fixtures", "southeastalaska")
     live = [split(l, ',') for l in readlines(joinpath(fx, "akffe_db.live.csv"))[2:end]]
     dir = mktempdir()
@@ -196,8 +197,14 @@ end
         db = FVSjl.SQLite.DB(joinpath(dir, "OUT.db"))
         hx(x) = string(reinterpret(UInt32, Float32(x)), base = 16, pad = 8)
         out = Dict{Tuple{String,String},String}()
-        for r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_Fuels WHERE Year = 1993")
-            for (k, v) in pairs(r); v isa AbstractFloat && (out[("FVS_Fuels_1993", String(k))] = hx(v)); end
+        for y in (1993, 2003), r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_Fuels WHERE Year = $y")
+            for (k, v) in pairs(r)
+                v isa AbstractFloat && (out[("FVS_Fuels_$y", String(k))] = hx(v))
+                k == :Biomass_Removed && (out[("FVS_Fuels_$(y)_int", "Biomass_Removed")] = string(Int(v)))
+            end
+        end
+        for r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_Consumption WHERE Year = 2003")
+            for (k, v) in pairs(r); v isa AbstractFloat && (out[("FVS_Consumption_2003", String(k))] = hx(v)); end
         end
         for r in FVSjl.DBInterface.execute(db, "SELECT Year, QMD FROM FVS_Summary")
             out[("FVS_Summary_QMD", string(Int(r[:Year])))] = hx(r[:QMD])
@@ -205,14 +212,14 @@ end
         FVSjl.SQLite.close(db)
         out
     end
-    @test length(live) == 20
-    # QMD: bit-exact. FVS_Fuels 1993 pools: within 1e-5 relative — the fmdout.f pool sums still accumulate in a
-    # different Float32 order in jl (Standing_Snag_lt3 9 ULP, Standing_Foliage 3 ULP); before the FMSCRO/CWD3 port
-    # Surface_lt3 was 2% and Standing_Snag_lt3 35% off.
+    @test length(live) >= 45
+    # QMD and Biomass_Removed: exact. Fuel/consumption pools: within 1e-5 relative — the fmdout.f/fmcons.f pool sums
+    # still accumulate in a different Float32 order in jl (a few ULP). Before these ports: 1993 Surface_lt3 2% and
+    # Standing_Snag_lt3 35% off; 2003 Standing_Snag_lt3 1.1%, Litter_Consumption 0.1%, Biomass_Removed 0 vs 1.
     bits(h) = reinterpret(Float32, parse(UInt32, h, base = 16))
     for l in live
         g = get(got, (String(l[1]), String(l[2])), "")
-        if l[1] == "FVS_Summary_QMD"
+        if l[1] == "FVS_Summary_QMD" || endswith(l[1], "_int")
             @test g == l[3]
         else
             @test !isempty(g) && isapprox(bits(g), bits(l[3]); rtol = 1f-5)

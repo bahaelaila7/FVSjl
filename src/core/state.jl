@@ -1146,6 +1146,10 @@ mutable struct FireState
     hp_p::Vector{Float32}              # (cycle start, BEFORE CUTS) — CROWNW keeps those percentiles all cycle
     cwd2b2::Array{Float32,3}           # CWD2B2 (fmscro.f:160-170): crown debris FMSCRO schedules from a fire / cut / new
                                        # snag (ICALL≠4); FMMAIN adds it onto CWD2B after each year's FMCADD (fmmain.f:243)
+    ak_cut_snags::Vector{NTuple{4,Float32}}   # AK: this CUTS call's standing yarding-loss snags (sp, DBH, HT, SSNG) in
+                                       # record order, binned into FMSADD(IY,2) snag records after the cut loop
+    ak_tonrms::Float32                 # AK: TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
+                                       # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1155,7 +1159,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60))
+                        zeros(Float32, 4, 6, 60), NTuple{4,Float32}[], 0f0)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
