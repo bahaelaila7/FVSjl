@@ -287,7 +287,10 @@ function compute_volumes_cr!(s::StandState)
         v = if mdl == "DVE"
             cr_dve_vol(eq, d, h; unt = d >= scfmin[sp] ? 1 : 3)
         elseif nvb
-            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn)   # TCF+MCF+board
+            # fvsvol.f:87-90: a LIVE (vols.f:135 IMC<6) top-killed tree passes BRKHT=ITRNC/100 ⇒ NSVB trims VOL(1)
+            # by CalcRatio and caps HT1PRD itself (nsvb.f:218-221,331); vols.f:191 then skips CFTOPK for 'NVB'.
+            brk = (i <= t.n && t.trunc[i] > 0 && h >= 4.5f0) ? Float32(t.trunc[i]) / 100f0 : 0f0
+            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, brkht = brk)   # TCF+MCF+board
         elseif mdl == "FW2"
             cr_fw2_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, sf_hs = true)   # TCF+MCF+board; MERLEN via SF_HS (profile.f:203)
         else
@@ -301,9 +304,10 @@ function compute_volumes_cr!(s::StandState)
         # CFTOPK/BFTOPK (vols.f:145-196,394): broken-top trees (TKILL = H≥4.5 & ITRUNC=trunc>0) get their
         # FULL-height cubic + board volumes reduced to the standing broken stem via the Behre taper. VMAX=full
         # cubic (v[1]); H=t.height=NORMHT; board specs BFSTMP=1/BFTOPD=6 (grinit.f:91, sitset.f:527).
+        # NVB (vols.f:191): no CFTOPK; BFTOPK (vols.f:390) still runs with BFMAX = the NSVB-truncated TVOL(1).
         if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
             bk = vbark; vmax = tcf
-            tcf, mcf = cr_cftopk(tcf, mcf, d, h, vmax, bk, Int(t.trunc[i]), stump, topd)
+            nvb || ((tcf, mcf) = cr_cftopk(tcf, mcf, d, h, vmax, bk, Int(t.trunc[i]), stump, topd))
             bf = cr_bftopk(bf, d, h, vmax, bk, Int(t.trunc[i]), 1f0, 6f0)
         end
         t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf
