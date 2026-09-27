@@ -85,6 +85,7 @@ using FVSjl
     include("unit/test_wsbwe_gendefol.jl") # WSBWE GENDEFOL/BUDLITE: ported bwelit.f core (wsbwe_bwelit!) dump-replay bit-exact vs FVSem_wsbwe on the synthetic-weather harness (1990 pulse / 1991 tail / 1992 crash)
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
     include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
+    include("unit/test_pn_pnt01_live.jl")   # PN pnt01 non-volume .sum == live FVSpn (shared WC estab/esgent/regent/morts + PN data)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
     include("unit/test_cr_cyc1_heights.jl")  # CR cycle-1 heights vs live: FINDAG ABIRTH on CRATET-DENSE RELDEN; H30 HHE reset

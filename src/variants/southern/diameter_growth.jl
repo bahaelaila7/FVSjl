@@ -447,7 +447,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
         elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa WestCascades) &&
+                s.variant isa WestCascades || s.variant isa PacificNorthwest) &&   # PN compiles wc/cratet.f
                length(s.calib.input_seq) == ntot
             # WC: wc/cratet.f:139-142 `IND(I)=IND1(I); RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of the :171 LBKDEN DENSE —
             # the BM shape. 302076170489998: SF I=9 / WH I=2 both 10.1" (and RC 13 / WH 4 both 7.1") — live DGF BAL
@@ -1184,10 +1184,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # use wc_bratio; this DDS→DG conversion was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # WC links wc/dgbnd.f: DGMAX=7.92·EXP(−0.03·min(DBH,150)) envelope + DG≥0 floor (redwood sp17 exempt) before
-    # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn/FVSop link the same
-    # dgbnd.f (OP has its own hook); PN is left on the generic bound until its full engine runs (it still
-    # stops in establishment) and the envelope can be measured against FVSpn_g16.
-    _wcbnd = _wc_dg
+    # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn compiles the same
+    # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
+    _wcbnd = _wc_dg || _pn_dg                 # FVSpn links the same dgbnd.f (FVSpn_buildDir/dgbnd.f == wc's)
     # WC applies dwarf-mistletoe MISDGF INSIDE DGDRIV, BEFORE DGBND, on the record and both tripled copies
     # (wc/dgdriv.f:216,245,252,260); so min(DG·MISDGF, DGMAX), not min(DG, DGMAX)·MISDGF (ie_dm_growth_loss!
     # skips WC via _mis_dg_in_driver). START-of-cycle DMR, same as the post-driver path.

@@ -64,13 +64,19 @@ const WC_BM5 = Float32[0.00063849,0.00063849,0.00063849,0.00063849,0.00063849,0.
     return rip
 end
 
-function mortality!(s::StandState, ::WestCascades; fint::Float32 = 10.0f0, book_snags::Bool = true)
+# morts.f:337 `IF (VARACD.EQ.'WC') XSITE1=5.21486+0.66486*SITEAR(16)` — PN (same morts.f) keeps the raw DF SITEAR.
+_wcpn_mort_xsite1(::WestCascades, si16::Float32) = 5.21486f0 + 0.66486f0 * si16
+
+mortality!(s::StandState, v::WestCascades; fint::Float32 = 10.0f0, book_snags::Bool = true) =
+    _wcpn_mortality!(s, v; fint = fint, book_snags = book_snags)
+
+function _wcpn_mortality!(s::StandState, v; fint::Float32 = 10.0f0, book_snags::Bool = true)
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     sd = s.coef.species
     ba = p.basal_area; avh = p.avg_height
-    xsite1 = 5.21486f0 + 0.66486f0 * p.sp_site_index[16]   # WC: Curtis→King DF SI
+    xsite1 = _wcpn_mort_xsite1(v, p.sp_site_index[16])     # DF SI (King-converted for WC only)
     xsite2 = p.sp_site_index[19]                            # WH SI
     dbhstage = s.control.dbh_stage                          # WC LZEIDE=.FALSE. ⇒ Reineke/Stage min DBH
     sdimax = clim_sdical_xmax(s, stand_sdimax(s), fint)   # SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
