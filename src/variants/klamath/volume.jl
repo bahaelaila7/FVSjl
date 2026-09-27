@@ -334,7 +334,10 @@ BFTOPD·BARK tops (fvsvol.f:337-512). VOL(7) topwood + the DBHMIN gate + the bar
 are the remaining merch-driver pieces (measured, not yet ported) — see docs/NC_VARIANT_PORT_AUDIT.md.
 Needs CUTFLG/CUPFLG=1 (NC .sum ⇒ on). ERRFLAG paths: d<1 or h<5 ⇒ 0."
 function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32; mtopp::Float32 = 6.0f0,
-                     bftop::Float32 = mtopp)
+                     bftop::Float32 = mtopp, ht2td = nothing)
+    # `ht2td` (optional 2-slot buffer) ← [HT1PRD cubic call, HT1PRD board call]: profile.f MERLEN non-Flewelling
+    # branch, HT1PRD = LMERCH + STUMP with LMERCH = FIRST/10 − STUMP floored at 0 (profile.f:1011-1052, :342).
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     length(voleq) < 10 && return (0f0, 0f0, 0f0)
     (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)
     sp = _nc_r5tap_sp(voleq[8:10])
@@ -349,6 +352,10 @@ function nc_wo2w_vol(voleq::AbstractString, d::Float32, h::Float32; mtopp::Float
     # standalone VOLINITNVB oracle driver on WS/NC trees (SP 450, DF 470, OS 40 — the old path gave 440/460/50).
     bf  = _fw2_board(dibat, h, bftop, stump, minl, merl;
                      hs_solver = top -> nc_merlen(dibat, top, h, stump) + stump)   # VOL(2) Scribner
+    if ht2td !== nothing
+        ht2td[1] = nc_merlen(dibat, mtopp, h, stump) + stump
+        ht2td[2] = bftop == mtopp ? ht2td[1] : nc_merlen(dibat, bftop, h, stump) + stump
+    end
     return (max(tcf, 0f0), max(mcf, 0f0), max(bf, 0f0))
 end
 
@@ -477,12 +484,15 @@ TTH≤17.8 or when the DIB at 17.3 ft < MTOPP."
 # nc/formcl.f BLM712 — Coos Bay BLM (IFOR 7) per-species form class; every other non-Siskiyou forest = 80.
 const NC_BLM712_FC = Float32[74, 76, 76, 78, 72, 66, 72, 74, 78, 80, 70, 75]
 
-function nc_blmvol_vol(sp::Int, d::Float32, h::Float32, bark::Float32; fclass::Float32 = 80f0, ifor::Int = 5)
+function nc_blmvol_vol(sp::Int, d::Float32, h::Float32, bark::Float32; fclass::Float32 = 80f0, ifor::Int = 5,
+                       ht_out = nothing)
+    ht_out === nothing || (ht_out[] = 0f0)
     (d < 1f0 || h <= 0f0) && return (0f0, 0f0, 0f0)    # DBHOB<=0 (errflag3) / HTTOT<=0 (errflag4) ⇒ all zero
     # 712 Coos Bay (IFOR 7): VOLEQDEF gives DF B02BEHW202 (705 Hoopa: B01) ⇒ BLMTAPEQ PROFILE 2 / TAPEQU 2.
     eq = (ifor == 7 && sp == 3) ? "B02BEHW202" : NC_R7_VOL_EQ[sp]
-    # MTOPP = TOPD(=5.0)·BARK for both calls (TOPD==BFTOPD) ⇒ one BLMVOL pass yields VOL(1)/VOL(4)/VOL(2).
-    v1, v2, v4 = blm_vol(eq, 5.0f0 * bark, h, d, trunc(Int, fclass); bfpflg = true)
+    # MTOPP = TOPD(=5.0)·BARK for both calls (TOPD==BFTOPD) ⇒ one BLMVOL pass yields VOL(1)/VOL(4)/VOL(2)
+    # (and the one HT1PRD, blmvol.f:427, both calls return).
+    v1, v2, v4 = blm_vol(eq, 5.0f0 * bark, h, d, trunc(Int, fclass); bfpflg = true, ht_out = ht_out)
     return (max(v1, 0f0), max(v4, 0f0), max(v2, 0f0))
 end
 
@@ -496,8 +506,13 @@ function compute_volumes_nc!(s::StandState)
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
     isr6 = Int(s.plot.forest_idx) == 4       # SISKIYOU (IFOR 4, forest 611) = Region-6 VOLEQDEF branch
     isr7 = Int(s.plot.forest_idx) in (5, 7)  # Region 7 (705 Hoopa IFOR 5, 712 BLM Coos Bay IFOR 7) = BLMVOL branch (voleqdef R7 table)
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores the NVEL HT1PRD
+    # (BFMIND = DBHMIN = 9 for NC, nc/grinit.f).
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2); ht7 = Ref(0f0)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        htb[1] = 0f0; htb[2] = 0f0
         if d < 1f0 || sp < 1 || sp > 12
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
@@ -510,7 +525,9 @@ function compute_volumes_nc!(s::StandState)
         if isr7
             # Region-7 (Hoopa 705): NVEL BLMVOL (Behre-hyperbola BLM taper), FC=80, TOPD=5.0.
             tcf7, mcf7, bf7 = nc_blmvol_vol(sp, d, hv0, bark;
-                                            fclass = Int(s.plot.forest_idx) == 7 ? NC_BLM712_FC[sp] : 80f0, ifor = Int(s.plot.forest_idx))
+                                            fclass = Int(s.plot.forest_idx) == 7 ? NC_BLM712_FC[sp] : 80f0, ifor = Int(s.plot.forest_idx),
+                                            ht_out = ht7)
+            d >= dbhmin0 && (t.merch_top_cf[i] = ht7[]; t.merch_top_bf[i] = ht7[])
             tcf7, mcf7, bf7 = r4_topkill(t, i, sp, d, hv0, bark, tcf7, mcf7, bf7, ncmerch, _R4_TOPD5)
             t.cuft_vol[i] = max(tcf7, 0f0)
             t.merch_cuft_vol[i] = d >= dbhmin0 ? max(mcf7, 0f0) : 0f0
@@ -523,13 +540,17 @@ function compute_volumes_nc!(s::StandState)
             eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
             local tcf6::Float32, mcf6::Float32, bf6::Float32
             if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
-                tcf6, mcf6, bf6 = wc_fw2_westside_vol(eq6, d, hv0, bark; topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp])
+                tcf6, mcf6, bf6 = wc_fw2_westside_vol(eq6, d, hv0, bark; topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp],
+                                                      ht2td = htb)
             elseif m6 == "FW2"                              # INGY (I00) — reuse cr_fw2_vol
-                v = cr_fw2_vol(eq6, d, hv0; bark = bark, topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp], stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)
+                v = cr_fw2_vol(eq6, d, hv0; bark = bark, topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp], stump = 1f0, iregn = 6,
+                               board_cor = 'N', merch_opt = 23, sf_hs = true, ht2td = htb)
                 tcf6 = max(v[1], 0f0); mcf6 = max(v[4] + v[7], 0f0); bf6 = max(v[2], 0f0)
             else                                            # 616BEHW Behre
                 tcf6, mcf6, bf6 = nc_behre_vol(sp, d, hv0, bark; topd = c.sp_top_diam[sp])
+                htb[1] = r6vol_ht1prd(d, nc_siskfc(sp, d), c.sp_top_diam[sp] * bark, hv0, d - d * (1f0 - bark)); htb[2] = htb[1]
             end
+            d >= dbhmin0 && (t.merch_top_cf[i] = htb[1]; t.merch_top_bf[i] = htb[2])
             tcf6, mcf6, bf6 = r4_topkill(t, i, sp, d, hv0, bark, tcf6, mcf6, bf6, ncmerch, _BM_TOPD45)
             t.cuft_vol[i] = max(tcf6, 0f0)
             t.merch_cuft_vol[i] = d >= dbhmin0 ? max(mcf6, 0f0) : 0f0
@@ -551,7 +572,8 @@ function compute_volumes_nc!(s::StandState)
         # FVSnc_g16 DEBUG FVSVOL: PP D11.5 TOPDIAM 5.148 = 6·0.858).
         topib = c.sp_top_diam[sp] * bark; bftib = c.sp_bf_topd[sp] * bark
         if mdl == "WO2"
-            tcf, mcf, bf = nc_wo2w_vol(eq, d, hv; mtopp = topib, bftop = bftib)
+            tcf, mcf, bf = nc_wo2w_vol(eq, d, hv; mtopp = topib, bftop = bftib, ht2td = htb)
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1]; t.merch_top_bf[i] = htb[2])
             # Broken/killed-top reduction (fvsvol.f CFTOPK/BFTOPK) — WO2W conifer/redwood path only; the DVE
             # California-hardwood path skips CFTOPK (fvsvol.f). NC merch TOPD=6.0 (nc/sitset.f DEFAULT).
             tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, ncmerch, _R4_TOPD6)
@@ -580,17 +602,20 @@ end
 # depends only on species + variant, not the forest). fvsvol.f passes the tops INSIDE bark (TOPD·BARK /
 # BFTOPD·BARK, BARK = start-of-cycle BRATIO) and mrules.f REGN 5 (stump 1, MINLEN 2, MERCHL 8, COR 'Y',
 # OPT 22). Returns (tcuft VOL1, merch cuft VOL4 (SPFLG=0), scribner VOL2) before the CFTOPK/BFTOPK trim.
-function nvel_r5_vol(eq::AbstractString, d::Float32, hv::Float32, bark::Float32, topd::Float32, bftopd::Float32)
+function nvel_r5_vol(eq::AbstractString, d::Float32, hv::Float32, bark::Float32, topd::Float32, bftopd::Float32;
+                     ht2td = nothing)
+    # `ht2td` ← [cubic, board] HT1PRD (WO2W MERLEN, INGY SF_HS); R5HARV (DVE) sets none ⇒ 0.
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     m = eq[4:6]
     if m == "WO2"
-        return nc_wo2w_vol(eq, d, hv; mtopp = topd * bark, bftop = bftopd * bark)
+        return nc_wo2w_vol(eq, d, hv; mtopp = topd * bark, bftop = bftopd * bark, ht2td = ht2td)
     elseif m == "DVE"
         tcf, mcf, bf = nc_r5harv_vol(eq, d, hv, topd * bark)
         bftopd != topd && (bf = nc_r5harv_vol(eq, d, hv, bftopd * bark)[3])
         return (tcf, mcf, bf)
     else                                            # INGY FW2 (e.g. GF I15FW2W017) — cr_fw2_vol applies ·bark itself
         v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = 1f0,
-                       iregn = 5, board_cor = 'Y', merch_opt = 22)
+                       iregn = 5, board_cor = 'Y', merch_opt = 22, sf_hs = true, ht2td = ht2td)
         return (max(v[1], 0f0), max(v[4], 0f0), max(v[2], 0f0))
     end
 end
