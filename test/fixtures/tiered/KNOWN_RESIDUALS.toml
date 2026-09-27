@@ -1495,17 +1495,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -1776,17 +1765,6 @@ year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 37 cells [ulp1=1 ulp2_16=2 ulpbig=34] max|Δ|=0.2574 | e.g. stand 647500316126144 year 2038: live=1.149999976158142 jl=1.2000000476837158"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
 
 [[residual]]
 variant = "BM"
@@ -6896,17 +6874,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=0 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -7540,17 +7507,6 @@ year = "*"
 status = "OPEN"
 max_cells = 29
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 29 cells [ulp2_16=1 ulpbig=28] max|Δ|=0.9057 | e.g. stand 11855985010690 year 2016: live=0.37094685435295105 jl=0.699999988079071"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -11670,17 +11626,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 216786838010854 year 2029: live=0 jl=1"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -12226,17 +12171,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=0.155 | e.g. stand 216786838010854 year 2009: live=0.019999999552965164 jl=0.17499999701976776"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 216786838010854 year 2029: live=0 jl=1"""
 
 [[residual]]
 variant = "SN"
@@ -18566,17 +18500,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EM
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 5352355010661 year 2044: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -19243,17 +19166,6 @@ year = "*"
 status = "OPEN"
 max_cells = 48
 issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 48 cells [ulpbig=48] max|Δ|=0.55 | e.g. stand 474187636489998 year 2036: live=0.75 jl=0.44999998807907104"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 474187636489998 year 2066: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
