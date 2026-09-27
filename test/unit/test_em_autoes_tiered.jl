@@ -274,6 +274,20 @@ end
     end
 end
 
+# Climate-FVS is REAL*4: clmaxden.f:119 / clgmult.f:103 EXP, clmorts.f:108/221/227 EXP(LOG(X)/10.)**FINT and
+# (DMORT)**2.5, clauestb.f:55 XX**(-1.605) and clgmult.f:234 XGSITE**CLGROWMULT are glibc expf/logf/powf, and
+# clauestb.f's TPROB is DENSE's IND1-order sum. jl used Julia's own Float32 exp/log/^ and a record-order TPROB
+# (MEASURED FVSem_g16 684750664126144 climate: MxDenMult live 0.99999994, jl 0.999999881; AutoEstbTPA
+# 104.387825 vs 104.387848 — 24 FVS_Climate cells, now 0).
+@testset "Climate-FVS at gfortran REAL*4 precision (expf/logf/powf, DENSE TPROB) vs FVSem_g16" begin
+    for cn in ("684750664126144", "2999215010690")
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("EM", cn, "climate"; dir = d)
+        @test !crashed
+        @test count(m -> m.file == "FVS_Climate", compare_case("EM", cn, "climate", txt, db)) == 0
+    end
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

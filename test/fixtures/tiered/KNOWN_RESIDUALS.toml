@@ -53,29 +53,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "climate"
 file = "FVS_Climate"
-col = "MxDenMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 244
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 267 cells [small=201 tiny=43 ulp2_16=23] max|Δ|=0.02895 | e.g. stand 647500316126144 year 2058: live=1.03125823 jl=1.0078240633010864"""
-# 2026-09-26 bm-clim-mort: max_cells 267 -> 244 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
-col = "SiteMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 339
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 339 cells [tiny=339] max|Δ|=1.224e-7 | e.g. stand 647500316126144 year 2058: live=1.08545697 jl=1.0854569673538208"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
 col = "TPA"
 stand = "*"
 year = "*"
@@ -2106,17 +2083,6 @@ year = "*"
 status = "OPEN"
 max_cells = 255
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 255 cells [small=25 tiny=230] max|Δ|=0.08826 | e.g. stand 1287253083290487 year 2042: live=0.38806662 jl=0.3880666196346283"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Climate"
-col = "MxDenMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 171
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 171 cells [small=17 tiny=126 ulp2_16=28] max|Δ|=0.001417 | e.g. stand 1287253083290487 year 2062: live=0.998583198 jl=0.9999998807907104"""
 
 [[residual]]
 variant = "IE"
@@ -11703,90 +11669,12 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 variant = "EM"
 regime = "climate"
 file = "FVS_Climate"
-col = "AutoEstbTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 214
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 202 cells [material=66 small=16 tiny=120] max|Δ|=41.29 | e.g. stand 474187636489998 year 2056: live=79.5270233 jl=79.52702331542969"""
-# 2026-09-26 integ-0926: max_cells 202 -> 214 (clim-west faithful DDS·WK4 (bm/dgdriv.f:236) moves BM climate cells; ie-regent/EM AUTOES ABIRTH move EM climate)
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 132
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 132 cells [material=5 small=73 tiny=48 ulpbig=6] max|Δ|=9.826 | e.g. stand 474187636489998 year 2056: live=8.16279697 jl=8.158371925354004"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "GrowthMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 131
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 131 cells [small=30 tiny=95 ulpbig=6] max|Δ|=0.1012 | e.g. stand 474187636489998 year 2056: live=1.34060228 jl=1.3405932188034058"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "MxDenMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 110
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 110 cells [small=5 tiny=94 ulp2_16=11] max|Δ|=0.001558 | e.g. stand 242065538010661 year 2020: live=0.99999994 jl=1.0"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "SiteMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 262
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 260→262) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 260 cells [tiny=260] max|Δ|=1.177e-7 | e.g. stand 474187636489998 year 2056: live=1.08596611 jl=1.0859661102294922"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 132
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 132 cells [material=35 small=26 tiny=71] max|Δ|=131.7 | e.g. stand 474187636489998 year 2056: live=56.2041931 jl=56.20414733886719"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
 col = "ViabMort"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 51
 issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 49→51) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [small=1 tiny=48] max|Δ|=5.965e-8 | e.g. stand 474187636489998 year 2046: live=0.0278182626 jl=0.027818262577056885"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Climate"
-col = "dClimMort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 57
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 55→57) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 55 cells [small=27 tiny=28] max|Δ|=0.006821 | e.g. stand 474187636489998 year 2056: live=0.52744925 jl=0.5274292230606079"""
 
 [[residual]]
 variant = "EM"
@@ -11798,28 +11686,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 56
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 56
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
 
 [[residual]]
 variant = "EM"
