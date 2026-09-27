@@ -12484,17 +12484,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 variant = "SN"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "PtBAL"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [material=1 ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=93.0 jl=96.0"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "TCuFt"
 stand = "*"
 year = "*"
