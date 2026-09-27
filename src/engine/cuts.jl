@@ -169,12 +169,20 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             if ssng > 0f0
                 add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
                           bolevol = bolevol, fallvol = fallvol, height = t.height[i])
+                # fmscut.f:157 FMSADD(IY,2) → fmsadd.f:306 FMSCRO(I,…,UNFIRE=SNGNEW,ITYP=2): a standing yarding-loss
+                # snag keeps its crown, scheduled into CWD2B2 like any new snag (its crown is NOT in the CTCRWN slash).
+                # AK only here (base code): akffe 1993 Standing_Snag_lt3 0.01872 live vs 0.01228 without it.
+                s.variant isa SoutheastAlaska &&
+                    fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                            ssng, clamp(ffe_dkr_cls(s, sp), 1, 4))
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
-            if dsng > 0f0
+            if dsng > 0f0 && s.variant isa SoutheastAlaska
+                _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
+            elseif dsng > 0f0
                 idc = ffe_dkr_cls(s, sp)
                 (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
                 addH = fallvol * dsng
@@ -191,6 +199,40 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     push!(s.control.cut_log,
           (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
+    return
+end
+
+# fmcwd.f ENTRY CWD3 (+ the shared label-1000 cone split): the DOWNED yarding-loss bole of a cut tree. TVOLI =
+# FMSVL2(…,'D') = MAX(0.005454154·H, TCF) at the tree's current (D, H) (NATCRS, current bark); each size class j gets
+# DIF = MAX(0, P(LOCUT)−P(HICUT))·TVOLI·DIH of the hard (K=2, LOHT=0.10) cone — NOT renormalized — booked only if
+# DIF > 1E-6, as ADD = DIF·V2T·SCNV(2)=1 into CWD(1,j,2,DKRCLS). A stem with HT ≤ 4.5 (RHRAT ≤ 0) puts every
+# breakpoint above the top, so it adds nothing. AK only here (the shared jl path normalizes the split and dumps short
+# stems whole into the DBH class): akffe 1993 THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only),
+# jl 4.747E-3.
+function _cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32)
+    dih <= 0f0 && return
+    htd = hth
+    tvoli = max(0.005454154f0 * htd, ak_tree_vol(s, sp, dbh, htd)[1])
+    diam = dbh <= 0.1f0 ? 0.1f0 : dbh
+    rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * diam)
+    bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))   # BPH(0:9) → 1:10
+    loht = 0.10f0; hiht = htd
+    r1 = diam * 0.0416666667f0
+    htd > 4.5f0 && (r1 = r1 + (loht * ((r1 * htd) / (htd - 4.5f0))))
+    r1sq = r1 * r1
+    v2t = coef_col(s.coef, :v2t)[sp] / 2000f0              # fmvinit.f:466 V2T = lb/cuft / 2000
+    idc = ffe_dkr_cls(s, sp)
+    @inbounds for j in 1:9
+        (hiht <= bph[j + 1] || loht > bph[j]) && continue
+        hicut = hiht > bph[j] ? bph[j] : hiht
+        locut = loht <= bph[j + 1] ? bph[j + 1] : loht
+        locut == hicut && continue
+        r2 = r1 * (1f0 - (hicut / htd)); p1 = ((r2 * r2) * (htd - hicut)) / (r1sq * htd)
+        r2 = r1 * (1f0 - (locut / htd)); p2 = ((r2 * r2) * (htd - locut)) / (r1sq * htd)
+        dif = max(0f0, p2 - p1) * tvoli
+        dif = dif * dih
+        dif > 1f-6 && (s.fire.cwd[j, 2, idc] += dif * v2t * 1.00f0)
+    end
     return
 end
 

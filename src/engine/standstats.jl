@@ -91,7 +91,7 @@ end
 # Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
 # association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
-_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
@@ -113,7 +113,7 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
+        sd2 += (s.variant isa BlueMountains || s.variant isa SoutheastAlaska) ? d * (d * p) : p * d^2   # AK: ak/dense.f ≡ bm
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
