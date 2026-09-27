@@ -95,7 +95,8 @@ end
     @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) == 56
     # every .sum column, incl. removals/after-treatment/accretion/mortality and MAI (evtstv.f TOTREM = Σ the INTEGER
     # removed merch: the shelterwood's 2010 MAI (1537+163)/80 = 21.25 prints "21.2")
-    full(path) = Dict((k, l) for (k, l) in enumerate(filter(l -> occursin(r"^(19|20)\d\d ", l), readlines(path))))
+    isrow(l) = (f = split(l); length(f) > 20 && length(f[1]) == 4 && all(isdigit, f[1]))
+    full(path) = Dict((k, l) for (k, l) in enumerate(filter(isrow, readlines(path))))
     lf = full(joinpath(fx, "akt01.live.sum")); jf = full(joinpath(dir, "jl.sum"))
     @test length(lf) == 56 && all(k -> split(get(jf, k, "")) == split(lf[k]), keys(lf))
 end
@@ -120,13 +121,14 @@ end
         rows_by_id("jl.sum")
     end
     exact = ("10705712010497", "10706339010497", "10708179010497", "10708351010497", "1549083042290487",
-             "24731081010497", "24739066010497", "644808316126144", "666740939126144", "720755825290487")
+             "24731081010497", "24739066010497", "38178692010760", "644808316126144", "666740939126144",
+             "720755825290487")
     for sid in exact
         ks = [k for k in keys(live) if k[1] == sid]
         @test length(ks) == 7
         @test all(k -> get(jl, k, nothing) == live[k], ks)
     end
-    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 81
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 82
     # every .sum column of the exact stands — incl. MAI: 720755825290487 has no inventory AGE (0) but trees, so
     # evtstv.f MAIFLG shuts MAI off (0.0) for every row
     function lines_by_id(path)
@@ -143,4 +145,38 @@ end
     for sid in exact
         @test all(k -> get(jf, k, nothing) == lf[k], [k for k in keys(lf) if k[1] == sid])
     end
+end
+
+@testset "AK FIA FVS_TreeList vs live FVSak (38178692010760, every record, 2009 + 2049)" begin
+    # aktl.key = one ak_fia.db stand, TREELIDB, 6 cycles; aktl.live.csv = the live FVS_TreeList rows for the inventory
+    # year (incl. the 14 inventory-dead records) and 2049, Float32 bit patterns. Exercises: HT2TD (Ht2TDCF/BF = the
+    # NVEL PROFILE HT1PRD through f_alaska.f SHP_AK's REAL*4 DMEDIAN/DFORM, SF_YHAT at sf_yhat.f precision, DBHIB =
+    # D−D·(1−BARK)); vols.f skipping PROB=0 records (15 WH seedlings killed at 1.4" keep TCuFt 0); estab.f resetting a
+    # reused slot's WK2 (MortPA); CrWidth on the IND1-order stand BA; the inventory DG/HtG = WORK1/HTG (0, not −1).
+    fx = joinpath(@__DIR__, "..", "fixtures", "southeastalaska")
+    lines = readlines(joinpath(fx, "aktl.live.csv"))
+    hdr = split(lines[1], ',')
+    live = Dict{Tuple{Int,Int},Vector{String}}()
+    for l in lines[2:end]
+        f = split(l, ','); live[(parse(Int, f[1]), parse(Int, f[2]))] = String.(f[3:end])
+    end
+    dir = mktempdir()
+    for f in ("aktl.key", "ak_fia.db"); cp(joinpath(fx, f), joinpath(dir, f)); end
+    rows = cd(dir) do
+        FVSjl.run_keyfile("aktl.key"; variant = FVSjl.SoutheastAlaska(), output = :sum)
+        db = FVSjl.SQLite.DB(joinpath(dir, "FVSOut.db"))
+        out = Dict{Tuple{Int,Int},Vector{String}}()
+        q = "SELECT Year,TreeIndex,PctCr," * join(hdr[4:end], ",") * " FROM FVS_TreeList WHERE Year IN (2009,2049)"
+        for r in FVSjl.DBInterface.execute(db, q)
+            v = collect(r)
+            out[(Int(v[1]), Int(v[2]))] = vcat(string(Int(v[3])),
+                [string(reinterpret(UInt32, Float32(x)), base = 16, pad = 8) for x in v[4:end]])
+        end
+        FVSjl.SQLite.close(db)
+        out
+    end
+    @test length(live) == 742
+    @test length(rows) == length(live)
+    bad = [k for k in keys(live) if get(rows, k, String[]) != live[k]]
+    @test isempty(bad)
 end

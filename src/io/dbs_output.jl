@@ -1358,8 +1358,17 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
     met = _metric_variant(s.variant)
+    # AK inventory list: dbstrls.f:215-216 binds DGI = WORK1(I) at ICYC=0 — ak/dgdriv.f DO 220 leaves WORK1 = the
+    # measured DG only when DG>0 and HT>4.5, else 0 (the dubbed DG is not reported) — and DHTG = HTG(I), 0 when no
+    # increment was read. jl keeps its −1 "missing" sentinel in both (FIA 720755825290487 2019: WS 31/32, BE 5, AS
+    # seedlings printed −1 vs live 0).
+    ak0 = cycle == 0 && s.variant isa SoutheastAlaska
     @inbounds for i in _ind1_order(s)
         r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g))
+        if ak0
+            (t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0) || (r[12] = 0.0)
+            t.ht_growth[i] < 0f0 && (r[14] = 0.0)
+        end
         push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead

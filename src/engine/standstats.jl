@@ -95,9 +95,11 @@ _dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa SoutheastAlaska
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
-        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
+        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order). AK (ak/dense.f
+        # identical): the BA feeds the cwcalc (BAREA+1)^cba crown width — record-order BA put FVS_TreeList CrWidth 1 ULP
+        # off on 147/286 records (FIA 720755825290487 2039).
         @inbounds for i in _ind1_order(s)
             d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
         end
