@@ -59,16 +59,15 @@ function em_dgcons!(s::StandState)
         xslope = wy ? slope / 10f0 : slope
         sp == 18 && (xslope = 0f0)
         dgcon = EM_DGHAB[isphab, sp] + EM_DGFOR[ispfor, sp] + EM_DGEL[sp] * elev + EM_DGEL2[sp] * elev * elev +
-                (EM_DGSASP[sp] * sin(tmpasp) + EM_DGCASP[sp] * cos(tmpasp) + EM_DGSLOP[sp]) * xslope +
+                (EM_DGSASP[sp] * fsin(tmpasp) + EM_DGCASP[sp] * fcos(tmpasp) + EM_DGSLOP[sp]) * xslope +
                 EM_DGSLSQ[sp] * xslope * xslope
         c.dg_dsq[sp] = EM_DGDS[ispdsq, sp]
         ccf = 0f0
         if sp == 4
-            # LM CCF coefficient: the base DGCCF(4)=−0.199592 (LM table) PLUS the em/dgf.f:489 addition
-            # `CONSPP += 0.01·(−0.199592)·RELDEN` — live applies −0.199592 TWICE. jl previously had it once, so
-            # CONSPP ran 0.01·0.199592·RELDEN too high ⇒ LM DDS/DG ~+17% over. MEASURED via FVSem_g16 (live CONSPP
-            # 0.8055 vs jl 0.9689; post-fix jl LM DDS 2.1602==live 2.1602, 1.6371==live 1.6371). Fold both into ccf.
-            ccf = -0.199592f0 - 0.199592f0; c.atten[sp] = EM_OBSERV[isic, sp]; dgcon += 0.001766f0 * xsite
+            # LM CCF coefficient: the base DGCCF(4)=−0.199592 (LM table); em/dgf.f:489 then ADDS a second
+            # `CONSPP += .01*(-.199592)*RELDEN` (live applies −0.199592 TWICE — MEASURED FVSem_g16 LM CONSPP 0.8055).
+            # The second term is added separately in dgf! (Fortran order; folding both into one DGCCF rounds differently).
+            ccf = -0.199592f0; c.atten[sp] = EM_OBSERV[isic, sp]; dgcon += 0.001766f0 * xsite
         elseif sp == 5
             ccf = EM_DGCCFA[ispccf]; c.atten[sp] = EM_OBSERV[min(isphab, 6), sp]
         elseif sp == 12 || sp == 17
@@ -77,7 +76,7 @@ function em_dgcons!(s::StandState)
             c.atten[sp] = EM_OBSERV[1, sp]
         end
         c.dg_ccf[sp] = ccf
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         # EM bark (em/bratio.f) as bark_ratio(bark_a,bark_b)= (bark_a + bark_b·d)/d = bark_b + bark_a/d, for the
         # DBH update (simulate.jl dbh+=DG/bark). IMAP=2→BARK1 const (bark_a=0,bark_b=BARK1); IMAP=3→BARK1+BARK2/D
@@ -163,14 +162,14 @@ end
 @inline function _em_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)::Float32
     rel = rmsqd > 0f0 ? d / rmsqd : 0f0
     aspcr = cr / 10f0
-    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    pot = (0.4755f0 - 3.8336f-6 * fpow(d, 4.1488f0)) + (4.510f-2 * aspcr * fpow(d, 0.67266f0))
     pot <= 0f0 && (pot = 0.01f0)
-    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
-    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    fofr = 1.07528f0 * (1f0 - fexp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * fpow(rmsqd + 1f0, 0.73355f0)
     baact = ba >= 310f0 ? 305f0 : ba
-    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    valmod = 1f0 - fexp(-fofr * gofad * fpow((310f0 - baact) / 310f0, 0.5f0))
     predgr = pot * valmod * (0.48630f0 + 0.01258f0 * si)
-    return log(2f0 * d * bark * predgr + predgr * predgr)
+    return flog(2f0 * d * bark * predgr + predgr * predgr)
 end
 
 # em/dgf.f main body — per-tree WK2 = DDS (outside-bark). emt01 exercises only the MAIN Wykoff path;
@@ -179,17 +178,18 @@ function dgf!(s::StandState, ::EasternMontana)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
     relden = p.relative_density
-    alccf = relden > 0f0 ? log(relden) : 0f0
+    alccf = relden > 0f0 ? flog(relden) : 0f0
     ba = p.basal_area
     managed = p.managed == Int32(1)
     dum1 = managed ? 1f0 : 0f0; dum2 = managed ? 0f0 : 1f0
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
-        ald = log(d)
+        ald = flog(d)
         cr  = Float32(t.crown_pct[i]) * 0.01f0
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba                 # PCT = BA percentile
         conspp = c.dg_const[sp] + c.dg_cor[sp] + 0.01f0 * c.dg_ccf[sp] * relden
+        sp == 4 && (conspp = conspp + (0.01f0 * (-0.199592f0)) * relden)   # em/dgf.f:489 (constant-folded .01*(-.199592))
         if sp == 4 || sp == 5
             # NI section (LM/LL, em/dgf.f:563-566): BAL uses BA100=BA/100; no PCCF/RELDEN²/DGLCCF terms. conspp
             # carries the sp4 CCF = base DGCCF(4)+line-489 addition (BOTH −0.199592, see em_dgcons!). VALIDATED
@@ -198,7 +198,7 @@ function dgf!(s::StandState, ::EasternMontana)
             bal100 = (1f0 - t.crown_ratio[i] / 100f0) * (ba / 100f0)
             dds = conspp + EM_DGLD[sp] * ald + EM_DGBAL[sp] * bal100 +
                   cr * (EM_DGCR[sp] + cr * EM_DGCRSQ[sp]) + c.dg_dsq[sp] * d * d +
-                  EM_DGDBAL[sp] * bal100 / log(d + 1f0)
+                  EM_DGDBAL[sp] * bal100 / flog(d + 1f0)
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 6
@@ -211,7 +211,7 @@ function dgf!(s::StandState, ::EasternMontana)
             (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
             dds < -9.21f0 && (dds = -9.21f0)                # shared floor (em/dgf.f:593)
             wk2[i] = dds
         elseif sp == 12 || sp == 17
@@ -222,7 +222,7 @@ function dgf!(s::StandState, ::EasternMontana)
             rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
             cor2 = (s.control.dg_cor2_on && s.control.dg_cor2[sp] > 0f0) ? s.control.dg_cor2[sp] : 1f0
-            dds = aspdg + log(cor2) + c.dg_cor[sp]
+            dds = aspdg + flog(cor2) + c.dg_cor[sp]
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 11 || (13 <= sp <= 16) || sp == 19
@@ -238,7 +238,7 @@ function dgf!(s::StandState, ::EasternMontana)
             if diagr <= 0f0
                 dds = -9.21f0
             else
-                dds = log(diagr * (2f0 * dpp * bark + diagr))
+                dds = flog(diagr * (2f0 * dpp * bark + diagr))
                 dds < -9.21f0 && (dds = -9.21f0)            # internal floor (em/dgf.f:557)
             end
             dds = dds + c.dg_cor[sp] + c.dg_const[sp]
@@ -252,10 +252,11 @@ function dgf!(s::StandState, ::EasternMontana)
                   EM_DGBAL[sp]  * bal +
                   cr * (EM_DGCR[sp] + cr * EM_DGCRSQ[sp]) +
                   c.dg_dsq[sp]  * d * d +
-                  EM_DGDBAL[sp] * bal / log(d + 1f0) +
-                  EM_DGPCCF[sp] * relden * relden +
+                  EM_DGDBAL[sp] * bal / flog(d + 1f0) +
+                  EM_DGPCCF[sp] * (relden * relden) +             # DGPCCF*(RELDEN**2): the square first
                   EM_DGLCCF[sp] * alccf +
-                  (dum1 * EM_DGPCC1[sp] + dum2 * EM_DGPCC2[sp]) * pccf
+                  EM_DGPCC1[sp] * dum1 * pccf +                   # em/dgf.f:559-560 two separate terms
+                  EM_DGPCC2[sp] * dum2 * pccf
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         end

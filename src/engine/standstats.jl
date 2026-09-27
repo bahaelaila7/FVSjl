@@ -91,13 +91,15 @@ end
 # Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
 # association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
-_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+# EM compiles the identical dense.f (FVSem_buildDir/dense.f == ie/bm modulo CRLF) and its IND1 lineage is live-exact (the
+# birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
+_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa EasternMontana
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
-        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
+        # (live-measured on BM, IE and EM — FVSem_g16 196378260020004 cyc1 BAL/DDS; see the _dense_order note).
         @inbounds for i in _ind1_order(s)
             d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
         end
@@ -111,7 +113,7 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
+        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana) ? d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
@@ -434,10 +436,19 @@ function stand_ccf(s::StandState)
         end
         return ccf
     elseif s.variant isa EasternMontana
-        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form).
-        @inbounds for i in 1:t.n
-            ccf += em_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form). dense.f (the
+        # IE/BM file) accumulates it SPECIES-MAJOR in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC)
+        # (MEASURED FVSem_g16 196378260020004 cyc1 RELDEN 42B41C64 vs the flat record-order sum 42B41C67).
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += em_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Utah
         # UT CCF is the same direct per-species polynomial (ut/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.

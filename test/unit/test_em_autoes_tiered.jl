@@ -19,9 +19,26 @@ end
 _eq(a, b) = a == b || (let x = tryparse(Float64, a), y = tryparse(Float64, b); x !== nothing && x == y end)
 
 const STAND = "196378260020004"
-const _run = let d = mktempdir()
-    _, db, crashed, err = run_case("EM", STAND, "none"; dir = d)
+function _run_stand(cn)
+    d = mktempdir()
+    _, db, crashed, err = run_case("EM", cn, "none"; dir = d)
     (db = db, crashed = crashed, err = err)
+end
+const _run = _run_stand(STAND)
+# Number of FVS_TreeList cells (every column but the keys) that differ from the live golden in the given years.
+function _treelist_diffcells(cn, db, years)
+    gold = _keyed(read_csv(joinpath(fixture_dir("EM"), "$(cn)_none.FVS_TreeList.csv"))...)
+    got  = _keyed(db_table_rows(db, "FVS_TreeList")...)
+    n = 0
+    for (k, g) in gold
+        k[1] in years || continue
+        haskey(got, k) || (n += 1; continue)
+        for (c, v) in g
+            c in ("StandID", "CaseID") && continue
+            _eq(v, get(got[k], c, "")) || (n += 1)
+        end
+    end
+    n
 end
 
 @testset "EM AUTOES per-point topography (estab.f:474-479) — 196378260020004 cohort 2031 vs FVSem_g16" begin
@@ -48,5 +65,17 @@ end
     for c in ("Ht", "HtG", "DBH", "DG", "PctCr")
         @test count(k -> haskey(got, k) && !_eq(gold[k][c], got[k][c]), es) == 0
     end
+end
+
+# EM growth kernels at gfortran single precision: em/htgf.f + pothtg.f EXP/ALOG/** are glibc expf/logf/powf (fexp/flog/
+# fpow), and the RALPH term folds `-0.1*18.158` to 1.8158001 at compile time; em/dgf.f DGCONS SIN/COS (sinf/cosf), ALOG,
+# DGPCCF*(RELDEN**2) and the LM `.01*(-.199592)*RELDEN` second term in Fortran order; dense.f (the IE/BM file) sums BA/
+# TSUMD2 as D*(D*P) and RELDEN as species-major RELDSP subtotals in IND1 order. MEASURED FVSem_g16 196378260020004
+# cycle 1: RELDEN 42B41C64 (jl record-order 42B41C67) ⇒ BAL/DDS 1-2 ULP ⇒ 16 DG/15 HtG/15 DBH cells off at 2022.
+@testset "EM growth kernels at gfortran precision (htgf/pothtg/dgf/dense) vs FVSem_g16" begin
+    @test _treelist_diffcells(STAND, _run.db, ("2012", "2022")) == 0
+    r2 = _run_stand("3087467010690")
+    @test !r2.crashed
+    @test _treelist_diffcells("3087467010690", r2.db, ("1988", "1998", "2008")) == 0
 end
 end # module
