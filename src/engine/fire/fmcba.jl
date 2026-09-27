@@ -52,7 +52,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
            s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
            s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest ||
            s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
-           s.variant isa OregonCoast || s.variant isa Olympic
+           s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
@@ -93,7 +93,9 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _em_fm = s.variant isa EasternMontana
     # CI/TT/UT FMCBA read the common CRWDTH(I) (ci/fmcba.f:340, tt:290, ut:312) — the same forest-grown cwcalc value
     # FVS_TreeList reports (`tree_crwdth`); they fell to the generic crown_width like EM did.
-    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah
+    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
+               s.variant isa SoutheastAlaska   # ak/fmcba.f:195 CWIDTH=CRWDTH(I) (ak_cwcalc, the TreeList CrWidth)
+    _ak_fm = s.variant isa SoutheastAlaska
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -112,7 +114,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
+        tba[sp] += _ak_fm ? t.tpa[i] * d * d * 0.0054542f0 :        # ak/fmcba.f:187 FMPROB·DBH·DBH·0.0054542
+                            3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
@@ -144,6 +147,12 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     # (nc/fmcba.f:298-310): RDPSRT the per-species BA descending → ICT; COVCA(1..2)=ICT(1..2); COVCAWT(j)=
     # FMTBA(ICT(j))/Σ_{i=1,2}FMTBA(ICT(i)). COVTYP is ICT(1) when its BA>0.001 (faithful RDPSRT tie-break).
     covca = (0, 0); covcawt = (0f0, 0f0)
+    if _ak_fm
+        # ak/fmcba.f:216-217: RDPSRT(MAXSP,FMTBA,ICT) descending; COVTYP=ICT(1) when its BA > 0.001.
+        ict = collect(1:nsp)
+        rdpsrt!(nsp, tba, ict, true)
+        covtyp = tba[ict[1]] > 0.001f0 ? Int32(ict[1]) : Int32(0)
+    end
     if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa OregonCoast || s.variant isa Olympic
         ict = collect(1:nsp)
         rdpsrt!(nsp, tba, ict, true)                     # descending indirect sort on tba → ICT
@@ -182,6 +191,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa PacificNorthwest ? Int32(16) :   # PN bare-stand fallback: Douglas-fir (pn/fmcba.f)
                  s.variant isa EastCascades ? Int32(3) :        # EC bare-stand fallback: Douglas-fir (ec/fmcba.f:431)
                  s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
+                 s.variant isa SoutheastAlaska ? Int32(11) :   # AK: western hemlock at IY(1) (ak/fmcba.f:236-242), else OLDCOVTYP
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
@@ -218,6 +228,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     s.variant isa WestCascades && (fs.flive = wc_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (wc/fmcba.f:476-480)
     s.variant isa PacificNorthwest && (fs.flive = pn_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (pn/fmcba.f)
     s.variant isa EastCascades && (fs.flive = ec_live_fuel_loading(Int(covtyp), fs.percov))  # single COVTYP (ec/fmcba.f)
+    _ak_fm && (fs.flive = ak_live_fuel_loading(Int(covtyp), fs.percov))   # ak/fmcba.f:253-257 FULIVI/FULIVE by COVTYP
 
     # dead fuels: loaded once (first FFE year), distributed into decay classes by the species BA share
     # (fmcba.f:375-393). The "hard" (J=2) column comes from ffe_dead_fuel_loading; the "soft" (J=1) column
@@ -242,6 +253,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   s.variant isa WestCascades ? wc_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (wc/fmcba.f:528-533)
                   s.variant isa PacificNorthwest ? pn_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (pn/fmcba.f)
                   s.variant isa EastCascades ? ec_dead_fuel_loading(Int(covtyp), fs.percov) :  # single COVTYP (ec/fmcba.f)
+                  _ak_fm ? ak_dead_fuel_loading(Int(s.plot.forest_type)) :   # ak/fmcba.f:270-324 FUINI(FTDEADFU(IFORTP))
                   s.variant isa SouthCentralOregon ? Float32[so_ini[3]...] :  # FCCS/Ottmar STFUEL (so/fmcba.f)
                   ffe_dead_fuel_loading(coef, Int(s.plot.forest_type))
         # Seed the STFUEL override from FIA-DB measured fuel loadings (FVS_STANDINIT FUEL_* → dbsstandin.f

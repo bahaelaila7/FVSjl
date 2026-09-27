@@ -94,13 +94,18 @@ end
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
 # EM compiles the identical dense.f (FVSem_buildDir/dense.f == ie/bm modulo CRLF) and its IND1 lineage is live-exact (the
 # birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
-_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana) ? _ind1_order(s) : (1:s.trees.n)
+# AK (ak/dense.f identical): live-measured on akt01 + the FIA 12-stand sample.
+_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                               s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa EasternMontana
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+       s.variant isa SoutheastAlaska
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
-        # (live-measured on BM, IE and EM — FVSem_g16 196378260020004 cyc1 BAL/DDS; see the _dense_order note).
+        # (live-measured on BM, IE and EM — FVSem_g16 196378260020004 cyc1 BAL/DDS; see the _dense_order note). AK: the
+        # BA feeds the cwcalc (BAREA+1)^cba crown width — record-order BA put FVS_TreeList CrWidth 1 ULP off on 147/286
+        # records (FIA 720755825290487 2039).
         @inbounds for i in _ind1_order(s)
             d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
         end
@@ -114,7 +119,8 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana) ? d * (d * p) : p * d^2
+        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) ?
+               d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
@@ -250,10 +256,19 @@ function point_basal_area!(s::StandState; cratet_ind::Bool = false)
     # or :257's identity re-sort with dead records — bm_cratet_ind!), the IND the first cycle's DGDRIV PTBALT and the
     # cycle-0 TreeList PtBAL come from; afterwards gradd.f:186's fresh RDPSRT(.TRUE.).
     cratet_ind ? bm_cratet_ind!(s, order) : _rdpsrt!(view(t.dbh, 1:t.n), order)      # IND: DBH descending, FVS tie-break
+    # AK: ptbal.f XBALT+WK5·.005454154·PI/GROSPC with dense.f WK5=D·(D·P), in that Float32 order (the PBAL feeding
+    # AK's DGF/MORTS logistic; the shared form below rounds differently by a few ULP on dense points).
+    akw5 = s.variant isa SoutheastAlaska
+    pi_f = p.pi; gross = p.gross_space
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
-        pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+        if akw5
+            d = t.dbh[i]
+            pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
+        else
+            pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+        end
     end
     return s
 end

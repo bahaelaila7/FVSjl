@@ -90,10 +90,31 @@ function ffe_fuel_loadings(s::StandState)
         # the same basis snag_bole_carbon uses; the untruncated bolevol over-stated Standing_Snag_ge3 (7.14 vs 6.92).
         (_ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0) &&
             (b = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)
+        # AK: FMDOUT's SNVIH = FMSVOL(I,HTIH)·DENIH — the TOTAL cubic (LMERCH=.F.) of (DBHS,HTDEAD) with CFTOPK at the
+        # current height, fresh each report; (SNVIS+SNVIH)·V2T (fmdout.f:139-155). jl's creation-time bolevol was merch for
+        # cut yarding-loss snags (WH 1.2"/1.9": 0 ⇒ the 0.005454·H floor vs live TCF).
+        if s.variant isa SoutheastAlaska && sn.height[i] > 0f0
+            vv = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
+            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            (sn.dbh[i] <= 3f0 ? (snag_lt3 += (snvis + snvih) * (coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)) :
+                                (snag_ge3 += (snvis + snvih) * (coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)))
+            continue
+        end
         (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
     end
-    snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
-    snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
+    if s.variant isa SoutheastAlaska
+        # fmdout.f:163-176: DO ISZ=0,3 / DO IDC=1,4 / DO ITM=1,TFMAX — TOTSNG(1) += P2T·(CWD2B+CWD2B2)(IDC,ISZ,ITM), and for
+        # ISZ 1-2 TOTSNG(2) += P2T·(…)(IDC,ISZ+3,ITM), each term added in that order (the Float32 sums round per term).
+        c2 = fs.cwd2b; c22 = fs.cwd2b2
+        @inbounds for isz in 0:3, idc in 1:4, itm in axes(c2, 3)
+            snag_lt3 += _FM_P2T * (c2[idc, isz + 1, itm] + c22[idc, isz + 1, itm])
+            (isz == 1 || isz == 2) && (snag_ge3 += _FM_P2T * (c2[idc, isz + 4, itm] + c22[idc, isz + 4, itm]))
+        end
+    else
+        snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
+        snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
+    end
     # standing live (fmdout.f:217-258): TOTFOL = foliage; TOTLIV(1) = crown sizes 1-3 (+OLDCRW) of EVERY tree + the
     # stem of trees with D≤3; TOTLIV(2) = crown sizes 4-5 (+OLDCRW) + the stem of trees with D>3. The stem is FMSVL2
     # ('L', LMERCH=.FALSE., no top-kill ⇒ the actual height): VOL2HT = MAX(0.005454154·H, MCF) for CS/LS/NE/SN,
@@ -105,7 +126,7 @@ function ffe_fuel_loadings(s::StandState)
     @inbounds for i in 1:t.n
         pr = t.tpa[i]; pr > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         foliage += xv[1] * pr * _FM_P2T
         for j in 1:3; live_lt3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
         for j in 4:5; live_ge3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
@@ -161,7 +182,7 @@ function ffe_live_carbon(s::StandState)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
         # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF)
         # (fmsvol.f:149-151), where X = 0.005454154·H is the tiny-tree cone floor — NOT gross/TCF. SN's MCF is the

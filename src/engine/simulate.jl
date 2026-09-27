@@ -34,12 +34,14 @@ function setup_growth!(s::StandState)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     snapshot_esb_inputs!(s)              # ESFLTR (fvs.f:201): freeze the AUTOES ESB inventory-calibration inputs
+    ak_esfltr!(s)                        # AK ESFLTR (fvs.f:201): inventory per-point overstory BAAINV/TPAAINV
                                          # (small-tree TPACRE + per-point overstory BAAINV) BEFORE any growth
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
-    sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
+    s.variant isa SoutheastAlaska || sdi_max_check!(s)   # SDICHK — reset species SDImax if over-dense (AK: at the
+                                         # END of CRATET, after the crown dub + calibration — see the AK branch)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
@@ -209,6 +211,11 @@ function setup_growth!(s::StandState)
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
+        sdi_max_check!(s)                 # ak/cratet.f:664 CALL SDICHK is the LAST step of CRATET — after the :522 CROWN dub
+                                          # (whose PRD = ZRD/XMAXPT reads the UNRESET SDIDEF) and the :600 DGDRIV + REGENT
+                                          # calibration. Resetting first fed an over-dense stand's dub the reset SDImax:
+                                          # FIA 10708179010497 XMAXPT 711.63 vs live 614.10 ⇒ PRD 0.8497 vs 0.9846 ⇒ crowns
+                                          # 1-3 pts high ⇒ diverged from 2007.
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
@@ -658,11 +665,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
     mort  = 0f0
+    akfk = s.variant isa SoutheastAlaska && length(s.fire.ak_firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
         fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
+        # AK: FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
+        # PROB−survivor difference, which rounds (akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
+        akfk && (fk = min(s.fire.ak_firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        m = pre[j] - t.tpa[j]
+        m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
     end
@@ -798,7 +809,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
+    # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
+    # FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into slot 511, live PBAL 255.53
+    # (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002 ⇒ DG/LTHG/HTG ⇒ mortality.
+    ncomcup = s.variant isa SoutheastAlaska ? count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n) : 0
     comcup!(s.trees; onmove = _record_move_hook(s))         # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
+    ncomcup > 0 && compute_density!(s)
     _trim_crown_bypass!(s)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
@@ -1141,7 +1158,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.mort_pa[c] = m
             end
             # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
-            mis_book && book_mortality_snags!(s, Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
+            # AK: fmkill.f books SNGNEW from the WK2 array itself (= t.mort_pa here), not PROB−survivor, which rounds
+            # to the survivor's ULP — FMSADD's density-weighted HTDEAD then drifts (akffe YC 8.4"×5' ⇒ 4.9999995 live).
+            mis_book && book_mortality_snags!(s, s.variant isa SoutheastAlaska ? Float32[t.mort_pa[c] for c in 1:n2] :
+                                                 Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
@@ -1358,12 +1378,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
     # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
     # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || estab_prep_esnutr!(s)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
         (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
+    # AK: estb/esnutr.f + ak/estab.f (natural tally + PLANT/NATURAL) + ak/esgent.f, one ESNUTR call per cycle.
+    s.variant isa SoutheastAlaska && ak_esnutr!(s; fint = fint)
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
