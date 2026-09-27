@@ -453,13 +453,9 @@ function compute_volumes_on!(s::StandState)
         t.saw_cuft_vol[i] = vm
         # Board section (NMV): only when D >= BFMIND and D > BFTOPD (vols.f board gate).
         if d >= bfmind[sp] && d > bftopd[sp]
-            # ABIRTH dubbed-and-frozen on first pass (cratet seeds it once before projection).
-            if t.birth_age[i] <= 0f0
-                si = (sp >= 1 && sp <= length(p.sp_site_index)) ? p.sp_site_index[sp] : 0f0
-                age = on_tree_age(sp, h, si)
-                age > 0f0 && (t.birth_age[i] = age)
-                t.age_known[i] = true
-            end
+            # volont.f:405 reads ABIRTH(IT) as it stands: dubbed ONCE for every inventory record by CRATET's FINDAG
+            # (cratet_findag_dub!(::Ontario), from the INVENTORY height) and advanced by FINT after UPDATE's VOLS
+            # (gradd.f:205) — never re-dubbed here from the grown height (a record with FINDAG age 0 keeps 0).
             nmv = on_mowraski(sp, max(vm, 0f0), t.birth_age[i])
             t.bdft_vol[i] = nmv > 0f0 ? nmv : 0f0
         else

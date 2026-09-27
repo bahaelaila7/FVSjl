@@ -1302,6 +1302,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
+    # ON: gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` runs AFTER UPDATE (whose VOLS computed the volumes just above), so
+    # ON's age-dependent Mowraski NMV uses the pre-increment age this cycle; the shared `_age_up` advance inside the
+    # update loop is BEFORE the volumes and so would be FINT early for ON.
+    if s.variant isa Ontario
+        @inbounds for i in 1:t.n; t.birth_age[i] += fint; end
+    end
     # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
     # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
     # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.

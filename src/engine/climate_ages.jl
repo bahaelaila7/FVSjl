@@ -53,6 +53,10 @@ function _ci_findag(sp::Int, h::Float32, sindx::Float32)::Float32
     end
 end
 
+# canada/on/cratet.f FINDAG (canada/on/findag.f → HTCALC MODE0=0, HTMAX−1.1 retry) with SITEAR(ISPC): ON's volont.f
+# Mowraski net-merch cull reads the dubbed ABIRTH (volume.jl on_mowraski), aged +FINT per cycle after UPDATE.
+cratet_findag_dub!(s::StandState, ::Ontario) =
+    _findag_dub_each!((sp, d, h, si) -> on_tree_age(sp, h, si), s)
 cratet_findag_dub!(s::StandState, ::CentralIdaho) =
     _findag_dub_each!((sp, d, h, si) -> _ci_findag(sp, h, si), s)
 cratet_findag_dub!(s::StandState, ::Klamath) =

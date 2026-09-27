@@ -103,3 +103,12 @@ _on1_live_rows(stem) = [split(l) for l in readlines(joinpath(_ON1_FX, "$(stem)_l
     end
     @test _on1_rows("ont01") == _on1_live_rows("ont01")
 end
+
+# (6) Mowraski NMV (volont.f:405) reads ABIRTH: dubbed ONCE by canada/on/cratet.f FINDAG from the INVENTORY height
+# (every record), aged +FINT by gradd.f:205 AFTER UPDATE's VOLS. jl dubbed lazily from the grown height the first
+# time a record crossed BFMIND, so the cycle-1 NMV (.sum board column) was off on the multi-species stands.
+@testset "ON fixture stands: .sum rows == live (FINDAG ABIRTH dub + post-VOLS aging)" begin
+    for stem in ("ont_all", "ont_lite", "ont_mh", "ont_sm", "ont01")
+        @test (stem, _on1_rows(stem)) == (stem, _on1_live_rows(stem))
+    end
+end
