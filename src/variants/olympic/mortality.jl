@@ -219,6 +219,9 @@ function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags:
     (s.climate !== nothing && s.climate.active) &&
         apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
     apply_fixmort!(s, killed, n, fint)
+    # MISMRT (gradd.f:96 MISTOE → mismrt.f:185-191, misintop.f APMC): WK2=MAX(WK2,PROB·rate). OP never triples
+    # (ICL4=0), so it always lands here. Inert unless a record carries DMR.
+    _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

@@ -574,6 +574,7 @@ const EC_MIS_DGP = reshape(Float32[
     v isa SouthCentralOregon && return (SO_MIS_FIT, SO_MIS_DGP, SO_MIS_PMC, 33)  # misintso.f
     v isa Klamath       && return (NC_MIS_FIT, NC_MIS_DGP, NC_MIS_PMC, 12)  # misintnc.f
     v isa SoutheastAlaska && return (AK_MIS_FIT, AK_MIS_DGP, AK_MIS_PMC, 23)  # misintak.f
+    v isa Olympic       && return (OP_MIS_FIT, OP_MIS_DGP, OP_MIS_PMC, 39)  # misintop.f
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
@@ -616,7 +617,8 @@ end
     v isa CentralCalifornia ||                 # ca/dgdriv.f:221,248,... MISDGF before DGBND :225
     v isa SouthCentralOregon ||                # so/dgdriv.f:230,257,... MISDGF before DGBND :234
     v isa Klamath ||                           # nc/dgdriv.f:219,246,... MISDGF before DGBND :223
-    v isa SoutheastAlaska                      # ak/dgdriv.f:256,... MISDGF before DGBND :260
+    v isa SoutheastAlaska ||                   # ak/dgdriv.f:256,... MISDGF before DGBND :260
+    v isa Olympic                              # op/dgdriv.f:550 — applied in OP's own driver (organon_hook_op.jl)
 @inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
     v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho ||
     v isa WestCascades || v isa PacificNorthwest ||   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
@@ -625,7 +627,8 @@ end
     v isa CentralCalifornia ||                       # CA: misintca.f
     v isa SouthCentralOregon ||                      # SO: misintso.f (AHGP all 1.0 ⇒ no MISHGF effect)
     v isa Klamath ||                                 # NC: misintnc.f (AHGP all 1.0)
-    v isa SoutheastAlaska                            # AK: misintak.f (AHGP all 1.0)
+    v isa SoutheastAlaska ||                         # AK: misintak.f (AHGP all 1.0)
+    v isa Olympic                                    # OP: misintop.f (AHGP all 1.0)
 
 """
     mis_hg_mult(s, i) -> Float32
