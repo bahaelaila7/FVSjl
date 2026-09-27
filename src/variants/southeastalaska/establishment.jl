@@ -1085,6 +1085,7 @@ function _ak_new_record!(s::StandState, sp::Int, nnid::Int, hht::Float32, prob::
     t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
     t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
     t.dg_prev[n] = 0f0
+    t.dmr[n] = Int32(0)                                  # estab.f:2055/2175/2276 MISPUTZ(ITRN,0) (reused slot)
     t.htimlt[n] = wk4
     t.iestat[n] = iestat
     t.tree_id[n] = Int32(AK_ES_IDCMP1 + itmp + n)
