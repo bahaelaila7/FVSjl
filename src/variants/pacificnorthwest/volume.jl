@@ -68,7 +68,9 @@ function compute_volumes_pn!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = wc_bratio(sd, sp, d)
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd, sp, d)
         dbhmin = sp == 11 ? 6.0f0 : 7.0f0
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32

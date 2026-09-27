@@ -282,7 +282,9 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
         end
         dbhmin = sp == 7 ? 6f0 : 7f0
         bfmind = sp == 7 ? 6f0 : 7f0
-        bark = ie_bratio(sp, d)
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : ie_bratio(sp, d)
         eq = veq[sp]
         if occursin("BEH", eq)                            # region-6 Behre (sp17 PY, 616BEHW231)
             # Broken/dead-top trees (trunc = break-ht·100, norm_ht = predicted full ht·100): FVS builds the

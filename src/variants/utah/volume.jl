@@ -37,7 +37,10 @@ function compute_volumes_ut!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = ut_bratio(s.coef.species, sp, d)
+        # ut/vols.f:132,150-151: BARK=BRATIO(ISPC,D,H) with D=DBH(I) BEFORE `D=D+DG(I)/BARK`, so a projected cycle's
+        # volumes use the START-of-cycle bark (stashed vol_bark); the grown-DBH bark only at cycle 0 / dead records.
+        # It sets the merch top MTOPS=TOPD·BARK (fvsvol.f:172) — e.g. PP D9.90 (D_start 8.30) merch 5.1 → live 5.4.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : ut_bratio(s.coef.species, sp, d)
         dbhmin = sp == 7 ? 7.0f0 : 8.0f0
         # Top-killed trees: full cubic (VMAX) uses the NORMAL height (norm_ht), then r4_topkill trims (see TT).
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
@@ -50,7 +53,7 @@ function compute_volumes_ut!(s::StandState)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4, sf_hs = true)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0

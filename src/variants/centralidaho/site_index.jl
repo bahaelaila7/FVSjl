@@ -143,3 +143,43 @@ function ci_site_index_setup!(s::StandState)
 end
 
 site_setup!(s::StandState, ::CentralIdaho) = ci_site_index_setup!(s)
+
+# ci/blkdat.f:256-265 Wykoff HT-DBH (HT1 intercept, HT2 slope) and ci/cratet.f:105-114 SMHD1/SMHD2 (D≤3 linear dub).
+# CRATET fits the calibrated intercept AA = mean(ln(H−4.5) − HT2/(D+1)) with THESE HT2 values (cratet.f:369-381),
+# not the CSV :ht2/:wykoff_ht2 columns (which are other equations' coefficients). Same values as ci-regent's
+# CI_BLK_HT1/HT2 (centralidaho/regent.jl on that branch) — dedupe to one table when both are on master.
+const CI_CRATET_HT1 = Float32[5.19988, 5.16306, 4.94866, 5.02706, 5.02706, 5.16306, 4.80016, 5.09964, 4.91417, 4.993,
+                           4.19200, 4.19200, 4.44210, 3.2000, 5.1520, 4.19200, 4.44210, 4.80016, 4.44210]
+const CI_CRATET_HT2 = Float32[-9.26718, -9.25656, -9.75378, -11.21681, -11.21681, -9.25656, -6.51738, -10.79269,
+                           -9.36400, -12.430, -5.16510, -5.16510, -6.54050, -5.0000, -13.5760, -5.16510, -6.54050,
+                           -6.51738, -6.54050]
+const CI_SMHD1 = Float32[1.74189, 5.30838, 3.05990, 2.77647, 2.77647, 5.30838, 0.74322, 2.88424, 2.74231, 1.74189,
+                         0, 0, 0, 0, 0, 0, 0, 0.74322, 0]
+const CI_SMHD2 = Float32[4.17687, 6.41536, 6.42592, 5.59435, 5.59435, 6.41536, 9.23147, 5.39267, 5.35911, 4.17687,
+                         0, 0, 0, 0, 0, 0, 0, 9.23147, 0]
+
+"""
+    ci_cratet_dub(sp, d, aa, lhtdrg, calibrated) -> Float32
+
+ci/cratet.f:437-481 (live DO 130) = :556-570 (dead DO 145) missing / top-kill normal-height dub (D>0.1; the
+D≤0.1 → 1.01 case and the ≤4.5 floor are applied by the caller). `aa` is the species intercept CRATET carries:
+the fitted AA when ≥3 measured trees gave AA≥0 (and LHTDRG), else blkdat HT1; `calibrated` = that fit happened
+(for MC, sp15, it is the IABF=0 switch). Species 11-14,16,17,19 always take the Wykoff form; MC (15) the
+inventory curve unless calibrated; every other species a D≤3 linear SMHD line, else Wykoff.
+"""
+function ci_cratet_dub(sp::Int, d::Float32, aa::Float32, lhtdrg::Bool, calibrated::Bool)::Float32
+    bb = CI_CRATET_HT2[sp]
+    if sp in (11, 12, 13, 14, 16, 17, 19)
+        return fexp(aa + bb / (d + 1f0)) + 4.5f0
+    elseif sp == 15
+        if !lhtdrg || !calibrated
+            p2 = 1709.7229f0; p3 = 5.8887f0; p4 = -0.2286f0
+            return d >= 3f0 ? 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(d, p4)) :
+                   ((4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+        else
+            return d < 5f0 ? 0.0994f0 + 4.9767f0 * d : fexp(aa + bb / (d + 1f0)) + 4.5f0
+        end
+    else
+        return d <= 3f0 ? CI_SMHD1[sp] + CI_SMHD2[sp] * d : fexp(aa + bb / (d + 1f0)) + 4.5f0
+    end
+end

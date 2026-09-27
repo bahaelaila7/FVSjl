@@ -106,7 +106,9 @@ function compute_volumes_em!(s::StandState)
         if startswith(eq, "I") || eq[4:6] == "FW2"   # conifers — Flewelling FW2 (same as KT)
             dbhmin = sp == 7 ? 6f0 : 7f0
             bfmind = sp == 7 ? 6f0 : 7f0
-            bark = em_bratio(sp, d)
+            # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+            # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+            bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : em_bratio(sp, d)
             v = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = 1,
                            sf_hs = true, ht2td = htb)            # SF_HS merch top + HT1PRD → HT2TD (fvsvol.f)
             d >= dbhmin && (t.merch_top_cf[i] = htb[1])

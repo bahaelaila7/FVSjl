@@ -27,9 +27,11 @@ function compute_volumes_kt!(s::StandState)
         end
         dbhmin = sp == 7 ? 6f0 : 7f0             # kt/grinit.f (lodgepole sp7 = 6)
         bfmind = sp == 7 ? 6f0 : 7f0
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : bark_ratio(ba_a, ba_b, sp, d)
         v = startswith(veq[sp], "I") ?
-            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn) :
+            cr_fw2_vol(veq[sp], d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn, sf_hs = true) :
             zeros(Float32, 15)
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
