@@ -92,6 +92,17 @@ The FFE height percentile HP (0-100) of a tree of height `h`, matching FVS FMCRO
 i.e. the reverse-cumulative TPA from the tallest. Tallest record → 100. Computed over the live tree list.
 """
 function cr_hpct_of_height(s::StandState, h::Float32)::Float32
+    fs = s.fire
+    if fs !== nothing && !isempty(fs.hp_h)
+        # FMCROW runs in FMSDIT (grincr.f:227, BEFORE CUTS at :292): the percentiles CROWNW keeps for the whole
+        # cycle rank the pre-cut stand, so read them off the FMSDIT snapshot, not the current (post-cut) trees.
+        tot = 0f0; le = 0f0
+        @inbounds for k in eachindex(fs.hp_h)
+            p = fs.hp_p[k]; tot += p
+            fs.hp_h[k] <= h && (le += p)
+        end
+        return tot <= 0f0 ? 100f0 : (le / tot) * 100f0
+    end
     t = s.trees; tot = 0f0; le = 0f0
     @inbounds for i in 1:t.n
         p = t.tpa[i]; p > 0f0 || continue
@@ -99,6 +110,17 @@ function cr_hpct_of_height(s::StandState, h::Float32)::Float32
         t.height[i] <= h && (le += p)
     end
     tot <= 0f0 ? 100f0 : (le / tot) * 100f0
+end
+
+"FMSDIT-time FMCROW percentile basis (see cr_hpct_of_height): snapshot the live heights + TPA."
+function ffe_snapshot_hpct!(s::StandState)
+    fs = s.fire; (fs === nothing || !fs.active) && return s
+    t = s.trees; empty!(fs.hp_h); empty!(fs.hp_p)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        push!(fs.hp_h, t.height[i]); push!(fs.hp_p, t.tpa[i])
+    end
+    return s
 end
 
 # The FMCROWW small-tree breakpoints (fmcroww.f:140-157), by SPIE group.

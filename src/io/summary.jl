@@ -394,6 +394,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end
         if !last
+            # FMSDIT (grincr.f:227, before CUTS): FMCROW's height percentiles for this cycle's CROWNW.
+            ffe_on && ffe_snapshot_hpct!(s)
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||
@@ -495,7 +497,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 push!(climate_collect, (Int(r.year), something(s.climate.pending_report,
                                                               climate_report(s; report_year = Int(r.year), fint = per))))
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
-                compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
+                compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)   # OLDCRW from last FMSDIT's CROWNW
+                ffe_snapshot_hpct!(s)                   # then FMCROW (fmsdit.f:128) re-ranks the grown stand
             end
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)

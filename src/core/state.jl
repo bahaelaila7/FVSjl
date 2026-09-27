@@ -1126,6 +1126,8 @@ mutable struct FireState
                                        # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
     exposr_last::Float32               # EXPOSR (FMCOM): % mineral soil exposed by the last FMCONS burn; a fire that
                                        # does not carry (FLAG(1)) skips FMCONS and FVS_Consumption reports the stale value
+    hp_h::Vector{Float32}              # FMCROW HPCT basis (fmcrow.f PCTILE): live heights + TPA at the last FMSDIT
+    hp_p::Vector{Float32}              # (cycle start, BEFORE CUTS) — CROWNW keeps those percentiles all cycle
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1134,7 +1136,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0)
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
