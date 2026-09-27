@@ -3007,7 +3007,12 @@ function rd_cycle_start!(s::StandState)
     m = d.n
     m == n || (rd.driver = _rd_resize_driver!(rd, d, n, s))
     rd.wk1_nold >= 0 && (m = min(m, rd.wk1_nold)); rd.wk1_nold = -1
-    rd.wk1 = Float32[(i <= m ? t.diam_growth[i] : 0.0f0) for i in 1:n]
+    # WK1 is DGDRIV's start-of-cycle DG (dgdriv.f:144). At cycle 1 that is the calibration's DO-220 value — the measured
+    # increment, 0 at HT≤4.5, else the DGF dub — which EM/IE carry in dg_prev (em_cycle0_wk1!/ie_cycle0_wk1!, already
+    # applied here); afterwards dg_prev == diam_growth. The raw input DG left every unmeasured tree at 0 (MEASURED
+    # FVSem_g16 3087467010690 rootdis 1998: Live_Merch_CuFt = ΣTCLAS·WK1 live 472.71, jl 0).
+    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev : t.diam_growth
+    rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
     return
 end
 

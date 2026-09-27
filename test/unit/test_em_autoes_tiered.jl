@@ -316,6 +316,18 @@ end
     @test isempty(compare_case("EM", "196420598020004", "mistletoe", txt, db))
 end
 
+# rdpr.f's Live_Merch_CuFt sums TCLAS·WK1(I), WK1 = DGDRIV's start-of-cycle DG (dgdriv.f:144) — at cycle 1 the
+# calibration DO-220 value (measured increment, 0 at HT≤4.5, else the DGF dub), carried in dg_prev. jl snapshotted the
+# raw input DG, 0 for every unmeasured tree (MEASURED FVSem_g16 3087467010690 rootdis 1998: live 472.70956, jl 0.0).
+@testset "FVS_RD_Sum Live_Merch_CuFt reads the DO-220 WK1 at cycle 1 (rdpr.f/dgdriv.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", "3087467010690", "rootdis"; dir = d)
+    @test !crashed
+    hdr, rows = db_table_rows(db, "FVS_RD_Sum")
+    iy = findfirst(==("Year"), hdr); ic = findfirst(==("Live_Merch_CuFt"), hdr)
+    @test isapprox(parse(Float64, rows[findfirst(r -> r[iy] == "1998", rows)][ic]), 472.7095642089844; rtol = 1e-5)
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
