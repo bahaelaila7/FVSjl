@@ -688,6 +688,64 @@ function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     return
 end
 
+# ON (canada/on/initre.f, METRIC build): the keyword fields are read in metric units and converted IN PLACE on ARRAY
+# before the option's (shared) imperial processing — e.g. THINBTA `ARRAY(2)=ARRAY(2)/HAtoACR` (residual TPH→TPA),
+# THINBBA `ARRAY(2)=ARRAY(2)*M2pHAtoFT2pACR`, DBH limits `*CMtoIN`, heights `*MtoFT`. A blank field is 0 on ARRAY, so
+# converting only the present fields is exact (the handler's own blank default then applies, as FVS's does). The
+# per-option (field, op) table below transcribes every ARRAY-level conversion of initre.f's ON options that jl
+# dispatches (STDINFO's elevation is converted in kw_stdinfo!). Quirks kept verbatim: THINHT converts its HEIGHT
+# limits with CMtoIN, THINSDI/THINPT leave the SDI residual unconverted.
+const _ON_CMtoIN = 0.3937f0; const _ON_HAtoACR = 2.471f0; const _ON_MtoFT = 3.28084f0; const _ON_CMtoFT = 0.0328084f0
+const _ON_M2pHA = 4.3560773f0; const _ON_M3pHA = 14.291564f0; const _ON_KGtoLB = 2.2046226f0
+_on_cm(x) = x * _ON_CMtoIN; _on_ha(x) = x / _ON_HAtoACR; _on_m(x) = x * _ON_MtoFT; _on_m2(x) = x * _ON_M2pHA
+const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
+    "DESIGN"   => [1 => (x -> x < 0f0 ? x / _ON_HAtoACR : x * _ON_M2pHA), 2 => _on_ha, 3 => _on_cm],
+    "TFIXAREA" => [1 => (x -> x * _ON_HAtoACR)],
+    "THINBTA"  => [2 => _on_ha, 4 => _on_cm, 5 => _on_cm, 6 => _on_m, 7 => _on_m],
+    "THINATA"  => [2 => _on_ha, 4 => _on_cm, 5 => _on_cm, 6 => _on_m, 7 => _on_m],
+    "THINBBA"  => [2 => _on_m2, 4 => _on_cm, 5 => _on_cm, 6 => _on_m, 7 => _on_m],
+    "THINABA"  => [2 => _on_m2, 4 => _on_cm, 5 => _on_cm, 6 => _on_m, 7 => _on_m],
+    "THINDBH"  => [2 => _on_cm, 3 => _on_cm, 6 => _on_ha, 7 => _on_m2],
+    "THINHT"   => [2 => _on_cm, 3 => _on_cm, 6 => _on_ha, 7 => _on_m2],
+    "THINSDI"  => [5 => _on_cm, 6 => _on_cm],
+    "THINPT"   => [5 => _on_cm, 6 => _on_cm],
+    "THINCC"   => [5 => _on_cm, 6 => _on_cm],
+    "THINRDEN" => [2 => _on_m2, 5 => _on_cm, 6 => _on_cm],
+    "THINRDSL" => [2 => _on_m2, 5 => _on_cm, 6 => _on_cm],
+    "THINQFA"  => [2 => _on_cm, 3 => _on_cm, 6 => _on_cm],
+    "THINMIST" => [3 => _on_cm, 4 => _on_cm],
+    "TOPKILL"  => [3 => _on_m, 4 => _on_m],
+    "HTGSTOP"  => [3 => _on_m, 4 => _on_m],
+    "FERTILIZ" => [2 => (x -> x * _ON_KGtoLB / _ON_HAtoACR), 3 => (x -> x * _ON_KGtoLB / _ON_HAtoACR),
+                   4 => (x -> x * _ON_KGtoLB / _ON_HAtoACR)],
+    "VOLUME"   => [3 => _on_cm, 4 => _on_cm, 5 => (x -> x * _ON_CMtoFT)],
+    "BFVOLUME" => [3 => _on_cm, 4 => _on_cm, 5 => (x -> x * _ON_CMtoFT)],
+    "MINHARV"  => [2 => (x -> x * _ON_M3pHA), 4 => _on_m2, 5 => (x -> x * _ON_M3pHA)],
+    "MORTMULT" => [4 => _on_cm, 5 => _on_cm],
+    "FIXMORT"  => [4 => _on_cm, 5 => _on_cm],
+    "CRNMULT"  => [4 => _on_cm, 5 => _on_cm],
+    "FIXDG"    => [4 => _on_cm, 5 => _on_cm],
+    "FIXHTG"   => [4 => _on_cm, 5 => _on_cm],
+    "FIXCW"    => [4 => _on_cm, 5 => _on_cm],
+    "PRUNE"    => [3 => _on_m, 6 => _on_cm, 7 => _on_cm],
+    "BAMAX"    => [1 => _on_m2],
+    "SDIMAX"   => [2 => _on_ha],
+    "SITECODE" => [2 => _on_m],
+    "SDICALC"  => [1 => _on_cm, 2 => _on_cm],
+    "DATASCRN" => [1 => _on_cm, 2 => _on_cm],
+    "TREESZCP" => [2 => _on_cm, 5 => _on_m],
+    "MORTMSB"  => [1 => _on_cm, 4 => _on_cm, 5 => _on_cm],
+)
+function _on_metric_decode!(rec::KeywordRecord)
+    conv = get(_ON_KW_METRIC, strip(rec.name), nothing)
+    conv === nothing && return rec
+    v = rec.values; pr = rec.present
+    for (k, f) in conv
+        (k <= length(v) && k <= length(pr) && pr[k]) && (v[k] = Float32(f(v[k])))
+    end
+    return rec
+end
+
 # Thinning/harvest keyword → CUTS method code (icflag). Extended per method as the
 # cuts! port lands; THINDBH is the first (milestone 1). (cuts.f label dispatch.)
 const _THIN_ICFLAG = Dict("THINBTA" => Int32(3), "THINATA" => Int32(4),
@@ -2860,6 +2918,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         kw = strip(rec.name)
         isempty(kw) && continue                      # blank-line record
         nkw += 1
+        s.variant isa Ontario && _on_metric_decode!(rec)   # canada/on/initre.f metric ARRAY conversions
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)

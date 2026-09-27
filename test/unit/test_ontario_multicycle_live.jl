@@ -10,7 +10,7 @@ const _ONM = FVSjl
 const _ONM_FX = joinpath(@__DIR__, "..", "fixtures", "ontario")
 
 # Copy a fixture stand into a temp dir with NUMCYCLE=ncyc (and, with `tl`, the ON DATABASE/TREELIDB layout).
-function _onm_run(stem::AbstractString, ncyc::Int; tl::Bool = false)
+function _onm_run(stem::AbstractString, ncyc::Int; tl::Bool = false, extra::Vector{String} = String[])
     dir = mktempdir()
     out = String[]
     for ln in eachline(joinpath(_ONM_FX, "$stem.key"))
@@ -18,8 +18,9 @@ function _onm_run(stem::AbstractString, ncyc::Int; tl::Bool = false)
             push!(out, "NUMCYCLE" * lpad(string(Float64(ncyc)), 13))
         elseif tl && startswith(ln, "PROCESS")
             append!(out, ["DATABASE", "SUMMARY", "TREELIDB", "END", ln])
-        elseif tl && startswith(ln, "TREEDATA")
-            append!(out, [ln, "TREELIST           0"])
+        elseif startswith(ln, "TREEDATA")
+            append!(out, extra); push!(out, ln)
+            tl && push!(out, "TREELIST           0")
         else
             push!(out, ln)
         end
@@ -86,5 +87,20 @@ end
 @testset "ON ont_all 5-cycle: TPH/MortPH/DBH/Ht per record == live (VARMRT EFFTR + TOKILL)" begin
     for col in (:TPH, :MortPH, :DBH, :Ht), (k, lv, jv) in _onm_col(col)
         @test (k, col, jv) == (k, col, lv)
+    end
+end
+
+# (4) canada/on/initre.f converts the METRIC keyword fields in place before the imperial option processing (THINBTA
+# residual /HAtoACR, THINBBA residual *M2pHAtoFT2pACR, DBH limits *CMtoIN, heights *MtoFT, …). jl read them as
+# imperial ⇒ an ON THINBTA 500/ha residual meant 500/ac and nothing was cut. Goldens: live FVSon_g16 with
+# THINBTA 2014 (500/ha, eff 1.0) and THINBBA 2034 (10 m²/ha, eff 0.8), rows up to the first post-thin sprouting
+# cycle (ON stump sprouting — ESSPRT/ESUCKR — is not ported yet, so the rows after a hardwood cut still diverge).
+const _ONM_THIN = [rpad("THINBTA", 10) * lpad("2014", 10) * lpad("500.0", 10) * lpad("1.0", 10),
+                   rpad("THINBBA", 10) * lpad("2034", 10) * lpad("10.0", 10) * lpad("0.8", 10)]
+@testset "ON metric keyword fields: THINBTA/THINBBA rows == live (initre.f ARRAY conversions)" begin
+    for (stem, nrow) in (("ont01", 4), ("ont_lite", 2), ("ont_all", 2), ("ont_sm", 2))
+        jl = first(_onm_run(stem, 5; extra = _ONM_THIN))
+        lv = [split(l) for l in readlines(joinpath(_ONM_FX, "$(stem)_thin_live.rows"))]
+        @test (stem, jl[1:nrow]) == (stem, lv[1:nrow])
     end
 end
