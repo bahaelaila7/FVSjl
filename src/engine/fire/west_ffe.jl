@@ -17,7 +17,8 @@
 
 "Western variants whose FFE snag bole / live-carbon stem use `ffe_west_nocut` (fmsvol.f non-eastern branch)."
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
-                   v isa EasternMontana || v isa CentralRockies || v isa EastCascades
+                   v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
+                   v isa WestCascades || v isa PacificNorthwest
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -54,6 +55,29 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
             tcf = w[1]; mcf = w[4] + w[7]
         else
             tcf, mcf, _ = ec_behre_vol(sp, Int(s.plot.forest_idx), d, h, bark)
+        end
+        return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
+    elseif v isa WestCascades || v isa PacificNorthwest        # wc/pn: compute_volumes_{wc,pn}! kernels at (D,H)
+        c = s.control; bark = wc_bratio(s.coef.species, sp, d); ifor = Int(s.plot.forest_idx)
+        dbhmin = c.sp_dbh_min[sp]; bfmind = c.sp_bf_dbhmin[sp]
+        topd = c.sp_top_diam[sp]; stmp = c.sp_stump_ht[sp]; bftopd = c.sp_bf_topd[sp]
+        if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+            tcf, mcf, _ = wc_fw2_westside_vol(eq, d, h, bark; topd = topd, bftopd = bftopd, stump = stmp)
+        elseif mdl == "FW2"
+            w = cr_fw2_vol(eq, d, h; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6,
+                           board_cor = 'N', merch_opt = 23)
+            tcf = w[1]; mcf = w[4] + w[7]
+        elseif se[1] == 'B' || se[1] == 'b'                    # BLM forests → NVEL BLMVOL
+            fc = v isa WestCascades ? wc_formcl(sp, ifor, d) : pn_formcl(sp, ifor, d)
+            tcf, mcf, _ = _blm_natcrs(eq, fc, d, h, bark, topd, bftopd, bfmind)
+        elseif v isa WestCascades && mdl == "CUR"              # 603 red alder PROFILE + R10TAP
+            tcf, mcf, _ = wc_cur_vol(d, h, bark; topd = topd, bftopd = bftopd, stump = stmp, bfmind = bfmind)
+        elseif v isa PacificNorthwest && startswith(se, "NVB") # 612 red alder NSVB (intact stem: BRKHT 0)
+            w = cr_nvb_vol(eq, d, h; bark = bark, topd = topd, stump = stmp, bftopd = bftopd, iregn = 6, brkht = 0f0)
+            tcf = w[1]; mcf = w[4]
+        else                                                   # 616BEHW
+            tcf, mcf, _ = v isa WestCascades ? wc_behre_vol(sp, ifor, d, h, bark; topd = topd) :
+                                               pn_behre_vol(sp, ifor, d, h, bark; topd = topd)
         end
         return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
     elseif v isa InlandEmpire                                  # ie: region-6 Behre / FW2 / region-1-2 DVE
@@ -103,7 +127,10 @@ function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
     htd <= 0f0 && return 0f0
     tcf, mcf, bark, trim = w
     if htcur < htd && tcf > 0f0 && trim
-        tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, bark, unsafe_trunc(Int, htcur * 100f0), 1f0, 4.5f0)
+        # CFTOPK reads the species' STMP/TOPD (WC/PN BLM forests TOPD 5); the other layer variants keep 1 / 4.5.
+        stmp, topd = (s.variant isa WestCascades || s.variant isa PacificNorthwest) ?
+                     (s.control.sp_stump_ht[sp], s.control.sp_top_diam[sp]) : (1f0, 4.5f0)
+        tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, bark, unsafe_trunc(Int, htcur * 100f0), stmp, topd)
     end
     return max(0.005454154f0 * htd, tcf)
 end

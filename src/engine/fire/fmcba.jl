@@ -287,6 +287,18 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input))
         end
+        # WC / PN / OP decay-rate habitat adjustment (wc/fmcba.f:488-521; pn,op/fmcba.f:462-495): WCWMC/WCWMD or
+        # PNWMC/PNWMD (the FMR6SDCY tables) by ITYPE.
+        if (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic) &&
+           size(fs.params.dkr, 1) != 11
+            _it = Int(s.plot.habitat_input)
+            if s.variant isa WestCascades
+                _it = clamp(_it, 1, 139); _t = _R6SD_WCWMC[_it]; _m = _R6SD_WCWMD[_it]
+            else
+                _it = clamp(_it, 1, 75); _t = _R6SD_PNWMC[_it]; _m = _R6SD_PNWMD[_it]
+            end
+            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m)
+        end
         # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)
         # from SOHMC/SOWMD at the first FFE year. The reference stand rides so/habtyp.f's DEFAULT plant
         # association CPS111 = ITYPE 49 (SI 70; same default the SO growth port's SITEAR/SDIDEF ride), giving
