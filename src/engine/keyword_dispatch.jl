@@ -2664,6 +2664,14 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @warn "FMIN/FFE keyword not yet ported — IGNORED (using defaults; result may diverge from FVS)" keyword=k
         end
     end
+    # AK (SoutheastAlaska) has no FFE port yet: none of ak/fmvinit.f (species fire parameters), ak/fmcba.f (cover-type
+    # fuel loads) or ak/fmcfmd.f (fuel-model selection) exists in jl, so the generic FFE machinery reads eastern/SN
+    # tables AK doesn't carry (first: `dkr_cls` on the first cut of akt01's "FFE TEST" stand). Keep the FMIN block
+    # parsed (so its keywords don't leak into the base keyword stream) but leave the fire model OFF, loudly.
+    if s.variant isa SoutheastAlaska
+        fs.active = false
+        @warn "AK FFE is not ported — the FMIN block is parsed but the fire/fuel model stays OFF (SIMFIRE etc. inert; the stand diverges from FVSak after any FFE event)"
+    end
     return
 end
 
