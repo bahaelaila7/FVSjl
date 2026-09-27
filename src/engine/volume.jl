@@ -512,11 +512,14 @@ function init_merch_standards!(s::StandState)
         # BFTOPD=SCFTOPD=5.0 and 7 for every species. WC's species CSV carries no merch columns.
         blm = (s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10) ||      # wc/sitset.f CASE(7,8,9,10)
               (s.variant isa PacificNorthwest && 4 <= Int(s.plot.forest_idx) <= 6)     # pn/sitset.f:189 CASE(4,5,6)
+        pn = s.variant isa PacificNorthwest
         @inbounds for j in 1:length(c.sp_dbh_min)
             dm = (j == 11 && !blm) ? 6.0f0 : 7.0f0
             td = blm ? 5.0f0 : 4.5f0
             c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = td; c.sp_stump_ht[j] = 1.0f0
-            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
+            # pn/sitset.f:200-207 has no LP (sp 11) SCFMIND special — SCFMIND=7 for every species (wc/sitset.f:206
+            # does set LP to 6). Measured: live PN FVS_InvReference LP CFSawMinDBH 7.
+            c.sp_scf_dbhmin[j] = pn ? 7.0f0 : dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
             c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = td; c.sp_bf_stump[j] = 1.0f0
         end
         c.merch_init = true
@@ -571,6 +574,32 @@ function init_merch_standards!(s::StandState)
             c.sp_scf_dbhmin[j] = 9.0f0; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
             c.sp_bf_dbhmin[j] = 9.0f0; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
         end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa CentralRockies
+        # cr/grinit.f:97-102 zeroes DBHMIN/TOPD/BFTOPD/BFMIND/SCFTOPD/SCFMIND (stumps 1); cr/sitset.f:522-553 fills
+        # them by model type: IMODTY 3 (Black Hills) ⇒ 9/6, BFMIND 9, SCF 6/9; IMODTY 1,2,4,5 ⇒ DBHMIN 5, TOPD 4,
+        # BFTOPD=SCFTOPD 6, BFMIND=SCFMIND 7 (IFOR < IGFOR) else 9. compute_volumes_cr! uses the same values.
+        imodty = Int(s.plot.model_type); ifor = Int(s.plot.forest_idx)
+        is3 = imodty == 3
+        other = imodty == 1 || imodty == 2 || imodty == 4 || imodty == 5
+        bfm = is3 ? 9.0f0 : ((ifor > 0 && ifor < 13) ? 7.0f0 : 9.0f0)   # IGFOR = 13 (cr/blkdat.f)
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            if is3 || other
+                c.sp_dbh_min[j] = is3 ? 9.0f0 : 5.0f0; c.sp_top_diam[j] = is3 ? 6.0f0 : 4.0f0
+                c.sp_bf_topd[j] = 6.0f0; c.sp_bf_dbhmin[j] = bfm
+                c.sp_scf_topd[j] = 6.0f0; c.sp_scf_dbhmin[j] = bfm
+            end
+            c.sp_stump_ht[j] = 1.0f0; c.sp_bf_stump[j] = 1.0f0; c.sp_scf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa Teton
+        # tt/grinit.f:102-113 (+ :142-144 LP sp 7 = 7) is the whole story — tt/sitset.f sets no merch standards,
+        # so the species-CSV merch columns (which are not TT's) must not override them (FVS_InvReference showed
+        # CFMinDBH 1 / CFTopDia 4 for live's 8 / 6).
         c.merch_init = true
         return s
     end
