@@ -554,10 +554,10 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
     # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
     # gradd.f:186's fresh RDPSRT(.TRUE.) after. Record order flipped knife-edge rows by ±1 (41134819010497:
-    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). Every variant compiles the
-    # one base/gradd.f, so it is the order everywhere (was BM-gated until measured on the other variants).
+    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). BM-gated (the base
+    # gradd.f is shared; other variants not yet re-validated on this order).
     bm_ind = nothing
-    if s.trees.n > 0
+    if s.variant isa BlueMountains && s.trees.n > 0
         bm_ind = Vector{Int32}(undef, s.trees.n)
         cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
     end
