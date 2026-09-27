@@ -552,8 +552,8 @@ the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-3
 #   pass 1 (DBH>=DBHSTAGE): SDSQ=SDSQ+(DBH**2.0)*PROB; SPROB=SPROB+PROB  → A,B
 #   pass 2: SDIC  = SDIC  + (A+B*(DBH**2.0))*PROB          (DBH>=DBHSTAGE)   — PER TREE, not SPROB*A+B*SDSQ
 #           SDIC2 = SDIC2 + PROB*(DBH/10.)**1.605           (DBH>=DBHZEIDE)
-# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. (The closed form
-# SPROB*A+B*SDSQ lives on in `stand_sdi_reineke`, which CROWN's SDICAL path uses.)
+# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. CROWN's SDIAC is the
+# same SDIC pass (`stand_sdi_reineke`), whatever LZEIDE.
 function stand_sdi(s::StandState)
     t = s.trees
     t.n == 0 && return 0f0
@@ -583,20 +583,33 @@ function stand_sdi(s::StandState)
     return sdic
 end
 
-"Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."
+"""
+    stand_sdi_reineke(s)
+
+SDICLS(0,0.,999.,1,SDIC,…) — the STAGE (Reineke-summation) stand SDI that CROWN reads (SDIAC/SDIBC, grincr.f:241,323;
+fvs.f:196). sdical.f:260-283 first sums SDSQ=Σ(DBH**2)·PROB and SPROB=ΣPROB over the DBH≥DBHSTAGE records in IND1
+order to form the STAGE A/B, then DISCARDS the closed form SPROB·A+B·SDSQ and re-sums SDIC=Σ(A+B·DBH**2)·PROB in the
+same IND1 order (:293-332). Float32 addition is order-dependent, so both passes walk `_ind1_order` (as `stand_sdi`,
+dense.f's BA/PCCF and SDICAL already do) — the index-order closed form sat ~1e-6 relative off live's SDIAC
+(TT S248112 2030 SDIAC 318.5158 vs live 318.5154), enough to flip an INT(CRNEW+0.5) crown.
+"""
 function stand_sdi_reineke(s::StandState)
     t = s.trees
+    ord = _ind1_order(s)
     thr = s.control.dbh_stage; sprob = 0f0; sdsq = 0f0
-    @inbounds for i in 1:t.n
-        if t.dbh[i] >= thr
-            sprob += t.tpa[i]; sdsq += t.dbh[i]^2 * t.tpa[i]
-        end
+    @inbounds for i in ord
+        d = t.dbh[i]; d < thr && continue
+        sdsq += (d * d) * t.tpa[i]; sprob += t.tpa[i]
     end
-    sprob <= 0f0 && return 0f0
-    mdsq = sdsq / sprob
+    sprob == 0f0 && return 0f0
     # sdical.f:281-282 `(10.0**(-1.605))*…*((SDSQ/SPROB)**(1.605/2.))` — all FVS `**` = gfortran powf, route via
-    # the companion (doctrine #8) not Julia's openlibm `^`. This feeds CROWN's SDI ⇒ keep SN/NE/CS/LS bit-exact.
-    a = fpow(10f0, -1.605f0) * (1f0 - 1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0)
-    b = fpow(10f0, -1.605f0) * (1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0 - 1f0)
-    return sprob * a + b * sdsq
+    # the companion (doctrine #8) not Julia's openlibm `^`.
+    a = fpow(10f0, -1.605f0) * (1f0 - 1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0)
+    b = fpow(10f0, -1.605f0) * (1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0 - 1f0)
+    sdic = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]
+        d >= thr && (sdic += (a + b * (d * d)) * t.tpa[i])
+    end
+    return sdic
 end
