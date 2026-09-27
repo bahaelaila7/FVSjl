@@ -693,6 +693,11 @@ mutable struct Calibration
     # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
     cratet_dead_pct::Vector{Float32}
     cratet_dead_ptbal::Vector{Float32}
+    # The CURRENT-stand RMSQD the calibration's aspen DGFASP reads (#191/#195; ≥0 only while DGSCOR calibration /
+    # the :770 dub DGF run, −1 otherwise ⇒ dgf! uses stand_qmd). Per stand: it was a process-global Ref
+    # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
+    # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
+    cur_rmsqd::Float32
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -711,7 +716,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
-    Float32[], Float32[])                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

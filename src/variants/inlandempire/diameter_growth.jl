@@ -132,7 +132,7 @@ function dgf!(s::StandState, ::InlandEmpire)
     relden = p.relative_density
     ba = p.basal_area
     ba100 = ba / 100f0
-    rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)     # #195: current RMSQD during DGSCOR calibration; used by aspen DGFASP (REL=D/RMSQD, GOFAD)
+    rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)     # #195: current RMSQD during DGSCOR calibration; used by aspen DGFASP (REL=D/RMSQD, GOFAD)
                              # is never populated for IE ⇒ was 0 ⇒ GOFAD ~4× low ⇒ aspen under-grew badly.
     itype = Int(p.habitat_input); ifor = Int(p.forest_idx)
     (itype < 1 || itype > 30) && (itype = 1)
