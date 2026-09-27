@@ -475,12 +475,11 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             addH = a * dfih                                 # hard-snag fall → hard down-wood (index 2)
             if s.variant isa SoutheastAlaska                # fmcwd.f CWD1: HIHT=HTIS/HTIH, LOHT=1.0/.10, raw DIF
                 _ak_fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)
-                fallen += dfall
-                continue
-            end
-            for j in 1:9
-                frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
-                frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
+            else
+                for j in 1:9
+                    frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
+                    frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
+                end
             end
             fallen += dfall
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
