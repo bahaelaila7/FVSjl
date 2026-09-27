@@ -11547,17 +11547,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 
 [[residual]]
 variant = "SN"
-regime = "rootdis"
-file = "CRASH"
-col = "*"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """jl CRASH — process crash (SIGSEGV/abort) — worker died | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live= jl=process crash (SIGSEGV/abort) — worker died"""
-
-[[residual]]
-variant = "SN"
 regime = "salvage"
 file = "FVS_Carbon"
 col = "Aboveground_Merch_Live"
@@ -20905,3 +20894,278 @@ status = "OPEN"
 max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [material=2 ulpbig=8] max|Δ|=7.0 | e.g. stand 474187636489998 year 2016: live=30 jl=33"""
 
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-27: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 238813815010854 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-27: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 238813815010854 year 2025: live=4.284897804260254 jl=4.300000190734863"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 5 cells [ulpbig=5] max|Δ|=1.0 | e.g. stand 216786838010854 year 2009: live=65 jl=66"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 12 cells [ulpbig=12] max|Δ|=11.0 | e.g. stand 238813815010854 year 2025: live=15503 jl=15502"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=0.1 | e.g. stand 238813815010854 year 2025: live=24.360824584960938 jl=24.350515365600586"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=2.0 | e.g. stand 238813815010854 year 2025: live=2363 jl=2362"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-27: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 238813815010854 year 2025: live=4.284897804260254 jl=4.300000190734863"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "SCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 238813815010854 year 2015: live=2430 jl=2431"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 10 cells [ulpbig=10] max|Δ|=2.0 | e.g. stand 238813815010854 year 2025: live=3425 jl=3426"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 5 cells [ulpbig=5] max|Δ|=1.0 | e.g. stand 216786838010854 year 2009: live=65 jl=66"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 12 cells [ulpbig=12] max|Δ|=11.0 | e.g. stand 238813815010854 year 2005: live=16801 jl=16802"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-27: 2 cells [gold_text9=2] max|Δ|=0.1 | e.g. stand 216786838010854 year 2024: live=25.2 jl=25.3"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=2.0 | e.g. stand 238813815010854 year 2015: live=2450 jl=2451"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "SCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 238813815010854 year 2015: live=2430 jl=2431"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 10 cells [ulpbig=10] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3888 jl=3887"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""

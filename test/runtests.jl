@@ -21,6 +21,7 @@ using FVSjl
     include("unit/test_bm_seedling.jl")    # BM dense-seedling regime: AVHT40 dead-inclusive crown dub + SMHTGF raw-SITEAR + LP HTDBH DG (3 small-tree over-growth fixes) vs live FVSbm_clean golden
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_root_disease.jl")   # WRD Chunk −1: RDIN reader + rdinit defaults + inert seam vs live FVSkt
+    include("unit/test_rd_stub.jl")         # RDIN = exrd.f stub (FVS11, inert) where live does not link WRD (SN/CS/LS/NE/AK/CA/OC/OP/ON); SN rootdis was a SIGSEGV
     include("unit/test_dfb.jl")            # DFB: DFBIND/DFBDBH/DFBER/DFBPRB + DFBRAN/BACHLO/DFBMOD/DFBMRT bit-exact vs relinked FVSie_dfb g16 + gated DFBDRV mortality seam
     include("unit/test_dftm.jl")           # DFTM chunk 0: TMRANN RNG + TMOTPR + dftmin.f keyword reader bit-exact vs pristine dftm/*.f + INERT seam
     include("unit/test_wpbr.jl")           # WPBR chunk 0: BRANN RNG + brin.f keyword reader + BRINIT defaults bit-exact vs pristine wpbr/*.f + INERT seam
