@@ -707,55 +707,310 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
     return s
 end
 
-# tt_esgent! (tt/esgent.f) — grow the JUST-ESTABLISHED regen records IN their birth cycle via the TT regent,
-# for the PARTIAL period (FINT−GENTIM; GENTIM=FINT−5 ⇒ 5 yr for a 10-yr cycle). Mirrors cr_esgent!: western
-# variants grow birth-cycle regen (esgent.f→REGENT); eastern leave them ungrown (GRADD order). Fixes the ESTAB
-# 1-cycle size/TopHt lag on planted TT stands (jl planted trees previously appeared ungrown at the first report).
-# FIRST-CUT: default regent species (_tt_rg_default: LM/DF/WB/BS/AS/LP/ES/AF/OS/MM). UTVAR (PM/UJ/RM/BI/MC) +
-# non-regent (PP) birth-cycle growth are a scoped follow-up (they need their own per-tree partial-cycle path).
-function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
-    t = s.trees; c = s.calib; p = s.plot; dens = s.density
+# tt_esgent! — tt/esgent.f: SPESRT, REGENT(.TRUE.,ITRNIN) over the records this cycle's ESTAB appended (ITRNIN =
+# nstart+1), then the WK4=HTIMLT tail. REGENT(LESTB) (tt/regent.f) differs from the cycle REGENT in:
+# - NTYR = INT(FINT)−5 (LSKIPH when ≤0); BAYR/CCFYR interpolate from the start-of-cycle TEMBA/TEMCCF (ATBA/ATCCF, else
+#   BA/RELDEN) to the post-growth, PRE-regen BA/RELDEN (GRADD's DENSE; jl's establish! already re-DENSEd with the
+#   seedlings, so the caller passes pre-regen snapshots): RDNEXT(J)=TEMCCF+NYR·CCFYR, BANEXT likewise (:274-286).
+# - DO 13 dubs every new record's crown in STORAGE order before any SMHTGF ZRAND draw (:302-316); PCTRED reads
+#   R=TEMCCF, AH=TEMAHT=ATAVH (:324-330).
+# - loop 1: TTVAR (1:3,5:9,17) SMHTGF subcycles (aspen SITAGE=ABIRTH, smhtgf.f:45), SMDGF DBH into WK5; CIVAR PP (10)
+#   the CI increment with SCALE=NTYR/REGYR; UTVAR (4,11:16,18) POTHTG·PCTRED·VIGOR·CON (MM: Sheppard on ABIRTH) with
+#   SCALE=NTYR/YR — each species/record only where I≥ITRNIN.
+# - loop 2: XWT=0, no tripling; CIVAR/UTVAR ZZRAN (NC/OH ·0.2·WK4 where WK4 is HTIMLT here), then DBH(K)=DK: TTVAR DK=WK5
+#   with DG=(DK−DKK)·BARK DDS-rescaled and capped at FINT·DGMAX; CIVAR/UTVAR DK from their H-D curves, floored at DIAM,
+#   +0.001·HK, DG=DBH (:948-968); sub-4.5' CIVAR/UTVAR DBH=D+0.001·HK, DG=0.
+# REGENT statics CON/XRHGRO/BARK carry from loop 1's last species into loop 2 (-fno-automatic), as in the cycle REGENT.
+# esgent.f:51-65: HTEMP=HT+HTG; HTG·=WK4; HT+=HTG; WK4<1 ⇒ HT<4.5: DBH=0.1+0.001·HT, DG=0, else DBH·=HT/HTEMP,
+# DG=DBH·HT/HTEMP; HT capped at HHTMAX. estab.f:707 then adds GENTIM to ABIRTH.
+function tt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
-    gentim = max(fint - 5.0f0, 0.0f0)
-    subcyc = (fint - gentim) / _TT_REGYR        # birth-cycle subcycles (=1 for fint=10)
-    scale2 = htg_period(s.variant) / fint       # DDS period scaling (YR/NTYR), = regular cycle
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    ba = ba_pre >= 0f0 ? ba_pre : p.basal_area
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    @inline _pccf(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
+    dgsd = s.control.dg_sd; regyr = _TT_REGYR; yr = htg_period(s.variant)
+    cur_year = current_cycle_year(s)
     si6 = p.sp_site_index[6]
-    # REGENT(LESTB) walks the new records species-major (DO 16 ISPC; DO 15 I3) — the SMHTGF ZRAND draw order.
-    @inbounds for i in filter(>(nstart), species_major_order(s))
-        t.tpa[i] <= 0.0f0 && continue
-        sp = Int(t.species[i]); d = t.dbh[i]
-        (d >= TT_RG_XMAX[sp] || !_tt_rg_default(sp)) && continue
-        h = t.height[i]; cr = Float32(t.crown_pct[i])
-        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 100.0f0
-        tpccf = pccf; tpccf > 300.0f0 && (tpccf = 300.0f0); tpccf < 25.0f0 && (tpccf = 25.0f0)
-        # birth-cycle ZRAND: esgent.f → REGENT → SMHTGF draws ZRAND(I) for the new tree and stores it,
-        # so the NEXT cycle's small_tree_growth persists the same deviate (t.tree_random inheritance).
-        # tt/smhtgf.f:70-73 has no DGSD gate; a ≤0.1-ft increment floors to 0.1 and resets ZRAND (:131-133).
-        zrand = t.tree_random[i]
-        if zrand == 0f0 || zrand == -999f0
-            while true; zrand = bachlo(s.rng, 0.0f0, 1.0f0); (-2.0f0 <= zrand <= 2.0f0) && break; end
-            t.tree_random[i] = zrand
-        end
-        esp = _tt_rg_esp(sp)                     # MM(14)→AS(6) coefficient mapping
-        htgrl = _tt_smhtgf(esp, h, cr, tpccf, zrand, si6)
-        htgrl <= 0.1f0 && (htgrl = 0.1f0; t.tree_random[i] = -999f0)
-        # regent.f:552 H2=H1+HTGRL·SCALE·XRHGRO·CON, CON=RHCON·EXP(HCOR) (RHCON=1 for TT)
-        htg = htgrl * subcyc * exp(c.htg_cor_small[sp]); htg < 0.0f0 && (htg = 0.0f0)
-        cap = s.control.sp_size_cap[sp, 4]
-        (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-        h2 = h + htg
-        t.height[i] = h2
-        if h2 >= 4.5f0
-            # tt/regent.f:948-960 TTVAR REGENT(LESTB) sets DBH(K)=DK = SMDGF(HK) ABSOLUTELY. The former code
-            # booked dbh = d + dgk/bratio, i.e. the LESTB=F growth-increment reconstruction (DG=(DK−DKK)*BARK,
-            # DDS-rescaled ≈ d+DK−DKK) capped at DGMX=FINT·DGMAX. Since DKK=SMDGF(H) on the sub-breast-height
-            # birth height ≠ D, that reconstruction sits below DK, and the DGMX cap clips it further, so the
-            # synchronized PLANT cohort entered the next cycle under DK — a one-directional BA/QMD deficit.
-            # TTVAR takes the plain DBH(K)=DK arm (no UTVAR/CIVAR DIAM-floor/+0.001*HK, regent.f:962-967); the
-            # jl d2 floor to DIAM is retained (harmless, prevents a sub-DIAM birth record). Mirror of IE/UT/BM.
-            d2 = _tt_smdgf(esp, h2, cr, pccf); d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
-            t.dbh[i] = d2
+    n = t.n
+    @inbounds for i in (nstart + 1):n                      # estab.f:614,641-642 ZRAND=-999, DG=HTG=0 on a new record
+        t.tree_random[i] = -999f0; t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0
+    end
+    # regent.f:195-219 subcycles: NTYR=INT(FINT)−5 under LESTB
+    ntyr = trunc(Int, fint) - 5
+    lskiph = ntyr <= 0
+    iyr = trunc(Int, regyr)
+    nper = div(ntyr, iyr); rem(ntyr, iyr) != 0 && (nper += 1)
+    kper = zeros(Int, max(nper, 0) + 1); itot = ntyr; nn = nper
+    @inbounds for k in 1:nper
+        nn == 1 && break
+        kper[k] = div(itot, nn); itot -= kper[k]; nn -= 1
+    end
+    nper > 0 && (kper[nper] = itot)
+    temba = atba > 0f0 ? atba : ba                          # regent.f:223-227
+    temccf = atrelden > 0f0 ? atrelden : relden
+    temaht = atavh >= 0f0 ? atavh : p.avg_height
+    banext = zeros(Float32, max(nper, 0) + 2); rdnext = zeros(Float32, max(nper, 0) + 2)
+    bayr = 0f0; ccfyr = 0f0
+    if !lskiph                                              # regent.f:274-286 (ITOT = the last KPER after DO 2)
+        bayr = (ba - temba) / Float32(itot); ccfyr = (relden - temccf) / Float32(itot)
+    end
+    nyr = 5
+    @inbounds for j in 1:nper
+        rdnext[j] = temccf + Float32(nyr) * ccfyr; banext[j] = temba + Float32(nyr) * bayr
+        nyr += kper[j]
+    end
+    # DO 13 (regent.f:302-316): crown of every new record, storage order, main stream
+    @inbounds for i in (nstart + 1):n
+        cr0 = 0.89722f0 - 0.0000461f0 * _pccf(i)
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr = trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr; t.crown_ratio[i] = Float32(icr)
+    end
+    wk3 = Float32[t.height[i] for i in 1:n]; wk5 = Float32[t.dbh[i] for i in 1:n]
+    xpr = temaht * (temccf / 100f0); xpr > 300f0 && (xpr = 300f0)       # regent.f:324-341
+    pctred = 1.11436f0 + xpr * (-0.011493f0 + xpr * (0.43012f-4 + xpr * (-0.72221f-7 +
+             xpr * (0.5607f-10 - xpr * 0.1641f-13))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    # SPESRT (esgent.f:44): species-major, ascending record within species, over every live record
+    order = sort(collect(1:n); by = i -> (Int(t.species[i]), i))
+    nsp = length(TT_RG_XMAX)
+    recs = [Int[] for _ in 1:nsp]
+    @inbounds for i in order; sp = Int(t.species[i]); 1 <= sp <= nsp && push!(recs[sp], i); end
+    con = 1f0; xrhgro = 1f0; bark = 0f0; scale2 = 1f0
+    ky = 0
+    @inbounds for j in 1:nper                               # loop 1 (DO 17 J / DO 16 ISPC / DO 15 I3)
+        ky += kper[j]
+        rdj = rdnext[j]
+        ppccf = relden > 0f0 ? 1f0 + (rdj - relden) / relden : 0f0
+        kymort = fpowi(0.985f0, ky)
+        for sp in 1:nsp
+            isempty(recs[sp]) && continue
+            ttvar = _tt_rg_default(sp); civar = sp == 10; utvar = _tt_rg_utvar(sp)
+            scale = ttvar ? Float32(kper[j]) / regyr : civar ? Float32(ntyr) / regyr : Float32(ntyr) / yr
+            lskiph || (scale2 = yr / Float32(ntyr))
+            (ttvar && lskiph) && continue
+            ((sp == 6 || utvar || civar) && j > 1) && continue
+            xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+            xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+            con = fexp(c.htg_cor_small[sp])                 # RHCON=1
+            si = p.sp_site_index[sp]
+            si > TT_SITEHI[sp] && (si = TT_SITEHI[sp]); si <= TT_SITELO[sp] && (si = TT_SITELO[sp] + 0.5f0)
+            rsimod = 0.5f0 * (1f0 + (si - TT_SITELO[sp]) / (TT_SITEHI[sp] - TT_SITELO[sp]))
+            sj = p.sp_site_index[sp]
+            for i in recs[sp]
+                d = t.dbh[i]; h = t.height[i]
+                d >= TT_RG_XMAX[sp] && continue
+                i <= nstart && continue
+                pr = t.tpa[i]; h1 = wk3[i]; d1 = wk5[i]
+                c1 = tt_tree_ccf(sp, d) * pr
+                b1 = _TT_BACON * d * d
+                bark = tt_bratio(sp, d)
+                htgrl = 0f0; pothtg = 0f0
+                if utvar
+                    if sp == 14                             # regent.f:463-485 FINDAG, LESTB ⇒ SITAGE=ABIRTH(I)
+                        sitage = t.birth_age[i]
+                        hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+                        hite2 = 26.9825f0 * fpow(sitage + 10f0, 1.1752f0)
+                        htgrl = (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con
+                        htgrl = htgrl * 0.75f0
+                    else
+                        pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
+                    end
+                end
+                tpccf = _pccf(i) * ppccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                cr = Float32(t.crown_pct[i])
+                if civar
+                    iicr = div(Int(t.crown_pct[i]) - 1, 10) + 1; iicr > 9 && (iicr = 9)
+                    rcr = Float32(iicr)
+                    htgrl = 2.764559f0 - 0.009643f0 * ba + 0.025303f0 * rcr * rcr
+                elseif ttvar                                # tt/smhtgf.f (LESTB)
+                    if t.tree_random[i] == -999f0
+                        z = 0f0
+                        while true; z = bachlo(s.rng, 0f0, 1f0); (-2f0 <= z <= 2f0) && break; end
+                        t.tree_random[i] = z
+                    end
+                    if d <= 0f0
+                        htgrl = 0f0
+                    else
+                        if sp == 6
+                            sitage = t.birth_age[i]
+                            hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+                            hite2 = 26.9825f0 * fpow(sitage + 5f0, 1.1752f0)
+                            htgrl = (hite2 - hite1) / (2.54f0 * 12f0)
+                            htgrl = htgrl + t.tree_random[i] * 0.1f0
+                            htgrl = htgrl * 0.75f0
+                        else
+                            beta1 = fexp(TT_B0ACCF[sp] + TT_B1ACCF[sp] * flog(tpccf))
+                            beta2 = fexp(TT_B0BCCF[sp] + TT_B1BCCF[sp] * flog(tpccf))
+                            htg1 = beta1 + beta2 * cr
+                            stddev = htg1 * (TT_B0ASTD[sp] + TT_B1BSTD[sp] * cr)
+                            htgrl = htg1 + t.tree_random[i] * stddev
+                        end
+                        htgrl <= 0.1f0 && (htgrl = 0.1f0; t.tree_random[i] = -999f0)
+                    end
+                    if sp == 6                              # regent.f:521-527 aspen RSIMOD from SITEAR(6)
+                        relsi6 = (si6 - 30f0) / 70f0; relsi6 > 1f0 && (relsi6 = 1f0); relsi6 < 0f0 && (relsi6 = 0f0)
+                        htgrl = htgrl * (0.5f0 * (1f0 + relsi6))
+                    end
+                else                                        # UTVAR (regent.f:531-545)
+                    x = cr / 100f0
+                    vigor = (150f0 * fpow(x, 3f0) * fexp(-6f0 * x)) + 0.3f0
+                    vigor > 1f0 && (vigor = 1f0)
+                    (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
+                    sp != 14 && (htgrl = pothtg * pctred * vigor * con)
+                end
+                h2 = (civar || ttvar) ? h1 + htgrl * scale * xrhgro * con : h1 + htgrl * scale
+                wk3[i] = h2
+                civar && continue                           # regent.f:569-572 D2=D, WK5 untouched
+                if ttvar                                    # regent.f:573-594
+                    d2 = _tt_smdgf(sp, h2, cr, _pccf(i)) * xrdgro
+                    d2 < TT_RG_DIAM[sp] && (d2 = TT_RG_DIAM[sp])
+                    wk5[i] = d2
+                    if j < nper && d < 3f0 && h2 > 4.5f0
+                        c1f = tt_tree_ccf(sp, d1) * pr; c2f = tt_tree_ccf(sp, d2) * pr
+                        rdnext[j+1] += Float32(ky) * (c2f - c1f) / 10f0 * kymort
+                        banext[j+1] += (_TT_BACON * (d2 * d2 - d1 * d1)) * pr * kymort
+                    end
+                    continue
+                end
+                d2 = d                                      # UTVAR regent.f:598-622
+                ((sp == 13 || sp == 15 || sp == 18) && d >= TT_RG_BREAK[sp]) && continue
+                h2 <= 4.5f0 && (d2 = d + 0.001f0 * h2)
+                wk5[i] = d2
+                if j < nper
+                    c2 = tt_tree_ccf(sp, d2) * pr
+                    rdnext[j+1] += Float32(ky) * (c2 - c1) / 10f0 * kymort
+                    banext[j+1] += (_TT_BACON * d2 * d2 - b1) * pr * kymort
+                end
+            end
         end
     end
+    ntyr10 = Float32(ntyr) / 10f0
+    @inbounds for sp in 1:nsp                               # loop 2 (DO 30 ISPC / DO 25 I3)
+        isempty(recs[sp]) && continue
+        ttvar = _tt_rg_default(sp); civar = sp == 10; utvar = _tt_rg_utvar(sp)
+        scale = ttvar ? yr / fint : civar ? Float32(ntyr) / regyr : Float32(ntyr) / yr
+        lskiph || (scale2 = yr / Float32(ntyr))
+        xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
+        dgmx = ttvar ? fint * TT_RG_DGMAX_RAW[sp] : TT_RG_DGMAX_RAW[sp]
+        diam = TT_RG_DIAM[sp]; bkpt = TT_RG_BREAK[sp]; cap = s.control.sp_size_cap[sp, 4]
+        for i in recs[sp]
+            d = t.dbh[i]; cr = Float32(t.crown_pct[i])
+            d >= TT_RG_XMAX[sp] && continue
+            i <= nstart && continue
+            h = t.height[i]; hk = wk3[i]; dk = wk5[i]
+            htgr = hk - h
+            (ttvar && d < diam) && (d = diam)
+            local htg::Float32
+            if (civar || utvar) && lskiph
+                htg = 0f0
+            elseif ttvar && lskiph                          # regent.f:710-721
+                if h >= 4.5f0
+                    dk = _tt_smdgf(sp, h, cr, _pccf(i)) * xrdgro
+                    dk < d && (dk = d)
+                    t.dbh[i] = dk
+                    dg = dk; dg > dgmx && (dg = dgmx)
+                    t.diam_growth[i] = dg
+                end
+                continue
+            else
+                if !ttvar                                   # regent.f:747-783 ZZRAN (carried XRHGRO/CON)
+                    zzran = 0f0
+                    if dgsd >= 1f0
+                        while true
+                            zzran = bachlo(s.rng, 0f0, 1f0)
+                            (zzran <= 0.5f0 && zzran >= -2f0) && break
+                        end
+                    end
+                    if civar
+                        htgr = (htgr + zzran * 0.1f0 * scale) * xrhgro * con
+                    else
+                        htgr = (sp == 15 || sp == 18) ? (htgr + zzran * 0.2f0 * ntyr10) * xrhgro * t.htimlt[i] :
+                                                        (htgr + zzran * 0.1f0 * ntyr10) * xrhgro
+                        htgr < 0.1f0 && (htgr = 0.1f0)
+                    end
+                end
+                htg = htgr                                  # XWT=0 under LESTB (regent.f:794)
+                if h + htg > cap; htg = cap - h; htg < 0.1f0 && (htg = 0.1f0); end
+            end
+            t.ht_growth[i] = htg
+            d >= bkpt && continue                           # regent.f:814 GO TO 23
+            hk = h + htg
+            dbh = t.dbh[i]; dg = 0f0
+            if !ttvar && hk < 4.5f0
+                dg = 0f0; dbh = d + 0.001f0 * hk
+            else
+                if civar
+                    dk = fexp(-1.10700f0 + 0.830144f0 * flog(hk))
+                elseif utvar
+                    if sp == 4 || sp == 11 || sp == 12
+                        dk = (hk - 4.5f0) * 10f0 / (p.sp_site_index[sp] - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                    elseif sp == 13 || sp == 16
+                        dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0f0 && (dkk = d)
+                        dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
+                        if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
+                            p2, p3, p4 = sp == 16 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
+                            hat3 = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))
+                            dk = _tt_bimc_dk(hk, hat3, p2, p3, p4)
+                        end
+                    else                                    # 14,15,18 Wykoff
+                        bx = TT_HT2[sp]; ax = c.ht_dbh_iabflg[sp] == 1 ? TT_HT1[sp] : c.ht_dbh_aa[sp]
+                        dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0; dk < 0.1f0 && (dk = 0.1f0)
+                    end
+                else                                        # TTVAR regent.f:920-936
+                    if hk >= 4.5f0
+                        dkk = _tt_smdgf(sp, t.height[i], cr, _pccf(i))
+                        bark = tt_bratio(sp, d)
+                        dg = (dk - dkk) * bark
+                        dds = dg * (2f0 * bark * d + dg) * scale2
+                        dg = sqrt((d * bark) * (d * bark) + dds) - bark * d
+                    else
+                        dg = 0f0
+                    end
+                end
+                dat45 = 3.1020f0 + 0.0210f0 * 4.5f0     # regent.f:948-968 LESTB
+                if (sp == 13 || sp == 16) && dat45 > 0f0 && hk >= 4.5f0 && s.control.ht_drag_sp[sp] &&
+                   c.ht_dbh_iabflg[sp] == 0
+                    dbh = dk - dat45 + diam
+                else
+                    dbh = dk
+                end
+                (ttvar && dg > dgmx) && (dg = dgmx)
+                if utvar || civar
+                    dbh < diam && (dbh = diam)
+                    dbh = dbh + 0.001f0 * hk
+                    dg = dbh
+                end
+                (dbh + dg) < diam && (dg = diam - dbh)
+            end
+            dg = dg_bound(nothing, nothing, sp, dbh, dg, s.control.sp_size_cap)   # DGBND
+            t.dbh[i] = dbh; t.diam_growth[i] = dg
+        end
+    end
+    # esgent.f:51-65
+    @inbounds for i in (nstart + 1):n
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * t.htimlt[i]
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if t.htimlt[i] < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > _TT_ES_HHTMAX[sp] && (t.height[i] = _TT_ES_HHTMAX[sp])
+    end
+    esgent_add_gentim!(s, nstart, fint)                    # estab.f:707 ABIRTH += GENTIM
     return s
 end

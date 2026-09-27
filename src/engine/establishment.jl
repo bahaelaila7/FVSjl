@@ -336,6 +336,38 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     return hht
 end
 
+# strp estab.f:174-270 (TT/UT) head of an ESTAB call with tally number `ntally`: NTALLY==1 draws a fresh ESDRAW off the
+# running ESRANN stream (:174-178), every call reseeds ESRNSD(ESDRAW) (:179) and fills WK6 (:202-205). On NTALLY==1 the
+# per-plot site prep IPPREP (:207-270) is sampled without replacement off WK6 — MECHPREP/BURNPREP %-of-plots (esetpr.f)
+# or, with neither keyword, strp/esprep.f's flat 0.75/0.20/0.05 — and later tallies reuse it. Each point's replicates
+# are processed grouped by prep type (DO 202 ITYPEP), so replicate slot k of a point takes the k-th smallest prep of its
+# block (ie_esetpr_sample). Only TT's PP essubh reads it (UPRE(IPREP), tt/essubh.f:57,123).
+function _strp_estab_rng!(s::StandState, ntally::Integer, nptids::Integer, idup::Integer, yr::Integer, per::Integer)
+    ntally == 1 && (s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0))
+    esd = s.estab.es_seed
+    (esd % 2f0 == 0f0) && (esd += 1f0)                                   # ESRNSD odd-force (esrann.f:56)
+    s.rng.es0 = Float64(esd)
+    wk6 = Float32[esrann!(s.rng) for _ in 1:(nptids * idup)]
+    if ntally == 1 && s.variant isa Teton
+        pmech_pct = nothing; pburn_pct = nothing
+        for a in s.control.schedule
+            (a.icflag == Int32(493) || a.icflag == Int32(491)) || continue
+            ay = Int(a.year)
+            idt = (0 < ay < 1000) ? Int(cycle_year_at(s.control, ay - 1)) : ay
+            (Int(yr) <= idt < Int(yr) + per) || continue
+            a.icflag == Int32(493) ? (pmech_pct = a.params[2]) : (pburn_pct = a.params[2])
+        end
+        sumup = if pmech_pct !== nothing || pburn_pct !== nothing
+            es = ie_esetpr(pmech_pct, pburn_pct)
+            ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
+        else
+            ie_esetpr_normalize(0.75f0, 0.20f0, 0.05f0, 0, 0)
+        end
+        s.estab.es_ipprep = Int32.(ie_esetpr_sample(sumup, wk6, nptids, idup))
+    end
+    return s
+end
+
 # estab.f:1496-1505 (IE/EM, after ESGENT): ABIRTH(I)=ABIRTH(I)+GENTIM for every record established this cycle,
 # GENTIM being estab.f's final value this cycle (the last PLANT's :1053-1058 reset, else :448's FINT−5).
 function esgent_add_gentim!(s::StandState, nstart::Int, fint::Float32)
@@ -387,7 +419,6 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     due = [a for a in s.control.schedule
            if (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
               ((yr <= a.year < yr + per) || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc))]
-    isempty(due) && return false
 
     # NPTIDS = IPTINV − NONSTK (esplt2.f:74): the STOCKABLE inventory points, not the raw
     # plot count. Driving DUPNPT/IDUP and so the regen record count + its per-record RNG draws.
@@ -396,6 +427,28 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # MAXPLT cap doesn't bind for the divergent 1<NPTIDS<MINREP cases. NPTIDS=1 ⇒ ceil=floor=50 (BARE stand).
     idup   = max(1, cld(Int(s.estab.minrep), nptids))   # MINPLOTS keyword (esin.f MINREP; default 50)
     dupnpt = Float32(nptids * idup)
+    # strp ESNUTR/ESTAB (TT/UT): ESTAB runs whenever esnutr.f schedules a tally (estab_prep_esnutr! →
+    # est.cyc_ntally), not only when a PLANT/NATURAL is due. A new ESTAB date restarts NTALLY=1 (fresh ESDRAW off the
+    # running ESRANN stream + fresh site preps); the ≤19-yr continuation (NTALLY+1) with nothing to plant still
+    # reseeds with ESDRAW and burns the WK6 fill and every plot's EMSQR/ESAVE draws (estab.f:174-205,394-417,528),
+    # which moves the stream the NEXT NTALLY=1 draws its ESDRAW from. MEASURED FVStt_g16 (ESTAB 1992 + ESTAB 2012
+    # PLANTs): live ESTAB 2012 runs NTALLY=1 with ESDRAW 73599; jl kept counting (NTALLY=3, the 1992 seed) ⇒ every
+    # 2012 seedling height off.
+    strp = s.variant isa Teton || s.variant isa Utah
+    strp_nt = (strp && s.estab.cyc_ntally_year == yr) ? Int(s.estab.cyc_ntally) : -1
+    if isempty(due)
+        if strp_nt > 0
+            _strp_estab_rng!(s, strp_nt, nptids, idup, yr, per)
+            for _ in 1:(nptids * idup)                               # estab.f:394-417 EMSQR ×2, ESAVE, then :528 reseed
+                esrann!(s.rng); esrann!(s.rng)
+                _esave = floor(esrann!(s.rng) * 100000f0 + 0.5f0)
+                (_esave % 2f0 == 0f0) && (_esave += 1f0); s.rng.es0 = Float64(_esave)
+            end
+            s.estab.ntally = Int32(strp_nt)
+            push!(s.estab.years_done, yr)
+        end
+        return false
+    end
     # ESSUBH base height from age uses the variant's site-curve: SN Chapman-Richards (ht_curve_b*),
     # NE NC-128 (ne_htcalc_height). bc is SN-only (NE has no ht_curve_b* coefs).
     bc = (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates ||
@@ -418,7 +471,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC/OP/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -481,23 +534,33 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # keyword trees are part of that call, not a second one ⇒ skip it (an extra NTALLY increment would e.g. turn a
     # LONE tally's NTALLY=0 into 1 and fire a spurious 20-yr continuation next cycle).
     if !use_ps
-        s.estab.ntally += Int32(1)
-        if s.estab.ntally == Int32(1)
-            s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0)   # fresh ESDRAW (NTALLY==1)
-        end
-        esd = s.estab.es_seed
-        (esd % 2f0 == 0f0) && (esd += 1f0)                               # ESRNSD odd-force (esrann.f:56)
-        s.rng.es0 = Float64(esd)
-        for _ in 1:(nptids * idup)                                       # WK6 site-prep fill (estab.f:202-205)
-            esrann!(s.rng)
+        if strp
+            _strp_estab_rng!(s, strp_nt > 0 ? strp_nt : 1, nptids, idup, yr, per)
+            s.estab.ntally = Int32(strp_nt > 0 ? strp_nt : 1)
+        else
+            s.estab.ntally += Int32(1)
+            if s.estab.ntally == Int32(1)
+                s.estab.es_seed = floor(esrann!(s.rng) * 100000f0 + 0.5f0)   # fresh ESDRAW (NTALLY==1)
+            end
+            esd = s.estab.es_seed
+            (esd % 2f0 == 0f0) && (esd += 1f0)                               # ESRNSD odd-force (esrann.f:56)
+            s.rng.es0 = Float64(esd)
+            for _ in 1:(nptids * idup)                                       # WK6 site-prep fill (estab.f:202-205)
+                esrann!(s.rng)
+            end
         end
     end
+    _strp_ipprep = (s.variant isa Teton && length(s.estab.es_ipprep) == nptids * idup) ? s.estab.es_ipprep : Int32[]
     # estab.f outer loop: `for nn in 1:NPTIDS` (each inventory point) × `idup` replicates
     # → NPTIDS·idup records total. For a BARE stand every point is identical (BAAA=0,
     # uniform slope/aspect/habitat), so the per-point variables don't vary; only the
     # record count and the ESRANN draw count scale with NPTIDS. (ptree already divides by
     # dupnpt = NPTIDS·idup, so the planted TPA is conserved across all the records.)
     _ie_first2 = Dict{Int,Float32}()   # IE PLANT-height DILATE = FIRST(2,sp) accumulator (estab.f:181 init 0.1, :1039 sqrt); IE branch only
+    # strp estab.f (TT/UT): GENTIM=FINT−5 once before the plot loop (:317); each PLANT resets it to FINT−DELAY−5
+    # (:508-512) AFTER its ESSUBH call, so the next PLANT's ESSUBH AGE (essubh.f:70) reads the previous one's value.
+    _gchain = Float32(gentim)
+    _tt_first2 = Dict{Int,Float32}()   # TT FIRST(2,sp) DILATE accumulator (estab.f:104 init 0.1, :467/:491 sqrt)
     @inbounds for nn in 1:nptids, rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
         # (previously discarded on the no-treeht path), one for esdraw (the re-seed value).
@@ -576,7 +639,24 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                               _emsqr * _dil * _IE_ES_BNORML[_iage])
                 end
             elseif s.variant isa Teton
-                _TT_ESSUBH_HHT[sp]        # tt/essubh.f fixed per-species base height (PP=placeholder); clamped [XMIN,HHTMAX]
+                # tt/essubh.f: a fixed per-species base height, except PP (10) which takes the CI PP subsequent-height
+                # model (essubh.f:123-125) HHT=EXP(PN+EMSQR·DILATE·BNORM·0.49076), PN=−1.99480+1.53946·ln(AGE)
+                # −0.00402·BAA −0.14710 +UPRE(IPREP) −0.01155·ELEV; AGE=TIME−DELAY−GENTIM+TRAGE (TIME=FINT, the
+                # rounded/clamped DELAY, the GENTIM chain), IAGE=INT(AGE+.5). DILATE=FIRST(2,sp) (estab.f:467), then
+                # FIRST(2,sp)=SQRT(DILATE) (:491) for every PLANT species. IPREP=1 (UPRE=0). Clamped [XMIN,HHTMAX].
+                _dil_tt = get(_tt_first2, sp, 0.1f0); _tt_first2[sp] = sqrt(_dil_tt)
+                if sp == 10
+                    _pdt = Float32(clamp(delay, -3, per))
+                    _aget = Float32(per) - _pdt - _gchain + trage; _aget < 1f0 && (_aget = 1f0)
+                    _iaget = clamp(trunc(Int, _aget + 0.5f0), 1, length(_IE_ES_BNORML))
+                    _ipr = isempty(_strp_ipprep) ? 1 : Int(_strp_ipprep[(nn - 1) * idup + rep])
+                    _upre = _ipr == 2 ? 0.20729f0 : _ipr == 3 ? 0.18491f0 : _ipr == 4 ? 0.11864f0 : 0f0
+                    _pnt = -1.99480f0 + 1.53946f0 * flog(_aget) - 0.00402f0 * clamp(s.plot.basal_area, 1f0, 400f0) -
+                           0.14710f0 + _upre - 0.01155f0 * s.plot.elevation
+                    fexp(_pnt + _emsqr * _dil_tt * _IE_ES_BNORML[_iaget] * 0.49076f0)
+                else
+                    _TT_ESSUBH_HHT[sp]
+                end
             elseif s.variant isa CentralIdaho
                 # CI subsequent/planted base height (ci/essubh.f, HHT=EXP(PN + disp·SIG)). IHTSER from the
                 # shared estb habitat-bracket chain (em_ihtser == the shared estab MYGRUP→MYHTS map, estab.f:493);
@@ -652,7 +732,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa Utah || s.variant isa Klamath ||
+                   s.variant isa Klamath ||
                    s.variant isa InlandEmpire
                 # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
                 # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
@@ -675,6 +755,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
             hht > es_hhtmax[sp] && (hht = es_hhtmax[sp])
+            if s.variant isa Teton || s.variant isa Utah               # strp estab.f:508-512 GENTIM reset (chain)
+                _pdg = Float32(clamp(delay, -3, per))
+                _gchain = (Float32(per) - _pdg) < 5f0 ? 0f0 : Float32(per) - _pdg - 5f0
+            end
             ibrkup = floor(Int, ptree / 10f0 + 1f0); brk = Float32(ibrkup)
             # Establishment DBH from the grown seedling height (esgent.f:55-62). A seedling still BELOW
             # breast height (HT < 4.5 ft) has no real DBH — FVS assigns the nominal `DBH = 0.1 + 0.001·HT`
@@ -682,10 +766,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if s.variant isa BlueMountains
+            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
                 # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
-                # birth, which fed the wrong D into the birth-cycle REGENT.
+                # birth, which fed the wrong D into the birth-cycle REGENT. TT/UT build the same strp estab.f
+                # (tt|ut/estab.f:626); a ≥4.5-ft TT/UT seedling fell to the shared HTDBH inverse, which has no TT/UT
+                # :htdbh_p2 coefficients (KeyError crash on any tall PLANT, e.g. TT NC HHT 10+RAN).
                 dbh = 0.1f0
             elseif hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
@@ -723,7 +809,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # 0.99998 (MEASURED live FVSie esgent WK4), NOT 1.0: <1 sends a sub-breast-height seedling down
                 # esgent.f:60-62 (DBH=0.1+0.001·HT, DG=0) instead of REGENT's 0.1+DIAM·0.01+0.001·HK.
                 # Other variants keep the full birth-cycle HTG (1.0; guards slot reuse). #193
-                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                # TT/UT (strp estab.f:506-516, same shape after tt|ut/essubh.f:64-69 rounds/clamps DELAY and sets
+                # TRAGE=TIME−DELAY): HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) = 0.99998 for a start-of-cycle PLANT.
+                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+                                      s.variant isa Teton || s.variant isa Utah
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
@@ -747,7 +836,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # (the strp estab.f of UT/NC/PN/WC/EC/SO/CA/WS/OC/OP, the IE-family one of CI/KT, and BC's) — needed by
                 # Climate-FVS BIRTHYR (clgmult/clmorts) now that those variants are climate-wired. BM keeps its own
                 # measured AGEPL form below; IE/EM take the per-record AGEPL form below.
-                (s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah ||
+                (s.variant isa CentralRockies ||
                  s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa Klamath ||
                  s.variant isa PacificNorthwest || s.variant isa WestCascades || s.variant isa EastCascades ||
                  s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia || s.variant isa WestSierra ||
@@ -767,6 +856,15 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # BM (strp/estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE. Read by the birth-cycle aspen REGENT
                 # (bm/regent.f:319 LESTB ⇒ SITAGE=ABIRTH) and Climate-FVS BIRTHYR.
                 s.variant isa BlueMountains && (t.birth_age[n] = Float32(per) - Float32(delay) + trage)
+                # TT/UT (strp estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE with the essubh-rounded DELAY and the
+                # ORIGINAL TRAGE (:438) — read by REGENT(LESTB) as SITAGE for aspen/MM (tt/smhtgf.f:45, tt|ut/regent.f
+                # LESTB). esgent_add_gentim! adds the call's final GENTIM after ESGENT (estab.f:707).
+                if s.variant isa Teton || s.variant isa Utah
+                    _pdi = Float32(clamp(delay, -3, per))
+                    t.birth_age[n] = Float32(per) - _pdi + trage
+                    s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
+                    s.estab.gentim_cyc = Int32(s.control.cycle)
+                end
                 # Records go on inventory point `nn` (estab.f:313 ITRE=IPTIDS[nn]).
                 # point_ba scales each point's raw BA by PI/GROSPC with PI=NPTIDS, so with
                 # the planted TPA spread evenly over NPTIDS points each point_ba comes back
@@ -879,8 +977,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # BM likewise: bm/regent.f LESTB draws the crown RAN (regent.f:257-264) and the height ZZRAN (:358-360)
         # INTERLEAVED per record on the main stream, so bm_esgent! owns the crown draw too.
         # EM likewise: em/regent.f LESTB draws each new record's crown in STORAGE order (DO 13) before its ZRANDs.
+        # TT (tt/regent.f:302-316 DO 13, storage order, before the SMHTGF ZRANDs) and UT (ut/regent.f:230-241, inside
+        # the species-major record loop, interleaved with ZZRAN) likewise draw the crown in their own esgent.
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
-                         s.variant isa EastCascades
+                         s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0
@@ -1092,7 +1192,9 @@ this cycle are deleted (esnutr.f:300-310). IDSDAT −9999 ⇒ IY(1)−20 (esnutr
 """
 function estab_prep_esnutr!(s::StandState)
     sched = s.control.schedule
-    any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), sched) || return
+    # TT/UT also take the tally number from here (est.cyc_ntally) to drive the strp ESTAB RNG (establish!).
+    (s.variant isa Teton || s.variant isa Utah ||
+     any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), sched)) || return
     est = s.estab
     yr = Int32(current_cycle_year(s))
     yr in est.prep_years_done && return
@@ -1140,6 +1242,7 @@ function estab_prep_esnutr!(s::StandState)
             end
         end
     end
+    est.cyc_ntally = Int32(ntally); est.cyc_ntally_year = yr
     if ntally > 0
         est.prep_ntally = Int32(ntally)
         estab_prep_tally!(s, ntally, Int(est.prep_idsdat), kdt)
