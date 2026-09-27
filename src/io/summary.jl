@@ -284,6 +284,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     di(x) = trunc(Int, x + 0.5)
     prev_rem_scuft = 0                          # last growing cycle's sawlog-cubic removal (IOSUM(22) carry)
     for c in 0:ncyc
+        # The inventory row / cycle-0 TreeList read the density CRATET's final DENSE left (cratet.f:578, over CRATET's
+        # IND — IND1-seeded RDPSRT(.FALSE.), or the :257 identity RDPSRT(.TRUE.) with dead records), the same state the
+        # first grow_cycle! rebuilds before DGDRIV. The setup pass used a fresh sort, so equal-DBH trees swapped their
+        # PCT/PTBAL (MEASURED FVSem_g16 196420598020004 2012: 33 BAPctile/PtBAL cells permuted among tied records).
+        c == 0 && compute_density!(s; cratet_ind = _fvs_ind_lifecycle(s.variant))
         compute_forest_type!(s)
         last = c == ncyc
         per = last ? 0 : cycle_period_at(s.control, c)   # THIS cycle's length (varies w/ TIMEINT/CYCLEAT)

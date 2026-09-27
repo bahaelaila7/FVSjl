@@ -12285,17 +12285,6 @@ issue = """NEW: jl emits a different number of rows than live for this table () 
 variant = "EM"
 regime = "none"
 file = "FVS_TreeList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11522
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 11522 cells [material=1745 ulp1=578 ulp2_16=1446 ulpbig=7753] max|Δ|=91.0 | e.g. stand 5352355010661 year 2044: live=4.286309242248535 jl=4.286308765411377"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"

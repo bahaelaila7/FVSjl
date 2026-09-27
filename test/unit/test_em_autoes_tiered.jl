@@ -288,6 +288,16 @@ end
     end
 end
 
+# The cycle-0 TreeList BAPctile/PtBAL come from CRATET's final DENSE (cratet.f:578) over CRATET's IND (IND1-seeded
+# RDPSRT(.FALSE.), or the identity re-sort with dead records) — the state the first grow cycle starts from. jl wrote
+# the setup pass's fresh-sort PCT, permuting equal-DBH records (MEASURED FVSem_g16 196420598020004 2012: 23 BAPctile
+# cells swapped between tied records).
+@testset "Cycle-0 TreeList PCT from CRATET's IND (cratet.f:151-153/578) vs FVSem_g16" begin
+    r = _run_stand("196420598020004")
+    @test !r.crashed
+    @test _treelist_diffcells("196420598020004", r.db, ("2012",); cols = ("BAPctile",)) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
