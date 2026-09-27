@@ -103,8 +103,18 @@ function ffe_fuel_loadings(s::StandState)
         end
         (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
     end
-    snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
-    snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
+    if s.variant isa SoutheastAlaska
+        # fmdout.f:163-176: DO ISZ=0,3 / DO IDC=1,4 / DO ITM=1,TFMAX — TOTSNG(1) += P2T·(CWD2B+CWD2B2)(IDC,ISZ,ITM), and for
+        # ISZ 1-2 TOTSNG(2) += P2T·(…)(IDC,ISZ+3,ITM), each term added in that order (the Float32 sums round per term).
+        c2 = fs.cwd2b; c22 = fs.cwd2b2
+        @inbounds for isz in 0:3, idc in 1:4, itm in axes(c2, 3)
+            snag_lt3 += _FM_P2T * (c2[idc, isz + 1, itm] + c22[idc, isz + 1, itm])
+            (isz == 1 || isz == 2) && (snag_ge3 += _FM_P2T * (c2[idc, isz + 4, itm] + c22[idc, isz + 4, itm]))
+        end
+    else
+        snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
+        snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
+    end
     # standing live (fmdout.f:217-258): TOTFOL = foliage; TOTLIV(1) = crown sizes 1-3 (+OLDCRW) of EVERY tree + the
     # stem of trees with D≤3; TOTLIV(2) = crown sizes 4-5 (+OLDCRW) + the stem of trees with D>3. The stem is FMSVL2
     # ('L', LMERCH=.FALSE., no top-kill ⇒ the actual height): VOL2HT = MAX(0.005454154·H, MCF) for CS/LS/NE/SN,
