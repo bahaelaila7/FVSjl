@@ -29,11 +29,11 @@ function ak_bratio(sp::Int, d::Float32)
     d <= 0f0 && return 0.99f0
     typ = AK_BARK_TYPE[sp]; a = AK_BARK_A[sp]; b = AK_BARK_B[sp]
     br = if typ == 1
-        dbt = a * d^b; (d - dbt) / d           # DBT=a·DOB^b, BRATIO=(D−DBT)/D
+        dbt = a * fpow(d, b); (d - dbt) / d    # DBT=a·DOB^b (REAL**REAL = powf), BRATIO=(D−DBT)/D
     elseif typ == 2
         (a + b * d) / d                        # BRATIO=(a+b·DOB)/DOB
     elseif typ == 3
-        (a * d^b) / d                          # DIB=a·DOB^b, BRATIO=DIB/D
+        (a * fpow(d, b)) / d                   # DIB=a·DOB^b (powf), BRATIO=DIB/D
     else
         0.9f0
     end
@@ -48,7 +48,7 @@ function ak_dgcons!(s::StandState)
     @inbounds for sp in 1:23
         c.atten[sp] = AK_OBSERV[sp]
         dgcon = 0f0
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         # AK bark is applied inside dgf! via ak_bratio; expose (a,b) for the engine's DBH-update
         # step as the type-appropriate linear surrogate is NOT valid for AK — bark_a/b unused here.
@@ -63,7 +63,7 @@ function dgf!(s::StandState, ::SoutheastAlaska)
     yr = s.control.year                       # YR (=10)
     temel  = p.elevation * 100f0              # TEMEL = ELEV·100
     temslp = p.slope * 100f0                  # TEMSLP = SLOPE·100
-    temsasp = temslp * cos(p.aspect)          # TEMSASP = TEMSLP·cos(ASPECT)
+    temsasp = temslp * fcos(p.aspect)         # TEMSASP = TEMSLP·COS(ASPECT) (glibc cosf)
     # LPERM — AK PERMAFROST keyword (grincr.f:203). grincr sets LPERM then calls DGDRIV for the GROWTH
     # prediction (LPERM live), but the LSTART DG/crown calibration runs earlier in CRATET with LPERM still
     # at its grinit .FALSE. default (verified: the CRATET DGF passes show PFMOD>1 = the floor≥1 branch even
@@ -87,19 +87,19 @@ function dgf!(s::StandState, ::SoutheastAlaska)
         ip = Int(t.plot_id[i])                # PRD = ZRD(pt)/XMAXPT(pt); 0 if the point has no BA (XMAXPT≤0)
         prd = (1 <= ip <= npt_prd && xmaxpt[ip] > 0f0) ? zrd[ip] / xmaxpt[ip] : 0f0
         ssite = p.sp_site_index[sp]           # SSITE = SITEAR(ISPC)
-        dgcomp1 = AK_DGEL[sp]*temel + AK_DGSLOP[sp]*temslp + AK_DGSASP[sp]*temsasp + AK_DGLNSI[sp]*log(ssite)
-        dgcomp2 = AK_DGDISQ[sp]*d2 + AK_DGLD[sp]*log(d) + AK_DGDBAL[sp]*pbal + AK_DGRD[sp]*prd + AK_DGLNCR[sp]*log(cr)
-        basedg = exp(AK_DGCONB1[sp] + dgcomp2 + dgcomp1)
+        dgcomp1 = AK_DGEL[sp]*temel + AK_DGSLOP[sp]*temslp + AK_DGSASP[sp]*temsasp + AK_DGLNSI[sp]*flog(ssite)
+        dgcomp2 = AK_DGDISQ[sp]*d2 + AK_DGLD[sp]*flog(d) + AK_DGDBAL[sp]*pbal + AK_DGRD[sp]*prd + AK_DGLNCR[sp]*flog(cr)
+        basedg = fexp(AK_DGCONB1[sp] + dgcomp2 + dgcomp1)
         # permafrost modifier
         pfmod = 1.0f0
         if sp in AK_PERM_SP
             pfcomp1 = AK_PFEL*temel + AK_PFSLOP*temslp + AK_PFSASP*temsasp
-            pfcomp2 = AK_PFDSQ*d2 + AK_PFLD[sp]*log(d) + AK_PFDBAL[sp]*pbal + AK_PFRD[sp]*prd + AK_PFLNCR*log(cr)
+            pfcomp2 = AK_PFDSQ*d2 + AK_PFLD[sp]*flog(d) + AK_PFDBAL[sp]*pbal + AK_PFRD[sp]*prd + AK_PFLNCR*flog(cr)
             if lperm
-                pfmod = exp(AK_PFCON[sp] + AK_PFPRES + pfcomp2 + pfcomp1) / basedg
+                pfmod = fexp(AK_PFCON[sp] + AK_PFPRES + pfcomp2 + pfcomp1) / basedg
                 pfmod > 1f0 && (pfmod = 1f0)
             else
-                pfmod = exp(AK_PFCON[sp] + pfcomp2 + pfcomp1) / basedg
+                pfmod = fexp(AK_PFCON[sp] + pfcomp2 + pfcomp1) / basedg
                 pfmod < 1f0 && (pfmod = 1f0)
             end
         end
@@ -107,7 +107,7 @@ function dgf!(s::StandState, ::SoutheastAlaska)
         brat = ak_bratio(sp, d)
         tempd1 = d * brat                     # current DIB
         tempd2 = (d + dgpred) * brat          # grown DIB
-        dds = log(tempd2*tempd2 - tempd1*tempd1) + c.dg_cor[sp] + c.dg_const[sp]
+        dds = flog(tempd2*tempd2 - tempd1*tempd1) + c.dg_cor[sp] + c.dg_const[sp]
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end
