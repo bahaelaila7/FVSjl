@@ -2620,6 +2620,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         t.crown_ratio[n] = 0f0                  # PCT(ITRN)=0.0 (estab.f:1252/1341) — the BAL percentile, NOT the crown;
                                                 # REGENT(LESTB) BAL=BAJ·(100−PCT)·1E-4 (regent.f:442) reads it
         t.norm_ht[n]     = Int32(0)
+        # estab.f:1226-1228 ITRUNC/DEFECT/ISPECL=0 (and WDLDSTEM :1215): a reused slot — e.g. the lone cycle-0 dead
+        # record's (n=0 ⇒ slot 1) — kept its top-kill, so the ES record reported TruncHt 28 (303115495489998).
+        t.trunc[n]       = Int32(0)
+        t.defect[n]      = Int32(0); t.special[n] = Int32(0)
+        t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
         t.sort_key[n]    = Float64(n)
         # Newly-established AUTOES trees carry NO volume in their birth cycle. Zero the volume fields so the
         # post-ESTAB .sum does not sum a STALE value inherited from this slot's prior occupant (a dead inventory
