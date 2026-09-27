@@ -533,7 +533,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # BM cycle-0 row: FVS's AVH (DENSE at cratet.f:692 / AVHT40 :624) walks the IND CRATET left — the IND1-seeded
     # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
     # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
-    toph = dt(stand_top_height(s; cratet_ind = cycle0 && (s.variant isa BlueMountains || s.variant isa CentralIdaho)) * fht)
+    toph = dt(stand_top_height(s; cratet_ind = cycle0 && _fvs_ind_lifecycle(s.variant)) * fht)
     qmd  = round(stand_qmd(s) * fqmd; digits = 1)
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
