@@ -101,9 +101,18 @@ non-positive density.
 """
 function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, year::Integer;
                    bolevol::Float32 = 0f0, height::Float32 = 0f0, yrdead::Integer = year,
-                   htcur::Float32 = -1f0, fallvol::Float32 = -1f0)
+                   htcur::Float32 = -1f0, fallvol::Float32 = -1f0, slot::Int = 0)
     density > 0f0 || return
     sn = fs.snags
+    if slot > 0                                    # FMSADD reuses an emptied record (fmsadd.f:47-56, see fmsadd_bin!)
+        psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
+        sn.sp[slot] = Int32(sp); sn.dbh[slot] = dbh
+        sn.den_soft[slot] = density * psoft; sn.den_hard[slot] = density - density * psoft
+        sn.origden[slot] = density; sn.year[slot] = Int32(year); sn.yrdead[slot] = Int32(yrdead)
+        sn.bolevol[slot] = bolevol; sn.fallvol[slot] = fallvol >= 0f0 ? fallvol : bolevol
+        sn.height[slot] = height; sn.htcur[slot] = htcur > 0f0 ? min(htcur, height) : height
+        return
+    end
     # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
     psoft = isempty(fs.params.psoft_ovr) ? 0f0 : get(fs.params.psoft_ovr, Int32(sp), 0f0)
     soft = density * psoft; hard = density - soft
@@ -117,6 +126,91 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
     push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc)
     return
+end
+
+# ── FMSADD (fmsadd.f, identical in all variants) ──────────────────────────────────────────────────────────────────
+# One FMSADD call bins that call's new dead trees into snag records by (species SPCL, DBHCL = INT(D/2+1) capped 19,
+# HTCL split at MIDHT when the class height range exceeds 20 ft) and gives the records slots in SPECIES-MAJOR order
+# (DO SPCL / DO DBHCL / DO HTCL, fmsadd.f:41-110): when more than 3 records exist (GAPS) the first emptied record at or
+# after IGAP is reused, else a new one is appended. The R6 variants need this record ORDER — their FMR6HTLS height-loss
+# draws are handed out per record (fmsnag.f:139-251) — so they route every snag source (inventory ITYP=3, cut ITYP=2,
+# fire/pile-burn ITYP=1, mortality ITYP=4, SNAGINIT) through here. Other variants keep their per-source booking.
+_fmsadd_binned(v) = r6_ffe_code(v) !== :none
+
+mutable struct _FmsaddCtx
+    gaps::Bool
+    igap::Int
+    taken::Vector{Int}
+end
+_fmsadd_ctx(fs::FireState) = _FmsaddCtx(length(fs.snags.sp) > 3, 1, Int[])   # GAPS = NSNAG > 3 (fmsadd.f:24-25)
+
+"FMSADD record slot for the next class (fmsadd.f:47-62): an emptied, not-yet-taken record from IGAP on, else 0 = append."
+function _fmsadd_slot!(fs::FireState, ctx::_FmsaddCtx)::Int
+    sn = fs.snags
+    if ctx.gaps
+        @inbounds for j in ctx.igap:length(sn.sp)
+            if sn.den_hard[j] + sn.den_soft[j] <= 0f0 && !(j in ctx.taken)
+                push!(ctx.taken, j); ctx.igap = j
+                return j
+            end
+        end
+        ctx.gaps = false
+    end
+    return 0
+end
+
+"""
+    fmsadd_bin!(s, items, year; yrdead = year, ityp, bolefn)
+
+One FMSADD call. `items` are the call's dead trees in FVS tree order as tuples (sp, d, hsee, ht, hdead, den, htrunc):
+`hsee` is FMSSEE's height (class MAXHT/MINHT), `ht` the HT(I) that picks HTCL, `hdead` the tree's HTDEAD contribution
+(ITYP=3: MAX(HT,NORMHT·.01), fmsadd.f:161; else HT) and `htrunc` its broken-top height (ITYP=3 only; ≤0 = none). DBHS
+and HTDEAD are density-weighted running means; for ITYP=3 the current height is overwritten by each tree (ITRUNC·.01 or
+the running HTDEAD), else it is HTDEAD. `bolefn(sp, dbhs, htdead)` gives the record's (bolevol, fallvol) in tons/stem.
+"""
+function fmsadd_bin!(s::StandState, items, year::Integer; yrdead::Integer = year, ityp::Int, bolefn)
+    fs = s.fire; isempty(items) && return s
+    mn = Dict{Tuple{Int,Int},Float32}(); mx = Dict{Tuple{Int,Int},Float32}()
+    for it in items
+        it[6] > 0f0 || continue
+        k = (it[1], _snag_dbhcl(it[2]))
+        mn[k] = min(get(mn, k, 1000f0), it[3]); mx[k] = max(get(mx, k, 0f0), it[3])
+    end
+    keys3 = NTuple{3,Int}[]
+    for k in sort!(collect(keys(mx)))                      # DO SPCL=1,MAXSP / DO DBHCL=1,19
+        mx[k] > 0f0 || continue
+        push!(keys3, (k[1], k[2], 1))
+        (mx[k] - mn[k]) > 20f0 && push!(keys3, (k[1], k[2], 2))
+    end
+    rec = Dict{NTuple{3,Int},Vector{Float32}}(k => Float32[0, 0, 0, -1] for k in keys3)   # dend, dbhs, htdead, htih
+    for it in items
+        den = it[6]; den > 0f0 || continue
+        sp = it[1]; d = it[2]; dbhcl = _snag_dbhcl(d); k2 = (sp, dbhcl)
+        mid = (mx[k2] - mn[k2]) > 20f0 ? (mx[k2] + mn[k2]) / 2f0 : 0f0
+        htcl = (mid <= 0f0 || it[4] < mid) ? 1 : 2
+        r = rec[(sp, dbhcl, htcl)]
+        tot = r[1] + den
+        r[3] = (r[3] * r[1] + it[5] * den) / tot
+        r[2] = (r[2] * r[1] + d * den) / tot
+        r[1] = tot
+        ityp == 3 && (r[4] = it[7] > 0f0 ? it[7] : r[3])
+    end
+    ctx = _fmsadd_ctx(fs)
+    for k in keys3
+        r = rec[k]; r[1] > 0f0 || continue
+        j = _fmsadd_slot!(fs, ctx)
+        bv, fv = bolefn(k[1], r[2], r[3])
+        add_snag!(fs, k[1], r[2], r[1], year; bolevol = bv, fallvol = fv, height = r[3],
+                  htcur = ityp == 3 ? r[4] : r[3], yrdead = yrdead, slot = j)
+        j == 0 && push!(ctx.taken, length(fs.snags.sp))
+    end
+    return s
+end
+
+"The R6 FMSADD snag bole on a record's class-mean DBHS/HTDEAD: FMSVOL VOL2HT = MAX(0.005454154·H, TCF), bole == fall."
+function _r6_snag_bolefn(s::StandState)
+    v2t = coef_col(s.coef, :v2t)
+    return (sp, d, h) -> (b = max(0.005454154f0 * h, _snag_merch_cuft_on(s, sp, d, h)) * v2t[sp] / 2000f0; (b, b))
 end
 
 """
@@ -278,6 +372,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     # (no at_year) = cur, so all other callers are unchanged.
     eff = at_year === nothing ? cur : Int(at_year)
     fallen = 0f0
+    r6fall = _fmsadd_binned(s.variant)
     # Last qualifying burn year (scorch > PBSCOR) for the post-burn PBTIME fall window — snag- AND
     # year-INDEPENDENT, so compute it ONCE here. (It used to be recomputed inside the per-snag × per-year
     # loops, and `fs.burn_reports::Vector{Any}` boxes `.scorch`/`.year` on every access ⇒ ~1.4 MB per fire
@@ -361,6 +456,13 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 xs = pbfris * sn.den_soft[i]; xh = pbfrih * sn.den_hard[i]
                 dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
             end
+            # fmsnag.f:216-219: a pool that would keep less than DZERO = NZERO/50 falls entirely. (Applied for the R6
+            # variants, whose FMR6HTLS draw count per record depends on which records are still standing.)
+            if r6fall
+                dz = _FM_NZERO / 50f0
+                dfis > sn.den_soft[i] - dz && (dfis = sn.den_soft[i])
+                dfih > sn.den_hard[i] - dz && (dfih = sn.den_hard[i])
+            end
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
             # Fallen-bole biomass into the down-wood pools, SPLIT by the snag's hard/soft state into the
             # matching CWD pool (FMCWD CWD1, fmcwd.f:K=1 soft DIS → cwd[:,1,:]; K=2 hard DIH → cwd[:,2,:]),
@@ -376,6 +478,10 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
             end
             fallen += dfall
+            # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
+            if r6fall && sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
+                sn.den_soft[i] = 0f0; sn.den_hard[i] = 0f0
+            end
         end
     end
     return fallen
@@ -636,6 +742,7 @@ function ffe_seed_input_snags!(s::StandState)
     # of EM 196378260020004's <12" input snags soft vs live 0 (all hard until age ≥ DKTIME≈19 yr).
     yr = Int(current_cycle_year(s)) - unsafe_trunc(Int, c.growth_fintm)
     s.control.merch_init || init_merch_standards!(s)
+    _fmsadd_binned(s.variant) && return _seed_input_snags_fmsadd!(s, yr)
     _ffe_west_vol(s.variant) && return _seed_input_snags_binned!(s, yr)
     @inbounds for i in (t.n + 1):(t.n + t.ndead)
         den = t.tpa[i]; d = t.dbh[i]
@@ -698,6 +805,24 @@ end
 # record's class-mean DBHS/HTDEAD; the dead-root biomass stays per tree (×(1−CRDCAY)^10, fmsadd.f:313-320).
 # EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Enabled for the western layer
 # (`_ffe_west_vol`: IE/KT/CI/TT/UT/EM), whose bole is `ffe_west_snag_bole`.
+# R6 variants: the same FMSADD ITYP=3 binning through fmsadd_bin! (species-major record order; bole = FMSVOL on the
+# record's DBHS/HTDEAD). Tree order = FMSADD's I=1..MAXTRE over the dead block (last input record first).
+function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
+    fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species; ifor = Int(s.plot.forest_idx)
+    items = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
+    @inbounds for i in (t.n + t.ndead):-1:(t.n + 1)
+        den = t.tpa[i]; d = t.dbh[i]
+        (den > 0f0 && d >= 1f0) || continue
+        sp = Int(t.species[i])
+        h = t.height[i] > 0f0 ? t.height[i] : max(4.5f0, _htdbh_height(sd, sp, d, ifor; isne = s.variant isa Northeast))
+        hd = t.norm_ht[i] > 0 ? max(h, t.norm_ht[i] * 0.01f0) : h
+        push!(items, (sp, d, h, h, hd, den, t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : -1f0))
+        _, _, rbio = jenkins_biomass(coef, sp, d)
+        fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^10
+    end
+    return fmsadd_bin!(s, items, yr; ityp = 3, bolefn = _r6_snag_bolefn(s))
+end
+
 function _seed_input_snags_binned!(s::StandState, yr::Integer)
     fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species
     v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
@@ -899,7 +1024,9 @@ function ffe_add_snaginit!(s::StandState)
         end
         bolevol = mcuft * v2t[sp] / 2000f0
         fallvol = tcuft * v2t[sp] / 2000f0
-        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc)
+        # each SNAGINIT is its own FMSADD(YEAR,-JDO) call (fmsnag.f:99): R6 variants reuse an emptied record
+        slot = _fmsadd_binned(s.variant) ? _fmsadd_slot!(fs, _fmsadd_ctx(fs)) : 0
+        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc, slot = slot)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age
     end

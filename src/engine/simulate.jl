@@ -622,6 +622,10 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     t = s.trees
     fire_now = _fire_due(s)   # OPCYCL: fires in the cycle whose range contains fire_year (incl. mid-cycle)
     if !fire_now
+        # Non-fire cycle with a deferred FFE annual loop (R6 variants, summary.jl): FMMAIN runs after GRINCR's
+        # increment draws and before FMKILL/UPDATE apply the mortality (FMPROB = PROB), so run it here, ahead of the
+        # mortality booking. jl's MORTS draws no main-stream RANN, so the state is FVS's FMMAIN state.
+        post_fire === nothing || post_fire(s)
         mortality!(s, s.variant; fint = fint, book_snags = book_snags)   # MORTS (FVS GRINCR order)
         return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)
     end
