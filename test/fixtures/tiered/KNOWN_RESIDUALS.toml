@@ -1653,7 +1653,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
 
 [[residual]]
 variant = "IE"
@@ -2390,7 +2390,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
 
 [[residual]]
 variant = "IE"
@@ -2500,7 +2500,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 24
-P26-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
+issue = """2026-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
 
 [[residual]]
 variant = "IE"
@@ -2577,7 +2577,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
 
 [[residual]]
 variant = "IE"
@@ -3226,7 +3226,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
 
 [[residual]]
 variant = "IE"
@@ -6350,7 +6350,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
 
 [[residual]]
 variant = "IE"
@@ -6460,7 +6460,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 24
-P26-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
+issue = """2026-09-27 em-resid LOAD site prep: over-cap = thinbba/econ now exact through the tally cycle, diverging one cycle later on the reused-slot DMR/WK2 of the booked records (next commit) (max_cells 23→24) | NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 23 cells [gold_text9=12 jl_not_f32=3 small=7 ulpbig=1] max|Δ|=0.8 | e.g. stand 1627682513290487 year 2061: live=27.9 jl=28.0"""
 
 [[residual]]
 variant = "IE"
@@ -6537,7 +6537,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
+issue = """2026-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
 
 [[residual]]
 variant = "IE"
