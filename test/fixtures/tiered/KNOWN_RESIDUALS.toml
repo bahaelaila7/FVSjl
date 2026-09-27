@@ -1065,17 +1065,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "none"
 file = "FVS_TreeList"
-col = "PtBAL"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 4 cells [material=3 ulpbig=1] max|Δ|=6.0 | e.g. stand 41136808010497 year 2005: live=196.0 jl=190.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
 col = "TCuFt"
 stand = "*"
 year = "*"
@@ -12280,17 +12269,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 5352355010661 year 1994: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
-col = "PtBAL"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4782
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4782 cells [material=3050 ulpbig=1732] max|Δ|=81.0 | e.g. stand 474187636489998 year 2016: live=0.0 jl=5.0"""
 
 [[residual]]
 variant = "EM"

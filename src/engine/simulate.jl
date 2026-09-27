@@ -351,7 +351,7 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
     # Ontario to keep the shared density path byte-identical for every other variant.
     s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
-    point_basal_area!(s)
+    point_basal_area!(s; cratet_ind = cratet_ind)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
     # RELDEN = stand CCF, set by DENSE for EVERY variant (dense.f → CCFCAL sum). This was a per-variant whitelist

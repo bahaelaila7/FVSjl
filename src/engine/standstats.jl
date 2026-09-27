@@ -226,7 +226,7 @@ trees are taken in descending-DBH order and BA accumulates; PTBALT[i] is the sum
 before tree i. The diameter-growth competition term uses PTBALT (= pbal). Per-tree
 BA = tpa·0.005454154·DBH²·PI/GROSPC. (Sorts per point — once-per-cycle, not hotpath.)
 """
-function point_basal_area!(s::StandState)
+function point_basal_area!(s::StandState; cratet_ind::Bool = false)
     p, t = s.plot, s.trees
     pb = s.density.point_ba; pbal = s.density.point_bal
     fill!(pb, 0f0)
@@ -245,7 +245,10 @@ function point_basal_area!(s::StandState)
     # FVS's IND (a stable sortperm! diverges on tie-heavy points; inert for IE which uses PCT not PTBALT, but
     # PTBALT-consuming variants — SN calibration, PN/WC/AK/OP — need the RDPSRT order).
     order = view(s.scratch.stat_idx, 1:t.n)
-    _rdpsrt!(view(t.dbh, 1:t.n), order)                                                 # IND: DBH descending, FVS tie-break
+    # ptbal.f walks the CURRENT IND: at the inventory that is CRATET's (cratet.f:151-153 IND1-seeded RDPSRT(.FALSE.),
+    # or :257's identity re-sort with dead records — bm_cratet_ind!), the IND the first cycle's DGDRIV PTBALT and the
+    # cycle-0 TreeList PtBAL come from; afterwards gradd.f:186's fresh RDPSRT(.TRUE.).
+    cratet_ind ? bm_cratet_ind!(s, order) : _rdpsrt!(view(t.dbh, 1:t.n), order)      # IND: DBH descending, FVS tie-break
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees

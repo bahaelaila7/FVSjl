@@ -298,6 +298,13 @@ end
     @test _treelist_diffcells("196420598020004", r.db, ("2012",); cols = ("BAPctile",)) == 0
 end
 
+# ptbal.f accumulates PTBALT per point over the CURRENT IND — CRATET's at the inventory — not a fresh RDPSRT(.TRUE.)
+# (MEASURED FVSem_g16 196420598020004 2012: PtBAL swapped between 10 tied records, e.g. live 68/73, jl 73/68).
+@testset "Cycle-0 PTBALT over CRATET's IND (ptbal.f) vs FVSem_g16" begin
+    r = _run_stand("196420598020004")
+    @test _treelist_diffcells("196420598020004", r.db, ("2012",); cols = ("PtBAL",)) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
