@@ -1559,6 +1559,7 @@ function run_keyfile(keypath::AbstractString;
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
             if sum_on

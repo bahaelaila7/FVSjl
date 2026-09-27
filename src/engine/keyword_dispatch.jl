@@ -599,6 +599,12 @@ end
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
+    # initre.f:2402-2412: CPVREF = field 7 (I10) or blank; a non-blank field 2 runs HABTYP (its ERRGRO branches).
+    p.pv_ref = rec.present[7] ? string(trunc(Int, v[7])) : ""
+    if rec.present[2]
+        habtyp_errors!(s, strip(rec.fields[2]), p.pv_ref, trunc(Int, v[2]))
+        s.control.habtyp_done = true
+    end
     # SN: STDINFO field 2 is the habitat/ecological-unit field, decoded by HABTYP
     # (numeric → index into SNECU; alpha → matched, uppercased) into the PCOM code.
     # IE (and other western Wykoff variants): field 2 is the numeric habitat code (KODTYP) that
@@ -2011,7 +2017,7 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         if k == "END"
             break
         elseif k == "DSNOUT"
-            fname = strip(read_raw_line!(kr))                     # filename on the next line
+            fname = strip(readline(kr.io))   # filename on the next line — dbsin.f:124 READs it WITHOUT IRECNT+1
             if s.control.dbs_caseid_set
                 # dbsin.f:116-122: CASEID already assigned (a DSNOUT/STANDSQL DBSCASE ran with an output table requested)
                 # ⇒ FVS16 "DSNOUT DATA BASE CAN NOT BE REDEFINED" — the name is read and discarded, output stays put.
@@ -2022,7 +2028,7 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
                 s.control.dbs_caseid_set = true
             end
         elseif k == "DSNIN"
-            dbs_in = strip(read_raw_line!(kr))                   # input SQLite file on the next line
+            dbs_in = strip(readline(kr.io))  # input SQLite file on the next line — dbsin.f:301, no IRECNT+1
         elseif k == "STANDSQL"
             standsql = _read_dbs_sql!(kr)
             # dbsstandin.f:216 CALL DBSCASE(1) as the stand is read: IFORSURE=1 forces the case, opening DSNOUT (the DBSINIT
@@ -2860,6 +2866,15 @@ Process keyword records from `kr` until PROCESS / STOP / EOF. `base_path` is the
 keyword file path with the extension stripped (used to locate the `.tre` file for
 TREEDATA). Returns the terminating reason (:process, :stop, :eof).
 """
+# initre.f PROCESS: FVS08 when no projectable tree record was read and NOTREES (LNOTRE) was not given
+# (initre.f:280-285), and the default HABTYP call with a blank code for a stand whose KODTYP was never set
+# (initre.f:384-387 — no DB PV_CODE, no STDINFO habitat).
+function _process_errgro!(s::StandState, notrees::Bool)
+    s.control.habtyp_done || habtyp_errors!(s, "", strip(s.plot.pv_ref), 0)
+    (s.trees.n < 1 && !notrees) && errgro!(s, 8; irec1 = s.trees.n, irecrd = s.trees.n + s.trees.ndead)
+    return
+end
+
 function process_keywords!(s::StandState, kr::KeywordReader, base_path::AbstractString)
     trees_loaded = false   # an explicit TREEDATA (or a DATABASE TreeSQL) was processed — FVS MORDAT
     notrees      = false   # NOTREES suppresses the default tree read
@@ -2869,7 +2884,8 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
     # shared data unit) still gets its trees. NOTREES (bare stands) suppresses this, and a
     # bare terminator (STOP/EOF with no keywords) is not a stand at all (nkw==0).
     finish(reason) = (nkw > 0 && !trees_loaded && !notrees &&
-                      load_trees!(s, base_path * ".tre"); reason)
+                      load_trees!(s, base_path * ".tre");
+                      reason === :process && _process_errgro!(s, notrees); reason)
     while true
         rec = read_keyword!(kr)
         # (ON note: an earlier port zeroed fields 1-4 of every initre-read card for Ontario, emulating the
@@ -2882,6 +2898,14 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         kw = strip(rec.name)
         isempty(kw) && continue                      # blank-line record
         nkw += 1
+        # ex*.f stub IN entry (exrd.f RDIN, excov.f CVIN, exmist.f MISIN, exclim.f CLIN): ERRGRO(.TRUE.,11) and return
+        # without reading the block, so every following record goes through the base reader (initre.f FNDKEY): a name
+        # not in keywds.f's TABLE is ERRGRO(.TRUE.,1) FVS01 and is otherwise ignored.
+        if kw in ext_stub_keywords(s.variant)
+            errgro!(s, 11); s.control.ext_stub_strict = true; continue
+        elseif s.control.ext_stub_strict && !(kw in FVS_BASE_KEYWORDS)
+            errgro!(s, 1; irecnt = kr.record_count); continue
+        end
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)
@@ -2996,7 +3020,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "WSBW";     kw_wsbwe!(s, rec, kr)      # Western Spruce Budworm block (keywds.f opt 8 'WSBW'; DEFOL/GENDEFOL/OBSCHED/DAMAGE/… → s.wsbwe; INERT — defoliation effect seam deferred)
         elseif kw == "COVER";    kw_coverin!(s, rec, kr)    # COVER understory/canopy-cover block (keywds.f opt 46 → CVIN; CANOPY/SHRUBS/COVER/… → s.cover; REPORT-ONLY, INERT for growth/mort)
         elseif kw == "BMIN";     kw_wwpbin!(s, rec, kr)     # Westwide Pine Beetle stand-level block (keywds.f opt 126; MAINOUT/TREEOUT/BKPOUT/VOLOUT/END → s.wwpb; INERT — output-only, PPE outbreak driver absent)
-        elseif kw == "MISTOE";   kw_mistoe!(s, rec)        # BC NEWSPRED/NISI dwarf-mistletoe (#196): activate DM extension
+        elseif kw == "MISTOE";   kw_mistoe!(s, rec); s.control.dm_block_open = true  # BC NEWSPRED/NISI dwarf-mistletoe (#196): activate DM extension
         elseif kw == "NEWSPRED"; kw_newspred!(s, rec)      #   use the NISI spatial spread model (misin.f opt 12)
         elseif kw == "DMAUTO";   kw_dmauto!(s, rec)        #   spatial autocorrelation decay (DMALPHA/DMBETA)
         elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
@@ -3010,6 +3034,13 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
             # gap in snt01.key/sn.key). Surfaced via s.control.unrecognized_keywords for tests/diagnostics.
             # Only plausible keyword NAMES (alphabetic first char) — not stray numeric data-record tokens.
             (!isempty(kw) && isletter(first(kw))) && push!(s.control.unrecognized_keywords, kw)
+            # initre.f:140-170 FNDKEY miss ⇒ ERRGRO(.TRUE.,1). The END closing a linked MISTOE block (whose
+            # sub-keywords jl reads at this level; misin.f consumes them in FVS) is not a base-reader record.
+            if kw == "END" && s.control.dm_block_open
+                s.control.dm_block_open = false
+            elseif !(kw in FVS_BASE_KEYWORDS)
+                errgro!(s, 1; irecnt = kr.record_count)
+            end
         end
     end
 end

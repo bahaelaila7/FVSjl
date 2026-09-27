@@ -396,6 +396,13 @@ mutable struct Control
     ffe_snagout::Bool
     ffe_dwdvlout::Bool
     ffe_dwdcvout::Bool
+    # ERRGRO (errgro.f) message text (CMSG) per stand, written to FVS_Error by DBSERROR (dbserror.f) — see io/errgro.jl.
+    # `ext_stub_strict`: an extension IN keyword hit its ex*.f stub (FVS11) ⇒ the following records are read by the base
+    # reader (FVS01 for any non-keywds.f name). `dm_block_open`: a linked MISTOE block whose sub-keywords jl reads here.
+    error_msgs::Vector{String}
+    ext_stub_strict::Bool
+    dm_block_open::Bool
+    habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
 end
 
 function Control()
@@ -476,6 +483,7 @@ function Control()
         0f0,                                                     # sdical_bamax
         false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
+        String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
     )
 end
 

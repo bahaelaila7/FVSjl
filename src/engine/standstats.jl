@@ -59,6 +59,7 @@ function notre!(s::StandState)
         pr = d < brk ? pr * fp : pr * vp / (d * d) + pr * fp2
         pr <= 0f0 && (pr = 9.0f-25)
         t.tpa[i] = pr * p.gross_space
+        pr > 1000f0 && errgro!(s, 40)                     # notre.f:75-76 (P before GROSPC)
     end
     # base species-sort key = original record index (FVS chain order pre-tripling);
     # tripling derives child keys so the per-tree RNG draw order matches the oracle.
