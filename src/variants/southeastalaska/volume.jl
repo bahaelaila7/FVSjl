@@ -112,12 +112,12 @@ end
 # `m` = AK merch standards (ak_merch): cubic top TOPD / board top BFTOPD (outside bark, ·bark inside the
 # kernel), DBHMIN / BFMIND gates. fvsvol.f makes the cubic VOLINIT call with MTOPP=TOPD·BARK and, for
 # D>=BFMIND, a separate board call with MTOPP=BFTOPD·BARK.
-function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3)
+function _ak_f32_vol(sp::Int, jsp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3, bk::Float32 = -1f0)
     (d < 1f0 || h <= 4.5f0) && return (0f0, 0f0, 0f0)   # need H>4.5 for the breast-height scaling
     fcoef = _ak_vol_fcoef(jsp)
     rflw, rhfw = _fw2_shp_core(fcoef, d, h, false)      # SHP_AK ≡ SHP_OT kernel; no lodgepole branch
     tapcoe = _fw2_sf_taper(rhfw, rflw)
-    bark = ak_bratio(sp, d)                             # AK variant bark (ak/bratio.f) = DBT_USER path
+    bark = bk > 0f0 ? bk : ak_bratio(sp, d)             # AK variant bark (ak/bratio.f) = DBT_USER path (vols.f BARK)
     dbhib = d * bark                                    # inside-bark DBH (bit-exact vs live SF2PT DBH_IB)
     # sf_2pt.f:63-66 F = DBH_IB / SF_YHAT(4.5/TOTALH) through sf_yhat.f's own precision (as cr_fw2_vol)
     yhat_bh = _fw2_sf_yhat_f(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0, h, false)[1]
@@ -315,13 +315,13 @@ function _ak_cur_buck(dibat, lmerch::Float32, mtop::Float32, stump::Float32)
 end
 
 # Per-tree AK CUR volume (AD/RA). Returns (total_cuft, merch_cuft, bdft).
-function _ak_cur_vol(sp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3)
+function _ak_cur_vol(sp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3, bk::Float32 = -1f0)
     (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)          # PROFILE DBHOB<1 / HTTOT<5 guard
     if _ak_r10_is_small(d, h)                              # volinit.f routes H<=40 or D<9 (REGN 10) to R10VOL
         v1, v4 = _ak_r10vol_small(d, h)
         return (v1, d >= m.dbhmin ? v4 : 0f0, 0f0)
     end
-    bark = ak_bratio(sp, d)
+    bark = bk > 0f0 ? bk : ak_bratio(sp, d)
     stump = d > 36f0 ? d / 36f0 : _AK_VOL_STUMP             # DEM/CUR stump fix (profile.f:1145)
     dibat = ht -> _ak_cur_dib(d, h, ht)
     tcf = _nint(_fw2_tcubic(dibat, h) * 10f0) * 1f-1                   # profile.f:293 NINT(TCVOL*10.0)*1E-1
@@ -478,13 +478,13 @@ function _r10_bfchug(nlog::Int, logdia::Vector{Float32}, cl::Float32)::Float32
 end
 
 # Per-tree DEM volume. Returns (total_cuft, merch_cuft, bdft) after the driver's DBHMIN/BFMIND gates.
-function _ak_dem_vol(sp::Int, d::Float32, h::Float32, m, ra::Bool)
+function _ak_dem_vol(sp::Int, d::Float32, h::Float32, m, ra::Bool, bk::Float32 = -1f0)
     (d < 1f0 || h <= 0f0) && return (0f0, 0f0, 0f0)
     if _ak_r10_is_small(d, h)                              # r10vol.f small-tree branch
         v1, v4 = _ak_r10vol_small(d, h)
         return (v1, d >= m.dbhmin ? v4 : 0f0, 0f0)
     end
-    bark = ak_bratio(sp, d)
+    bark = bk > 0f0 ? bk : ak_bratio(sp, d)
     nlog, logdia, logspan, _ = _r10tapo_logs(d, h, m.topd * bark)   # cubic call: MTOPP = TOPD·BARK
     vol4 = 0f0; dibl = logdia[1]
     for i in 1:nlog
@@ -540,11 +540,11 @@ ak_merch_dbhmin(s::StandState, sp::Int)::Float32 = ak_merch(s, sp).dbhmin
 
 # Per-tree AK NVEL volume (TCF, MCF, BF) at DBH `d`, height `h` — the NATCRS result before any broken-top trim
 # (also FFE's FMSVL2 volume for FMCROWE's DBHMIN tree).
-function ak_tree_vol(s::StandState, sp::Int, d::Float32, h::Float32)
+function ak_tree_vol(s::StandState, sp::Int, d::Float32, h::Float32, bk::Float32 = -1f0)
     (1 <= sp <= 23) || return (0f0, 0f0, 0f0)
     m = ak_merch(s, sp)
     if _ak_forst04(Int(s.plot.user_forest_code))
-        _ak_is_dem04(sp) && return _ak_dem_vol(sp, d, h, m, s.control.ak_r10tap_ra)
+        _ak_is_dem04(sp) && return _ak_dem_vol(sp, d, h, m, s.control.ak_r10tap_ra, bk)
         sp == 3 && return _ak_dve_vol(94, d, h, m)          # YC → A00DVEW094 on FORST '04'
     end
     jsp = _AK_VOL_JSP[sp]; grp = _AK_DVE_GRP[sp]
@@ -552,8 +552,8 @@ function ak_tree_vol(s::StandState, sp::Int, d::Float32, h::Float32)
     (d < 1f0 || (jsp == 0 && grp == 0 && !iscur)) && return (0f0, 0f0, 0f0)
     # a large CUR tree goes through PROFILE → R10TAP('…351'), which leaves the saved ISP = 'RA'
     iscur && d >= 1f0 && h >= 5f0 && !_ak_r10_is_small(d, h) && (s.control.ak_r10tap_ra = true)
-    return jsp != 0 ? _ak_f32_vol(sp, jsp, d, h, m) :
-           iscur    ? _ak_cur_vol(sp, d, h, m) :
+    return jsp != 0 ? _ak_f32_vol(sp, jsp, d, h, m, bk) :
+           iscur    ? _ak_cur_vol(sp, d, h, m, bk) :
                       _ak_dve_vol(grp, d, h, m)
 end
 
@@ -567,9 +567,13 @@ function compute_volumes_ak!(s::StandState)
         # standing height with no trim.
         tkill = h >= 4.5f0 && t.trunc[i] > 0
         hv = tkill ? Float32(t.norm_ht[i]) / 100f0 : Float32(h)
-        tcf, mcf, bf = ak_tree_vol(s, sp, d, hv)
+        # vols.f:150-151: BARK=BRATIO(ISPC,D,H) is taken on the START-of-cycle DBH, THEN D=D+DG/BARK; NVEL gets
+        # DBTBH=D·(1−BARK) (fvsvol.f:131/159/337) and the merch tops TOPD·BARK with that start bark. jl volumes the
+        # grown DBH, so use the BRATIO(D_start) the DBH update stashed (vol_bark); cycle 0 (LSTART) has none ⇒ current.
+        bk = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : -1f0
+        tcf, mcf, bf = ak_tree_vol(s, sp, d, hv, bk)
         if tkill && tcf > 0f0 && 1 <= sp <= 23
-            bark = ak_bratio(sp, d)                          # vols.f:150 BARK=BRATIO(ISPC,D,H)
+            bark = bk > 0f0 ? bk : ak_bratio(sp, d)          # vols.f:150 BARK=BRATIO(ISPC,D,H)
             vmax = tcf
             m = ak_merch(s, sp)                              # CFTOPK: STMP/TOPD; BFTOPK: BFSTMP/BFTOPD (per forest)
             tcf, mcf = cr_cftopk(tcf, mcf, d, hv, vmax, bark, Int(t.trunc[i]), m.stump, m.topd)

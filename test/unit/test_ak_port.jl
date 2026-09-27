@@ -8,6 +8,8 @@
 #    TPA/BA/SDI/CCF/TopHt/QMD row through 2082.
 #  * volume start bark: vols.f:150-151 BARK=BRATIO(DBH_start) before D=D+DG/BARK, so NVEL's DBTBH=D·(1−BARK)
 #    scales the F32 profile with the start-of-cycle bark — the small-SS TCuFt 0.1 roundings (2012 231 not 240).
+#  * volume start bark: vols.f:150-151 BARK=BRATIO(DBH_start) before D=D+DG/BARK, so NVEL's DBTBH=D·(1−BARK)
+#    scales the F32 profile with the start-of-cycle bark — the small-SS TCuFt 0.1 roundings (2012 231 not 240).
 using FVSjl, Test
 
 function _ak_sum_rows(path)
@@ -34,6 +36,11 @@ end
     @testset "establishment + small-tree growth (TPA..QMD)" begin
         for y in yrs
             @test get(jl, y, zeros(10))[1:6] == live[y][1:6]
+        end
+    end
+    @testset "volume with the start-of-cycle bark" begin
+        for y in yrs
+            @test get(jl, y, zeros(10))[7:10] == live[y][7:10]
         end
     end
 end
