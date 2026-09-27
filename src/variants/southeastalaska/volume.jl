@@ -193,20 +193,10 @@ end
 # =============================================================================
 
 # DVREDA (r10tap.f/r10hts.f red-alder statement function): the inside-bark taper RATIO at relative
-# height RH (before √·D). Fortran evaluates it in single precision (all operands REAL*4, result stored
-# into a REAL variable); computing the powers in Float64 then narrowing to Float32 reproduces it to
-# well within the 0.1-cuft output precision.
-@inline function _ak_cur_dvreda(rh::Float32, rh32::Float32, rh40::Float32, h::Float32, d::Float32)::Float32
-    r = Float64(rh); dd = Float64(d); hh = Float64(h)
-    r15 = r^1.5; r3 = r^3.0
-    v = 0.91274 * r15 -
-        1.9758 * (r15 - r3) * (dd * 1e-2) +
-        8.2375 * (r15 - r3) * hh * 1e-3 -
-        4.964 * (r15 - Float64(rh32)^32.0) * (hh * dd) * 1e-5 +
-        3.773 * (r15 - Float64(rh32)^32.0) * (hh^0.5) * 1e-3 -
-        7.417 * (r15 - Float64(rh40)^40.0) * (hh^2.0) * 1e-6
-    return Float32(v)
-end
+# height RH (before √·D), evaluated in REAL*4 exactly as written (`_r10tap_dvreda`, with the `**` REAL
+# powers as powf).
+@inline _ak_cur_dvreda(rh::Float32, rh32::Float32, rh40::Float32, h::Float32, d::Float32)::Float32 =
+    _r10tap_dvreda(rh, rh32, rh40, h, d)
 
 # R10TAP red-alder inside-bark section diameter at height `htup` (RH clamp per r10tap.f:169-196).
 @inline function _ak_cur_dib(d::Float32, h::Float32, htup::Float32)::Float32
@@ -220,7 +210,7 @@ end
     end
     d2 = _ak_cur_dvreda(rh, rh32, rh40, h, d)
     d2 < 0f0 && (d2 = 0f0)
-    return sqrt(d2) * d
+    return fpow(d2, 0.5f0) * d                              # (D2)**.5*D — powf, not sqrt
 end
 
 # RH clamp for the R10HTS Newton iteration (RA rules). `rh13` selects the RH40=0.13 quirk that the
