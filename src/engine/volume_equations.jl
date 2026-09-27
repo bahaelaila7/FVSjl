@@ -404,9 +404,8 @@ function setup_volume_equations!(s::StandState)
             bmkf = bm_kodfor_remap(kodfor)
             s.species.vol_eq[sp] = _bm_r6_eqn(bmkf % 100, 0, ifia)
         elseif s.variant isa WestCascades
-            # WC VOLEQDEF (voleqdef.f R6_EQN WESTSIDE branch, VAR='WC') — FORNUM=KODFOR%100. Willamette
-            # (618→FORNUM 18) validated vs FVSwc_clean; westside Flewelling (DF/WH) + INGY (GF/NF/IC) + Behre.
-            s.species.vol_eq[sp] = _wc_r6_eqn(kodfor % 100, ifia)
+            # WC VOLEQDEF (wc/sitset.f → voleqdef.f R6_EQN westside / R7_EQN BLM) by post-FORKOD KODFOR × species.
+            s.species.vol_eq[sp] = _wc_voleq(kodfor, sp)
         elseif s.variant isa PacificNorthwest
             s.species.vol_eq[sp] = _pn_r6_eqn(kodfor % 100, ifia)
         elseif s.variant isa EastCascades
