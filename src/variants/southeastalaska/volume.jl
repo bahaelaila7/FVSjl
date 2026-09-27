@@ -251,23 +251,34 @@ function _ak_cur_lmerch(d::Float32, h::Float32, top::Float32, stump::Float32)::F
     return lm < 0f0 ? 0f0 : lm
 end
 
-# R10VOL small-tree cubic (r10vol.f FSTGRO/SECGRO), the CUR/DEM D<9 (REGN 10) path — total cubic only.
-function _ak_cur_smalltree(d::Float32, h::Float32)::Float32
+# R10VOL small-tree branch (r10vol.f:~60-80): taken by volinit.f for every A01/A02 (DEM) tree and for CUR trees
+# with (HTTYPE F and HTTOT<=40) or DBHOB<9 (REGN 10). FSTGRO (D<=3.5 or H<18) sets VOL(1) only; SECGRO sets
+# VOL(1)=VOL(4)=ANINT(CUBVOL*10.0)/10.0 (the driver's DBHMIN gate then decides MCF). REAL arithmetic as written.
+function _ak_r10vol_small(d::Float32, h::Float32)
+    local cub::Float32
     if d <= 3.5f0 || h < 18f0                 # FSTGRO
-        h <= 4.5f0 && return 0f0
-        if h <= 18f0
-            t1 = (h - 0.9f0) / (h - 4.5f0); t1 = t1 * t1
-            t2 = t1 * (h - 0.9f0) / (h - 4.5f0)
-            form = 0.406098f0 * t1 - 0.0762998f0 * d * t2 + 0.00262615f0 * d * h * t2
+        if h <= 4.5f0
+            cub = 0f0
         else
-            form = 0.480961f0 + 42.46542f0/(h*h) - 10.99643f0*d/(h*h) - 0.107809f0*d/h - 0.00409083f0*d
+            if h <= 18f0
+                t1 = ((h - 0.9f0) * (h - 0.9f0)) / ((h - 4.5f0) * (h - 4.5f0))
+                t2 = t1 * (h - 0.9f0) / (h - 4.5f0)
+                form = 0.406098f0 * t1 - 0.0762998f0 * d * t2 + 0.00262615f0 * d * h * t2
+            else
+                form = 0.480961f0 + 42.46542f0 / (h * h) - 10.99643f0 * d / (h * h) - 0.107809f0 * d / h - 0.00409083f0 * d
+            end
+            cub = 0.005454154f0 * form * d * d * h
+            cub < 0f0 && (cub = 0f0)
         end
-        vn = 0.005454154f0 * form * d * d * h
-        return vn < 0f0 ? 0f0 : vn
-    else                                       # SECGRO (D>3.5 and H≥18, up to D<9/H≤40)
-        return exp(-5.577f0 + 1.9067f0 * log(d) + 0.9416f0 * log(h))
+        v1 = Float32(round(cub * 10.0f0)) / 10.0f0                     # VOL(1) = ANINT(CUBVOL*10.0)/10.0
+        return (max(v1, 0f0), 0f0)
+    else                                       # SECGRO
+        cub = fexp(-5.577f0 + 1.9067f0 * flog(d) + 0.9416f0 * flog(h))
+        v = Float32(round(cub * 10.0f0)) / 10.0f0
+        return (max(v, 0f0), max(v, 0f0))       # VOL(1) = VOL(4)
     end
 end
+@inline _ak_r10_is_small(d::Float32, h::Float32) = h <= 40f0 || d < 9.0f0   # volinit.f R10VOL routing (HTTYPE 'F')
 
 # A32 bucking (profile.f, REGN 10 32-ft-log rule) for the CUR profile — same structure as the F32
 # `_ak_buck` but with the R10HTS-derived merch length (`lmerch`) instead of the SF_HS bisection.
@@ -310,8 +321,9 @@ end
 # Per-tree AK CUR volume (AD/RA). Returns (total_cuft, merch_cuft, bdft).
 function _ak_cur_vol(sp::Int, d::Float32, h::Float32)
     (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)          # PROFILE DBHOB<1 / HTTOT<5 guard
-    if d < _AK_VOL_DBHMIN                                   # driver routes D<9 (REGN 10) to R10VOL
-        return (Float32(round(_ak_cur_smalltree(d, h) * 10f0)) / 10f0, 0f0, 0f0)
+    if _ak_r10_is_small(d, h)                              # volinit.f routes H<=40 or D<9 (REGN 10) to R10VOL
+        v1, v4 = _ak_r10vol_small(d, h)
+        return (v1, d >= ak_merch_dbhmin_const() ? v4 : 0f0, 0f0)
     end
     bark = ak_bratio(sp, d)
     mtop = _AK_VOL_TOPD * bark                              # MTOPP = BFTOPD·bark = 7·ak_bratio
@@ -325,6 +337,7 @@ end
 
 # AK merch-cubic min DBH (DBHMIN) for species `sp` (FMCROWE's DBHMIN(SPIYV)).
 ak_merch_dbhmin(s::StandState, sp::Int)::Float32 = _AK_VOL_DBHMIN
+@inline ak_merch_dbhmin_const() = _AK_VOL_DBHMIN
 
 # Per-tree AK NVEL volume (TCF, MCF, BF) at DBH `d`, height `h` — the NATCRS result before any broken-top trim
 # (also FFE's FMSVL2 volume for FMCROWE's DBHMIN tree).
