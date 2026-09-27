@@ -612,6 +612,22 @@ function ak_estab!(s::StandState, kdt::Integer; fint::Float32 = 10.0f0)::Int
     end
     # stand/point site
     xxslp = Float32(p.slope_raw) * 0.01f0; xxasp = Float32(p.aspect_deg) * 0.0174533f0
+    # estab.f:809-810 RADIAN=PASP(NNID), SLO=PSLO(NNID) — PER-PLOT. DATABASE tree input calls INTREE with IRDPLV=2
+    # (dbsin.f:361 ⇒ NPNVRS=5, IPINFO=2): esplt1.f:69-70 stores each plot's FIRST tree record SLOPE/ASPECT and
+    # esplt2.f:218-227 scales them (×0.01, ×0.0174533; a NULL column reads 0 ⇒ 0) — the FIA reader's p.point_slope/
+    # point_aspect. Plots appended for IPTINV−NONSTK > found (esplt2.f:184-193, PSLO=−1 ⇒ XXSLP) and a bare
+    # (IPINFO=0) stand take the stand XXSLP/XXASP — the same resolution as the IE port (inlandempire/establishment.jl).
+    # MEASURED FIA 10708179010497 (stand slope 16, first tree 33/190°): live ESTOCK ADJSLO=33 ADJXC=−32.4986, jl had
+    # the stand 16 ⇒ PN 1.91895 vs 1.88599 ⇒ PROB1 1-2 ULP off ⇒ every 2017 ES record PROB off and a WH/RC species swap.
+    pslo_es = p.point_slope; pasp_es = p.point_aspect
+    if s.trees.n > 0 && !isempty(pslo_es)
+        if any(k -> k > length(p.point_ids) || p.point_ids[k] == 0, 1:length(pslo_es))
+            pslo_es = copy(pslo_es); pasp_es = copy(pasp_es)
+            @inbounds for k in 1:length(pslo_es)
+                (k > length(p.point_ids) || p.point_ids[k] == 0) && (pslo_es[k] = xxslp; pasp_es[k] = xxasp)
+            end
+        end
+    end
     tlat = p.latitude
     xesmlt = Float32[get(est.spec_mult, Int32(j), 1f0) for j in 1:nofspe]
     htadj = Float32[get(est.ht_adj, Int32(j), 0f0) for j in 1:nofspe]
@@ -648,7 +664,8 @@ function ak_estab!(s::StandState, kdt::Integer; fint::Float32 = 10.0f0)::Int
                     ipold = iprep
                     nnid = nn                                    # IPTIDS(NN) = NN (IPINFO=0)
                     st.prob1[ncount] = 1.0f0
-                    radian = xxasp; slo = xxslp
+                    radian = nnid <= length(pasp_es) ? pasp_es[nnid] : xxasp
+                    slo    = nnid <= length(pslo_es) ? pslo_es[nnid] : xxslp
                     xcosas = fcos(radian); xcos = xcosas * slo
                     baa = baaa[nnid]; baa < 1f0 && (baa = 1f0); baa > 400f0 && (baa = 400f0)
                     baaold = nnid > length(est.inv_point_baaold) ? 0f0 : est.inv_point_baaold[nnid]
