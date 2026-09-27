@@ -13,6 +13,10 @@
 # DEFULMOD); akffe.live.sum = FVSak_g16. The AK FFE (fire/ak fmvinit/fmcba/fmcfmd/fmbrkt + the FVSpn-identical
 # rest) must burn the 2003 fire as live does (fuel model 8, flame 0.81 ft, scorch 1.47 ft) and kill with the AK
 # FOFEM bark thickness: 2013 TPA 139 (386 with the fire model off).
+#
+# akt01.key/.tre (tests/FVSak) + akt01.live.sum: every .sum row of all five stands (unthinned control, THINDBH, the
+# shelterwood + ECON, FFE, PLANT) — the full AK growth chain (DGF/DGSCOR calibration, HTGF, REGENT, CROWN, MORTS with
+# its PASS density loop, R10 volume) must be exact.
 #  * volume start bark: vols.f:150-151 BARK=BRATIO(DBH_start) before D=D+DG/BARK, so NVEL's DBTBH=D·(1−BARK)
 #    scales the F32 profile with the start-of-cycle bark — the small-SS TCuFt 0.1 roundings (2012 231 not 240).
 #
@@ -20,6 +24,10 @@
 # DEFULMOD); akffe.live.sum = FVSak_g16. The AK FFE (fire/ak fmvinit/fmcba/fmcfmd/fmbrkt + the FVSpn-identical
 # rest) must burn the 2003 fire as live does (fuel model 8, flame 0.81 ft, scorch 1.47 ft) and kill with the AK
 # FOFEM bark thickness: 2013 TPA 139 (386 with the fire model off).
+#
+# akt01.key/.tre (tests/FVSak) + akt01.live.sum: every .sum row of all five stands (unthinned control, THINDBH, the
+# shelterwood + ECON, FFE, PLANT) — the full AK growth chain (DGF/DGSCOR calibration, HTGF, REGENT, CROWN, MORTS with
+# its PASS density loop, R10 volume) must be exact.
 using FVSjl, Test
 
 function _ak_sum_rows(path)
@@ -68,4 +76,27 @@ end
     for y in (1993, 2003, 2013, 2023)
         @test get(jl, y, zeros(10))[1:6] == live[y][1:6]
     end
+end
+
+@testset "AK akt01 vs live FVSak (all stands, every .sum row)" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "southeastalaska")
+    function rows_by_stand(path)
+        out = Dict{Tuple{Int,Int},Vector{Float64}}(); k = 0
+        for l in eachline(path)
+            startswith(l, "-999") && (k += 1; continue)
+            f = split(l)
+            (k > 0 && length(f) > 11 && all(isdigit, f[1]) && length(f[1]) == 4) || continue
+            out[(k, parse(Int, f[1]))] = parse.(Float64, f[3:12])
+        end
+        return out
+    end
+    live = rows_by_stand(joinpath(fx, "akt01.live.sum"))
+    dir = mktempdir()
+    for f in ("akt01.key", "akt01.tre"); cp(joinpath(fx, f), joinpath(dir, f)); end
+    jl = cd(dir) do
+        write("jl.sum", FVSjl.run_keyfile("akt01.key"; variant = FVSjl.SoutheastAlaska(), output = :sum))
+        rows_by_stand("jl.sum")
+    end
+    @test length(live) == 56
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) == 56
 end

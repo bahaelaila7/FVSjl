@@ -23,64 +23,87 @@ function mortality!(s::StandState, ::SoutheastAlaska; fint::Float32 = 10.0f0, bo
     p, t = s.plot, s.trees
     n = t.n; n == 0 && return s
     dens = s.density
-    # SDICAL(0,SDIMAX): stand BA-weighted SDIDEF; BAMAX = SDIMAX·0.5454154·PMSDIU when no user BAMAX.
+    iyc = Int(current_cycle_year(s))
+    # morts.f:192-193 PMSDIU as a fraction; morts.f:202 SDICAL(0,SDIMAX): stand BA-weighted SDIDEF, and sdical.f:203-209
+    # BAMAX = XMAX·0.5454154·PMSDIU unless a user BAMAX is in effect — then XMAX = BAMAX/(0.5454154·PMSDIU).
     xmaxpt_m, _, sdimax = point_zeide!(s)
     ak_es_stash_xmaxpt!(s, xmaxpt_m, sdimax)   # morts.f:202 SDICAL XMAXPT — read by the next DENSE (ESTAB PRDA)
     pmsdiu = p.pct_sdimax_mort_hi > 0f0 ? p.pct_sdimax_mort_hi : 0.85f0
-    bamax = s.control.ba_max > 0f0 ? s.control.ba_max : sdimax * 0.5454154f0 * pmsdiu
+    pmsdiu > 1f0 && (pmsdiu = pmsdiu / 100f0)
+    local bamax::Float32
+    if s.control.ba_max > 0f0
+        bamax = s.control.ba_max
+        sdimax = bamax / (0.5454154f0 * pmsdiu)
+    else
+        bamax = sdimax * 0.5454154f0 * pmsdiu
+    end
     sdiupr = sdimax * pmsdiu
     dbhzeide = s.control.dbh_zeide
-    # per-tree outside-bark increment G and the squared-diameter change (for the SDI/BA pass sums)
-    g1 = Vector{Float32}(undef, n); ciobds = Vector{Float32}(undef, n)
+    # morts.f DO 20: G1 = DG/BARK for every record; CIOBDS1 only for the Zeide-eligible (D ≥ DBHZEIDE) ones.
+    g1 = Vector{Float32}(undef, n); ciobds = zeros(Float32, n)
     @inbounds for i in 1:n
         d = t.dbh[i]; sp = Int(t.species[i])
-        bark = ak_bratio(sp, d)
-        g = t.diam_growth[i] / bark
-        g1[i] = g; ciobds[i] = 2f0 * d * g + g * g
+        g = t.diam_growth[i] / ak_bratio(sp, d)
+        g1[i] = g
+        d >= dbhzeide && (ciobds[i] = 2f0 * d * g + g * g)
     end
-    # base per-tree kill wk2 via logistic survival
+    # morts.f DO 50/40 (species-major): logistic survival RIP, MORTMULT window, the ESTAB best-tree IESTAT guard,
+    # the size-cap mortality, then WKI ≤ P and SDIMAX<5 ⇒ kill all.
     wk2 = zeros(Float32, n)
-    @inbounds for i in 1:n
-        pr = t.tpa[i]; pr <= 0f0 && continue
+    @inbounds for i in species_major_order(s)
+        pr = t.tpa[i]
         sp = Int(t.species[i]); d = t.dbh[i]
+        pr <= 0f0 && continue
         ptbal = dens.point_bal[i]
-        dt = d < AK_DSURV[sp] ? AK_DSURV[sp] : d
-        x = AK_BM1[sp] + AK_BM2[sp]*dt + AK_BM3[sp]*dt*dt + AK_BM4[sp]*ptbal + AK_BM5[sp]*ptbal/dt
-        rip = exp(x) / (1f0 + exp(x))
+        dtemp = d < AK_DSURV[sp] ? AK_DSURV[sp] : d
+        rip = AK_BM1[sp] + AK_BM2[sp]*dtemp + AK_BM3[sp]*dtemp*dtemp + AK_BM4[sp]*ptbal + AK_BM5[sp]*ptbal/dtemp
+        rip = fexp(rip) / (1 + fexp(rip))
+        x = active_mort_mult(s.control, sp, iyc, d)
+        if t.iestat[i] > 0
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = Float32(t.iestat[i] - iyc) / fint
+            xchk > 1f0 && (xchk = 1f0); xchk < 0f0 && (xchk = 0f0)
+            x = x * (1f0 - xchk)
+        end
         rip > 0.99999f0 && (rip = 0.99999f0)
         rip < 0.001f0 && (rip = 0f0)
-        wki = pr * (1f0 - rip^fint)                       # X (mort mult) = 1
+        wki = pr * (1f0 - fpow(rip, fint)) * x                        # RIP**FINT (REAL**REAL = powf)
+        g = (t.diam_growth[i] / ak_bratio(sp, d)) * (fint / 10f0)
+        cap = s.control.sp_size_cap
+        if (d + g) >= cap[sp, 1] && unsafe_trunc(Int, cap[sp, 3]) != 1
+            wki = max(wki, pr * cap[sp, 2] * fint / 10f0)
+        end
         wki > pr && (wki = pr)
-        sdimax < 5f0 && (wki = pr)                        # kill-all under collapsed max SDI
+        sdimax < 5f0 && (wki = pr)
         wk2[i] = wki
     end
-    # iterative PASS: scale kills up until stand SDI < SDIUPR and BA < BAMAX (ak/morts.f 55/59 loop)
+    # morts.f 59/60/55 loop: scale every record's kill by PASS until the post-mortality stand is below
+    # SDIUPR and BAMAX (BAA from the QUADRATIC DQ10A, before the Zeide override), PASS ≤ 100.
     pass = 1
     while true
         sd2sqa = 0f0; sumdr10a = 0f0; ta = 0f0
         @inbounds for i in 1:n
-            pr = t.tpa[i]
-            wki = wk2[i] * pass; wki > pr && (wki = pr)
-            surv = pr - wki
+            wki = wk2[i] * Float32(pass); wki > t.tpa[i] && (wki = t.tpa[i])
             t.dbh[i] >= dbhzeide || continue
-            sd2sqa += surv * (t.dbh[i]*t.dbh[i] + ciobds[i])
-            sumdr10a += surv * (t.dbh[i] + g1[i])^1.605f0
-            ta += surv
+            sd2sqa += (t.tpa[i] - wki) * (t.dbh[i] * t.dbh[i] + ciobds[i])
+            sumdr10a += (t.tpa[i] - wki) * fpow(t.dbh[i] + g1[i], 1.605f0)
+            ta += (t.tpa[i] - wki)
         end
-        if ta > 0f0
-            dq10a = (sumdr10a / ta)^(1f0/1.605f0)
-            baa = 0.005454154f0 * dq10a * dq10a * ta
-            sdia = ta * (dq10a / 10f0)^1.605f0
-            ((sdia < sdiupr && baa < bamax) || pass > 100) && break
-        else
-            break
+        if !(ta > 0f0)                  # TA=0 ⇒ DQ10A/BAA/SDIA = NaN: only the PASS>100 exit fires (morts.f:371-387)
+            pass > 100 && break
+            pass += 1; continue
         end
+        dq10a = sqrt(sd2sqa / ta)
+        baa = 0.005454154f0 * dq10a * dq10a * ta
+        dq10a = fpow(sumdr10a / ta, 1f0 / 1.605f0)
+        sdia = ta * fpow(dq10a / 10f0, 1.605f0)
+        ((sdia < sdiupr && baa < bamax) || pass > 100) && break
         pass += 1
     end
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     @inbounds for i in 1:n
         pr = t.tpa[i]
-        wki = wk2[i] * pass; wki > pr && (wki = pr)
+        wki = pass > 1 ? wk2[i] * Float32(pass) : wk2[i]; wki > pr && (wki = pr)
         killed[i] = wki
     end
     apply_fixmort!(s, killed, n, fint)

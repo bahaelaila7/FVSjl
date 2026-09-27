@@ -240,10 +240,19 @@ function point_basal_area!(s::StandState)
     # PTBALT-consuming variants — SN calibration, PN/WC/AK/OP — need the RDPSRT order).
     order = view(s.scratch.stat_idx, 1:t.n)
     _rdpsrt!(view(t.dbh, 1:t.n), order)                                                 # IND: DBH descending, FVS tie-break
+    # AK: ptbal.f XBALT+WK5·.005454154·PI/GROSPC with dense.f WK5=D·(D·P), in that Float32 order (the PBAL feeding
+    # AK's DGF/MORTS logistic; the shared form below rounds differently by a few ULP on dense points).
+    akw5 = s.variant isa SoutheastAlaska
+    pi_f = p.pi; gross = p.gross_space
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
-        pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+        if akw5
+            d = t.dbh[i]
+            pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
+        else
+            pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
+        end
     end
     return s
 end
