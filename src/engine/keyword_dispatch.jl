@@ -2966,7 +2966,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS
         elseif kw == "NOHTDREG"; kw_nohtdreg!(s, rec)      # HT-DBH (LHTDRG) calibration control: suppress=no-op, invoke=warn
         elseif kw == "MORTMSB";  kw_mortmsb!(s, rec)       # alternate "mature-stand breakup" mortality (msbmrt.f)
-        elseif kw == "RDIN";     kw_rdin!(s, rec, kr)      # Western Root Disease (WRD) block (RRTYPE/RRINIT/SAREA/… → s.root_disease)
+        elseif kw == "RDIN" && rd_extension_linked(s.variant); kw_rdin!(s, rec, kr)   # Western Root Disease (WRD) block (RRTYPE/RRINIT/SAREA/… → s.root_disease); exrd.f-stub builds fall through
         elseif kw == "DFB";      kw_dfbin!(s, rec, kr)     # Douglas-fir Beetle block (keywds.f opt 100; MANSTART/MANSCHED/OLENGTH/EXYRMORT/… → s.dfb + gated DFBDRV mortality seam)
         elseif kw == "DFTM";     kw_dftmin!(s, rec, kr)    # Douglas-fir Tussock Moth block (keywds.f opt 7; REPORT/NUMCLASS/MANSTART/RANSCHED/PROBMETH/… → s.dftm; INERT — no engine seam wired yet)
         elseif kw == "BRUST";    kw_brin!(s, rec, kr)      # White Pine Blister Rust block (keywds.f opt 75; PRUNE/EXCISE/RUSTINDX/BRSEED/CANKDATA/… → s.wpbr; INERT — no engine seam wired yet)
