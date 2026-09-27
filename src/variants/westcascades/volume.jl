@@ -270,7 +270,7 @@ function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark
     f = dbhib / yhat_bh
     dibat = ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), dbhib) : -1f0
-    v1 = Float32(round(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0)) / 10.0f0
+    v1 = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1   # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1
     v4 = _wc_fw2_merch_cuft(dibat, h, topd * bark, stump)
     v2 = _wc_fw2_board(dibat, h, bftopd * bark, stump)
     return (max(v1, 0f0), max(v4, 0f0), max(v2, 0f0))
