@@ -15,8 +15,8 @@
 # native Julia log/exp and the core/fmath shim drift ~1 ULP; measured glibc = 0-mismatch.
 # =============================================================================
 
-@inline on_logf(x::Float32) = ccall(:logf, Float32, (Float32,), x)
-@inline on_expf(x::Float32) = ccall(:expf, Float32, (Float32,), x)
+@inline on_logf(x::Float32) = ccall((:logf, "libm.so.6"), Float32, (Float32,), x)
+@inline on_expf(x::Float32) = ccall((:expf, "libm.so.6"), Float32, (Float32,), x)
 
 """
     on_penner_dds(ksp, ags, diam_in, sim, bam, qmdm, balm, htm, bark) -> (dbhm_final, diagr, dds)
@@ -43,7 +43,7 @@ All stand inputs are METRIC (cm, m, m²/ha); `diam_in` is DBH in inches. Bit-exa
     return dbhm, diagr, dds
 end
 
-@inline on_powf(x::Float32, y::Float32) = ccall(:powf, Float32, (Float32, Float32), x, y)
+@inline on_powf(x::Float32, y::Float32) = ccall((:powf, "libm.so.6"), Float32, (Float32, Float32), x, y)
 
 """
     on_bratio(is, d, h) -> Float32
