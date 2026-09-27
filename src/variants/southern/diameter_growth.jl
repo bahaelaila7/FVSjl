@@ -423,7 +423,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # deleted only after this DENSE); jl's sort_key files them after the live. Key this pass on the read order.
     _sk_saved = (t.ndead > 0 && length(s.calib.input_seq) == t.n) ? t.sort_key[1:t.n] : nothing
     _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = Float64(s.calib.input_seq[i]); end)
+    # CA/SO/WS: this is the cratet.f:171/:247 DENSE the calibration DGF reads — before the missing-height dub, so
+    # its height-dependent R5CRWD CCF (PCCF, RELDEN) sees missing heights as 0 (see _cratet_predub_ccf).
+    _ht_swap = _cratet_predub_ccf(s.variant) && length(s.calib.cratet_ht_in) == t.n
+    _ht_saved = _ht_swap ? t.height[1:t.n] : Float32[]
+    _ht_swap && @inbounds(for i in 1:t.n; t.height[i] = s.calib.cratet_ht_in[i]; end)
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
+    _ht_swap && @inbounds(for i in 1:t.n; t.height[i] = _ht_saved[i]; end)
     _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = _sk_saved[i]; end)
     # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
     _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
