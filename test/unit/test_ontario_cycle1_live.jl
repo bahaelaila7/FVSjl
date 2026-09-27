@@ -64,3 +64,11 @@ _on1_col(col; sel = (k, v) -> true) =
         @test (k, col, jv) == (k, col, lv)
     end
 end
+
+# (2) canada/on/dgdriv.f label 30 (tripling) has NO `RNPAR=OLDRN(I)` save: after `OLDRN(I)=FRMT` the upper/lower
+# copies read FRU/FRL + CORR·OLDRN(I) = the central's UPDATED residual (sn/ls/ne/cs dgdriv.f use RNPAR).
+@testset "ON ont01 cyc1: TRIPLE-copy DG == live (upper/lower read the updated OLDRN)" begin
+    for (k, lv, jv) in _on1_col(:DG; sel = (k, v) -> k[1] == 2014 && k[2] > 8)
+        @test (k, jv) == (k, lv)
+    end
+end

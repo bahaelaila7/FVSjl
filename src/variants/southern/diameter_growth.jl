@@ -1435,6 +1435,11 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
+                # canada/on/dgdriv.f (tripling, label 30) has NO RNPAR save: after `OLDRN(I)=FRMT` the upper/lower
+                # copies read `FRU+CORR*OLDRN(I)` / `FRL+CORR*OLDRN(I)` = the central's UPDATED residual, unlike
+                # sn/ls/ne/cs dgdriv.f (RNPAR=OLDRN(I) before the update). Measured on ont01 cyc1 (PW upper DG .0770
+                # with RNPAR vs live .0795).
+                _on_dg && (rnpar = frmt)
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
