@@ -696,6 +696,9 @@ mutable struct Calibration
     # PTBAA(IP) that CRATET DENSE's PTBAL leaves (dense.f:280 → ptbal.f XBALT): per point, live + every inventory-dead
     # record at its READ DBH and FINT/FINTM-inflated PROB. The LSTART CROWN (ak/crown.f BAPLT → QMDPLT) reads it.
     cratet_ptbaa::Vector{Float32}
+    # PTBALT(I) of the LIVE records from that same PTBAL walk (cratet.f:150-157 IND = IND1; RDPSRT(.FALSE.), dead
+    # interleaved) — the PBAL the AK LSTART calibration DGF reads (no DENSE between it and dgdriv.f).
+    cratet_live_ptbal::Vector{Float32}
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -715,7 +718,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
-    Float32[])                                                       # cratet_ptbaa (CRATET PTBAL point BA)
+    Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
+    Float32[])                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.

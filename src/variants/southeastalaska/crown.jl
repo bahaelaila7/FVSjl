@@ -58,27 +58,43 @@ function point_zeide!(s::StandState)
     dbharr = isempty(s.calib.calib_dbh) ? t.dbh : s.calib.calib_dbh
     npt = 0
     @inbounds for i in 1:t.n; npt = max(npt, Int(t.plot_id[i])); end
-    ptba  = zeros(Float32, npt)                 # PNTBA(pt) = Σ TREEBA
-    ptsdi = zeros(Float32, npt)                 # Σ SDIDEF·TREEBA
-    zrd   = zeros(Float32, npt)
-    totba = 0f0; xsdi = 0f0
+    nsp = length(sdidef)
+    # sdical.f DO 30 / SDICLS DO 140 walk IND1 (species-major, each species in its record order) — the Float32
+    # accumulation order. SDICAL fills BAXSP(sp) / BAXPSP(sp,pt) per SPECIES, then XMAX = Σ_sp SDIDEF·BAXSP / TOTBA
+    # and XMAXPT(pt) = Σ_sp SDIDEF·BAXPSP(sp,pt) / Σ_sp BAXPSP(sp,pt) (DO 60 / DO 64-65). The per-tree Σ SDIDEF·TREEBA
+    # in record order rounded differently: FIA 720755825290487 cycle-3 PRD 0.29534918 vs live 0.295348734 ⇒ DG ULPs ⇒
+    # TCuFt 1393/1394 at 2049.
+    ord = sort!(collect(1:t.n); by = j -> (Int(t.species[j]), t.sort_key[j]))
+    baxsp = zeros(Float32, nsp); baxpsp = zeros(Float32, nsp, max(npt, 1))
+    zrd = zeros(Float32, npt)
+    totba = 0f0
     pifac = p.pi - Float32(p.nonstockable)      # (PI − NONSTK)
     dbhzeide = s.control.dbh_zeide
-    @inbounds for i in 1:t.n
-        t.tpa[i] <= 0f0 && continue
+    @inbounds for i in ord
         d = dbharr[i]; sp = Int(t.species[i]); ip = Int(t.plot_id[i])
-        treeba = 0.0054542f0 * d * d * t.tpa[i]
-        totba += treeba; xsdi += sdidef[sp] * treeba
-        if 1 <= ip <= npt
-            ptba[ip]  += treeba
-            ptsdi[ip] += sdidef[sp] * treeba
-            d >= dbhzeide && (zrd[ip] += t.tpa[i] * pifac * fpow(d / 10f0, 1.605f0))   # (DBH/10.)**1.605 = powf
-        end
+        treeba = 0.0054542f0 * d * d * t.tpa[i]                  # TREEBA = 0.0054542*DBH(I)*DBH(I)*PROB(I)
+        baxsp[sp] += treeba
+        totba += treeba
+        1 <= ip <= npt && (baxpsp[sp, ip] += treeba)
+        # SDICLS: TPACRE = PROB·(PI−NONSTK); SDIC2 += TPACRE·(DBH/10.)**1.605 (REAL**REAL = powf) for D ≥ DBHZEIDE
+        (1 <= ip <= npt && d >= dbhzeide) && (zrd[ip] += t.tpa[i] * pifac * fpow(d / 10f0, 1.605f0))
     end
-    xmax = totba <= 0f0 ? 1f0 : xsdi / totba
+    local xmax::Float32
+    if totba <= 0f0
+        xmax = 1f0
+    else
+        xmax = 0f0
+        @inbounds for sp in 1:nsp; xmax += sdidef[sp] * baxsp[sp]; end
+        xmax = xmax / totba
+    end
     xmaxpt = Vector{Float32}(undef, npt)
     @inbounds for ip in 1:npt
-        xmaxpt[ip] = ptba[ip] == 0f0 ? xmax : ptsdi[ip] / ptba[ip]
+        xm = 0f0; pntba = 0f0
+        for sp in 1:nsp
+            xm += sdidef[sp] * baxpsp[sp, ip]
+            pntba += baxpsp[sp, ip]
+        end
+        xmaxpt[ip] = pntba == 0f0 ? xmax : xm / pntba
     end
     return xmaxpt, zrd, xmax
 end

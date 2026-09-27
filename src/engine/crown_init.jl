@@ -158,6 +158,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
             xb[ip] = xb[ip] + (d * (d * t.tpa[ii])) * 0.005454154f0 * pif / gr
         end
         c.cratet_ptbaa = xb
+        c.cratet_live_ptbal = ptb[1:min(nlive, ntot)]
         if t.ndead > 0
             nd = Int(t.ndead)
             c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
