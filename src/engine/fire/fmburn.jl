@@ -227,6 +227,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         # serial-correlation deviates, making the survivors grow wrong (the kill stays bit-exact — same draws
         # — but the next cycle's growth drifts, ~4.4% Bdft by the 3rd post-fire cycle). D15.
         _fire_rng_save = rannget(s.rng)                   # RANNGET(SAVESO)
+        _fire_pend = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
         # FMICR = ICR for every record at the fire (fmmain.f:111); FMEFF shortens it below for scorched
         # survivors and FMKILL hands it back to FVS as ICR=-FMICR (see mortality_and_fire!).
         resize!(fs.fmicr, t.n)
@@ -295,7 +296,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                   max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
                   _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
                   max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+            if _fmsadd_binned(s.variant)
+                push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))   # FMSSEE (fmeff.f:553)
+            else
+                add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+            end
             # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead
             # trees. But FIRST consume the fire-REACHED fine crown the way FMEFF does (fmeff.f:457-460)
             # BEFORE it is booked as snags: in the scorched crown zone the fire burns 100% of the foliage
@@ -328,6 +333,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             fs.bioroot += rbio * curkil
         end
         rannput!(s.rng, _fire_rng_save)                   # RANNPUT(SAVESO): roll back the fire's RANN draws
+        # FMSADD(IYR,1) (fmeff.f:608): bin the fire-killed trees into snag records (R6 variants, fmsadd_bin!)
+        isempty(_fire_pend) || fmsadd_bin!(s, _fire_pend, Int(year); ityp = 1, bolefn = _r6_snag_bolefn(s))
     end
     # the fire consumes a share of the surface fuels — releasing carbon, leaving the rest. The CONSUMED
     # loadings (FVS_Consumption) are the before−after difference in the FFE fuel pools.

@@ -49,9 +49,11 @@ Shares one 16-ft bucking (BLMMLEN→NUMLOG→SEGMNT→BLMGDIB) between the two p
 and board-foot VOLINIT calls use the same MTOPP=4.5·BARK, D17, STUMP=1 here. The fvsvol DBHMIN/BFMIND
 gates are applied by the caller. Small trees / merch length < 8 ft ⇒ (0,0).
 """
-function oc_tree_mvol(sp::Int, dbh::Float32, ht::Float32)
+function oc_tree_mvol(sp::Int, dbh::Float32, ht::Float32; ht_out = nothing)
+    ht_out === nothing || (ht_out[] = 0f0)
     dbh <= 0f0 && return (0f0, 0f0)
-    _, v2, v4 = blm_vol(OC_VOLEQ[sp], 4.5f0 * oc_bratio(sp, dbh), ht, dbh, oc_formcl(sp); bfpflg = true)
+    _, v2, v4 = blm_vol(OC_VOLEQ[sp], 4.5f0 * oc_bratio(sp, dbh), ht, dbh, oc_formcl(sp); bfpflg = true,
+                        ht_out = ht_out)   # HT1PRD (blmvol.f:427), the same for the cubic and board calls
     return (v4, v2)
 end
 
@@ -69,6 +71,9 @@ function compute_volumes_oc!(s::StandState)
     # Broken-top merch standards for CFTOPK/BFTOPK: raw grinit TOPD/STMP (=4.5/1, NOT ×BARK).
     merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
              scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # vols.f:104 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores BLMVOL's HT1PRD.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    ht1 = Ref(0f0)
     @inbounds for i in 1:(t.n + t.ndead)
         sp = Int(t.species[i])
         if 1 <= sp <= 50
@@ -78,7 +83,9 @@ function compute_volumes_oc!(s::StandState)
             tkill = h >= 4.5f0 && t.trunc[i] > 0
             htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
             tcf = oc_tree_cuft(sp, d, htap)
-            v4, v2 = oc_tree_mvol(sp, d, htap)
+            v4, v2 = oc_tree_mvol(sp, d, htap; ht_out = ht1)
+            d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
+            d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
             mcf = d >= c.sp_dbh_min[sp]  ? v4 : 0f0
             bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
             if tkill && tcf > 0f0

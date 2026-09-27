@@ -516,11 +516,14 @@ function init_merch_standards!(s::StandState)
         # BFTOPD=SCFTOPD=5.0 and 7 for every species. WC's species CSV carries no merch columns.
         blm = (s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10) ||      # wc/sitset.f CASE(7,8,9,10)
               (s.variant isa PacificNorthwest && 4 <= Int(s.plot.forest_idx) <= 6)     # pn/sitset.f:189 CASE(4,5,6)
+        pn = s.variant isa PacificNorthwest
         @inbounds for j in 1:length(c.sp_dbh_min)
             dm = (j == 11 && !blm) ? 6.0f0 : 7.0f0
             td = blm ? 5.0f0 : 4.5f0
             c.sp_dbh_min[j] = dm; c.sp_top_diam[j] = td; c.sp_stump_ht[j] = 1.0f0
-            c.sp_scf_dbhmin[j] = dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
+            # pn/sitset.f:200-207 has no LP (sp 11) SCFMIND special — SCFMIND=7 for every species (wc/sitset.f:206
+            # does set LP to 6). Measured: live PN FVS_InvReference LP CFSawMinDBH 7.
+            c.sp_scf_dbhmin[j] = pn ? 7.0f0 : dm; c.sp_scf_topd[j] = td; c.sp_scf_stump[j] = 1.0f0
             c.sp_bf_dbhmin[j] = dm; c.sp_bf_topd[j] = td; c.sp_bf_stump[j] = 1.0f0
         end
         c.merch_init = true
@@ -575,6 +578,32 @@ function init_merch_standards!(s::StandState)
             c.sp_scf_dbhmin[j] = 9.0f0; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = 1.0f0
             c.sp_bf_dbhmin[j] = 9.0f0; c.sp_bf_topd[j] = topd; c.sp_bf_stump[j] = 1.0f0
         end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa CentralRockies
+        # cr/grinit.f:97-102 zeroes DBHMIN/TOPD/BFTOPD/BFMIND/SCFTOPD/SCFMIND (stumps 1); cr/sitset.f:522-553 fills
+        # them by model type: IMODTY 3 (Black Hills) ⇒ 9/6, BFMIND 9, SCF 6/9; IMODTY 1,2,4,5 ⇒ DBHMIN 5, TOPD 4,
+        # BFTOPD=SCFTOPD 6, BFMIND=SCFMIND 7 (IFOR < IGFOR) else 9. compute_volumes_cr! uses the same values.
+        imodty = Int(s.plot.model_type); ifor = Int(s.plot.forest_idx)
+        is3 = imodty == 3
+        other = imodty == 1 || imodty == 2 || imodty == 4 || imodty == 5
+        bfm = is3 ? 9.0f0 : ((ifor > 0 && ifor < 13) ? 7.0f0 : 9.0f0)   # IGFOR = 13 (cr/blkdat.f)
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            if is3 || other
+                c.sp_dbh_min[j] = is3 ? 9.0f0 : 5.0f0; c.sp_top_diam[j] = is3 ? 6.0f0 : 4.0f0
+                c.sp_bf_topd[j] = 6.0f0; c.sp_bf_dbhmin[j] = bfm
+                c.sp_scf_topd[j] = 6.0f0; c.sp_scf_dbhmin[j] = bfm
+            end
+            c.sp_stump_ht[j] = 1.0f0; c.sp_bf_stump[j] = 1.0f0; c.sp_scf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa Teton
+        # tt/grinit.f:102-113 (+ :142-144 LP sp 7 = 7) is the whole story — tt/sitset.f sets no merch standards,
+        # so the species-CSV merch columns (which are not TT's) must not override them (FVS_InvReference showed
+        # CFMinDBH 1 / CFTopDia 4 for live's 8 / 6).
         c.merch_init = true
         return s
     end
@@ -855,7 +884,11 @@ function compute_volumes!(s::StandState)
     # (v[7] is read after vb is computed). Allocated once here (per compute_volumes! call), not per tree.
     _vbuf = Vector{Float32}(undef, 15); _vbbuf = Vector{Float32}(undef, 15)
     _logbuf = Vector{Float32}(undef, 40)   # sawtimber log-length scratch (both calls run sequentially)
-    @inbounds for i in 1:t.n
+    # vols.f:86-90 zeroes HT2TD for every record at VOLS entry; NATCRS (fvsvol.f) then stores the merch-top heights.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    # vols.f IPASS=2 (ILOW=IREC2..MAXTRE): the cycle-0 input dead records are volumed too (IT=I ⇒ HT2TD); they sit
+    # after the live records here and never feed the stand totals, only their FVS_TreeList rows.
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = t.species[i]
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
@@ -874,7 +907,16 @@ function compute_volumes!(s::StandState)
         mtops = topd[sp]
         ldref = log_grade ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
         lcref = log_grade_cuft ? Base.RefValue{Dict{Int,Float32}}(Dict{Int,Float32}()) : nothing
-        v, ht1prd, _ = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl, buf = _vbuf, logbuf = _logbuf)
+        v, ht1prd, ht2prd = _R8CLARK_VOL(veq[sp], d, h, mtopp, mtops, stump, prod; log_dib = ldref, log_cuft = lcref, intl_bf = _r8_intl, buf = _vbuf, logbuf = _logbuf)
+        # r9clark.f:320-322 returns HT1PRD = sawHt after the merch-length zeroing (sawHt < MERCHL+TRIM+STUMP ⇒ 0;
+        # prod '02' leaves HT1PRD at its input 0) and HT2PRD = plpHt (r9clark.f:260-262, SPFLG=1 or prod '02').
+        nv_ht1 = prod == "01" && ht1prd >= (8f0 + 0.5f0) + stump ? ht1prd : 0f0
+        if d >= dbhmin[sp]                                 # fvsvol.f:337-339 (IT>0 .AND. D≥DBHMIN)
+            t.merch_top_cf[i] = max(nv_ht1, ht2prd)        # HT2TD(IT,2) = MAX(HT1PRD,HT2PRD)
+            bfsplit = bfpflg0 && (bfmin[sp] != scfmin[sp] || bfstm[sp] != scfstmp[sp] ||
+                                  bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
+            d >= bfmin[sp] && !bfsplit && (t.merch_top_bf[i] = nv_ht1)   # BFPFLG=1 ⇒ HT2TD(IT,1) = HT1PRD
+        end
         tcf = v[1]
         mcf = d >= dbhmin[sp] ? v[4] + v[7] : 0f0
         scf = d >= scfmin[sp] ? v[4] : 0f0
@@ -910,6 +952,7 @@ function compute_volumes!(s::StandState)
                        bftop[sp] != scftop[sp] || bfeq[sp] != veq[sp])
             if d >= bfmin[sp]
                 vb, bf_ht1prd, _ = _R8CLARK_VOL(bfeq[sp], d, h, bftop[sp], topd[sp], bfstm[sp], "01"; log_dib = ldref, intl_bf = _r8_intl, buf = _vbbuf, logbuf = _logbuf)
+                t.merch_top_bf[i] = bf_ht1prd >= (8f0 + 0.5f0) + bfstm[sp] ? bf_ht1prd : 0f0   # fvsvol.f:485 HT2TD(IT,1)=HT1PRD
                 bf = vb[10]; bfmax = vb[1]                # BFMAX = board-equation total (fvsvol.f BFVOL)
                 if bf_ht1prd < 10f0                       # Region-8: a < 10 ft board-top sawlog has
                     bf = 0f0                              # no product — zero board feet (TVOL(2))
@@ -950,9 +993,9 @@ function compute_volumes!(s::StandState)
         t.bdft_vol[i]       = bf
         # Stash this tree's per-log-DIB gross BF for the cut path's log-graded revenue accumulation.
         # Only when board feet survived (defect/Region-8 zeroing) so empties don't pollute the lookup.
-        log_grade && bf > 0f0 && ldref !== nothing && !isempty(ldref[]) && (s.econ.tree_log_bf[i] = ldref[])
+        log_grade && i <= t.n && bf > 0f0 && ldref !== nothing && !isempty(ldref[]) && (s.econ.tree_log_bf[i] = ldref[])
         # Cubic stash: gate on merch cubic surviving (mcf>0), so defect/Region-8-zeroed trees don't pollute.
-        log_grade_cuft && mcf > 0f0 && lcref !== nothing && !isempty(lcref[]) && (s.econ.tree_log_ft3[i] = lcref[])
+        log_grade_cuft && i <= t.n && mcf > 0f0 && lcref !== nothing && !isempty(lcref[]) && (s.econ.tree_log_ft3[i] = lcref[])
     end
     return s
 end

@@ -1104,7 +1104,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 81
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 81 cells [ulp1=39 ulp2_16=42] max|Δ|=1.526e-5 | e.g. stand 1127619588290487 year 2061: live=25.65907859802246 jl=25.659074783325195"""
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
 
 [[residual]]
 variant = "BM"
@@ -1115,7 +1115,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 81
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 81 cells [ulp1=39 ulp2_16=42] max|Δ|=1.526e-5 | e.g. stand 1127619588290487 year 2061: live=25.65907859802246 jl=25.659074783325195"""
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
 
 [[residual]]
 variant = "BM"
@@ -1466,8 +1466,8 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 53
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
+max_cells = 54
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
 
 [[residual]]
 variant = "BM"
@@ -1477,8 +1477,8 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 51
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
+max_cells = 52
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
 
 [[residual]]
 variant = "BM"
@@ -5173,8 +5173,8 @@ col = "Ht2TDBF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2480
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2480 cells [material=884 ulp1=331 ulp2_16=310 ulpbig=955] max|Δ|=113.9 | e.g. stand 11855985010690 year 2056: live=107.0411605834961 jl=105.83509063720703"""
+max_cells = 1997
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 1997 cells max|Δ|=42.53 | e.g. stand 11855985010690 year 2046: live=0.0 jl=42.528900146484375"""
 
 [[residual]]
 variant = "IE"
@@ -5184,8 +5184,8 @@ col = "Ht2TDCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2480
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 2480 cells [material=884 ulp1=331 ulp2_16=310 ulpbig=955] max|Δ|=113.9 | e.g. stand 11855985010690 year 2056: live=107.0411605834961 jl=105.83509063720703"""
+max_cells = 1997
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 1997 cells max|Δ|=42.53 | e.g. stand 11855985010690 year 2046: live=0.0 jl=42.528900146484375"""
 
 [[residual]]
 variant = "IE"
@@ -10464,8 +10464,8 @@ col = "Ht2TDBF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 1649
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 1649 cells [material=1649] max|Δ|=86.68 | e.g. stand 216786838010854 year 2024: live=44.22734451293945 jl=0.0"""
+max_cells = 580
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 580 cells max|Δ|=0.1415 | e.g. stand 157577477010854 year 1992: live=39.365478515625 jl=39.50700378417969"""
 
 [[residual]]
 variant = "SN"
@@ -10475,8 +10475,8 @@ col = "Ht2TDCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 3633
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 3633 cells [material=3633] max|Δ|=92.6 | e.g. stand 216786838010854 year 2004: live=23.514690399169922 jl=0.0"""
+max_cells = 1566
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 1566 cells max|Δ|=0.1932 | e.g. stand 157577477010854 year 1997: live=54.320133209228516 jl=54.12696838378906"""
 
 [[residual]]
 variant = "SN"
@@ -12418,23 +12418,12 @@ issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-direct
 variant = "SN"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "Ht2TDBF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 23
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 23 cells [material=23] max|Δ|=68.75 | e.g. stand 210838699010854 year 2003: live=17.364563 jl=0.0"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "Ht2TDCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 133
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 133 cells [material=133] max|Δ|=82.56 | e.g. stand 210838699010854 year 2003: live=36.2642746 jl=0.0"""
+max_cells = 39
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 39 cells max|Δ|=0.08867 | e.g. stand 157577477010854 year 1977: live=37.89077 jl=37.8020973"""
 
 [[residual]]
 variant = "SN"
@@ -13210,28 +13199,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "climate"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -13591,28 +13558,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -14365,28 +14310,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "econ"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -15135,28 +15058,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -15538,28 +15439,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -16141,8 +16020,8 @@ col = "Ht2TDBF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 4172
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 4172 cells [material=149 ulp1=227 ulp2_16=464 ulpbig=3332] max|Δ|=64.64 | e.g. stand 242065538010661 year 2060: live=16.36513900756836 jl=16.3651123046875"""
+max_cells = 2537
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 2537 cells max|Δ|=24.23 | e.g. stand 3006831010690 year 2039: live=0.0 jl=24.226980209350586"""
 
 [[residual]]
 variant = "EM"
@@ -16152,8 +16031,8 @@ col = "Ht2TDCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 4172
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 4172 cells [material=149 ulp1=227 ulp2_16=464 ulpbig=3332] max|Δ|=64.64 | e.g. stand 242065538010661 year 2060: live=16.36513900756836 jl=16.3651123046875"""
+max_cells = 2537
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 2537 cells max|Δ|=24.23 | e.g. stand 3006831010690 year 2039: live=0.0 jl=24.226980209350586"""
 
 [[residual]]
 variant = "EM"
@@ -16466,28 +16345,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -16873,28 +16730,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -17276,28 +17111,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -17951,28 +17764,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "salvage"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -18618,28 +18409,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -19320,8 +19089,8 @@ col = "Ht2TDBF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 106
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 106 cells [gold_text9=106] max|Δ|=0.3513 | e.g. stand 196420598020004 year 2022: live=22.2633438 jl=22.2671356"""
+max_cells = 17
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 17 cells max|Δ|=7.6e-06 | e.g. stand 196378260020004 year 2022: live=39.054451 jl=39.0544434"""
 
 [[residual]]
 variant = "EM"
@@ -19331,8 +19100,8 @@ col = "Ht2TDCF"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 106
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-26: 106 cells [gold_text9=106] max|Δ|=0.3513 | e.g. stand 196420598020004 year 2022: live=22.2633438 jl=22.2671356"""
+max_cells = 17
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 17 cells max|Δ|=7.6e-06 | e.g. stand 196378260020004 year 2022: live=39.054451 jl=39.0544434"""
 
 [[residual]]
 variant = "EM"
@@ -19399,28 +19168,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -20513,57 +20260,3 @@ max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
 
 
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2017: live=70.0 jl=71.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
