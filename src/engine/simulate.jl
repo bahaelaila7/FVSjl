@@ -40,7 +40,8 @@ function setup_growth!(s::StandState)
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
-    sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
+    s.variant isa SoutheastAlaska || sdi_max_check!(s)   # SDICHK — reset species SDImax if over-dense (AK: at the
+                                         # END of CRATET, after the crown dub + calibration — see the AK branch)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
@@ -210,6 +211,11 @@ function setup_growth!(s::StandState)
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
+        sdi_max_check!(s)                 # ak/cratet.f:664 CALL SDICHK is the LAST step of CRATET — after the :522 CROWN dub
+                                          # (whose PRD = ZRD/XMAXPT reads the UNRESET SDIDEF) and the :600 DGDRIV + REGENT
+                                          # calibration. Resetting first fed an over-dense stand's dub the reset SDImax:
+                                          # FIA 10708179010497 XMAXPT 711.63 vs live 614.10 ⇒ PRD 0.8497 vs 0.9846 ⇒ crowns
+                                          # 1-3 pts high ⇒ diverged from 2007.
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE

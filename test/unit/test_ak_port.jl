@@ -22,22 +22,6 @@
 # live .sum identical to the full-DB run) with AUTOES on (ingrowth), missing crowns (the LSTART CROWN/DUBSCR dub reads
 # the CRATET DENSE's PTBAL point BA: live + inventory-dead at read DBH), HISTORY-8 dead, broken tops. Stands listed in
 # `exact` must match every .sum row; the total count guards the rest.
-#  * volume start bark: vols.f:150-151 BARK=BRATIO(DBH_start) before D=D+DG/BARK, so NVEL's DBTBH=D·(1−BARK)
-#    scales the F32 profile with the start-of-cycle bark — the small-SS TCuFt 0.1 roundings (2012 231 not 240).
-#
-# Fixture akffe.key/.tre = akt01's "FFE TEST" stand (THINDBH 3" 1993, SNAGINIT, FLAMEADJ + SIMFIRE 2003, SALVAGE,
-# DEFULMOD); akffe.live.sum = FVSak_g16. The AK FFE (fire/ak fmvinit/fmcba/fmcfmd/fmbrkt + the FVSpn-identical
-# rest) must burn the 2003 fire as live does (fuel model 8, flame 0.81 ft, scorch 1.47 ft) and kill with the AK
-# FOFEM bark thickness: 2013 TPA 139 (386 with the fire model off).
-#
-# akt01.key/.tre (tests/FVSak) + akt01.live.sum: every .sum row of all five stands (unthinned control, THINDBH, the
-# shelterwood + ECON, FFE, PLANT) — the full AK growth chain (DGF/DGSCOR calibration, HTGF, REGENT, CROWN, MORTS with
-# its PASS density loop, R10 volume) must be exact.
-#
-# ak_fia.db + akfia.key: a 12-stand AK FIA sub-DB (FVS_STANDINIT_COND/FVS_TREEINIT_COND rows copied from the FIA DB;
-# live .sum identical to the full-DB run) with AUTOES on (ingrowth), missing crowns (the LSTART CROWN/DUBSCR dub reads
-# the CRATET DENSE's PTBAL point BA: live + inventory-dead at read DBH), HISTORY-8 dead, broken tops. Stands listed in
-# `exact` must match every .sum row; the total count guards the rest.
 using FVSjl, Test
 
 function _ak_sum_rows(path)
