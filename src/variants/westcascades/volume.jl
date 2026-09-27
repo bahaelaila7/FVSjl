@@ -77,8 +77,18 @@ _wc_voleq(kodfor::Int, sp::Int)::String =
 end
 @inline _logit(u::Float64) = exp(u) / (1.0 + exp(u))
 
-const _W3_R25 = (-2.0262, -1.7945, -2.0366, -2.0811, -1.9868, -2.0151, -1.9475, -2.0151)
-const _W3_R34 = ( 5.2132,  5.1417,  5.1768,  5.1156,  5.1654,  5.2413,  5.1427,  5.2413)
+# f_west.f precision (SHP_W3/W4/W5 are IMPLICIT DOUBLE PRECISION with REAL*4 DBHOB/HTTOT/outputs): the F(·) DATA are
+# REAL*8 D-literals, but the M1-M3 / R25 / R34 DATA are REAL*4, the DMEDIAN power is evaluated in SINGLE precision
+# (REAL operands ⇒ powf), LOG of a REAL argument is logf, LOG/EXP of a REAL*8 argument are glibc log/exp, and each
+# logistic is written `DEXP(U)/(1.0D0+DEXP(U))` (a coefficient in front multiplies BEFORE the division). RHI1/RHI2/
+# RHLONGI and the RFLW/RHFW outputs are REAL*4. Every piece below follows that statement order.
+# (_r4 = REAL*4 DATA widened to REAL*8 — shared helper, data/centralrockies/fw2/ingy_coefs.jl)
+@inline _lf(x::Float32) = Float64(flog(x))                     # LOG(REAL) → logf, then widened
+@inline _lgt(u::Float64) = dexp(u) / (1.0 + dexp(u))
+@inline _clp(u::Float64, lo::Float64, hi::Float64) = u < lo ? lo : (u > hi ? hi : u)
+
+const _W3_R25 = (-2.0262, -1.7945, -2.0366, -2.0811, -1.9868, -2.0151, -1.9475, -2.0151)   # REAL*4 DATA
+const _W3_R34 = ( 5.2132,  5.1417,  5.1768,  5.1156,  5.1654,  5.2413,  5.1427,  5.2413)   # REAL*4 DATA
 
 function _fw2_shp_w3(d::Float32, h::Float32, geosub::AbstractString)
     D = Float64(d); H = Float64(h)
@@ -94,22 +104,27 @@ function _fw2_shp_w3(d::Float32, h::Float32, geosub::AbstractString)
     fr25 = F25; fr34 = F34
     if geosub != "00"
         id = _wc_geoidx(geosub)
-        id != 0 && (fr25 = _W3_R25[id]; fr34 = _W3_R34[id])
+        id != 0 && (fr25 = _r4(_W3_R25[id]); fr34 = _r4(_W3_R34[id]))
     end
-    dmedian = 0.566 * (H - 4.5)^(0.634 + 0.00074 * H); dform = D / dmedian - 1.0
-    u7 = F13 + F14*log(D + 1.0) + F15*log(H)
-    u9a = clamp(F18 + F19*H, -7.0, 7.0); u9 = F17 * _logit(u9a)
-    u8 = F21 + F22*log(H) + F23*dform + F24*(D/10.0)^1.5
-    u1 = fr25 + F26*log(H)
-    u2 = F29 + F30*log(D) + F31*D
-    u3 = fr34 + F35*log(D + 1.0) + F36*log(H) + F37*dform*H + F33*dform
-    u4 = F38 + F39*D + F40*H*D
-    u5 = F42 + F43*H + F44*dform
-    u1=clamp(u1,-7.,7.); u2=clamp(u2,-7.,7.); u3=clamp(u3,-7.,7.); u4=clamp(u4,-7.,7.)
-    u5=clamp(u5,-7.,7.); u7=clamp(u7,-7.,7.); u8=clamp(u8,-7.,7.)
-    u6 = clamp(F45 + F46*log(D + 1.0) + F47*log(H), -6.0, 6.0); u6 = 1.0 + exp(u6)
-    u6 = u6 < 1.005 ? 1.005 : (u6 > 100.0 ? 100.0 : u6)
-    _wc_assemble_shp(u1,u2,u3,u4,u5,u6,u7,u8,u9)
+    # DMEDIAN = m1*(HTTOT-4.5)**(m2+m3*HTTOT), m1..m3 REAL*4 ⇒ all single
+    dmedian = Float64(0.566f0 * fpow(h - 4.5f0, 0.634f0 + 0.00074f0 * h))
+    dform = D / dmedian - 1.0
+    u7 = F13 + F14 * _lf(d + 1f0) + F15 * _lf(h)
+    u9a = _clp(F18 + F19 * H, -7.0, 7.0)
+    u9 = F17 * dexp(u9a) / (1.0 + dexp(u9a))
+    u8 = F21 + F22 * _lf(h) + F23 * dform + F24 * dpow(D / 10.0, 1.5)
+    u1 = fr25 + F26 * _lf(h)
+    u2 = F29 + F30 * _lf(d) + F31 * D
+    u3 = fr34 + F35 * dlog(D + 1.0) + F36 * _lf(h) + F37 * dform * H + F33 * dform
+    u4 = F38 + F39 * D + F40 * H * D
+    u5 = F42 + F43 * H + F44 * dform
+    u1 = _clp(u1, -7.0, 7.0); u2 = _clp(u2, -7.0, 7.0); u3 = _clp(u3, -7.0, 7.0); u4 = _clp(u4, -7.0, 7.0)
+    u5 = _clp(u5, -7.0, 7.0); u7 = _clp(u7, -7.0, 7.0); u8 = _clp(u8, -7.0, 7.0)
+    u6 = _clp(F45 + F46 * dlog(D + 1.0) + F47 * _lf(h), -6.0, 6.0)
+    u6 = 1.0 + dexp(u6)
+    u6 < Float64(1.005f0) && (u6 = 1.005); u6 > 100.0 && (u6 = 100.0)       # `U6 .LT. 1.005` (REAL literal)
+    rhi1 = Float32(_lgt(u7)); rhi1 > 0.5f0 && (rhi1 = 0.5f0)
+    _wc_assemble_shp_rhi(u1, u2, u3, u4, u5, u6, rhi1, u8, u9)
 end
 
 function _fw2_shp_w4(d::Float32, h::Float32, geosub::AbstractString)
@@ -122,27 +137,34 @@ function _fw2_shp_w4(d::Float32, h::Float32, geosub::AbstractString)
     F34=-1.2882571; F35=35.688410; F36=0.17995769; F37=1.5565605
     F38=6.4397446; F39=-1.3439736; F40=6.3442558
     F42=11.898092; F43=-3.6789851; F44=0.15168209
-    F45=-1.3248733; F46=-0.11788962; F47=-0.015909154
-    R25 = (-7.511,-7.687,-7.224,-7.355,-7.632,-7.646,-7.687,-7.911)
+    F45=-1.3248733; F46=-0.11788962; F47=-0.015909154                    # F(48) has no DATA ⇒ 0 (static storage)
+    R25 = (-7.511,-7.687,-7.224,-7.355,-7.632,-7.646,-7.687,-7.911)        # REAL*4 DATA
     R34 = (-1.215,-1.355,-1.177,-1.373,-1.398,-1.188,-1.355,-1.449)
     fr25 = F25; fr34 = F34
     if geosub != "00"
-        id = _wc_geoidx(geosub); id != 0 && (fr25 = R25[id]; fr34 = R34[id])
+        id = _wc_geoidx(geosub); id != 0 && (fr25 = _r4(R25[id]); fr34 = _r4(R34[id]))
     end
-    dmedian = 0.2855*(H-4.5)^(0.307 - 0.00505*H + 0.00001745*H*H + 0.19*log(H)); dform = D/dmedian - 1.0
-    u7 = clamp(F13 + F14*(1.0 - exp(F15*H)), -7.0, 7.0); rhi1 = _logit(u7); rhi1 > 0.5 && (rhi1 = 0.5)
-    u9a = F17 + F18*log(H) + F19*dform
-    (rhi1 + u9a > 0.75) && (u9a = 0.75 - rhi1); u9 = max(u9a, 0.0)
-    u8 = F21 + F22*log(H) + F23*dform + F24*log(H)*dform
-    u1 = fr25 + F26/(H/100) + F27/(H/100)^2 + F28/(H/100)^3
+    lh = _lf(h)
+    dmedian = Float64(0.2855f0 * fpow(h - 4.5f0, 0.307f0 - 0.00505f0 * h + 0.00001745f0 * h * h + 0.19f0 * flog(h)))
+    dform = D / dmedian - 1.0
+    u7 = _clp(F13 + F14 * (1.0 - dexp(F15 * H)), -7.0, 7.0)
+    rhi1 = Float32(_lgt(u7)); rhi1 > 0.5f0 && (rhi1 = 0.5f0)
+    u9a = F17 + F18 * lh + F19 * dform
+    (Float64(rhi1) + u9a > 0.75) && (u9a = Float64(0.75f0 - rhi1))
+    u9 = u9a > 0.0 ? u9a : 0.0
+    u8 = F21 + F22 * lh + F23 * dform + F24 * lh * dform
+    hh = H / 100.0
+    u1 = fr25 + F26 / hh + F27 / (hh * hh) + F28 / (hh * (hh * hh))
     u2 = F29
-    u3 = fr34 + F35/H + F36*H*D/1000 + F37*dform
-    u4 = F38 + F39*log(H) + F40*dform
-    u5 = F42 + F43*log(H) + F44*D
-    u1=clamp(u1,-7.,7.); u2=clamp(u2,-7.,7.); u3=clamp(u3,-7.,7.); u4=clamp(u4,-7.,7.); u5=clamp(u5,-7.,7.); u8=clamp(u8,-7.,7.)
-    u6 = clamp(F45 + F46*log(D) + F47*H, -6.0, 6.0); u6 = 1.0 + exp(u6)
-    u6 = u6 < 1.005 ? 1.005 : (u6 > 100.0 ? 100.0 : u6)
-    _wc_assemble_shp_rhi(u1,u2,u3,u4,u5,u6,rhi1,u8,u9)
+    u3 = fr34 + F35 / H + F36 * H * D / 1000.0 + F37 * dform
+    u4 = F38 + F39 * lh + F40 * dform
+    u5 = F42 + F43 * lh + F44 * D
+    u1 = _clp(u1, -7.0, 7.0); u2 = _clp(u2, -7.0, 7.0); u3 = _clp(u3, -7.0, 7.0); u4 = _clp(u4, -7.0, 7.0)
+    u5 = _clp(u5, -7.0, 7.0); u8 = _clp(u8, -7.0, 7.0)
+    u6 = _clp(F45 + F46 * _lf(d) + F47 * H + 0.0 * lh, -6.0, 6.0)
+    u6 = 1.0 + dexp(u6)
+    u6 < 1.005 && (u6 = 1.005); u6 > 100.0 && (u6 = 100.0)                 # W4 compares 1.005D0
+    _wc_assemble_shp_rhi(u1, u2, u3, u4, u5, u6, rhi1, u8, u9)
 end
 
 function _fw2_shp_w5(d::Float32, h::Float32, geosub::AbstractString)
@@ -156,34 +178,35 @@ function _fw2_shp_w5(d::Float32, h::Float32, geosub::AbstractString)
     F38=8.5305448; F39=-0.83350599; F40=12.100013
     F42=8.3021283; F43=-150.0
     F45=-7.1594841; F46=0.11263465; F47=22.396603
-    dmedian = 0.11*(H-4.5)^(1.08 + 0.0006*H); dform = D/dmedian - 1.0
-    u7 = F13 + F15*dform; u7 = clamp(u7, -7.0, 1.0); rhi1 = _logit(u7)   # W5: upper clamp 1.0, NO 0.5 cap
-    u9a = F17 + F18*log(H); (rhi1 + u9a > 0.75) && (u9a = 0.75 - rhi1); u9 = max(u9a, 0.0)
-    u8 = F21 + F22/D
-    u1 = F25 + F26*log(D) + F27/D
-    u2 = F29 + F30/D + F31/(D*D)
-    u3 = F34 + F35*D + F36*H
-    u4 = F38 + F39*D + F40*dform
-    u5 = F42 + F43/D
-    u1=clamp(u1,-7.,7.); u2=clamp(u2,-7.,7.); u3=clamp(u3,-7.,7.); u4=clamp(u4,-7.,7.); u5=clamp(u5,-7.,7.); u8=clamp(u8,-7.,7.)
-    u6 = clamp(F45 + F46*D + F47/D, -6.0, 6.0); u6 = 1.0 + exp(u6)
-    u6 = u6 < 1.005 ? 1.005 : (u6 > 100.0 ? 100.0 : u6)
-    _wc_assemble_shp_rhi(u1,u2,u3,u4,u5,u6,rhi1,u8,u9)
+    dmedian = Float64(0.11f0 * fpow(h - 4.5f0, 1.08f0 + 0.0006f0 * h))
+    dform = D / dmedian - 1.0
+    u7 = _clp(F13 + F15 * dform, -7.0, 1.0)                                  # W5: upper clamp 1.0, NO 0.5 cap
+    rhi1 = Float32(_lgt(u7))
+    u9a = F17 + F18 * _lf(h)
+    (Float64(rhi1) + u9a > 0.75) && (u9a = Float64(0.75f0 - rhi1))
+    u9 = u9a > 0.0 ? u9a : 0.0
+    u8 = F21 + F22 / D
+    u1 = F25 + F26 * _lf(d) + F27 / D
+    u2 = F29 + F30 / D + F31 / Float64(d * d)                                # DBHOB*DBHOB is a REAL product
+    u3 = F34 + F35 * D + F36 * H
+    u4 = F38 + F39 * D + F40 * dform
+    u5 = F42 + F43 / D
+    u1 = _clp(u1, -7.0, 7.0); u2 = _clp(u2, -7.0, 7.0); u3 = _clp(u3, -7.0, 7.0); u4 = _clp(u4, -7.0, 7.0)
+    u5 = _clp(u5, -7.0, 7.0); u8 = _clp(u8, -7.0, 7.0)
+    u6 = _clp(F45 + F46 * D + F47 / D, -6.0, 6.0)
+    u6 = 1.0 + dexp(u6)
+    u6 < 1.005 && (u6 = 1.005); u6 > 100.0 && (u6 = 100.0)
+    _wc_assemble_shp_rhi(u1, u2, u3, u4, u5, u6, rhi1, u8, u9)
 end
 
-# Shared tail: build (RFLW, RHFW) from the U-transforms. Two variants differ only in whether RHI1's
-# 0.5 cap is applied to the raw logit (W3) or already applied (W4/W5 pass rhi1 in).
-@inline function _wc_assemble_shp(u1,u2,u3,u4,u5,u6,u7,u8,u9)
-    rhi1 = _logit(u7); rhi1 > 0.5 && (rhi1 = 0.5)
-    _wc_assemble_shp_rhi(u1,u2,u3,u4,u5,u6,rhi1,u8,u9)
-end
-@inline function _wc_assemble_shp_rhi(u1,u2,u3,u4,u5,u6,rhi1,u8,u9)
-    r1=_logit(u1); r2=_logit(u2); r3=_logit(u3); r4=_logit(u4)
-    r5 = 0.5 + 0.5*_logit(u5); a3 = u6
-    rhlongi = u9; rhi2 = rhi1 + rhlongi
-    rhc = rhi2 + (1.0 - rhi2)*_logit(u8)
-    ((Float32(r1),Float32(r2),Float32(r3),Float32(r4),Float32(r5),Float32(a3)),
-     (Float32(rhi1),Float32(rhi2),Float32(rhc),Float32(rhlongi)))
+# Shared tail (identical in W3/W4/W5): R1-R4 = DEXP(U)/(1+DEXP(U)), R5 = 0.5D0+0.5D0*DEXP(U5)/(1+DEXP(U5)),
+# A3=U6, RHLONGI=U9 (REAL*4), RHI2=RHI1+RHLONGI (single), RHC = RHI2 + (1.0-RHI2)*DEXP(U8)/(1+DEXP(U8)).
+@inline function _wc_assemble_shp_rhi(u1, u2, u3, u4, u5, u6, rhi1::Float32, u8, u9)
+    r1 = Float32(_lgt(u1)); r2 = Float32(_lgt(u2)); r3 = Float32(_lgt(u3)); r4 = Float32(_lgt(u4))
+    r5 = Float32(0.5 + 0.5 * dexp(u5) / (1.0 + dexp(u5))); a3 = Float32(u6)
+    rhlongi = Float32(u9); rhi2 = rhi1 + rhlongi
+    rhc = Float32(Float64(rhi2) + Float64(1f0 - rhi2) * dexp(u8) / (1.0 + dexp(u8)))
+    ((r1, r2, r3, r4, r5, a3), (rhi1, rhi2, rhc, rhlongi))
 end
 
 # FDBT_C1 (f_west.f:895) — double bark thickness at BH; DBHIB = D − FDBT_C1. JSP 3=DF,4=WH,5=RC.
@@ -264,11 +287,14 @@ function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark
     rflw, rhfw = jsp == 3 ? _fw2_shp_w3(d, h, geosub) :
                  jsp == 4 ? _fw2_shp_w4(d, h, geosub) : _fw2_shp_w5(d, h, geosub)
     tapcoe = _fw2_sf_taper(rhfw, rflw)
-    dbhib = d * bark                                  # DBHIB from the WC variant bark (== INGY convention)
-    yhat_bh = _fw2_sf_yhat(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0)
+    # fvsvol.f:153 DBTBH = D*(1-BARK); sf_shp.f DBHIB = DBHOB-DBTBH (NOT D*BARK — differs in the last bit);
+    # sf_2pt.f F = DBH_IB/SF_YHAT(4.5/TOTALH) with SF_YHAT at sf_yhat.f's own REAL/REAL*8 mix, and TCUBIC/MERLEN
+    # read the profile through SF_DS → the same SF_YHAT (BRK_UP leaves DIB alone for JSP 3-5).
+    dbhib = d - d * (1f0 - bark)
+    yhat_bh = _fw2_sf_yhat_f(4.5f0 / h, tapcoe, rhfw, rflw, 1.0f0, h, false)[1]
     yhat_bh == 0f0 && return (0f0, 0f0, 0f0)
     f = dbhib / yhat_bh
-    dibat = ht -> _fw2_sf_yhat(ht / h, tapcoe, rhfw, rflw, f)
+    dibat = ht -> (Float32(ht) > h ? 0f0 : _fw2_sf_yhat_f(Float32(ht) / h, tapcoe, rhfw, rflw, f, h, false)[1])
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), dbhib) : -1f0
     v1 = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1   # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1
     v4 = _wc_fw2_merch_cuft(dibat, h, topd * bark, stump)
