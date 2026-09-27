@@ -1075,6 +1075,7 @@ function _ak_new_record!(s::StandState, sp::Int, nnid::Int, hht::Float32, prob::
     t.cull[n] = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
     t.trunc[n] = Int32(0); t.defect[n] = Int32(0); t.special[n] = Int32(0); t.norm_ht[n] = Int32(0)
     t.merch_top_bf[n] = 0f0; t.merch_top_cf[n] = 0f0
+    t.mort_pa[n] = 0f0                                   # estab.f:2050/2169/2266 WK2(ITRN)=0 (TreeList MortPA)
     t.tpa[n] = prob
     t.dbh[n] = 0.1f0
     t.height[n] = hht
