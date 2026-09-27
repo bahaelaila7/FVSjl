@@ -25,6 +25,19 @@ const SO_HTDBH_WINEMA_P2 = Float32[133.7789,222.7080,231.7163,471.6016,130.7104,
 const SO_HTDBH_WINEMA_P3 = Float32[6.9968,6.1735,6.7143,5.7106,7.7823,8.0469,4.9833,13.6848,6.2936,6.4422,0.0,5.7106,6.3401,9.9497,6.1830,0.0,5.5577,5.7620,6.8287,3.5181,6.4050,4.5713,2.2107,0.0,4.5852,2.6548,3.7653,2.4231,8.4670,5.8887,5.8887,6.7143,5.8887]
 const SO_HTDBH_WINEMA_P4 = Float32[-0.9072,-0.6122,-0.6647,-0.4035,-0.8830,-0.2090,-0.7463,-1.0635,-0.3860,-0.3348,0.0,-0.4035,-0.5275,-0.9727,-0.6335,0.0,-0.6054,-0.3633,-0.6034,-0.5894,-0.8329,-0.3643,-0.6365,0.0,-0.6746,-1.2460,-1.1224,-0.1800,-0.1863,-0.2286,-0.2286,-0.6647,-0.2286]
 
+# so/blkdat.f DATA HT1/HT2 (Wykoff intercept/slope) for WJ/WB/AS (ISPC 11, 16, 24) — the three species with no
+# HTDBH curve (P2=0 above). so/cratet.f:415 (live, `GO TO 105`) / :532 (dead, `GO TO 106`) skip the HTDBH call for
+# them, so their missing-height/NORMHT dub stays H = EXP(AX+BX/(D+1))+4.5 (AX=HT1, or AA when calibrated; BX=HT2).
+const SO_BLK_HT1 = (sp11 = 3.2000f0, sp16 = 4.1920f0, sp24 = 4.4421f0)
+const SO_BLK_HT2 = (sp11 = -5.0000f0, sp16 = -5.1651f0, sp24 = -6.5405f0)
+@inline so_wykoff_nohtdbh(sp::Int) = sp == 11 || sp == 16 || sp == 24
+@inline function so_wykoff_dub(sp::Int, d::Float32, ax_cal::Union{Nothing,Float32} = nothing)
+    ht1 = sp == 11 ? SO_BLK_HT1.sp11 : sp == 16 ? SO_BLK_HT1.sp16 : SO_BLK_HT1.sp24
+    ht2 = sp == 11 ? SO_BLK_HT2.sp11 : sp == 16 ? SO_BLK_HT2.sp16 : SO_BLK_HT2.sp24
+    ax = ax_cal === nothing ? ht1 : ax_cal
+    return fexp(ax + ht2 / (d + 1.0f0)) + 4.5f0
+end
+
 # so/htdbh.f SELECT CASE(IFOR): 1/10 → Deschutes, 2 → Fremont, DEFAULT → Winema.
 @inline function _so_htdbh_coefs(ifor::Int, sp::Int)
     if ifor == 1 || ifor == 10

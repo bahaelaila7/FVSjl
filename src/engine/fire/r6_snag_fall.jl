@@ -1,242 +1,147 @@
-# R6 snag falldown (FMSFALL → FMR6SDCY + FMR6FALL) — the Region-6 snag-fall model shared byte-for-byte by the
-# BM/EC/AK/OP/PN/WC fmsfall.f (471b23d5). Unlike the SN/CS FMSFALL (a CONSTANT modrate·ORIGDEN stems/yr with a
-# last-5% ramp), the R6 form falls a FRACTION of the CURRENT density: DFALLN = BASE·FALLX·DENTTL (fmsfall.f),
-# BASE = SNFL(SPG, MOIS, OTSH, OTRT, JADJ, SML) (fmr6fall.f), with the decay-adjustment class JADJ and snag size
-# class SML from FMR6SDCY (fmr6sdcy.f). Tables below are MECHANICALLY EXTRACTED from the BM build's fmr6fall.f /
-# fmr6sdcy.f DATA statements (implied-DO order preserved) — BM subset only. NOTE fmr6fall.f carries its OWN
-# BMWMD, which differs from fmr6sdcy.f's (== _FM_BMWMD) at habitats 39 and 91; each routine uses its own.
-
-# fmr6sdcy.f (BM): species group, DBH breakpoint (cm; 2nd breakpoint 50 if the 1st is 20 else 75), decay adj.
-const _R6SD_BMSPEC = reshape(Int8[2, 2, 2, 8, 7, 1, 5, 6, 8, 3, 2, 2, 1, 1, 11, 11, 8, 11], (18,))
-const _R6SD_BMDBH1 = reshape(Int8[25, 25, 25, 25, 25, 20, 20, 25, 20, 20, 20, 20, 20, 25, 20, 25, 20, 20], (18,))
-const _R6SD_ESDCYADJ = reshape(Int8[
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-    3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
-    3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
-    3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
-    2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1], (12, 3, 3, 3))
-
-# fmr6fall.f (BM): species group, moisture / overstory-shade / overstory-root-rot class by habitat, fall table.
-const _R6FL_BMSPEC = reshape(Int8[5, 6, 3, 17, 12, 7, 9, 10, 15, 13, 5, 5, 7, 7, 19, 19, 13, 19], (18,))
-const _R6FL_BMWMD = reshape(Int8[
-    3, 3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 2, 3, 2, 1, 2, 3, 1, 1, 2, 1, 1, 2, 2, 2, 2, 2, 3, 2, 3, 2, 3, 3, 1, 1,
-    1, 2, 1, 1, 3, 3, 3, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 2,
-    2, 2, 2, 1, 1, 1, 3, 3, 3, 2, 2, 2, 3, 3, 2, 1, 3, 2, 1, 2, 1, 2], (92,))
-const _R6FL_BMOTSH = reshape(Int8[
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], (92,))
-const _R6FL_BMOTRT = reshape(Int8[
-    2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1,
-    1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], (92,))
-const _R6FL_SNFL = reshape(Float32[
-    0.041f0, 0.032f0, 0.067f0, 0.051f0, 0.03f0, 0.054f0, 0.036f0, 0.067f0, 0.076f0, 0.067f0, 0.053f0,
-    0.042f0, 0.123f0, 0.137f0, 0.067f0, 0.043f0, 0.088f0, 0.106f0, 0.124f0, 0.122f0, 0.042f0, 0.032f0,
-    0.068f0, 0.052f0, 0.031f0, 0.056f0, 0.037f0, 0.069f0, 0.078f0, 0.068f0, 0.055f0, 0.043f0, 0.127f0,
-    0.14f0, 0.069f0, 0.044f0, 0.09f0, 0.109f0, 0.128f0, 0.125f0, 0.046f0, 0.035f0, 0.074f0, 0.057f0, 0.033f0,
-    0.06f0, 0.04f0, 0.075f0, 0.085f0, 0.074f0, 0.059f0, 0.047f0, 0.137f0, 0.152f0, 0.075f0, 0.048f0, 0.098f0,
-    0.118f0, 0.138f0, 0.136f0, 0.052f0, 0.04f0, 0.084f0, 0.064f0, 0.037f0, 0.068f0, 0.045f0, 0.085f0,
-    0.096f0, 0.084f0, 0.067f0, 0.053f0, 0.155f0, 0.172f0, 0.085f0, 0.054f0, 0.11f0, 0.133f0, 0.156f0,
-    0.153f0, 0.052f0, 0.04f0, 0.084f0, 0.064f0, 0.037f0, 0.068f0, 0.045f0, 0.085f0, 0.096f0, 0.084f0,
-    0.067f0, 0.053f0, 0.155f0, 0.172f0, 0.085f0, 0.054f0, 0.11f0, 0.133f0, 0.156f0, 0.153f0, 0.052f0, 0.04f0,
-    0.084f0, 0.064f0, 0.037f0, 0.068f0, 0.045f0, 0.085f0, 0.096f0, 0.084f0, 0.067f0, 0.053f0, 0.155f0,
-    0.172f0, 0.085f0, 0.054f0, 0.11f0, 0.133f0, 0.156f0, 0.153f0, 0.073f0, 0.056f0, 0.118f0, 0.09f0, 0.053f0,
-    0.096f0, 0.064f0, 0.119f0, 0.135f0, 0.118f0, 0.095f0, 0.074f0, 0.219f0, 0.242f0, 0.119f0, 0.076f0,
-    0.155f0, 0.188f0, 0.22f0, 0.215f0, 0.08f0, 0.061f0, 0.129f0, 0.099f0, 0.058f0, 0.105f0, 0.07f0, 0.131f0,
-    0.148f0, 0.129f0, 0.104f0, 0.082f0, 0.24f0, 0.265f0, 0.131f0, 0.083f0, 0.17f0, 0.206f0, 0.241f0, 0.236f0,
-    0.087f0, 0.067f0, 0.141f0, 0.107f0, 0.063f0, 0.115f0, 0.076f0, 0.142f0, 0.161f0, 0.141f0, 0.113f0,
-    0.089f0, 0.261f0, 0.289f0, 0.142f0, 0.091f0, 0.185f0, 0.224f0, 0.263f0, 0.257f0, 0.094f0, 0.072f0,
-    0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0,
-    0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0,
-    0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0,
-    0.242f0, 0.284f0, 0.278f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0, 0.154f0,
-    0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0,
-    0.046f0, 0.035f0, 0.074f0, 0.057f0, 0.033f0, 0.06f0, 0.04f0, 0.075f0, 0.085f0, 0.074f0, 0.059f0, 0.047f0,
-    0.137f0, 0.152f0, 0.075f0, 0.048f0, 0.098f0, 0.118f0, 0.138f0, 0.136f0, 0.047f0, 0.036f0, 0.076f0,
-    0.058f0, 0.034f0, 0.062f0, 0.041f0, 0.077f0, 0.087f0, 0.076f0, 0.061f0, 0.048f0, 0.141f0, 0.156f0,
-    0.077f0, 0.049f0, 0.1f0, 0.121f0, 0.142f0, 0.139f0, 0.052f0, 0.04f0, 0.084f0, 0.064f0, 0.037f0, 0.068f0,
-    0.045f0, 0.085f0, 0.096f0, 0.084f0, 0.067f0, 0.053f0, 0.155f0, 0.172f0, 0.085f0, 0.054f0, 0.11f0,
-    0.133f0, 0.156f0, 0.153f0, 0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0,
-    0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0,
-    0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0,
-    0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.056f0, 0.043f0, 0.091f0,
-    0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0,
-    0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.075f0, 0.058f0, 0.122f0, 0.093f0, 0.054f0, 0.099f0,
-    0.066f0, 0.123f0, 0.139f0, 0.122f0, 0.098f0, 0.077f0, 0.226f0, 0.25f0, 0.123f0, 0.078f0, 0.16f0, 0.194f0,
-    0.227f0, 0.222f0, 0.08f0, 0.061f0, 0.129f0, 0.099f0, 0.058f0, 0.105f0, 0.07f0, 0.131f0, 0.148f0, 0.129f0,
-    0.104f0, 0.082f0, 0.24f0, 0.265f0, 0.131f0, 0.083f0, 0.17f0, 0.206f0, 0.241f0, 0.236f0, 0.087f0, 0.067f0,
-    0.141f0, 0.107f0, 0.063f0, 0.115f0, 0.076f0, 0.142f0, 0.161f0, 0.141f0, 0.113f0, 0.089f0, 0.261f0,
-    0.289f0, 0.142f0, 0.091f0, 0.185f0, 0.224f0, 0.263f0, 0.257f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0,
-    0.068f0, 0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0,
-    0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0,
-    0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0,
-    0.278f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0,
-    0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0, 0.056f0, 0.043f0,
-    0.091f0, 0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0,
-    0.187f0, 0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0,
-    0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0,
-    0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0,
-    0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0,
-    0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0,
-    0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.056f0, 0.043f0, 0.091f0,
-    0.07f0, 0.041f0, 0.074f0, 0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0,
-    0.092f0, 0.059f0, 0.12f0, 0.145f0, 0.17f0, 0.167f0, 0.056f0, 0.043f0, 0.091f0, 0.07f0, 0.041f0, 0.074f0,
-    0.049f0, 0.092f0, 0.104f0, 0.091f0, 0.073f0, 0.058f0, 0.169f0, 0.187f0, 0.092f0, 0.059f0, 0.12f0,
-    0.145f0, 0.17f0, 0.167f0, 0.08f0, 0.061f0, 0.129f0, 0.099f0, 0.058f0, 0.105f0, 0.07f0, 0.131f0, 0.148f0,
-    0.129f0, 0.104f0, 0.082f0, 0.24f0, 0.265f0, 0.131f0, 0.083f0, 0.17f0, 0.206f0, 0.241f0, 0.236f0, 0.085f0,
-    0.065f0, 0.137f0, 0.104f0, 0.061f0, 0.112f0, 0.074f0, 0.139f0, 0.157f0, 0.137f0, 0.11f0, 0.086f0,
-    0.254f0, 0.281f0, 0.139f0, 0.088f0, 0.18f0, 0.218f0, 0.256f0, 0.25f0, 0.089f0, 0.068f0, 0.144f0, 0.11f0,
-    0.065f0, 0.118f0, 0.078f0, 0.146f0, 0.165f0, 0.144f0, 0.116f0, 0.091f0, 0.268f0, 0.296f0, 0.146f0,
-    0.093f0, 0.19f0, 0.23f0, 0.27f0, 0.264f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0,
-    0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0,
-    0.278f0, 0.094f0, 0.072f0, 0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0,
-    0.122f0, 0.096f0, 0.282f0, 0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0, 0.094f0, 0.072f0,
-    0.152f0, 0.116f0, 0.068f0, 0.124f0, 0.082f0, 0.154f0, 0.174f0, 0.152f0, 0.122f0, 0.096f0, 0.282f0,
-    0.312f0, 0.154f0, 0.098f0, 0.2f0, 0.242f0, 0.284f0, 0.278f0, 0.018f0, 0.016f0, 0.028f0, 0.022f0, 0.012f0,
-    0.028f0, 0.009f0, 0.066f0, 0.069f0, 0.04f0, 0.032f0, 0.035f0, 0.059f0, 0.071f0, 0.038f0, 0.026f0,
-    0.032f0, 0.052f0, 0.071f0, 0.069f0, 0.019f0, 0.016f0, 0.029f0, 0.023f0, 0.013f0, 0.029f0, 0.009f0,
-    0.068f0, 0.071f0, 0.041f0, 0.033f0, 0.036f0, 0.06f0, 0.073f0, 0.039f0, 0.027f0, 0.032f0, 0.053f0,
-    0.073f0, 0.071f0, 0.02f0, 0.018f0, 0.031f0, 0.024f0, 0.014f0, 0.031f0, 0.01f0, 0.073f0, 0.077f0, 0.045f0,
-    0.036f0, 0.039f0, 0.065f0, 0.079f0, 0.042f0, 0.029f0, 0.035f0, 0.058f0, 0.079f0, 0.077f0, 0.023f0,
-    0.02f0, 0.035f0, 0.028f0, 0.015f0, 0.035f0, 0.011f0, 0.083f0, 0.087f0, 0.051f0, 0.041f0, 0.044f0,
-    0.074f0, 0.089f0, 0.047f0, 0.033f0, 0.04f0, 0.065f0, 0.089f0, 0.087f0, 0.023f0, 0.02f0, 0.035f0, 0.028f0,
-    0.015f0, 0.035f0, 0.011f0, 0.083f0, 0.087f0, 0.051f0, 0.041f0, 0.044f0, 0.074f0, 0.089f0, 0.047f0,
-    0.033f0, 0.04f0, 0.065f0, 0.089f0, 0.087f0, 0.023f0, 0.02f0, 0.035f0, 0.028f0, 0.015f0, 0.035f0, 0.011f0,
-    0.083f0, 0.087f0, 0.051f0, 0.041f0, 0.044f0, 0.074f0, 0.089f0, 0.047f0, 0.033f0, 0.04f0, 0.065f0,
-    0.089f0, 0.087f0, 0.033f0, 0.028f0, 0.05f0, 0.039f0, 0.022f0, 0.05f0, 0.016f0, 0.116f0, 0.122f0, 0.071f0,
-    0.057f0, 0.062f0, 0.104f0, 0.126f0, 0.067f0, 0.047f0, 0.056f0, 0.091f0, 0.126f0, 0.122f0, 0.036f0,
-    0.031f0, 0.054f0, 0.043f0, 0.024f0, 0.054f0, 0.017f0, 0.128f0, 0.134f0, 0.078f0, 0.063f0, 0.068f0,
-    0.114f0, 0.138f0, 0.073f0, 0.051f0, 0.061f0, 0.1f0, 0.138f0, 0.134f0, 0.039f0, 0.033f0, 0.059f0, 0.046f0,
-    0.026f0, 0.059f0, 0.019f0, 0.139f0, 0.146f0, 0.085f0, 0.068f0, 0.074f0, 0.124f0, 0.15f0, 0.08f0, 0.056f0,
-    0.067f0, 0.109f0, 0.15f0, 0.146f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0,
-    0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0,
-    0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0,
-    0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0,
-    0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0,
-    0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.02f0, 0.018f0, 0.031f0, 0.024f0, 0.014f0, 0.031f0, 0.01f0, 0.073f0,
-    0.077f0, 0.045f0, 0.036f0, 0.039f0, 0.065f0, 0.079f0, 0.042f0, 0.029f0, 0.035f0, 0.058f0, 0.079f0,
-    0.077f0, 0.021f0, 0.018f0, 0.032f0, 0.025f0, 0.014f0, 0.032f0, 0.01f0, 0.075f0, 0.079f0, 0.046f0,
-    0.037f0, 0.04f0, 0.067f0, 0.081f0, 0.043f0, 0.03f0, 0.036f0, 0.059f0, 0.081f0, 0.079f0, 0.023f0, 0.02f0,
-    0.035f0, 0.028f0, 0.015f0, 0.035f0, 0.011f0, 0.083f0, 0.087f0, 0.051f0, 0.041f0, 0.044f0, 0.074f0,
-    0.089f0, 0.047f0, 0.033f0, 0.04f0, 0.065f0, 0.089f0, 0.087f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0,
-    0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0,
-    0.071f0, 0.097f0, 0.095f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0,
-    0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0, 0.095f0,
-    0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0,
-    0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0, 0.095f0, 0.034f0, 0.029f0, 0.051f0, 0.04f0,
-    0.022f0, 0.051f0, 0.016f0, 0.12f0, 0.126f0, 0.074f0, 0.059f0, 0.064f0, 0.107f0, 0.13f0, 0.069f0, 0.048f0,
-    0.058f0, 0.094f0, 0.13f0, 0.126f0, 0.036f0, 0.031f0, 0.054f0, 0.043f0, 0.024f0, 0.054f0, 0.017f0,
-    0.128f0, 0.134f0, 0.078f0, 0.063f0, 0.068f0, 0.114f0, 0.138f0, 0.073f0, 0.051f0, 0.061f0, 0.1f0, 0.138f0,
-    0.134f0, 0.039f0, 0.033f0, 0.059f0, 0.046f0, 0.026f0, 0.059f0, 0.019f0, 0.139f0, 0.146f0, 0.085f0,
-    0.068f0, 0.074f0, 0.124f0, 0.15f0, 0.08f0, 0.056f0, 0.067f0, 0.109f0, 0.15f0, 0.146f0, 0.042f0, 0.036f0,
-    0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0,
-    0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0,
-    0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0,
-    0.162f0, 0.158f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0,
-    0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.025f0, 0.022f0,
-    0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0,
-    0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0, 0.095f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0,
-    0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0,
-    0.071f0, 0.097f0, 0.095f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0,
-    0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0, 0.095f0,
-    0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0,
-    0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0, 0.095f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0,
-    0.017f0, 0.038f0, 0.012f0, 0.09f0, 0.095f0, 0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0,
-    0.043f0, 0.071f0, 0.097f0, 0.095f0, 0.025f0, 0.022f0, 0.038f0, 0.03f0, 0.017f0, 0.038f0, 0.012f0, 0.09f0,
-    0.095f0, 0.055f0, 0.044f0, 0.048f0, 0.08f0, 0.097f0, 0.052f0, 0.036f0, 0.043f0, 0.071f0, 0.097f0,
-    0.095f0, 0.036f0, 0.031f0, 0.054f0, 0.043f0, 0.024f0, 0.054f0, 0.017f0, 0.128f0, 0.134f0, 0.078f0,
-    0.063f0, 0.068f0, 0.114f0, 0.138f0, 0.073f0, 0.051f0, 0.061f0, 0.1f0, 0.138f0, 0.134f0, 0.038f0, 0.032f0,
-    0.058f0, 0.045f0, 0.025f0, 0.058f0, 0.018f0, 0.135f0, 0.142f0, 0.083f0, 0.067f0, 0.072f0, 0.121f0,
-    0.146f0, 0.077f0, 0.054f0, 0.065f0, 0.106f0, 0.146f0, 0.142f0, 0.04f0, 0.034f0, 0.061f0, 0.048f0,
-    0.027f0, 0.061f0, 0.019f0, 0.143f0, 0.15f0, 0.087f0, 0.07f0, 0.076f0, 0.127f0, 0.154f0, 0.082f0, 0.057f0,
-    0.068f0, 0.112f0, 0.154f0, 0.15f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0,
-    0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0,
-    0.042f0, 0.036f0, 0.064f0, 0.05f0, 0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0,
-    0.134f0, 0.162f0, 0.086f0, 0.06f0, 0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.042f0, 0.036f0, 0.064f0, 0.05f0,
-    0.028f0, 0.064f0, 0.02f0, 0.15f0, 0.158f0, 0.092f0, 0.074f0, 0.08f0, 0.134f0, 0.162f0, 0.086f0, 0.06f0,
-    0.072f0, 0.118f0, 0.162f0, 0.158f0, 0.006f0, 0.009f0, 0.016f0, 0.016f0, 0.011f0, 0.025f0, 0.007f0,
-    0.066f0, 0.069f0, 0.038f0, 0.018f0, 0.019f0, 0.025f0, 0.025f0, 0.017f0, 0.011f0, 0.016f0, 0.036f0,
-    0.056f0, 0.054f0, 0.006f0, 0.009f0, 0.016f0, 0.016f0, 0.011f0, 0.025f0, 0.007f0, 0.068f0, 0.071f0,
-    0.039f0, 0.018f0, 0.02f0, 0.025f0, 0.025f0, 0.017f0, 0.012f0, 0.016f0, 0.037f0, 0.058f0, 0.056f0,
-    0.007f0, 0.01f0, 0.018f0, 0.018f0, 0.012f0, 0.027f0, 0.008f0, 0.073f0, 0.077f0, 0.042f0, 0.02f0, 0.021f0,
-    0.027f0, 0.027f0, 0.019f0, 0.013f0, 0.018f0, 0.04f0, 0.062f0, 0.06f0, 0.008f0, 0.011f0, 0.02f0, 0.02f0,
-    0.013f0, 0.031f0, 0.009f0, 0.083f0, 0.087f0, 0.047f0, 0.022f0, 0.024f0, 0.031f0, 0.031f0, 0.021f0,
-    0.014f0, 0.02f0, 0.045f0, 0.07f0, 0.068f0, 0.008f0, 0.011f0, 0.02f0, 0.02f0, 0.013f0, 0.031f0, 0.009f0,
-    0.083f0, 0.087f0, 0.047f0, 0.022f0, 0.024f0, 0.031f0, 0.031f0, 0.021f0, 0.014f0, 0.02f0, 0.045f0, 0.07f0,
-    0.068f0, 0.008f0, 0.011f0, 0.02f0, 0.02f0, 0.013f0, 0.031f0, 0.009f0, 0.083f0, 0.087f0, 0.047f0, 0.022f0,
-    0.024f0, 0.031f0, 0.031f0, 0.021f0, 0.014f0, 0.02f0, 0.045f0, 0.07f0, 0.068f0, 0.011f0, 0.016f0, 0.028f0,
-    0.028f0, 0.019f0, 0.043f0, 0.012f0, 0.116f0, 0.122f0, 0.067f0, 0.031f0, 0.034f0, 0.043f0, 0.043f0,
-    0.029f0, 0.02f0, 0.028f0, 0.064f0, 0.099f0, 0.096f0, 0.012f0, 0.017f0, 0.031f0, 0.031f0, 0.02f0, 0.048f0,
-    0.014f0, 0.128f0, 0.134f0, 0.073f0, 0.034f0, 0.037f0, 0.048f0, 0.048f0, 0.032f0, 0.022f0, 0.031f0,
-    0.07f0, 0.109f0, 0.105f0, 0.013f0, 0.019f0, 0.033f0, 0.033f0, 0.022f0, 0.052f0, 0.015f0, 0.139f0,
-    0.146f0, 0.08f0, 0.037f0, 0.041f0, 0.052f0, 0.052f0, 0.035f0, 0.024f0, 0.033f0, 0.076f0, 0.118f0,
-    0.115f0, 0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0,
-    0.044f0, 0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0,
-    0.036f0, 0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0,
-    0.038f0, 0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0,
-    0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0,
-    0.082f0, 0.128f0, 0.124f0, 0.007f0, 0.01f0, 0.018f0, 0.018f0, 0.012f0, 0.027f0, 0.008f0, 0.073f0,
-    0.077f0, 0.042f0, 0.02f0, 0.021f0, 0.027f0, 0.027f0, 0.019f0, 0.013f0, 0.018f0, 0.04f0, 0.062f0, 0.06f0,
-    0.007f0, 0.01f0, 0.018f0, 0.018f0, 0.012f0, 0.028f0, 0.008f0, 0.075f0, 0.079f0, 0.043f0, 0.02f0, 0.022f0,
-    0.028f0, 0.028f0, 0.019f0, 0.013f0, 0.018f0, 0.041f0, 0.064f0, 0.062f0, 0.008f0, 0.011f0, 0.02f0, 0.02f0,
-    0.013f0, 0.031f0, 0.009f0, 0.083f0, 0.087f0, 0.047f0, 0.022f0, 0.024f0, 0.031f0, 0.031f0, 0.021f0,
-    0.014f0, 0.02f0, 0.045f0, 0.07f0, 0.068f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0,
-    0.09f0, 0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0,
-    0.077f0, 0.074f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0,
-    0.024f0, 0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.008f0,
-    0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0,
-    0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.011f0, 0.016f0, 0.029f0, 0.029f0,
-    0.019f0, 0.045f0, 0.013f0, 0.12f0, 0.126f0, 0.069f0, 0.032f0, 0.035f0, 0.045f0, 0.045f0, 0.03f0, 0.021f0,
-    0.029f0, 0.066f0, 0.102f0, 0.099f0, 0.012f0, 0.017f0, 0.031f0, 0.031f0, 0.02f0, 0.048f0, 0.014f0,
-    0.128f0, 0.134f0, 0.073f0, 0.034f0, 0.037f0, 0.048f0, 0.048f0, 0.032f0, 0.022f0, 0.031f0, 0.07f0,
-    0.109f0, 0.105f0, 0.013f0, 0.019f0, 0.033f0, 0.033f0, 0.022f0, 0.052f0, 0.015f0, 0.139f0, 0.146f0,
-    0.08f0, 0.037f0, 0.041f0, 0.052f0, 0.052f0, 0.035f0, 0.024f0, 0.033f0, 0.076f0, 0.118f0, 0.115f0,
-    0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0,
-    0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0, 0.036f0,
-    0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0, 0.038f0,
-    0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0, 0.056f0,
-    0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0, 0.082f0,
-    0.128f0, 0.124f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0,
-    0.024f0, 0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.008f0,
-    0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0,
-    0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0,
-    0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0,
-    0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0,
-    0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0,
-    0.074f0, 0.008f0, 0.012f0, 0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0, 0.024f0,
-    0.026f0, 0.034f0, 0.034f0, 0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.008f0, 0.012f0,
-    0.022f0, 0.022f0, 0.014f0, 0.034f0, 0.01f0, 0.09f0, 0.095f0, 0.052f0, 0.024f0, 0.026f0, 0.034f0, 0.034f0,
-    0.023f0, 0.016f0, 0.022f0, 0.049f0, 0.077f0, 0.074f0, 0.012f0, 0.017f0, 0.031f0, 0.031f0, 0.02f0,
-    0.048f0, 0.014f0, 0.128f0, 0.134f0, 0.073f0, 0.034f0, 0.037f0, 0.048f0, 0.048f0, 0.032f0, 0.022f0,
-    0.031f0, 0.07f0, 0.109f0, 0.105f0, 0.013f0, 0.018f0, 0.032f0, 0.032f0, 0.022f0, 0.05f0, 0.014f0, 0.135f0,
-    0.142f0, 0.077f0, 0.036f0, 0.04f0, 0.05f0, 0.05f0, 0.034f0, 0.023f0, 0.032f0, 0.074f0, 0.115f0, 0.112f0,
-    0.013f0, 0.019f0, 0.034f0, 0.034f0, 0.023f0, 0.053f0, 0.015f0, 0.143f0, 0.15f0, 0.082f0, 0.038f0,
-    0.042f0, 0.053f0, 0.053f0, 0.036f0, 0.025f0, 0.034f0, 0.078f0, 0.122f0, 0.118f0, 0.014f0, 0.02f0,
-    0.036f0, 0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0,
-    0.038f0, 0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0,
-    0.056f0, 0.016f0, 0.15f0, 0.158f0, 0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0,
-    0.082f0, 0.128f0, 0.124f0, 0.014f0, 0.02f0, 0.036f0, 0.036f0, 0.024f0, 0.056f0, 0.016f0, 0.15f0, 0.158f0,
-    0.086f0, 0.04f0, 0.044f0, 0.056f0, 0.056f0, 0.038f0, 0.026f0, 0.036f0, 0.082f0, 0.128f0, 0.124f0], (20, 3, 2, 2, 3, 3))
+# R6 snag dynamics shared by the Region-6 FFE variants (BM/EC/SO/PN/OP/WC; tables in r6_snag_tables.jl):
+#   FMR6SDCY (fmr6sdcy.f) — species group, snag size class SML, years-to-soft JYRSOFT and the decay adjustment JADJ;
+#   FMR6FALL (fmr6fall.f) — the annual fall FRACTION BASE = SNFL(SPG, MOIS, OTSH, OTRT, JADJ, SML);
+#   FMR6HTLS (fmr6htls.f) — the random snag height loss (a RANN draw per FMSNGHT call).
+# Unlike the SN/CS FMSFALL (a CONSTANT modrate·ORIGDEN stems/yr with a last-5% ramp), the R6 form falls a fraction of
+# the CURRENT density: DFALLN = BASE·FALLX·DENTTL (ec/fmsfall.f:44-46, == bm/wc/pn/op/ak; so/fmsfall.f Oregon branch).
 
 """
-    bm_r6_fall_base(ksp, dbh, itype) -> Float32
+    r6_ffe_code(v, kodfor) -> Symbol
 
-BM snag fall BASE rate (fraction of the current snag density falling per year) for species `ksp`, snag DBH
-`dbh` (in), habitat type `itype` (ITYPE): FMR6SDCY (fmr6sdcy.f CASE('BM') → SPG/TEMP/MOIS/SML, then the CASE
-DEFAULT ESDCYADJ ⇒ JADJ) followed by FMR6FALL (fmr6fall.f CASE('BM') ⇒ SNFL(SPG,MOIS,OTSH,OTRT,JADJ,SML)).
+Which FMR6SDCY/FMR6FALL table set the variant reads (`:EC`, `:BM`, `:SO`, `:PN` (PN and OP share it), `:WC`), or
+`:none` for a variant outside the R6 snag model. SO is R6 only on its Oregon forests; each SO routine has its own
+test (fall: so/fmsfall.f KODFOR 5xx/701 = California; decay time: fmsngdk.f 601/602/620/799 = Oregon; height loss:
+fmsnght.f 505/506/509/511/701/514 = California), so this returns `:SO` and the callers apply their own test.
 """
-function bm_r6_fall_base(ksp::Integer, dbh::Float32, itype::Integer)::Float32
+@inline function r6_ffe_code(v)::Symbol
+    v isa EastCascades && return :EC
+    v isa BlueMountains && return :BM
+    v isa SouthCentralOregon && return :SO
+    (v isa PacificNorthwest || v isa Olympic) && return :PN
+    v isa WestCascades && return :WC
+    return :none
+end
+
+@inline _r6_clamp(i::Integer, n::Integer) = clamp(Int(i), 1, n)
+
+"""
+    r6_sdcy(code, ksp, dbh, itype) -> (yrsoft, jadj, sml)
+
+FMR6SDCY (fmr6sdcy.f:356-431): the snag size class SML from the species' DBH breakpoints (cm; the 2nd is 50 when the
+1st is 20, else 75 — fmr6sdcy.f:163-196), the habitat temperature/moisture class, and from the YRSOFT/DCYADJ tables
+(PN/OP/AK → PN*, WC → WC*, else ES*) the years-to-soft and the fall-adjustment class.
+"""
+function r6_sdcy(code::Symbol, ksp::Integer, dbh::Float32, itype::Integer)
     dbhcm = dbh * 2.54f0
-    d1 = Float32(_R6SD_BMDBH1[ksp]); d2 = d1 == 20f0 ? 50f0 : 75f0
-    sml = dbhcm < d1 ? 1 : (dbhcm < d2 ? 2 : 3)
-    temp = Int(_FM_BMHMC[itype]); mois = Int(_FM_BMWMD[itype])
-    jadj = Int(_R6SD_ESDCYADJ[Int(_R6SD_BMSPEC[ksp]), temp, mois, sml])
-    return _R6FL_SNFL[Int(_R6FL_BMSPEC[ksp]), Int(_R6FL_BMWMD[itype]), Int(_R6FL_BMOTSH[itype]),
-                      Int(_R6FL_BMOTRT[itype]), jadj, sml]
+    if code === :EC
+        it = _r6_clamp(itype, 155); temp = _R6SD_ECHMC[it]; mois = _R6SD_ECWMD[it]
+        spg = _R6SD_ECSPEC[ksp]; d1 = _R6SD_ECDBH1[ksp]
+    elseif code === :BM
+        it = _r6_clamp(itype, 92); temp = _R6SD_BMHMC[it]; mois = _R6SD_BMWMD[it]
+        spg = _R6SD_BMSPEC[ksp]; d1 = _R6SD_BMDBH1[ksp]
+    elseif code === :SO
+        it = _r6_clamp(itype, 92); temp = _R6SD_SOHMC[it]; mois = _R6SD_SOWMD[it]
+        spg = _R6SD_SOSPEC[ksp]; d1 = _R6SD_SODBH1[ksp]
+    elseif code === :PN
+        it = _r6_clamp(itype, 75); temp = _R6SD_PNWMC[it]; mois = _R6SD_PNWMD[it]
+        spg = _R6SD_WSSPEC[ksp]; d1 = _R6SD_WSDBH1[ksp]
+    else  # :WC
+        it = _r6_clamp(itype, 139); temp = _R6SD_WCWMC[it]; mois = _R6SD_WCWMD[it]
+        spg = _R6SD_WSSPEC[ksp]; d1 = _R6SD_WSDBH1[ksp]
+    end
+    d1f = Float32(d1); d2f = d1 == 20 ? 50f0 : 75f0
+    sml = dbhcm < d1f ? 1 : (dbhcm < d2f ? 2 : 3)
+    if code === :PN
+        return (Int(_R6SD_PNYRSOFT[spg, temp, mois, sml]), Int(_R6SD_PNDCYADJ[spg, temp, mois, sml]), sml)
+    elseif code === :WC
+        return (Int(_R6SD_WCYRSOFT[spg, temp, mois, sml]), Int(_R6SD_WCDCYADJ[spg, temp, mois, sml]), sml)
+    end
+    return (Int(_R6SD_ESYRSOFT[spg, temp, mois, sml]), Int(_R6SD_ESDCYADJ[spg, temp, mois, sml]), sml)
+end
+
+# fmr6fall.f:799-806 LOREG: these forests are in WASHINGTON (species-group column J=2); every other KODFOR is Oregon.
+@inline _r6_washington(kodfor::Integer) =
+    kodfor in (609, 603, 605, 608, 617, 699, 613, 701) || kodfor > 999 || kodfor == 800
+
+"""
+    r6_fall_base(code, ksp, dbh, itype, kodfor) -> Float32
+
+FMR6FALL BASE (fmr6fall.f:817-850): SNFL(SPG, MOIS, OTSH, OTRT, JADJ, SML) with JADJ/SML from `r6_sdcy`, the species
+group from the variant's (Oregon|Washington) column, and the habitat moisture / overstory-shade / root-rot classes.
+"""
+function r6_fall_base(code::Symbol, ksp::Integer, dbh::Float32, itype::Integer, kodfor::Integer)::Float32
+    _, jadj, sml = r6_sdcy(code, ksp, dbh, itype)
+    j = _r6_washington(kodfor) ? 2 : 1
+    if code === :EC
+        it = _r6_clamp(itype, 155)
+        spg = _R6FL_ECSPEC[ksp, j]; mois = _R6FL_ECWMD[it]; otsh = _R6FL_ECOTSH[it]; otrt = _R6FL_ECOTRT[it]
+    elseif code === :BM
+        it = _r6_clamp(itype, 92)
+        spg = _R6FL_BMSPEC[ksp]; mois = _R6FL_BMWMD[it]; otsh = _R6FL_BMOTSH[it]; otrt = _R6FL_BMOTRT[it]
+    elseif code === :SO
+        it = _r6_clamp(itype, 92)
+        spg = _R6FL_SOSPEC[ksp]; mois = _R6FL_SOWMD[it]; otsh = _R6FL_SOOTSH[it]; otrt = _R6FL_SOOTRT[it]
+    elseif code === :PN
+        it = _r6_clamp(itype, 75)
+        spg = _R6FL_WSSPEC[ksp, j]; mois = _R6FL_PNWMD[it]; otsh = _R6FL_PNOTSH[it]; otrt = _R6FL_PNOTRT[it]
+    else  # :WC
+        it = _r6_clamp(itype, 139)
+        spg = _R6FL_WSSPEC[ksp, j]; mois = _R6FL_WCWMD[it]; otsh = _R6FL_WCOTSH[it]; otrt = _R6FL_WCOTRT[it]
+    end
+    return _R6FL_SNFL[spg, mois, otsh, otrt, jadj, sml]
+end
+
+"BM snag fall BASE (kept for callers/tests): FMR6FALL CASE('BM') — BM has one species-group column, so no KODFOR."
+bm_r6_fall_base(ksp::Integer, dbh::Float32, itype::Integer)::Float32 = r6_fall_base(:BM, ksp, dbh, itype, 0)
+
+"""
+    r6_htls(code, ksp, y) -> Float32
+
+FMR6HTLS (fmr6htls.f): the fraction of height a snag loses this year given the uniform draw `y` = RANN — SNHTLS(SPG)
+when y ≤ PRHTLS(SPG), else 0. Species group: ECSPEC / BMSPEC / SOSPEC, the westside WSSPEC for every other variant.
+"""
+@inline function r6_htls(code::Symbol, ksp::Integer, y::Float32)::Float32
+    spg = code === :EC ? _R6HL_ECSPEC[ksp] : code === :BM ? _R6HL_BMSPEC[ksp] :
+          code === :SO ? _R6HL_SOSPEC[ksp] : _R6HL_WSSPEC[ksp]
+    return y <= _R6HL_PRHTLS[spg] ? _R6HL_SNHTLS[spg] : 0f0
+end
+
+"FMR6SDCY/FMR6FALL habitat index ITYPE: BM decodes its own (bm_itype); SO defaults to CPS111 = 49 (so/habtyp.f); EC/WC/PN/OP carry it in habitat_input."
+function _r6_itype(s::StandState)::Int
+    v = s.variant
+    v isa BlueMountains && return bm_itype(Int(s.plot.habitat_code))
+    hi = Int(s.plot.habitat_input)
+    v isa SouthCentralOregon && hi <= 0 && return 49
+    return hi
+end
+
+# so/fmsfall.f:48-49 — the California forests (KODFOR 5xx, 701) keep the western 18" linear fall; Oregon is R6.
+@inline _so_california_fall(kodfor::Integer) = (500 <= kodfor < 600) || kodfor == 701
+# so/fmsngdk.f — only these Oregon forests use the R6 JYRSOFT decay time; every other SO forest the default formula.
+@inline _so_oregon_dk(kodfor::Integer) = kodfor in (601, 602, 620, 799)
+# so/fmsnght.f — these California forests use the HTX height-loss formula; every other SO forest FMR6HTLS.
+@inline _so_california_ht(kodfor::Integer) = kodfor in (505, 506, 509, 511, 701, 514)
+
+"""
+Variants whose FMSFALL is the western 18"-linear form ({v}/fmsfall.f, md5 fd611f… = IE/KT/NC/WS/CA/OC; CI/TT/UT/CR/EM
+variants of it): the IE/KT/CI/TT/UT/EM/CR layer plus NC/WS/CA/OC and SO's California forests (R6 handled first).
+"""
+_ffe_west_fallform(v) = _ffe_west_vol(v) || v isa Klamath || v isa WestSierra || v isa CentralCalifornia ||
+                        v isa OregonCoast || v isa SouthCentralOregon
+
+"""
+    _snag_dktime(s, sp, d, dcx) -> Float32
+
+FMSNGDK (fmsnag.f:279-285) years-since-death for a snag to turn soft. PN/WC/BM/EC/OP (and SO's Oregon forests
+601/602/620/799): DKTIME = JYRSOFT·DECAYX from FMR6SDCY. Everything else: (1.24·DECAYX·D) + (13.82·DECAYX), in that
+exact Float32 order (fmsngdk.f:80 CASE DEFAULT; XMOD = 1).
+"""
+function _snag_dktime(s::StandState, sp::Int, d::Float32, dcx::Float32)::Float32
+    r6 = r6_ffe_code(s.variant)
+    (r6 === :SO && !_so_oregon_dk(Int(s.plot.user_forest_code))) && (r6 = :none)
+    if r6 !== :none
+        yrsoft, _, _ = r6_sdcy(r6, sp, d, _r6_itype(s))
+        return Float32(yrsoft) * dcx
+    end
+    return (1.24f0 * dcx * d) + (13.82f0 * dcx)
 end

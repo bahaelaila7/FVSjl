@@ -58,7 +58,7 @@ function compute_volumes_ws!(s::StandState)
                 t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
             end
             dibat = ht -> nc_r5tap_dib(s5, d, hv, Float32(ht))
-            tcf = Float32(round(_fw2_tcubic(dibat, hv) * 10.0)) / 10f0                 # VOL(1)
+            tcf = _nint(_fw2_tcubic(dibat, hv) * 10.0f0) * 1f-1                      # VOL(1), profile.f:293 NINT(TCVOL*10.0)*1E-1
             mcf = d >= WS_VOL_DBHMIN ?
                 nc_wo2w_merch(dibat, hv; mtopp = WS_VOL_TOPD * bark,
                               stump = 1f0, minlen = 2f0, merchl = 8f0) : 0f0          # VOL(4), top=TOPD·bark

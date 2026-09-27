@@ -170,6 +170,11 @@ function ec_sitset!(s::StandState)
     nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
     pcom = ec_habtyp(Int(p.habitat_code))
     isempty(pcom) && (pcom = "CPS241")             # ec/habtyp.f default (ITYPE=114 → PCOML[114])
+    # ec/habtyp.f:128/141/148 ITYPE = KODTYP (1..NPA) else 114. The FFE reads it: FMCBA's DKRADJ(ECHMC/ECWMD(ITYPE))
+    # decay adjustment (ec/fmcba.f:459), ECMOIST MAPDRY(ITYPE) in FMCFMD, and the FMR6SDCY/FMR6FALL snag tables.
+    # jl left it 0, so ec_adjusted_dkr silently kept the unadjusted DKR for every EC stand.
+    kod = Int(p.habitat_code)
+    p.habitat_input = Int32((1 <= kod <= length(EC_PCOML)) ? kod : 114)
     rows = ec_ecocls(pcom)
 
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0

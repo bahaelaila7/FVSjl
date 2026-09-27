@@ -349,13 +349,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
         fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
+        # FFE reports (FMMAIN, gradd.f:118): FMCBA → FMSSUM/FMPOCR/FMPOFL/FMDOUT/FMCRBOUT run inside GRADD, AFTER this
+        # cycle's CUTS (grincr.f:292 → cuts.f:1823 FMSCUT slash + YARDLOSS snags), so a thinned cycle reports the POST-
+        # cut stand and the one-time dead-fuel load (fmcba.f:457) reads the post-cut FMTBA/PERCOV. Growing cycles run
+        # this right after cuts! below; the final (post-projection) row keeps the cycle-top call (no cut happens).
+        _ffe_reports! = function ()
         # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
-            # A FUELSOUT-only collection (no CARBREPT) must not latch CR's one-time dead-fuel load on the pre-cut
-            # stand — CR defers it post-cut (below); the CARBREPT path keeps its validated behavior.
-            fmcba!(s; load_dead = s.control.carbon_report_on || !(s.variant isa CentralRockies) || s.fire.fuels_init)
+            fmcba!(s)
             _carb_push(s)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
@@ -370,6 +373,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
+        end
+        last && _ffe_reports!()
         # FVS_StrClass (sstage.f → dbsstrclass.f): the SSTAGE structure classification, BEFORE-thin (Removal_Code
         # 0) at the cycle-top stand. The AFTER-thin (cd=1) row is captured post-cuts! below (non-last cycles).
         if strclass_collect !== nothing
@@ -389,12 +394,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end
         if !last
-            # Add the deferred SNAGINIT snags at the start of the first growing cycle (FMMAIN, post-inventory-
-            # report). They are then present for this cycle's snag falldown + any SIMFIRE, and first surface in
-            # the NEXT cycle's carbon/snag report — matching live FVS.
-            if snaginit_pending
-                ffe_add_snaginit!(s); snaginit_pending = false
-            end
+            # FMSDIT (grincr.f:227, before CUTS): FMCROW's height percentiles for this cycle's CROWNW.
+            ffe_on && ffe_snapshot_hpct!(s)
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||
@@ -430,13 +431,19 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.rem_bdft = di(rem.bdft / g)
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
-                r.at_qmd = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QDBHAT=ATAVD (REAL)
+                r.at_qmd = Float64(stand_qmd(s))   # QDBHAT=ATAVD (REAL): FVS_Summary binds it whole; the .sum prints F5.1
                 # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
                 # variants keep their validated per-acre float accumulation.
                 prev_increment = met ? Float32(r.rem_mcuft) : rem.mcuft / g
                 cum_rem_merch += prev_increment
             else
                 prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)
+            end
+            _ffe_reports!()          # FMMAIN reports on the post-cut stand (see _ffe_reports! above)
+            # SNAGINIT is processed at the top of FMSNAG (fmsnag.f:88-100), i.e. inside the annual loop that follows the
+            # reports, so its snags first surface in the NEXT cycle's report.
+            if snaginit_pending
+                ffe_add_snaginit!(s); snaginit_pending = false
             end
             # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
             # matching FMCHRVOUT. Habitat default 1 (SC); SE (2) applies to specific national forest codes.
@@ -472,7 +479,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start; between FMBURN and FMCRBOUT only SN re-runs it
             # (sn/fmburn.f:589, the post-burn FULIV2 shrub age), so EM's fire-year FLIVE is the PRE-fire load (live
             # 196378260020004 2022 Shrub_Herb 0.263 = ½·(0.285+0.242); a post-fire FMCBA gave 0.392).
-            chook = fire_cycle ? (st -> (compute_density!(st); _ffe_west_vol(st.variant) || fmcba!(st); _carb_push(st))) : nothing
+            # Only SN re-runs it (fmburn.f:588 `IF (BURNYR.EQ.IYR .AND. VARACD.EQ.'SN')`); no western variant does (EC ect01 2003
+            # Surface_Shrub post-fire FMCBA 1.649 vs live pre-fire 0.420). CS/LS/NE keep the re-run pending a live check.
+            _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
+                              st.variant isa Northeast)
+            chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
                              fuel_period = fire_this_cycle ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
@@ -486,7 +497,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 push!(climate_collect, (Int(r.year), something(s.climate.pending_report,
                                                               climate_report(s; report_year = Int(r.year), fint = per))))
             if ffe_on                                   # crown-lift from THIS growth (FMSDIT) + FMOLDC snapshot
-                compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)
+                compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)   # OLDCRW from last FMSDIT's CROWNW
+                ffe_snapshot_hpct!(s)                   # then FMCROW (fmsdit.f:128) re-ranks the grown stand
             end
         elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
             push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
@@ -571,7 +583,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
     # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
     toph = dt(stand_top_height(s; cratet_ind = cycle0 && _fvs_ind_lifecycle(s.variant)))
-    qmd  = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QSDBT=ORMSQD (REAL) for metric
+    qmd  = Float64(stand_qmd(s))   # QSDBT=ORMSQD (REAL): sumout.f:209 binds it whole to FVS_Summary; the .sum prints F5.1
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
     # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips

@@ -29,6 +29,13 @@ const _CR_ISPMAP = Int[
 # CR species that use the Jenkins FMCROWE (the generic `crown_biomass`) instead of FMCROWW.
 @inline _cr_uses_fmcrowe(spiw::Integer) = spiw == 20 || spiw == 21 || spiw == 22 || spiw == 28 || spiw == 38
 
+# AK (SoutheastAlaska) crown-biomass group map — ak/fmcrow.f DATA ISPMAP (AK species 1..23 → SPIE). ak/fmcroww.f and
+# ak/fmcrowe.f are byte-identical to CR's; ak/fmcrow.f dispatches SELECT CASE(SPIW): CASE(4:7,13,16:) → FMCROWE
+# (Jenkins), CASE DEFAULT → FMCROWW(SPIE). jl had no AK route, so the generic FMCROWE path looked up the eastern
+# `ls_spi` column AK doesn't have ⇒ KeyError on the first cut of an FFE stand (akt01 "FFE TEST").
+const _AK_ISPMAP = Int[4, 1, 8, 10, 6, 6, 9, 18, 11, 7, 6, 24, 6, 23, 23, 43, 43, 42, 41, 17, 64, 64, 17]
+@inline _ak_uses_fmcrowe(spiw::Integer) = (4 <= spiw <= 7) || spiw == 13 || spiw >= 16
+
 # IE (InlandEmpire) crown-biomass group map — ie/fmcrow.f ISPMAP (IE species 1..23 → the crown-equation
 # group passed to FMCROWW/FMCROWE). ie/fmcroww.f + fmcrowe.f are BYTE-IDENTICAL to CR's, and ie/fmcrow.f
 # dispatches SELECT CASE(SPIW): CASE(18,19,21) → FMCROWE (Jenkins), CASE DEFAULT → FMCROWW(SPIE=ISPMAP).
@@ -92,6 +99,17 @@ The FFE height percentile HP (0-100) of a tree of height `h`, matching FVS FMCRO
 i.e. the reverse-cumulative TPA from the tallest. Tallest record → 100. Computed over the live tree list.
 """
 function cr_hpct_of_height(s::StandState, h::Float32)::Float32
+    fs = s.fire
+    if fs !== nothing && !isempty(fs.hp_h)
+        # FMCROW runs in FMSDIT (grincr.f:227, BEFORE CUTS at :292): the percentiles CROWNW keeps for the whole
+        # cycle rank the pre-cut stand, so read them off the FMSDIT snapshot, not the current (post-cut) trees.
+        tot = 0f0; le = 0f0
+        @inbounds for k in eachindex(fs.hp_h)
+            p = fs.hp_p[k]; tot += p
+            fs.hp_h[k] <= h && (le += p)
+        end
+        return tot <= 0f0 ? 100f0 : (le / tot) * 100f0
+    end
     t = s.trees; tot = 0f0; le = 0f0
     @inbounds for i in 1:t.n
         p = t.tpa[i]; p > 0f0 || continue
@@ -99,6 +117,17 @@ function cr_hpct_of_height(s::StandState, h::Float32)::Float32
         t.height[i] <= h && (le += p)
     end
     tot <= 0f0 ? 100f0 : (le / tot) * 100f0
+end
+
+"FMSDIT-time FMCROW percentile basis (see cr_hpct_of_height): snapshot the live heights + TPA."
+function ffe_snapshot_hpct!(s::StandState)
+    fs = s.fire; (fs === nothing || !fs.active) && return s
+    t = s.trees; empty!(fs.hp_h); empty!(fs.hp_p)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
+        push!(fs.hp_h, t.height[i]); push!(fs.hp_p, t.tpa[i])
+    end
+    return s
 end
 
 # The FMCROWW small-tree breakpoints (fmcroww.f:140-157), by SPIE group.

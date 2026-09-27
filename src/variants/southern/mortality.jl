@@ -626,7 +626,7 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
         # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
         xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
-        fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4))
+        fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
         dbhcl = _snag_dbhcl(d); k2 = (sp - 1) * 19 + dbhcl
