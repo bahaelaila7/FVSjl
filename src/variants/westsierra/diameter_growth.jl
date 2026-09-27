@@ -287,7 +287,10 @@ function dgf!(s::StandState, ::WestSierra)
         wk2[i] = dds
         # ⚠ ws/dgf.f computes a DDSMAX bound (:774-785) here, but the WK2(I)=DDS store (:761) precedes it
         # and WK2 is NEVER re-stored after the cap — the bound is DEAD CODE w.r.t. WK2 (a WS quirk; other
-        # variants store WK2 after the cap). Faithful behaviour = do NOT cap wk2. (Verified vs source.)
+        # variants store WK2 after the cap). Faithful behaviour = do NOT cap wk2 (WS_DDSMX1/2 stay unused).
+        # MEASURED vs live FVSws_g16 (DEBUG DGF DGDRIV, FIA 23989620010900 JP I=1 D=5.6 ICR=85): the bound fires
+        # ("DDS BOUND BEING INVOKED", DDSMAX = −3.71+1.25·ln(85·5.6) = 4.00) yet DGDRIV's WKI = 10.5241 =
+        # sqrt(D²+exp(5.3774))−D on the UNcapped LN(DDS) 5.3774; the DG that live keeps (5.8302) is ws/dgbnd.f's.
     end
     return s
 end
