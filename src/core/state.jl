@@ -942,6 +942,13 @@ mutable struct Establishment
     # records (IPINFO 1-4: every FIA-DB stand with ≥1 tree row); estab.f:167-170 (>20 yr past inventory), :246 (an
     # ingrowth call) and esetpr.f (a MECHPREP/BURNPREP) clear it — permanently (it is never set again).
     load::Bool
+    # The ESSUBH inputs of each inventory point for this cycle's DO 322 PLANT/NATURAL heights (estab.f:473-493, set
+    # once per point in the plot loop): (BAA=BAAA(NNID) clamped [1,400], XCOS=COS(PASP)·SLO, XSIN=SIN(PASP)·SLO,
+    # SLO=PSLO(NNID)); IHTSER=MYHTS(IHAB), IPHY. Filled by ie_autoes_establish! (IE/EM) before the tally; empty ⇒
+    # estb_planted_height falls back to the stand values.
+    es_pt_hin::Vector{NTuple{4,Float32}}
+    es_hin_ihtser::Int32
+    es_hin_iphy::Int32
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -950,7 +957,8 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
                                 Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1),
-                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false)
+                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false,
+                                NTuple{4,Float32}[], Int32(0), Int32(3))
 
 mutable struct DbsState
     enabled::Bool

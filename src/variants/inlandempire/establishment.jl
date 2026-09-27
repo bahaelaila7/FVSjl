@@ -2493,6 +2493,17 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
             pid == 1 && (over_sp[sp] += b)                                    # point-1 slice (byte-identical fallback)
         end
     end
+    # estab.f:473-493: the per-point ESSUBH inputs the DO 322 planted heights read (see Establishment.es_pt_hin).
+    let _idx = ie_estab_indices(ihab_code, Int(p.user_forest_code)), _bp = clamp(baaa_pn, 1f0, 400f0)
+        est.es_pt_hin = map(1:nptids) do k
+            baa_k = (k <= length(overstory_pba)) ? clamp(Float32(overstory_pba[k]), 1f0, 400f0) : _bp
+            sl_k = (k <= length(pslo_es)) ? Float32(pslo_es[k]) : es_slope
+            as_k = (k <= length(pslo_es)) ? ((k <= length(pasp_es)) ? Float32(pasp_es[k]) : 0f0) : es_aspect
+            (baa_k, fcos(as_k) * sl_k, fsin(as_k) * sl_k, sl_k)::NTuple{4,Float32}
+        end
+        est.es_hin_ihtser = Int32(_IE_MYHTS[clamp(Int(_idx.ihab), 1, length(_IE_MYHTS))])
+        est.es_hin_iphy = Int32(_idx.iphy)
+    end
     r = ie_autoes_run(habitat_code = ihab_code, forest_code = Int(p.user_forest_code), nsp = nsp,
                       seed0 = seed0, dupnpt = dupnpt, slo = es_slope, aspect = es_aspect,
                       elev = p.elevation, baa = clamp(baaa_pn, 1f0, 400f0), time = time, esb_shift = esb_shift,
@@ -2547,7 +2558,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       ph_height = isempty(_plant_acts) ? nothing : (n, dils) -> begin
                           saved = s.rng.es0
                           s.rng.es0 = est.es_plot_state[n]
-                          hts = Float32[estb_planted_height(s, _plant_acts[k], per, year, est.es_plot_emsqr[n], dils[k])
+                          _pt = idup > 0 ? div(n - 1, Int(idup)) + 1 : 1
+                          _ipr = length(est.es_ipprep) >= n ? Int(est.es_ipprep[n]) : 1
+                          hts = Float32[estb_planted_height(s, _plant_acts[k], per, year, est.es_plot_emsqr[n], dils[k];
+                                                            pt = _pt, iprep = _ipr,
+                                                            gentim = estb_plant_gentim(s, _plant_acts, k, n, per, year))
                                         for k in eachindex(_plant_acts)]
                           s.rng.es0 = saved
                           hts

@@ -229,4 +229,26 @@ end
     @test length(grows) == 1461
     @test count(r -> !_eq(r[4], get(got, (r[1], strip(r[2]), r[3]), "")), grows) == 0
 end
+
+# estab.f DO 322 (:1010-1041) computes a no-height PLANT tree's HHT with em/essubh.f INSIDE the per-plot loop:
+# HHT = EXP(PN + EMSQR·DILATE·BNORM·σ) with that plot's BAA=BAAA(NNID), SLO=PSLO(NNID), XCOS/XSIN=COS/SIN(PASP)·SLO
+# (:473-493), then floored at XMIN. jl used a deterministic EXP(PN) at the STAND BA/slope, so every planted DF sat on
+# the XMIN floor or the stand mean (MEASURED FVSem_g16 196378260020004 PLANT 2.0 DF 400: point 3 BAA 38.8 ⇒ HHT
+# 1.44-1.68 on 7 plots; jl 1.0-1.1) ⇒ 11 Ht/DBH cells off at 2032, 329 Ht at 2042. Golden: FVSem_g16 TreeList.
+@testset "EM PLANT heights: em/essubh.f with the plot's EMSQR/BAAA/topography (estab.f DO 322) vs FVSem_g16" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "em_plant")
+    d = mktempdir()
+    key = replace(read(joinpath(fx, "196378260020004_plant_tl.key"), String),
+                  "\nout.db\n" => "\n" * joinpath(d, "out.db") * "\n",
+                  "\nstands.db\n" => "\n" * joinpath(fixture_dir("EM"), "stands.db") * "\n")
+    kp = joinpath(d, "x.key"); write(kp, key)
+    FVSjl.run_keyfile(kp; variant = FVSjl.EasternMontana())
+    got = _keyed(db_table_rows(joinpath(d, "out.db"), "FVS_TreeList")...)
+    ghdr, grows = read_csv(joinpath(fx, "196378260020004_plant_tl.TreeList.csv"))
+    @test length(grows) == 1262
+    for (j, c) in enumerate(ghdr)
+        j <= 3 && continue
+        @test count(r -> (k = (r[1], strip(r[2]), r[3]); !haskey(got, k) || !_eq(r[j], got[k][c])), grows) == 0
+    end
+end
 end # module
