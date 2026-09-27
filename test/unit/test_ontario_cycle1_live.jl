@@ -124,3 +124,10 @@ end
         @test (k, col, jv) == (k, col, lv)
     end
 end
+
+# (8) canada/on/morts.f label 35: the MATURE-STAND-BOUNDARY mortality is ON BY DEFAULT in ON (no MORTMSB needed:
+# SLPMSB=0 ⇒ the Penner MSB_INT/MSB_SLP/MSB_DBH of the dominant-BA equation). ont_big (72 × 50 cm, one per species)
+# has ln(D10 cm) past the boundary, so MSBMRT kills TMORE = TN − 0.85·TMMSB more trees at EFFMSB=0.9 down the IND.
+@testset "ON ont_big: .sum rows == live (default mature-stand-boundary mortality, MSBMRT)" begin
+    @test _on1_rows("ont_big") == _on1_live_rows("ont_big")
+end

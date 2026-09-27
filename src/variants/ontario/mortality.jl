@@ -286,89 +286,135 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
     sdimax = stand_sdimax(s)                          # SDICAL(0,SDIMAX) — Reineke, climate check
     bamax = sdimax * 0.5454154f0 * pmsdiu             # BAMAX (DENSE), morts.f BA-check target
 
-    ipath = 0
+    # --- MORTS QMD-convergence loop, morts.f label 10 .. `IF(DIFF.GT.0.2) ... GO TO 10`, faithfully: every pass
+    # runs DO 50 + VARMRT + the DO 30 survivor sums (TN/D10N) in BOTH regimes (the background test T<=TEM reads
+    # D10), stops after IPASS=10 (before the DIFF test), and leaves D10 = the pass's INPUT (D10N only feeds the
+    # next pass). TN/D10/INDX then drive the label-35 mature-stand-boundary block below.
     d10cur = d10
-    if sdimax < 5f0
-        tn10 = 0f0                                    # climate kill: remove all trees
-    else
-        # --- MORTS QMD-convergence loop (morts.f label 10 .. GO TO 10) ---
-        indx = ON_MSB_MAP[indx_ba]
-        sdiint = -ON_SDI_INT[indx] / ON_SDI_SLP[indx]
-        sdislp = 1f0 / ON_SDI_SLP[indx]
-        constv = on_expf(sdiint)
-        tn10 = 0f0
-        @inbounds for _ in 1:10
-            # DIA0<0.3 reset (morts.f:330-334) — inside the loop, uses the current D10
-            if dia0 < 0.3f0
-                d10cur = 0.3f0 + d10cur - dia0
-                dia0 = 0.3f0
-            end
+    indx = 0; constv = 0f0; sdislp = 0f0; on_cepmsb = 0f0
+    tn = 0f0                                          # DO 30 survivor total (TN)
+    ipass = 0
+    while true
+        # DIA0<0.3 reset (morts.f:330-334) — inside the loop, uses the current D10
+        if dia0 < 0.3f0
+            d10cur = 0.3f0 + d10cur - dia0
+            dia0 = 0.3f0
+        end
+        if sdimax < 5f0
+            tn10 = 0f0                                # climate kill: remove all trees (GO TO 271)
+        else
+            tt > tphmax && (tt = tphmax)              # morts.f: IF(T .GT. TPHMAX) T=TPHMAX
+            indx = ON_MSB_MAP[indx_ba]
+            sdiint = -ON_SDI_INT[indx] / ON_SDI_SLP[indx]
+            sdislp = 1f0 / ON_SDI_SLP[indx]
+            constv = on_expf(sdiint)
             tmd0 = ON_ACRtoHA * on_expf(sdiint + sdislp * on_logf(dia0 * ON_INtoCM))
             tmd0 > tphmax && (tmd0 = tphmax)
             t55d0 = tmd0 * pmsdil; t85d0 = tmd0 * pmsdiu
             tmd10 = ON_ACRtoHA * on_expf(sdiint + sdislp * on_logf(d10cur * ON_INtoCM))
             tmd10 > tphmax && (tmd10 = tphmax)
             t55d10 = tmd10 * pmsdil; t85d10 = tmd10 * pmsdiu
+            # MORTMSB user line: CEPMSB=ALOG(CONST*(TEMP**SDISLP))-SLPMSB*ALOG(TEMP), TEMP=INtoCM*QMDMSB
+            if ctl.msb_slope != 0f0
+                tq = ON_INtoCM * ctl.msb_qmd
+                on_cepmsb = on_logf(constv * on_powf(tq, sdislp)) - ctl.msb_slope * on_logf(tq)
+            end
             tn10 = _on_tn10!(dens, tt, dia0, d10cur, constv, sdislp, pmsdil, pmsdiu,
                              t85d0, t55d0, t85d10, t55d10)
-            # 271: bound TN10
-            tn10 > tt && (tn10 = tt)
-            tn10 < 0.1f0 && (tn10 = 0f0)
-            rn = 1f0 - on_powf(1f0 - ((tt - tn10) / tt), 1f0 / fint)
+        end
+        # 271: bound TN10
+        tn10 > tt && (tn10 = tt)
+        tn10 < 0.1f0 && (tn10 = 0f0)
+        rn = 1f0 - on_powf(1f0 - ((tt - tn10) / tt), 1f0 / fint)
 
-            # DO 50: per-tree background/SDI rate into killed (WK2). RIP is uniform per stand.
-            tem_g = constv * on_powf(d10cur * ON_INtoCM, sdislp)
-            tem_g > tphmax && (tem_g = tphmax)
-            tem_g = tem_g * pmsdil * ON_ACRtoHA
-            density_on = !(tt <= tem_g || rn <= 0f0)
-            @inbounds for sp in 1:MAXSP
-                i1 = isct[sp, 1]; i1 == 0 && continue
-                i2 = isct[sp, 2]
-                b0 = ON_PMSC[ON_BKG_MAP[sp]]; b1 = ON_PMD[ON_BKG_MAP[sp]]
-                for k in i1:i2
-                    i = ind1[k]
-                    killed[i] = 0f0
-                    pr = t.tpa[i]; pr <= 0f0 && continue
-                    d = t.dbh[i]
-                    ri = 1f0 / (1f0 + on_expf(b0 + b1 * d))
-                    ri = 0.5f0 * ri
-                    rip = density_on ? rn : ri
-                    rip > 1f0 && (rip = 1f0)
-                    xm = 1f0
-                    # MORTMULT (inert without keyword) — density regime forces X=1 (morts.f:609)
-                    density_on || (xm = active_mort_mult(ctl, sp, current_cycle_year(s), d))
-                    wki = pr * (1f0 - on_powf(1f0 - rip, fint)) * xm
-                    wki > pr && (wki = pr)
-                    killed[i] = wki
-                end
+        # DO 50: per-tree background/SDI rate into killed (WK2). RIP is uniform per stand.
+        tem_g = constv * on_powf(d10cur * ON_INtoCM, sdislp)
+        tem_g > tphmax && (tem_g = tphmax)
+        tem_g = tem_g * pmsdil * ON_ACRtoHA
+        density_on = !(tt <= tem_g || rn <= 0f0)
+        @inbounds for sp in 1:MAXSP
+            i1 = isct[sp, 1]; i1 == 0 && continue
+            i2 = isct[sp, 2]
+            b0 = ON_PMSC[ON_BKG_MAP[sp]]; b1 = ON_PMD[ON_BKG_MAP[sp]]
+            for k in i1:i2
+                i = ind1[k]
+                killed[i] = 0f0
+                pr = t.tpa[i]; pr <= 0f0 && continue
+                d = t.dbh[i]
+                ri = 1f0 / (1f0 + on_expf(b0 + b1 * d))
+                ri = 0.5f0 * ri
+                rip = density_on ? rn : ri
+                rip > 1f0 && (rip = 1f0)
+                xm = 1f0
+                # MORTMULT (inert without keyword) — density regime forces X=1 (morts.f:609)
+                density_on || (xm = active_mort_mult(ctl, sp, current_cycle_year(s), d))
+                wki = pr * (1f0 - on_powf(1f0 - rip, fint)) * xm
+                wki > pr && (wki = pr)
+                killed[i] = wki
             end
+        end
 
-            # distribute (morts.f:637-642): density excess by VARMRT, else the background total
-            sumtre = density_on ? (tt - tn10) : 0f0
-            sumtre < 0f0 && (sumtre = 0f0)
-            tokill = density_on ? sumtre : sum(@view killed[1:n])
-            if tn10 >= 0.1f0
-                on_varmrt!(killed, efftr, temwk2, s, t, n, tokill, d10cur)
-            end
-            # background regime has no D10 dependence -> single pass
-            density_on || break
+        # distribute (morts.f:637-642): density excess by VARMRT, else the background total
+        sumtre = density_on ? (tt - tn10) : 0f0
+        sumtre < 0f0 && (sumtre = 0f0)
+        tokill = density_on ? sumtre : sum(@view killed[1:n])
+        if tn10 >= 0.1f0
+            on_varmrt!(killed, efftr, temwk2, s, t, n, tokill, d10cur)
+        end
 
-            # DO 30: recompute survivor QMD (D10N); iterate if far from D10 (morts.f:647-695)
-            ttn = 0f0; sd2sqn = 0f0; sumdr10n = 0f0
+        # DO 30: survivor TN and D10N (morts.f:647-695)
+        tn = 0f0; sd2sqn = 0f0; sumdr10n = 0f0
+        ipass += 1
+        @inbounds for i in 1:n
+            d = t.dbh[i]; d < dbhsdi && continue
+            pr = t.tpa[i] - killed[i]
+            bark = on_bratio(Int(t.species[i]), d, t.height[i])
+            g = (t.diam_growth[i] / bark) * (fint / 10f0)
+            sd2sqn += pr * (d * d + 2f0 * d * g + g * g)
+            zeide && (sumdr10n += pr * on_powf(d + g, 1.605f0))
+            tn += pr
+        end
+        tn == 0f0 && break                            # IF(TN .EQ. 0.0) GO TO 35
+        d10n = zeide ? on_powf(sumdr10n / tn, 1f0 / 1.605f0) : sqrt(sd2sqn / tn)
+        ipass == 10 && break                          # IF(IPASS .EQ. 10) GO TO 35
+        abs(d10cur - d10n) > 0.2f0 || break
+        d10n <= dia0 && break                         # IPATH=0; GO TO 35
+        d10cur = d10n                                 # GO TO 10
+    end
+
+    # --- label 35: MATURE STAND BOUNDARY mortality (morts.f:35-353). ON runs it BY DEFAULT: without a MORTMSB
+    # line (SLPMSB=0) it uses the Penner MSB_INT/MSB_SLP/MSB_DBH (ln cm) of the dominant-BA equation INDX. When
+    # ln(D10 cm) exceeds the boundary, TMORE = TN − 0.85·TMMSB (/ha→/ac) extra trees die, taken by MSBMRT at
+    # efficiency EFFMSB (or TMORE/TPACLS) from the DBH-ordered IND within [DLOMSB,DHIMSB).
+    if indx > 0
+        if ctl.msb_slope != 0f0
+            temint = on_cepmsb; temslp = ctl.msb_slope; temqmd = on_logf(ON_INtoCM * ctl.msb_qmd)
+        else
+            temint = ON_MSB_INT[indx]; temslp = ON_MSB_SLP[indx]; temqmd = ON_MSB_DBH[indx]
+        end
+        temp_l = on_logf(ON_INtoCM * d10cur)
+        if temp_l > temqmd && tn > 0f0
+            tmmsb = on_expf(temint + temslp * temp_l)
+            t85msb = tmmsb * pmsdiu
+            tmore = tn - t85msb * ON_ACRtoHA
+            tmore < 0f0 && (tmore = 0f0)
+            dlo = ctl.msb_dlo; dhi = ctl.msb_dhi
+            tpacls = 0f0
             @inbounds for i in 1:n
-                d = t.dbh[i]; d < dbhsdi && continue
-                pr = t.tpa[i] - killed[i]
-                bark = on_bratio(Int(t.species[i]), d, t.height[i])
-                g = (t.diam_growth[i] / bark) * (fint / 10f0)
-                sd2sqn += pr * (d * d + 2f0 * d * g + g * g)
-                zeide && (sumdr10n += pr * on_powf(d + g, 1.605f0))
-                ttn += pr
+                bark = on_bratio(Int(t.species[i]), t.dbh[i], t.height[i])
+                dbhend = t.dbh[i] + (t.diam_growth[i] / bark) * (fint / 10f0)
+                (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
             end
-            ttn == 0f0 && break
-            d10n = zeide ? on_powf(sumdr10n / ttn, 1f0 / 1.605f0) : sqrt(sd2sqn / ttn)
-            (abs(d10cur - d10n) <= 0.2f0) && break
-            d10n <= dia0 && (ipath = 0; break)
-            d10cur = d10n                             # GO TO 10
+            if !(tmore > tpacls)                      # else: warning, GO TO 353
+                mflag = Int(ctl.msb_flag)
+                temeff = ctl.msb_eff
+                if mflag == 3
+                    temeff = tmore / tpacls
+                elseif tpacls * temeff < tmore
+                    temeff = tmore / tpacls
+                end
+                _on_msbmrt!(killed, s, n, temeff, tmore, dlo, dhi, mflag, fint)
+            end
         end
     end
 
@@ -419,6 +465,45 @@ function mortality!(s::StandState, ::Ontario; fint::Float32 = 10.0f0, book_snags
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s
+end
+
+"""
+    _on_msbmrt!(killed, s, n, eff, t2kill, dlo, dhi, mflag, fint) -> sumkil
+
+MSBMRT (base/msbmrt.f, linked by FVSon) with ON's BRATIO(ISP,DBH,HT): walk FVS's IND (DBH-descending; from
+above for MFLAG 1/3, from below for 2), killing EFFMRT of each in-range record's survivors (the whole remainder
+when <1e-5 would be left) until T2KILL is met. IND is the one live at MORTS: the first growth cycle reads
+CRATET's (`IND=IND1; RDPSRT(.FALSE.)`, or RDPSRT(.TRUE.) after inventory dead were dropped — bm_cratet_ind!),
+later cycles gradd.f:186 / esnutr RDPSRT(DBH,.TRUE.) of the current (unchanged since) DBH.
+"""
+function _on_msbmrt!(killed::AbstractVector{Float32}, s::StandState, n::Int, eff::Float32, t2kill::Float32,
+                     dlo::Float32, dhi::Float32, mflag::Integer, fint::Float32)
+    t = s.trees
+    ind = Vector{Int32}(undef, n)
+    if Int(s.control.cycle) == 0
+        nsave = t.n; t.n = n
+        bm_cratet_ind!(s, ind)
+        t.n = nsave
+    else
+        _rdpsrt!(view(t.dbh, 1:n), ind)
+    end
+    sumkil = 0f0
+    ks = (mflag == 1 || mflag == 3) ? (1:1:n) : (n:-1:1)
+    @inbounds for k in ks
+        ij = Int(ind[k])
+        bark = on_bratio(Int(t.species[ij]), t.dbh[ij], t.height[ij])
+        dbhend = t.dbh[ij] + (t.diam_growth[ij] / bark) * (fint / 10f0)
+        (dbhend >= dlo && dbhend < dhi) || continue
+        xkill = (t.tpa[ij] - killed[ij]) * eff
+        temp = t.tpa[ij] - killed[ij] - xkill
+        temp < 0.00001f0 && (xkill = t.tpa[ij] - killed[ij])
+        xkill < 0f0 && (xkill = 0f0)
+        (sumkil + xkill > t2kill) && (xkill = t2kill - sumkil)
+        sumkil += xkill
+        killed[ij] += xkill
+        sumkil >= t2kill && break
+    end
+    return sumkil
 end
 
 """
