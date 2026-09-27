@@ -484,6 +484,78 @@ const PN_MIS_DGP = reshape(Float32[
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 ], 7, 39)
 
+# ec/misintec.f (MISINT, East Cascades; AHGP all 1.0 = inert). MAXSP=32. EC links the same mistoe/mis*.f as WC
+# (every other mis*.f byte-identical between FVSec_buildDir and FVSwc_buildDir).
+const EC_MIS_FIT = Int32[1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+const EC_MIS_PMC = reshape(Float32[
+    0.00112, 0.02170, -0.00171,
+    0.01319, -0.01627, 0.00822,
+    0.01319, -0.01627, 0.00822,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.0, 0.0,
+    0.0, 0.00159, 0.00508,
+    0.00112, 0.02170, -0.00171,
+    0.0, 0.0, 0.0,
+    0.0, 0.00159, 0.00508,
+    0.00681, -0.00580, 0.00935,
+    0.00681, -0.00580, 0.00935,
+    0.00681, -0.00580, 0.00935,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+], 3, 32)
+const EC_MIS_DGP = reshape(Float32[
+    1.0, 1.0, 1.0, 1.0, 0.94, 0.80, 0.59,
+    1.0, 0.94, 0.92, 0.88, 0.84, 0.58, 0.54,
+    1.0, 0.98, 0.97, 0.85, 0.80, 0.52, 0.44,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.70, 0.50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.70, 0.50,
+    1.0, 1.0, 1.0, 1.0, 0.94, 0.80, 0.59,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.70, 0.50,
+    1.0, 1.0, 1.0, 0.98, 0.86, 0.73, 0.50,
+    1.0, 1.0, 1.0, 1.0, 0.94, 0.80, 0.59,
+    1.0, 1.0, 1.0, 0.98, 0.86, 0.73, 0.50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.70, 0.50,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.70, 0.50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+], 7, 32)
+
 # Per-variant mistletoe table dispatch (misint{v}.f DATA differs by species order). Every western
 # Wykoff variant now uses its OWN table; IE is the fallback (native). Returns (FIT, DGP, PMC, MAXSP).
 @inline function _mis_tables(v)
@@ -496,6 +568,7 @@ const PN_MIS_DGP = reshape(Float32[
     v isa BritishColumbia && return (BC_MIS_FIT, BC_MIS_DGP, BC_MIS_PMC, 15)  # NEWSPRED C6 payoff (misintbc.f)
     v isa WestCascades  && return (WC_MIS_FIT, WC_MIS_DGP, WC_MIS_PMC, 39)  # misintwc.f
     v isa PacificNorthwest && return (PN_MIS_FIT, PN_MIS_DGP, PN_MIS_PMC, 39)  # misintpn.f
+    v isa EastCascades  && return (EC_MIS_FIT, EC_MIS_DGP, EC_MIS_PMC, 32)  # misintec.f
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
@@ -532,10 +605,12 @@ end
 # (×MISDGF on the record and both tripled copies), MISMRT mortality via mistoe.f:522.
 # Variants whose MISDGF is applied inside the shared DG driver before DGBND (wc/dgdriv.f:216,245,252,260),
 # because their DGBND has a DGMAX envelope where min(DG·m,cap) ≠ min(DG,cap)·m.
-@inline _mis_dg_in_driver(v)::Bool = v isa WestCascades || v isa PacificNorthwest   # pn/dgdriv.f == wc/dgdriv.f
+@inline _mis_dg_in_driver(v)::Bool = v isa WestCascades || v isa PacificNorthwest ||   # pn/dgdriv.f == wc/dgdriv.f
+    v isa EastCascades                         # ec/dgdriv.f:286,313,320,328 MISDGF before DGBND :290,:334-336
 @inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
     v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho ||
-    v isa WestCascades || v isa PacificNorthwest   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
+    v isa WestCascades || v isa PacificNorthwest ||   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
+    v isa EastCascades                               # EC: the same mistoe/mis*.f (misintec.f DATA)
 
 @inline ie_dm_dg_mult(dgp, maxsp::Integer, sp::Integer, dmr::Integer) =
     (sp < 1 || sp > maxsp) ? 1f0 : @inbounds dgp[dmr + 1, sp]
