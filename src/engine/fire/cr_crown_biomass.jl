@@ -29,6 +29,13 @@ const _CR_ISPMAP = Int[
 # CR species that use the Jenkins FMCROWE (the generic `crown_biomass`) instead of FMCROWW.
 @inline _cr_uses_fmcrowe(spiw::Integer) = spiw == 20 || spiw == 21 || spiw == 22 || spiw == 28 || spiw == 38
 
+# AK (SoutheastAlaska) crown-biomass group map — ak/fmcrow.f DATA ISPMAP (AK species 1..23 → SPIE). ak/fmcroww.f and
+# ak/fmcrowe.f are byte-identical to CR's; ak/fmcrow.f dispatches SELECT CASE(SPIW): CASE(4:7,13,16:) → FMCROWE
+# (Jenkins), CASE DEFAULT → FMCROWW(SPIE). jl had no AK route, so the generic FMCROWE path looked up the eastern
+# `ls_spi` column AK doesn't have ⇒ KeyError on the first cut of an FFE stand (akt01 "FFE TEST").
+const _AK_ISPMAP = Int[4, 1, 8, 10, 6, 6, 9, 18, 11, 7, 6, 24, 6, 23, 23, 43, 43, 42, 41, 17, 64, 64, 17]
+@inline _ak_uses_fmcrowe(spiw::Integer) = (4 <= spiw <= 7) || spiw == 13 || spiw >= 16
+
 # IE (InlandEmpire) crown-biomass group map — ie/fmcrow.f ISPMAP (IE species 1..23 → the crown-equation
 # group passed to FMCROWW/FMCROWE). ie/fmcroww.f + fmcrowe.f are BYTE-IDENTICAL to CR's, and ie/fmcrow.f
 # dispatches SELECT CASE(SPIW): CASE(18,19,21) → FMCROWE (Jenkins), CASE DEFAULT → FMCROWW(SPIE=ISPMAP).

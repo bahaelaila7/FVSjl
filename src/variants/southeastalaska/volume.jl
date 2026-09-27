@@ -323,20 +323,26 @@ function _ak_cur_vol(sp::Int, d::Float32, h::Float32)
     return (tcf, mcf, bf)
 end
 
+# AK merch-cubic min DBH (DBHMIN) for species `sp` (FMCROWE's DBHMIN(SPIYV)).
+ak_merch_dbhmin(s::StandState, sp::Int)::Float32 = _AK_VOL_DBHMIN
+
+# Per-tree AK NVEL volume (TCF, MCF, BF) at DBH `d`, height `h` — the NATCRS result before any broken-top trim
+# (also FFE's FMSVL2 volume for FMCROWE's DBHMIN tree).
+function ak_tree_vol(s::StandState, sp::Int, d::Float32, h::Float32)
+    jsp = (1 <= sp <= 23) ? _AK_VOL_JSP[sp] : 0
+    grp = (1 <= sp <= 23) ? _AK_DVE_GRP[sp] : 0
+    iscur = (sp == 14 || sp == 15)                            # AD/RA → A32CURW351
+    (d < 1f0 || (jsp == 0 && grp == 0 && !iscur)) && return (0f0, 0f0, 0f0)
+    return jsp != 0 ? _ak_f32_vol(sp, jsp, d, h) :
+           iscur    ? _ak_cur_vol(sp, d, h) :
+                      _ak_dve_vol(grp, d, h)
+end
+
 function compute_volumes_ak!(s::StandState)
     t = s.trees
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
-        jsp = (1 <= sp <= 23) ? _AK_VOL_JSP[sp] : 0
-        grp = (1 <= sp <= 23) ? _AK_DVE_GRP[sp] : 0
-        iscur = (sp == 14 || sp == 15)                        # AD/RA → A32CURW351
-        if d < 1f0 || (jsp == 0 && grp == 0 && !iscur)
-            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
-        end
-        tcf, mcf, bf = jsp != 0 ? _ak_f32_vol(sp, jsp, d, Float32(h)) :
-                       iscur    ? _ak_cur_vol(sp, d, Float32(h)) :
-                                  _ak_dve_vol(grp, d, Float32(h))
+        tcf, mcf, bf = ak_tree_vol(s, sp, d, Float32(h))
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = max(mcf, 0f0)
         t.saw_cuft_vol[i] = 0f0

@@ -346,6 +346,14 @@ end
 
 function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     s.estab.active || return false
+    # AK (SoutheastAlaska) has its own full establishment model (ak/estab.f, 2477 lines, + ak/esblkd.f habitat
+    # tables, ak/essubh.f, ak/esgent.f) that jl has not ported; the shared path would read eastern `estab_min_ht`
+    # AK doesn't carry (akt01's PLANT stand). Leave ESTAB/PLANT inert for AK, loudly, rather than erroring.
+    if s.variant isa SoutheastAlaska
+        s.estab.active = false
+        @warn "AK establishment (ak/estab.f) is not ported — ESTAB/PLANT/NATURAL are inert; the stand diverges from FVSak"
+        return false
+    end
     t = s.trees; sd = s.coef.species
     es_xmin = s.variant isa CentralRockies ? _CR_ES_XMIN :
               s.variant isa InlandEmpire ? _IE_ES_XMIN :

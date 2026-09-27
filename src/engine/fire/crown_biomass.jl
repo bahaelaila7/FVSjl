@@ -104,12 +104,13 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
         s.variant isa WestSierra || s.variant isa WestCascades || s.variant isa CentralCalifornia ||
         s.variant isa PacificNorthwest || s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
         s.variant isa OregonCoast || s.variant isa InlandEmpire || s.variant isa EasternMontana ||
-        s.variant isa Kootenai || s.variant isa CentralIdaho) &&
+        s.variant isa Kootenai || s.variant isa CentralIdaho || s.variant isa SoutheastAlaska) &&
        ((s.variant isa Klamath || s.variant isa Kootenai) ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
           s.variant isa InlandEmpire ? _ie_uses_fmcrowe(sp) :
           s.variant isa EasternMontana ? _em_uses_fmcrowe(sp) :
           s.variant isa CentralIdaho ? _ci_uses_fmcrowe(sp) :
+          s.variant isa SoutheastAlaska ? _ak_uses_fmcrowe(sp) :
           s.variant isa BlueMountains ? bm_uses_fmcrowe(sp) :
           s.variant isa WestCascades ? wc_uses_fmcrowe(sp) :
           s.variant isa PacificNorthwest ? pn_uses_fmcrowe(sp) :
@@ -122,6 +123,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa EasternMontana ? _EM_ISPMAP[sp] :
                s.variant isa Kootenai ? _KT_ISPMAP[sp] :
                s.variant isa CentralIdaho ? _CI_ISPMAP[sp] :
+               s.variant isa SoutheastAlaska ? _AK_ISPMAP[sp] :
                s.variant isa BlueMountains ? _BM_ISPMAP[sp] :
                s.variant isa WestSierra ? WS_ISPMAP[sp] :
                s.variant isa WestCascades ? WC_ISPMAP[sp] :
@@ -144,6 +146,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa InlandEmpire ? Int(_IE_ISPMAP[sp]) :     # ie/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
             s.variant isa EasternMontana ? Int(_EM_ISPMAP[sp]) :   # em/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
             s.variant isa CentralIdaho ? Int(_CI_ISPMAP[sp]) :     # ci/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
+            s.variant isa SoutheastAlaska ? Int(_AK_ISPMAP[sp]) :  # ak/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
             s.variant isa BlueMountains ? Int(_BM_ISPMAP[sp]) :
             s.variant isa WestSierra ? Int(WS_ISPMAP[sp]) :
             s.variant isa WestCascades ? Int(WC_ISPMAP[sp]) :
@@ -156,7 +159,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
-    dbhmin = coef_col(coef, :dbh_min)[sp]
+    # DBHMIN(SPIYV): the merch cubic min DBH — AK carries it in its merch standards, not a species CSV column.
+    dbhmin = s.variant isa SoutheastAlaska ? ak_merch_dbhmin(s, Int(sp)) : coef_col(coef, :dbh_min)[sp]
     ifor  = Int(s.plot.forest_idx)
     cr    = Float32(ic)
     dx, hx = d, h
@@ -192,10 +196,14 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa WestCascades ? wc_htdbh_height(_wc_htdbh_ifor(Int(s.plot.forest_idx)), Int(sp), dmin) :  # WC forest-dependent (wc/htdbh.f)
                s.variant isa SouthCentralOregon ? so_htdbh_height(Int(s.plot.forest_idx), Int(sp), dmin) :  # SO forest-fanned Curtis (so/htdbh.f)
                (s.variant isa OregonCoast || s.variant isa Olympic) ? oc_htdbh_height(Int(sp), dmin) :  # OC/OP Curtis-Arney (oc/htdbh.f MODE=0)
+               # ak/htdbh.f is byte-identical to pn/htdbh.f (a PN copy indexed by the AK species number) —
+               # FMCROWE's HTDBH(IFOR,SPIYV,DMIN,HMIN,0) is its only caller.
+               s.variant isa SoutheastAlaska ? pn_htdbh_height(_pn_htdbh_ifor(ifor), Int(sp), dmin) :
                _htdbh_height(coef.species, sp, dmin, ifor; isne = s.variant isa Northeast)
         # FVS uses FMSVL2 = MAX(X, MCF) (merch cubic with the tiny-tree cone floor X=0.005454154·H), NOT
         # the gross cuft — gross over-counted the small-tree bole → crown size-2 over (sp33 d1.5-2.2 1.5-2×).
-        vt  = max(0.005454154f0 * hmin, _fm_cuft(s, sp, dmin, hmin; merch = true))
+        vt  = max(0.005454154f0 * hmin, s.variant isa SoutheastAlaska ? ak_tree_vol(s, Int(sp), dmin, hmin)[2] :
+                                        _fm_cuft(s, sp, dmin, hmin; merch = true))
         vt1 = 0.0015f0 * dx * dx * hx                 # cone vol of the actual tree
         vt2 = 0.0015f0 * dmin * dmin * hmin           # cone vol of the DBHMIN tree
         vt  = (vt / vt2) * vt1
@@ -244,6 +252,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
 
 
              s.variant isa EasternMontana ? em_bratio(Int(sp), d) :                  # em/bratio.f
+             s.variant isa SoutheastAlaska ? ak_bratio(Int(sp), d) :                 # ak/bratio.f
              (s.variant isa Kootenai || s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
                                              bark_ratio(coef, sp, d)
