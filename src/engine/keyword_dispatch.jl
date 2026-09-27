@@ -2436,7 +2436,9 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         elseif k == "FLAMEADJ"                             # flame mult + crown fraction (fmburn.f:337-347)
             v = r.values
             r.present[2] && (fs.flmult = Float32(v[2]))                            # FLMULT = FPRMS(1)
-            r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : 0f0)  # CRBURN = FPRMS(3)·.01
+            # CRBURN = FPRMS(3)·.01 only when > −1 (fmburn.f:345-347); a blank/≤−1 field leaves the fmin.f:397 default −1
+            # = "not set" (FMCFIR's own crown fraction is used), NOT 0 (which would force a surface-only fire).
+            r.present[4] && (fs.crburn = v[4] > -1f0 ? Float32(v[4]) * 0.01f0 : Float32(v[4]))
         elseif k == "CARBREPT"                             # request the FFE Stand Carbon Report (fmcrbout.f)
             s.control.carbon_report_on = true
         elseif k == "POTFIRE" || k == "POTFLAME"           # request the Potential Fire report (fmpofl.f)
