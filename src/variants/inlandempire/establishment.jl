@@ -847,7 +847,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                          plant_sp::AbstractVector = Int[],
                          ipprep_in::AbstractVector = Int[],
                          ipprep_out::Union{Nothing,Vector{Int32}} = nothing,
-                         prob1_pt_ip::AbstractMatrix = Array{Float32}(undef, 0, 0))
+                         prob1_pt_ip::AbstractMatrix = Array{Float32}(undef, 0, 0),
+                         nstore_ptip::AbstractMatrix = Array{Int32}(undef, 0, 0))
     xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo); tm = Float32(time)
     # Per-INVENTORY-POINT tally accumulation (optional out-param): plot n belongs to point
     # div(n-1,idup)+1 (same NCOUNT order as the NSTORE fill). Filled when caller supplies a sized
@@ -1055,6 +1056,11 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             _prep_tables(_ptn, (_use_prep && n <= length(ipprep)) ? ipprep[n] : iprep)
         itpp = clamp(round(Int, ie_estpp(ie_esrann!(rng), ihab, _xcn, _xsn, _sln, Float32(regt), Float32(bwaf))), 1, cap)
         p1 = isempty(prob1_pt) ? p1s : prob1_pt[clamp(_ptn, 1, length(prob1_pt))]   # this plot's inventory-point PROB1
+        # Disturbance tally: NSTORE(NCOUNT) is set per plot group with THAT plot's IPREP (estab.f:540-551 inside the
+        # DO 202 ITYPEP loop — ESB1 and TIME are prep-specific), so plots of one point differ by prep.
+        _ipn = (_use_prep && n <= length(ipprep)) ? Int(ipprep[n]) : Int(iprep)
+        (has_state && _ptn <= size(nstore_ptip, 1) && 1 <= _ipn <= size(nstore_ptip, 2)) &&
+            (nstore[n] = nstore_ptip[_ptn, _ipn])
         ns = has_state ? Int(nstore[n]) : 0
         pn = has_state ? pnn[n] : 0f0
         newtpp = max(0, itpp - ns)
@@ -1769,7 +1775,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                        time_h::Real = -1,
                        ipprep_in::AbstractVector = Int[],
                        ipprep_out::Union{Nothing,Vector{Int32}} = nothing,
-                       esb_shift_ptip::AbstractMatrix = Array{Float32}(undef, 0, 0))
+                       esb_shift_ptip::AbstractMatrix = Array{Float32}(undef, 0, 0),
+                       nstore_ptip::AbstractMatrix = Array{Int32}(undef, 0, 0))
     idx = ie_estab_indices(habitat_code, forest_code)
     sl = Float32(slo); asp = Float32(aspect); tm = Float32(time)
     xc_st = fcos(Float32(asp)); xs_st = fsin(Float32(asp))                       # ESTOCK: unweighted aspect
@@ -1961,7 +1968,7 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
                             point_baa = point_ba,
                             over_pt = over_pt,
                             plant_sp = plant_sp, ipprep_in = ipprep_in, ipprep_out = ipprep_out,
-                            prob1_pt_ip = prob1_pt_ip)
+                            prob1_pt_ip = prob1_pt_ip, nstore_ptip = nstore_ptip)
     return (tally = tally, tally_pt = tally_pt, prob1 = prob1, idx = idx, emit = emit_recs, emit_plot = emit_plot,
             emit_best = emit_best, emit_abirth = emit_abirth, ph_dilate = ph_dil, ph_note = ph_note)
 end
@@ -2208,6 +2215,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # per-plot stocked counts; a continuation (NTALLY≥2) reuses them so it books only the increment ITPP-NSTORE.
     dupnpt_i = Int(dupnpt)
     is_ingro = _ntally == 99
+    nstore_ptip_d1b = Array{Int32}(undef, 0, 0)   # per (point × IPREP) disturbance NSTORE (D1b below); empty ⇒ per point
     if _ntally == 1 || _ntally == 99
         est.es_nstore = zeros(Int32, dupnpt_i)
         est.es_pnn = zeros(Float32, dupnpt_i)
@@ -2356,6 +2364,18 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                     ns_pt = floor(Int32, psmall[pt] * Float32(nptids) / (ftemp1 * 300f0) + 0.5f0)
                     base = (pt - 1) * idup
                     for k in 1:idup; (base + k) <= dupnpt_i && (est.es_nstore[base + k] = ns_pt); end
+                end
+                # estab.f:537-551 evaluates this per plot group, with FTEMP=1/(1+EXP(-ESB1(NCOUNT))) for THAT group's
+                # IPREP (ESB1 per point × prep, e1ptip above) — MEASURED FVSem_g16 888512560290487 post-SIMFIRE tally:
+                # NSTORE 1 on the 20 IPREP-1 plots, 2 on the 30 burn-prep plots (one scalar ESB1 gave 1 on all ⇒ the
+                # second best tree of each burn plot booked at PROB1 instead of PROB1−PNN).
+                if size(est.esb1_ptip, 1) >= nptids && size(est.esb1_ptip, 2) >= 3
+                    _nsip = Matrix{Int32}(undef, nptids, 3)
+                    @inbounds for pt in 1:nptids, ip in 1:3
+                        ft = 1f0 / (1f0 + fexp(-est.esb1_ptip[pt, ip]))
+                        _nsip[pt, ip] = floor(Int32, psmall[pt] * Float32(nptids) / (ft * 300f0) + 0.5f0)
+                    end
+                    nstore_ptip_d1b = _nsip
                 end
             end
         end
@@ -2535,6 +2555,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                       # per-plot IPPREP by continuations (estab.f:341), so the per-IPREP SPRE PROB1/species carry over.
                       ipprep_in = est.es_ipprep, ipprep_out = est.es_ipprep,
                       esb_shift_ptip = esb_shift != 0f0 ? est.esb_shift_ptip : Array{Float32}(undef, 0, 0),
+                      nstore_ptip = nstore_ptip_d1b,
                       over_sp = over_sp,        # per-species overstory BA (D≥REGNBK) at point 1 (dense.f OVER); empty ⇒ over=0
                       over_pt = over_pt,        # per-species PER-POINT overstory BA (10×nptids); empty ⇒ scalar/point-1 fallback
                       stoadj = est.stoadj,      # STOCKADJ keyword multiplier (default 1.0 ⇒ inert)

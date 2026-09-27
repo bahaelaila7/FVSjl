@@ -345,6 +345,18 @@ end
     @test count(r -> !haskey(got, (r[1], strip(r[2]), r[3])), grows) == 0
 end
 
+# estab.f:537-551 sets the disturbance tally's NSTORE inside the DO 202 ITYPEP plot-group loop, from ESB1 for THAT
+# group's IPREP (prep-specific TIME), so after a fire the burn-prep plots store a different count than the IPREP-1
+# plots. jl used one scalar ESB1 for every plot (MEASURED FVSem_g16 888512560290487 SIMFIRE 2031: NSTORE 1 on plots
+# 1-20, 2 on 21-50; jl 1 everywhere ⇒ 20 second-best trees booked at PROB1 2.28842 instead of PROB1−PNN 0.85567).
+@testset "Post-disturbance NSTORE per plot IPREP (estab.f:537-551) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", "888512560290487", "simfire"; dir = d)
+    @test !crashed
+    ms = compare_case("EM", "888512560290487", "simfire", txt, db)
+    @test count(m -> m.file == "sum" && m.col != "EXTRA_CONTENT", ms) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
