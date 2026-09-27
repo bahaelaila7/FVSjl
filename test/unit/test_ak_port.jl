@@ -181,6 +181,34 @@ end
     @test isempty(bad)
 end
 
+@testset "AK red alder (A32CURW351 PROFILE/R10TAP) inventory list vs live FVSak: HT2TD = HT1PRD R10HTS leaves unset" begin
+    # akcur.key: a synthetic AD/RA stand (108 trees, D 3-29", three heights each) — the CUR PROFILE family. profile.f:225-228
+    # R10HTS returns LMERCH but leaves HT1PRD unset, so fvsvol.f HT2TD is 0 unless LMERCH <= 0 sends PROFILE to MERLEN
+    # (live: Ht2TDCF/BF 0 on every record with MCuFt > 0). akcur.live.csv = live 1990 FVS_TreeList, Float32 bit patterns.
+    fx = joinpath(@__DIR__, "..", "fixtures", "southeastalaska")
+    lines = readlines(joinpath(fx, "akcur.live.csv"))
+    hdr = split(lines[1], ',')
+    live = Dict{Int,Vector{String}}(parse(Int, split(l, ',')[1]) => String.(split(l, ',')[2:end]) for l in lines[2:end])
+    dir = mktempdir()
+    for f in ("akcur.key", "akcur.tre"); cp(joinpath(fx, f), joinpath(dir, f)); end
+    rows = cd(dir) do
+        FVSjl.run_keyfile("akcur.key"; variant = FVSjl.SoutheastAlaska(), output = :sum)
+        db = FVSjl.SQLite.DB(joinpath(dir, "OUT.db"))
+        out = Dict{Int,Vector{String}}()
+        q = "SELECT TreeIndex,SpeciesFVS," * join(hdr[3:end], ",") * " FROM FVS_TreeList WHERE Year = 1990"
+        for r in FVSjl.DBInterface.execute(db, q)
+            v = collect(r)
+            out[Int(v[1])] = vcat(String(v[2]), [string(reinterpret(UInt32, Float32(x)), base = 16, pad = 8) for x in v[3:end]])
+        end
+        FVSjl.SQLite.close(db)
+        out
+    end
+    @test length(live) == 108
+    @test length(rows) == length(live)
+    bad = [k for k in keys(live) if get(rows, k, String[]) != live[k]]
+    @test isempty(bad)
+end
+
 @testset "AK FFE stand FVS_Fuels/FVS_Consumption (1993 cut, 2003 fire+salvage, to 2033) + QMD vs live FVSak" begin
     # akffe_db.key = akffe.key + DATABASE (SUMMARY, FUELSOUT, FUELREDB, BURNREDB, MORTREDB); akffe_db.live.csv = live
     # FVS_Fuels pools at 1993 (THINDBH cut with YARDLOSS .5 .7 .5) and 2003 (SALVAGE + SIMFIRE), the 2003 FVS_Consumption,
@@ -219,7 +247,8 @@ end
     bits(h) = reinterpret(Float32, parse(UInt32, h, base = 16))
     for l in live
         g = get(got, (String(l[1]), String(l[2])), "")
-        if l[1] == "FVS_Summary_QMD" || endswith(l[1], "_int")
+        # Standing_Snag_*: exact since FMSADD's record order (shared fmsadd_bin!) + FMDOUT's term-by-term TOTSNG sum.
+        if l[1] == "FVS_Summary_QMD" || endswith(l[1], "_int") || startswith(l[2], "Standing_Snag")
             @test g == l[3]
         else
             @test !isempty(g) && isapprox(bits(g), bits(l[3]); rtol = 1f-5)
