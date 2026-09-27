@@ -5,6 +5,8 @@
 # ec/*.f: bark1/bark2/bark_imap (ec/bratio.f), dg_resid_sd (SIGMAR), ht1/ht2 (ec/htcalc.f Wykoff),
 # sichg_a/b/refage/refloc (ec/sichg.f), site_redux (ec/sitset.f), crown_imap (ec/crown.f),
 # is_sprouting (ec/blkdat.f ISPSPE = {20..30}). 32 species.
+# bark_imap follows ec/bratio.f's SELECT CASE: 3 = constant BARK1 (ISPC 1:19,31 — NOT BARK1·D**1/D, which is
+# 1 ULP off BARK1 for most D and is amplified by BEHPRM into the broken-top cubic), 2 = (BARK1+BARK2·D)/D, 1 = POWER.
 # =============================================================================
 
 const EC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "eastcascades"))
