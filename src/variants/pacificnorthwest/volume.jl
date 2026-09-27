@@ -72,6 +72,9 @@ function compute_volumes_pn!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
     ifor = Int(s.plot.forest_idx)                    # forkod JFOR index (1..6): form class + BLM merch specs
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores the NVEL HT1PRD.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 39
@@ -79,6 +82,7 @@ function compute_volumes_pn!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+        htb[1] = 0f0; htb[2] = 0f0
         # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
         # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
         bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd, sp, d)
@@ -92,21 +96,26 @@ function compute_volumes_pn!(s::StandState)
         hv = tkill ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
         if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
-            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp)
+            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp, ht2td = htb)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N', merch_opt = 23)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N',
+                           merch_opt = 23, sf_hs = true, ht2td = htb)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         elseif se[1] == 'B' || se[1] == 'b'           # BLM forests (R7_EQN) → NVEL BLMVOL
-            tcf, mcf, bf = _blm_natcrs(eq, pn_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind)
+            tcf, mcf, bf = _blm_natcrs(eq, pn_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind; ht2td = htb)
         elseif startswith(se, "NVB")                  # RA on 612: NVBM240351 (NSVB) — the CR NVB kernel, region 6
             # fvsvol.f:85-88: a LIVE top-killed tree passes BRKHT=ITRNC/100; NSVB trims VOL(1) and HT1PRD itself
             # (pn/vols.f:191 skips CFTOPK for 'NVB'; BFTOPK at vols.f:390 still runs, below)
             brk = (tkill && i <= t.n) ? Float32(t.trunc[i]) / 100f0 : 0f0
-            v = cr_nvb_vol(eq, d, hv; bark = bark, topd = topd, stump = stmp, bftopd = bftopd, iregn = 6, brkht = brk)
+            v = cr_nvb_vol(eq, d, hv; bark = bark, topd = topd, stump = stmp, bftopd = bftopd, iregn = 6, brkht = brk,
+                           ht2td = htb)
             tcf = max(v[1], 0f0); mcf = max(v[4], 0f0); bf = max(v[2], 0f0)
         else                                          # 616BEHW
             tcf, mcf, bf = pn_behre_vol(sp, ifor, d, hv, bark; topd = topd)
+            htb[1] = r6vol_ht1prd(d, pn_formcl(sp, ifor, d), topd * bark, hv, d - d * (1f0 - bark)); htb[2] = htb[1]
         end
+        d >= dbhmin && (t.merch_top_cf[i] = htb[1])  # fvsvol.f:337-339 HT2TD(IT,2) = MAX(HT1PRD,HT2PRD)
+        d >= bfmind && (t.merch_top_bf[i] = htb[2])  # fvsvol.f:484-487 board call HT2TD(IT,1) = HT1PRD
         tcf = max(tcf, 0f0)
         mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0      # fvsvol.f:513 MCF only for D>=DBHMIN
         bf  = d >= bfmind ? max(bf, 0f0) : 0f0       # fvsvol.f:517 BBFV=0 for D<BFMIND

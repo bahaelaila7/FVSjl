@@ -102,8 +102,12 @@ function compute_volumes_so!(s::StandState)
     c = s.control
     merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
              scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores the NVEL HT1PRD.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        htb[1] = 0f0; htb[2] = 0f0
         if d < 1f0 || sp < 1 || sp > 33
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
@@ -114,14 +118,16 @@ function compute_volumes_so!(s::StandState)
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
         if !(ifor <= 3 || ifor == 10)                    # Region 5 (R5_EQN table)
-            tcf, mcf, bf = nvel_r5_vol(SO_R5_VOLEQ[sp], d, hv, bark, topd, topd)
+            tcf, mcf, bf = nvel_r5_vol(SO_R5_VOLEQ[sp], d, hv, bark, topd, topd; ht2td = htb)
         elseif mdl == "FW2"                              # all I-prefix INGY (cr_fw2_vol)
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = topd, stump = 1f0,
-                           iregn = 6, board_cor = 'N', merch_opt = 23)
+                           iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true, ht2td = htb)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         else                                             # 616BEHW
             tcf, mcf, bf = so_behre_vol(sp, ifor, d, hv, bark)
+            htb[1] = r6vol_ht1prd(d, so_formcl(sp, ifor, d), 4.5f0 * bark, hv, d - d * (1f0 - bark)); htb[2] = htb[1]
         end
+        d >= 9f0 && (t.merch_top_cf[i] = htb[1]; t.merch_top_bf[i] = htb[2])   # so/grinit.f DBHMIN = BFMIND = 9
         # vols.f CFTOPK/BFTOPK: a broken/killed top's NORMHT volume is trimmed back to the break (was missing ⇒
         # every top-killed SO tree kept its full-height volume; measured vs FVSso_g16 treelist, DF trc49 13.3→13.1).
         tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, merch, topd == 4.5f0 ? _BM_TOPD45 : _R4_TOPD6)

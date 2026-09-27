@@ -40,6 +40,9 @@ function compute_volumes_ws!(s::StandState)
     # forces one top for both, so WS calls the kernels directly with the grinit arrays.
     merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
              scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS stores the WO2W MERLEN HT1PRD (profile.f:342): the cubic
+    # call's (TOPD·BARK) if D ≥ DBHMIN, the board call's (BFTOPD·BARK) if D ≥ BFMIND. R5HARV (DVE) sets none.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 43
@@ -65,6 +68,8 @@ function compute_volumes_ws!(s::StandState)
             bf = d >= WS_VOL_BFMIND ?
                 _fw2_board(dibat, hv, WS_VOL_BFTOPD * bark, 1f0, 2f0, 8f0;
                            hs_solver = top -> nc_merlen(dibat, top, hv, 1f0) + 1f0) : 0f0   # VOL(2), BFTOPD·bark
+            d >= WS_VOL_DBHMIN && (t.merch_top_cf[i] = nc_merlen(dibat, WS_VOL_TOPD * bark, hv, 1f0) + 1f0)
+            d >= WS_VOL_BFMIND && (t.merch_top_bf[i] = nc_merlen(dibat, WS_VOL_BFTOPD * bark, hv, 1f0) + 1f0)
         else                                              # DVE — California hardwood D²H (r5harv.f)
             tcf, mcf, _ = nc_r5harv_vol(eq, d, hv, WS_VOL_TOPD * bark)
             bf = nc_r5harv_vol(eq, d, hv, WS_VOL_BFTOPD * bark)[3]              # BF pass: MTOPP=BFTOPD·BARK

@@ -29,6 +29,10 @@ function compute_volumes_ci!(s::StandState)
     t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
     cimerch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
                scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS refills it from the FW2 PROFILE/MERLEN HT1PRD (fvsvol.f:
+    # 337-339 cubic, 484-487 board). R4VOL (MATW) and DVE leave HT1PRD at its input 0.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
@@ -51,7 +55,9 @@ function compute_volumes_ci!(s::StandState)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4, sf_hs = true)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = 6.0f0, bftopd = 6.0f0, stump = 1f0, iregn = 4, sf_hs = true,
+                           ht2td = htb)
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1]; t.merch_top_bf[i] = htb[2])   # BFMIND = DBHMIN (ci/grinit.f)
             tcf = max(v[1], 0f0)
             mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0
             bf  = d >= dbhmin ? max(v[2], 0f0) : 0f0

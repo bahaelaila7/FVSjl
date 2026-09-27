@@ -50,10 +50,12 @@ function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0,
 end
 
 "blmvol.f BLM merch-cubic VOL(4) + Scribner VOL(2) for OP (mirror of oc_tree_mvol, TOPD=5.0)."
-function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
+function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0,
+                      ht_out = nothing)
+    ht_out === nothing || (ht_out[] = 0f0)
     dbh <= 0f0 && return (0f0, 0f0)
     mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))   # BRATIO(D_start) top bark (vols.f:150) — see op_tree_cuft
-    _, v2, v4 = blm_vol(OP_VOLEQ[sp], mtopp, ht, dbh, op_formcl(sp); bfpflg = true)
+    _, v2, v4 = blm_vol(OP_VOLEQ[sp], mtopp, ht, dbh, op_formcl(sp); bfpflg = true, ht_out = ht_out)
     return (v4, v2)
 end
 
@@ -71,6 +73,9 @@ function compute_volumes_op!(s::StandState)
     topd = c.sp_top_diam[1] > 0f0 ? c.sp_top_diam[1] : 5.0f0
     merch = (stmp = c.sp_stump_ht, topd = c.sp_top_diam, scfstmp = c.sp_scf_stump,
              scftop = c.sp_scf_topd, bftopd = c.sp_bf_topd, bfstmp = c.sp_bf_stump)
+    # vols.f zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores BLMVOL's HT1PRD.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    ht1 = Ref(0f0)
     @inbounds for i in 1:(t.n + t.ndead)
         sp = Int(t.species[i])
         if 1 <= sp <= 39
@@ -80,7 +85,9 @@ function compute_volumes_op!(s::StandState)
             # Merch-top bark = BRATIO(D_start) (vols.f:150) — the stashed `vol_bark` (0 at cyc0 ⇒ grown-DBH bark).
             topbark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : op_bratio(sp, d)
             tcf = op_tree_cuft(sp, d, htap; topd = topd, topbark = topbark)
-            v4, v2 = op_tree_mvol(sp, d, htap; topd = topd, topbark = topbark)
+            v4, v2 = op_tree_mvol(sp, d, htap; topd = topd, topbark = topbark, ht_out = ht1)
+            d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
+            d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
             mcf = d >= c.sp_dbh_min[sp]   ? v4 : 0f0
             bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
             if tkill && tcf > 0f0
