@@ -543,8 +543,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # dbh even during calibration (like PTBALT/PTBAA above) — FVS backdates only DIAM(I), not the DBH
     # array SDICAL/SDICLS sum. Stash the current dbh so point_zeide! uses it (else jl computes PRD on
     # the backdated stand: WS D11.5 gave PRD 0.2257 vs live 0.2645). Cleared right after with calib_dbh.
-    (s.variant isa SoutheastAlaska || s.variant isa PacificNorthwest || s.variant isa WestCascades) &&
-        (c.calib_dbh = saved_dbh)   # PN/WC dgf.f:352-370 compute the same RW PRD at DGF entry
+    (s.variant isa SoutheastAlaska || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
+     s.variant isa CentralCalifornia || s.variant isa WestSierra) &&
+        (c.calib_dbh = saved_dbh)   # PN/WC dgf.f:352-370, ca/dgf.f:290-306, ws/dgf.f:506-525: the same RW/GS PRD
     # AVH (AVHT40 top height) is NOT backdated during calibration: FVS's DENSE backdating pass
     # updates BA/point_ba/PCT at the past dbh, but the calibration DGF's relative-height term
     # reads the CURRENT-stand AVH (like the current point_ba restored at line 347 and the NE
