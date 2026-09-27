@@ -74,6 +74,21 @@ end
 @inline _looks_numeric(field::AbstractString) =
     all(c -> isspace(c) || occursin(c, " .+-eE0123456789"), field)
 
+# keyrdr.f:144 `READ (KARD(I),'(G10.0)',ERR=25) ARRAY(I)` — an internal-file READ, so BLANK='NULL': embedded
+# blanks are IGNORED ("0      15." reads 15.0, "0      40." reads 40.0 — a value that straddles its 10-column
+# slot, e.g. ont01's STDINFO age). Fortran input also takes a signed exponent without the E ("1.5+2" = 150.).
+# A malformed field (ERR=25) leaves ARRAY(I)=0 — returned here as `nothing`.
+function _g10_read(field::AbstractString)
+    t = replace(field, r"\s" => "")
+    isempty(t) && return 0f0
+    v = tryparse(Float32, t)
+    v === nothing || return v
+    m = match(r"^([+-]?(?:\d+\.?\d*|\.\d+))([+-]\d+)$", t)
+    m === nothing && return nothing
+    mant = tryparse(Float32, m.captures[1] * "e" * m.captures[2])
+    return mant
+end
+
 # Locate a PARMS continuation in cols 11-73; returns the number of leading fields
 # (nf) and whether PARMS was found. Mirrors keywd.f:134-161.
 function _scan_parms(rec::AbstractString)
@@ -161,7 +176,7 @@ function _decode_keyword(record::AbstractString)
         field = rpad(rec[j:min(j + 9, length(rec))], 10)
         fields[fi] = field
         if _looks_numeric(field)
-            v = tryparse(Float32, strip(field))
+            v = _g10_read(field)
             v === nothing || (values[fi] = v)
         end
         present[fi] = strip(field) != ""

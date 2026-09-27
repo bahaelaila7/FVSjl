@@ -25,15 +25,14 @@ const F = FVSjl
     else
         row_j = cd(fx) do
             txt = F.run_keyfile("ont_mh.key"; variant = F.Ontario(), output = :sum)  # must not crash
-            only(l for l in split(txt, '\n') if occursin(r"^\s+0\s+0\s+2693", l))
+            only(l for l in split(txt, '\n') if startswith(l, "2004"))
         end
         fj = split(strip(row_j))
         fo = split(strip(read(joinpath(fx, "ont_mh_cyc0_oracle.row"), String)))
-        # the two volume columns: total cuft (index 7 after "0 0 <tpa><ba> <sdi> <qmd>") and net-merch.
-        # rather than hard-index the metric layout, assert the two volume magnitudes appear identically:
-        @test "9822" in fj && "9822" in fo     # total cubic ft — bit-identical
-        @test "2134" in fj && "2134" in fo     # net-merch (Mowraski) — bit-identical
-        @test count(==("9822"), fj) == count(==("9822"), fo)
-        @test count(==("2134"), fj) == count(==("2134"), fo)
+        # the two volume columns (GTV / NMV, m³/ha): heights drive volume, so they prove the dub. The whole cyc0 row
+        # is byte-identical to the live FVSon_g16 row (golden regenerated 2026-09-27 from the 12-field-KEYRDR oracle).
+        @test "892" in fj && "892" in fo       # total cubic — bit-identical
+        @test "194" in fj && "194" in fo       # net-merch (Mowraski) — bit-identical
+        @test fj == fo
     end
 end
