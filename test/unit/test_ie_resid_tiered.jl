@@ -121,4 +121,10 @@ end
     @test all(m -> _crel(m) < 1e-6, _ccol("Standing_Dead"))
 end
 
+# ie/fmcba.f reads CRWDTH(I) from ie/cwidth.f → cwcalc.f (IEMAP), whose small-tree forms differ from ccfcal MODE=2
+# (MEASURED 2026 FMCBA: AF/ES/GF seedlings 0.5/0.55 ft vs MODE=2 1.2/1.09 ⇒ TOTCRA 32619 vs 32643 ⇒ PERCOV ⇒ FLIVE).
+@testset "FMCBA canopy cover from cwcalc.f crown widths (ie/fmcba.f:244) vs FVSie_g16" begin
+    @test all(m -> _crel(m) < 1e-6, _ccol("Forest_Shrub_Herb"))
+end
+
 end # module

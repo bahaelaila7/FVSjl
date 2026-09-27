@@ -78,13 +78,11 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _so_fm = s.variant isa SouthCentralOregon     # SO CRWDTH via so_cwcalc (SOMAP Crookston R6; forest 601 DESCHUTES BF)
     _oc_fm = s.variant isa OregonCoast            # OC CRWDTH via oc_cwcalc (OCMAP Crookston R6/R1; forest 711 BLM Medford→610 Rogue River BF)
     _op_fm = s.variant isa Olympic                # OP CRWDTH via op_cwcalc (OPMAP Crookston R6; forest 708 BLM Salem→606 Mt Hood BF)
-    # IE/KT CRWDTH via ie_crown_width (ie/ccfcal.f MODE=2, the B1·exp(B2+B3·lnCL+B4·lnD+B5·lnH+B6·lnBA) form).
-    # FMCBA reads CRWDTH(I) filled by CWIDTH→CWCALC (cwcalc.f R1-Crookston), which is bit-identical to ccfcal
-    # MODE=2 for the IE Region-1 species (verified vs FVSie_g16 CRWDTH: sp9 11.40 = 11.39). Without this IE fell
-    # to the generic eastern `crown_width` (0.5 default ⇒ crown area ~43× too small ⇒ PERCOV≈1 vs live 38.6) —
-    # PERCOV drives the FMBURN wind reduction (WMULT 0.5 vs 0.197 ⇒ FWIND 5 vs 1.97), so the surface fire was
-    # over-driven into a spurious PASSIVE crown fire (SCH 15.8 vs 2.58) ⇒ ~213 TPA + big-tree over-kill.
-    _ie_fm = s.variant isa InlandEmpire || s.variant isa Kootenai
+    # IE/KT FMCBA reads CRWDTH(I) filled by ie/cwidth.f → cwcalc.f (IEMAP/KTMAP, IWHO=0) — the same forest-grown
+    # value FVS_TreeList reports (`tree_crwdth`). ccfcal MODE=2 (the B1·exp(…) form jl used) agrees for most trees
+    # but not the small-tree forms: MEASURED FVSie_g16 11855985010690 2026 FMCBA, ES/AF/GF seedlings CRWDTH 0.5/0.55
+    # vs MODE=2 1.2/1.09 ⇒ TOTCRA 32619 vs 32643 ⇒ PERCOV ⇒ FLIVE(2) shrub load 0.16% high. (Without any western
+    # crown width IE fell to the eastern `crown_width` 0.5 default ⇒ PERCOV≈1 ⇒ a spurious passive crown fire.)
     # EM CRWDTH via em_cwcalc (em/cwidth.f → em/cwcalc.f IWHO=0: the western Crookston/Bechtold library with
     # BAREA=BA, EL=ELEV, HI=Hopkins index, cwcalc.f:563-576). Without it EM fell to the generic `crown_width`
     # (0.5 ft default) ⇒ PERCOV 0.55 vs live 38.71 ⇒ WMULT 0.5 vs 0.197 ⇒ FWIND 5.0 vs 1.97 + wrong FLIVE.
@@ -93,7 +91,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _em_fm = s.variant isa EasternMontana
     # CI/TT/UT FMCBA read the common CRWDTH(I) (ci/fmcba.f:340, tt:290, ut:312) — the same forest-grown cwcalc value
     # FVS_TreeList reports (`tree_crwdth`); they fell to the generic crown_width like EM did.
-    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah
+    _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
+               s.variant isa InlandEmpire || s.variant isa Kootenai
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
     # NC CRWDTH (base cwidth.f→cwcalc.f) is computed by CWIDTH at LOAD time, BEFORE the stand BA is
@@ -125,7 +124,6 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
-             _ie_fm ? ie_crown_width(sp, d, t.height[i], Int(t.crown_pct[i]), s.plot.basal_area) :  # IE/KT ccfcal MODE=2
              _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
                                 _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
