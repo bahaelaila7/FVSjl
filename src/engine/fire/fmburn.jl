@@ -246,12 +246,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
             # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
             # double-counts the crown that belongs in the separate CWD2B path) (fmsvol.f merch MCF).
-            # CR (western) snag bole is the TOTAL cubic (fmsvol.f:153 VOL2HT=MAX(X,TCF), LMERCH=F), not the
-            # SN merch — same basis difference fixed in the ordinary-mortality/SNAGINIT snag paths (the CR
-            # vol_eq are NVEL codes, so t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
-            mcf = s.variant isa CentralRockies ?
-                  max(0.005454154f0 * t.height[i], cr_snag_bole_cuft(s, sp, d, t.height[i])) :
-                  s.variant isa Klamath ?
+            # Western snag bole is the TOTAL cubic (fmsvol.f:150 VOL2HT=MAX(X,TCF), LMERCH=F), not the SN merch
+            # (NVEL vol_eq ⇒ t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
+            mcf = s.variant isa Klamath ?
                   max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
                   _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
                   max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])

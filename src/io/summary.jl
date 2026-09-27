@@ -245,7 +245,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
               s.variant isa BlueMountains || _ffe_west_vol(s.variant))   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
-    # CI/TT/UT (ci/tt/ut fmsdit.f + FMSNAG/FMCWD/FMCADD, the same annual loop as IE/EM) were off this list ⇒ no
+    # CI/TT/UT/CR (ci/tt/ut/cr fmsdit.f + FMSNAG/FMCWD/FMCADD, the same annual loop as IE/EM) were off this list ⇒ no
     # inventory snags and no fuel dynamics: S248112 no-fire DDW 2.40 flat vs live 4.65→4.34 (CI), Standing_Dead 0.
     if ffe_on
         ffe_seed_input_snags!(s)             # inventory snags from the input dead records (FMSADD ITYP=3)
