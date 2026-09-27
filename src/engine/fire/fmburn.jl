@@ -231,6 +231,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         # survivors and FMKILL hands it back to FVS as ICR=-FMICR (see mortality_and_fire!).
         resize!(fs.fmicr, t.n)
         @inbounds for i in 1:t.n; fs.fmicr[i] = t.crown_pct[i]; end
+        resize!(fs.ak_firkil, t.n); fill!(fs.ak_firkil, 0f0)
         @inbounds for i in 1:t.n
             # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
             # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
@@ -259,6 +260,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             curkil = pmort * t.tpa[i]
             crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
             fmprob0 = t.tpa[i]                                        # FMPROB(I) before the kill (fmeff.f:487)
+            fs.ak_firkil[i] += curkil                                 # FIRKIL(I) = FIRKIL(I) + CURKIL(I) (fmeff.f:546)
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             # Fire-killed sprouting trees feed the ESUCKR stump-sprout pool exactly as cutting does: FVS
@@ -358,6 +360,35 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     icrb = unsafe_trunc(Int32, crb_rep * 100f0 + 0.5f0)
     icrb < 0 && (icrb = Int32(-1))
     consumption = _fm_consumption_row(s, cons, bcrown, icrb)
+    # AK: fmfout.f:297-340 accumulates the report in its own form — per record I (record order): TOTBAK(KSP) +=
+    # CURKIL·DBH·DBH·.005454154 and TOTVOLK(KSP) += CURKIL·CFV for EVERY record (before the class test), the class
+    # tallies CLSKIL += CURKIL and TOTCLS += CURKIL + FMPROB (the post-kill FMPROB, not the pre-fire PROB), then the ALL
+    # row's BA/volume = Σ over species of TOTBAK/TOTVOLK. (Total_class2 325.944397 live vs 325.944366 via PROB.)
+    if s.variant isa SoutheastAlaska && length(fs.ak_firkil) >= t.n
+        fill!(totcls, 0f0); fill!(clskil, 0f0)
+        for v in values(sp_tot); fill!(v, 0f0); end
+        for v in values(sp_kil); fill!(v, 0f0); end
+        totbak = zeros(Float32, MAXSP); totvolk = zeros(Float32, MAXSP)
+        @inbounds for i in 1:t.n
+            sp = Int(t.species[i]); sp > 0 || continue
+            ck = fs.ak_firkil[i]; d = t.dbh[i]
+            totbak[sp] = totbak[sp] + (ck * d * d * 0.005454154f0)
+            totvolk[sp] = totvolk[sp] + (ck * t.cuft_vol[i])
+            c = _fm_mort_class(d); c >= 1 || continue
+            fp = t.tpa[i]
+            haskey(sp_tot, sp) || continue                       # species present at the fire (same row set as before)
+            get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += ck
+            clskil[c] += ck
+            sp_tot[sp][c] = sp_tot[sp][c] + (ck + fp)
+            totcls[c] = totcls[c] + (ck + fp)
+        end
+        empty!(sp_bak); empty!(sp_vol)
+        killed_ba = 0f0; killed_vol = 0f0
+        for sp in 1:MAXSP
+            haskey(sp_tot, sp) && (sp_bak[sp] = totbak[sp]; sp_vol[sp] = totvolk[sp])
+            killed_ba = killed_ba + totbak[sp]; killed_vol = killed_vol + totvolk[sp]
+        end
+    end
     # per-species mortality rows (FVS_Mortality emits one row per present species + the ALL aggregate),
     # sorted by species index for determinism (FMFOUT/dbsfmmort.f).
     species_mort = NamedTuple[]

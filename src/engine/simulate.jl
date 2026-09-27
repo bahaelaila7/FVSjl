@@ -661,11 +661,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
     mort  = 0f0
+    akfk = s.variant isa SoutheastAlaska && length(s.fire.ak_firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
         fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
+        # AK: FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
+        # PROB−survivor difference, which rounds (akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
+        akfk && (fk = min(s.fire.ak_firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        m = pre[j] - t.tpa[j]
+        m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
     end
