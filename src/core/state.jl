@@ -232,6 +232,8 @@ mutable struct Control
                                          # merch/saw/bdft are scaled by (1−PRLOST); total cubic + BA are not.
     yardloss_prdsng::Float32             # YARDLOSS PRDSNG (cuts.f:1462): of the yarding LOSS, this proportion
                                          # becomes DOWNED snags and (1−PRDSNG) STANDING snags (FFE, cuts.f:1384-85).
+    yardloss_prcrwn::Float32             # YARDLOSS PRCRWN (cuts.f:1463, default 1): proportion of the non-lost removed
+                                         # trees' crowns left in the stand as slash (CTCRWN, cuts.f:1386-88).
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
     multipliers::Vector{GrowthMultiplier} # keyword growth/mortality multipliers (MULTS)
     htgstp_events::Vector{ScheduledActivity} # HTGSTOP/TOPKILL top-damage events (htgstp.f);
@@ -417,6 +419,7 @@ function Control()
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         0f0,                                                    # yardloss_prlost (YARDLOSS, inactive)
         0f0,                                                    # yardloss_prdsng (YARDLOSS downed-snag proportion)
+        1f0,                                                    # yardloss_prcrwn (YARDLOSS crowns left, default 1)
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
@@ -1131,6 +1134,10 @@ mutable struct FireState
                                        # CALCULATED ELSEWHERE" bypass); cleared by that CROWN call
     exposr_last::Float32               # EXPOSR (FMCOM): % mineral soil exposed by the last FMCONS burn; a fire that
                                        # does not carry (FLAG(1)) skips FMCONS and FVS_Consumption reports the stale value
+    hp_h::Vector{Float32}              # FMCROW HPCT basis (fmcrow.f PCTILE): live heights + TPA at the last FMSDIT
+    hp_p::Vector{Float32}              # (cycle start, BEFORE CUTS) — CROWNW keeps those percentiles all cycle
+    cwd2b2::Array{Float32,3}           # CWD2B2 (fmscro.f:160-170): crown debris FMSCRO schedules from a fire / cut / new
+                                       # snag (ICALL≠4); FMMAIN adds it onto CWD2B after each year's FMCADD (fmmain.f:243)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1139,7 +1146,8 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Int32(0), Int32(0), Tuple{Int32,Vector{Tuple{Int32,Float32}}}[],
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
-                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0)
+                        NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
+                        zeros(Float32, 4, 6, 60))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

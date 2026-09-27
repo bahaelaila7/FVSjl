@@ -813,6 +813,14 @@ const RD_IRTSPC_WC = Int32[16,13,4,9,15,40,39,34,14,8,7,31,12,1,10,3,35,6,5,11,
 const RD_IRTSPC_WS = Int32[12,3,13,28,14,31,15,10,7,22,1,33,16,37,37,37,23,10,37,37,33,3,
                            35,11,26,26,26,29,29,29,29,29,29,32,32,19,40,40,40,40,40,17,18]
 
+# Builds without the WRD extension link rd/exrd.f's stubs instead (FVS{sn,cs,ls,ne,ak,ca,oc,op,on}_buildDir carry
+# exrd.f and no rdin.f): RDIN → ERRGRO(.TRUE.,11) "REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM", nothing is
+# consumed or activated, and the block's sub-keywords fall to the main reader as invalid keywords. Running the WRD
+# model there indexed the KT species crosswalk with the variant's own species codes (SN rootdis: SIGSEGV).
+rd_extension_linked(::AbstractVariant) = true
+rd_extension_linked(::Union{Southern,CentralStates,LakeStates,Northeast,SoutheastAlaska,CentralCalifornia,
+                            OregonCoast,Olympic,Ontario}) = false
+
 """
     rd_irtspc_for(variant) -> Vector{Int32}
 

@@ -21,6 +21,7 @@ using FVSjl
     include("unit/test_bm_seedling.jl")    # BM dense-seedling regime: AVHT40 dead-inclusive crown dub + SMHTGF raw-SITEAR + LP HTDBH DG (3 small-tree over-growth fixes) vs live FVSbm_clean golden
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_root_disease.jl")   # WRD Chunk −1: RDIN reader + rdinit defaults + inert seam vs live FVSkt
+    include("unit/test_rd_stub.jl")         # RDIN = exrd.f stub (FVS11, inert) where live does not link WRD (SN/CS/LS/NE/AK/CA/OC/OP/ON); SN rootdis was a SIGSEGV
     include("unit/test_dfb.jl")            # DFB: DFBIND/DFBDBH/DFBER/DFBPRB + DFBRAN/BACHLO/DFBMOD/DFBMRT bit-exact vs relinked FVSie_dfb g16 + gated DFBDRV mortality seam
     include("unit/test_dftm.jl")           # DFTM chunk 0: TMRANN RNG + TMOTPR + dftmin.f keyword reader bit-exact vs pristine dftm/*.f + INERT seam
     include("unit/test_wpbr.jl")           # WPBR chunk 0: BRANN RNG + brin.f keyword reader + BRINIT defaults bit-exact vs pristine wpbr/*.f + INERT seam
@@ -93,6 +94,7 @@ using FVSjl
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
     include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
     include("unit/test_vol_start_bark.jl")  # vols.f:150-151 start-of-cycle BARK for merch tops (CR PP 300FW2W122 + UT 402MATW122 FIA stands vs live, every .sum column exact)
+    include("unit/test_ind_lifecycle.jl")   # cycle-0 AVHT40/DENSE walk CRATET's IND in every variant (CR + EC FIA stands vs live, every .sum column exact)
     include("unit/test_pn_pnt01_live.jl")   # PN pnt01 non-volume .sum == live FVSpn (shared WC estab/esgent/regent/morts + PN data)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact

@@ -142,7 +142,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
     # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
     # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
+    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
             crb, rfinal, hpa, fire_type = (s.variant isa Klamath || s.variant isa OregonCoast ||
@@ -151,7 +151,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                                            s.variant isa Olympic || s.variant isa BlueMountains ||
                                            s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah ||
                                            s.variant isa WestCascades || s.variant isa PacificNorthwest ||
-                                           s.variant isa SoutheastAlaska) ?   # FVSak fmcfir.f == FVSpn's
+                                           s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
+                                           s.variant isa WestSierra || s.variant isa SoutheastAlaska) ?   # FVSak fmcfir.f == FVSpn's
                   # cr/tt/ut/wc/pn/ie/em/kt/ci/op fmcfir.f are byte-identical (comments aside) to nc/fmcfir.f: RACT =
                   # 3.34·SFRATE(2) with FM10 at the FIXED midflame SWIND·0.4 (fmcfir.f:143,173). CR on S248112 1990:
                   # RFINAL 27.38 (shared path) vs live 65.761.
@@ -202,6 +203,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         @inbounds for isz in axes(fs.cwd2b, 2), idc in axes(fs.cwd2b, 1), itm in axes(fs.cwd2b, 3)   # DO ISZ/IDC/ITM
             bcr = crfrac * fs.cwd2b[idc, isz, itm] * psburn / 100f0
             fs.cwd2b[idc, isz, itm] -= bcr
+            bcrown += bcr * _FM_P2T
+            bcr = crfrac * fs.cwd2b2[idc, isz, itm] * psburn / 100f0   # fmeff.f:127-130 the CWD2B2 pool too
+            fs.cwd2b2[idc, isz, itm] -= bcr
             bcrown += bcr * _FM_P2T
         end
     end
@@ -498,7 +502,7 @@ Computed from the FM10 crown-fuel-model intermediates at the scenario moisture (
 `xio`, heat sink SRHOBQ = `rhobqig`, slope factor SPHIS = `phis`) and the canopy bulk density `cbd`.
 """
 crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
-function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,SoutheastAlaska})::Float32
+function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska})::Float32
     cbd > 0f0 || return -1f0
     r = rothermel_surface_fire(_fm10(s)..., fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
     r.xio < 1f-5 && return -1f0
@@ -517,7 +521,7 @@ the stand's WEIGHTED surface-fuel-model spread = RINIT1. NB the torching bisecti
 STAND models (fmfint.f:120-134, the ICALL=2 ELSE branch) — NOT the fixed FM10 the crowning index uses.
 """
 torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant; fire_basis::Bool = false) = -1f0
-function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,SoutheastAlaska}; fire_basis::Bool = false)::Float32
+function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska}; fire_basis::Bool = false)::Float32
     (cbd > 0f0 && actcbh >= 0) || return -1f0
     mois = fuel_moisture(fmois, s.variant)
     # FVS computes ONE dynamic fuel model (FMCFMD3) per cycle and uses it for the surface fire AND every

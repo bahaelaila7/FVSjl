@@ -7,8 +7,7 @@
 #                 FTDEADFU 1-15; hard pool only). Bare stand ⇒ COVTYP 11 (western hemlock) the first year.
 #  * ak/fmbrkt.f  FOFEM bark thickness B1 (FMBRKT = DBH·B1).
 #  * ak/fmvinit.f DKR (4 decay classes × 11 sizes), HTX (1.0 except YC/RC = 0), HTR1=HTR2=0.02, TFALL.
-#  * vbase fmr6sdcy.f / fmr6fall.f AK branches (the R6 snag decay + fall FVSak compiles): AKSPEC, AKDBH1,
-#    TEMP=3 (cold), MOIS=1 (wet), OTSH=OTRT=1; PNYRSOFT/PNDCYADJ (the 'PN','AK','OP' tables).
+#  * the vbase fmr6sdcy/fmr6fall AK branches live in the shared R6 layer (engine/fire/r6_snag_fall.jl, code :AK).
 # =============================================================================
 
 # ak/fmcba.f DATA FULIVE / FULIVI — (herb, shrub) per species 1..23.
@@ -100,46 +99,10 @@ function _ak_tfall_row(sp::Int)
     f0 = min(t[1], leaflf); f2 = min(t[3], t[4])
     return (f0, t[2], f2, t[4], t[5], t[5])
 end
-const _AK_FM_TFALL = [_ak_tfall_row(sp) for sp in 1:23]
-
-# vbase fmr6sdcy.f AK branch: AKSPEC (1-12), AKDBH1 (cm; AKDBH2 = 50 if 20 else 75), TEMP=3, MOIS=1;
-# X/Y = PNYRSOFT/PNDCYADJ(SPG,TEMP,MOIS,SML) (the 'PN','AK','OP' tables).
-const _R6SD_AKSPEC = Int8[9, 9, 1, 6, 6, 6, 6, 6, 5, 1, 7, 7, 6, 12, 12, 10, 10, 11, 11, 11, 10, 10, 10]
-const _R6SD_AKDBH1 = Int8[25, 25, 25, 20, 20, 20, 20, 25, 25, 25, 25, 25, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
-const _R6SD_PNYRSOFT = reshape(Int16[
-    36,21,12,5,11,16,11,7,7,4,4,3,36,21,12,5,11,16,11,7,7,4,4,3,69,39,21,9,19,29,19,11,12,9,9,6,
-    36,21,12,5,11,16,11,7,7,4,4,3,36,21,12,5,11,16,11,7,7,4,4,3,69,39,21,9,19,29,19,11,12,9,9,6,
-    36,21,12,5,11,16,11,7,7,4,4,3,36,21,14,5,11,16,11,7,7,4,4,3,69,39,21,9,19,29,19,11,12,9,9,6,
-    42,25,13,7,13,19,13,9,9,6,6,5,70,40,20,10,20,30,20,12,13,10,9,7,76,45,23,11,22,34,22,14,14,11,10,7,
-    42,25,13,7,13,19,13,9,9,6,6,5,70,40,20,10,20,30,20,12,13,10,9,7,76,45,23,11,22,34,22,14,14,11,10,7,
-    42,25,14,7,13,19,13,9,9,6,6,5,70,40,21,10,20,30,20,12,13,10,9,7,76,45,23,11,22,34,22,14,14,11,10,7,
-    46,27,28,7,14,21,14,9,10,7,7,5,94,52,53,13,25,40,25,15,16,12,12,9,94,52,53,13,25,40,25,15,16,12,12,9,
-    46,27,28,7,14,21,14,9,10,7,7,5,94,52,53,13,25,40,25,15,16,12,12,9,94,52,53,13,25,40,25,15,16,12,12,9,
-    46,27,40,7,14,21,14,9,10,7,7,5,94,52,53,13,25,40,25,15,16,12,12,9,94,52,53,13,25,40,25,15,16,12,12,9], (12, 3, 3, 3))
-const _R6SD_PNDCYADJ = reshape(Int8[
-    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,
-    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,
-    3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,
-    3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,
-    3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,
-    3,3,3,3,3,3,3,3,3,3,3,3,2,2,1,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,
-    3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    3,3,3,3,3,3,3,3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], (12, 3, 3, 3))
-# vbase fmr6fall.f AK branch: SPG = AKSPEC (1-20), MOIS = OTSH = OTRT = 1.
-const _R6FL_AKSPEC = Int8[16, 16, 7, 10, 10, 10, 10, 10, 9, 7, 11, 12, 10, 20, 20, 18, 18, 19, 19, 19, 18, 18, 18]
-
-"AK FMR6SDCY (vbase fmr6sdcy.f, VARACD 'AK'): (JYRSOFT, JADJ, SML) for a snag of species `ksp`, DBH `dbh`."
-function ak_r6sdcy(ksp::Integer, dbh::Float32)
-    dbhcm = dbh * 2.54f0
-    d1 = Float32(_R6SD_AKDBH1[ksp]); d2 = d1 == 20f0 ? 50f0 : 75f0
-    sml = dbhcm < d1 ? 1 : (dbhcm < d2 ? 2 : 3)
-    spg = Int(_R6SD_AKSPEC[ksp])
-    return (Int(_R6SD_PNYRSOFT[spg, 3, 1, sml]), Int(_R6SD_PNDCYADJ[spg, 3, 1, sml]), sml)
+const _FM_TFALL_AK = let m = zeros(Float32, 23, 6)
+    for sp in 1:23, k in 1:6
+        m[sp, k] = _ak_tfall_row(sp)[k]
+    end
+    m
 end
 
-"AK FMSFALL BASE (vbase fmsfall.f → FMR6SDCY + FMR6FALL, VARACD 'AK')."
-function ak_r6_fall_base(ksp::Integer, dbh::Float32)::Float32
-    _, jadj, sml = ak_r6sdcy(ksp, dbh)
-    return _R6FL_SNFL[Int(_R6FL_AKSPEC[ksp]), 1, 1, 1, jadj, sml]
-end

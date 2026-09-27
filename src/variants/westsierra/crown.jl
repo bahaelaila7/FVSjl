@@ -95,6 +95,11 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
     return 0.001f0
 end
 
+# ws/ccfcal.f:252 `IF(P .GT. 0.)CCFT = CCFT * P` — WS alone guards the PROB scaling, so a record still in the tree
+# list with PROB=0 (a tripled copy mortality emptied) adds its UNSCALED per-tree CCF to DENSE's RELDEN and PCCF.
+@inline ws_ccft(sp::Integer, d::Real, h::Real, p::Real)::Float32 =
+    p > 0 ? ws_tree_ccf(sp, d, h) * Float32(p) : ws_tree_ccf(sp, d, h)
+
 # ws/crown.f — rank-based Weibull crown ratio. sdiac = SDIAC (stand SDI); RELDEN = stand CCF.
 # ws/dubscr.f DATA (43 species each) — generated from the Fortran source, not hand-transcribed.
 const WS_DUB_BCR0 = Float32[-1.669490, -0.426688, -0.426688, -0.426688, -0.426688, -0.426688, -0.426688, -1.669490, 6.489813, 6.489813, -1.669490, 6.489813, -0.426688, 6.489813, 6.489813, 6.489813, 6.489813, -1.669490, 6.489813, 6.489813, 6.489813, -0.426688, -0.426688, -1.669490, 6.489813, 6.489813, 6.489813, -1.669490, -1.669490, -1.669490, -1.669490, -1.669490, -1.669490, -2.19723, -2.19723, -2.19723, -2.19723, -2.19723, -2.19723, -1.669490, 5.0, -1.669490, -1.669490]
@@ -167,8 +172,8 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
     # ws/crown.f CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
     cur_year = current_cycle_year(s)
+    # ws/crown.f DO 60 walks every record in ISCT (ITRN), PROB=0 ones included (no PROB test) — they get a crown too.
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (sp < 1 || sp > 43) && continue
         (lstart && t.crown_pct[i] > 0) && continue         # crown present → bypass

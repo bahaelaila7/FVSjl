@@ -423,7 +423,13 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # deleted only after this DENSE); jl's sort_key files them after the live. Key this pass on the read order.
     _sk_saved = (t.ndead > 0 && length(s.calib.input_seq) == t.n) ? t.sort_key[1:t.n] : nothing
     _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = Float64(s.calib.input_seq[i]); end)
+    # CA/SO/WS: this is the cratet.f:171/:247 DENSE the calibration DGF reads — before the missing-height dub, so
+    # its height-dependent R5CRWD CCF (PCCF, RELDEN) sees missing heights as 0 (see _cratet_predub_ccf).
+    _ht_swap = _cratet_predub_ccf(s.variant) && length(s.calib.cratet_ht_in) == t.n
+    _ht_saved = _ht_swap ? t.height[1:t.n] : Float32[]
+    _ht_swap && @inbounds(for i in 1:t.n; t.height[i] = s.calib.cratet_ht_in[i]; end)
     compute_density!(s)                       # past-stand BA/AVH/point_ba/PCT
+    _ht_swap && @inbounds(for i in 1:t.n; t.height[i] = _ht_saved[i]; end)
     _sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = _sk_saved[i]; end)
     # TT REGCAL: TEMBA/TEMCCF (=BA/RELDEN) and PCCF of tt/cratet.f:243's backdating DENSE (AVH is AVHT40's, :653)
     _tt_cal && (_tt_bd_ba = s.plot.basal_area; _tt_bd_ccf = stand_ccf(s); _tt_bd_pccf = copy(s.density.point_ccf))
@@ -448,13 +454,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         # Scowen's UNSTABLE quicksort — on a current-dbh TIE between a live tree and a same-dbh recently-
         # dead tree, it can order the dead one first, dropping the live tree below 100th percentile. KT
         # needs this exact tie-break (validated: a dead 16.1" ties live tree1, live PCT=89.068 not 100).
-        # SN/CR are validated with the stable `sortperm`; keep it for them.
+        # Every other variant ranks by cratet.f's IND=IND1; RDPSRT(.FALSE.) (bm_cratet166_ind): measured on SN tiered
+        # (26735 vs 27063 residual cells with the stable sortperm) and the EC/NC FIA samples (EC 65 -> 69 exact rows).
         if s.variant isa Kootenai
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
-        elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest) &&   # PN compiles wc/cratet.f
-               length(s.calib.input_seq) == ntot
+        elseif length(s.calib.input_seq) == ntot   # every variant's cratet.f has the IND=IND1; RDPSRT(.FALSE.) block
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
             # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.
@@ -462,6 +467,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             # the BM shape. 302076170489998: SF I=9 / WH I=2 both 10.1" (and RC 13 / WH 4 both 7.1") — live DGF BAL
             # 208.2742/210.4278, stable sortperm swapped them ⇒ SF COR 1.0154053 vs live 1.014536.
             # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
+            # CA/SO: {ca,so}/cratet.f:139-142, WS: ws/cratet.f:215-218 — the same IND=IND1; RDPSRT(.FALSE.) before the
+            # LBKDEN DENSE ({ca,so}:171, ws:247). EC: ec/cratet.f:195-202, the same block ahead of its LBKDEN DENSE.
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
             # tie ⇒ DGF WK2 ⇒ the DO-220 WK1 dub ⇒ LM/LL Hamilton G 0.1253 vs live 0.1257 (cycle-1 kill 6.941 vs 6.921).
@@ -534,8 +541,9 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # dbh even during calibration (like PTBALT/PTBAA above) — FVS backdates only DIAM(I), not the DBH
     # array SDICAL/SDICLS sum. Stash the current dbh so point_zeide! uses it (else jl computes PRD on
     # the backdated stand: WS D11.5 gave PRD 0.2257 vs live 0.2645). Cleared right after with calib_dbh.
-    (s.variant isa SoutheastAlaska || s.variant isa PacificNorthwest || s.variant isa WestCascades) &&
-        (c.calib_dbh = saved_dbh)   # PN/WC dgf.f:352-370 compute the same RW PRD at DGF entry
+    (s.variant isa SoutheastAlaska || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
+     s.variant isa CentralCalifornia || s.variant isa WestSierra) &&
+        (c.calib_dbh = saved_dbh)   # PN/WC dgf.f:352-370, ca/dgf.f:290-306, ws/dgf.f:506-525: the same RW/GS PRD
     # AVH (AVHT40 top height) is NOT backdated during calibration: FVS's DENSE backdating pass
     # updates BA/point_ba/PCT at the past dbh, but the calibration DGF's relative-height term
     # reads the CURRENT-stand AVH (like the current point_ba restored at line 347 and the NE
@@ -804,6 +812,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     # AK (ak/regent.f LSTART, cratet.f:629): HTCALC-predicted vs measured small-tree (DBH<3) height increment.
     s.variant isa SoutheastAlaska && ak_regent_hcor_init!(s, isct, ind1, saved_dbh)
+    # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒
+    # HCOR_init stayed 0 (CA FIA 1123865229290487: live DF small-tree scale factor 0.73, jl 1.00).
+    s.variant isa CentralCalifornia && ca_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    s.variant isa SouthCentralOregon && so_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    s.variant isa WestSierra && ws_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    s.variant isa EastCascades && ec_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)   # ec/cratet.f:726
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
@@ -1209,6 +1223,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn compiles the same
     # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
     _wcbnd = _wc_dg || _pn_dg                 # FVSpn links the same dgbnd.f (FVSpn_buildDir/dgbnd.f == wc's)
+    _wsbnd = s.variant isa WestSierra         # ws/dgbnd.f per-species DG envelope (ws/dgdriv.f:305, :349-351)
     # WC applies dwarf-mistletoe MISDGF INSIDE DGDRIV, BEFORE DGBND, on the record and both tripled copies
     # (wc/dgdriv.f:216,245,252,260); so min(DG·MISDGF, DGMAX), not min(DG, DGMAX)·MISDGF (ie_dm_growth_loss!
     # skips WC via _mis_dg_in_driver). START-of-cycle DMR, same as the post-driver path.
@@ -1423,17 +1438,17 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd, _wsbnd)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
                 crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
                 _misdrv && (dgu *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr, _wcbnd)
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr, _wcbnd, _wsbnd)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
                 crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
                 _misdrv && (dgl *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr, _wcbnd)
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr, _wcbnd, _wsbnd)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -1446,7 +1461,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd, _wsbnd)
             end
         end
     end

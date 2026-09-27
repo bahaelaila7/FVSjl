@@ -2400,6 +2400,15 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
             end
+        elseif r6_ffe_code(s.variant) !== :none && !(s.variant isa SouthCentralOregon)
+            # bm/ec/pn/op/wc fmvinit.f: HTX(I,1:4) = 1.0 for every species ⇒ FMSNGHT takes the FMR6HTLS random
+            # loss (snag.jl). SO sets its snag parameters per forest in FMCBA (so/fmcba.f:925-990) — not here.
+            @inbounds for sp in 1:nspecies(s.variant)
+                fs.params.snag_htx[Int32(sp)] = (1f0, 1f0, 1f0, 1f0)
+            end
+            # fmvinit.f PBSOFT = PBSMAL = 0 ⇒ FMSFALL computes no post-burn fall rates (RSOFT = RSMAL = 0,
+            # fmsfall.f:25-38 `IF (PBSOFT .GT. 0.0)`); the 1.0/0.9 defaults are the SN/interior/California values.
+            fs.params.pb_soft = 0f0; fs.params.pb_smal = 0f0
         end
         if s.variant isa SoutheastAlaska
             # ak/fmvinit.f:472-476: PBSCOR 0, PBSOFT 0, PBSMAL 0, PBSIZE 12, PBTIME 7 — NO post-burn accelerated
@@ -2919,6 +2928,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
             # harvest lost in yarding (left on site); of that LOSS, PRDSNG is downed + (1−PRDSNG) standing snags.
             rec.present[2] && (s.control.yardloss_prlost = clamp(Float32(rec.values[2]), 0f0, 1f0))
             rec.present[3] && (s.control.yardloss_prdsng = clamp(Float32(rec.values[3]), 0f0, 1f0))
+            rec.present[4] && (s.control.yardloss_prcrwn = clamp(Float32(rec.values[4]), 0f0, 1f0))   # PRCRWN (blank ⇒ 1)
         elseif kw == "SALVAGE"                                  # ABANDONED in Fortran (cuts.f:103) — recognized
                                                                 # no-op so the keyword doesn't fall through silently
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)
@@ -2954,7 +2964,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "CARBCALC"; kw_carbcalc!(s, rec)      # carbon method 0=FFE / 1=JENKINS
         elseif kw == "NOHTDREG"; kw_nohtdreg!(s, rec)      # HT-DBH (LHTDRG) calibration control: suppress=no-op, invoke=warn
         elseif kw == "MORTMSB";  kw_mortmsb!(s, rec)       # alternate "mature-stand breakup" mortality (msbmrt.f)
-        elseif kw == "RDIN";     kw_rdin!(s, rec, kr)      # Western Root Disease (WRD) block (RRTYPE/RRINIT/SAREA/… → s.root_disease)
+        elseif kw == "RDIN" && rd_extension_linked(s.variant); kw_rdin!(s, rec, kr)   # Western Root Disease (WRD) block (RRTYPE/RRINIT/SAREA/… → s.root_disease); exrd.f-stub builds fall through
         elseif kw == "DFB";      kw_dfbin!(s, rec, kr)     # Douglas-fir Beetle block (keywds.f opt 100; MANSTART/MANSCHED/OLENGTH/EXYRMORT/… → s.dfb + gated DFBDRV mortality seam)
         elseif kw == "DFTM";     kw_dftmin!(s, rec, kr)    # Douglas-fir Tussock Moth block (keywds.f opt 7; REPORT/NUMCLASS/MANSTART/RANSCHED/PROBMETH/… → s.dftm; INERT — no engine seam wired yet)
         elseif kw == "BRUST";    kw_brin!(s, rec, kr)      # White Pine Blister Rust block (keywds.f opt 75; PRUNE/EXCISE/RUSTINDX/BRSEED/CANKDATA/… → s.wpbr; INERT — no engine seam wired yet)
