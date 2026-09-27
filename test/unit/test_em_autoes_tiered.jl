@@ -130,4 +130,20 @@ end
     r8 = _run_stand("2999215010690")
     @test _treelist_diffcells("2999215010690", r8.db, ("1988", "1998", "2008", "2018", "2028", "2038")) == 0
 end
+
+# esnutr.f:264-289 LAUTAL (estb, shared by IE and EM): a thin removing ≥THRES1 of the TPA or cubic volume schedules the
+# NTALLY=1 disturbance tally dated at the thin. jl captured the removal fraction for IE only, so an EM thin fell through
+# to the ingrowth tally (MEASURED FVSem_g16 196378260020004 THINBBA 2022: XTPA 0.950 ⇒ NTALLY 1; live .sum 2032 TPA 182,
+# jl 127). The whole .sum must match live through the tally cycle.
+@testset "EM LAUTAL post-thin disturbance tally (esnutr.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "thinbba"; dir = d)
+    @test !crashed
+    live = sum_rows(read(joinpath(fixture_dir("EM"), "$(STAND)_thinbba.live.sum"), String))
+    got = sum_rows(txt)
+    row(rows, y) = (i = findfirst(r -> startswith(r, y), rows); i === nothing ? "" : rows[i])
+    for y in ("2012", "2022", "2032")
+        @test split(row(got, y)) == split(row(live, y))
+    end
+end
 end # module

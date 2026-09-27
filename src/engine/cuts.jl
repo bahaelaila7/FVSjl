@@ -265,11 +265,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
     al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
-    # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
+    # AUTOES (IE/EM): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
     autoes_pre_cuft = 0f0
-    if s.variant isa InlandEmpire
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana   # shared estb/esnutr.f LAUTAL (see the stash below)
         @inbounds for i in 1:s.trees.n
             autoes_pre_tpa  += s.trees.tpa[i]
             autoes_pre_cuft += s.trees.tpa[i] * s.trees.cuft_vol[i]   # ONCUR: OCVCUR(7) total cubic vol
@@ -356,13 +356,16 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         rem = (tpa = rem.tpa, cuft = rem.cuft, mcuft = rem.mcuft * f,
                scuft = rem.scuft * f, bdft = rem.bdft * f)
     end
-    # AUTOES (IE): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
+    # AUTOES (IE/EM): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
     # ★ #143 (2026-08-06): live esnutr.f:271-275 uses XTES=AMAX1(XTPA,XCUF) — the MAX of the TPA-removal fraction
     # (ONTREM(7)/ONTCUR(7)) AND the CUBIC-VOLUME-removal fraction (OCVREM(7)/OCVCUR(7)). jl previously used only the
     # TPA fraction, so an OVERSTORY thin (removes few TREES = low XTPA but high VOLUME = high XCUF) failed to trip the
     # LAUTAL removal trigger (xtes<THRES1) and fell through to the LINGRW ingrowth tally — WRONG tally type. Measured
     # repro 12343703010690: live fired NTALLY=1 (removal) at icyc2/4, jl fired ntally=99 (ingrowth). Add the XCUF term.
-    if s.variant isa InlandEmpire && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
+    # EM compiles the identical estb/esnutr.f (FVSem_buildDir == FVSie_buildDir), so its thins trip the LAUTAL tally too:
+    # MEASURED FVSem_g16 196378260020004 thinbba @2022 "XTPA XCUF= 0.950 0.456" ⇒ NTALLY=1, IDSDAT=2022 — jl (IE-gated)
+    # ran the post-thin tally as ingrowth (NTALLY 99, TIME=SHORTY) ⇒ 127 vs live 182 TPA at 2032.
+    if (s.variant isa InlandEmpire || s.variant isa EasternMontana) && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
         xtpa = rem.tpa / autoes_pre_tpa
         xcuf = autoes_pre_cuft > 0f0 ? rem.cuft / autoes_pre_cuft : 0f0
         s.estab.last_xtes = max(xtpa, xcuf)

@@ -15653,17 +15653,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 variant = "EM"
 regime = "thinbba"
 file = "FVS_StrClass"
-col = "Number_of_Strata"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 684750664126144 year 2068: live=2 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -15873,17 +15862,6 @@ P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): coho
 variant = "EM"
 regime = "thinbba"
 file = "FVS_StrClass"
-col = "Stratum_2_Status_Code"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 684750664126144 year 2068: live=1 jl=0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
 col = "Stratum_3_Crown_Base"
 stand = "*"
 year = "*"
@@ -16011,17 +15989,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 5→7) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 684750664126144 year 2058: live=-- jl=PIEN"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Structure_Class"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 684750664126144 year 2068: live=3=UR jl=1=SI"""
 
 [[residual]]
 variant = "EM"
