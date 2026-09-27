@@ -11890,28 +11890,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "climate"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "climate"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -11945,28 +11923,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "cover"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
 file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
@@ -11996,28 +11952,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -12319,28 +12253,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "mistletoe"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -12627,28 +12539,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "none"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
 file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
@@ -12703,28 +12593,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 
 [[residual]]
 variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
 regime = "plant_cyc"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -12736,28 +12604,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 
 [[residual]]
 variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
 regime = "rootdis"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -12766,28 +12612,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -13089,28 +12913,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "EM"
 regime = "salvage"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -13349,28 +13151,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"
@@ -13954,28 +13734,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "BFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_InvReference"
-col = "CFVolEq"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=203FW2W122 jl=I00FW2W122"""
 
 [[residual]]
 variant = "EM"

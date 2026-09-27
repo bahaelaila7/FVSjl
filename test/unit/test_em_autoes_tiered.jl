@@ -220,6 +220,17 @@ end
     @test _treelist_diffcells("684750664126144", r6.db, ("2018",); cols = ("HtG",)) == 0
 end
 
+# voleqdef.f R1_EQN: PP (FIA 122) on forest 08 (Custer; EM IFOR 2) takes EQNUM(39)=203FW2W122. compute_volumes_em!
+# used it, but the species VOLEQ reported in FVS_InvReference stayed I00FW2W122 (MEASURED FVSem_g16 242065538010661,
+# forest 108: CFVolEq/BFVolEq live 203FW2W122).
+@testset "EM PP on Custer reports the R1_EQN 203FW2W122 volume equation (voleqdef.f) vs FVSem_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", "242065538010661", "none"; dir = d)
+    @test !crashed
+    ms = compare_case("EM", "242065538010661", "none", txt, db)
+    @test count(m -> m.file == "FVS_InvReference", ms) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
