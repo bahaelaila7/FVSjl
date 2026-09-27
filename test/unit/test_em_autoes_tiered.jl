@@ -231,6 +231,25 @@ end
     @test count(m -> m.file == "FVS_InvReference", ms) == 0
 end
 
+# rdpr.f runs at fvs.f:404, after TREGRO — so after GRADD's ESNUTR, whose ESTAB calls RDESTB for every booked record
+# (estab.f:1247/1336/1426: PROBIU=PROB·PAREA, FPROB=PROB). jl reported FVS_RD_Sum before establishment and entered the
+# regen into the RD driver only at the next cycle start (MEASURED FVSem_g16 196378260020004 rootdis 2032: UnInf_TPA
+# live 341.2525, jl 284.1203 — the 2031 AUTOES cohort).
+@testset "FVS_RD_Sum sees the cycle's regen (RDESTB at establishment, rdpr.f after TREGRO) vs FVSem_g16" begin
+    for cn in ("2999215010690", "684750664126144")
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("EM", cn, "rootdis"; dir = d)
+        @test !crashed
+        @test count(m -> m.file == "FVS_RD_Sum", compare_case("EM", cn, "rootdis", txt, db)) == 0
+    end
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("EM", STAND, "rootdis"; dir = d)
+    hdr, rows = db_table_rows(db, "FVS_RD_Sum")
+    iy = findfirst(==("Year"), hdr); iu = findfirst(==("UnInf_TPA"), hdr)
+    r32 = rows[findfirst(r -> r[iy] == "2032", rows)]
+    @test isapprox(parse(Float64, r32[iu]), 341.2525329589844; rtol = 1e-5)
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

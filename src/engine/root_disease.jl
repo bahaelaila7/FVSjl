@@ -128,6 +128,8 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     det_rows::Vector{Any}     # RDDETAIL accumulator: (year, rd_det_report) per cycle (FVS_RD_Det / dbsrd.f DBSRD2)
     corinf::Matrix{Float32}   # CORINF(ITOTRR,2): (1)=new-infected TPA / (2)=exposed TPA inside patch (rdinsd.f)
     expinf::Matrix{Float32}   # EXPINF(ITOTRR,2): (1)=new-infected / (2)=new TPA by area expansion (rdinf.f); zeroed each report
+    wk1_nold::Int             # driver size before the end-of-cycle RDESTB sizing (−1 = none): the next WK1 snapshot keeps
+                              # the records established since at WK1=0 (estab.f zeroes WK1 of a booked record)
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -200,6 +202,7 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.det_rows = Any[]
     rd.corinf = zeros(Float32, RD_ITOTRR, 2)
     rd.expinf = zeros(Float32, RD_ITOTRR, 2)
+    rd.wk1_nold = -1
     return rd
 end
 
@@ -2999,6 +3002,7 @@ function rd_cycle_start!(s::StandState)
     d = rd.driver::RDDriver
     m = d.n
     m == n || (rd.driver = _rd_resize_driver!(rd, d, n, s))
+    rd.wk1_nold >= 0 && (m = min(m, rd.wk1_nold)); rd.wk1_nold = -1
     rd.wk1 = Float32[(i <= m ? t.diam_growth[i] : 0.0f0) for i in 1:n]
     return
 end

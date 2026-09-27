@@ -1290,17 +1290,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
-    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
-    # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
-    # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.
-    if !tripled && (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.root_disease !== nothing &&
-       rd_active(s.root_disease) && s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-        let yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
-            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
-            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
-            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
-        end
-    end
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
@@ -1451,6 +1440,26 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
     # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
     s.wpbr !== nothing && wpbr_brpr!(s)
+    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO — so after GRADD's ESNUTR). estab.f:1247/1336/1426 call
+    # RDESTB for every record ESTAB books, entering it into the disease area (PROBIU=PROB·PAREA, FPROB=PROB): size the
+    # driver over this cycle's regen HERE, then report — post DBH-UPDATE (grown DBH for Live_BA), post the end-of-period
+    # VOLS, post rd_grow_apply!→rdinoc decay. jl reported before establishment and entered the regen only at the next
+    # cycle start (MEASURED FVSem_g16 196378260020004 rootdis 2032: UnInf_TPA live 341.25, jl 284.12 — the 2031 cohort).
+    if !tripled && s.root_disease !== nothing && rd_active(s.root_disease) && s.root_disease.iroot != 0 &&
+       s.root_disease.driver !== nothing
+        let rd = s.root_disease, d = rd.driver::RDDriver
+            if d.n != s.trees.n
+                rd.wk1_nold = d.n                   # rd_cycle_start!: WK1 of these records is still 0 (estab.f WK1=0)
+                rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s)
+            end
+        end
+        if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+            yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
+            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
+        end
+    end
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
