@@ -125,6 +125,10 @@ function pn_sitset!(s::StandState)
     nsiset = count(>(0f0), @view p.sp_site_index[1:maxsp])
     pcom = pn_habtyp(Int(p.habitat_code))
     isempty(pcom) && (pcom = "CHS133")            # pn/habtyp.f default PA (ITYPE=40 → PCOML[40])
+    # pn/habtyp.f:106/119/126 ITYPE = KODTYP (1..NPA) else the default 40 — the ITYPE that PNFGS/PNWET
+    # (pn/fmcba.f:622-630 MAPFGS/MAPDRY) feed to FMCFMD's forb/grass/shrub + wet flags (as OP already sets it).
+    kod = Int(p.habitat_code)
+    p.habitat_input = Int32((1 <= kod <= length(PN_PCOML)) ? kod : PN_HAB_DEFAULT)
     rows = pn_ecocls(pcom)
 
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0
