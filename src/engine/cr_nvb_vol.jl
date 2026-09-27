@@ -286,11 +286,12 @@ const _NVB_R3_EVOD   = 2
 and stem taper coefs (a,b). `minlen`/`merchl` are the region-appropriate MRULES bucking mins."
 function _nvb_merch_cuft(d::Float32, h::Float32, vtotib::Float32, stump::Float32, mtop::Float32,
                          a::Float32, b::Float32, minlen::Float32, merchl::Float32; opt::Int = _NVB_R3_OPT,
-                         brkht::Float32 = 0f0)::Float32
+                         brkht::Float32 = 0f0, ht_out = nothing)::Float32
     vtotib <= 0f0 && return 0f0
     ht1prd = mtop < d ? _nvb_ht2topd(vtotib, a, b, h, mtop) : 0f0
     (brkht > 0f0 && brkht < ht1prd) && (ht1prd = brkht)     # nsvb.f:331 broken top caps the merch height
     ht1prd < stump && (ht1prd = stump)
+    ht_out === nothing || (ht_out[] = ht1prd)                # nsvb.f returns this HT1PRD (fvsvol.f → HT2TD)
     lmerch = ht1prd - stump
     lmerch < 0f0 && (lmerch = 0f0)
     lmerch < merchl && return 0f0
@@ -305,11 +306,12 @@ end
 and sum SCRIB(NINT small-end dib, len)·10 per log."
 function _nvb_board(d::Float32, h::Float32, vtotib::Float32, stump::Float32, bftop::Float32,
                     a::Float32, b::Float32, minlen::Float32, merchl::Float32; opt::Int = _NVB_R3_OPT,
-                    cor::Char = 'Y', brkht::Float32 = 0f0)::Float32
+                    cor::Char = 'Y', brkht::Float32 = 0f0, ht_out = nothing)::Float32
     vtotib <= 0f0 && return 0f0
     ht1prd = bftop < d ? _nvb_ht2topd(vtotib, a, b, h, bftop) : 0f0
     (brkht > 0f0 && brkht < ht1prd) && (ht1prd = brkht)     # nsvb.f:331
     ht1prd < stump && (ht1prd = stump)
+    ht_out === nothing || (ht_out[] = ht1prd)
     lmerch = ht1prd - stump
     lmerch < merchl && return 0f0
     numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
@@ -331,7 +333,9 @@ end
 VOL[1]=Vtotib=TCF, VOL[4]=merch cubic, VOL[2]=Scribner board feet."
 function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32 = 1f0,
                     topd::Float32 = 4f0, stump::Float32 = 1f0, bftopd::Float32 = 6f0,
-                    iregn::Int = 3, wdsg::Float32 = 0f0, brkht::Float32 = 0f0)
+                    iregn::Int = 3, wdsg::Float32 = 0f0, brkht::Float32 = 0f0, ht2td = nothing)
+    # `ht2td` (optional 2-slot buffer) ← [HT1PRD of the cubic call, HT1PRD of the board call] (nsvb.f:322-333)
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     vol = zeros(Float32, 15)
     (d < 1f0 || h < 5f0) && return vol
     spcd, div, stdorg = _nvb_voleq_key(voleq)
@@ -354,8 +358,12 @@ function cr_nvb_vol(voleq::AbstractString, d::Float32, h::Float32; bark::Float32
         # region 3 keeps OPT=22, COR='Y'.
         opt = (iregn == 6 || iregn == 11) ? 23 : _NVB_R3_OPT
         cor = (iregn == 6 || iregn == 11) ? 'N' : 'Y'
-        vol[4] = _nvb_merch_cuft(d, h, vib, stump, topd * bark, r5[1], r5[2], minl, merl; opt = opt, brkht = brkht)
-        vol[2] = _nvb_board(d, h, vib, stump, bftopd * bark, r5[1], r5[2], minl, merl; opt = opt, cor = cor, brkht = brkht)
+        hc = Ref(0f0); hb = Ref(0f0)
+        vol[4] = _nvb_merch_cuft(d, h, vib, stump, topd * bark, r5[1], r5[2], minl, merl; opt = opt, brkht = brkht,
+                                 ht_out = hc)
+        vol[2] = _nvb_board(d, h, vib, stump, bftopd * bark, r5[1], r5[2], minl, merl; opt = opt, cor = cor, brkht = brkht,
+                            ht_out = hb)
+        ht2td === nothing || (ht2td[1] = hc[]; ht2td[2] = hb[])
     end
     return vol
 end

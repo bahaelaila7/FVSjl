@@ -167,7 +167,10 @@ BLMVOL (blmvol.f:6) with HTTYPE='F': total cubic VOL(1), Scribner board VOL(2) (
 VOL(4) for a BLM VOLEQ. `mtopp` is the inside-bark merch top, `fclass` the FVS form class.
 """
 function blm_vol(voleq::AbstractString, mtopp::Float32, httot::Float32, dbhob::Float32, fclass::Int;
-                 bfpflg::Bool = false, cupflg::Bool = true)
+                 bfpflg::Bool = false, cupflg::Bool = true, ht_out = nothing)
+    # `ht_out` (a Ref) ← HT1PRD = LMERCH + STUMP (blmvol.f:427), set only once BLMMLEN runs (the short-tree and
+    # SMD_17 < MTOPP exits leave the caller's HT1PRD = 0).
+    ht_out === nothing || (ht_out[] = 0f0)
     vol1 = 0f0; vol2 = 0f0; vol4 = 0f0
     fclass <= 0 && return (vol1, vol2, vol4)                       # ERRFLAG 2
     httot <= 0f0 && return (vol1, vol2, vol4)                      # ERRFLAG 4
@@ -190,6 +193,7 @@ function blm_vol(voleq::AbstractString, mtopp::Float32, httot::Float32, dbhob::F
     evod = 2; maxlen = 16.0f0; minlen = 8.0f0; opt = 23; stump = 1.0f0; trim = 0.3f0; merchl = 8.0f0
     d17 = Float32(round((dbhob * Float32(fclass)) / 100f0, RoundNearestTiesAway))
     lmerch = _blm_mlen(profile, tth, dbhob, d17, stump, mtopp, htlog)
+    ht_out === nothing || (ht_out[] = lmerch + stump)
     lmerch < merchl && return (vol1, vol2, vol4)
     (lmerch / (maxlen + trim)) > 20f0 && return (vol1, vol2, vol4)   # ERRFLAG 12
     numseg = _nvb_numlog(opt, evod, lmerch, maxlen, minlen, trim)
@@ -230,11 +234,14 @@ end
 D ≥ BFMIND, the board call (MTOPP = BFTOPD·BARK → VOL(2)). FORMCL supplies the form class `fc`.
 Returns (TCF, MCF, BBFV) before the driver's DBHMIN/BFMIND gates and the broken-top trim."""
 function _blm_natcrs(eq::AbstractString, fc::Int, d::Float32, h::Float32, bark::Float32,
-                     topd::Float32, bftopd::Float32, bfmind::Float32)
-    v1, _, v4 = blm_vol(eq, topd * bark, h, d, fc; bfpflg = false, cupflg = true)
+                     topd::Float32, bftopd::Float32, bfmind::Float32; ht2td = nothing)
+    # `ht2td` (optional 2-slot buffer) ← [HT1PRD of the cubic call, HT1PRD of the board call (0 if D < BFMIND)]
+    hc = Ref(0f0); hb = Ref(0f0)
+    v1, _, v4 = blm_vol(eq, topd * bark, h, d, fc; bfpflg = false, cupflg = true, ht_out = hc)
     bf = 0f0
     if d >= bfmind
-        _, bf, _ = blm_vol(eq, bftopd * bark, h, d, fc; bfpflg = true, cupflg = true)
+        _, bf, _ = blm_vol(eq, bftopd * bark, h, d, fc; bfpflg = true, cupflg = true, ht_out = hb)
     end
+    ht2td === nothing || (ht2td[1] = hc[]; ht2td[2] = hb[])
     return (max(v1, 0f0), max(v4, 0f0), max(bf, 0f0))
 end
