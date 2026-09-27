@@ -2400,6 +2400,15 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
             end
+        elseif r6_ffe_code(s.variant) !== :none && !(s.variant isa SouthCentralOregon)
+            # bm/ec/pn/op/wc fmvinit.f: HTX(I,1:4) = 1.0 for every species ⇒ FMSNGHT takes the FMR6HTLS random
+            # loss (snag.jl). SO sets its snag parameters per forest in FMCBA (so/fmcba.f:925-990) — not here.
+            @inbounds for sp in 1:nspecies(s.variant)
+                fs.params.snag_htx[Int32(sp)] = (1f0, 1f0, 1f0, 1f0)
+            end
+            # fmvinit.f PBSOFT = PBSMAL = 0 ⇒ FMSFALL computes no post-burn fall rates (RSOFT = RSMAL = 0,
+            # fmsfall.f:25-38 `IF (PBSOFT .GT. 0.0)`); the 1.0/0.9 defaults are the SN/interior/California values.
+            fs.params.pb_soft = 0f0; fs.params.pb_smal = 0f0
         end
     end
     while true

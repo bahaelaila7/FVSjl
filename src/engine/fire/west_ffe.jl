@@ -17,7 +17,7 @@
 
 "Western variants whose FFE snag bole / live-carbon stem use `ffe_west_nocut` (fmsvol.f non-eastern branch)."
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
-                   v isa EasternMontana || v isa CentralRockies
+                   v isa EasternMontana || v isa CentralRockies || v isa EastCascades
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -42,6 +42,20 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
         startswith(eq, "I") || return (0f0, 0f0, bark, false)
         w = cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)
         return (max(w[1], 0f0), d >= (sp == 7 ? 6f0 : 7f0) ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
+    elseif v isa EastCascades                                  # ec: compute_volumes_ec! (FW2 westside / FW2 / 616BEHW)
+        # ec/fmsvol.f = the shared western FMSVOL: NATCRS at (D,H), BRATIO(JS,D,H), no top-kill; CTKFLG=.TRUE. for
+        # every family (fvsvol.f), so a height-lost snag always takes the CFTOPK trim.
+        bark = wc_bratio(s.coef.species, sp, d); dbhmin = sp == 7 ? 6f0 : 7f0
+        if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+            tcf, mcf, _ = wc_fw2_westside_vol(eq, d, h, bark)
+        elseif mdl == "FW2"
+            w = cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
+                           iregn = 6, board_cor = 'N', merch_opt = 23)
+            tcf = w[1]; mcf = w[4] + w[7]
+        else
+            tcf, mcf, _ = ec_behre_vol(sp, Int(s.plot.forest_idx), d, h, bark)
+        end
+        return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
     elseif v isa InlandEmpire                                  # ie: region-6 Behre / FW2 / region-1-2 DVE
         bark = ie_bratio(sp, d); dbhmin = sp == 7 ? 6f0 : 7f0
         if occursin("BEH", eq)
@@ -117,7 +131,12 @@ _snag_htr1(::Teton) = 0.0228f0
 _snag_htr1(::Utah) = 0.0228f0
 _snag_htr1(::CentralRockies) = 0.0228f0
 "HTXSFT (soft-snag height-loss multiplier, {v}/fmvinit.f): UT/CR 10, the default 2 elsewhere."
-_snag_htxsft(v) = (v isa Utah || v isa CentralRockies) ? 10f0 : 2f0
+_snag_htxsft(v) = (v isa Utah || v isa CentralRockies || v isa Klamath || v isa WestSierra ||
+                   v isa CentralCalifornia || v isa OregonCoast) ? 10f0 :
+                  r6_ffe_code(v) === :none ? 2f0 : 1f0          # bm/ec/so/pn/op/wc fmvinit.f HTXSFT = 1.0
+# HTR1 of the R6 group (fmvinit.f): EC 0.0228; BM/SO/PN/OP/WC 0.03406.
+_snag_htr1(::EastCascades) = 0.0228f0
+_snag_htr1(::Union{BlueMountains,SouthCentralOregon,PacificNorthwest,Olympic,WestCascades}) = 0.03406f0
 
 """
 Snag fall FMSFALL ({v}/fmsfall.f) for the western layer: the linear small-snag fall runs below 18" (IE/KT/CI/TT/UT;

@@ -71,8 +71,9 @@ to the down-wood pool as it falls. `xv` is the `crown_biomass` tuple (foliage, w
 function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32, dkcl::Integer)
     fs = s.fire; coef = s.coef
     cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
-    tsoft = (1.24f0 * dbh + 13.82f0) *
-            get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
+    dcx = get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
+    # FMSNGDK (fmscro.f:99): the R6 variants' JYRSOFT·DECAYX (_snag_dktime); others the (1.24·D+13.82)·DECAYX form.
+    tsoft = r6_ffe_code(s.variant) === :none ? (1.24f0 * dbh + 13.82f0) * dcx : _snag_dktime(s, Int(sp), dbh, dcx)
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
