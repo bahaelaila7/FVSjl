@@ -135,8 +135,13 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # fuel load ⇒ a more-severe post-thin fire, matching live (jl previously omitted ordinary-cut crown-slash
         # ⇒ under-fueled ⇒ under-killed severe post-thin fires; cst01+THINDBH+SIMFIRE live 255→5 vs jl 255→56).
         # Corpus fires have no pre-fire cut ⇒ this is a no-op there (stays bit-exact).
+        # CTCRWN (cuts.f:1383-1388, LYARD is on whenever FFE is active): the crowns left = PRCRWN of the non-lost
+        # removal + the downed yarding loss, CTCRWN = PRCRWN·(PREM−LOSS) + LOSS·PRDSNG (= PREM at the defaults
+        # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
+        _loss = prem * s.control.yardloss_prlost
+        _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
         let xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
-            idc = ffe_dkr_cls(s, sp), xcr = prem * _FM_P2T
+            idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
                 s.fire.cwd[isz, 2, idc] += xv[isz + 1] * xcr          # branch classes → woody sizes 1-5

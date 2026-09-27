@@ -2913,6 +2913,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
             # harvest lost in yarding (left on site); of that LOSS, PRDSNG is downed + (1−PRDSNG) standing snags.
             rec.present[2] && (s.control.yardloss_prlost = clamp(Float32(rec.values[2]), 0f0, 1f0))
             rec.present[3] && (s.control.yardloss_prdsng = clamp(Float32(rec.values[3]), 0f0, 1f0))
+            rec.present[4] && (s.control.yardloss_prcrwn = clamp(Float32(rec.values[4]), 0f0, 1f0))   # PRCRWN (blank ⇒ 1)
         elseif kw == "SALVAGE"                                  # ABANDONED in Fortran (cuts.f:103) — recognized
                                                                 # no-op so the keyword doesn't fall through silently
         elseif kw == "SETPTHIN"; kw_thin!(s, rec, Int32(248))   # point-thin prescription (point, metric)

@@ -232,6 +232,8 @@ mutable struct Control
                                          # merch/saw/bdft are scaled by (1−PRLOST); total cubic + BA are not.
     yardloss_prdsng::Float32             # YARDLOSS PRDSNG (cuts.f:1462): of the yarding LOSS, this proportion
                                          # becomes DOWNED snags and (1−PRDSNG) STANDING snags (FFE, cuts.f:1384-85).
+    yardloss_prcrwn::Float32             # YARDLOSS PRCRWN (cuts.f:1463, default 1): proportion of the non-lost removed
+                                         # trees' crowns left in the stand as slash (CTCRWN, cuts.f:1386-88).
     cut_pref::Vector{Int32}              # per-species cut preference (IORDER, set by SPECPREF)
     multipliers::Vector{GrowthMultiplier} # keyword growth/mortality multipliers (MULTS)
     htgstp_events::Vector{ScheduledActivity} # HTGSTOP/TOPKILL top-damage events (htgstp.f);
@@ -413,6 +415,7 @@ function Control()
         ScheduledActivity[], ConditionalActivity[], Set{Int32}(), # schedule, conditionals, years_cut
         0f0,                                                    # yardloss_prlost (YARDLOSS, inactive)
         0f0,                                                    # yardloss_prdsng (YARDLOSS downed-snag proportion)
+        1f0,                                                    # yardloss_prcrwn (YARDLOSS crowns left, default 1)
         zeros(Int32, MAXSP),                                    # cut_pref (IORDER)
         GrowthMultiplier[],                                     # multipliers (MULTS)
         ScheduledActivity[],                                    # htgstp_events (HTGSTOP/TOPKILL)
