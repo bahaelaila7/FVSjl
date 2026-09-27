@@ -277,10 +277,15 @@ function snapshot_esb_inputs!(s::StandState)
     # saturates ⇒ ~4× AUTOES over-production on M333 subalpine stands). MEASURED FVSie_g16 1856003217290487.
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
     ptbaold = zeros(Float32, nptids)
+    # esfltr.f:61-68 (record order): PIX=PI−FLOAT(NONSTK); BAAINV(N)=BAAINV(N)+0.005454154*D*D*ZPROB*PIX, evaluated
+    # left to right (((c·D)·D)·PROB)·PIX — MEASURED FVSie_g16 3356357010690 point 4 BAAINV 4397AE6E; the former
+    # P·c·D·D·(PI/GROSPC) form rounded ESB1(4) 4 ULP off (C0084734 vs C0084738) ⇒ PROB1 ⇒ every cohort record's TPA.
+    pix = p.pi - Float32(p.nonstockable)
     @inbounds for i in 1:t.n
-        t.dbh[i] >= 2.999f0 || continue                       # OVERSTORY (D≥REGNBK)
+        d = t.dbh[i]
+        d >= 2.999f0 || continue                              # OVERSTORY (D≥REGNBK)
         pid = Int(t.plot_id[i])
-        (1 <= pid <= nptids) && (ptbaold[pid] += t.tpa[i] * 0.005454154f0 * t.dbh[i] * t.dbh[i] * scale)
+        (1 <= pid <= nptids) && (ptbaold[pid] += 0.005454154f0 * d * d * t.tpa[i] * pix)
     end
     s.estab.inv_point_baaold = ptbaold
     s.estab.inv_baaold = ptbaold[1]                           # point-1 value (scalar path / EM)

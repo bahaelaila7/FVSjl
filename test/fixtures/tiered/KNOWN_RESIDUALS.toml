@@ -2694,17 +2694,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Stratum_3_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulp2_16=1 ulpbig=2] max|Δ|=0.6197 | e.g. stand 11855985010690 year 2046: live=0.619726836681366 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Structure_Class"
 stand = "*"
 year = "*"
@@ -4383,17 +4372,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [material=2 ulpbig=2] max|Δ|=2.0 | e.g. stand 11855985010690 year 2056: live=28 jl=29"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulp2_16=1 ulpbig=2] max|Δ|=0.6197 | e.g. stand 11855985010690 year 2046: live=0.619726836681366 jl=0.0"""
 
 [[residual]]
 variant = "IE"

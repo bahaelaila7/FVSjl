@@ -923,6 +923,14 @@ mutable struct Establishment
     # the ≤19-yr continuation ⇒ NTALLY+1, a lone PLANT/NATURAL ⇒ 1; 0 = no ESTAB call) and the cycle year it is for.
     cyc_ntally::Int32
     cyc_ntally_year::Int32
+    # The two halves of the stocking calibration kept separately, because estab.f:579 evaluates
+    # 1/(1+EXP(-(PN+ESB-ESB1(NCOUNT)))) LEFT-TO-RIGHT — (PN+ESB)−ESB1 — which rounds differently from PN+(ESB−ESB1)
+    # (1-ULP PROB1 ⇒ 1-ULP PROB on the ingrowth records). esb_value=ESB (NaN until the ESB block runs); esb1_*
+    # = ESB1 for the scalar (point-1), per-point and per-(point × IPREP) forms that parallel esb_shift/_pt/_ptip.
+    esb_value::Float32
+    esb1_scalar::Float32
+    esb1_pt::Vector{Float32}
+    esb1_ptip::Matrix{Float32}
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -930,7 +938,8 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1))
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1),
+                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0))
 
 mutable struct DbsState
     enabled::Bool

@@ -101,4 +101,23 @@ end
     r5 = _run_stand("888512560290487")
     @test _treelist_diffcells("888512560290487", r5.db, ("2031", "2041", "2051", "2061", "2071"); cols = ("BdFt", "TCuFt", "MCuFt")) == 0
 end
+
+# estab.f:579 FTEMP=1/(1+EXP(-(PN+ESB-ESB1(NCOUNT)))) evaluates (PN+ESB)−ESB1 left to right (jl added the precomputed
+# ESB−ESB1), and the plot aspect terms are COS/SIN = glibc cosf/sinf: PROB1 was 1 ULP off ⇒ every ingrowth record's
+# PROB=(ESPROB*300)/DUPNPT 1 ULP off (196378260020004: 2.0518632 vs live 2.0518634 on 6 cohort records).
+# The per-point BAAA/OVER feeding ESTOCK/ESPADV are dense.f's IND1-order BATREE*PI/GROSPC sums, and BAAINV (ESB1) is
+# esfltr.f's record-order 0.005454154*D*D*PROB*PIX — both 1-4 ULP off in jl's reassociated forms (684750664126144
+# point-3 BAAA 432083F6 vs 432083F8; IE 3356357010690 point-4 ESB1 C0084738 vs C0084734).
+@testset "EM/IE AUTOES PROB1 at estab.f precision ((PN+ESB)−ESB1, cosf/sinf, BAAA, BAAINV) vs FVSem/FVSie_g16" begin
+    @test _treelist_diffcells(STAND, _run.db, ("2012", "2022", "2032", "2042", "2052", "2062")) == 0
+    r6 = _run_stand("684750664126144")
+    @test _treelist_diffcells("684750664126144", r6.db, ("2028", "2038", "2048", "2058", "2068")) == 0
+    # shared estb code: the IE stand whose point-4 ESB1 was 4 ULP off
+    dI = mktempdir(); _, dbI, crI, _ = run_case("IE", "3356357010690", "none"; dir = dI)
+    @test !crI
+    goldI = _keyed(read_csv(joinpath(fixture_dir("IE"), "3356357010690_none.FVS_TreeList.csv"))...)
+    gotI  = _keyed(db_table_rows(dbI, "FVS_TreeList")...)
+    @test count(k -> !haskey(gotI, k) || any(!_eq(v, get(gotI[k], c, "")) for (c, v) in goldI[k] if c != "StandID"),
+                collect(keys(goldI))) == 0
+end
 end # module
