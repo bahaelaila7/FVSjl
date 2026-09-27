@@ -166,7 +166,14 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
-            if ssng > 0f0
+            if ssng > 0f0 && _fmsadd_binned(s.variant)
+                # R6: FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157)
+                push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
+                # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
+                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
+                fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                        ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
+            elseif ssng > 0f0
                 add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
                           bolevol = bolevol, fallvol = fallvol, height = t.height[i])
             end
@@ -332,11 +339,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             _ec_cut_on(s) && empty!(s.econ.calc.cut_prem)
             push!(s.control.years_cut, yr)   # evaluated: the 2nd (grow_cycle!) cuts! call must not value it again
+            s.fire === nothing || empty!(s.fire.pend_cut)
             return _NO_REMOVAL
         end
         if !met
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             push!(s.control.years_cut, yr)   # evaluated (canceled): idempotent re-call is a no-op
+            s.fire === nothing || empty!(s.fire.pend_cut)
             return _NO_REMOVAL
         end
     end
@@ -346,6 +355,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         cl_armed && _cutlist_capture!(s, tpa_snap)  # PRTRLS(2) → DBSCUTS (cuts.f:1740, after DO 1700, before TREDEL)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
+    end
+    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags (R6 variants)
+    if s.fire !== nothing && !isempty(s.fire.pend_cut)
+        pc = [(Int(x[1]), x[2], x[3], x[4], x[5], x[6], x[7]) for x in s.fire.pend_cut]
+        empty!(s.fire.pend_cut)
+        fmsadd_bin!(s, pc, Int(yr); ityp = 2, bolefn = _r6_snag_bolefn(s))
     end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
     # yarding (left on site, routed to fuel pools), so the REPORTED removed merch/saw/bdft are scaled by

@@ -1466,8 +1466,8 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 53
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
+max_cells = 54
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
 
 [[residual]]
 variant = "BM"
@@ -1477,8 +1477,8 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 51
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
+max_cells = 52
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
 
 [[residual]]
 variant = "BM"
@@ -20513,57 +20513,3 @@ max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
 
 
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2017: live=70.0 jl=71.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
