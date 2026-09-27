@@ -88,3 +88,18 @@ end
         @test (k, col, jv) == (k, col, lv)
     end
 end
+
+_on1_rows(stem) = cd(joinpath(_ON1_FX)) do
+    txt = _ON1.run_keyfile("$stem.key"; variant = _ON1.Ontario(), output = :sum)
+    [split(l) for l in split(txt, '\n') if occursin(r"^\d{4} ", l)]
+end
+_on1_live_rows(stem) = [split(l) for l in readlines(joinpath(_ON1_FX, "$(stem)_live.rows"))]
+
+# (5) canada/on/vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `D=D+DG/BARK`: OCFVOL/volont ZAK use the bark of
+# the cycle-START DBH (and the grown HT) for the dib — not the bark of the updated DBH.
+@testset "ON ont01 cyc1: TCuM (live records) + .sum rows == live (vols.f bark at the cycle-start DBH)" begin
+    for (k, lv, jv) in _on1_col(:TCuM; sel = (k, v) -> v.TPH > 0)
+        @test (k, jv) == (k, lv)
+    end
+    @test _on1_rows("ont01") == _on1_live_rows("ont01")
+end
