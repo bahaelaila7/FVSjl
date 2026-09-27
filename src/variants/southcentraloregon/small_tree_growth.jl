@@ -106,11 +106,76 @@ const SO_RG_HT2_24 = -6.5405f0    # blkdat.f HT2(24)=AS  (BX for the ln-form)
 # so/regent.f:520 CASE(15,19:23,25,26,28:31,33) — WC-variant hardwoods (double-DDS quirk, DGBND applied).
 const SO_RG_HARDWOOD = Set([15, 19, 20, 21, 22, 23, 25, 26, 28, 29, 30, 31, 33])
 
+# so/regent.f label 5 → 23 for one slot K: returns (DBH(K) set directly (<0 ⇒ none), DG(K)). D≥BKPT ⇒ GO TO 23
+# (DG(K) = the slot's DGDRIV DG `dglt`, untouched); HK≤4.5 ⇒ DG=0, DBH(K)=D+0.001·HK (then DGBND); SH/WO (9,27)
+# jump to 23 after their XDWT blend (no DGBND). DBH(K)=D for every slot (dgdriv.f tripling copies DBH(I)).
+function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32, htg::Float32, icr::Float32,
+                       si_raw::Float32, bkpt::Float32, scale::Float32, scale2::Float32, dgmx::Float32,
+                       dglt::Float32, xrdgro::Float32, i::Int)
+    t = s.trees; sd = s.coef.species
+    d >= bkpt && return (-1f0, dglt)
+    hk = h + htg
+    if hk <= 4.5f0
+        return (d + 0.001f0*hk, dg_bound(nothing, nothing, sp, d + 0.001f0*hk, 0f0, s.control.sp_size_cap))
+    end
+    bark = so_bratio(sd, sp, d)
+    # --- DK/DKK (regent.f:424-569): htdbh override for all but WJ/WB/AS ---
+    local dk::Float32, dkk::Float32
+    if sp == 11                                        # WJ — SITEAR linear
+        dk = (hk - 4.5f0)*10f0/(si_raw - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+        dkk = (h - 4.5f0)*10f0/(si_raw - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
+        h < 4.5f0 && (dkk = d)
+    elseif sp == 16                                    # WB — EM SMDGF form (PPCCF=1)
+        pt = Int(t.plot_id[i])
+        tpccf = (pt >= 1 && pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
+        tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+        hl = h - 4.5f0
+        dkk = 0.000231f0*hl*icr - 0.00005f0*hl*tpccf + 0.001711f0*icr + 0.17023f0*hl + 0.3f0
+        hlk = hk - 4.5f0
+        dk = 0.000231f0*hlk*icr - 0.00005f0*hlk*tpccf + 0.001711f0*icr + 0.17023f0*hlk + 0.3f0
+    elseif sp == 24                                    # AS — HT1(24)/HT2(24) ln-form (GOTO 300, no override)
+        dk = (SO_RG_HT2_24/(log(hk - 4.5f0) - SO_RG_HT1_24)) - 1f0
+        dkk = h <= 4.5f0 ? d : (SO_RG_HT2_24/(log(h - 4.5f0) - SO_RG_HT1_24)) - 1f0
+    else                                               # all others: htdbh override (LHTDRG=false)
+        dk = so_htdbh_dbh(ifor, sp, hk)
+        dkk = h <= 4.5f0 ? d : so_htdbh_dbh(ifor, sp, h)
+    end
+    h < 4.5f0 && (dkk = d)                             # regent.f:605
+    # --- DG (LESTB=false, regent.f:597-692) ---
+    local dg::Float32
+    if sp in SO_RG_HARDWOOD                            # WC hardwoods — double-DDS quirk, then DGBND
+        dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark*xrdgro : (dk - dkk)*bark*xrdgro
+        dg < 0f0 && (dg = 0.1f0); dg > dgmx && (dg = dgmx)
+        dds = dg*(2f0*bark*d + dg)*scale2
+        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)  # common block (681-688): re-converts
+        dds = dg*(2f0*bark*d + dg)*scale2
+        dg = sqrt((d*bark)^2 + dds) - bark*d
+    elseif sp == 9 || sp == 27                         # SH/WO — XDWT blend; GO TO 23 skips DGBND
+        xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
+        dgsm = (dk - dkk)*bark*xrdgro; dgsm < 0f0 && (dgsm = 0f0)
+        dds = dgsm*(2f0*bark*d + dgsm)*scale2
+        dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
+        dg = dgsm*(1f0 - xdwt) + dglt*xdwt
+        (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
+        return (-1f0, dg)
+    else                                               # DEFAULT
+        dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark*xrdgro : (dk - dkk)*bark*xrdgro
+        dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
+        (sp == 16 && (d + dg) < SO_RG_DIAM[sp]) && (dg = SO_RG_DIAM[sp] - d)
+        dds = dg*(2f0*bark*d + dg)*scale2
+        dg = sqrt((d*bark)^2 + dds) - bark*d
+    end
+    (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
+    return (-1f0, dg_bound(nothing, nothing, sp, d, dg, s.control.sp_size_cap))   # so/dgbnd.f = SIZCAP cap
+end
+
 function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
     sd = s.coef.species
-    avh = stand_top_height(s); ba = p.basal_area; dgsd = s.control.dg_sd
+    # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
+    avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
     relden = p.relative_density; ifor = Int(p.forest_idx); yr = s.control.year
     fnt = fint                                             # LESTB=false (cycling): FNT=FINT
     # PCTRED density modifier (regent.f:220-225) — computed once from stand AVHT·CCF.
@@ -118,6 +183,8 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
     pctred = SO_RG_AB[1] + xden*(SO_RG_AB[2] + xden*(SO_RG_AB[3] + xden*(SO_RG_AB[4] +
              xden*(SO_RG_AB[5] + xden*SO_RG_AB[6]))))
     pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    trip = stash !== nothing && !isempty(stash.dgU)
+    yr_now = current_cycle_year(s)                         # so/regent.f MULTS(3/6, IY(ICYC))
     # so/regent.f:232-269 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
     @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -128,6 +195,8 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
         si_raw = p.sp_site_index[sp]                        # SITEAR (raw; so_smhtgf/WJ use this)
         si_c = si_raw; si_c > shi && (si_c = shi); si_c <= slo && (si_c = slo + 0.5f0)  # regent SI clamp (AS RELSI)
         con = exp(c.htg_cor_small[sp])                     # RHCON(=1)·exp(HCOR); HCOR=0 (no small-tree calib)
+        xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
+        xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         regyr = (sp == 9 || sp == 27) ? 5f0 : 10f0
         scale = fnt / regyr; scale2 = yr / fnt
         dgmx = sp == 16 ? fint*0.2f0 : SO_RG_DGMAX[sp]*scale
@@ -150,86 +219,42 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
                                pct = t.crown_ratio[i], avh = avh)
             htgr = (sp == 9 || sp == 27) ? pothtg*con : pothtg*pctred*vigor*con  # SH/WO skip PCTRED·VIGOR
         end
-        # --- random ht component (SO DGSD=2.0 ≥ 1 ⇒ fires every tree, #206 cornered) ---
-        zzran = 0f0
-        if dgsd >= 1f0
-            while true
-                zzran = bachlo(s.rng, 0f0, 1f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        htgr = (htgr + zzran*0.1f0) * scale                # XRHGRO=1
-        # --- blend small & large tree HTG ---
         xmn = SO_RG_XMIN[sp]; xmx = SO_RG_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-        t.ht_growth[i] = htgr*(1f0 - xwt) + xwt*t.ht_growth[i]
-        t.ht_growth[i] < 0.1f0 && (t.ht_growth[i] = 0.1f0)
         cap = s.control.sp_size_cap[sp, 4]
-        (h + t.ht_growth[i] > cap) && (t.ht_growth[i] = max(cap - h, 0.1f0))
-        # --- small-tree DBH: only D < BKPT (3", 99 for WJ11); else keep large-tree DG ---
-        bkpt = sp == 11 ? 99f0 : 3f0
-        if d >= bkpt
-            _ca_rg_stash!(stash, t, i); continue
+        bkpt = sp == 11 ? 99f0 : 3f0                       # BKPT: 3", 99 for WJ(11)
+        large_htg = t.ht_growth[i]; dg_main = t.diam_growth[i]
+        htgr0 = htgr
+        # so/regent.f:708-711 — with LTRIP each tripled copy K=ITRN+2I−2+L (L=1,2) reruns label 2 → 23: a FRESH
+        # ZZRAN, the blend with the copy's own HTG(K), SIZCAP and (D<BKPT) its own DG(K)/DBH(K). H and D stay
+        # record I's; DBH(K)=DBH(I) (dgdriv.f). POTHTG (label 2) is deterministic in H/D/ICR ⇒ computed once.
+        for l in 0:(trip ? 2 : 0)
+            lthg = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            dglt = l == 0 ? dg_main : (l == 1 ? stash.dgU[i] : stash.dgL[i])
+            # --- random ht component (label 4; SO DGSD=2.0 ≥ 1 ⇒ fires every tree) ---
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr0 + zzran*0.1f0) * xrhgro * scale
+            # --- blend small & large tree HTG ---
+            htg = htgr*(1f0 - xwt) + xwt*lthg
+            htg < 0.1f0 && (htg = 0.1f0)
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            dbhk, dg = _so_regent_dg(s, sp, ifor, d, h, htg, icr, si_raw, bkpt, scale, scale2, dgmx, dglt, xrdgro, i)
+            if l == 0
+                t.ht_growth[i] = htg; t.diam_growth[i] = dg
+                dbhk >= 0f0 && (t.dbh[i] = dbhk)
+            else
+                l == 1 ? (stash.htgU[i] = htg) : (stash.htgL[i] = htg)
+                l == 1 ? (stash.dgU[i] = dg) : (stash.dgL[i] = dg)
+                l == 1 ? (stash.dbhU[i] = dbhk >= 0f0 ? dbhk : d) : (stash.dbhL[i] = dbhk >= 0f0 ? dbhk : d)
+                stash.is_small[i] = true
+            end
         end
-        htg = t.ht_growth[i]; hk = h + htg
-        if hk <= 4.5f0
-            t.diam_growth[i] = 0f0
-            t.dbh[i] = d + 0.001f0*hk
-            _ca_rg_stash!(stash, t, i); continue
-        end
-        bark = so_bratio(sd, sp, d)
-        # --- DK/DKK (regent.f:424-569): htdbh override for all but WJ/WB/AS ---
-        local dk::Float32, dkk::Float32
-        if sp == 11                                        # WJ — SITEAR linear
-            dk = (hk - 4.5f0)*10f0/(si_raw - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
-            dkk = (h - 4.5f0)*10f0/(si_raw - 4.5f0); dkk < 0.1f0 && (dkk = 0.1f0)
-            h < 4.5f0 && (dkk = d)
-        elseif sp == 16                                    # WB — EM SMDGF form (PPCCF=1)
-            pt = Int(t.plot_id[i])
-            tpccf = (pt >= 1 && pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
-            tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
-            hl = h - 4.5f0
-            dkk = 0.000231f0*hl*icr - 0.00005f0*hl*tpccf + 0.001711f0*icr + 0.17023f0*hl + 0.3f0
-            hlk = hk - 4.5f0
-            dk = 0.000231f0*hlk*icr - 0.00005f0*hlk*tpccf + 0.001711f0*icr + 0.17023f0*hlk + 0.3f0
-        elseif sp == 24                                    # AS — HT1(24)/HT2(24) ln-form (GOTO 300, no override)
-            dk = (SO_RG_HT2_24/(log(hk - 4.5f0) - SO_RG_HT1_24)) - 1f0
-            dkk = h <= 4.5f0 ? d : (SO_RG_HT2_24/(log(h - 4.5f0) - SO_RG_HT1_24)) - 1f0
-        else                                               # all others: htdbh override (LHTDRG=false)
-            dk = so_htdbh_dbh(ifor, sp, hk)
-            dkk = h <= 4.5f0 ? d : so_htdbh_dbh(ifor, sp, h)
-        end
-        h < 4.5f0 && (dkk = d)                             # regent.f:605
-        # --- DG (LESTB=false, regent.f:597-692) ---
-        local dg::Float32
-        if sp in SO_RG_HARDWOOD                            # WC hardwoods — double-DDS quirk, then DGBND
-            dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark : (dk - dkk)*bark
-            dg < 0f0 && (dg = 0.1f0); dg > dgmx && (dg = dgmx)
-            dds = dg*(2f0*bark*d + dg)*scale2
-            dg = sqrt((d*bark)^2 + dds) - bark*d
-            dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)  # common block (681-688): re-converts
-            dds = dg*(2f0*bark*d + dg)*scale2
-            dg = sqrt((d*bark)^2 + dds) - bark*d
-        elseif sp == 9 || sp == 27                         # SH/WO — XDWT blend; GO TO 23 skips DGBND
-            xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
-            dgsm = (dk - dkk)*bark; dgsm < 0f0 && (dgsm = 0f0)
-            dds = dgsm*(2f0*bark*d + dgsm)*scale2
-            dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
-            dg = dgsm*(1f0 - xdwt) + t.diam_growth[i]*xdwt
-            (t.dbh[i] + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - t.dbh[i])
-            t.diam_growth[i] = dg
-            _ca_rg_stash!(stash, t, i); continue
-        else                                               # DEFAULT
-            dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark : (dk - dkk)*bark
-            dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
-            (sp == 16 && (t.dbh[i] + dg) < SO_RG_DIAM[sp]) && (dg = SO_RG_DIAM[sp] - t.dbh[i])
-            dds = dg*(2f0*bark*d + dg)*scale2
-            dg = sqrt((d*bark)^2 + dds) - bark*d
-        end
-        (t.dbh[i] + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - t.dbh[i])
-        dg = dg_bound(nothing, nothing, sp, t.dbh[i], dg, s.control.sp_size_cap)  # so/dgbnd.f = SIZCAP cap
-        t.diam_growth[i] = dg
-        _ca_rg_stash!(stash, t, i)
     end
     return s
 end
