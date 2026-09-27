@@ -11,9 +11,11 @@
 #    broken tops (jl dubbed 4.5 ft ⇒ volume at the broken height).
 #  * EC BRATIO: ISPC 1:19,31 are the constant BARK1 (ec/bratio.f), not BARK1·D/D (1-ULP off ⇒ BEHPRM-amplified
 #    broken-top cubic).
-#  * CA TreeList crown width: IFOR≤5 → R5CRWD (cwcalc.f:385), else CAMAP incl. the 12 national codes CA added.
+#  * TreeList crown width routed as cwcalc.f does: CA IFOR≤5 → R5CRWD (:385) else CAMAP (+12 national codes);
+#    NC IFOR≤3/5 → R5CRWD MAPNC (:382) else NCMAP + Siskiyou BF; SO IFOR 4-9 → R5CRWD MAPSO (:376) else SOMAP + KODFOR BF.
 # Fixture: a sub-DB with one synthetic stand per distinct live VOLEQ table (every species × 3 sizes + 2 broken
-# tops + 2 missing heights) and two FIA stands per variant; goldens = live FVS_TreeList at the inventory year.
+# tops + 2 missing heights) and two FIA stands per variant; goldens = live FVS_TreeList at the inventory year
+# (TCuFt/MCuFt/BdFt/CrWidth, all five variants).
 using FVSjl, Test, SQLite, DBInterface
 
 @testset "westside NC/CA/SO/WS/EC cycle-0 volume vs live (FVS_TreeList)" begin
@@ -53,8 +55,6 @@ using FVSjl, Test, SQLite, DBInterface
             push!(get!(got, (st, String(strip(r.TreeId))), NTuple{4,Float64}[]), (r.TCuFt, r.MCuFt, r.BdFt, r.CrWidth))
         end
         SQLite.close(out)
-        # NC/SO TreeList CrWidth is outside this fix (NC Crookston forests / SO R5CRWD forests not routed) — volume only.
-        cw = v in ("ca", "ws", "ec")
         @testset "$v" begin
             @test length(got) == length(g)
             for (k, gs) in g
@@ -64,7 +64,7 @@ using FVSjl, Test, SQLite, DBInterface
                     @test b[1] ≈ a[1] rtol = 1e-5 atol = 1e-4
                     @test b[2] ≈ a[2] rtol = 1e-5 atol = 1e-4
                     @test b[3] ≈ a[3] rtol = 1e-5 atol = 1e-3
-                    cw && (@test b[4] ≈ a[4] rtol = 1e-5)
+                    @test b[4] ≈ a[4] rtol = 1e-5
                 end
             end
         end
