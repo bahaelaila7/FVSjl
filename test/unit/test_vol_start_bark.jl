@@ -11,7 +11,7 @@ using FVSjl, Test
 
 const _NVX = joinpath(@__DIR__, "..", "fixtures", "nvel_volume")
 
-function _sum_rows(path::AbstractString)
+function _vsb_sum_rows(path::AbstractString)
     rows = Dict{Int,Vector{Float64}}()
     for ln in eachline(path)
         f = split(ln)
@@ -20,7 +20,7 @@ function _sum_rows(path::AbstractString)
     end
     return rows
 end
-_sum_rows_text(txt::AbstractString) = (p = tempname(); write(p, txt); _sum_rows(p))
+_sum_rows_text(txt::AbstractString) = (p = tempname(); write(p, txt); _vsb_sum_rows(p))
 
 @testset "projected-cycle volume uses the start-of-cycle bark (vs live)" begin
     for (v, key) in ((FVSjl.CentralRockies(), "cr_316922874489998"), (FVSjl.Utah(), "ut_2875463010690"))
@@ -28,7 +28,7 @@ _sum_rows_text(txt::AbstractString) = (p = tempname(); write(p, txt); _sum_rows(
         cp(joinpath(_NVX, key * ".key"), joinpath(dir, key * ".key"))
         cp(joinpath(_NVX, "stands.db"), joinpath(dir, "stands.db"))
         jl = _sum_rows_text(cd(() -> FVSjl.run_keyfile(key * ".key"; variant = v, output = :sum), dir))
-        live = _sum_rows(joinpath(_NVX, key * ".live.sum"))
+        live = _vsb_sum_rows(joinpath(_NVX, key * ".live.sum"))
         @test !isempty(live) && keys(jl) == keys(live)
         for y in sort(collect(keys(live)))
             @test (key, y, jl[y]) == (key, y, live[y])      # every printed column, exact
