@@ -36,6 +36,9 @@ const BTU_TO_KJ = 1.0550559f0
 
 # Composite
 const M2PHA_TO_FT2PACRE = 4.3560773f0
+const M3PHA_TO_FT3PACRE = 14.291564f0
+const FT2PACRE_TO_M2PHA = 0.2295643f0     # FT2pACRtoM2pHA
+const FT3PACRE_TO_M3PHA = 0.0699713f0     # FT3pACRtoM3pHA
 
 @inline celsius_to_f(c::Real) = 1.8f0 * Float32(c) + 32.0f0
 @inline f_to_celsius(f::Real) = 0.554f0 * Float32(f) - 17.7f0

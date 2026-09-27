@@ -14,8 +14,9 @@ using FVSjl, Test, SQLite, DBInterface
         FVSjl.run_keyfile("bctop.key"; variant = FVSjl.BritishColumbia(), output = :sum)
     end
     db = SQLite.DB(joinpath(dir, "bctop.db"))
-    rows = [(r.TreeId, r.TCuFt, r.MCuFt, r.TruncHt) for r in
-            DBInterface.execute(db, "SELECT TreeId, TCuFt, MCuFt, TruncHt FROM FVS_TreeList WHERE Year = 1992 ORDER BY TreeId")]
+    # BC links metric/dbsqlite ⇒ FVS_TreeList_Metric (TCuM/MCuM in m³, TruncHt = INT((ITRUNC+5)·.01·FTtoM) in m)
+    rows = [(r.TreeId, r.TCuM, r.MCuM, r.TruncHt) for r in
+            DBInterface.execute(db, "SELECT TreeId, TCuM, MCuM, TruncHt FROM FVS_TreeList_Metric WHERE Year = 1992 ORDER BY TreeId")]
     SQLite.close(db)
     live_tcum = Dict("1" => 0.4899158477783203, "2" => 0.6418090462684631, "3" => 1.223409652709961,
                      "4" => 0.21288253366947174, "5" => 0.31424522399902344)      # FVSbc_clean TCuM (m³)
@@ -24,8 +25,8 @@ using FVSjl, Test, SQLite, DBInterface
     @test length(rows) == 5
     for (id, tcf, mcf, trh) in rows
         id = strip(id)
-        @test tcf * 0.0283168 ≈ live_tcum[id] rtol = 5e-5
-        @test mcf * 0.0283168 ≈ get(live_mcum, id, 0.0) atol = 1e-4
-        @test (trh > 0) == (live_trunc_m[id] > 0)          # only the THT trees are top-killed
+        @test tcf ≈ live_tcum[id] rtol = 5e-5
+        @test mcf ≈ get(live_mcum, id, 0.0) atol = 1e-4
+        @test trh == live_trunc_m[id]                      # metric TruncHt (m) — only the THT trees are top-killed
     end
 end

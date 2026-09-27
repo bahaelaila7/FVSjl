@@ -10,7 +10,9 @@
 # ont01 (8 inline metric trees, PW/SW/MH/BE/SB/CE/PJ/BF) classifies to FORTYP=125 (white
 # pine), size class 1, stocking class 1 → the row tail "125 11" — byte-identical to the
 # oracle. (An earlier port state emitted "999/55" = nonstocked; this locks the fix in.)
-# Golden = the FVSon_g16 ont01.sum cyc0 data row.
+# Golden = the FVSon_g16 ont01.sum cyc0 data row, regenerated 2026-09-27 from the live oracle rebuilt 2026-09-02
+# with 12-field KEYRDR buffers (INVYEAR 2004 / age 15 / IPTINV 11 now read — the old "0 0 84799" golden was the
+# stack-smash artifact) and printed through metric sumout.f's two-stage IOSUM conversion.
 # =============================================================================
 
 using Test, FVSjl
@@ -25,7 +27,7 @@ const F = FVSjl
         # run from the fixture dir so the bare TREEDATA keyword resolves ont01.tre
         row_j = cd(fx) do
             txt = F.run_keyfile("ont01.key"; variant = F.Ontario(), output = :sum)
-            only(l for l in split(txt, '\n') if occursin(r"^\s+0\s+0\s+84799", l))
+            only(l for l in split(txt, '\n') if startswith(l, "2004"))
         end
         row_o = strip(read(joinpath(fx, "ont01_cyc0_oracle.row"), String), ['\n'])
 

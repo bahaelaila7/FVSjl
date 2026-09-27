@@ -1511,14 +1511,22 @@ function run_keyfile(keypath::AbstractString;
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
-            sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
+            # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
+            met = _metric_variant(s.variant); east = s.variant isa Ontario
+            if sum_on
+                met ? write_dbs_summary_metric!(s.control.dbs_out_file, caseid, String(sid), rows; east = east) :
+                      write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
+            end
             # DBSTRLS/DBSCUTS create their table only when actually called for an accomplished list request
-            (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            if tl_on && !isempty(tl_cycles)
+                met ? write_dbs_treelist_metric!(s.control.dbs_out_file, caseid, String(sid), tl_cycles; east = east) :
+                      write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            end
             (cl_on && any(c -> !isempty(c[3]), cl_cycles)) &&
-                write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+                write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles; metric = met, east = east)
             (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
-                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles)
+                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles; metric = met, east = east)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||
