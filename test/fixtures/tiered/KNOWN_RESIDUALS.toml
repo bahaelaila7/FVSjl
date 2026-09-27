@@ -12672,17 +12672,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_TreeList"
-col = "HtG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10045
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10045 cells [material=226 ulp1=323 ulp2_16=1141 ulpbig=8355] max|Δ|=7.644 | e.g. stand 5352355010661 year 2034: live=7.401656627655029 jl=7.4016571044921875"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
 col = "PtBAL"
 stand = "*"
 year = "*"

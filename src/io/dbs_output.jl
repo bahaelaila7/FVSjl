@@ -1317,7 +1317,10 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64;
         # (MEASURED FVSem_g16 3006831010690 1989: every no-DG record DG 0, jl −1).
         Float64(t.dbh[i]), Float64(cycle0 ? (t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0 ? t.diam_growth[i] : 0f0) :
                                             t.diam_growth[i]), Float64(t.height[i]),
-        Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
+        # HtG: dbstrls.f:256 binds HTG(I). A missing height increment is 0 in FVS (cratet.f:541-548 converts only
+        # HTG>0); jl's −1 "missing" sentinel (apply_growth_input_types!) must not reach the inventory-year row
+        # (MEASURED FVSem_g16 3006831010690 1989: live HtG 0 on 11 records, jl −1).
+        Float64(cycle0 && t.ht_growth[i] == -1f0 ? 0f0 : t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
         _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
         # PtBAL: IPTBAL = NINT(PTBALT(I)) (dbstrls.f:189, dbscuts.f) — an INTEGER column value
         Float64(t.crown_ratio[i]), round(Int, i <= length(pbal) ? pbal[i] : 0f0, RoundNearestTiesAway),

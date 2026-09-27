@@ -210,6 +210,16 @@ end
     @test _treelist_diffcells("684750664126144", r6.db, ("2018",); cols = ("DG",)) == 0
 end
 
+# dbstrls.f:256 binds HTG(I); FVS keeps a missing height increment at 0 (cratet.f:541-548 converts only HTG>0), while
+# jl marks it −1 for the calibration (apply_growth_input_types!). The inventory-year TreeList must show the 0
+# (MEASURED FVSem_g16 3006831010690 1989: 11 records live 0 / jl −1; 684750664126144 2018: 12).
+@testset "Inventory-year TreeList HtG: missing is 0, not jl's −1 sentinel (dbstrls.f:256) vs FVSem_g16" begin
+    r = _run_stand("3006831010690")
+    @test _treelist_diffcells("3006831010690", r.db, ("1989",); cols = ("HtG",)) == 0
+    r6 = _run_stand("684750664126144")
+    @test _treelist_diffcells("684750664126144", r6.db, ("2018",); cols = ("HtG",)) == 0
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).
