@@ -599,6 +599,9 @@ end
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
+    # EM initre.f:868-871: ICL5 = KODTYP = IFIX(ARRAY(2)) — the INPUT habitat code, kept through HABTYP (em/habtyp.f
+    # never sets ICL5; IF(ICL5.LE.0) ICL5=KODTYP). rcon.f DGCONS and the esplt2.f AUTOES bracket read it.
+    (s.variant isa EasternMontana && rec.present[2] && trunc(Int, v[2]) > 0) && (s.control.icl5 = Int32(trunc(Int, v[2])))
     # SN: STDINFO field 2 is the habitat/ecological-unit field, decoded by HABTYP
     # (numeric → index into SNECU; alpha → matched, uppercased) into the PCOM code.
     # IE (and other western Wykoff variants): field 2 is the numeric habitat code (KODTYP) that

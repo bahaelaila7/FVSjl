@@ -120,4 +120,14 @@ end
     @test count(k -> !haskey(gotI, k) || any(!_eq(v, get(gotI[k], c, "")) for (c, v) in goldI[k] if c != "StandID"),
                 collect(keys(goldI))) == 0
 end
+
+# ICL5 = the INPUT habitat code (dbsstandin.f:590-593 IFIX(PV_CODE); grinit.f:200) — esplt2.f brackets it for the AUTOES
+# habitat group, not the translated KODTYP: 3006831010690 PV_CODE 9999999 → KODTYP 260 but ICL5 bracket group 16 (AF
+# series, ISER 5): live books AF/ES/LP where jl booked DF/LP/PP; 2999215010690 PV_CODE 356 → 250, group 4 not 3.
+@testset "EM AUTOES habitat group from ICL5 (esplt2.f) vs FVSem_g16" begin
+    r7 = _run_stand("3006831010690")
+    @test _treelist_diffcells("3006831010690", r7.db, ("1999", "2009", "2019", "2029", "2039")) == 0
+    r8 = _run_stand("2999215010690")
+    @test _treelist_diffcells("2999215010690", r8.db, ("1988", "1998", "2008", "2018", "2028", "2038")) == 0
+end
 end # module

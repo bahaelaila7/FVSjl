@@ -327,8 +327,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             # dbsstandin.f:590 ICL5 = KODTYP = IFIX(numeric PV_CODE) BEFORE HABTYP remaps KODTYP — the DGCONS
             # habitat (rcon.f IDTYPE) keys off this RAW code, not the PVREF1/default IEMTYP (live 474157097489998:
             # KODTYP 130 → 260 for FMCFMD, but DG on IHCODE(130)).
-            raw = tryparse(Float64, strip(_fia_str(d, "PV_CODE", "")))
-            (raw !== nothing && raw > 0) && (s.control.icl5 = Int32(trunc(raw)))
+        end
+        # dbsstandin.f:590-593 (EVERY stand with a PV_CODE, ref or not): ICL5 = KODTYP = IFIX(numeric PV_CODE) BEFORE
+        # HABTYP translates KODTYP; em/habtyp.f never touches ICL5, and `IF(ICL5.LE.0) ICL5=KODTYP` only fires for a
+        # non-numeric code (READ …'(I10)' ERR ⇒ 0). ICL5 is "the actual input habitat code" (grinit.f:200): rcon.f's
+        # DGCONS IDTYPE and esplt2.f's AUTOES habitat bracket (IHTYPE) both key off it, not the translated KODTYP.
+        # MEASURED FVSem_g16: 3006831010690 PV_CODE 9999999 (→ habitat 260) runs ESTAB with ISER 5 (bracket(9999999)
+        # = group 16, the AF series), 2999215010690 PV_CODE 356 (→ 250) with bracket(356) = group 4.
+        if s.variant isa EasternMontana && _fia_present(d, "PV_CODE")
+            raw = tryparse(Int, strip(_fia_str(d, "PV_CODE", "")))      # READ(CHAB,'(I10)'): integer text only
+            (raw !== nothing && 0 < raw < typemax(Int32)) && (s.control.icl5 = Int32(raw))
         end
         # ★ ESTAB ICL5 fix: for IE a 6-char plant-association PV_CODE is decoded by ie/habtyp.f's PCOML block
         # (dbsstandin.f DB path keeps KARD2 as the alpha code ⇒ HBDECD→NITYPE→ICL5=JTYPE(NITYPE)), INDEPENDENT

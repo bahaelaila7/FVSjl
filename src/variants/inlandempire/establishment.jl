@@ -2023,8 +2023,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # PRIOR ie_estab_kodtyp remap sent 590→MTYPE 510 → group 6 (SHAB=−0.060 ⇒ PROB1 0.586), a −0.60 stocking logit
     # that under-produced AUTOES ingrowth by ~100 TPA/cycle. Growth is unaffected: the DG/site path re-derives ITYPE
     # via ie_habtyp(habitat_code), and ie_habtyp(590)==ie_habtyp(510)==ITYPE 12 (identical MTYPE 510).
+    # EM: esplt2.f:46-53/230-239 bracket the INPUT habitat code ICL5 (the raw PV_CODE / STDINFO field, grinit default
+    # 260), not the translated KODTYP; ICL5 unset (0) ⇒ the translated code (dbsstandin.f:593 IF(ICL5.LE.0) ICL5=KODTYP).
     ihab_code = s.variant isa EasternMontana ?
-        Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)]) :
+        (s.control.icl5 > 0 ? Int(s.control.icl5) : Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)])) :
         Int(s.plot.habitat_code)
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
