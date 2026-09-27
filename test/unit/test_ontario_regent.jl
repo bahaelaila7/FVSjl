@@ -28,8 +28,13 @@ end
 
 @testset "ON REGENT small_tree_growth! runs on a sub-12cm stand (ont_sm)" begin
     # Previously errored ("not yet ported"); now grows every record through the Penner REGENT chain.
-    sums = _R.run_keyfile("scratchpad/on/ont_sm.key"; variant=_R.Ontario())
+    fx = joinpath(@__DIR__, "..", "fixtures", "ontario")
+    sums = cd(() -> _R.run_keyfile("ont_sm.key"; variant=_R.Ontario()), fx)
     @test occursin("ONTSM", sums)          # completed → emitted a .sum for the stand
-    # cyc0 inventory row unaffected (REGENT acts in the growth cycle): TPA matches the oracle (±1 NINT).
-    @test occursin("296520", sums) || occursin("296519", sums)
+    # cyc0 inventory row unaffected (REGENT acts in the growth cycle): the whole row == live FVSon_g16.
+    # (The old "296520" TPA golden predated the faithful keyrdr.f G10.0 field decode: with DESIGN/STDINFO read as
+    # live reads them, live's ont_sm cyc0 is 26956 trees/ha — ont_sm_live.rows, FVSon_g16 2026-09-27.)
+    live = readlines(joinpath(fx, "ont_sm_live.rows"))
+    jl = [l for l in split(sums, '\n') if occursin(r"^\d{4} ", l)]
+    @test split(jl[1]) == split(live[1])
 end
