@@ -207,7 +207,7 @@ snapped to 1.0 within .01.
     pi = Float32(psite_invyr); pn = Float32(psite_now)
     pi <= 0.001f0 && return 2.0f0
     abs(pn - pi) < 0.001f0 && return 1.0f0
-    x = 1.5819767f0 * (1.0f0 - exp(-(pn / pi)))
+    x = 1.5819767f0 * (1.0f0 - fexp(-(pn / pi)))              # REAL*4 EXP ⇒ glibc expf
     abs(x - 1.0f0) < 0.01f0 ? 1.0f0 : x
 end
 
@@ -354,7 +354,8 @@ reporting); `fyrmort = (1 − x^(fint/10))·mult` (the applied fint-yr rate; `x�
 function clim_mort_rates(x::Real, fint::Real, mult::Real)
     x1 = Float32(x); m = Float32(mult)
     spmort1 = (1f0 - x1) * m
-    xf = x1 > 1f-5 ? clamp(exp(log(x1) / 10f0)^Float32(fint), 0f0, 1f0) : 0f0
+    # clmorts.f:108 X=EXP(LOG(X)/10.)**FINT — REAL*4 expf/logf/powf (FINT is REAL)
+    xf = x1 > 1f-5 ? clamp(fpow(fexp(flog(x1) / 10f0), Float32(fint)), 0f0, 1f0) : 0f0
     return spmort1, (1f0 - xf) * m
 end
 
@@ -451,11 +452,11 @@ function apply_climate_mort!(s::StandState, killed::AbstractVector{Float32}, thi
             d6 = de6 > 0f0 ? (ct6 - A(:map, by) * A(:dd5, by) / 1000f0) / de6 : 1f0
             dm = (d1 + d2 + d3 + d4 + d5 + d6) / 6f0 - 1.1f0
             dm = clamp(dm, 0f0, 5.9f0)
-            dm = 0.9f0 * (1f0 - exp(-dm^2.5f0))               # transfer-distance mortality curve (10-yr rate)
+            dm = 0.9f0 * (1f0 - fexp(-fpow(dm, 2.5f0)))       # clmorts.f:221 .9*(1-EXP(-(DMORT)**2.5)) (10-yr rate)
             xw = t.dbh[i] * t.dbh[i] * pr                      # X = DBH²·PROB (clmorts.f:222 BA weight)
             c.spmort2[sp] += dm * clmrtmlt2 * xw; sp2wts[sp] += xw   # SPMORT2 accum (10-yr, report)
             surv = 1f0 - dm                                    # → survival, then FINT-yr rate
-            surv = surv > 1f-5 ? clamp(exp(log(surv) / 10f0)^fi, 0f0, 1f0) : 0f0
+            surv = surv > 1f-5 ? clamp(fpow(fexp(flog(surv) / 10f0), Float32(fi)), 0f0, 1f0) : 0f0   # clmorts.f:227
             dmr = (1f0 - surv) * clmrtmlt2                     # back to mortality rate ·CLMRTMLT2
             rate = max(fy[sp], dmr)                            # clmorts.f:258 DMORT = max(FYRMORT, DMORT)
             rate > killed[i] / pr && (killed[i] = pr * rate)   # clmorts.f:259 WK2 = PROB·DMORT
@@ -542,7 +543,7 @@ function clim_maxden_mult(s::StandState, thisyr::Real, clmxdenmult::Real)::Float
     elseif fscore <= 1f-10
         cscore > 1f-10 ? 1.5819767f0 : 1f0
     else
-        v = 1.5819767f0 * (1f0 - exp(-(cscore / fscore)))
+        v = 1.5819767f0 * (1f0 - fexp(-(cscore / fscore)))     # clmaxden.f:119 (REAL*4 EXP ⇒ expf)
         v < 0.15f0 ? 0.15f0 : v
     end
     m = 1f0 + (xx - 1f0) * Float32(clmxdenmult)
@@ -587,8 +588,8 @@ function clim_autoestb!(s::StandState, icyc::Integer, fint::Real)
     t = s.trees; cd = c.data; ns = length(c.plant_symbols)
     xmax = clim_sdical_xmax(s, stand_sdimax(s), fint; icyc = icyc)     # SDICAL XMAX (+CLMAXDEN from ICYC 2)
     rmsqd = max(5f0, stand_qmd(s))
-    tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)                 # 0.02483133 = 10^-1.605
-    tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
+    tmaxtrs = (xmax / 0.02483133f0) * fpow(rmsqd, -1.605f0)            # clauestb.f:55 XX**(-1.605) (powf)
+    tprob = 0f0; @inbounds for i in _dense_order(s); tprob += t.tpa[i]; end   # TPROB = dense.f:182's IND1-order sum
     ptrees = tmaxtrs > 1f0 ? clamp(2f0 - 4f0 * (tprob / tmaxtrs), 0f0, 1f0) : 1f0
     (ptrees * aesntrees > 0f0) || return s
     ty = Float32(current_cycle_year(s)) + Float32(fint) / 2f0
@@ -682,7 +683,7 @@ function climate_report(s::StandState; report_year::Real, fint::Real)
         gm = c.spgmult[sp]                                   # this cycle's CLGMULT SPGMULT (clauestb.f:205)
         push!(out, (sp = sp, viab = spviab[sp], ba = spba[sp], tpa = sptpa[sp],
                     mort1 = c.spmort1[sp], mort2 = c.spmort2[sp], gmult = gm,
-                    sitgm = xgsite^c.growmult[sp], mxden = mxden, potestab = potestab[sp]))
+                    sitgm = fpow(Float32(xgsite), Float32(c.growmult[sp])), mxden = mxden, potestab = potestab[sp]))
     end
     return out
 end
@@ -698,8 +699,8 @@ function _climate_potestab(s::StandState, c, cd, ty::Real, fint::Real, icyc::Int
     t = s.trees
     xmax = clim_sdical_xmax(s, stand_sdimax(s), fint; icyc = icyc, cyear = Float32(ty) - Float32(fint) / 2f0)   # clauestb.f:37 SDICAL
     rmsqd = max(5f0, stand_qmd(s))
-    tmaxtrs = (xmax / 0.02483133f0) * rmsqd^(-1.605f0)
-    tprob = 0f0; @inbounds for i in 1:t.n; tprob += t.tpa[i]; end
+    tmaxtrs = (xmax / 0.02483133f0) * fpow(rmsqd, -1.605f0)
+    tprob = 0f0; @inbounds for i in _dense_order(s); tprob += t.tpa[i]; end   # TPROB = dense.f:182's IND1-order sum
     ptrees = tmaxtrs > 1f0 ? clamp(2f0 - 4f0 * (tprob / tmaxtrs), 0f0, 1f0) : 1f0
     (ptrees * aesntrees > 0f0) || return pot
     sc = zeros(Float32, ns)                                        # 0 = no viability column (clauestb.f:66 INDXSPECIES=0)

@@ -99,6 +99,7 @@ using FVSjl
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
     include("unit/test_cr_cyc1_heights.jl")  # CR cycle-1 heights vs live: FINDAG ABIRTH on CRATET-DENSE RELDEN; H30 HHE reset
     include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
+    include("unit/test_em_autoes_tiered.jl") # EM AUTOES per record vs live FVSem_g16 tiered goldens: per-point PSLO/PASP topography for ESNSPE/ESPADV/ESPSUB/ESPXCS/ESADVH/ESSUBH (estab.f:474-479)
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
     include("unit/test_ppe_sort.jl")       # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (master stand ordering) — bit-exact vs gfortran-16 golden (recovered PPE source)

@@ -718,6 +718,11 @@ mutable struct Calibration
     # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
     cratet_dead_pct::Vector{Float32}
     cratet_dead_ptbal::Vector{Float32}
+    # The CURRENT-stand RMSQD the calibration's aspen DGFASP reads (#191/#195; ≥0 only while DGSCOR calibration /
+    # the :770 dub DGF run, −1 otherwise ⇒ dgf! uses stand_qmd). Per stand: it was a process-global Ref
+    # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
+    # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
+    cur_rmsqd::Float32
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -736,7 +741,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
-    Float32[], Float32[])                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -948,6 +954,26 @@ mutable struct Establishment
     # the ≤19-yr continuation ⇒ NTALLY+1, a lone PLANT/NATURAL ⇒ 1; 0 = no ESTAB call) and the cycle year it is for.
     cyc_ntally::Int32
     cyc_ntally_year::Int32
+    # The two halves of the stocking calibration kept separately, because estab.f:579 evaluates
+    # 1/(1+EXP(-(PN+ESB-ESB1(NCOUNT)))) LEFT-TO-RIGHT — (PN+ESB)−ESB1 — which rounds differently from PN+(ESB−ESB1)
+    # (1-ULP PROB1 ⇒ 1-ULP PROB on the ingrowth records). esb_value=ESB (NaN until the ESB block runs); esb1_*
+    # = ESB1 for the scalar (point-1), per-point and per-(point × IPREP) forms that parallel esb_shift/_pt/_ptip.
+    esb_value::Float32
+    esb1_scalar::Float32
+    esb1_pt::Vector{Float32}
+    esb1_ptip::Matrix{Float32}
+    # LOAD (ESHAP): 1 ⇒ the disturbance tally takes each plot's site prep from the plot data (IPPREP, default 1 = none)
+    # instead of sampling ESPREP's default proportions. esplt2.f:274 sets it when plot site data came with the tree
+    # records (IPINFO 1-4: every FIA-DB stand with ≥1 tree row); estab.f:167-170 (>20 yr past inventory), :246 (an
+    # ingrowth call) and esetpr.f (a MECHPREP/BURNPREP) clear it — permanently (it is never set again).
+    load::Bool
+    # The ESSUBH inputs of each inventory point for this cycle's DO 322 PLANT/NATURAL heights (estab.f:473-493, set
+    # once per point in the plot loop): (BAA=BAAA(NNID) clamped [1,400], XCOS=COS(PASP)·SLO, XSIN=SIN(PASP)·SLO,
+    # SLO=PSLO(NNID)); IHTSER=MYHTS(IHAB), IPHY. Filled by ie_autoes_establish! (IE/EM) before the tally; empty ⇒
+    # estb_planted_height falls back to the stand values.
+    es_pt_hin::Vector{NTuple{4,Float32}}
+    es_hin_ihtser::Int32
+    es_hin_iphy::Int32
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -955,7 +981,9 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1))
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1),
+                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false,
+                                NTuple{4,Float32}[], Int32(0), Int32(3))
 
 mutable struct DbsState
     enabled::Bool

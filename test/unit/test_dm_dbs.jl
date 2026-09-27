@@ -104,7 +104,7 @@ end
                         "SELECT COUNT(*) c FROM FVS_DM_Spp_Sum WHERE Year=1990")).c
                     @test nsp == 1
                     sp = first(DBInterface.execute(db, "SELECT * FROM FVS_DM_Spp_Sum WHERE Year=1990"))
-                    @test strip(sp.Spp) == spec.sp.Spp
+                    @test strip(sp.SpeciesFVS) == spec.sp.Spp
                     for col in (:Mean_DMR, :Mean_DMI)
                         @test round(sp[col], digits = 1) == spec.sp[col]
                     end

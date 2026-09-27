@@ -351,7 +351,7 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
     # Ontario to keep the shared density path byte-identical for every other variant.
     s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
-    point_basal_area!(s)
+    point_basal_area!(s; cratet_ind = cratet_ind)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
     # RELDEN = stand CCF, set by DENSE for EVERY variant (dense.f → CCFCAL sum). This was a per-variant whitelist
@@ -1294,17 +1294,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
-    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
-    # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
-    # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.
-    if !tripled && (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.root_disease !== nothing &&
-       rd_active(s.root_disease) && s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-        let yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
-            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
-            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
-            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
-        end
-    end
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
@@ -1337,6 +1326,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
     es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
+    # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
+    # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
+    # gradd.f:192 DENSE's — post-growth, PRE-ESNUTR. jl's AUTOES booking re-DENSEs with the new cohort first
+    # (MEASURED FVSem_g16 196378260020004 @2031: live RELDEN 109.1242 / point-1 PCCF 88.5849 vs jl post-regen
+    # 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR ~2e-4 low).
+    es_em_relden_pre, es_em_ba_pre, es_em_pccf_pre = s.variant isa EasternMontana ?
+        (stand_ccf(s), stand_ba(s), _fresh_point_ccf(s)) : (-1f0, -1f0, Float32[])
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1382,7 +1378,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
-        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
+        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh,
+        relden_pre = es_em_relden_pre, ba_pre = es_em_ba_pre, pccf_pre = es_em_pccf_pre)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
@@ -1447,6 +1444,26 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
     # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
     s.wpbr !== nothing && wpbr_brpr!(s)
+    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO — so after GRADD's ESNUTR). estab.f:1247/1336/1426 call
+    # RDESTB for every record ESTAB books, entering it into the disease area (PROBIU=PROB·PAREA, FPROB=PROB): size the
+    # driver over this cycle's regen HERE, then report — post DBH-UPDATE (grown DBH for Live_BA), post the end-of-period
+    # VOLS, post rd_grow_apply!→rdinoc decay. jl reported before establishment and entered the regen only at the next
+    # cycle start (MEASURED FVSem_g16 196378260020004 rootdis 2032: UnInf_TPA live 341.25, jl 284.12 — the 2031 cohort).
+    if !tripled && s.root_disease !== nothing && rd_active(s.root_disease) && s.root_disease.iroot != 0 &&
+       s.root_disease.driver !== nothing
+        let rd = s.root_disease, d = rd.driver::RDDriver
+            if d.n != s.trees.n
+                rd.wk1_nold = d.n                   # rd_cycle_start!: WK1 of these records is still 0 (estab.f WK1=0)
+                rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s)
+            end
+        end
+        if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+            yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
+            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
+        end
+    end
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end

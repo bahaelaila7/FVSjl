@@ -599,6 +599,9 @@ end
 function kw_stdinfo!(s::StandState, rec::KeywordRecord)
     p, v = s.plot, rec.values
     p.user_forest_code = nint(v[1])
+    # EM initre.f:868-871: ICL5 = KODTYP = IFIX(ARRAY(2)) — the INPUT habitat code, kept through HABTYP (em/habtyp.f
+    # never sets ICL5; IF(ICL5.LE.0) ICL5=KODTYP). rcon.f DGCONS and the esplt2.f AUTOES bracket read it.
+    (s.variant isa EasternMontana && rec.present[2] && trunc(Int, v[2]) > 0) && (s.control.icl5 = Int32(trunc(Int, v[2])))
     # initre.f:2402-2412: CPVREF = field 7 (I10) or blank; a non-blank field 2 runs HABTYP (its ERRGRO branches).
     p.pv_ref = rec.present[7] ? string(trunc(Int, v[7])) : ""
     if rec.present[2]

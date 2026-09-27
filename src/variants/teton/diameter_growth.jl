@@ -145,7 +145,7 @@ end
 # (like the AVH exception, calibrate_diameter_growth!:446-454). FVS's calibration DGFASP uses the current RMSQD
 # (measured: FVStt_g16 asp_dbg.out shows only current-QMD GOFAD, no backdated value). calibrate stashes the
 # current QMD here before backdating; -1 = unset (actual-growth pass uses stand_qmd on the current stand).
-const _TT_CUR_RMSQD = Ref(-1.0f0)
+# (was the process-global _TT_CUR_RMSQD; now per-stand s.calib.cur_rmsqd — thread-safe)
 
 # tt/dgf.f DO 10 — per-tree WK2 = ln(DDS) (outside-bark). ttt01 exercises MAIN + ASPEN.
 function dgf!(s::StandState, ::Teton)
@@ -156,7 +156,7 @@ function dgf!(s::StandState, ::Teton)
     ba = p.basal_area
     ba100 = ba / 100f0
     logba = ba > 0f0 ? log(ba) : 0f0   # PP CONSPP term uses raw ALOG(BA) (dgf.f:520; TEMBA clamp is dead code)
-    rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #191: current RMSQD during calibration
+    rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)   # #191: current RMSQD during calibration
     bau = any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n) ? _tt_badist_bau(t) : nothing
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
