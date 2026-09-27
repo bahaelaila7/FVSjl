@@ -282,7 +282,7 @@ function dgf!(s::StandState, ::SouthCentralOregon)
             dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + conspp
         elseif isp == 24                                          # AS: aspen DGFASP (UT), raw crown pct
             cr_raw = Float32(t.crown_pct[i])
-            rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)
+            rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
             dds = aspdg + log(cor2_of(c, isp)) + cor
         elseif isp == 22                                          # RA: red alder decreasing-increment eqn

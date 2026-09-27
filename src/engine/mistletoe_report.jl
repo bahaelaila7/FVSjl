@@ -70,11 +70,13 @@ function mistletoe_report(s::StandState; fint::Float32, top4::Vector{Int}, nage:
     DCMRT = zeros(Float32, 20); DCSUM = zeros(Float32, 20)
     dmrmin = _DM_DMRMIN
     ind1 = _ind1_order(s)
-    # DMMTPA(I) (MISMRT(.FALSE.)): the cycle's DM mortality TPA of each record
+    # DMMTPA(I) (MISMRT(.FALSE.), mismrt.f:141-195): WKI=PTPA·DMMORT, 0 when PROB≤0 or IDMR=0
     dmm = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         sp = Int(t.species[i]); (sp < 1 || sp > maxsp) && continue
-        dmm[i] = t.tpa[i] * _dm_mortality_rate(s, sp, Int(t.dmr[i]), t.dbh[i], fint)
+        p = t.tpa[i]; idmr = Int(t.dmr[i])
+        (p <= 0f0 || idmr == 0) && continue
+        dmm[i] = p * _dm_mortality_rate(s, sp, idmr, t.dbh[i], fint)
     end
     # DO 90: per-species sums in IND1 order; the stand totals add each species' subtotal (species order)
     STTPAI = 0f0; STTPAT = 0f0; STTPAX = 0f0; STDMRS = 0f0
@@ -146,9 +148,10 @@ function mistletoe_report(s::StandState; fint::Float32, top4::Vector{Int}, nage:
         append!(top4, isv)
     end
     species = NamedTuple[]
+    # misprt.f:616-632 fills every frozen top-4 slot with INFNO≠0 and DBSMIS1 skips only the '**' (INFNO=0) slots, so a
+    # top-4 species whose infection has since dropped to 0 still gets its (zero-infection) row.
     for infno in top4
         infno == 0 && continue
-        SPTPAI[infno] <= 0f0 && continue
         spdmr = SPTPAX[infno] != 0f0 ? SPDMRS[infno] / SPTPAX[infno] : 0f0
         spdmi = SPTPAI[infno] != 0f0 ? SPDMRS[infno] / SPTPAI[infno] : 0f0
         sppin = SPTPAT[infno] != 0f0 ? SPTPAI[infno] / SPTPAT[infno] * 100f0 : 0f0

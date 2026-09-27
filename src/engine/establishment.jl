@@ -277,10 +277,15 @@ function snapshot_esb_inputs!(s::StandState)
     # saturates ⇒ ~4× AUTOES over-production on M333 subalpine stands). MEASURED FVSie_g16 1856003217290487.
     nptids = max(1, Int(p.points_inv) - Int(p.nonstockable))
     ptbaold = zeros(Float32, nptids)
+    # esfltr.f:61-68 (record order): PIX=PI−FLOAT(NONSTK); BAAINV(N)=BAAINV(N)+0.005454154*D*D*ZPROB*PIX, evaluated
+    # left to right (((c·D)·D)·PROB)·PIX — MEASURED FVSie_g16 3356357010690 point 4 BAAINV 4397AE6E; the former
+    # P·c·D·D·(PI/GROSPC) form rounded ESB1(4) 4 ULP off (C0084734 vs C0084738) ⇒ PROB1 ⇒ every cohort record's TPA.
+    pix = p.pi - Float32(p.nonstockable)
     @inbounds for i in 1:t.n
-        t.dbh[i] >= 2.999f0 || continue                       # OVERSTORY (D≥REGNBK)
+        d = t.dbh[i]
+        d >= 2.999f0 || continue                              # OVERSTORY (D≥REGNBK)
         pid = Int(t.plot_id[i])
-        (1 <= pid <= nptids) && (ptbaold[pid] += t.tpa[i] * 0.005454154f0 * t.dbh[i] * t.dbh[i] * scale)
+        (1 <= pid <= nptids) && (ptbaold[pid] += 0.005454154f0 * d * d * t.tpa[i] * pix)
     end
     s.estab.inv_point_baaold = ptbaold
     s.estab.inv_baaold = ptbaold[1]                           # point-1 value (scalar path / EM)
@@ -300,22 +305,34 @@ tree was created. No-op unless an ESTAB packet is active.
 # s.rng.es0 — the caller positions it at the plot's post-ESAVE state), +HTADJ, floor 0.05 (else +HTADJ, floor XMIN),
 # cap HHTMAX. Shared by the AUTOES tally (NBEST ranks the planted trees at these heights, :1090-1144) and by
 # establish! (which books them), so both see identical values.
-function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32, dil::Float32)::Float32
+# `pt` = the plot's inventory point (its BAAA/PSLO/PASP, estab.f:473-482, from s.estab.es_pt_hin; 0 ⇒ stand values),
+# `iprep` = the plot's site prep (IPREP=ITYPEP), `gentim` = estab.f's running GENTIM at this call (NaN ⇒ :448 FINT−5).
+function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32, dil::Float32;
+                             pt::Int = 0, iprep::Int = 1, gentim::Float32 = NaN32)::Float32
     sp = round(Int, a.params[1])
     pyr = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
     delay = pyr - yr
-    gentim = max(per - 5, 0)
+    gent = isnan(gentim) ? Float32(max(per - 5, 0)) : gentim
     trage = a.params[4] < 0.5f0 ? 2f0 : a.params[4]; trage > 10f0 && (trage = 10f0)
-    age = Float32(per) - Float32(delay) - Float32(gentim) + trage; age < 1f0 && (age = 1f0)
-    slo = s.plot.slope
+    # essubh.f (TIME=FINT, estab.f:1020): N=INT(DELAY+.5)≥−3; DELAY=N, or TIME when N>ITIME; AGE=TIME−DELAY−GENTIM;
+    # IAGE=INT(AGE+.5)≥1; AGE=AGE+TRAGE≥1; BNORM=BNORML(IAGE).
+    nd = delay < -3 ? -3 : delay
+    dd = nd > per ? Float32(per) : Float32(nd)
+    age0 = Float32(per) - dd - gent
+    iage = trunc(Int, age0 + 0.5f0); iage < 1 && (iage = 1); iage > 20 && (iage = 20)
+    age = age0 + trage; age < 1f0 && (age = 1f0)
+    hin = s.estab.es_pt_hin
+    baa, xc, xs, slo = (1 <= pt <= length(hin)) ? hin[pt] :
+        (clamp(s.plot.basal_area, 1f0, 400f0), s.plot.slope*cos(s.plot.aspect), s.plot.slope*sin(s.plot.aspect),
+         s.plot.slope)
+    ihts = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_ihtser) : em_ihtser(Int(s.plot.habitat_code))
+    iphy = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_iphy) : 3
+    ipr = clamp(iprep, 1, 4)
+    disp = emsqr * dil * _IE_ES_BNORML[iage]
     hht = if s.variant isa InlandEmpire
-        iage = trunc(Int, (Float32(per) - Float32(delay) - Float32(gentim)) + 0.5f0)
-        iage < 1 && (iage = 1); iage > 20 && (iage = 20)
-        ie_essubh(sp, age, clamp(s.plot.basal_area, 1f0, 400f0), em_ihtser(Int(s.plot.habitat_code)), 1, 3,
-                  slo*cos(s.plot.aspect), slo*sin(s.plot.aspect), slo, s.plot.elevation, emsqr * dil * _IE_ES_BNORML[iage])
+        ie_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)
     else
-        em_essubh_hht(sp, flog(age), clamp(s.plot.basal_area, 1f0, 400f0), slo*cos(s.plot.aspect), slo*sin(s.plot.aspect),
-                      slo, s.plot.elevation, em_ihtser(Int(s.plot.habitat_code)), 3, 1)
+        em_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)   # em/essubh.f (EM species map)
     end
     hadj = isempty(s.estab.ht_adj) ? 0f0 : get(s.estab.ht_adj, Int32(sp), 0f0)
     treeht = a.params[5]
@@ -334,6 +351,18 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
     hht > hmx && (hht = hmx)
     return hht
+end
+
+# estab.f's GENTIM as the DO 322 ESSUBH of PLANT k on plot NCOUNT n reads it: :448 sets FINT−5 before the plot loop and
+# every PLANT resets it after its ESSUBH (:1053-1058, FINT−DELAY<5 ? 0 : FINT−DELAY−5 with essubh.f's clamped DELAY),
+# so it carries from the previous PLANT — of this plot, or the last one of the previous plot.
+function estb_plant_gentim(s::StandState, acts, k::Int, n::Int, per::Int, yr::Int)::Float32
+    (n == 1 && k == 1) && return Float32(max(per - 5, 0))
+    a = acts[k == 1 ? length(acts) : k - 1]
+    pyr = (0 < Int(a.year) < 1000) ? Int(cycle_year_at(s.control, Int(a.year) - 1)) : Int(a.year)
+    nd = pyr - yr; nd < -3 && (nd = -3)
+    dd = nd > per ? Float32(per) : Float32(nd)
+    return (Float32(per) - dd) < 5f0 ? 0f0 : Float32(per) - dd - 5f0
 end
 
 # strp estab.f:174-270 (TT/UT) head of an ESTAB call with tally number `ntally`: NTALLY==1 draws a fresh ESDRAW off the
@@ -571,6 +600,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # strp estab.f (TT/UT): GENTIM=FINT−5 once before the plot loop (:317); each PLANT resets it to FINT−DELAY−5
     # (:508-512) AFTER its ESSUBH call, so the next PLANT's ESSUBH AGE (essubh.f:70) reads the previous one's value.
     _gchain = Float32(gentim)
+    _gch_e = Float32(max(per - 5, 0))  # IE/EM estab.f GENTIM chain (:448 FINT−5, reset after every PLANT :1053-1058)
     _tt_first2 = Dict{Int,Float32}()   # TT FIRST(2,sp) DILATE accumulator (estab.f:104 init 0.1, :467/:491 sqrt)
     @inbounds for nn in 1:nptids, rep in 1:idup
         # per-replicate establishment RNG draws (estab.f:216-221): two for emsqr
@@ -747,7 +777,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 _dl = (_nph > 0 && length(s.estab.es_plot_dil) == nptids * idup * _nph && _kph <= _nph) ?
                       s.estab.es_plot_dil[(_ncnt - 1) * _nph + _kph] :
                       _dil_last          # no tally dilations (no-stocking branch): planted-only FIRST(2) chain
-                hht = estb_planted_height(s, a, per, Int(yr), _emsqr, _dl)
+                hht = estb_planted_height(s, a, per, Int(yr), _emsqr, _dl; pt = nn,
+                                          iprep = length(s.estab.es_ipprep) >= _ncnt ? Int(s.estab.es_ipprep[_ncnt]) : 1,
+                                          gentim = _gch_e)
+                let _nd = delay < -3 ? -3 : delay, _dd = _nd > per ? Float32(per) : Float32(_nd)
+                    _gch_e = (Float32(per) - _dd) < 5f0 ? 0f0 : Float32(per) - _dd - 5f0
+                end
             elseif treeht >= 0.1f0                                  # PLANT specified a height
                 hht = treeht; xh = flog(hht)
                 while true
@@ -818,6 +853,12 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
                 t.zrand[n]       = -999f0    # estab.f:1424 ZRAND(ITRN)=-999.
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                    # estb/estab.f:1427-1439: DG=HTG=0, OLDPCT=OLDRN=0, WK1=WK2=0, MISPUTZ(ITRN,0) — clear a reused slot.
+                    t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
+                    t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
+                    t.dg_prev[n] = 0f0; t.mort_pa[n] = 0f0; t.dmr[n] = Int32(0)
+                end
                 t.tree_id[n]     = Int32(10000000 + (Int(s.control.cycle) + 1) * 10000 + n)   # IDTREE=IDCMP1+ICYC*10000+ITRN (estab.f:164-165,1440) ⇒ TreeList "ES" id
                 # IMC (TreeVal): estb/estab.f:1385-1386 — 1, but 2 for a planted tree NOT ranked best (NOTE≠1) while
                 # STOADJ>0; strp/estab.f:600 always 1. NOTE comes from the tally's NBEST pass (es_plot_note, plot-major).

@@ -155,7 +155,7 @@ function dgf!(s::StandState, ::Utah)
             cr_raw = Float32(t.crown_pct[i])
             bark = ut_bratio(s.coef.species, sp, d)
             si = p.sp_site_index[sp]
-            rmsqd = _TT_CUR_RMSQD[] >= 0f0 ? _TT_CUR_RMSQD[] : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
+            rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)   # #195: current RMSQD during DGSCOR calibration
             aspdg = _em_dgfasp(d, cr_raw, bark, si, rmsqd, ba)
             cor2 = (s.control.dg_cor2_on && s.control.dg_cor2[sp] > 0f0) ? s.control.dg_cor2[sp] : 1f0
             dds = aspdg + log(cor2) + c.dg_cor[sp]
