@@ -157,12 +157,12 @@ function _ak_dve_vol(grp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3)
         v1 = 0.65559f0 + 0.00191f0 * d2h
         (d < 6f0) && (v1 -= 0.65559f0 * (1f0 - (d / 6f0)^3))   # small-tree (DBH<6) correction
         d > 4f0 && (v4 = -0.21849f0 + 0.00189f0 * d2h)
-        d > 6f0 && (v2 = 0.000136f0 * d2h^1.40338f0)
+        d > 6f0 && (v2 = 0.000136f0 * fpow(d2h, 1.40338f0))   # D2H**1.40338 = powf
     elseif grp == 375                  # A00DVEW375: PB/AB/AS
         v1 = 0.64456f0 + 0.00206f0 * d2h
         (d < 6f0) && (v1 -= 0.64456f0 * (1f0 - (d / 6f0)^3))
         d > 4f0 && (v4 = -0.7126f0 + 0.00211f0 * d2h)
-        d > 6f0 && (v2 = 0.000081f0 * d2h^1.48459f0)
+        d > 6f0 && (v2 = 0.000081f0 * fpow(d2h, 1.48459f0))
     elseif grp == 747                  # A00DVEW747: BA/CW/WI/SU/OH
         v1 = 0.9864f0 + 0.00181f0 * d2h
         (d < 6f0) && (v1 -= 0.9864f0 * (1f0 - (d / 6f0)^3))
@@ -171,7 +171,7 @@ function _ak_dve_vol(grp::Int, d::Float32, h::Float32, m = _AK_MERCH_CAT3)
     end
     v1 = max(v1, 0f0)                                          # r10d2h VOL(1)<0 → 0
     v4 = d >= m.dbhmin ? max(v4, 0f0) : 0f0                     # driver DBHMIN gate on merch cubic
-    v2 = d >= m.bfmind ? Float32(round(max(v2, 0f0))) : 0f0     # driver BFMIND gate + VOL(2)=ANINT
+    v2 = d >= m.bfmind ? round(max(v2, 0f0), RoundNearestTiesAway) : 0f0   # BFMIND gate + dvest.f VOL(2)=ANINT
     return (v1, v4, v2)
 end
 
@@ -276,11 +276,11 @@ function _ak_r10vol_small(d::Float32, h::Float32)
             cub = 0.005454154f0 * form * d * d * h
             cub < 0f0 && (cub = 0f0)
         end
-        v1 = Float32(round(cub * 10.0f0)) / 10.0f0                     # VOL(1) = ANINT(CUBVOL*10.0)/10.0
+        v1 = round(cub * 10.0f0, RoundNearestTiesAway) / 10.0f0        # VOL(1) = ANINT(CUBVOL*10.0)/10.0 (ties away)
         return (max(v1, 0f0), 0f0)
     else                                       # SECGRO
         cub = fexp(-5.577f0 + 1.9067f0 * flog(d) + 0.9416f0 * flog(h))
-        v = Float32(round(cub * 10.0f0)) / 10.0f0
+        v = round(cub * 10.0f0, RoundNearestTiesAway) / 10.0f0
         return (max(v, 0f0), max(v, 0f0))       # VOL(1) = VOL(4)
     end
 end
