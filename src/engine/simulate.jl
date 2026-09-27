@@ -273,10 +273,13 @@ function setup_growth!(s::StandState)
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
                                           # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
                                           # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.
-        # NOTE: the ON DG calibration (dgdriv.f LSTART SIGMAR/OBSERV/VARDG serial-correlation → COR, VARDG) is a
-        # downstream chunk. With no measured past growth the calibration COR=0 (the cyc0 value the shared driver
-        # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
-        # it; the VARDG-driven tripled-record spread + multi-cycle COR attenuation land with that chunk.
+        calibrate_diameter_growth!(s; scale = dgscale)   # canada/on/cratet.f → DGDRIV (LSTART, after CROWN/AVHT40):
+                                          # dgdriv.f DO 155-202 — SIGMA=SIGMAR (on/blkdat.f), COR fit for measured-DG
+                                          # species (FN≥FNMIN), else DO 191 OLDRN=BACHLO(0,SIGMA) bounded by DGSD·SIGMA
+                                          # (RNG draws, species order), DO 195 VARDG=(e^{σ²}−1)e^{σ²}/VMLT. Was MISSING ⇒
+                                          # VARDG=0 ⇒ SSIGMA=0 ⇒ the tripled records all grew at the expected DG (no
+                                          # FU/FM/FL spread; ont01 cyc1 PW DG .0658 cm ×3 vs live .0615/.0795/.0509) and
+                                          # the whole RNG stream sat ahead of live by the skipped OLDRN draws.
     end
     cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
                                           # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)

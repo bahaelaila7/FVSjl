@@ -309,13 +309,14 @@ function _backdate_dbh!(s::StandState)
     _ca_bd = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class as WC/EC
     _so_bd = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path: CASE1 BARKB / juniper / BRDAT)
     _op_bd = s.variant isa Olympic            # OP bark = op_bratio (op/bratio.f 3-path) — same watchpoint class as WC (WF COR)
-    _bk(sp, d) = variant_bratio(s, sp, Float32(d))   # dense.f backdating bark = the variant BRATIO (shared dispatch)
+    _bk(sp, d, h) = variant_bratio(s, sp, Float32(d), Float32(h))   # dense.f:102/122 BRATIO(IS,D,HT(I)) — the variant BRATIO
+                                             # (shared dispatch; HT only read by ON's metric H/D bark, inert elsewhere)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
         g = t.diam_growth[i]; ismiss(g) && continue
         d = t.dbh[i]
-        gadj = idg == 1 ? g : g / _bk(t.species[i], d)
+        gadj = idg == 1 ? g : g / _bk(t.species[i], d, t.height[i])
         gadj > d && continue
         bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
     end
@@ -323,7 +324,7 @@ function _backdate_dbh!(s::StandState)
     @inbounds for i in 1:n
         d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
         if !ismiss(g)
-            gadj = idg == 1 ? g : min(g / _bk(t.species[i], d), d)
+            gadj = idg == 1 ? g : min(g / _bk(t.species[i], d, t.height[i]), d)
             rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
             rr > 0f0 && (r = rr)
         end
@@ -336,7 +337,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    sigmar = s.variant isa Olympic ? OP_DG_SIGMAR : sd[:dg_resid_sd]   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
+    sigmar = s.variant isa Olympic ? OP_DG_SIGMAR :   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
+             s.variant isa Ontario ? ON_DG_SIGMAR : sd[:dg_resid_sd]   # ON SIGMAR (canada/on/blkdat.f:268)
     _op_cal = s.variant isa Olympic           # OP bark = op_bratio (op/bratio.f) — same watchpoint class as WC (WF COR)
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
@@ -521,7 +523,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 # cornew drifts ~0.19 more negative, crossing the exp(-2.5)=0.0821 COR out-of-range trap
                 # (dgdriv.f:640) ⇒ COR falsely zeroed for measured-DG species (e.g. aspen sp20), which then
                 # over-grows where gemdg is explosive on small DBH. 4th CR variant-bark location.
-                bk = variant_bratio(s, t.species[i], saved_dbh[i])   # shared variant BRATIO
+                bk = variant_bratio(s, t.species[i], saved_dbh[i], t.height[i])   # shared variant BRATIO (dgdriv.f DO 105 BRATIO(ISPC,DBH,HT))
                 t.diam_growth[i] *= bk
             end
         end
@@ -620,7 +622,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = variant_bratio(s, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435) — shared variant BRATIO
+        bark = variant_bratio(s, sp, saved_dbh[i], t.height[i])   # bark at CURRENT dbh (dgdriv.f:435 BRATIO(ISPC,DBH,HT)) — shared variant BRATIO
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
