@@ -47,7 +47,8 @@ const _KCV_BROKEN = Dict{String,String}(
     #   kill (all burn), so NOT a RANN-tie. FIX: source the scorch flame per fmburn.f:472. Task #100 (reopened).
     "cs_simfire" => "FFE SIMFIRE — TPA + BA now BIT-EXACT vs live all cycles (post-S89 CS DKR table: _fm_dkr_default(CentralStates)=_FM_DKR_CS, cs/fmvinit.f decay-class-independent woody). Only residual = the post-fire volume ~1-3 units (<0.1%, MCuFt/SCuFt/BdFt) — an accepted per-tree Clark/ULP straddle, NOT the fire kill. Was 'kill-distribution', now cornered to a volume ULP.",
     "ls_simfire" => "FFE SIMFIRE — FIXED (S87): the ~5-TPA under-kill was jl applying the SN fuel decay-rate table (litter DKR 0.65) to LS, which decays LS litter ~2× too fast (LS litter=0.31, ls/fmvinit.f:94) ⇒ SMALL down-wood ~1.47× low ⇒ FMDYN under-weighted the hot fuel model ⇒ under-scorch. Now _fm_dkr_default(LakeStates) uses the LS DKR table (fuel_decay.jl). 2020/2040 rows BIT-EXACT vs live; ONLY residual = 2030 QMD 11.1/11.2 (a sub-print BA/TPA straddle 2 cycles post-fire, same displayed BA 146/TPA 215) — ULP-class @test_broken. Was structural, now cornered.",
-    "ls_thinpt" => "THINPT point-thin (SETPTHIN all-points, TPA metric, residual 60) — the point-thin itself is BIT-EXACT vs live: 2010 removal (450 TPA, all removed/after cols) + 1990-2020 full-row exact. Only residual = 2 downstream ULP straddles on the heavily-thinned small (~52 TPA) residual stand — 2030 MAI 35.2/35.1 (Δ0.1 print boundary) + 2040 BdFt 7464/7463 (Δ1) — the accepted DGSCOR/Clark Float32 accumulation class. NE/CS thinpt are FULL-ROW bit-exact.",
+    # ls_thinpt: now FULL-ROW BIT-EXACT (integ-0934, 2026-09-27) — its only residual was the MAI column, fixed by
+    #   em-resid b407efde (evtstv.f:414 TOTREM adds the INTEGER IOSUM(9) in every variant). Moved OUT of broken.
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the
     #   sawtimber scftopd/scfstmp (which a blank-SCFTOPD VOLUME card zeroes) instead of the BOARD's own sp_bf_topd/
     #   sp_bf_stump; bftopk now uses the board top/stump (bf-equal ⇒ inert in the base). Now full-row BIT-EXACT.
@@ -67,13 +68,15 @@ const _KCV_BROKEN = Dict{String,String}(
     # only in that column's finer rendering. cs_leavesp + ls_leavesp are FULLY bit-exact with the identical
     # LEAVESP+THINBBA logic ⇒ the leave-species semantic is faithful; this is a stand-specific rounding
     # knife-edge (NE), not a logic bug. Permitted ULP-class per the goal.
-    "ne_leavesp"  => "LEAVESP+thin — ULP-class 0.1 on ONE derived col (26) at 2010; all density+volume cols bit-exact; cs/ls_leavesp fully bit-exact ⇒ semantic faithful, stand-specific rounding.",
+    # ne_leavesp: now FULL-ROW BIT-EXACT (integ-0934, 2026-09-27) — its only residual was the MAI column, fixed by
+    #   em-resid b407efde (evtstv.f:414 TOTREM adds the INTEGER IOSUM(9) in every variant). Moved OUT of broken.
     # cs_thinsdi (S51): THINSDI residual-SDI 80 thin. ONE cell differs — 2030 col 26 (the same derived
     # growth/MAI-class column as ne_leavesp) 31.6 vs 31.5 (Δ0.1); TPA/BA/SDI/CCF/TopHt/QMD + all volume cols
     # BIT-EXACT (2010 TPA 189/189). ne+ls_thinsdi are FULLY bit-exact with identical THINSDI logic ⇒ the SDI-
     # residual thin semantic is faithful; the CS diff is the documented sub-ULP NC-128 height amplification
     # (cf. cs_setsite) surfacing only in that column's finer rendering. Permitted ULP-class per the goal.
-    "cs_thinsdi"  => "THINSDI residual-SDI — ULP-class 0.1 on ONE derived col (26) at 2030; all density+volume cols bit-exact; ne/ls_thinsdi fully bit-exact ⇒ semantic faithful, CS sub-ULP NC-128 amplification (cf. cs_setsite).",
+    # cs_thinsdi: now FULL-ROW BIT-EXACT (integ-0934, 2026-09-27) — its only residual was the MAI column, fixed by
+    #   em-resid b407efde (evtstv.f:414 TOTREM adds the INTEGER IOSUM(9) in every variant). Moved OUT of broken.
     # cs_fixhtg (S55): FIXHTG height-growth ×1.5. ONE cell — 2040 col 12 (BdFt) 21345/21346 (Δ1 board-foot
     # on a ~21k value = ULP rounding boundary); all density + the other 3 volume cols bit-exact. ne/ls_fixhtg
     # fully bit-exact with identical FIXHTG logic ⇒ the ht-growth-multiplier semantic is faithful; the taller
