@@ -432,9 +432,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
                 r.at_qmd = Float64(stand_qmd(s))   # QDBHAT=ATAVD (REAL): FVS_Summary binds it whole; the .sum prints F5.1
-                # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
-                # variants keep their validated per-acre float accumulation.
-                prev_increment = met ? Float32(r.rem_mcuft) : rem.mcuft / g
+                # TOTREM: evtstv.f:414 (CASE DEFAULT — every variant; the eastern CASE is commented out) accumulates
+                # the INTEGER IOSUM(9,ICYC-1)=INT(OMCREM(7)/GROSPC+0.5) (disply.f:341), and BCYMAI=(TOTREM+CURVOL)/AGE.
+                # The per-acre float removal agreed at the .sum's F5.1 but not in FVS_Summary's REAL MAI (MEASURED
+                # FVSem_g16 196378260020004 thinbba 2032: live 10.668750 = 1707/160, jl 10.670339 = 1707.25/160).
+                prev_increment = Float32(r.rem_mcuft)
                 cum_rem_merch += prev_increment
             else
                 prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)

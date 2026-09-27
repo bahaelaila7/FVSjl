@@ -170,4 +170,18 @@ end
     ms = compare_case("EM", STAND, "thinbba", txt, db)
     @test count(m -> !(m.file == "FVS_Summary" && m.col == "MAI"), ms) == 0
 end
+
+# evtstv.f:414 (CASE DEFAULT — every variant; the eastern CASE is commented out): BCYMAI=(TOTREM+CURVOL)/AGE with
+# TOTREM accumulating the INTEGER IOSUM(9,ICYC-1)=INT(OMCREM(7)/GROSPC+0.5) (disply.f:341). jl summed the per-acre
+# float removal, which agrees at the .sum's F5.1 but not in FVS_Summary's REAL MAI (MEASURED FVSem_g16
+# 196378260020004 thinbba 2032: live 10.668750 = 1707/160, jl 10.670339 = 1707.25/160).
+@testset "MAI accumulates the integer TOTREM (evtstv.f:414) vs FVSem_g16" begin
+    for cn in (STAND, "2999215010690", "684750664126144")
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("EM", cn, "thinbba"; dir = d)
+        @test !crashed
+        ms = compare_case("EM", cn, "thinbba", txt, db)
+        @test count(m -> m.col == "MAI", ms) == 0
+    end
+end
 end # module

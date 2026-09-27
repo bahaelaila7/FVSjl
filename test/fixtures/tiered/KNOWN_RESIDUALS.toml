@@ -252,17 +252,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "BM"
 regime = "econ"
 file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 20
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 20 cells [ulp2_16=4 ulpbig=16] max|Δ|=0.003338 | e.g. stand 12827438010497 year 2025: live=20.133333206176758 jl=20.13335418701172"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -2128,17 +2117,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 20
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 20 cells [ulp2_16=4 ulpbig=16] max|Δ|=0.003338 | e.g. stand 12827438010497 year 2025: live=20.133333206176758 jl=20.13335418701172"""
 
 [[residual]]
 variant = "BM"
