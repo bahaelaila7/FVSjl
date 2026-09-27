@@ -90,6 +90,7 @@ using FVSjl
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
     include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
     include("unit/test_vol_start_bark.jl")  # vols.f:150-151 start-of-cycle BARK for merch tops (CR PP 300FW2W122 + UT 402MATW122 FIA stands vs live, every .sum column exact)
+    include("unit/test_ind_lifecycle.jl")   # cycle-0 AVHT40/DENSE walk CRATET's IND in every variant (CR + EC FIA stands vs live, every .sum column exact)
     include("unit/test_pn_pnt01_live.jl")   # PN pnt01 non-volume .sum == live FVSpn (shared WC estab/esgent/regent/morts + PN data)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
