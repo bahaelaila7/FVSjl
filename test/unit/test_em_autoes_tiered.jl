@@ -91,4 +91,14 @@ end
     r4 = _run_stand("2999215010690")
     @test _treelist_diffcells("2999215010690", r4.db, ("1998",); cols = ("TPA", "MortPA", "DBH", "Ht", "DG", "HtG")) == 0
 end
+
+# EM DVEW hardwood volume: dvest.f:142 `VOL(2)=ANINT(VOL(2))` rounds every direct-volume-estimator board-foot volume
+# (R1KEMP/R2OLDV) to the nearest board foot — live CW 13.4"×47' BdFt 62, jl 62.08; and r1kemp.f:363's polynomial takes
+# the integer powers first, C2*DBHOB**2 + C3*DBHOB**3 (jl had (C2*D)*D and ((C3*D)*D)*D ⇒ 1-ULP TCuFt on 5-9.5" CW/AS).
+@testset "EM DVE hardwood volume (dvest.f ANINT, r1kemp.f powers) vs FVSem_g16" begin
+    r4 = _run_stand("2999215010690")
+    @test _treelist_diffcells("2999215010690", r4.db, ("1988", "1998")) == 0
+    r5 = _run_stand("888512560290487")
+    @test _treelist_diffcells("888512560290487", r5.db, ("2031", "2041", "2051", "2061", "2071"); cols = ("BdFt", "TCuFt", "MCuFt")) == 0
+end
 end # module

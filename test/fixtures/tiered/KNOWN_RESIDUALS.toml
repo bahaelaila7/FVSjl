@@ -13442,17 +13442,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "EM"
 regime = "econ"
 file = "FVS_Summary"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Summary"
 col = "SDI"
 stand = "*"
 year = "*"
@@ -13635,17 +13624,6 @@ year = "*"
 status = "OPEN"
 max_cells = 33
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 33 cells [gold_text9=8 jl_not_f32=2 material=18 small=4 ulpbig=1] max|Δ|=3.4 | e.g. stand 474157097489998 year 2036: live=8.7 jl=10.1"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "sum"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
 
 [[residual]]
 variant = "EM"
@@ -17765,39 +17743,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 16
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 16 cells [jl_not_f32=7 material=9] max|Δ|=10.0 | e.g. stand 2999215010690 year 1998: live=52.9999962 jl=51.8402634"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 28 cells [gold_text9=25 material=2 small=1] max|Δ|=3.065 | e.g. stand 196420598020004 year 2022: live=1.69999993 jl=2.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 51
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 51 cells [gold_text9=46 jl_not_f32=2 small=3] max|Δ|=0.5 | e.g. stand 684750664126144 year 2028: live=23.7000008 jl=23.8000011"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "TPA"
 stand = "*"
 year = "*"
@@ -18370,17 +18315,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "EM"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "SDI"
 stand = "*"
 year = "*"
@@ -18563,17 +18497,6 @@ year = "*"
 status = "OPEN"
 max_cells = 33
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 33 cells [gold_text9=8 jl_not_f32=2 material=18 small=4 ulpbig=1] max|Δ|=3.4 | e.g. stand 474157097489998 year 2036: live=8.7 jl=10.1"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "sum"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
 
 [[residual]]
 variant = "EM"
