@@ -62,4 +62,15 @@ _nsame(a, b) = a == b || (let x = tryparse(Float64, a), y = tryparse(Float64, b)
     @test length(grows) == 1785
     @test count(r -> r[1] == "2016" && !_nsame(r[7], got[(r[1], strip(r[2]), r[3])][ix["PctCr"]]), grows) == 0
 end
+
+# cutstk.f CLSSTK sums the class stocking as CSTOCK+TPA*(D*D*0.005454154) — factor first, then ×TPA; jl's (TPA·D²)·factor
+# rounded REMOVE differently, so the last record THINBBA partially removes took a different PREM (MEASURED FVSie_g16
+# 3027007010690 THINBBA 2006: record 19 cut 5.32047272, jl 5.32045555 ⇒ 2016 TPA, BAAA, the regen PROB1 and on).
+# With it and the OLDPCT reset the whole thinned TreeList 1996-2046 (TPA, DBH, Ht, PctCr) equals live.
+@testset "THINBBA class stocking at cutstk.f CLSSTK precision vs FVSie_g16 (whole TreeList)" begin
+    got, ix, grows = _thin_tl()
+    for (j, c) in ((4, "TPA"), (5, "DBH"), (6, "Ht"), (7, "PctCr"))
+        @test count(r -> !haskey(got, (r[1], strip(r[2]), r[3])) || !_nsame(r[j], got[(r[1], strip(r[2]), r[3])][ix[c]]), grows) == 0
+    end
+end
 end # module

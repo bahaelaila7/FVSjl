@@ -448,7 +448,10 @@ end
     t = s.trees; cstock = 0f0
     @inbounds for i in 1:n
         _cut_eligible(s, i, ispcut, dl, du, hl, hu, sp_groups) || continue
-        cstock += jtyp == 2 ? wk4[i] * t.dbh[i]^2 * _BA_PER_TREE : wk4[i]
+        # cutstk.f CLSSTK: CSTOCK=CSTOCK+TPA*(D*D*0.005454154) — the per-tree BA factor first, then ×TPA (REAL*4;
+        # jl's (TPA·D²)·0.005454154 rounds differently ⇒ REMOVE and the last record's partial PREM ULPs off: MEASURED
+        # FVSie_g16 3027007010690 THINBBA 2006: record 19 cut 5.32047272, jl 5.32045555).
+        cstock += jtyp == 2 ? wk4[i] * (t.dbh[i] * t.dbh[i] * _BA_PER_TREE) : wk4[i]
     end
     return cstock
 end
