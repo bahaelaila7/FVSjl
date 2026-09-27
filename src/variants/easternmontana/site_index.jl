@@ -177,3 +177,29 @@ function em_site_index_setup!(s::StandState)
 end
 
 site_setup!(s::StandState, ::EasternMontana) = em_site_index_setup!(s)
+
+# em/pvref1.f (PVCODE,PVREF)→HABPVR, first-match-wins (em/pvref1_data.jl, generated from the DATA statements).
+const _EM_PVREF1 = let d = Dict{Tuple{String,String},Int}()
+    for ln in eachline(IOBuffer(_EM_PVREF1_RAW))
+        f = split(ln); length(f) == 3 || continue
+        haskey(d, (f[1], f[2])) || (d[(f[1], f[2])] = parse(Int, f[3]))
+    end
+    d
+end
+
+"""
+    em_pvref1_kodtyp(pv_code, pv_ref) -> Int
+
+em/habtyp.f:84-104 + PVREF1: with a PV reference code present, the habitat KODTYP comes ONLY from a full
+(PV_CODE, PV_REF_CODE) pair match in em/pvref1.f (KARD2 left-justified, a ≤2-digit numeric code zero-padded,
+anything after '.' dropped). Any partial or no match takes habtyp.f's label-21 default: IEMTYP=ITYPE (29) ⇒
+KODTYP = JTYPE(29) = 260 (live 474157097489998: "PV_CODE 130 CONVERTED TO CODE 260", PV_REF 102). The raw PV
+code is NOT retried. Returns the KODTYP fed to em_habtyp.
+"""
+function em_pvref1_kodtyp(pv_code::AbstractString, pv_ref::Integer)::Int
+    pvc = String(strip(pv_code))
+    i = findfirst('.', pvc); i === nothing || (pvc = pvc[1:i-1])
+    (length(pvc) == 2 && all(isdigit, pvc)) && (pvc = "0" * pvc)       # habtyp.f:87-94
+    k = get(_EM_PVREF1, (pvc, string(Int(pv_ref))), 0)
+    return k > 0 ? k : Int(EM_JTYPE[29])
+end

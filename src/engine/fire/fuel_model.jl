@@ -985,7 +985,10 @@ habitat code via the growth-port em_habtyp. Activity fuels (11/14) deferred like
 function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
     percov = s.fire.percov
     eqwt = zeros(Float32, _FMD_ICLSS)
-    iemtyp = em_habtyp(Int(s.plot.habitat_code))[1]              # EM habitat subscript (em/habtyp.f JTYPE bucket)
+    # fmcba.f:451 ENTRY EMMD: M1=MD1(IEMTYP). em_site_index_setup! already stores IEMTYP (em/habtyp.f's JTYPE
+    # subscript) in p.habitat_code (site_index.jl:174) — re-running em_habtyp on it double-mapped (hab 323 →
+    # IEMTYP 48 → em_habtyp(48) → 1 ⇒ MD1/MD2 = 8/8 instead of 2/8), dropping live's model-2 candidate.
+    iemtyp = Int(s.plot.habitat_code)
     m1, m2 = em_md_models(iemtyp)                               # EMMD: (MD1,MD2)[iemtyp]
     wt2 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0   # ALGSLP(PERCOV,[30,50],[0,1])
     eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)
