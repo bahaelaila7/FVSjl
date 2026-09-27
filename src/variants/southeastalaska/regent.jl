@@ -194,9 +194,12 @@ function small_tree_growth!(s::StandState, stash, ::SoutheastAlaska; fint::Float
         con = _ak_rg_con(s, sp)
         htgr0 = ak_regent_htgr(sp, xsite, h)
         nrec = trip ? 3 : 1
+        # HTGF gave each tripled copy HTG(ITFN)=TEMHTG, the record's own large-tree HTG (htgf.f:419-434) — read it
+        # before the L=0 pass overwrites HTG(I) with the regent value.
+        lthg0 = t.ht_growth[i]
         for l in 0:(nrec - 1)
-            lthg = l == 0 ? t.ht_growth[i] :
-                   (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : t.ht_growth[i])
+            lthg = l == 0 ? lthg0 :
+                   (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : lthg0)
             dglt = l == 0 ? t.diam_growth[i] : (l == 1 ? stash.dgU[i] : stash.dgL[i])
             htg, dbhs, dg, dgset = _ak_regent_slot(s, sp, h, d, bark, htgr0, lthg, dglt, d, con, scale1, scale2,
                                                    false, false, xrhgro, xrdgro)
