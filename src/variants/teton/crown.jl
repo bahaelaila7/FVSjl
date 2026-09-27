@@ -205,7 +205,11 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             crnew = (cl/hf)*100f0
         else
             # per-species Weibull params from mean crown ratio
-            relsdi = p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
+            # tt/crown.f:178-192: PP (CASE 10) takes BA/BAMAX — the common BAMAX the last SDICAL left (MORTS's, or the
+            # user BAMAX; 0 before any SDICAL ⇒ the SDI form) — every other species SDIAC/SDIDEF.
+            bamax = s.control.ba_max > 0f0 ? s.control.ba_max : s.control.sdical_bamax
+            relsdi = (sp == 10 && bamax > 0f0) ? p.basal_area / bamax :
+                     p.sp_sdi_def[sp] > 0f0 ? sdiac / p.sp_sdi_def[sp] : 1f0
             relsdi > 1.5f0 && (relsdi = 1.5f0)
             (sp == 17 && relsdi > 1f0) && (relsdi = 1f0)
             acrnew = TT_CRC0[sp] + TT_CRC1[sp] * relsdi * 100f0
@@ -218,7 +222,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # d≤0 uses RANN (not in ttt01)
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0   # gfortran ALOG/** (glibc logf/powf)
         end
         # change bounded ±1%/yr (skip when lstart or icr==0 → CRNEW stands)
         if !(lstart || icr == 0)

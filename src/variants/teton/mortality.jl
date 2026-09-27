@@ -180,6 +180,9 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     t85d0  = tmd0  * pmsdiu; t55d0  = tmd0  * pmsdil
     # BAMAX defaults from weighted SDImax (sdical.f:204 BAMAX = SDImax·0.5454154·PMSDIU); PP consumes RZ/BAMAX.
     bamax = sdimax0 * 0.5454154f0 * pmsdiu       # LBAMAX=false default (no user BAMAX keyword in ttpp)   # sdical.f:204 BAMAX = XMAX·0.5454154·PMSDIU is set BEFORE :216 CLMAXDEN adjusts XMAX ⇒ pre-climate XMAX
+    # tt/morts.f:368 CALL SDICAL leaves the common BAMAX (sdical.f:204, unless the user set BAMAX) — the value the
+    # cycle-end CROWN reads for the PP RELSDI=BA/BAMAX (tt/crown.f:179-181).
+    s.control.ba_max > 0f0 || (s.control.sdical_bamax = bamax)
     dia0 = dq0
     d10 = dq10
     # tt/morts.f label-10 D10-RECALIBRATION LOOP (IPASS ≤ 10). Selective (percentile) mortality raises the

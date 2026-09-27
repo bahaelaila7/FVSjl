@@ -114,29 +114,30 @@ using FVSjl
         @test FVSjl._tt_rg_utvar(14) == true
         @test FVSjl._tt_rg_default(14) == false
 
-        # (2) FINDAG height applied ONCE + XWT blend. Args:
-        #   (sp, h, d, cr, sitear, pctred, con, bark, dgmax, diam, scale2, htg_large)
-        # con=1, sitear=30 ⇒ RSIMOD=0.5·(1+(30−5)/25)=1.0, h=10 ⇒ HTGRL=(H(sitage+10)−H(sitage))/(30.48)·0.75.
+        # (2) FINDAG height applied ONCE (loop 1, regent.f:463-486). Args: (sp, h, cr, sj, rsimod, pctred, con).
+        # con=1, SI=30 ⇒ RSIMOD=0.5·(1+(30−5)/25)=1.0, h=10 ⇒ HTGRL=(H(sitage+10)−H(sitage))/(30.48)·0.75.
+        # Regression pin: 12.1616 ft — NOT the subcycled default+aspen value the pre-fix produced (~1.5× larger).
+        htgrl = FVSjl._tt_utvar_htgrl(14, 10.0f0, 25.0f0, 30.0f0, 1.0f0, 1.0f0, 1.0f0)
+        @test htgrl ≈ 12.161556f0 rtol = 1f-5
+        # (3) Wykoff DBH increment (regent.f:903-913, IABFLG=1 ⇒ AX=HT1(14)) at d=1, HK=H+HTGRL — non-zero (guards
+        # the HTDBH branch vs a DG=0 seedling stub). Args: (sp, civar, d, h, hk, htg, bark, xrdgro, dgmx, scale2,
+        # sj, lhtdrg, iabflg, aa); returns (DG, BARK after the record).
         bark = FVSjl.tt_bratio(14, 1.0f0)
         @test bark == 0.95f0
-        call(d, htgL) = FVSjl._tt_utvar_regent(14, 10.0f0, d, 25.0f0, 30.0f0, 1.0f0, 1.0f0,
-                                               bark, 2.5f0, 0.1f0, 1.0f0, htgL)
-
-        # FINDAG height at d=1 (XWT=0 ⇒ pure small-tree, blend inert). Regression pin: 12.1616 ft — NOT the
-        # subcycled default+aspen value the pre-fix produced (~1.5× larger). Applied ONCE (·0.75, RSIMOD=1).
-        h_d1, dg_d1 = call(1.0f0, 0.0f0)
-        @test h_d1 ≈ 12.161556f0 rtol = 1f-5
-        # Wykoff DBH increment is non-zero (guards the HTDBH branch vs a DG=0 seedling stub).
-        @test dg_d1 ≈ 1.6859541f0 rtol = 1f-5
-
-        # d≤2 ⇒ XWT=0 ⇒ height increment is INDEPENDENT of the large-tree HTG (seedling cycles stay bit-exact).
-        @test call(1.0f0, 0.0f0)[1] == call(1.0f0, 99.0f0)[1]
-
-        # d=3 ⇒ XWT=(3−2)/(4−2)=0.5 ⇒ height increment blends HALF-way toward the large-tree HTG.
-        # (a) With htg_large=0 the blend halves the pure small-tree value (load-bearing: the pre-fix omitted
-        #     the blend, so MM height over-grew once D crossed XMIN=2).
-        @test call(3.0f0, 0.0f0)[1] ≈ 0.5f0 * h_d1 rtol = 1f-5
-        # (b) A Δhtg_large of 4 shifts the blended increment by exactly XWT·4 = 2.0.
-        @test (call(3.0f0, 6.0f0)[1] - call(3.0f0, 2.0f0)[1]) ≈ 2.0f0 rtol = 1f-4
+        dg, bark_out = FVSjl._tt_rg_cu_dg(14, false, 1.0f0, 10.0f0, 10.0f0 + htgrl, htgrl, bark, 1.0f0, 2.5f0,
+                                          1.0f0, 30.0f0, true, 1, 0.0f0)
+        @test dg ≈ 1.6859541f0 rtol = 1f-5
+        @test bark_out == bark
+        # (4) MM's DG reads REGENT's CARRIED BARK (regent.f:1024 DG=(DK−DKK)·BARK uses the previous assignment;
+        # only CIVAR and BI/MC recompute it first), so a different incoming BARK changes the increment.
+        dg2, _ = FVSjl._tt_rg_cu_dg(14, false, 1.0f0, 10.0f0, 10.0f0 + htgrl, htgrl, 0.9f0, 1.0f0, 2.5f0,
+                                    1.0f0, 30.0f0, true, 1, 0.0f0)
+        @test dg2 < dg
+        # (5) CIVAR PP (regent.f:821-829, 975-1046) recomputes BARK=BRATIO(10,D) before the final DG: live FVStt_g16
+        # S248112 cycle 1 record I=13 (D=0.1, H=3, HK=9.4507) has DK=2.13310, DKK=D, 10-yr DBH increment 1.5830.
+        dgp, bp = FVSjl._tt_rg_cu_dg(10, true, 0.1f0, 3.0f0, 9.45070076f0, 6.45070124f0, 0.5f0, 1.0f0, 99f0,
+                                     1.0f0, 50.0f0, true, 1, 0.0f0)
+        @test bp == FVSjl.tt_bratio(10, 0.1f0)
+        @test dgp ≈ 1.5830f0 atol = 5f-5
     end
 end
