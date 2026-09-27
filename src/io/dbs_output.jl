@@ -1324,8 +1324,9 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64;
         Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
         Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
         estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
-        # TreeAge: ABIRTH only when the age was INPUT (LBIRTH, intree.f:190-195 / dbstreesin.f AGE), else 0
-        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
+        # TreeAge: ABIRTH only when the SLOT's LBIRTH is set (intree.f:190-195 / dbstreesin.f AGE / triple.f:82 —
+        # LBIRTH stays with the slot through TREDEL and ESTAB, see TreeList.slot_lbirth), else 0
+        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.slot_lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
 end
 
 # Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).

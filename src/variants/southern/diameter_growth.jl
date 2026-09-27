@@ -1522,6 +1522,7 @@ function triple_records!(s::StandState, stash)
         # walks after a thin, so it must match the oracle's append order exactly.
         u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
+        t.slot_lbirth[u] = t.slot_lbirth[l] = t.slot_lbirth[i]   # triple.f:82 LBIRTH(ITFN)=LBIRTH(I)
         # REGENT's per-copy sub-4.5' DBH(K)=D+0.001*HK (BM; see stash dbh0): copies start from the central
         # record's PRE-REGENT DBH plus their own bump, not the central's already-bumped DBH.
         if haskey(stash, :dbh0) && stash.dbh0[i] > 0f0

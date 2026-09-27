@@ -207,4 +207,26 @@ end
     @test count(m -> m.file == "FVS_Climate" && m.col in ("Viability", "SiteMult", "GrowthMult", "BA", "TPA",
                                                            "dClimMort", "ViabMort", "MxDenMult"), ms) == 0
 end
+
+# LBIRTH (the TreeAge gate, dbstrls.f:207) is set only by intree.f:190-194 and triple.f:82 — TREMOV (tremov.f),
+# COMPRS and ESTAB never touch it, so it belongs to the SLOT. jl moved it with the record: after the 2022 thin TREDEL
+# (tredel.f) moved late records into holes, live reported TreeAge 0 for them where jl kept the input age (1 @2032: live
+# 0, jl 143), and the 2031 cohort booked in reused slots reports the old occupant's flag (ES020100 @2032: live 5, jl 0).
+# Golden: FVSem_g16 on the thinbba key + TREELIST, TreeAge of every FVS_TreeList row 2012-2062.
+@testset "TreeAge follows the slot's LBIRTH through TREDEL and ESTAB vs FVSem_g16" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "em_treeage")
+    d = mktempdir()
+    key = replace(read(joinpath(fx, "196378260020004_thinbba_tl.key"), String),
+                  "\nout.db\n" => "\n" * joinpath(d, "out.db") * "\n",
+                  "\nstands.db\n" => "\n" * joinpath(fixture_dir("EM"), "stands.db") * "\n")
+    kp = joinpath(d, "x.key"); write(kp, key)
+    FVSjl.run_keyfile(kp; variant = FVSjl.EasternMontana())
+    hdr, rows = db_table_rows(joinpath(d, "out.db"), "FVS_TreeList")
+    iy = findfirst(==("Year"), hdr); it = findfirst(==("TreeId"), hdr); ix = findfirst(==("TreeIndex"), hdr)
+    ia = findfirst(==("TreeAge"), hdr)
+    got = Dict((r[iy], strip(r[it]), r[ix]) => r[ia] for r in rows)
+    ghdr, grows = read_csv(joinpath(fx, "196378260020004_thinbba_tl.TreeAge.csv"))
+    @test length(grows) == 1461
+    @test count(r -> !_eq(r[4], get(got, (r[1], strip(r[2]), r[3]), "")), grows) == 0
+end
 end # module

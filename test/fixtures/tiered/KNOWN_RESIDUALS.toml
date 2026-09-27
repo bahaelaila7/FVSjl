@@ -4696,17 +4696,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "none"
 file = "FVS_TreeList"
-col = "TreeAge"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [material=4] max|Δ|=35.0 | e.g. stand 374547584489998 year 2045: live=0.0 jl=15.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_TreeList"
 col = "TreeVal"
 stand = "*"
 year = "*"
