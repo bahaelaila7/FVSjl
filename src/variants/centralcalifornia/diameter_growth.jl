@@ -10,8 +10,7 @@
 #   • TANOAK (ISPC 42, group 13): 5-yr equation → 10-yr basis  (DDS += ln 2)
 #   • REDWOOD / GIANT SEQUOIA (ISPC 50 / 23, group 12): a DIFFERENT functional form on outside-bark
 #     diameter increment (DGLT), converted to ΔDIB² via BRATIO; uses the point Zeide relative density PRD
-#     (SDICAL/SDICLS) — deferred to the Zeide-SDI chunk, so the RW/GS branch is scaffolded but NOT yet
-#     cyc-exact (cat01 has no RW/GS ⇒ inert for the beachhead).
+#     (SDICAL/SDICLS, the shared point_zeide! — measured vs live on a synthetic RW/GS stand).
 # MEASURED bit-exact vs FVSca_dump (instrumented ca/dgf.f) per-tree LN(DDS) on cat01 (standard + TANOAK).
 # =============================================================================
 
@@ -110,6 +109,7 @@ function dgf!(s::StandState, ::CentralCalifornia)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     slope = p.slope; asp = p.aspect; cosa = cos(asp)
+    prdf = ws_point_prd_fn(s)          # ca/dgf.f:290-306 SDICAL(IWHO=2) XMAXPT + per-point SDICLS ZRD (== ws/dgf.f)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         isp = Int(t.species[i]); jspc = CA_MAPSPC[isp]
@@ -124,7 +124,7 @@ function dgf!(s::StandState, ::CentralCalifornia)
             conspp = c.dg_const[isp]                                # NB: no COR here (added to DDS below)
             pbal = (1 <= pt_i <= length(dens.point_ba)) ? dens.point_ba[pt_i] * pctfrac : bal
             pbal < 0f0 && (pbal = bal)
-            prd = 0f0    # TODO(zeide-chunk): PRD = ZRD(pt)/XMAXPT(pt), point Zeide relative density (SDICLS)
+            prd = prdf(pt_i)                                        # ca/dgf.f:339-344 PRD = ZRD(ITRE)/XMAXPT(ITRE)
             dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
                        0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
                        0.002203f0 * (slope * 100f0) * cosa)

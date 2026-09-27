@@ -69,21 +69,20 @@ end
     return ddg
 end
 
-@inline function _ca_rg_stash!(stash, t, i::Int)
-    if stash !== nothing && !isempty(stash.dgU) && i <= length(stash.dgU)
-        stash.dgU[i] = t.diam_growth[i]; stash.dgL[i] = t.diam_growth[i]
-        stash.htgU[i] = t.ht_growth[i]; stash.htgL[i] = t.ht_growth[i]
-        !isempty(stash.is_small) && (stash.is_small[i] = true)
-    end
-end
-
 function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Float32 = 10.0f0)
     p, t, c = s.plot, s.trees, s.calib
     n = t.n; n == 0 && return s
     sd = s.coef.species
-    avh = stand_top_height(s); ba = p.basal_area; dgsd = s.control.dg_sd   # AVHT40 top-40 (ca/htgf regent AVH), NOT p.avg_height
+    # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
+    avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
     scale = fint / CA_RG_REGYR                       # SCALE = FNT/REGYR (non-estab FNT=FINT)
     scale2 = s.control.year / fint                   # SCALE2 = YR/FNT
+    yr_now = current_cycle_year(s)                   # ca/regent.f:113-114 MULTS(3/6, IY(ICYC))
+    # Tripled copies (ca/regent.f:351-356): with LTRIP each record I is followed by its two copies K=ITRN+2I−2+L
+    # (L=1,2), each rerunning labels 2-23 — a FRESH ZZRAN draw, the XWT blend with the copy's own large-tree HTG(K),
+    # SIZCAP, and for D<DGMIN its own DG(K) (blended with the copy's DGDRIV DG) / DBH(K)=D+0.001·HK. H and D stay
+    # record I's; DBH(K)=DBH(I) (dgdriv.f:258/266). The copies live in the tripling stash.
+    trip = stash !== nothing && !isempty(stash.dgU)
     # ca/regent.f:140-154 is SPECIES-MAJOR (DO 30 ISPC … I=IND1(I3)); the per-tree ZZRAN draw must follow it.
     @inbounds for i in species_major_order(s)
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -96,54 +95,111 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
         si = p.sp_site_index[sp]
         bark = wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
         con = exp(c.htg_cor_small[sp])               # RHCON(=1)·exp(HCOR)
+        xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
+        xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         htgrr = ca_smhtgf(sp, d, h, cr, ba, bal, si, relht)
-        htgr = htgrr * con
-        zzran = 0f0
-        if dgsd >= 1f0
-            while true
-                zzran = bachlo(s.rng, 0f0, 1f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        htgr = (htgr + zzran*0.1f0) * scale          # XRHGRO=1
         xmn = CA_RG_XMIN[sp]; xmx = CA_RG_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-        if sp == 23 || sp == 50                      # GS/RW blend with the large-tree HTG
-            lthg = t.ht_growth[i]
-            htgr = (htgr + lthg)/2f0
-            t.ht_growth[i] = htgr*(1f0-xwt) + xwt*lthg
-        else
-            t.ht_growth[i] = htgr*(1f0-xwt) + xwt*t.ht_growth[i]
-        end
-        t.ht_growth[i] < 0.1f0 && (t.ht_growth[i] = 0.1f0)
         cap = s.control.sp_size_cap[sp, 4]
-        (h + t.ht_growth[i] > cap) && (t.ht_growth[i] = max(cap - h, 0.1f0))
-        # --- small-tree DBH (only D<DGMIN; else keep large-tree DG) ---
-        if d >= CA_RG_DGMIN[sp]
-            _ca_rg_stash!(stash, t, i); continue
+        large_htg = t.ht_growth[i]; dg_main = t.diam_growth[i]
+        for l in 0:(trip ? 2 : 0)
+            lthg = l == 0 ? large_htg : (stash.htg_copy[i] ? (l == 1 ? stash.htgU[i] : stash.htgL[i]) : large_htg)
+            dglt = l == 0 ? dg_main : (l == 1 ? stash.dgU[i] : stash.dgL[i])
+            htgr = htgrr * con                       # label 2
+            zzran = 0f0
+            if dgsd >= 1f0                           # label 3
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr + zzran*0.1f0) * xrhgro * scale
+            local htg::Float32
+            if sp == 23 || sp == 50                  # GS/RW blend with the large-tree HTG
+                htgr = (htgr + lthg)/2f0
+                htg = htgr*(1f0-xwt) + xwt*lthg
+            else
+                htg = htgr*(1f0-xwt) + xwt*lthg
+            end
+            htg < 0.1f0 && (htg = 0.1f0)
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+            # --- small-tree DBH (only D<DGMIN; else GO TO 23 keeps the DGDRIV DG(K)) ---
+            dbhk = -1f0; dgk = dglt
+            if d < CA_RG_DGMIN[sp]
+                hk = h + htg
+                if hk <= 4.5f0
+                    dgk = 0f0; dbhk = d + 0.001f0*hk
+                else
+                    dk = ca_htdbh_dbh(sp, hk)
+                    dkk = h <= 4.5f0 ? d : ca_htdbh_dbh(sp, h)
+                    if sp == 23 || sp == 50
+                        xdwt = d <= xmn ? 0f0 : (d - xmn)/(CA_RG_DGMIN[sp] - xmn)
+                    else
+                        xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
+                    end
+                    dgsm = (dk - dkk)*bark*xrdgro; dgsm < 0f0 && (dgsm = 0f0)
+                    dds = dgsm*(2f0*bark*d + dgsm)*scale2
+                    dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
+                    dgk = dgsm*(1f0-xdwt) + dglt*xdwt
+                    (d + dgk) < CA_RG_DIAM[sp] && (dgk = CA_RG_DIAM[sp] - d)   # DBH(K)=D here
+                end
+                dgk = ca_dgbnd(sp, dbhk >= 0f0 ? dbhk : d, dgk, s.control.sp_size_cap[sp,1], s.control.sp_size_cap[sp,3])
+            end
+            if l == 0
+                t.ht_growth[i] = htg; t.diam_growth[i] = dgk
+                dbhk >= 0f0 && (t.dbh[i] = dbhk)
+            else
+                l == 1 ? (stash.htgU[i] = htg) : (stash.htgL[i] = htg)
+                l == 1 ? (stash.dgU[i] = dgk) : (stash.dgL[i] = dgk)
+                l == 1 ? (stash.dbhU[i] = dbhk >= 0f0 ? dbhk : d) : (stash.dbhL[i] = dbhk >= 0f0 ? dbhk : d)
+                stash.is_small[i] = true
+            end
         end
-        htg = t.ht_growth[i]; hk = h + htg
-        if hk <= 4.5f0
-            t.diam_growth[i] = 0f0
-            t.dbh[i] = d + 0.001f0*hk
-            _ca_rg_stash!(stash, t, i); continue
+    end
+    return s
+end
+
+"""ca/regent.f LSTART small-tree HEIGHT calibration (label 40, :375-472; called from cratet.f:571). Per species
+(IND1 order, LHTCAL default .TRUE.): records with current DBH<5, backdated H=HT−HTG (IHTG<2) ≥0.01 and a measured
+HTG≥0.001 give EDH = SMHTGF(D, H_back, ICR/10, BA, BAL, SITEAR, RELHT)·RHCON and TERM = HTG·SCALE3 (SCALE3 =
+REGYR/FINTH); CORNEW = (ΣTERM·P/ΣP)/(ΣEDH·P/ΣP) when N≥NCALHT(5), ≤0 ⇒ 1E−4, trapped to [0.0821, 12.1825] else 1.
+RELHT = HT(I)/AVH on the CURRENT height (computed before the IHTG backdate, :410-414) and AVH from cratet.f:529
+AVHT40; BA/PCT are the cratet.f:171 backdating DENSE's (the crown-init snapshot). HCOR = ln(CORNEW) is the raw
+htg_cor_init the shared dgdriv.f:175/196 attenuation turns into the applied CON."""
+function ca_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                  # regent.f:382 IF(IFINTH.EQ.0) GOTO 95
+    ba = c.cratet_ba
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = CA_RG_REGYR / finth                              # regent.f:383 SCALE3 = REGYR/FINTH
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        si = p.sp_site_index[sp]
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            d = saved_dbh[i]; h = t.height[i]
+            pct = i <= length(c.cratet_pct) ? c.cratet_pct[i] : t.crown_ratio[i]
+            bal = ((100f0 - pct) / 100f0) * ba
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = h / avh
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            edh = ca_smhtgf(sp, d, h, cr, ba, bal, si, relht) * rhcon
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
         end
-        dk = ca_htdbh_dbh(sp, hk)
-        dkk = h <= 4.5f0 ? d : ca_htdbh_dbh(sp, h)
-        if sp == 23 || sp == 50
-            xdwt = d <= xmn ? 0f0 : (d - xmn)/(CA_RG_DGMIN[sp] - xmn)
-        else
-            xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
-        end
-        dgsm = (dk - dkk)*bark; dgsm < 0f0 && (dgsm = 0f0)   # XRDGRO=1
-        dds = dgsm*(2f0*bark*d + dgsm)*scale2
-        dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
-        dglt = t.diam_growth[i]
-        dgk = dgsm*(1f0-xdwt) + dglt*xdwt
-        (t.dbh[i] + dgk) < CA_RG_DIAM[sp] && (dgk = CA_RG_DIAM[sp] - t.dbh[i])
-        dgk = ca_dgbnd(sp, t.dbh[i], dgk, s.control.sp_size_cap[sp,1], s.control.sp_size_cap[sp,3])
-        t.diam_growth[i] = dgk
-        _ca_rg_stash!(stash, t, i)
+        nh < 5 && continue                                    # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
+        c.htg_cor_init[sp] = log(cornew)
     end
     return s
 end

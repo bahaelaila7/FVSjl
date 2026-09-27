@@ -110,6 +110,11 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # Key the pass on the read order, then restore.
     sk_saved = (t.ndead > 0 && length(s.calib.input_seq) == t.n) ? t.sort_key[1:t.n] : nothing
     sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = Float64(s.calib.input_seq[i]); end)
+    # CA/SO/WS CCFCAL is R5CRWD — height-dependent (H<4.5 ⇒ CRWDTH=SM·H) — and this DENSE runs before the missing-
+    # height dub, so a missing height adds CCF 0 here: swap the as-read heights in for this pass and its RELDEN.
+    ht_swap = _cratet_predub_ccf(s.variant) && length(s.calib.cratet_ht_in) == t.n
+    ht_saved = ht_swap ? t.height[1:t.n] : Float32[]
+    ht_swap && @inbounds(for i in 1:t.n; t.height[i] = s.calib.cratet_ht_in[i]; end)
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
     sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = sk_saved[i]; end)
     # dense.f:244 `CALL PCTILE(ITRN,IND,WK5,PCT,TOTAL)` — in the BACKDATING pass, PCT is accumulated over
@@ -131,6 +136,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         _pctile!(t.crown_ratio, t, idx, t.n)
     end
     s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
+    ht_swap && @inbounds(for i in 1:t.n; t.height[i] = ht_saved[i]; end)
     # The rest of that DENSE's state for the EM LSTART REGCAL (em/cratet.f:553 — no DENSE in between): BA (=OLDBA,
     # backdated), AVH (the AVHT40 walk above), the per-point PCCF (dense.f:202 accumulates it only in the backdated
     # pass) and PCT (dense.f:244). RELDM1 is the dense.f:259 interpolation to the FINTH-year start; its "current"
@@ -276,3 +282,8 @@ function point_crown_inputs(s::StandState)
     tpccf(pt) = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
     return prd, qmdplt, tpccf
 end
+
+# Variants whose CCFCAL crown width (R5CRWD: CRWDTH = SM·H below 4.5 ft / the spline branch) reads HT, so the
+# CRATET backdating DENSE ({ca,so}/cratet.f:171, ws/cratet.f:247 — before the missing-height dub) sees a missing
+# height as 0 ⇒ that record adds no CCF (CA FIA 302001653489998: four D=0.1 seedlings, live CCFT 0.00 each).
+_cratet_predub_ccf(v) = v isa CentralCalifornia || v isa SouthCentralOregon || v isa WestSierra

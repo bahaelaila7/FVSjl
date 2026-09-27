@@ -287,7 +287,10 @@ function dgf!(s::StandState, ::WestSierra)
         wk2[i] = dds
         # ⚠ ws/dgf.f computes a DDSMAX bound (:774-785) here, but the WK2(I)=DDS store (:761) precedes it
         # and WK2 is NEVER re-stored after the cap — the bound is DEAD CODE w.r.t. WK2 (a WS quirk; other
-        # variants store WK2 after the cap). Faithful behaviour = do NOT cap wk2. (Verified vs source.)
+        # variants store WK2 after the cap). Faithful behaviour = do NOT cap wk2 (WS_DDSMX1/2 stay unused).
+        # MEASURED vs live FVSws_g16 (DEBUG DGF DGDRIV, FIA 23989620010900 JP I=1 D=5.6 ICR=85): the bound fires
+        # ("DDS BOUND BEING INVOKED", DDSMAX = −3.71+1.25·ln(85·5.6) = 4.00) yet DGDRIV's WKI = 10.5241 =
+        # sqrt(D²+exp(5.3774))−D on the UNcapped LN(DDS) 5.3774; the DG that live keeps (5.8302) is ws/dgbnd.f's.
     end
     return s
 end
@@ -313,3 +316,32 @@ function ws_point_prd_fn(s::StandState)
     return pt -> (1 <= pt <= length(xmaxpt) && xmaxpt[pt] > 0f0) ? zrd[pt] / xmaxpt[pt] : 0f0
 end
 
+
+# ws/dgbnd.f DATA DGAMAX/DGBMAX/DGCMAX (43 species): the large-tree DG envelope DGMAX = A·DBH^B·EXP(C·DBH), applied
+# for DBH≥3 to CASE(1:3,5:8,11,13,18,22,24,28:40,42:43) with a DG≥0 floor, then the SIZCAP cap. ca/so dgbnd.f are
+# SIZCAP-only; this envelope is WS's own.
+const WS_DGAMAX = Float32[4.9094,1.8388,3.8681,4.9094,1.9557, 3.7202,3.8681,3.7202,0,0, 4.9094,0,3.8681,0,0,
+                          0,0,3.7202,0,0, 0,1.8388,4.9094,4.9094,0, 0,0,1.9557,1.9557,1.9557,
+                          1.9557,1.9557,1.9557,1.9557,1.9557, 1.9557,1.9557,1.9557,1.9557,1.9557, 0,3.7202,1.9557]
+const WS_DGBMAX = Float32[0.4678,0.7319,0.5043,0.4678,0.4655, 0.3860,0.5043,0.3860,0,0, 0.4678,0,0.5043,0,0,
+                          0,0,0.3860,0,0, 0,0.7319,0.4678,0.4678,0, 0,0,0.4655,0.4655,0.4655,
+                          0.4655,0.4655,0.4655,0.4655,0.4655, 0.4655,0.4655,0.4655,0.4655,0.4655, 0,0.3860,0.4655]
+const WS_DGCMAX = Float32[-0.04365,-0.05194,-0.04492,-0.04365,-0.05613, -0.03852,-0.04492,-0.03852,0,0,
+                          -0.04365,0,-0.04492,0,0, 0,0,-0.03852,0,0, 0,-0.05194,-0.04365,-0.04365,0,
+                          0,0,-0.05613,-0.05613,-0.05613, -0.05613,-0.05613,-0.05613,-0.05613,-0.05613,
+                          -0.05613,-0.05613,-0.05613,-0.05613,-0.05613, 0,-0.03852,-0.05613]
+const _WS_DGBND_SP = BitSet([1,2,3,5,6,7,8,11,13,18,22,24,28,29,30,31,32,33,34,35,36,37,38,39,40,42,43])
+
+"ws/dgbnd.f — DGMAX = DGAMAX·DBH^DGBMAX·EXP(DGCMAX·DBH) for DBH≥3 on the listed species (then DG≥0), then SIZCAP."
+@inline function ws_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap1::Float32, sizcap3::Float32)::Float32
+    if sp in _WS_DGBND_SP && dbh >= 3f0
+        dgmax = WS_DGAMAX[sp] * fpow(dbh, WS_DGBMAX[sp]) * fexp(WS_DGCMAX[sp] * dbh)   # gfortran powf/expf
+        ddg > dgmax && (ddg = dgmax)
+        ddg < 0f0 && (ddg = 0f0)
+    end
+    if (dbh + ddg) > sizcap1 && sizcap3 < 1.5f0
+        ddg = sizcap1 - dbh
+        ddg < 0.01f0 && (ddg = 0.01f0)
+    end
+    return ddg
+end
