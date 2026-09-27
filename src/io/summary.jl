@@ -273,6 +273,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end
     cum_rem_merch = 0f0
+    mai_flag = false; mai_newstd = false   # AK evtstv.f MAIFLG / NEWSTD
     prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
     cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
@@ -288,6 +289,21 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         r = summary_row(s; period = per,
                         total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0,
                         final_row = last)
+        # AK: evtstv.f:348-437 MAI LOGIC + disply.f:391-395. MAIFLG=1 when the inventory age is 0 with trees present
+        # (NEWSTD=1 when it is 0 on a bare stand); a later row whose age at the previous cycle start was 0 (ZERO =
+        # AGE−(IY(ICYC)−IY(ICYC−1)) = 0) prints 0 and, unless NEWSTD, sets MAIFLG; while MAIFLG (and not NEWSTD) every
+        # row — the disply.f final row included — prints 0. FIA 720755825290487 (AGE missing ⇒ 0, 31 records): live MAI
+        # 0.0 every row, jl had 47.5/33.3/…  (Base-code logic; applied to AK only here.)
+        if s.variant isa SoutheastAlaska
+            if c == 0
+                r.age <= 0 && (r.tpa == 0 ? (mai_newstd = true) : (mai_flag = true))
+            elseif last
+                mai_flag && (r.mai = 0.0)
+            elseif r.age - cycle_period_at(s.control, c - 1) == 0 || (mai_flag && !mai_newstd)
+                r.mai = 0.0
+                mai_newstd || (mai_flag = true)
+            end
+        end
         _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
@@ -434,7 +450,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_qmd = Float64(stand_qmd(s))   # QDBHAT=ATAVD (REAL): FVS_Summary binds it whole; the .sum prints F5.1
                 # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
                 # variants keep their validated per-acre float accumulation.
-                prev_increment = met ? Float32(r.rem_mcuft) : rem.mcuft / g
+                # AK: evtstv.f:414 TOTREM += IOSUM(9) — the INTEGER .sum removed merch (akt01 shelterwood 1990: 163 ⇒ MAI
+                # (1537+163)/80 = 21.25 ⇒ gfortran F6.1 ties-to-even "21.2"; the float 163.4 gave 21.3).
+                prev_increment = (met || s.variant isa SoutheastAlaska) ? Float32(r.rem_mcuft) : rem.mcuft / g
                 cum_rem_merch += prev_increment
             else
                 prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)

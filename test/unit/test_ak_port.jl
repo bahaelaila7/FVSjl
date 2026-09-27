@@ -93,6 +93,11 @@ end
     end
     @test length(live) == 56
     @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) == 56
+    # every .sum column, incl. removals/after-treatment/accretion/mortality and MAI (evtstv.f TOTREM = Σ the INTEGER
+    # removed merch: the shelterwood's 2010 MAI (1537+163)/80 = 21.25 prints "21.2")
+    full(path) = Dict((k, l) for (k, l) in enumerate(filter(l -> occursin(r"^(19|20)\d\d ", l), readlines(path))))
+    lf = full(joinpath(fx, "akt01.live.sum")); jf = full(joinpath(dir, "jl.sum"))
+    @test length(lf) == 56 && all(k -> split(get(jf, k, "")) == split(lf[k]), keys(lf))
 end
 
 @testset "AK FIA sample vs live FVSak (12 stands, AUTOES)" begin
@@ -115,11 +120,27 @@ end
         rows_by_id("jl.sum")
     end
     exact = ("10705712010497", "10706339010497", "10708179010497", "10708351010497", "1549083042290487",
-             "24731081010497", "24739066010497", "644808316126144", "666740939126144")
+             "24731081010497", "24739066010497", "644808316126144", "666740939126144", "720755825290487")
     for sid in exact
         ks = [k for k in keys(live) if k[1] == sid]
         @test length(ks) == 7
         @test all(k -> get(jl, k, nothing) == live[k], ks)
     end
-    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 76
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 81
+    # every .sum column of the exact stands — incl. MAI: 720755825290487 has no inventory AGE (0) but trees, so
+    # evtstv.f MAIFLG shuts MAI off (0.0) for every row
+    function lines_by_id(path)
+        out = Dict{Tuple{String,Int},Vector{SubString{String}}}(); sid = ""
+        for l in eachline(path)
+            startswith(l, "-999") && (sid = split(l)[3]; continue)
+            f = split(l)
+            (sid != "" && length(f) > 20 && all(isdigit, f[1]) && length(f[1]) == 4) || continue
+            out[(sid, parse(Int, f[1]))] = f
+        end
+        return out
+    end
+    lf = lines_by_id(joinpath(fx, "akfia.live.sum")); jf = lines_by_id(joinpath(dir, "jl.sum"))
+    for sid in exact
+        @test all(k -> get(jf, k, nothing) == lf[k], [k for k in keys(lf) if k[1] == sid])
+    end
 end
