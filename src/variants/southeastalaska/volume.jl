@@ -342,7 +342,19 @@ function compute_volumes_ak!(s::StandState)
     t = s.trees
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
-        tcf, mcf, bf = ak_tree_vol(s, sp, d, Float32(h))
+        # ak/vols.f:145-146 (== ca/vols.f): a top-killed tree (H≥4.5, ITRUNC>0) is volumed at its NORMAL height
+        # NORMHT, then vols.f:193/391 trim it back to the break with CFTOPK/BFTOPK (NATCRS sets CTKFLG=BTKFLG=.TRUE.
+        # for every NVEL family — F32, DVE and CUR alike; VMAX=BFMAX=TCF). jl volumed the broken stem at its
+        # standing height with no trim.
+        tkill = h >= 4.5f0 && t.trunc[i] > 0
+        hv = tkill ? Float32(t.norm_ht[i]) / 100f0 : Float32(h)
+        tcf, mcf, bf = ak_tree_vol(s, sp, d, hv)
+        if tkill && tcf > 0f0 && 1 <= sp <= 23
+            bark = ak_bratio(sp, d)                          # vols.f:150 BARK=BRATIO(ISPC,D,H)
+            vmax = tcf
+            tcf, mcf = cr_cftopk(tcf, mcf, d, hv, vmax, bark, Int(t.trunc[i]), _AK_VOL_STUMP, _AK_VOL_TOPD)
+            bf = cr_bftopk(bf, d, hv, vmax, bark, Int(t.trunc[i]), _AK_VOL_STUMP, _AK_VOL_SCFTOPD)
+        end
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = max(mcf, 0f0)
         t.saw_cuft_vol[i] = 0f0
