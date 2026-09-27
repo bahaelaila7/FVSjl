@@ -1299,6 +1299,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # NTYR=5 ⇒ RDNEXT(1)=RELDEN): post-growth, BEFORE ESNUTR adds sprouts/AUTOES/PLANT (post-regen DENSE is :244).
     # establish! recomputes density WITH the new cohort, so snapshot it here (same pattern as BM below).
     es_ie_relden_pre, es_ie_ba_pre = s.variant isa InlandEmpire ? (stand_ccf(s), stand_ba(s)) : (-1f0, -1f0)
+    # WC: gradd.f:192 DENSE (post-UPDATE, pre-ESNUTR). ESTAB's ESSUBH reads AVH from it and ESGENT (called inside
+    # ESTAB, before gradd.f:244's DENSE) reads its PCCF/PTBAA/AVH — the post-growth PRE-regen values.
+    local es_wc_ptba::Vector{Float32}, es_wc_pccf::Vector{Float32}, es_wc_avh::Float32
+    if s.variant isa WestCascades || s.variant isa PacificNorthwest   # PN compiles the same gradd/estab/esgent
+        compute_density!(s)
+        es_wc_ptba = copy(s.density.point_ba); es_wc_pccf = copy(s.density.point_ccf)
+        es_wc_avh = s.plot.avg_height
+    end
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1336,6 +1344,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
+    (s.variant isa WestCascades || s.variant isa PacificNorthwest) && wc_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh,
+        avh_pre = es_wc_avh, ptba_pre = es_wc_ptba, pccf_pre = es_wc_pccf)   # WC: wc/esgent.f → REGENT(LESTB)
     s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)

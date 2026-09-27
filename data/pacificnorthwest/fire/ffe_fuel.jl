@@ -139,27 +139,10 @@ function pn_dead_fuel_loading(covtyp::Int, percov::Float32)::Vector{Float32}
 end
 
 # =============================================================================
-# pn_cwcalc — PN crown width (ft) for FMCBA's PERCOV. Crookston R6 model-2 (pn/cwcalc.f, BYTE-IDENTICAL
-# to wc/cwcalc.f — SAME WCMAP codes + base coefficients). Only the forest-612 (SIUSLAW) BF differs:
-# DF(202)=0.977, RC(242)=0.905, WH(263)=0.924; all other species BF=1.0 (not listed in CASE(612)).
-# Reuses the WCMAP (_WC_CWMAP) and _cr_r6m2 from the WC port. Only the pnt01 species are ported (others
-# error — a follow-up crown-width chunk, mirroring CA F4a / WC scope).
+# pn_cwcalc — PN crown width (ft). pn/cwcalc.f is BYTE-IDENTICAL to wc/cwcalc.f (md5 2bace281): the same WCMAP
+# codes, the national equations and the Region-6 bias factor BF by KODFOR×FIASP (cwcalc.f:188-876). So PN
+# evaluates exactly wc_cwcalc with its own post-FORKOD KODFOR (609/612/800/708/709/712). The old PN port covered
+# only the 7 pnt01 species at forest 612 and errored on the rest (a PN TreeList / FFE run on species 8+ crashed).
 # =============================================================================
-function pn_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
-    (1 <= sp <= 39) || return 0f0
-    eqn = _WC_CWMAP[sp]; cl = cr * h * 0.01f0; ba1 = barea + 1f0
-    if     eqn == "01505"; return _cr_r6m2(5.0312f0*1.0f0,   0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)   # WF 015 BF=1
-    elseif eqn == "10805"; return _cr_r6m2(6.6941f0*1.0f0,   0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el, 1f0,79f0,40f0)   # LP 108 BF=1 (612)
-    elseif eqn == "11705"; return _cr_r6m2(3.5930f0*1.0f0,   0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el, 5f0,75f0,56f0)   # SP 117 BF=1 (612)
-    elseif eqn == "12205"; return _cr_r6m2(4.7762f0*1.0f0,   0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0)  # PP 122 BF=1 (612)
-    elseif eqn == "20205"; return _cr_r6m2(6.0227f0*0.977f0, 0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el, 1f0,75f0,80f0)   # DF 202 BF=0.977 (612)
-    elseif eqn == "09305"; return _cr_r6m2(6.7575f0*1.0f0,   0.55048f0,-0.25204f0,0.19002f0, 0f0,     -0.00313f0, d,h,cl,ba1,el, 1f0,85f0,40f0)   # ES 093 BF=1 (612)
-    elseif eqn == "01703"                                                                          # GF 017 log form (no BF, no H/BA/EL)
-        dm = d >= 1f0 ? d : 1f0
-        v = 1.0303f0 * fexp(1.14079f0 + 0.20904f0*flog(cl) + 0.38787f0*flog(dm))
-        d < 1f0 && (v *= d); v > 40f0 && (v = 40f0); return v
-    else
-        error("pn_cwcalc: crown-width equation $(eqn) (PN species $(sp)) not yet ported — pnt01 exercises " *
-              "only WF/GF/LP/SP/PP/DF/ES; the remaining WCMAP equations are a follow-up crown-width chunk.")
-    end
-end
+pn_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+          kodfor::Int = 612)::Float32 = wc_cwcalc(sp, d, h, cr, barea, el, hi; kodfor = kodfor)

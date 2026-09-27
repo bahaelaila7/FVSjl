@@ -313,6 +313,177 @@ const CI_MIS_DGP = reshape(Float32[
     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
 ], 7, 19)
 
+# wc/misintwc.f (mistoe/misintwc.f:79-83 AFIT, :99-138 ADGP, :201-240 APMC; AHGP all 1.0 = inert). MAXSP=39.
+const WC_MIS_FIT = Int32[1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+const WC_MIS_PMC = reshape(Float32[
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.0, 0.0,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00112, 0.02170, -0.00171,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00112, 0.02170, -0.00171,
+    0.00681, -0.00580, 0.00935,
+    0.01319, -0.01627, 0.00822,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00681, -0.00580, 0.00935,
+    0.00681, -0.00580, 0.00935,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00112, 0.02170, -0.00171,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0
+], 3, 39)
+const WC_MIS_DGP = reshape(Float32[
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, .98, .95, .70, .50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, .94, .80, .59,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, .94, .80, .59,
+    1.0, 1.0, 1.0, .98, .86, .73, .50,
+    1.0, .98, .97, .85, .80, .52, .44,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, .94, .80, .59,
+    1.0, 1.0, 1.0, .98, .86, .73, .50,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, .94, .80, .59,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+], 7, 39)
+
+# pn/misintpn.f AFIT/ADGP/APMC (FVSpn_buildDir/misintpn.f DATA; parsed from source). MAXSP=39, PN species order
+# (SS at 6). AHGP all 1.0 = inert. Same base MISTOE/MISMRT drivers as WC (mistoe.f/mismrt.f identical).
+const PN_MIS_FIT = Int32[0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+const PN_MIS_PMC = reshape(Float32[
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.00159, 0.00508,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00112, 0.0217, -0.00171,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.01319, -0.01627, 0.00822,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.00681, -0.0058, 0.00935,
+    0.00681, -0.0058, 0.00935,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0
+], 3, 39)
+const PN_MIS_DGP = reshape(Float32[
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.7, 0.5,
+    1.0, 1.0, 1.0, 0.98, 0.95, 0.7, 0.5,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 0.94, 0.8, 0.59,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 0.98, 0.97, 0.85, 0.8, 0.52, 0.44,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 0.82, 0.82, 0.82,
+    1.0, 1.0, 1.0, 0.98, 0.86, 0.73, 0.5,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+], 7, 39)
+
 # Per-variant mistletoe table dispatch (misint{v}.f DATA differs by species order). Every western
 # Wykoff variant now uses its OWN table; IE is the fallback (native). Returns (FIT, DGP, PMC, MAXSP).
 @inline function _mis_tables(v)
@@ -323,6 +494,8 @@ const CI_MIS_DGP = reshape(Float32[
     v isa Teton         && return (TT_MIS_FIT, TT_MIS_DGP, TT_MIS_PMC, 18)
     v isa CentralIdaho  && return (CI_MIS_FIT, CI_MIS_DGP, CI_MIS_PMC, 19)
     v isa BritishColumbia && return (BC_MIS_FIT, BC_MIS_DGP, BC_MIS_PMC, 15)  # NEWSPRED C6 payoff (misintbc.f)
+    v isa WestCascades  && return (WC_MIS_FIT, WC_MIS_DGP, WC_MIS_PMC, 39)  # misintwc.f
+    v isa PacificNorthwest && return (PN_MIS_FIT, PN_MIS_DGP, PN_MIS_PMC, 39)  # misintpn.f
     return (IE_MIS_FIT, IE_MIS_DGP, IE_MIS_PMC, 23)   # InlandEmpire (native table)
 end
 
@@ -355,8 +528,14 @@ end
 # pinyon/woodland hosts (PI/PM/GB) sit at UT-specific indices ⇒ UT needs its own table (ported above);
 # EM/KT/BM/TT/CI keep IE's for now (correct for their DF/LP/PP; variant woodland hosts = documented follow-up).
 # CR has its own 38-sp cr_mistoe!. Gated per-tree DMR ⇒ INERT on stands without dwarf-mistletoe ratings.
+# WC runs the same base mistoe model (wc links mistoe/mis*.f; misintwc.f DATA): DG loss dgdriv.f:232/245/250
+# (×MISDGF on the record and both tripled copies), MISMRT mortality via mistoe.f:522.
+# Variants whose MISDGF is applied inside the shared DG driver before DGBND (wc/dgdriv.f:216,245,252,260),
+# because their DGBND has a DGMAX envelope where min(DG·m,cap) ≠ min(DG,cap)·m.
+@inline _mis_dg_in_driver(v)::Bool = v isa WestCascades || v isa PacificNorthwest   # pn/dgdriv.f == wc/dgdriv.f
 @inline _ie_mis_variant(v)::Bool = v isa InlandEmpire || v isa Kootenai || v isa EasternMontana ||
-    v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho
+    v isa BlueMountains || v isa Utah || v isa Teton || v isa CentralIdaho ||
+    v isa WestCascades || v isa PacificNorthwest   # PN: pn links the same mistoe.f/mismrt.f (misintpn.f DATA)
 
 @inline ie_dm_dg_mult(dgp, maxsp::Integer, sp::Integer, dmr::Integer) =
     (sp < 1 || sp > maxsp) ? 1f0 : @inbounds dgp[dmr + 1, sp]
@@ -394,6 +573,7 @@ No-op for non-IE / uninfected. Deterministic.
 """
 function ie_dm_growth_loss!(s::StandState, stash)
     _dm_effects_on(s) || return
+    _mis_dg_in_driver(s.variant) && return   # applied inside the DG driver before DGBND (_misdrv)
     t = s.trees
     _, dgp, _, maxsp = _mis_tables(s.variant)
     n = stash === nothing ? t.n : stash.nlive

@@ -346,7 +346,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # to the post-fire `carbon_hook`. (`fire_cycle` adds the carbon-report gate.)
         fire_this_cycle = !last && _fire_due(s) && per > 1   # OPCYCL: cycle range contains fire_year
         fire_cycle = carbon_on && fire_this_cycle
-        if carbon_on && !fire_cycle
+        # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
+        # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
+        if carbon_on && !fire_cycle && !last
             compute_density!(s)
             # A FUELSOUT-only collection (no CARBREPT) must not latch CR's one-time dead-fuel load on the pre-cut
             # stand — CR defers it post-cut (below); the CARBREPT path keeps its validated behavior.

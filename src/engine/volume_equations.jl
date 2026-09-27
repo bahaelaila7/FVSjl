@@ -407,7 +407,8 @@ function setup_volume_equations!(s::StandState)
             # WC VOLEQDEF (wc/sitset.f → voleqdef.f R6_EQN westside / R7_EQN BLM) by post-FORKOD KODFOR × species.
             s.species.vol_eq[sp] = _wc_voleq(kodfor, sp)
         elseif s.variant isa PacificNorthwest
-            s.species.vol_eq[sp] = _pn_r6_eqn(kodfor % 100, ifia)
+            # PN VOLEQDEF (pn/sitset.f → voleqdef.f R6_EQN westside / R7_EQN BLM) by post-FORKOD KODFOR × species.
+            s.species.vol_eq[sp] = _pn_voleq(kodfor, sp)
         elseif s.variant isa EastCascades
             # EC VOLEQDEF (voleqdef.f R6_EQN, VAR='EC') — FORNUM 8 (Okanogan) INGY I11/I12 + region-6 Behre.
             s.species.vol_eq[sp] = _ec_r6_eqn(kodfor % 100, ifia)

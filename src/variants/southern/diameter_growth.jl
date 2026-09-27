@@ -453,10 +453,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
         elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa CentralIdaho) && length(s.calib.input_seq) == ntot
+                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest) &&   # PN compiles wc/cratet.f
+               length(s.calib.input_seq) == ntot
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
             # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.
+            # WC: wc/cratet.f:139-142 `IND(I)=IND1(I); RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of the :171 LBKDEN DENSE —
+            # the BM shape. 302076170489998: SF I=9 / WH I=2 both 10.1" (and RC 13 / WH 4 both 7.1") — live DGF BAL
+            # 208.2742/210.4278, stable sortperm swapped them ⇒ SF COR 1.0154053 vs live 1.014536.
             # IE: ie/cratet.f:185-189 is the same IND=IND1; RDPSRT(.FALSE.) (REGCAL fixture: DGF BAL/WK2 on 12-way ties).
             # em/cratet.f:150-153 is the same `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` ahead of its :182 DENSE (dead
             # deleted only after it). EM REGCAL fixture (12-way DBH ties): the stable sortperm permuted PCT inside each
@@ -1199,6 +1203,15 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # BA/QMD over-growth (2090 BA +19%). Calibration/mortality/update already
                                              # use wc_bratio; this DDS→DG conversion was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
+    # WC links wc/dgbnd.f: DGMAX=7.92·EXP(−0.03·min(DBH,150)) envelope + DG≥0 floor (redwood sp17 exempt) before
+    # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn compiles the same
+    # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
+    _wcbnd = _wc_dg || _pn_dg                 # FVSpn links the same dgbnd.f (FVSpn_buildDir/dgbnd.f == wc's)
+    # WC applies dwarf-mistletoe MISDGF INSIDE DGDRIV, BEFORE DGBND, on the record and both tripled copies
+    # (wc/dgdriv.f:216,245,252,260); so min(DG·MISDGF, DGMAX), not min(DG, DGMAX)·MISDGF (ie_dm_growth_loss!
+    # skips WC via _mis_dg_in_driver). START-of-cycle DMR, same as the post-driver path.
+    _misdrv = _mis_dg_in_driver(s.variant) && _dm_effects_on(s)
+    _, _mdgp, _, _mmaxsp = _mis_tables(s.variant)
     # DGBND DBH-range bounds are SN-only (NE's DGBND is just the SIZCAP cap, ne/dgbnd.f); `nothing`
     # ⇒ the per-tree bound skips the dlo/dhi adjustment and applies only the size cap.
     dlo_v = haskey(sd, :dg_bound_dbh_lo) ? sd[:dg_bound_dbh_lo] : nothing
@@ -1407,15 +1420,18 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
+                _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
                 crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
-                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr)
+                _misdrv && (dgu *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr, _wcbnd)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
                 crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
-                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr)
+                _misdrv && (dgl *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr, _wcbnd)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -1427,7 +1443,8 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 end
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr)
+                _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd)
             end
         end
     end

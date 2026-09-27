@@ -14,7 +14,7 @@
 #     PRODUCTION-BINARY-vs-g16-RELINK NVEL(BLM) artifact, not a jl bug — jl matches the relinked
 #     oracle exactly. (Hence the golden here is the relinked oracle, captured live.)
 #   • cyc4 (2010): growth + TOTAL cubic (4814) still bit-exact; merch/bdft drift <0.4%
-#     (4114→4106) — merch-log-bucking DIB-class rounding discreteness (oc_blmgdib!/oc_scrib), the
+#     (4114→4106) — merch-log-bucking DIB-class rounding discreteness (blm_vol BLMGDIB/SCRIB), the
 #     accepted cornered class. A single density-aggregate field picks up ±1 NINT at later cycles
 #     while raw TPA stays bit-exact every cycle (print-rounding straddle).
 #

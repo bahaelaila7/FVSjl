@@ -357,6 +357,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
               s.variant isa EastCascades ? _EC_ES_XMIN :
               s.variant isa Klamath ? _NC_ES_XMIN :
               s.variant isa Olympic ? _OP_ES_XMIN :
+              (s.variant isa WestCascades || s.variant isa PacificNorthwest) ? _OP_ES_XMIN :   # wc/pn blkdat.f:70-71 XMIN = op/blkdat.f DATA
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
@@ -370,7 +371,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 s.variant isa CentralIdaho ? _CI_ES_HHTMAX :
                 s.variant isa EastCascades ? _EC_ES_HHTMAX :
                 s.variant isa Klamath ? _NC_ES_HHTMAX :
-                s.variant isa Olympic ? _OP_ES_HHTMAX : _ES_HHTMAX   # per-variant HHTMAX (base + grown caps)
+                s.variant isa Olympic ? _OP_ES_HHTMAX :
+                (s.variant isa WestCascades || s.variant isa PacificNorthwest) ? _OP_ES_HHTMAX : _ES_HHTMAX   # wc/pn blkdat.f:73 = op
     per = round(Int, fint)
     yr = Int32(current_cycle_year(s))   # IY schedule; yr+per below = next boundary (fint is per-cycle)
     # esnutr.f:59 CALL ESADDT(1): the ADDTREES external-regen bridge runs at the TOP of the ESNUTR
@@ -402,7 +404,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
           s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton ||
           s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
           s.variant isa CentralIdaho || s.variant isa EastCascades ||
-          s.variant isa Klamath || s.variant isa Olympic) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa Klamath || s.variant isa Olympic || s.variant isa WestCascades ||
+          s.variant isa PacificNorthwest) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -418,7 +421,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC/OP/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/EC/OP/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -614,6 +617,20 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # curve HHT = SMHTGF(sp, AGE) with SI = the species' SITEAR. Deterministic (no EMSQR/DILATE/
                 # ELEV). The PLANT-no-height branch below then adds the [0,1.5] RAN draw (ec/estab.f:485).
                 ec_essubh_hht(sp, si, age)
+            elseif s.variant isa WestCascades || s.variant isa PacificNorthwest
+                # WC/PN base height (wc/essubh.f == pn/essubh.f == op/essubh.f): a 1.0-ft, 0.1" seedling grown 5 yr by SMHGDG MODE=0
+                # (CR=0.5, PTBAL=PTBA=0, AVHT=(5/FINT)·AVH+((FINT−5)/FINT)·ATAVH, smhgdg.f:182-190); HHT=1+HG5,
+                # ×FINT/5 when FINT<5 (essubh.f:75-91). Redwood (sp 17) is HHT=2.0 flat. Deterministic.
+                if sp == 17
+                    2f0
+                else
+                    avht = (5f0 / Float32(per)) * s.plot.avg_height +
+                           ((Float32(per) - 5f0) / Float32(per)) * s.plot.at_avg_ht
+                    hg5, _ = _rg_smhgdg(s.variant, sp, 1f0, 0.1f0, 0.5f0, 0f0, 0f0, si, avht)   # PN: no DF King SI
+                    hht_wc = 1f0 + hg5
+                    per < 5 && (hht_wc *= Float32(per) / 5f0)
+                    hht_wc
+                end
             elseif s.variant isa Olympic
                 # OP base height (op/essubh.f): a 1.0-ft seedling grown 5 yr by op/smhgdg.f (Gould–Harrington
                 # small-tree HG5). ESSUBH-mode (MODE=0) forces CR=0.5, PTBA=PTBAL=0, RELHT=H/AVHT with
@@ -689,8 +706,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 dbh = 0.1f0
             elseif hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
-            elseif s.variant isa EastCascades || s.variant isa Olympic
-                # ec/estab.f:626 and op/estab.f:626 both assign the establishment DBH = 0.1 flat; their
+            elseif s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades ||
+                   s.variant isa PacificNorthwest   # pn/estab.f:626 == wc's
+                # ec/estab.f:626 and op/estab.f:626 (wc/estab.f:626 is the same source) both assign the establishment DBH = 0.1 flat; their
                 # esgent.f only recomputes DBH when WK4<1 (a partial birth cycle). A full-birth-cycle
                 # PLANT/NATURAL tree (WK4=1) keeps DBH=0.1 even after its height exceeds breast height —
                 # height grows, DBH does not. (EC has its own ec_htdbh_dbh; OP is ORGANON-volume — neither
@@ -723,7 +741,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 # 0.99998 (MEASURED live FVSie esgent WK4), NOT 1.0: <1 sends a sub-breast-height seedling down
                 # esgent.f:60-62 (DBH=0.1+0.001·HT, DG=0) instead of REGENT's 0.1+DIAM·0.01+0.001·HK.
                 # Other variants keep the full birth-cycle HTG (1.0; guards slot reuse). #193
-                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+                                      s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
+                                      s.variant isa Olympic   # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
@@ -880,7 +900,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
         # INTERLEAVED per record on the main stream, so bm_esgent! owns the crown draw too.
         # EM likewise: em/regent.f LESTB draws each new record's crown in STORAGE order (DO 13) before its ZRANDs.
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
-                         s.variant isa EastCascades
+                         s.variant isa EastCascades || s.variant isa WestCascades ||
+                         s.variant isa PacificNorthwest   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0
