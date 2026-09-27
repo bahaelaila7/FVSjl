@@ -1333,6 +1333,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
     es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
+    # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
+    # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
+    # gradd.f:192 DENSE's — post-growth, PRE-ESNUTR. jl's AUTOES booking re-DENSEs with the new cohort first
+    # (MEASURED FVSem_g16 196378260020004 @2031: live RELDEN 109.1242 / point-1 PCCF 88.5849 vs jl post-regen
+    # 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR ~2e-4 low).
+    es_em_relden_pre, es_em_ba_pre, es_em_pccf_pre = s.variant isa EasternMontana ?
+        (stand_ccf(s), stand_ba(s), _fresh_point_ccf(s)) : (-1f0, -1f0, Float32[])
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1378,7 +1385,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
-        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
+        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh,
+        relden_pre = es_em_relden_pre, ba_pre = es_em_ba_pre, pccf_pre = es_em_pccf_pre)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED

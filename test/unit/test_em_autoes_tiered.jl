@@ -36,4 +36,17 @@ end
         @test count(k -> haskey(got, k) && !_eq(gold[k][c], got[k][c]), es) == 0
     end
 end
+
+# em/esgent.f → REGENT(LESTB) runs INSIDE ESTAB (estab.f:1493), before gradd.f:244's post-establishment DENSE, so the
+# birth-cycle SMHTGF/SMDGF read RELDEN/BA/PCCF from gradd.f:192's DENSE (post-growth, pre-ESNUTR). jl re-DENSEd with the
+# new cohort first: live RELDEN 109.1242 / point-1 PCCF 88.5849 vs jl 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR
+# ~2e-4 low (DF 370: live 2.2399454, jl 2.23945). The cohort's heights/diameters after ESGENT are live-exact.
+@testset "EM ESGENT reads the pre-ESNUTR DENSE (gradd.f:192) — 196378260020004 cohort 2031 vs FVSem_g16" begin
+    gold = _keyed(read_csv(joinpath(fixture_dir("EM"), "$(STAND)_none.FVS_TreeList.csv"))...)
+    got  = _keyed(db_table_rows(_run.db, "FVS_TreeList")...)
+    es = [k for k in keys(gold) if k[1] == "2032" && startswith(k[2], "ES")]
+    for c in ("Ht", "HtG", "DBH", "DG", "PctCr")
+        @test count(k -> haskey(got, k) && !_eq(gold[k][c], got[k][c]), es) == 0
+    end
+end
 end # module
