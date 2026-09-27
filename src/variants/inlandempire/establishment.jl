@@ -871,13 +871,30 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
     # the memo on (POINT, IPREP). ★ ESPADV/ESPXCS/ESPSUB draw NO RNG ⇒ per-point weights leave the wk6/pick stream
     # byte-identical. Fall back to the scalar baa / point-1 `over` when the caller supplies no per-point data
     # (non-IE / disturbance / single point): baa_p[1]==scalar baa and over_pt[:,1]==over by construction, so
-    # single-point IE and every non-IE caller stay BYTE-IDENTICAL. Slope stays the scalar sl (unchanged).
+    # single-point IE and every non-IE caller stay BYTE-IDENTICAL. Slope/aspect are per point too (_pt_topo).
+    # Per-INVENTORY-POINT topography (estab.f:474-479, set once per point in the DO 201 plot loop): SLO=PSLO(NNID),
+    # XCOS=COS(PASP(NNID))·SLO, XSIN=SIN(PASP(NNID))·SLO. These /ESCOMN/ values are what EVERY per-plot routine reads —
+    # ESTPP, ESNSPE, ESPADV/ESPSUB/ESPXCS (species mix) and ESADVH/ESSUBH (heights) — not just ESTPP. jl formerly fed
+    # only ESTPP the per-point slope and kept the stand scalar for the rest ⇒ on a multi-point FIA stand with
+    # heterogeneous slopes every non-point-1 plot drew its species / ADV-vs-SUBS / heights from the wrong logits
+    # (MEASURED FVSem_g16 196378260020004 @2031 ingrowth: point 4 SLO 0.35 PADV DF 0.620 LP 0.222 PP 0.171 vs jl's
+    # point-1 slope 0.20 ⇒ plot 41 booked WL for DF, 43 DF for LP, 49 LP for PP). No per-point topo supplied (TREEDATA /
+    # empty point) ⇒ the stand scalar, as before.
+    function _pt_topo(ptn::Integer)
+        if !isempty(point_slope) && ptn <= length(point_slope)
+            sl_p = Float32(point_slope[ptn])
+            asp_p = ptn <= length(point_aspect) ? Float32(point_aspect[ptn]) : 0f0
+            return (sl_p, cos(asp_p) * sl_p, sin(asp_p) * sl_p)
+        end
+        return (sl, xc, xs)
+    end
     _prep_memo = Dict{Tuple{Int,Int},Tuple{Vector{Float32},Vector{Float32},Int,Vector{Float32},Vector{Float32}}}()
     function _prep_tables(ptn::Integer, ip::Integer)
         get!(_prep_memo, (Int(ptn), Int(ip))) do
             baa_p = (!isempty(point_baa) && ptn <= length(point_baa)) ?
                     clamp(Float32(point_baa[ptn]), 1f0, 400f0) : Float32(baa)
             over_p = (size(over_pt, 1) >= 10 && ptn <= size(over_pt, 2)) ? view(over_pt, :, ptn) : over
+            sl_q, xc_q, xs_q = _pt_topo(ptn)                             # this point's SLO/XCOS/XSIN (estab.f:474-479)
             # estab.f:604-609 — the ADV/SUBS/EXCESS species probabilities are ALWAYS computed at TIME=10.0
             # (INGRO=0) or SHORTY (INGRO=1), NOT the tally's elapsed time: `TIME=10.0; IF(INGRO.EQ.1) TIME=SHORTY;
             # CALL ESTIME(IDSDAT,IDSDAT+ITIME)` overwrites TIME right before ESPADV/ESPSUB/ESPXCS. A CONTINUATION
@@ -889,11 +906,11 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             # (tm=regt=10) is unchanged ⇒ byte-identical; only the continuation (tm>10) is corrected.
             tm_sp = is_ingro ? tm : 10f0
             rg_sp = is_ingro ? Float32(regt) : 10f0
-            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, Float32(elev),
+            pa = collect(ie_espadv(ihab, ip, ifo, iphy, xc_q, xs_q, sl_q, tm_sp, baa_p, Float32(elev),
                                    rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
-            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, Float32(elev),
+            px = collect(ie_espxcs(ihab, ip, ifo, iphy, xc_q, xs_q, sl_q, tm_sp, baa_p, Float32(elev),
                                    rg_sp, Float32(bwaf), Float32(bwb4), occ, over_p))
-            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, flog(baa_p),
+            ps_full = collect(ie_espsub(ihab, ip, ifo, iphy, xc_q, xs_q, sl_q, tm_sp, baa_p, flog(baa_p),
                                         Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                         occ, over_p))
             padv_raw = call_espadv ? copy(pa) : zeros(Float32, 10)
@@ -907,7 +924,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             # WSBW (BWAF=SQBWAF=0) √regt=√TIME=SQREGT — mirrors the ie_estock call. The ingrowth path (tm≤2 ⇒
             # ps=0) stays BYTE-IDENTICAL, so the validated AUTOES-ingrowth tally is unperturbed.
             ps = (is_ie && round(Int, tm_sp + 0.5f0) > 2) ?
-                 collect(ie_espsub(ihab, ip, ifo, iphy, xc, xs, sl, tm_sp, baa_p, flog(baa_p),
+                 collect(ie_espsub(ihab, ip, ifo, iphy, xc_q, xs_q, sl_q, tm_sp, baa_p, flog(baa_p),
                                    Float32(elev), sqrt(rg_sp), sqrt(Float32(bwaf)), Float32(bwb4),
                                    occ, over_p)) :
                  zeros(Float32, 10)
@@ -1029,15 +1046,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
         # div(n-1,idup)+1. When per-point topo is supplied (FIA per-plot SLOPE/ASPECT) each plot's ESTPP uses ITS
         # point's slope; else fall back to the uniform (stand/TREEDATA) xc/xs/sl. FIXES #143 (jl formerly used the
         # stand slope for all plots ⇒ over-suppressed ESTPP on sloped stands). Does NOT draw ⇒ RNG order unchanged.
-        local _sln::Float32, _xcn::Float32, _xsn::Float32
         _ptn = idup > 0 ? div(n - 1, Int(idup)) + 1 : 1
-        if !isempty(point_slope) && _ptn <= length(point_slope)
-            _sln = point_slope[_ptn]                                         # tree-bearing point: its PSLO
-            _aspn = _ptn <= length(point_aspect) ? point_aspect[_ptn] : 0f0
-            _xcn = cos(_aspn) * _sln; _xsn = sin(_aspn) * _sln
-        else
-            _sln = sl; _xcn = xc; _xsn = xs                                  # empty point (no tree) → stand slope
-        end
+        _sln, _xcn, _xsn = _pt_topo(_ptn)                                    # point's PSLO (no topo → stand slope)
         # This plot's species-mix tables use ITS inventory point's BAA + per-species OVERSTORY BA (estab.f runs
         # ESPADV/ESPXCS/ESPSUB per point) and ITS assigned IPREP. Deterministic (no RNG) ⇒ draw stream unchanged;
         # single-point / non-IE fall back to the point-1/scalar tables ⇒ byte-identical (see _prep_tables).
@@ -1079,7 +1089,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
             baa_n = (!isempty(point_baa) && _ptn <= length(point_baa)) ?
                     clamp(Float32(point_baa[_ptn]), 1f0, 400f0) : Float32(baa)
             pspe = collect(ie_esnspe(iser, itpp, Float32(itpp), flog(Float32(itpp)), baa_n,
-                                     Float32(elev), Float32(regt), Float32(bwaf), xc, xs, sl))
+                                     Float32(elev), Float32(regt), Float32(bwaf), _xcn, _xsn, _sln))
             cum = cumsum(pspe ./ sum(pspe)); numspe = 6
             for i in 1:5; wk6n[i] <= cum[i] && (numspe = i; break); end
         end
@@ -1130,8 +1140,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     itime = trunc(Int, tmh + 0.5f0); itime < 1 && (itime = 1); itime > 20 && (itime = 20)
                     bnrm = bnorml_e[itime]
                     dil = first1[sp2]; first1[sp2] = sqrt(dil)
-                    hh = ie_esadvh(sp2, emsqr, dil, flog(agev), bnrm; baa = baa_h, elev = elev, xcos = xc,
-                                   xsin = xs, slo = sl, ihtser = ihts, iphy = iphy_i, iprep = ip_plot,
+                    hh = ie_esadvh(sp2, emsqr, dil, flog(agev), bnrm; baa = baa_h, elev = elev, xcos = _xcn,
+                                   xsin = _xsn, slo = _sln, ihtser = ihts, iphy = iphy_i, iprep = ip_plot,
                                    bwaf = bwaf, bwb4 = bwb4)
                     iasep_e[sp2] = 1
                 else
@@ -1147,7 +1157,7 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
                     bnrm = bnorml_e[iage]
                     dil = first2[sp2]; first2[sp2] = sqrt(dil)
                     disp = emsqr * dil * bnrm
-                    hh = ie_essubh(sp2, agev, baa_h, ihts, ip_plot, iphy_i, xc, xs, sl, elev, disp;
+                    hh = ie_essubh(sp2, agev, baa_h, ihts, ip_plot, iphy_i, _xcn, _xsn, _sln, elev, disp;
                                    bwaf = bwaf, bwb4 = bwb4)
                     trage = tmh - dN
                     iasep_e[sp2] = 2

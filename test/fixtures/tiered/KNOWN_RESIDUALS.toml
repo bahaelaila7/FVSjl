@@ -2309,17 +2309,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "climate"
 file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 12 cells [material=5 ulpbig=7] max|Δ|=6.0 | e.g. stand 11855985010690 year 2036: live=99 jl=96"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Summary"
 col = "BA"
 stand = "*"
 year = "*"
@@ -2474,17 +2463,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "climate"
 file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 12 cells [material=5 ulpbig=7] max|Δ|=6.0 | e.g. stand 11855985010690 year 2026: live=109 jl=111"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "sum"
 col = "BA"
 stand = "*"
 year = "*"
@@ -2606,17 +2584,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Number_of_Strata"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=3 jl=2"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -2632,8 +2599,8 @@ col = "Stratum_1_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
+max_cells = 4
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
 
 [[residual]]
 variant = "IE"
@@ -2683,17 +2650,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Stratum_2_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=5.0 | e.g. stand 11855985010690 year 2046: live=10 jl=5"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Stratum_2_Crown_Cover"
 stand = "*"
 year = "*"
@@ -2738,221 +2694,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Stratum_2_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=21.0 | e.g. stand 11855985010690 year 2046: live=22 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=74.0 | e.g. stand 11855985010690 year 2046: live=093 jl=019"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=74.0 | e.g. stand 11855985010690 year 2046: live=019 jl=093"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ES jl=AF"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=AF jl=ES"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=PIEN jl=ABLA"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ABLA jl=PIEN"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2046: live=3 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=7.0 | e.g. stand 11855985010690 year 2046: live=7 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Stratum_3_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulp2_16=1 ulpbig=2] max|Δ|=0.6197 | e.g. stand 11855985010690 year 2046: live=0.619726836681366 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=12.0 | e.g. stand 11855985010690 year 2046: live=12 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=9.0 | e.g. stand 11855985010690 year 2046: live=9 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=019 jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=093 jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=AF jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ES jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ABLA jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=PIEN jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_Status_Code"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=0"""
 
 [[residual]]
 variant = "IE"
@@ -3622,8 +3369,8 @@ col = "Tpa"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
+max_cells = 28
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
 
 [[residual]]
 variant = "IE"
@@ -3820,8 +3567,8 @@ col = "TPA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
+max_cells = 28
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
 
 [[residual]]
 variant = "IE"
@@ -4531,17 +4278,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 variant = "IE"
 regime = "none"
 file = "FVS_StrClass"
-col = "Number_of_Strata"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=3 jl=2"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -4557,8 +4293,8 @@ col = "Stratum_1_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
+max_cells = 4
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2042: live=62 jl=61"""
 
 [[residual]]
 variant = "IE"
@@ -4608,17 +4344,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "none"
 file = "FVS_StrClass"
-col = "Stratum_2_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=5.0 | e.g. stand 11855985010690 year 2046: live=10 jl=5"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
 col = "Stratum_2_Crown_Cover"
 stand = "*"
 year = "*"
@@ -4663,221 +4388,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "none"
 file = "FVS_StrClass"
-col = "Stratum_2_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=21.0 | e.g. stand 11855985010690 year 2046: live=22 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=74.0 | e.g. stand 11855985010690 year 2046: live=093 jl=019"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=74.0 | e.g. stand 11855985010690 year 2046: live=019 jl=093"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ES jl=AF"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=AF jl=ES"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=PIEN jl=ABLA"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ABLA jl=PIEN"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2046: live=3 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=7.0 | e.g. stand 11855985010690 year 2046: live=7 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
 col = "Stratum_3_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulp2_16=1 ulpbig=2] max|Δ|=0.6197 | e.g. stand 11855985010690 year 2046: live=0.619726836681366 jl=0.0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=12.0 | e.g. stand 11855985010690 year 2046: live=12 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [material=2] max|Δ|=9.0 | e.g. stand 11855985010690 year 2046: live=9 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=0"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=019 jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=093 jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=AF jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ES jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=ABLA jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 11855985010690 year 2046: live=PIEN jl=--"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_Status_Code"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=1 jl=0"""
 
 [[residual]]
 variant = "IE"
@@ -5598,17 +5114,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "plant_cal"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2036: live=266 jl=265"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -5791,17 +5296,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [material=1 ulpbig=7] max|Δ|=2.0 | e.g. stand 11855985010690 year 2026: live=153 jl=152"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2026: live=266 jl=265"""
 
 [[residual]]
 variant = "IE"
@@ -6005,17 +5499,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "plant_cyc"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2036: live=266 jl=265"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -6198,17 +5681,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [material=1 ulpbig=7] max|Δ|=2.0 | e.g. stand 11855985010690 year 2026: live=153 jl=152"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2026: live=266 jl=265"""
 
 [[residual]]
 variant = "IE"
@@ -6445,28 +5917,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=126 jl=125"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2061: live=76 jl=77"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
 year = "*"
@@ -6478,67 +5928,12 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "IE"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=287 jl=286"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=102 jl=103"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=3.0 | e.g. stand 11855985010690 year 2046: live=20 jl=19"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=126 jl=125"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "BdFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 12 cells [material=9 ulpbig=3] max|Δ|=601.0 | e.g. stand 11855985010690 year 2036: live=24659 jl=24667"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2061: live=76 jl=77"""
 
 [[residual]]
 variant = "IE"
@@ -6566,133 +5961,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=18 jl=19"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 54
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=287 jl=286"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2051: live=4 jl=3"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 6 cells [material=2 ulpbig=4] max|Δ|=38.0 | e.g. stand 11855985010690 year 2036: live=5153 jl=5149"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=102 jl=103"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=126 jl=125"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "ATCCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2061: live=76 jl=77"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=287 jl=286"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=102 jl=103"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=3.0 | e.g. stand 11855985010690 year 2046: live=20 jl=19"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=126 jl=125"""
 
 [[residual]]
 variant = "IE"
@@ -6704,17 +5978,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 12 cells [material=9 ulpbig=3] max|Δ|=601.0 | e.g. stand 11855985010690 year 2036: live=24659 jl=24667"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "CCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2061: live=76 jl=77"""
 
 [[residual]]
 variant = "IE"
@@ -6737,61 +6000,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 12 cells [material=3 ulpbig=9] max|Δ|=40.0 | e.g. stand 11855985010690 year 2036: live=4532 jl=4529"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=18 jl=19"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=287 jl=286"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 51032748020004 year 2051: live=4 jl=3"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 6 cells [material=2 ulpbig=4] max|Δ|=38.0 | e.g. stand 11855985010690 year 2036: live=5153 jl=5149"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=102 jl=103"""
 
 [[residual]]
 variant = "IE"
@@ -8803,8 +8011,8 @@ col = "Tpa"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
+max_cells = 28
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2071: live=754 jl=760"""
 
 [[residual]]
 variant = "IE"
@@ -9001,8 +8209,8 @@ col = "TPA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
+max_cells = 28
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 27→28) | material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 27 cells [material=5 ulpbig=22] max|Δ|=74.0 | e.g. stand 1627682513290487 year 2061: live=829 jl=834"""
 
 [[residual]]
 variant = "IE"
@@ -13618,17 +12826,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 variant = "EM"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Number_of_Strata"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=1 jl=2"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -13684,221 +12881,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Stratum_1_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=5 ulpbig=7] max|Δ|=28.0 | e.g. stand 474187636489998 year 2056: live=43 jl=42"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=94.0 | e.g. stand 196378260020004 year 2052: live=202 jl=108"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=94.0 | e.g. stand 196378260020004 year 2052: live=108 jl=202"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=DF jl=LP"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=LP jl=DF"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=PSME jl=PICO"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=PICO jl=PSME"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=4.0 | e.g. stand 196378260020004 year 2052: live=0 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=2 ulpbig=2] max|Δ|=29.0 | e.g. stand 196378260020004 year 2032: live=9 jl=8"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Stratum_2_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 37 cells [material=2 ulp1=4 ulp2_16=6 ulpbig=25] max|Δ|=1.287 | e.g. stand 474187636489998 year 2026: live=7.62404727935791 jl=7.6189446449279785"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=4 ulpbig=3] max|Δ|=19.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=2 ulpbig=2] max|Δ|=12.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=202"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=108"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=DF"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=LP"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=PSME"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=PICO"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_Status_Code"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -15565,17 +14553,6 @@ issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinD
 variant = "EM"
 regime = "none"
 file = "FVS_StrClass"
-col = "Number_of_Strata"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=1 jl=2"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -15631,221 +14608,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_StrClass"
-col = "Stratum_1_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=5 ulpbig=7] max|Δ|=28.0 | e.g. stand 474187636489998 year 2056: live=43 jl=42"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=94.0 | e.g. stand 196378260020004 year 2052: live=202 jl=108"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=94.0 | e.g. stand 196378260020004 year 2052: live=108 jl=202"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=DF jl=LP"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=LP jl=DF"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=PSME jl=PICO"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=PICO jl=PSME"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Base"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=2] max|Δ|=4.0 | e.g. stand 196378260020004 year 2052: live=0 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=2 ulpbig=2] max|Δ|=29.0 | e.g. stand 196378260020004 year 2032: live=9 jl=8"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
 col = "Stratum_2_DBH"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 37 cells [material=2 ulp1=4 ulp2_16=6 ulpbig=25] max|Δ|=1.287 | e.g. stand 474187636489998 year 2026: live=7.62404727935791 jl=7.6189446449279785"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Lg_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=4 ulpbig=3] max|Δ|=19.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Nom_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=2 ulpbig=2] max|Δ|=12.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Sm_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 474187636489998 year 2026: live=29 jl=28"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=202"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=108"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=DF"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=LP"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=PSME"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196378260020004 year 2052: live=-- jl=PICO"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_Status_Code"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -16176,17 +14944,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1919
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 1919 cells [material=494 ulp1=330 ulp2_16=44 ulpbig=1051] max|Δ|=4.7 | e.g. stand 474187636489998 year 2036: live=5.300000190734863 jl=5.099999904632568"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
-col = "MistCD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 330
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 330 cells [material=83 ulpbig=247] max|Δ|=6.0 | e.g. stand 196378260020004 year 2042: live=5 jl=6"""
 
 [[residual]]
 variant = "EM"
@@ -18920,17 +17677,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 27 cells [material=18 ulpbig=9] max|Δ|=96.0 | e.g. stand 474187636489998 year 2056: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -19146,17 +17892,6 @@ year = "*"
 status = "OPEN"
 max_cells = 39
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 39 cells [material=37 ulpbig=2] max|Δ|=1416.0 | e.g. stand 474187636489998 year 2036: live=34 jl=62"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 27
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 27 cells [material=18 ulpbig=9] max|Δ|=96.0 | e.g. stand 474187636489998 year 2026: live=18 jl=16"""
 
 [[residual]]
 variant = "EM"
@@ -19514,45 +18249,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFIA_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196420598020004 year 2042: live=-- jl=122"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesFVS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196420598020004 year 2042: live=-- jl=PP"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_SpeciesPLANTS_2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 196420598020004 year 2042: live=-- jl=PIPO"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
 col = "Stratum_2_Crown_Base"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 21
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 17→21) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 17 cells [material=4 ulpbig=13] max|Δ|=14.0 | e.g. stand 474157097489998 year 2056: live=2 jl=1"""
+max_cells = 27
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 21→27) | measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 17→21) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 17 cells [material=4 ulpbig=13] max|Δ|=14.0 | e.g. stand 474157097489998 year 2056: live=2 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -19617,8 +18319,8 @@ col = "Stratum_2_SpeciesFIA_1"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=7] max|Δ|=183.0 | e.g. stand 3006831010690 year 2039: live=019 jl=122"""
+max_cells = 9
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 7→9) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=7] max|Δ|=183.0 | e.g. stand 3006831010690 year 2039: live=019 jl=122"""
 
 [[residual]]
 variant = "EM"
@@ -19628,8 +18330,8 @@ col = "Stratum_2_SpeciesFIA_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [material=10 structural=3] max|Δ|=183.0 | e.g. stand 684750664126144 year 2038: live=019 jl=093"""
+max_cells = 16
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 13→16) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [material=10 structural=3] max|Δ|=183.0 | e.g. stand 684750664126144 year 2038: live=019 jl=093"""
 
 [[residual]]
 variant = "EM"
@@ -19639,8 +18341,8 @@ col = "Stratum_2_SpeciesFVS_1"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 3006831010690 year 2039: live=AF jl=PP"""
+max_cells = 9
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 7→9) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 3006831010690 year 2039: live=AF jl=PP"""
 
 [[residual]]
 variant = "EM"
@@ -19650,8 +18352,8 @@ col = "Stratum_2_SpeciesFVS_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [structural=13] max|Δ|=0.0 | e.g. stand 684750664126144 year 2038: live=AF jl=ES"""
+max_cells = 16
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 13→16) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [structural=13] max|Δ|=0.0 | e.g. stand 684750664126144 year 2038: live=AF jl=ES"""
 
 [[residual]]
 variant = "EM"
@@ -19661,8 +18363,8 @@ col = "Stratum_2_SpeciesPLANTS_1"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 3006831010690 year 2039: live=ABLA jl=PIPO"""
+max_cells = 9
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 7→9) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 3006831010690 year 2039: live=ABLA jl=PIPO"""
 
 [[residual]]
 variant = "EM"
@@ -19672,8 +18374,8 @@ col = "Stratum_2_SpeciesPLANTS_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [structural=13] max|Δ|=0.0 | e.g. stand 684750664126144 year 2038: live=ABLA jl=PIEN"""
+max_cells = 16
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 13→16) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 13 cells [structural=13] max|Δ|=0.0 | e.g. stand 684750664126144 year 2038: live=ABLA jl=PIEN"""
 
 [[residual]]
 variant = "EM"
@@ -19727,8 +18429,8 @@ col = "Stratum_3_Lg_Ht"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=18.0 | e.g. stand 684750664126144 year 2058: live=0 jl=15"""
+max_cells = 7
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 5→7) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=18.0 | e.g. stand 684750664126144 year 2058: live=0 jl=15"""
 
 [[residual]]
 variant = "EM"
@@ -19771,8 +18473,8 @@ col = "Stratum_3_SpeciesFIA_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=2 structural=3] max|Δ|=94.0 | e.g. stand 684750664126144 year 2058: live=-- jl=093"""
+max_cells = 7
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 5→7) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=2 structural=3] max|Δ|=94.0 | e.g. stand 684750664126144 year 2058: live=-- jl=093"""
 
 [[residual]]
 variant = "EM"
@@ -19793,8 +18495,8 @@ col = "Stratum_3_SpeciesFVS_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 684750664126144 year 2058: live=-- jl=ES"""
+max_cells = 7
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 5→7) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 684750664126144 year 2058: live=-- jl=ES"""
 
 [[residual]]
 variant = "EM"
@@ -19815,8 +18517,8 @@ col = "Stratum_3_SpeciesPLANTS_2"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 684750664126144 year 2058: live=-- jl=PIEN"""
+max_cells = 7
+P26-09-27 em-resid per-point PSLO/PASP AUTOES topography (estab.f:474-479): cohort now live-exact; over-cap cells are downstream shifts in regimes already diverged upstream (thinbba/econ CutList+Summary FP straddle from the first thin cycle) (max_cells 5→7) | material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 684750664126144 year 2058: live=-- jl=PIEN"""
 
 [[residual]]
 variant = "EM"
