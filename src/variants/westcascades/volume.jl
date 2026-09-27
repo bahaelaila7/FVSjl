@@ -309,7 +309,9 @@ function compute_volumes_wc!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = wc_bratio(sd, sp, d)
+        # vols.f:132,150-151: BARK=BRATIO(ISPC,DBH_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBTBH / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd, sp, d)
         # wc/sitset.f:192-213 merch specs (init_merch_standards!): BLM IFOR 7-10 TOPD=BFTOPD=5, DBHMIN=7 for all;
         # otherwise TOPD=BFTOPD=4.5, DBHMIN=BFMIND=7 (LP sp11 = 6).
         dbhmin = c.sp_dbh_min[sp]; bfmind = c.sp_bf_dbhmin[sp]
@@ -324,6 +326,8 @@ function compute_volumes_wc!(s::StandState)
         elseif mdl == "FW2"
             v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N', merch_opt = 23)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
+        elseif se[1] == 'B' || se[1] == 'b'           # BLM forests (R7_EQN B00BEHW/B01BEHW202) → NVEL BLMVOL
+            tcf, mcf, bf = _blm_natcrs(eq, wc_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind)
         else                                          # 616BEHW
             tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark; topd = topd)
         end
