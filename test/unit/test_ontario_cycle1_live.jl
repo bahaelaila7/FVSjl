@@ -80,3 +80,11 @@ end
         @test (k, jv) == (k, lv)
     end
 end
+
+# (4) base dense.f (linked by FVSon): TSUMD2/BAT accumulate WK5=D*(D*P) in IND1 (species) order; RMSQD=SQRT(TSUMD2/
+# TPROB) feeds canada/on/htont.f's DBHQM term (HTNOW) — record-order p·d² was 1 ULP off (ont01 SB HtG).
+@testset "ON ont01 cyc1: Ht/HtG == live (DENSE RMSQD/BA in IND1 order, D*(D*P))" begin
+    for col in (:HtG, :Ht), (k, lv, jv) in _on1_col(col)
+        @test (k, col, jv) == (k, col, lv)
+    end
+end

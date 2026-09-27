@@ -91,11 +91,14 @@ end
 # Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
 # association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
-_dense_order(s::StandState) = s.variant isa BlueMountains ? _ind1_order(s) : (1:s.trees.n)
+# ON (canada/on builds base/dense.f): TSUMD2/BAT in IND1 order with the D*(D*P) association — live-measured on the
+# ON fixtures (FVSon_g16 DENSE dump): RMSQD ont_all cyc1 411F20D4 / ont_lite 41266DCA and BA ont_sm cyc0 441BF990
+# only with both; record order or p·d² is 1-4 ULP off (ont01 SB HTONT(RMSQD) HTNOW 1 ULP ⇒ HtG).
+_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa Ontario) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa Ontario
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
         # (live-measured on BM and IE; see _dense_order note for why other variants keep record order).
         @inbounds for i in _ind1_order(s)
@@ -109,9 +112,10 @@ end
 
 function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
+    _dp = s.variant isa BlueMountains || s.variant isa Ontario   # dense.f DP=D*P; WK5=D*DP (see note above)
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += s.variant isa BlueMountains ? d * (d * p) : p * d^2
+        sd2 += _dp ? d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
