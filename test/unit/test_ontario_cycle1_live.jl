@@ -112,3 +112,15 @@ end
         @test (stem, _on1_rows(stem)) == (stem, _on1_live_rows(stem))
     end
 end
+
+# (7) The metric FVS_TreeList binds CFV·FT3toM3, WK1·FT3toM3 (MCuM), BFV·FT3toM3 (dbstrls.f:342-350). CFV/BFV go
+# through gradd.f's V·PROB … /PROB round trip (divide-back only when PROB>0 ⇒ a PROB=0 record keeps 0); ON's merch
+# volume lives in WK1, which the round trip never touches (ON vols.f does not load MCFV).
+@testset "ON ont01 cyc1: MCuM (live records) + zero-TPH TCuM/CCum == live (WK1 / gradd.f PROB round trip)" begin
+    for (k, lv, jv) in _on1_col(:MCuM; sel = (k, v) -> v.TPH > 0)
+        @test (k, jv) == (k, lv)
+    end
+    for col in (:TCuM, :CCum), (k, lv, jv) in _on1_col(col; sel = (k, v) -> v.TPH == 0)
+        @test (k, col, jv) == (k, col, lv)
+    end
+end
