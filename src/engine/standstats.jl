@@ -177,12 +177,15 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     if _fvs_ind_lifecycle(s.variant) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
+        # canada/on/avht40.f: TARG = 100.0/HAtoACR ("METRIC VERSION = 40.47/AC" — the 100 largest trees per ha),
+        # not the imperial 40/ac.
+        targ = s.variant isa Ontario ? 100f0 / 2.471f0 : 40f0
         avh = 0f0; ssumn = 0f0
         for k in 1:t.n
             ii = Int(idx[k]); p = t.tpa[ii]
-            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn + p > targ && (p = targ - ssumn)
             ssumn += p; avh += t.height[ii] * p
-            ssumn >= 40f0 && break
+            ssumn >= targ && break
         end
         return ssumn > 0f0 ? avh / ssumn : 0f0
     end

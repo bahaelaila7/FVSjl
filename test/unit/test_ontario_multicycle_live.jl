@@ -71,3 +71,11 @@ end
         @test (k, jv) == (k, lv)
     end
 end
+
+# (2) canada/on/avht40.f: TARG = 100.0/HAtoACR (the 100 largest trees per HECTARE, 40.47/ac) — not the imperial 40/ac.
+# AVH is the .sum top height; ont_all 2044 was 25 m vs live 24 with the 40/ac window.
+@testset "ON fixture stands, 5 cycles: every .sum row == live (avht40.f metric TARG)" begin
+    for stem in ("ont01", "ont_all", "ont_big", "ont_lite", "ont_mh", "ont_sm")
+        @test (stem, first(_onm_run(stem, 5))) == (stem, _onm_live_rows(stem))
+    end
+end
