@@ -309,7 +309,9 @@ function compute_volumes_wc!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-        bark = wc_bratio(sd, sp, d)
+        # wc/vols.f:150-151: BARK=BRATIO(ISPC,D_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
+        # start-of-cycle bark (t.vol_bark) for the merch tops / DBHIB / CFTOPK; grown-DBH bark at cycle 0 / dead records.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd, sp, d)
         # wc/sitset.f:192-213 merch specs (init_merch_standards!): BLM IFOR 7-10 TOPD=BFTOPD=5, DBHMIN=7 for all;
         # otherwise TOPD=BFTOPD=4.5, DBHMIN=BFMIND=7 (LP sp11 = 6).
         dbhmin = c.sp_dbh_min[sp]; bfmind = c.sp_bf_dbhmin[sp]
