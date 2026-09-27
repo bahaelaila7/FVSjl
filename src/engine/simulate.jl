@@ -1263,6 +1263,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
                                           # birth_age nowhere else ⇒ inert for climate-off IE runs (bit-exact).
+    _on_up = s.variant isa Ontario        # ON update.f: HT updated before the DBH bark (see below)
     _em_up = s.variant isa EasternMontana # EM ages ABIRTH (gradd.f:205, ALL trees): aspen/PB (12,17) regent reads
                                           # it (HITE1/HITE2); em/dgf.f age-range term is NOT ported ⇒ conifer-inert.
     @inbounds for i in 1:n
@@ -1270,7 +1271,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
         # BRATIO (cr/bratio.f = cr_bratio): its bark_a/bark_b are 0, so bark_ratio would floor to 0.80
         # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
-        bark = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # update.f:115 — the SAME BRATIO as dgdriv's DDS→DG
+        # ON: canada/on/update.f DO 90 adds HTG to HT for every record BEFORE DO 110 `DBH=DBH+DG/BRATIO(IS,DBH,HT)`,
+        # so ON's metric H/D bark (bratio.f: maple group/black spruce/cedar) reads the END-of-cycle height (vols.f:131
+        # likewise). HT is ignored by every other variant's BRATIO, so the pre-growth height stays for them.
+        bark = variant_bratio(s, t.species[i], t.dbh[i],
+                              _on_up ? t.height[i] + t.ht_growth[i] : t.height[i])   # update.f:115 — the SAME BRATIO as dgdriv's DDS→DG
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
         s.variant isa OregonCoast || (t.vol_bark[i] = bark)   # stash BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150)

@@ -72,3 +72,11 @@ end
         @test (k, jv) == (k, lv)
     end
 end
+
+# (3) canada/on/update.f: DO 90 adds HTG to HT for every record BEFORE DO 110 DBH=DBH+DG/BRATIO(IS,DBH,HT) — ON's
+# metric H/D bark (maple group / black spruce / cedar) reads the END-of-cycle height.
+@testset "ON ont01 cyc1: DBH == live (update.f bark reads the grown HT)" begin
+    for (k, lv, jv) in _on1_col(:DBH)
+        @test (k, jv) == (k, lv)
+    end
+end
