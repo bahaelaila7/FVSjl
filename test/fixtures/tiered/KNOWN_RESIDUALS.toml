@@ -20318,17 +20318,6 @@ issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print valu
 variant = "SN"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "Acc"
 stand = "*"
 year = "*"
@@ -20417,17 +20406,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -20445,17 +20423,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
-
-[[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -20545,13 +20512,58 @@ status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
 
+
 [[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "sum"
-col = "TopHt"
+variant = "BM"
+regime = "simfire"
+file = "FVS_BurnReport"
+col = "Weight1"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2017: live=70.0 jl=71.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
