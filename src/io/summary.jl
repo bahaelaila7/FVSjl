@@ -500,9 +500,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)   # OLDCRW from last FMSDIT's CROWNW
                 ffe_snapshot_hpct!(s)                   # then FMCROW (fmsdit.f:128) re-ranks the grown stand
             end
-        elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
-            push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # (FMCHRVOUT runs only inside FMMAIN's cycle loop, so no FVS_Hrv_Carbon row for the terminal .sum year —
+        #  live Hrv_Carbon has exactly the FVS_Carbon years in all 96 tiered fixtures.)
         # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
         # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
         # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing

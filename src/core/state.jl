@@ -381,6 +381,21 @@ mutable struct Control
     # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
     # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
     sdical_bamax::Float32
+    # FFE DBS tables: each needs its DATABASE toggle (dbsin.f) AND, where FVS has one, its FMIN report switch.
+    #   CARBREDB → ICMRPT/ICHRPT (FVS_Carbon, FVS_Hrv_Carbon; fmcrbout.f/fmchrvout.f run every FMMAIN year —
+    #   ICRPTB/ICHRVB default 9999, never 0); POTFIRDB → IPOTFIRE/IPOTFIREC (FVS_PotFire[_East], FVS_PotFire_Cond);
+    #   SNAGSUDB → ISSUM + FMIN SNAGSUM (ISNGSM≠−1, fmssum.f); SNAGOUDB → ISDET + FMIN SNAGOUT (fmsout.f window);
+    #   DWDVLDB → IDWDVOL + FMIN DWDVLOUT; DWDCVDB → IDWDCOV + FMIN DWDCVOUT (fmdout.f LPRINT2/LPRINT3).
+    dbs_carbrept::Bool
+    dbs_potfire::Bool
+    dbs_snagsum::Bool
+    dbs_snagdet::Bool
+    dbs_dwdvol::Bool
+    dbs_dwdcov::Bool
+    ffe_snagsum::Bool
+    ffe_snagout::Bool
+    ffe_dwdvlout::Bool
+    ffe_dwdcvout::Bool
 end
 
 function Control()
@@ -459,6 +474,8 @@ function Control()
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
         0f0,                                                     # sdical_bamax
+        false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
+        false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
     )
 end
 

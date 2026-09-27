@@ -2006,7 +2006,8 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         k = strip(r.name)
         isempty(k) && continue
         k in ("SUMMARY", "TREELIDB", "COMPUTDB", "CLIMREDB", "STRCLSDB", "CALBSTDB", "MISRPTS", "PPBMMAIN",
-              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIDB", "ATRTLIDB") && (out_req = true)
+              "PPBMTREE", "PPBMVOL", "PPBMBKP", "RDSUM", "RDDETAIL", "ECONRPTS", "CUTLIDB", "ATRTLIDB",
+              "CARBREDB", "POTFIRDB", "SNAGSUDB", "SNAGOUDB", "DWDVLDB", "DWDCVDB") && (out_req = true)
         if k == "END"
             break
         elseif k == "DSNOUT"
@@ -2058,6 +2059,18 @@ function kw_database!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.dbs_burnrept = true  # dbsin.f opt 20: IBURN ⇒ FVS_BurnReport (only with the FMIN BURNREPT window)
         elseif k == "MORTREDB"
             s.control.dbs_mortrept = true  # dbsin.f opt 21: IMORTF ⇒ FVS_Mortality (only with the FMIN MORTREPT window)
+        elseif k == "CARBREDB"
+            s.control.dbs_carbrept = true  # dbsin.f:708-709 ICMRPT=ICHRPT=1 ⇒ FVS_Carbon + FVS_Hrv_Carbon
+        elseif k == "POTFIRDB"
+            s.control.dbs_potfire = true   # dbsin.f:379-380 IPOTFIRE=IPOTFIREC=1 ⇒ FVS_PotFire(_East) + FVS_PotFire_Cond
+        elseif k == "SNAGSUDB"
+            s.control.dbs_snagsum = true   # dbsin.f:565 ISSUM ⇒ FVS_SnagSum (with FMIN SNAGSUM)
+        elseif k == "SNAGOUDB"
+            s.control.dbs_snagdet = true   # dbsin.f:585 ISDET ⇒ FVS_SnagDet (with FMIN SNAGOUT)
+        elseif k == "DWDVLDB"
+            s.control.dbs_dwdvol = true    # dbsin.f:773 IDWDVOL ⇒ FVS_Down_Wood_Vol (with FMIN DWDVLOUT)
+        elseif k == "DWDCVDB"
+            s.control.dbs_dwdcov = true    # dbsin.f:793 IDWDCOV ⇒ FVS_Down_Wood_Cov (with FMIN DWDCVOUT)
         elseif k == "STRCLSDB"
             s.control.dbs_strclass = true
             s.control.strclass_on = true   # the DBS emitter implies the structure calc is on (sstage.f)
@@ -2662,6 +2675,15 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             s.control.ffe_mortrept = true  # fmin.f:1359 IFMMRB/IFMMRE window (DBSFMMORT gate)
         elseif k == "FUELREPT"
             s.control.ffe_fuelrept = true  # fmin.f:1341 IFMFLB/IFMFLE window (DBSFMFUEL gate)
+        elseif k == "SNAGSUM"
+            # fmin.f:1443-1448 ISNGSM = −1, then 0 (report on) when field 1 ≥ 0 — a blank field reads 0 ⇒ on
+            s.control.ffe_snagsum = !(r.present[1] && r.values[1] < 0f0)
+        elseif k == "SNAGOUT"
+            s.control.ffe_snagout = true   # fmin.f:661 snag-list report activity (200-yr window) — DBSFMDSNAG gate
+        elseif k == "DWDVLOUT"
+            s.control.ffe_dwdvlout = true  # fmin.f:2427 IDWRPB=IY(1), IDWRPE=IY(1)+999 (DBSFMDWVOL gate)
+        elseif k == "DWDCVOUT"
+            s.control.ffe_dwdcvout = true  # fmin.f:2446 IDWCVB=IY(1), IDWCVE=IY(1)+999 (DBSFMDWCOV gate)
         elseif k in _FFE_REPORT_KEYWORDS
             # report-only FFE keywords (BURNREPT/FUELOUT/SNAGSUM/…): the text reports aren't emitted; the
             # equivalent data is available via the DBS path. Recognized, intentionally a no-op here.
