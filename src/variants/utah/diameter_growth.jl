@@ -18,7 +18,7 @@
 #     cap DF−DPP≤1), DIAGR=(DF−DPP)·BARK, DDS=ln(DIAGR·(2·DPP·BARK+DIAGR))+CONSPP.
 #   CASE(20:21) MC/BI — CONSPP + DGLD·lnD + DGBAL·BAL + CR·(DGCR+CR·DGCRSQ) + DGDSQ·D² + DGDBAL·BAL/ln(D+1)
 #     + DGPCCF·PCCF + DGBA·BA; BAL=(1−PCT/100)·BA (NOT BA100).
-#   CASE(17:19,22) GB/NC/FC/BE (CR-surrogate) — BAU-based DF-proj + DSTAG.  [needs BAU array — DEFERRED; not in utt01]
+#   CASE(17:19,22) GB/NC/FC/BE (CR-surrogate) — BAU-based DF-proj (+ DSTAG under the unported ISTAGF flag).
 # =============================================================================
 
 # ut/dgf.f ENTRY DGCONS — per-species per-stand DG constants. Needs ISISP (site_species), IFOR (forest_idx),
@@ -129,6 +129,7 @@ function dgf!(s::StandState, ::Utah)
     # ISC (site class 1-5) for the ES DGCCF override (ut/dgf.f:539).
     isi_c = round(Int, p.sp_site_index[isisp]); isi_c = clamp(isi_c, 20, 60)
     isc = trunc(Int, isi_c / 10f0) - 1
+    bau = nothing                                    # BADIST BAU, built on first CR-surrogate NC/FC/BE record
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
@@ -184,9 +185,9 @@ function dgf!(s::StandState, ::Utah)
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         else
-            # CR-surrogate GB/NC/FC/BE (ut/dgf.f:606-624): BAU-based DF-proj + DSTAG. DEFERRED — needs the
-            # BADIST BAU (BA-by-diameter-class) array + DSTAG (Zeide RELSDI stagnation); not exercised by utt01.
-            # Faithful placeholder: GB(17) uses the case-3 DF form; NC/FC/BE use the BAU form (BAU=0 here → TODO).
+            # CR-surrogate GB/NC/FC/BE (ut/dgf.f:605-632): GB the case-3 DF form; NC/FC/BE the BAU form with
+            # BAUTBA = BAU(ICLS)/BA, BAU = BADIST's BA in larger classes (ut/badist.f; dgf.f:437 CALL BADIST).
+            # DIAGR·DSTAG only under ISTAGF (0 by default, grinit.f:339; the keyword flag is not ported).
             dpp = d < 1f0 ? 1f0 : d
             batem = ba < 5f0 ? 5f0 : ba
             si = p.sp_site_index[sp]
@@ -194,7 +195,10 @@ function dgf!(s::StandState, ::Utah)
             df = if sp == 17
                 0.25897f0 + 1.03129f0 * dpp - 0.0002025464f0 * batem + 0.00177f0 * si
             else
-                (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * log(batem) + 0.00672f0 * si) * 1.05f0   # BAU term TODO
+                bau === nothing && (bau = _cr_badist_bau(t))
+                icls = trunc(Int, d + 1f0); icls > 41 && (icls = 41)
+                bautba = bau[icls] / ba
+                (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * log(batem) + 0.00672f0 * si - 0.00073f0 * bautba) * 1.05f0
             end
             sp == 17 && (df - dpp) > 1f0 && (df = dpp + 1f0)
             df < dpp && (df = dpp)

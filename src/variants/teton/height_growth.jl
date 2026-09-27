@@ -56,7 +56,10 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
     has_ncoh = any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n)
     ht_bau = has_ncoh ? _tt_badist_bau(t) : nothing
     agerng = has_ncoh ? _cr_agerng(t) : 0f0
-    @inbounds for i in 1:t.n
+    # tt/htgf.f:268-276 DO 40 ISPC / DO 30 I3 / I=IND1(I3): the NC/OH ZZRAN draws (:424) follow the species-major
+    # IND1 (post-TRIPLE lineage) order, not storage order — else NC and OH records swap deviates and, after a tripling
+    # cycle, each NC record gets its lineage neighbour's (measured bare TT PLANT: every NC HTG from 2022 permuted).
+    @inbounds for i in species_major_order(s)
         t.ht_growth[i] = 0f0
         t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
