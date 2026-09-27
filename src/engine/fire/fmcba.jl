@@ -250,7 +250,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         isempty(fs.params.stfuel_hard) && !isempty(s.plot.ffe_fuel_hard) && (fs.params.stfuel_hard = copy(s.plot.ffe_fuel_hard))
         isempty(fs.params.stfuel_soft) && !isempty(s.plot.ffe_fuel_soft) && (fs.params.stfuel_soft = copy(s.plot.ffe_fuel_soft))
         ovh = fs.params.stfuel_hard; ovs = fs.params.stfuel_soft
-        fill!(fs.cwd, 0f0)
+        # CWD(1,ISZ,J,IDC) = CWD + ADD (fmcba.f:597-613): the initial load ADDS to whatever the cut phase already
+        # booked this year (FMSCUT crown slash, YARDLOSS downed boles — cuts.f precedes FMMAIN), it does not reset.
         @inbounds for isz in 1:11
             sh = (length(ovh) >= isz && ovh[isz] >= 0f0) ? ovh[isz] : deffuel[isz]   # FUELINIT hard
             ss = (length(ovs) >= isz && ovs[isz] >= 0f0) ? ovs[isz] : 0f0            # FUELSOFT soft
@@ -285,6 +286,18 @@ function fmcba!(s::StandState; load_dead::Bool = true)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11
             fs.params.dkr = ec_adjusted_dkr(Int(s.plot.habitat_input))
+        end
+        # WC / PN / OP decay-rate habitat adjustment (wc/fmcba.f:488-521; pn,op/fmcba.f:462-495): WCWMC/WCWMD or
+        # PNWMC/PNWMD (the FMR6SDCY tables) by ITYPE.
+        if (s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa Olympic) &&
+           size(fs.params.dkr, 1) != 11
+            _it = Int(s.plot.habitat_input)
+            if s.variant isa WestCascades
+                _it = clamp(_it, 1, 139); _t = _R6SD_WCWMC[_it]; _m = _R6SD_WCWMD[_it]
+            else
+                _it = clamp(_it, 1, 75); _t = _R6SD_PNWMC[_it]; _m = _R6SD_PNWMD[_it]
+            end
+            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m)
         end
         # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)
         # from SOHMC/SOWMD at the first FFE year. The reference stand rides so/habtyp.f's DEFAULT plant

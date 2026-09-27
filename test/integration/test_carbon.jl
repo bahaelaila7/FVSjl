@@ -954,8 +954,10 @@ end
             # ops bit-exact). Both are 1-dec RENDERED values, so state the EXACT tenth-gap vs live (float-clean —
             # avoids the 2.8-2.6=0.2000…18 knife-edge, and drops sd05's prior 1.25× atol pad). Locks the residual:
             # any model change flips the gap and flags for review.
-            @test abs(round(Int, sd05  * 10) -  28) == 2   # jl 2.6 vs live 2.8 = exactly 2 tenths (fire snags cleared; was 10.9, then 4.0)
-            @test abs(round(Int, ddw05 * 10) - 148) == 4   # jl 15.2 vs live 14.8 = exactly 4 tenths (fallen-bole down wood)
+            # CWD2B2 (fmscro.f:160-170, fmmain.f:243-257): the fire's crown debris waits in CWD2B2 and starts falling the
+            # year after the burn — Standing-Dead is now exact (was 2.6). The later fall decays less, so DDW rose 15.2 → 15.6.
+            @test abs(round(Int, sd05  * 10) -  28) == 0   # jl 2.8 = live 2.8
+            @test abs(round(Int, ddw05 * 10) - 148) == 8   # jl 15.6 vs live 14.8 = exactly 8 tenths (fallen-bole down wood)
         end
     end
 end

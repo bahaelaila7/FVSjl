@@ -28,8 +28,10 @@ end
     @test sort(collect(keys(jl))) == sort(collect(keys(gold)))
     for k in sort(collect(keys(gold)))
         g = gold[k][3:8]; j = get(jl, k, fill(SubString(""), 12))[3:8]   # TPA BA SDI CCF TopHt QMD
-        if k[1] == 4 && k[2] >= 2013
-            @test_broken j == g                     # FFE SIMFIRE+FLAMEADJ+SALVAGE stand (same open item as WC wct01 stand 4)
+        if k[1] == 4 && 2013 <= k[2] <= 2033
+            # FFE SIMFIRE+FLAMEADJ+SALVAGE stand after the 2003 fire: with the R6 snag/fuel layer (ffe-westside) the fire
+            # and FVS_Mortality match live, and TPA is within 1 (2013 70 vs 71); 2043 is exact again.
+            @test_broken j == g
         else
             @test j == g
         end

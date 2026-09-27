@@ -128,6 +128,11 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     if s.fire !== nothing && s.fire.active && haskey(s.coef.species, :v2t)
         mbio = t.merch_cuft_vol[i] * coef_col(s.coef, :v2t)[sp] / 2000f0 * prem
         accrue_harvest_carbon!(s, sp, t.dbh[i], mbio, Int(current_cycle_year(s)))
+        # Dead coarse roots of the cut trees: FMSCUT BIOROOT += RBIO·(WK3−SSNG) (fmscut.f:68) plus FMSADD's
+        # RBIO·SNGNEW for the standing yarding-loss snags (fmsadd.f:320, fresh ⇒ XDCAY 1) = RBIO·PREM in all.
+        let (_, _, rbio) = jenkins_biomass(s.coef, sp, t.dbh[i])
+            s.fire.bioroot += rbio * prem
+        end
         # ACTIVITY FUELS (FMSCUT, fmscut.f:88-96): the cut tree's CROWN slash → the surface fuel bed, for ANY
         # cut (not just YARDLOSS). Foliage (xv[1]) → litter cwd[10]; branch classes 1-5 (xv[2:6]) → woody
         # cwd[1:5]; all category 2, species decay class IDC. Scale = removed-TPA `prem` × P2T (cwd is TONS,
@@ -135,8 +140,13 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # fuel load ⇒ a more-severe post-thin fire, matching live (jl previously omitted ordinary-cut crown-slash
         # ⇒ under-fueled ⇒ under-killed severe post-thin fires; cst01+THINDBH+SIMFIRE live 255→5 vs jl 255→56).
         # Corpus fires have no pre-fire cut ⇒ this is a no-op there (stays bit-exact).
+        # CTCRWN (cuts.f:1383-1388, LYARD is on whenever FFE is active): the crowns left = PRCRWN of the non-lost
+        # removal + the downed yarding loss, CTCRWN = PRCRWN·(PREM−LOSS) + LOSS·PRDSNG (= PREM at the defaults
+        # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
+        _loss = prem * s.control.yardloss_prlost
+        _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
         let xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
-            idc = ffe_dkr_cls(s, sp), xcr = prem * _FM_P2T
+            idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
                 s.fire.cwd[isz, 2, idc] += xv[isz + 1] * xcr          # branch classes → woody sizes 1-5

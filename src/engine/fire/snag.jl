@@ -25,10 +25,12 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
                            origden::Float32, denttl::Float32;
                            fallx::Float32 = coef_col(coef, :snag_fallx)[ksp],
                            alldwn::Float32 = coef_col(coef, :snag_alldwn)[ksp],
-                           variant = nothing, itype::Integer = 0)::Float32
-    # R6 (BM) FMSFALL (bm/fmsfall.f, == EC/AK/OP/PN/WC): DFALLN = BASE·FALLX·DENTTL — a fraction of the CURRENT
-    # density, BASE from FMR6SDCY+FMR6FALL. No SN linear/last-5% ramp and no ALLDWN in this form.
-    variant isa BlueMountains && return bm_r6_fall_base(ksp, d, itype) * fallx * denttl
+                           variant = nothing, itype::Integer = 0, kodfor::Integer = 0)::Float32
+    # R6 FMSFALL (bm/ec/wc/pn/op fmsfall.f:44-46; so/fmsfall.f Oregon branch): DFALLN = BASE·FALLX·DENTTL — a fraction
+    # of the CURRENT density, BASE from FMR6SDCY+FMR6FALL. No SN linear/last-5% ramp and no ALLDWN in this form.
+    r6 = variant === nothing ? :none : r6_ffe_code(variant)
+    (r6 === :SO && _so_california_fall(kodfor)) && (r6 = :none)
+    r6 === :none || return r6_fall_base(r6, ksp, d, itype, kodfor) * fallx * denttl
     # BASE fall rate (fmsfall.f:128/130) is VARIANT-SPECIFIC: SN/CS use −0.001679·d+0.064311; LS uses the
     # "new equation" −0.006·d+0.18 (a much faster fall); NE uses an ALGSLP table (not yet ported — NE keeps
     # the SN form here). The small-snag LINEAR-fall breakpoint also differs: SN/CS = 12" (redcedar ksp2 keeps
@@ -38,7 +40,7 @@ function snag_fall_density(coef::SpeciesCoefficients, ksp::Integer, d::Float32,
         linear = d < ((ksp == 10 || ksp == 11 || ksp == 14) ? 12f0 : 18f0)
     else
         base = max(0.01f0, -0.001679f0 * d + 0.064311f0)
-        if variant !== nothing && _ffe_west_vol(variant)
+        if variant !== nothing && _ffe_west_fallform(variant)
             # {v}/fmsfall.f western form: linear below 18" (EM 12"), no redcedar exception; slow-falling species
             # ≥ 18" take BASE = MAX(0.01, BASE·0.32) (CI ksp 2/8, TT 3/8, UT 3/5/8).
             lmax, slow = _ffe_west_fall(variant, ksp)
@@ -327,7 +329,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             ad = get(fs.params.snag_alldwn_ovr, Int32(sp), coef_col(coef, :snag_alldwn)[sp])
             dfall = min(denttl, snag_fall_density(coef, sp, sn.dbh[i], sn.origden[i], denttl;
                                                   fallx = fx, alldwn = ad, variant = s.variant,
-                                                  itype = s.variant isa BlueMountains ? bm_itype(Int(s.plot.habitat_code)) : Int(s.plot.habitat_code)))
+                                                  itype = _r6_itype(s), kodfor = Int(s.plot.user_forest_code)))
             dfis = denttl > 0f0 ? sn.den_soft[i] * dfall / denttl : 0f0
             dfih = denttl > 0f0 ? sn.den_hard[i] * dfall / denttl : 0f0
             # Post-burn accelerated fall (FMSNAG fmsnag.f:200-214; rates FMSFALL fmsfall.f:102-119): snags
@@ -345,11 +347,14 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             p = fs.params
             if byr > 0 && Int(sn.yrdead[i]) <= byr && 0 <= (cur - byr) <= Int(p.pb_time)
                 dzr = (_FM_NZERO / 50f0) / denttl
-                rsoft = p.pb_soft < 1f0 ? 1f0 - exp(log(1f0 - p.pb_soft) / p.pb_time) :
+                # fmsfall.f:25-38: rates only when PBSOFT/PBSMAL > 0 (R6 fmvinit sets 0, SO −1 ⇒ none)
+                rsoft = p.pb_soft <= 0f0 ? 0f0 :
+                        p.pb_soft < 1f0 ? 1f0 - exp(log(1f0 - p.pb_soft) / p.pb_time) :
                                           1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
                 pbfris = rsoft; pbfrih = 0f0
                 if sn.dbh[i] < p.pb_size                         # small snags accelerate (large hard do not)
-                    pbfrih = p.pb_smal < 1f0 ? 1f0 - exp(log(1f0 - p.pb_smal) / p.pb_time) :
+                    pbfrih = p.pb_smal <= 0f0 ? 0f0 :
+                             p.pb_smal < 1f0 ? 1f0 - exp(log(1f0 - p.pb_smal) / p.pb_time) :
                                                1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
                     pbfrih > pbfris && (pbfris = pbfrih)         # fmsnag.f:186-187: bump soft rate to the max
                 end
@@ -425,8 +430,21 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # but a latent cross-variant bug; NE now populates snag_htx (=1.0), so its HTR1 must be its own 0.015.
     HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = _snag_htxsft(s.variant)
     ci75 = s.variant isa CentralIdaho
+    # PN/WC/BM/EC/OP (+ SO's Oregon forests) FMSNGHT call FMR6HTLS (fmsnght.f:74-93) on EVERY call — one RANN per
+    # FMSNGHT, i.e. per snag record per non-empty hard/soft pool — and use its SNHTLS loss whenever the pool's HTX is
+    # within [0.99,1.01] (the fmvinit default 1.0). FMSNAG brackets the whole snag loop with RANNGET/RANNPUT
+    # (fmsnag.f:113-116/290-293), so the year's draws are rolled back: every year of a cycle replays the SAME
+    # sequence, and the main stream is untouched.
+    r6 = r6_ffe_code(s.variant)
+    (r6 === :SO && _so_california_ht(Int(s.plot.user_forest_code))) && (r6 = :none)
+    r6save = r6 === :none ? nothing : rannget(s.rng)
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
+        x2h = 0f0; x2s = 0f0
+        if r6 !== :none
+            sn.den_hard[i] > 0f0 && (x2h = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=1,…)
+            sn.den_soft[i] > 0f0 && (x2s = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=0,…)
+        end
         htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
         htd = sn.height[i]; htc = sn.htcur[i]
         (htd > 0f0 && htc > 0f0) || continue
@@ -439,6 +457,8 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         sftmult = soft ? HTXSFT : 1f0
         htr = above ? HTR1 : HTR2                         # first-50% uses HTR1, after-50% uses HTR2 (fmsnght.f:154-159)
         lossfrac = clamp(htr * htx[idx] * sftmult, 0f0, 1f0)
+        # FMR6HTLS: HTX(KSP,HTINDX) in [0.99,1.01] ⇒ the pool's random loss X2 replaces HTR·HTX·SFTMULT.
+        (r6 !== :none && 0.99f0 <= htx[idx] <= 1.01f0) && (lossfrac = soft ? x2s : x2h)
         htnew = htc * (1f0 - lossfrac)^Float32(nyears)
         # fmsnght.f CASE('CI') KSP 1,6 (WP, RC): lose height at HTR1 only while above 75% of HTD, then stop.
         if ci75 && (sn.sp[i] == 1 || sn.sp[i] == 6)
@@ -465,6 +485,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
     end
+    r6save === nothing || rannput!(s.rng, r6save)          # RANNPUT(SAVESO) (fmsnag.f:290-293)
     return
 end
 
@@ -518,7 +539,7 @@ function snag_summary(s::StandState)
         # NOT the factored `DECAYX·(1.24·D+13.82)`. At the age≈DKTIME near-tie boundary this sub-ULP order
         # difference flips boundary cohorts' hard/soft classification. (XMOD=1 for SN.)
         dcx = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]])
-        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
+        dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
         if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
             ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
         end
@@ -566,7 +587,7 @@ function snag_detail(s::StandState)
         vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
               _snag_merch_cuft_on(s, sp, d, h)
         dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
-        dktime = (1.24f0 * dcx * d) + (13.82f0 * dcx)
+        dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
         ishard = Float32(iyr - 1 - yd) < dktime
         dh  = ishard ? denih : 0f0
         ds  = denis + (ishard ? 0f0 : denih)

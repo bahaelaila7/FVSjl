@@ -446,7 +446,8 @@ include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-g
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
 include("engine/fire/west_ffe.jl")       # FFE — western FMSVOL basis (no-cut NATCRS TCF/MCF) for snags + live stem
-include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag fall BASE (FMR6SDCY + FMR6FALL; BM)
+include("engine/fire/r6_snag_tables.jl") # FFE F7 — R6 snag tables (fmr6sdcy/fmr6fall/fmr6htls DATA)
+include("engine/fire/r6_snag_fall.jl")   # FFE F7 — R6 snag decay/fall/height loss (FMR6SDCY/FMR6FALL/FMR6HTLS)
 include("engine/fire/snag.jl")           # FFE F7 — snag falldown + decay dynamics (FMSFALL)
 include("engine/fire/consumption.jl")    # FFE F7/F8 — fire fuel consumption + carbon release (FMCONS)
 include("engine/econ.jl")                # C8 — ECON economic-analysis core (eccalc.f)
