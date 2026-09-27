@@ -17,6 +17,11 @@
 # akt01.key/.tre (tests/FVSak) + akt01.live.sum: every .sum row of all five stands (unthinned control, THINDBH, the
 # shelterwood + ECON, FFE, PLANT) — the full AK growth chain (DGF/DGSCOR calibration, HTGF, REGENT, CROWN, MORTS with
 # its PASS density loop, R10 volume) must be exact.
+#
+# ak_fia.db + akfia.key: a 12-stand AK FIA sub-DB (FVS_STANDINIT_COND/FVS_TREEINIT_COND rows copied from the FIA DB;
+# live .sum identical to the full-DB run) with AUTOES on (ingrowth), missing crowns (the LSTART CROWN/DUBSCR dub reads
+# the CRATET DENSE's PTBAL point BA: live + inventory-dead at read DBH), HISTORY-8 dead, broken tops. Stands listed in
+# `exact` must match every .sum row; the total count guards the rest.
 #  * volume start bark: vols.f:150-151 BARK=BRATIO(DBH_start) before D=D+DG/BARK, so NVEL's DBTBH=D·(1−BARK)
 #    scales the F32 profile with the start-of-cycle bark — the small-SS TCuFt 0.1 roundings (2012 231 not 240).
 #
@@ -28,6 +33,11 @@
 # akt01.key/.tre (tests/FVSak) + akt01.live.sum: every .sum row of all five stands (unthinned control, THINDBH, the
 # shelterwood + ECON, FFE, PLANT) — the full AK growth chain (DGF/DGSCOR calibration, HTGF, REGENT, CROWN, MORTS with
 # its PASS density loop, R10 volume) must be exact.
+#
+# ak_fia.db + akfia.key: a 12-stand AK FIA sub-DB (FVS_STANDINIT_COND/FVS_TREEINIT_COND rows copied from the FIA DB;
+# live .sum identical to the full-DB run) with AUTOES on (ingrowth), missing crowns (the LSTART CROWN/DUBSCR dub reads
+# the CRATET DENSE's PTBAL point BA: live + inventory-dead at read DBH), HISTORY-8 dead, broken tops. Stands listed in
+# `exact` must match every .sum row; the total count guards the rest.
 using FVSjl, Test
 
 function _ak_sum_rows(path)
@@ -99,4 +109,33 @@ end
     end
     @test length(live) == 56
     @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) == 56
+end
+
+@testset "AK FIA sample vs live FVSak (12 stands, AUTOES)" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "southeastalaska")
+    function rows_by_id(path)
+        out = Dict{Tuple{String,Int},Vector{Float64}}(); sid = ""
+        for l in eachline(path)
+            startswith(l, "-999") && (sid = split(l)[3]; continue)
+            f = split(l)
+            (sid != "" && length(f) > 11 && all(isdigit, f[1]) && length(f[1]) == 4) || continue
+            out[(sid, parse(Int, f[1]))] = parse.(Float64, f[3:12])
+        end
+        return out
+    end
+    live = rows_by_id(joinpath(fx, "akfia.live.sum"))
+    dir = mktempdir()
+    for f in ("akfia.key", "ak_fia.db"); cp(joinpath(fx, f), joinpath(dir, f)); end
+    jl = cd(dir) do
+        write("jl.sum", FVSjl.run_keyfile("akfia.key"; variant = FVSjl.SoutheastAlaska(), output = :sum))
+        rows_by_id("jl.sum")
+    end
+    exact = ("10705712010497", "10706339010497", "10708351010497", "1549083042290487", "24731081010497",
+             "644808316126144", "666740939126144")
+    for sid in exact
+        ks = [k for k in keys(live) if k[1] == sid]
+        @test length(ks) == 7
+        @test all(k -> get(jl, k, nothing) == live[k], ks)
+    end
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 63
 end

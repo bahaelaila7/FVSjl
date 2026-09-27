@@ -148,13 +148,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # so dbstrls.f's dead rows (:308-440) report them. PTBAL (dense.f:280) runs after the SECOND, current-DBH pass:
     # WK5 = DBH·(DBH·PROB) at the READ diameter (dead PROB ×FINT/FINTM), per point in IND (real-DBH RDPSRT) order,
     # XBALT += WK5·.005454154·PI/GROSPC (ptbal.f:144-145).
-    if t.ndead > 0
-        nd = Int(t.ndead)
-        c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
-        # pctile.f with N=1 sets PERCNT(1) — array ELEMENT 1, an unused slot when the lone record is a dead one filed at
-        # MAXTRE — and returns, so that dead record's PCT stays 0 (jl files it at index 1 and _pctile! gave it 100).
-        (nlive == 0 && nd == 1) && (c.cratet_dead_pct[1] = 0f0)
-        ntot = t.n
+    let ntot = t.n
         xb = zeros(Float32, MAXPLT); ptb = zeros(Float32, ntot)
         pif = s.plot.pi; gr = s.plot.gross_space
         @inbounds for k in 1:ntot
@@ -163,9 +157,17 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
             d = dbh_real[ii]
             xb[ip] = xb[ip] + (d * (d * t.tpa[ii])) * 0.005454154f0 * pif / gr
         end
-        c.cratet_dead_ptbal = ptb[(nlive + 1):(nlive + nd)]
-    else
-        c.cratet_dead_pct = Float32[]; c.cratet_dead_ptbal = Float32[]
+        c.cratet_ptbaa = xb
+        if t.ndead > 0
+            nd = Int(t.ndead)
+            c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
+            # pctile.f with N=1 sets PERCNT(1) — array ELEMENT 1, an unused slot when the lone record is a dead one filed
+            # at MAXTRE — and returns, so that dead record's PCT stays 0 (jl files it at index 1 and _pctile! gave it 100).
+            (nlive == 0 && nd == 1) && (c.cratet_dead_pct[1] = 0f0)
+            c.cratet_dead_ptbal = ptb[(nlive + 1):(nlive + nd)]
+        else
+            c.cratet_dead_pct = Float32[]; c.cratet_dead_ptbal = Float32[]
+        end
     end
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     # dense.f:249-252 second pass: RMSQD = SQRT(TSUMD2/TPROB), TSUMD2 += D·(D·P), over IND1 species-major, current DBH
