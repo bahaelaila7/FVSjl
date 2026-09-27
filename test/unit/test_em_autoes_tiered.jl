@@ -26,7 +26,7 @@ function _run_stand(cn)
 end
 const _run = _run_stand(STAND)
 # Number of FVS_TreeList cells (every column but the keys) that differ from the live golden in the given years.
-function _treelist_diffcells(cn, db, years)
+function _treelist_diffcells(cn, db, years; cols = nothing)
     gold = _keyed(read_csv(joinpath(fixture_dir("EM"), "$(cn)_none.FVS_TreeList.csv"))...)
     got  = _keyed(db_table_rows(db, "FVS_TreeList")...)
     n = 0
@@ -35,6 +35,7 @@ function _treelist_diffcells(cn, db, years)
         haskey(got, k) || (n += 1; continue)
         for (c, v) in g
             c in ("StandID", "CaseID") && continue
+            cols === nothing || c in cols || continue
             _eq(v, get(got[k], c, "")) || (n += 1)
         end
     end
@@ -77,5 +78,17 @@ end
     r2 = _run_stand("3087467010690")
     @test !r2.crashed
     @test _treelist_diffcells("3087467010690", r2.db, ("1988", "1998", "2008")) == 0
+end
+
+# em/morts.f label 10: the QMD-convergence loop (≤10 passes; D10=D10N while |D10−D10N|>0.1 and D10N>DIA0), each pass
+# re-deriving BA10/RZ and TN10 from the current D10 — jl ran ONE pass. Plus the Fortran shape: stand sums in IND1 order
+# with G=(DG/BARK)*(FINT/10), T capped at 35000, AVED over all records, POT DATA literals, EXP/** via gfortran libm, the
+# X*0.6 NI-share order, SIZCAP floor. MEASURED FVSem_g16 DEBUG MORTS 2999215010690 cycle 1: DQ10 7.1664 → D10N 7.3036
+# (2nd pass), jl killed ~0.1% fewer CW/AS; 3087467010690 cycle 3 whole-stand TPA.
+@testset "EM MORTS QMD-convergence passes (em/morts.f label 10) vs FVSem_g16" begin
+    r3 = _run_stand("3087467010690")
+    @test _treelist_diffcells("3087467010690", r3.db, ("1988", "1998", "2008", "2018", "2028", "2038")) == 0
+    r4 = _run_stand("2999215010690")
+    @test _treelist_diffcells("2999215010690", r4.db, ("1998",); cols = ("TPA", "MortPA", "DBH", "Ht", "DG", "HtG")) == 0
 end
 end # module

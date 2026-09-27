@@ -12892,17 +12892,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "cover"
 file = "FVS_StrClass"
-col = "Structure_Class"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 474157097489998 year 2036: live=2=SE jl=1=SI"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Total_Cover"
 stand = "*"
 year = "*"
@@ -13030,17 +13019,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 26 cells [material=10 ulpbig=16] max|Δ|=424.0 | e.g. stand 474187636489998 year 2036: live=259 jl=257"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2058: live=9 jl=7"""
 
 [[residual]]
 variant = "EM"
@@ -13222,17 +13200,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "cover"
 file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2048: live=2 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "sum"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -13288,56 +13255,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "econ"
 file = "FVS_EconHarvestValue"
-col = "Ft3_Removed"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=6 ulpbig=1] max|Δ|=115.0 | e.g. stand 196420598020004 year 2022: live=990 jl=1099"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "Ft3_Value"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 6 cells [material=6] max|Δ|=34.0 | e.g. stand 196420598020004 year 2022: live=297 jl=330"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_EconHarvestValue"
 col = "PRESENCE"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 231908428020004 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "Total_Value"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 6 cells [material=6] max|Δ|=34.0 | e.g. stand 196420598020004 year 2022: live=297 jl=330"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_EconSummary"
-col = "Mrch_Cubic_Volume"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=2 ulpbig=1] max|Δ|=109.0 | e.g. stand 196420598020004 year 2022: live=1009 jl=1118"""
 
 [[residual]]
 variant = "EM"
@@ -13525,28 +13448,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Summary"
-col = "RTCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=3 ulpbig=1] max|Δ|=26.0 | e.g. stand 684750664126144 year 2028: live=1642 jl=1646"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Summary"
-col = "RTpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=14.0 | e.g. stand 231908428020004 year 2023: live=182 jl=178"""
 
 [[residual]]
 variant = "EM"
@@ -13745,28 +13646,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "sum"
-col = "RTCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=3 ulpbig=1] max|Δ|=26.0 | e.g. stand 684750664126144 year 2028: live=1642 jl=1646"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "sum"
-col = "RTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=14.0 | e.g. stand 231908428020004 year 2023: live=182 jl=178"""
 
 [[residual]]
 variant = "EM"
@@ -14619,17 +14498,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "none"
 file = "FVS_StrClass"
-col = "Structure_Class"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 474157097489998 year 2036: live=2=SE jl=1=SI"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
 col = "Total_Cover"
 stand = "*"
 year = "*"
@@ -14757,17 +14625,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 26 cells [material=10 ulpbig=16] max|Δ|=424.0 | e.g. stand 474187636489998 year 2036: live=259 jl=257"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2058: live=9 jl=7"""
 
 [[residual]]
 variant = "EM"
@@ -15142,17 +14999,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 26 cells [material=10 ulpbig=16] max|Δ|=424.0 | e.g. stand 474187636489998 year 2036: live=259 jl=257"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2048: live=2 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -16896,17 +16742,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "salvage"
 file = "FVS_Summary"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2058: live=9 jl=7"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -17094,17 +16929,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "salvage"
 file = "sum"
-col = "Mort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 684750664126144 year 2048: live=2 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "sum"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -17171,17 +16995,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Midflame_Wind"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=3.716 | e.g. stand 888512560290487 year 2031: live=3.0623512268066406 jl=5.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -17199,28 +17012,6 @@ year = "*"
 status = "OPEN"
 max_cells = 7
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=7] max|Δ|=33.89 | e.g. stand 5352355010661 year 2004: live=34.622859954833984 jl=0.8368693590164185"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=42.56 | e.g. stand 888512560290487 year 2031: live=100.0 jl=68.47243905067444"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [material=5] max|Δ|=42.56 | e.g. stand 888512560290487 year 2031: live=0.0 jl=31.5275639295578"""
 
 [[residual]]
 variant = "EM"
@@ -17974,17 +17765,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 332
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 332 cells [gold_text9=330 material=2] max|Δ|=2.016 | e.g. stand 196420598020004 year 2022: live=5.64418602 jl=5.87161589"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "BdFt"
 stand = "*"
 year = "*"
@@ -18002,17 +17782,6 @@ year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 28 cells [gold_text9=25 material=2 small=1] max|Δ|=3.065 | e.g. stand 196420598020004 year 2022: live=1.69999993 jl=2.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "PtBAL"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 73
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 73 cells [material=8 ulpbig=65] max|Δ|=4.0 | e.g. stand 196420598020004 year 2022: live=122.0 jl=123.0"""
 
 [[residual]]
 variant = "EM"
@@ -18612,28 +18381,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "RTCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=3 ulpbig=1] max|Δ|=26.0 | e.g. stand 684750664126144 year 2028: live=1642 jl=1646"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "RTpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=14.0 | e.g. stand 231908428020004 year 2023: live=182 jl=178"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "SDI"
 stand = "*"
 year = "*"
@@ -18827,28 +18574,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [material=1 ulpbig=1] max|Δ|=99.0 | e.g. stand 684750664126144 year 2028: live=4850 jl=4859"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "sum"
-col = "RTCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 4 cells [material=3 ulpbig=1] max|Δ|=26.0 | e.g. stand 684750664126144 year 2028: live=1642 jl=1646"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "sum"
-col = "RTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3 cells [material=3] max|Δ|=14.0 | e.g. stand 231908428020004 year 2023: live=182 jl=178"""
 
 [[residual]]
 variant = "EM"
