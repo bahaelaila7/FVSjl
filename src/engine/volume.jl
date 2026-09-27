@@ -504,7 +504,8 @@ function init_merch_standards!(s::StandState)
         # wc/sitset.f:192-213 westside merch defaults, stump=1. CASE DEFAULT: TOPD=BFTOPD=SCFTOPD=4.5,
         # DBHMIN=BFMIND=SCFMIND=7 (LP sp-index 11 = 6). WC CASE(7,8,9,10) — the BLM forests (708-711): TOPD=
         # BFTOPD=SCFTOPD=5.0 and 7 for every species. WC's species CSV carries no merch columns.
-        blm = s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10
+        blm = (s.variant isa WestCascades && 7 <= Int(s.plot.forest_idx) <= 10) ||      # wc/sitset.f CASE(7,8,9,10)
+              (s.variant isa PacificNorthwest && 4 <= Int(s.plot.forest_idx) <= 6)     # pn/sitset.f:189 CASE(4,5,6)
         @inbounds for j in 1:length(c.sp_dbh_min)
             dm = (j == 11 && !blm) ? 6.0f0 : 7.0f0
             td = blm ? 5.0f0 : 4.5f0
