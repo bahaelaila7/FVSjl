@@ -29,7 +29,7 @@ const EM_RDB = Float32[1.6667, 1.8182, 1.5571, 1.7600, 1.7560, 1.7600, 1.7600, 1
     # D=0 (the IMC=9 dead the backdating DENSE zeroes, dense.f:75) takes the D≤0.1 branch ⇒ 0.001 (LL: RDA·0**RDB=0)
     d <= 0f0 && return sp == 5 ? 0f0 : 0.001f0
     poly()  = EM_RD1[sp] + d * EM_RD2[sp] + d * d * EM_RD3[sp]
-    small() = EM_RDA[sp] * d ^ EM_RDB[sp]
+    small() = EM_RDA[sp] * fpow(Float32(d), EM_RDB[sp])       # ccfcal.f RDA*(D**RDB): gfortran powf
     if sp == 5                                   # LL: D≥10 poly, else small (no floor)
         return d >= 10f0 ? poly() : small()
     elseif sp == 11 || (13 <= sp <= 16) || sp == 19   # GA/CW/BA/PW/NC/OH: D≥10 threshold

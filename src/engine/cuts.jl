@@ -166,19 +166,17 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
-            if ssng > 0f0
-                if s.variant isa SoutheastAlaska     # fmsadd.f bins the cut snags into records after the loop
-                    push!(s.fire.ak_cut_snags, (Float32(sp), t.dbh[i], t.height[i], ssng))
-                else
-                    add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                              bolevol = bolevol, fallvol = fallvol, height = t.height[i])
-                end
-                # fmscut.f:157 FMSADD(IY,2) → fmsadd.f:306 FMSCRO(I,…,UNFIRE=SNGNEW,ITYP=2): a standing yarding-loss
-                # snag keeps its crown, scheduled into CWD2B2 like any new snag (its crown is NOT in the CTCRWN slash).
-                # AK only here (base code): akffe 1993 Standing_Snag_lt3 0.01872 live vs 0.01228 without it.
-                s.variant isa SoutheastAlaska &&
-                    fmscro!(s, sp, t.dbh[i], _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
-                            ssng, clamp(ffe_dkr_cls(s, sp), 1, 4))
+            if ssng > 0f0 && _fmsadd_binned(s.variant)
+                # R6: FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157)
+                push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
+                # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
+                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled. AK: akffe 1993
+                # Standing_Snag_lt3 0.01872 live vs 0.01228 without these crowns; CROWNW = FMCROW's (_ffe_crownw).
+                fmscro!(s, sp, t.dbh[i], _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                        ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
+            elseif ssng > 0f0
+                add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
+                          bolevol = bolevol, fallvol = fallvol, height = t.height[i])
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
@@ -249,43 +247,6 @@ end
 # THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only), the shared path 4.747E-3.
 _cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32) =
     _ak_fm_cwd_split!(s, sp, dbh, hth, 0f0, dih, 0f0, hth, 1.0f0, 0.10f0)
-
-# fmscut.f:157 FMSADD(IY(ICYC),2) — the cut's standing yarding-loss snags become snag RECORDS exactly like mortality
-# snags (fmsadd.f:119-153/273-340): per (species, 2-in DBHCL) the height range of this call's snags splits a class at
-# MIDHT=(MAXHT+MINHT)/2 when it exceeds 20 ft, and each (sp,DBHCL,HTCL) record holds the density-weighted running mean
-# DBHS/HTDEAD (zero-initialized, so even the first record is averaged). akffe 1993: WH 0.1"×2' (13.5), 1.2"×11' (4.5),
-# 1.9"×13' (4.5) ⇒ ONE record D 0.58 / H 6.0 / 22.5 (live FMDOUT I=5), not three snags. AK only.
-_ak_flush_cut_snags!(s::StandState) = _ak_bin_add_snags!(s, Int(current_cycle_year(s)))
-# Also the fire kill (fmeff.f → FMSADD(IYR,1), fmburn.jl): the same (sp,DBHCL,HTCL) records from FIRKIL.
-function _ak_bin_add_snags!(s::StandState, yr::Int)
-    fs = s.fire; lst = fs.ak_cut_snags
-    minht = Dict{Tuple{Int,Int},Float32}(); maxht = Dict{Tuple{Int,Int},Float32}()
-    for (spf, d, h, _) in lst
-        k = (Int(spf), _snag_dbhcl(d))
-        minht[k] = min(get(minht, k, 1000f0), h); maxht[k] = max(get(maxht, k, 0f0), h)
-    end
-    keys_ = Tuple{Int,Int,Int}[]; recs = Dict{Tuple{Int,Int,Int},Vector{Float32}}()   # [DEND, DBHS, HTDEAD]
-    for (spf, d, h, den) in lst
-        sp = Int(spf); dbhcl = _snag_dbhcl(d); k2 = (sp, dbhcl)
-        mh = (maxht[k2] - minht[k2]) > 20f0 ? (maxht[k2] + minht[k2]) / 2f0 : 0f0
-        htcl = (mh <= 0f0 || h < mh) ? 1 : 2
-        k = (sp, dbhcl, htcl)
-        r = get!(() -> (push!(keys_, k); Float32[0f0, 0f0, 0f0]), recs, k)
-        totden = r[1] + den
-        r[3] = (r[3] * r[1] + h * den) / totden
-        r[2] = (r[2] * r[1] + d * den) / totden
-        r[1] = totden
-    end
-    v2t = coef_col(s.coef, :v2t)
-    for k in keys_
-        r = recs[k]; sp = k[1]
-        vol = max(0.005454154f0 * r[3], ak_tree_vol(s, sp, r[2], r[3])[1])   # FMSVL2 'D' total (the carbon bole)
-        add_snag!(fs, sp, r[2], r[1], yr; bolevol = vol * v2t[sp] / 2000f0, fallvol = vol * v2t[sp] / 2000f0,
-                  height = r[3])
-    end
-    empty!(lst)
-    return s
-end
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT
@@ -358,11 +319,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
     al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
-    # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
+    # AUTOES (IE/EM): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
     autoes_pre_cuft = 0f0
-    if s.variant isa InlandEmpire
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana   # shared estb/esnutr.f LAUTAL (see the stash below)
         @inbounds for i in 1:s.trees.n
             autoes_pre_tpa  += s.trees.tpa[i]
             autoes_pre_cuft += s.trees.tpa[i] * s.trees.cuft_vol[i]   # ONCUR: OCVCUR(7) total cubic vol
@@ -425,11 +386,13 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             _ec_cut_on(s) && empty!(s.econ.calc.cut_prem)
             push!(s.control.years_cut, yr)   # evaluated: the 2nd (grow_cycle!) cuts! call must not value it again
+            s.fire === nothing || empty!(s.fire.pend_cut)
             return _NO_REMOVAL
         end
         if !met
             @inbounds for i in 1:length(tpa_snap); t.tpa[i] = tpa_snap[i]; end
             push!(s.control.years_cut, yr)   # evaluated (canceled): idempotent re-call is a no-op
+            s.fire === nothing || empty!(s.fire.pend_cut)
             return _NO_REMOVAL
         end
     end
@@ -440,7 +403,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
-    (s.variant isa SoutheastAlaska && s.fire !== nothing && !isempty(s.fire.ak_cut_snags)) && _ak_flush_cut_snags!(s)
+    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags (R6 variants)
+    if s.fire !== nothing && !isempty(s.fire.pend_cut)
+        pc = [(Int(x[1]), x[2], x[3], x[4], x[5], x[6], x[7]) for x in s.fire.pend_cut]
+        empty!(s.fire.pend_cut)
+        fmsadd_bin!(s, pc, Int(yr); ityp = 2, bolefn = _r6_snag_bolefn(s))
+    end
     # YARDLOSS (cuts.f:1387-1392): a PRLOST fraction of the harvested merch/saw/board volume is lost in
     # yarding (left on site, routed to fuel pools), so the REPORTED removed merch/saw/bdft are scaled by
     # (1−PRLOST). Total cubic (CFCUT) and BA are NOT scaled — they reflect the full physical removal.
@@ -450,13 +418,16 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         rem = (tpa = rem.tpa, cuft = rem.cuft, mcuft = rem.mcuft * f,
                scuft = rem.scuft * f, bdft = rem.bdft * f)
     end
-    # AUTOES (IE): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
+    # AUTOES (IE/EM): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
     # ★ #143 (2026-08-06): live esnutr.f:271-275 uses XTES=AMAX1(XTPA,XCUF) — the MAX of the TPA-removal fraction
     # (ONTREM(7)/ONTCUR(7)) AND the CUBIC-VOLUME-removal fraction (OCVREM(7)/OCVCUR(7)). jl previously used only the
     # TPA fraction, so an OVERSTORY thin (removes few TREES = low XTPA but high VOLUME = high XCUF) failed to trip the
     # LAUTAL removal trigger (xtes<THRES1) and fell through to the LINGRW ingrowth tally — WRONG tally type. Measured
     # repro 12343703010690: live fired NTALLY=1 (removal) at icyc2/4, jl fired ntally=99 (ingrowth). Add the XCUF term.
-    if s.variant isa InlandEmpire && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
+    # EM compiles the identical estb/esnutr.f (FVSem_buildDir == FVSie_buildDir), so its thins trip the LAUTAL tally too:
+    # MEASURED FVSem_g16 196378260020004 thinbba @2022 "XTPA XCUF= 0.950 0.456" ⇒ NTALLY=1, IDSDAT=2022 — jl (IE-gated)
+    # ran the post-thin tally as ingrowth (NTALLY 99, TIME=SHORTY) ⇒ 127 vs live 182 TPA at 2032.
+    if (s.variant isa InlandEmpire || s.variant isa EasternMontana) && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
         xtpa = rem.tpa / autoes_pre_tpa
         xcuf = autoes_pre_cuft > 0f0 ? rem.cuft / autoes_pre_cuft : 0f0
         s.estab.last_xtes = max(xtpa, xcuf)

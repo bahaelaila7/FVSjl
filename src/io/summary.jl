@@ -272,13 +272,23 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     if header
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
     end
-    cum_rem_merch = 0f0
-    mai_flag = false; mai_newstd = false   # AK evtstv.f MAIFLG / NEWSTD
-    prev_increment = 0f0   # removed-merch added in the most recent growing cycle (for the MAI final-row quirk)
+    # MAI (evtstv.f:348-440 per cycle, disply.f:391 final row) — FVS's state machine, not a plain (merch+removed)/age:
+    # MAIFLG=1 (MAI off for good) when the inventory age is 0 on a stocked stand or a later row finds the age reset to
+    # 0 (ZERO=AGE−(IY(ICYC)−IY(ICYC−1))=0) without a new stand; NEWSTD=1 after a clearcut or on bare ground. TOTREM
+    # adds the previous cycle's INTEGER merch removal IOSUM(9) only when the age advanced and the row's MAI is on,
+    # restarts at an age decrease or a clearcut; the final row reads TOTREM without the last cycle's removal.
+    maiflg = false; newstd = false; agelst = 0; totrem = 0f0
+    cc_prev = false        # the last growing cycle's after-treatment values show a clearcut (evtstv.f:426-427)
+    prev_increment = 0f0   # IOSUM(9) of the most recent growing cycle
     cover_year0 = 0        # COVER: inventory year (IY(1)) for ICVAGE offset
     di(x) = trunc(Int, x + 0.5)
     prev_rem_scuft = 0                          # last growing cycle's sawlog-cubic removal (IOSUM(22) carry)
     for c in 0:ncyc
+        # The inventory row / cycle-0 TreeList read the density CRATET's final DENSE left (cratet.f:578, over CRATET's
+        # IND — IND1-seeded RDPSRT(.FALSE.), or the :257 identity RDPSRT(.TRUE.) with dead records), the same state the
+        # first grow_cycle! rebuilds before DGDRIV. The setup pass used a fresh sort, so equal-DBH trees swapped their
+        # PCT/PTBAL (MEASURED FVSem_g16 196420598020004 2012: 33 BAPctile/PtBAL cells permuted among tied records).
+        c == 0 && compute_density!(s; cratet_ind = _fvs_ind_lifecycle(s.variant))
         compute_forest_type!(s)
         last = c == ncyc
         per = last ? 0 : cycle_period_at(s.control, c)   # THIS cycle's length (varies w/ TIMEINT/CYCLEAT)
@@ -286,24 +296,31 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # MAI terminal-row quirk (evtstv.f:414 + disply.f:392): intermediate rows accumulate
         # removed merch with a one-cycle lag, but the FINAL row's MAI is loaded from the
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
-        r = summary_row(s; period = per,
-                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0,
-                        final_row = last)
-        # AK: evtstv.f:348-437 MAI LOGIC + disply.f:391-395. MAIFLG=1 when the inventory age is 0 with trees present
-        # (NEWSTD=1 when it is 0 on a bare stand); a later row whose age at the previous cycle start was 0 (ZERO =
-        # AGE−(IY(ICYC)−IY(ICYC−1)) = 0) prints 0 and, unless NEWSTD, sets MAIFLG; while MAIFLG (and not NEWSTD) every
-        # row — the disply.f final row included — prints 0. FIA 720755825290487 (AGE missing ⇒ 0, 31 records): live MAI
-        # 0.0 every row, jl had 47.5/33.3/…  (Base-code logic; applied to AK only here.)
-        if s.variant isa SoutheastAlaska
-            if c == 0
-                r.age <= 0 && (r.tpa == 0 ? (mai_newstd = true) : (mai_flag = true))
-            elseif last
-                mai_flag && (r.mai = 0.0)
-            elseif r.age - cycle_period_at(s.control, c - 1) == 0 || (mai_flag && !mai_newstd)
-                r.mai = 0.0
-                mai_newstd || (mai_flag = true)
+        age_c = _summary_age(s); mai_zero = false; zero_c = -1
+        if c == 0                                                   # evtstv.f:356-377 (ICYC=1)
+            if age_c <= 0
+                mai_zero = true
+                stand_tpa(s) == 0f0 ? (newstd = true) : (maiflg = true)
             end
+        elseif !last                                                # evtstv.f:384-400
+            zero_c = age_c - cycle_period_at(s.control, c - 1)
+            age_c < agelst && (totrem = 0f0)
+            if zero_c == 0 || (maiflg && !newstd)
+                mai_zero = true
+                newstd || (maiflg = true)
+            elseif age_c > agelst
+                totrem += prev_increment
+            end
+        else                                                        # disply.f:391 (IOSUM(2)=AGE)
+            mai_zero = maiflg || age_c <= 0
         end
+        r = summary_row(s; period = per, total_removed_merch = totrem, cycle0 = c == 0,
+                        final_row = last, mai_zero = mai_zero)
+        if c > 0 && !last                                           # evtstv.f:426-434
+            cc_prev && (newstd = true; totrem = 0f0)
+            zero_c == 0 && stand_tpa(s) == 0f0 && (newstd = true)
+        end
+        last || (agelst = age_c)
         _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
@@ -453,14 +470,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
                 r.at_qmd = Float64(stand_qmd(s))   # QDBHAT=ATAVD (REAL): FVS_Summary binds it whole; the .sum prints F5.1
-                # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
-                # variants keep their validated per-acre float accumulation.
-                # AK: evtstv.f:414 TOTREM += IOSUM(9) — the INTEGER .sum removed merch (akt01 shelterwood 1990: 163 ⇒ MAI
-                # (1537+163)/80 = 21.25 ⇒ gfortran F6.1 ties-to-even "21.2"; the float 163.4 gave 21.3).
-                prev_increment = (met || s.variant isa SoutheastAlaska) ? Float32(r.rem_mcuft) : rem.mcuft / g
-                cum_rem_merch += prev_increment
+                # TOTREM: evtstv.f:414 (CASE DEFAULT — every variant; the eastern CASE is commented out) accumulates
+                # the INTEGER IOSUM(9,ICYC-1)=INT(OMCREM(7)/GROSPC+0.5) (disply.f:341), and BCYMAI=(TOTREM+CURVOL)/AGE.
+                # The per-acre float removal agreed at the .sum's F5.1 but not in FVS_Summary's REAL MAI (MEASURED
+                # FVSem_g16 196378260020004 thinbba 2032: live 10.668750 = 1707/160, jl 10.670339 = 1707.25/160).
+                prev_increment = Float32(r.rem_mcuft)
+                # evtstv.f:506-529 TSTV2(5)=BA, (6)=RELDEN, (14)=SDI after treatment all 0 with trees removed
+                cc_prev = stand_ba(s) == 0f0 && stand_ccf(s) == 0f0 && stand_sdi(s) == 0f0
             else
-                prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)
+                prev_increment = 0f0   # this growing cycle had no removal
+                cc_prev = false
             end
             _ffe_reports!()          # FMMAIN reports on the post-cut stand (see _ffe_reports! above)
             # SNAGINIT is processed at the top of FMSNAG (fmsnag.f:88-100), i.e. inside the annual loop that follows the
@@ -477,6 +496,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
             # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
             ffe_defer_init = false
+            r6_defer_fuel = false
             if ffe_on
                 # FMMAIN runs FMBURN (the fire, fmmain.f:170) BEFORE the annual fuel loop (FMSNAG/FMCWD/
                 # FMCADD, fmmain.f:228), so the fire samples the START-OF-CYCLE down wood. Stash (SMALL,LARGE)
@@ -493,6 +513,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 # CR-ONLY: the eastern (SN/NE/CS/LS) FFE + its PotFIRE/carbon reports are separately validated and
                 # their init-year has no thin (pre==post), so keep their pre-grow load path untouched (doctrine #5).
                 if fire_this_cycle
+                elseif r6_ffe_code(s.variant) !== :none && s.fire.fuels_init
+                    # R6 variants (BM/EC/SO/PN/OP/WC): FMSNAG's FMR6HTLS height-loss draws start from the main RNG
+                    # state at FMMAIN (gradd.f:118, after this cycle's DGDRIV/REGENT/MORTS/TRIPLE/MISTOE draws) and are
+                    # rolled back each year (fmsnag.f:113-116/290-293). Pre-grow, jl held the PREVIOUS cycle's FMMAIN
+                    # state (live BM 22960873010497 cycle-3 draws showed up in jl's cycle 4). Run the annual loop at the
+                    # FMMAIN point inside grow_cycle! (mortality_and_fire!'s post_fire seam), like a fire cycle.
+                    r6_defer_fuel = true
                 elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
                     ffe_fuel_update!(s, per)
                 else
@@ -508,7 +535,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                               st.variant isa Northeast)
             chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
-                             fuel_period = fire_this_cycle ? per : nothing,
+                             fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
             r.accretion = _acc_mort(gr.accretion)
@@ -523,9 +550,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)   # OLDCRW from last FMSDIT's CROWNW
                 ffe_snapshot_hpct!(s)                   # then FMCROW (fmsdit.f:128) re-ranks the grown stand
             end
-        elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
-            push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # (FMCHRVOUT runs only inside FMMAIN's cycle loop, so no FVS_Hrv_Carbon row for the terminal .sum year —
+        #  live Hrv_Carbon has exactly the FVS_Carbon years in all 96 tiered fixtures.)
         # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
         # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
         # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing
@@ -576,9 +603,19 @@ stand state: per-acre TPA/BA/SDI/CCF/top-height/QMD, the four stand volumes, and
 the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
+# TSTV1(2)/IOSUM(2): the stand age at the current cycle's start (evtstv.f:260 IAGE+IY(ICYC)−IY(1)), rebased after a
+# RESETAGE (resage.f runs after DISPLY, so the reset row itself keeps the old age).
+function _summary_age(s::StandState)::Int
+    yr = cycle_year_at(s.control, Int(s.control.cycle))
+    age = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
+    ry = Int(s.control.age_reset_year)
+    (ry >= 0 && yr > ry) && (age = Int(s.control.age_reset_age) + (yr - ry))
+    return age
+end
+
 function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0,
                      accretion::Real = 0, mortality::Real = 0, cycle0::Bool = false,
-                     final_row::Bool = false)
+                     final_row::Bool = false, mai_zero::Bool = false)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
     # Metric variants (BC, Ontario): this row holds disply.f's IMPERIAL per-acre IOSUM stage (the same integers
@@ -655,7 +692,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # MAIFLG≠0; evtstv.f:396 sets it when ZERO=age−period==0, i.e. the age was reset to 0, and persists it).
     # A RESETAGE to a NON-zero age keeps MAI on (e.g. s17_managed resets to 40 → MAI stays 62.5). Non-RESETAGE
     # runs have ry<0 ⇒ untouched (bit-exact); bare-ground (NEWSTD) has no RESETAGE ⇒ its own MAI path unchanged.
-    mai = (ry >= 0 && yr > ry && Int(s.control.age_reset_age) == 0) ? 0f0 :
+    mai = (mai_zero || (ry >= 0 && yr > ry && Int(s.control.age_reset_age) == 0)) ? 0f0 :
           (age > 0 ? (met ? (Float32(mvol) + Float32(total_removed_merch)) / Float32(age) :
                             Float32(mcuft + total_removed_merch) / Float32(age)) : 0f0)
     SummaryRow(

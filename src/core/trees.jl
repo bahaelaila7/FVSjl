@@ -143,6 +143,12 @@ mutable struct TreeList
     # GROW ≥ 1. Carried through tripling/moves (fmtrip.f:40, fmtdel.f:43). Used by the AK FFE (_ffe_crownw).
     ffe_grow::Vector{Int32}
     ffe_crownw::Matrix{Float32}
+    # Per-SLOT LBIRTH (the TreeAge gate of dbstrls/dbscuts/dbsatrtls: TREAGE = LBIRTH(I) ? ABIRTH(I) : 0). FVS sets
+    # LBIRTH only at input (intree.f:190-194, the IREC1 live slots) and in TRIPLE (triple.f:82 LBIRTH(ITFN)=LBIRTH(I));
+    # TREMOV (tremov.f), COMPRS and ESTAB never touch it, so it stays with the SLOT: a record TREDEL moves into a hole
+    # reports the hole's flag, and a cohort record booked in a reused slot reports the flag its old occupant left.
+    # Never copied by copy_tree!. (The per-record `lbirth` is kept for the input-dead records, intree.f:564.)
+    slot_lbirth::Vector{Bool}
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -171,6 +177,7 @@ function TreeList(maxtre::Int = MAXTRE)
         fill(-1f0, maxtre),                     # temhtg (−1 = not set by an HTGF cap pass this cycle)
         ones(Int32, maxtre),                    # ffe_grow (fminit.f:972 GROW=1)
         zeros(Float32, 6, maxtre),              # ffe_crownw
+        zeros(Bool, maxtre),                    # slot_lbirth
     )
 end
 

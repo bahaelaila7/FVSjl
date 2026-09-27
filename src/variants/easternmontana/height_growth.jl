@@ -11,6 +11,7 @@
 
 const _EM_C3MOD = 2.54119f0
 const _EM_C4MOD = 0.250537f0
+const _EM_RALPH_DGC = 0.1f0 * 18.158f0     # htgf.f:199 `-0.1*18.158*DG(I)` constant-folded in REAL*4 (=1.8158001f0)
 
 # em/htgf.f COFLM (LM, sp4) / COFAS (aspen+CO, sp11-17,19) Schreuder-Hafley SB height coeffs, by crown
 # class K=1..3 (columns). Row order = COF1..COF9. K from IICR=int(ICR/10+0.5): {1,2}→1 {3-7}→2 {8,9}→3.
@@ -58,32 +59,32 @@ const _EM_HGH2  = Float32[-13.358f-5, -3.809f-5, -3.715f-5, -2.607f-5, -5.200f-5
         z1 = 0.3197f0; z2 = 1.0232f0
         temht = h - 4.5f0; temht == 1f0 && (temht = 1.1f0)
         temsi = si - 4.5f0
-        term1 = (42.397f0 * temsi^z1) / temht - 1f0
+        term1 = (42.397f0 * fpow(temsi, z1)) / temht - 1f0
         term1 <= 0f0 && return 0f0
-        term1 = log(term1)
-        efage = exp((term1 + z2 * log(temsi) - 9.7278f0) / (-1.2934f0))
+        term1 = flog(term1)
+        efage = fexp((term1 + z2 * flog(temsi) - 9.7278f0) / (-1.2934f0))
         t.birth_age[i] <= 0f0 && (t.birth_age[i] = efage)
         e10 = efage + 10f0
-        h10 = (42.397f0 * temsi^z1) / (1f0 + exp(9.7278f0 - 1.2934f0 * log(e10) - log(temsi) * z2))
+        h10 = (42.397f0 * fpow(temsi, z1)) / (1f0 + fexp(9.7278f0 - 1.2934f0 * flog(e10) - flog(temsi) * z2))
         return h10 - temht
     elseif sp == 8 || sp == 9                             # ES/AF — Alexander look-alike (SI100)
         a = si; b = 0.931764f0; c = 0.01679f0; d = 0.302381f0
         h >= a && return 1f0
-        term1 = log((1f0 - ((h / a)^(1f0 - d))) / b)
+        term1 = flog((1f0 - fpow(h / a, 1f0 - d)) / b)
         efage = term1 / (-c)
         t.birth_age[i] <= 0f0 && (t.birth_age[i] = efage)
         e10 = efage + 10f0
-        h10 = a * (1f0 - b * exp(-c * e10))^(1f0 / (1f0 - d))
+        h10 = a * fpow(1f0 - b * fexp(-c * e10), 1f0 / (1f0 - d))
         return h10 - h
     elseif sp == 10                                       # PP — Meyer look-alike (SI100)
         p1 = 3.635794f0; p2 = 0.916307f0; p3 = 6.09478f0; p4 = 0.96483f0; p5 = 0.277025f0
-        term1 = ((p1 * si^p2) / h) - 1f0
+        term1 = ((p1 * fpow(si, p2)) / h) - 1f0
         term1 <= 0f0 && return 0f0
-        term1 = log(term1)
-        efage = exp((term1 - p3 + p5 * log(si)) / (-p4))
+        term1 = flog(term1)
+        efage = fexp((term1 - p3 + p5 * flog(si)) / (-p4))
         t.birth_age[i] <= 0f0 && (t.birth_age[i] = efage)
         e10 = efage + 10f0
-        h10 = p1 * si^p2 / (1f0 + exp(p3 - p4 * log(e10) - p5 * log(si)))
+        h10 = p1 * fpow(si, p2) / (1f0 + fexp(p3 - p4 * flog(e10) - p5 * flog(si)))
         return h10 - h
     end
     return 0f0
@@ -114,8 +115,11 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             dg = t.diam_growth[i]
             si = p.sp_site_index[sp]                        # SI50 (DF) / SI100 (others), per site_setup!
             phtg = em_pothtg(sp, h, si, i, t)
-            phtg = phtg * 0.706f0 * (1f0 - exp(-10.19f0 * cr)) * (1f0 - exp(-1.8158f0 * dg))^0.944f0 + 0.0265f0 * h
-            rlhtmd = avh > 0f0 ? exp(_EM_C3MOD * ((h / avh)^_EM_C4MOD - 1f0)) : 1f0
+            # htgf.f:198-200 `(1.0-EXP(-0.1*18.158*DG(I)))**0.944`: the Fortran left-to-right product folds the
+            # constants 0.1*18.158 at compile time in REAL*4 (1.8158001, one ULP above the literal 1.8158); EXP and
+            # ** are gfortran expf/powf (fexp/fpow), not Julia's exp/^ (1-ULP HTG drift on tripled LP/DF records).
+            phtg = phtg * 0.706f0 * (1f0 - fexp(-10.19f0 * cr)) * fpow(1f0 - fexp(-(_EM_RALPH_DGC * dg)), 0.944f0) + 0.0265f0 * h
+            rlhtmd = avh > 0f0 ? fexp(_EM_C3MOD * (fpow(h / avh, _EM_C4MOD) - 1f0)) : 1f0
             htmod = rlhtmd > 1f0 ? 1f0 : rlhtmd
             htg = phtg * htmod
             htg < 0.1f0 && (htg = 0.1f0)
@@ -127,8 +131,9 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             # LL (NI form, em/htgf.f:222-226): CON = HTCON + H2COF·H² − 0.1997·lnD + 0.23315·lnH.
             h <= 4.5f0 && continue
             dg = t.diam_growth[i]
-            con = ll_htcon + ll_h2cof * h * h - 0.1997f0 * log(d) + 0.23315f0 * log(h)
-            htg = dg > 0f0 ? exp(con + ll_hdgcof * log(dg)) + 0.4809f0 : 0.1f0
+            con = ll_htcon + ll_h2cof * h * h - 0.1997f0 * flog(d) + 0.23315f0 * flog(h)
+            # htgf.f:224 HTG=EXP(CON+HDGCOF*ALOG(DG))+0.4809 — DG=0 ⇒ ALOG=−Inf ⇒ EXP=0 ⇒ 0.4809 (not 0.1)
+            htg = (dg > 0f0 ? fexp(con + ll_hdgcof * flog(dg)) : 0f0) + 0.4809f0
             htg < 0.1f0 && (htg = 0.1f0)
             t.ht_growth[i] = htg * (scale * xht)          # htgf.f:366 HTG=SCALE*XHT*HTG
         else
@@ -145,8 +150,8 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             end
             temd = d <= 0.2f0 ? 0.2f0 : d
             y1 = (temd - 0.1f0) / cof1; y2 = (h - 4.5f0) / cof2
-            fby1 = log(y1 / (1f0 - y1)); fby2 = log(y2 / (1f0 - y2))
-            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * (1f0 - cof7 * cof7)^(-0.5f0)
+            fby1 = flog(y1 / (1f0 - y1)); fby2 = flog(y2 / (1f0 - y2))
+            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * fpow(1f0 - cof7 * cof7, -0.5f0)
             if sp != 4
                 zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
                 zadj < 0f0 && (zadj = 0f0)
@@ -168,8 +173,8 @@ function height_growth!(s::StandState, ::EasternMontana; scale::Float32 = 1.0f0)
             bark = em_bratio(sp, d)
             dia = d + t.diam_growth[i] / bark
             if (0.1f0 + cof1) > dia
-                psi = cof8 * ((dia - 0.1f0) / (0.1f0 + cof1 - dia))^cof9 *
-                      exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
+                psi = cof8 * fpow((dia - 0.1f0) / (0.1f0 + cof1 - dia), cof9) *
+                      fexp(z * fpow(1f0 - cof7 * cof7, 0.5f0) / cof6)
                 hnew = (psi / (1f0 + psi)) * cof2 + 4.5f0
                 hnew < h && (hnew = h)
                 t.ht_growth[i] = (hnew - h) * (scale * xht)
@@ -196,11 +201,11 @@ function em_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
         (Int(t.species[i]) == 5 && t.tpa[i] > 0f0) || continue
         d = t.dbh[i]; h = t.height[i]
         (d <= 0f0 || h <= 4.5f0) && continue
-        con = htcon + h2cof * h * h - 0.1997f0 * log(d) + 0.23315f0 * log(h)
+        con = htcon + h2cof * h * h - 0.1997f0 * flog(d) + 0.23315f0 * flog(h)
         xht = active_multiplier(ctl, :htg, 5, cur_year)
         cap = ctl.sp_size_cap[5, 4]
         function copy_htg(dgc::Float32)::Float32
-            v = (dgc > 0f0 ? exp(con + hdgcof * log(dgc)) : 0f0) + 0.4809f0
+            v = (dgc > 0f0 ? fexp(con + hdgcof * flog(dgc)) : 0f0) + 0.4809f0
             v < 0.1f0 && (v = 0.1f0)
             v = v * scale * xht
             (h + v > cap) && (v = max(cap - h, 0.1f0))

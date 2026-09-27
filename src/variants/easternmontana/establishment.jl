@@ -61,6 +61,46 @@ const _EM_UPHY = Dict(1=>(-0.18731f0,-0.48682f0,-0.32160f0,-0.16113f0,0.0f0),
 @inline _em_upre(sp,ip) = haskey(_EM_UPRE,sp) ? _EM_UPRE[sp][ip] : 0.0f0
 @inline _em_uphy(sp,iy) = haskey(_EM_UPHY,sp) ? _EM_UPHY[sp][iy] : 0.0f0
 
+# em/essubh.f in full (subsequent/planted height, the DO 322 PLANT/NATURAL trees): HHT = EXP(PN + EMSQR·DILATE·BNORM·σ)
+# with the species' σ; `disp` = (EMSQR·DILATE)·BNORM evaluated by the caller (estab.f order). LM/RM fixed 0.5, the
+# hardwoods 11-17/19 fixed 5.0. BWAF/BWB4 (WSBW) enter LP only.
+function em_essubh(sp::Int, age::Real, baa::Real, ihtser::Int, iprep::Int, iphy::Int, xcos::Real, xsin::Real,
+                   slo::Real, elev::Real, disp::Real; bwaf::Real = 0f0, bwb4::Real = 0f0)::Float32
+    a = Float32(age); a < 1f0 && (a = 1f0)
+    agel = flog(a); baa = Float32(baa); xc = Float32(xcos); xs = Float32(xsin); sl = Float32(slo)
+    el = Float32(elev); d = Float32(disp)
+    ih = clamp(ihtser, 1, 5); ip = clamp(iprep, 1, 4); iy = clamp(iphy, 1, 5)
+    pn = 0f0; sig = 0f0
+    if sp == 1
+        pn = -1.51302f0 + 1.24537f0*agel - 0.003052f0*baa + _em_uphy(1,iy); sig = 0.46010f0
+    elseif sp == 2
+        pn = -1.36257f0 + 1.21548f0*agel - 0.003797f0*baa + _em_uhab(2,ih) + _em_upre(2,ip); sig = 0.52668f0
+    elseif sp == 3
+        pn = -2.16416f0 + 1.28151f0*agel - 0.0031363f0*baa + _em_uhab(3,ih) + _em_upre(3,ip) + _em_uphy(3,iy) -
+             0.09626f0*xc - 0.23946f0*xs - 0.14589f0*sl; sig = 0.55942f0
+    elseif sp == 5 || sp == 9
+        pn = -2.06377f0 + 1.18184f0*agel - 0.0044465f0*baa + 0.06615f0*xc + 0.03085f0*xs - 0.37402f0*sl
+        sig = 0.56740f0
+    elseif sp == 7
+        pn = -0.27105f0 + 1.32027f0*agel - 0.008208f0*baa + _em_upre(7,ip) + _em_uphy(7,iy) + _em_uhab(7,ih) -
+             0.15385f0*xc + 0.04156f0*xs - 0.49186f0*sl - 0.04744f0*el + 0.0003511f0*el*el +
+             0.01105f0*Float32(bwaf) + 0.02588f0*Float32(bwb4); sig = 0.47557f0
+    elseif sp == 8
+        pn = -2.93213f0 + 1.43503f0*agel - 0.002504f0*baa + _em_upre(8,ip) + _em_uphy(8,iy) + _em_uhab(8,ih)
+        sig = 0.48951f0
+    elseif sp == 10
+        pn = -1.99480f0 + 1.53946f0*agel - 0.00402f0*baa + _em_uhab(10,ih) + _em_upre(10,ip) - 0.01155f0*el
+        sig = 0.49076f0
+    elseif sp == 18
+        pn = -2.42379f0 + 1.52366f0*agel - 0.003256f0*baa; sig = 0.54116f0
+    elseif sp == 4 || sp == 6
+        return 0.5f0
+    else
+        return 5.0f0
+    end
+    return fexp(pn + d * sig)
+end
+
 # Deterministic EM subsequent/planted base height (em/essubh.f, HHT=EXP(PN)). agel=ALOG(AGE), baa clamp[1,400],
 # xc=SLO·cos(asp), xs=SLO·sin(asp), slo, elev(100s ft), ih=IHTSER(1-5), iy=IPHY(1-5), ip=IPREP(1-4).
 function em_essubh_hht(sp::Int, agel::Float32, baa::Float32, xc::Float32, xs::Float32,

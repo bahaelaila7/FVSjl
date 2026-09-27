@@ -343,11 +343,18 @@ RDNEXT/BANEXT(J+1) density feedback, and the Fortran variables that CARRY betwee
 all reproduced — the earlier per-sub-model passes got each of those out of step with live FVS on mixed stands."""
 function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float32 = 10.0f0,
                             lestb::Bool = false, itrnin::Int = 1,
-                            atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0)
+                            atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0,
+                            relden_now::Float32 = -1f0, ba_now::Float32 = -1f0,
+                            pccf_now::Vector{Float32} = Float32[])
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     n = t.n; n == 0 && return s
     rhcon = em_regcons!(s)                            # regent.f:1480 RHCON (NI constant for LL; 1.0/RCOR2 otherwise)
-    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
+    # BA/RELDEN/PCCF = the /PLOT/ + /PDEN/ values of the last DENSE; for REGENT(LESTB) that is gradd.f:192's (pre-ESNUTR,
+    # passed as *_now), not jl's post-booking recompute. Default (<0 / empty) ⇒ the current state.
+    ba = ba_now >= 0f0 ? ba_now : p.basal_area
+    relden = relden_now >= 0f0 ? relden_now : p.relative_density
+    avh = p.avg_height
+    pccfv = isempty(pccf_now) ? dens.point_ccf : pccf_now
     dgsd = s.control.dg_sd; regyr = _EM_RG_REGYR
     yr = Float32(s.control.year)
     scale = yr / fint                                 # regent.f:218 SCALE=YR/FINT
@@ -404,7 +411,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     wk5 = Float32[t.dbh[i] for i in 1:n]
     if lestb                                          # regent.f:287-299 DO 13: crown for each new record, STORAGE order
         @inbounds for i in itrnin:n
-            pcc = (pt = Int(t.plot_id[i]); (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0)
+            pcc = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
             crn = 0.89722f0 - 0.0000461f0 * pcc
             ran = 0f0
             while true
@@ -432,7 +439,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
             ii = Int(ind1[k]); (1 <= ii <= n) && push!(order, ii)
         end
     end
-    pccf_of(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0)
+    pccf_of(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
     bark_c = NaN32                                    # Fortran BARK — carried between trees (see the CR/UT DGK)
     h1_c = 0f0                                        # Fortran H1 — carried into the assembly loop's NIVAR RELH
     dadj_c = 0f0
@@ -802,12 +809,15 @@ natural regeneration), HT+=HTG, the WK4<1 DBH rescale, and the HHTMAX cap (DBH=2
 EMVAR conifers with a local ZRAND, so the next cycle's REGENT redrew it and planted-stand ForTyp/SizeCls diverged.
 """
 function em_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
-                    atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0)
+                    atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0,
+                    relden_pre::Float32 = -1f0, ba_pre::Float32 = -1f0, pccf_pre::Vector{Float32} = Float32[])
     t = s.trees
     nstart >= t.n && return s
     species_sort!(s)                                   # esgent.f:47 CALL SPESRT
+    # REGENT(LESTB) reads the gradd.f:192 (pre-ESNUTR) DENSE: RELDEN/BA/PCCF passed in by grow_cycle! (see simulate.jl)
     small_tree_growth!(s, nothing, s.variant; fint = fint, lestb = true, itrnin = nstart + 1,
-                       atba = atba, atccf = atccf, atavh = atavh)
+                       atba = atba, atccf = atccf, atavh = atavh,
+                       relden_now = relden_pre, ba_now = ba_pre, pccf_now = pccf_pre)
     @inbounds for i in (nstart+1):t.n
         sp = Int(t.species[i])
         htemp = t.height[i] + t.ht_growth[i]

@@ -170,10 +170,11 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
         @test FVSjl.root_disease_treg!(s0, 10.0f0) === nothing
     end
 
-    @testset "KT WRD ABSOLUTE .sum vs live FVSkt_clean (OPEN: KT BA ±10 late, TPA +4/+5)" begin
+    @testset "KT WRD ABSOLUTE .sum vs live FVSkt_clean (both runs exact)" begin
         # Absolute live rows, both runs (replaces an rd−ctrl DELTA, blind to errors shared by both runs).
-        # OPEN: jl's KT control departs from live — bounded here at today's MEASURED maximum; the exactness
-        # @test_broken becomes an Unexpected Pass once KT is fixed.
+        # EXACT since integ-0932 (2026-09-27): every TPA/BA row of both runs equals live (first seen as an Unexpected
+        # Pass of the old @test_broken; integ-0932 brought dbs-merch 23efbeee — KT BRATIO was 1 ULP off — and
+        # ffe-r6fix). The bounds below stay as the history of the residual this closed.
         # RECONCILED 2026-09-24, after KT gained the LSTART crown dub it never had (kt/cratet.f:598). Both
         # directions moved and both are recorded rather than just the loosening:
         #   ctrl dTPA [0,0,0,0,3,4,3,4,3,4,4]      worst 7 -> 4   (TIGHTENED)
@@ -200,7 +201,7 @@ _datarows(sumtext) = filter(l -> !startswith(l, "-999"), split(strip(sumtext), '
             @test abs(rb[k] - LRB[k]) <= 10
         end
         @test rt != ct && all(rb[k] <= cb[k] for k in 1:11)   # WRD signal live, never adds BA
-        @test_broken (ct, cb, rt, rb) == (LCT, LCB, LRT, LRB)
+        @test (ct, cb, rt, rb) == (LCT, LCB, LRT, LRB)
     end
 
     # -------------------------------------------------------------------------

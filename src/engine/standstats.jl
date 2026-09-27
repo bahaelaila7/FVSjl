@@ -59,6 +59,7 @@ function notre!(s::StandState)
         pr = d < brk ? pr * fp : pr * vp / (d * d) + pr * fp2
         pr <= 0f0 && (pr = 9.0f-25)
         t.tpa[i] = pr * p.gross_space
+        pr > 1000f0 && errgro!(s, 40)                     # notre.f:75-76 (P before GROSPC)
     end
     # base species-sort key = original record index (FVS chain order pre-tripling);
     # tripling derives child keys so the per-tree RNG draw order matches the oracle.
@@ -91,15 +92,20 @@ end
 # Until that lineage is fixed per variant, only BM walks IND1 here; others keep record order. The D*(D*P)
 # association is likewise BM-only: applied to SN it moved test_growth COR 1 ULP off Oracle A and one SN
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
-_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
+# EM compiles the identical dense.f (FVSem_buildDir/dense.f == ie/bm modulo CRLF) and its IND1 lineage is live-exact (the
+# birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
+# AK (ak/dense.f identical): live-measured on akt01 + the FIA 12-stand sample.
+_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                               s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa SoutheastAlaska
+    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+       s.variant isa SoutheastAlaska
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
-        # (live-measured on BM and IE; see _dense_order note for why other variants keep record order). AK (ak/dense.f
-        # identical): the BA feeds the cwcalc (BAREA+1)^cba crown width — record-order BA put FVS_TreeList CrWidth 1 ULP
-        # off on 147/286 records (FIA 720755825290487 2039).
+        # (live-measured on BM, IE and EM — FVSem_g16 196378260020004 cyc1 BAL/DDS; see the _dense_order note). AK: the
+        # BA feeds the cwcalc (BAREA+1)^cba crown width — record-order BA put FVS_TreeList CrWidth 1 ULP off on 147/286
+        # records (FIA 720755825290487 2039).
         @inbounds for i in _ind1_order(s)
             d = t.dbh[i]; ba += BA_PER_TREE * (d * (d * t.tpa[i]))
         end
@@ -113,7 +119,8 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += (s.variant isa BlueMountains || s.variant isa SoutheastAlaska) ? d * (d * p) : p * d^2   # AK: ak/dense.f ≡ bm
+        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) ?
+               d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
@@ -226,7 +233,7 @@ trees are taken in descending-DBH order and BA accumulates; PTBALT[i] is the sum
 before tree i. The diameter-growth competition term uses PTBALT (= pbal). Per-tree
 BA = tpa·0.005454154·DBH²·PI/GROSPC. (Sorts per point — once-per-cycle, not hotpath.)
 """
-function point_basal_area!(s::StandState)
+function point_basal_area!(s::StandState; cratet_ind::Bool = false)
     p, t = s.plot, s.trees
     pb = s.density.point_ba; pbal = s.density.point_bal
     fill!(pb, 0f0)
@@ -245,7 +252,10 @@ function point_basal_area!(s::StandState)
     # FVS's IND (a stable sortperm! diverges on tie-heavy points; inert for IE which uses PCT not PTBALT, but
     # PTBALT-consuming variants — SN calibration, PN/WC/AK/OP — need the RDPSRT order).
     order = view(s.scratch.stat_idx, 1:t.n)
-    _rdpsrt!(view(t.dbh, 1:t.n), order)                                                 # IND: DBH descending, FVS tie-break
+    # ptbal.f walks the CURRENT IND: at the inventory that is CRATET's (cratet.f:151-153 IND1-seeded RDPSRT(.FALSE.),
+    # or :257's identity re-sort with dead records — bm_cratet_ind!), the IND the first cycle's DGDRIV PTBALT and the
+    # cycle-0 TreeList PtBAL come from; afterwards gradd.f:186's fresh RDPSRT(.TRUE.).
+    cratet_ind ? bm_cratet_ind!(s, order) : _rdpsrt!(view(t.dbh, 1:t.n), order)      # IND: DBH descending, FVS tie-break
     # AK: ptbal.f XBALT+WK5·.005454154·PI/GROSPC with dense.f WK5=D·(D·P), in that Float32 order (the PBAL feeding
     # AK's DGF/MORTS logistic; the shared form below rounds differently by a few ULP on dense points).
     akw5 = s.variant isa SoutheastAlaska
@@ -445,10 +455,19 @@ function stand_ccf(s::StandState)
         end
         return ccf
     elseif s.variant isa EasternMontana
-        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form).
-        @inbounds for i in 1:t.n
-            ccf += em_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form). dense.f (the
+        # IE/BM file) accumulates it SPECIES-MAJOR in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC)
+        # (MEASURED FVSem_g16 196378260020004 cyc1 RELDEN 42B41C64 vs the flat record-order sum 42B41C67).
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += em_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Utah
         # UT CCF is the same direct per-species polynomial (ut/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.

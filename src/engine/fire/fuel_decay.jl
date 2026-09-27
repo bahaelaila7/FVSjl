@@ -238,6 +238,25 @@ const _FM_DKR_WC = Float32[
 ]
 _fm_dkr_default(::Union{WestCascades,PacificNorthwest,Olympic}) = _FM_DKR_WC
 
+# wc/fmcba.f and pn,op/fmcba.f carry their OWN DKRADJ(TEMP,MOIST,K) tables (DATA (((DKRADJ(I,J,K),K=1,3),J=1,3),I=1,3)),
+# not the BM/EC/SO one (_FM_DKRADJ). WC stand 4 (ITYPE 52, TEMP 3 / MOIST 1): BM/EC table ×1.21/1.79/1.21 vs WC's own
+# ×0.75/1.0/0.75 — the down wood decayed ~2× too fast (no-fire 2033 Surface_ge3 6.8 vs live 11.0).
+function _dkradj_from(vals::Vector{Float32})
+    a = Array{Float32}(undef, 3, 3, 3); n = 0
+    for i in 1:3, j in 1:3, k in 1:3
+        n += 1; a[i, j, k] = vals[n]
+    end
+    a
+end
+const _FM_DKRADJ_WC = _dkradj_from(Float32[
+    1.35, 2, 1.35,  1.49, 2, 1.49,  1.7, 2, 1.7,
+    0.875, 1.5, 0.875,  1, 2, 1,  1.21, 2, 1.21,
+    0.75, 1, 0.75,  0.825, 1.3, 0.825,  0.875, 1.5, 0.875])
+const _FM_DKRADJ_PN = _dkradj_from(Float32[      # pn/fmcba.f == op/fmcba.f
+    1.21, 2, 1.21,  1.35, 2, 1.35,  1.7, 2, 1.7,
+    0.825, 1.3, 0.825,  1, 2, 1,  1.35, 2, 1.35,
+    0.75, 1, 0.75,  0.75, 1, 0.75,  0.925, 1.7, 0.925])
+
 """
     r6_adjusted_dkr(base, temp, moist) -> Matrix{Float32}
 
@@ -245,11 +264,13 @@ The R6 first-year habitat decay adjustment shared by bm/ec/wc/pn/op fmcba.f: woo
 DKRADJ(TEMP,MOIST,K) (K = 1 for sizes 1-3, 2 for 4-5, 3 for 6-9) capped at 1, then (sizes 9→2) a smaller class
 decaying slower than the next larger one is bumped up to it. Litter/duff keep the base.
 """
-function r6_adjusted_dkr(base::Matrix{Float32}, temp::Integer, moist::Integer)::Matrix{Float32}
+function r6_adjusted_dkr(base::Matrix{Float32}, temp::Integer, moist::Integer;
+                         adj::Array{Float32,3} = _FM_DKRADJ)::Matrix{Float32}
+    dkrtab = adj
     dkr = copy(base)
     @inbounds for i in 1:9
         k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
-        adj = _FM_DKRADJ[temp, moist, k]
+        adj = dkrtab[temp, moist, k]
         for j in 1:4
             v = dkr[i, j] * adj
             dkr[i, j] = v > 1f0 ? 1f0 : v

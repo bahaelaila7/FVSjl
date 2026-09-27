@@ -266,6 +266,10 @@ function compute_volumes_cr!(s::StandState)
     ifor   = Int(s.plot.forest_idx)
     bfmind = is3 ? 9f0 : ((ifor > 0 && ifor < 13) ? 7f0 : 9f0)
     iregn  = Int(s.plot.user_forest_code) ÷ 100    # stand region (MRULES keys merch bucking on REGN)
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) refills it from the NVEL
+    # HT1PRD of the cubic (TOPD·BARK) and board (BFTOPD·BARK) calls. DVE (dvest.f) returns no HT1PRD ⇒ 0.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     # Include the DEAD partition (t.n+1 : t.n+ndead) so the cycle-0 FVS_TreeList dead records carry volume
     # (dbstrls.f emits input dead trees with volume). Dead slots never feed stand totals (summary iterates
     # 1:t.n), so this is side-effect-free for the .sum; it only fills the otherwise-unused dead vol slots.
@@ -290,11 +294,17 @@ function compute_volumes_cr!(s::StandState)
             # fvsvol.f:87-90: a LIVE (vols.f:135 IMC<6) top-killed tree passes BRKHT=ITRNC/100 ⇒ NSVB trims VOL(1)
             # by CalcRatio and caps HT1PRD itself (nsvb.f:218-221,331); vols.f:191 then skips CFTOPK for 'NVB'.
             brk = (i <= t.n && t.trunc[i] > 0 && h >= 4.5f0) ? Float32(t.trunc[i]) / 100f0 : 0f0
-            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, brkht = brk)   # TCF+MCF+board
+            cr_nvb_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, brkht = brk,
+                       ht2td = htb)   # TCF+MCF+board
         elseif mdl == "FW2"
-            cr_fw2_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, sf_hs = true)   # TCF+MCF+board; MERLEN via SF_HS (profile.f:203)
+            cr_fw2_vol(eq, d, h; bark = vbark, topd = topd, stump = stump, iregn = iregn, sf_hs = true,
+                       ht2td = htb)   # TCF+MCF+board; MERLEN via SF_HS (profile.f:203)
         else
             zeros(Float32, 15)
+        end
+        if nvb || mdl == "FW2"
+            d >= dbhmin && (t.merch_top_cf[i] = htb[1])      # HT2TD(IT,2) = MAX(HT1PRD,HT2PRD)
+            d >= bfmind && (t.merch_top_bf[i] = htb[2])      # HT2TD(IT,1) = board-call HT1PRD
         end
         tcf = max(v[1], 0f0)
         mcf = d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0

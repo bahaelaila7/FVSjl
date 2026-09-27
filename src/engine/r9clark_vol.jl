@@ -388,7 +388,12 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
                        bfTopP::Float32 = -1f0, bfStmp::Float32 = -1f0;
                        board_scribner::Bool = false,
                        vbuf::Union{Vector{Float32},Nothing} = nothing,
-                       logbuf::Union{Vector{Float32},Nothing} = nothing)::Vector{Float32}
+                       logbuf::Union{Vector{Float32},Nothing} = nothing,
+                       hts::Union{Vector{Float32},Nothing} = nothing)::Vector{Float32}
+    # `hts` (optional 3-slot buffer) ← [HT1PRD, HT2PRD, board HT1PRD] as r9clark.f returns them: HT1PRD = sawHt and
+    # HT2PRD = plpHt after the MERCHL+TRIM+STUMP zeroing (r9clark.f:260-262, 320-322; HT1PRD stays 0 for prod '02'),
+    # and the board call's HT1PRD = the same saw height to BFTOPD/BFSTMP. fvsvol.f turns them into HT2TD.
+    hts === nothing || fill!(hts, 0f0)
     vol = vbuf === nothing ? zeros(Float32, 15) : fill!(vbuf, 0f0)
     iProd = prod == "01" ? 1 : 2
     co = _r9_coef(spp)
@@ -439,6 +444,7 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
         plpHt = _r9_ht(st, plpDib)
         (topDib <= plpDib && topHt < plpHt) && (plpHt = topHt)
         plpHt < merchL + stump + trim && (plpHt = 0f0)
+        hts === nothing || (hts[2] = plpHt)
         if plpHt - stump >= minLen
             tcfVol = _r9_cuft(st, stump, plpHt)
             short && (tcfVol *= shrtHt / 17.3f0)
@@ -456,6 +462,7 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
         sawHt = _r9_ht(st, sawDib)
         (topDib <= sawDib && topHt < sawHt) && (sawHt = topHt)
         sawHt < merchL + trim + stump && (sawHt = 0f0)
+        hts === nothing || (hts[1] = sawHt)
         scfVol = 0f0
         if sawHt > 0f0
             scfVol = _r9_cuft(st, stump, sawHt)
@@ -477,6 +484,7 @@ function r9clark_cubic(spp::Int, dbhOb::Float32, htTot::Float32, prod::String,
     bfHt = _r9_ht(st, bfDib)
     (topDib <= bfDib && topHt < bfHt) && (bfHt = topHt)
     bfHt < merchL + trim + bfSt && (bfHt = 0f0)
+    hts === nothing || (hts[3] = bfHt)
     bfHt > 0f0 && (vol[2] = board_scribner ? _r9_scribner_bf(st, bfHt, bfSt, minLen, maxLen, trim, logbuf) :
                                              _r9_intlqtr_bf(st, bfHt, bfSt, minLen, maxLen, trim, logbuf))
 
@@ -623,7 +631,11 @@ function compute_volumes_ne!(s::StandState)
     anydef_cf = any(!iszero, cfdef); anydef_bf = any(!iszero, bfdef)
     anyform = any(!iszero, cff0) || any(!=(1f0), cff1) || any(!iszero, bff0) || any(!=(1f0), bff1)
     anydef = anydef_cf || anydef_bf || anyform || any(!iszero, t.defect)
-    @inbounds for i in 1:t.n
+    # vols.f:86-90 zeroes HT2TD for every record at VOLS entry; NATCRS (fvsvol.f:337-339, 484-487) refills it.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    hts = zeros(Float32, 3)
+    # vols.f IPASS=2 (ILOW=IREC2..MAXTRE) also volumes the cycle-0 input dead records (FVS_TreeList rows only).
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
@@ -655,8 +667,10 @@ function compute_volumes_ne!(s::StandState)
             _mtopp = d >= _scfm ? md.sp_scf_topd[sp] : _topd
             _vc = r9clark_cubic(fia, d, h, _prod, _mtopp, _topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
                                 board_scribner = board_scribner,
-                                vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf)
+                                vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf, hts = hts)
             bf = (d >= md.sp_bf_dbhmin[sp] && d > md.sp_bf_topd[sp]) ? _vc[2] : 0f0
+            # VEQNNB (900CLKE) ≠ VEQNNC (900DVEE) ⇒ BFPFLG=0: the Clark board call's HT1PRD → HT2TD(IT,1) (fvsvol.f:485)
+            d >= md.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = hts[3])
             if anydef
                 mcf, scf, bf = _apply_tree_defect(mcf, scf, bf, d, sp, Int(t.defect[i]),
                                                   cfdef, bfdef, cff0, cff1, bff0, bff1, anydef_cf, anydef_bf)
@@ -673,7 +687,21 @@ function compute_volumes_ne!(s::StandState)
         mtopp = d >= scfmind ? scftopd : topd
         v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0, md.sp_bf_topd[sp], md.sp_bf_stump[sp];
                           board_scribner = board_scribner,
-                          vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf)
+                          vbuf = s.scratch.r9_vol, logbuf = s.scratch.r9_logbuf, hts = hts)
+        # fvsvol.f:337-339 (D≥DBHMIN): HT2TD(IT,2)=MAX(HT1PRD,HT2PRD); BFPFLG=1 (R9, D≥BFMIND, board eq/standards =
+        # the sawtimber ones) ⇒ HT2TD(IT,1)=HT1PRD of this call; otherwise the separate board call's HT1PRD
+        # (fvsvol.f:485, D≥BFMIND) — the saw height to BFTOPD/BFSTMP, which `hts[3]` carries.
+        if d >= dbhmin
+            t.merch_top_cf[i] = max(hts[1], hts[2])
+        end
+        if d >= bfmind
+            bfpflg = md.sp_bf_topd[sp] == scftopd && md.sp_bf_stump[sp] == scfstmp && bfmind == scfmind
+            if bfpflg
+                d >= dbhmin && (t.merch_top_bf[i] = hts[1])
+            else
+                t.merch_top_bf[i] = hts[3]
+            end
+        end
         tcf = v[1]
         mcf = d >= dbhmin  ? v[4] + v[7] : 0f0
         scf = d >= scfmind ? v[4] : 0f0

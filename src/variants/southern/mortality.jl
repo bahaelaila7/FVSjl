@@ -88,6 +88,7 @@ function sdi_max_check!(s::StandState)
     const_v2 = fexp(flog(tprob + 1f0) + 1.605f0 * flog(dq0)) / pmsdiu   # sdichk.f:87
     tem2 = const_v2 * PRETZSCH_SDIK
     @inbounds for i in 1:MAXSP; p.sp_sdi_def[i] = tem2; end
+    errgro!(s, 41)                                        # sdichk.f:106 CALL ERRGRO(.TRUE.,41)
     return s
 end
 
@@ -655,14 +656,21 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     gsp = sb.gsp; gdbh = sb.gdbh; ght = sb.ght; gden = sb.gden
     # emit one merged snag per (sp,dbhcl,htcl) class — bole (MCF) on the class-MEAN dbh/ht, floored at the tiny-tree
     # cone volume X=0.005454154·H (fmsvol.f VOL2HT=MAX(X,MCF)), ×V2T→tons, weighted by class density.
-    @inbounds for g in 1:ng
+    # R6 variants: FMSADD gives the records slots in species-major (SPCL, DBHCL, HTCL) order with emptied-record reuse
+    # (fmsadd.f:41-62) — their FMR6HTLS draws are handed out per record. Others keep first-seen order + append.
+    r6 = _fmsadd_binned(s.variant)
+    gorder = r6 ? Int[Int(sb.gkey[k]) for k in eachindex(sb.gkey) if sb.gkey[k] != 0] : (1:ng)   # lin3 = species-major
+    ctx = r6 ? _fmsadd_ctx(s.fire) : nothing
+    @inbounds for g in gorder
         sp = Int(gsp[g]); d = gdbh[g]; h = ght[g]
         mcf = max(0.005454154f0 * h, _snag_merch_cuft_on(s, sp, d, h))
         # NOTE: the fall→cwd uses this MERCH bolevol (fallvol left unset). REFUTED that FVS uses TOTAL here
         # (fmcwd.f:187 CWD1 'D') — setting fallvol=total REGRESSED 12 live-validated carbon-DDW + fire tests
         # (2026-07-06), so jl's merch is what matches live. The scorch big-wood cwd excess is NOT a fall-volume
         # bug; it's the snag density/fall-timing (see task #72).
-        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead)
+        slot = r6 ? _fmsadd_slot!(s.fire, ctx) : 0
+        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead, slot = slot)
+        (r6 && slot == 0) && push!(ctx.taken, length(s.fire.snags.sp))
     end
     return s
 end

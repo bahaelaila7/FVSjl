@@ -309,7 +309,8 @@ function fmcba!(s::StandState; load_dead::Bool = true)
             else
                 _it = clamp(_it, 1, 75); _t = _R6SD_PNWMC[_it]; _m = _R6SD_PNWMD[_it]
             end
-            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m)
+            fs.params.dkr = r6_adjusted_dkr(_FM_DKR_WC, _t, _m;
+                                            adj = s.variant isa WestCascades ? _FM_DKRADJ_WC : _FM_DKRADJ_PN)
         end
         # SO decay-rate habitat adjustment (so/fmcba.f:764-836): scale the SO base DKR by DKRADJ(TEMP,MOIST,K)
         # from SOHMC/SOWMD at the first FFE year. The reference stand rides so/habtyp.f's DEFAULT plant
