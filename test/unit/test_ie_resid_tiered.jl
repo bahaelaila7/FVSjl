@@ -114,4 +114,11 @@ end
     @test all(m -> _crel(m) < 1e-6, _ccol("Forest_Floor"))
 end
 
+# ie/fmvinit.f:500-507 TFALL(I,0)=MIN(2,LEAFLF), (I,1)=5, (I,2)=MIN(5,TFALL(I,3)), (I,3..5) per species (10/15/20): FMSCRO
+# spreads a dead crown's CWD2B debris over those years. jl used the SN class rows (clamped to 1/1/2/4 yrs) ⇒ LP foliage
+# fell in one year (MEASURED 2016 CWD2B(4,0,1..2) 118.08+118.08 live vs 236.16+0 ⇒ 2026 Standing_Dead −0.1%).
+@testset "Dead-crown fall years from ie/fmvinit.f TFALL vs FVSie_g16" begin
+    @test all(m -> _crel(m) < 1e-6, _ccol("Standing_Dead"))
+end
+
 end # module

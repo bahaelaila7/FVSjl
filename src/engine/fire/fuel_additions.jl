@@ -60,6 +60,20 @@ const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
     return _FM_TFALL4[cls]
 end
 
+# {ie,em,kt}/fmvinit.f:500-513 (byte-identical block): TFALL(I,1)=5, TFALL(I,2)=MIN(5,TFALL(I,3)), TFALL(I,3) per species
+# (the CSV tfall_cls column, verified against each fmvinit CASE), TFALL(I,4)=TFALL(I,5)=TFALL(I,3), and the dead-leaf
+# fall TFALL(I,0)=MIN(2,LEAFLF(I)). The SN class rows above clamp these variants to row 6 (foliage 1 yr, branches 1 yr,
+# size 3-5 2/4 yr) — MEASURED FVSie_g16 11855985010690: LP foliage CWD2B(4,0,·) 118.08 in slots 1 AND 2 (TFALL(7,0)=
+# MIN(2,3)=2), jl 236.16 all in slot 1.
+_fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
+@inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
+    t3 = coef_col(coef, :tfall_cls)[sp]
+    sz == 0 && return min(2f0, coef_col(coef, :leaf_life)[sp])
+    sz == 1 && return 5f0
+    sz == 2 && return min(5f0, t3)
+    return t3
+end
+
 """
     fmscro!(s, sp, dbh, xv, density, dkcl)
 
@@ -81,7 +95,8 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         # TFALL(SP,SIZE) (fmscro.f:124): EC/WC/PN/OP read their own fmvinit table; the western variants' CSV tfall_cls
         # holds TFALL(I,3) (10/15/20), which the SN class lookup clamps to row 6 (open for IE/EM/CR/BM/… too).
         tft = _fm_tfall_table(s.variant)
-        tf = tft === nothing ? _fm_tfall(cls, sz, sp) : tft[sp, sz + 1]
+        tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
+             _fm_tfall(cls, sz, sp)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife
         # fmscro.f:160-170: mortality reconciliation (ICALL=4, FMKILL after the annual loop) books straight into CWD2B;
