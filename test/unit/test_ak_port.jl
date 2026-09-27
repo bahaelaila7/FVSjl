@@ -114,12 +114,12 @@ end
         write("jl.sum", FVSjl.run_keyfile("akfia.key"; variant = FVSjl.SoutheastAlaska(), output = :sum))
         rows_by_id("jl.sum")
     end
-    exact = ("10705712010497", "10706339010497", "10708351010497", "1549083042290487", "24731081010497",
-             "644808316126144", "666740939126144")
+    exact = ("10705712010497", "10706339010497", "10708179010497", "10708351010497", "1549083042290487",
+             "24731081010497", "24739066010497", "644808316126144", "666740939126144")
     for sid in exact
         ks = [k for k in keys(live) if k[1] == sid]
         @test length(ks) == 7
         @test all(k -> get(jl, k, nothing) == live[k], ks)
     end
-    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 63
+    @test count(k -> get(jl, k, nothing) == live[k], collect(keys(live))) >= 76
 end

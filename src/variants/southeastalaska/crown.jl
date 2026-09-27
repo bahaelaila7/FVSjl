@@ -105,8 +105,10 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
     pb = s.density.point_ba; ptpa = s.density.point_tpa
     # ak/crown.f DO 70 ISPC … I=IND1(I3): species-major — DUBSCR/RANN draws follow this order.
     cur_year = current_cycle_year(s)   # ak/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
+    # No PROB>0 screen: ak/crown.f DO 60 walks every IND1 record, so a record MORTS just zeroed (PROB=0, still in the
+    # list until the next compression) keeps getting its crown updated (FIA 10708179010497 2027: 135 such records live
+    # CR 73 = 81·(1−0.01·10), jl kept 81).
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 23) && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue           # inventory crown present ⇒ keep (ak/crown.f:217)
