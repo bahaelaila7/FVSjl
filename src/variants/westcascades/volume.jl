@@ -242,8 +242,8 @@ const _WC_R6_OPT = 23; const _WC_R6_EVOD = 2
 const _WC_R6_MAXLEN = 16.0f0; const _WC_R6_MINLEN = 2.0f0; const _WC_R6_TRIM = 0.5f0; const _WC_R6_MERCHL = 8.0f0
 
 "R6 westside merch cubic VOL(4): buck stump→mtop (IB) with the R6 (OPT=23) SEGMNT, per-log 0.1-rounded Smalian."
-function _wc_fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32)::Float32
-    hs = _fw2_hs(dibat, mtop, h); lmerch = hs - stump
+function _wc_fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32; hs = nothing)::Float32
+    hs === nothing && (hs = _fw2_hs(dibat, mtop, h)); lmerch = hs - stump
     lmerch < _WC_R6_MERCHL && return 0f0
     ns = _nvb_numlog(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM); ns == 0 && return 0f0
     loglen, ns = _nvb_segmnt(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM, ns)
@@ -259,8 +259,8 @@ function _wc_fw2_merch_cuft(dibat, h::Float32, mtop::Float32, stump::Float32)::F
 end
 
 "R6 westside Scribner board VOL(2): R6 (OPT=23) SEGMNT + SCRIB COR='N' (full board feet per log)."
-function _wc_fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32)::Float32
-    hs = _fw2_hs(dibat, bftop, h); lmerch = hs - stump
+function _wc_fw2_board(dibat, h::Float32, bftop::Float32, stump::Float32; hs = nothing)::Float32
+    hs === nothing && (hs = _fw2_hs(dibat, bftop, h)); lmerch = hs - stump
     lmerch < _WC_R6_MERCHL && return 0f0
     ns = _nvb_numlog(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM); ns == 0 && return 0f0
     loglen, ns = _nvb_segmnt(_WC_R6_OPT, _WC_R6_EVOD, lmerch, _WC_R6_MAXLEN, _WC_R6_MINLEN, _WC_R6_TRIM, ns)
@@ -278,7 +278,9 @@ end
 # D·(1−BARK) into sf_shp's DBT_USER, so FDBT_C1 is bypassed): the SAME convention as the INGY dibat path.
 # Merch/board buck with the R6 rules (mrules.f REGN 6: OPT=23 SEGMNT + board COR='N'); tops = TOPD·BARK (IB).
 function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark::Float32;
-                            topd::Float32 = 4.5f0, bftopd::Float32 = 4.5f0, stump::Float32 = 1f0)
+                            topd::Float32 = 4.5f0, bftopd::Float32 = 4.5f0, stump::Float32 = 1f0, ht2td = nothing)
+    # `ht2td` (optional 2-slot buffer) ← [HT1PRD of the cubic call, HT1PRD of the board call]
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     (d < 1f0 || h <= 5f0) && return (0f0, 0f0, 0f0)
     spec = voleq[8:10]
     jsp = (spec == "202" || spec == "205" || spec == "204") ? 3 : spec == "263" ? 4 : spec == "242" ? 5 : 0
@@ -297,15 +299,38 @@ function wc_fw2_westside_vol(voleq::AbstractString, d::Float32, h::Float32, bark
     dibat = ht -> (Float32(ht) > h ? 0f0 : _fw2_sf_yhat_f(Float32(ht) / h, tapcoe, rhfw, rflw, f, h, false)[1])
     stump_dib = h <= 15f0 ? _fw2_fwsmall(jsp, h, dibat(1.0f0), dbhib) : -1f0
     v1 = _nint(_fw2_tcubic(dibat, h; stump_dib = stump_dib) * 10.0f0) * 1f-1   # profile.f:293 VOL(1)=NINT(TCVOL*10.0)*1E-1
-    v4 = _wc_fw2_merch_cuft(dibat, h, topd * bark, stump)
-    v2 = _wc_fw2_board(dibat, h, bftopd * bark, stump)
+    # profile.f MERLEN (VOLEQ(4:4)='F'): the merch-top height is SF_HS itself (the Newton/bisection solver, not
+    # a diameter-tolerance bisection — they straddle SEGMNT even-foot boundaries); HT1PRD = LMERCH + STUMP with
+    # LMERCH = MAX(HS − STUMP, 0) (profile.f:342, 1052) → fvsvol.f HT2TD.
+    hsc = _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, topd * bark)
+    hsb = bftopd == topd ? hsc : _fw2_sf_hs(tapcoe, rhfw, rflw, f, h, bftopd * bark)
+    v4 = _wc_fw2_merch_cuft(dibat, h, topd * bark, stump; hs = hsc)
+    v2 = _wc_fw2_board(dibat, h, bftopd * bark, stump; hs = hsb)
+    if ht2td !== nothing
+        lc = hsc - stump; lc < 0f0 && (lc = 0f0); ht2td[1] = lc + stump
+        lb = hsb - stump; lb < 0f0 && (lb = 0f0); ht2td[2] = lb + stump
+    end
     return (max(v1, 0f0), max(v4, 0f0), max(v2, 0f0))
 end
 
+# r6vol.f:118-124: after R6DIBS, HT1PRD = 1.0 + Σ XLEN(1:20) — only reached when TTH > FC_HT (17.3) and
+# DBHIB ≥ MTOPP (the short-tree cylinder and the total-cubic-only exits leave the caller's HT1PRD = 0).
+function r6vol_ht1prd(d::Float32, fclass, mtopp::Float32, h::Float32, dbhib::Float32)::Float32
+    (h <= 17.3f0 || dbhib < mtopp) && return 0f0
+    _, _, xl = bm_r6dibs(d, fclass, mtopp, h)
+    ht1 = 1.0f0
+    for k in 1:20; ht1 += xl[k]; end
+    return ht1
+end
+
 # --- Behre (616BEHW) per-tree volume — reuse the BM R6 machinery + WC form class. ---
-function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32; topd::Float32 = 4.5f0)
+function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32; topd::Float32 = 4.5f0,
+                      ht2td = nothing)
     fclass = wc_formcl(sp, ifor, d)
     dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+    if ht2td !== nothing                               # cubic and board calls share MTOPP = TOPD·BARK (BFTOPD = TOPD)
+        ht2td[1] = r6vol_ht1prd(d, fclass, topd * bark, h, dbhib); ht2td[2] = ht2td[1]
+    end
     vol2 = 0f0; vol4 = 0f0
     v1 = if h <= 17.3f0
         0.00272708f0 * dbhib * dbhib * h            # R6VOL short-tree cylinder (R6DIBS/R6VOL1 skipped)
@@ -381,8 +406,17 @@ end
 
 "NATCRS for A16CURW351: cubic call (MTOPP=TOPD·BARK → VOL(1), VOL(4)); board call for D ≥ BFMIND (BFTOPD·BARK)."
 function wc_cur_vol(d::Float32, h::Float32, bark::Float32; topd::Float32, bftopd::Float32, stump::Float32,
-                    bfmind::Float32)
+                    bfmind::Float32, ht2td = nothing)
+    ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)                  # profile.f:117
+    if ht2td !== nothing
+        # profile.f:225-228 R10HTS returns LMERCH but leaves HT1PRD unset (the assignment is commented out); only
+        # when LMERCH ≤ 0 does MERLEN run and set HT1PRD = LMERCH + STUMP (profile.f:322-342).
+        _curht(top) = _ak_cur_lmerch(d, h, top, stump) > 0f0 ? 0f0 :
+                      _cur_merlen(ht -> _ak_cur_dib(d, h, Float32(ht)), h, top, stump) + stump
+        ht2td[1] = _curht(topd * bark)
+        d >= bfmind && (ht2td[2] = _curht(bftopd * bark))
+    end
     dibat = ht -> _ak_cur_dib(d, h, Float32(ht))
     tcf = _nint(_fw2_tcubic(dibat, h) * 10.0f0) * 1f-1
     mcf = _cur_profile_logs(d, h, dibat, topd * bark, stump, false)
@@ -394,6 +428,9 @@ function compute_volumes_wc!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq; sd = s.coef.species; c = s.control
     ifor = Int(s.plot.forest_idx)                   # forkod JFOR index (1..10) — form-class table + INGY iregn
+    # vols.f:86-90 zeroes HT2TD for every record; NATCRS (fvsvol.f:337-339 / 484-487) stores the NVEL HT1PRD.
+    fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
+    htb = zeros(Float32, 2)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         if d < 1f0 || sp < 1 || sp > 39
@@ -401,6 +438,7 @@ function compute_volumes_wc!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
         eq = veq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+        htb[1] = 0f0; htb[2] = 0f0
         # wc/vols.f:150-151: BARK=BRATIO(ISPC,D_start,H) before `D=D+DG(I)/BARK` ⇒ projected cycles use the stashed
         # start-of-cycle bark (t.vol_bark) for the merch tops / DBHIB / CFTOPK; grown-DBH bark at cycle 0 / dead records.
         bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : wc_bratio(sd, sp, d)
@@ -414,17 +452,20 @@ function compute_volumes_wc!(s::StandState)
         hv = tkill ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
         if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
-            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp)
+            tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp, ht2td = htb)
         elseif mdl == "FW2"
-            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N', merch_opt = 23)
+            v = cr_fw2_vol(eq, d, hv; bark = bark, topd = topd, bftopd = bftopd, stump = stmp, iregn = 6, board_cor = 'N',
+                           merch_opt = 23, sf_hs = true, ht2td = htb)
             tcf = max(v[1], 0f0); mcf = max(v[4] + v[7], 0f0); bf = max(v[2], 0f0)
         elseif se[1] == 'B' || se[1] == 'b'           # BLM forests (R7_EQN B00BEHW/B01BEHW202) → NVEL BLMVOL
-            tcf, mcf, bf = _blm_natcrs(eq, wc_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind)
+            tcf, mcf, bf = _blm_natcrs(eq, wc_formcl(sp, ifor, d), d, hv, bark, topd, bftopd, bfmind; ht2td = htb)
         elseif mdl == "CUR"                           # A16CURW351 (603 RA) → PROFILE + R10TAP red alder
-            tcf, mcf, bf = wc_cur_vol(d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp, bfmind = bfmind)
+            tcf, mcf, bf = wc_cur_vol(d, hv, bark; topd = topd, bftopd = bftopd, stump = stmp, bfmind = bfmind, ht2td = htb)
         else                                          # 616BEHW
-            tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark; topd = topd)
+            tcf, mcf, bf = wc_behre_vol(sp, ifor, d, hv, bark; topd = topd, ht2td = htb)
         end
+        d >= dbhmin && (t.merch_top_cf[i] = htb[1])  # fvsvol.f:337-339 HT2TD(IT,2) = HT1PRD (HT2PRD = 0 in R6)
+        d >= bfmind && (t.merch_top_bf[i] = htb[2])  # fvsvol.f:484-487 board call HT2TD(IT,1) = HT1PRD
         tcf = max(tcf, 0f0)
         mcf = d >= dbhmin ? max(mcf, 0f0) : 0f0      # fvsvol.f:513 MCF only for D≥DBHMIN
         bf  = d >= bfmind ? max(bf, 0f0) : 0f0       # fvsvol.f:517 BBFV=0 for D<BFMIND

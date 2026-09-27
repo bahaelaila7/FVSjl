@@ -622,6 +622,10 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     t = s.trees
     fire_now = _fire_due(s)   # OPCYCL: fires in the cycle whose range contains fire_year (incl. mid-cycle)
     if !fire_now
+        # Non-fire cycle with a deferred FFE annual loop (R6 variants, summary.jl): FMMAIN runs after GRINCR's
+        # increment draws and before FMKILL/UPDATE apply the mortality (FMPROB = PROB), so run it here, ahead of the
+        # mortality booking. jl's MORTS draws no main-stream RANN, so the state is FVS's FMMAIN state.
+        post_fire === nothing || post_fire(s)
         mortality!(s, s.variant; fint = fint, book_snags = book_snags)   # MORTS (FVS GRINCR order)
         return (0f0, false)        # non-fire OMORT is computed by the caller (pre-TRIPLE originals)
     end
@@ -1526,9 +1530,15 @@ function run_keyfile(keypath::AbstractString;
         al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
         _fuels_db = s.control.dbs_fuels && s.control.ffe_fuelout      # FVS_Fuels gate (FUELSOUT + FUELOUT window)
-        carb_rows = ((s.control.carbon_report_on || _fuels_db) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        # fmmain.f runs FMSOUT/FMSSUM/FMPOFL/FMDOUT/FMCRBOUT/FMCHRVOUT every FFE year; each DBS table is written only
+        # when its DATABASE toggle is set (and, for the snag/down-wood tables, its FMIN report keyword).
+        ctl0 = s.control
+        _ffe_tbls = has_db && (ctl0.dbs_carbrept || (ctl0.dbs_snagsum && ctl0.ffe_snagsum) ||
+                               (ctl0.dbs_snagdet && ctl0.ffe_snagout) || (ctl0.dbs_dwdvol && ctl0.ffe_dwdvlout) ||
+                               (ctl0.dbs_dwdcov && ctl0.ffe_dwdcvout))
+        carb_rows = ((ctl0.carbon_report_on || _fuels_db || _ffe_tbls) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
-        hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        hc_rows = (has_db && ctl0.dbs_carbrept && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
         cprof_rows = (s.control.dbs_canprofile && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
@@ -1570,6 +1580,7 @@ function run_keyfile(keypath::AbstractString;
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
             if sum_on
@@ -1624,13 +1635,18 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
             _fuels_db && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-            if carb_rows !== nothing && s.control.carbon_report_on
-                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_snagdet!(s.control.dbs_out_file, caseid, String(sid),
-                                   [(r[1], r[7]) for r in carb_rows], s.coef)
-                write_dbs_dwd_vol!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_dwd_cov!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            if carb_rows !== nothing
+                ctl1 = s.control
+                ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
+                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
+                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
+                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef)
+                (ctl1.dbs_dwdvol && ctl1.ffe_dwdvlout) &&                # fmdout.f LPRINT2 + dbsfmdwvol.f IDWDVOL
+                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_dwdcov && ctl1.ffe_dwdcvout) &&                # fmdout.f LPRINT3 + dbsfmdwcov.f IDWDCOV
+                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
             end
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
@@ -1646,9 +1662,10 @@ function run_keyfile(keypath::AbstractString;
             end
             pf_rows === nothing ||
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
-            if hc_rows !== nothing && any(r -> r[2].removed != 0f0, hc_rows)
+            # fmchrvout.f: ICHRVB defaults to 9999 (fminit.f:899), so the `ICHRVB .EQ. 0` exit never fires and DBSFMHRPT
+            # writes a row every FFE year once CARBREDB set ICHRPT — zero rows included (jl required a removal).
+            hc_rows === nothing || isempty(hc_rows) ||
                 write_dbs_hrvcarbon!(s.control.dbs_out_file, caseid, String(sid), hc_rows)
-            end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)

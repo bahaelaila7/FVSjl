@@ -611,7 +611,7 @@ function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x, RoundNearestTiesAway)            # misprt.f NINT
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             st = rep.stand
             DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
@@ -640,7 +640,7 @@ function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 13), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x, RoundNearestTiesAway)            # dbsmis.f NINT
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             for sp in rep.species
                 # dbsmis.f DBSMIS1: SpeciesFVS/SpeciesPLANTS/SpeciesFIA = JSP/PLNJSP/FIAJSP of the top-4 species
@@ -1456,6 +1456,9 @@ diameter / stump for total, sawtimber, and board). All data the engine already h
 """
 function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)
+    # dbsreference.f prints DBHMIN/TOPD/… as SITSET left them — fill the per-stand standards even when no volume
+    # call has touched them yet (a bare or all-seedling stand never reaches the lazy AK/NVEL initialisation).
+    s.control.merch_init || init_merch_standards!(s)
     c = s.control; co = s.coef; p = s.plot; sp_eq = s.species.vol_eq
     nsp = nspecies(s.variant)   # the variant's real species count (code arrays are padded to MAXSP capacity)
     fia3(x) = s.variant isa CentralRockies ? lpad(strip(x), 3, '0') : strip(x)   # 3-char FIAJSP (CR western codes)

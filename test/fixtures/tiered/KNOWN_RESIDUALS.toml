@@ -85,17 +85,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 [[residual]]
 variant = "BM"
 regime = "climate"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -114,17 +103,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "BM"
@@ -195,17 +173,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 [[residual]]
 variant = "BM"
 regime = "econ"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -272,17 +239,6 @@ issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*
 [[residual]]
 variant = "BM"
 regime = "mistletoe"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -301,17 +257,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "BM"
@@ -465,7 +410,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 81
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 81 cells [ulp1=39 ulp2_16=42] max|Δ|=1.526e-5 | e.g. stand 1127619588290487 year 2061: live=25.65907859802246 jl=25.659074783325195"""
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
 
 [[residual]]
 variant = "BM"
@@ -476,7 +421,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 81
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 81 cells [ulp1=39 ulp2_16=42] max|Δ|=1.526e-5 | e.g. stand 1127619588290487 year 2061: live=25.65907859802246 jl=25.659074783325195"""
+issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
 
 [[residual]]
 variant = "BM"
@@ -536,17 +481,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 [[residual]]
 variant = "BM"
 regime = "plant_cal"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -569,17 +503,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 [[residual]]
 variant = "BM"
 regime = "plant_cyc"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -598,17 +521,6 @@ year = "*"
 status = "OPEN"
 max_cells = 42
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "BM"
@@ -816,8 +728,8 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 53
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
+max_cells = 54
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 53 cells [material=10 ulp1=4 ulpbig=39] max|Δ|=4.258 | e.g. stand 647500316126144 year 2038: live=1.1948802471160889 jl=0.8677670359611511"""
 
 [[residual]]
 variant = "BM"
@@ -827,8 +739,8 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 51
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
+max_cells = 52
+issue = """ffe-r6fix +1: stand 177426703020004 2022 at ~1e-5 rel once the R6 annual fuel loop runs at FMMAIN (after CUTS/FMSALV); per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 51 cells [ulp1=2 ulp2_16=3 ulpbig=46] max|Δ|=0.05303 | e.g. stand 647500316126144 year 2038: live=0.023250915110111237 jl=0.007718557026237249"""
 
 [[residual]]
 variant = "BM"
@@ -866,50 +778,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 [[residual]]
 variant = "BM"
 regime = "salvage"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -928,28 +796,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "BM"
@@ -1141,50 +987,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -1317,28 +1119,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -1423,17 +1203,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 1 cells [gold_text9=1] max|Δ|=4.77e-7 | e.g. stand 1127619588290487 year 2031: live=0.928694725 jl=0.928694248"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "BM"
@@ -1555,17 +1324,6 @@ year = "*"
 status = "OPEN"
 max_cells = 127
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 127 cells [small=39 tiny=88] max|Δ|=0.006173 | e.g. stand 1287253083290487 year 2062: live=0.0123102553 jl=0.012310255318880081"""
-
-[[residual]]
-variant = "IE"
-regime = "climate"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -1874,17 +1632,6 @@ year = "*"
 status = "OPEN"
 max_cells = 14
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 14 cells [material=8 ulpbig=6] max|Δ|=46.0 | e.g. stand 11855985010690 year 2036: live=1264 jl=1265"""
-
-[[residual]]
-variant = "IE"
-regime = "cover"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -2450,17 +2197,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 [[residual]]
 variant = "IE"
 regime = "econ"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -2946,17 +2682,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
-col = "Mort_TPA_Pct"
-stand = "51032748020004"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """em-resid MISINF IND1: stand 51032748020004 still diverges from 2031 (TPA live 380 / jl 364, not the MISTPINF knife edge); NINT'ed % that coincided before | measured 2026-09-27: 1 cell year 2031: live=1 jl=2"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
 col = "Inf_BA"
 stand = "*"
 year = "*"
@@ -3106,17 +2831,6 @@ year = "*"
 status = "OPEN"
 max_cells = 16
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 16 cells [ulpbig=16] max|Δ|=63.0 | e.g. stand 11855985010690 year 2036: live=7416 jl=7423"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -3491,17 +3205,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 11855985010690 year 2046: live=113 jl=114"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -4210,17 +3913,6 @@ issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner
 [[residual]]
 variant = "IE"
 regime = "plant_cal"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -4595,17 +4287,6 @@ issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner
 [[residual]]
 variant = "IE"
 regime = "plant_cyc"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "plant_cyc"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -4976,17 +4657,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 3285544010690 year 2032: live=134 jl=133"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -5310,50 +4980,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 [[residual]]
 variant = "IE"
 regime = "salvage"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -5372,28 +4998,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "IE"
@@ -5948,50 +5552,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 [[residual]]
 variant = "IE"
 regime = "simfire"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -6142,28 +5702,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "IE"
@@ -6450,17 +5988,6 @@ year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 9 cells [gold_text9=9] max|Δ|=1.9e-5 | e.g. stand 374547584489998 year 2025: live=1.3744427 jl=1.3744514"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1287253083290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -7026,17 +6553,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 [[residual]]
 variant = "SN"
 regime = "climate"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "climate"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -7253,17 +6769,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "cover"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -7550,17 +7055,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -7961,17 +7455,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 [[residual]]
 variant = "SN"
 regime = "mistletoe"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -8188,17 +7671,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -8676,17 +8148,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 [[residual]]
 variant = "SN"
 regime = "plant_cal"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cal"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -8925,17 +8386,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cyc"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -9248,50 +8698,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 [[residual]]
 variant = "SN"
 regime = "salvage"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -9321,28 +8727,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -9754,50 +9138,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 [[residual]]
 variant = "SN"
 regime = "simfire"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -9948,28 +9288,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -10426,17 +9744,6 @@ issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-direct
 variant = "SN"
 regime = "thinbba"
 file = "FVS_CutList"
-col = "Ht2TDBF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 23
-issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-21: 23 cells [material=23] max|Δ|=68.75 | e.g. stand 210838699010854 year 2003: live=17.364563 jl=0.0"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_CutList"
 col = "Ht2TDCF"
 stand = "*"
 year = "*"
@@ -10498,17 +9805,6 @@ year = "*"
 status = "OPEN"
 max_cells = 30
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 30 cells [gold_text9=30] max|Δ|=0.1923 | e.g. stand 210838699010854 year 2003: live=1.75944781 jl=1.75944519"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -11117,28 +10413,6 @@ issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by t
 
 [[residual]]
 variant = "EM"
-regime = "climate"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "cover"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
 regime = "cover"
 file = "FVS_StrClass"
 col = "ROWCOUNT"
@@ -11158,17 +10432,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 231908428020004 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "EM"
@@ -11216,28 +10479,6 @@ issue = """NEW: DBS table presence differs from live (live=present, jl=missing) 
 
 [[residual]]
 variant = "EM"
-regime = "mistletoe"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
 regime = "none"
 file = "FVS_StrClass"
 col = "ROWCOUNT"
@@ -11257,39 +10498,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3646
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3646 cells [material=346 ulp1=324 ulp2_16=51 ulpbig=2925] max|Δ|=3.9 | e.g. stand 474187636489998 year 2036: live=7.300000190734863 jl=7.200000286102295"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cal"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "plant_cyc"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "EM"
@@ -11547,50 +10755,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "salvage"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
 file = "FVS_PotFire"
 col = "PRESENCE"
 stand = "*"
@@ -11609,28 +10773,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "EM"
@@ -11789,50 +10931,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "simfire"
-file = "FVS_Down_Wood_Cov"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Down_Wood_Vol"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Hrv_Carbon"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
 file = "FVS_Mortality"
 col = "Bakill"
 stand = "*"
@@ -11950,28 +11048,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_SnagDet"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_SnagSum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "EM"
@@ -12229,17 +11305,6 @@ issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-direct
 [[residual]]
 variant = "EM"
 regime = "thinbba"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 6 cells [structural=6] max|Δ|=0.0 | e.g. stand 242065538010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
 file = "FVS_StrClass"
 col = "ROWCOUNT"
 stand = "*"
@@ -12313,17 +11378,6 @@ year = "*"
 status = "OPEN"
 max_cells = 60
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
-
-[[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "FVS_Error"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-27: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 238813815010854 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -12547,56 +11601,13 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 
 
 [[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
+variant = "IE"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Mort_TPA_Pct"
+stand = "51032748020004"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2017: live=70.0 jl=71.0"""
+issue = """em-resid MISINF IND1: stand 51032748020004 still diverges from 2031 (TPA live 380 / jl 364, not the MISTPINF knife edge); NINT'ed % that coincided before | measured 2026-09-27: 1 cell year 2031: live=1 jl=2"""
 
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""

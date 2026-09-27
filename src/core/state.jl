@@ -381,6 +381,28 @@ mutable struct Control
     # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
     # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
     sdical_bamax::Float32
+    # FFE DBS tables: each needs its DATABASE toggle (dbsin.f) AND, where FVS has one, its FMIN report switch.
+    #   CARBREDB → ICMRPT/ICHRPT (FVS_Carbon, FVS_Hrv_Carbon; fmcrbout.f/fmchrvout.f run every FMMAIN year —
+    #   ICRPTB/ICHRVB default 9999, never 0); POTFIRDB → IPOTFIRE/IPOTFIREC (FVS_PotFire[_East], FVS_PotFire_Cond);
+    #   SNAGSUDB → ISSUM + FMIN SNAGSUM (ISNGSM≠−1, fmssum.f); SNAGOUDB → ISDET + FMIN SNAGOUT (fmsout.f window);
+    #   DWDVLDB → IDWDVOL + FMIN DWDVLOUT; DWDCVDB → IDWDCOV + FMIN DWDCVOUT (fmdout.f LPRINT2/LPRINT3).
+    dbs_carbrept::Bool
+    dbs_potfire::Bool
+    dbs_snagsum::Bool
+    dbs_snagdet::Bool
+    dbs_dwdvol::Bool
+    dbs_dwdcov::Bool
+    ffe_snagsum::Bool
+    ffe_snagout::Bool
+    ffe_dwdvlout::Bool
+    ffe_dwdcvout::Bool
+    # ERRGRO (errgro.f) message text (CMSG) per stand, written to FVS_Error by DBSERROR (dbserror.f) — see io/errgro.jl.
+    # `ext_stub_strict`: an extension IN keyword hit its ex*.f stub (FVS11) ⇒ the following records are read by the base
+    # reader (FVS01 for any non-keywds.f name). `dm_block_open`: a linked MISTOE block whose sub-keywords jl reads here.
+    error_msgs::Vector{String}
+    ext_stub_strict::Bool
+    dm_block_open::Bool
+    habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
 end
 
 function Control()
@@ -459,6 +481,9 @@ function Control()
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
         0f0,                                                     # sdical_bamax
+        false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
+        false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
+        String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
     )
 end
 
@@ -1163,6 +1188,8 @@ mutable struct FireState
     hp_p::Vector{Float32}              # (cycle start, BEFORE CUTS) — CROWNW keeps those percentiles all cycle
     cwd2b2::Array{Float32,3}           # CWD2B2 (fmscro.f:160-170): crown debris FMSCRO schedules from a fire / cut / new
                                        # snag (ICALL≠4); FMMAIN adds it onto CWD2B after each year's FMCADD (fmmain.f:243)
+    pend_cut::Vector{NTuple{7,Float32}} # R6 variants: this CUTS call's standing yarding-loss snags (FMSSEE), binned by
+                                       # one FMSADD(IY(ICYC),2) at the end of the cut (fmscut.f:157) — see fmsadd_bin!
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1172,7 +1199,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60))
+                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

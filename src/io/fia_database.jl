@@ -138,6 +138,19 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # stand (e.g. YSM029-271 is IDFdk3: ICH cedar-hemlock coeffs over-predict Pl DG on a dry IDF stand).
         p.eco_unit = rpad(_fia_str(d, "ECOREGION", ""), 10)
     end
+    # CPVREF (dbsstandin.f:568-574): PV_REF_CODE > 0 ⇒ WRITE(CPVREF,'(I10)') (PVREF1/6 compare it ADJUSTL'd), ≤0 ⇒ blank.
+    if _fia_present(d, "PV_REF_CODE")
+        r = _fia_f32(d, "PV_REF_CODE", 0f0)
+        p.pv_ref = r > 0f0 ? string(Int(round(r))) : ""
+    end
+    # dbsstandin.f:579-592 — HABTYP runs for a non-blank PV_CODE (SN with an ECOREGION skips it); only its ERRGRO
+    # branches (FVS14/32/33/34) are mirrored here, the habitat itself is resolved below.
+    if _fia_present(d, "PV_CODE") && !isempty(strip(_fia_str(d, "PV_CODE", ""))) &&
+       !(s.variant isa Southern && _fia_present(d, "ECOREGION"))
+        chab = strip(_fia_str(d, "PV_CODE", ""))
+        habtyp_errors!(s, chab, strip(p.pv_ref), something(tryparse(Int, chab), 0))   # READ(CHAB,'(I10)',ERR=40)
+        s.control.habtyp_done = true
+    end
     # PV_CODE (potential-vegetation / habitat-type code, e.g. 531) → habitat_code (KODTYP), the input to
     # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
     # KODTYP→KKTYPE. Eastern variants key DG off forest type (habitat-input left a documented gap there), so

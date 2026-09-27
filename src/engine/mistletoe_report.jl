@@ -55,125 +55,121 @@ Returns `(; nage, stand, species, dbhclass)` where `stand` carries the per-acre 
 classes for the size table.
 """
 function mistletoe_report(s::StandState; fint::Float32, top4::Vector{Int}, nage::Integer)
+    # misprt.f MISPRT, REAL*4 throughout (P, IDMR·P, the SP*/ST*/DC* accumulators and the ratios are REAL), and in its
+    # own loop orders: the per-species sums walk each species' records in IND1 order (ISCT/IND1, the first DO 90 loop),
+    # the stand totals add the species subtotals in species order, SPTPAM walks IND1 again (DO 265), and the DBH-class /
+    # volume sums walk the records 1..ITRN. jl summed in Float64 in record order (FVS_DM_* Mean_DMR/Mean_DMI a few ULP
+    # to ~1e-7 relative off).
     t = s.trees
-    n = t.n
     maxsp = nspecies(s.variant)
-    # misprt.f is REAL*4 throughout; the species sums walk IND1 by species (DO 90/80, ISCT), the stand volumes and
-    # DBH classes walk the records (DO ITREE=1,ITRN), and DMMTPA=PROB·DMMORT (mismrt.f:193). jl accumulated in
-    # Float64 record order (MEASURED FVSem_g16 196378260020004 mistletoe 2032: Mean_DMR live 2.8820932 = REAL*4,
-    # jl 2.8820885801961484).
     SPTPAI = zeros(Float32, maxsp); SPTPAX = zeros(Float32, maxsp)
     SPTPAT = zeros(Float32, maxsp); SPDMRS = zeros(Float32, maxsp)
     SPTPAM = zeros(Float32, maxsp)
-    STTPAI = 0f0; STTPAT = 0f0; STTPAX = 0f0; STDMRS = 0f0
     STVOL = 0f0; STVOLI = 0f0; STVOLM = 0f0; STTPAM = 0f0
-    # 20 2-inch DBH classes (0-2.9, 3-4.9, ...); the report lumps 11-20 into class 10.
     DCTPA = zeros(Float32, 20); DCTPAX = zeros(Float32, 20); DCINF = zeros(Float32, 20)
     DCMRT = zeros(Float32, 20); DCSUM = zeros(Float32, 20)
     dmrmin = _DM_DMRMIN
-    DMMTPA = zeros(Float32, n)
-    @inbounds for i in 1:n                                  # mismrt.f:141-195 WKI=PTPA*DMMORT (0 if PROB≤0/IDMR=0)
+    ind1 = _ind1_order(s)
+    # DMMTPA(I) (MISMRT(.FALSE.), mismrt.f:141-195): WKI=PTPA·DMMORT, 0 when PROB≤0 or IDMR=0
+    dmm = zeros(Float32, t.n)
+    @inbounds for i in 1:t.n
         sp = Int(t.species[i]); (sp < 1 || sp > maxsp) && continue
         p = t.tpa[i]; idmr = Int(t.dmr[i])
         (p <= 0f0 || idmr == 0) && continue
-        DMMTPA[i] = p * _dm_mortality_rate(s, sp, idmr, t.dbh[i], fint)
+        dmm[i] = p * _dm_mortality_rate(s, sp, idmr, t.dbh[i], fint)
     end
-    ord = _ind1_order(s)
-    @inbounds for sp in 1:maxsp                             # misprt.f DO 90 ISPC / DO 80 I3=ISCT(ISPC,1..2)
-        any_sp = false
-        for i in ord
-            Int(t.species[i]) == sp || continue
-            any_sp = true
-            p = t.tpa[i]; idmr = Int(t.dmr[i])
-            if t.dbh[i] >= dmrmin
-                idmr > 0 && (SPTPAI[sp] += p)
-                SPDMRS[sp] += Float32(idmr) * p
-                SPTPAX[sp] += p
-            end
-            SPTPAT[sp] += p
+    # DO 90: per-species sums in IND1 order; the stand totals add each species' subtotal (species order)
+    STTPAI = 0f0; STTPAT = 0f0; STTPAX = 0f0; STDMRS = 0f0
+    @inbounds for i in ind1
+        sp = Int(t.species[i]); (sp < 1 || sp > maxsp) && continue
+        p = t.tpa[i]; idmr = Int(t.dmr[i])
+        if t.dbh[i] >= dmrmin
+            idmr > 0 && (SPTPAI[sp] += p)
+            SPDMRS[sp] += Float32(idmr) * p
+            SPTPAX[sp] += p
         end
-        any_sp || continue
+        SPTPAT[sp] += p
+    end
+    @inbounds for sp in 1:maxsp
         STTPAI += SPTPAI[sp]; STTPAT += SPTPAT[sp]; STTPAX += SPTPAX[sp]; STDMRS += SPDMRS[sp]
     end
-    # Top-4 most-infected species (misprt.f LSORT4, :448-464): sorted ONCE, on the first call, by the insertion scheme
-    # below (strict > — a tie keeps the earlier species), then frozen. Slot 0 ⇒ fewer than 4 infected species.
-    if isempty(top4)
-        sortsp = zeros(Float32, 4); isv = zeros(Int, 4)
-        for sp in 1:maxsp
-            if SPTPAI[sp] > sortsp[4]
-                sortsp[4] = SPTPAI[sp]; isv[4] = sp
-                for a in 1:3, b in (a + 1):4
-                    if sortsp[b] > sortsp[a]
-                        sortsp[a], sortsp[b] = sortsp[b], sortsp[a]; isv[a], isv[b] = isv[b], isv[a]
-                    end
-                end
-            end
-        end
-        append!(top4, isv)
-    end
-    @inbounds for i in 1:n                                  # misprt.f DO ITREE=1,ITRN (stand volumes, DBH classes)
+    # tree loop 1..ITRN: DBH classes and the stand volume / mortality sums
+    @inbounds for i in 1:t.n
         sp = Int(t.species[i]); (sp < 1 || sp > maxsp) && continue
         p = t.tpa[i]; idmr = Int(t.dmr[i]); dbh = t.dbh[i]; cfv = t.cuft_vol[i]
-        ival = unsafe_trunc(Int, dbh); idbh = clamp(ival ÷ 2 + ival % 2, 1, 20)
+        ival = trunc(Int, dbh); idbh = clamp(ival ÷ 2 + ival % 2, 1, 20)
         DCTPA[idbh] += p
         dbh >= dmrmin && (DCTPAX[idbh] += p)
-        DCMRT[idbh] += DMMTPA[i]
+        DCMRT[idbh] += dmm[i]
         if idmr > 0 && dbh >= dmrmin
             DCINF[idbh] += p
             DCSUM[idbh] += Float32(idmr) * p
         end
         STVOL += cfv * p
         (idmr > 0 && dbh >= dmrmin) && (STVOLI += cfv * p)
-        if DMMTPA[i] > 0f0
-            STTPAM += DMMTPA[i]
-            STVOLM += cfv * DMMTPA[i]
+        if dmm[i] > 0f0
+            STTPAM += dmm[i]
+            STVOLM += cfv * dmm[i]
         end
     end
-    ba = s.plot.basal_area
-    STBAI = 0f0; STBAM = 0f0
-    if STVOL != 0f0
-        STBAI = ba / STVOL * STVOLI
-        STBAM = ba / STVOL * STVOLM
-    end
-    STDMR = 0f0; STDMI = 0f0; STPIT = 0f0; STPMT = 0f0; STPIV = 0f0; STPMV = 0f0
-    if STTPAX != 0f0                                        # misprt.f:578-588
+    ba = Float32(s.plot.basal_area)
+    STBAI = STVOL != 0f0 ? ba / STVOL * STVOLI : 0f0
+    STBAM = STVOL != 0f0 ? ba / STVOL * STVOLM : 0f0
+    STDMR = 0f0; STPIT = 0f0; STPMT = 0f0
+    if STTPAX != 0f0                                   # misprt.f: STPIT/STPMT sit inside the STTPAX test
         STDMR = STDMRS / STTPAX
         STPIT = STTPAI / STTPAT * 100f0
         STPMT = STTPAM / STTPAT * 100f0
     end
-    STTPAI != 0f0 && (STDMI = STDMRS / STTPAI)
-    if STVOL != 0f0
-        STPIV = STVOLI / STVOL * 100f0
-        STPMV = STVOLM / STVOL * 100f0
+    STDMI = STTPAI != 0f0 ? STDMRS / STTPAI : 0f0
+    STPIV = STVOL != 0f0 ? STVOLI / STVOL * 100f0 : 0f0
+    STPMV = STVOL != 0f0 ? STVOLM / STVOL * 100f0 : 0f0
+    # DO 265: SPTPAM walks IND1 again
+    @inbounds for i in ind1
+        sp = Int(t.species[i]); (sp < 1 || sp > maxsp) && continue
+        SPTPAM[sp] += dmm[i]
     end
-    @inbounds for sp in 1:maxsp, i in ord                   # misprt.f DO 265: SPTPAM over IND1
-        Int(t.species[i]) == sp && (SPTPAM[sp] += DMMTPA[i])
+
+    if isempty(top4)
+        # misprt.f LSORT4 block (DO 180): species in index order enter slot 4 when their infected TPA beats it,
+        # then a pairwise exchange pass re-sorts the four slots (strict >, so ties keep the lower species index).
+        sortsp = zeros(Float32, 4); isv = zeros(Int, 4)
+        @inbounds for ispc in 1:maxsp
+            if SPTPAI[ispc] > sortsp[4]
+                sortsp[4] = SPTPAI[ispc]; isv[4] = ispc
+                for i in 1:3, j in (i + 1):4
+                    if sortsp[j] > sortsp[i]
+                        sortsp[i], sortsp[j] = sortsp[j], sortsp[i]
+                        isv[i], isv[j] = isv[j], isv[i]
+                    end
+                end
+            end
+        end
+        append!(top4, isv)
     end
     species = NamedTuple[]
+    # misprt.f:616-632 fills every frozen top-4 slot with INFNO≠0 and DBSMIS1 skips only the '**' (INFNO=0) slots, so a
+    # top-4 species whose infection has since dropped to 0 still gets its (zero-infection) row.
     for infno in top4
         infno == 0 && continue
         spdmr = SPTPAX[infno] != 0f0 ? SPDMRS[infno] / SPTPAX[infno] : 0f0
         spdmi = SPTPAI[infno] != 0f0 ? SPDMRS[infno] / SPTPAI[infno] : 0f0
-        sppin = 0f0; sppmr = 0f0
-        if SPTPAT[infno] != 0f0
-            sppin = SPTPAI[infno] / SPTPAT[infno] * 100f0
-            sppmr = SPTPAM[infno] / SPTPAT[infno] * 100f0
-        end
+        sppin = SPTPAT[infno] != 0f0 ? SPTPAI[infno] / SPTPAT[infno] * 100f0 : 0f0
+        sppmr = SPTPAT[infno] != 0f0 ? SPTPAM[infno] / SPTPAT[infno] * 100f0 : 0f0
         sppoc = STTPAT != 0f0 ? SPTPAT[infno] / STTPAT * 100f0 : 0f0
         push!(species, (sp = infno, mean_dmr = spdmr, mean_dmi = spdmi,
                         inf_tpa = SPTPAI[infno], mort_tpa = SPTPAM[infno],
                         inf_pct = sppin, mort_pct = sppmr, comp_pct = sppoc))
     end
 
-    # DBH-class table (10 printed classes; 11-20 lumped into 10), all-trees + infected-only DMRs.
     @inbounds for c in 11:20
         DCTPA[10] += DCTPA[c]; DCTPAX[10] += DCTPAX[c]; DCINF[10] += DCINF[c]
         DCMRT[10] += DCMRT[c]; DCSUM[10] += DCSUM[c]
     end
     dcdmr = zeros(Float32, 10); dcdmi = zeros(Float32, 10)
     @inbounds for c in 1:10
-        DCTPAX[c] != 0 && (dcdmr[c] = DCSUM[c] / DCTPAX[c])
-        DCINF[c]  != 0 && (dcdmi[c] = DCSUM[c] / DCINF[c])
+        DCTPAX[c] != 0f0 && (dcdmr[c] = DCSUM[c] / DCTPAX[c])
+        DCINF[c]  != 0f0 && (dcdmi[c] = DCSUM[c] / DCINF[c])
     end
 
     stand = (sttpat = STTPAT, ba = ba, stvol = STVOL, sttpai = STTPAI, stbai = STBAI,

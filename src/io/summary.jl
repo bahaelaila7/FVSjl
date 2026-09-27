@@ -491,6 +491,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
             # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
             ffe_defer_init = false
+            r6_defer_fuel = false
             if ffe_on
                 # FMMAIN runs FMBURN (the fire, fmmain.f:170) BEFORE the annual fuel loop (FMSNAG/FMCWD/
                 # FMCADD, fmmain.f:228), so the fire samples the START-OF-CYCLE down wood. Stash (SMALL,LARGE)
@@ -507,6 +508,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 # CR-ONLY: the eastern (SN/NE/CS/LS) FFE + its PotFIRE/carbon reports are separately validated and
                 # their init-year has no thin (pre==post), so keep their pre-grow load path untouched (doctrine #5).
                 if fire_this_cycle
+                elseif r6_ffe_code(s.variant) !== :none && s.fire.fuels_init
+                    # R6 variants (BM/EC/SO/PN/OP/WC): FMSNAG's FMR6HTLS height-loss draws start from the main RNG
+                    # state at FMMAIN (gradd.f:118, after this cycle's DGDRIV/REGENT/MORTS/TRIPLE/MISTOE draws) and are
+                    # rolled back each year (fmsnag.f:113-116/290-293). Pre-grow, jl held the PREVIOUS cycle's FMMAIN
+                    # state (live BM 22960873010497 cycle-3 draws showed up in jl's cycle 4). Run the annual loop at the
+                    # FMMAIN point inside grow_cycle! (mortality_and_fire!'s post_fire seam), like a fire cycle.
+                    r6_defer_fuel = true
                 elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
                     ffe_fuel_update!(s, per)
                 else
@@ -522,7 +530,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                               st.variant isa Northeast)
             chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
-                             fuel_period = fire_this_cycle ? per : nothing,
+                             fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
             r.accretion = _acc_mort(gr.accretion)
@@ -537,9 +545,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 compute_crown_lift!(s, per); snapshot_ffe_oldcrown!(s)   # OLDCRW from last FMSDIT's CROWNW
                 ffe_snapshot_hpct!(s)                   # then FMCROW (fmsdit.f:128) re-ranks the grown stand
             end
-        elseif hrvcarbon_collect !== nothing && s.fire !== nothing && s.fire.active
-            push!(hrvcarbon_collect, (r.year, harvested_carbon_report(s, r.year, 1)))  # final cycle (no cut block)
         end
+        # (FMCHRVOUT runs only inside FMMAIN's cycle loop, so no FVS_Hrv_Carbon row for the terminal .sum year —
+        #  live Hrv_Carbon has exactly the FVS_Carbon years in all 96 tiered fixtures.)
         # disply.f:382-387 zeroes the FINAL row's removal columns IOSUM(7..10) (and 14..16) but NOT IOSUM(22), the
         # later-added sawlog-cubic removal (disply.f:342 INT(OSCREM(7)/GROSPC+.5)); CUTS zeroes OSCREM only at its
         # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing

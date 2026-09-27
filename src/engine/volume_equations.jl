@@ -397,10 +397,8 @@ function setup_volume_equations!(s::StandState)
             # EM VOLEQDEF (em/sitset.f VEQNNC, dumped from live): conifers = FW2 (volume-FIA ≠ species-FIA,
             # e.g. LM→073); non-conifers RM/GA/AS/CW/BA/PW/NC/PB/OH = DVEW woodland (region 1/2).
             s.species.vol_eq[sp] = sp <= length(EM_VOL_EQ) ? EM_VOL_EQ[sp] : "           "
-            # voleqdef.f R1_EQN: `IF(SPEC.EQ.122 .AND. FORNUM.EQ.8) VOLEQ=EQNUM(39)` — PP on Custer (EM IFOR 2, forest
-            # 108, also em/forkod.f's not-found default) is the Region-2 Black Hills 203FW2W122. compute_volumes_em!
-            # already used it for the volumes; the species' VOLEQ (FVS_InvReference CFVolEq/BFVolEq) must carry it too
-            # (MEASURED FVSem_g16 242065538010661, forest 108: live 203FW2W122, jl I00FW2W122).
+            # em/sitset.f VOLEQDEF on Custer (IFOR 2, forest 108 — also the not-found default) gives PP the
+            # Region-2 Black Hills 203FW2W122 (VEQNNC/VEQNNB, so FVS_InvReference CFVolEq/BFVolEq report it).
             (sp == 10 && Int(s.plot.forest_idx) == 2) && (s.species.vol_eq[sp] = "203FW2W122")
         elseif s.variant isa BlueMountains
             # BM VOLEQDEF (voleqdef.f R6_EQN eastside) — FOREST-DEPENDENT: (forest, FIA)->veq. INGY FW2
