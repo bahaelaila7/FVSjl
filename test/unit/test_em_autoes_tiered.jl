@@ -261,6 +261,19 @@ end
     @test parse(Float64, rows[findfirst(r -> r[iy] == "2012", rows)][iu]) == 310.4727783203125
 end
 
+# misprt.f is REAL*4 with the species sums over IND1 (DO 90/80) and NINT'ed integer columns; dbsmis.f DBSMIS1 writes
+# SpeciesFVS/SpeciesPLANTS/SpeciesFIA (not one Spp column). MEASURED FVSem_g16 196378260020004 mistletoe: Mean_DMR
+# 2032 live 2.8820932 (REAL*4), jl 2.8820885801961484 (Float64) — 25 DM cells, now 0.
+@testset "FVS_DM_Stnd_Sum/Spp_Sum at misprt.f precision and dbsmis.f schema vs FVSem_g16" begin
+    for cn in (STAND, "684750664126144")
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("EM", cn, "mistletoe"; dir = d)
+        @test !crashed
+        ms = compare_case("EM", cn, "mistletoe", txt, db)
+        @test count(m -> startswith(m.file, "FVS_DM_"), ms) == 0
+    end
+end
+
 # dbsclsum.f:66-76 builds the FVS_Climate INSERT with a list-directed WRITE: each REAL*4 reaches SQLite as
 # 9-significant-digit text (0.775909066), not a bound double — jl stored the exact Float32 (0.7759090662002563), so
 # every real cell differed (MEASURED FVSem_g16 196378260020004 climate: 107 of 109 FVS_Climate cells).

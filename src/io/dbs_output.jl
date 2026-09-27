@@ -588,8 +588,8 @@ CREATE TABLE IF NOT EXISTS FVS_DM_Stnd_Sum(
 
 const _FVS_DM_SPPSUM_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_DM_Spp_Sum(
-  CaseID char(36) not null, StandID char(26) not null, Year Int null, Spp char(2) null,
-  Mean_DMR real null, Mean_DMI real null, Inf_TPA int null, Mort_TPA int null,
+  CaseID text not null, StandID text not null, Year Int null, SpeciesFVS text null, SpeciesPLANTS text null,
+  SpeciesFIA text null, Mean_DMR real null, Mean_DMI real null, Inf_TPA int null, Mort_TPA  int null,
   Inf_TPA_Pct int null, Mort_TPA_Pct int null, Stnd_TPA_Pct int null)"""
 
 const _FVS_DM_SZSUM_CREATE = """
@@ -611,7 +611,7 @@ function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)            # misprt.f NINT
         for (yr, rep) in rows
             st = rep.stand
             DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
@@ -638,13 +638,15 @@ function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
-        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 11), ",") * ")"
+        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 13), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)            # dbsmis.f NINT
         for (yr, rep) in rows
             for sp in rep.species
+                # dbsmis.f DBSMIS1: SpeciesFVS/SpeciesPLANTS/SpeciesFIA = JSP/PLNJSP/FIAJSP of the top-4 species
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                    String(strip(coef.code_alpha[sp.sp])),
+                    String(strip(coef.code_alpha[sp.sp])), String(strip(coef.code_plants[sp.sp])),
+                    String(strip(coef.code_fia[sp.sp])),
                     Float64(sp.mean_dmr), Float64(sp.mean_dmi),
                     ni(sp.inf_tpa), ni(sp.mort_tpa),
                     ni(sp.inf_pct), ni(sp.mort_pct), ni(sp.comp_pct)))

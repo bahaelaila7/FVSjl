@@ -318,50 +318,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 variant = "BM"
 regime = "mistletoe"
 file = "FVS_DM_Spp_Sum"
-col = "SpeciesFIA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 12827438010497 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesFVS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 12827438010497 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesPLANTS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 12827438010497 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "Spp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 12827438010497 year *: live=absent jl=extra column"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
 col = "Stnd_TPA_Pct"
 stand = "*"
 year = "*"
@@ -3569,50 +3525,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 3285544010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesFIA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 1627682513290487 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesFVS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 1627682513290487 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesPLANTS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 1627682513290487 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "Spp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 1627682513290487 year *: live=absent jl=extra column"""
 
 [[residual]]
 variant = "IE"
@@ -12040,50 +11952,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 888512560290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesFIA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesFVS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "SpeciesPLANTS"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=column jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "Spp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=absent jl=extra column"""
 
 [[residual]]
 variant = "EM"
