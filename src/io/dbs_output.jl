@@ -607,7 +607,7 @@ function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             st = rep.stand
             DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
@@ -636,7 +636,7 @@ function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 11), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             for sp in rep.species
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),

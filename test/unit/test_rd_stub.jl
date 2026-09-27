@@ -4,7 +4,7 @@
 # ("REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM") and nothing activates (live SN 216786838010854 rootdis: FVS11 +
 # four FVS01 rows, .sum = the no-RD run). jl ran the WRD model there with the KT species crosswalk and died with a
 # SIGSEGV in rd_iprp! (SN tiered rootdis regime, every stand). Here the RDIN block must leave the run unchanged.
-using FVSjl, Test
+using FVSjl, Test, SQLite, DBInterface
 
 const _RDSTUB_SN = joinpath(@__DIR__, "..", "fixtures", "tiered", "sn")
 
@@ -24,4 +24,12 @@ const _RDSTUB_SN = joinpath(@__DIR__, "..", "fixtures", "tiered", "sn")
     base = cd(() -> FVSjl.run_keyfile("nord.key"; variant = FVSjl.Southern(), output = :sum), dir)
     rows(t) = filter(l -> !startswith(l, "-999"), split(strip(t), '\n'))
     @test !isempty(rows(rd)) && rows(rd) == rows(base)
+    # errgro.f → dbserror.f: the FVS11 from the stub + FVS01 for RRTYPE/SAREA/RRINIT/End (RECORDS READ 15-18: the
+    # DSNout/DSNin filename lines are read without IRECNT+1), each Message the 256-char CMSG — equal to live.
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    got = sort([(String(r.StandID), String(r.Message)) for r in DBInterface.execute(db, "SELECT * FROM FVS_Error")])
+    SQLite.close(db)
+    live = sort([(String(m[1]), String(m[2])) for m in (match(r"^([^,]*),(.*)$", l) for l in
+                 readlines(joinpath(_RDSTUB_SN, "216786838010854_rootdis.FVS_Error.csv"))[2:end])])
+    @test length(live) == 5 && got == live
 end
