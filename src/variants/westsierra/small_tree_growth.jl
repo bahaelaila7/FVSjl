@@ -146,7 +146,7 @@ function _ws_regent_dg(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float32, 
         end
         (d + dg) < WS_RG_DIAM[sp] && (dg = WS_RG_DIAM[sp] - d)
     end
-    dg = dg_bound(nothing, nothing, sp, dbhk, dg, s.control.sp_size_cap)   # DGBND(ISPC,DBH(K),DG(K))
+    dg = ws_dgbnd(sp, dbhk, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])   # DGBND(ISPC,DBH(K),DG(K))
     return (hk <= 4.5f0 ? dbhk : -1f0, dg)
 end
 
