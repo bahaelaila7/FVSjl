@@ -453,7 +453,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
             ord = Vector{Int32}(undef, ntot)
             _rdpsrt!(rankd, ord)
         elseif (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa CentralIdaho || s.variant isa WestCascades) && length(s.calib.input_seq) == ntot
+                s.variant isa CentralIdaho || s.variant isa WestCascades || s.variant isa PacificNorthwest) &&   # PN compiles wc/cratet.f
+               length(s.calib.input_seq) == ntot
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
             # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.
@@ -1203,10 +1204,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # use wc_bratio; this DDS→DG conversion was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
     # WC links wc/dgbnd.f: DGMAX=7.92·EXP(−0.03·min(DBH,150)) envelope + DG≥0 floor (redwood sp17 exempt) before
-    # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn/FVSop link the same
-    # dgbnd.f (OP has its own hook); PN is left on the generic bound until its full engine runs (it still
-    # stops in establishment) and the envelope can be measured against FVSpn_g16.
-    _wcbnd = _wc_dg
+    # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn compiles the same
+    # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
+    _wcbnd = _wc_dg || _pn_dg                 # FVSpn links the same dgbnd.f (FVSpn_buildDir/dgbnd.f == wc's)
     # WC applies dwarf-mistletoe MISDGF INSIDE DGDRIV, BEFORE DGBND, on the record and both tripled copies
     # (wc/dgdriv.f:216,245,252,260); so min(DG·MISDGF, DGMAX), not min(DG, DGMAX)·MISDGF (ie_dm_growth_loss!
     # skips WC via _mis_dg_in_driver). START-of-cycle DMR, same as the post-driver path.

@@ -1302,7 +1302,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WC: gradd.f:192 DENSE (post-UPDATE, pre-ESNUTR). ESTAB's ESSUBH reads AVH from it and ESGENT (called inside
     # ESTAB, before gradd.f:244's DENSE) reads its PCCF/PTBAA/AVH — the post-growth PRE-regen values.
     local es_wc_ptba::Vector{Float32}, es_wc_pccf::Vector{Float32}, es_wc_avh::Float32
-    if s.variant isa WestCascades
+    if s.variant isa WestCascades || s.variant isa PacificNorthwest   # PN compiles the same gradd/estab/esgent
         compute_density!(s)
         es_wc_ptba = copy(s.density.point_ba); es_wc_pccf = copy(s.density.point_ccf)
         es_wc_avh = s.plot.avg_height
@@ -1344,7 +1344,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
-    s.variant isa WestCascades && wc_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh,
+    (s.variant isa WestCascades || s.variant isa PacificNorthwest) && wc_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh,
         avh_pre = es_wc_avh, ptba_pre = es_wc_ptba, pccf_pre = es_wc_pccf)   # WC: wc/esgent.f → REGENT(LESTB)
     s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,

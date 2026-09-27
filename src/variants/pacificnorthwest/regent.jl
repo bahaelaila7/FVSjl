@@ -1,10 +1,10 @@
 # =============================================================================
 # regent.jl (pacificnorthwest) — PN small-tree growth. Chunk 6.
 #
-# PN reuses WC's regent.f + vwc/smhgdg.f (byte-identical) ⇒ the WC_RG_* size/diam DATA + the SMHGDG
-# DMAX/BETA/ALPHA (WC_SMH_*) + wc_dgbnd are shared. TWO PN differences: (1) `pn_smhgdg` omits the DF
-# Curtis→King SI line (VARACD≠'WC' ⇒ raw SITEAR); (2) PN's forest-dependent htdbh (htdbh_coeffs_pn.csv,
-# 6 tables) for missing-height dubbing + redwood DBH. Otherwise the driver is identical to WC's.
+# PN compiles WC's regent.f / esgent.f / vwc/smhgdg.f / dgbnd.f (FVSpn_buildDir == FVSwc_buildDir) ⇒ it runs the
+# shared WC REGENT driver. TWO PN data differences: (1) `pn_smhgdg` omits the DF Curtis→King SI line
+# (smhgdg.f:260, VARACD≠'WC' ⇒ raw SITEAR); (2) PN's own htdbh.f (4 forest tables on IFOR, DF 5" spline on
+# IFOR 2/4/6, SS D≥100 line on IFOR 1/3) for missing-height dubbing + redwood DBH.
 # =============================================================================
 
 # pn/htdbh.f — 6-forest × 39-species Curtis-Arney P2/P3/P4 (data/pacificnorthwest/htdbh_coeffs_pn.csv).
@@ -18,22 +18,41 @@ let
     global const PN_HTDBH_P2 = P2; global const PN_HTDBH_P3 = P3; global const PN_HTDBH_P4 = P4
 end
 
-# PN forkod IFOR (1..6) is used directly as the htdbh forest-table index (no BLM remap).
+# PN forkod IFOR (1..6) is used directly as the htdbh forest-table index (pn/htdbh.f takes IFOR, not JFOR):
+# the CSV's six blocks are per IFOR — 1/3 OLYMPC, 4 MTHOOD, 5 WILLAM, 2/6 SIUSLW (htdbh.f:205-220).
 @inline _pn_htdbh_ifor(ifor::Int)::Int = clamp(ifor, 1, 6)
 
+# pn/htdbh.f:228-229: Douglas-fir on IFOR 2/4/6 splines at 5.0" (label 100) instead of 3.0".
+@inline _pn_df_spline5(ifor::Int, sp::Int) = sp == 16 && (ifor == 2 || ifor == 4 || ifor == 6)
+
+"pn/htdbh.f MODE=0 (D→H)."
 @inline function pn_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
     p2 = PN_HTDBH_P2[ifor, sp]; p3 = PN_HTDBH_P3[ifor, sp]; p4 = PN_HTDBH_P4[ifor, sp]
-    if d >= 3.0f0
-        return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+    if _pn_df_spline5(ifor, sp)                                           # htdbh.f:253-258
+        d >= 5.0f0 && return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        return ((4.5f0 + p2 * exp(-1f0 * p3 * 5.0f0^p4) - 4.51f0) * (d - 0.3f0) / 4.7f0) + 4.51f0
+    end
+    if d >= 3.0f0                                                         # htdbh.f:230-236
+        h = 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        (d >= 100f0 && sp == 6 && (ifor == 1 || ifor == 3)) && (h = 0.25f0 * d + 248f0)   # SS on the Olympic
+        return h
     else
         return ((4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
     end
 end
+"pn/htdbh.f MODE=1 (H→D)."
 @inline function pn_htdbh_dbh(ifor::Int, sp::Int, h::Float32)::Float32
     p2 = PN_HTDBH_P2[ifor, sp]; p3 = PN_HTDBH_P3[ifor, sp]; p4 = PN_HTDBH_P4[ifor, sp]
-    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+    if _pn_df_spline5(ifor, sp)                                           # htdbh.f:260-266
+        hat5 = 4.5f0 + p2 * exp(-1f0 * p3 * 5.0f0^p4)
+        h >= hat5 && return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return (((h - 4.51f0) * 4.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * 5.0f0^p4) - 4.51f0)) + 0.3f0
+    end
+    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)                         # htdbh.f:238-246
     if h >= hat3
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        d = exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        (h >= 273f0 && sp == 6 && (ifor == 1 || ifor == 3)) && (d = (h - 248f0) / 0.25f0)
+        return d
     else
         return (((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0)) + 0.3f0
     end
@@ -71,98 +90,14 @@ end
     return (hg5, dg5)
 end
 
-function small_tree_growth!(s::StandState, stash, ::PacificNorthwest; fint::Float32 = 10.0f0)
-    p, t, c = s.plot, s.trees, s.calib
-    n = t.n; n == 0 && return s
-    cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4 (regent.f:266/371 ·WK4(I)); nothing ⇒ 1
-    sd = s.coef.species; dens = s.density
-    avh = p.avg_height; dgsd = s.control.dg_sd
-    ifor = _pn_htdbh_ifor(Int(p.forest_idx))
-    scale = fint / _WC_RG_REGYR; scale2 = _WC_RG_REGYR / fint
-    avht = avh
-    # pn/regent.f:156-166 walks `DO 30 ISPC=1,MAXSP … DO 25 I3=ISCT(ISPC,1),ISCT(ISPC,2); I=IND1(I3)` —
-    # SPECIES-MAJOR. The ZZRAN BACHLO draw is consumed per tree in that order, so iterating the arrays in storage
-    # order handed every small tree another tree's draw (WRD fixture S248112: HTG off on 6/6 small trees).
-    yr_now = current_cycle_year(s)
-    @inbounds for i in species_major_order(s)
-        sp = Int(t.species[i]); d = t.dbh[i]
-        (d >= WC_RG_XMAX[sp] || t.tpa[i] <= 0.0f0) && continue
-        xrhgro = active_multiplier(s.control, :regh, sp, yr_now)     # XRHMLT (MULTS 3, REGHMULT)
-        xrdgro = active_multiplier(s.control, :regd, sp, yr_now)     # XRDMLT (MULTS 6, REGDMULT)
-        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
-        h = t.height[i]
-        cr = Float32(t.crown_pct[i]) * 0.01f0
-        ip = Int(t.plot_id[i])
-        ptbal = dens.point_bal[i]
-        ptba = (1 <= ip <= length(dens.point_ba)) ? dens.point_ba[ip] : 0.0f0
-        si = p.sp_site_index[sp]
-        con = rhcon * exp(c.htg_cor_small[sp])            # regent.f:172 CON = RHCON(ISPC)*EXP(HCOR(ISPC))
-        wk4 = t.htimlt[i] * (cw === nothing ? 1f0 : cw[i])   # growth-cycle WK4 = CLGMULT (HTIMLT=1 outside the birth cycle)
-        hg1, dg1 = pn_smhgdg(sp, h, d, cr, ptbal, ptba, si, avht)
-        hk = h + hg1; dk = d + dg1
-        hg2, dg2 = pn_smhgdg(sp, hk, dk, cr, ptbal, ptba, si, avht)
-        htgr = hg1 + hg2; dgr = dg1 + dg2
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
-            end
-        end
-        htgr = (htgr + zzran * 0.1f0) * xrhgro * scale * con * wk4
-        htgr < 0.1f0 && (htgr = 0.1f0)
-        xmn = WC_RG_XMIN[sp]; xmx = WC_RG_XMAX[sp]
-        xwt = d <= xmn ? 0.0f0 : (d - xmn) / (xmx - xmn)
-        if sp == 17
-            lthg = t.ht_growth[i]
-            htgr = (htgr + lthg) / 2.0f0
-            t.ht_growth[i] = htgr * (1.0f0 - xwt) + xwt * lthg
-        end
-        htg = htgr * (1.0f0 - xwt) + xwt * t.ht_growth[i]
-        htg < 0.1f0 && (htg = 0.1f0)
-        cap = s.control.sp_size_cap[sp, 4]
-        if (h + htg) > cap
-            htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
-        end
-        t.ht_growth[i] = htg
-        if d >= WC_RG_DGMIN[sp]
-            _wc_rg_stash!(stash, t, i); continue
-        end
-        hkk = h + htg
-        if hkk < 4.5f0
-            t.diam_growth[i] = 0.0f0
-            t.dbh[i] = d + 0.001f0 * hkk
-            _wc_rg_stash!(stash, t, i); continue
-        end
-        bark = wc_bratio(sd, sp, d)
-        local dgk::Float32
-        if sp == 17
-            dk2 = pn_htdbh_dbh(ifor, sp, hkk)
-            dkk = h <= 4.5f0 ? d : pn_htdbh_dbh(ifor, sp, h)
-            xdwt = d <= xmn ? 0.0f0 : (d - xmn) / (7.0f0 - xmn)
-            dgsm = (dk2 - dkk) * bark * xrdgro; dgsm < 0.0f0 && (dgsm = 0.0f0)
-            dds = dgsm * (2.0f0 * bark * d + dgsm) * scale2
-            dgsm = sqrt((d * bark)^2 + dds) - bark * d
-            dgk = dgsm * (1.0f0 - xdwt) + t.diam_growth[i] * xdwt
-        else
-            dgk = dgr * scale * wk4
-            if d < 0.0f0 || dgk < 0.0f0
-                dgk = htg * 0.2f0 * bark * xrdgro
-            else
-                dgk = dgk * bark * xrdgro
-            end
-            dgk < 0.0f0 && (dgk = 0.1f0)
-            dgmx = WC_RG_DGMAX[sp] * scale
-            dgk > dgmx && (dgk = dgmx)
-            dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-            dgk = sqrt((d * bark)^2 + dds) - bark * d
-        end
-        (t.dbh[i] + dgk) < WC_RG_DIAM[sp] && (dgk = WC_RG_DIAM[sp] - t.dbh[i])
-        dgk = wc_dgbnd(sp, t.dbh[i], dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
-        t.diam_growth[i] = dgk
-        _wc_rg_stash!(stash, t, i)
-    end
-    return s
-end
+# pn/regent.f, pn/esgent.f and vwc/smhgdg.f are the WC sources (FVSpn_buildDir == FVSwc_buildDir), so PN runs
+# the shared WC driver (_wcpn_small_tree_growth!, wc_esgent!) with these data hooks: smhgdg.f:260 skips the DF
+# Curtis→King SI (VARACD≠'WC'), and HTDBH is pn/htdbh.f on IFOR.
+@inline _rg_smhgdg(::PacificNorthwest, sp, h, d, cr, ptbal, ptba, si, avht) = pn_smhgdg(sp, h, d, cr, ptbal, ptba, si, avht)
+@inline _rg_ifor(::PacificNorthwest, fidx::Int) = _pn_htdbh_ifor(fidx)
+@inline _rg_htdbh_dbh(::PacificNorthwest, ifor::Int, sp::Int, h::Float32) = pn_htdbh_dbh(ifor, sp, h)
+
+small_tree_growth!(s::StandState, stash, v::PacificNorthwest; fint::Float32 = 10.0f0) =
+    _wcpn_small_tree_growth!(s, stash, v; fint = fint)
 
 regenerate!(s::StandState, ::PacificNorthwest; kwargs...) = s
