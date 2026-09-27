@@ -1806,17 +1806,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -2230,17 +2219,6 @@ year = "*"
 status = "OPEN"
 max_cells = 37
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 37 cells [ulp1=1 ulp2_16=2 ulpbig=34] max|Δ|=0.2574 | e.g. stand 647500316126144 year 2038: live=1.149999976158142 jl=1.2000000476837158"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 647500316126144 year 2068: live=0 jl=1"""
 
 [[residual]]
 variant = "BM"
@@ -5985,17 +5963,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 [[residual]]
 variant = "IE"
 regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 97
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-21: 97 cells [material=97] max|Δ|=97.0 | e.g. stand 39518122010690 year 2059: live=0 jl=26"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
 file = "sum"
 col = "ATBA"
 stand = "*"
@@ -7625,17 +7592,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2072: live=0 jl=1"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -8390,17 +8346,6 @@ year = "*"
 status = "OPEN"
 max_cells = 29
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 29 cells [ulpbig=29] max|Δ|=0.9057 | e.g. stand 1287253083290487 year 2062: live=0.18698586523532867 jl=0.1880461573600769"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-21: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2072: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -18237,17 +18182,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "none"
-file = "FVS_TreeList"
-col = "TruncHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=53.0 | e.g. stand 684750664126144 year 2038: live=0 jl=26"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
 file = "sum"
 col = "ATBA"
 stand = "*"
@@ -19866,17 +19800,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EM
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 5352355010661 year 2044: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Standing_Dead"
 stand = "*"
 year = "*"
@@ -20675,17 +20598,6 @@ year = "*"
 status = "OPEN"
 max_cells = 48
 issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 48 cells [ulpbig=48] max|Δ|=0.55 | e.g. stand 5352355010661 year 2034: live=0.4271696209907532 jl=0.44999998807907104"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 12 cells [ulpbig=12] max|Δ|=1.0 | e.g. stand 5352355010661 year 2044: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
