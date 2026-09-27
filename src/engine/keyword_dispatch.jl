@@ -370,7 +370,9 @@ function kw_resetage!(s::StandState, rec::KeywordRecord)
     period < 1 && (period = 5)
     yr = idt >= Int32(1000) ? Int(idt) : invyr + (Int(idt) - 1) * period   # cycle number → year
     s.control.age_reset_year = Int32(yr)
-    s.control.age_reset_age = p[2] ? Int32(nint(v[2])) : Int32(0)
+    # resage.f:38 IAGE = IFIX(PRMS(1)) - IDT + IY(1): the new age is TRUNCATED (ne_resetage's "50." straddles into
+    # field 2 as ".        5" = 0.5 under keyrdr's BLANK='NULL' read ⇒ live resets to age 0, MAI off).
+    s.control.age_reset_age = p[2] ? unsafe_trunc(Int32, v[2]) : Int32(0)
     return
 end
 
