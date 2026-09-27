@@ -124,6 +124,24 @@ function _cwcalc_national(eqn::AbstractString, d::Float32, h::Float32, cr::Float
             0.8f0*h*max(0.5f0,cr*0.01f0)
         end
         v > 45f0 && (v = 45f0); v
+    # --- CA-added national codes (ca/cwcalc.f CAMAP): PC/SH R6-model-2 (BF), BR Donnelly, GP + the California
+    #     oaks/madrone/laurel Bechtold-m2 (MIND=5; HI clamps per CASE) ---
+    elseif eqn == "04105";      _em_r6m2(4.6387f0*bf,0.50874f0,-0.22111f0,0.1755f0,0.06447f0,-0.00602f0, d,h,cl,ba1,el,2f0,52f0,49f0)
+    elseif eqn == "02105";      _em_r6m2(2.3170f0*bf,0.47880f0,-0.06093f0,0.15482f0,0.05182f0,0f0, d,h,cl,ba1,el,-9.9f9,9.9f9,65f0)
+    elseif eqn == "09204";      _em_powf(2.8232f0,0.66326f0,38f0, d)
+    elseif eqn == "12702";      _em_bech2(-2.4909f0,1.0716f0,0f0,0.0648f0,-0.1127f0, d,cr,hi,-69f0,-4f0,54f0,false)
+    elseif eqn == "36102";      _em_bech2(4.9133f0,0.9459f0,0f0,0.0611f0,0.0523f0, d,cr,hi,-55f0,15f0,43f0,false)
+    elseif eqn == "80102";      _em_bech2(-16.1696f0,1.7456f0,0f0,0.0925f0,-0.1956f0, d,cr,hi,-73f0,-54f0,53f0,false)
+    elseif eqn == "80502";      _em_bech2(0.2738f0,1.0534f0,0f0,0.035f0,-0.1385f0, d,cr,hi,-60f0,-5f0,49f0,false)
+    elseif eqn == "80702"                   # cwcalc.f CASE('80702'): Bechtold-m2 with a BAREA term, MIND=5, cap 61
+        dm = d >= 5f0 ? d : 5f0
+        v = 2.7110f0 + 1.5159f0*dm + 0.0415f0*cr + (-0.0271f0*barea)
+        d < 5f0 && (v *= d / 5f0)
+        v > 61f0 ? 61f0 : v
+    elseif eqn == "81802";      _em_bech2(1.6306f0,0.9867f0,0f0,0.0556f0,-0.1199f0, d,cr,hi,-47f0,-8f0,52f0,false)
+    elseif eqn == "82102";      _em_bech2(-2.1068f0,1.9385f0,0f0,0.0860f0,0f0, d,cr,hi,-9.9f9,9.9f9,47f0,false)
+    elseif eqn == "83902";      _em_bech2(0.7146f0,1.5460f0,0f0,0f0,-0.1121f0, d,cr,hi,-60f0,-5f0,37f0,false)
+    elseif eqn == "98102";      _em_bech2(2.4247f0,1.3174f0,0f0,0.0786f0,0f0, d,cr,hi,-9.9f9,9.9f9,44f0,false)
     else 0f0 end
     cw < 0.5f0 && (cw = 0.5f0)              # cwcalc.f final CRWDTH clamp [0.5, 99.9]
     cw > 99.9f0 && (cw = 99.9f0)

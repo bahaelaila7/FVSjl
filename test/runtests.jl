@@ -21,6 +21,7 @@ using FVSjl
     include("unit/test_bm_seedling.jl")    # BM dense-seedling regime: AVHT40 dead-inclusive crown dub + SMHTGF raw-SITEAR + LP HTDBH DG (3 small-tree over-growth fixes) vs live FVSbm_clean golden
     include("unit/test_mortality.jl")      # C4: MORTS density (Pretzsch) + SDICAL
     include("unit/test_root_disease.jl")   # WRD Chunk −1: RDIN reader + rdinit defaults + inert seam vs live FVSkt
+    include("unit/test_rd_stub.jl")         # RDIN = exrd.f stub (FVS11, inert) where live does not link WRD (SN/CS/LS/NE/AK/CA/OC/OP/ON); SN rootdis was a SIGSEGV
     include("unit/test_dfb.jl")            # DFB: DFBIND/DFBDBH/DFBER/DFBPRB + DFBRAN/BACHLO/DFBMOD/DFBMRT bit-exact vs relinked FVSie_dfb g16 + gated DFBDRV mortality seam
     include("unit/test_dftm.jl")           # DFTM chunk 0: TMRANN RNG + TMOTPR + dftmin.f keyword reader bit-exact vs pristine dftm/*.f + INERT seam
     include("unit/test_wpbr.jl")           # WPBR chunk 0: BRANN RNG + brin.f keyword reader + BRINIT defaults bit-exact vs pristine wpbr/*.f + INERT seam
@@ -64,6 +65,7 @@ using FVSjl
     include("unit/test_wc_fia_volume.jl")    # WC FIA volume: VOLEQ by forest (voleqdef R6_EQN/R7_EQN table), broken-top NORMHT+CFTOPK/BFTOPK, all WCMAP crown-width eqns + R6 BF — cycle-0 treelist vs FVSwc_g16 (4 stands)
     include("unit/test_blm_pn_volume.jl")    # NVEL BLMVOL (WC 708-711, PN 708/709/712) + PN VOLEQ by forest/merch specs/cwcalc + NVB broken tops (PN RA, CR region 3) — cycle-0 treelist vs FVSwc/pn/cr live (13 stands)
     include("unit/test_nc_r7_blmvol.jl")   # NC/Klamath Region-7 (HOOPA IFOR 5, forest 705) VEQNNC fix: NVEL BLMVOL Behre-hyperbola BLM taper (blmtap.f) B00BEHW/B01BEHW — fixes cyc0 TCuFt +16-22% / BdFt −8-23% vs FVSnc_g16 forest 705 (57 stands)
+    include("unit/test_westside_volume.jl") # NC/CA/SO/WS/EC cycle-0 per-tree volume vs live (westside-vol): R5HARV DVEST ANINT board + REAL precision + red alder/sequoia/VOL(7)≥0, profile.f NINT(TCVOL*10)*1E-1, CA VOLEQ by forest (518 R5, 710-712 BLMVOL), SO WJ/WB/AS Wykoff NORMHT dub, EC constant BARK1, CA R5CRWD/CAMAP CrWidth (24 stands)
     include("unit/test_ie_crwidth.jl")     # IE FVS_TreeList CrWidth via national cwcalc.f IEMAP dispatch (reuses EM forms + 8 IE codes) — 4399/4399 vs FVSie_clean, 13th variant
     include("unit/test_kt_crwidth.jl")     # KT FVS_TreeList CrWidth via national cwcalc.f KTMAP (= IEMAP[1:11]) → ie_cwcalc — 6132/6132 vs FVSkt_clean, 14th variant
     include("unit/test_ci_crwidth.jl")     # CI FVS_TreeList CrWidth via national cwcalc.f CIMAP (+4 codes 26305/01905/06405/47502) — 4000/4000 vs FVSci_clean, 15th variant
@@ -91,6 +93,7 @@ using FVSjl
     include("unit/test_em_regent_dk.jl")   # EM regent: CRVAR/UTVAR small-tree height→diameter DK model (inverse-Wykoff HD) — dense aspen/cottonwood under-growth fix
     include("unit/test_kt_ktt01_live.jl")   # KT ktt01 every .sum row == live FVSkt (height dub, REGENT, crown, KTFCTR)
     include("unit/test_vol_start_bark.jl")  # vols.f:150-151 start-of-cycle BARK for merch tops (CR PP 300FW2W122 + UT 402MATW122 FIA stands vs live, every .sum column exact)
+    include("unit/test_ind_lifecycle.jl")   # cycle-0 AVHT40/DENSE walk CRATET's IND in every variant (CR + EC FIA stands vs live, every .sum column exact)
     include("unit/test_pn_pnt01_live.jl")   # PN pnt01 non-volume .sum == live FVSpn (shared WC estab/esgent/regent/morts + PN data)
     include("unit/test_regcal_em_ie.jl")    # EM+IE LSTART REGCAL (small-tree HTG calibration) vs live per-species SUMS, all sub-models; EM 3-cycle .sum exact
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact

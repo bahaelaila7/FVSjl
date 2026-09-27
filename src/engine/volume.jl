@@ -403,8 +403,12 @@ function dub_missing_heights!(s::StandState)
             # ca/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH (Curtis-Arney) missing-height dub. IFOR unused.
             ca_htdbh_height(Int(sp), d)
         elseif s.variant isa SouthCentralOregon
-            # so/cratet.f LHTDRG=.FALSE. all species ⇒ forest-dependent Curtis HTDBH (MODE=0).
-            so_htdbh_height(Int(s.plot.forest_idx), Int(sp), d)
+            # so/cratet.f LHTDRG=.FALSE. all species ⇒ forest-dependent Curtis HTDBH (MODE=0) — except WJ/WB/AS
+            # (ISPC 11/16/24), which bypass HTDBH (:415 `GO TO 105`, :532 `GO TO 106`) and keep the blkdat Wykoff
+            # EXP(HT1+HT2/(D+1))+4.5. jl sent them to HTDBH (P2=0 ⇒ 4.5 ft) ⇒ a broken-top AS/WB/WJ lost its normal
+            # height (NORMHT fell back to the broken HT) ⇒ volume far low (WB D9.6: TCF 5.86 vs live 6.71).
+            so_wykoff_nohtdbh(Int(sp)) ? so_wykoff_dub(Int(sp), d, iabflg[sp] == 0 ? aa[sp] : nothing) :
+                                         so_htdbh_height(Int(s.plot.forest_idx), Int(sp), d)
         elseif s.variant isa WestSierra
             # ws/cratet.f:447-451 — MIXED LHTDRG (unlike the other westside variants): the NATIVE conifers
             # (LHTDRG=.TRUE.) with a calibrated AA are handled by the top calibrated-Wykoff branch above; every
@@ -594,6 +598,18 @@ function init_merch_standards!(s::StandState)
             c.sp_dbh_min[j]    = 7.0f0; c.sp_top_diam[j]  = 4.5f0; c.sp_stump_ht[j] = 1.0f0
             c.sp_scf_dbhmin[j] = 10.0f0; c.sp_scf_topd[j] = 6.0f0; c.sp_scf_stump[j] = 1.0f0
             c.sp_bf_dbhmin[j]  = 10.0f0; c.sp_bf_topd[j]  = 6.0f0; c.sp_bf_stump[j]  = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
+    if s.variant isa SoutheastAlaska
+        # ak/grinit.f:93-103 zeroes DBHMIN/TOPD/BFMIND/BFTOPD/SCFTOPD (stumps 1); ak/sitset.f:200-283 fills them
+        # from MERCHCAT (KODFOR → MERCHCDS, default 3) — `_ak_merch_cat` in southeastalaska/volume.jl.
+        m = _ak_merch_cat(ak_merch_cat(Int(s.plot.user_forest_code)))
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            c.sp_dbh_min[j] = m.dbhmin;    c.sp_top_diam[j] = m.topd;    c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = m.scfmind; c.sp_scf_topd[j] = m.scftopd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = m.bfmind;  c.sp_bf_topd[j] = m.bftopd;  c.sp_bf_stump[j] = 1.0f0
         end
         c.merch_init = true
         return s

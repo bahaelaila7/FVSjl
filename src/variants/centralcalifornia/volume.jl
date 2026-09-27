@@ -38,13 +38,35 @@ function ca_formcl(sp::Integer, ifor::Int, d::Real)::Int
     return 80
 end
 
-# ca/sitset.f VOLEQDEF (VAR='CA'), resolved per FIA species (dumped from FVSca_clean cat01.out).
-function _ca_r6_eqn(fia::Int)::String
-    fia == 202 && return "F06FW2W202"                # DF → westside Flewelling
-    fia == 263 && return "F06FW2W263"                # WH → westside Flewelling
-    fia == 15  && return "I00FW2W093"                # WF → INGY (Engelmann-spruce eqn 093)
-    fia == 122 && return "I00FW2W073"                # PP → INGY (western-larch eqn 073)
-    return "616BEHW" * lpad(string(fia), 3, '0')     # region-6 Behre default
+# ca/sitset.f:252-278 VOLEQDEF (VAR='CA', IREGN=KODFOR/100) for the Region-6 forests (IFOR 6,7 = 610 Rogue River /
+# 611 Siskiyou — identical tables), read off FVSca_g16's "NATIONAL VOLUME ESTIMATOR LIBRARY EQUATION NUMBERS"
+# (STDINFO 610/611; cubic == board): westside Flewelling DF/WH (F06), INGY WF/PP (I00FW2W093/073), Behre otherwise.
+const CA_R6_VOL_EQ = (
+    "616BEHW000", "616BEHW081", "616BEHW242", "I00FW2W093", "616BEHW020", "616BEHW021", "F06FW2W202", "F06FW2W263",
+    "616BEHW264", "616BEHW101", "616BEHW103", "616BEHW108", "616BEHW000", "616BEHW113", "616BEHW116", "616BEHW117",
+    "616BEHW119", "I00FW2W073", "616BEHW000", "616BEHW000", "616BEHW064", "616BEHW000", "616BEHW000", "616BEHW231",
+    "616BEHW299", "616BEHW000", "616BEHW000", "616BEHW000", "616BEHW000", "616BEHW815", "616BEHW818", "616BEHW000",
+    "616BEHW000", "616BEHW312", "616BEHW000", "616BEHW351", "616BEHW361", "616BEHW431", "616BEHW492", "616BEHW000",
+    "616BEHW000", "616BEHW631", "616BEHW000", "616BEHW746", "616BEHW747", "616BEHW920", "616BEHW000", "616BEHW000",
+    "616BEHW998", "616BEHW211")
+# … and the BLM forests (IFOR 8,9 = 710 Roseburg / 711 Medford; IFOR 10 = 712 Coos Bay): voleqdef R7_EQN ⇒
+# B00BEHW<fia> / DF B01BEHW202 (710/711) or B02BEHW202 (712) ⇒ NVEL BLMVOL (volinit.f routes VOLEQ(1:1)='B').
+# jl used to send these through the R6 Behre form-class path (every 710-712 tree wrong, measured vs FVSca_g16).
+const CA_BLM_VOL_EQ = (
+    "B00BEHW081", "B00BEHW081", "B00BEHW242", "B00BEHW015", "B00BEHW021", "B00BEHW021", "B01BEHW202", "B00BEHW263",
+    "B00BEHW260", "B00BEHW119", "B00BEHW108", "B00BEHW108", "B00BEHW108", "B00BEHW108", "B00BEHW116", "B00BEHW117",
+    "B00BEHW119", "B00BEHW122", "B00BEHW108", "B00BEHW108", "B00BEHW242", "B00BEHW093", "B00BEHW211", "B00BEHW231",
+    "B00BEHW999", "B00BEHW800", "B00BEHW800", "B00BEHW800", "B00BEHW800", "B00BEHW800", "B00BEHW800", "B00BEHW800",
+    "B00BEHW800", "B00BEHW312", "B00BEHW800", "B00BEHW351", "B00BEHW361", "B00BEHW431", "B00BEHW999", "B00BEHW312",
+    "B00BEHW999", "B00BEHW631", "B00BEHW800", "B00BEHW999", "B00BEHW747", "B00BEHW999", "B00BEHW231", "B00BEHW631",
+    "B00BEHW999", "B00BEHW211")
+
+"VOLEQ for CA species `sp` (1..50) on forest index `ifor` (ca/forkod.f JFOR order 505,506,508,511,514,610,611,710,
+711,712,518)."
+function ca_voleq(ifor::Int, sp::Int)::String
+    (ifor == 6 || ifor == 7) && return CA_R6_VOL_EQ[sp]
+    8 <= ifor <= 10 && return (ifor == 10 && sp == 7) ? "B02BEHW202" : CA_BLM_VOL_EQ[sp]
+    return CA_R5_VOL_EQ[sp]                           # R5 forests IFOR 1-5 and 11 (518 → R5_EQN)
 end
 
 # CA Behre per-tree volume — reuse the BM R6 machinery + CA form class (mirrors ec_behre_vol).
@@ -95,7 +117,7 @@ function compute_volumes_ca!(s::StandState)
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; continue
         end
-        eq = _ca_r6_eqn(parse(Int, strip(s.species.fia[sp])))
+        eq = ca_voleq(ifor, sp)
         se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
         # vols.f:150 BARK=BRATIO(ISPC,D,H) is taken at the START-of-cycle DBH (before D=D+DG/BARK) — the stashed
         # vol_bark; the grown-DBH bark only at cycle 0 / for dead records. It sets the merch/board tops (TOPD·BARK).
@@ -103,8 +125,11 @@ function compute_volumes_ca!(s::StandState)
         dbhmin = sp == 11 ? 6.0f0 : 7.0f0               # ca/grinit.f: sp-index 11 = 6, else 7
         hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
         local tcf::Float32, mcf::Float32, bf::Float32
-        if ifor < 6                                     # Region 5 (ca/sitset.f VOLEQDEF IREGN=5)
-            tcf, mcf, bf = nvel_r5_vol(CA_R5_VOL_EQ[sp], d, hv, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp])
+        if se[1] == '5'                                 # Region 5 (ca/sitset.f VOLEQDEF IREGN=5; IFOR 1-5, 11)
+            tcf, mcf, bf = nvel_r5_vol(eq, d, hv, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp])
+        elseif se[1] == 'B'                             # BLM 710/711/712 → NVEL BLMVOL, ca/formcl.f BLM form class
+            tcf, mcf, bf = _blm_natcrs(eq, ca_formcl(sp, ifor, d), d, hv, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp],
+                                       c.sp_bf_dbhmin[sp])
         elseif mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
             tcf, mcf, bf = wc_fw2_westside_vol(eq, d, hv, bark)   # F06 westside SHP (DF/WH)
         elseif mdl == "FW2"
@@ -115,7 +140,7 @@ function compute_volumes_ca!(s::StandState)
             tcf, mcf, bf = ca_behre_vol(sp, ifor, d, hv, bark)
         end
         # vols.f CFTOPK/BFTOPK broken-top trim — was missing on CA (R6 DF trc49 D15.9: jl 53.8 vs live 40.2 cuft).
-        tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, merch, ifor < 6 ? _R4_TOPD6 : _BM_TOPD45)
+        tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, merch, (6 <= ifor <= 10) ? _BM_TOPD45 : _R4_TOPD6)
         t.cuft_vol[i] = max(tcf, 0f0)
         t.merch_cuft_vol[i] = d >= dbhmin ? max(mcf, 0f0) : 0f0
         t.saw_cuft_vol[i] = 0f0

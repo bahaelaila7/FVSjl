@@ -1222,15 +1222,34 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
     # which R5 skips), so ws_r5crwd is per-tree exact for the TreeList (unlike the R6 BF-baked BM/SO kernels).
     s.variant isa WestSierra && return clamp(ws_r5crwd(sp, d, h), 0.5f0, 99.9f0)
-    # NC/Klamath (forest 505 = Region-5) uses R5CRWD too — reuse ws_r5crwd via the NC→WS FIA-species map.
-    s.variant isa Klamath && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    ifor = Int(p.forest_idx)
+    # NC/Klamath: cwcalc.f:382 sends IFOR≤3 and IFOR=5 (505/510/514 + 705 Hoopa) to R5CRWD (MAPNC).
+    s.variant isa Klamath && (ifor <= 3 || ifor == 5) && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    # SO: cwcalc.f:376 sends IFOR 4-9 (505/506/509/511/701/514→505, 702→701) to R5CRWD (MAPSO).
+    s.variant isa SouthCentralOregon && 4 <= ifor <= 9 && return clamp(so_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     # ON: canada/on/cwidth.f → cwcalc.f IWHO=0 (the ON_JSP2 US-code remap + eastern forest-grown equations).
     s.variant isa Ontario && return on_forest_crown_width(sp, d, crp, p.latitude, p.longitude, p.elevation)
     hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
+    # NC R6/BLM/Simpson forests (IFOR 4=611, 6=800, 7=712): NCMAP with the Siskiyou BF — cwcalc.f:478 gives NC's 800
+    # the 611 values and CASE(611,712) the same table. _cwcalc_national applies the [0.5,99.9] clamp.
+    if s.variant isa Klamath
+        eq = _NC_CWMAP[sp]
+        return _cwcalc_national(eq, d, h, Float32(crp), p.basal_area, p.elevation, hi; bf = get(_R6_CWBF, (611, eq[1:3]), 1f0))
+    end
+    # SO R6 forests (IFOR 1-3,10 = 601/602/620/799): SOMAP with the KODFOR BF (CASE(601,799)/602/620).
+    if s.variant isa SouthCentralOregon
+        eq = _SO_CWMAP[sp]
+        return _cwcalc_national(eq, d, h, Float32(crp), p.basal_area, p.elevation, hi;
+                                bf = get(_R6_CWBF, (Int(p.user_forest_code), eq[1:3]), 1f0))
+    end
     # CA/BM: the FVS_TreeList forest-grown CRWDTH applies the R6 forest BF (cwcalc.f IWHO=0), UNLIKE the FFE PERCOV
     # path (fmcba) which is BF-free — so their kernels default to BF-free and the TreeList opts in via forest_bf=true.
+    # CA: cwcalc.f:385 sends IFOR≤5 (the R5 forests 505/506/508/511/514) to R5CRWD (MAPCA == OC's) — only the R6/BLM
+    # forests (IFOR 6-11) take the CAMAP Crookston/Bechtold path with the forest BF.
+    s.variant isa CentralCalifornia && Int(p.forest_idx) <= 5 && return clamp(oc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     s.variant isa CentralCalifornia &&
-        return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true), 0.5f0, 99.9f0)
+        return clamp(ca_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; forest_bf = true,
+                               kodfor = Int(p.user_forest_code)), 0.5f0, 99.9f0)
     # BM: the single CRWDTH (bm_cwcalc — cwcalc.f BMMAP + R6 BF for the forkod-remapped KODFOR, clamped).
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
@@ -1248,7 +1267,6 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
           s.variant isa WestCascades      ? ((a...) -> wc_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
           s.variant isa PacificNorthwest  ? ((a...) -> pn_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
           s.variant isa EastCascades      ? ((a...) -> ec_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
-          s.variant isa SouthCentralOregon ? so_cwcalc :
           nothing
     wcw === nothing &&
         return crown_width(s.coef, s.species.code2[sp], d, h, 90, 1, p.latitude, p.longitude, p.elevation)

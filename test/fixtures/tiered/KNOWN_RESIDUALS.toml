@@ -135,8 +135,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
+max_cells = 3
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -146,8 +146,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
+max_cells = 3
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -212,8 +212,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -223,8 +223,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -245,8 +245,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
+max_cells = 5
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -267,8 +267,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
+max_cells = 5
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -597,8 +597,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
+max_cells = 12
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
 
 [[residual]]
 variant = "BM"
@@ -707,8 +707,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
+max_cells = 12
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
 
 [[residual]]
 variant = "BM"
@@ -1004,8 +1004,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -1015,8 +1015,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -1202,8 +1202,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 61
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
+max_cells = 42
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
 
 [[residual]]
 variant = "BM"
@@ -1213,8 +1213,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 61
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
+max_cells = 42
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
 
 [[residual]]
 variant = "BM"
@@ -1235,8 +1235,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 61
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
+max_cells = 42
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
 
 [[residual]]
 variant = "BM"
@@ -1246,8 +1246,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 61
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
+max_cells = 42
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
 
 [[residual]]
 variant = "BM"
@@ -1400,8 +1400,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04891 | e.g. stand 12827438010497 year 2025: live=18.07754898071289 jl=18.100000381469727"""
+max_cells = 13
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04891 | e.g. stand 12827438010497 year 2025: live=18.07754898071289 jl=18.100000381469727"""
 
 [[residual]]
 variant = "BM"
@@ -1411,8 +1411,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04891 | e.g. stand 12827438010497 year 2025: live=18.07754898071289 jl=18.100000381469727"""
+max_cells = 13
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04891 | e.g. stand 12827438010497 year 2025: live=18.07754898071289 jl=18.100000381469727"""
 
 [[residual]]
 variant = "BM"
@@ -1609,8 +1609,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -1620,8 +1620,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
+max_cells = 8
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
 
 [[residual]]
 variant = "BM"
@@ -1994,8 +1994,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04994 | e.g. stand 12827438010497 year 2025: live=22.52735137939453 jl=22.5"""
+max_cells = 7
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04994 | e.g. stand 12827438010497 year 2025: live=22.52735137939453 jl=22.5"""
 
 [[residual]]
 variant = "BM"
@@ -2005,8 +2005,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04994 | e.g. stand 12827438010497 year 2025: live=22.52735137939453 jl=22.5"""
+max_cells = 7
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04994 | e.g. stand 12827438010497 year 2025: live=22.52735137939453 jl=22.5"""
 
 [[residual]]
 variant = "BM"
@@ -2126,8 +2126,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
+max_cells = 5
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -2148,8 +2148,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
+max_cells = 5
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "IE"
@@ -2291,8 +2291,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.5116 | e.g. stand 1287253083290487 year 2062: live=4.34257698059082 jl=4.300000190734863"""
+max_cells = 53
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.5116 | e.g. stand 1287253083290487 year 2062: live=4.34257698059082 jl=4.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -2390,8 +2390,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.5116 | e.g. stand 1287253083290487 year 2062: live=4.34257698059082 jl=4.300000190734863"""
+max_cells = 53
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.5116 | e.g. stand 1287253083290487 year 2062: live=4.34257698059082 jl=4.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -3006,8 +3006,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -3116,8 +3116,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -3446,8 +3446,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 58
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -3556,8 +3556,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -4172,8 +4172,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -4282,8 +4282,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -4931,8 +4931,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -5041,8 +5041,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -5525,8 +5525,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -5646,8 +5646,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -5932,8 +5932,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -6053,8 +6053,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.2416 | e.g. stand 1287253083290487 year 2062: live=4.070687770843506 jl=4.099999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -6471,8 +6471,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
+max_cells = 54
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
 
 [[residual]]
 variant = "IE"
@@ -6581,8 +6581,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
+max_cells = 54
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
 
 [[residual]]
 variant = "IE"
@@ -7010,8 +7010,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -7120,8 +7120,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.3639 | e.g. stand 11855985010690 year 2036: live=5.30352258682251 jl=5.300000190734863"""
 
 [[residual]]
 variant = "IE"
@@ -7780,8 +7780,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.1556 | e.g. stand 11855985010690 year 2036: live=4.668679237365723 jl=4.699999809265137"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.1556 | e.g. stand 11855985010690 year 2036: live=4.668679237365723 jl=4.699999809265137"""
 
 [[residual]]
 variant = "IE"
@@ -7890,8 +7890,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.1556 | e.g. stand 11855985010690 year 2036: live=4.668679237365723 jl=4.699999809265137"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.1556 | e.g. stand 11855985010690 year 2036: live=4.668679237365723 jl=4.699999809265137"""
 
 [[residual]]
 variant = "IE"
@@ -8627,8 +8627,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 58
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -8737,8 +8737,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 69
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "IE"
@@ -9045,19 +9045,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9122,8 +9111,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9151,17 +9140,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "climate"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "climate"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -9179,17 +9157,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
-
-[[residual]]
-variant = "SN"
-regime = "climate"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -9278,17 +9245,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "climate"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -9386,19 +9342,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "cover"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9463,8 +9408,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9492,17 +9437,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "cover"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "cover"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -9520,17 +9454,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
-
-[[residual]]
-variant = "SN"
-regime = "cover"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -9622,61 +9545,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 
 [[residual]]
 variant = "SN"
-regime = "cover"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "Ft3_Removed"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=9.0 | e.g. stand 205045340010854 year 2008: live=17 jl=12"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "Ft3_Value"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=3.0 | e.g. stand 205045340010854 year 2008: live=5 jl=4"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "Total_Value"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=3.0 | e.g. stand 205045340010854 year 2008: live=5 jl=4"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_EconSummary"
-col = "Mrch_Cubic_Volume"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [material=1 ulpbig=1] max|Δ|=23.0 | e.g. stand 205045340010854 year 2008: live=30 jl=25"""
-
-[[residual]]
-variant = "SN"
 regime = "econ"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -9716,8 +9584,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 39
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9729,17 +9597,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 200267456010854 year 2027: live=147 jl=146"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -9826,19 +9683,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_Summary"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=9263 jl=9264"""
+max_cells = 40
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -9861,17 +9707,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=2555 jl=2558"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_Summary"
-col = "RTpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=4679 jl=4680"""
 
 [[residual]]
 variant = "SN"
@@ -9905,17 +9740,6 @@ year = "*"
 status = "OPEN"
 max_cells = 13
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 13 cells [material=3 ulpbig=10] max|Δ|=54.0 | e.g. stand 210838699010854 year 2018: live=1327 jl=1325"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -9971,17 +9795,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 200267456010854 year 2027: live=147 jl=146"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -10075,17 +9888,6 @@ issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-direct
 variant = "SN"
 regime = "econ"
 file = "sum"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=9263 jl=9264"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "sum"
 col = "RMCuFt"
 stand = "*"
 year = "*"
@@ -10103,17 +9905,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=2555 jl=2558"""
-
-[[residual]]
-variant = "SN"
-regime = "econ"
-file = "sum"
-col = "RTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=4679 jl=4680"""
 
 [[residual]]
 variant = "SN"
@@ -10161,17 +9952,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 
 [[residual]]
 variant = "SN"
-regime = "econ"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
 regime = "mistletoe"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -10200,19 +9980,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "mistletoe"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -10277,8 +10046,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -10306,17 +10075,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "mistletoe"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "mistletoe"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -10334,17 +10092,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
-
-[[residual]]
-variant = "SN"
-regime = "mistletoe"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -10433,17 +10180,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "mistletoe"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -10541,19 +10277,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -10618,8 +10343,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -10642,17 +10367,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 10 cells [ulpbig=10] max|Δ|=2.0 | e.g. stand 157577477010854 year 1987: live=4878 jl=4877"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -10867,17 +10581,6 @@ issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner
 variant = "SN"
 regime = "none"
 file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "sum"
 col = "Accr"
 stand = "*"
 year = "*"
@@ -10964,17 +10667,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 
 [[residual]]
 variant = "SN"
-regime = "none"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
 regime = "plant_cal"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -11003,19 +10695,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 60
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 60 cells [ulpbig=60] max|Δ|=0.04922 | e.g. stand 216786838010854 year 2029: live=3.9058377742767334 jl=3.9000000953674316"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cal"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 49
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 60 cells [ulpbig=60] max|Δ|=0.04922 | e.g. stand 216786838010854 year 2029: live=3.9058377742767334 jl=3.9000000953674316"""
 
 [[residual]]
 variant = "SN"
@@ -11091,8 +10772,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 60
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 60 cells [ulpbig=60] max|Δ|=0.04922 | e.g. stand 216786838010854 year 2029: live=3.9058377742767334 jl=3.9000000953674316"""
+max_cells = 49
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 60 cells [ulpbig=60] max|Δ|=0.04922 | e.g. stand 216786838010854 year 2029: live=3.9058377742767334 jl=3.9000000953674316"""
 
 [[residual]]
 variant = "SN"
@@ -11120,17 +10801,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "plant_cal"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cal"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -11148,17 +10818,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=155 jl=154"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cal"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -11261,17 +10920,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 
 [[residual]]
 variant = "SN"
-regime = "plant_cal"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
 regime = "plant_cyc"
 file = "FVS_Error"
 col = "PRESENCE"
@@ -11300,19 +10948,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 64
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 64 cells [ulpbig=64] max|Δ|=0.04993 | e.g. stand 216786838010854 year 2029: live=3.98563551902771 jl=4.0"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cyc"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 53
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 64 cells [ulpbig=64] max|Δ|=0.04993 | e.g. stand 216786838010854 year 2029: live=3.98563551902771 jl=4.0"""
 
 [[residual]]
 variant = "SN"
@@ -11377,8 +11014,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 64
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 64 cells [ulpbig=64] max|Δ|=0.04993 | e.g. stand 216786838010854 year 2029: live=3.98563551902771 jl=4.0"""
+max_cells = 53
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 64 cells [ulpbig=64] max|Δ|=0.04993 | e.g. stand 216786838010854 year 2029: live=3.98563551902771 jl=4.0"""
 
 [[residual]]
 variant = "SN"
@@ -11406,17 +11043,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "plant_cyc"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cyc"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -11434,17 +11060,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2020: live=264 jl=263"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cyc"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -11533,28 +11148,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 3 cells [ulpbig=3] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3847 jl=3848"""
-
-[[residual]]
-variant = "SN"
-regime = "plant_cyc"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "rootdis"
-file = "CRASH"
-col = "*"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """jl CRASH — process crash (SIGSEGV/abort) — worker died | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live= jl=process crash (SIGSEGV/abort) — worker died"""
 
 [[residual]]
 variant = "SN"
@@ -11762,19 +11355,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -11839,8 +11421,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -11868,17 +11450,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "salvage"
 file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_Summary"
 col = "Tpa"
 stand = "*"
 year = "*"
@@ -11896,17 +11467,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -12006,17 +11566,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -12286,28 +11835,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 variant = "SN"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "Killed_class4"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=7.88e-5 | e.g. stand 238813815010854 year 2005: live=0.9629390835762024 jl=0.9630178809165955"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Killed_class6"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=5.811e-7 | e.g. stand 238813815010854 year 2005: live=0.1878308206796646 jl=0.18783140182495117"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -12466,8 +11993,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.1885 | e.g. stand 216786838010854 year 2029: live=4.262141227722168 jl=4.300000190734863"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.1885 | e.g. stand 216786838010854 year 2029: live=4.262141227722168 jl=4.300000190734863"""
 
 [[residual]]
 variant = "SN"
@@ -12576,8 +12103,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.1885 | e.g. stand 216786838010854 year 2029: live=4.262141227722168 jl=4.300000190734863"""
+max_cells = 41
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.1885 | e.g. stand 216786838010854 year 2029: live=4.262141227722168 jl=4.300000190734863"""
 
 [[residual]]
 variant = "SN"
@@ -12622,17 +12149,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=4] max|Δ|=3.0 | e.g. stand 216786838010854 year 2029: live=52 jl=55"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 238813815010854 year 2010: live=4382 jl=4383"""
 
 [[residual]]
 variant = "SN"
@@ -12825,17 +12341,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 variant = "SN"
 regime = "simfire"
 file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 238813815010854 year 2010: live=4382 jl=4383"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "sum"
 col = "TopHt"
 stand = "*"
 year = "*"
@@ -12963,28 +12468,6 @@ year = "*"
 status = "OPEN"
 max_cells = 22
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 22 cells [material=6 ulpbig=16] max|Δ|=4.0 | e.g. stand 157577477010854 year 1977: live=32 jl=33"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "PtBAL"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [material=1 ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=93.0 jl=96.0"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "SCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 3 cells [gold_text9=2 jl_not_f32=1] max|Δ|=3.1e-5 | e.g. stand 238813815010854 year 2005: live=103.400002 jl=103.400009"""
 
 [[residual]]
 variant = "SN"
@@ -13247,8 +12730,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
+max_cells = 39
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -13260,17 +12743,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 200267456010854 year 2027: live=147 jl=146"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -13357,19 +12829,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 48
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=9263 jl=9264"""
+max_cells = 40
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 48 cells [ulpbig=48] max|Δ|=0.09275 | e.g. stand 216786838010854 year 2029: live=4.640180587768555 jl=4.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -13392,17 +12853,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=2555 jl=2558"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "RTpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=4679 jl=4680"""
 
 [[residual]]
 variant = "SN"
@@ -13436,17 +12886,6 @@ year = "*"
 status = "OPEN"
 max_cells = 13
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 13 cells [material=3 ulpbig=10] max|Δ|=54.0 | e.g. stand 210838699010854 year 2018: live=1327 jl=1325"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -13502,17 +12941,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=2.0 | e.g. stand 200267456010854 year 2027: live=147 jl=146"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
 
 [[residual]]
 variant = "SN"
@@ -13606,17 +13034,6 @@ issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-direct
 variant = "SN"
 regime = "thinbba"
 file = "sum"
-col = "RBdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=9263 jl=9264"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "sum"
 col = "RMCuFt"
 stand = "*"
 year = "*"
@@ -13634,17 +13051,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 157577477010854 year 1977: live=2555 jl=2558"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "sum"
-col = "RTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2005: live=4679 jl=4680"""
 
 [[residual]]
 variant = "SN"
@@ -13689,26 +13095,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [material=1 ulpbig=3] max|Δ|=88.0 | e.g. stand 238813815010854 year 2010: live=4373 jl=4374"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 238813815010854 year 2000: live=40 jl=42"""
-
-# ---------------------------------------------------------------------------------------------------
-# EM re-drafted 2026-09-23 from measurement (report.jl -> allowlist_draft.jl) after the EM tiered
-# fixture was regenerated: the old 12 stands were ALL bare (zero FVS_TREEINIT_COND records), so the EM
-# cells only ever exercised the AUTOES establishment path. The new 12 span 0-59 records, which is why
-# the EM entry count rises 595 -> 751 and why EM now carries the same DBS table-emission PRESENCE
-# entries BM/IE/SN already had for the salvage/simfire regimes (jl writes FFE tables the keyword set
-# did not request, and writes no FVS_Error table) — a pre-existing cross-variant gap, not new to EM.
-# ---------------------------------------------------------------------------------------------------
 
 [[residual]]
 variant = "EM"
@@ -13873,8 +13259,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 67
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
+max_cells = 56
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
 
 [[residual]]
 variant = "EM"
@@ -13972,8 +13358,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 67
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
+max_cells = 56
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 67 cells [ulpbig=67] max|Δ|=0.5717 | e.g. stand 474187636489998 year 2036: live=4.951223850250244 jl=4.900000095367432"""
 
 [[residual]]
 variant = "EM"
@@ -14566,8 +13952,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -14676,8 +14062,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -15028,8 +14414,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
+max_cells = 57
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
 
 [[residual]]
 variant = "EM"
@@ -15138,8 +14524,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
 
 [[residual]]
 variant = "EM"
@@ -15798,8 +15184,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.5939 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.5939 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -15908,8 +15294,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.5939 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.5939 | e.g. stand 242065538010661 year 2020: live=0.10180335491895676 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -16513,8 +15899,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -16623,8 +16009,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -17129,8 +16515,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -17239,8 +16625,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -17536,8 +16922,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -17646,8 +17032,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 62
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.31 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -18075,8 +17461,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.4235 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.4235 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -18185,8 +17571,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.4235 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.4235 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -18658,8 +18044,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -18768,8 +18154,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
+max_cells = 59
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [ulpbig=68] max|Δ|=0.3978 | e.g. stand 5352355010661 year 2004: live=0.10183688253164291 jl=0.10000000149011612"""
 
 [[residual]]
 variant = "EM"
@@ -19428,8 +18814,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
 
 [[residual]]
 variant = "EM"
@@ -19549,8 +18935,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
 
 [[residual]]
 variant = "EM"
@@ -19969,17 +19355,6 @@ year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 28 cells [gold_text9=25 material=2 small=1] max|Δ|=3.065 | e.g. stand 196420598020004 year 2022: live=1.69999993 jl=2.0"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "PctCr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 11 cells [ulpbig=11] max|Δ|=1.0 | e.g. stand 474157097489998 year 2026: live=45 jl=46"""
 
 [[residual]]
 variant = "EM"
@@ -20495,8 +19870,8 @@ col = "ATQMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
+max_cells = 57
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
 
 [[residual]]
 variant = "EM"
@@ -20605,8 +19980,8 @@ col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 68
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
+max_cells = 60
+issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=18 ulpbig=50] max|Δ|=3.4 | e.g. stand 474187636489998 year 2036: live=5.229576110839844 jl=5.199999809265137"""
 
 [[residual]]
 variant = "EM"
@@ -20905,3 +20280,290 @@ status = "OPEN"
 max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 10 cells [material=2 ulpbig=8] max|Δ|=7.0 | e.g. stand 474187636489998 year 2016: live=30 jl=33"""
 
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-27: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 238813815010854 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-27: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 238813815010854 year 2025: live=4.284897804260254 jl=4.300000190734863"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 5 cells [ulpbig=5] max|Δ|=1.0 | e.g. stand 216786838010854 year 2009: live=65 jl=66"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 12 cells [ulpbig=12] max|Δ|=11.0 | e.g. stand 238813815010854 year 2025: live=15503 jl=15502"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=0.1 | e.g. stand 238813815010854 year 2025: live=24.360824584960938 jl=24.350515365600586"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=2.0 | e.g. stand 238813815010854 year 2025: live=2363 jl=2362"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-27: 48 cells [ulpbig=48] max|Δ|=0.04956 | e.g. stand 238813815010854 year 2025: live=4.284897804260254 jl=4.300000190734863"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "SCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 238813815010854 year 2015: live=2430 jl=2431"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 10 cells [ulpbig=10] max|Δ|=2.0 | e.g. stand 238813815010854 year 2025: live=3425 jl=3426"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 5 cells [ulpbig=5] max|Δ|=1.0 | e.g. stand 216786838010854 year 2009: live=65 jl=66"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 238813815010854 year 2025: live=156 jl=155"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 12 cells [ulpbig=12] max|Δ|=11.0 | e.g. stand 238813815010854 year 2005: live=16801 jl=16802"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-27: 2 cells [gold_text9=2] max|Δ|=0.1 | e.g. stand 216786838010854 year 2024: live=25.2 jl=25.3"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 11 cells [ulpbig=11] max|Δ|=2.0 | e.g. stand 238813815010854 year 2015: live=2450 jl=2451"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "SCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SN campaign (not yet dug) | measured 2026-09-27: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 238813815010854 year 2015: live=2430 jl=2431"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 10 cells [ulpbig=10] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3888 jl=3887"""
+
+[[residual]]
+variant = "SN"
+regime = "rootdis"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
+
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_BurnReport"
+col = "Weight1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2017: live=70.0 jl=71.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """OPEN (integ-0931): BM on the R6 snag model it links live (ffe-westside e2b6b29a, fmr6fall/htls/sdcy); FMR6HTLS draws use jl's cycle-start RNG state, FVS draws at FMMAIN — 2017 fuel-model weight 71 vs live 70 feeds the 2037 BA (stand 22960873010497 only) | measured 2026-09-27: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2037: live=54 jl=55"""

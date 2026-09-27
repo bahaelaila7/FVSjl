@@ -940,6 +940,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa EasternMontana && em_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa CentralIdaho && ci_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
     s.variant isa Kootenai && kt_triple_htg!(s, stash; scale = fint / htg_period(s.variant))
+    s.variant isa WestSierra && ws_triple_htg!(s, stash)   # ws/htgf.f:921-956 copy HTG = TEMHTG·DG(copy)/DG
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
@@ -1474,8 +1475,10 @@ function run_keyfile(keypath::AbstractString;
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
     kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
+    ak_r10ra = false                              # r10tap.f saved ISP='RA' (AK DEM taper branch), carried the same way
     for s in each_stand(keypath; variant = variant, faithful = faithful)
         s.control.kt_cratet_ierrck = kt_ierrck
+        s.control.ak_r10tap_ra = ak_r10ra
         notre!(s)
         setup_growth!(s)
         kt_ierrck = s.control.kt_cratet_ierrck
@@ -1646,6 +1649,7 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_econharvest_rows!(s.control.dbs_out_file, caseid, s.econ.calc.hv_rows, s.coef)
             end
         end
+        ak_r10ra = s.control.ak_r10tap_ra
     end
     if outfmt === :csv
         cio = IOBuffer(); write_sum_csv(cio, csv_stands); return String(take!(cio))

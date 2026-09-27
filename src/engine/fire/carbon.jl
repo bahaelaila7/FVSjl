@@ -92,8 +92,8 @@ function ffe_fuel_loadings(s::StandState)
             (b = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)
         (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
     end
-    snag_lt3 += sum(@view fs.cwd2b[:, 1:4, :]) * _FM_P2T     # CWD2B crown sizes 0-3 (idx 1-4)
-    snag_ge3 += sum(@view fs.cwd2b[:, 5:6, :]) * _FM_P2T     # CWD2B crown sizes 4-5 (idx 5-6)
+    snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
+    snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
     # standing live (fmdout.f:217-258): TOTFOL = foliage; TOTLIV(1) = crown sizes 1-3 (+OLDCRW) of EVERY tree + the
     # stem of trees with D≤3; TOTLIV(2) = crown sizes 4-5 (+OLDCRW) + the stem of trees with D>3. The stem is FMSVL2
     # ('L', LMERCH=.FALSE., no top-kill ⇒ the actual height): VOL2HT = MAX(0.005454154·H, MCF) for CS/LS/NE/SN,

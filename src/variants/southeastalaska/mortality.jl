@@ -83,6 +83,9 @@ function mortality!(s::StandState, ::SoutheastAlaska; fint::Float32 = 10.0f0, bo
         killed[i] = wki
     end
     apply_fixmort!(s, killed, n, fint)
+    # MISMRT (mistoe.f:522 → mismrt.f:185-191, misintak.f APMC): WK2=MAX(WK2,PROB·rate); deferred to post-TRIPLE on
+    # a tripling cycle (dm_mrt_defer). Inert unless a record carries DMR.
+    _ie_mis_variant(s.variant) && ie_dm_mortality_combine!(killed, s, fint, n)
     book_snags && book_mortality_snags!(s, killed, n, fint)
     @inbounds for i in 1:n; t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); end
     return s

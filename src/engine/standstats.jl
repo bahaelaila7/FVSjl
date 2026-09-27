@@ -155,8 +155,12 @@ hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotp
 """
 # Variants whose AVHT40/DENSE walk FVS's own IND lifecycle: CRATET's IND at cycle 0 ({v}/cratet.f RDPSRT(.FALSE.) on
 # IND1 / RDPSRT(.TRUE.) with dead records), then gradd.f:186's fresh RDPSRT(DBH,.TRUE.). The cratet.f sort blocks are
-# byte-identical in bm/ci/ut/tt (bm 159-166/270, ci 226-233/337, ut 214-221/325, tt 207-214/318).
-_fvs_ind_lifecycle(v) = v isa BlueMountains || v isa CentralIdaho || v isa Utah || v isa Teton
+# byte-identical in bm/ci/ut/tt (bm 159-166/270, ci 226-233/337, ut 214-221/325, tt 207-214/318) and ca/so
+# (139-142/246), ws (215-218/322); their gradd.f:186 is the same fresh RDPSRT(DBH,IND,.TRUE.). The block is in
+# EVERY variant's cratet.f (cr 139-146/250, kt 144-151/259, ie 182-189/293, em 146-153/257, ec 195-202/306,
+# nc/wc 136-143/247, ak 150-157/267, bc 124-131, oc 463-470, op 452-459, sn 150-157, ls 135-142), so it is the
+# base-code lifecycle, not a per-variant choice.
+_fvs_ind_lifecycle(v) = true
 
 function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
@@ -306,7 +310,7 @@ function point_density!(s::StandState)
             ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
-            ccft = ws_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # ws/ccfcal.f MODE=1 (same gap as SO)
+            ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
         else
             cw  = s.variant isa CentralRockies ?
                   cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
@@ -527,7 +531,7 @@ function stand_ccf(s::StandState)
         # WS CCF = ws/ccfcal.f MODE=1 (crown-width² (RD1+D·RD2)²·0.001803 native; GB/MC/CA specials);
         # stand CCF = Σ CCFT·P = RELDEN, read by the crown-ratio SCALE (ws/crown.f).
         @inbounds for i in 1:t.n
-            ccf += ws_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+            ccf += ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])
         end
         return ccf
     end

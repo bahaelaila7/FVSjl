@@ -218,6 +218,48 @@ const _FM_DKR_EC = Float32[
 ]
 _fm_dkr_default(::EastCascades) = _FM_DKR_EC      # ec/fmvinit.f — DKRADJ-scaled at 1st yr
 
+# WC/PN/OP base decay table (wc/pn/op fmvinit.f:68-113, identical): Mellen-McLean CWD workshop rates by decay class,
+# litter 0.5, duff 0.002; scaled by DKRADJ(TEMP,MOIST,K) from WCWMC/WCWMD (wc/fmcba.f:490) or PNWMC/PNWMD
+# (pn,op/fmcba.f:464) at the first FFE year. jl ran WC/PN on the SN table (coarse wood 0.07/yr vs 0.012-0.077,
+# litter 0.65) — pnt01/wct01 stand 4 LARGE down wood at the 2003 fire ~35% low.
+const _FM_DKR_WC = Float32[
+    0.069  0.081  0.097  0.131      # 1  (<0.25")
+    0.069  0.081  0.097  0.131      # 2  (0.25-1")
+    0.069  0.081  0.097  0.131      # 3  (1-3")
+    0.012  0.025  0.041  0.077      # 4  (3-6")
+    0.012  0.025  0.041  0.077      # 5  (6-12")
+    0.012  0.025  0.041  0.077      # 6  (12-20")
+    0.012  0.025  0.041  0.077      # 7  (20-35")
+    0.012  0.025  0.041  0.077      # 8  (35-50")
+    0.012  0.025  0.041  0.077      # 9  (>50")
+    0.50   0.50   0.50   0.50       # 10 litter
+    0.002  0.002  0.002  0.002      # 11 duff
+]
+_fm_dkr_default(::Union{WestCascades,PacificNorthwest,Olympic}) = _FM_DKR_WC
+
+"""
+    r6_adjusted_dkr(base, temp, moist) -> Matrix{Float32}
+
+The R6 first-year habitat decay adjustment shared by bm/ec/wc/pn/op fmcba.f: woody classes 1-9 scaled by
+DKRADJ(TEMP,MOIST,K) (K = 1 for sizes 1-3, 2 for 4-5, 3 for 6-9) capped at 1, then (sizes 9→2) a smaller class
+decaying slower than the next larger one is bumped up to it. Litter/duff keep the base.
+"""
+function r6_adjusted_dkr(base::Matrix{Float32}, temp::Integer, moist::Integer)::Matrix{Float32}
+    dkr = copy(base)
+    @inbounds for i in 1:9
+        k = i <= 3 ? 1 : (i <= 5 ? 2 : 3)
+        adj = _FM_DKRADJ[temp, moist, k]
+        for j in 1:4
+            v = dkr[i, j] * adj
+            dkr[i, j] = v > 1f0 ? 1f0 : v
+        end
+    end
+    @inbounds for i in 9:-1:2, j in 1:4
+        (dkr[i, j] - dkr[i-1, j]) > 0f0 && (dkr[i-1, j] = dkr[i, j])
+    end
+    return dkr
+end
+
 # SO (SouthCentralOregon) Oregon base decay table (so/fmcba.f:770-808) — BYTE-IDENTICAL to the EC/BM woody
 # rates (0.076-0.113 fine, 0.019-0.058 coarse) with litter 0.50/yr (so/fmcba.f:844) and duff 0.002 — i.e. the
 # same matrix as _FM_DKR_EC. Reused via the alias. (SO's California-forest branch uses a flat 0.025/0.0125

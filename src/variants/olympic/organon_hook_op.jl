@@ -147,6 +147,8 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     sizcap = s.control.sp_size_cap
     cur_year = current_cycle_year(s)
     cw = climate_growth_wk4!(s, Float32(cur_year) + sfint / 2f0)
+    _misdg = _dm_effects_on(s)                      # dwarf mistletoe DG loss (misdgf.f, START-of-cycle DMR)
+    _, _mdgp, _, _mmaxsp = _mis_tables(s.variant)
     @inbounds for i in 1:n
         d = t.dbh[i]
         if d <= 0f0
@@ -160,6 +162,7 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
         dds = fexp(wk2[i] + xdgrow)
         cw === nothing || (dds *= cw[i])
         dg = sqrt(dib * dib + dds) - dib
+        _misdg && (dg *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))   # op/dgdriv.f:550 MISDGF before DGBND
         t.diam_growth[i] = op_dgbnd(sp, d, dg, sizcap)
     end
     # Stash the ORGANON per-tree outputs for the cooperating hooks (op has no tripling ⇒ index-stable).
