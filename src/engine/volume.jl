@@ -602,6 +602,18 @@ function init_merch_standards!(s::StandState)
         c.merch_init = true
         return s
     end
+    if s.variant isa SoutheastAlaska
+        # ak/grinit.f:93-103 zeroes DBHMIN/TOPD/BFMIND/BFTOPD/SCFTOPD (stumps 1); ak/sitset.f:200-283 fills them
+        # from MERCHCAT (KODFOR → MERCHCDS, default 3) — `_ak_merch_cat` in southeastalaska/volume.jl.
+        m = _ak_merch_cat(ak_merch_cat(Int(s.plot.user_forest_code)))
+        @inbounds for j in 1:length(c.sp_dbh_min)
+            c.sp_dbh_min[j] = m.dbhmin;    c.sp_top_diam[j] = m.topd;    c.sp_stump_ht[j] = 1.0f0
+            c.sp_scf_dbhmin[j] = m.scfmind; c.sp_scf_topd[j] = m.scftopd; c.sp_scf_stump[j] = 1.0f0
+            c.sp_bf_dbhmin[j] = m.bfmind;  c.sp_bf_topd[j] = m.bftopd;  c.sp_bf_stump[j] = 1.0f0
+        end
+        c.merch_init = true
+        return s
+    end
     if s.variant isa CentralCalifornia
         # ca/grinit.f:85-134 DBHMIN=BFMIND=7 (sp-index 11 = 6); ca/sitset.f:225-238 top diameter is
         # FOREST-dependent — IFOR 6-10 (R6) → 4.5, else (R5) → 6.0; stump=1. No merch CSV columns.

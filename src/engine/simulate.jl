@@ -1445,8 +1445,10 @@ function run_keyfile(keypath::AbstractString;
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
     kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
+    ak_r10ra = false                              # r10tap.f saved ISP='RA' (AK DEM taper branch), carried the same way
     for s in each_stand(keypath; variant = variant, faithful = faithful)
         s.control.kt_cratet_ierrck = kt_ierrck
+        s.control.ak_r10tap_ra = ak_r10ra
         notre!(s)
         setup_growth!(s)
         kt_ierrck = s.control.kt_cratet_ierrck
@@ -1609,6 +1611,7 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_econharvest_rows!(s.control.dbs_out_file, caseid, s.econ.calc.hv_rows, s.coef)
             end
         end
+        ak_r10ra = s.control.ak_r10tap_ra
     end
     if outfmt === :csv
         cio = IOBuffer(); write_sum_csv(cio, csv_stands); return String(take!(cio))

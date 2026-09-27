@@ -357,6 +357,10 @@ mutable struct Control
     # √D-regression crossover has no real root (STEP1≤0), stays 1 for every later species AND stand. run_keyfile
     # carries it from stand to stand.
     kt_cratet_ierrck::Int32
+    # r10tap.f CHARACTER*2 ISP — a saved local only assigned for the '042'/'242'/'098'/'351' tapers, so an AK DEM
+    # (A01DEMW000) tree runs whichever branch the last R10TAP call left: blank at process start, 'RA' (red-alder
+    # DVREDA, BK=0) once any large AD/RA A32CURW351 tree has been volumed. run_keyfile carries it stand to stand.
+    ak_r10tap_ra::Bool
     # Fire-event DBS tables (fmfout.f): each needs BOTH its FMIN report keyword (window IY(1)..IY(1)+999, fmin.f
     # BURNREPT/MORTREPT/FUELREPT; fminit.f default never) AND its DATABASE toggle (dbsin.f BURNREDB IBURN /
     # MORTREDB IMORTF / FUELREDB IFUELC; dbsfmburn/dbsfmmort/dbsfmfuel RETURN when 0).
@@ -448,6 +452,7 @@ function Control()
         Int32(5),                                                # growth_ifinth (IFINTH, grinit.f)
         false, false,                                            # dbs_fuels (FUELSOUT), ffe_fuelout (FUELOUT)
         Int32(0),                                                # kt_cratet_ierrck
+        false,                                                   # ak_r10tap_ra
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
         0f0,                                                     # sdical_bamax
