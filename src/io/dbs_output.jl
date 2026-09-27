@@ -127,6 +127,52 @@ function write_dbs_summary!(dbpath::AbstractString, caseid::AbstractString,
 end
 
 # FVS_Carbon schema (dbsfmcrpt.f:106-120) — the FFE Stand Carbon Report pools in metric tons/ha.
+# ── METRIC summary tables (BC, ON) ─────────────────────────────────────────────────────────────────────────────
+# Nothing selects metric output at run time: the BC/ON builds compile metric/dbsqlite, whose DBSSUMRY always writes a
+# *_Metric table, and VARACD∈{CS,LS,NE,SN,ON} picks the "East" naming (metric dbssumry.f:91-99). The row values are
+# sumout.f:328-352's per-ha conversion of the IOSUM integers (`metric_sumout`); QMD/ATQMD/MAI are REAL→DOUBLE binds.
+const _FVS_SUMMARY_METRIC_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Summary_Metric(CaseID text not null,StandID text not null,Year int,Age int,Tph int,
+  BA int,SDI int,CCF int,TopHt int,QMD real,TCuM int,MCuM int,BdNA int,RTph int,RTCuM int,RMCuM int,RBdNA int,
+  ATBA int,ATSDI int,ATCCF int,ATTopHt int,ATQMD real,PrdLen int,Acc int,Mort int,MAI real,ForTyp int,
+  SizeCls int,StkCls int);
+"""
+const _FVS_SUMMARY_EAST_METRIC_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_Summary_East_Metric(CaseID text not null,StandID text not null,Year int,Age int,
+  Tph int,BA int,SDI int,CCF int,TopHt int,QMD real,TCuM int,MCuM int,CCuM int,RTph int,RTCuM int,RMCuM int,
+  RCCuM int,ATBA int,ATSDI int,ATCCF int,ATTopHt int,ATQMD real,PrdLen int,Acc int,Mort int,MAI real,ForTyp int,
+  SizeCls int,StkCls int);
+"""
+
+"""
+    write_dbs_summary_metric!(dbpath, caseid, standid, rows; east=false)
+
+DBSSUMRY of the metric builds (metric/dbsqlite dbssumry.f): `rows` are the per-ha `metric_sumout` rows. West (BC):
+FVS_Summary_Metric (dbssumry.f:137-167) gets one row per `.sum` row — TCuM/MCuM/BdNA and RTph/RTCuM/RMCuM/RBdNA are
+IOSUM 4-6 / 7-10; the sawlog cubic columns the imperial table carries are dropped. East (ON): dbssumry.f:103-133
+CREATEs FVS_Summary_East_Metric with TCuM,MCuM,CCuM,…,RCCuM, but the INSERT (dbssumry.f:185-191) names MCuM,SCuM,
+NCuM,…,RNCuM — columns that do not exist — so fsql3_prepare fails, ISUMARY=0 (dbssumry.f:201-204) and the table
+stays EMPTY (live FVSon_g16: 0 rows). Reproduced: the table is created, nothing is inserted.
+"""
+function write_dbs_summary_metric!(dbpath::AbstractString, caseid::AbstractString,
+                                   standid::AbstractString, rows::AbstractVector{SummaryRow}; east::Bool = false)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, east ? _FVS_SUMMARY_EAST_METRIC_CREATE : _FVS_SUMMARY_METRIC_CREATE)
+        east && return dbpath                     # prepare fails on the SCuM/NCuM/RSCuM/RNCuM names ⇒ no rows
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_Summary_Metric VALUES (" * join(fill("?", 29), ",") * ")")
+        for r in rows
+            DBInterface.execute(stmt, (caseid, standid, r.year, r.age, r.tpa, r.ba, r.sdi, r.ccf, r.topht,
+                Float64(r.qmd), r.cuft, r.mcuft, r.bdft, r.rem_tpa, r.rem_cuft, r.rem_mcuft, r.rem_bdft,
+                r.at_ba, r.at_sdi, r.at_ccf, r.at_topht, Float64(r.at_qmd), r.period, r.accretion, r.mortality,
+                Float64(r.mai), r.fortype, r.sizecls, r.stockcls))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 const _FVS_CARBON_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Carbon(
   CaseID text not null, StandID text not null, Year Int null,
@@ -1181,6 +1227,8 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     s.variant isa Klamath && (ifor <= 3 || ifor == 5) && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
     # SO: cwcalc.f:376 sends IFOR 4-9 (505/506/509/511/701/514→505, 702→701) to R5CRWD (MAPSO).
     s.variant isa SouthCentralOregon && 4 <= ifor <= 9 && return clamp(so_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    # ON: canada/on/cwidth.f → cwcalc.f IWHO=0 (the ON_JSP2 US-code remap + eastern forest-grown equations).
+    s.variant isa Ontario && return on_forest_crown_width(sp, d, crp, p.latitude, p.longitude, p.elevation)
     hi = _cr_hopkins(p.latitude, p.longitude, p.elevation)
     # NC R6/BLM/Simpson forests (IFOR 4=611, 6=800, 7=712): NCMAP with the Siskiyou BF — cwcalc.f:478 gives NC's 800
     # the 611 values and CASE(611,712) the same table. _cwcalc_national applies the [0.5,99.9] clamp.
@@ -1277,7 +1325,7 @@ _has_forest_crwdth(v) = v isa WestSierra || v isa Klamath || v isa CentralCalifo
     v isa CentralRockies || v isa OregonCoast || v isa Olympic || v isa EasternMontana || v isa InlandEmpire ||
     v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah || v isa SoutheastAlaska ||
     v isa BritishColumbia || v isa WestCascades || v isa PacificNorthwest || v isa EastCascades ||
-    v isa SouthCentralOregon
+    v isa SouthCentralOregon || v isa Ontario
 
 """
     tree_crwdth(s, sp, d, h, crp) -> Float32
@@ -1309,8 +1357,10 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # dbstrls.f: DO ISPC=1,MAXSP / DO I3=ISCT(ISPC,1),ISCT(ISPC,2) / I=IND1(I3) — species order, IND1 (SPESRT
     # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
+    met = _metric_variant(s.variant)
     @inbounds for i in _ind1_order(s)
-        push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g)))
+        r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g))
+        push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
     # trees (HISTORY 6-9) at the bottom of the FVS_TreeList — TPA=0, the mortality expansion in MortPA
@@ -1351,7 +1401,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             # intree.f:543-544: input dead records are stored from MAXTRE DOWNWARD (IREC2), so TreeIndex = MAXTRE+1-k.
-            push!(rows, Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
+            rimp = Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion
@@ -1363,7 +1413,8 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # TruncHt (ITRUNC+5)/100
                 estht, actpt,
                 Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]),
-                t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0])
+                t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
+            push!(rows, met ? _metric_treelist_row(rimp, t.trunc[i]) : rimp)
         end
     end
     return (Int(year), Int(prdlen), rows)
@@ -1443,7 +1494,9 @@ function cutlist_rows(s::StandState, removed::AbstractVector{Float32})
     for i in _ind1_order(s)                             # dbscuts.f: species-major IND1 (lineage-key) order
         i <= length(removed) || continue
         removed[i] > 0f0 || continue
-        push!(rows, _treelist_row(s, i, Float64(removed[i] / g), 0.0))
+        r = _treelist_row(s, i, Float64(removed[i] / g), 0.0)
+        push!(rows, _metric_variant(s.variant) ?
+              _metric_cutlist_row(r, t.trunc[i], i <= length(s.density.point_bal) ? s.density.point_bal[i] : 0f0; cut = true) : r)
     end
     return rows
 end
@@ -1462,7 +1515,8 @@ function atrtlist_rows(s::StandState)
     rows = Vector{Any}[]
     for i in _ind1_order(s)                             # dbsatrtls.f:121-127 species-major IND1 order
         t.tpa[i] > 0f0 || continue
-        push!(rows, _treelist_row(s, i, Float64(t.tpa[i] / g), 0.0))
+        r = _treelist_row(s, i, Float64(t.tpa[i] / g), 0.0)
+        push!(rows, _metric_variant(s.variant) ? _metric_cutlist_row(r, t.trunc[i], 0f0; cut = false) : r)
     end
     return rows
 end
@@ -1473,11 +1527,14 @@ end
 Write the per-cycle after-treatment rows (`atrtlist_rows`) to FVS_ATRTList (list-directed REAL text, as dbsatrtls.f).
 """
 function write_dbs_atrtlist!(dbpath::AbstractString, caseid::AbstractString,
-                             standid::AbstractString, cycles)
+                             standid::AbstractString, cycles; metric::Bool = false, east::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_ATRTLIST_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_ATRTList VALUES (" * join(fill("?", 35), ",") * ")")
+        # metric builds: FVS_ATRTList_Metric / FVS_ATRTList_East_Metric (dbsatrtls.f:122-136), 34 columns
+        tbl = metric ? (east ? "FVS_ATRTList_East_Metric" : "FVS_ATRTList_Metric") : "FVS_ATRTList"
+        _ensure_table!(db, metric ? _metric_list_create(tbl, "CCuM", east ? "Ht2TDMCM" : "Ht2TDCM ",
+                                                        east ? "Ht2TDSBM" : "Ht2TDBM ") : _FVS_ATRTLIST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", metric ? 34 : 35), ",") * ")")
         for (year, prdlen, rows) in cycles, r in rows
             DBInterface.execute(stmt, (caseid, standid, Int(year), Int(prdlen), map(v -> v isa AbstractFloat ? _r9(v) : v, r)...))
         end
@@ -1575,11 +1632,14 @@ end
 Write the per-cycle removed-record rows (`cutlist_rows`) to FVS_CutList. `cycles` is `[(year, prdlen, rows), …]`.
 """
 function write_dbs_cutlist!(dbpath::AbstractString, caseid::AbstractString,
-                            standid::AbstractString, cycles)
+                            standid::AbstractString, cycles; metric::Bool = false, east::Bool = false)
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_CUTLIST_CREATE)
-        ins = "INSERT INTO FVS_CutList VALUES (" * join(fill("?", 35), ",") * ")"
+        # metric builds: FVS_CutList_Metric / FVS_CutList_East_Metric (dbscuts.f:122-136), 34 columns
+        tbl = metric ? (east ? "FVS_CutList_East_Metric" : "FVS_CutList_Metric") : "FVS_CutList"
+        _ensure_table!(db, metric ? _metric_list_create(tbl, "CCuM", east ? "Ht2TDMCM" : "Ht2TDCM ",
+                                                        east ? "Ht2TDSCM" : "Ht2TDBM ") : _FVS_CUTLIST_CREATE)
+        ins = "INSERT INTO $tbl VALUES (" * join(fill("?", metric ? 34 : 35), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         # dbscuts.f builds the INSERT with a LIST-DIRECTED WRITE (WRITE(SQLStmtStr,*)), so every REAL reaches SQLite
         # as gfortran's 9-significant-digit text (0.100000001, 10.4069967) — bind that decimal (`_r9`), not the widened REAL.
@@ -1639,6 +1699,97 @@ function write_dbs_treelist!(dbpath::AbstractString, caseid::AbstractString,
         for (year, prdlen, rows) in cycles, r in rows
             # r = [TreeId,TreeIndex,SpFVS,SpPLANTS,SpFIA,TPA,MortPA,DBH,DG,Ht,HtG,PctCr,CrWidth,
             #      BAPctile,PtBAL,TCuFt,MCuFt,SCuFt,BdFt,TruncHt,Ht2TDCF,Ht2TDBF,TreeAge]
+            DBInterface.execute(stmt, (caseid, standid, year, prdlen, r...))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+# ── METRIC tree list (BC, ON): metric/dbsqlite dbstrls.f ─────────────────────────────────────────────────────────
+# Table FVS_TreeList_Metric (BC) / FVS_TreeList_East_Metric (VARACD CS/LS/NE/SN/ON, dbstrls.f:122-136); the volume
+# columns are TCuM/MCuM/CCum and the merch-top heights Ht2TDCM/Ht2TDBM (East: Ht2TDMCM/Ht2TDSCM).
+# The metric CutList/ATRTList (dbscuts.f:122-136 / dbsatrtls.f:122-136) share the layout with CCuM for CCum; the
+# ATRTList East merch-top column is spelled Ht2TDSBM (dbsatrtls.f:128), the CutList/TreeList one Ht2TDSCM.
+_metric_list_create(tbl::AbstractString, ccum::AbstractString, htcm::AbstractString, htbm::AbstractString) = """
+CREATE TABLE IF NOT EXISTS $tbl (CaseID text not null,
+  StandID text not null,Year int null,PrdLen int null,TreeId text null,TreeIndex int null,SpeciesFVS text null,
+  SpeciesPLANTS text null,SpeciesFIA text null,TreeVal int null,SSCD int null,PtIndex int null,TPH real null,
+  MortPH real null,DBH real null,DG real null,Ht real null,HtG real null,PctCr int null,CrWidth real null,
+  MistCD int null,BAPctile real null,PtBAL real null,TCuM  real null,MCuM  real null,$ccum  real null,
+  MDefect int null,BDefect int null,TruncHt int null,EstHt real null,ActPt int null,
+  $htcm real null,$htbm real null,TreeAge real null);
+"""
+_metric_treelist_create(east::Bool) = east ?
+    _metric_list_create("FVS_TreeList_East_Metric", "CCum", "Ht2TDMCM", "Ht2TDSCM") :
+    _metric_list_create("FVS_TreeList_Metric", "CCum", "Ht2TDCM ", "Ht2TDBM ")
+
+"""
+    _metric_treelist_row(r, itrunc) -> Vector{Any}
+
+Convert one imperial `_treelist_row` record `r` (the values dbstrls.f holds before binding) to the metric
+dbstrls.f binds (live + dead loops, dbstrls.f:212-378 / 398-554), in FVS's precision: P/DP/DGI/ESTHT/TREAGE are
+REAL*8 (dbstrls.f:100), so TPH = P/ACRtoHA, MortPH = DP/ACRtoHA, DG = DGI·INtoCM and EstHt = ESTHT·FTtoM are
+DOUBLE ops on the widened REAL; DBH/Ht/HtG/CrWidth·(INtoCM|FTtoM), CFV/WK1/BFV·FT3toM3 and HT2TD·FTtoM are REAL
+products; TruncHt = INT(REAL((ITRUNC+5)·.01·FTtoM)) (dbstrls.f:245) from the raw `itrunc` (1/100 ft). The sawlog
+cubic column is not bound. Column order follows the INSERT (dbstrls.f:183-192): …,TCuM,MCuM,CCum,…,Ht2TD(I,2),
+Ht2TD(I,1),TreeAge.
+"""
+function _metric_treelist_row(r::AbstractVector, itrunc::Integer)
+    f32(x, k) = Float64(Float32(x) * k)                     # REAL×REAL product, widened on bind
+    d64(x, k) = Float64(x) / Float64(k)                     # REAL*8 ÷ REAL
+    m64(x, k) = Float64(x) * Float64(k)                     # REAL*8 × REAL
+    ftrunc = trunc(Int, Float32(itrunc + 5) * 0.01f0 * FT_TO_M)
+    # PtIndex: the metric build binds IPVEC(ITRE(I)) (dbstrls.f:298/474 — the imperial dbstrls.f binds ITRE(I)),
+    # i.e. the input point id, the same value as ActPt.
+    return Any[r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[28],
+        d64(r[9], ACRE_TO_HA), d64(r[10], ACRE_TO_HA),         # TPH, MortPH
+        f32(r[11], IN_TO_CM), m64(r[12], IN_TO_CM),            # DBH, DG
+        f32(r[13], FT_TO_M), f32(r[14], FT_TO_M),              # Ht, HtG
+        r[15], f32(r[16], FT_TO_M), r[17], r[18], r[19],       # PctCr, CrWidth, MistCD, BAPctile, PtBAL
+        f32(r[20], FT3_TO_M3), f32(r[21], FT3_TO_M3), f32(r[23], FT3_TO_M3),   # TCuM(CFV) MCuM(WK1) CCum(BFV)
+        r[24], r[25], ftrunc,                                  # MDefect, BDefect, TruncHt
+        m64(r[27], FT_TO_M), r[28],                            # EstHt, ActPt
+        f32(r[29], FT_TO_M), f32(r[30], FT_TO_M), r[31]]       # Ht2TD(I,2), Ht2TD(I,1), TreeAge
+end
+
+"""
+    _metric_cutlist_row(r, itrunc, ptbalt; cut) -> Vector{Any}
+
+Metric DBSCUTS / DBSATRTLS record from an imperial `_treelist_row` `r` (TPA slot = WK3/GROSPC resp. PROB/GROSPC).
+Unlike DBSTRLS these build the INSERT with a list-directed WRITE and declare CW,P,DGI,DP,ESTHT,TREAGE REAL
+(dbscuts.f:101, dbsatrtls.f:101), so every value is a REAL product (the writer then applies `_r9`): TPH = P/ACRtoHA,
+DBH/DG·INtoCM, Ht/HtG/CrWidth/EstHt/HT2TD·FTtoM, CFV/WK1/BFV·FT3toM3; TruncHt = NINT(FLOAT(ITRUNC+5)·.01·FTtoM)
+(dbscuts.f:283 — NINT here, INT in dbstrls.f); PtIndex = ITRE(I) (not IPVEC as in dbstrls.f). PtBAL: the CutList
+binds NINT(PTBALT·FT2pACRtoM2pHA) (dbscuts.f:236), the ATRTList the unconverted NINT(PTBALT) (dbsatrtls.f:233).
+"""
+function _metric_cutlist_row(r::AbstractVector, itrunc::Integer, ptbalt::Real; cut::Bool)
+    f(x, k) = Float32(x) * k
+    ptbal = cut ? round(Int, Float32(ptbalt) * FT2PACRE_TO_M2PHA, RoundNearestTiesAway) : r[19]
+    return Any[r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8],
+        Float32(r[9]) / ACRE_TO_HA, Float32(r[10]) / ACRE_TO_HA,
+        f(r[11], IN_TO_CM), f(r[12], IN_TO_CM), f(r[13], FT_TO_M), f(r[14], FT_TO_M),
+        r[15], f(r[16], FT_TO_M), r[17], Float32(r[18]), ptbal,
+        f(r[20], FT3_TO_M3), f(r[21], FT3_TO_M3), f(r[23], FT3_TO_M3),
+        r[24], r[25], round(Int, Float32(itrunc + 5) * 0.01f0 * FT_TO_M, RoundNearestTiesAway),
+        f(r[27], FT_TO_M), r[28], f(r[29], FT_TO_M), f(r[30], FT_TO_M), Float32(r[31])]
+end
+
+"""
+    write_dbs_treelist_metric!(dbpath, caseid, standid, cycles; east=false)
+
+Metric DBSTRLS: write the `treelist_snapshot` metric rows to FVS_TreeList_Metric (BC) or FVS_TreeList_East_Metric
+(ON) — 34 columns (the imperial table's SCuFt dropped).
+"""
+function write_dbs_treelist_metric!(dbpath::AbstractString, caseid::AbstractString,
+                                    standid::AbstractString, cycles; east::Bool = false)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _metric_treelist_create(east))
+        tbl = east ? "FVS_TreeList_East_Metric" : "FVS_TreeList_Metric"
+        stmt = DBInterface.prepare(db, "INSERT INTO $tbl VALUES (" * join(fill("?", 34), ",") * ")")
+        for (year, prdlen, rows) in cycles, r in rows
             DBInterface.execute(stmt, (caseid, standid, year, prdlen, r...))
         end
     finally

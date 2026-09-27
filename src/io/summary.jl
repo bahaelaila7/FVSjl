@@ -198,12 +198,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                         dm_top4::Vector{Int} = Int[],
                         wwpb_barrier::Union{Nothing,Function} = nothing)
     build_cycle_schedule!(s)                 # ensure the IY boundary-year array is current (idempotent)
-    # ON reports the accretion/mortality volume columns (IOSUM 15/16) with the same two-stage rounding as
-    # the other volumes: disply.f stores INT(O..(7)/GROSPC+0.5) [imperial], sumout.f prints
-    # INT(IOSUM·FT3pACRtoM3pHA) [m³/ha]. grow_cycle! returns the imperial per-area accretion/mortality.
-    # Ontario-gated (see vtot): imperial variants keep the raw integer; BC is left on its validated path.
-    _acc_mort(x) = (iv = trunc(Int, x + 0.5f0);
-                    s.variant isa Ontario ? trunc(Int, Float32(iv) * 0.0699713f0) : iv)
+    # Accretion/mortality (IOSUM 15/16): disply.f stores INT(OACC(7)/GROSPC+0.5) — grow_cycle! returns the
+    # imperial per-area values; the metric variants convert in `metric_sumout` (sumout.f INT(IOSUM·FT3pACRtoM3pHA)).
+    _acc_mort(x) = trunc(Int, x + 0.5f0)
+    met = _metric_variant(s.variant)
     ncyc = Int(s.control.ncycle_eff)         # rows = ncyc + 1 (inventory + each cycle, post-CYCLEAT)
     ncyc < 1 && (ncyc = Int(s.control.ncycle))
     # FFE Stand Carbon Report (CARBREPT): carbon_on gates only the REPORT-row collection. The per-cycle
@@ -244,7 +242,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
              (!isempty(s.coef.ffe_fuel_live) || s.variant isa Klamath || s.variant isa EastCascades ||
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
-              s.variant isa BlueMountains || _ffe_west_vol(s.variant))   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa BlueMountains || _ffe_west_vol(s.variant) ||
+              s.variant isa WestCascades || s.variant isa PacificNorthwest)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+    # WC/PN (wc/pn fmmain.f run FMSDIT + the annual FMSNAG/FMCWD/FMCADD loop like every FFE variant) were off this
+    # list ⇒ no inventory snags, no fuel dynamics: pnt01 stand 4's 2003 SIMFIRE sampled SMALL/LARGE 0.46/0.00 vs live
+    # 3.79/11.65 ⇒ fuel models 2/5 instead of live 5/10 (FMDYN 0.66/0.34), flame 4.33 vs 6.09 ft, 2013 TPA 127 vs 71.
     # CI/TT/UT/CR (ci/tt/ut/cr fmsdit.f + FMSNAG/FMCWD/FMCADD, the same annual loop as IE/EM) were off this list ⇒ no
     # inventory snags and no fuel dynamics: S248112 no-fire DDW 2.40 flat vs live 4.65→4.34 (CI), Standing_Dead 0.
     if ffe_on
@@ -264,8 +266,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     # stand's sampling weight, which FVS prints in the -999 header — e.g. 11, not 1.1.)
     sw = sample_wt === nothing ? s.plot.sample_weight : sample_wt
     # FVS SAMWT default is 1.0 (a blank DESIGN sample-weight field ⇒ 1.0). When the points_inv
-    # fallback can't fire — e.g. ON's DESIGN IPTINV is lost to the initre LNOTBK overflow, so
-    # points_inv is 0 — sample_weight stays 0; emit the 1.0 default so the header matches FVS.
+    # fallback can't fire (points_inv 0), sample_weight stays 0; emit the 1.0 default so the
+    # header matches FVS.
     sw <= 0f0 && (sw = 1f0)
     if header
         write_sum_header(io, ncyc + 1, stand_id, mgmt_id, sw, variant, date, time, Int(s.plot.pi))
@@ -284,7 +286,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # removed merch with a one-cycle lag, but the FINAL row's MAI is loaded from the
         # un-incremented TOTREM — i.e. it EXCLUDES the last growing cycle's removal.
         r = summary_row(s; period = per,
-                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0)
+                        total_removed_merch = cum_rem_merch - (last ? prev_increment : 0f0), cycle0 = c == 0,
+                        final_row = last)
         _vol_prob_roundtrip!(s, c == 0)   # fvs.f:221/269 (cycle 0) / gradd.f:303/350: per-tree V·PROB ... /PROB
         # per-cycle hook (DBS TreeList): the start-of-cycle (pre-thin) tree list at year r.year.
         # `c` is the cycle index (0 = inventory) — dbstrls.f emits input dead records only at cycle 0.
@@ -421,11 +424,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 compute_density!(s)
                 r.rem_tpa  = di(rem.tpa / g);  r.rem_cuft  = di(rem.cuft / g)
                 r.rem_mcuft = di(rem.mcuft / g); r.rem_scuft = di(rem.scuft / g)
+                # metric vols.f never loads MCFV (see summary_row), so cuts.f's CMCUT = Σ PREM·MCFV stays 0 and
+                # OMCREM(7)/OSCREM(7) are never accumulated (cuts.f:1779-1783): removed merch/sawlog cubic are 0.
+                met && (r.rem_mcuft = 0; r.rem_scuft = 0)
                 r.rem_bdft = di(rem.bdft / g)
                 r.at_ba = di(stand_ba(s) / g);  r.at_sdi = di(stand_sdi(s) / g)
                 r.at_ccf = di(stand_ccf(s) / g); r.at_topht = di(stand_top_height(s))
-                r.at_qmd = round(stand_qmd(s); digits = 1)
-                prev_increment = rem.mcuft / g
+                r.at_qmd = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QDBHAT=ATAVD (REAL)
+                # TOTREM: evtstv.f:405 accumulates the INTEGER IOSUM(9) — faithful on the metric path; the imperial
+                # variants keep their validated per-acre float accumulation.
+                prev_increment = met ? Float32(r.rem_mcuft) : rem.mcuft / g
                 cum_rem_merch += prev_increment
             else
                 prev_increment = 0f0   # this growing cycle had no removal (final-row MAI subtracts 0)
@@ -488,10 +496,41 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # own entry (cuts.f:323-329) and fvs.f:432 resets only ONTREM(7) ⇒ the final row carries the LAST growing
         # cycle's sawlog removal (live econ_strtecon 2005: SCuFt removed 23 = the 2000 thin's).
         last ? (r.rem_scuft = prev_rem_scuft) : (prev_rem_scuft = r.rem_scuft)
-        write_sum_row(io, r; metric = s.variant isa BritishColumbia || s.variant isa Ontario)
-        collect_rows === nothing || push!(collect_rows, r)
+        # metric/vbase/sumout.f: BC/ON print (and hand DBSSUMRY) the per-ha metric conversion of the IOSUM row.
+        rout = met ? metric_sumout(r) : r
+        write_sum_row(io, rout; metric = met)
+        collect_rows === nothing || push!(collect_rows, rout)
     end
     return io
+end
+
+# The two metric variants (canada BC / ON): FVS compiles metric/vbase/{disply,sumout}.f and the metric dbsqlite writers.
+_metric_variant(v) = v isa BritishColumbia || v isa Ontario
+
+"""
+    metric_sumout(r) -> SummaryRow
+
+metric/vbase/sumout.f:328-352 (identical in the BC and ON builds): the per-ha metric row FVS prints to the .sum
+and passes to DBSSUMRY, formed from disply.f's IMPERIAL per-acre integers in `r` with REAL arithmetic truncated by
+INT(): trees/SDI `INT(IOSUM/ACRtoHA)`, BA `INT(IOLDBA·FT2pACRtoM2pHA)`, heights `INT(IBTAVH·FTtoM)`, volumes /
+accretion / mortality `INT(IOSUM·FT3pACRtoM3pHA)`; CCF, year, age, period and the classes pass through. QMD/ATQMD
+= QSDBT·INtoCM / QDBHAT·INtoCM and MAI = BCYMAI·FT3pACRtoM3pHA stay unrounded REALs (F5.1/F6.1 on print).
+"""
+function metric_sumout(r::SummaryRow)
+    ha(x)  = trunc(Int, Float32(x) / ACRE_TO_HA)
+    ba(x)  = trunc(Int, Float32(x) * FT2PACRE_TO_M2PHA)
+    ht(x)  = trunc(Int, Float32(x) * FT_TO_M)
+    vol(x) = trunc(Int, Float32(x) * FT3PACRE_TO_M3PHA)
+    cm(x)  = Float64(Float32(x) * IN_TO_CM)
+    SummaryRow(year = r.year, age = r.age, tpa = ha(r.tpa), ba = ba(r.ba), sdi = ha(r.sdi), ccf = r.ccf,
+        topht = ht(r.topht), qmd = cm(r.qmd),
+        cuft = vol(r.cuft), mcuft = vol(r.mcuft), scuft = vol(r.scuft), bdft = vol(r.bdft),
+        rem_tpa = ha(r.rem_tpa), rem_cuft = vol(r.rem_cuft), rem_mcuft = vol(r.rem_mcuft),
+        rem_scuft = vol(r.rem_scuft), rem_bdft = vol(r.rem_bdft),
+        at_ba = ba(r.at_ba), at_sdi = ha(r.at_sdi), at_ccf = r.at_ccf, at_topht = ht(r.at_topht),
+        at_qmd = cm(r.at_qmd), period = r.period, accretion = vol(r.accretion), mortality = vol(r.mortality),
+        mai = Float64(Float32(r.mai) * FT3PACRE_TO_M3PHA),
+        fortype = r.fortype, sizecls = r.sizecls, stockcls = r.stockcls)
 end
 
 """
@@ -503,18 +542,14 @@ the forest-type / size / stocking classes. Removal, after-treatment and growth
 (accretion/mortality/MAI) fields are filled by the cycle driver. The integer
 columns use FVS's truncate-after-+0.5 rounding (`_dtrunc`)."""
 function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real = 0,
-                     accretion::Real = 0, mortality::Real = 0, cycle0::Bool = false)
+                     accretion::Real = 0, mortality::Real = 0, cycle0::Bool = false,
+                     final_row::Bool = false)
     g = s.plot.gross_space
     dt(x) = trunc(Int, x + 0.5f0)
-    # Metric variants (BC, Canada) report the .sum per HECTARE in metric units (metric/vbase/disply.f):
-    # TPA·HAtoACR, BA·FT2pACRtoM2pHA, SDI·HAtoACR, TopHt→m, QMD→cm, volumes→m³/ha; CCF is dimensionless.
-    # Metric per-hectare reporting: BC and Ontario (canada, via metric/vbase/disply.f + sumout.f).
-    met  = s.variant isa BritishColumbia || s.variant isa Ontario
-    fha  = met ? 2.471f0     : 1f0    # per-area (trees, SDI) acre→ha
-    fba  = met ? 0.2295643f0 : 1f0    # ft²/ac → m²/ha
-    fht  = met ? 0.3048f0    : 1f0    # ft → m
-    fqmd = met ? 2.54f0      : 1f0    # in → cm
-    fvol = met ? 0.0699713f0 : 1f0    # ft³/ac → m³/ha
+    # Metric variants (BC, Ontario): this row holds disply.f's IMPERIAL per-acre IOSUM stage (the same integers
+    # every variant stores); metric/vbase/sumout.f converts them to per-ha metric only when printing / calling
+    # DBSSUMRY — see `metric_sumout`. QMD and MAI are kept UNROUNDED here (QSDBT / BCYMAI are REALs).
+    met  = _metric_variant(s.variant)
     # BM: FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:682) — a Float32
     # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
     # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
@@ -527,16 +562,16 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
     end
     pctile_tot(w) = (acc = 0f0; @inbounds(for k in length(bm_ind):-1:1; acc += w(Int(bm_ind[k])); end); acc)
-    tpa  = bm_ind === nothing ? dt(stand_tpa(s) / g * fha) :
-           dt(pctile_tot(i -> s.trees.tpa[i]) / g * fha)
-    ba   = dt(stand_ba(s) / g * fba)
-    sdi  = dt(stand_sdi(s) / g * fha)
+    tpa  = bm_ind === nothing ? dt(stand_tpa(s) / g) :
+           dt(pctile_tot(i -> s.trees.tpa[i]) / g)
+    ba   = dt(stand_ba(s) / g)
+    sdi  = dt(stand_sdi(s) / g)
     ccf  = dt(stand_ccf(s) / g)
     # BM cycle-0 row: FVS's AVH (DENSE at cratet.f:692 / AVHT40 :624) walks the IND CRATET left — the IND1-seeded
     # RDPSRT(.FALSE.) of cratet.f:166 when no dead were deleted (:197 skips :270), else :270's fresh sort
     # (bm_cratet_ind!). A fresh sort here broke 40-TPA-cutoff DBH ties (23900114010900 PP/GF 8.3": 45 vs live 46).
-    toph = dt(stand_top_height(s; cratet_ind = cycle0 && (s.variant isa BlueMountains || s.variant isa CentralIdaho)) * fht)
-    qmd  = round(stand_qmd(s) * fqmd; digits = 1)
+    toph = dt(stand_top_height(s; cratet_ind = cycle0 && _fvs_ind_lifecycle(s.variant)))
+    qmd  = met ? Float64(stand_qmd(s)) : round(stand_qmd(s); digits = 1)   # QSDBT=ORMSQD (REAL) for metric
     t = s.trees
     # STRICTLY SEQUENTIAL Float32 accumulation (ACC += VOL[i]·PROB[i], i=1..n) to match FVS's DISPLY DO-loop
     # order — Julia's `sum(generator)` may use PAIRWISE reduction, which reorders the Float32 adds and flips
@@ -553,13 +588,9 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
                 acc += fld[i] * t.tpa[i]
             end
         end
-        # FVS builds the ON .sum volume in TWO rounding stages: disply.f stores the IMPERIAL per-area
-        # integer IOSUM(k)=INT(O..CUR(7)/GROSPC+0.5), then sumout.f prints INT(IOSUM(k)·metricfactor)
-        # m³/ha. Fusing them (one round of acc/g·fvol) flips the reported m³/ha by ±1 on knife-edge rows.
-        # Ontario-gated: BC's cornered garbage-height fixture is validated on the one-stage path, so leave
-        # it (and every imperial variant, where fvol=1 makes the two stages identical) untouched.
-        s.variant isa Ontario && return trunc(Int, Float32(dt(acc / g)) * fvol)
-        return dt(acc / g * fvol)
+        # disply.f: IOSUM(k)=INT(O..CUR(7)/GROSPC+0.5) — the imperial per-acre integer (metric variants too;
+        # sumout.f's m³/ha conversion is the second stage, in `metric_sumout`).
+        return dt(acc / g)
     end
     # Year/age come from the cycle-boundary schedule (IY, build_cycle_schedule!): the calendar
     # year at this cycle's start, and the age advanced by the elapsed years from the inventory.
@@ -581,12 +612,17 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # MAI (BCYMAI, disply.f:383): (merch cuft + cumulative removed merch) / age.
     # `total_removed_merch` carries cross-cycle removals (0 at the inventory).
     # Computed in Float32 to match FVS REAL*4 (the %.1f rounding differs from Float64).
+    # Metric final row (disply.f:516-523): the EASTERN metric variant ON loads BCYMAI from IOSUM(4) (total
+    # cubic), BC from IOSUM(5) (merch, structurally 0); the per-cycle rows (evtstv.f:360-418 CASE DEFAULT)
+    # use IOSUM(5) for both. BCYMAI = (IOSUM+TOTREM)/AGE in REAL, left imperial here.
+    mvol = (met && final_row && s.variant isa Ontario) ? vtot(:cuft_vol) : mcuft
     # After a RESETAGE that rebased the age to ZERO, FVS shuts off MAI (disply.f:391-394 BCYMAI=0 when
     # MAIFLG≠0; evtstv.f:396 sets it when ZERO=age−period==0, i.e. the age was reset to 0, and persists it).
     # A RESETAGE to a NON-zero age keeps MAI on (e.g. s17_managed resets to 40 → MAI stays 62.5). Non-RESETAGE
     # runs have ry<0 ⇒ untouched (bit-exact); bare-ground (NEWSTD) has no RESETAGE ⇒ its own MAI path unchanged.
     mai = (ry >= 0 && yr > ry && Int(s.control.age_reset_age) == 0) ? 0f0 :
-          (age > 0 ? Float32(mcuft + fvol * total_removed_merch) / Float32(age) : 0f0)  # mcuft already metric
+          (age > 0 ? (met ? (Float32(mvol) + Float32(total_removed_merch)) / Float32(age) :
+                            Float32(mcuft + total_removed_merch) / Float32(age)) : 0f0)
     SummaryRow(
         year = yr, age = age, tpa = tpa,
         ba = ba, sdi = sdi, ccf = ccf, topht = toph, qmd = qmd,
@@ -598,7 +634,7 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
         bdft = (s.variant isa Ontario) ? vtot(:bdft_vol) : (met ? 0 : vtot(:bdft_vol)),
         at_ba = ba, at_sdi = sdi, at_ccf = ccf, at_topht = toph, at_qmd = qmd,
         period = period, mai = mai,
-        accretion = trunc(Int, fvol * accretion + 0.5), mortality = trunc(Int, fvol * mortality + 0.5),
+        accretion = trunc(Int, accretion + 0.5), mortality = trunc(Int, mortality + 0.5),
         fortype = Int(s.plot.forest_type), sizecls = Int(s.plot.size_class),
         stockcls = Int(s.plot.stocking_class))
 end

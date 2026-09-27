@@ -157,6 +157,8 @@ end
         # bug behind BC's supposed "+36% baseline-BA straddle", now within ±1 BA of live on the RD fixture)
         # moved this from 1075/1303 to 1088/1241, i.e. toward live but not onto it. BC's remaining
         # young-dense-lodgepole self-thin gap stays OPEN for the BC campaign.
-        @test tpa(cN) == 1088 && sdi(cN) == 1241
+        # 2026-09-27 (#259): 1088/1241 → 1087/1240 — the metric .sum is now sumout.f's two-stage INT(IOSUM/ACRtoHA)
+        # of disply.f's imperial integers (was a one-stage NINT(x·2.471)); the c0 oracle row above is unchanged.
+        @test tpa(cN) == 1087 && sdi(cN) == 1240
     end
 end

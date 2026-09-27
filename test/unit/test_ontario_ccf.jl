@@ -5,8 +5,8 @@
 # ISPC / D / CW / HI-inputs when IWHO=1). All 8 ont01 species reproduce the oracle's open-grown
 # crown width to the Float32 bit; the beech (ISPC 28) Hopkins term also nails the oracle's
 # TLAT=46.78 / TLONG=92.11 / ELEV=300 m→984.25 ft location (forkod.f US-Superior default +
-# metric STDINFO elevation). stand_ccf then overflows the sumout.f I4 field ⇒ the .sum renders
-# `****`, matching the oracle byte-for-byte.
+# metric STDINFO elevation). (ont01's stand CCF used to overflow the sumout.f I4 field; that was the old oracle's
+# zeroed DESIGN IPTINV. The 12-field-KEYRDR oracle reads IPTINV 11 ⇒ CCF 1895, byte-identical in the .sum.)
 # =============================================================================
 using FVSjl, Test
 const _F = FVSjl
@@ -26,15 +26,14 @@ _f2h(x::Float32) = uppercase(string(reinterpret(UInt32, x); base=16, pad=8))
     end
 end
 
-@testset "ON stand CCF overflows the sumout I4 field (renders ****)" begin
+@testset "ON stand CCF = live FVSon_g16 (ont01 cyc0 1895)" begin
     for s in _F.each_stand("scratchpad/on/ont01.key"; variant=_F.Ontario(), faithful=true)
         _F.notre!(s); _F.setup_growth!(s)
         # forkod default location wired through kw_stdinfo! (metric elevation + US-Superior lat/long)
         @test s.plot.latitude  == 46.78f0
         @test s.plot.longitude == 92.11f0
         @test _f2h(s.plot.elevation) == _f2h(300f0 * 3.28084f0 / 100f0)
-        ccf = _F.stand_ccf(s)
-        @test ccf > 9999f0                      # ⇒ I4 overflow ⇒ `****`
+        @test trunc(Int, _F.stand_ccf(s) / s.plot.gross_space + 0.5f0) == 1895
         break
     end
 end

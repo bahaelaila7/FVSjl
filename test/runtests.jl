@@ -82,6 +82,7 @@ using FVSjl
     include("unit/test_forkod_default.jl")     # forkod.f KODFOR→IFOR vs a 346-code table extracted from the Fortran: not-found keeps grinit IFOR (was forced 1), CA/OC/SO BIA reservation codes
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
     include("unit/test_bc_crwidth.jl")
+    include("unit/test_metric_dbs.jl")      # #259: BC/ON metric DBS tables (Summary/TreeList/CutList/ATRTList *_Metric, East naming for ON) vs live FVSbc_clean/FVSon_g16
     include("unit/test_bc_brokentop.jl")    # BC TREFMT (bc/blkdat.f metric layout) + broken-top NORMHT volume (bc/vols.f:137) vs FVSbc_clean     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
     include("unit/test_lpmpb.jl")          # LPMPB: COLDBH/COLIND/COLMOD/COLMRT/MPBER Cole rate-of-loss core + MPRANN seed 55329 bit-exact vs relinked FVSie_lpmpb g16 + gated MPBCUP mortality seam
     include("unit/test_lpopdy_chain.jl")   # LPMPB LPOPDY: BETIN/GARBEL/SURFCE/MPBMOD epidemic chain bit-exact vs FVSie_lpmpb (golden fixtures)

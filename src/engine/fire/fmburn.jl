@@ -160,7 +160,9 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # REPLACES the FMCFIR-computed crown fraction for the byram/flame — RFINAL from FMCFIR is kept. nct01's
             # FLAMEADJ forces CRBURN=1% (0.01) ⇒ FINTEN=(HPA+TCLOAD·7744.8·0.01)·RFINAL/60 ⇒ flame 8.29 (live 8.3),
             # NOT the ~18 the computed 0.561 would give. Klamath-guarded (the shared CR/NE path is unchanged).
-            (s.variant isa Klamath || s.variant isa Olympic) && crburn >= 0f0 && (crb = crburn)   # OP FLAMEADJ forces CRBURN (opt01: 1%) — same guard as Klamath/nct01
+            # fmburn.f:507/514 `UCRBURN = CRBURN … IF (UCRBURN .GE. 0) CRBURN = UCRBURN` runs for EVERY non-SN/CS variant
+            # (the whole FMCFIR branch), not just NC/OP: pnt01/wct01 stand 4 (FLAMEADJ 1%) burned with FMCFIR's 0.24 ⇒ over-kill.
+            crburn >= 0f0 && (crb = crburn)
             if crb > 0f0
                 crfrac = crb                                                # FMEFF crowning-kill fraction (fmeff.f CRBURN)
                 byram = (hpa + cf2.tcload * 7744.8f0 * crb) * rfinal        # jl byram = 60·FINTEN

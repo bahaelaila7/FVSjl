@@ -364,6 +364,15 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     return s
 end
 
+# DENSE's per-point CCF (point_density!) over the CURRENT records, leaving density.point_ccf/point_tpa untouched.
+function _fresh_point_ccf(s::StandState)
+    sc = copy(s.density.point_ccf); st = copy(s.density.point_tpa)
+    point_density!(s)
+    out = copy(s.density.point_ccf)
+    copyto!(s.density.point_ccf, sc); copyto!(s.density.point_tpa, st)
+    return out
+end
+
 "Number of early cycles that use deterministic record tripling (FVS ICL4)."
 const TRIPLE_CYCLE_LIMIT = 2
 
@@ -715,7 +724,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
-    compute_density!(s; cratet_ind = ((s.variant isa BlueMountains || s.variant isa CentralIdaho) &&
+    compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
                                       s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
     # ECSTATUS(…,0) (grincr.f:273, cycle start before CUTS). Inert unless an ECON block is active.
@@ -830,6 +839,17 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (MAXTRE - Int(t.ndead)) ÷ 3   # NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
+    # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
+    # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)
+    # keeps this value for the cycle-end CROWN's PP RELSDI=BA/BAMAX (tt/crown.f:179-181). There CRATET skipped SDICHK
+    # (cratet.f:731 ITRN≤0 ⇒ GO TO 500), so PMSDIU is still the grinit PERCENT (85) until cycle-1 MORTS divides it
+    # (morts.f:194-195): XMAX=1 (no BA) ⇒ BAMAX=46.36. MEASURED FVStt_g16 bare PLANT cycle 1: CROWN sp10 RELSDI 0.2016 =
+    # BA 9.3441/46.36; jl left BAMAX 0 ⇒ the SDI form ⇒ RELSDI 0 ⇒ top-rank PP crowns 90 vs live 84.
+    if s.variant isa Teton && s.control.ba_max <= 0f0
+        pm = s.plot.pct_sdimax_mort_hi > 0f0 ? s.plot.pct_sdimax_mort_hi : 0.85f0
+        (Int(s.control.cycle) == 0 && s.trees.n == 0) && (pm = pm * 100f0)
+        s.control.sdical_bamax = stand_sdimax(s) * 0.5454154f0 * pm
+    end
     # BC/EM V2 mortality WK1 (morts.f) = DG(I) at the START of dgdriv (dgdriv.f:141/144 WK1=DG), i.e. the PRE-prediction
     # DG: the measured input increment at cycle 1, or the previous cycle's DG later. Snapshot it before
     # diameter_growth! overwrites diam_growth. Without it WK1=0 ⇒ the Hamilton G collapses to the DGT floor ⇒
@@ -1307,6 +1327,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         es_wc_ptba = copy(s.density.point_ba); es_wc_pccf = copy(s.density.point_ccf)
         es_wc_avh = s.plot.avg_height
     end
+    # TT/UT REGENT(LESTB) likewise reads GRADD's post-growth, PRE-regen DENSE: RELDEN/BA/AVH and the per-point PCCF
+    # (tt/regent.f:160-180,274-330; ut/regent.f:162-171,233). establish! re-DENSEs with the seedlings and jl's
+    # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
+    es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah) ?
+        (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1343,7 +1368,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
     s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
-    s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint)   # TT western: grow birth-cycle regen (tt/esgent.f)
+    s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint,
+        atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden,
+        relden_pre = es_tu_relden_pre, ba_pre = es_tu_ba_pre, pccf_pre = es_tu_pccf_pre)   # TT: tt/esgent.f → REGENT(LESTB)
     (s.variant isa WestCascades || s.variant isa PacificNorthwest) && wc_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh,
         avh_pre = es_wc_avh, ptba_pre = es_wc_ptba, pccf_pre = es_wc_pccf)   # WC: wc/esgent.f → REGENT(LESTB)
     s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
@@ -1352,7 +1379,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
         atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
-        atavh = es_at_avh, atrelden = es_at_relden)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+        atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
@@ -1365,7 +1393,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # dg_prev in the growth-apply loop above, which runs BEFORE establishment — so the new records kept WK1=0 and
     # took the morts.f `WK1.EQ.0 ⇒ G=DG/(BARK·10)` vigor branch (e.g. bare PLANT stand: a seedling past 4.5 ft
     # got RIPP 0.00024 vs live 0.0104 ⇒ ~40× under-kill). Copy for the new IE records now.
-    if s.variant isa InlandEmpire
+    # TT morts reads WK1 too (teton/mortality.jl) ⇒ the same copy for its birth-cycle DG (tt_esgent!).
+    if s.variant isa InlandEmpire || s.variant isa Teton
         @inbounds for i in (es_nstart + 1):s.trees.n
             s.trees.dg_prev[i] = s.trees.diam_growth[i]
         end
@@ -1523,14 +1552,22 @@ function run_keyfile(keypath::AbstractString;
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
-            sum_on && write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
+            # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
+            met = _metric_variant(s.variant); east = s.variant isa Ontario
+            if sum_on
+                met ? write_dbs_summary_metric!(s.control.dbs_out_file, caseid, String(sid), rows; east = east) :
+                      write_dbs_summary!(s.control.dbs_out_file, caseid, String(sid), rows;
                                          mgmt_id = mid, variant = variant_code(s.variant))
+            end
             # DBSTRLS/DBSCUTS create their table only when actually called for an accomplished list request
-            (tl_on && !isempty(tl_cycles)) && write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            if tl_on && !isempty(tl_cycles)
+                met ? write_dbs_treelist_metric!(s.control.dbs_out_file, caseid, String(sid), tl_cycles; east = east) :
+                      write_dbs_treelist!(s.control.dbs_out_file, caseid, String(sid), tl_cycles)
+            end
             (cl_on && any(c -> !isempty(c[3]), cl_cycles)) &&
-                write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles)
+                write_dbs_cutlist!(s.control.dbs_out_file, caseid, String(sid), cl_cycles; metric = met, east = east)
             (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
-                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles)
+                write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles; metric = met, east = east)
             clim_rows === nothing ||
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||

@@ -153,6 +153,11 @@ Average height of the largest-diameter 40 trees/acre (AVHT40, the summary "top
 height"). Trees are taken in descending-DBH order; the last one is prorated to
 hit exactly 40 TPA. (Uses a sort — fine for once-per-cycle stats, not the hotpath.)
 """
+# Variants whose AVHT40/DENSE walk FVS's own IND lifecycle: CRATET's IND at cycle 0 ({v}/cratet.f RDPSRT(.FALSE.) on
+# IND1 / RDPSRT(.TRUE.) with dead records), then gradd.f:186's fresh RDPSRT(DBH,.TRUE.). The cratet.f sort blocks are
+# byte-identical in bm/ci/ut/tt (bm 159-166/270, ci 226-233/337, ut 214-221/325, tt 207-214/318).
+_fvs_ind_lifecycle(v) = v isa BlueMountains || v isa CentralIdaho || v isa Utah || v isa Teton
+
 function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double::Bool = false)
     t = s.trees
     t.n == 0 && return 0f0
@@ -161,7 +166,7 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     # cuts.f:302/1840, esnutr.f:129/325). The empirical double sort below stays for the other variants.
     # CI too: ci/cratet.f:230-233/:337 and ci/gradd.f:186 are the same pair of sorts (FIA 753188889290487 cycle-1
     # ATAVH live 71.15 = the IND1-seeded walk; the double sort gave 70.95 ⇒ every CIVAR RELHT/PCTRED off).
-    if (s.variant isa BlueMountains || s.variant isa CentralIdaho) && !legacy_double
+    if _fvs_ind_lifecycle(s.variant) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
         avh = 0f0; ssumn = 0f0
@@ -225,6 +230,10 @@ function point_basal_area!(s::StandState)
         npts = max(npts, Int(t.plot_id[i]))
         pbal[i] = 0f0
     end
+    # ptbal.f SELECT CASE (VARACD): the eastern TWIGS variants CS/LS/NE/ON leave PTBALT = PTBAA = 0 and return
+    # (live FVSon_g16 FVS_TreeList_East_Metric PtBAL is 0 on every record).
+    (s.variant isa CentralStates || s.variant isa LakeStates || s.variant isa Northeast ||
+     s.variant isa Ontario) && return s
     # FVS ptbal.f accumulates PTBALT per point in IND order = RDPSRT(ITRN,DBH,IND,.TRUE.) — Scowen's UNSTABLE
     # Quickersort DBH-descending, NOT a stable sort. Use the ported `_rdpsrt!` so equal-DBH tie-break matches
     # FVS's IND (a stable sortperm! diverges on tie-heavy points; inert for IE which uses PCT not PTBALT, but
@@ -547,8 +556,8 @@ the `SDI = SPROB·A + B·SDSQ` Taylor form over `D ≥ DBHSTAGE` (sdical.f:281-3
 #   pass 1 (DBH>=DBHSTAGE): SDSQ=SDSQ+(DBH**2.0)*PROB; SPROB=SPROB+PROB  → A,B
 #   pass 2: SDIC  = SDIC  + (A+B*(DBH**2.0))*PROB          (DBH>=DBHSTAGE)   — PER TREE, not SPROB*A+B*SDSQ
 #           SDIC2 = SDIC2 + PROB*(DBH/10.)**1.605           (DBH>=DBHZEIDE)
-# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. (The closed form
-# SPROB*A+B*SDSQ lives on in `stand_sdi_reineke`, which CROWN's SDICAL path uses.)
+# disply.f:332-338 reports SDIC2 when LZEIDE else SDIC. DBH**2.0 / **1.605 are gfortran powf. CROWN's SDIAC is the
+# same SDIC pass (`stand_sdi_reineke`), whatever LZEIDE.
 function stand_sdi(s::StandState)
     t = s.trees
     t.n == 0 && return 0f0
@@ -578,20 +587,33 @@ function stand_sdi(s::StandState)
     return sdic
 end
 
-"Reineke/STAGE stand SDI (SDIC = SPROB*A + B*SDSQ, sdical.f:47-61/105) — the form FVS's CROWN uses."
+"""
+    stand_sdi_reineke(s)
+
+SDICLS(0,0.,999.,1,SDIC,…) — the STAGE (Reineke-summation) stand SDI that CROWN reads (SDIAC/SDIBC, grincr.f:241,323;
+fvs.f:196). sdical.f:260-283 first sums SDSQ=Σ(DBH**2)·PROB and SPROB=ΣPROB over the DBH≥DBHSTAGE records in IND1
+order to form the STAGE A/B, then DISCARDS the closed form SPROB·A+B·SDSQ and re-sums SDIC=Σ(A+B·DBH**2)·PROB in the
+same IND1 order (:293-332). Float32 addition is order-dependent, so both passes walk `_ind1_order` (as `stand_sdi`,
+dense.f's BA/PCCF and SDICAL already do) — the index-order closed form sat ~1e-6 relative off live's SDIAC
+(TT S248112 2030 SDIAC 318.5158 vs live 318.5154), enough to flip an INT(CRNEW+0.5) crown.
+"""
 function stand_sdi_reineke(s::StandState)
     t = s.trees
+    ord = _ind1_order(s)
     thr = s.control.dbh_stage; sprob = 0f0; sdsq = 0f0
-    @inbounds for i in 1:t.n
-        if t.dbh[i] >= thr
-            sprob += t.tpa[i]; sdsq += t.dbh[i]^2 * t.tpa[i]
-        end
+    @inbounds for i in ord
+        d = t.dbh[i]; d < thr && continue
+        sdsq += (d * d) * t.tpa[i]; sprob += t.tpa[i]
     end
-    sprob <= 0f0 && return 0f0
-    mdsq = sdsq / sprob
+    sprob == 0f0 && return 0f0
     # sdical.f:281-282 `(10.0**(-1.605))*…*((SDSQ/SPROB)**(1.605/2.))` — all FVS `**` = gfortran powf, route via
-    # the companion (doctrine #8) not Julia's openlibm `^`. This feeds CROWN's SDI ⇒ keep SN/NE/CS/LS bit-exact.
-    a = fpow(10f0, -1.605f0) * (1f0 - 1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0)
-    b = fpow(10f0, -1.605f0) * (1.605f0 / 2f0) * fpow(mdsq, 1.605f0 / 2f0 - 1f0)
-    return sprob * a + b * sdsq
+    # the companion (doctrine #8) not Julia's openlibm `^`.
+    a = fpow(10f0, -1.605f0) * (1f0 - 1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0)
+    b = fpow(10f0, -1.605f0) * (1.605f0 / 2f0) * fpow(sdsq / sprob, 1.605f0 / 2f0 - 1f0)
+    sdic = 0f0
+    @inbounds for i in ord
+        d = t.dbh[i]
+        d >= thr && (sdic += (a + b * (d * d)) * t.tpa[i])
+    end
+    return sdic
 end
