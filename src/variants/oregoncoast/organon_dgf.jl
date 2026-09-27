@@ -160,8 +160,16 @@ const OC_R5CRWD_SPLINE = Float32[5.0,7.4,7.6,5.0,5.0,5.0,5.0,5.0,5.0,13.4,5.0,5.
 const OC_R5CRWD_SM = Float32[0.7778,0.7778,0.7778,0.7778,0.7778,0.7778,0.7778,0.5556,0.5556,0.5556,0.5556,0.7778,0.7778,0.7778,0.7778,0.7778,0.5556,0.5556,0.5556,0.5556,0.7778,0.7778,0.7778,0.7778,0.7778,0.5556,0.7778,0.5556,0.7778,0.5556,0.7778,0.7778,0.7778,0.5556,0.5556]
 
 "bin/FVSoc_buildDir/r5crwd.f R5CRWD — CA-family crown width (ft) for FVS species `sp`, DBH `d`, HT `h`."
-@inline function oc_r5crwd(sp::Int, d::Float32, h::Float32)
-    idx = OC_R5CRWD_MAPCA[sp]
+@inline oc_r5crwd(sp::Int, d::Float32, h::Float32) = r5crwd_eqn(OC_R5CRWD_MAPCA[sp], d, h)
+
+# r5crwd.f DATA MAPNC / MAPSO (the shared R5CRWD routine carries one species→equation map per R5 variant;
+# NC: 1=OS 2=SP 3=DF 4=WF 5=MA 6=IC 7=BO 8=TO 9=RF 10=PP 11=OH 12=RW — RW takes DF's equation 1).
+const NC_R5CRWD_MAPNC = Int[27, 2, 1, 4, 11, 7, 8, 10, 5, 21, 28, 1]
+const SO_R5CRWD_MAPSO = Int[3, 2, 1, 4, 6, 7, 23, 13, 5, 21, 27, 12, 5, 4, 4, 24, 6, 16, 14, 15,
+                            17, 17, 28, 18, 18, 28, 19, 28, 20, 28, 28, 27, 28]
+
+"r5crwd.f body for equation index `idx` (1..35): Warbington/Levitan above SPLINE, Dixon to 4.5 ft, SM·H below."
+@inline function r5crwd_eqn(idx::Int, d::Float32, h::Float32)
     ity = OC_R5CRWD_IEQN[idx]; spdbh = OC_R5CRWD_SPLINE[idx]
     if d >= spdbh
         if ity == 1
