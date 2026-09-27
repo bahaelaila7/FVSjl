@@ -97,4 +97,12 @@ end
     @test all(m -> _crel(m) < 1e-6, _ccol("Belowground_Dead"))
 end
 
+# cratet.f:482-488 hands FMSSEE the height HS=ITRUNC·.01 of a top-killed input dead tree, so the class MINHT/MAXHT that
+# splits FMSADD's two height classes (fmsadd.f:119-123) sees the broken height, while HTCL still compares HT(I). jl used
+# HT for both ⇒ LP 9.5"/75' (top 61') binned low (MEASURED FVSie_g16 2006 snag records: DBHS 9.20/HTDEAD 84.25 ×24/ac,
+# jl 9.10/87.33 ×18 ⇒ inventory Standing_Dead 8.9956 vs 8.9772).
+@testset "Inventory snag height classes use FMSSEE's broken-top height (cratet.f:482-488) vs FVSie_g16" begin
+    @test !any(m -> m.col == "Standing_Dead" && m.year == "2006", _ccol("Standing_Dead"))
+end
+
 end # module

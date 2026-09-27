@@ -825,7 +825,8 @@ function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
         sp = Int(t.species[i])
         h = t.height[i] > 0f0 ? t.height[i] : max(4.5f0, _htdbh_height(sd, sp, d, ifor; isne = s.variant isa Northeast))
         hd = t.norm_ht[i] > 0 ? max(h, t.norm_ht[i] * 0.01f0) : h
-        push!(items, (sp, d, h, h, hd, den, t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : -1f0))
+        hsee = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : h       # cratet.f:482-488 FMSSEE HS (top-killed ⇒ ITRUNC·.01)
+        push!(items, (sp, d, hsee, h, hd, den, t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : -1f0))
         _, _, rbio = jenkins_biomass(coef, sp, d)
         fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
     end
@@ -841,7 +842,9 @@ function _seed_input_snags_binned!(s::StandState, yr::Integer)
     minht = Dict{Tuple{Int,Int},Float32}(); maxht = Dict{Tuple{Int,Int},Float32}()
     @inbounds for i in rng
         (t.tpa[i] > 0f0 && t.dbh[i] >= 1f0) || continue
-        k = (Int(t.species[i]), _snag_dbhcl(t.dbh[i])); h = hof(i)
+        # cratet.f:482-488: FMSSEE (the class MAXHT/MINHT) sees HS = ITRUNC·.01 for a top-killed dead tree, else HT;
+        # FMSADD's HTCL below still compares HT(I) (fmsadd.f:262-270)
+        k = (Int(t.species[i]), _snag_dbhcl(t.dbh[i])); h = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : hof(i)
         minht[k] = min(get(minht, k, 1000f0), h); maxht[k] = max(get(maxht, k, 0f0), h)
     end
     keys_ = Tuple{Int,Int,Int}[]; recs = Dict{Tuple{Int,Int,Int},Vector{Float32}}()   # [den, dbhs, htdead, htih]
