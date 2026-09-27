@@ -17,4 +17,15 @@ _case(cn, r) = (d = mktempdir(); txt, db, crashed, _ = run_case("IE", cn, r; dir
     @test count(m -> m.col in ("MCuFt", "BdFt", "TCuFt"), c.ms) == 0
 end
 
+# estab.f:545-549 sets PNN(NCOUNT)=ESA on every plot of a calibrated fresh tally — the cycle-1 ingrowth tally too — and
+# estab.f:583 floors each plot's PROB1 at PNN+0.0001, which the ingrowth NSTORE (:587-589) then divides by. jl left PNN=0
+# on ingrowth (MEASURED FVSie_g16 3285544010690 2011: point 1 logistic 0.3833 < PNN 0.429568 ⇒ live PROB1 0.429668 and
+# NSTORE 3, jl 0.3833 and NSTORE 4 ⇒ 2022 TPA live 1028 / jl 949, 20,187 tiered cells).
+@testset "IE AUTOES ingrowth PROB1 floored at PNN=ESA (estab.f:545-589) vs FVSie_g16" begin
+    for cn in ("3285544010690", "51032748020004")
+        c = _case(cn, "none")
+        @test !c.crashed
+        @test count(m -> m.file in ("sum", "FVS_TreeList") || m.col in ("Tpa", "BA", "SDI", "CCF"), c.ms) == 0
+    end
+end
 end # module
