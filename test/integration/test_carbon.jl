@@ -394,11 +394,9 @@ end
             # full rendered-==, NOT a green `<= 6-tenths` slack. Cornered to the GROWN-FLOAT32 ACCUMULATION FLOOR
             # (a permitted primitive): the Above pool carries the accumulated crown_pct Float32 residual, same class
             # as the grown-DBH snag-split / MYBA/MYSDI — a value accumulation, NOT a crown-ratio phasing/ordering gap.
-            if ri == 1
-                @test round(Int, mv[2]*10) == round(Int, fv[2]*10)           # Above — cyc0 BIT-EXACT (rendered)
-            else
-                @test_broken round(Int, mv[2]*10) == round(Int, fv[2]*10)    # Above — grown-Float32 crown_pct accumulation
-            end
+            # (The grown-cycle Above residual cornered above as a "crown_pct Float32 accumulation floor" was the carbon
+            # row itself: fmdout.f BIOLIVE is summed over FMMAIN's TRIPLED record list in REAL*4 order — ported, exact.)
+            @test round(Int, mv[2]*10) == round(Int, fv[2]*10)               # Above — BIT-EXACT (rendered) all cycles
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end
@@ -957,7 +955,8 @@ end
             # CWD2B2 (fmscro.f:160-170, fmmain.f:243-257): the fire's crown debris waits in CWD2B2 and starts falling the
             # year after the burn — Standing-Dead is now exact (was 2.6). The later fall decays less, so DDW rose 15.2 → 15.6.
             @test abs(round(Int, sd05  * 10) -  28) == 0   # jl 2.8 = live 2.8
-            @test abs(round(Int, ddw05 * 10) - 148) == 8   # jl 15.6 vs live 14.8 = exactly 8 tenths (fallen-bole down wood)
+            # fmcwd.f's un-normalized cone split (the 0-0.10 ft stub is dropped, not re-spread) took DDW 15.6 → 15.5.
+            @test abs(round(Int, ddw05 * 10) - 148) == 7   # jl 15.5 vs live 14.8 = exactly 7 tenths (fallen-bole down wood)
         end
     end
 end

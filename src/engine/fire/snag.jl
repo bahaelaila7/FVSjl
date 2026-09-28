@@ -312,6 +312,9 @@ every BPH(j≥1) ≥ HTD) books nothing at all.
     (r2 = r1 * (1f0 - h / htd); (r2 * r2 * (htd - h)) / (r1sq * htd))
 
 function _cwd_cone_fractions(d::Float32, ht::Float32, htcur::Float32 = ht)
+    # A snag with NO recorded height (jl-only: a bare add_snag! without `height`; every FVS snag carries HTDEAD) books
+    # its whole stem into the DBH class rather than vanishing.
+    ht <= 0f0 && (oh = ntuple(j -> j == _cwd_size_class(d) ? 1f0 : 0f0, Val(9)); return (oh, oh))
     d <= 0.1f0 && (d = 0.1f0)                          # fmcwd.f:306 IF(DIAM.LE.0.1) DIAM=0.1
     htd = ht
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
