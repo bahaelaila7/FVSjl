@@ -47,7 +47,9 @@ function ffe_down_wood(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active) && return (vol_hard = z8, vol_soft = z8, cov_hard = z7, cov_soft = z7)
     cw = fs.cwd; den = (18.72f0, 24.96f0)                    # CWDDEN by cwd hardness index (1=soft, 2=hard)
-    vol(sz, K) = (let v = 0f0; for L in 1:4; v += cw[sz, K, L]; end; v end) * 2000f0 / den[K]
+    # fmdout.f:316-343: CWDVOL(I,J,K,L) = CWD(I,J,K,L)·2000/CWDDEN per decay class, then summed over I (piles) and L —
+    # the volume of each pool, not the volume of the pooled biomass.
+    vol(sz, K) = (let v = 0f0; for L in 1:4; v += (cw[sz, K, L] * 2000f0) / den[K]; end; v end)
     function vbins(K)
         b = (vol(1, K) + vol(2, K) + vol(3, K), vol(4, K), vol(5, K), vol(6, K), vol(7, K), vol(8, K), vol(9, K))
         (b..., sum(b))

@@ -124,4 +124,30 @@ end
     @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2007", "2012")) == 0
 end
 
+# fmdout.f:316-343: CWDVOL(I,J,K,L) = CWD(I,J,K,L)·2000/CWDDEN(K,L) per pile/decay class, THEN summed over I and L. jl converted
+# the class-summed biomass (MEASURED 200267456010854 2002 6-12" hard 80.929482 vs live 80.929489). Live golden: FVSsn_g16 on the
+# tiered SALVAGE key plus DWDVLOUT/DWDVLDB (FVS_Down_Wood_Vol rows 2002, 2007).
+@testset "SN FVS_Down_Wood_Vol per-pool volume sum (fmdout.f:316-343) vs FVSsn_g16" begin
+    fx = fixture_dir("SN"); d = mktempdir()
+    cp(joinpath(fx, "stands.db"), joinpath(d, "stands.db"))
+    key = read(joinpath(fx, "200267456010854_salvage.key"), String)
+    key = replace(key, "SALVAGE          2.0       0.0     999.0       0.9\n" =>
+                       "SALVAGE          2.0       0.0     999.0       0.9\nDWDVLOUT\n", "POTFIRDB\n" => "POTFIRDB\nDWDVLDB\n")
+    key = join([l == "out.db" ? joinpath(d, "out.db") : l == "stands.db" ? joinpath(d, "stands.db") : l
+                for l in split(key, '\n')], '\n')
+    write(joinpath(d, "x.key"), key)
+    FVSjl.run_keyfile(joinpath(d, "x.key"); variant = FVSjl.Southern())
+    h, rows = db_table_rows(joinpath(d, "out.db"), "FVS_Down_Wood_Vol")
+    live = Dict("2002" => (219.55130004882812, 34.45512771606445, 80.92948913574219, 80.92948913574219, 0.0, 0.0, 0.0,
+                           415.86541748046875, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+                "2007" => (77.14576721191406, 47.670494079589844, 151.08570861816406, 48.984920501708984, 0.0, 0.0, 0.0,
+                           324.88690185546875, 151.7133331298828, 44.99720764160156, 148.01951599121094, 65.89952087402344,
+                           0.0, 0.0, 0.0, 410.62957763671875))
+    iy = findfirst(==("Year"), h); i0 = findfirst(==("DWD_Volume_0to3_Hard"), h)
+    got = Dict(string(r[iy]) => Tuple(parse(Float64, string(r[i0 + k])) for k in 0:15) for r in rows)
+    for y in ("2002", "2007")
+        @test got[y] == live[y]
+    end
+end
+
 end # module
