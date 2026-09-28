@@ -436,7 +436,7 @@ function compute_volumes_on!(s::StandState)
         # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
         # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.
         # The update loop stashes exactly that value in vol_bark; 0 ⇒ the LSTART (fvs.f:211) call, D unchanged.
-        bark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : on_bratio(sp, d, h)
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : on_bratio(sp, d, h)
         # OCFVOL: below the pulpwood-minimum DBH the cubic call returns the 0.0001 sentinel.
         if d < dbhmin[sp]
             t.cuft_vol[i] = 0.0001f0; t.merch_cuft_vol[i] = 0.0001f0

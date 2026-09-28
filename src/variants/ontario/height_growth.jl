@@ -203,40 +203,24 @@ function on_cratet_dead_snapshot!(s::StandState)
     t = s.trees; n = t.n; nd = Int(t.ndead); nt = n + nd
     c = s.calib
     fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
-    iseq = c.input_seq
-    ord = Int32[]
-    @inbounds for sp in 1:MAXSP
-        mem = Int32[j for j in 1:nt if Int(t.species[j]) == sp]
-        length(iseq) == nt && sort!(mem; by = j -> iseq[j])
-        append!(ord, mem)
-    end
-    _rdpsrt!(view(t.dbh, 1:nt), ord; lseq = false)
-    w = zeros(Float32, nt)
-    @inbounds for j in 1:nt
-        p = j > n ? t.tpa[j] * fintr : t.tpa[j]
-        d = (j > n && t.mort_code[j] == 9) ? 0f0 : t.dbh[j]
-        w[j] = d * (d * p)
+    # IND = IND1 (species-major read order, dead interleaved) + RDPSRT(.FALSE.) on the real DBH — the shared CRATET IND.
+    dbh_real = t.dbh[1:nt]
+    ord = bm_cratet166_ind(s, dbh_real, n, nt)
+    # The backdating pass's WK5 = WK3·(WK3·PROB) (shared PCTILE, _pctile!): dead PROB×FINT/FINTM, IMC-9 dead WK3=0.
+    tpa_dead = t.tpa[(n + 1):nt]
+    @inbounds for j in (n + 1):nt
+        t.tpa[j] *= fintr
+        t.mort_code[j] == 9 && (t.dbh[j] = 0f0)
     end
     pct = zeros(Float32, nt)
-    if nt == 1
-        pct[1] = n == 1 ? 100f0 : 0f0                  # pctile.f N=1: PERCNT(1)=100 — array element 1, a live slot
-    elseif nt > 1
-        @inbounds begin
-            pct[ord[nt]] = w[ord[nt]]
-            for k in (nt - 1):-1:1; pct[ord[k]] = pct[ord[k + 1]] + w[ord[k]]; end
-            i1 = ord[1]; tot = pct[i1]; pct[i1] = tot / 100f0
-            if tot > 0f0
-                pin1 = pct[i1]
-                for k in 2:nt; pct[ord[k]] = pct[ord[k]] / pin1; end
-                pct[i1] = 100f0
-            end
-        end
-    end
+    nt > 0 && _pctile!(pct, t, ord, nt)
+    (n == 0 && nd == 1) && (pct[1] = 0f0)            # pctile.f N=1 sets element 1 — a live slot, not the MAXTRE dead one
+    @inbounds for j in (n + 1):nt; t.tpa[j] = tpa_dead[j - n]; t.dbh[j] = dbh_real[j]; end
     # Live records: with inventory dead present the inventory list's live PCT is the later identity-seeded
     # RDPSRT(.TRUE.) one (cratet.f:235 after the dead are dropped — bm_cratet_ind!'s rule; LD3001 live PCT matches it),
     # so only a dead-free stand keeps this IND1-seeded live PCT.
     c.cratet_pct = nd == 0 ? pct[1:n] : Float32[]
     c.cratet_dead_pct = pct[(n + 1):nt]
-    c.cratet_dead_ptbal = zeros(Float32, nd)
+    c.cratet_dead_ptbal = zeros(Float32, nd)         # ptbal.f CASE('CS','LS','NE','ON'): PTBALT = 0
     return s
 end
