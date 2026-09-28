@@ -413,7 +413,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         last && _ffe_reports!()
         # FVS_StrClass (sstage.f → dbsstrclass.f): the SSTAGE structure classification, BEFORE-thin (Removal_Code
         # 0) at the cycle-top stand. The AFTER-thin (cd=1) row is captured post-cuts! below (non-last cycles).
-        if strclass_collect !== nothing
+        # dbsstrclass.f:122 writes no row when SSTAGE found no record over 0.00001 TPA (NTREES=0, sstage.f:220-233)
+        if strclass_collect !== nothing && _sstage_ntrees(s) > 0
             compute_density!(s)
             push!(strclass_collect, (Int(r.year), 0, structure_report(s)))
         end
@@ -453,7 +454,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
-            if strclass_collect !== nothing
+            if strclass_collect !== nothing && _sstage_ntrees(s) > 0
                 compute_density!(s)
                 push!(strclass_collect, (Int(r.year), 1, structure_report(s)))
             end

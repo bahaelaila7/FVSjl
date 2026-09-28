@@ -173,4 +173,12 @@ end
     @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2018", "2023"), ms)
 end
 
+# dbsstrclass.f:122 writes no FVS_StrClass row when SSTAGE counted no record over 0.00001 TPA (NTREES=0, sstage.f:220-233);
+# jl wrote an all-zero row for the bare year (MEASURED FVSie_g16 1287253083290487 NONE: live rows start 2032, jl 2022).
+@testset "No FVS_StrClass row for a treeless year (dbsstrclass.f:122) vs FVSie_g16" begin
+    for cn in ("1287253083290487", "303115495489998")
+        @test !any(m -> m.file == "FVS_StrClass", _case(cn, "none").ms)
+    end
+end
+
 end # module

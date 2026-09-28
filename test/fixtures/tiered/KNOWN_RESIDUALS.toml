@@ -1283,17 +1283,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 
 [[residual]]
 variant = "IE"
-regime = "cover"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2022: live=0 jl=1"""
-
-[[residual]]
-variant = "IE"
 regime = "econ"
 file = "FVS_EconHarvestValue"
 col = "PRESENCE"
@@ -1346,17 +1335,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 3285544010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "none"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2022: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -2116,17 +2094,6 @@ year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2026: live=931 jl=939"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2022: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -6024,17 +5991,6 @@ issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by t
 
 [[residual]]
 variant = "EM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 242065538010661 year 2010: live=0 jl=1"""
-
-[[residual]]
-variant = "EM"
 regime = "econ"
 file = "FVS_EconHarvestValue"
 col = "PRESENCE"
@@ -6087,17 +6043,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 888512560290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 5352355010661 year 1994: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
@@ -6890,17 +6835,6 @@ year = "*"
 status = "OPEN"
 max_cells = 49
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=46 ulpbig=3] max|Δ|=438.0 | e.g. stand 474187636489998 year 2036: live=264 jl=292"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 242065538010661 year 2010: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
