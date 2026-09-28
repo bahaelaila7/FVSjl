@@ -159,4 +159,12 @@ end
     @test _cellsx("200267456010854", "simfire", "FVS_Carbon", ("Standing_Dead",), ("2007", "2012", "2017", "2022")) == 0
 end
 
+# fmsnag.f:182-190/200-214: FMSNAG STORES each record's post-burn rates PBFRIS/PBFRIH in the burn year and the year after
+# ((IYR−BURNYR) ≤ 1, from that year's DENTTL; a record whose HARD flag has flipped takes PBFRIH = PBFRIS) and reuses them
+# through PBTIME on the actual IYR. jl recomputed them every year from the current density, on the cycle-start year, and
+# ignored HARD (MEASURED private CWD1 trace, 200267456010854 SIMFIRE 2007: the 1990 SO 8.9" snag fell 1.8242 vs live 2.1741).
+@testset "SN post-burn snag fall rates stored per record (fmsnag.f:182-214) vs FVSsn_g16" begin
+    @test _cellsx("200267456010854", "simfire", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2007", "2012")) == 0
+end
+
 end # module

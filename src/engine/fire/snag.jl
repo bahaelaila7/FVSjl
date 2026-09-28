@@ -111,6 +111,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
         sn.origden[slot] = density; sn.year[slot] = Int32(year); sn.yrdead[slot] = Int32(yrdead)
         sn.bolevol[slot] = bolevol; sn.fallvol[slot] = fallvol >= 0f0 ? fallvol : bolevol
         sn.height[slot] = height; sn.htcur[slot] = htcur > 0f0 ? min(htcur, height) : height
+        sn.pbfris[slot] = 0f0; sn.pbfrih[slot] = 0f0
         return
     end
     # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
@@ -125,6 +126,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     push!(sn.den_hard, hard);  push!(sn.den_soft, soft)
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
     push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc)
+    push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
     return
 end
 
@@ -453,21 +455,33 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # at a fire only when the scorch height exceeds PBSCOR (fmburn.f:414) — derive the last qualifying
             # burn from the accumulated burn_reports' scorch (fire_year is the scheduled year, cleared after firing).
             p = fs.params
-            if byr > 0 && Int(sn.yrdead[i]) <= byr && 0 <= (cur - byr) <= Int(p.pb_time)
-                dzr = (_FM_NZERO / 50f0) / denttl
-                # fmsfall.f:25-38: rates only when PBSOFT/PBSMAL > 0 (R6 fmvinit sets 0, SO −1 ⇒ none)
-                rsoft = p.pb_soft <= 0f0 ? 0f0 :
-                        p.pb_soft < 1f0 ? 1f0 - exp(log(1f0 - p.pb_soft) / p.pb_time) :
-                                          1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
-                pbfris = rsoft; pbfrih = 0f0
-                if sn.dbh[i] < p.pb_size                         # small snags accelerate (large hard do not)
-                    pbfrih = p.pb_smal <= 0f0 ? 0f0 :
-                             p.pb_smal < 1f0 ? 1f0 - exp(log(1f0 - p.pb_smal) / p.pb_time) :
-                                               1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
-                    pbfrih > pbfris && (pbfris = pbfrih)         # fmsnag.f:186-187: bump soft rate to the max
+            if byr > 0
+                # fmsnag.f:182-190: in the burn year and the year after ((IYR−BURNYR) ≤ 1) FMSNAG STORES the record's
+                # PBFRIS = RSOFT and PBFRIH (RSMAL for DBHS < PBSIZE, raised to PBFRIS for a snag whose HARD flag has
+                # flipped); later years reuse them. FMSFALL (fmsfall.f:22-38) gives the rates only while IYR−BURNYR <
+                # PBTIME, from this year's DENTTL when PBSOFT/PBSMAL ≥ 1 — expf/logf.
+                if eff - byr <= 1
+                    rsoft = 0f0; rsmal = 0f0
+                    if eff - byr < p.pb_time
+                        dzr = (_FM_NZERO / 50f0) / denttl
+                        rsoft = p.pb_soft <= 0f0 ? 0f0 :
+                                p.pb_soft < 1f0 ? 1f0 - fexp(flog(1f0 - p.pb_soft) / p.pb_time) :
+                                                  1f0 - fexp(flog(dzr) / p.pb_time)
+                        rsmal = p.pb_smal <= 0f0 ? 0f0 :
+                                p.pb_smal < 1f0 ? 1f0 - fexp(flog(1f0 - p.pb_smal) / p.pb_time) :
+                                                  1f0 - fexp(flog(dzr) / p.pb_time)
+                    end
+                    sn.pbfris[i] = rsoft; sn.pbfrih[i] = 0f0
+                    if sn.dbh[i] < p.pb_size
+                        sn.pbfrih[i] = rsmal
+                        (sn.pbfrih[i] < sn.pbfris[i] && !_snag_hard_flag(s, i, eff)) && (sn.pbfrih[i] = sn.pbfris[i])
+                        sn.pbfrih[i] > sn.pbfris[i] && (sn.pbfris[i] = sn.pbfrih[i])
+                    end
                 end
-                xs = pbfris * sn.den_soft[i]; xh = pbfrih * sn.den_hard[i]
-                dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr) <= p.pb_time
+                    xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                    dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                end
             end
             # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50
             # falls entirely. (jl applied it only for the R6 variants — MEASURED FVSie_g16 4769882010690 2044: live
@@ -503,6 +517,18 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         end
     end
     return fallen
+end
+
+# FMSNAG's per-record HARD flag as the snag's year-`iyr` processing sees it: FMSADD creates every record HARD (fmsadd.f:239)
+# and FMSNAG flips it at the END of a year's pass once IYR−YRDEAD ≥ DKTIME (fmsnag.f:282-285). So at `iyr` the flag reflects
+# the check made at iyr−1 — and only if FMSNAG ran that year, i.e. never before the inventory year (the inventory report
+# and the first FMSNAG year still see every input snag HARD).
+function _snag_hard_flag(s::StandState, i::Int, iyr::Integer)::Bool
+    sn = s.fire.snags
+    (iyr - 1) >= Int(s.control.cycle_year[1]) || return true
+    sp = Int(sn.sp[i])
+    dcx = get(s.fire.params.snag_decayx_ovr, Int32(sp), coef_col(s.coef, :snag_decayx)[sp])
+    return Float32(iyr - 1 - Int(sn.yrdead[i])) < _snag_dktime(s, sp, sn.dbh[i], dcx)
 end
 
 # The per-stem fall bole (tons) CWD1/CWD2 book: the TOTAL-volume `fallvol`, else `bolevol`, else Jenkins.

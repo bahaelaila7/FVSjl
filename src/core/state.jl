@@ -1032,8 +1032,11 @@ mutable struct SnagList
     htcur::Vector{Float32}        # HTIH/HTIS — CURRENT snag height (ft), = `height` at creation; only shrinks
                                   # when SNAGBRK sets HTX>0 (FMSNGHT). Drives the recomputed bole then. At
                                   # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
+    pbfris::Vector{Float32}       # PBFRIS/PBFRIH — the post-burn soft/hard fall rates FMSNAG stores per record in the
+    pbfrih::Vector{Float32}       # burn year and the year after (fmsnag.f:182-190) and reuses through PBTIME
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[],
+                      Float32[], Float32[])
 
 """
 Preallocated, reused work buffers for `book_mortality_snags!`'s FMSADD snag-record binning (fire path only).
