@@ -1627,7 +1627,7 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
-            strcl_rows === nothing ||
+            (strcl_rows === nothing || isempty(strcl_rows)) ||   # DBSSTRCLASS creates the table on its first row
                 write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
             if dm_rows !== nothing && !isempty(dm_rows)
                 # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1); the by-DBH-class FVS_DM_Sz_Sum

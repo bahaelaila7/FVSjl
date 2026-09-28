@@ -417,7 +417,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         last && _ffe_reports!()
         # FVS_StrClass (sstage.f → dbsstrclass.f): the SSTAGE structure classification, BEFORE-thin (Removal_Code
         # 0) at the cycle-top stand. The AFTER-thin (cd=1) row is captured post-cuts! below (non-last cycles).
-        if strclass_collect !== nothing
+        # dbsstrclass.f:122 returns when NTREES (records with PROB > .00001, sstage.f:74-79) is 0 — a treeless stand
+        # (bare inventory, before any regeneration) writes no FVS_StrClass row.
+        if strclass_collect !== nothing && _sstage_ntrees(s) > 0
             compute_density!(s)
             push!(strclass_collect, (Int(r.year), 0, structure_report(s)))
         end
@@ -458,7 +460,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
-            if strclass_collect !== nothing
+            if strclass_collect !== nothing && _sstage_ntrees(s) > 0
                 compute_density!(s)
                 push!(strclass_collect, (Int(r.year), 1, structure_report(s)))
             end
@@ -588,6 +590,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     end
     return io
 end
+
+# SSTAGE's NTREES (sstage.f:74-79): the records carrying more than 0.00001 trees/acre.
+_sstage_ntrees(s::StandState) = count(i -> s.trees.tpa[i] > 0.00001f0, 1:s.trees.n)
 
 # The two metric variants (canada BC / ON): FVS compiles metric/vbase/{disply,sumout}.f and the metric dbsqlite writers.
 _metric_variant(v) = v isa BritishColumbia || v isa Ontario
