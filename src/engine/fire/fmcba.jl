@@ -171,9 +171,12 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  # IE/KT: bare stand ⇒ COVINI(ITYPE) seral cover species (ie/fmcba.f:279), NOT a fixed species.
                  (s.variant isa InlandEmpire || s.variant isa Kootenai) ? Int32(ie_covini_default(Int(s.plot.habitat_input))) :
                  s.variant isa EasternMontana ? Int32(3)  :   # EM bare-stand default: DF (em/fmcba.f covtyp=3 path)
-                 s.variant isa CentralIdaho ? Int32(3)  :     # CI bare-stand default: DF (cit01 has trees ⇒ unused)
-                 s.variant isa Teton ? Int32(3)  :             # TT bare-stand default: DF
-                 s.variant isa Utah ? Int32(3)  :              # UT bare-stand default: DF
+                 # CI/TT/UT/WC/PN/EC bare stand: COVINI(ITYPE) (the seral cover of the habitat), else the variant's
+                 # "NO VALID HABITAT" default (ci:377-387 ICINDX→DF 3; tt:327-337 / ut:351-361 ITYPE→LP 7;
+                 # wc:451-462 / pn:425-436 COVINI6(ITYPE)→DF 16; ec:422-431 ITYPE→DF 3). Tables: covini_tables.jl.
+                 s.variant isa CentralIdaho ? Int32(3) :   # (CI_COVINI(ICINDX) lands with the CI habitat default fix)
+                 s.variant isa Teton ? _covini(TT_COVINI, Int(s.plot.habitat_input), 7) :          # ITYPE (tt/habtyp.f)
+                 s.variant isa Utah ? _covini(UT_COVINI, Int(s.plot.habitat_input), 7) :           # ITYPE (ut/habtyp.f)
                  # BM bare stand: COVINI(ITYPE) (bm/fmcba.f:296-300), ITYPE = the PCOML index habtyp.f resolved (79 = its
                  # CWG113 default ⇒ COVINI 4 = grand fir, live herb/shrub 0.30/2.0 — the fixed DF (0.4/2.0) over-loaded FLIVE).
                  s.variant isa BlueMountains ? Int32(_BM_COVINI[(1 <= s.plot.habitat_code <= 92) ? Int(s.plot.habitat_code) : 79]) :
@@ -184,15 +187,26 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
                  s.variant isa Klamath ? Int32(3) :
-                 # WC bare stand: COVINI6(ITYPE) by R6 habitat (wc/fmcba.f:454-455); the full habitat→cover
-                 # map is a bare-stand-only path not exercised by wct01 (trees present) — fmcba.f's "no valid
-                 # habitat" fallback is Douglas-fir (16, wc/fmcba.f:462), used here until that map ports.
-                 s.variant isa WestCascades ? Int32(16) :
-                 s.variant isa PacificNorthwest ? Int32(16) :   # PN bare-stand fallback: Douglas-fir (pn/fmcba.f)
-                 s.variant isa EastCascades ? Int32(3) :        # EC bare-stand fallback: Douglas-fir (ec/fmcba.f:431)
+                 s.variant isa WestCascades ? _covini(WC_COVINI6, Int(s.plot.habitat_input), 16) :
+                 s.variant isa PacificNorthwest ? _covini(PN_COVINI6, Int(s.plot.habitat_input), 16) :
+                 s.variant isa EastCascades ? _covini(EC_COVINI, Int(s.plot.habitat_input), 3) :
                  s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
                  s.variant isa SoutheastAlaska ? Int32(11) :   # AK: western hemlock at IY(1) (ak/fmcba.f:236-242), else OLDCOVTYP
+                 # WS/CA/OC/OP "NO VALID HABITAT" defaults (ws/fmcba.f:509 PP 10; ca/oc fmcba.f:543 7; op/fmcba.f:436 DF
+                 # 16 after COVINI6(ITYPE)). These fell to the SN 75 before — a species index past their MAXSP, masked
+                 # only because the top-2 weights stayed 0. WS/CA/OC COVINI(ITYPE) waits on their habtyp ITYPE port.
+                 s.variant isa WestSierra ? Int32(10) :
+                 (s.variant isa CentralCalifornia || s.variant isa OregonCoast) ? Int32(7) :
+                 s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
+        # CA-FFE top-2 variants (nc:359-360, ws:514-515, ca/oc:548-549): a bare stand carries the ONE cover type,
+        # COVCA(1)=COVTYP with weight COVCAWT(1)=1 (COVCA(2)/COVCAWT(2) stay 0 from the FMCBA entry reset). jl kept
+        # COVCAWT=(0,0) ⇒ zero live AND initial dead fuel on every bare NC/WS/CA/OC stand. (OP's fmcba.f has no
+        # COVCA; its single-COVTYP load equals this one-weight pair.)
+        if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+           s.variant isa OregonCoast || s.variant isa Olympic
+            covca = (Int(covtyp), 0); covcawt = (1f0, 0f0)
+        end
     end
     fs.covtyp = covtyp
     fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
@@ -325,6 +339,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     end
     return s
 end
+
+# fmcba.f bare-stand seral cover: COVINI(ITYPE) when 1 ≤ ITYPE ≤ MXVCODE and nonzero, else the variant default.
+@inline _covini(tab::AbstractVector, itype::Int, dflt::Integer)::Int32 =
+    ((1 <= itype <= length(tab)) && tab[itype] != 0) ? Int32(tab[itype]) : Int32(dflt)
 
 # bm/fmcba.f DATA COVINI(1:92): the seral cover type (species index) per BM plant association (PCOML order).
 const _BM_COVINI = Int32[

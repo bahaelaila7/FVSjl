@@ -29,4 +29,18 @@ _material(ms) = [m for m in ms if _rel(m) > 1e-5]
     end
 end
 
+# fmcba.f bare-stand cover type: with no basal area the first FFE year takes COVTYP = COVINI(ITYPE) (the habitat's seral
+# cover) else the variant's "NO VALID HABITAT" default (tt/ut 7 LP, wc/pn COVINI6→16, ec →3); the CA-FFE top-2 variants
+# then load the one cover at weight 1 (nc:359-360 COVCA(1)=COVTYP, COVCAWT(1)=1). jl used DF 3 for TT/UT, 16 for every
+# WC/PN habitat, and left NC's COVCAWT at 0 (MEASURED: TT 3333677010690 1992 live COVTYP 7 — DDW 4.05 / jl 2.40; NC
+# 450603388489998 2016 DDW 1.40 / jl 0.0; WC 374601116489998 COVTYP 19; PN 26379272010900 19; EC 450507010497 10).
+@testset "bare-stand FFE cover type COVINI(ITYPE) + top-2 COVCA (fmcba.f) vs live at the first FFE year" begin
+    for (v, cn, y) in (("TT", "3333677010690", "1992"), ("UT", "471768556489998", "2016"), ("NC", "450603388489998", "2016"),
+                       ("WC", "374601116489998", "2015"), ("PN", "26379272010900", "2002"), ("EC", "450507010497", "2009"))
+        c = _case(v, cn, "salvage")
+        @test !c.crashed
+        @test isempty(_material([m for m in c.ms if m.year == y && m.file == "FVS_Carbon"]))
+    end
+end
+
 end # module

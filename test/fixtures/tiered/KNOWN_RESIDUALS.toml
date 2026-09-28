@@ -11754,7 +11754,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 39
+max_cells = 33
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 45 cells [material=19 ulp1=2 ulp2_16=1 ulpbig=23] max|Δ|=2.294 | e.g. stand 3333677010690 year 2022: live=2.653761386871338 jl=1.354641318321228"""
 
 [[residual]]
@@ -11765,7 +11765,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 45
+max_cells = 43
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 45 cells [material=9 ulp1=1 ulp2_16=2 ulpbig=33] max|Δ|=2.149 | e.g. stand 3333677010690 year 2022: live=2.461103916168213 jl=1.818151831626892"""
 
 [[residual]]
@@ -11776,7 +11776,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 25
+max_cells = 15
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 25 cells [ulp1=1 ulp2_16=12 ulpbig=12] max|Δ|=0.5 | e.g. stand 3333677010690 year 2022: live=0.699999988079071 jl=1.2000000476837158"""
 
 [[residual]]
@@ -11798,7 +11798,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 43
+max_cells = 41
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [material=38 ulpbig=12] max|Δ|=13.2 | e.g. stand 3333677010690 year 2022: live=5.8148651123046875 jl=4.372793197631836"""
 
 [[residual]]
@@ -12018,7 +12018,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 47
+max_cells = 45
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulpbig=50] max|Δ|=0.07853 | e.g. stand 3333677010690 year 2022: live=0.06820344179868698 jl=0.052088413387537"""
 
 [[residual]]
@@ -12029,7 +12029,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 45
+max_cells = 43
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulpbig=50] max|Δ|=0.07641 | e.g. stand 3333677010690 year 2022: live=0.1093049868941307 jl=0.08220519870519638"""
 
 [[residual]]
@@ -12513,7 +12513,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 42
+max_cells = 36
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 45 cells [material=17 ulp1=2 ulp2_16=1 ulpbig=25] max|Δ|=3.009 | e.g. stand 2825368010690 year 2034: live=0.5904451608657837 jl=0.2957221567630768"""
 
 [[residual]]
@@ -12524,7 +12524,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 45
+max_cells = 43
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 45 cells [material=1 ulp1=1 ulp2_16=2 ulpbig=41] max|Δ|=1.07 | e.g. stand 2825368010690 year 2034: live=0.5582053065299988 jl=0.41243162751197815"""
 
 [[residual]]
@@ -12535,7 +12535,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
+max_cells = 17
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 27 cells [ulp1=2 ulp2_16=4 ulpbig=21] max|Δ|=0.5 | e.g. stand 2825368010690 year 2034: live=0.699999988079071 jl=1.2000000476837158"""
 
 [[residual]]
@@ -12557,7 +12557,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 43
+max_cells = 41
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [material=24 ulpbig=26] max|Δ|=5.461 | e.g. stand 2825368010690 year 2034: live=1.8486504554748535 jl=1.908153772354126"""
 
 [[residual]]
@@ -12898,7 +12898,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 46
+max_cells = 44
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulpbig=50] max|Δ|=0.04964 | e.g. stand 2825368010690 year 2034: live=0.022524436935782433 jl=0.024333836510777473"""
 
 [[residual]]
@@ -12909,7 +12909,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 46
+max_cells = 44
 issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulpbig=50] max|Δ|=0.1518 | e.g. stand 2825368010690 year 2034: live=0.031860291957855225 jl=0.031167669221758842"""
 
 [[residual]]
@@ -17609,7 +17609,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 44
+max_cells = 38
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 46 cells [material=22 ulp1=3 ulp2_16=1 ulpbig=20] max|Δ|=4.33 | e.g. stand 434219452489998 year 2045: live=2.4942612648010254 jl=4.421020030975342"""
 
 [[residual]]
@@ -17620,7 +17620,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 43
+max_cells = 36
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 43 cells [material=6 ulp1=2 ulpbig=35] max|Δ|=3.296 | e.g. stand 434219452489998 year 2045: live=0.4869125485420227 jl=1.2570832967758179"""
 
 [[residual]]
@@ -17631,7 +17631,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 23
+max_cells = 13
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp1=4 ulp2_16=7 ulpbig=12] max|Δ|=0.5 | e.g. stand 434219452489998 year 2045: live=0.12497903406620026 jl=0.12497885525226593"""
 
 [[residual]]
@@ -17653,7 +17653,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 42
+max_cells = 38
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 50 cells [material=32 ulpbig=18] max|Δ|=19.88 | e.g. stand 434219452489998 year 2045: live=22.264272689819336 jl=34.70165252685547"""
 
 [[residual]]
@@ -17796,7 +17796,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 44
+max_cells = 36
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 49 cells [ulp2_16=1 ulpbig=48] max|Δ|=0.09201 | e.g. stand 434219452489998 year 2045: live=0.031514741480350494 jl=0.05841565132141113"""
 
 [[residual]]
@@ -17807,7 +17807,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 46
+max_cells = 38
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulp2_16=1 ulpbig=49] max|Δ|=0.104 | e.g. stand 434219452489998 year 2045: live=0.03435372933745384 jl=0.10308469086885452"""
 
 [[residual]]
@@ -18258,7 +18258,7 @@ col = "Carbon_Released_From_Fire"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 10
+max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=4.383 | e.g. stand 41442932010690 year 2016: live=5.354830741882324 jl=3.9049160480499268"""
 
 [[residual]]
@@ -18269,7 +18269,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 43
+max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 46 cells [material=22 ulp1=3 ulp2_16=1 ulpbig=20] max|Δ|=10.07 | e.g. stand 41442932010690 year 2046: live=1.118107557296753 jl=0.8416523933410645"""
 
 [[residual]]
@@ -18280,7 +18280,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 40
+max_cells = 31
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 43 cells [ulp1=2 ulpbig=41] max|Δ|=0.9326 | e.g. stand 41442932010690 year 2046: live=0.5741778612136841 jl=0.41095468401908875"""
 
 [[residual]]
@@ -18291,7 +18291,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
+max_cells = 17
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 30 cells [ulp1=4 ulp2_16=4 ulpbig=22] max|Δ|=0.6862 | e.g. stand 41442932010690 year 2046: live=0.699999988079071 jl=1.2000000476837158"""
 
 [[residual]]
@@ -18313,7 +18313,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 42
+max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: the UT campaign (not yet dug) | measured 2026-09-28: 50 cells [material=32 ulpbig=18] max|Δ|=14.44 | e.g. stand 41442932010690 year 2046: live=2.4306576251983643 jl=2.4909794330596924"""
 
 [[residual]]
@@ -18632,7 +18632,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 42
+max_cells = 32
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 49 cells [ulp2_16=1 ulpbig=48] max|Δ|=0.09087 | e.g. stand 41442932010690 year 2046: live=0.026453396305441856 jl=0.028269518166780472"""
 
 [[residual]]
@@ -18643,7 +18643,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 46
+max_cells = 36
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 50 cells [ulp2_16=1 ulpbig=49] max|Δ|=0.09258 | e.g. stand 41442932010690 year 2046: live=0.03622199222445488 jl=0.0352591946721077"""
 
 [[residual]]
@@ -41821,7 +41821,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [material=4 ulp1=1 ulpbig=8] max|Δ|=1.4 | e.g. stand 450603388489998 year 2021: live=1.2725932598114014 jl=0.0"""
 
 [[residual]]
@@ -41832,7 +41832,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 10
+max_cells = 6
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 10 cells [ulpbig=10] max|Δ|=0.006501 | e.g. stand 450603388489998 year 2021: live=0.0018741711974143982 jl=0.0"""
 
 [[residual]]
@@ -41843,7 +41843,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [material=5 ulpbig=8] max|Δ|=1.2 | e.g. stand 450603388489998 year 2021: live=1.2000000476837158 jl=0.0"""
 
 [[residual]]
@@ -41865,7 +41865,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [material=5 ulpbig=8] max|Δ|=2.6 | e.g. stand 450603388489998 year 2021: live=2.4744675159454346 jl=0.0"""
 
 [[residual]]
@@ -42063,7 +42063,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [ulpbig=13] max|Δ|=0.03571 | e.g. stand 450603388489998 year 2021: live=0.03402678668498993 jl=0.0"""
 
 [[residual]]
@@ -42074,7 +42074,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [ulpbig=13] max|Δ|=0.0714 | e.g. stand 450603388489998 year 2021: live=0.033344872295856476 jl=0.0"""
 
 [[residual]]
@@ -42283,7 +42283,7 @@ col = "Carbon_Released_From_Fire"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 2
+max_cells = 1
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 2 cells [material=1 ulpbig=1] max|Δ|=1.805 | e.g. stand 450603388489998 year 2021: live=1.8048042058944702 jl=0.0"""
 
 [[residual]]
@@ -42294,7 +42294,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [material=1 ulpbig=12] max|Δ|=1.4 | e.g. stand 450603388489998 year 2021: live=0.2692379653453827 jl=0.0"""
 
 [[residual]]
@@ -42305,7 +42305,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 11
+max_cells = 9
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=0.0454 | e.g. stand 450603388489998 year 2021: live=0.0004252495418768376 jl=0.0"""
 
 [[residual]]
@@ -42316,7 +42316,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 10
+max_cells = 5
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=1.2 | e.g. stand 450603388489998 year 2021: live=1.2000000476837158 jl=0.0"""
 
 [[residual]]
@@ -42338,7 +42338,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [material=5 ulpbig=8] max|Δ|=2.6 | e.g. stand 450603388489998 year 2021: live=1.4696632623672485 jl=0.0"""
 
 [[residual]]
@@ -42591,7 +42591,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 13
+max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 13 cells [ulpbig=13] max|Δ|=0.03571 | e.g. stand 450603388489998 year 2021: live=0.020005246624350548 jl=0.0"""
 
 [[residual]]
@@ -42602,7 +42602,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 14
+max_cells = 10
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 14 cells [ulp1=1 ulpbig=13] max|Δ|=0.03492 | e.g. stand 450603388489998 year 2021: live=0.019948890432715416 jl=0.0"""
 
 [[residual]]
@@ -45014,7 +45014,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 39
+max_cells = 24
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 39 cells [material=13 ulp1=7 ulp2_16=5 ulpbig=14] max|Δ|=138.8 | e.g. stand 30194620010497 year 2008: live=4.514640808105469 jl=5.9146409034729"""
 
 [[residual]]
@@ -45025,7 +45025,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 30
+max_cells = 17
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 30 cells [material=3 ulp1=7 ulp2_16=10 ulpbig=10] max|Δ|=1.908 | e.g. stand 30194620010497 year 2008: live=4.551000118255615 jl=4.625"""
 
 [[residual]]
@@ -45036,7 +45036,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 12
+max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 12 cells [ulp2_16=2 ulpbig=10] max|Δ|=0.05 | e.g. stand 30194620010497 year 2008: live=1.149999976158142 jl=1.2000000476837158"""
 
 [[residual]]
@@ -45058,7 +45058,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 32
+max_cells = 17
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 32 cells [material=13 ulp1=3 ulp2_16=14 ulpbig=2] max|Δ|=136.9 | e.g. stand 30194620010497 year 2008: live=10.215641021728516 jl=11.739640235900879"""
 
 [[residual]]
@@ -45212,7 +45212,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 39
+max_cells = 24
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 39 cells [ulp1=9 ulp2_16=4 ulpbig=26] max|Δ|=0.8385 | e.g. stand 30194620010497 year 2008: live=0.09720214456319809 jl=0.10963613539934158"""
 
 [[residual]]
@@ -45223,7 +45223,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 36
+max_cells = 21
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 36 cells [ulp1=8 ulp2_16=4 ulpbig=24] max|Δ|=0.8078 | e.g. stand 30194620010497 year 2008: live=0.16960306465625763 jl=0.18203704059123993"""
 
 [[residual]]
@@ -45476,7 +45476,7 @@ col = "Carbon_Released_From_Fire"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
+max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 5 cells [material=3 ulp2_16=1 ulpbig=1] max|Δ|=24.44 | e.g. stand 22404557010497 year 2014: live=13.3896484375 jl=13.389669418334961"""
 
 [[residual]]
@@ -45487,7 +45487,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 27
+max_cells = 14
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 27 cells [material=8 ulp1=2 ulp2_16=2 ulpbig=15] max|Δ|=85.8 | e.g. stand 22404557010497 year 2034: live=11.894322395324707 jl=11.896700859069824"""
 
 [[residual]]
@@ -45498,19 +45498,8 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 23
-issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp2_16=4 ulpbig=19] max|Δ|=0.8615 | e.g. stand 22404557010497 year 2034: live=1.6917051076889038 jl=1.6917200088500977"""
-
-[[residual]]
-variant = "WC"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Forest_Shrub_Herb"
-stand = "*"
-year = "*"
-status = "OPEN"
 max_cells = 10
-issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 10 cells [ulpbig=10] max|Δ|=0.05 | e.g. stand 30194620010497 year 2008: live=1.149999976158142 jl=1.2000000476837158"""
+issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp2_16=4 ulpbig=19] max|Δ|=0.8615 | e.g. stand 22404557010497 year 2034: live=1.6917051076889038 jl=1.6917200088500977"""
 
 [[residual]]
 variant = "WC"
@@ -45520,7 +45509,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 26
+max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: the WC campaign (not yet dug) | measured 2026-09-28: 26 cells [material=8 ulp2_16=2 ulpbig=16] max|Δ|=84.99 | e.g. stand 22404557010497 year 2034: live=132.22625732421875 jl=132.22865295410156"""
 
 [[residual]]
@@ -45784,7 +45773,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 26
+max_cells = 12
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 26 cells [ulp1=1 ulp2_16=2 ulpbig=23] max|Δ|=0.5113 | e.g. stand 22404557010497 year 2034: live=0.11541798710823059 jl=0.11543544381856918"""
 
 [[residual]]
@@ -45795,7 +45784,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 28
+max_cells = 13
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-09-28: 28 cells [ulp1=1 ulp2_16=1 ulpbig=26] max|Δ|=0.4984 | e.g. stand 22404557010497 year 2034: live=0.1291521191596985 jl=0.12916982173919678"""
 
 [[residual]]
@@ -48064,7 +48053,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 25
+max_cells = 23
 issue = """material divergence (model/report) — needs dig; owner: the PN campaign (not yet dug) | measured 2026-09-28: 25 cells [material=5 ulp1=8 ulp2_16=5 ulpbig=7] max|Δ|=4.2 | e.g. stand 248879504489998 year 2033: live=2.4176104068756104 jl=2.4176101684570312"""
 
 [[residual]]
@@ -48075,7 +48064,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 18
+max_cells = 14
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 18 cells [ulp1=4 ulp2_16=7 ulpbig=7] max|Δ|=0.01746 | e.g. stand 720634155290487 year 2039: live=2.6479694843292236 jl=2.6622259616851807"""
 
 [[residual]]
@@ -48108,7 +48097,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 20
+max_cells = 18
 issue = """material divergence (model/report) — needs dig; owner: the PN campaign (not yet dug) | measured 2026-09-28: 20 cells [material=5 ulp1=6 ulp2_16=5 ulpbig=4] max|Δ|=4.2 | e.g. stand 248879504489998 year 2043: live=82.30985260009766 jl=82.30986022949219"""
 
 [[residual]]
@@ -48273,7 +48262,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 24
+max_cells = 20
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=8 ulp2_16=4 ulpbig=12] max|Δ|=0.05295 | e.g. stand 720634155290487 year 2039: live=0.16292965412139893 jl=0.16784407198429108"""
 
 [[residual]]
@@ -48284,7 +48273,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 28
+max_cells = 23
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 28 cells [ulp1=7 ulp2_16=12 ulpbig=9] max|Δ|=0.05102 | e.g. stand 720634155290487 year 2019: live=0.2531772553920746 jl=0.2531771659851074"""
 
 [[residual]]
@@ -48592,7 +48581,7 @@ col = "Carbon_Released_From_Fire"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 5
+max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the PN campaign (not yet dug) | measured 2026-09-28: 5 cells [material=1 ulp1=3 ulp2_16=1] max|Δ|=3.011 | e.g. stand 720634155290487 year 2029: live=7.723039627075195 jl=7.7230401039123535"""
 
 [[residual]]
@@ -48603,7 +48592,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
+max_cells = 18
 issue = """material divergence (model/report) — needs dig; owner: the PN campaign (not yet dug) | measured 2026-09-28: 19 cells [material=5 ulp1=4 ulp2_16=5 ulpbig=5] max|Δ|=4.2 | e.g. stand 720634155290487 year 2039: live=20.30573081970215 jl=20.85843276977539"""
 
 [[residual]]
@@ -48614,7 +48603,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 16
+max_cells = 12
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 16 cells [ulp1=6 ulp2_16=2 ulpbig=8] max|Δ|=0.01357 | e.g. stand 720634155290487 year 2039: live=1.3147131204605103 jl=1.3215659856796265"""
 
 [[residual]]
@@ -48636,7 +48625,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 16
+max_cells = 13
 issue = """material divergence (model/report) — needs dig; owner: the PN campaign (not yet dug) | measured 2026-09-28: 16 cells [material=5 ulp1=2 ulp2_16=4 ulpbig=5] max|Δ|=4.2 | e.g. stand 720634155290487 year 2039: live=125.36906433105469 jl=126.45866394042969"""
 
 [[residual]]
@@ -48878,7 +48867,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 18
+max_cells = 14
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 18 cells [ulp1=4 ulp2_16=4 ulpbig=10] max|Δ|=0.05295 | e.g. stand 720634155290487 year 2039: live=0.2112782597541809 jl=0.21818940341472626"""
 
 [[residual]]
@@ -48889,7 +48878,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 20
+max_cells = 15
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 20 cells [ulp1=1 ulp2_16=8 ulpbig=11] max|Δ|=0.05102 | e.g. stand 720634155290487 year 2019: live=0.2531772553920746 jl=0.2531771659851074"""
 
 [[residual]]
@@ -50487,7 +50476,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 23
+max_cells = 14
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 23 cells [material=4 ulp1=7 ulp2_16=2 ulpbig=10] max|Δ|=1.693 | e.g. stand 450507010497 year 2009: live=0.5 jl=1.399999976158142"""
 
 [[residual]]
@@ -50498,7 +50487,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 21
+max_cells = 13
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=4 ulp2_16=4 ulpbig=13] max|Δ|=0.02407 | e.g. stand 450507010497 year 2029: live=0.0032442116644233465 jl=0.005779335740953684"""
 
 [[residual]]
@@ -50509,7 +50498,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
+max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 19 cells [material=5 ulp2_16=9 ulpbig=5] max|Δ|=1.025 | e.g. stand 450507010497 year 2009: live=0.17499999701976776 jl=1.2000000476837158"""
 
 [[residual]]
@@ -50531,7 +50520,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 19
+max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 19 cells [material=9 ulp1=2 ulp2_16=2 ulpbig=6] max|Δ|=1.925 | e.g. stand 450507010497 year 2009: live=0.675000011920929 jl=2.5999999046325684"""
 
 [[residual]]
@@ -50630,7 +50619,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 21
+max_cells = 11
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=6 ulpbig=15] max|Δ|=0.02574 | e.g. stand 450507010497 year 2009: live=0.00996776670217514 jl=0.03570554405450821"""
 
 [[residual]]
@@ -50641,7 +50630,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 30
+max_cells = 20
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 30 cells [ulp1=12 ulp2_16=3 ulpbig=15] max|Δ|=0.02523 | e.g. stand 450507010497 year 2009: live=0.009687812998890877 jl=0.03492167964577675"""
 
 [[residual]]
@@ -50828,7 +50817,7 @@ col = "Carbon_Released_From_Fire"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 4
+max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 4 cells [material=1 ulp1=1 ulp2_16=1 ulpbig=1] max|Δ|=1.287 | e.g. stand 1143391214290487 year 2031: live=3.1759188175201416 jl=3.6581978797912598"""
 
 [[residual]]
@@ -50839,7 +50828,7 @@ col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 21
+max_cells = 12
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=4 ulp2_16=3 ulpbig=14] max|Δ|=0.9982 | e.g. stand 1143391214290487 year 2061: live=1.1154022216796875 jl=2.1136128902435303"""
 
 [[residual]]
@@ -50850,7 +50839,7 @@ col = "Forest_Floor"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 20
+max_cells = 12
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 20 cells [ulp1=4 ulp2_16=3 ulpbig=13] max|Δ|=0.009333 | e.g. stand 1143391214290487 year 2061: live=0.04118850827217102 jl=0.031957078725099564"""
 
 [[residual]]
@@ -50861,7 +50850,7 @@ col = "Forest_Shrub_Herb"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 20
+max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 20 cells [material=5 ulp1=1 ulp2_16=6 ulpbig=8] max|Δ|=1.025 | e.g. stand 1143391214290487 year 2061: live=1.149999976158142 jl=1.2000000476837158"""
 
 [[residual]]
@@ -50883,7 +50872,7 @@ col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 22
+max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: the EC campaign (not yet dug) | measured 2026-09-28: 22 cells [material=7 ulp1=5 ulp2_16=2 ulpbig=8] max|Δ|=1.925 | e.g. stand 1143391214290487 year 2061: live=2.3065905570983887 jl=3.3455700874328613"""
 
 [[residual]]
@@ -51081,7 +51070,7 @@ col = "Pot_Smoke_Mod"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 23
+max_cells = 13
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp1=4 ulp2_16=4 ulpbig=15] max|Δ|=0.02574 | e.g. stand 1143391214290487 year 2061: live=0.023209378123283386 jl=0.03036884404718876"""
 
 [[residual]]
@@ -51092,7 +51081,7 @@ col = "Pot_Smoke_Sev"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 24
+max_cells = 14
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=5 ulp2_16=2 ulpbig=17] max|Δ|=0.02523 | e.g. stand 1143391214290487 year 2061: live=0.023896032944321632 jl=0.030912259593605995"""
 
 [[residual]]

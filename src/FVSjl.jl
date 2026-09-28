@@ -433,6 +433,7 @@ include("../data/eastcascades/fire/ffe_fuel.jl")         # EC FFE FULIVE/FULIVI/
 include("../data/southcentraloregon/fire/so_cwcalc.jl")  # SO crown width (so/cwcalc.f SOMAP, forest-601 DESCHUTES BF)
 include("../data/southcentraloregon/fire/ffe_fuel.jl")   # SO FFE FCCS/Ottmar fuel loading (so/fmcba.f COVRINI/FUELINI, FMSSTAGE-keyed)
 include("engine/fire/fuel_loading.jl")   # FFE F3 — initial surface fuel loading (FMCBA)
+include("engine/fire/covini_tables.jl")  # FFE bare-stand COVINI(ITYPE) tables (generated from the western fmcba.f)
 include("engine/fire/fmcba.jl")          # FFE F3 — per-cycle fuel & cover-type update (FMCBA)
 include("engine/fire/fuel_decay.jl")     # FFE F3 — per-cycle surface-fuel decay (FMCWD)
 include("engine/fire/fuel_additions.jl") # FFE F3 — annual fuel additions / litterfall (FMCADD)
