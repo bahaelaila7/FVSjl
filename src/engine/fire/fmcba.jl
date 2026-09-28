@@ -129,7 +129,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
-             _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
+             _nc_fm ? _nc_fmcba_crwdth(s, sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
              _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
@@ -353,3 +353,14 @@ const _BM_COVINI = Int32[
     7, 7, 7, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 5, 5,10,10, 10,10,10,10,10,10,10,10,10,10,
    10,10,10,10,10,10,10, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 7,
     7, 7]
+
+# NC FMCBA crown width = CRWDTH(I) (fmcba.f:276), i.e. nc/cwcalc.f: the R5 forests (IFOR≤3, 5: 505/510/514/705) branch to
+# R5CRWD (cwcalc.f:382, a function of sp/D/H only); the R6/BLM forests (611/800/712) run NCMAP with the Siskiyou BF.
+# jl's FFE had used the R6 model-2 kernel without BF for every forest (the treelist CrWidth already did this right).
+function _nc_fmcba_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
+                          el::Float32, hi::Float32)::Float32
+    ifor = Int(s.plot.forest_idx)
+    (ifor <= 3 || ifor == 5) && return clamp(nc_r5crwd(sp, d, h), 0.5f0, 99.9f0)
+    eq = _NC_CWMAP[sp]
+    return _cwcalc_national(eq, d, h, cr, barea, el, hi; bf = get(_R6_CWBF, (611, eq[1:3]), 1f0))
+end

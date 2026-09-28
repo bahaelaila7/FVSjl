@@ -30,6 +30,7 @@ const _FF_CASES = [
     ("ec", "504392203126144_simfire", "same"),
     ("nc", "449523860489998_salvage", "fmcroww.f SPIE group 21 (madrone) small/large-tree crown weight not ported; then nc_cwcalc 81802"),
     ("nc", "23721711010900_simfire",  "fmcroww.f SPIE group 21 large-tree; nc_cwcalc 81802/63102 (MA/TO)"),
+    ("nc", "23660512010900_simfire",  "FMCBA/FMCFMD crown width = CRWDTH: R5CRWD on the R5 forests (was R6 model 2: fire kill 11 TPA short)"),
 ]
 
 @testset "western FFE crash cases: run, and .sum rows == live" begin
