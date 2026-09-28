@@ -932,9 +932,12 @@ end
             # STREAM itself (`rann!·100 > psburn`) — a genuine RNG-coupled desync (BA 81/78 = a several-tree cascade
             # once one burn decision flips). NOT FFI-able (routing the RNG is forbidden by #8). live's sub-decimal
             # is unavailable from the 1-dec report, so one F7.1 unit is the irreducible width of the downstream flip.
-            @test_broken agl == 19.1                # RNG-coupled fire-kill (RANN desync, transcendental-seeded) — jl 19.2
+            # agl/sd were cornered above as the RANN burn-decision desync; they were the fire-kill booking — FMEFF's crown-
+            # fire / scorched-kill / scorched-survivor FMSCRO calls, FMSADD's class-mean fire snags, and the survivors'
+            # post-fire crowns frozen at CROWNW·(1−PROPCR) (fmeff.f:352-608, fmcrow.f:126). Both render exact.
+            @test agl == 19.1                       # RENDERED-== (post-fire frozen live crowns)
             @test bgd == 5.6                        # RENDERED-== : jl's F7.1 output equals live golden (Below-Dead fire-killed roots)
-            @test_broken sd == 20.2                 # RNG-coupled fire-kill (RANN desync) + snag consumption — jl 20.1
+            @test sd == 20.2                        # RENDERED-== (fire-killed crowns + binned fire snags)
             @test ddw == 1.1                        # RENDERED-== : jl's F7.1 output equals live golden (start-of-cycle-consumed down wood)
             @test rel == 5.5                        # RENDERED-== : jl's F7.1 output equals live golden (released = surface + live-fuel burn)
         end
@@ -955,8 +958,10 @@ end
             # CWD2B2 (fmscro.f:160-170, fmmain.f:243-257): the fire's crown debris waits in CWD2B2 and starts falling the
             # year after the burn — Standing-Dead is now exact (was 2.6). The later fall decays less, so DDW rose 15.2 → 15.6.
             @test abs(round(Int, sd05  * 10) -  28) == 0   # jl 2.8 = live 2.8
-            # fmcwd.f's un-normalized cone split (the 0-0.10 ft stub is dropped, not re-spread) took DDW 15.6 → 15.5.
-            @test abs(round(Int, ddw05 * 10) - 148) == 7   # jl 15.5 vs live 14.8 = exactly 7 tenths (fallen-bole down wood)
+            # The 0.8 DDW gap locked here was the down-wood inputs, not snag-fall timing: fmcwd.f's un-normalized cone
+            # split, FMEFF's fire-crown booking, the survivors' frozen post-fire crowns (litterfall/breakage), and FMCADD's
+            # crown lift on the current FMPROB/OLDCRW. With those ported DDW renders 14.8 = live.
+            @test abs(round(Int, ddw05 * 10) - 148) == 0   # jl 14.8 = live 14.8
         end
     end
 end
