@@ -1291,8 +1291,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     # gradd.f:205 ABIRTH(I)=ABIRTH(I)+FINT is shared by every variant; jl ages it where something reads ABIRTH:
-    # the CR/TT/UT/IE/EM/BM growth models, and Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant.
-    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire ||
+    # the CR/TT/UT/IE/EM/BM growth models, Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant, and
+    # ON's Mowraski NMV (volont.f:405). It runs AFTER UPDATE/VOLS (see the single aging loop below compute_volumes!).
+    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire || s.variant isa Ontario ||
               s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Kootenai ||
               s.variant isa Klamath || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
               s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia ||
@@ -1333,10 +1334,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # EXECUTE) and KEEPS diam_growth/ht_growth for the FVS_TreeList DG/HtG report — so this shared
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
-        s.variant isa OregonCoast && (t.birth_age[i] += fint; continue)   # gradd.f:205 ages OC's ABIRTH too
+        s.variant isa OregonCoast && continue   # (OC's ABIRTH is aged with the others after VOLS, gradd.f:205)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        _age_up && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
@@ -1346,12 +1346,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
-    # ON: gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` runs AFTER UPDATE (whose VOLS computed the volumes just above), so
-    # ON's age-dependent Mowraski NMV uses the pre-increment age this cycle; the shared `_age_up` advance inside the
-    # update loop is BEFORE the volumes and so would be FINT early for ON.
-    if s.variant isa Ontario
-        @inbounds for i in 1:t.n; t.birth_age[i] += fint; end
-    end
+    # gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` — AFTER UPDATE and its VOLS (above), so an age-dependent volume (ON's
+    # Mowraski NMV) uses the pre-increment age this cycle. The one ABIRTH aging for every variant that reads it.
+    _age_up && @inbounds(for i in 1:n; t.birth_age[i] += fint; end)
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
