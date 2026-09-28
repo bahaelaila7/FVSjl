@@ -731,7 +731,9 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
     qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
     stndba = sum(ctba)
-    # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343)
+    # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343); with no trees /
+    # no BA the PREVIOUS call's ICT (OLDICT — fmvinit.f initialises it to 6, lodgepole). jl used MCCT on bare stands
+    # (MEASURED FVStt_g16 3333677010690 1992: live ICT 6 ⇒ FMD 2, jl ICT 7 ⇒ FMD 8; flame 12.7 / 1.97).
     ict = 7
     if t.n > 0 && stndba > 0.001f0
         for i in 1:8
@@ -739,7 +741,10 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 ict = i; break
             end
         end
+    else
+        ict = fs.covtyp_ict > 0 ? Int(fs.covtyp_ict) : 6          # OLDICT (cr|tt|ut/fmvinit.f OLDICT = 6)
     end
+    fs.covtyp_ict = Int32(ict)                                      # fmcfmd.f label 10: OLDICT = ICT
     # LPPDOM: is ponderosa the single highest-BA species? (fmcfmd.f:811-822; CR J=13, UT/TT J=10)
     pp_sp = _fm_ppct_sp(s.variant)
     lppdom = true
