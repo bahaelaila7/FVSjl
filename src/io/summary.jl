@@ -404,8 +404,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
-            fmcba!(s)
             _vt = _fm_will_triple(s)
+            fmcba!(s; vtrip = _vt)       # FMMAIN's FMCBA sees the tripled list in a tripling cycle
             _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
             carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
@@ -414,7 +414,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # grow_cycle! hook below, like the carbon report.
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
-            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true)
+            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true, vtrip = _fm_will_triple(s))
             pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false)   # FMEFF/FMPTRH at the FMMAIN seam below
             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end

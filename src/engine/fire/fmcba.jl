@@ -20,7 +20,7 @@
 Update the stand's `FireState` cover type, percent cover, big DBH, live fuels, and
 (first FFE year) dead-fuel pools (FMCBA, fmcba.f). No-op unless FFE is active.
 """
-function fmcba!(s::StandState; load_dead::Bool = true)
+function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     t = s.trees; coef = s.coef
@@ -115,11 +115,21 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                   v isa Klamath || v isa WestSierra || v isa CentralCalifornia || v isa WestCascades ||
                   v isa PacificNorthwest || v isa EastCascades || v isa OregonCoast || v isa Olympic ||
                   v isa SoutheastAlaska || v isa LakeStates || v isa Northeast
-    @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
+    # `vtrip`: FMMAIN (hence FMCBA) runs on the TRIPLEd list in a tripling cycle — FMPROB = 0.6·PROB on records 1..ITRN,
+    # then 0.25/0.15·PROB on each record's two copies (ITRN+2I−1, ITRN+2I), in that order, all sharing the parent's
+    # CRWDTH. The Float32 TOTCRA/FMTBA sums (→ PERCOV, FLIVE, year-1 STFUEL) follow that walk (_fm_record_walk).
+    recs = Tuple{Int,Float32}[]
+    if vtrip
+        for i in 1:t.n; push!(recs, (i, t.tpa[i] * 0.60f0)); end
+        for i in 1:t.n; push!(recs, (i, t.tpa[i] * 0.25f0)); push!(recs, (i, t.tpa[i] * 0.15f0)); end
+    else
+        for i in 1:t.n; push!(recs, (i, t.tpa[i])); end
+    end
+    @inbounds for (i, pw) in recs
+        pw > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += _fmtba_form ? t.tpa[i] * d * d * 0.0054542f0 :   # {bm,ci,tt,ut,cr,nc,ws,ca,wc,pn,ec,oc,op,ak,ls,ne}/fmcba.f
-                                 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]   # FMTBA += FMPROB·DBH·DBH·0.0054542; ie/em/kt/so/sn/cs BA1·FMPROB
+        tba[sp] += _fmtba_form ? pw * d * d * 0.0054542f0 :   # {bm,ci,tt,ut,cr,nc,ws,ca,wc,pn,ec,oc,op,ak,ls,ne}/fmcba.f
+                                 3.14159f0 * (d / 24f0) * (d / 24f0) * pw   # FMTBA += FMPROB·DBH·DBH·0.0054542; ie/em/kt/so/sn/cs BA1·FMPROB
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
@@ -141,7 +151,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
-        totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
+        totcra += 3.1415927f0 * cw * cw / 4f0 * pw
     end
 
     # cover type = the species with the most basal area; total BA for the decay split
