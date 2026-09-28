@@ -64,7 +64,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
            s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
            s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest ||
            s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
-           s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska
+           s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska ||
+           s.variant isa CentralCalifornia || s.variant isa WestSierra   # CA/WS: ca|ws/fmcba.f top-2 FULIVE/FULIVI below
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
