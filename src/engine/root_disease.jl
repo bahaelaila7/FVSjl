@@ -2938,7 +2938,7 @@ function root_disease_setup!(s::StandState)
     # RDSUM: the inventory (1990/icyc=0) FVS_RD_Sum row — RDPR#1 at fvs.f:347, before the cycle
     # loop (pre-projection: rdkill/probda/rrrate=0 ⇒ Mort/Stumps/Spread=0, Inf/UnInf/BA from the
     # initial infection). Populate PROBIT (=Σ PROBI) first, as RDPR would.
-    if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+    if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0   # rdpr.f:78 IF (ITRN .EQ. 0) RETURN
         d = rd.driver::RDDriver
         rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))
         yr = Int(s.control.cycle_year[1]); iage = Int(s.plot.stand_age)

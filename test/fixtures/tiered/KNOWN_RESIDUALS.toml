@@ -118,17 +118,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "rootdis"
 file = "FVS_RD_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "rootdis"
-file = "FVS_RD_Sum"
 col = "Stumps_BA"
 stand = "*"
 year = "*"
@@ -762,17 +751,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [ulp1=2 ulp2_16=4 ulpbig=2] max|Δ|=8.011e-5 | e.g. stand 11855985010690 year 2016: live=0.08070546388626099 jl=0.08070545643568039"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_RD_Sum"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1287253083290487 year 2022: live=0 jl=1"""
 
 [[residual]]
 variant = "IE"
@@ -5195,17 +5173,6 @@ year = "*"
 status = "OPEN"
 max_cells = 24
 issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 24 cells [ulp2_16=16 ulpbig=8] max|Δ|=0.05178 | e.g. stand 474187636489998 year 2036: live=0.050178613513708115 jl=0.050178661942481995"""
-
-[[residual]]
-variant = "EM"
-regime = "rootdis"
-file = "FVS_RD_Sum"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 5352355010661 year 1994: live=0 jl=1"""
 
 [[residual]]
 variant = "EM"
