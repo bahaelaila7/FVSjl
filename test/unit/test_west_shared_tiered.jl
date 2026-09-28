@@ -70,4 +70,61 @@ end
     end
 end
 
+# dbsreference.f prints VEQNNC/VEQNNB (VOLEQDEF) and CYCLEs a blank JSP. NC/SO/CA/WS/AK keep their equations in the
+# volume driver's per-forest tables (species.vol_eq blank ⇒ jl wrote '' — MEASURED FVSnc_g16 450603388489998 PP
+# 500WO2W122); AK FORST '04' (Chugach) takes R10_EQN CHUEQN; WC/PN wrote rows for their '__' placeholder slots.
+@testset "FVS_InvReference VolEq ids + blank-JSP rows (dbsreference.f, voleqdef.f) vs live" begin
+    for (v, cn) in (("NC", "450603388489998"), ("SO", "24079993010900"), ("SO", "374286168489998"), ("CA", "23742358010900"),
+                    ("WS", "850400255290487"), ("AK", "10709171010497"), ("AK", "10706662010497"), ("WC", "30194620010497"),
+                    ("PN", "26379272010900"))
+        c = _case(v, cn, "none")
+        @test !c.crashed
+        @test count(m -> m.file == "FVS_InvReference", c.ms) == 0
+    end
+end
+
+# rdpr.f:79 IF (ITRN .EQ. 0) RETURN — a stand with no tree records writes no RDPR row (MEASURED FVStt_g16 3333677010690
+# rootdis: no FVS_RD_Sum table; jl wrote 6 rows).
+@testset "WRD: no FVS_RD_Sum row without tree records (rdpr.f:79) vs live" begin
+    c = _case("TT", "3333677010690", "rootdis")
+    @test count(m -> m.file == "FVS_RD_Sum", c.ms) == 0
+end
+
+# so/ccfcal.f: SH/WO CCF from R5CRWD on the Region-5 forests (IFOR 4-9) (MEASURED FVSso_g16 15364795010497, forest 514:
+# inventory CCF 184 live / 207 jl).
+@testset "SO SH/WO CCF by R5CRWD on R5 forests (so/ccfcal.f) vs FVSso_g16" begin
+    c = _case("SO", "15364795010497", "none")
+    @test count(m -> m.file == "sum", c.ms) == 0
+end
+
+# habtyp.f ERRGRO 14/32/33/34 + FORKOD 03 for the western variants (TT/UT PVREF4+CRDECD, WC/PN/EC PVREF6+HBDECD, NC/SO/CA
+# R5HABT/PCOML + PVREF5/6, WS R5HABT+PVREF5), each measured against the live FVS_Error rows.
+@testset "western habtyp / forkod FVS_Error rows (FVS03/14/32/33/34) vs live" begin
+    for (v, cn) in (("TT", "1589567497290487"), ("UT", "434219452489998"), ("WC", "1127545052290487"), ("WC", "25075210010900"),
+                    ("PN", "1166897755290487"), ("EC", "30193987010497"), ("SO", "15184869010497"), ("SO", "374286168489998"),
+                    ("NC", "30192555010497"), ("CA", "22960323010497"), ("WS", "15353585010497"), ("CI", "3261005010690"))
+        c = _case(v, cn, "none")
+        @test count(m -> m.file == "FVS_Error", c.ms) == 0
+    end
+end
+
+# fmcfmd.f treeless calls reuse the previous cover metagroup(s): CR/TT/UT OLDICT (fmvinit 6), WC/PN OLDICT/OLDICT2/
+# OLDICTWT (fmvinit 2/0/1,0) — MEASURED FVStt_g16 3333677010690 1992 FMD 2 (jl 8), FVSpn_g16 26379272010900 2002 FMD 5 (jl 10).
+@testset "bare-stand fuel model: FMCFMD OLDICT reuse (cr|tt|ut|wc|pn/fmcfmd.f) vs live" begin
+    for (v, cn, y) in (("TT", "3333677010690", "1992"), ("CR", "103573371010661", "2006"), ("PN", "26379272010900", "2002"),
+                       ("WC", "1285602241290487", "2022"))
+        c = _case(v, cn, "salvage")
+        @test isempty(_material([m for m in c.ms if m.year == y && m.file == "FVS_PotFire"]))
+    end
+end
+
+# so/ and nc/ fmsvol.f & co. are the shared western FMSVOL layer: snag bole = NATCRS TCF, live merch stem = NATCRS MCF
+# (MEASURED FVSso_g16 374286168489998 2015: Standing_Dead 2.91 live / 0.05 jl, Aboveground_Merch_Live 34.43 / 35.07).
+@testset "SO FFE on the western FMSVOL layer (fmsvol.f) vs FVSso_g16 at the inventory year" begin
+    for (cn, y) in (("374286168489998", "2015"), ("15184869010497", "2010"))
+        c = _case("SO", cn, "salvage")
+        @test isempty(_material([m for m in c.ms if m.year == y && m.file == "FVS_Carbon"]))
+    end
+end
+
 end # module
