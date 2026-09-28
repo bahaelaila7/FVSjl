@@ -81,3 +81,11 @@ end
         @test j == l
     end
 end
+
+# (4) esnutr.f: after ESUCKR (ITRNRM≥1) CALL SPESRT rebuilds IND1 in ascending PHYSICAL order, discarding the
+# post-TRIPLE REASS lineage — the next cycle's per-tree DGSCOR/REGENT draws walk physical order.
+@testset "ON ont_sm thin: 2034-2054 records == live (SPESRT after ESUCKR)" begin
+    for col in (:TPH, :MortPH, :DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_SM), _ONT_SM_LIVE, col; sel = (k, v) -> k[1] >= 2034)
+        @test j == l
+    end
+end

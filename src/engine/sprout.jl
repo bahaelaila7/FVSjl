@@ -862,6 +862,12 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # cut-free cycle — without this reset those persist and RE-sprout every subsequent cycle. Clear here so
     # the pool is drained exactly once, matching FVS.
     empty!(s.control.cut_log)
+    # esnutr.f: `IF (ITRNRM.GE.1) THEN … CALL ESUCKR; IREC1=ITRN; CALL SPESRT` — whenever there were stumps, SPESRT
+    # rebuilds IND1 in ascending PHYSICAL record order, discarding the post-TRIPLE REASS lineage interleave, so the
+    # next cycle's per-tree DGSCOR/REGENT draws walk physical order. Measured for ON (ont_sm THINBTA 2014: live
+    # cycle-3 DGSCOR visits PJ 2,3,4,8,… — jl walked the lineage 8,2,9,10,3,…). Gated to Ontario like the
+    # establishment SPESRT (uses_estab_spesrt); the same esnutr.f path is shared by the other sprouting variants.
+    s.variant isa Ontario && spesrt_reorder!(t)
     created && compute_density!(s)
     return created
 end
