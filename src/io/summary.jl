@@ -396,8 +396,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
-            fmcba!(s)
             _vt = _fm_will_triple(s)
+            fmcba!(s; vtrip = _vt)       # FMCBA's TBA/TOTCRA walk the tripled FMPROB list too (fmcba.f:189-203)
             _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
             carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
@@ -525,7 +525,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     # FMMAIN point inside grow_cycle! (mortality_and_fire!'s post_fire seam), like a fire cycle.
                     r6_defer_fuel = true
                 elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
-                    ffe_fuel_update!(s, per)
+                    ffe_fuel_update!(s, per; vtrip = _fm_will_triple(s))   # pre-TRIPLE here; FVS's FMMAIN is post-TRIPLE
                 else
                     ffe_defer_init = true
                 end

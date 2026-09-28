@@ -831,7 +831,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # FFE-init year (non-fire), DEFERRED from the pre-grow driver: FVS FMMAIN loads the initial dead-fuel
         # pools (FMCBA) AFTER the cut phase, so the one-time load reads the POST-THIN stand (matches live PERCOV).
         # No-op for any stand without an init-year thin (pre==post state) ⇒ eastern FFE unaffected.
-        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period))
+        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period); vtrip = _fm_will_triple(s))
     end
     econ_on && econ_status!(s, Int(s.control.cycle) + 1, 1)   # ECSTATUS(…,1) after CUTS (grincr.f:370)
     if econ_on

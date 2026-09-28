@@ -116,4 +116,12 @@ end
     @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Standing_Dead",), ("2002", "2007", "2012", "2017", "2022")) == 0
 end
 
+# FMMAIN (FMCBA's TBA/TOTCRA, FMCADD's litterfall/breakage/crown lift) walks DO I=1,ITRN over the list GRADD hands it —
+# in a tripling cycle the TRIPLEd list: originals at FMPROB=PROB·.60, then each record's .25/.15 copies (fmcba.f:189-203,
+# fmcadd.f). jl ran both on its untripled list, so the sums rounded differently (MEASURED private FMCBA/FMDOUT traces,
+# 200267456010854: sp74 TBA 28.677080 live vs 28.677082 ⇒ 6-12" fuel 1.0099999; 2007 litter 3.1324124 vs 3.1324131).
+@testset "SN FFE tripled FMPROB walk in FMCBA/FMCADD (fmcba.f:189-203) vs FVSsn_g16" begin
+    @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2007", "2012")) == 0
+end
+
 end # module
