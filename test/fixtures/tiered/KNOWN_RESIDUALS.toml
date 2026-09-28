@@ -8069,7 +8069,6 @@ status = "OPEN"
 max_cells = 30
 issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 30 cells [ulp1=2 ulpbig=28] max|Δ|=0.02681 | e.g. stand 238813815010854 year 2020: live=0.13051427900791168 jl=0.1386290192604065"""
 
-
 # 2026-09-28 (tiered-west): TT added — 10 stratified FIA stands x 11 regimes vs FVStt_g16; entries drafted from measurement
 # (report.jl -> allowlist_draft.jl), all OPEN, owner = the TT campaign (not yet dug).
 
@@ -8082,7 +8081,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=7.25e-5 | e.g. stand 2839796010690 year 1999: live=47.0310745 jl=47.031044"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=7.25e-5 | e.g. stand 2839796010690 year 1999: live=47.0310745 jl=47.031044"""
 
 [[residual]]
 variant = "TT"
@@ -8093,7 +8092,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 44
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 44 cells [gold_text9=42 material=2] max|Δ|=8.404 | e.g. stand 5397515010690 year 2035: live=73.2288971 jl=73.2289047"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 44 cells [gold_text9=42 material=2] max|Δ|=8.404 | e.g. stand 5397515010690 year 2035: live=73.2288971 jl=73.2289047"""
 
 [[residual]]
 variant = "TT"
@@ -8104,7 +8103,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=9.0e-5 | e.g. stand 5397515010690 year 2015: live=1.03640032 jl=1.0364002"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=9.0e-5 | e.g. stand 5397515010690 year 2015: live=1.03640032 jl=1.0364002"""
 
 [[residual]]
 variant = "TT"
@@ -8115,7 +8114,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 30
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 30 cells [gold_text9=29 material=1] max|Δ|=19.39 | e.g. stand 5397515010690 year 2015: live=1305.07031 jl=1305.07007"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 30 cells [gold_text9=29 material=1] max|Δ|=19.39 | e.g. stand 5397515010690 year 2015: live=1305.07031 jl=1305.07007"""
 
 [[residual]]
 variant = "TT"
@@ -8126,7 +8125,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=0.1307 | e.g. stand 5397515010690 year 2015: live=4.3840264e-5 jl=4.38402603e-5"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 28 cells [gold_text9=28] max|Δ|=0.1307 | e.g. stand 5397515010690 year 2015: live=4.3840264e-5 jl=4.38402603e-5"""
 
 [[residual]]
 variant = "TT"
@@ -8434,7 +8433,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.9 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.1"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=5 jl_not_f32=1] max|Δ|=0.9 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.1"""
 
 [[residual]]
 variant = "TT"
@@ -8951,7 +8950,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
 
 [[residual]]
 variant = "TT"
@@ -9303,7 +9302,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 4 cells [gold_text9=2 jl_not_f32=1 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2024: live=14.8 jl=14.9"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 4 cells [gold_text9=2 jl_not_f32=1 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2024: live=14.8 jl=14.9"""
 
 [[residual]]
 variant = "TT"
@@ -9369,7 +9368,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=19.9 jl=20.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=19.9 jl=20.0"""
 
 [[residual]]
 variant = "TT"
@@ -9908,7 +9907,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 5
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 5 cells [gold_text9=2 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2024: live=19.9 jl=20.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 5 cells [gold_text9=2 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2024: live=19.9 jl=20.0"""
 
 [[residual]]
 variant = "TT"
@@ -10568,7 +10567,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
 
 [[residual]]
 variant = "TT"
@@ -10865,7 +10864,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
 
 [[residual]]
 variant = "TT"
@@ -11162,7 +11161,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
 
 [[residual]]
 variant = "TT"
@@ -11657,7 +11656,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 5
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 5 cells [gold_text9=3 jl_not_f32=1 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2024: live=20.0 jl=20.1"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 5 cells [gold_text9=3 jl_not_f32=1 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2024: live=20.0 jl=20.1"""
 
 [[residual]]
 variant = "TT"
@@ -12350,7 +12349,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=2 small=1] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=21.9 jl=22.0"""
 
 [[residual]]
 variant = "TT"
@@ -13032,7 +13031,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-28: 41 cells [material=4 ulp1=9 ulp2_16=4 ulpbig=24] max|Δ|=2.283 | e.g. stand 2839796010690 year 2029: live=6.1410040855407715 jl=6.6469855308532715"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 41 cells [material=4 ulp1=9 ulp2_16=4 ulpbig=24] max|Δ|=2.283 | e.g. stand 2839796010690 year 2029: live=6.1410040855407715 jl=6.6469855308532715"""
 
 [[residual]]
 variant = "TT"
@@ -13142,7 +13141,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 41
-issue = """NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4 | measured 2026-09-28: 41 cells [material=4 ulp1=9 ulp2_16=4 ulpbig=24] max|Δ|=2.283 | e.g. stand 2839796010690 year 2029: live=6.1410040855407715 jl=6.6469855308532715"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 41 cells [material=4 ulp1=9 ulp2_16=4 ulpbig=24] max|Δ|=2.283 | e.g. stand 2839796010690 year 2029: live=6.1410040855407715 jl=6.6469855308532715"""
 
 [[residual]]
 variant = "TT"
@@ -13230,7 +13229,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 17
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
 
 [[residual]]
 variant = "TT"
@@ -13351,7 +13350,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 17
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
 
 [[residual]]
 variant = "TT"
@@ -13417,7 +13416,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 155
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 155 cells [gold_text9=152 material=3] max|Δ|=1.677 | e.g. stand 335002534489998 year 2024: live=72.5169983 jl=72.5268784"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 155 cells [gold_text9=152 material=3] max|Δ|=1.677 | e.g. stand 335002534489998 year 2024: live=72.5169983 jl=72.5268784"""
 
 [[residual]]
 variant = "TT"
@@ -13439,7 +13438,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 166
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 166 cells [gold_text9=166] max|Δ|=0.05576 | e.g. stand 335002534489998 year 2024: live=9.85725021 jl=9.86598587"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 166 cells [gold_text9=166] max|Δ|=0.05576 | e.g. stand 335002534489998 year 2024: live=9.85725021 jl=9.86598587"""
 
 [[residual]]
 variant = "TT"
@@ -13450,7 +13449,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 145
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 145 cells [gold_text9=145] max|Δ|=0.01695 | e.g. stand 335002534489998 year 2024: live=11.8464251 jl=11.8604126"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 145 cells [gold_text9=145] max|Δ|=0.01695 | e.g. stand 335002534489998 year 2024: live=11.8464251 jl=11.8604126"""
 
 [[residual]]
 variant = "TT"
@@ -13461,7 +13460,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 147
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 147 cells [gold_text9=147] max|Δ|=0.0162 | e.g. stand 335002534489998 year 2024: live=0.917086601 jl=0.930640221"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 147 cells [gold_text9=147] max|Δ|=0.0162 | e.g. stand 335002534489998 year 2024: live=0.917086601 jl=0.930640221"""
 
 [[residual]]
 variant = "TT"
@@ -13472,7 +13471,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 194
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=2.67507315 jl=2.67507339"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=2.67507315 jl=2.67507339"""
 
 [[residual]]
 variant = "TT"
@@ -13483,7 +13482,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 194
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=2.67507315 jl=2.67507339"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=2.67507315 jl=2.67507339"""
 
 [[residual]]
 variant = "TT"
@@ -13494,7 +13493,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 194
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=1.66507316 jl=1.66507339"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 194 cells [gold_text9=194] max|Δ|=0.05115 | e.g. stand 1589567497290487 year 2031: live=1.66507316 jl=1.66507339"""
 
 [[residual]]
 variant = "TT"
@@ -13505,7 +13504,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 6 cells [gold_text9=5 material=1] max|Δ|=2.8 | e.g. stand 335002534489998 year 2024: live=11.500001 jl=12.1000004"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=5 material=1] max|Δ|=2.8 | e.g. stand 335002534489998 year 2024: live=11.500001 jl=12.1000004"""
 
 [[residual]]
 variant = "TT"
@@ -13538,7 +13537,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 219
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 219 cells [gold_text9=218 jl_not_f32=1] max|Δ|=0.06927 | e.g. stand 335002534489998 year 2024: live=26.459383 jl=26.5286484"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 219 cells [gold_text9=218 jl_not_f32=1] max|Δ|=0.06927 | e.g. stand 335002534489998 year 2024: live=26.459383 jl=26.5286484"""
 
 [[residual]]
 variant = "TT"
@@ -13549,7 +13548,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 1 cells [gold_text9=1] max|Δ|=0.05521 | e.g. stand 335002534489998 year 2024: live=2.92691231 jl=2.98212099"""
+issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 1 cells [gold_text9=1] max|Δ|=0.05521 | e.g. stand 335002534489998 year 2024: live=2.92691231 jl=2.98212099"""
 
 [[residual]]
 variant = "TT"
@@ -14055,7 +14054,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 4
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 4 cells [gold_text9=2 jl_not_f32=1 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2024: live=14.8 jl=14.9"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 4 cells [gold_text9=2 jl_not_f32=1 small=1] max|Δ|=0.1 | e.g. stand 335002534489998 year 2024: live=14.8 jl=14.9"""
 
 [[residual]]
 variant = "TT"
@@ -14121,7 +14120,7 @@ stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=19.9 jl=20.0"""
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.2 | e.g. stand 335002534489998 year 2034: live=19.9 jl=20.0"""
 
 [[residual]]
 variant = "TT"

@@ -9,7 +9,7 @@ include(joinpath(@__DIR__, "classify_fns.jl"))
 const INVREF_MERCH = Set(["CFMinDBH", "CFTopDia", "CFStump", "CFSawMinDBH", "CFSawTopDia", "CFSawStump",
                           "BFMinDBH", "BFTopDia", "BFStump", "CFCruiseType", "CFVolEq", "BFVolEq"])
 
-function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sample; gold = "", got = "")
+function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sample; gold = "", got = "", maxrel = 0.0)
     owner_drift = variant == "BM" ? "fork bm-base-resid3" : variant == "IE" ? "fork ie-ulp3" :
                   "the $(variant) campaign (not yet dug)"
     dom = isempty(classes) ? "" : first(sort(collect(classes); by = x -> -x[2]))[1]
@@ -35,9 +35,11 @@ function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sam
         return "jl CRASH — $(sample)"
     elseif file == "TALLY"
         return "one-directional population bias ($(sample)) — owner: $(owner_drift)"
-    elseif file == "FVS_Summary" && col in ("QMD", "ATQMD") && dom == "ulpbig"
+    elseif file == "FVS_Summary" && col in ("QMD", "ATQMD") && dom == "ulpbig" && occursin(r"^-?\d+(\.\d)?$", got)
+        # only when jl's stored value really IS the 1-decimal print value (a many-ULP Float32 drift is not this)
         return "NEW: jl FVS_Summary stores QMD/ATQMD rounded to 1 decimal (print value); FVS stores the full REAL*4"
-    elseif dom == "gold_text9"
+    elseif dom == "gold_text9" && maxrel < 1e-6
+        # storage precision only: a relative gap ≥ 1e-6 is a value divergence, not 9-digit text vs double
         return "NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double"
     elseif dom == "jl_not_f32"
         return "NEW: jl writer stores a Float64-computed value where FVS stores REAL*4"
@@ -59,16 +61,17 @@ function draft(path)
     end
     date = Base.Libc.strftime("%Y-%m-%d", Base.time())
     for k in sort(collect(keys(groups)))
-        rs = groups[k]; cl = Dict{String,Int}(); maxabs = 0.0
+        rs = groups[k]; cl = Dict{String,Int}(); maxabs = 0.0; maxrel = 0.0
         for f in rs
             c = cls(f[7], f[8]); cl[c] = get(cl, c, 0) + 1
             a = tryparse(Float64, f[7]); b = tryparse(Float64, f[8])
-            (a !== nothing && b !== nothing) && (maxabs = max(maxabs, abs(a - b)))
+            (a !== nothing && b !== nothing) && (maxabs = max(maxabs, abs(a - b));
+                                                 maxrel = max(maxrel, a == 0 ? (a == b ? 0.0 : Inf) : abs(a - b) / abs(a)))
         end
         s = rs[1]; sample = "e.g. stand $(s[2]) year $(s[6]): live=$(first(s[7], 40)) jl=$(first(s[8], 60))"
         t = tag(k[1], k[3], k[4], cl, maxabs, k[4] == "PRESENCE" ? "live=$(s[7]), jl=$(s[8])" :
                 k[4] == "ROWCOUNT" ? "e.g. live $(s[7]) rows, jl $(s[8])" :
-                k[3] in ("TALLY", "CRASH") ? s[8] : ""; gold = String(s[7]), got = String(s[8]))
+                k[3] in ("TALLY", "CRASH") ? s[8] : ""; gold = String(s[7]), got = String(s[8]), maxrel)
         println("\n[[residual]]")
         println("variant = \"$(k[1])\"\nregime = \"$(k[2])\"\nfile = \"$(k[3])\"\ncol = \"$(k[4])\"\nstand = \"*\"\nyear = \"*\"")
         println("status = \"OPEN\"")
