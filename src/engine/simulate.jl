@@ -1035,8 +1035,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # from the FINAL post-TRIPLE WK2 — AFTER MISMRT has MAX-combined the dwarf-mistletoe kill (mistoe.f:522). Booking
     # inside mortality! (pre-TRIPLE, pre-MISMRT) dropped every DM-killed tree from the snag pools (EM 196378260020004
     # cycle 1: LP snags 11.77 vs live 15.38 TPA — the 3.6 TPA MISMRT added). Defer the booking to that seam.
-    mis_book = mis_post && !rd_post_triple
-    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !mis_book)
+    # Every NON-fire tripling cycle books its snags the same way (#277): FMKILL(2) (fmkill.f:129-143) hands FMSADD each
+    # TRIPLED record's WK2 (the per-original MORTS kill ·.60/.25/.15, after MISMRT/BRTREG/RDEND), in record order — not
+    # the un-tripled kill inside MORTS. FMSADD's zero-initialized class means (fmsadd.f:334-340) round differently on
+    # the three parts (MEASURED SN carbon_jenkins: a 12" record's DBHS 11.999999 from the whole kill, 12.0 from the parts).
+    post_book = stash !== nothing && !_fire_due(s)
+    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !post_book)
     s.control.dm_mrt_defer = false
     # WRD rd/rdend.f: reconcile the RD infected-tree kill (RRKILL) with FVS's just-applied
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
@@ -1160,11 +1164,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
-            # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
-            # AK: fmkill.f books SNGNEW from the WK2 array itself (= t.mort_pa here), not PROB−survivor, which rounds
-            # to the survivor's ULP — FMSADD's density-weighted HTDEAD then drifts (akffe YC 8.4"×5' ⇒ 4.9999995 live).
-            mis_book && book_mortality_snags!(s, s.variant isa SoutheastAlaska ? Float32[t.mort_pa[c] for c in 1:n2] :
-                                                 Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
@@ -1237,6 +1236,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             end
         end
     end
+    # FMKILL(2) (fmkill.f:135-143): the non-fire tripling cycle's snags from the final post-TRIPLE WK2 per record — the
+    # WK2 array itself (t.mort_pa), not PROB−survivor, which rounds to the survivor's ULP (FMSADD's density-weighted
+    # HTDEAD then drifts: akffe YC 8.4"×5' ⇒ 4.9999995 live).
+    post_book && book_mortality_snags!(s, Float32[t.mort_pa[c] for c in 1:t.n], t.n, fint)
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     # MISTOE post-triple seam. FVS runs MISTOE at gradd.f:96 — in GRADD, AFTER GRINCR's MORTS+TRIPLE — so on a
     # TRIPLING cycle the spread draws its per-host-tree rann! on the ALREADY-TRIPLED record list (ITRN×3). jl
