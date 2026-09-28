@@ -154,13 +154,21 @@ const SO_ISPMAP = Int32[
 @inline so_uses_fmcrowe(sp::Integer)::Bool =
     sp == 24 || sp == 25 || sp == 26 || sp == 28 || sp == 30 || sp == 31 || sp == 33
 
-# so/ccfcal.f MODE=1 CCFT (per tree, before ×P). `h` only used for SH(9)/WO(27) small-tree crown width.
-@inline function so_tree_ccf(sp::Integer, d::Real, h::Real)::Float32
+# so/ccfcal.f MODE=1 CCFT (per tree, before ×P). `h` only used for SH(9)/WO(27) crown width. SH/WO CCF is the crown
+# width² (so/ccfcal.f:60-69): R5CRWD (MAPSO) on the Region-5 forests IFOR 4-9, else R6CRWD, capped at 99.9 ft. jl used
+# R6CRWD on every forest (MEASURED FVSso_g16 15364795010497, forest 514 = IFOR 5, 131 SH records: inventory CCF live
+# 184 / jl 207).
+@inline function so_tree_ccf(sp::Integer, d::Real, h::Real; ifor::Integer = 0)::Float32
     (sp < 1 || sp > 33) && return 0f0
     D = Float32(d)
-    if sp == 9 || sp == 27                              # SH/WO — r6crwd crown-width² (MAPSO 6/30)
-        bg1, bg2, sm = sp == 9 ? (3.1146f0, 0.5780f0, 0.345f0) : (2.4922f0, 0.8544f0, 0.140f0)
-        crwd = Float32(h) > 4.5f0 ? bg1 * fpow(D, bg2) : sm * Float32(h)
+    if sp == 9 || sp == 27
+        crwd = if 4 <= ifor <= 9
+            r5crwd_eqn(SO_R5CRWD_MAPSO[sp], D, Float32(h))
+        else                                            # r6crwd (MAPSO 6/30)
+            bg1, bg2, sm = sp == 9 ? (3.1146f0, 0.5780f0, 0.345f0) : (2.4922f0, 0.8544f0, 0.140f0)
+            Float32(h) > 4.5f0 ? bg1 * fpow(D, bg2) : sm * Float32(h)
+        end
+        crwd > 99.9f0 && (crwd = 99.9f0)
         return crwd * crwd * 0.001803f0
     end
     if sp in SO_CCF_HARDWOOD                            # WC-hardwood set

@@ -335,7 +335,7 @@ function point_density!(s::StandState)
         elseif s.variant isa CentralCalifornia
             ccft = ca_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # ca/ccfcal.f MODE=1 (R5CRWD = OC's)
         elseif s.variant isa SouthCentralOregon
-            ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
+            ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]; ifor = Int(s.plot.forest_idx)) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
@@ -561,7 +561,7 @@ function stand_ccf(s::StandState)
         # SO CCF = so/ccfcal.f MODE=1 (RD polynomial + WC-hardwood + SH/WO r6crwd crown-width²);
         # stand CCF = Σ CCFT·P = RELDEN, read by dgf! CONSPP and regent PCTRED.
         @inbounds for i in 1:t.n
-            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]; ifor = Int(s.plot.forest_idx)) * t.tpa[i]
         end
         return ccf
     elseif s.variant isa WestSierra
