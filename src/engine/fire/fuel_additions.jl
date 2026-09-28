@@ -335,16 +335,20 @@ function apply_pileburn!(s::StandState)::Bool
         end
         # optional uniform tree mortality → snags + crown debris (mirrors the fmburn! fire kill→snag path)
         if trmort > 0f0
-            t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
+            t = s.trees; coef = s.coef
+            pend = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
             @inbounds for i in 1:t.n
                 t.tpa[i] > 0f0 || continue
                 trkil = t.tpa[i] * trmort; t.tpa[i] -= trkil
                 sp = Int(t.species[i]); d = t.dbh[i]
-                mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-                add_snag!(fs, sp, d, trkil, yr; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+                push!(pend, (sp, d, t.height[i], t.height[i], t.height[i], trkil, -1f0))   # FMSSEE (fmtret.f:154)
                 xvc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
-                fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))
+                fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))           # fmtret.f:160
+                _, _, rbio = jenkins_biomass(coef, sp, d)
+                fs.bioroot += rbio * trkil                                               # fmsadd.f:320 (XDCAY 1)
             end
+            # FMSADD(IYR,1) (fmtret.f:166): the killed trees are binned into snag records like any other source
+            isempty(pend) || fmsadd_bin!(s, pend, yr; ityp = 1, bolefn = _r6_snag_bolefn(s))
             compute_density!(s)
         end
         fired = true

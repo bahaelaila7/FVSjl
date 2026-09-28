@@ -132,10 +132,9 @@ end
 # One FMSADD call bins that call's new dead trees into snag records by (species SPCL, DBHCL = INT(D/2+1) capped 19,
 # HTCL split at MIDHT when the class height range exceeds 20 ft) and gives the records slots in SPECIES-MAJOR order
 # (DO SPCL / DO DBHCL / DO HTCL, fmsadd.f:41-110): when more than 3 records exist (GAPS) the first emptied record at or
-# after IGAP is reused, else a new one is appended. The R6 variants need this record ORDER — their FMR6HTLS height-loss
-# draws are handed out per record (fmsnag.f:139-251) — so they route every snag source (inventory ITYP=3, cut ITYP=2,
-# fire/pile-burn ITYP=1, mortality ITYP=4, SNAGINIT) through here. Other variants keep their per-source booking.
-_fmsadd_binned(v) = r6_ffe_code(v) !== :none
+# after IGAP is reused, else a new one is appended. Every variant routes every snag source (inventory ITYP=3, cut
+# ITYP=2, fire/pile-burn ITYP=1, mortality ITYP=4, SNAGINIT) through here: the R6 FMR6HTLS height-loss draws are handed
+# out per record (fmsnag.f:139-251), and every variant's FMDOUT/CWD sums run in record order.
 
 mutable struct _FmsaddCtx
     gaps::Bool
@@ -312,10 +311,10 @@ every BPH(j≥1) ≥ HTD) books nothing at all.
     (r2 = r1 * (1f0 - h / htd); (r2 * r2 * (htd - h)) / (r1sq * htd))
 
 function _cwd_cone_fractions(d::Float32, ht::Float32, htcur::Float32 = ht)
+    d <= 0.1f0 && (d = 0.1f0)                          # fmcwd.f:306 IF(DIAM.LE.0.1) DIAM=0.1
     # A snag with NO recorded height (jl-only: a bare add_snag! without `height`; every FVS snag carries HTDEAD) books
     # its whole stem into the DBH class rather than vanishing.
     ht <= 0f0 && (oh = ntuple(j -> j == _cwd_size_class(d) ? 1f0 : 0f0, Val(9)); return (oh, oh))
-    d <= 0.1f0 && (d = 0.1f0)                          # fmcwd.f:306 IF(DIAM.LE.0.1) DIAM=0.1
     htd = ht
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * d)
     # BPH(j) = height (ft) where stem diameter = BP(j); index j+1. Hardness-independent (FVS DO-10, uses HTD).
@@ -718,8 +717,7 @@ height-loss yet). Populates the inventory-cycle Stand-Dead / Below-Dead carbon. 
 function ffe_seed_input_snags!(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active || s.trees.ndead <= 0) && return s
-    t = s.trees; coef = s.coef; c = s.control; sd = coef.species
-    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
+    c = s.control
     # Input snags PRE-EXIST the inventory: FVS books the input dead trees at YEAR = IY(1)−IFIX(FINTM)
     # (fmsdit.f:135, all 24 variants), FINTM = the MORTALITY observation period (GROWTH field 5 / FIA
     # MORT_MEASURE, default 5 — grinit.f:193), NOT the cycle length. YRDEAD drives the hard→soft DKTIME flip
@@ -727,58 +725,7 @@ function ffe_seed_input_snags!(s::StandState)
     # of EM 196378260020004's <12" input snags soft vs live 0 (all hard until age ≥ DKTIME≈19 yr).
     yr = Int(current_cycle_year(s)) - unsafe_trunc(Int, c.growth_fintm)
     s.control.merch_init || init_merch_standards!(s)
-    _fmsadd_binned(s.variant) && return _seed_input_snags_fmsadd!(s, yr)
-    _ffe_west_vol(s.variant) && return _seed_input_snags_binned!(s, yr)
-    @inbounds for i in (t.n + 1):(t.n + t.ndead)
-        den = t.tpa[i]; d = t.dbh[i]
-        (den > 0f0 && d >= 1f0) || continue
-        sp = Int(t.species[i])
-        h = t.height[i] > 0f0 ? t.height[i] : max(4.5f0, _htdbh_height(sd, sp, d, ifor; isne = s.variant isa Northeast))
-        # FVS's snag bole (FMDOUT→FMSVOL→CFVOL, fmdout.f:146) is the MERCHANTABLE cubic to the top diameter,
-        # NOT the gross total-stem cubic. SN = R8 Clark v[4]; NE = R9 Clark merch v4+v7 (the live-tree
-        # `merch_cuft_vol` basis). The SN R8 path returns 0 for NE (empty vol_eq) ⇒ a Jenkins-whole-tree
-        # fallback over-count, so NE must use its own R9 merch model (mirrors `ffe_add_snaginit!`).
-        if s.variant isa Northeast || s.variant isa LakeStates    # R9 Clark merch (LS vol_eq empty ⇒ R8 path = 0)
-            fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-            dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-            prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-            v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
-            mcuft = d >= dbhmin ? v[4] + v[7] : 0f0
-        elseif s.variant isa Klamath
-            mcuft = nc_snag_bole_cuft(s, sp, d, h)    # NC total cubic (R8-Clark returns 0 for empty NVEL vol_eq)
-        elseif s.variant isa BlueMountains
-            mcuft = bm_snag_bole_cuft(s, sp, d, h)    # BM FMSVOL VOL2HT=MAX(cone,TCF) (R8-Clark returns 0 for NVEL vol_eq)
-        elseif s.variant isa OregonCoast
-            mcuft = oc_tree_cuft(sp, d, h)   # OC BLM total cubic (R8-Clark returns 0 for 'B…' vol_eq ⇒ Jenkins over-book)
-        elseif s.variant isa Olympic
-            mcuft = op_tree_cuft(sp, d, h)   # OP BLM total cubic
-        else
-            prod, stump, mtopp = d >= c.sp_scf_dbhmin[sp] ?
-                ("01", c.sp_scf_stump[sp], c.sp_scf_topd[sp]) : ("02", c.sp_stump_ht[sp], c.sp_top_diam[sp])
-            vv, ht1prd, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-            # FVS FMSVOL→CFVOL returns MCF = the full MERCH cubic (fmsvol.f:150 VOL2HT=MAX(X,MCF), LMERCH=F),
-            # which is v[4] (sawtimber cubic to the sawtimber top) + v[7] (topwood, sawtimber-top→merch-top) —
-            # NOT v[4] alone. Using v[4] dropped the topwood ⇒ the input-snag bole ran ~0.6% low (Stand-Dead
-            # Δ-0.02; live-stamped VOL2HT sp65=204.7 vs jl v[4]=202.7, the 2.0 gap == v[7]). Mirror the live-tree
-            # merch_cuft path (volume.jl:531 + the Region-8 <10ft-product rule) exactly. NE/LS already do v[4]+v[7].
-            mcuft = d >= c.sp_dbh_min[sp] ? vv[4] + vv[7] : 0f0
-            (d >= c.sp_dbh_min[sp] && prod == "01" && ht1prd < 10f0) && (mcuft = vv[7])
-        end
-        bolevol = mcuft * v2t[sp] / 2000f0
-        # fmsadd.f ITYP=3 (input snags, identical in all 24 variants): HTDEAD = MAX(HT, NORMHT·.01) and the
-        # CURRENT height HTIH = HTIS = ITRUNC·.01 for a top-killed/broken record (else HTDEAD). The fall-cone
-        # (CWD1: LOHT=0.1 → HIHT=HTIH) then drops only the standing STUB into down wood — the broken-off top was
-        # already gone at inventory. jl seeded htcur = full height ⇒ dumped the whole bole (FIA HTTOPK stubs:
-        # 41134741010497 DF HT96/HTTOPK10 ⇒ live adds 27.8% of TVOLI, jl 100% ⇒ LARGE fuel +1.7 t/ac by the fire).
-        t.norm_ht[i] > 0 && (h = max(h, t.norm_ht[i] * 0.01f0))
-        htc = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : h
-        add_snag!(fs, sp, d, den, yr; bolevol = bolevol, height = h, htcur = htc)
-        _, _, rbio = jenkins_biomass(coef, sp, d)
-        # FVS assumes input snags have been dead 10 years for dead-root decay (fmsadd.f:313-320):
-        # XDCAY = (1−CRDCAY)^10. FVSjl was booking the full root biomass (over-counting Below-Dead).
-        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
-    end
-    return s
+    return _seed_input_snags_fmsadd!(s, yr)   # FMSADD ITYP=3 binning for every variant (fmsadd.f is shared)
 end
 
 # FMSADD ITYP=3 (fmsadd.f:98-364, identical in all 24 variants) — the input dead trees are BINNED into snag records
@@ -788,10 +735,9 @@ end
 # broken top, else the running HTDEAD (fmsadd.f:345-353). The dead records sit at the top of the tree arrays
 # (MAXTRE downward), so FMSADD's I=1..MAXTRE loop visits them in REVERSE input order. The bole (FMSVOL) is on the
 # record's class-mean DBHS/HTDEAD; the dead-root biomass stays per tree (×(1−CRDCAY)^10, fmsadd.f:313-320).
-# EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Enabled for the western layer
-# (`_ffe_west_vol`: IE/KT/CI/TT/UT/EM), whose bole is `ffe_west_snag_bole`.
-# R6 variants: the same FMSADD ITYP=3 binning through fmsadd_bin! (species-major record order; bole = FMSVOL on the
-# record's DBHS/HTDEAD). Tree order = FMSADD's I=1..MAXTRE over the dead block (last input record first).
+# EM live: LP input record 1 DBHCL 3-4 heights 51.5 (jl per-tree mean 53.125). Every variant bins through fmsadd_bin!
+# (species-major record order; bole = FMSVOL on the record's DBHS/HTDEAD via _snag_merch_cuft_on, the per-variant
+# volume). Tree order = FMSADD's I=1..MAXTRE over the dead block (last input record first).
 function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
     fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species; ifor = Int(s.plot.forest_idx)
     items = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
@@ -807,46 +753,6 @@ function _seed_input_snags_fmsadd!(s::StandState, yr::Integer)
         fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
     end
     return fmsadd_bin!(s, items, yr; ityp = 3, bolefn = _r6_snag_bolefn(s))
-end
-
-function _seed_input_snags_binned!(s::StandState, yr::Integer)
-    fs = s.fire; t = s.trees; coef = s.coef; sd = coef.species
-    v2t = coef_col(coef, :v2t); ifor = Int(s.plot.forest_idx)
-    rng = (t.n + t.ndead):-1:(t.n + 1)                          # FMSADD I-order: last input record first
-    hof(i) = t.height[i] > 0f0 ? t.height[i] :
-             max(4.5f0, _htdbh_height(sd, Int(t.species[i]), t.dbh[i], ifor; isne = s.variant isa Northeast))
-    minht = Dict{Tuple{Int,Int},Float32}(); maxht = Dict{Tuple{Int,Int},Float32}()
-    @inbounds for i in rng
-        (t.tpa[i] > 0f0 && t.dbh[i] >= 1f0) || continue
-        # cratet.f:482-488: FMSSEE (the class MAXHT/MINHT) sees HS = ITRUNC·.01 for a top-killed dead tree, else HT;
-        # FMSADD's HTCL below still compares HT(I) (fmsadd.f:262-270)
-        k = (Int(t.species[i]), _snag_dbhcl(t.dbh[i])); h = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : hof(i)
-        minht[k] = min(get(minht, k, 1000f0), h); maxht[k] = max(get(maxht, k, 0f0), h)
-    end
-    keys_ = Tuple{Int,Int,Int}[]; recs = Dict{Tuple{Int,Int,Int},Vector{Float32}}()   # [den, dbhs, htdead, htih]
-    @inbounds for i in rng
-        den = t.tpa[i]; d = t.dbh[i]
-        (den > 0f0 && d >= 1f0) || continue
-        sp = Int(t.species[i]); h = hof(i); dbhcl = _snag_dbhcl(d)
-        mh = (maxht[(sp, dbhcl)] - minht[(sp, dbhcl)]) > 20f0 ? (maxht[(sp, dbhcl)] + minht[(sp, dbhcl)]) / 2f0 : 0f0
-        htcl = (mh <= 0f0 || h < mh) ? 1 : 2
-        k = (sp, dbhcl, htcl)
-        r = get!(() -> (push!(keys_, k); Float32[0f0, 0f0, 0f0, 0f0]), recs, k)
-        hd = t.norm_ht[i] > 0 ? max(h, t.norm_ht[i] * 0.01f0) : h
-        totden = r[1] + den
-        r[3] = (r[3] * r[1] + hd * den) / totden             # HTDEAD running mean (MAX(HT,NORMHT·.01))
-        r[2] = (r[2] * r[1] + d * den) / totden              # DBHS running mean
-        r[1] = totden
-        r[4] = t.trunc[i] > 0 ? t.trunc[i] * 0.01f0 : r[3]   # HTIH = this tree's ITRUNC, else the running HTDEAD
-        _, _, rbio = jenkins_biomass(coef, sp, d)
-        fs.bioroot += rbio * den * fpowi(1f0 - _FM_CRDCAY, 10)   # REAL**10 ⇒ libgcc __powisf2
-    end
-    @inbounds for k in keys_
-        r = recs[k]; sp = k[1]
-        bolevol = ffe_west_snag_bole(s, sp, r[2], r[3]) * v2t[sp] / 2000f0
-        add_snag!(fs, sp, r[2], r[1], yr; bolevol = bolevol, height = r[3], htcur = r[4])
-    end
-    return s
 end
 
 """
@@ -1012,8 +918,8 @@ function ffe_add_snaginit!(s::StandState)
         end
         bolevol = mcuft * v2t[sp] / 2000f0
         fallvol = tcuft * v2t[sp] / 2000f0
-        # each SNAGINIT is its own FMSADD(YEAR,-JDO) call (fmsnag.f:99): R6 variants reuse an emptied record
-        slot = _fmsadd_binned(s.variant) ? _fmsadd_slot!(fs, _fmsadd_ctx(fs)) : 0
+        # each SNAGINIT is its own FMSADD(YEAR,-JDO) call (fmsnag.f:99): it may reuse an emptied record
+        slot = _fmsadd_slot!(fs, _fmsadd_ctx(fs))
         add_snag!(fs, sp, d, den, yr; bolevol = bolevol, fallvol = fallvol, height = h, htcur = htc, slot = slot)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         # fmsadd.f:386-390: XDCAY=(1-CRDCAY)**PRMS(5) — a REAL exponent (libm powf), 1 when PRMS(5)<=0

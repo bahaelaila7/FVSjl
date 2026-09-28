@@ -145,4 +145,16 @@ end
     @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2004", "2014"), ms)
 end
 
+# FMSADD (fmsadd.f, identical in all 24 builds) bins EVERY snag source — inventory ITYP=3, cut ITYP=2, fire/pile ITYP=1,
+# mortality ITYP=4, SNAGINIT — into class-mean records in species-major slot order with emptied-record reuse. jl binned
+# only the R6 variants' sources (non-R6 inventory snags stayed one per tree, mortality records in first-seen order).
+# MEASURED FVSsn_g16 205045340010854 SALVAGE Standing_Dead 2023: live 0.259012, jl 0.259050.
+@testset "Snag records via FMSADD binning + slot order in every variant vs FVSsn_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("SN", "205045340010854", "salvage"; dir = d)
+    ms = compare_case("SN", "205045340010854", "salvage", txt, db)
+    @test !crashed
+    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2018", "2023"), ms)
+end
+
 end # module

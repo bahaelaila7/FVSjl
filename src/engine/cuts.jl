@@ -160,22 +160,18 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         pl = s.control.yardloss_prlost
         if pl > 0f0
             v2t = coef_col(s.coef, :v2t)[sp]
-            mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            bolevol = mcf * v2t / 2000f0
             tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
             fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
-            if ssng > 0f0 && _fmsadd_binned(s.variant)
-                # R6: FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157)
+            if ssng > 0f0
+                # FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157 — fmsadd.f is
+                # the same in every variant build, so non-R6 variants bin + book the standing loss's crowns too)
                 push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
                 # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
                 # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
                 fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
                         ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
-            elseif ssng > 0f0
-                add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                          bolevol = bolevol, fallvol = fallvol, height = t.height[i])
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
@@ -356,7 +352,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
-    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags (R6 variants)
+    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags
     if s.fire !== nothing && !isempty(s.fire.pend_cut)
         pc = [(Int(x[1]), x[2], x[3], x[4], x[5], x[6], x[7]) for x in s.fire.pend_cut]
         empty!(s.fire.pend_cut)

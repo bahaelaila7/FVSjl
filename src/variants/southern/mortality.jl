@@ -648,9 +648,10 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     gsp = sb.gsp; gdbh = sb.gdbh; ght = sb.ght; gden = sb.gden
     # emit one merged snag per (sp,dbhcl,htcl) class — bole (MCF) on the class-MEAN dbh/ht, floored at the tiny-tree
     # cone volume X=0.005454154·H (fmsvol.f VOL2HT=MAX(X,MCF)), ×V2T→tons, weighted by class density.
-    # R6 variants: FMSADD gives the records slots in species-major (SPCL, DBHCL, HTCL) order with emptied-record reuse
-    # (fmsadd.f:41-62) — their FMR6HTLS draws are handed out per record. Others keep first-seen order + append.
-    r6 = _fmsadd_binned(s.variant)
+    # FMSADD gives the records slots in species-major (SPCL, DBHCL, HTCL) order with emptied-record reuse (fmsadd.f:41-62;
+    # fmsadd.f is identical in every variant build) — the R6 FMR6HTLS draws are handed out per record, and every variant's
+    # FMDOUT/CWD sums run in that record order (MEASURED FVSie_g16 11855985010690 2016: species-major 7,8,9 records).
+    r6 = true
     gorder = r6 ? Int[Int(sb.gkey[k]) for k in eachindex(sb.gkey) if sb.gkey[k] != 0] : (1:ng)   # lin3 = species-major
     ctx = r6 ? _fmsadd_ctx(s.fire) : nothing
     @inbounds for g in gorder
