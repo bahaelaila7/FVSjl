@@ -1084,6 +1084,8 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
                 DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
                     clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
             end
+            # dbsfmmort.f:147 `IF (TOTAL(J,8) .LE. 0) CYCLE` — the ALL row too: a fire over no trees writes no row
+            sum(b.totcls) > 0f0 || continue
             DBInterface.execute(stmt, (caseid, standid, Int(b.year), "ALL", "ALL", "ALL",
                 clsvals(b.clskil, b.totcls)..., Float64(b.killed_ba), Float64(b.killed_vol)))
         end
@@ -1458,7 +1460,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 end
             end
             dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
-            dpct = (snap && kd <= length(s.calib.cratet_dead_pct)) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
+            dpct = kd <= length(s.calib.cratet_dead_pct) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
             cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100

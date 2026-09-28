@@ -253,11 +253,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             end
             csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
             sp = Int(t.species[i]); d = t.dbh[i]
-            pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
-            pmort = fire_mortality_adjust(pmort, sp, d, burnseas, s.variant)
-            (d <= 1f0 && csv > 50f0) && (pmort = 1f0)     # fmeff.f:330
-            pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
-            pmort = clamp(pmort, 0f0, 1f0)
+            pmort = _fmeff_pmort(s, i, flame, csv, burnseas, Int(year))
             curkil = pmort * t.tpa[i]
             crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
             fmprob0 = t.tpa[i]                                        # FMPROB(I) before the kill (fmeff.f:487)
@@ -348,8 +344,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             haskey(sp_tot, sp) || continue                       # species present at the fire (same row set as before)
             get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += ck
             clskil[c] += ck
-            sp_tot[sp][c] = sp_tot[sp][c] + (ck + fp)
-            totcls[c] = totcls[c] + (ck + fp)
+            sp_tot[sp][c] = sp_tot[sp][c] + ck + fp            # TOTCLS + CURKIL(I) + FMPROB(I), left to right
+            totcls[c] = totcls[c] + ck + fp
         end
         empty!(sp_bak); empty!(sp_vol)
         killed_ba = 0f0; killed_vol = 0f0
@@ -383,7 +379,8 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 # FMEFF BCROWN share of one record (fmeff.f:372-374 crown fire, :444-453 scorch), tons/ac, on the PRE-kill FMPROB
 # (TPA) and the fire-time FMICR (= ICR; call before the scorch shortening). `mk` = MKODE≠0: the crown-fire part (CRBURN·FMPROB burns all foliage + half the
 # 0-0.25" crown and its crown-lift) needs MKODE≠0, and the scorched part is weighted (1−CRBURN), else 1.0.
-function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
+function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
+                    icr::Integer = Int(s.trees.crown_pct[i]))::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
     xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
@@ -394,7 +391,7 @@ function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cy
         b += 0.5f0 * crfrac * fmprob * _FM_P2T * (xc[2] + yrscyc * ol1)
     end
     crfrac >= 1f0 && return b
-    crl = h * (Float32(t.crown_pct[i]) / 100f0)                                    # FMICR = ICR at the fire (fmmain.f:111)
+    crl = h * (Float32(icr) / 100f0)                                               # FMICR (= ICR at a fire, fmmain.f:111)
     crbot = h - crl
     if sch > crbot
         crbnl = min(sch - crbot, crl)
@@ -430,6 +427,18 @@ function _fm_consumption_row(s::StandState, cons, burncr::Float32, icrb::Int32)
             s3to6 = b[4], s6to12 = b[5], ge12 = burng12, herb_shrub = blive, crowns = burncr, total = bdtot,
             pct_duff = pduff, pct_ge3 = ctl.ffe_pgr3, pct_crowning = icrb,
             smoke25 = cons.smoke[1], smoke10 = cons.smoke[2])
+end
+
+# FMEFF's per-record mortality proportion PMORT (fmeff.f:176-346), shared by the actual fire (ICALL=0) and the potential
+# fire (ICALL=1): the species model at FLAME and the crown-volume-scorched CSV, the burn-season adjustment, a ≤1" tree
+# with CSV>50 dies, the FMORTMLT multiplier, then clamped to [0,1].
+@inline function _fmeff_pmort(s::StandState, i::Integer, flame::Float32, csv::Float32, burnseas::Integer, year::Int)::Float32
+    t = s.trees; sp = Int(t.species[i]); d = t.dbh[i]
+    pmort = fire_tree_mortality(s.coef, sp, d, flame, csv, s.variant)
+    pmort = fire_mortality_adjust(pmort, sp, d, burnseas, s.variant)
+    (d <= 1f0 && csv > 50f0) && (pmort = 1f0)     # fmeff.f:330
+    pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
+    return clamp(pmort, 0f0, 1f0)
 end
 
 # Canopy minimum height (fminit.f:147 CANMHT=6.0): a tree must be taller than this to enter the canopy
@@ -651,33 +660,37 @@ lbs/ac-ft, −1 if none); `canopy_ht` = effective canopy top (ft); `tcload` = to
     return false
 end
 
-function canopy_crfill(s::StandState)::Vector{Float32}
+function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vector{Float32}
     NH = 400
     crfill = zeros(Float32, NH)
     fs = s.fire
     (fs === nothing || !fs.active) && return crfill
     t = s.trees
+    # FMPOCR walks DO I=1,ITRN over FMMAIN's list — the TRIPLEd one in a tripling cycle (`vtrip`, see _fm_record_walk) —
+    # at FMPROB, and after a burn with the fire-shortened FMICR (`fmicr`).
+    walk = Tuple{Int,Float32}[]
+    _fm_record_walk(t, vtrip) do i, pr; push!(walk, (i, pr)); end
     # Black-Hills-ponderosa Weibull-shape relative density MRD (fmpocr.f:62-74): a metric SDI over ALL tree
     # records, MSDI = Σ (TPA·2.47)·(DBH·2.54/25.4)^1.6, MRD = MSDI/1111.97 capped at 1. Only consumed by the
     # LBHPP crown-shape branch below, but computed unconditionally (over the full ITRN loop) to match FVS.
     msdi = 0f0
-    @inbounds for i in 1:t.n
+    @inbounds for (i, pr) in walk
         dcm = t.dbh[i] * 2.54f0
-        msdi += (t.tpa[i] * 2.47f0) * (dcm / 25.4f0)^1.6f0
+        msdi += (pr * 2.47f0) * (dcm / 25.4f0)^1.6f0
     end
     mrd = msdi / 1111.97f0; mrd > 1f0 && (mrd = 1f0)
     lbhpp_kodfor = Int(s.plot.user_forest_code)
-    @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
+    @inbounds for (i, pr) in walk
+        pr > 0f0 || continue
         # Tree-inclusion filter (fmpocr.f:78-80): canopy-softwood species (LSW; hardwoods excluded), crown
         # ratio > 0 (FMICR), and height > CANMHT.
         h = t.height[i]; h > _FM_CANMHT || continue
         sp = Int(t.species[i])
         fm_canopy_lsw(sp, s.variant) || continue
-        icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
+        icr = Float32((fmicr !== nothing && i <= length(fmicr)) ? fmicr[i] : t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
-        xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(round(icr)))
-        crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(t.crown_pct[i]))
+        crbio = (xv[1] + xv[2] * 0.5f0) * pr            # foliage + ½ finest woody, ×FMPROB (lbs/ac)
         crbio > 0f0 || continue
         # Black-Hills-ponderosa special crown-shape distribution (fmpocr.f:129-221): spread CRBIO over the
         # crown by a truncated Weibull (Keyser & Smith 2010) instead of uniformly. Same total load, but the
@@ -716,10 +729,10 @@ function canopy_crfill(s::StandState)::Vector{Float32}
     return crfill
 end
 
-function canopy_bulk_density(s::StandState)
+function canopy_bulk_density(s::StandState; vtrip::Bool = false, fmicr = nothing)
     fs = s.fire
     (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
-    crfill = canopy_crfill(s)                            # crown fuel by 1-ft height layer (lbs/ac-ft)
+    crfill = canopy_crfill(s; vtrip = vtrip, fmicr = fmicr)   # crown fuel by 1-ft height layer (lbs/ac-ft)
     tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
     # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
     j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)

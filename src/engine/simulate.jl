@@ -62,6 +62,7 @@ function setup_growth!(s::StandState)
     if s.variant isa Southern
         dgcons!(s)                        # sets bark_a/bark_b + the SN DGCON
         init_crown_ratios!(s)             # CRATET — dub inventory crown (DENSE backdated-dbh CCF) before calibrate
+        eastern_cratet_dead_pct!(s)       # the cycle-0 dead records' PCT from CRATET's dead-inclusive DENSE (TreeList)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
@@ -667,6 +668,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # fuel update here so they see the post-fire, start-of-cycle fuel pools + fresh fire snags (#28).
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
+    fkv   = zeros(Float32, n)                                  # FIRKIL per record as FMSADD still sees it
     mort  = 0f0
     akfk = length(s.fire.firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
@@ -676,6 +678,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
         akfk && (fk = min(s.fire.firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
+        fkv[j] = fk
         m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
@@ -690,11 +693,18 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
             d != 0f0 && (mort += d * t.cuft_vol[j]; t.mort_pa[j] += d)
         end
     end
-    book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
+    book_mortality_snags!(s, extra, n, fint; firkil = fkv)     # FMSDIT snags for the EXCESS MORTS only (FMKILL)
     # FMKILL crown hand-back (fmkill.f:92-94): IF(FMICR<1) FMICR=1; IF(FMICR<|ICR|) ICR=-FMICR. The negative
     # ICR makes the next CROWN keep FMICR instead of recomputing (crown.f "ICR(I) WAS CALCULATED ELSEWHERE");
     # jl stores the kept value in crown_bypass, applied by crown_ratio_update_fvs!.
     fm = s.fire.fmicr
+    # FMOLDC (fmoldc.f, fmmain.f:268) closes the fire cycle's FMMAIN AFTER FMBURN: OLDCRL = HT·FMICR/100 with the fire-
+    # shortened FMICR (FMKILL's ≥1 floor comes later), so the next FMSDIT crown lift of a scorched survivor starts from its
+    # post-fire crown base (MEASURED private FMCADD trace, SN 238813815010854 SIMFIRE: 2010 crown-lift size 1 0.0131616 live
+    # vs 0.0116946 from the pre-fire ICR).
+    if length(fm) == n
+        @inbounds for j in 1:n; t.ffe_oldcr[j] = Float32(fm[j]); end
+    end
     if length(fm) == n
         byp = s.fire.crown_bypass
         resize!(byp, n); fill!(byp, Int32(0))
@@ -849,7 +859,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # FFE-init year (non-fire), DEFERRED from the pre-grow driver: FVS FMMAIN loads the initial dead-fuel
         # pools (FMCBA) AFTER the cut phase, so the one-time load reads the POST-THIN stand (matches live PERCOV).
         # No-op for any stand without an init-year thin (pre==post state) ⇒ eastern FFE unaffected.
-        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period))
+        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period); vtrip = _fm_will_triple(s))
     end
     econ_on && econ_status!(s, Int(s.control.cycle) + 1, 1)   # ECSTATUS(…,1) after CUTS (grincr.f:370)
     if econ_on
@@ -1395,6 +1405,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR ~2e-4 low).
     es_em_relden_pre, es_em_ba_pre, es_em_pccf_pre = s.variant isa EasternMontana ?
         (stand_ccf(s), stand_ba(s), _fresh_point_ccf(s)) : (-1f0, -1f0, Float32[])
+    # The shared ESGENT→REGENT(LESTB) crown (establish! phase 2, regent.f:178 CR=0.89722−0.0000461·PCCF) reads the
+    # gradd.f:192 DENSE PCCF — post-UPDATE, before ESNUTR adds sprouts or regen (no DENSE between ESUCKR and ESTAB).
+    # jl's density.point_ccf was still the start-of-cycle one (MEASURED FVSsn_g16 161035853010854 PLANT cycle 2:
+    # PCCF 105.02 live vs 78.60 ⇒ planted crowns 87/86 vs 88/87).
+    es_pccf_pre = _fresh_point_ccf(s)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1425,7 +1440,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
         (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
-    establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
+    establish!(s; fint = fint, pccf_pre = es_pccf_pre)   # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # AK: estb/esnutr.f + ak/estab.f (natural tally + PLANT/NATURAL) + ak/esgent.f, one ESNUTR call per cycle.
     s.variant isa SoutheastAlaska && ak_esnutr!(s; fint = fint)
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.

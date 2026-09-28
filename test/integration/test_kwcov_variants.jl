@@ -81,6 +81,11 @@ const _KCV_BROKEN = Dict{String,String}(
     # on a ~21k value = ULP rounding boundary); all density + the other 3 volume cols bit-exact. ne/ls_fixhtg
     # fully bit-exact with identical FIXHTG logic ⇒ the ht-growth-multiplier semantic is faithful; the taller
     # CS stem crosses a board-foot integer boundary. Permitted ULP-class.
+    # cs_numtrip / cs_serlcorr (integ-0940): dense.f walks IND1 (identical dense.f 9c82faab in the CS and SN builds; SN tiered
+    # 22838 -> 62 cells with it). On these two CS keys it moves ONE late-row volume cell by 1 (numtrip 2040 BdFt 21412/21411,
+    # serlcorr TCuFt 3887/3888): the record-order sum had happened to land on live; every density column is exact.
+    "cs_numtrip"  => "NUMTRIP — ULP-class Δ1 BdFt on ONE cell (row 6 col 12, 21412/21411) after dense.f's IND1 summation order (faithful; same dense.f as SN); all density cols exact.",
+    "cs_serlcorr" => "SERLCORR — ULP-class Δ1 TCuFt on ONE cell (row 5 col 10, 3887/3888) after dense.f's IND1 summation order (faithful; same dense.f as SN); all density cols exact.",
     "cs_fixhtg"   => "FIXHTG ht-growth ×1.5 — ULP-class Δ1 board-foot on ONE cell (2040 col 12/BdFt, 21345/21346); all density + other volume cols bit-exact; ne/ls_fixhtg fully bit-exact ⇒ semantic faithful, board-foot rounding knife-edge.",
     # {ne,cs,ls}_estab: ESTAB + PLANT (300 TPA, 90% survival) — the planted cohort ESTABLISHES with the correct
     # COUNT (TPA at the first post-plant cycle 2010 is BIT-EXACT: cs 722/722), but its early DIMENSIONS (dbh→SDI/

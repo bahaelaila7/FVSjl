@@ -40,9 +40,12 @@ end
 "Solve tree age from current height (HTCALC mode 0)."
 function htcalc_age(bc, sp::Integer, si::Real, h::Real, montane::Bool=false)
     b1,b2,b3,b4,b5 = _htcalc_coef(bc, sp, montane); sif = Float32(si)
-    ratio = Float32(h) / (b1 * fpow(sif, b2))
+    # htcalc.f:170 AGET = 1./B3*(ALOG(1-((H-HB)/B1/SI**B2)**(1./B4/SI**B5))), HB=0 — divided in turn, not by the
+    # products (MEASURED FVSsn_g16 157577477010854 1972: AGET 1-2 ULP off on 10 of 35 records ⇒ HTG1). The clamp only
+    # guards callers outside HTGF's HTMAX−H>1 gate.
+    ratio = ((Float32(h) - 0f0) / b1) / fpow(sif, b2)
     ratio = clamp(ratio, 0f0, 1f0 - 1f-6)
-    return (1f0 / b3) * flog(1f0 - fpow(ratio, 1f0 / (b4 * fpow(sif, b5))))
+    return (1f0 / b3) * flog(1f0 - fpow(ratio, (1f0 / b4) / fpow(sif, b5)))
 end
 
 "5-year height increment from a starting age (HTCALC mode 9)."
