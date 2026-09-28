@@ -18,7 +18,8 @@
 "Western variants whose FFE snag bole / live-carbon stem use `ffe_west_nocut` (fmsvol.f non-eastern branch)."
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
                    v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
-                   v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska
+                   v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska ||
+                   v isa SouthCentralOregon || v isa Klamath
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -83,6 +84,51 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
                                                pn_behre_vol(sp, ifor, d, h, bark; topd = topd)
         end
         return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
+    elseif v isa SouthCentralOregon                            # so: compute_volumes_so! kernels at (D,H)
+        # so/fmsvol.f, fmsnag.f, fmcwd.f, fmcbio.f are byte-identical to wc/ec's (the shared western FMSVOL layer); SO's
+        # volume equations live in the driver's per-forest tables (species.vol_eq stays blank), so jl's generic snag
+        # path took the eastern R8-Clark branch ⇒ 0 bole volume (MEASURED FVSso_g16 374286168489998 2015 inventory
+        # Standing_Dead 2.91 live / 0.05 jl) and the live-carbon merch stem came from Jenkins (Aboveground_Merch_Live
+        # 34.43 / 35.07).
+        ifor = Int(s.plot.forest_idx); bark = so_bratio(s.coef.species, sp, d)
+        topd = (ifor <= 3 || ifor == 10) ? 4.5f0 : 6.0f0                        # so/sitset.f:167
+        if !(ifor <= 3 || ifor == 10)                                          # Region 5 (R5_EQN)
+            tcf, mcf, _ = nvel_r5_vol(SO_R5_VOLEQ[sp], d, h, bark, topd, topd)
+        else
+            eqs = (ifor == 2 || ifor == 3) ? SO_VOLEQ_FR[sp] : SO_VOLEQ[sp]
+            if eqs[4:6] == "FW2"
+                w = cr_fw2_vol(eqs, d, h; bark = bark, topd = topd, bftopd = topd, stump = 1f0,
+                               iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true)
+                tcf = w[1]; mcf = w[4] + w[7]
+            else
+                tcf, mcf, _ = so_behre_vol(sp, ifor, d, h, bark)
+            end
+        end
+        return (max(tcf, 0f0), d >= 9f0 ? max(mcf, 0f0) : 0f0, bark, true)            # so/grinit.f DBHMIN 9
+    elseif v isa Klamath                                       # nc: compute_volumes_nc! kernels at (D,H)
+        # nc/fmsvol.f & co. = the shared western layer too; NC keeps its equations in NC_VOL_EQ / NC_R6_VOL_EQ /
+        # NC_R7_VOL_EQ (R5 WO2W/DVE, R6 Siskiyou, R7 BLM), not in species.vol_eq.
+        c = s.control; sd = s.coef.species; ifor = Int(s.plot.forest_idx)
+        bark = nc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+        if ifor == 5 || ifor == 7
+            tcf, mcf, _ = nc_blmvol_vol(sp, d, h, bark; fclass = ifor == 7 ? NC_BLM712_FC[sp] : 80f0, ifor = ifor)
+        elseif ifor == 4
+            eq6 = NC_R6_VOL_EQ[sp]; m6 = eq6[4:6]
+            if m6 == "FW2" && (eq6[1] == 'F' || eq6[1] == 'f')
+                tcf, mcf, _ = wc_fw2_westside_vol(eq6, d, h, bark; topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp])
+            elseif m6 == "FW2"
+                w = cr_fw2_vol(eq6, d, h; bark = bark, topd = c.sp_top_diam[sp], bftopd = c.sp_bf_topd[sp], stump = 1f0,
+                               iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true)
+                tcf = w[1]; mcf = w[4] + w[7]
+            else
+                tcf, mcf, _ = nc_behre_vol(sp, d, h, bark; topd = c.sp_top_diam[sp])
+            end
+        else
+            eqn = NC_VOL_EQ[sp]; topib = c.sp_top_diam[sp] * bark; bftib = c.sp_bf_topd[sp] * bark
+            tcf, mcf, _ = eqn[4:6] == "WO2" ? nc_wo2w_vol(eqn, d, h; mtopp = topib, bftop = bftib) :
+                                               nc_r5harv_vol(eqn, d, h, topib)
+        end
+        return (max(tcf, 0f0), d >= 9f0 ? max(mcf, 0f0) : 0f0, bark, true)            # nc/grinit.f DBHMIN 9
     elseif v isa InlandEmpire                                  # ie: region-6 Behre / FW2 / region-1-2 DVE
         bark = ie_bratio(sp, d); dbhmin = sp == 7 ? 6f0 : 7f0
         if occursin("BEH", eq)

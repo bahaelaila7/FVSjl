@@ -845,7 +845,26 @@ function compute_forest_type!(st::StandState)
         end
     end
 
-    # --- California special case
+    # --- California special case (fortyp.f:1117-1140, identical in every build): the mixed-conifer test for a CA stand
+    # (ISTATE 6 or Forest Service region 5). Douglas-fir off the north coast (every county but the coastal list, or
+    # — county 0/coastal with a POSITIVE lat/long — outside 37-42N × 123-125W), sugar pine/incense cedar, PP/Jeffrey
+    # with PP stocking < 80%, and white/red fir with true-fir stocking < 80% all become 371 CALIFORNIA MIXED CONIFER.
+    # jl left this block empty ⇒ ForTyp 221/261/201/222 where FVS reports 371 (NC/SO/CA/WS).
+    istate = Int(st.plot.state); icnty = Int(st.plot.county)
+    tlat = st.plot.latitude; tlong = st.plot.longitude
+    if istate == 6 || irgn == 5
+        if !(icnty in (0, 15, 23, 41, 45, 55, 81, 85, 87, 97))                  # N. CA counties
+            ift == 201 && (ift = Int32(371))                                    # DOUGLAS-FIR NOT ALONG N. CA COAST
+        elseif tlat > 0 && tlong > 0
+            if !((tlat >= 37 && tlat <= 42) && (tlong >= 123 && tlong <= 125))  # approximation for N. CA counties
+                ift == 201 && (ift = Int32(371))
+            end
+        end
+        (ift == 224 || ift == 222) && (ift = Int32(371))                        # SUGAR PINE / INCENSE CEDAR
+        (ift == 221 || ift == 223) && pndrosa < eighty && (ift = Int32(371))    # PONDEROSA / JEFFREY PINE
+        (ift == 261 || ift == 262) && trufir < eighty && (ift = Int32(371))     # WHITE FIR / RED FIR
+    end
+    ift == 0 && (ift = Int32(998))                                              # fortyp.f:1145 OTHER OR UNKNOWN
     st.plot.forest_type = Int32(ift)
     return Int32(ift)
 end

@@ -57,6 +57,17 @@ const _PN_MAPDRY = Int[
     return 2                                                     # DFCT: DF,GF,WP + everything else
 end
 
+# PN species→cover-group map — pn/fmcfmd.f's ELSE (VARACD≠'WC') branch: SFCT is (1,19,6,18) — PN species 6 is Sitka
+# spruce, where WC's is ES (10). jl grouped PN with the WC map (SS → DFCT, ES → SFCT).
+@inline function _pn_covgrp(sp::Int)::Int
+    (sp == 1 || sp == 19 || sp == 6 || sp == 18)  && return 1   # SFCT: SF,WH,SS,RC
+    (sp == 20 || sp == 4 || sp == 31)             && return 3   # MHCT: MH,AF,WB
+    sp == 22                                       && return 4   # RACT: RA
+    sp == 11                                       && return 5   # LPCT: LP
+    (sp == 28 || sp == 25)                         && return 6   # WOCT: WO,GC
+    return 2                                                     # DFCT: DF,GF,WP + everything else
+end
+
 # OP (Olympic NWO) species→cover-group map — op/fmcfmd.f the ELSE (VARACD≠'WC') branch. Differs from WC in
 # 2 species (SS sp6→SFCT vs WC's ES sp10; sp24→WOCT). The selection RULES are BYTE-IDENTICAL to wc/fmcfmd.f.
 @inline function _op_covgrp(sp::Int)::Int
@@ -103,7 +114,7 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     @inbounds for sp in 1:nsp
         fmtba[sp] > 0f0 || continue
         stndba += fmtba[sp]
-        ctba[(s.variant isa Olympic ? _op_covgrp(sp) : _wc_covgrp(sp))] += fmtba[sp]
+        ctba[(s.variant isa Olympic ? _op_covgrp(sp) : s.variant isa PacificNorthwest ? _pn_covgrp(sp) : _wc_covgrp(sp))] += fmtba[sp]
     end
 
     # top-2 cover groups by BA (RDPSRT descending), rescaled to sum 1 (wc/fmcfmd.f:213-233).
@@ -115,7 +126,15 @@ function wc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
         x1 = ctba[idx[1]] + ctba[idx[2]]
         ictwt[1] = ctba[idx[1]] / x1
         ictwt[2] = ctba[idx[2]] / x1
+    else
+        # no trees / no BA: the previous call's pair (wc/fmcfmd.f ICT=OLDICT, OLDICT2, ICTWT=OLDICTWT; fmvinit.f
+        # initialises DFCT 2 / 0 / (1.0, 0.0)). jl used (0,0) weights ⇒ no cover-group model on a bare stand
+        # (MEASURED FVSpn_g16 26379272010900 2002: live FMD 5, jl 10).
+        o = s.fire.oldict_top2
+        ict[1] = s.fire.covtyp_ict > 0 ? Int(s.fire.covtyp_ict) : 2
+        ict[2] = Int(o[1]); ictwt[1] = o[2]; ictwt[2] = o[3]
     end
+    s.fire.covtyp_ict = Int32(ict[1]); s.fire.oldict_top2 = (Float32(ict[2]), ictwt[1], ictwt[2])   # OLDICT… = ICT…
 
     # QMD80: QMD of the lower-80%-BA trees, computed only if SF or DF is a top-2 cover (wc/fmcfmd.f:238-270).
     lqmd = (ict[1] == 1 || ict[1] == 2 || ict[2] == 1 || ict[2] == 2)
