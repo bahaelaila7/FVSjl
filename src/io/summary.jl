@@ -165,11 +165,19 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     t = s.trees
     rt(v::Float32, p::Float32) = (v * p) / p
     bio = cycle0 || s.control.fia_nvb
+    # ON: canada/on vols.f never loads MCFV/SCFV — its merch volume lives only in the WK1 scratch (the metric
+    # FVS_TreeList MCuM binds WK1·FT3toM3, dbstrls.f:346), which the gradd.f/fvs.f PROB round trip does not touch;
+    # jl's merch_cuft_vol carries that WK1. A PROB=0 record keeps CFV·0 = BFV·0 = 0 (the divide-back is PROB>0-only).
+    _on = s.variant isa Ontario
     @inbounds for i in 1:t.n
         p = t.tpa[i]
-        p > 0f0 || continue
+        if !(p > 0f0)
+            _on && (t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0)
+            continue
+        end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
-        t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p); t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
+        _on || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
+        t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
         if bio
             t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
             t.cubsaw_bio[i] = rt(t.cubsaw_bio[i], p);   t.foliage_bio[i] = rt(t.foliage_bio[i], p)
@@ -449,6 +457,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
             atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
+            latch_itrn_grincr!(s)   # grincr.f:74 LTRIP reads ITRN before CUTS TREDELs the zero-PROB records
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))

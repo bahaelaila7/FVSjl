@@ -1593,17 +1593,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 52
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 52 cells [ulp1=11 ulp2_16=16 ulpbig=25] max|Δ|=0.008832 | e.g. stand 11855985010690 year 2036: live=0.876318633556366 jl=0.8830597400665283"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
@@ -6208,17 +6197,6 @@ year = "*"
 status = "OPEN"
 max_cells = 58
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 58 cells [material=37 ulp2_16=2 ulpbig=19] max|Δ|=9.186 | e.g. stand 5352355010661 year 2004: live=0.011368483304977417 jl=0.01136848609894514"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 46
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 46 cells [material=1 ulp1=2 ulp2_16=4 ulpbig=39] max|Δ|=1.392 | e.g. stand 5352355010661 year 2024: live=0.00025533189182169735 jl=0.0002699981559999287"""
 
 [[residual]]
 variant = "EM"

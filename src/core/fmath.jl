@@ -86,6 +86,9 @@ end
 # sin/cos by 1 ULP. Used in the per-species DG/HTG site constants (dgf.f DGCON/SMCON aspect terms).
 @inline fsin(x::Float32) = ccall((:sinf, "libm.so.6"), Float32, (Float32,), x)
 @inline fcos(x::Float32) = ccall((:cosf, "libm.so.6"), Float32, (Float32,), x)
+# TAN/ATAN of REAL*4 likewise (FFE FMCROWE's bole-tip cone angle, fmcrowe.f:381/433)
+@inline ftan(x::Float32) = ccall((:tanf, "libm.so.6"), Float32, (Float32,), x)
+@inline fatan(x::Float32) = ccall((:atanf, "libm.so.6"), Float32, (Float32,), x)
 
 """
     fpowi(x::Float32, m::Integer) -> Float32
@@ -110,6 +113,14 @@ end
 # `x^3` lowers to x*x*x (two roundings) where Fortran `X**3.` is one correctly-rounded pow. Used by the
 # double-precision NVEL kernels (Flewelling SHP_C2/SHP_OT, SF_TAPER) so their REAL*4 outputs round the same.
 const _LIBM = "libm.so.6"
+# REAL*4 EXP/ALOG/`**` straight from glibc libm (expf/logf/powf) — what every gfortran build links. THE single binding:
+# the named library matters — a bare `ccall(:expf)` resolves to whichever libm Julia loaded first (openlibm under
+# Julia 1.13), which differs by 1 ULP (test_lpmpb PROTBK 3C10C78F vs live 3C10C78E; ON Penner DDS). Unlike
+# fexp/flog/fpow these never fall back to openlibm when the gfortran companion shim is absent.
+@inline expf(x::Float32) = ccall((:expf, _LIBM), Float32, (Float32,), x)
+@inline logf(x::Float32) = ccall((:logf, _LIBM), Float32, (Float32,), x)
+@inline powf(x::Float32, y::Float32) = ccall((:powf, _LIBM), Float32, (Float32, Float32), x, y)
+@inline log10f(x::Float32) = ccall((:log10f, _LIBM), Float32, (Float32,), x)
 @inline dexp(x::Float64) = ccall((:exp, _LIBM), Float64, (Float64,), x)
 @inline dlog(x::Float64) = ccall((:log, _LIBM), Float64, (Float64,), x)
 @inline dpow(x::Float64, y::Float64) = ccall((:pow, _LIBM), Float64, (Float64, Float64), x, y)

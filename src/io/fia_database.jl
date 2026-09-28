@@ -420,6 +420,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # elevation drives the Hopkins index for hardwood open-grown crowns, so without it HI (and the
     # reported CCF) drift. Southern-gated: the SN forest_location table is keyed by KODFOR÷100 the
     # same way kw_stdinfo! keys it; NE/CS/LS use a different forkod keying (left as a follow-up).
+    # ON (canada/on/forkod.f, called by dbsstandin.f:618 BEFORE the DB LATITUDE/LONGITUDE overrides): a code outside
+    # JFOR keeps the grinit.f IFOR=9 (⇒ KODFOR=JFOR(9)=915); KODFOR 915/916 sets TLAT=46.78, TLONG=92.11, ELEV=16 where
+    # still 0. The FVSDataHardwood LD3001 stand (Region 9, Forest 15) has LATITUDE but no LONGITUDE ⇒ live TLONG=92.11
+    # (Hopkins index of the open-grown hardwood crown width ⇒ CCF); jl left 0.
+    if s.variant isa Ontario && (Int(p.user_forest_code) in (915, 916) ||
+                                 !(Int(p.user_forest_code) in (902, 903, 904, 906, 907, 909, 910, 913, 924)))
+        p.latitude  == 0f0 && (p.latitude  = 46.78f0)
+        p.longitude == 0f0 && (p.longitude = 92.11f0)
+        p.elevation == 0f0 && (p.elevation = 16f0)
+    end
     if s.variant isa Southern
         lat0, long0, elev0 = forest_location(s.coef, div(Int(p.user_forest_code), 100))
         p.latitude  == 0f0 && (p.latitude  = lat0)
@@ -427,9 +437,18 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         p.elevation == 0f0 && (p.elevation = elev0)
     end
     # Sampling design (DESIGN card): BAF / FPA / BRK / IPTINV / NONSTK / SAMWT / GROSPC
-    _fia_present(d, "BASAL_AREA_FACTOR") && (p.baf = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0))
-    _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0))
-    _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
+    # ON (canada/on dbsstandin.f:357-376, METRIC reader): BASAL_AREA_FACTOR <0 (inverse fixed-plot size, per ha) is
+    # /HAtoACR, ≥0 (m²/ha) is *M2pHAtoFT2pACR; INV_PLOT_SIZE /HAtoACR; BRK_DBH (cm) *CMtoIN — so notre.f expands the
+    # per-plot TREE_COUNT to trees/ACRE itself (PROB = count·(−BAF)/PI). (TREE_COUNT is NOT converted.)
+    on_db = s.variant isa Ontario
+    if _fia_present(d, "BASAL_AREA_FACTOR")
+        b = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0)
+        on_db && (b = b < 0f0 ? b / 2.471f0 : b * 4.3560773f0)
+        p.baf = b
+    end
+    _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0) / (on_db ? 2.471f0 : 1f0))
+    _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = on_db ? _fia_f32(d, "BRK_DBH", 0f0) * 0.3937f0 :
+                                                                          _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
     _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)))
     _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)))
     _fia_present(d, "SAM_WT")            && (p.sample_weight = _fia_f32(d, "SAM_WT", p.sample_weight))
@@ -472,6 +491,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # code literally (e.g. 5) cripples growth (frozen TopHt / suppressed DBH — audit 43bl).
     if _fia_present(d, "SITE_INDEX")
         si = _fia_f32(d, "SITE_INDEX", 0f0)
+        # ON (canada/on dbsstandin.f:419-422, METRIC reader): RSTANDDATA(35)=SITE_INDEX*MtoFt — the DB site index is
+        # metres and is converted BEFORE the ≤7 Dunning test. (The inline .tre/SITECODE path is converted in initre.)
+        s.variant isa Ontario && (si *= 3.28084f0)
         isp = 0
         if _fia_present(d, "SITE_SPECIES")
             code = _fia_spcode(_fia_str(d, "SITE_SPECIES", ""))
@@ -604,7 +626,7 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     # the same class as the BC bug 42eb555.)
     metric_db = s.variant isa BritishColumbia || s.variant isa Ontario
     res = ingest_tree_records!(s, recs; metric = metric_db)
-    if metric_db
+    if metric_db && !(s.variant isa Ontario)     # ON: the design factors are converted instead (see BASAL_AREA_FACTOR)
         # DB TREE_COUNT (PROB) is per-HECTARE; FVS's metric expansion yields per-acre (via the metric
         # plot area). notre! here multiplies by the design factor only, so pre-scale the raw PROB
         # per-ha→per-acre (× ACRtoHA) so the expanded internal TPA is per-acre like every other variant.

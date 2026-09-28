@@ -422,14 +422,21 @@ function compute_volumes_on!(s::StandState)
     t = s.trees; c = s.control; p = s.plot
     dbhmin = c.sp_dbh_min; bfmind = c.sp_bf_dbhmin; bftopd = c.sp_bf_topd
     topd = c.sp_top_diam; stmp = c.sp_stump_ht
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
-        if d < 1f0
-            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
+    # vols.f IPASS=2 (:372-378, ILOW=IREC2..MAXTRE): the cycle-0 inventory-dead records are volumed too (their
+    # FVS_TreeList TCuM/MCuM/CCum); jl keeps them after the live block.
+    @inbounds for i in 1:(t.n + Int(t.ndead))
+        # vols.f:125 `IF(P.LE.0.0) GO TO 200`: a record emptied this cycle is not re-volumed — WK1 (MCuM) keeps the DG
+        # dgdriv.f DO 5 loaded at the top of the cycle (TRIPLE copies it to the copies, triple.f:68); CFV/BFV go to 0
+        # through gradd's PROB round trip (_vol_prob_roundtrip!).
+        if i <= t.n && t.tpa[i] <= 0f0 && t.vol_bark[i] > 0f0
+            t.merch_cuft_vol[i] = t.dg_prev[i]
             continue
         end
-        bark = on_bratio(sp, d, h)
+        d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
+        # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
+        # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.
+        # The update loop stashes exactly that value in vol_bark; 0 ⇒ the LSTART (fvs.f:211) call, D unchanged.
+        bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : on_bratio(sp, d, h)
         # OCFVOL: below the pulpwood-minimum DBH the cubic call returns the 0.0001 sentinel.
         if d < dbhmin[sp]
             t.cuft_vol[i] = 0.0001f0; t.merch_cuft_vol[i] = 0.0001f0
@@ -450,14 +457,12 @@ function compute_volumes_on!(s::StandState)
         t.saw_cuft_vol[i] = vm
         # Board section (NMV): only when D >= BFMIND and D > BFTOPD (vols.f board gate).
         if d >= bfmind[sp] && d > bftopd[sp]
-            # ABIRTH dubbed-and-frozen on first pass (cratet seeds it once before projection).
-            if t.birth_age[i] <= 0f0
-                si = (sp >= 1 && sp <= length(p.sp_site_index)) ? p.sp_site_index[sp] : 0f0
-                age = on_tree_age(sp, h, si)
-                age > 0f0 && (t.birth_age[i] = age)
-                t.age_known[i] = true
-            end
-            nmv = on_mowraski(sp, max(vm, 0f0), t.birth_age[i])
+            # volont.f:405 reads ABIRTH(IT) as it stands: dubbed ONCE for every inventory record by CRATET's FINDAG
+            # (cratet_findag_dub!(::Ontario), from the INVENTORY height) and advanced by FINT after UPDATE's VOLS
+            # (gradd.f:205) — never re-dubbed here from the grown height (a record with FINDAG age 0 keeps 0).
+            # varvol.f OBFVOL: `IF (IMC(IT) .GT. 3 ...) GOTO 200` — an inventory-dead record (IMC 7/9) keeps the OVM=0.0001
+            # sentinel as the MOWRASKI input (its cubic OCFVOL volume is computed normally).
+            nmv = on_mowraski(sp, i > t.n ? 0.0001f0 : max(vm, 0f0), t.birth_age[i])
             t.bdft_vol[i] = nmv > 0f0 ? nmv : 0f0
         else
             t.bdft_vol[i] = 0f0

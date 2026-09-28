@@ -66,7 +66,7 @@ end
         p2 = ON_REG_SNALL_P2[sp]; p3 = ON_REG_SNALL_P3[sp]; p4 = ON_REG_SNALL_P4[sp]
         hat3 = 4.5f0 + p2 * on_expf(-p3 * on_powf(3f0, p4))
         if h >= hat3
-            d = on_expf(on_logf((on_logf(h - 4.5f0) - on_logf(p2)) / (-p3)) * (1f0 / p4))
+            d = on_expf(on_logf((on_logf(h - 4.5f0) - on_logf(p2)) / (-p3)) / p4)   # htdbh.f: ALOG(..) * 1./P4 = (X*1.)/P4
         else
             db = ON_REG_SNDBAL[sp]
             d = (((h - 4.51f0) * (3f0 - db)) / (4.5f0 + p2*on_expf(-p3*on_powf(3f0, p4)) - 4.51f0)) + db
@@ -143,8 +143,11 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
             xwt = d <= ON_REG_XMIN ? 0f0 : (d - ON_REG_XMIN) / (ON_REG_XMAX - ON_REG_XMIN)
             htgr = htgr_s * (1f0 - xwt) + xwt * t.ht_growth[i]
             htgr < 0.1f0 && (htgr = 0.1f0)
-            dg_large = t.diam_growth[i]                  # DG(K) large-tree, for the DGSM blend
             for l in 0:(nrec - 1)
+                # regent.f:9983 DGGR = DGSM·(1−XWT) + XWT·DG(K): DG(K) is the LARGE-tree DG of the record being
+                # processed — for a tripled copy K=ITRN+2I−2+L its own dgdriv.f DG(ITRIPU)/DG(ITRIPL) (FRU/FRL
+                # spread), not the central's.
+                dg_large = l == 0 ? t.diam_growth[i] : l == 1 ? stash.dgU[i] : stash.dgL[i]
                 ran = 0f0
                 if random_on
                     while true
@@ -156,8 +159,9 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
                 htg < 0.1f0 && (htg = 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 hk = h + htg
+                direct = -1f0                            # DBH(K) assigned directly (HK≤4.5), else −1
                 if hk <= 4.5f0
-                    dg = 0.001f0 * hk                    # regent.f:296 DBH=D+0.001·HK (DG=0); no DIAM/DGBND
+                    dg = 0f0; direct = d + 0.001f0 * hk  # regent.f: DG(K)=0.0; DBH(K)=D+0.001*HK (DGBND(0)=0)
                 else
                     dkk = _on_htdbh_dbh(sp, hk)
                     dk  = h <= 4.5f0 ? d : _on_htdbh_dbh(sp, h)
@@ -180,10 +184,16 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
+                    if direct >= 0f0
+                        t.dbh[i] = direct
+                        trip && (stash.dbh0[i] = d)      # the copies' DBH(K) stays the pre-REGENT D (dgdriv.f set it)
+                    end
                 elseif l == 1
                     stash.dgU[i] = dg; stash.htgU[i] = htg; stash.is_small[i] = true
+                    direct >= 0f0 && (stash.dbhU[i] = direct)
                 else
                     stash.dgL[i] = dg; stash.htgL[i] = htg
+                    direct >= 0f0 && (stash.dbhL[i] = direct)
                 end
             end
         end

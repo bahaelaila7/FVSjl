@@ -133,11 +133,10 @@ end
             # totals now match live). All four rendered-== green.
             f[1] == "2000" && @test round(Float64(r.standing_dead); digits=2) == 5.18
             f[1] == "2005" && @test round(Float64(r.standing_dead); digits=2) == 4.47
-            # 2000 BOLE: jl 3.71495 vs the instrumented 3.72 — on the 3.715 render boundary. FMSADD's record means are
-            # zero-initialized (fmsadd.f:334-340, (0·0+DBH·SNGNEW)/SNGNEW, as ported from the AK/R6 measurements): jl's
-            # SNGNEW (the MORTS kill as PROB−survivors) makes a 12" record 11.999999, which takes SN's d<12 linear fall
-            # (fmsfall.f) and empties by 2000, where FVS's WK2 evidently yields 12.0. Open: book the MORTS WK2 itself.
-            f[1] == "2000" && @test_broken round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
+            # 2000 BOLE (#277): FMKILL(2) books each TRIPLED record's WK2 (the kill ·.60/.25/.15) into FMSADD's zero-
+            # initialized class means (fmsadd.f:334-340); booking the whole un-tripled kill made a 12" record 11.999999,
+            # which took SN's d<12 linear fall (fmsfall.f) and emptied by 2000 (bole 3.71495). From the parts: 12.0, 3.7153.
+            f[1] == "2000" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO); digits=2) == 3.28  # BOLE rendered-== (binning-closed)
             f[1] == "2000" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.46   # CROWN rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.19   # CROWN rendered-==

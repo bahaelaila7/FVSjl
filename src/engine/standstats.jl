@@ -96,15 +96,17 @@ end
 # birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
 # dense.f:179-188 walks DO 10 I3=ISCT(ISPC,1..2) / I=IND1(I3) — species-major IND1 — with WK5=D*(D*P) (DP=D*P first);
 # TSUMD2/TPROB are REAL*4 sums in that order. Live-measured BM/EM, IE (FVSie_g16 3285544010690 2012 QMD live
-# 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build) and AK (ak/dense.f identical; akt01 +
-# the FIA 12-stand sample).
-_dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana ||
-                               s.variant isa InlandEmpire || s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
+# 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build), AK (ak/dense.f identical; akt01 +
+# the FIA 12-stand sample) and ON (canada/on links base/dense.f: FVSon_g16 DENSE dump RMSQD ont_all cyc1 411F20D4 /
+# ont_lite 41266DCA, BA ont_sm cyc0 441BF990 only with both; record order or p·d² is 1-4 ULP off ⇒ ont01 SB HtG).
+# ONE predicate for the dense.f IND1 + D*(D*P) mechanism (stand_ba / stand_qmd / _dense_order).
+_dense_ind1(v::AbstractVariant) = v isa BlueMountains || v isa EasternMontana || v isa InlandEmpire ||
+                                  v isa SoutheastAlaska || v isa Ontario
+_dense_order(s::StandState) = _dense_ind1(s.variant) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
-    if s.variant isa BlueMountains || s.variant isa InlandEmpire || s.variant isa EasternMontana ||
-       s.variant isa SoutheastAlaska
+    if _dense_ind1(s.variant)
         # dense.f:179-190 — species-major IND1 order, DP=D·P; WK5=D·DP; BATREE=0.005454154·WK5; BAT=BAT+BATREE
         # (live-measured on BM, IE and EM — FVSem_g16 196378260020004 cyc1 BAL/DDS; see the _dense_order note). AK: the
         # BA feeds the cwcalc (BAREA+1)^cba crown width — record-order BA put FVS_TreeList CrWidth 1 ULP off on 147/286
@@ -122,9 +124,7 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
-                s.variant isa SoutheastAlaska) ?
-               d * (d * p) : p * d^2
+        sd2 += _dense_ind1(s.variant) ? d * (d * p) : p * d^2
         tpa += p
     end
     return tpa > 0f0 ? sqrt(sd2 / tpa) : 0f0
@@ -186,12 +186,15 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     if _fvs_ind_lifecycle(s.variant) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
+        # canada/on/avht40.f: TARG = 100.0/HAtoACR ("METRIC VERSION = 40.47/AC" — the 100 largest trees per ha),
+        # not the imperial 40/ac.
+        targ = s.variant isa Ontario ? 100f0 / 2.471f0 : 40f0
         avh = 0f0; ssumn = 0f0
         for k in 1:t.n
             ii = Int(idx[k]); p = t.tpa[ii]
-            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn + p > targ && (p = targ - ssumn)
             ssumn += p; avh += t.height[ii] * p
-            ssumn >= 40f0 && break
+            ssumn >= targ && break
         end
         return ssumn > 0f0 ? avh / ssumn : 0f0
     end

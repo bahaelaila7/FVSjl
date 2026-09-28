@@ -352,7 +352,7 @@ end
 # -----------------------------------------------------------------------------
 # glibc single-precision expf — matches gfortran REAL EXP() bit-exact. The Fortran
 # MPOTPR expression is all-REAL, so the transcendental is expf, not exp(::Float64).
-@inline _mpb_expf(x::Float32)::Float32 = ccall(:expf, Float32, (Float32,), x)
+const _mpb_expf = expf   # glibc expf (FMath) — the bare ccall(:expf) resolved to openlibm (PROTBK 1 ULP off live)
 
 """
     mpb_mpotpr(pbalpp, relden, reldsp_lp, a45dbh, cntlp, istdt, icyc, iy) -> Float32
