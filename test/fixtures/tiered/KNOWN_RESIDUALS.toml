@@ -6565,17 +6565,6 @@ issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighte
 variant = "EM"
 regime = "simfire"
 file = "FVS_PotFire"
-col = "Canopy_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 4 cells [material=3 ulpbig=1] max|Δ|=16.0 | e.g. stand 3087467010690 year 1998: live=20 jl=18"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire"
 col = "Crown_Index"
 stand = "*"
 year = "*"
@@ -6879,17 +6868,6 @@ year = "*"
 status = "OPEN"
 max_cells = 31
 issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 31 cells [ulp1=5 ulp2_16=9 ulpbig=17] max|Δ|=0.0036 | e.g. stand 1627682513290487 year 2061: live=0.048291001468896866 jl=0.04830290004611015"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Canopy_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 4 cells [material=2 ulpbig=2] max|Δ|=8.0 | e.g. stand 1627682513290487 year 2031: live=68 jl=60"""
 
 [[residual]]
 variant = "IE"

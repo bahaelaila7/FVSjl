@@ -652,7 +652,7 @@ lbs/ac-ft, −1 if none); `canopy_ht` = effective canopy top (ft); `tcload` = to
     return false
 end
 
-function canopy_crfill(s::StandState)::Vector{Float32}
+function canopy_crfill(s::StandState; fmicr::Bool = false)::Vector{Float32}
     NH = 400
     crfill = zeros(Float32, NH)
     fs = s.fire
@@ -675,7 +675,9 @@ function canopy_crfill(s::StandState)::Vector{Float32}
         h = t.height[i]; h > _FM_CANMHT || continue
         sp = Int(t.species[i])
         fm_canopy_lsw(sp, s.variant) || continue
-        icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
+        # FMICR (fmpocr.f:78-80,:48): ICR at the year start (fmmain.f:111), then FMEFF's scorch-shortened value for the
+        # post-burn FMPOCR(IYR,2) (fmmain.f:188) — `fmicr` = that fire-year call; ICR only takes it at FMKILL.
+        icr = (fmicr && length(fs.fmicr) == t.n) ? Float32(fs.fmicr[i]) : Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
         xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
@@ -717,10 +719,10 @@ function canopy_crfill(s::StandState)::Vector{Float32}
     return crfill
 end
 
-function canopy_bulk_density(s::StandState)
+function canopy_bulk_density(s::StandState; fmicr::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
-    crfill = canopy_crfill(s)                            # crown fuel by 1-ft height layer (lbs/ac-ft)
+    crfill = canopy_crfill(s; fmicr = fmicr)             # crown fuel by 1-ft height layer (lbs/ac-ft)
     tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
     # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
     j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)

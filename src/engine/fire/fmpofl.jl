@@ -326,7 +326,7 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
     fs = s.fire
     (fs === nothing || !fs.active) && return nothing
     wmult = fire_wind_reduction(fs.percov)
-    cf = canopy_bulk_density(s)
+    cf = canopy_bulk_density(s; fmicr = fire_basis)   # post-burn FMPOCR(IYR,2) reads the scorched FMICR (fmmain.f:188)
     dpmod = _fueltret_dpmod(s, Int(year))
     env = potfire_env(s.variant)                     # (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2))
     east = _pofl_east(s.variant)
