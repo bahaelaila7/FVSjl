@@ -60,3 +60,15 @@ _ont_cmp(jl, lv, col; sel = (k, v) -> true) =
         @test j == l
     end
 end
+
+# (2) ON stump sprouting (canada/on/esuckr.f = LS logic, essprt.f CASE('LS','ON'); NSPREC has no 'ON' case ⇒ 2
+# records per stump; DBH from ON's HT1/HT2 Wykoff inverse; ISPSPE sprouter list). jl never logged ON stumps
+# (no :is_sprouting column) so the 2014 hardwood cut produced no sprouts.
+@testset "ON ont_sm thin: stump sprouts — per-year record count and total TPH == live" begin
+    jl = last(_ONT_SM)
+    for yr in (2014, 2024)                            # the cut cycle and the cycle whose ESUCKR adds the sprouts
+        jk = [v.TPH for (k, v) in jl if k[1] == yr]; lk = [v.TPH for (k, v) in _ONT_SM_LIVE if k[1] == yr]
+        @test (yr, length(jk)) == (yr, length(lk))
+        @test (yr, round(sum(jk); digits = 2)) == (yr, round(sum(lk); digits = 2))
+    end
+end

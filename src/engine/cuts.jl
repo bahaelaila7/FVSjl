@@ -193,8 +193,8 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define
     # no :is_sprouting column (e.g. OC ORGANON — hardwood sprouting is not ported) have no sprouters.
-    (s.control.lsprut && haskey(s.coef.species, :is_sprouting) &&
-     coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
+    (s.control.lsprut && (s.variant isa Ontario ? (sp in ON_SPROUT_SPP) :
+                          (haskey(s.coef.species, :is_sprouting) && coef_col(s.coef, :is_sprouting)[sp] == 1f0))) || return
     push!(s.control.cut_log,
           (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
