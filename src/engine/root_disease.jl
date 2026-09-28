@@ -130,6 +130,9 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     expinf::Matrix{Float32}   # EXPINF(ITOTRR,2): (1)=new-infected / (2)=new TPA by area expansion (rdinf.f); zeroed each report
     wk1_nold::Int             # driver size before the end-of-cycle RDESTB sizing (−1 = none): the next WK1 snapshot keeps
                               # the records established since at WK1=0 (estab.f zeroes WK1 of a booked record)
+    prinf::Vector{Float32}    # PRINF(1:ITOTRR) — weighted-average proportion of infected roots per disease type, as last
+                              # set by RDSETP (:2200-2500) or RDCNTL DO 800 (after RDMORT); RDPR/RDDOUT report this value
+    prinf_sp::Vector{Float32} # PRINF(KSP+ITOTRR) — the same per host species
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -142,6 +145,7 @@ reduced center-init mortality path reads). Values verified against the live FVSk
 oracle's RDIN option echo.
 """
 function rd_init_defaults!(rd::RootDiseaseState)
+    rd.prinf = zeros(Float32, RD_ITOTRR); rd.prinf_sp = Float32[]
     rd.iroot  = Int32(0)
     rd.rrman  = false
     rd.rrtinv = false
@@ -276,7 +280,7 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
     m = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
     conv(x, f) = m ? x * f : x
     div_(x, f) = m ? x / f : x
-    prinf_idi, _ = rd_prinf(rd, s)                           # rdcntl.f DO-800 stand-total PRINF(IDI)
+    prinf_idi = 1 <= idi <= length(rd.prinf) ? rd.prinf[idi] : 0f0   # PRINF(IRRSP) as RDSETP/RDCNTL left it
     # New-infection proportions (rdpr.f:220-227): CORE = corridor (inside-patch) new-inf fraction,
     # EXPAND = area-expansion new-inf fraction, TOTINF = combined. Zeroed after the report (rdpr.f:316-319).
     cor1 = rd.corinf[idi, 1]; cor2 = rd.corinf[idi, 2]
@@ -328,6 +332,51 @@ function rd_prinf(rd::RootDiseaseState, s::StandState)
     prinf_sp = num_sp ./ (den_sp .+ 1.0f-6)
     prinf_idi = num_idi / (den_idi + 1.0f-6)
     return prinf_idi, prinf_sp
+end
+
+"""
+    rd_prinf_store!(rd, s, probi, propi, nit, nip)
+
+PRINF as RDCNTL DO 800 (rdcntl.f:487-526, after RDMORT) or RDSETP DO 2400 (rdsetp.f:488-535, `nit=nip=1`) forms it:
+species 1..MAXSP in IND1 order, IDI = IDITYP(IRTSPC(KSP)) when MAXRR<3 (MAXRR otherwise) and a non-host (IDI≤0) skipped,
+PRINF(KSP+ITOTRR) = ΣPROBI·PROPI (PROPI>0) / (ΣPROBI+1E-6) per species, PRINF(IDI) summed over its host species and divided
+once. Stored in `rd.prinf`/`rd.prinf_sp`; the reports read the stored value (RDPR TPRINF = PRINF(IRRSP)·100), not one
+recomputed on the end-of-cycle PROBI/PROPI after RDEND/RDGROW.
+"""
+function rd_prinf_store!(rd::RootDiseaseState, s::StandState, probi, propi, nit::Int, nip::Int)
+    t = s.trees
+    nsp = length(s.coef.code_alpha)
+    maxrr = Int(rd.maxrr); minrr = Int(rd.minrr)
+    num = zeros(Float32, RD_ITOTRR); den = zeros(Float32, RD_ITOTRR)
+    psp = zeros(Float32, nsp)
+    ord = _ind1_order(s)
+    k = 1; nord = length(ord)
+    @inbounds while k <= nord
+        ksp = Int(t.species[ord[k]]); kend = k
+        while kend < nord && Int(t.species[ord[kend + 1]]) == ksp; kend += 1; end
+        idi = maxrr < 3 ? Int(RD_IDITYP[Int(rd.irtspc[ksp])]) : maxrr
+        if idi > 0
+            ns = 0f0; ds = 0f0
+            for kk in k:kend
+                i = Int(ord[kk])
+                i <= size(probi, 1) || continue
+                for it in 1:nit, ip in 1:nip
+                    pb = probi[i, it, ip]; pp = propi[i, it, ip]
+                    if pp > 0f0
+                        ns = ns + pb * pp; num[idi] = num[idi] + pb * pp
+                    end
+                    ds = ds + pb; den[idi] = den[idi] + pb
+                end
+            end
+            1 <= ksp <= nsp && (psp[ksp] = ns / (ds + 1f-6))
+        end
+        k = kend + 1
+    end
+    for idi in minrr:maxrr
+        rd.prinf[idi] = num[idi] / (den[idi] + 1f-6)
+    end
+    rd.prinf_sp = psp
+    return rd
 end
 
 # -----------------------------------------------------------------------------
@@ -417,7 +466,7 @@ function rd_det_report(rd::RootDiseaseState, s::StandState, year::Integer)
     idi = Int(rd.minrr)
     parea = rd.parea[idi]; pdiv = parea + 1.0f-9
     rdtype = 1 <= idi <= 4 ? _RD_TYPE_CHAR[idi] : "A"
-    _, prinf_sp = rd_prinf(rd, s)
+    prinf_sp = length(rd.prinf_sp) >= length(s.coef.code_alpha) ? rd.prinf_sp : rd_prinf(rd, s)[2]
     nsp = length(s.coef.code_alpha)
     metric = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
     intocm = 2.54f0
@@ -1115,6 +1164,7 @@ function rd_setp!(rd::RootDiseaseState, s::StandState)
     end
 
     rd_inoc!(rd, s, true)                           # rd/rdinoc.f (.TRUE.) — inert (no stumps)
+    rd_prinf_store!(rd, s, reshape(rd.probi, :, 1, 1), reshape(rd.propi, :, 1, 1), 1, 1)   # rdsetp.f DO 2400 PROBI/PROPI(I,1,1)
     return rd
 end
 
@@ -2789,6 +2839,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     @inbounds for i in 1:n
         d.rdkill[i] > 0.0f0 && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
     end
+    rd_prinf_store!(rd, s, d.probi, d.propi, istep, 2)          # RDCNTL DO 800 (rdcntl.f:487-526), right after RDMORT
     rd_sum!(d.probit, d.probi, istep)
     return
 end
