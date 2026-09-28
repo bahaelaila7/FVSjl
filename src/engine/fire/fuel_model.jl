@@ -203,7 +203,9 @@ const _FMD_MXFMOD = 5     # MXFMOD (FMPARM.F77)
 function _small_large_fuel(fs)
     small = 0f0; large = 0f0
     @inbounds for k in 1:2, l in 1:4
-        small += fs.cwd[1, k, l] + fs.cwd[2, k, l] + fs.cwd[3, k, l] + fs.cwd[10, k, l]
+        # fmtret.f:378-389: SMALL = SMALL + CWD(I,J1,K,L) one pool at a time (J1=1..3, then litter), not a pooled sum
+        small = small + fs.cwd[1, k, l]; small = small + fs.cwd[2, k, l]; small = small + fs.cwd[3, k, l]
+        small = small + fs.cwd[10, k, l]
         for j in 4:9
             large += fs.cwd[j, k, l]
         end

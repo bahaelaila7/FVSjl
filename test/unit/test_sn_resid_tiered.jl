@@ -215,4 +215,12 @@ end
     @test _cellsx("216786838010854", "simfire", "FVS_Carbon", ("Forest_Shrub_Herb", "Total_Stand_Carbon"), ("2009",)) == 0
 end
 
+# fmtret.f:378-389 builds SMALL one pool at a time (SMALL = SMALL + CWD(I,J1,K,L), J1=1..3, then litter); jl added the pooled
+# (1+2+3+10) sum, so the FMDYN fuel-model weights moved (MEASURED private FMFINT trace, 238813815010854 SIMFIRE 2005: FM9 weight
+# 0.4597697 vs live 0.45976925 ⇒ flame 3.0070512 vs 3.0070524).
+@testset "SN SMALL fuel accumulation order (fmtret.f:378-389) vs FVSsn_g16" begin
+    @test _cellsx("238813815010854", "simfire", "FVS_BurnReport", ("Flame_length", "Scorch_height"), ("2005",)) == 0
+    @test count(m -> m.file == "FVS_Mortality", _casex("238813815010854", "simfire").ms) == 0
+end
+
 end # module
