@@ -377,6 +377,62 @@ function habtyp_errors!(s::StandState{CentralCalifornia}, pv::AbstractString, cp
     return nothing
 end
 
+# cr/habtyp.f: Region 2 (KODFOR < 300) / Region 3. KARD2 is ADJUSTL'd, then an R2 code starting '2' outside the two
+# recognised '2…' lists, and an R3 code starting '3' other than '335', drop that leading digit; PVREF2/PVREF3 (both zero
+# ARRAY2) raise FVS34 / FVS33+FVS32 / FVS32 / FVS33; CRDECD vs R2HABT/R3HABT, the text loop and the IHB sequence
+# number resolve the rest; unresolved and not LPVXXX ⇒ FVS14. Tables: data/centralrockies/{pvref2,pvref3}_all.csv,
+# r2habt.csv, r3habt.csv (from cr/pvref2.f, pvref3.f, habtyp.f).
+const _CR_R2_KEEP1 = Set(["201", "2010", "20101", "20102", "202", "2020", "20202", "20203", "20204", "202040", "20210",
+    "203", "2030", "20301", "20303", "20304", "20306", "20307", "204010", "204011", "204030", "204031", "20405",
+    "20406", "20409", "204090", "2110", "20103"])
+const _CR_R2_KEEP2 = Set(["20201", "20304", "202030", "204", "20205", "20402", "203", "20404", "20302", "20407",
+    "204091", "20306", "202", "20401", "202010", "20403", "202031", "204040", "20206", "20408", "20410"])
+_cr_habt(name::AbstractString) = get!(() -> [String(strip(l)) for l in readlines(joinpath(CR_DATADIR, name))[2:end]],
+                                      _R5HABT, joinpath(CR_DATADIR, name))
+function _cr_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, kodfor::Int)
+    errs = Int[]; lpvxxx = false; k = String(strip(pv)); r = String(strip(cpvref)); a2 = Int(kodtyp)
+    ir2 = kodfor < 300; ir3 = !ir2
+    r2 = _cr_habt("r2habt.csv"); r3 = _cr_habt("r3habt.csv"); nr2 = length(r2)
+    if ir2 && startswith(k, "2") && !(k in _CR_R2_KEEP1) && !(k in _CR_R2_KEEP2)
+        k = k[2:end]
+    elseif ir3 && startswith(k, "3") && k != "335"
+        k = k[2:end]
+    end
+    if !isempty(r)
+        m, codes, refs = _pvall(joinpath(CR_DATADIR, ir2 ? "pvref2_all.csv" : "pvref3_all.csv"))
+        k0 = k; a2 = 0
+        h = get(m, (k0, r), nothing)
+        if h === nothing
+            lc = k0 in codes; lr = r in refs; k = ""
+        else
+            lc = true; lr = true; k = String(strip(h))
+        end
+        if lc && lr && isempty(k);  push!(errs, 34); lpvxxx = true
+        elseif !lc && !lr;          push!(errs, 33, 32); lpvxxx = true
+        elseif !lr && lc;           push!(errs, 32); lpvxxx = true
+        elseif !lc && lr;           push!(errs, 33); lpvxxx = true
+        end
+    end
+    kod = ir2 ? _crdecd(k, r2) : (i = _crdecd(k, r3); i > 0 ? i + nr2 : 0)
+    if kodfor == 0 || kod == 0
+        i = (kodfor == 0 || ir2) ? findfirst(==(k), r2) : nothing
+        if i !== nothing
+            kod = i
+        else
+            j = findfirst(==(k), r3)
+            kod = j !== nothing ? j + nr2 :
+                  (a2 <= nr2 && ir2) ? a2 : (nr2 < a2 <= nr2 + length(r3) && ir3) ? a2 : 0
+        end
+    end
+    kod == 0 && !lpvxxx && push!(errs, 14)
+    return errs
+end
+function habtyp_errors!(s::StandState{CentralRockies}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    kf = _mapped_kodfor(s, _cr_forkod!)
+    foreach(e -> errgro!(s, e), _cr_habtyp_errs(pv, cpvref, kodtyp, kf))
+    return nothing
+end
+
 # --- FVS_Error DBS table (dbserror.f) ------------------------------------------------------------------------------
 const _FVS_ERROR_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Error(
