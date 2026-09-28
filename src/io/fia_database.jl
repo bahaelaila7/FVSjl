@@ -451,6 +451,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # code literally (e.g. 5) cripples growth (frozen TopHt / suppressed DBH — audit 43bl).
     if _fia_present(d, "SITE_INDEX")
         si = _fia_f32(d, "SITE_INDEX", 0f0)
+        # ON (canada/on dbsstandin.f:419-422, METRIC reader): RSTANDDATA(35)=SITE_INDEX*MtoFt — the DB site index is
+        # metres and is converted BEFORE the ≤7 Dunning test. (The inline .tre/SITECODE path is converted in initre.)
+        s.variant isa Ontario && (si *= 3.28084f0)
         isp = 0
         if _fia_present(d, "SITE_SPECIES")
             code = _fia_spcode(_fia_str(d, "SITE_SPECIES", ""))
