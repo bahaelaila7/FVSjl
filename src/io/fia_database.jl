@@ -449,17 +449,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0) / (on_db ? 2.471f0 : 1f0))
     _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = on_db ? _fia_f32(d, "BRK_DBH", 0f0) * 0.3937f0 :
                                                                           _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
-    _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)))
-    _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)))
+    _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)); s.control.iptinv_set = true)
+    _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)); s.control.nonstk_set = true)
     _fia_present(d, "SAM_WT")            && (p.sample_weight = _fia_f32(d, "SAM_WT", p.sample_weight))
-    # GROSPC: STK_PCNT (1..100 → ÷100) if given, else (IPTINV − NONSTK)/IPTINV (dbsstandin.f:740)
+    # GROSPC: STK_PCNT (1..100 → ÷100) if given (dbsstandin.f:765-770); otherwise GROSPC stays unset and INITRE's end
+    # (finalize_design!, initre.f:350-357) computes (PI−NONSTK)/PI once IPTINV/NONSTK are final (the counted IPTKNT/NSTKNT
+    # when the DB gives no NUM_PLOTS/NONSTK_PLOTS).
     if _fia_present(d, "STK_PCNT")
         g = _fia_f32(d, "STK_PCNT", 1f0)
         (g > 1f0 && g <= 100f0) && (g *= 0.01f0)
         (g > 0f0 && g <= 1f0) && (p.gross_space = g)
-    else
-        ip = max(1, Int(p.points_inv))
-        p.gross_space = Float32(ip - Int(p.nonstockable)) / Float32(ip)
     end
     # Growth calibration transition/measurement (GROWTH card: IDG/FINT/IHTG/FINTH/FINTM).
     # DG_TRANS=1 ⇒ the DG field is a PAST diameter (not an increment) measured DG_MEASURE yrs ago.

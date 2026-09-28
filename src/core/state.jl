@@ -407,6 +407,10 @@ mutable struct Control
     # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
     itrn_grincr::Int32
     itrn_grincr_cycle::Int32
+    # IPTINV / NONSTK given by DESIGN fields 4/5 or the DB NUM_PLOTS / NONSTK_PLOTS (grinit.f:206 default −9999 ⇒
+    # initre.f:330-331 takes the counted IPTKNT / NSTKNT, kept in lstknt / nstknt by the tree reader).
+    iptinv_set::Bool
+    nonstk_set::Bool
 end
 
 function Control()
@@ -489,6 +493,7 @@ function Control()
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
         String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
+        false, false,                                            # iptinv_set, nonstk_set
     )
 end
 
