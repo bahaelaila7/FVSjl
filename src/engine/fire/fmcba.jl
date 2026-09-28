@@ -176,7 +176,9 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa CentralIdaho ? Int32(3)  :     # CI bare-stand default: DF (cit01 has trees ⇒ unused)
                  s.variant isa Teton ? Int32(3)  :             # TT bare-stand default: DF
                  s.variant isa Utah ? Int32(3)  :              # UT bare-stand default: DF
-                 s.variant isa BlueMountains ? Int32(3) :      # BM bare-stand default: DF (bm/fmcba.f COVINI/3)
+                 # BM bare stand: COVINI(ITYPE) (bm/fmcba.f:296-300), ITYPE = the PCOML index habtyp.f resolved (79 = its
+                 # CWG113 default ⇒ COVINI 4 = grand fir, live herb/shrub 0.30/2.0 — the fixed DF (0.4/2.0) over-loaded FLIVE).
+                 s.variant isa BlueMountains ? Int32(_BM_COVINI[(1 <= s.plot.habitat_code <= 92) ? Int(s.plot.habitat_code) : 79]) :
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
                  s.variant isa LakeStates    ? Int32(3)  :
@@ -325,3 +327,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     end
     return s
 end
+
+# bm/fmcba.f DATA COVINI(1:92): the seral cover type (species index) per BM plant association (PCOML order).
+const _BM_COVINI = Int32[
+    9, 9, 3, 3, 3, 3, 3, 3, 3, 3,  3, 3, 3, 9, 9, 9, 9, 8, 8, 8,  8, 8, 9, 9, 9, 9, 9, 9, 9, 9,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 5, 5,10,10, 10,10,10,10,10,10,10,10,10,10,
+   10,10,10,10,10,10,10, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, 4, 7,
+    7, 7]
