@@ -86,14 +86,12 @@ function ffe_fuel_loadings(s::StandState)
     @inbounds for i in eachindex(sn.sp)
         den = sn.den_hard[i] + sn.den_soft[i]; den > 0f0 || continue
         b = sn.bolevol[i]; b <= 0f0 && (b = let (a,_,_) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
-        # EM snags lose height (FMSNGHT): FMDOUT's SNVIH is FMSVOL(XHT=HTIH) — the broken-top bole (fmdout.f:141),
-        # the same basis snag_bole_carbon uses; the untruncated bolevol over-stated Standing_Snag_ge3 (7.14 vs 6.92).
-        (_ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0) &&
-            (b = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)
-        # AK: FMDOUT's SNVIH = FMSVOL(I,HTIH)·DENIH — the TOTAL cubic (LMERCH=.F.) of (DBHS,HTDEAD) with CFTOPK at the
-        # current height, fresh each report; (SNVIS+SNVIH)·V2T (fmdout.f:139-155). jl's creation-time bolevol was merch for
-        # cut yarding-loss snags (WH 1.2"/1.9": 0 ⇒ the 0.005454·H floor vs live TCF).
-        if s.variant isa SoutheastAlaska && sn.height[i] > 0f0
+        # FMDOUT's SNVIH = FMSVOL(I,HTIH)·DENIH — the TOTAL cubic (LMERCH=.F.) of (DBHS,HTDEAD) with CFTOPK at the current
+        # height (XHT=HTIH > −1 ⇒ LTKIL on every snag, broken or not), fresh each report; (SNVIS+SNVIH)·V2T
+        # (fmdout.f:139-155) — for the variants whose FMSVOL is ported (_ffe_west_vol). AK: the creation-time bolevol was
+        # merch for cut yarding-loss snags (WH 1.2"/1.9": 0 ⇒ the 0.005454·H floor vs live TCF); EM: the untruncated
+        # bolevol over-stated Standing_Snag_ge3 (7.14 vs 6.92).
+        if _ffe_west_vol(s.variant) && sn.height[i] > 0f0
             vv = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
             snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
             snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
