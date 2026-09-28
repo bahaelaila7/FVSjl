@@ -107,11 +107,13 @@ end
     end
 end
 
-# fmdout.f:139-155: each report recomputes SNVIH = FMSVOL(I,HTIH)·DENIH, SNVIS = FMSVOL(I,HTIS)·DENIS and adds
-# (SNVIS+SNVIH)·V2T, with V2T pre-divided by 2000 at fmvinit.f:1094. jl summed per-stem tons (vol·V2T_lb/2000)·den
-# (MEASURED 200267456010854 SALVAGE 2007 Standing_Dead 1.8224015 live vs 1.8224014).
-@testset "SN standing-dead FMSVOL·DEN·V2T association (fmdout.f:139-155) vs FVSsn_g16" begin
-    @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Standing_Dead",), ("2002", "2007")) == 0
+# FMSNAG calls FMSNGHT for every standing snag pool even at SN's HTX=0 (sn/fmvinit.f:1089): HTSNEW = HTCURR and
+# fmsnght.f:164 `IF (HTSNEW .LT. 1.5) HTSNEW = 0.0`, so a snag under 1.5 ft breaks to fuel (CWD2) and its density is
+# zeroed (fmsnag.f:262-270) in its first FMSNAG year. jl skipped FMSNGHT without SNAGBRK, so 200267456010854's 0.1"/1.01-ft
+# sp62 snag stood on at 0.239/ac (live gone by 2008, private FMSNAG trace). Also each report now recomputes the eastern
+# FMSVOL at (DBHS, HTDEAD) with (SNVIS+SNVIH)·V2T, V2T pre-divided by 2000 (fmdout.f:139-155, fmvinit.f:1094).
+@testset "SN FMSNGHT <1.5-ft snag break at HTX=0 (fmsnght.f:164, fmsnag.f:262-270) vs FVSsn_g16" begin
+    @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Standing_Dead",), ("2002", "2007", "2012", "2017", "2022")) == 0
 end
 
 end # module

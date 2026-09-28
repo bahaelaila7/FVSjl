@@ -417,9 +417,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
         # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
         # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
-        a = sn.fallvol[i]
-        a <= 0f0 && (a = sn.bolevol[i])
-        a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
+        a = _snag_fall_bole(s, i)
         idc = ffe_dkr_cls(s, sp)                            # decay-rate class (FUELPOOL-overridable)
         # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
         # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
@@ -507,6 +505,17 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     return fallen
 end
 
+# The per-stem fall bole (tons) CWD1/CWD2 book: the TOTAL-volume `fallvol`, else `bolevol`, else Jenkins.
+@inline function _snag_fall_bole(s::StandState, i::Int)::Float32
+    sn = s.fire.snags
+    a = sn.fallvol[i]
+    a <= 0f0 && (a = sn.bolevol[i])
+    a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(s.coef, sn.sp[i], sn.dbh[i]); j end)
+    return a
+end
+# Variants whose fmvinit HTX default is 0 for every species (no height loss), so only SNAGBRK populates `snag_htx`.
+_snag_htx0_default(v) = v isa Southern || v isa CentralStates
+
 # Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
 # HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
@@ -532,7 +541,11 @@ soft (SFTMULT=HTXSFT, once a snag has passed DKTIME). A snag dropping below 1.5 
 """
 function ffe_snag_height_loss!(s::StandState, nyears::Integer;
                                at_year::Union{Nothing,Integer} = nothing)
-    fs = s.fire; (fs === nothing || isempty(fs.params.snag_htx)) && return
+    fs = s.fire; fs === nothing && return
+    # SN/CS keep HTX=0 (sn/fmvinit.f:1089) yet FMSNAG still calls FMSNGHT for every standing pool: HTSNEW = HTCURR, then
+    # fmsnght.f:164 `HTSNEW < 1.5 ⇒ 0` — a snag shorter than 1.5 ft is broken to fuel (CWD2) and its density zeroed
+    # (fmsnag.f:262-270) in its first FMSNAG year. So the loop runs with HTX=0 for species without an entry.
+    (isempty(fs.params.snag_htx) && !_snag_htx0_default(s.variant)) && return
     sn = fs.snags; htxmap = fs.params.snag_htx
     iyr = at_year === nothing ? Int(current_cycle_year(s)) : Int(at_year)
     # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
@@ -556,7 +569,11 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
             sn.den_hard[i] > 0f0 && (x2h = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=1,…)
             sn.den_soft[i] > 0f0 && (x2s = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=0,…)
         end
-        htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
+        htx = get(htxmap, Int32(sn.sp[i]), nothing)
+        if htx === nothing
+            _snag_htx0_default(s.variant) || continue
+            htx = (0f0, 0f0, 0f0, 0f0)
+        end
         htd = sn.height[i]; htc = sn.htcur[i]
         (htd > 0f0 && htc > 0f0) || continue
         # FMSNGHT picks the hard/soft rate from the snag's INITIAL state (FMSNAG calls it with IHRD=1 for the
@@ -585,6 +602,10 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
             # CWD2(I, DIH, DIS, OLDHTH, OLDHTS) (fmcwd.f:207-246): HIHT = the old height, LOHT = the new one, the same
             # label-1000 split as CWD1 on TVOLI = FMSVL2('D') of (DBHS, HTDEAD)
             _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew)
+        elseif _snag_htx0_default(s.variant) && htnew < htc
+            # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
+            _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew;
+                           tvoli = _snag_fall_bole(s, i) / (coef_col(s.coef, :v2t)[sn.sp[i]] / 2000f0))
         end
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
