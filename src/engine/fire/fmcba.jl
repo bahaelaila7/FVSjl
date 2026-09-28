@@ -122,7 +122,11 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                                  3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]   # FMTBA += FMPROB·DBH·DBH·0.0054542; ie/em/kt/so/sn/cs BA1·FMPROB
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
-             _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
+             _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
+                       # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
+                       # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
+                       bm_cwcalc(sp, t.ffe_olddbh[i], t.ffe_oldht[i], t.ffe_oldcr[i], _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
+                       bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf)) :
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)

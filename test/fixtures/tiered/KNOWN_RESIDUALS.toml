@@ -250,17 +250,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Midflame_Wind"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=8.273e-5 | e.g. stand 22960873010497 year 2017: live=2.149120807647705 jl=2.149038076400757"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Scorch_height"
 stand = "*"
 year = "*"
@@ -289,17 +278,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 35 cells [material=23 ulp1=1 ulpbig=11] max|Δ|=4.646 | e.g. stand 12827438010497 year 2025: live=22.606958389282227 jl=21.691259384155273"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 31
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 31 cells [ulp1=7 ulp2_16=20 ulpbig=4] max|Δ|=2.575e-5 | e.g. stand 12827438010497 year 2025: live=0.5653971433639526 jl=0.5653970837593079"""
 
 [[residual]]
 variant = "BM"
@@ -360,45 +338,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_Carbon"
-col = "Standing_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 33
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 33 cells [material=12 ulp1=1 ulpbig=20] max|Δ|=6.522 | e.g. stand 12827438010497 year 2025: live=2.226015567779541 jl=1.91514253616333"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Carbon"
 col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 60
 issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 60 cells [material=32 ulpbig=28] max|Δ|=5.46 | e.g. stand 647500316126144 year 2038: live=1.407926082611084 jl=1.385288119316101"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Bakill"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 11
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 11 cells [ulp1=9 ulpbig=2] max|Δ|=0.001137 | e.g. stand 12827438010497 year 2015: live=8.1861572265625 jl=8.186156272888184"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Killed_class1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=0.05029 | e.g. stand 22960873010497 year 2017: live=6830.07421875 jl=6830.02490234375"""
 
 [[residual]]
 variant = "BM"
@@ -458,17 +403,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_Mortality"
-col = "Volkill"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 20
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 20 cells [material=19 ulpbig=1] max|Δ|=329.4 | e.g. stand 12827438010497 year 2015: live=255.11451721191406 jl=222.28933715820312"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -491,17 +425,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2057: live=93 jl=94"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "sum"
 col = "EXTRA_CONTENT"
 stand = "*"
@@ -509,17 +432,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=none jl=16 non-summary lines: --------------------------------------"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2057: live=93 jl=94"""
 
 [[residual]]
 variant = "BM"
