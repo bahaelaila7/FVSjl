@@ -60,6 +60,20 @@ const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
     return _FM_TFALL4[cls]
 end
 
+# {ie,em,kt}/fmvinit.f:500-513 (byte-identical block): TFALL(I,1)=5, TFALL(I,2)=MIN(5,TFALL(I,3)), TFALL(I,3) per species
+# (the CSV tfall_cls column, verified against each fmvinit CASE), TFALL(I,4)=TFALL(I,5)=TFALL(I,3), and the dead-leaf
+# fall TFALL(I,0)=MIN(2,LEAFLF(I)). The SN class rows above clamp these variants to row 6 (foliage 1 yr, branches 1 yr,
+# size 3-5 2/4 yr) — MEASURED FVSie_g16 11855985010690: LP foliage CWD2B(4,0,·) 118.08 in slots 1 AND 2 (TFALL(7,0)=
+# MIN(2,3)=2), jl 236.16 all in slot 1.
+_fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
+@inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
+    t3 = coef_col(coef, :tfall_cls)[sp]
+    sz == 0 && return min(2f0, coef_col(coef, :leaf_life)[sp])
+    sz == 1 && return 5f0
+    sz == 2 && return min(5f0, t3)
+    return t3
+end
+
 """
     fmscro!(s, sp, dbh, xv, density, dkcl)
 
@@ -81,7 +95,8 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         # TFALL(SP,SIZE) (fmscro.f:124): EC/WC/PN/OP read their own fmvinit table; the western variants' CSV tfall_cls
         # holds TFALL(I,3) (10/15/20), which the SN class lookup clamps to row 6 (open for IE/EM/CR/BM/… too).
         tft = _fm_tfall_table(s.variant)
-        tf = tft === nothing ? _fm_tfall(cls, sz, sp) : tft[sp, sz + 1]
+        tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
+             _fm_tfall(cls, sz, sp)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife
         # fmscro.f:160-170: mortality reconciliation (ICALL=4, FMKILL after the annual loop) books straight into CWD2B;
@@ -154,9 +169,10 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
-        # AK: FMOLDC saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) — the array ak_fmcrow! filled at
-        # the last FMSDIT with its PCTILE height percentile (and any fire reduction), not a recompute from the old dims.
-        xvold = s.variant isa SoutheastAlaska ? ntuple(k -> t.ffe_crownw[k, i], 6) :
+        # FMOLDC (fmoldc.f, one file in every build) saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) —
+        # the array ffe_fmcrow! filled at the last FMSDIT with its PCTILE height percentile (and any fire reduction), not a
+        # recompute from the old dims (only a stand FMCROW never ran on falls back to that).
+        xvold = fs.fmcrow_on ? ntuple(k -> t.ffe_crownw[k, i], 6) :
                 crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
@@ -208,7 +224,6 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     fmcba!(s)
-    cl = fs.crown_lift_annual
     # FVS FMMAIN year-loop ORDER: FMSNAG (snag fall → bole into down wood) → FMCWD (decay) → FMCADD
     # (cwd2b crown fall + litterfall + woody breakage + crown-lift). The snag falldown MUST precede the
     # decay so the freshly-fallen bole is decayed in the same year it falls (else it over-accumulates by
@@ -222,30 +237,55 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
         isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
         ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
-        _cwd2b_fall!(fs)                               # FMCADD: CWD2B crown debris → down wood
-        fmcadd_litterfall!(s); fmcadd_woody!(s)        # FMCADD: litterfall + woody breakage
-        if s.variant isa SoutheastAlaska
-            # fmcadd.f:86-102 per tree per year on the CURRENT FMPROB: a fire earlier in this cycle has already cut the
-            # killed trees' density, so their crown lift stops (akffe 2003-2012: the cycle-start precompute kept adding
-            # the fire-killed trees' lift ⇒ lt3 +0.56 t/ac by 2013).
-            t = s.trees; dkr = coef_col(s.coef, :dkr_cls)
-            @inbounds for i in 1:t.n
-                pr = t.tpa[i]; pr > 0f0 || continue
-                dk = clamp(Int(dkr[t.species[i]]), 1, 4)
-                for sz in 1:5
-                    amt = pr * t.ffe_oldcrw[sz, i]
-                    amt < 0.0000625f0 && continue
-                    fs.cwd[sz, 2, dk] += amt * _FM_P2T
-                end
-            end
-        else
-            for dkcl in 1:4, sz in 1:9                     # FMCADD: crown-lift term (precomputed per cycle)
-                cl[sz, dkcl] > 0f0 && (fs.cwd[sz, 2, dkcl] += cl[sz, dkcl])
-            end
-        end
+        fmcadd!(s)                                     # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
     end
-    fs.bioroot *= (1f0 - _FM_CRDCAY)^nyrs    # dead-root decay (fmcrbout.f:273)
+    fs.bioroot *= fpowi(1f0 - _FM_CRDCAY, nyrs)    # dead-root decay (fmcrbout.f:273, REAL**INTEGER ⇒ __powisf2)
+    return s
+end
+
+"""
+    fmcadd!(s) -> StandState
+
+One year of FMCADD (fmcadd.f, the same file in every variant build), in its own order and REAL*4 association: per
+live record I (FMPROB>0) the foliage litterfall (CROWNW(I,0)·FMPROB/LEAFLF)·P2T, then for SIZE 1..5 the limb breakage
+(LIMBRK·FMPROB·CROWNW(I,SIZE))·P2T and the crown lift (FMPROB·OLDCRW(I,SIZE))·P2T (0 when FMPROB·OLDCRW < 6.25E-5),
+all into the hard pool of DKRCLS(SP); then the year-1 CWD2B crown-debris slot falls (DOWN/2000) and the slots shift.
+The crown-lift term reads the CURRENT FMPROB and OLDCRW each year, so a fire's kill and its OLDCRW(I,1) halving
+(fmeff.f:498-503) shrink it at once — jl added a cycle-start total (MEASURED FVSie_g16 4769882010690 SIMFIRE 2014
+FMCADD: hard <0.25" +0.0183 live vs +0.0398 jl).
+"""
+function fmcadd!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees; coef = s.coef
+    leaflf = coef_col(coef, :leaf_life); ocrw = t.ffe_oldcrw; cwd = fs.cwd
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]; p > 0f0 || continue
+        sp = Int(t.species[i])
+        dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        ll = leaflf[sp]
+        ll > 0f0 && (cwd[10, 2, dkcl] += (xv[1] * p / ll) * _FM_P2T)
+        for sz in 1:5
+            cwd[sz, 2, dkcl] += (_FM_LIMBRK * p * xv[sz + 1]) * _FM_P2T
+            po = p * ocrw[sz, i]
+            po < 0.0000625f0 || (cwd[sz, 2, dkcl] += po * _FM_P2T)
+        end
+    end
+    c2 = fs.cwd2b
+    @inbounds for dkcl in 1:4
+        for sz in 0:5
+            down = c2[dkcl, sz + 1, 1]                 # PDOWN·CWD2B(DKCL,SIZE,1)/NYRS, NYRS=1 in the annual loop
+            down > 0f0 && (cwd[sz == 0 ? 10 : sz, 2, dkcl] += down / 2000f0)
+        end
+    end
+    @inbounds for dkcl in 1:4, sz in 1:6
+        for yr in 1:59
+            c2[dkcl, sz, yr] = c2[dkcl, sz, yr + 1]
+        end
+        c2[dkcl, sz, 60] = 0f0
+    end
     return s
 end
 
@@ -339,16 +379,20 @@ function apply_pileburn!(s::StandState)::Bool
         end
         # optional uniform tree mortality → snags + crown debris (mirrors the fmburn! fire kill→snag path)
         if trmort > 0f0
-            t = s.trees; coef = s.coef; v2t = coef_col(coef, :v2t)
+            t = s.trees; coef = s.coef
+            pend = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
             @inbounds for i in 1:t.n
                 t.tpa[i] > 0f0 || continue
                 trkil = t.tpa[i] * trmort; t.tpa[i] -= trkil
                 sp = Int(t.species[i]); d = t.dbh[i]
-                mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-                add_snag!(fs, sp, d, trkil, yr; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
+                push!(pend, (sp, d, t.height[i], t.height[i], t.height[i], trkil, -1f0))   # FMSSEE (fmtret.f:154)
                 xvc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
-                fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))
+                fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))           # fmtret.f:160
+                _, _, rbio = jenkins_biomass(coef, sp, d)
+                fs.bioroot += rbio * trkil                                               # fmsadd.f:320 (XDCAY 1)
             end
+            # FMSADD(IYR,1) (fmtret.f:166): the killed trees are binned into snag records like any other source
+            isempty(pend) || fmsadd_bin!(s, pend, yr; ityp = 1, bolefn = _r6_snag_bolefn(s))
             compute_density!(s)
         end
         fired = true

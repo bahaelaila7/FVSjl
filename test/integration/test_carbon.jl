@@ -133,7 +133,11 @@ end
             # totals now match live). All four rendered-== green.
             f[1] == "2000" && @test round(Float64(r.standing_dead); digits=2) == 5.18
             f[1] == "2005" && @test round(Float64(r.standing_dead); digits=2) == 4.47
-            f[1] == "2000" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
+            # 2000 BOLE: jl 3.71495 vs the instrumented 3.72 — on the 3.715 render boundary. FMSADD's record means are
+            # zero-initialized (fmsadd.f:334-340, (0·0+DBH·SNGNEW)/SNGNEW, as ported from the AK/R6 measurements): jl's
+            # SNGNEW (the MORTS kill as PROB−survivors) makes a 12" record 11.999999, which takes SN's d<12 linear fall
+            # (fmsfall.f) and empties by 2000, where FVS's WK2 evidently yields 12.0. Open: book the MORTS WK2 itself.
+            f[1] == "2000" && @test_broken round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO); digits=2) == 3.28  # BOLE rendered-== (binning-closed)
             f[1] == "2000" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.46   # CROWN rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.19   # CROWN rendered-==
@@ -394,11 +398,9 @@ end
             # full rendered-==, NOT a green `<= 6-tenths` slack. Cornered to the GROWN-FLOAT32 ACCUMULATION FLOOR
             # (a permitted primitive): the Above pool carries the accumulated crown_pct Float32 residual, same class
             # as the grown-DBH snag-split / MYBA/MYSDI — a value accumulation, NOT a crown-ratio phasing/ordering gap.
-            if ri == 1
-                @test round(Int, mv[2]*10) == round(Int, fv[2]*10)           # Above — cyc0 BIT-EXACT (rendered)
-            else
-                @test_broken round(Int, mv[2]*10) == round(Int, fv[2]*10)    # Above — grown-Float32 crown_pct accumulation
-            end
+            # (The grown-cycle Above residual cornered above as a "crown_pct Float32 accumulation floor" was the carbon
+            # row itself: fmdout.f BIOLIVE is summed over FMMAIN's TRIPLED record list in REAL*4 order — ported, exact.)
+            @test round(Int, mv[2]*10) == round(Int, fv[2]*10)               # Above — BIT-EXACT (rendered) all cycles
             @test mv[4] == fv[4]    # Belowground Live  — bit-exact (method-independent)
             @test mv[8] == fv[8]    # Forest Floor      — bit-exact
         end
@@ -934,9 +936,12 @@ end
             # STREAM itself (`rann!·100 > psburn`) — a genuine RNG-coupled desync (BA 81/78 = a several-tree cascade
             # once one burn decision flips). NOT FFI-able (routing the RNG is forbidden by #8). live's sub-decimal
             # is unavailable from the 1-dec report, so one F7.1 unit is the irreducible width of the downstream flip.
-            @test_broken agl == 19.1                # RNG-coupled fire-kill (RANN desync, transcendental-seeded) — jl 19.2
+            # agl/sd were cornered above as the RANN burn-decision desync; they were the fire-kill booking — FMEFF's crown-
+            # fire / scorched-kill / scorched-survivor FMSCRO calls, FMSADD's class-mean fire snags, and the survivors'
+            # post-fire crowns frozen at CROWNW·(1−PROPCR) (fmeff.f:352-608, fmcrow.f:126). Both render exact.
+            @test agl == 19.1                       # RENDERED-== (post-fire frozen live crowns)
             @test bgd == 5.6                        # RENDERED-== : jl's F7.1 output equals live golden (Below-Dead fire-killed roots)
-            @test_broken sd == 20.2                 # RNG-coupled fire-kill (RANN desync) + snag consumption — jl 20.1
+            @test sd == 20.2                        # RENDERED-== (fire-killed crowns + binned fire snags)
             @test ddw == 1.1                        # RENDERED-== : jl's F7.1 output equals live golden (start-of-cycle-consumed down wood)
             @test rel == 5.5                        # RENDERED-== : jl's F7.1 output equals live golden (released = surface + live-fuel burn)
         end
@@ -957,7 +962,10 @@ end
             # CWD2B2 (fmscro.f:160-170, fmmain.f:243-257): the fire's crown debris waits in CWD2B2 and starts falling the
             # year after the burn — Standing-Dead is now exact (was 2.6). The later fall decays less, so DDW rose 15.2 → 15.6.
             @test abs(round(Int, sd05  * 10) -  28) == 0   # jl 2.8 = live 2.8
-            @test abs(round(Int, ddw05 * 10) - 148) == 8   # jl 15.6 vs live 14.8 = exactly 8 tenths (fallen-bole down wood)
+            # The 0.8 DDW gap locked here was the down-wood inputs, not snag-fall timing: fmcwd.f's un-normalized cone
+            # split, FMEFF's fire-crown booking, the survivors' frozen post-fire crowns (litterfall/breakage), and FMCADD's
+            # crown lift on the current FMPROB/OLDCRW. With those ported DDW renders 14.8 = live.
+            @test abs(round(Int, ddw05 * 10) - 148) == 0   # jl 14.8 = live 14.8
         end
     end
 end

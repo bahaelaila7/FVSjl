@@ -140,7 +140,8 @@ mutable struct TreeList
     temhtg::Vector{Float32}
     # FFE GROW flag + persistent CROWNW(0:5) (fmcrow.f:114-119, fmeff.f:494-506): a fire-scorched survivor keeps its
     # reduced crown TCROWN·(1−PROPCR) with GROW=−1; each FMSDIT→FMCROW increments GROW and recomputes CROWNW only once
-    # GROW ≥ 1. Carried through tripling/moves (fmtrip.f:40, fmtdel.f:43). Used by the AK FFE (_ffe_crownw).
+    # GROW ≥ 1. Carried through tripling/moves (fmtrip.f:40, fmtdel.f:43). FMCROW (ffe_fmcrow!) fills it for every
+    # variant at FMSDIT and every FFE crown read goes through _ffe_crownw.
     ffe_grow::Vector{Int32}
     ffe_crownw::Matrix{Float32}
     # Per-SLOT LBIRTH (the TreeAge gate of dbstrls/dbscuts/dbsatrtls: TREAGE = LBIRTH(I) ? ABIRTH(I) : 0). FVS sets

@@ -336,6 +336,9 @@ end
     end
 end
 
+# fvsvol.f:90-96: the NVEL region FVSVOL hands VOLINIT — KODFOR/10000 for a 5-digit KODFOR, else KODFOR/100.
+fvsvol_iregn(s::StandState)::Int = (k = Int(s.plot.user_forest_code); k > 10000 ? k ÷ 10000 : k ÷ 100)
+
 function setup_volume_equations!(s::StandState)
     kodfor = Int(s.plot.user_forest_code)
     iregn  = kodfor ÷ 10000
