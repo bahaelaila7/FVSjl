@@ -605,9 +605,6 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
     return io
 end
 
-# SSTAGE's NTREES (sstage.f:74-79): the records carrying more than 0.00001 trees/acre.
-_sstage_ntrees(s::StandState) = count(i -> s.trees.tpa[i] > 0.00001f0, 1:s.trees.n)
-
 # The two metric variants (canada BC / ON): FVS compiles metric/vbase/{disply,sumout}.f and the metric dbsqlite writers.
 _metric_variant(v) = v isa BritishColumbia || v isa Ontario
 
