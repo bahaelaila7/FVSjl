@@ -384,7 +384,10 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 # FMEFF BCROWN share of one record (fmeff.f:372-374 crown fire, :444-453 scorch), tons/ac, on the PRE-kill FMPROB
 # (TPA) and the fire-time FMICR (= ICR; call before the scorch shortening). `mk` = MKODE≠0: the crown-fire part (CRBURN·FMPROB burns all foliage + half the
 # 0-0.25" crown and its crown-lift) needs MKODE≠0, and the scorched part is weighted (1−CRBURN), else 1.0.
-function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
+@inline t_crown_pct(s::StandState, i::Integer) = Int(s.trees.crown_pct[i])
+
+function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
+                    icr::Integer = t_crown_pct(s, i))::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
     xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
@@ -395,7 +398,7 @@ function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cy
         b += 0.5f0 * crfrac * fmprob * _FM_P2T * (xc[2] + yrscyc * ol1)
     end
     crfrac >= 1f0 && return b
-    crl = h * (Float32(t.crown_pct[i]) / 100f0)                                    # FMICR = ICR at the fire (fmmain.f:111)
+    crl = h * (Float32(icr) / 100f0)                                               # FMICR = ICR at the fire (fmmain.f:111)
     crbot = h - crl
     if sch > crbot
         crbnl = min(sch - crbot, crl)

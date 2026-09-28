@@ -132,8 +132,11 @@ accumulated as BA (DBH/24)² and volume (MCFV for CS/LS/NE/SN, CFV elsewhere). R
 volume killed PVOLKL and the potential crown material burned PBRNCR (BCROWN, tons/ac) that FMCONS smokes.
 """
 function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float32, burnseas::Integer,
-                     psburn::Float32, year::Integer, cyclen::Real)
+                     psburn::Float32, year::Integer, cyclen::Real; fmicr::Bool = false)
     fs = s.fire; t = s.trees; coef = s.coef
+    # FMEFF's crown length is HT·FMICR (fmeff.f:170): ICR in a no-burn year, the scorch-shortened FMICR after this
+    # year's FMBURN (fmmain.f:196) — MEASURED FVSbm_g16 12827438010497 simfire 2015 Mortality_BA_Sev 17 live, 22 on ICR.
+    usefm = fmicr && length(fs.fmicr) == t.n
     bcrown = 0f0
     if crburn > 0f0                                                                    # fmeff.f:118-130
         @inbounds for isz in axes(fs.cwd2b, 2), idc in axes(fs.cwd2b, 1), itm in axes(fs.cwd2b, 3)
@@ -149,14 +152,15 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
         lpsburn = !(rann!(s.rng) * 100f0 > psburn)
         fmprob = t.tpa[i]; d = t.dbh[i]
         if lpsburn && fmprob > 0f0
-            csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
+            icr = usefm ? Int(fs.fmicr[i]) : Int(t.crown_pct[i])
+            csv = crown_volume_scorched(sch, t.height[i], icr)
             sp = Int(t.species[i])
             pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
             pmort = fire_mortality_adjust(pmort, sp, d, burnseas, s.variant)
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)
             pmort *= active_fmort_mult(s.control, sp, year, d)
             pmort = clamp(pmort, 0f0, 1f0)
-            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true)
+            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true; icr = icr)
         end
         pomort = pmort * fmprob                                                        # fmeff.f:556-564
         lpsburn && (pomort = pomort + crburn * (fmprob - pomort))
@@ -369,7 +373,7 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             torch_index = sc[1].oinit, crown_index = sc[1].oact, canopy_ht = Int(cf.actcbh), cbd = cf.cbd,
             mort_ba_sev = 0, mort_ba_mod = 0, mort_vol_sev = 0, mort_vol_mod = 0,
             smoke_sev = _pofl_smoke(sc[1].tsbase, 0f0), smoke_mod = _pofl_smoke(sc[2].tsbase, 0f0),
-            smod, swt, fmod, fwt, year = Int(year), cyclen = cyclen,
+            smod, swt, fmod, fwt, year = Int(year), cyclen = cyclen, fmicr = fire_basis,
             eff = ((sc[1].pflam, sc[1].sch, sc[1].crburn, sc[1].burnseas, sc[1].psburn, sc[1].tsbase),
                    (sc[2].pflam, sc[2].sch, sc[2].crburn, sc[2].burnseas, sc[2].psburn, sc[2].tsbase)),
             cond = ntuple(k -> (; wind = sc[k].prewnd, temp = unsafe_trunc(Int, sc[k].potemp),
@@ -389,7 +393,8 @@ function fmpofl_fmmain(s::StandState, row)
     pom = zeros(Float32, 2); pvk = zeros(Float32, 2); smk = zeros(Float32, 2)
     for k in 1:2
         pflam, sch, crburn, burnseas, psburn, tsbase = row.eff[k]
-        pom[k], pvk[k], pbrncr = _pofl_fmeff(s, pflam, sch, crburn, burnseas, psburn, row.year, row.cyclen)
+        pom[k], pvk[k], pbrncr = _pofl_fmeff(s, pflam, sch, crburn, burnseas, psburn, row.year, row.cyclen;
+                                             fmicr = get(row, :fmicr, false))
         smk[k] = _pofl_smoke(tsbase, pbrncr)
     end
     pt = _pofl_fmptrh(s, row.year, row.surf_sev, row.surf_mod)
