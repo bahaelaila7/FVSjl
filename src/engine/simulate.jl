@@ -1410,6 +1410,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # jl's density.point_ccf was still the start-of-cycle one (MEASURED FVSsn_g16 161035853010854 PLANT cycle 2:
     # PCCF 105.02 live vs 78.60 ⇒ planted crowns 87/86 vs 88/87).
     es_pccf_pre = _fresh_point_ccf(s)
+    # SO/WS/CA/NC (strp esgent): REGENT(LESTB) reads that same gradd.f:192 DENSE for RELDEN/BA/AVH too (post-growth,
+    # before ESUCKR's sprouts and the new regen — ESGENT runs inside ESTAB, before gradd.f:244's post-regen DENSE).
+    _strp_esg = s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+                s.variant isa Klamath
+    es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
+                                                    (0f0, 0f0, 0f0)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1462,6 +1468,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+    s.variant isa SouthCentralOregon && so_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_st_relden_pre, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre, pccf_pre = es_pccf_pre)   # so/esgent.f (strp)
+    s.variant isa WestSierra && ws_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_st_relden_pre, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre, pccf_pre = es_pccf_pre)   # ws/esgent.f (strp)
+    s.variant isa CentralCalifornia && ca_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
+        pccf_pre = es_pccf_pre)                                                                                  # ca/esgent.f (strp)
+    s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
+        pccf_pre = es_pccf_pre)                                                                                  # nc/esgent.f (strp)
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,

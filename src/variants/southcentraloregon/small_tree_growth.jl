@@ -322,3 +322,128 @@ function so_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     end
     return s
 end
+
+"""
+    so_esgent!(s, nstart; fint, atavh, atrelden, relden_pre, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → so/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). SO was missing from the esgent dispatch, so planted/established SO seedlings
+kept their ESSUBH base height and 0.1" DBH through their birth cycle.
+
+REGENT(LESTB): FNT=FINT−5 (LSKIPH when FINT≤5, regent.f:199-206); PCTRED from the mid-period blend
+CCF=(5/FINT)·RELDEN+((FINT−5)/FINT)·ATCCF, AVHT likewise with ATAVH (:211-225). Species-major over the new records
+(DO 30 ISPC / DO 25 I3, I<ITRNIN skipped): the open-grown crown draw (:282-289, PCCF of the gradd.f:192 DENSE),
+then (unless LSKIPH) VIGOR, POTHTG=SMHTGF(MODE 1, H, ICR, 10) (AS: the Sheppard curve on SITAGE=ABIRTH), HTGR=
+POTHTG·PCTRED·VIGOR·CON (SH/WO: POTHTG·CON), the ZZRAN draw, HTGR=(HTGR+0.1·ZZRAN)·XRHGRO·SCALE, XWT=0, HTG≥0.1 and
+the SIZCAP cap. DBH (:416-597): HK≤4.5 ⇒ DBH=D+0.001·HK, DG=0; else DBH=DK (floored at DIAM), +0.001·HK, DG=DBH;
+then DGBND. RELDEN/BA/AVH/PCCF are the post-growth PRE-regen values (ESTAB runs before gradd.f:244's DENSE); the
+new record's PCT is 0 (estab.f), so BAL=BA inside SMHTGF.
+"""
+function so_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atavh::Float32 = 0f0, atrelden::Float32 = 0f0,
+                    relden_pre::Float32 = 0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    sd = s.coef.species
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    ccf = relden_pre; avht = avh_pre
+    if !lskiph && fnt > 0f0
+        ccf = (5f0 / fint) * relden_pre + ((fint - 5f0) / fint) * atrelden
+        avht = (5f0 / fint) * avh_pre + ((fint - 5f0) / fint) * atavh
+    end
+    xden = avht * (ccf / 100f0); xden > 300f0 && (xden = 300f0)
+    pctred = SO_RG_AB[1] + xden*(SO_RG_AB[2] + xden*(SO_RG_AB[3] + xden*(SO_RG_AB[4] +
+             xden*(SO_RG_AB[5] + xden*SO_RG_AB[6]))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    ifor = Int(p.forest_idx); dgsd = s.control.dg_sd
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= SO_RG_XMAX[sp] && continue
+        ip = Int(t.plot_id[i])
+        pccf = (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip]
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        icr = Float32(icr0)
+        h = t.height[i]
+        slo = SO_SITELO[sp]; shi = SO_SITEHI[sp]
+        si_raw = p.sp_site_index[sp]
+        si_c = si_raw; si_c > shi && (si_c = shi); si_c <= slo && (si_c = slo + 0.5f0)
+        regyr = (sp == 9 || sp == 27) ? 5f0 : 10f0
+        scale = fnt / regyr
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now)
+            xv = icr / 100f0
+            vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0
+            vigor > 1f0 && (vigor = 1f0)
+            sp == 11 && (vigor = 1f0 - (1f0 - vigor)/3f0)
+            local htgr::Float32
+            if sp == 24                                           # AS: SITAGE = ABIRTH under LESTB (:320-321)
+                sitage = t.birth_age[i]
+                relsi = (si_c - slo) / (shi - slo); rsimod = 0.5f0 * (1f0 + relsi)
+                hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+                hite2 = 26.9825f0 * fpow(sitage + 10f0, 1.1752f0)
+                htgr = (hite2 - hite1) / (2.54f0*12f0) * rsimod * con
+                htgr *= 2.40f0; htgr *= 0.75f0
+            else
+                pothtg = so_smhtgf(sp, d, h, icr, 10f0, 1; si = si_raw, ba = ba_pre, pct = 0f0, avh = avh_pre)
+                htgr = (sp == 9 || sp == 27) ? pothtg*con : pothtg*pctred*vigor*con
+            end
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr + zzran*0.1f0) * xrhgro * scale
+            htg = htgr; htg < 0.1f0 && (htg = 0.1f0)             # XWT=0 under LESTB (:394)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        end
+        # label 5: DBH (BKPT 3", WJ 99")
+        bkpt = sp == 11 ? 99f0 : 3f0
+        if d < bkpt
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dgk = 0f0; dbhk = d + 0.001f0*hk
+            else
+                local dk::Float32
+                if sp == 11
+                    dk = (hk - 4.5f0)*10f0/(si_raw - 4.5f0); dk < 0.1f0 && (dk = 0.1f0)
+                elseif sp == 16
+                    tpccf = pccf; tpccf > 300f0 && (tpccf = 300f0); tpccf < 25f0 && (tpccf = 25f0)
+                    hlk = hk - 4.5f0
+                    dk = 0.000231f0*hlk*icr - 0.00005f0*hlk*tpccf + 0.001711f0*icr + 0.17023f0*hlk + 0.3f0
+                elseif sp == 24
+                    dk = (SO_RG_HT2_24/(flog(hk - 4.5f0) - SO_RG_HT1_24)) - 1f0
+                else
+                    dk = so_htdbh_dbh(ifor, sp, hk)
+                end
+                dbhk = dk                                         # LESTB: DBH(K)=DK (:574-596)
+                (dbhk < SO_RG_DIAM[sp] || hk < 4.5f0) && (dbhk = SO_RG_DIAM[sp])
+                dbhk = dbhk + 0.001f0*hk
+                dgk = dbhk
+                (dbhk + dgk) < SO_RG_DIAM[sp] && (dgk = SO_RG_DIAM[sp] - dbhk)
+            end
+            dgk = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)   # DGBND(ISPC,DBH(K),DG(K))
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _SO_ES_HHTMAX[sp])
+    end
+    return s
+end

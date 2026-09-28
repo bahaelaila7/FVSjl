@@ -87,3 +87,31 @@ end
         end
     end
 end
+
+# ESGENT → REGENT(LESTB): the birth-cycle growth (crown dub from the post-growth PCCF, height/DBH over FINT−5 years,
+# the WK4 step). At the end of the planting cycle every planted record equals live exactly. In the later cycles the
+# cohort grows with each variant's ordinary growth and mortality, whose Float32 residuals in these stands' `none`
+# regime (a few ULP in DBH/HT/TPA; TPA through the stand density) reach the cohort too: bounded at 1e-6 relative,
+# crowns exact.
+const _WE_FULL = ["so_645126898126144_plant_cyc", "ws_15353585010497_plant_cyc", "ca_15320267010497_plant_cyc",
+                  "nc_15303130010497_plant_cyc"]
+_we_close(a, b) = a[1] == b[1] && a[5] == b[5] && all(i -> abs(a[i] - b[i]) <= 1e-6 * abs(b[i]), 2:4)
+
+@testset "western PLANT establishment vs live: the planted cohort (ESGENT)" begin
+    for case in _WE_FULL
+        err, db = get(() -> _we_run(case), _WE_RUNS, case)
+        isempty(err) || continue
+        lv = _we_live(case)
+        lo = minimum(k[2] for k in keys(lv)); yr1 = minimum(k[1] for k in keys(lv))
+        jl = _we_jl(db, lo)
+        @test (case, sort(collect(keys(jl)))) == (case, sort(collect(keys(lv))))
+        for k in sort(collect(keys(lv)))
+            haskey(jl, k) || continue
+            if k[1] == yr1
+                @test (case, k, jl[k]) == (case, k, lv[k])
+            else
+                @test (case, k, _we_close(jl[k], lv[k])) == (case, k, true)
+            end
+        end
+    end
+end

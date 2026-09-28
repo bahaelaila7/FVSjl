@@ -229,3 +229,80 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
     end
     return s
 end
+
+"""
+    nc_esgent!(s, nstart; fint, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → nc/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). NC was missing from the esgent dispatch; the shared establish! crown pass
+drew the new records' crowns from the START-of-cycle point CCF.
+
+REGENT(LESTB): LSKIPH when FINT≤5, else FNT=FINT−5 (regent.f:106-114), SCALE=FNT/REGYR. The crown dub runs FIRST,
+over the new records in STORAGE order (DO 13 I=1,ITRN, :136-149), with the PCCF of the gradd.f:192 DENSE (post-
+growth, pre-regen). Then species-major over the new records: LSKIPH ⇒ HTG=0; else HTGR5 (XBA=BA, RELHT from AVH and
+the point CCF, CR=ICR/10)·CON·XRHGRO·SCALE, XWT=0 (no HTG floor), SIZCAP. DBH below DGMIN (:243-327): HK≤4.5 ⇒
+DBH=D+0.001·HK, DG=0; else DBH=HTDBH⁻¹(HK) floored at DIAM, +0.001·HK, DG=DBH; then DGBND.
+"""
+function nc_esgent!(s::StandState, nstart::Int; fint::Float32 = 5.0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / NC_REGYR
+    _pccf(i) = (ip = Int(t.plot_id[i]); (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip])
+    @inbounds for i in (nstart + 1):t.n                        # DO 13: crown dub, storage order
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * _pccf(i)
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+    end
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= NC_ST_XMAX[sp] && continue
+        h = t.height[i]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now) * scale
+            xba = ba_pre; xba <= 0f0 && (xba = 0.1f0)
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = (h > 0f0 && avh_pre > 0f0) ? h / avh_pre : 1f0
+            tpccf = _pccf(i)
+            tpccf <= 75f0 && (relht = 1f0 - ((relht - 1f0) / 75f0) * tpccf)
+            relht > 1.5f0 && (relht = 1.5f0)
+            htgr = nc_htgr5(sp, p.sp_site_index[sp], xba, relht, cr, h) * con * xrhgro
+            htg = htgr                                          # XWT=0 under LESTB (RW: HTGR2=HTGR)
+            cap = s.control.sp_size_cap[sp, 4]
+            if h + htg > cap
+                htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+        end
+        if d < NC_ST_DGMIN[sp]
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dbhk = d + hk * 0.001f0; dgk = 0f0
+            else
+                dbhk = nc_htdbh_d(sp, hk)                        # LHTDRG=.FALSE. ⇒ HTDBH(IFOR,ISPC,DK,HK,1)
+                dbhk < NC_ST_DIAM[sp] && (dbhk = NC_ST_DIAM[sp])
+                dbhk = dbhk + 0.001f0 * hk
+                dgk = dbhk
+                (dbhk + dgk) < NC_ST_DIAM[sp] && (dgk = NC_ST_DIAM[sp] - dbhk)
+            end
+            dgk = nc_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _NC_ES_HHTMAX[sp])
+    end
+    return s
+end

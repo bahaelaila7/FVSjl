@@ -206,3 +206,84 @@ function ca_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     end
     return s
 end
+
+"""
+    ca_esgent!(s, nstart; fint, relden_pre, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → ca/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). CA was missing from the esgent dispatch.
+
+REGENT(LESTB): FNT=FINT−5 (LSKIPH when FINT≤5, regent.f:124-131), SCALE=FNT/REGYR (REGYR 5). Species-major over the
+new records: the crown draw (:166-174, PCCF of the gradd.f:192 DENSE), CR=ICR/10, BAL=BA (new record PCT=0),
+RELHT=H/AVH (≤1.05), then unless LSKIPH: HTGR=SMHTGF·CON, the ZZRAN draw, HTGR=(HTGR+0.1·ZZRAN)·XRHGRO·SCALE, XWT=0
+(GS/RW keep HTGR under LESTB), HTG≥0.1, SIZCAP. DBH below DGMIN (:258-347): HK≤4.5 ⇒ DBH=D+0.001·HK, DG=0; else
+DBH=DK (HTDBH) floored at DIAM, +0.001·HK, DG=DBH; then DGBND.
+"""
+function ca_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / CA_RG_REGYR
+    dgsd = s.control.dg_sd
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= CA_RG_XMAX[sp] && continue
+        ip = Int(t.plot_id[i])
+        pccf = (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip]
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        cr = Float32(icr0) / 10f0
+        h = t.height[i]
+        relht = avh_pre <= 0f0 ? 1f0 : h / avh_pre
+        relht > 1.05f0 && (relht = 1.05f0)
+        si = p.sp_site_index[sp]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now)
+            htgrr = ca_smhtgf(sp, d, h, cr, ba_pre, ba_pre, si, relht)
+            htgr = htgrr * con
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr + zzran*0.1f0) * xrhgro * scale
+            htg = htgr; htg < 0.1f0 && (htg = 0.1f0)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        end
+        if d < CA_RG_DGMIN[sp]
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dgk = 0f0; dbhk = d + 0.001f0*hk
+            else
+                dbhk = ca_htdbh_dbh(sp, hk)
+                dbhk < CA_RG_DIAM[sp] && (dbhk = CA_RG_DIAM[sp])
+                dbhk = dbhk + 0.001f0*hk
+                dgk = dbhk
+                (dbhk + dgk) < CA_RG_DIAM[sp] && (dgk = CA_RG_DIAM[sp] - dbhk)
+            end
+            dgk = ca_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _CA_ES_HHTMAX[sp])
+    end
+    return s
+end

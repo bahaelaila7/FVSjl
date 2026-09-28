@@ -890,7 +890,11 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah
+            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah ||
+               s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+               s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath
+                # SO/WS/CA/OC/NC build the same strp estab.f (:626) and canada/bc estab.f:620 the same DBH=0.1, whatever
+                # the height: REGENT(LESTB) reads D=0.1 (e.g. HK≤4.5 ⇒ DBH=D+0.001·HK).
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
                 # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
                 # birth, which fed the wrong D into the birth-cycle REGENT. TT/UT build the same strp estab.f
@@ -900,9 +904,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             elseif hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
             elseif s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades ||
-                   s.variant isa PacificNorthwest ||   # pn/estab.f:626 == wc's
-                   s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                   s.variant isa OregonCoast || s.variant isa BritishColumbia   # so/ws/ca/oc estab.f == wc's; bc :620
+                   s.variant isa PacificNorthwest   # pn/estab.f:626 == wc's
                 # ec/estab.f:626 and op/estab.f:626 (wc/estab.f:626 is the same source) both assign the establishment DBH = 0.1 flat; their
                 # esgent.f only recomputes DBH when WK4<1 (a partial birth cycle). A full-birth-cycle
                 # PLANT/NATURAL tree (WK4=1) keeps DBH=0.1 even after its height exceeds breast height —
@@ -950,7 +952,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                                       s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
                                       s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
                                       s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same
-                                      s.variant isa BritishColumbia
+                                      s.variant isa BritishColumbia || s.variant isa Klamath   # nc estab.f = strp's
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
@@ -1120,7 +1122,10 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
                          s.variant isa WestCascades ||
-                         s.variant isa PacificNorthwest   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa PacificNorthwest ||   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa SouthCentralOregon ||   # SO/WS/CA: regent.f LESTB crown inside the species loop;
+                         s.variant isa WestSierra || s.variant isa CentralCalifornia ||   # NC: regent.f DO 13, storage order
+                         s.variant isa Klamath                 # (so_/ws_/ca_/nc_esgent!)
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0
@@ -1406,4 +1411,27 @@ function estab_prep_npnats_estb!(s::StandState)
              ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), s.control.schedule) || return
     estab_prep_tally!(s, 99, y2 - 20, y2 - 1)
     return
+end
+
+# strp/esgent.f and estb/esgent.f DO 100 (after REGENT(.TRUE.,ITRNIN)) for one new record i whose REGENT height
+# increment is `htg` (DBH/DG already set by REGENT): HTEMP=HT+HTG; HTG=HTG·WK4; HT=HT+HTG; when WK4<1 (a partial
+# birth cycle) HT<4.5 ⇒ DBH=0.1+0.001·HT, DG=0, else DBH=DBH·(HT/HTEMP), DG=DBH·(HT/HTEMP) (the rescaled DBH, as
+# written); HT capped at HHTMAX(sp). WK4 = HTIMLT (t.htimlt).
+function esgent_finish!(t, i::Int, htg::Float32, hhtmax::Float32)
+    h = t.height[i]
+    wk4 = t.htimlt[i]
+    htemp = h + htg
+    htg = htg * wk4
+    hn = h + htg
+    if wk4 < 1f0
+        if hn < 4.5f0
+            t.dbh[i] = 0.1f0 + 0.001f0 * hn; t.diam_growth[i] = 0f0
+        else
+            t.dbh[i] = t.dbh[i] * (hn / htemp); t.diam_growth[i] = t.dbh[i] * (hn / htemp)
+        end
+    end
+    t.ht_growth[i] = htg
+    hn > hhtmax && (hn = hhtmax)
+    t.height[i] = hn
+    return nothing
 end
