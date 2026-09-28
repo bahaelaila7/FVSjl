@@ -15,6 +15,40 @@
 # =============================================================================
 
 """
+    eastern_cratet_dead_pct!(s)
+
+The cycle-0 DEAD records' PCT as CRATET's backdating DENSE leaves it (cratet.f:150-195 → dense.f:83-87,244): PCTILE over
+the live+dead IND (IND1-seeded, RDPSRT(.FALSE.) on the read DBH) of WK5 = D·(D·P), live D backdated (LBKDEN = IDG<2),
+dead D = DBH for HISTORY 6-7 and 0 for 8-9 (IMC 9), dead P expanded ×FINT/FINTM (notre.f). Later DENSEs cover only the
+live list, so FVS_TreeList reports this PCT for those rows for good (SN 200267456010854: 0.635/14.38/29.29 for three
+IMC-9 snags; jl printed 0). Stored in `calib.cratet_dead_pct`; the live PCT is left as computed.
+"""
+function eastern_cratet_dead_pct!(s::StandState)
+    t = s.trees; nd = Int(t.ndead); nlive = t.n
+    nd > 0 || return s
+    ntot = nlive + nd
+    ind = bm_cratet166_ind(s, view(t.dbh, 1:ntot), nlive, ntot)     # real-DBH IND, dead included
+    saved_dbh = t.dbh[1:ntot]; saved_tpa = t.tpa[1:ntot]
+    try
+        s.control.growth_idg < 2 && _backdate_dbh!(s)                 # live WK3 (t.n = nlive here)
+        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        @inbounds for j in (nlive + 1):ntot
+            t.tpa[j] *= fintr
+            (t.history[j] == 8 || t.history[j] == 9) && (t.dbh[j] = 0f0)
+        end
+        pct = zeros(Float32, ntot)
+        t.n = ntot
+        _pctile!(pct, t, ind, ntot)
+        s.calib.cratet_dead_pct = pct[(nlive + 1):ntot]
+        (nlive == 0 && nd == 1) && (s.calib.cratet_dead_pct[1] = 0f0)   # pctile.f N=1 leaves the MAXTRE record at 0
+    finally
+        t.n = nlive
+        @inbounds for j in 1:ntot; t.dbh[j] = saved_dbh[j]; t.tpa[j] = saved_tpa[j]; end
+    end
+    return s
+end
+
+"""
     init_crown_ratios!(s)
 
 CRATET: estimate the INITIAL crown ratio for inventory trees that have no input crown

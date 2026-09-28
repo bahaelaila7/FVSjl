@@ -64,6 +64,7 @@ function setup_growth!(s::StandState)
     if s.variant isa Southern
         dgcons!(s)                        # sets bark_a/bark_b + the SN DGCON
         init_crown_ratios!(s)             # CRATET — dub inventory crown (DENSE backdated-dbh CCF) before calibrate
+        eastern_cratet_dead_pct!(s)       # the cycle-0 dead records' PCT from CRATET's dead-inclusive DENSE (TreeList)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0

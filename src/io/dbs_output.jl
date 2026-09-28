@@ -1473,7 +1473,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 end
             end
             dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
-            dpct = (snap && kd <= length(s.calib.cratet_dead_pct)) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
+            dpct = kd <= length(s.calib.cratet_dead_pct) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
             cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100

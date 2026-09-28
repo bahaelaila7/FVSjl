@@ -294,4 +294,12 @@ end
     @test count(m -> m.file == "FVS_PotFire_East", _casex("216786838010854", "simfire").ms) == 0
 end
 
+# cratet.f:150-195 → dense.f:83-87,244: CRATET's backdating DENSE runs over live+dead (ITRN still includes the inventory dead)
+# and PCTILE leaves each dead record a PCT (IMC-9 snags carry WK5=0, so they take the cumulative share below them); later
+# DENSEs are live-only, so FVS_TreeList reports that PCT for the cycle-0 dead rows. jl printed 0 (200267456010854: live
+# 0.635/14.38/29.29).
+@testset "SN cycle-0 dead-record PCT from CRATET's DENSE (dense.f:83-87,244) vs FVSsn_g16" begin
+    @test isempty(_casex("200267456010854", "none").ms)
+end
+
 end # module
