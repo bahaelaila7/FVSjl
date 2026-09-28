@@ -662,6 +662,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     empty!(s.fire.firkil)                                      # FIRKIL of THIS burn only: fmburn! refills it; a fire-due
                                                                # cycle whose burn never reaches FMEFF keeps WK2 = MORTS
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
+    # FMOLDC (fmmain.f:268, after this year's FMBURN) records OLDCRL = HT·FMICR/100 — the scorch-shortened crown of a
+    # burn year, ICR otherwise — so next cycle's FMSDIT crown lift starts from the post-fire crown base. jl's snapshot
+    # (snapshot_ffe_oldcrown!) was taken before the burn; carry the burn's FMICR into it (MEASURED FVSbm_g16
+    # 12827438010497 simfire 2025 OLDCRW(1,1) 0.2124179 live, 0.7447013 from the pre-fire ICR).
+    let fm = s.fire.fmicr, tt = s.trees
+        if length(fm) == tt.n
+            @inbounds for j in 1:tt.n; tt.ffe_oldcr[j] = Float32(fm[j]); end
+        end
+    end
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
     # fuel update here so they see the post-fire, start-of-cycle fuel pools + fresh fire snags (#28).
