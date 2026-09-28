@@ -136,6 +136,7 @@ function add_empty_snag!(fs::FireState, sp::Integer, year::Integer; yrdead::Inte
     push!(sn.sp, Int32(sp)); push!(sn.dbh, 0f0); push!(sn.den_hard, 0f0); push!(sn.den_soft, 0f0)
     push!(sn.origden, 0f0); push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
     push!(sn.bolevol, 0f0); push!(sn.fallvol, 0f0); push!(sn.height, 0f0); push!(sn.htcur, 0f0)
+    push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
     return
 end
 
