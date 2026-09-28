@@ -277,13 +277,17 @@ function setup_growth!(s::StandState)
         on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
                                           # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
         compute_density!(s)               # current-stand density (BA) for the crown dub
+        on_cratet_dead_snapshot!(s)       # cycle-0 dead records' BAPctile/PtBAL (cratet.f:128-160 DENSE)
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
                                           # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
                                           # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.
-        # NOTE: the ON DG calibration (dgdriv.f LSTART SIGMAR/OBSERV/VARDG serial-correlation → COR, VARDG) is a
-        # downstream chunk. With no measured past growth the calibration COR=0 (the cyc0 value the shared driver
-        # already produces from dg_cor_goal=0), so the cyc0 EXPECTED DG (WKI = √(d_ib²+DDS)−d_ib) is exact without
-        # it; the VARDG-driven tripled-record spread + multi-cycle COR attenuation land with that chunk.
+        calibrate_diameter_growth!(s; scale = dgscale)   # canada/on/cratet.f → DGDRIV (LSTART, after CROWN/AVHT40):
+                                          # dgdriv.f DO 155-202 — SIGMA=SIGMAR (on/blkdat.f), COR fit for measured-DG
+                                          # species (FN≥FNMIN), else DO 191 OLDRN=BACHLO(0,SIGMA) bounded by DGSD·SIGMA
+                                          # (RNG draws, species order), DO 195 VARDG=(e^{σ²}−1)e^{σ²}/VMLT. Was MISSING ⇒
+                                          # VARDG=0 ⇒ SSIGMA=0 ⇒ the tripled records all grew at the expected DG (no
+                                          # FU/FM/FL spread; ont01 cyc1 PW DG .0658 cm ×3 vs live .0615/.0795/.0509) and
+                                          # the whole RNG stream sat ahead of live by the skipped OLDRN draws.
     end
     cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
                                           # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)
@@ -708,6 +712,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     return (mort, tripled)
 end
 
+# grincr.f:74 LTRIP's ITRN (see Control.itrn_grincr): the record count at GRINCR entry of the current cycle, latched once.
+function latch_itrn_grincr!(s::StandState)
+    c = s.control
+    if c.itrn_grincr_cycle != c.cycle
+        c.itrn_grincr = Int32(s.trees.n); c.itrn_grincr_cycle = c.cycle
+    end
+    return c.itrn_grincr
+end
+
 """
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
@@ -725,8 +738,9 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function _morts_wk2(s::StandState, old_tpa::Vector{Float32}, nlive::Int)::Vector{Float32}
     t = s.trees; kb = s.scratch.mort_killed
     w = Vector{Float32}(undef, nlive)
+    on = s.variant isa Ontario        # ON VARMRT can leave WK2 > PROB (varmrt.f exhaustion); WK2 is reported unclamped
     @inbounds for i in 1:nlive
-        k = i <= length(kb) ? min(kb[i], old_tpa[i]) : -1f0
+        k = i <= length(kb) ? (on ? kb[i] : min(kb[i], old_tpa[i])) : -1f0
         w[i] = (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i]
     end
     return w
@@ -796,6 +810,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
     # NOTRIP=.TRUE. So capture NOTRIP here: a COMPRESS this cycle suppresses tripling only from NEXT cycle.
     notrip_start = s.control.no_tripling
+    # grincr.f:74 evaluates LTRIP's ITRN.LE.(MAXTRE/3) at GRINCR entry — BEFORE CUTS (grincr.f:292) TREDELs the zero-PROB
+    # records the previous cycle's mortality left (cuts.f:255-275) and before COMCUP. Latched by the .sum driver ahead
+    # of its own CUTS call (latch_itrn_grincr!), else here.
+    itrn_grincr = Int(latch_itrn_grincr!(s))
     compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (sets NOTRIP for later cycles)
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
@@ -808,7 +826,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # the end of growth (before ESNUTR), appending regen to an already-compacted list ⇒ a different physical record
     # order ⇒ different per-record REGENT/DGSCOR ZZRAN assignment. MEASURED FVSie_g16 24829032010900 post-SIMFIRE:
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
-    tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
+    cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
     # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
     # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
@@ -859,7 +877,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # live records × 3). jl stores the dead block UPWARD (t.n+1 … t.n+ndead), unlike FVS's downward IREC2…MAXTRE, so
     # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
-    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (MAXTRE - Int(t.ndead)) ÷ 3   # NOTRIP (prior-cycle COMPRESS) suppresses tripling
+    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && max(nlive, itrn_grincr) <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
     # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)
@@ -879,8 +897,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # EM: the .tre carries a measured past DG (intree.f:151 reads DG(I) into diam_growth); FVS's cycle-1 WK1 is that
     # value verbatim (oracle FVSem_g16 WK1={1.0,2.3,0.6,0.7} == em_LM.tre DG field). jl's post-cycle snapshot left
     # dg_prev=0 at cycle 1 ⇒ the LM/added-species Hamilton G collapsed ⇒ ~2.5× first-cycle mortality over-kill.
-    (s.variant isa BritishColumbia || s.variant isa EasternMontana) &&
+    # ON: the same dgdriv.f DO 5 `WK1(I)=DG(I)` — ON's MORTS does not read it, but a record MORTS empties keeps it: VOLS
+    # skips P≤0 (vols.f:125), so its FVS_TreeList MCuM (WK1·FT3toM3) is this DG (compute_volumes_on!).
+    (s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa Ontario) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    (s.variant isa Ontario && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = on_do220_dg(s, i); end)   # cycle 1's WK1 = the LSTART DO-220 DG
     (s.variant isa EasternMontana && Int(s.control.cycle) == 0) && em_cycle0_wk1!(s)   # dgdriv.f DO 220 precedence
     # IE: same ie/morts.f Hamilton path (WK1=DG at dgdriv.f:142). ie/morts.f:273 override
     # (ICYC.EQ.1 .OR. WK1==0) .AND. DG>0.5 ⇒ G=DG/(BARK·10) MASKS WK1=0 for every measured-DG tree whose
@@ -1129,9 +1151,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # FVS_TreeList MortPA (dbstrls.f DP=WK2/GROSPC) and OMORT (Σ WK2·CFV) read MORTS's WK2 itself, not the
         # PROB−(PROB−WK2) difference, which rounds to the survivor's ULP (±10-20 ULP of WK2 on small kills).
         wk2_0 = _morts_wk2(s, old_tpa, nlive)
+        _on_wk = s.variant isa Ontario
         @inbounds for i in 1:nlive
             m = wk2_0[i]
-            mort += m * old_cfv[i]
+            mort += (_on_wk ? min(m, old_tpa[i]) : m) * old_cfv[i]   # update.f:72-74 WK6 = MIN(WK2,PROB)·CFV
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
         if mis_post && !rd_post_triple
@@ -1238,6 +1261,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         end
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
+    s.variant isa Ontario && on_gradd_dg_scale!(s, fint)   # gradd.f:79-90 DG → FINT basis (after GRINCR, before MISTOE)
     # MISTOE post-triple seam. FVS runs MISTOE at gradd.f:96 — in GRADD, AFTER GRINCR's MORTS+TRIPLE — so on a
     # TRIPLING cycle the spread draws its per-host-tree rann! on the ALREADY-TRIPLED record list (ITRN×3). jl
     # ran ie_mistoe! before TRIPLE (the pre-mortality seam above), so on a tripling cycle it drew only 1/3 of
@@ -1267,8 +1291,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _tt_up = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model)
     _bm_up = s.variant isa BlueMountains   # BM bark = bm_bratio (POWER model, per-species groups)
     # gradd.f:205 ABIRTH(I)=ABIRTH(I)+FINT is shared by every variant; jl ages it where something reads ABIRTH:
-    # the CR/TT/UT/IE/EM/BM growth models, and Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant.
-    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire ||
+    # the CR/TT/UT/IE/EM/BM growth models, Climate-FVS BIRTHYR (clgmult/clmorts) in every climate-wired variant, and
+    # ON's Mowraski NMV (volont.f:405). It runs AFTER UPDATE/VOLS (see the single aging loop below compute_volumes!).
+    _age_up = _cr_up || _tt_up || _bm_up || s.variant isa Utah || s.variant isa InlandEmpire || s.variant isa Ontario ||
               s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Kootenai ||
               s.variant isa Klamath || s.variant isa PacificNorthwest || s.variant isa WestCascades ||
               s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia ||
@@ -1283,6 +1308,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     _ut_up = s.variant isa Utah    # UT ages ABIRTH (gradd.f:205); CR-surrogate (17:19,22) htgf reads it
     _ie_up = s.variant isa InlandEmpire   # IE ages ABIRTH (gradd.f:205) — needed by Climate-FVS BIRTHYR; IE reads
                                           # birth_age nowhere else ⇒ inert for climate-off IE runs (bit-exact).
+    _on_up = s.variant isa Ontario        # ON update.f: HT updated before the DBH bark (see below)
     _em_up = s.variant isa EasternMontana # EM ages ABIRTH (gradd.f:205, ALL trees): aspen/PB (12,17) regent reads
                                           # it (HITE1/HITE2); em/dgf.f age-range term is NOT ported ⇒ conifer-inert.
     @inbounds for i in 1:n
@@ -1290,7 +1316,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # bark evaluated at the pre-growth DBH (update.f:115 / update.jl:75). CR uses the GENGYM
         # BRATIO (cr/bratio.f = cr_bratio): its bark_a/bark_b are 0, so bark_ratio would floor to 0.80
         # and over-apply DG/bark (~0.89→0.80 ⇒ ~11% too much outside-bark DBH per cycle).
-        bark = variant_bratio(s, t.species[i], t.dbh[i], t.height[i])   # update.f:115 — the SAME BRATIO as dgdriv's DDS→DG
+        # ON: canada/on/update.f DO 90 adds HTG to HT for every record BEFORE DO 110 `DBH=DBH+DG/BRATIO(IS,DBH,HT)`,
+        # so ON's metric H/D bark (bratio.f: maple group/black spruce/cedar) reads the END-of-cycle height (vols.f:131
+        # likewise). HT is ignored by every other variant's BRATIO, so the pre-growth height stays for them.
+        bark = variant_bratio(s, t.species[i], t.dbh[i],
+                              _on_up ? t.height[i] + t.ht_growth[i] : t.height[i])   # update.f:115 — the SAME BRATIO as dgdriv's DDS→DG
         # OC stashes its own oc_bratio(D_start) in the ORGANON hook (this generic bark_ratio floors to
         # 0.80 for OC's unset bark_a/bark_b → wrong CFTOPK/BFTOPK truncation on broken-top trees).
         s.variant isa OregonCoast || (t.vol_bark[i] = bark)   # stash BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150)
@@ -1304,10 +1334,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # EXECUTE) and KEEPS diam_growth/ht_growth for the FVS_TreeList DG/HtG report — so this shared
         # apply-loop must SKIP OC (else it double-applies). Provably .sum-inert: OC previously zeroed
         # diam_growth/ht_growth so these lines already added 0 (the norm_ht trunc(N+0.5)=N was a no-op).
-        s.variant isa OregonCoast && (t.birth_age[i] += fint; continue)   # gradd.f:205 ages OC's ABIRTH too
+        s.variant isa OregonCoast && continue   # (OC's ABIRTH is aged with the others after VOLS, gradd.f:205)
         t.dbh[i]    += t.diam_growth[i] / bark
         t.height[i] += t.ht_growth[i]
-        _age_up && (t.birth_age[i] += fint)   # age ABIRTH by cycle length (gradd.f:205)
         # Broken-top trees: the full (NORMHT) height grows by the same increment as the standing
         # height. MATCH FVS update.f:67 op order EXACTLY — `INT(REAL(NORMHT)+(HTG*100.+.5))`: the
         # (HTG*100+0.5) is grouped and evaluated in Float32 FIRST, then added to NORMHT. The old
@@ -1317,6 +1346,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i] * 100f0 + 0.5f0)))
     end
     compute_volumes!(s)                     # end-of-period volumes
+    # gradd.f:205 `ABIRTH(I)=ABIRTH(I)+FINT` — AFTER UPDATE and its VOLS (above), so an age-dependent volume (ON's
+    # Mowraski NMV) uses the pre-increment age this cycle. The one ABIRTH aging for every variant that reads it.
+    _age_up && @inbounds(for i in 1:n; t.birth_age[i] += fint; end)
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps

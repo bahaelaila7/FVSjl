@@ -1372,10 +1372,15 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # lineage-key) order within a species: after TRIPLE a record's copies interleave upper/central/lower
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
     met = _metric_variant(s.variant)
+    # ON inventory list: BAPctile = the CRATET DENSE's PCT (on_cratet_dead_snapshot!), not a later recompute's.
+    pct_swap = cycle == 0 && s.variant isa Ontario && length(s.calib.cratet_pct) == t.n
+    pct_keep = pct_swap ? t.crown_ratio[1:t.n] : Float32[]
+    pct_swap && copyto!(t.crown_ratio, 1, s.calib.cratet_pct, 1, t.n)
     @inbounds for i in _ind1_order(s)
         r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g); cycle0 = cycle == 0)
         push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
+    pct_swap && copyto!(t.crown_ratio, 1, pct_keep, 1, t.n)
     # CYCLE-0 DEAD RECORDS (dbstrls.f:308-440): at the inventory year only, FVS appends the input dead
     # trees (HISTORY 6-9) at the bottom of the FVS_TreeList — TPA=0, the mortality expansion in MortPA
     # (P=(PROB/GROSPC)/(FINT/FINTM); FINT/FINTM=1 at cycle 0 ⇒ MortPA = tpa/g), DG=HtG=0, with volume and
@@ -1415,7 +1420,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             # intree.f:543-544: input dead records are stored from MAXTRE DOWNWARD (IREC2), so TreeIndex = MAXTRE+1-k.
-            rimp = Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
+            rimp = Any[_fvs_tree_id(t.tree_id[i]), variant_maxtre(s.variant) + 1 - (i - t.n), strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion

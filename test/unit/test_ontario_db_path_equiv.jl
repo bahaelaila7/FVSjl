@@ -2,7 +2,8 @@
 # test_ontario_db_path_equiv.jl — ON DATABASE-read path validated against the inline `.tre` path
 # on a REAL Ontario FVS input DB (FVSDataHardwood.db, stand LD3001: 94 metric trees, ON variant).
 #
-# WHY inline-equivalence and not a live DB oracle: the ON oracle (FVSon_g16, gfortran-16/gcc-16
+# (2026-09-28: the current FVSon_g16 reads this DB — the live-oracle DB comparison is test_ontario_db_live.jl.)
+# WHY inline-equivalence and not a live DB oracle (historical): the ON oracle (FVSon_g16, gfortran-16/gcc-16
 # rebuild of canada/on) SEGFAULTS on the SQLite tree-read — the crash is __memset_avx2 in
 # dbstreesin_'s prologue, reproducible with fresh gfortran-16 objects, the shipped Jun-4
 # dbstreesin.o, and a fully-static link; the stand-read (dbsstandsin, 86 columns) succeeds, so it
@@ -17,10 +18,10 @@
 # The DB reader (fia_database.jl apply_fia_trees!) and the inline `.tre` loader (treeinput.jl
 # load_trees!) both route records through the SAME ingest_tree_records!(...; metric=…), so they
 # MUST produce byte-identical tree state. The ONLY DB-specific tree transform is the per-hectare→
-# per-acre TREE_COUNT rescale (×ACRtoHA = 0.40468564). This test builds an inline stand from the
-# SAME DB rows and asserts:
+# per-acre expansion — since corrected to FVS's metric DESIGN conversion (BAF/INV_PLOT_SIZE /HAtoACR, TREE_COUNT raw).
+# This test builds an inline stand from the SAME DB rows and asserts:
 #   • species / DBH / height / tree-id / plot-index arrays are bit-exact between the two paths;
-#   • the DB path's ingested (pre-notre) TPA == inline TPA × 0.40468564, bit-exact (Float32);
+#   • the DB path's ingested (pre-notre) TPA == inline TPA, bit-exact (Float32), with the metric design factors;
 #   • the stand attributes the DB reader sets (age/slope/aspect/elevation/latitude) match the DB;
 #   • the DB path runs end-to-end and emits a cyc0 `.sum` row.
 # =============================================================================
@@ -30,7 +31,6 @@ const F = FVSjl
 using .FVSjl.SQLite
 using .FVSjl.DBInterface
 
-const _ONDB_HA2AC = 0.40468564f0
 _u32(x) = reinterpret(UInt32, x)
 
 @testset "ON — DATABASE-read path == inline `.tre` path (real DB, stand LD3001)" begin
@@ -99,9 +99,13 @@ STOP
         @test all(_u32.(gdb.ht)  .== _u32.(gin.ht))                         # m→ft height bit-exact
         @test gdb.id   == gin.id                                            # tree ids
         @test gdb.plot == gin.plot                                          # internal plot index (IPVEC)
-        # DB TREE_COUNT is per-hectare; the DB reader pre-scales to per-acre by ACRtoHA. The inline
-        # `.tre` PROB is taken raw, so DB-ingested TPA == inline TPA × 0.40468564, bit-exact.
-        @test all(_u32.(gdb.tpa) .== _u32.(gin.tpa .* _ONDB_HA2AC))
+        # DB TREE_COUNT is read RAW (dbstreesin.f:100 RCOUNT), exactly like the inline `.tre` PROB; the per-ha→per-acre
+        # expansion comes from the METRIC design factors (dbsstandin.f:357-372: BAF<0 /HAtoACR, INV_PLOT_SIZE /HAtoACR)
+        # that notre.f multiplies in. (Formerly asserted a ×0.40468564 TREE_COUNT prescale — live FVSon_g16 now reads
+        # this DB: 9.999999 TPH per record, the prescale gave 9.999781. See test_ontario_db_live.jl.)
+        @test all(_u32.(gdb.tpa) .== _u32.(gin.tpa))
+        @test _u32(sdb.plot.baf) == _u32(-1f0 / 2.471f0)                   # BASAL_AREA_FACTOR −1 /HAtoACR
+        @test _u32(sdb.plot.fixed_plot_inv) == _u32(1f0 / 2.471f0)         # INV_PLOT_SIZE 1 /HAtoACR
 
         # --- Stand attributes the DB reader sets directly (apply_fia_stand!): match the raw DB row. ---
         p = sdb.plot

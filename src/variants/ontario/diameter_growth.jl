@@ -15,8 +15,8 @@
 # native Julia log/exp and the core/fmath shim drift ~1 ULP; measured glibc = 0-mismatch.
 # =============================================================================
 
-@inline on_logf(x::Float32) = ccall(:logf, Float32, (Float32,), x)
-@inline on_expf(x::Float32) = ccall(:expf, Float32, (Float32,), x)
+const on_logf = logf       # glibc logf (FMath single libm binding)
+const on_expf = expf
 
 """
     on_penner_dds(ksp, ags, diam_in, sim, bam, qmdm, balm, htm, bark) -> (dbhm_final, diagr, dds)
@@ -43,7 +43,7 @@ All stand inputs are METRIC (cm, m, m²/ha); `diam_in` is DBH in inches. Bit-exa
     return dbhm, diagr, dds
 end
 
-@inline on_powf(x::Float32, y::Float32) = ccall(:powf, Float32, (Float32, Float32), x, y)
+const on_powf = powf
 
 """
     on_bratio(is, d, h) -> Float32
@@ -202,4 +202,58 @@ function on_dgcons!(s::StandState)
     end
     c.bark_a .= 0f0; c.bark_b .= 0f0
     return s
+end
+
+"""
+    on_gradd_dg_scale!(s, fint)
+
+canada/on gradd.f:79-90 (base gradd.f): `IF (ITRN.GT.0 .AND. FINT.NE.YR)` rescale every record's DG from the
+YR(=10)-year basis to FINT years — AFTER GRINCR (DGDRIV, HTGF, REGENT, MORTS, TRIPLE all read the 10-yr DG) and
+before UPDATE: `DDS=(DG*(2.0*BARK*D+DG))*SCALE; DG=SQRT((D*BARK)**2+DDS)-BARK*D` with `BARK=BRATIO(IS,D,HT)`
+(pre-UPDATE HT), and `DG≤0 ⇒ DG=0`.
+"""
+function on_gradd_dg_scale!(s::StandState, fint::Float32)
+    yr = htg_period(s.variant)
+    t = s.trees
+    (t.n > 0 && fint != yr) || return s
+    scale = fint / yr
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]
+        bark = on_bratio(Int(t.species[i]), d, t.height[i])
+        dg = t.diam_growth[i]
+        if dg > 0f0
+            dds = (dg * (2f0 * bark * d + dg)) * scale
+            db = d * bark
+            t.diam_growth[i] = sqrt(db * db + dds) - bark * d
+        else
+            t.diam_growth[i] = 0f0
+        end
+    end
+    return s
+end
+
+"""
+    on_do220_dg(s, i) -> Float32
+
+canada/on/dgdriv.f:700-729 DO 220 (LSTART, after the DGF(WK3) re-call): the DG each inventory record carries into cycle 1
+— a measured increment (> 0 with HT > 4.5; capped at the inside-bark DBH when IDG < 2), 0 for HT ≤ 4.5, else the dub
+`SQRT(D*D+EXP(WK2+OLDRN)*SCALE)−D` (D = WK3·BRATIO(ISPC,DBH,HT), SCALE = FINT/YR, capped at D, then DGBND). Cycle 1's
+dgdriv.f DO 5 copies it into WK1.
+"""
+function on_do220_dg(s::StandState, i::Int)::Float32
+    t, c = s.trees, s.calib
+    sp = Int(t.species[i])
+    bark = on_bratio(sp, t.dbh[i], t.height[i])
+    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+        dg = t.diam_growth[i]
+        (s.control.growth_idg < 2 && dg > t.dbh[i] * bark) && (dg = t.dbh[i] * bark)
+        return dg
+    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
+        return 0f0
+    end
+    sc = s.control.growth_fint / htg_period(s.variant)
+    d = c.dub_wk3[i] * bark
+    dg = sqrt(d * d + on_expf(c.dub_wk2[i] + t.old_random[i]) * sc) - d
+    dg > d && (dg = d)
+    return _on_dgbnd(t.dbh[i], dg)
 end

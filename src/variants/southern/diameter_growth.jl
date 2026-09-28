@@ -309,13 +309,14 @@ function _backdate_dbh!(s::StandState)
     _ca_bd = s.variant isa CentralCalifornia # CA bark = wc_bratio (per-species bark_imap) — same #140/EC class as WC/EC
     _so_bd = s.variant isa SouthCentralOregon # SO bark = so_bratio (so/bratio.f 3-path: CASE1 BARKB / juniper / BRDAT)
     _op_bd = s.variant isa Olympic            # OP bark = op_bratio (op/bratio.f 3-path) — same watchpoint class as WC (WF COR)
-    _bk(sp, d) = variant_bratio(s, sp, Float32(d))   # dense.f backdating bark = the variant BRATIO (shared dispatch)
+    _bk(sp, d, h) = variant_bratio(s, sp, Float32(d), Float32(h))   # dense.f:102/122 BRATIO(IS,D,HT(I)) — the variant BRATIO
+                                             # (shared dispatch; HT only read by ON's metric H/D bark, inert elsewhere)
     ismiss = (idg == 1 || idg == 3) ? (g -> g < 0f0) : (g -> g <= 0f0)
     bagr = 0f0; nb = 0f0
     @inbounds for i in 1:n
         g = t.diam_growth[i]; ismiss(g) && continue
         d = t.dbh[i]
-        gadj = idg == 1 ? g : g / _bk(t.species[i], d)
+        gadj = idg == 1 ? g : g / _bk(t.species[i], d, t.height[i])
         gadj > d && continue
         bagr += 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d); nb += 1f0
     end
@@ -323,7 +324,7 @@ function _backdate_dbh!(s::StandState)
     @inbounds for i in 1:n
         d = t.dbh[i]; g = t.diam_growth[i]; r = bagr
         if !ismiss(g)
-            gadj = idg == 1 ? g : min(g / _bk(t.species[i], d), d)
+            gadj = idg == 1 ? g : min(g / _bk(t.species[i], d, t.height[i]), d)
             rr = 1f0 - (2f0 * d * gadj - gadj * gadj) / (d * d)
             rr > 0f0 && (r = rr)
         end
@@ -336,7 +337,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     t, c = s.trees, s.calib
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    sigmar = s.variant isa Olympic ? OP_DG_SIGMAR : sd[:dg_resid_sd]   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
+    sigmar = s.variant isa Olympic ? OP_DG_SIGMAR :   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
+             s.variant isa Ontario ? ON_DG_SIGMAR : sd[:dg_resid_sd]   # ON SIGMAR (canada/on/blkdat.f:268)
     _op_cal = s.variant isa Olympic           # OP bark = op_bratio (op/bratio.f) — same watchpoint class as WC (WF COR)
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)
@@ -529,7 +531,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 # cornew drifts ~0.19 more negative, crossing the exp(-2.5)=0.0821 COR out-of-range trap
                 # (dgdriv.f:640) ⇒ COR falsely zeroed for measured-DG species (e.g. aspen sp20), which then
                 # over-grows where gemdg is explosive on small DBH. 4th CR variant-bark location.
-                bk = variant_bratio(s, t.species[i], saved_dbh[i])   # shared variant BRATIO
+                bk = variant_bratio(s, t.species[i], saved_dbh[i], t.height[i])   # shared variant BRATIO (dgdriv.f DO 105 BRATIO(ISPC,DBH,HT))
                 t.diam_growth[i] *= bk
             end
         end
@@ -628,7 +630,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
         edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
-        bark = variant_bratio(s, sp, saved_dbh[i])   # bark at CURRENT dbh (dgdriv.f:435) — shared variant BRATIO
+        bark = variant_bratio(s, sp, saved_dbh[i], t.height[i])   # bark at CURRENT dbh (dgdriv.f:435 BRATIO(ISPC,DBH,HT)) — shared variant BRATIO
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
         reslog = log(term) - wk2[i]
@@ -743,8 +745,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # (which ran with COR=0). Same context: FORTYP 0, current AVH, the current-RMSQD stash for aspen DGFASP.
     # CI, KT and TT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705, tt/dgdriv.f DGF(WK3) then DO 220): their LSTART REGCAL
     # DO 49 reads that DG (ci_do220_dg / kt_do220_dg / tt_do220_dg). IE too (ie/dgdriv.f:759 → DO 220, ie_cycle0_wk1!).
+    # ON (canada/on/dgdriv.f:694 CALL DGF(WK3) → DO 220): the dub DG is only reported — it is cycle 1's WK1, the MCuM of
+    # a record the first MORTS empties (on_do220_dg).
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire
+       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         s.calib.cur_rmsqd = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
@@ -1227,6 +1231,9 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                                              # BA/QMD over-growth (2090 BA +19%). Calibration/mortality/update already
                                              # use wc_bratio; this DDS→DG conversion was the missing branch.
     yr = htg_period(s.variant)   # DG model native period (gradd.f FINT/YR scale): 5 SN, 10 NE
+    # ON (canada/on htgf.f DBH10=DBH+DG/BARK, morts.f G=(DG/BARK)·(FINT/10), regent.f DGGR blend) reads the YR(10)-yr
+    # DG through all of GRINCR; gradd.f:79-90 rescales it to FINT only AFTER MORTS+TRIPLE (on_gradd_dg_scale!).
+    bsfint = _on_dg ? yr : sfint
     # WC links wc/dgbnd.f: DGMAX=7.92·EXP(−0.03·min(DBH,150)) envelope + DG≥0 floor (redwood sp17 exempt) before
     # the SIZCAP cap — NOT the generic SIZCAP-only bound (wc/dgdriv.f:221,266-268). FVSpn compiles the same
     # dgdriv.f/dgbnd.f, so PN takes it too; FVSop links dgbnd.f but has its own hook.
@@ -1443,20 +1450,25 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
             if do_trip
                 rnpar = oldrn[i]                            # original residual (dgdriv.f:116)
                 frmt = frmbase + corr * rnpar; oldrn[i] = frmt
+                # canada/on/dgdriv.f (tripling, label 30) has NO RNPAR save: after `OLDRN(I)=FRMT` the upper/lower
+                # copies read `FRU+CORR*OLDRN(I)` / `FRL+CORR*OLDRN(I)` = the central's UPDATED residual, unlike
+                # sn/ls/ne/cs dgdriv.f (RNPAR=OLDRN(I) before the update). Measured on ont01 cyc1 (PW upper DG .0770
+                # with RNPAR vs live .0795).
+                _on_dg && (rnpar = frmt)
                 dgc = sqrt(d_ib * d_ib + dds5 * fexp(frmt)) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd, _wsbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd)
                 ru = fru + corr * rnpar; rnU[i] = ru
                 dgu = sqrt(d_ib * d_ib + dds5 * fexp(ru)) - d_ib
                 crv && ((_cr_dg ? dgu : dgc) - wkicr > glim) && (dgu = wkcap)
                 _misdrv && (dgu *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, sfint, size_cap, yr, _wcbnd, _wsbnd)
+                dgU[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgu, bsfint, size_cap, yr, _wcbnd, _wsbnd)
                 rl = frl + corr * rnpar; rnL[i] = rl
                 dgl = sqrt(d_ib * d_ib + dds5 * fexp(rl)) - d_ib
                 crv && ((_cr_dg ? dgl : dgc) - wkicr > glim) && (dgl = wkcap)
                 _misdrv && (dgl *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, sfint, size_cap, yr, _wcbnd, _wsbnd)
+                dgL[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgl, bsfint, size_cap, yr, _wcbnd, _wsbnd)
             else
                 if tripling
                     frmt = frmbase + corr * oldrn[i]       # deterministic (dgdriv.f:117)
@@ -1469,7 +1481,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
                 dgc = sqrt(d_ib * d_ib + dds5 * frm) - d_ib
                 crv && (dgc - wkicr > glim) && (dgc = wkcap)
                 _misdrv && (dgc *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
-                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, sfint, size_cap, yr, _wcbnd, _wsbnd)
+                t.diam_growth[i] = _bound_scale(dlo_v, dhi_v, sp, t.dbh[i], d_ib, dgc, bsfint, size_cap, yr, _wcbnd, _wsbnd)
             end
         end
     end

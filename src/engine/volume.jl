@@ -324,6 +324,7 @@ function dub_missing_heights!(s::StandState)
     # Pre-dub heights for the shared CRATET-DENSE AVH (every variant's cratet.f runs that DENSE before CROWN).
     s.calib.cratet_ht_in = t.height[1:(t.n + t.ndead)]
     s.variant isa Kootenai && return kt_dub_missing_heights!(s)   # kt/cratet.f √D regression + SMHTRG (own dub)
+    on_dead = (s.variant isa Ontario && t.ndead > 0) ? on_cratet_dead_density(s) : (0f0, 0f0, 0f0)
     @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; sp = t.species[i]
         tkill = t.norm_ht[i] < 0
@@ -418,8 +419,10 @@ function dub_missing_heights!(s::StandState)
             ws_htdbh_height(0, Int(sp), d)
         elseif s.variant isa Ontario
             # on/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (Wykoff/Curtis-Arney) default-coefficient
-            # dub. Reaches here for missing / broken-top heights (which drop the measured H).
-            _on_htdbh_height(Int(sp), d)
+            # dub. Reaches here for missing / broken-top heights (which drop the measured H). The cycle-0 DEAD
+            # records (DO 145, :398-418) take the Penner HTONT(ISPC,D,RMSQD,BA,H) only — no HTDBH override — with the
+            # RMSQD/BA the CRATET backdating DENSE left (on_cratet_dead_density).
+            i > t.n ? on_htont(Int(sp), d, on_dead[1], on_dead[2], on_dead[3]) : _on_htdbh_height(Int(sp), d)
         elseif s.variant isa Klamath
             # nc/cratet.f LHTDRG=.FALSE. all species ⇒ HTDBH MODE=0 (SISKIY Curtis-Arney, nc_htdbh_h). NC has
             # no :htdbh_p2 blockdata column, so the generic `_htdbh_height` below would dub a too-short height:
