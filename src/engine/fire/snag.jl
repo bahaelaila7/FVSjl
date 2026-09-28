@@ -234,6 +234,7 @@ end
 
 # The per-stem bole biomass (tons) of snag record `i` as FMDOUT's FMSVOL(I,HTIx)·V2T sees it: the stored death-time bole,
 # Jenkins for a record without one, reduced for a broken top (see snag_bole_carbon).
+_snag_east_vol(v) = v isa Southern || v isa CentralStates || v isa LakeStates || v isa Northeast
 function _snag_bole_tons(s::StandState, i::Int)::Float32
     fs = s.fire; sn = fs.snags; coef = s.coef
     @inbounds begin
@@ -246,7 +247,7 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
         if _ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i])       # {v}/fmsvol.f(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
             b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
-        elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+        elseif (!isempty(fs.params.snag_htx) || _snag_east_vol(s.variant)) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
             # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
             # Clark volume (v4+v7 merch, v1 total — the same basis as their live-tree merch_cuft_vol / bolevol);
@@ -261,7 +262,9 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
                 mcf_full = d >= dbhmin ? v[4] + v[7] : 0f0
                 vmax = v[1]
             else
-                mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
+                # SN/CS: NATCRS MCF with the merch-DBH gate + Region-8 rule (_snag_merch_cuft_on, the same basis as the
+                # stored bole) — _fm_cuft's bare v[4] has no DBHMIN gate (a 5" SD snag got 1.1 cuft vs live MCF 0 ⇒ X).
+                mcf_full = _snag_east_vol(s.variant) ? _snag_merch_cuft_on(s, sp, d, htd) : _fm_cuft(s, sp, d, htd; merch = true)
                 vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
             end
             if mcf_full > 0f0
@@ -270,8 +273,15 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
                              scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
                 bk = bark_ratio(coef, sp, d)
                 _, mcf_t, _ = cftopk(merch_std, sp, d, htd, vmax, mcf_full, 0f0, vmax, bk,
+                                     _snag_east_vol(s.variant) ? unsafe_trunc(Int, sn.htcur[i] * 100f0) :
                                      round(Int, sn.htcur[i] * 100f0))   # CFTOPK: merch reduced for the broken top
-                b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
+                if _snag_east_vol(s.variant)
+                    # fmsvol.f:150-153 (CS/LS/NE/SN): VOL2HT = MAX(0.005454154·H, MCF), MCF from NATCRS(D,HTDEAD) + CFTOPK
+                    # at IHT = INT(XHT·100) — recomputed fresh each report, not a ratio of the stored bole.
+                    b = max(0.005454154f0 * htd, mcf_t) * coef_col(coef, :v2t)[sp] / 2000f0
+                else
+                    b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
+                end
             end
         end
     end

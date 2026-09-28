@@ -24,6 +24,16 @@ function _case238()
 end
 _cells238(file, cols, yrs) = count(m -> m.file == file && m.col in cols && m.year in yrs, _case238().ms)
 
+const _CX = Dict{Tuple{String,String},Any}()
+function _casex(st, rg)
+    get!(_CX, (st, rg)) do
+        d = mktempdir()
+        txt, db, crashed, _ = run_case("SN", st, rg; dir = d)
+        (crashed = crashed, ms = compare_case("SN", st, rg, txt, db))
+    end
+end
+_cellsx(st, rg, file, cols, yrs) = count(m -> m.file == file && m.col in cols && m.year in yrs, _casex(st, rg).ms)
+
 # sn/crown.f:156-159 ISORT(IND(JJ)) = ITRN−JJ+1 over FVS's IND — at the inventory CRATET's IND1-seeded RDPSRT(.FALSE.)
 # (sn/cratet.f:155-157; :261 RDPSRT(.TRUE.) with dead records) — so tied diameters rank in RDPSRT's order, and the
 # Weibull X = ISORT/ITRN·SCALE dubs their crowns accordingly. jl ranked by a stable ascending sortperm (MEASURED 1972:
@@ -84,6 +94,17 @@ end
 # Stratum_2_DBH 1 ULP). With it the whole THINBBA case equals live.
 @testset "SN sprout survival at essprt.f's association (essprt.f:514-594): 238813815010854 THINBBA all cells vs FVSsn_g16" begin
     @test isempty(_case238().ms)
+end
+
+# fmsvol.f:98-153 (CS/LS/NE/SN): every report recomputes each snag's bole as NATCRS(DBHS, HTDEAD) cut at the CURRENT height
+# (XHT=HTIH ⇒ LTKIL, IHT=INT(XHT·100), CFTOPK), VOL2HT = MAX(0.005454154·HTDEAD, MCF). jl truncated only under SNAGBRK, so
+# an inventory snag whose current height sits below its normal height (200267456010854: SO 12.2" HTDEAD 66 / HTIH 51) kept
+# its full 20.1 cuft bole (live 19.787945) ⇒ 2002 Standing_Dead 3.3061 vs live 3.2710 (private FVSsn FMDOUT trace).
+@testset "SN broken-top snag bole at the current height (fmsvol.f:98-153) vs FVSsn_g16" begin
+    for rg in ("salvage", "simfire")
+        @test !_casex("200267456010854", rg).crashed
+        @test _cellsx("200267456010854", rg, "FVS_Carbon", ("Standing_Dead", "Total_Stand_Carbon"), ("2002",)) == 0
+    end
 end
 
 end # module
