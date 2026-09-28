@@ -470,17 +470,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 5 cells [ulpbig=5] max|Δ|=1.0 | e.g. stand 647500316126144 year 2028: live=0 jl=1"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "Total_class1"
 stand = "*"
 year = "*"
@@ -3985,17 +3974,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 12 cells [ulp2_16=2 ulpbig=10] max|Δ|=0.0124 | e.g. stand 216786838010854 year 2009: live=2.438760995864868 jl=2.438657760620117"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 651101880126144 year 2023: live=0 jl=1"""
 
 [[residual]]
 variant = "SN"
