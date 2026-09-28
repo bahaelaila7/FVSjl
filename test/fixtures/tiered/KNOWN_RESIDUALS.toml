@@ -35599,17 +35599,6 @@ issue = """material divergence (model/report) — needs dig; owner: the NC campa
 variant = "NC"
 regime = "climate"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=201"""
-
-[[residual]]
-variant = "NC"
-regime = "climate"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -35770,17 +35759,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=12.0 | e.g. stand 44777283020004 year 2021: live=220 jl=232"""
-
-[[residual]]
-variant = "NC"
-regime = "climate"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -35984,17 +35962,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 variant = "NC"
 regime = "cover"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "cover"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -36078,17 +36045,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=58.0 | e.g. stand 7690091010901 year 2011: live=49141 jl=49137"""
-
-[[residual]]
-variant = "NC"
-regime = "cover"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -36325,17 +36281,6 @@ issue = """material divergence (model/report) — needs dig; owner: the NC campa
 variant = "NC"
 regime = "econ"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "econ"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -36551,17 +36496,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 4 cells [material=2 ulpbig=2] max|Δ|=5.0 | e.g. stand 44777283020004 year 2036: live=53 jl=54"""
-
-[[residual]]
-variant = "NC"
-regime = "econ"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -36875,17 +36809,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 variant = "NC"
 regime = "mistletoe"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "mistletoe"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -36947,17 +36870,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=44.0 | e.g. stand 7690091010901 year 2011: live=48806 jl=48802"""
-
-[[residual]]
-variant = "NC"
-regime = "mistletoe"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -37112,17 +37024,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=58.0 | e.g. stand 7690091010901 year 2026: live=60183 jl=60162"""
-
-[[residual]]
-variant = "NC"
-regime = "none"
-file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -37370,17 +37271,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 variant = "NC"
 regime = "none"
 file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "none"
-file = "sum"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -37579,17 +37469,6 @@ issue = """material divergence (model/report) — needs dig; owner: the NC campa
 variant = "NC"
 regime = "plant_cal"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "plant_cal"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -37761,17 +37640,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 10 cells [material=8 ulpbig=2] max|Δ|=10.0 | e.g. stand 449523860489998 year 2036: live=60 jl=58"""
-
-[[residual]]
-variant = "NC"
-regime = "plant_cal"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -38008,17 +37876,6 @@ issue = """material divergence (model/report) — needs dig; owner: the NC campa
 variant = "NC"
 regime = "plant_cyc"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "plant_cyc"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -38212,17 +38069,6 @@ year = "*"
 status = "OPEN"
 max_cells = 18
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 18 cells [material=12 ulpbig=6] max|Δ|=15.0 | e.g. stand 450603388489998 year 2031: live=29 jl=19"""
-
-[[residual]]
-variant = "NC"
-regime = "plant_cyc"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=170.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -38459,34 +38305,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 variant = "NC"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 30
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 30 cells [ulp1=22 ulp2_16=8] max|Δ|=3.815e-6 | e.g. stand 449523860489998 year 2031: live=3.9714038372039795 jl=3.9714040756225586"""
-
-[[residual]]
-variant = "NC"
-regime = "rootdis"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -40175,17 +39999,6 @@ issue = """material divergence (model/report) — needs dig; owner: the NC campa
 variant = "NC"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2021: live=371 jl=221"""
-
-[[residual]]
-variant = "NC"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -40401,17 +40214,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 4 cells [material=2 ulpbig=2] max|Δ|=5.0 | e.g. stand 44777283020004 year 2036: live=53 jl=54"""
-
-[[residual]]
-variant = "NC"
-regime = "thinbba"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the NC campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=150.0 | e.g. stand 44777283020004 year 2011: live=371 jl=221"""
 
 [[residual]]
 variant = "NC"
@@ -48569,17 +48371,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "climate"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 1 cells [material=1] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "climate"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -48740,17 +48531,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=27.0 | e.g. stand 15364795010497 year 2010: live=184 jl=207"""
-
-[[residual]]
-variant = "SO"
-regime = "climate"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 1 cells [material=1] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -49207,17 +48987,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "cover"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "cover"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -49400,17 +49169,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=26.0 | e.g. stand 15364795010497 year 2010: live=184 jl=207"""
-
-[[residual]]
-variant = "SO"
-regime = "cover"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -49669,17 +49427,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "econ"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "econ"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -49873,17 +49620,6 @@ year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 9 cells [material=3 ulpbig=6] max|Δ|=25.0 | e.g. stand 850566877290487 year 2050: live=519 jl=514"""
-
-[[residual]]
-variant = "SO"
-regime = "econ"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -50329,17 +50065,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "mistletoe"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "mistletoe"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -50522,17 +50247,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=26.0 | e.g. stand 15364795010497 year 2010: live=184 jl=207"""
-
-[[residual]]
-variant = "SO"
-regime = "mistletoe"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -51000,17 +50714,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "none"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "none"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -51369,17 +51072,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=26.0 | e.g. stand 15364795010497 year 2010: live=184 jl=207"""
-
-[[residual]]
-variant = "SO"
-regime = "none"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -51748,17 +51440,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -51864,17 +51545,6 @@ year = "*"
 status = "OPEN"
 max_cells = 7
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 7 cells [material=6 ulpbig=1] max|Δ|=23.0 | e.g. stand 15184869010497 year 2050: live=163 jl=164"""
-
-[[residual]]
-variant = "SO"
-regime = "rootdis"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -52397,17 +52067,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "salvage"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "salvage"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -52601,17 +52260,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 24079993010900 year *: live=none jl=15 non-summary lines: --------------------------------------"""
-
-[[residual]]
-variant = "SO"
-regime = "salvage"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -53486,17 +53134,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "simfire"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2046: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -53701,17 +53338,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 15184869010497 year *: live=none jl=15 non-summary lines: --------------------------------------"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 6 cells [material=6] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -54432,17 +54058,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
-
-[[residual]]
-variant = "SO"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -54636,17 +54251,6 @@ year = "*"
 status = "OPEN"
 max_cells = 9
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 9 cells [material=3 ulpbig=6] max|Δ|=25.0 | e.g. stand 850566877290487 year 2050: live=519 jl=514"""
-
-[[residual]]
-variant = "SO"
-regime = "thinbba"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=110.0 | e.g. stand 7690240010901 year 2006: live=371 jl=261"""
 
 [[residual]]
 variant = "SO"
@@ -54897,34 +54501,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: the CA
 variant = "CA"
 regime = "climate"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 12 cells [material=12] max|Δ|=170.0 | e.g. stand 23676707010900 year 2001: live=371 jl=221"""
-
-[[residual]]
-variant = "CA"
-regime = "climate"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 24
 issue = """per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=9 ulp2_16=15] max|Δ|=5.722e-6 | e.g. stand 23676707010900 year 2051: live=11.104990005493164 jl=11.104984283447266"""
-
-[[residual]]
-variant = "CA"
-regime = "climate"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 12 cells [material=12] max|Δ|=170.0 | e.g. stand 23676707010900 year 2001: live=371 jl=221"""
 
 [[residual]]
 variant = "CA"
@@ -55029,17 +54611,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the CA
 variant = "CA"
 regime = "cover"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23676707010900 year 2001: live=371 jl=221"""
-
-[[residual]]
-variant = "CA"
-regime = "cover"
-file = "FVS_Summary"
 col = "Mort"
 stand = "*"
 year = "*"
@@ -55057,17 +54628,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 26 cells [ulp1=10 ulp2_16=16] max|Δ|=9.537e-6 | e.g. stand 23676707010900 year 2011: live=11.580753326416016 jl=11.580756187438965"""
-
-[[residual]]
-variant = "CA"
-regime = "cover"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23676707010900 year 2001: live=371 jl=221"""
 
 [[residual]]
 variant = "CA"
@@ -55304,17 +54864,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the CA
 variant = "CA"
 regime = "mistletoe"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23742358010900 year 2021: live=371 jl=201"""
-
-[[residual]]
-variant = "CA"
-regime = "mistletoe"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -55332,17 +54881,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the CA campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 23742358010900 year 2041: live=98165 jl=98164"""
-
-[[residual]]
-variant = "CA"
-regime = "mistletoe"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23742358010900 year 2001: live=371 jl=201"""
 
 [[residual]]
 variant = "CA"
@@ -55442,17 +54980,6 @@ year = "*"
 status = "OPEN"
 max_cells = 26
 issue = """per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 26 cells [ulp1=10 ulp2_16=16] max|Δ|=9.537e-6 | e.g. stand 374401353489998 year 2025: live=8.37219524383545 jl=8.372194290161133"""
-
-[[residual]]
-variant = "CA"
-regime = "none"
-file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23742358010900 year 2021: live=371 jl=201"""
 
 [[residual]]
 variant = "CA"
@@ -55629,17 +55156,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3210
 issue = """per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 3210 cells [ulp1=1163 ulp2_16=2047] max|Δ|=8.392e-5 | e.g. stand 374203872489998 year 2065: live=0.38155022263526917 jl=0.3815501928329468"""
-
-[[residual]]
-variant = "CA"
-regime = "none"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """material divergence (model/report) — needs dig; owner: the CA campaign (not yet dug) | measured 2026-09-28: 7 cells [material=7] max|Δ|=170.0 | e.g. stand 23742358010900 year 2001: live=371 jl=201"""
 
 [[residual]]
 variant = "CA"
@@ -55912,34 +55428,12 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "climate"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2061: live=371 jl=224"""
-
-[[residual]]
-variant = "WS"
-regime = "climate"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 35 cells [ulp1=16 ulp2_16=18 ulpbig=1] max|Δ|=3.433e-5 | e.g. stand 1123894228290487 year 2061: live=32.60187530517578 jl=32.60184097290039"""
-
-[[residual]]
-variant = "WS"
-regime = "climate"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
 
 [[residual]]
 variant = "WS"
@@ -56055,17 +55549,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "cover"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2061: live=371 jl=224"""
-
-[[residual]]
-variant = "WS"
-regime = "cover"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -56116,17 +55599,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
-
-[[residual]]
-variant = "WS"
-regime = "cover"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
 
 [[residual]]
 variant = "WS"
@@ -56286,17 +55758,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "econ"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 1123894228290487 year 2031: live=371 jl=224"""
-
-[[residual]]
-variant = "WS"
-regime = "econ"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -56358,17 +55819,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
-
-[[residual]]
-variant = "WS"
-regime = "econ"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
 
 [[residual]]
 variant = "WS"
@@ -56594,17 +56044,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "mistletoe"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 23762384010900 year 2031: live=371 jl=201"""
-
-[[residual]]
-variant = "WS"
-regime = "mistletoe"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -56655,17 +56094,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2061: live=119981 jl=119982"""
-
-[[residual]]
-variant = "WS"
-regime = "mistletoe"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 23762384010900 year 2021: live=371 jl=201"""
 
 [[residual]]
 variant = "WS"
@@ -56809,17 +56237,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2061: live=124771 jl=124773"""
-
-[[residual]]
-variant = "WS"
-regime = "none"
-file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 850400255290487 year 2070: live=371 jl=222"""
 
 [[residual]]
 variant = "WS"
@@ -57040,17 +56457,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
-
-[[residual]]
-variant = "WS"
-regime = "none"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 25
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
 
 [[residual]]
 variant = "WS"
@@ -57309,17 +56715,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "rootdis"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=150.0 | e.g. stand 850400255290487 year 2070: live=371 jl=222"""
-
-[[residual]]
-variant = "WS"
-regime = "rootdis"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -57359,17 +56754,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=98503 jl=98504"""
-
-[[residual]]
-variant = "WS"
-regime = "rootdis"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 17
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=150.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
 
 [[residual]]
 variant = "WS"
@@ -57628,17 +57012,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WS
 variant = "WS"
 regime = "thinbba"
 file = "FVS_Summary"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
-
-[[residual]]
-variant = "WS"
-regime = "thinbba"
-file = "FVS_Summary"
 col = "MAI"
 stand = "*"
 year = "*"
@@ -57700,17 +57073,6 @@ year = "*"
 status = "OPEN"
 max_cells = 5
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
-
-[[residual]]
-variant = "WS"
-regime = "thinbba"
-file = "sum"
-col = "ForTyp"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
 
 [[residual]]
 variant = "WS"

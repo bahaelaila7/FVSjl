@@ -121,6 +121,10 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # index in the eastern crown-width models.
     _fia_present(d, "LATITUDE")  && (p.latitude  = _fia_f32(d, "LATITUDE", p.latitude))
     _fia_present(d, "LONGITUDE") && (p.longitude = _fia_f32(d, "LONGITUDE", p.longitude))
+    # STATE/COUNTY (ISTATE/ICNTY, dbsstandin.f:388-395 / 833-840; grinit.f:223-224 default 0) — read by FORTYP's
+    # California mixed-conifer test (fortyp.f:1121-1131). jl never read them (both stayed 0).
+    _fia_present(d, "STATE")  && (p.state  = Int32(_fia_int(d, "STATE", 0)))
+    _fia_present(d, "COUNTY") && (p.county = Int32(_fia_int(d, "COUNTY", 0)))
     # ECOREGION (ecological unit / EUT, e.g. "223Db") → eco_unit. FVS reads it from STANDINIT and adds a
     # per-species ecological-unit DG term (dgf.f EUT categorical coefficients dg_phys_*), plus it drives the
     # montane site/height/estab branches (eco_unit[1]=='M'). Without it the whole EUT DG term is dropped for

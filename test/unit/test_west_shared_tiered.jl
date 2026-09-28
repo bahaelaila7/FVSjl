@@ -58,4 +58,16 @@ end
     @test count(m -> m.file in ("FVS_Error", "FVS_PotFire", "FVS_Carbon"), c.ms) == 0
 end
 
+# fortyp.f:1117-1140 California mixed-conifer test (ISTATE 6 or region 5): DF off the north coast (needs ICNTY, read
+# from the FIA COUNTY column — dbsstandin.f:392-395), SP/IC, PP/JP with PP < 80%, WF/RF with true fir < 80% → 371
+# (MEASURED: NC 44777283020004 2011 live 371 / jl 221, SO 7690240010901 371/261, CA 23742358010900 371/201, WS
+# 850400255290487 371/222).
+@testset "FORTYP California mixed conifer 371 (fortyp.f:1117-1140) vs live" begin
+    for (v, cn) in (("NC", "44777283020004"), ("SO", "7690240010901"), ("CA", "23742358010900"), ("WS", "850400255290487"))
+        c = _case(v, cn, "none")
+        @test !c.crashed
+        @test count(m -> m.col == "ForTyp", c.ms) == 0
+    end
+end
+
 end # module
