@@ -329,4 +329,16 @@ end
     end
 end
 
+# algslp.f: Y(I)+((Y(I+1)-Y(I))/(X(I+1)-X(I)))*(XX-X(I)) — the slope first, then ×(XX−X(I)); an XX on a breakpoint takes the
+# NEXT interval. The western FULIVE/FULIVI and FUINIE/FUINII interpolations by PERCOV (and SN's FULIV2 by shrub age) used
+# (Y2−Y1)·(X−X1)/(X2−X1) (MEASURED private FVSie FMCBA trace, 3027007010690 1996: STFUEL now bit-equal to live; Shrub_Herb
+# 1996/2006/2026 were 1 ULP off).
+@testset "FFE ALGSLP interpolation in algslp.f's association vs FVSie_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("IE", "3027007010690", "salvage"; dir = d)
+    @test !crashed
+    ms = compare_case("IE", "3027007010690", "salvage", txt, db)
+    @test count(m -> m.file == "FVS_Carbon" && m.col == "Forest_Shrub_Herb", ms) == 0
+end
+
 end # module

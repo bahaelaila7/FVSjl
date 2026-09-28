@@ -93,7 +93,7 @@ const _CR_FULIVI = Float32[    # initiating stands (10% cover)  (herb, shrub)
 @inline function _cr_algslp2(x::Float32, x1::Float32, x2::Float32, y1::Float32, y2::Float32)::Float32
     x <= x1 && return y1
     x >= x2 && return y2
-    return y1 + (y2 - y1) * (x - x1) / (x2 - x1)
+    return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)   # algslp.f: Y(I)+((Y(I+1)-Y(I))/(X(I+1)-X(I)))*(XX-X(I))
 end
 
 # CR live herb/shrub fuel (fmcba.f:443-449): interpolate between INITIATING (10% cover, FULIVI) and

@@ -241,13 +241,12 @@ const _FULIV2 = Float32[                                                # [age 1
 
 "ALGSLP (algslp.f): segmented-linear interpolation of `y` at `x` over ascending knots `xs`, clamped flat beyond the ends."
 @inline function _ffe_algslp(x::Float32, xs::NTuple{8,Float32}, y::AbstractVector{Float32})
-    x <= xs[1] && return y[1]
+    # algslp.f: XX<X(1) ⇒ Y(1); XX≥X(N) ⇒ Y(N); else the first I with XX<X(I+1): Y(I)+((Y(I+1)-Y(I))/(X(I+1)-X(I)))*(XX-X(I))
+    x < xs[1] && return y[1]
     x >= xs[8] && return y[8]
-    @inbounds for k in 2:8
-        if x <= xs[k]
-            f = (x - xs[k-1]) / (xs[k] - xs[k-1])
-            return y[k-1] + f * (y[k] - y[k-1])
-        end
+    @inbounds for k in 1:7
+        x >= xs[k+1] && continue
+        return y[k] + ((y[k+1] - y[k]) / (xs[k+1] - xs[k])) * (x - xs[k])
     end
     return y[8]
 end
