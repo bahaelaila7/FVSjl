@@ -416,9 +416,18 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         p.elevation == 0f0 && (p.elevation = elev0)
     end
     # Sampling design (DESIGN card): BAF / FPA / BRK / IPTINV / NONSTK / SAMWT / GROSPC
-    _fia_present(d, "BASAL_AREA_FACTOR") && (p.baf = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0))
-    _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0))
-    _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
+    # ON (canada/on dbsstandin.f:357-376, METRIC reader): BASAL_AREA_FACTOR <0 (inverse fixed-plot size, per ha) is
+    # /HAtoACR, ≥0 (m²/ha) is *M2pHAtoFT2pACR; INV_PLOT_SIZE /HAtoACR; BRK_DBH (cm) *CMtoIN — so notre.f expands the
+    # per-plot TREE_COUNT to trees/ACRE itself (PROB = count·(−BAF)/PI). (TREE_COUNT is NOT converted.)
+    on_db = s.variant isa Ontario
+    if _fia_present(d, "BASAL_AREA_FACTOR")
+        b = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0)
+        on_db && (b = b < 0f0 ? b / 2.471f0 : b * 4.3560773f0)
+        p.baf = b
+    end
+    _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0) / (on_db ? 2.471f0 : 1f0))
+    _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = on_db ? _fia_f32(d, "BRK_DBH", 0f0) * 0.3937f0 :
+                                                                          _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
     _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)))
     _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)))
     _fia_present(d, "SAM_WT")            && (p.sample_weight = _fia_f32(d, "SAM_WT", p.sample_weight))
@@ -596,7 +605,7 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     # the same class as the BC bug 42eb555.)
     metric_db = s.variant isa BritishColumbia || s.variant isa Ontario
     res = ingest_tree_records!(s, recs; metric = metric_db)
-    if metric_db
+    if metric_db && !(s.variant isa Ontario)     # ON: the design factors are converted instead (see BASAL_AREA_FACTOR)
         # DB TREE_COUNT (PROB) is per-HECTARE; FVS's metric expansion yields per-acre (via the metric
         # plot area). notre! here multiplies by the design factor only, so pre-scale the raw PROB
         # per-ha→per-acre (× ACRtoHA) so the expanded internal TPA is per-acre like every other variant.
