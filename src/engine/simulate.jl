@@ -40,8 +40,6 @@ function setup_growth!(s::StandState)
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
-    s.variant isa SoutheastAlaska || sdi_max_check!(s)   # SDICHK — reset species SDImax if over-dense (AK: at the
-                                         # END of CRATET, after the crown dub + calibration — see the AK branch)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
@@ -211,11 +209,6 @@ function setup_growth!(s::StandState)
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
-        sdi_max_check!(s)                 # ak/cratet.f:664 CALL SDICHK is the LAST step of CRATET — after the :522 CROWN dub
-                                          # (whose PRD = ZRD/XMAXPT reads the UNRESET SDIDEF) and the :600 DGDRIV + REGENT
-                                          # calibration. Resetting first fed an over-dense stand's dub the reset SDImax:
-                                          # FIA 10708179010497 XMAXPT 711.63 vs live 614.10 ⇒ PRD 0.8497 vs 0.9846 ⇒ crowns
-                                          # 1-3 pts high ⇒ diverged from 2007.
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
@@ -291,6 +284,10 @@ function setup_growth!(s::StandState)
     end
     cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
                                           # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)
+    # SDICHK — reset the species SDImax when the inventory is over-dense. Every variant's cratet.f calls it LAST
+    # (after the CROWN dub, the DGDRIV/REGENT calibration and the final DENSE), so the dub and the calibration read the
+    # unreset SDIDEF. AK FIA 10708179010497: resetting first gave XMAXPT 711.63 vs live 614.10 ⇒ crowns 1-3 pts high.
+    sdi_max_check!(s)
     return s
 end
 
@@ -662,6 +659,8 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
     empty!(s.fire.fmicr)                                       # FMICR of THIS burn only (set by fmburn!)
+    empty!(s.fire.firkil)                                      # FIRKIL of THIS burn only: fmburn! refills it; a fire-due
+                                                               # cycle whose burn never reaches FMEFF keeps WK2 = MORTS
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
@@ -829,11 +828,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
-    # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
-    # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
-    # FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into slot 511, live PBAL 255.53
-    # (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002 ⇒ DG/LTHG/HTG ⇒ mortality.
-    ncomcup = s.variant isa SoutheastAlaska ? count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n) : 0
+    # comcup.f:103-140 (identical in every variant build, called from the shared grincr.f:391): when COMCUP deletes
+    # records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads fresh density for the moved records (TREMOV
+    # does not carry PTBALT/PCT). AK FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into
+    # slot 511, live PBAL 255.53 (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002.
+    ncomcup = count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n)
     comcup!(s.trees; onmove = _record_move_hook(s))         # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
     ncomcup > 0 && compute_density!(s)
     _trim_crown_bypass!(s)
