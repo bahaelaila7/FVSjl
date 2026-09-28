@@ -272,4 +272,11 @@ end
     @test count(m -> startswith(m.file, "FVS_PotFire"), ms) == 0
 end
 
+# fmcba.f:228-229 PERCOV = (1.0-EXP(-TOTCRA/43560.))*100 — EXP is expf; jl used Julia exp, a ULP apart often enough to move WMULT
+# and so FWIND (MEASURED private FMFINT trace, 238813815010854 2000 potential fire: FWIND 40875A5C vs live 40875A5B ⇒ spread
+# rate and flame ULPs; 205045340010854 SIMFIRE 2018 potential flame).
+@testset "FFE PERCOV with expf (fmcba.f:228-229) vs FVSsn_g16" begin
+    @test count(m -> m.file == "FVS_PotFire_East", _casex("205045340010854", "simfire").ms) == 0
+end
+
 end # module

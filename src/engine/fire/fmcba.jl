@@ -203,7 +203,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
-    fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
+    fs.percov = (1f0 - fexp(-totcra / 43560f0)) * 100f0   # fmcba.f:228-229 PERCOV=(1.0-EXP(-TOTCRA/43560.))·100 — EXP is expf
     # SO (FCCS/Ottmar) resolves BOTH the live (herb,shrub) and the 11-class dead pool from one COVRINI→FUELINI
     # lookup keyed by COVTYP, the FMSSTAGE structural stage ISSX (with the PERCOV≥60 SE-open→SE-closed bump),
     # and the logging-history model index (so/fmcba.f:639-726). Computed here (once COVTYP+PERCOV are known);
