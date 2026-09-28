@@ -576,7 +576,31 @@ const _FM_TFALL_OP = Float32[
     1f0 10f0 15f0 15f0 15f0 15f0;
     2f0 5f0 5f0 15f0 15f0 15f0;
     1f0 10f0 15f0 15f0 15f0 15f0]
-"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP), or `nothing` ⇒ the SN tfall-class rows."
+# bm/fmvinit.f:190-470 TFALL(I,0:5) for the 18 BM species: TFALL(I,3) per species CASE; TFALL(I,1:2) = 5,5 for
+# CASE(6,11:16,18) else 10,15 (:447-457); TFALL(I,4:5) = TFALL(I,3); TFALL(I,0) = MIN(3,LEAFLF(I)) (:464); TFALL(I,2)
+# capped at TFALL(I,3) (:468). BM fell to the SN class rows (1-2 yr) — MEASURED FVSbm_g16 645155287126144 salvage 2048
+# (instrumented fmdout.f): DF crown CWD2B(1,0..3,·) spread over 3/10/15/15 slots live, 1/1/1/2 jl, so the 2037-died
+# 1-3in branches had all fallen in jl by 2048 (Standing_Dead crown 0.0075636 live vs 0.0073818 jl).
+const _FM_TFALL_BM = Float32[
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  1 WP
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  2 WL
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  3 DF
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  4 GF
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  5 MH
+    3f0  5f0  5f0 15f0 15f0 15f0;   #  6 WJ
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  7 LP
+    3f0 10f0 10f0 10f0 10f0 10f0;   #  8 ES
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  9 AF
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 10 PP
+    3f0  5f0  5f0 15f0 15f0 15f0;   # 11 WB
+    3f0  5f0  5f0 15f0 15f0 15f0;   # 12 LM
+    3f0  5f0  5f0 20f0 20f0 20f0;   # 13 PY
+    3f0  5f0  5f0 20f0 20f0 20f0;   # 14 YC
+    1f0  5f0  5f0 15f0 15f0 15f0;   # 15 AS
+    1f0  5f0  5f0 15f0 15f0 15f0;   # 16 CW
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 17 OS
+    1f0  5f0  5f0 15f0 15f0 15f0]   # 18 OH
+"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
                      v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
-                     v isa SoutheastAlaska ? _FM_TFALL_AK : nothing
+                     v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM : nothing

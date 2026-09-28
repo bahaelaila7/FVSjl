@@ -228,17 +228,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Standing_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 33
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 33 cells [material=9 ulp1=1 ulp2_16=1 ulpbig=22] max|Δ|=5.016 | e.g. stand 12827438010497 year 2025: live=1.4307292699813843 jl=1.4275182485580444"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
@@ -6169,50 +6158,6 @@ issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighte
 variant = "BM"
 regime = "salvage"
 file = "FVS_PotFire"
-col = "Fuel_Wt1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 6
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 6 cells [material=3 ulpbig=3] max|Δ|=29.0 | e.g. stand 41136808010497 year 2025: live=62.0 jl=63.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_PotFire"
-col = "Fuel_Wt2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 7 cells [material=3 ulpbig=4] max|Δ|=29.0 | e.g. stand 41136808010497 year 2025: live=38.0 jl=37.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_PotFire"
-col = "Mortality_BA_Sev"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 1 cells [material=1] max|Δ|=3.0 | e.g. stand 41136808010497 year 2045: live=21.0 jl=18.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_PotFire"
-col = "Mortality_VOL_Sev"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=132.0 | e.g. stand 41136808010497 year 2025: live=901.0 jl=897.0"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_PotFire"
 col = "PTorch_Mod"
 stand = "*"
 year = "*"
@@ -6329,28 +6274,6 @@ year = "*"
 status = "OPEN"
 max_cells = 15
 issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 15 cells [material=7 ulpbig=8] max|Δ|=9.387 | e.g. stand 12827438010497 year 2025: live=83.70997619628906 jl=78.646728515625"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Fuel_Mod1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 3→4) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=5.0 | e.g. stand 41136808010497 year 2035: live=10 jl=9"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Fuel_Mod2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 3→4) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=5.0 | e.g. stand 41136808010497 year 2035: live=9 jl=10"""
 
 [[residual]]
 variant = "BM"
