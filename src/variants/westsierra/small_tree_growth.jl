@@ -42,27 +42,29 @@ const WS_RG_CASURR  = Set([4,9,10,12,14,15,16,17,19,20,23,25,26,27])
     tembal = bal < 5f0 ? 5f0 : bal
     factor = 0.80f0 + 0.004f0 * (si - 50f0)
     htgr = 0f0
+    # EXP/ALOG/** of REAL*4 are glibc expf/logf/powf in the gfortran build (fexp/flog/fpow); the pine factor is
+    # applied as written (smhtgf.f: HTGR = HTGR*1.75*(.80+0.004*(SI-50.)), left to right).
     if nspc in WS_SM_PINE
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si)
-        htgr *= (nspc in WS_SM_PINE175 ? 1.75f0 : 1.50f0) * factor
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si)
+        htgr = htgr * (nspc in WS_SM_PINE175 ? 1.75f0 : 1.50f0) * factor
     elseif nspc in WS_SM_FIR
-        htgr = exp(-0.2495f0 - 0.00111f0*bal + 0.0100f0*cr*cr)
+        htgr = fexp(-0.2495f0 - 0.00111f0*bal + 0.0100f0*cr*cr)
         htgr = (nspc == 2 || nspc == 22 ? (htgr + 1f0)*2.5f0 : (htgr + 0.75f0)*2.0f0) * factor
     elseif nspc in WS_SM_OAK
-        htgr = exp(3.817f0 - 0.7829f0*log(tembal))
+        htgr = fexp(3.817f0 - 0.7829f0*flog(tembal))
     elseif nspc in WS_SM_TANOAK
-        htgr = exp(3.385f0 - 0.5898f0*log(tembal))
+        htgr = fexp(3.385f0 - 0.5898f0*flog(tembal))
     elseif nspc in WS_SM_CASURR
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
     elseif nspc == 4 || nspc == 23                              # RW/GS Chapman-Richards
         htmax = 2.242202f0 * si
         if htmax - h <= 1f0
             htgr = 0f0
         else
-            age1 = (1f0 / -0.010742f0) * log(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
+            age1 = (1f0 / -0.010742f0) * flog(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
             age2 = age1 + 5f0
-            h1 = 2.242202f0*si*fpow(1f0 - exp(-0.010742f0*age1), 0.919076f0)
-            h2 = 2.242202f0*si*fpow(1f0 - exp(-0.010742f0*age2), 0.919076f0)
+            h1 = 2.242202f0*si*fpow(1f0 - fexp(-0.010742f0*age1), 0.919076f0)
+            h2 = 2.242202f0*si*fpow(1f0 - fexp(-0.010742f0*age2), 0.919076f0)
             htgr = h2 - h1
         end
     end
@@ -82,8 +84,8 @@ function _ws_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float
     local dk::Float32, dkk::Float32
     if sp in WS_RG_CASURR || sp == 4 || sp == 23
         bx = coef_col(s.coef, :wykoff_ht2)[sp]; ax = s.calib.ht_dbh_aa[sp]
-        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0
-        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0
+        dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0
+        dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1f0
     elseif sp == 41
         dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0f0 && (dkk = d)
         dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
@@ -94,8 +96,8 @@ function _ws_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float
     else
         ihdw = msp == 3 || msp == 4
         ax, bx = msp == 1 ? (-0.6197f0, 0.2626f0) : msp == 2 ? (-0.6096f0, 0.2433f0) : (4.80420f0, -9.92422f0)
-        dk = ihdw ? bx / (log(hk - 4.5f0) - ax) - 1f0 : ax + bx * hk
-        dkk = h <= 4.5f0 ? d : (ihdw ? bx / (log(h - 4.5f0) - ax) - 1f0 : ax + bx * h)
+        dk = ihdw ? bx / (flog(hk - 4.5f0) - ax) - 1f0 : ax + bx * hk
+        dkk = h <= 4.5f0 ? d : (ihdw ? bx / (flog(h - 4.5f0) - ax) - 1f0 : ax + bx * h)
     end
     if (sp in WS_RG_CASURR || sp == 4 || sp == 23 || sp == 41) &&
        (!s.control.ht_drag_sp[sp] || s.calib.ht_dbh_iabflg[sp] == 1)
@@ -174,7 +176,7 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         icr = Float32(t.crown_pct[i])
         crf = icr / 10f0                                        # CR = ICR/10 passed to smhtgf
         si = p.sp_site_index[sp]
-        con = exp(c.htg_cor_small[sp])                          # RHCON·exp(HCOR); HCOR=0 ⇒ 1
+        con = fexp(c.htg_cor_small[sp])                          # RHCON·fexp(HCOR); HCOR=0 ⇒ 1
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         # ws/regent.f:265-270 — GB(21)/MC(41) equations are 10-yr (UT/SO); every WS-native species' SMHTGF
@@ -186,11 +188,11 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         # --- HTGRR: MC/GB use POTHTG·PCTRED·VIGOR; WS-native use ws_smhtgf DIRECTLY (no PCTRED·VIGOR) ---
         local htgrr::Float32
         if sp == 41                                            # MC
-            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             pothtg = ((1.47043f0 + 0.23317f0*si) / (31.56252f0 - 0.05586f0*si)) * 10f0
             htgrr = pothtg * pctred * vigor
         elseif sp == 21                                        # GB
-            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             vigor = 1f0 - (1f0 - vigor)/3f0
             pothtg = ((si/5f0) * (si*1.5f0 - h)/(si*1.5f0)) * 0.83f0
             htgrr = pothtg * pctred * vigor
@@ -281,7 +283,7 @@ function ws_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
             (d >= 5f0 || h < 0.01f0) && continue
             xv = icr / 100f0
-            vigor = 150f0 * fpow(xv, 3f0) * exp(-6f0*xv) + 0.3f0
+            vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0
             vigor > 1f0 && (vigor = 1f0)
             local edh::Float32
             if sp == 41
@@ -302,7 +304,7 @@ function ws_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end

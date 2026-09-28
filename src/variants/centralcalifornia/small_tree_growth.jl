@@ -32,27 +32,30 @@ function ca_smhtgf(sp::Int, d::Float32, h::Float32, cr::Float32, ba::Float32, ba
     tembal = bal < 5f0 ? 5f0 : bal
     grp = CA_SMH_MAPSP[sp]
     local htgr::Float32
+    # EXP/ALOG/** of REAL*4 are glibc expf/logf/powf in the gfortran build (fexp/flog/fpow), and SMHMOD is formed
+    # first (smhtgf.f:152-155: SMHMOD=1.016605*CRMOD*RHMOD; HTGR=DOMHTGR*SMHMOD).
     if grp == 1                                     # pines
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
     elseif grp == 2                                 # firs incl. Douglas-fir
         domhtgr = 5f0*(2.2227f0 + 0.4314f0*si)/(29.0f0 - 0.05f0*si)
         crr = cr/10f0
-        crmod = 1f0 - exp(-4.26558f0*crr)
-        rhmod = exp(2.54119f0*(relht^0.250537f0 - 1f0))
-        htgr = domhtgr * 1.016605f0*crmod*rhmod
+        crmod = 1f0 - fexp(-4.26558f0*crr)
+        rhmod = fexp(2.54119f0*(fpow(relht, 0.250537f0) - 1f0))
+        smhmod = 1.016605f0*crmod*rhmod
+        htgr = domhtgr * smhmod
     elseif grp == 3                                 # black oak
-        htgr = exp(3.817f0 - 0.7829f0*log(tembal)) * factor
+        htgr = fexp(3.817f0 - 0.7829f0*flog(tembal)) * factor
     elseif grp == 4                                 # tanoak
-        htgr = exp(3.385f0 - 0.5898f0*log(tembal)) * factor
+        htgr = fexp(3.385f0 - 0.5898f0*flog(tembal)) * factor
     else                                            # coast redwood
         htmax = 2.242202f0*si
         if htmax - h <= 1f0
             htgr = 0f0
         else
-            age1 = 1f0/-0.010742f0 * log(1f0 - (h/2.242202f0/si)^(1f0/0.919076f0))
+            age1 = 1f0/-0.010742f0 * flog(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
             age2 = age1 + 5f0
-            h1 = 2.242202f0*si*(1f0-exp(-0.010742f0*age1))^0.919076f0
-            h2 = 2.242202f0*si*(1f0-exp(-0.010742f0*age2))^0.919076f0
+            h1 = 2.242202f0*si*fpow(1f0-fexp(-0.010742f0*age1), 0.919076f0)
+            h2 = 2.242202f0*si*fpow(1f0-fexp(-0.010742f0*age2), 0.919076f0)
             htgr = h2 - h1
         end
     end
@@ -94,7 +97,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
         relht > 1.05f0 && (relht = 1.05f0)
         si = p.sp_site_index[sp]
         bark = wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
-        con = exp(c.htg_cor_small[sp])               # RHCON(=1)·exp(HCOR)
+        con = fexp(c.htg_cor_small[sp])               # RHCON(=1)·fexp(HCOR)
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         htgrr = ca_smhtgf(sp, d, h, cr, ba, bal, si, relht)
@@ -199,7 +202,7 @@ function ca_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end

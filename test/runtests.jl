@@ -136,6 +136,7 @@ using FVSjl
     include("unit/test_bc_db_live.jl")               # BC DATABASE stand (SkyRanch-Control) vs live: metric BAF/INV_PLOT_SIZE/BRK_DBH, raw TREE_COUNT, IPTINV=IPTKNT
     include("unit/test_timeint5_live.jl")            # TIMEINT 5 in YR=10 variants (PN/EC/WC/BM/CI) vs live: gradd.f DG rescale after GRINCR
     include("unit/test_west_estab_live.jl")          # western PLANT establishment (SO/WS/CA/NC) vs live: tables, ESSUBH, ESGENT
+    include("unit/test_west_smhtgf_live.jl")         # CA/WS SMHTGF in expf/logf/powf + statement order vs live
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
