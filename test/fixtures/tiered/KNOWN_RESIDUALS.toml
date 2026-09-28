@@ -19,17 +19,6 @@
 variant = "BM"
 regime = "climate"
 file = "FVS_Climate"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 70
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 70 cells [material=1 small=26 tiny=43] max|Δ|=1.704 | e.g. stand 12827438010497 year 2045: live=15.7352991 jl=15.723601341247559"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
 col = "GrowthMult"
 stand = "*"
 year = "*"
@@ -37,17 +26,6 @@ status = "OPEN"
 max_cells = 68
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 69 cells [small=14 tiny=54 ulpbig=1] max|Δ|=0.09723 | e.g. stand 12827438010497 year 2045: live=1.42343092 jl=1.4234306812286377"""
 # 2026-09-26 bm-clim-mort: max_cells 69 -> 68 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 70
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 70 cells [small=6 tiny=64] max|Δ|=0.04851 | e.g. stand 12827438010497 year 2045: live=2.81093097 jl=2.8109309673309326"""
 
 [[residual]]
 variant = "BM"
@@ -73,28 +51,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 
 [[residual]]
 variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1175 | e.g. stand 12827438010497 year 2025: live=19.277647018432617 jl=19.299999237060547"""
-
-[[residual]]
-variant = "BM"
 regime = "cover"
 file = "FVS_StrClass"
 col = "Stratum_1_DBH"
@@ -103,28 +59,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [ulp1=3 ulp2_16=4 ulpbig=3] max|Δ|=0.5415 | e.g. stand 645155287126144 year 2038: live=3.375307083129883 jl=3.3753066062927246"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_2_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [ulp1=3 ulp2_16=3 ulpbig=4] max|Δ|=2.761e-5 | e.g. stand 374435108489998 year 2065: live=0.637942910194397 jl=0.6379427313804626"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_StrClass"
-col = "Stratum_3_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 5 cells [ulp1=2 ulp2_16=3] max|Δ|=1.073e-6 | e.g. stand 22960873010497 year 2037: live=0.6202907562255859 jl=0.6202913522720337"""
 
 [[residual]]
 variant = "BM"
@@ -150,72 +84,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 
 [[residual]]
 variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "Mean_DMI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 50
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 50 cells [jl_not_f32=50] max|Δ|=0.51 | e.g. stand 12827438010497 year 2025: live=2.9534950256347656 jl=2.953494341124619"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "Mean_DMR"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 50
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 50 cells [jl_not_f32=50] max|Δ|=0.51 | e.g. stand 12827438010497 year 2025: live=2.9534950256347656 jl=2.953494341124619"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "Mean_DMI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 35
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 35 cells [jl_not_f32=35] max|Δ|=0.4277 | e.g. stand 12827438010497 year 2025: live=2.7471134662628174 jl=2.628270564759506"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "Mean_DMR"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 35
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 35 cells [jl_not_f32=35] max|Δ|=0.3805 | e.g. stand 12827438010497 year 2025: live=2.602617025375366 jl=2.476311512505531"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
-
-[[residual]]
-variant = "BM"
-regime = "mistletoe"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
-
-[[residual]]
-variant = "BM"
 regime = "none"
 file = "FVS_StrClass"
 col = "Stratum_1_DBH"
@@ -224,28 +92,6 @@ year = "*"
 status = "OPEN"
 max_cells = 10
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [ulp1=3 ulp2_16=4 ulpbig=3] max|Δ|=0.5415 | e.g. stand 645155287126144 year 2038: live=3.375307083129883 jl=3.3753066062927246"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_2_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 10 cells [ulp1=3 ulp2_16=3 ulpbig=4] max|Δ|=2.761e-5 | e.g. stand 374435108489998 year 2065: live=0.637942910194397 jl=0.6379427313804626"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_StrClass"
-col = "Stratum_3_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 5 cells [ulp1=2 ulp2_16=3] max|Δ|=1.073e-6 | e.g. stand 22960873010497 year 2037: live=0.6202907562255859 jl=0.6202913522720337"""
 
 [[residual]]
 variant = "BM"
@@ -328,28 +174,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "none"
 file = "FVS_TreeList"
-col = "EstHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 454
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 454 cells [ulp1=206 ulp2_16=248] max|Δ|=1.144e-5 | e.g. stand 374435108489998 year 2065: live=4.579191207885742 jl=4.5791916847229"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 456
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 456 cells [ulp1=208 ulp2_16=248] max|Δ|=1.144e-5 | e.g. stand 374435108489998 year 2065: live=4.579191207885742 jl=4.5791916847229"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
 col = "Ht2TDBF"
 stand = "*"
 year = "*"
@@ -367,17 +191,6 @@ year = "*"
 status = "OPEN"
 max_cells = 81
 issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "HtG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 614
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 614 cells [ulp1=169 ulp2_16=227 ulpbig=218] max|Δ|=1.0 | e.g. stand 12827438010497 year 2055: live=5.62817907333374 jl=5.628179550170898"""
 
 [[residual]]
 variant = "BM"

@@ -84,6 +84,7 @@ using FVSjl
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
     include("unit/test_ak_port.jl")        # AK ak/estab.f + esgent/regent (HTCALC small-tree growth) PLANT stand vs live FVSak_g16
     include("unit/test_sdichk_order.jl")   # SDICHK last in CRATET (all variants): over-dense BM/SN inventory crown dub vs live
+    include("unit/test_bm_resid.jl")       # BM tiered residual fixes vs live FVSbm_g16 (record-exact FVS_TreeList)
     include("unit/test_bc_crwidth.jl")
     include("unit/test_metric_dbs.jl")      # #259: BC/ON metric DBS tables (Summary/TreeList/CutList/ATRTList *_Metric, East naming for ON) vs live FVSbc_clean/FVSon_g16
     include("unit/test_bc_brokentop.jl")    # BC TREFMT (bc/blkdat.f metric layout) + broken-top NORMHT volume (bc/vols.f:137) vs FVSbc_clean     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
