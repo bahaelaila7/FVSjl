@@ -79,4 +79,11 @@ end
     @test count(m -> m.file == "sum", _case238().ms) == 0
 end
 
+# essprt.f:514-594 CASE('SN') writes PREM = PREM * 1. / (1. + EXP(-(A + B*DSTMP))) — left to right, (PREM*1.)/(1+expf),
+# not PREM*(1/(1+e)) (MEASURED 238813815010854 THINBBA: the AE/SU sprouts' TPA 166.51021 vs live 166.51022 ⇒ StrClass
+# Stratum_2_DBH 1 ULP). With it the whole THINBBA case equals live.
+@testset "SN sprout survival at essprt.f's association (essprt.f:514-594): 238813815010854 THINBBA all cells vs FVSsn_g16" begin
+    @test isempty(_case238().ms)
+end
+
 end # module

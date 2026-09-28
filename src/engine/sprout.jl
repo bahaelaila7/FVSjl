@@ -425,17 +425,20 @@ all other forests their CSV row already holds the common-forest (ELSE) form.
 """
 function essprt_sn(coef::SpeciesCoefficients, ispc::Integer, prem::Float32,
                    dstmp::Float32, isefor::Integer)::Float32
+    # REAL*4 association is part of the result: essprt.f writes `PREM = PREM * 1. / (1. + EXP(...))`, which
+    # gfortran evaluates left-to-right as (PREM*1.)/(1.+EXPF(...)) = PREM/(1+e) — NOT PREM*(1/(1+e)) (1-ULP off on
+    # SN 238813815010854 thinbba sprout TPA 166.51021 vs live 166.51022). Only CASE(77)'s special-forest form is
+    # parenthesised as PREM*(1./(…)). EXP is expf (fexp).
     if coef_col(coef, :essprt_fsp)[ispc] == 1f0 && _es_special_forest(isefor)
         d = dstmp
-        m = if ispc == 64 || ispc == 66 || ispc == 75
-                (57.3f0 - 0.0032f0 * d^3) / 100f0          # essprt.f:547/554/571
-            elseif ispc == 70
-                1f0 / (1f0 + exp(-(2.3656f0 - 0.2781f0 * (d / 0.7801f0))))  # :561
-            else # ispc == 77
-                1f0 / (1f0 + exp(-(-2.8058f0 + 22.6839f0 *
-                                    (1f0 / ((d / 0.7788f0) - 0.4403f0)))))  # :578
-            end
-        return prem * Float32(m)
+        if ispc == 64 || ispc == 66 || ispc == 75
+            return prem * ((57.3f0 - 0.0032f0 * d^3) / 100f0)                   # essprt.f:547/554/571
+        elseif ispc == 70
+            return prem / (1f0 + fexp(-(2.3656f0 + (-0.2781f0 * (d / 0.7801f0)))))  # :561
+        else # ispc == 77
+            return prem * (1f0 / (1f0 + fexp(-(-2.8058f0 +
+                                    22.6839f0 * (1f0 / ((d / 0.7788f0) - 0.4403f0))))))  # :578
+        end
     end
     kind = coef_col(coef, :essprt_kind)[ispc]
     p1 = coef_col(coef, :essprt_p1)[ispc]
@@ -443,7 +446,7 @@ function essprt_sn(coef::SpeciesCoefficients, ispc::Integer, prem::Float32,
         return prem * p1                                    # constant multiplier
     end
     p2 = coef_col(coef, :essprt_p2)[ispc]
-    return prem * (1f0 / (1f0 + exp(-(p1 + p2 * dstmp))))   # logistic in DSTMP
+    return prem / (1f0 + fexp(-(p1 + p2 * dstmp)))          # logistic in DSTMP: (PREM*1.)/(1.+EXP(-(P1+P2*DSTMP)))
 end
 
 # --- CR sprout tables (cr/essprt.f CASE('CR'): NSPREC count, ESSPRT survival, SPRTHT height). CR sprouters =
