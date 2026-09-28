@@ -12,12 +12,26 @@ struct Mismatch
 end
 key_str(m::Mismatch) = "$(m.variant)/$(m.stand)/$(m.regime)/$(m.file)/$(m.col)/$(m.year)"
 
-"Variants that have a fixture directory (sorted), optionally restricted by ENV TIERED_VARIANTS=BM,SN."
+# Variant groups for TIERED_VARIANTS. CORE = the variants under an active regime-close campaign — the DEFAULT set
+# (Pkg.test runtime). WEST = the western coverage fixtures (measured residual maps, not yet dug): each adds ~1.5-4 min
+# at TIERED_THREADS=3, so they run on request (TIERED_VARIANTS=WEST / ALL / CORE,TT,…), not in the default suite.
+const TIERED_GROUPS = Dict(
+    "CORE" => ["BM", "EM", "IE", "SN"],
+    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK"])
+
+"""
+Variants to run (sorted, only those with a fixture directory). ENV TIERED_VARIANTS: unset/empty ⇒ CORE; otherwise a
+comma list of variant codes and/or group names (CORE, WEST, ALL = every fixture directory), e.g. `CORE,TT`.
+"""
 function tiered_variants()
     isdir(TIERED_ROOT) || return String[]
     vs = sort([uppercase(d) for d in readdir(TIERED_ROOT) if isdir(joinpath(TIERED_ROOT, d))])
-    sel = get(ENV, "TIERED_VARIANTS", "")
-    isempty(sel) ? vs : [v for v in vs if v in split(uppercase(sel), ',')]
+    sel = uppercase(strip(get(ENV, "TIERED_VARIANTS", "")))
+    toks = isempty(sel) ? ["CORE"] : [String(strip(t)) for t in split(sel, ',') if !isempty(strip(t))]
+    "ALL" in toks && return vs
+    want = Set{String}()
+    for t in toks; haskey(TIERED_GROUPS, t) ? union!(want, TIERED_GROUPS[t]) : push!(want, t); end
+    [v for v in vs if v in want]
 end
 
 fixture_dir(v) = joinpath(TIERED_ROOT, lowercase(v))

@@ -20,6 +20,11 @@ Why both oracle and snapshot tiers: the oracle tier allowlists known residuals (
 that shifts an already-allowlisted OPEN/CORNER cell, or drifts below print precision, is invisible to it. The
 snapshot tier sees every bit.
 
+**Variant groups** (`TIERED_VARIANTS`, tiered_runner.jl `TIERED_GROUPS`): unset = **CORE** (BM, EM, IE, SN — the
+variants under an active regime-close campaign; this is what `Pkg.test` runs). **WEST** = the western coverage fixtures
+(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK: 10 stands each, measured OPEN residual maps, not yet dug) — run them
+with `TIERED_VARIANTS=WEST` (or `ALL`, or a list such as `CORE,TT`). A variant moves into CORE when its campaign starts.
+
 ## Fixtures (`test/fixtures/tiered/<v>/`, git-tracked)
 
 Built by `test/harness/tiered/make_fixtures.jl <VARIANT> <K>` from the **live oracle** (`BIN` in
