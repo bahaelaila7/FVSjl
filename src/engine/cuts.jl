@@ -159,9 +159,6 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # standing portion here (the ITYP=2 analog); gated on YARDLOSS (pl>0) so non-yarding cuts are untouched.
         pl = s.control.yardloss_prlost
         if pl > 0f0
-            v2t = coef_col(s.coef, :v2t)[sp]
-            tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
-            fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
             if ssng > 0f0
@@ -176,11 +173,10 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
-            # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
+            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D',LMERCH=F) of the cut tree, no top-kill — MAX(X,TCF), MAX(X,MCF)
+            # for CS/LS/NE/SN (fmsvol.f) — computed fresh by _fm_tvoli for every variant.
             dsng = loss * s.control.yardloss_prdsng
-            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D') of the cut tree, no top-kill
-            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i]; tvoli = max(0.005454154f0 * t.height[i],
-                                 _ffe_west_vol(s.variant) ? _fm_tvoli(s, sp, t.dbh[i], t.height[i]) : tcf))
+            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define

@@ -461,13 +461,11 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # faster ×1.1, hard/index-2 slower; fmcwd.f), so dumping all fallen bole into the hard pool
             # (as before) decayed the soft-snag boles too slowly → they accumulated as the size-5 DDW
             # overshoot. addS → soft pool, addH → hard pool.
-            # CWD1(I, DIH, DIS) (fmcwd.f:152-205): HIHT = HTIS/HTIH (the snag's current top), LOHT = 1.0/0.10. The west
-            # layer recomputes TVOLI = FMSVL2('D') on (DBHS, HTDEAD) as FVS does; elsewhere the stored fall bole is its basis.
+            # CWD1(I, DIH, DIS) (fmcwd.f:152-205): HIHT = HTIS/HTIH (the snag's current top), LOHT = 1.0/0.10, and TVOLI =
+            # FMSVL2('D') recomputed on (DBHS, HTDEAD) as FVS does — for every variant (_fm_tvoli), not the stored fall bole.
             if sn.height[i] > 0f0
                 _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
-                               tvoli = _ffe_west_vol(s.variant) ? max(0.005454154f0 * sn.height[i],
-                                                                      _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])) :
-                                       a / (coef_col(coef, :v2t)[sp] / 2000f0))
+                               tvoli = max(0.005454154f0 * sn.height[i], _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])))
             else    # jl-only: a snag with no recorded height (bare add_snag!) books its bole into the DBH class
                 kd = _cwd_size_class(sn.dbh[i])
                 fs.cwd[kd, 2, idc] += a * dfih; fs.cwd[kd, 1, idc] += a * dfis * 0.80f0
