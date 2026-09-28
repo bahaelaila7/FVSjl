@@ -28,6 +28,8 @@ end
 const _FF_CASES = [
     ("ec", "30193987010497_salvage",  "fmcrowe.f DOBF = 4/BRATIO: EC had no bark in the FFE crown-biomass chain (KeyError :bark_intercept)"),
     ("ec", "504392203126144_simfire", "same"),
+    ("nc", "449523860489998_salvage", "fmcroww.f SPIE group 21 (madrone) small/large-tree crown weight not ported; then nc_cwcalc 81802"),
+    ("nc", "23721711010900_simfire",  "fmcroww.f SPIE group 21 large-tree; nc_cwcalc 81802/63102 (MA/TO)"),
 ]
 
 @testset "western FFE crash cases: run, and .sum rows == live" begin
