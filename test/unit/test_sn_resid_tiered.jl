@@ -309,4 +309,15 @@ end
     @test isempty(_casex("200267456010854", "none").ms)
 end
 
+# fmcba.f TBA per variant: bc/cs/em/ie/kt/sn BA1·FMPROB (BA1 = 3.14159·(DBH/24)²), so FMPROB·5.454153E-03·DBH**2, every other
+# build FMPROB·DBH·DBH·0.0054542. PRCL = TBA/TOTBA splits the initial dead fuel into decay classes, so the form shows in the
+# first report (MEASURED FVSbm_g16 12827438010497 SALVAGE 2005 Forest_Floor 8.2318602 vs live 8.2318592 with the SN form).
+@testset "FMCBA species BA in each build's form (fmcba.f TBA/FMTBA) vs FVSbm_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("BM", "12827438010497", "salvage"; dir = d)
+    @test !crashed
+    ms = compare_case("BM", "12827438010497", "salvage", txt, db)
+    @test count(m -> m.file == "FVS_Carbon" && m.col == "Forest_Floor" && m.year == "2005", ms) == 0
+end
+
 end # module

@@ -14,6 +14,18 @@
 # (it feeds the fire-behavior / consumption chunks F5–F8).
 # =============================================================================
 
+# FMCBA's per-record species basal area (the cover type COVTYP = most BA; PRCL = TBA/TOTBA splits the initial dead fuel
+# into decay classes). The builds use three forms: bc/cs/em/ie/kt/sn `TBA += BA1·FMPROB`, BA1 = 3.14159·(DBH/24)·(DBH/24);
+# ak/bm/ca/ci/cr/ec/ls/nc/ne/oc/on/op/pn/tt/ut/wc/ws `FMTBA += FMPROB·DBH·DBH·0.0054542`; so `TBA += FMPROB·5.454153E-03·
+# DBH**2` (integer power = DBH·DBH). jl used the first form everywhere but AK (BM 12827438010497: 2005 initial fuel 1 ULP).
+_fmcba_pi_form(v) = v isa Southern || v isa CentralStates || v isa InlandEmpire || v isa EasternMontana ||
+                    v isa Kootenai || v isa BritishColumbia
+@inline function _fmcba_tba(v, p::Float32, d::Float32)::Float32
+    _fmcba_pi_form(v) && return 3.14159f0 * (d / 24f0) * (d / 24f0) * p
+    v isa SouthCentralOregon && return p * 5.454153f-3 * (d * d)
+    return p * d * d * 0.0054542f0
+end
+
 """
     fmcba!(s) -> StandState
 
@@ -140,8 +152,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _fm_record_walk(t, vtrip) do i, pr
         pr > 0f0 || return
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += _ak_fm ? pr * d * d * 0.0054542f0 :        # ak/fmcba.f:187 FMPROB·DBH·DBH·0.0054542
-                            3.14159f0 * (d / 24f0) * (d / 24f0) * pr
+        tba[sp] += _fmcba_tba(s.variant, pr, d)
         totcra += 3.1415927f0 * cwrec[i] * cwrec[i] / 4f0 * pr
     end
 
