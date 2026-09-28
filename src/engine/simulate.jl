@@ -1522,7 +1522,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s)
             end
         end
-        if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+        if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0     # rdpr.f:79 ITRN=0 ⇒ RETURN
             yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
             iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
             s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
