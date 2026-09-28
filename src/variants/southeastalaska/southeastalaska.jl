@@ -47,4 +47,15 @@ htg_period(::SoutheastAlaska) = 10f0     # /CONTRL/ YR = 10 (ak FINT=10), like C
 
 const AK_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "southeastalaska"))
 
-coefficients(::SoutheastAlaska) = cached_coefficients(() -> load_species_coefficients(AK_DATADIR), "AK")
+coefficients(::SoutheastAlaska) = cached_coefficients("AK") do
+    c = load_species_coefficients(AK_DATADIR)
+    # The FFE Jenkins merch-biomass gate reads a per-species :dbh_min coefficient; AK's merch standards are per
+    # stand (ak/sitset.f MERCHCAT, ak_merch) and the growth/volume path never reads this column. 9" = MERCHCAT 3,
+    # the default category (KODFOR 1005/703/81xx) — only the FVS_Carbon Jenkins merch pool on the 713/720/74xx
+    # forests would differ.
+    haskey(c.species, :dbh_min) || (c.species[:dbh_min] = fill(9f0, length(c.species[:v2t])))
+    # ak/blkdat.f ISPSPE/14,15,16,17,18,19,20,21,22/ — the sprouting species (ESTUMP/ESUCKR; FMKILL's filter).
+    haskey(c.species, :is_sprouting) ||
+        (c.species[:is_sprouting] = Float32[(14 <= sp <= 22) ? 1f0 : 0f0 for sp in 1:length(c.species[:v2t])])
+    c
+end

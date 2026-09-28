@@ -718,6 +718,12 @@ mutable struct Calibration
     # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
     cratet_dead_pct::Vector{Float32}
     cratet_dead_ptbal::Vector{Float32}
+    # PTBAA(IP) that CRATET DENSE's PTBAL leaves (dense.f:280 → ptbal.f XBALT): per point, live + every inventory-dead
+    # record at its READ DBH and FINT/FINTM-inflated PROB. The LSTART CROWN (ak/crown.f BAPLT → QMDPLT) reads it.
+    cratet_ptbaa::Vector{Float32}
+    # PTBALT(I) of the LIVE records from that same PTBAL walk (cratet.f:150-157 IND = IND1; RDPSRT(.FALSE.), dead
+    # interleaved) — the PBAL the AK LSTART calibration DGF reads (no DENSE between it and dgdriv.f).
+    cratet_live_ptbal::Vector{Float32}
     # The CURRENT-stand RMSQD the calibration's aspen DGFASP reads (#191/#195; ≥0 only while DGSCOR calibration /
     # the :770 dub DGF run, −1 otherwise ⇒ dgf! uses stand_qmd). Per stand: it was a process-global Ref
     # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
@@ -742,6 +748,8 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
+    Float32[],                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
     -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
 
 # ---------------------------------------------------------------------------
@@ -954,6 +962,9 @@ mutable struct Establishment
     # the ≤19-yr continuation ⇒ NTALLY+1, a lone PLANT/NATURAL ⇒ 1; 0 = no ESTAB call) and the cycle year it is for.
     cyc_ntally::Int32
     cyc_ntally_year::Int32
+    # AK (ak/estab.f) full-establishment-model state SAVEd across ESTAB calls (the per-regen-plot ESB1/PNN/PLPROB/
+    # NSTORE/PROB1/XSTORE/IPPREP vectors, IFT0, the site-prep dates, the SAVEd locals). `nothing` for other variants.
+    ak_state::Any
     # The two halves of the stocking calibration kept separately, because estab.f:579 evaluates
     # 1/(1+EXP(-(PN+ESB-ESB1(NCOUNT)))) LEFT-TO-RIGHT — (PN+ESB)−ESB1 — which rounds differently from PN+(ESB−ESB1)
     # (1-ULP PROB1 ⇒ 1-ULP PROB on the ingrowth records). esb_value=ESB (NaN until the ESB block runs); esb1_*
@@ -981,7 +992,7 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1),
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1), nothing,
                                 NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false,
                                 NTuple{4,Float32}[], Int32(0), Int32(3))
 
@@ -1190,6 +1201,11 @@ mutable struct FireState
                                        # snag (ICALL≠4); FMMAIN adds it onto CWD2B after each year's FMCADD (fmmain.f:243)
     pend_cut::Vector{NTuple{7,Float32}} # R6 variants: this CUTS call's standing yarding-loss snags (FMSSEE), binned by
                                        # one FMSADD(IY(ICYC),2) at the end of the cut (fmscut.f:157) — see fmsadd_bin!
+    tonrms::Float32                    # TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
+                                       # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
+    firkil::Vector{Float32}            # FIRKIL(I) of this burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL)
+    fmcrow_on::Bool                    # FMCROW (ffe_fmcrow!) has filled TreeList.ffe_crownw — from then on every FFE
+                                       # crown read takes the stored CROWNW(I,0:5) (_ffe_crownw), as FVS does
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1199,7 +1215,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[])
+                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

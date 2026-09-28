@@ -403,6 +403,14 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # YC (sp3) the omission gave PBAL 52.8 vs live 187.5 (=3×BAF 62.5) ⇒ COR 1.389 vs live 1.434.
     _ak_pbal_fix = s.variant isa SoutheastAlaska
     cur_point_bal = _ak_pbal_fix ? copy(s.density.point_bal) : Float32[]
+    # AK: the live records' PTBALT is the one the CRATET DENSE's PTBAL walk left (crown_init: cratet.f:150-157 IND =
+    # IND1; RDPSRT(.FALSE.) with the dead interleaved), not point_basal_area!'s identity-seeded RDPSRT(.TRUE.) — the
+    # two order equal-DBH live/dead pairs differently. FIA 720755825290487: live WS I=4 (6.3") walks BEFORE dead 2993
+    # (6.3") ⇒ PBAL 33.0357 (live DEBUG PTBAL/DGF), jl had 34.3385; I=14 38.0839 vs 39.2656 ⇒ WS COR −0.0306824 vs
+    # −0.0306006 ⇒ cycle-1 DG 1e-4 off ⇒ TCuFt 1393/1394 at 2049.
+    if _ak_pbal_fix && length(s.calib.cratet_live_ptbal) == t.n
+        @inbounds for i in 1:t.n; cur_point_bal[i] = s.calib.cratet_live_ptbal[i]; end
+    end
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
@@ -810,6 +818,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # AK (ak/regent.f LSTART, cratet.f:629): HTCALC-predicted vs measured small-tree (DBH<3) height increment.
+    s.variant isa SoutheastAlaska && ak_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒
     # HCOR_init stayed 0 (CA FIA 1123865229290487: live DF small-tree scale factor 0.73, jl 1.00).
     s.variant isa CentralCalifornia && ca_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)

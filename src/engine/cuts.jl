@@ -145,7 +145,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
         _loss = prem * s.control.yardloss_prlost
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
-        let xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+        let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
@@ -169,22 +169,18 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
                 # the same in every variant build, so non-R6 variants bin + book the standing loss's crowns too)
                 push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
                 # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
-                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
-                fmscro!(s, sp, t.dbh[i], ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled. AK: akffe 1993
+                # Standing_Snag_lt3 0.01872 live vs 0.01228 without these crowns; CROWNW = FMCROW's (_ffe_crownw).
+                fmscro!(s, sp, t.dbh[i], _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
                         ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
-            if dsng > 0f0
-                idc = ffe_dkr_cls(s, sp)
-                (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
-                addH = fallvol * dsng
-                @inbounds for j in 1:9
-                    frac_h[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac_h[j])
-                end
-            end
+            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D') of the cut tree, no top-kill
+            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i]; tvoli = max(0.005454154f0 * t.height[i],
+                                 _ffe_west_vol(s.variant) ? _fm_tvoli(s, sp, t.dbh[i], t.height[i]) : tcf))
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define

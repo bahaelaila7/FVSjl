@@ -18,8 +18,7 @@ the per-tree Jenkins aboveground / merchantable / belowground (root) biomass sum
 the tree list (weighted by TPA) and converted to carbon at the 0.5 biomass→carbon ratio.
 """
 # FMCBIO's merch gate DBHMIN(KSP): the variant's cubic merch standard once set, else the species CSV value.
-_jenkins_dbhmin(s::StandState, sp::Int) = (s.control.merch_init && sp <= length(s.control.sp_dbh_min)) ?
-                                          s.control.sp_dbh_min[sp] : coef_col(s.coef, :dbh_min)[sp]
+_jenkins_dbhmin(s::StandState, sp::Int) = _fm_dbhmin(s, sp)
 
 function stand_live_carbon(s::StandState)
     t = s.trees; coef = s.coef
@@ -73,7 +72,7 @@ pools: snag biomass split by DBH ≤3/>3 (bole `bolevol·density` + the CWD2B cr
 and live biomass (foliage + woody crown + stem `_fm_cuft·v2t`, split by tree DBH ≤3/>3, = the CARBCALC=0
 `BIOLIVE` components, fmdout.f:218-258). Consumed / removed are 0 without a fire / harvest this cycle.
 """
-function ffe_fuel_loadings(s::StandState)
+function ffe_fuel_loadings(s::StandState; vtrip::Bool = false)
     fs = s.fire
     z = (litter=0f0, duff=0f0, lt3=0f0, ge3=0f0, s3to6=0f0, s6to12=0f0, ge12=0f0, herb=0f0, shrub=0f0,
          surf_total=0f0, snag_lt3=0f0, snag_ge3=0f0, foliage=0f0, live_lt3=0f0, live_ge3=0f0,
@@ -85,43 +84,11 @@ function ffe_fuel_loadings(s::StandState)
     lt3 = sumc(1:3); s3to6 = sumc(4:4); s6to12 = sumc(5:5); ge12 = sumc(6:9); ge3 = s3to6 + s6to12 + ge12
     herb = fs.flive[1]; shrub = fs.flive[2]
     surf_total = litter + duff + lt3 + ge3 + herb + shrub
-    # standing snags: bole biomass by DBH + the CWD2B crown (sizes 0-3 → ≤3, 4-5 → >3), tons/ac
-    coef = s.coef; sn = fs.snags; snag_lt3 = 0f0; snag_ge3 = 0f0
-    @inbounds for i in eachindex(sn.sp)
-        den = sn.den_hard[i] + sn.den_soft[i]; den > 0f0 || continue
-        b = sn.bolevol[i]; b <= 0f0 && (b = let (a,_,_) = jenkins_biomass(coef, sn.sp[i], sn.dbh[i]); a end)
-        # EM snags lose height (FMSNGHT): FMDOUT's SNVIH is FMSVOL(XHT=HTIH) — the broken-top bole (fmdout.f:141),
-        # the same basis snag_bole_carbon uses; the untruncated bolevol over-stated Standing_Snag_ge3 (7.14 vs 6.92).
-        (_ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0) &&
-            (b = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sn.sp[i]] / 2000f0)
-        (sn.dbh[i] <= 3f0 ? (snag_lt3 += b*den) : (snag_ge3 += b*den))
-    end
-    snag_lt3 += (sum(@view fs.cwd2b[:, 1:4, :]) + sum(@view fs.cwd2b2[:, 1:4, :])) * _FM_P2T   # CWD2B+CWD2B2 sizes 0-3
-    snag_ge3 += (sum(@view fs.cwd2b[:, 5:6, :]) + sum(@view fs.cwd2b2[:, 5:6, :])) * _FM_P2T   # (fmdout.f:174-177) 4-5
-    # standing live (fmdout.f:217-258): TOTFOL = foliage; TOTLIV(1) = crown sizes 1-3 (+OLDCRW) of EVERY tree + the
-    # stem of trees with D≤3; TOTLIV(2) = crown sizes 4-5 (+OLDCRW) + the stem of trees with D>3. The stem is FMSVL2
-    # ('L', LMERCH=.FALSE., no top-kill ⇒ the actual height): VOL2HT = MAX(0.005454154·H, MCF) for CS/LS/NE/SN,
-    # MAX(0.005454154·H, TCF) for every other variant (fmsvol.f:150-156). jl had split the whole crown by tree DBH and
-    # used the SN R8-Clark TCF for every variant — EC ect01 1993: live <3" 0.108 / ≥3" 5.831 vs live 5.831 / 23.
-    t = s.trees; v2t = coef_col(coef, :v2t); foliage = 0f0; live_lt3 = 0f0; live_ge3 = 0f0
-    snfam = variant_code(s.variant) in ("CS", "LS", "NE", "SN")
-    ocw = t.ffe_oldcrw
-    @inbounds for i in 1:t.n
-        pr = t.tpa[i]; pr > 0f0 || continue
-        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
-        foliage += xv[1] * pr * _FM_P2T
-        for j in 1:3; live_lt3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
-        for j in 4:5; live_ge3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
-        # western TCF: the tree's total cubic (== NATCRS/CFVOL at its height for a sound tree; a top-killed tree's
-        # FMSVL2 volume at the actual height without CFTOPK is not recomputed here)
-        vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
-             _ffe_west_vol(s.variant) ? max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1]) :   # FMSVL2: actual HT, no CFTOPK
-                     max(0.005454154f0 * h, t.cuft_vol[i])
-        stem = vt * v2t[sp] * _FM_P2T * pr
-        d <= 3f0 ? (live_lt3 += stem) : (live_ge3 += stem)
-    end
-    stand_total = snag_lt3 + snag_ge3 + foliage + live_lt3 + live_ge3
+    # standing snags (TOTSNG(1|2): bole by DBHS + the CWD2B/CWD2B2 crowns) and live trees (TOTFOL, TOTLIV(1|2)) are
+    # FMDOUT's accumulators (fmdout.f:132-258), shared with the carbon report — `fmdout_bio`, on FMMAIN's record list
+    fb = fmdout_bio(s; vtrip = vtrip)
+    snag_lt3 = fb.totsng1; snag_ge3 = fb.totsng2; foliage = fb.totfol; live_lt3 = fb.totliv1; live_ge3 = fb.totliv2
+    stand_total = live_lt3 + live_ge3 + foliage + snag_lt3 + snag_ge3        # TOTSTD (fmdout.f:261)
     return (; litter, duff, lt3, ge3, s3to6, s6to12, ge12, herb, shrub, surf_total,
             snag_lt3, snag_ge3, foliage, live_lt3, live_ge3, stand_total,
             total_biomass = surf_total + stand_total, consumed = 0f0, removed = 0f0)
@@ -165,7 +132,7 @@ function ffe_live_carbon(s::StandState)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
         # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF)
         # (fmsvol.f:149-151), where X = 0.005454154·H is the tiny-tree cone floor — NOT gross/TCF. SN's MCF is the
@@ -385,10 +352,21 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
     end
     totduf = c35(11, 1) + c35(11, 2); totlit = c35(10, 1) + c35(10, 2)
     sn = fs.snags; tsng1 = 0f0; tsng2 = 0f0
+    west = _ffe_west_vol(s.variant)
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
-        b = _snag_bole_tons(s, i)
-        v = b * sn.den_soft[i] + b * sn.den_hard[i]          # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
+        if west && sn.height[i] > 0f0
+            # fmdout.f:139-155: SNVIH = FMSVOL(I,HTIH)·DENIH, SNVIS = FMSVOL(I,HTIS)·DENIS — the TOTAL cubic of (DBHS,HTDEAD)
+            # with CFTOPK at the current height on every snag (XHT>−1 ⇒ LTKIL), fresh each report — then (SNVIS+SNVIH)·V2T
+            sp = Int(sn.sp[i])
+            vv = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
+            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
+        else
+            b = _snag_bole_tons(s, i)
+            v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem
+        end
         sn.dbh[i] <= 3f0 ? (tsng1 += v) : (tsng2 += v)
     end
     c2 = fs.cwd2b; c22 = fs.cwd2b2; tfm = size(c2, 3)
@@ -401,7 +379,7 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
     totfol = 0f0; tl1 = 0f0; tl2 = 0f0
     _fm_record_walk(t, vtrip) do i, pr
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         totfol += xv[1] * pr * _FM_P2T
         for j in 1:3
             tl1 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr

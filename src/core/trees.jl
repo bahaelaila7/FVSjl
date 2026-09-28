@@ -138,18 +138,18 @@ mutable struct TreeList
     # Per-SLOT scratch: the UNCAPPED HTGF increment (htgf.f TEMHTG) of central record I, which htgf.f hands to both
     # tripled copies before capping each against its own stale slot height (consumed by triple_records!).
     temhtg::Vector{Float32}
+    # FFE GROW flag + persistent CROWNW(0:5) (fmcrow.f:114-119, fmeff.f:494-506): a fire-scorched survivor keeps its
+    # reduced crown TCROWN·(1−PROPCR) with GROW=−1; each FMSDIT→FMCROW increments GROW and recomputes CROWNW only once
+    # GROW ≥ 1. Carried through tripling/moves (fmtrip.f:40, fmtdel.f:43). FMCROW (ffe_fmcrow!) fills it for every
+    # variant at FMSDIT and every FFE crown read goes through _ffe_crownw.
+    ffe_grow::Vector{Int32}
+    ffe_crownw::Matrix{Float32}
     # Per-SLOT LBIRTH (the TreeAge gate of dbstrls/dbscuts/dbsatrtls: TREAGE = LBIRTH(I) ? ABIRTH(I) : 0). FVS sets
     # LBIRTH only at input (intree.f:190-194, the IREC1 live slots) and in TRIPLE (triple.f:82 LBIRTH(ITFN)=LBIRTH(I));
     # TREMOV (tremov.f), COMPRS and ESTAB never touch it, so it stays with the SLOT: a record TREDEL moves into a hole
     # reports the hole's flag, and a cohort record booked in a reused slot reports the flag its old occupant left.
     # Never copied by copy_tree!. (The per-record `lbirth` is kept for the input-dead records, intree.f:564.)
     slot_lbirth::Vector{Bool}
-    # FFE post-fire crown freeze (fmeff.f:492-506, fmcrow.f:126-127): a scorched record's CROWNW(I,0:5) is set to
-    # TCROWN·(1−PROPCR) with GROW(I)=−1, and FMCROW skips recomputing it until GROW has climbed back to 1 (two FMCROW
-    # calls, i.e. the rest of the fire cycle and the whole next one). `ffe_grow` is GROW (1 = crowns recomputed as
-    # usual), `ffe_crw` the frozen CROWNW. Carried with the record by copy_tree!/TRIPLE (fmtrip.f:40) and TREDEL.
-    ffe_grow::Vector{Int8}
-    ffe_crw::Matrix{Float32}     # 6 crown sizes 0..5 (foliage, woody 1-5), lb/tree   (CROWNW while GROW<1)
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -176,9 +176,9 @@ function TreeList(maxtre::Int = MAXTRE)
         zeros(Int32, maxtre),                   # stale_icr
         zeros(Float32, maxtre),                 # stale_ht
         fill(-1f0, maxtre),                     # temhtg (−1 = not set by an HTGF cap pass this cycle)
+        ones(Int32, maxtre),                    # ffe_grow (fminit.f:972 GROW=1)
+        zeros(Float32, 6, maxtre),              # ffe_crownw
         zeros(Bool, maxtre),                    # slot_lbirth
-        ones(Int8, maxtre),                     # ffe_grow (fminit.f:972 GROW=1)
-        zeros(Float32, 6, maxtre),              # ffe_crw
     )
 end
 
@@ -224,7 +224,7 @@ fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
         for k in 1:6; t.damage[k, dst]    = t.damage[k, src];    end
         for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
         for k in 1:5; t.ffe_oldcrw[k, dst] = t.ffe_oldcrw[k, src]; end
-        for k in 1:6; t.ffe_crw[k, dst] = t.ffe_crw[k, src]; end
+        for k in 1:6; t.ffe_crownw[k, dst] = t.ffe_crownw[k, src]; end
     end
     return t
 end
@@ -325,7 +325,7 @@ function permute_records!(t::TreeList, lo::Int, perm::Vector{Int})
     t.damage[:, lo:hi]     = t.damage[:, perm]
     t.pest_vars[:, lo:hi]  = t.pest_vars[:, perm]
     t.ffe_oldcrw[:, lo:hi] = t.ffe_oldcrw[:, perm]
-    t.ffe_crw[:, lo:hi]    = t.ffe_crw[:, perm]
+    t.ffe_crownw[:, lo:hi] = t.ffe_crownw[:, perm]
     return t
 end
 

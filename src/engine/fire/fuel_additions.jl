@@ -169,7 +169,11 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
-        xvold = crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
+        # FMOLDC (fmoldc.f, one file in every build) saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) —
+        # the array ffe_fmcrow! filled at the last FMSDIT with its PCTILE height percentile (and any fire reduction), not a
+        # recompute from the old dims (only a stand FMCROW never ran on falls back to that).
+        xvold = fs.fmcrow_on ? ntuple(k -> t.ffe_crownw[k, i], 6) :
+                crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
             ocw = xvold[sz + 1]
@@ -260,7 +264,7 @@ function fmcadd!(s::StandState)
         p = t.tpa[i]; p > 0f0 || continue
         sp = Int(t.species[i])
         dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
-        xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         ll = leaflf[sp]
         ll > 0f0 && (cwd[10, 2, dkcl] += (xv[1] * p / ll) * _FM_P2T)
         for sz in 1:5
@@ -302,7 +306,7 @@ function fmcadd_litterfall!(s::StandState)
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i])
         ll = leaflf[sp]; ll <= 0f0 && continue
-        xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         fs.cwd[10, 2, dkcl] += xv[1] * t.tpa[i] / ll * _FM_P2T
     end
@@ -334,7 +338,7 @@ function fmcadd_woody!(s::StandState)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i])
-        xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
             fs.cwd[sz, 2, dkcl] += _FM_LIMBRK * xv[sz + 1] * t.tpa[i] * _FM_P2T
@@ -382,7 +386,7 @@ function apply_pileburn!(s::StandState)::Bool
                 trkil = t.tpa[i] * trmort; t.tpa[i] -= trkil
                 sp = Int(t.species[i]); d = t.dbh[i]
                 push!(pend, (sp, d, t.height[i], t.height[i], t.height[i], trkil, -1f0))   # FMSSEE (fmtret.f:154)
-                xvc = ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
+                xvc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
                 fmscro!(s, sp, d, xvc, trkil, clamp(ffe_dkr_cls(s, sp), 1, 4))           # fmtret.f:160
                 _, _, rbio = jenkins_biomass(coef, sp, d)
                 fs.bioroot += rbio * trkil                                               # fmsadd.f:320 (XDCAY 1)

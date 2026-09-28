@@ -58,27 +58,31 @@ function height_growth!(s::StandState, ::SoutheastAlaska; scale::Float32 = 1.0f0
     p, t, c = s.plot, s.trees, s.calib
     yr = 10.0f0                                  # ak/htgf.f YR = 10 (period the annual HG is expanded to)
     temel = p.elevation * 100f0                  # TEMEL = ELEV·100
-    lperm = false                                # LPERM (PERMAFROST keyword) — off by default (later chunk)
+    lperm = s.control.permafrost                 # LPERM (PERMAFROST keyword; grincr.f sets it before DGDRIV/HTGF)
     @inbounds for i in 1:t.n
-        t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); h = t.height[i]; d = t.dbh[i]
-        xsite = p.sp_site_index[sp]              # XSITE = SITEAR(ISPC)
         dglt = t.diam_growth[i]                  # DGLT = DG(I) (inside-bark increment this cycle)
-        dgchk = dglt <= 0f0 ? 0.0001f0 : dglt    # ak/htgf.f:245 IF(DG.LE.0)DG=0.0001 (used in the DG≤0.04 test)
+        # ak/htgf.f: HTG(I)=0; IF(DG(I).LE.0.)DG(I)=0.0001 — the DG array itself is bumped (it reaches the DBH
+        # update) before the PROB check; a PROB≤0 record keeps HTG 0.
+        t.ht_growth[i] = 0f0
+        dglt <= 0f0 && (t.diam_growth[i] = 0.0001f0)
+        dgchk = t.diam_growth[i]
+        t.tpa[i] <= 0f0 && continue
+        xsite = p.sp_site_index[sp]              # XSITE = SITEAR(ISPC)
         brat = ak_bratio(sp, d)
         dg10 = dglt / brat                       # outside-bark DG
         h < 4.5f0 && (dg10 = 0.1f0)
-        basehg = exp(AK_HG_B1[sp] + AK_HG_B2[sp]*d*d + AK_HG_B3[sp]*log(d) +
-                     AK_HG_B4[sp]*temel + AK_HG_B5[sp]*log(xsite) + AK_HG_B6[sp]*log(dg10))
+        basehg = fexp(AK_HG_B1[sp] + AK_HG_B2[sp]*(d*d) + AK_HG_B3[sp]*flog(d) +     # B2*D**2 = B2*(D*D)
+                      AK_HG_B4[sp]*temel + AK_HG_B5[sp]*flog(xsite) + AK_HG_B6[sp]*flog(dg10))
         pfhmod = 1.0f0
         if sp in AK_PERM_SP
             if lperm
-                pfhmod = exp(AK_HGP_B1[sp] + AK_HGP_B2[sp] + AK_HGP_B3[sp]*d*d + AK_HGP_B4[sp]*log(d) +
-                             AK_HGP_B5[sp]*temel + AK_HGP_B6[sp]*log(dg10)) / basehg
+                pfhmod = fexp(AK_HGP_B1[sp] + AK_HGP_B2[sp] + AK_HGP_B3[sp]*(d*d) + AK_HGP_B4[sp]*flog(d) +
+                              AK_HGP_B5[sp]*temel + AK_HGP_B6[sp]*flog(dg10)) / basehg
                 pfhmod > 1f0 && (pfhmod = 1f0)
             else
-                pfhmod = exp(AK_HGP_B1[sp] + AK_HGP_B3[sp]*d*d + AK_HGP_B4[sp]*log(d) +
-                             AK_HGP_B5[sp]*temel + AK_HGP_B6[sp]*log(dg10)) / basehg
+                pfhmod = fexp(AK_HGP_B1[sp] + AK_HGP_B3[sp]*(d*d) + AK_HGP_B4[sp]*flog(d) +
+                              AK_HGP_B5[sp]*temel + AK_HGP_B6[sp]*flog(dg10)) / basehg
                 pfhmod < 1f0 && (pfhmod = 1f0)
             end
         end
@@ -96,7 +100,7 @@ function height_growth!(s::StandState, ::SoutheastAlaska; scale::Float32 = 1.0f0
         htg <= 0.1f0 && (htg = 0.1f0)
         dgchk <= 0.04f0 && (htg = 0.1f0)
         # SCALE·XHT·HTG·EXP(HTCON)·MISHGF (XHT=1, HTCON=htg_cor, MISHGF=1)
-        htg = scale * htg * exp(c.htg_cor[sp])
+        htg = scale * htg * fexp(c.htg_cor[sp])
         cap = s.control.sp_size_cap[sp, 4]
         (h + htg > cap) && (htg = max(cap - h, 0.1f0))
         t.ht_growth[i] = htg

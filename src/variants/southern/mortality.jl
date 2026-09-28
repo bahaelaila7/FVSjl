@@ -597,73 +597,26 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     # StandDead falldown); `yrdead` carries the true death year for snag_summary's split only.
     yrdead = yr + Int(fint) - 1
     v2t = coef_col(coef, :v2t); dkr = coef_col(coef, :dkr_cls)
-    # FVS SNAG-RECORD BINNING (fmsadd.f): the standing-snag RECORD holds the DENSITY-WEIGHTED-MEAN dbh/ht of its
-    # (sp, DBHCL, HTCL) class (within THIS cycle only — RECORD never merges into prior-cycle standing snags,
-    # fmsadd.f:133-153, so cohort fall-clocks never blend). The bole (FMSVOL) + fall use that class mean; only the
-    # CROWN (FMSCRO, fmsadd.f:306) + ROOT (FMCBIO, :312) are PER-INDIVIDUAL. jl kept individual snags ⇒
-    # Σvol(individual) ≠ vol(class-mean)·density (volume nonlinear) — the carbon_snt cyc3 StandDead Δ0.017,
-    # live-stamped (43 records vs jl's 109; total density matched ~1 ULP). Verdict: this port makes the bole bit-exact.
-    #
-    # PASS 1 — MAXHT/MINHT per (sp,dbhcl) over the dying trees, to size the HTCL split (fmsadd.f:119-123): a class
-    # whose dying-tree HEIGHT RANGE exceeds 20 ft is broken into 2 height classes at MIDHT=(MAXHT+MINHT)/2.
-    # Dense preallocated bins (s.fire.snagbin) replace the per-call Dicts: minht/maxht index by lin2=(sp-1)*19+dbhcl
-    # (dbhcl 1:19), gkey by lin3=((sp-1)*19+(dbhcl-1))*2+htcl. Reset each call; the i=1:n scan order — hence the
-    # Float32 running-mean accumulation AND the emission order — is identical to the Dict version (bit-exact).
-    sb = s.fire.snagbin
-    fill!(sb.minht, 1000f0); fill!(sb.maxht, 0f0); fill!(sb.gkey, Int32(0))
-    @inbounds for i in 1:n
-        (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
-        k2 = (Int(t.species[i]) - 1) * 19 + _snag_dbhcl(t.dbh[i]); h = t.height[i]
-        h < sb.minht[k2] && (sb.minht[k2] = h); h > sb.maxht[k2] && (sb.maxht[k2] = h)
-    end
-    # PASS 2 — crown+root PER INDIVIDUAL (unchanged), and accumulate each (sp,dbhcl,htcl) record's density-weighted
-    # RUNNING mean dbh/ht in tree-record order (fmsadd.f:334-340) so the Float32 accumulation matches FVS. MIDHT is
-    # computed inline from the PASS-1 min/max (per-key, order-independent — same value as the old midht Dict).
-    ng = 0
+    # FVS SNAG-RECORD BINNING (fmsadd.f, identical in all 24 builds): the standing-snag RECORD holds the DENSITY-WEIGHTED-
+    # MEAN dbh/ht of its (sp, DBHCL, HTCL) class within THIS FMSADD call (fmsadd.f:133-153 never merges into prior-cycle
+    # records), the bole (FMSVOL) and fall on that class mean; only the CROWN (FMSCRO, fmsadd.f:306) and ROOT (FMCBIO,
+    # :312) are per individual. The mortality snags go through the one FMSADD port, fmsadd_bin! (ITYP=4) — species-major
+    # record slots with emptied-record reuse (the R6 FMR6HTLS draws are handed out per record, and every variant's
+    # FMDOUT/CWD sums run in that record order) and the zero-initialized density-weighted DBHS/HTDEAD means (fmsadd.f:
+    # 233-237, 334-340: even a class's first tree is averaged, (0·0+HT·SNGNEW)/SNGNEW). carbon_snt cyc3 StandDead
+    # (43 records live vs 109 per-tree); FVSie_g16 11855985010690 2016 species-major 7,8,9 records.
+    items = Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[]
     @inbounds for i in 1:n
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]; den = basis[i]
         # CROWN (CWD2B) + ROOT are scheduled PER INDIVIDUAL TREE (fmsadd.f:306/312). FVS fmscro.f:144-147 dead-tree
         # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
         # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
-        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
-        dbhcl = _snag_dbhcl(d); k2 = (sp - 1) * 19 + dbhcl
-        mh = (sb.maxht[k2] - sb.minht[k2]) > 20f0 ? (sb.maxht[k2] + sb.minht[k2]) / 2f0 : 0f0
-        htcl = (mh <= 0f0 || h < mh) ? 1 : 2                                    # fmsadd.f:279-287
-        k3 = ((sp - 1) * 19 + (dbhcl - 1)) * 2 + htcl
-        g = Int(sb.gkey[k3])
-        if g == 0
-            ng += 1
-            sb.gsp[ng] = sp; sb.gdbh[ng] = d; sb.ght[ng] = h; sb.gden[ng] = den; sb.gkey[k3] = Int32(ng)
-        else
-            totden = sb.gden[g] + den
-            sb.ght[g]  = (sb.ght[g] * sb.gden[g] + h * den) / totden
-            sb.gdbh[g] = (sb.gdbh[g] * sb.gden[g] + d * den) / totden
-            sb.gden[g] = totden
-        end
+        push!(items, (sp, d, h, h, h, den, -1f0))
     end
-    gsp = sb.gsp; gdbh = sb.gdbh; ght = sb.ght; gden = sb.gden
-    # emit one merged snag per (sp,dbhcl,htcl) class — bole (MCF) on the class-MEAN dbh/ht, floored at the tiny-tree
-    # cone volume X=0.005454154·H (fmsvol.f VOL2HT=MAX(X,MCF)), ×V2T→tons, weighted by class density.
-    # FMSADD gives the records slots in species-major (SPCL, DBHCL, HTCL) order with emptied-record reuse (fmsadd.f:41-62;
-    # fmsadd.f is identical in every variant build) — the R6 FMR6HTLS draws are handed out per record, and every variant's
-    # FMDOUT/CWD sums run in that record order (MEASURED FVSie_g16 11855985010690 2016: species-major 7,8,9 records).
-    r6 = true
-    gorder = r6 ? Int[Int(sb.gkey[k]) for k in eachindex(sb.gkey) if sb.gkey[k] != 0] : (1:ng)   # lin3 = species-major
-    ctx = r6 ? _fmsadd_ctx(s.fire) : nothing
-    @inbounds for g in gorder
-        sp = Int(gsp[g]); d = gdbh[g]; h = ght[g]
-        mcf = max(0.005454154f0 * h, _snag_merch_cuft_on(s, sp, d, h))
-        # NOTE: the fall→cwd uses this MERCH bolevol (fallvol left unset). REFUTED that FVS uses TOTAL here
-        # (fmcwd.f:187 CWD1 'D') — setting fallvol=total REGRESSED 12 live-validated carbon-DDW + fire tests
-        # (2026-07-06), so jl's merch is what matches live. The scorch big-wood cwd excess is NOT a fall-volume
-        # bug; it's the snag density/fall-timing (see task #72).
-        slot = r6 ? _fmsadd_slot!(s.fire, ctx) : 0
-        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead, slot = slot)
-        (r6 && slot == 0) && push!(ctx.taken, length(s.fire.snags.sp))
-    end
-    return s
+    return fmsadd_bin!(s, items, yr; yrdead = yrdead, ityp = 4, bolefn = _r6_snag_bolefn(s))
 end

@@ -1724,28 +1724,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 [[residual]]
 variant = "IE"
 regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [jl_not_f32=3 material=6] max|Δ|=96.0 | e.g. stand 11855985010690 year 2016: live=75.0 jl=75.20368099212646"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [jl_not_f32=3 material=6] max|Δ|=96.0 | e.g. stand 11855985010690 year 2016: live=25.0 jl=24.796320497989655"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
 file = "FVS_Carbon"
 col = "Aboveground_Merch_Live"
 stand = "*"
@@ -6488,34 +6466,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "Killed_class1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=11 ulpbig=1] max|Δ|=174.5 | e.g. stand 5352355010661 year 2004: live=118.11426544189453 jl=114.61214447021484"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "Killed_class2"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 19
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 19 cells [material=16 ulpbig=3] max|Δ|=81.39 | e.g. stand 474187636489998 year 2026: live=41.40951156616211 jl=35.914939880371094"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Killed_class3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 12 cells [material=12] max|Δ|=42.16 | e.g. stand 888512560290487 year 2031: live=8.546037673950195 jl=12.436532020568848"""
 
 [[residual]]
 variant = "EM"
@@ -7123,7 +7079,6 @@ max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-27: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
 
 
-
 [[residual]]
 variant = "IE"
 regime = "thinbba"
@@ -7133,7 +7088,7 @@ stand = "1627682513290487"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=DF jl=WH"""
+issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=DF jl=WH"""
 
 [[residual]]
 variant = "IE"
@@ -7144,7 +7099,7 @@ stand = "1627682513290487"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=PSME jl=TSHE"""
+issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=PSME jl=TSHE"""
 
 [[residual]]
 variant = "IE"
@@ -7155,7 +7110,7 @@ stand = "1627682513290487"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=202 jl=263"""
+issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=202 jl=263"""
 
 [[residual]]
 variant = "EM"
@@ -7166,15 +7121,4 @@ stand = "196378260020004"
 year = "*"
 status = "OPEN"
 max_cells = 1
-issue = """2026-09-28 ie-resid FFE fmcwd/fmeff ports moved EM 196378260020004's pre-fire fuel bed (snag-fall cone split, fire crowns) - the post-fire .sum MAI 2052 lands 6.5 vs live 6.4 (F5.1 boundary); the stand's fire kill was already off live (86 cells). | 1 cells, e.g. year 2052: live=6.4 jl=6.5"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight3"
-stand = "200267456010854"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """2026-09-28 ie-resid FFE ports (FMSADD binning of SN inventory snags, fmcwd cone split): SN 200267456010854's pre-fire fuel moved (2002 Standing_Dead 3.592->3.306 vs live 3.271, 2007 DDW 1.4325->1.4172 vs 1.4184) and its 2007 fuel-model Weight3 renders 11 vs live 10; the stand's fire was already off live. | 1 cells, e.g. year 2007: live=10.0 jl=11.0"""
+issue = """2026-09-28 ie-resid (re-added at the master merge): FFE fmcwd/fmeff ports moved EM 196378260020004's pre-fire fuel bed — the post-fire .sum MAI 2052 lands 6.5 vs live 6.4 (F5.1 boundary); the stand's fire kill was already off live. | 1 cells, e.g. year 2052: live=6.4 jl=6.5"""

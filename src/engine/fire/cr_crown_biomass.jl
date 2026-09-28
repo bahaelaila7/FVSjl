@@ -119,21 +119,6 @@ function cr_hpct_of_height(s::StandState, h::Float32)::Float32
     tot <= 0f0 ? 100f0 : (le / tot) * 100f0
 end
 
-"""
-    ffe_grow_tick!(s)
-
-FMCROW's GROW gate (fmcrow.f:126-127), once per FMSDIT: a record whose crown a fire froze (GROW<1) steps GROW
-toward 1; while it stays below 1 its CROWNW is not recomputed (`ffe_crownw` keeps the frozen crown).
-"""
-function ffe_grow_tick!(s::StandState)
-    fs = s.fire; (fs === nothing || !fs.active) && return s
-    t = s.trees
-    @inbounds for i in 1:t.n
-        g = t.ffe_grow[i]; g < 1 && (t.ffe_grow[i] = g + Int8(1))
-    end
-    return s
-end
-
 "FMSDIT-time FMCROW percentile basis (see cr_hpct_of_height): snapshot the live heights + TPA."
 function ffe_snapshot_hpct!(s::StandState)
     fs = s.fire; (fs === nothing || !fs.active) && return s
