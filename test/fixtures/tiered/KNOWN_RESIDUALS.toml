@@ -228,17 +228,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Aboveground_Merch_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 33
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 33 cells [ulp2_16=1 ulpbig=32] max|Δ|=0.9775 | e.g. stand 12827438010497 year 2025: live=18.709928512573242 jl=18.7381649017334"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Aboveground_Total_Live"
 stand = "*"
 year = "*"

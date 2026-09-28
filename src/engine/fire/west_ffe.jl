@@ -18,7 +18,7 @@
 "Western variants whose FFE snag bole / live-carbon stem use `ffe_west_nocut` (fmsvol.f non-eastern branch)."
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
                    v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
-                   v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska
+                   v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska || v isa BlueMountains
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -32,7 +32,10 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
     _ffe_west_vol(v) || return nothing
     (d < 1f0 || h <= 0f0 || sp < 1 || sp > length(s.species.vol_eq)) && return (0f0, 0f0, 1f0, false)
     eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-    if v isa SoutheastAlaska                                   # ak: NVEL F32/DVE/CUR/DEM (ak_tree_vol), NATCRS CTKFLG=T
+    if v isa BlueMountains                                     # bm: NVEL FW2 / 616BEHW R6VOL, NATCRS CTKFLG=T (fvsvol.f)
+        tcf, mcf = bm_nocut_cuft(s, sp, d, h)
+        return (tcf, mcf, bm_bratio(s.coef.species, sp, d), true)
+    elseif v isa SoutheastAlaska                               # ak: NVEL F32/DVE/CUR/DEM (ak_tree_vol), NATCRS CTKFLG=T
         tcf, mcf, _ = ak_tree_vol(s, sp, d, h)
         return (max(tcf, 0f0), max(mcf, 0f0), ak_bratio(sp, d), true)
     elseif v isa EasternMontana
