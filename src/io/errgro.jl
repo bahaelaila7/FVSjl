@@ -298,14 +298,14 @@ function _ws_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Int
     end
     kod == 0 && a2 <= length(r5) && (kod = a2)
     kod <= 0 && !lpvxxx && push!(errs, 14)
-    return errs
+    return (max(kod, 0), max(kod, 0), errs)                             # ws: KODTYP = ITYPE (R5HABT index)
 end
 
 # nc/so/ca habtyp.f (R5HABT on the Region-5 forests, PCOML on the Region-6 ones — IR5/IR6 by the FORKOD-mapped
 # KODFOR). The PVREF branches only fire while KODTYP ≤ 0; an unresolved code (the R5HABT/PCOML text loop and the
 # IHB sequence number both fail) is FVS14 unless LPVXXX.
 function _r56_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, kodfor::Int, ir5::Bool,
-                          ir6::Bool, dir::AbstractString, pcoml)
+                          ir6::Bool, dir::AbstractString, pcoml, dflt::NTuple{2,Int})
     errs = Int[]; lpvxxx = false; k0 = String(strip(pv)); k = k0; r = String(strip(cpvref))
     a2 = Int(kodtyp); kod = Int(kodtyp)
     r5 = _r5habt(dir); nr5 = length(r5); npa = length(pcoml)
@@ -328,7 +328,7 @@ function _r56_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::In
             elseif !lc && lr;           push!(errs, 33); lpvxxx = true
             end
         end
-        lpvxxx && return errs                                           # GO TO 300 with KODTYP 0, LPVXXX
+        lpvxxx && return _r56_tail(0, 0, kodfor, ir5, dflt, errs)       # GO TO 300 with KODTYP 0, LPVXXX
     end
     if ir5
         kod = _crdecd(k, r5)
@@ -350,30 +350,43 @@ function _r56_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::In
         end
     end
     kod == 0 && !lpvxxx && push!(errs, 14)
-    return errs
+    itype = kod <= 0 ? 0 : kod <= nr5 ? kod : kod - nr5
+    return _r56_tail(max(kod, 0), itype, kodfor, ir5, dflt, errs)
 end
+# habtyp.f label 300 tail: KODTYP 0 on a Region-5 forest (or no forest) ⇒ ITYPE 0; otherwise the R6 default plant
+# association (NC/CA 452 ⇒ ITYPE 46 CWC221, SO 455 ⇒ ITYPE 49 CPS111).
+_r56_tail(kod, itype, kodfor, ir5, dflt, errs) =
+    kod != 0 ? (kod, itype, errs) : (kodfor == 0 || ir5) ? (0, 0, errs) : (dflt[1], dflt[2], errs)
 _mapped_kodfor(s::StandState, forkod!) = (q = deepcopy(s.plot); forkod!(q); Int(q.user_forest_code))
 
 function habtyp_errors!(s::StandState{WestSierra}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
-    foreach(e -> errgro!(s, e), _ws_habtyp_errs(pv, cpvref, kodtyp))
+    kod, itype, errs = _ws_habtyp_errs(pv, cpvref, kodtyp)
+    foreach(e -> errgro!(s, e), errs)
+    s.plot.habitat_input = Int32(itype)                                # ITYPE (ws/fmcba.f COVINI)
     return nothing
 end
 function habtyp_errors!(s::StandState{Klamath}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
     kf = _mapped_kodfor(s, nc_forkod!)
     ir5 = kf > 0 && (kf < 600 || kf == 705 || kf == 800); ir6 = !ir5 && kf > 0 && (kf == 611 || kf == 712)
-    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, NC_DATADIR, NC_PCOML))
+    kod, itype, errs = _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, NC_DATADIR, NC_PCOML, (452, 46))
+    foreach(e -> errgro!(s, e), errs)
+    s.plot.habitat_input = Int32(itype)                                # ITYPE (nc/fmcba.f COVINI5/COVINI6)
     return nothing
 end
 function habtyp_errors!(s::StandState{SouthCentralOregon}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
     kf = _mapped_kodfor(s, so_forkod!)
     ir5 = kf in (505, 506, 509, 511, 701, 514); ir6 = kf in (601, 602, 620, 799)
-    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, SO_DATADIR, SO_PCOML))
+    kod, itype, errs = _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, SO_DATADIR, SO_PCOML, (455, 49))
+    foreach(e -> errgro!(s, e), errs)
+    s.plot.habitat_input = Int32(itype)                                # ITYPE (so/fmcba.f COVINI, so/fmcfmd.f IPASO)
     return nothing
 end
 function habtyp_errors!(s::StandState{CentralCalifornia}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
     kf = _mapped_kodfor(s, ca_forkod!)
     ir5 = 0 < kf < 600; ir6 = kf >= 600
-    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, CA_DATADIR, CA_PCOML))
+    kod, itype, errs = _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, CA_DATADIR, CA_PCOML, (452, 46))
+    foreach(e -> errgro!(s, e), errs)
+    s.plot.habitat_input = Int32(itype)                                # ITYPE (ca/fmcba.f COVINI5/COVINI6)
     return nothing
 end
 
@@ -389,7 +402,13 @@ const _CR_R2_KEEP2 = Set(["20201", "20304", "202030", "204", "20205", "20402", "
     "204091", "20306", "202", "20401", "202010", "20403", "202031", "204040", "20206", "20408", "20410"])
 _cr_habt(name::AbstractString) = get!(() -> [String(strip(l)) for l in readlines(joinpath(CR_DATADIR, name))[2:end]],
                                       _R5HABT, joinpath(CR_DATADIR, name))
-function _cr_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, kodfor::Int)
+"""
+    cr_habtyp(pv, cpvref, kodtyp, kodfor) -> (kodtyp, itype, errs)
+
+cr/habtyp.f resolution: KODTYP (= ICL5; R3 codes offset by NR2) and ITYPE (the index within R2HABT/R3HABT, COVINI2/3's
+subscript), plus the ERRGRO numbers raised (in order). Unresolved ⇒ (0, 0, …).
+"""
+function cr_habtyp(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, kodfor::Int)
     errs = Int[]; lpvxxx = false; k = String(strip(pv)); r = String(strip(cpvref)); a2 = Int(kodtyp)
     ir2 = kodfor < 300; ir3 = !ir2
     r2 = _cr_habt("r2habt.csv"); r3 = _cr_habt("r3habt.csv"); nr2 = length(r2)
@@ -414,22 +433,34 @@ function _cr_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Int
         end
     end
     kod = ir2 ? _crdecd(k, r2) : (i = _crdecd(k, r3); i > 0 ? i + nr2 : 0)
+    itype = ir2 ? kod : (kod > 0 ? kod - nr2 : 0)
     if kodfor == 0 || kod == 0
         i = (kodfor == 0 || ir2) ? findfirst(==(k), r2) : nothing
         if i !== nothing
-            kod = i
+            kod = i; itype = i
         else
             j = findfirst(==(k), r3)
-            kod = j !== nothing ? j + nr2 :
-                  (a2 <= nr2 && ir2) ? a2 : (nr2 < a2 <= nr2 + length(r3) && ir3) ? a2 : 0
+            if j !== nothing
+                kod = j + nr2; itype = j
+            elseif a2 <= nr2 && ir2
+                kod = a2; itype = a2
+            elseif nr2 < a2 <= nr2 + length(r3) && ir3
+                kod = a2; itype = a2 - nr2
+            else
+                kod = 0; itype = 0
+            end
         end
     end
     kod == 0 && !lpvxxx && push!(errs, 14)
-    return errs
+    return (max(kod, 0), max(itype, 0), errs)
 end
 function habtyp_errors!(s::StandState{CentralRockies}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
     kf = _mapped_kodfor(s, _cr_forkod!)
-    foreach(e -> errgro!(s, e), _cr_habtyp_errs(pv, cpvref, kodtyp, kf))
+    kod, itype, errs = cr_habtyp(pv, cpvref, kodtyp, kf)
+    foreach(e -> errgro!(s, e), errs)
+    # KODTYP/ICL5 and ITYPE (cr/fmcba.f COVINI2/COVINI3; esplt2/cvbrow habitat). MEASURED FVScr_clean STDINFO
+    # "(CODE 306)" 3026069010690 PV 10507/201, 470 5278473010690 011330/301, 526 742164474290487 201020/301.
+    s.plot.habitat_code = Int32(kod); s.plot.habitat_input = Int32(itype); s.control.icl5 = Int32(kod)
     return nothing
 end
 

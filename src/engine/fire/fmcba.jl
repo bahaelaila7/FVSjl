@@ -207,19 +207,35 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  # NC bare stand: COVINI5(ITYPE)/COVINI6(ITYPE) by habitat (nc/fmcba.f:337-355); the full
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
-                 s.variant isa Klamath ? Int32(3) :
+                 # NC (nc/fmcba.f:337-355): R5 forests (KODFOR 5xx or ≥ 705) COVINI5(ITYPE), else COVINI6(ITYPE); DF 3 default.
+                 s.variant isa Klamath ?
+                     (let kf = Int(s.plot.user_forest_code)
+                          ((500 <= kf < 600) || kf >= 705) ? _covini(NC_COVINI5, Int(s.plot.habitat_input), 3) :
+                                                             _covini(NC_COVINI6, Int(s.plot.habitat_input), 3)
+                      end) :
                  s.variant isa WestCascades ? _covini(WC_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa PacificNorthwest ? _covini(PN_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa EastCascades ? _covini(EC_COVINI, Int(s.plot.habitat_input), 3) :
-                 s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
+                 # SO (so/fmcba.f:608-616): COVINI(ITYPE) when ITYPE > 0 on an R6 forest (600-699, 799), else PP 10.
+                 s.variant isa SouthCentralOregon ?
+                     (let kf = Int(s.plot.user_forest_code)
+                          ((600 <= kf < 700) || kf == 799) ? _covini(SO_COVINI, Int(s.plot.habitat_input), 10) : Int32(10)
+                      end) :
                  s.variant isa SoutheastAlaska ? Int32(11) :   # AK: western hemlock at IY(1) (ak/fmcba.f:236-242), else OLDCOVTYP
                  # WS/CA/OC/OP "NO VALID HABITAT" defaults (ws/fmcba.f:509 PP 10; ca/oc fmcba.f:543 7; op/fmcba.f:436 DF
-                 # 16 after COVINI6(ITYPE)). These fell to the SN 75 before — a species index past their MAXSP, masked
-                 # only because the top-2 weights stayed 0. WS/CA/OC COVINI(ITYPE) waits on their habtyp ITYPE port.
-                 s.variant isa WestSierra ? Int32(10) :
-                 (s.variant isa CentralCalifornia || s.variant isa OregonCoast) ? Int32(7) :
+                 # 16 after COVINI6(ITYPE)). OC's COVINI waits on its habtyp ITYPE port.
+                 s.variant isa WestSierra ? _covini(WS_COVINI, Int(s.plot.habitat_input), 10) :     # ws/fmcba.f:500-509
+                 # CA (ca/fmcba.f:527-543): IFOR ≥ 6 (R6/BLM) COVINI6(ITYPE), else COVINI5(ITYPE); 7 default.
+                 s.variant isa CentralCalifornia ?
+                     (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
+                                                    _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
+                 s.variant isa OregonCoast ? Int32(7) :
                  s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
-                 s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
+                 # CR (cr/fmcba.f:417-433): COVINI2(ITYPE) on Region-2 forests, COVINI3(ITYPE) on Region 3, else LP 11.
+                 s.variant isa CentralRockies ?
+                     (Int(s.plot.user_forest_code) ÷ 100 == 2 ? _covini(CR_COVINI2, Int(s.plot.habitat_input), 11) :
+                      Int(s.plot.user_forest_code) ÷ 100 == 3 ? _covini(CR_COVINI3, Int(s.plot.habitat_input), 11) :
+                      Int32(11)) : Int32(75)
         # CA-FFE top-2 variants (nc:359-360, ws:514-515, ca/oc:548-549): a bare stand carries the ONE cover type,
         # COVCA(1)=COVTYP with weight COVCAWT(1)=1 (COVCA(2)/COVCAWT(2) stay 0 from the FMCBA entry reset). jl kept
         # COVCAWT=(0,0) ⇒ zero live AND initial dead fuel on every bare NC/WS/CA/OC stand. (OP's fmcba.f has no
