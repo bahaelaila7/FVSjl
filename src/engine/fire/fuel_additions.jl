@@ -220,10 +220,10 @@ function snapshot_ffe_oldcrown!(s::StandState)
     return s
 end
 
-function ffe_fuel_update!(s::StandState, nyrs::Integer)
+function ffe_fuel_update!(s::StandState, nyrs::Integer; vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
-    fmcba!(s)
+    fmcba!(s; vtrip = vtrip)
     # FVS FMMAIN year-loop ORDER: FMSNAG (snag fall → bole into down wood) → FMCWD (decay) → FMCADD
     # (cwd2b crown fall + litterfall + woody breakage + crown-lift). The snag falldown MUST precede the
     # decay so the freshly-fallen bole is decayed in the same year it falls (else it over-accumulates by
@@ -237,7 +237,7 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
         isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
         ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
-        fmcadd!(s)                                     # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
+        fmcadd!(s; vtrip = vtrip)                      # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
     end
     fs.bioroot *= fpowi(1f0 - _FM_CRDCAY, nyrs)    # dead-root decay (fmcrbout.f:273, REAL**INTEGER ⇒ __powisf2)
@@ -255,22 +255,26 @@ The crown-lift term reads the CURRENT FMPROB and OLDCRW each year, so a fire's k
 (fmeff.f:498-503) shrink it at once — jl added a cycle-start total (MEASURED FVSie_g16 4769882010690 SIMFIRE 2014
 FMCADD: hard <0.25" +0.0183 live vs +0.0398 jl).
 """
-function fmcadd!(s::StandState)
+function fmcadd!(s::StandState; vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     t = s.trees; coef = s.coef
     leaflf = coef_col(coef, :leaf_life); ocrw = t.ffe_oldcrw; cwd = fs.cwd
-    @inbounds for i in 1:t.n
-        p = t.tpa[i]; p > 0f0 || continue
+    # DO I=1,ITRN over FMMAIN's list: in a tripling cycle that is the tripled list (originals ×.60, then each record's
+    # ×.25/×.15 copies with the same CROWNW/OLDCRW), and jl's is still untripled here — walk it the FVS way.
+    _fm_record_walk(t, vtrip) do i, p
+        p > 0f0 || return
         sp = Int(t.species[i])
         dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
         xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
         ll = leaflf[sp]
-        ll > 0f0 && (cwd[10, 2, dkcl] += (xv[1] * p / ll) * _FM_P2T)
-        for sz in 1:5
-            cwd[sz, 2, dkcl] += (_FM_LIMBRK * p * xv[sz + 1]) * _FM_P2T
-            po = p * ocrw[sz, i]
-            po < 0.0000625f0 || (cwd[sz, 2, dkcl] += po * _FM_P2T)
+        @inbounds begin
+            ll > 0f0 && (cwd[10, 2, dkcl] += (xv[1] * p / ll) * _FM_P2T)
+            for sz in 1:5
+                cwd[sz, 2, dkcl] += (_FM_LIMBRK * p * xv[sz + 1]) * _FM_P2T
+                po = p * ocrw[sz, i]
+                po < 0.0000625f0 || (cwd[sz, 2, dkcl] += po * _FM_P2T)
+            end
         end
     end
     c2 = fs.cwd2b

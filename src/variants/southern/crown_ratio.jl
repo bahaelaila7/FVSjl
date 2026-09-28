@@ -15,6 +15,40 @@
 # =============================================================================
 
 """
+    eastern_cratet_dead_pct!(s)
+
+The cycle-0 DEAD records' PCT as CRATET's backdating DENSE leaves it (cratet.f:150-195 → dense.f:83-87,244): PCTILE over
+the live+dead IND (IND1-seeded, RDPSRT(.FALSE.) on the read DBH) of WK5 = D·(D·P), live D backdated (LBKDEN = IDG<2),
+dead D = DBH for HISTORY 6-7 and 0 for 8-9 (IMC 9), dead P expanded ×FINT/FINTM (notre.f). Later DENSEs cover only the
+live list, so FVS_TreeList reports this PCT for those rows for good (SN 200267456010854: 0.635/14.38/29.29 for three
+IMC-9 snags; jl printed 0). Stored in `calib.cratet_dead_pct`; the live PCT is left as computed.
+"""
+function eastern_cratet_dead_pct!(s::StandState)
+    t = s.trees; nd = Int(t.ndead); nlive = t.n
+    nd > 0 || return s
+    ntot = nlive + nd
+    ind = bm_cratet166_ind(s, view(t.dbh, 1:ntot), nlive, ntot)     # real-DBH IND, dead included
+    saved_dbh = t.dbh[1:ntot]; saved_tpa = t.tpa[1:ntot]
+    try
+        s.control.growth_idg < 2 && _backdate_dbh!(s)                 # live WK3 (t.n = nlive here)
+        fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+        @inbounds for j in (nlive + 1):ntot
+            t.tpa[j] *= fintr
+            (t.history[j] == 8 || t.history[j] == 9) && (t.dbh[j] = 0f0)
+        end
+        pct = zeros(Float32, ntot)
+        t.n = ntot
+        _pctile!(pct, t, ind, ntot)
+        s.calib.cratet_dead_pct = pct[(nlive + 1):ntot]
+        (nlive == 0 && nd == 1) && (s.calib.cratet_dead_pct[1] = 0f0)   # pctile.f N=1 leaves the MAXTRE record at 0
+    finally
+        t.n = nlive
+        @inbounds for j in 1:ntot; t.dbh[j] = saved_dbh[j]; t.tpa[j] = saved_tpa[j]; end
+    end
+    return s
+end
+
+"""
     init_crown_ratios!(s)
 
 CRATET: estimate the INITIAL crown ratio for inventory trees that have no input crown
@@ -88,10 +122,12 @@ function crown_ratio_update!(s::StandState, ::Southern; fint::Float32 = 5f0, cro
     relden = relden_override >= 0f0 ? relden_override : stand_ccf(s)  # RELDEN — crown competition factor
                                          # (override = the DENSE-backdated CCF, used by CRATET init crown)
     sdidef = s.plot.sp_sdi_def
-    # Ascending diameter rank: isort[i] = 1 (smallest) … n (largest); x = rank/n.
-    ord = sortperm(view(t.dbh, 1:n))
-    isort = Vector{Int32}(undef, n)
-    @inbounds for r in 1:n; isort[ord[r]] = Int32(r); end
+    # ISORT(IND(JJ)) = ITRN−JJ+1 (sn/crown.f:156-159): the rank in FVS's IND — RDPSRT's DESCENDING diameter order with
+    # its own tie order — not a stable ascending sort. LSTART: CRATET's IND (sn/cratet.f:155-157 IND=IND1 + RDPSRT(.FALSE.),
+    # :261 RDPSRT(.TRUE.) when dead records exist — the shared crown_isort/bm_cratet_ind!); cycling: gradd.f:186 RDPSRT.
+    # MEASURED FVSsn_g16 157577477010854 1972: tied LP pairs (7.1"/49.0', 6.4"/45.4', 5.9"/42.6') had their dubbed CRs
+    # 34/35, 31/29, 26/27 swapped against live.
+    isort = crown_isort(s; lstart = lstart)
     scale = clamp(1f0 - 0.00167f0 * (relden - 100f0), 0.30f0, 1f0)
 
     eqn = sd[:mcr_eqn]; ma = sd[:mcr_a]; mc = sd[:mcr_c]; mb = sd[:mcr_b]
