@@ -235,6 +235,40 @@ end
 # The per-stem bole biomass (tons) of snag record `i` as FMDOUT's FMSVOL(I,HTIx)·V2T sees it: the stored death-time bole,
 # Jenkins for a record without one, reduced for a broken top (see snag_bole_carbon).
 _snag_east_vol(v) = v isa Southern || v isa CentralStates || v isa LakeStates || v isa Northeast
+
+"""
+    ffe_east_snag_vol_at(s, sp, d, htdead, xht) -> Float32 (cuft)
+
+FMSVOL(I, XHT) for the eastern family (CS/LS/NE/SN, fmsvol.f:98-153): NATCRS on the snag record's (DBHS, HTDEAD) —
+MCF = the DBH-gated merch cubic (LS/NE R9 Clark v4+v7, SN/CS R8 Clark via `_snag_merch_cuft_on`) — then, since
+XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·HTDEAD, MCF). FMDOUT/FMSOUT/FMSALV
+call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
+measured on the fat lower bole of its death-form tree.
+"""
+function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32)::Float32
+    coef = s.coef
+    local mcf, vmax
+    if s.variant isa LakeStates || s.variant isa Northeast
+        ifor = Int(s.plot.forest_idx)
+        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
+        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+        v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
+        mcf = d >= dbhmin ? v[4] + v[7] : 0f0
+        vmax = v[1]
+    else
+        mcf = _snag_merch_cuft_on(s, sp, d, htd)
+        vmax = _fm_cuft(s, sp, d, htd; merch = false)
+    end
+    if mcf > 0f0
+        cc = s.control
+        merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
+                     scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
+        _, mcf, _ = cftopk(merch_std, sp, d, htd, vmax, mcf, 0f0, vmax, bark_ratio(coef, sp, d),
+                           unsafe_trunc(Int, xht * 100f0))
+    end
+    return max(0.005454154f0 * htd, mcf)
+end
 function _snag_bole_tons(s::StandState, i::Int)::Float32
     fs = s.fire; sn = fs.snags; coef = s.coef
     @inbounds begin
@@ -247,41 +281,22 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
         if _ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i])       # {v}/fmsvol.f(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
             b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
-        elseif (!isempty(fs.params.snag_htx) || _snag_east_vol(s.variant)) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
+        elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
+            # fmdout.f:139-147 → fmsvol.f (CS/LS/NE/SN): FMSVOL(I, HTIH) recomputed at every report on (DBHS, HTDEAD)
+            sp = Int(sn.sp[i])
+            b = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * (coef_col(coef, :v2t)[sp] / 2000f0)
+        elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
-            # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
-            # Clark volume (v4+v7 merch, v1 total — the same basis as their live-tree merch_cuft_vol / bolevol);
-            # SN uses _fm_cuft. (LS _fm_cuft returns 0 — the empty vol_eq path — which silently skipped this.)
-            local mcf_full, vmax
-            if s.variant isa LakeStates || s.variant isa Northeast
-                ifor = Int(s.plot.forest_idx)
-                fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-                dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-                prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-                v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
-                mcf_full = d >= dbhmin ? v[4] + v[7] : 0f0
-                vmax = v[1]
-            else
-                # SN/CS: NATCRS MCF with the merch-DBH gate + Region-8 rule (_snag_merch_cuft_on, the same basis as the
-                # stored bole) — _fm_cuft's bare v[4] has no DBHMIN gate (a 5" SD snag got 1.1 cuft vs live MCF 0 ⇒ X).
-                mcf_full = _snag_east_vol(s.variant) ? _snag_merch_cuft_on(s, sp, d, htd) : _fm_cuft(s, sp, d, htd; merch = true)
-                vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
-            end
+            mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
+            vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
             if mcf_full > 0f0
                 cc = s.control
                 merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
                              scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
                 bk = bark_ratio(coef, sp, d)
                 _, mcf_t, _ = cftopk(merch_std, sp, d, htd, vmax, mcf_full, 0f0, vmax, bk,
-                                     _snag_east_vol(s.variant) ? unsafe_trunc(Int, sn.htcur[i] * 100f0) :
                                      round(Int, sn.htcur[i] * 100f0))   # CFTOPK: merch reduced for the broken top
-                if _snag_east_vol(s.variant)
-                    # fmsvol.f:150-153 (CS/LS/NE/SN): VOL2HT = MAX(0.005454154·H, MCF), MCF from NATCRS(D,HTDEAD) + CFTOPK
-                    # at IHT = INT(XHT·100) — recomputed fresh each report, not a ratio of the stored bole.
-                    b = max(0.005454154f0 * htd, mcf_t) * coef_col(coef, :v2t)[sp] / 2000f0
-                else
-                    b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
-                end
+                b *= clamp(mcf_t / mcf_full, 0f0, 1f0)
             end
         end
     end

@@ -363,6 +363,13 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
             snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
+        elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
+            # same FMSVOL(I,HTIx)·DENIx, (SNVIS+SNVIH)·V2T with V2T pre-divided by 2000 (fmvinit.f:1094) — CS/LS/NE/SN
+            sp = Int(sn.sp[i])
+            vv = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i])
+            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
         else
             b = _snag_bole_tons(s, i)
             v = b * sn.den_soft[i] + b * sn.den_hard[i]      # (SNVIS+SNVIH)·V2T with the bole already in tons/stem

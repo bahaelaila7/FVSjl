@@ -107,4 +107,11 @@ end
     end
 end
 
+# fmdout.f:139-155: each report recomputes SNVIH = FMSVOL(I,HTIH)·DENIH, SNVIS = FMSVOL(I,HTIS)·DENIS and adds
+# (SNVIS+SNVIH)·V2T, with V2T pre-divided by 2000 at fmvinit.f:1094. jl summed per-stem tons (vol·V2T_lb/2000)·den
+# (MEASURED 200267456010854 SALVAGE 2007 Standing_Dead 1.8224015 live vs 1.8224014).
+@testset "SN standing-dead FMSVOL·DEN·V2T association (fmdout.f:139-155) vs FVSsn_g16" begin
+    @test _cellsx("200267456010854", "salvage", "FVS_Carbon", ("Standing_Dead",), ("2002", "2007")) == 0
+end
+
 end # module
