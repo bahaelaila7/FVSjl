@@ -1811,7 +1811,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # Per-IPREP PROB1 for the DISTURBANCE tally's per-plot IPPREP sampler (estab.f:572 ESTOCK carries a per-IPREP
     # SPRE term). Only needed when site prep is active (default ESPREP or a MECHPREP/BURNPREP keyword); otherwise
     # every plot uses the scalar prob1 (IPREP=1). Mirrors the prob1 pipeline above for IPREP∈{1,2,3}.
-    _is_ie = variant !== nothing && variant isa InlandEmpire
+    _is_ie = variant !== nothing && (variant isa InlandEmpire || variant isa Kootenai)   # KT: the identical estb estab.f;
+                                                                                        # its es* = ie's species 1-11
     # IE and EM compile the IDENTICAL estb/estab.f + esnutr.f + estock.f + esprep.f + esetpr.f (FVSie/FVSem buildDir,
     # byte-compared 2026-09-19); their species routines (espadv/espsub/esxcsh/essubh/esadvh) differ ONLY at the
     # OCURNF-zeroed EM positions 4-6/11+. So every estab.f-level branch below (per-IPREP PROB1, per-point PROB1,
@@ -1987,7 +1988,7 @@ end
 # establishment heights are sub-breast-height so esgent.f's nominal DBH applies).
 # `xtes` = the removal fraction from THIS cycle's within-cycle thin (see grow_cycle!).
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return false
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) || return false
     est = s.estab
     est.es_aut_first = Int32(0); empty!(est.es_aut_plot)   # this cycle's natural-record plot tags (set when booking)
     empty!(est.es_plot_dil); est.es_plot_nph = Int32(0)    # this cycle's PLANT DILATEs (set by the tally)
@@ -2037,8 +2038,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # via ie_habtyp(habitat_code), and ie_habtyp(590)==ie_habtyp(510)==ITYPE 12 (identical MTYPE 510).
     # EM: esplt2.f:46-53/230-239 bracket the INPUT habitat code ICL5 (the raw PV_CODE / STDINFO field, grinit default
     # 260), not the translated KODTYP; ICL5 unset (0) ⇒ the translated code (dbsstandin.f:593 IF(ICL5.LE.0) ICL5=KODTYP).
+    # KT: ICL5 (kt_site_index_setup!: the input habitat code, or MTYPE(ITYPE) when a PV reference code is present;
+    # grinit.f:185 default 571). p.habitat_code holds KKTYPE there, not an estb habitat code.
     ihab_code = s.variant isa EasternMontana ?
         (s.control.icl5 > 0 ? Int(s.control.icl5) : Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)])) :
+        s.variant isa Kootenai ? (s.control.icl5 > 0 ? Int(s.control.icl5) : 571) :
         Int(s.plot.habitat_code)
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
@@ -2649,7 +2653,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # (the AUTOES ingrowth cohort is a small fraction of tree TPA — ~100 tiny seedlings vs thousands), so this is
     # a faithfulness alignment to the oracle-measured WK4, not a visible .sum mover on the sampled EM stands.
     _autoes_gentim = max(fint - 5f0, 0f0)
-    _autoes_trage = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? 3f0 : 2f0
+    _autoes_trage = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) ? 3f0 : 2f0
     _autoes_htimlt = min(_autoes_trage, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
@@ -2712,7 +2716,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL; apply_climate_dds! + regent clim_treemult) and the
         # aspen REGENT SITAGE. A uniform TRAGE (3) over-aged the cohort (FIA 303115495489998 climate: 2064 TCuFt 200
         # vs live 194); the cross-indexed values make that stand's .sum exact.
-        t.birth_age[n]   = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? babirth[bi] :
+        t.birth_age[n]   = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) ? babirth[bi] :
                            _autoes_gentim      # IE/EM: AGADSB(N)/AGEXC(I) (estab.f:1235/:1324); +GENTIM after ESGENT (:1504)
         t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f

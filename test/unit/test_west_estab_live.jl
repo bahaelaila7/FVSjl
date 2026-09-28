@@ -9,7 +9,7 @@ const _WE = FVSjl
 const _WE_FX = joinpath(@__DIR__, "..", "fixtures", "west_estab")
 const _WE_TIER = joinpath(@__DIR__, "..", "fixtures", "tiered")
 const _WE_VAR = Dict("so" => _WE.SouthCentralOregon(), "ws" => _WE.WestSierra(), "ca" => _WE.CentralCalifornia(),
-                     "nc" => _WE.Klamath())
+                     "nc" => _WE.Klamath(), "kt" => _WE.Kootenai())
 
 function _we_run(case)
     v = split(case, '_')[1]
@@ -18,14 +18,16 @@ function _we_run(case)
     key = replace(read(joinpath(_WE_FX, case * ".key"), String),
                   "\nstands.db\n" => "\n" * joinpath(dir, "stands.db") * "\n", "\nout.db\n" => "\n" * joinpath(dir, "out.db") * "\n")
     write(joinpath(dir, "k.key"), key)
-    err = ""
+    err = ""; txt = ""
     try
-        _WE.run_keyfile(joinpath(dir, "k.key"); variant = _WE_VAR[v])
+        txt = _WE.run_keyfile(joinpath(dir, "k.key"); variant = _WE_VAR[v])
     catch e
         err = sprint(showerror, e)
     end
+    _WE_SUM[case] = txt
     return err, joinpath(dir, "out.db")
 end
+const _WE_SUM = Dict{String,String}()
 
 function _we_live(case)
     rows = Dict{Tuple{Int,Int},Vector{Any}}()
@@ -111,6 +113,37 @@ _we_close(a, b) = a[1] == b[1] && a[5] == b[5] && all(i -> abs(a[i] - b[i]) <= 1
                 @test (case, k, jl[k]) == (case, k, lv[k])
             else
                 @test (case, k, _we_close(jl[k], lv[k])) == (case, k, true)
+            end
+        end
+    end
+end
+
+# KT: estb/estab.f (== ie's) with the IE AUTOES tally on KT's 11 species, the estb PLANT path and estb/esgent.f →
+# kt/regent.f REGENT(LESTB). Bare FIA stand 22404917010497 (no SLOPE/ASPECT ⇒ kt/grinit.f 30%/45°): natural
+# regeneration from the first cycle (live 591 TPA at 2013; jl had none), and PLANT 400 DF on top of it.
+const _WE_KT = ["kt_22404917010497_none", "kt_22404917010497_plant_cyc"]
+
+@testset "KT establishment (AUTOES + PLANT + ESGENT) vs live" begin
+    for case in _WE_KT
+        err, db = _we_run(case)
+        @test (case, err) == (case, "")
+        isempty(err) || continue
+        jl_rows = [l for l in split(_WE_SUM[case], '\n') if occursin(r"^\d{4} ", l)]
+        lv_rows = [l for l in readlines(joinpath(_WE_FX, case * "_live.rows"))]
+        @test (case, length(jl_rows)) == (case, length(lv_rows))
+        for (a, b) in zip(jl_rows, lv_rows)
+            @test (case, split(a)) == (case, split(b))
+        end
+        lv = _we_live(case); jl = _we_jl(db, 1)
+        yr1 = 2013
+        for k in sort(collect(keys(lv)))
+            @test (case, k, haskey(jl, k)) == (case, k, true)
+            haskey(jl, k) || continue
+            if k[1] <= yr1
+                @test (case, k, jl[k]) == (case, k, lv[k])      # the first natural cohort: every record exact
+            else
+                @test (case, k, jl[k][1] == lv[k][1] && jl[k][5] == lv[k][5] &&
+                       all(i -> abs(jl[k][i] - lv[k][i]) <= 2e-6 * abs(lv[k][i]), 2:4)) == (case, k, true)
             end
         end
     end

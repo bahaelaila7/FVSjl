@@ -310,7 +310,7 @@ Idempotent. The per-point BA uses the same PTBAA scale as `point_basal_area!` (v
 BAAA), filtered to point-1 overstory records.
 """
 function snapshot_esb_inputs!(s::StandState)
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return s
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) || return s
     isnan(s.estab.inv_baaold) || return s              # snapshot once (setup)
     p, t = s.plot, s.trees
     scale = p.gross_space > 0f0 ? p.pi / p.gross_space : 1f0   # PTBAA scale (= point_basal_area!)
@@ -369,11 +369,13 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     baa, xc, xs, slo = (1 <= pt <= length(hin)) ? hin[pt] :
         (clamp(s.plot.basal_area, 1f0, 400f0), s.plot.slope*cos(s.plot.aspect), s.plot.slope*sin(s.plot.aspect),
          s.plot.slope)
-    ihts = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_ihtser) : em_ihtser(Int(s.plot.habitat_code))
+    # KT: the estb habitat bracket input is ICL5 (kt_site_index_setup!; grinit default 571) — p.habitat_code is KKTYPE
+    ihts = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_ihtser) :
+           em_ihtser(s.variant isa Kootenai ? (s.control.icl5 > 0 ? Int(s.control.icl5) : 571) : Int(s.plot.habitat_code))
     iphy = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_iphy) : 3
     ipr = clamp(iprep, 1, 4)
     disp = emsqr * dil * _IE_ES_BNORML[iage]
-    hht = if s.variant isa InlandEmpire
+    hht = if s.variant isa InlandEmpire || s.variant isa Kootenai   # kt/essubh.f = ie/essubh.f's species 1-11
         ie_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)
     else
         em_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)   # em/essubh.f (EM species map)
@@ -389,10 +391,10 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
         hht += hadj; hht < 0.05f0 && (hht = 0.05f0)
     else
         hht += hadj
-        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : _EM_ES_XMIN[sp]
+        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : s.variant isa Kootenai ? _KT_ES_XMIN[sp] : _EM_ES_XMIN[sp]
         hht < xmn && (hht = xmn)
     end
-    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
+    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : s.variant isa Kootenai ? _KT_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
     hht > hmx && (hht = hmx)
     return hht
 end
@@ -617,7 +619,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # the tally's seed chain; use them verbatim and leave ESS0 at the post-tally ESAVE it set. No ESTAB call this
     # cycle (no states) ⇒ the replicate chain below.
     es_ps = s.estab.es_plot_state
-    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana) &&
+    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) &&
              s.estab.es_plot_year == yr && length(es_ps) == nptids * idup
     es0_post_tally = s.rng.es0
     pl_plot = Int32[]                  # plot NCOUNT of each record this pass creates (use_ps mode)
@@ -857,7 +859,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa InlandEmpire
+                   s.variant isa InlandEmpire || s.variant isa Kootenai   # KT: the same estb/estab.f
                 # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
                 # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
                 # debug: ESSUBH 7.805 → HHT 8.41 for WL. BM takes the default RAN branch below.)
@@ -921,7 +923,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
                 t.zrand[n]       = -999f0    # estab.f:1424 ZRAND(ITRN)=-999.
-                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai
                     # estb/estab.f:1427-1439: DG=HTG=0, OLDPCT=OLDRN=0, WK1=WK2=0, MISPUTZ(ITRN,0) — clear a reused slot.
                     t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
                     t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
@@ -946,7 +948,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # Other variants keep the full birth-cycle HTG (1.0; guards slot reuse). #193
                 # TT/UT (strp estab.f:506-516, same shape after tt|ut/essubh.f:64-69 rounds/clamps DELAY and sets
                 # TRAGE=TIME−DELAY): HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) = 0.99998 for a start-of-cycle PLANT.
-                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
                                       s.variant isa Teton || s.variant isa Utah ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
                                       s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
@@ -987,7 +989,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # HITE1=f(ABIRTH)) — and esgent_add_gentim! adds the cycle's final GENTIM afterwards (estab.f:1504).
                 # jl had stored AGE−GENTIM(FINT−5): IE planted aspen then grew from SITAGE 2 instead of live's 7
                 # (DBH 0.7728 vs 0.7812).
-                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai
                     _pdi = Float32(clamp(delay, -3, per))
                     t.birth_age[n] = Float32(per) - _pdi + trage
                     s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
@@ -1120,6 +1122,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         # TT (tt/regent.f:302-316 DO 13, storage order, before the SMHTGF ZRANDs) and UT (ut/regent.f:230-241, inside
         # the species-major record loop, interleaved with ZZRAN) likewise draw the crown in their own esgent.
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                         s.variant isa Kootenai ||   # KT: kt/regent.f DO 13 (kt_esgent!)
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
                          s.variant isa WestCascades ||
                          s.variant isa PacificNorthwest ||   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)

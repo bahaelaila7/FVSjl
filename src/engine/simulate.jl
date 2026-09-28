@@ -396,7 +396,7 @@ const TRIPLE_CYCLE_LIMIT = 2
 # no records (reorder never fires) and on `plant` the one-shot bare-stand planting fires the gate only where
 # sort_key is already ascending (measured `changed=false`), so the reorder is a measured no-op for them — they
 # are deliberately EXCLUDED until a regime that exercises their tripled-lineage establishment is measured.
-uses_estab_spesrt(v) = v isa InlandEmpire || v isa EasternMontana
+uses_estab_spesrt(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
 
 """
     fertilizer_growth!(s; fint)
@@ -535,7 +535,7 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     # uses; the existing scheduled-427 path in ie_autoes_establish! then consumes it (idt=fire year sits in
     # [year,next_year) at the fire cycle ⇒ fires exactly once, inert every other cycle). ESB1 uses est.inv_baaold
     # (the ESFLTR-frozen inventory BA) so the post-fire tally calibrates against inventory, not the depleted BA.
-    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana)
+    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai)
         push!(s.control.schedule, ScheduledActivity(Int32(yr), Int32(427),
               (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
         # EXPOSR (fmcons.f:186-208): PRDUF(%) = 83.7 − 0.426·m_duff%, floored 0; EXPOSR = (−8.98 + 0.899·PRDUF)·
@@ -1413,7 +1413,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # SO/WS/CA/NC (strp esgent): REGENT(LESTB) reads that same gradd.f:192 DENSE for RELDEN/BA/AVH too (post-growth,
     # before ESUCKR's sprouts and the new regen — ESGENT runs inside ESTAB, before gradd.f:244's post-regen DENSE).
     _strp_esg = s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                s.variant isa Klamath
+                s.variant isa Klamath || s.variant isa Kootenai   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
@@ -1438,10 +1438,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # For a NON-plant cycle establish! finds no due activity and returns early (engine/establishment.jl:340) with no
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) && ie_autoes_establish!(s; fint = fint)   # KT: the same estb estab/esnutr (kt es* = ie first 11 species)
     # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
     # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
@@ -1480,6 +1480,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+    s.variant isa Kootenai && kt_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
+        atrelden = es_at_relden, relden_pre = es_st_relden_pre, ba_pre = es_st_ba_pre, pccf_pre = es_pccf_pre)   # kt: estb/esgent.f
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden,
         relden_pre = es_ie_relden_pre, ba_pre = es_ie_ba_pre)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
@@ -1489,7 +1491,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # took the morts.f `WK1.EQ.0 ⇒ G=DG/(BARK·10)` vigor branch (e.g. bare PLANT stand: a seedling past 4.5 ft
     # got RIPP 0.00024 vs live 0.0104 ⇒ ~40× under-kill). Copy for the new IE records now.
     # TT morts reads WK1 too (teton/mortality.jl) ⇒ the same copy for its birth-cycle DG (tt_esgent!).
-    if s.variant isa InlandEmpire || s.variant isa Teton
+    if s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Kootenai   # KT: kt/dgdriv.f WK1=DG, kt/morts.f reads it
         @inbounds for i in (es_nstart + 1):s.trees.n
             s.trees.dg_prev[i] = s.trees.diam_growth[i]
         end
