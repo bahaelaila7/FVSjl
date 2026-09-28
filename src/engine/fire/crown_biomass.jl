@@ -25,14 +25,15 @@ const _FM_P2T = 0.0005f0           # FMPARM P2T: pounds → tons
 # Cumulative bole-tip cone weight (tons) at bark diameter `dbrk`. Hoisted from the per-call `cone`
 # closure inside crown_biomass (pillar-2: no per-tree closure allocation). Bit-identical arithmetic —
 # same op order, all Float32 (mypi=3.14159f0, _FM_P2T=0.0005f0).
+# fmcrowe.f:383-385: TEMPHT = DBRK/2*TAN(ANGLE); TEMP = TEMPHT*DBRK*DBRK*MYPI/12/12/12; UMBTW = SG*TEMP/P2T.
 @inline _cone(dbrk::Float32, ang::Float32, sg::Float32, mp::Float32) =
-    sg * (dbrk / 2f0 * tan(ang) * dbrk * dbrk * mp / 1728f0) / _FM_P2T
+    sg * (dbrk / 2f0 * ftan(ang) * dbrk * dbrk * mp / 12f0 / 12f0 / 12f0) / _FM_P2T
 
 # Same as _cone but the cone is capped at the tree's own bark diameter (td = min(dbrk, d)) — the
 # maple/else-branch `conem` closure, hoisted so `angle` is never captured (it was boxed, de-optimizing
 # the whole function). Bit-identical arithmetic, all Float32.
 @inline _conem(dbrk::Float32, d::Float32, ang::Float32, sg::Float32, mp::Float32) =
-    (td = min(dbrk, d); sg * (td / 2f0 * tan(ang) * td * td * mp / 1728f0) / _FM_P2T)
+    (td = min(dbrk, d); sg * (td / 2f0 * ftan(ang) * td * td * mp / 12f0 / 12f0 / 12f0) / _FM_P2T)
 
 # Standalone total cubic-foot volume of one (species, dbh, height) tree — FMSVL2's
 # `TCF` (fmsvol.f), which is just the SN volume model FVSjl uses in compute_volumes!.
@@ -146,7 +147,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
         hh = hp >= 0f0 ? hp : (_cr_crownw_needs_hp(spie) ? cr_hpct_of_height(s, h) : 100f0)
         # SG = the RUNTIME V2T (rescaled /2000 at fmvinit.f:1094); only the Gambel-oak group uses it, as
         # V·SG·2000 = V·raw_V2T. Match the FMCROWE path's `v2t·_FM_P2T` so the ×2000 recovers raw density.
-        sg = coef_col(coef, :v2t)[sp] * _FM_P2T
+        sg = coef_col(coef, :v2t)[sp] / 2000f0
         return cr_crownw(spie, d, h, 0, ic, hh, sg)
     end
     # FMCROWE's species arg is SPILS = the crown-biomass group. For CR that is ISPMAP(sp) (fmcrow.f:163
@@ -168,7 +169,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa OregonCoast ? Int(OC_FFE_ISPMAP[sp]) :
             s.variant isa Olympic ? Int(OP_FFE_ISPMAP[sp]) :       # OP FFE 39-sp NWO
             Int(coef_col(coef, :ls_spi)[sp])
-    sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
+    sg    = coef_col(coef, :v2t)[sp] / 2000f0   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
     # DBHMIN(SPIYV): the merch cubic min DBH (`_fm_dbhmin`, the same array FMCBIO reads)
     dbhmin = _fm_dbhmin(s, Int(sp))
@@ -178,16 +179,16 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     # --- Jenkins total aboveground (lb): trees < 1" use the 1" value, scaled back ---
     dd = d < 1f0 ? 1f0 : d
     b0, b1 = _fm_totabv_coef(spils)
-    totabv = exp(b0 + b1 * log(dd * 2.54f0)) * 2.2046f0
+    totabv = fexp(b0 + b1 * flog(dd * 2.54f0)) * 2.2046f0
     # foliage / bark / wood component fractions (fmcrowe.f:218-232), × TOTABV
     if spils >= 15
-        fol  = exp(-4.0813f0 + 5.8816f0 / (dd * 2.54f0)) * totabv
-        bark = exp(-2.0129f0 - 1.6805f0 / (dd * 2.54f0)) * totabv
-        wood = exp(-0.3065f0 - 5.4240f0 / (dd * 2.54f0)) * totabv
+        fol  = fexp(-4.0813f0 + 5.8816f0 / (dd * 2.54f0)) * totabv
+        bark = fexp(-2.0129f0 - 1.6805f0 / (dd * 2.54f0)) * totabv
+        wood = fexp(-0.3065f0 - 5.4240f0 / (dd * 2.54f0)) * totabv
     else
-        fol  = exp(-2.9584f0 + 4.4766f0 / (dd * 2.54f0)) * totabv
-        bark = exp(-2.0980f0 - 1.1432f0 / (dd * 2.54f0)) * totabv
-        wood = exp(-0.3737f0 - 1.8055f0 / (dd * 2.54f0)) * totabv
+        fol  = fexp(-2.9584f0 + 4.4766f0 / (dd * 2.54f0)) * totabv
+        bark = fexp(-2.0980f0 - 1.1432f0 / (dd * 2.54f0)) * totabv
+        wood = fexp(-0.3737f0 - 1.8055f0 / (dd * 2.54f0)) * totabv
     end
     branch = totabv - (fol + bark + wood)
     if dx < 1f0                                       # small-tree linear scaling
@@ -195,8 +196,12 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     end                                               #  only fol/branch are used downstream)
     branch < 0f0 && (branch = 0f0)
     ttopw = branch
-    # --- small unmerch trees (D < DBHMIN): add the whole-bole weight (FMSVL2) ---
-    if dx < dbhmin
+    # --- small unmerch trees (D < DBHMIN): add the whole-bole weight (FMSVL2) — eastern builds only ---
+    # fmcrowe.f:263-266 gates this on VARACD ∈ {SN,LS,NE,CS,ON}; a western tree under DBHMIN keeps TTOPW = BRANCH.
+    # (MEASURED FVSem_g16 684750664126144 2018 aspen 5.9"×31' under DBHMIN 7: TTOPW 53.1106 live, 55.7291 with the
+    # bole added ⇒ CROWNW(1) 3.5944 vs 4.1940.)
+    east = variant_code(s.variant) in ("SN", "LS", "NE", "CS", "ON")
+    if east && dx < dbhmin
         dmin = dbhmin
         # TT/UT define no htdbh curve — they use their own Wykoff HT-DBH H=exp(AX+HT2/(D+1))+4.5 (AX=HT1
         # uncalibrated, HT2 = TT :wykoff_ht2 / UT :ht2; cratet.f CASE DEFAULT). Others use the shared htdbh.
@@ -225,25 +230,25 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     p1 = p2 = p3 = 0f0; f1 = f2 = f3 = f4 = 0f0
     is_maple = spils == 18 || spils == 19 || spils == 26 || spils == 27 || (49 <= spils <= 52)
     if 30 <= spils <= 39                              # red oak / hickory
-        p1 =  6.4735f0 * d^(-1.1313f0) * cr^(-0.5777f0)
-        p2 = 36.8351f0 * d^(-0.9345f0) * cr^(-0.7014f0)
-        p3 = 28.2916f0 * d^(-0.8658f0) * cr^(-0.4084f0)
+        p1 =  6.4735f0 * fpow(d, -1.1313f0) * fpow(cr, -0.5777f0)
+        p2 = 36.8351f0 * fpow(d, -0.9345f0) * fpow(cr, -0.7014f0)
+        p3 = 28.2916f0 * fpow(d, -0.8658f0) * fpow(cr, -0.4084f0)
     elseif 1 <= spils <= 14                           # conifers (shortleaf pine form)
-        p1 = 3.525f0 * d^(-0.778f0) * cr^(-0.412f0)
-        p2 = 5.989f0 * d^(-0.565f0) * cr^(-0.346f0)
-        p3 = 8.585f0 * d^(-0.517f0) * cr^(-0.223f0)
+        p1 = 3.525f0 * fpow(d, -0.778f0) * fpow(cr, -0.412f0)
+        p2 = 5.989f0 * fpow(d, -0.565f0) * fpow(cr, -0.346f0)
+        p3 = 8.585f0 * fpow(d, -0.517f0) * fpow(cr, -0.223f0)
         d <= 1.5f0 && (p1 = 0.5f0); d <= 1.5f0 && (p2 = 1f0)
         (d <= 10.5f0 || cr <= 35f0) && (p3 = 1f0)
     elseif is_maple
-        f1 = 1f0 / (4.6762f0 + 0.1091f0 * d^2.0390f0)
-        f2 = 1f0 / (3.3212f0 + 0.0777f0 * d^2.0496f0)
-        f3 = 1f0 / (0.9341f0 + 0.0158f0 * d^2.1627f0)
-        f4 = 1f0 / (0.8625f0 + 0.0093f0 * d^1.7070f0)
+        f1 = 1f0 / (4.6762f0 + 0.1091f0 * fpow(d, 2.0390f0))
+        f2 = 1f0 / (3.3212f0 + 0.0777f0 * fpow(d, 2.0496f0))
+        f3 = 1f0 / (0.9341f0 + 0.0158f0 * fpow(d, 2.1627f0))
+        f4 = 1f0 / (0.8625f0 + 0.0093f0 * fpow(d, 1.7070f0))
         d < 1.9f0 && (f3 = 1f0); d < 4.8f0 && (f4 = 1f0)
     else                                              # aspen (everything else)
-        p1 = 1.856f0 * (d * 2.54f0)^(-0.773f0)
-        p2 = 5.317f0 * (d * 2.54f0)^(-0.718f0)
-        p3 = 1.793f0 * (d * 2.54f0)^(-0.185f0)
+        p1 = 1.856f0 * fpow(d * 2.54f0, -0.773f0)
+        p2 = 5.317f0 * fpow(d * 2.54f0, -0.718f0)
+        p3 = 1.793f0 * fpow(d * 2.54f0, -0.185f0)
     end
     # --- unmerchantable bole-tip weight by size class (UMBTW) + the missing piece (LILPCE) ---
     # u1=0–.25", u2=0–1", u3=0–3", u4=0–4" (cumulative cone/cylinder weight, tons)
@@ -270,24 +275,25 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     dobf = 4f0 / bark_r
     if d > dobf && d > dbhmin
         htf = 4.5f0 + (h - 4.5f0) / d * (d - dobf)
-        u4 = (h - htf) > 0f0 ? sg * ((h - htf) * 16f0 * mypi / 1728f0) / _FM_P2T : 0f0
-        angle = atan((h - htf) / 2f0)
+        u4 = (h - htf) > 0f0 ? sg * ((h - htf) * 4f0 * 4f0 * mypi / 12f0 / 12f0 / 12f0) / _FM_P2T : 0f0
+        angle = fatan((h - htf) / 2f0)
         u1 = _cone(0.25f0, angle, sg, mypi); u2 = _cone(1f0, angle, sg, mypi); u3 = _cone(3f0, angle, sg, mypi)
         dib = 4f0 * bark_r
         htlp = 4.5f0 + (h - 4.5f0) / d * (d - 4f0)
-        lilpce = (htlp - htf) > 0f0 ?
-            mypi * (htlp - htf) / 1728f0 * (16f0 + 4f0 * dib + dib * dib) * sg / _FM_P2T : 0f0
+        # fmcrowe.f:396-410: the LILPCE correction is eastern-only too (SN/LS/NE/CS/ON); elsewhere it stays 0
+        lilpce = !east ? 0f0 : (htlp - htf) > 0f0 ?
+            (mypi * (htlp - htf) / 12f0 / 12f0 / 12f0 * (4f0 * 4f0 + 4f0 * dib + dib * dib)) * sg / _FM_P2T : 0f0
         lilpce < 0f0 && (lilpce = 0f0)
         u4 -= lilpce
     else
         if h > 4.5f0
-            u4 = sg * ((h - 4.5f0) * d * d * mypi / 1728f0) / _FM_P2T
-            angle = atan((h - 4.5f0) / (d / 2f0))
+            u4 = sg * ((h - 4.5f0) * d * d * mypi / 12f0 / 12f0 / 12f0) / _FM_P2T
+            angle = fatan((h - 4.5f0) / (d / 2f0))
             u1 = _conem(0.25f0, d, angle, sg, mypi)   # j=1 always
             d > 0.25f0 && (u2 = _conem(1f0, d, angle, sg, mypi))   # j>1 only if d > DBRK(j-1)
             d > 1f0    && (u3 = _conem(3f0, d, angle, sg, mypi))
         end
-        temp = mypi * d * d / 4f0 / 144f0 * min(4.5f0, h)   # cylinder below 4.5 ft
+        temp = mypi * d * d / 4f0 / 12f0 / 12f0 * min(4.5f0, h)   # cylinder below 4.5 ft
         k = d <= 0.25f0 ? 1 : d <= 1f0 ? 2 : d <= 3f0 ? 3 : 4
         k <= 1 && (u1 += temp); k <= 2 && (u2 += temp); k <= 3 && (u3 += temp); u4 += temp
     end
