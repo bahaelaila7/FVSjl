@@ -1369,6 +1369,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR ~2e-4 low).
     es_em_relden_pre, es_em_ba_pre, es_em_pccf_pre = s.variant isa EasternMontana ?
         (stand_ccf(s), stand_ba(s), _fresh_point_ccf(s)) : (-1f0, -1f0, Float32[])
+    # The shared ESGENT→REGENT(LESTB) crown (establish! phase 2, regent.f:178 CR=0.89722−0.0000461·PCCF) reads the
+    # gradd.f:192 DENSE PCCF — post-UPDATE, before ESNUTR adds sprouts or regen (no DENSE between ESUCKR and ESTAB).
+    # jl's density.point_ccf was still the start-of-cycle one (MEASURED FVSsn_g16 161035853010854 PLANT cycle 2:
+    # PCCF 105.02 live vs 78.60 ⇒ planted crowns 87/86 vs 88/87).
+    es_pccf_pre = _fresh_point_ccf(s)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1399,7 +1404,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
         (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
-    establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
+    establish!(s; fint = fint, pccf_pre = es_pccf_pre)   # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
     # AK: estb/esnutr.f + ak/estab.f (natural tally + PLANT/NATURAL) + ak/esgent.f, one ESNUTR call per cycle.
     s.variant isa SoutheastAlaska && ak_esnutr!(s; fint = fint)
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.

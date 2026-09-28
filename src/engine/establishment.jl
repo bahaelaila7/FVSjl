@@ -405,7 +405,7 @@ function esgent_add_gentim!(s::StandState, nstart::Int, fint::Float32)
     return s
 end
 
-function establish!(s::StandState; fint::Float32 = 5f0)::Bool
+function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,Vector{Float32}} = nothing)::Bool
     s.estab.active || return false
     # AK (SoutheastAlaska) runs its own full establishment model (ak/estab.f via ak_esnutr!, simulate.jl), which
     # books the PLANT/NATURAL keyword trees inside the regen-plot tally; the shared path does not apply.
@@ -1054,7 +1054,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 ran_cr = bachlo(s.rng, 0f0, 1f0)
                 -1f0 <= ran_cr <= 1f0 && break
             end
-            pccf = s.density.point_ccf[Int(t.plot_id[i])]      # PCCF(IPCCF), IPCCF=ITRE(I) (regent.f:160,178)
+            pccf = (pccf_pre === nothing ? s.density.point_ccf : pccf_pre)[Int(t.plot_id[i])]   # PCCF(IPCCF), IPCCF=ITRE(I) (regent.f:160,178), gradd.f:192 DENSE
             cr = clamp(0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran_cr, 0.20f0, 0.90f0)
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0

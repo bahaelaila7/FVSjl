@@ -320,4 +320,13 @@ end
     @test count(m -> m.file == "FVS_Carbon" && m.col == "Forest_Floor" && m.year == "2005", ms) == 0
 end
 
+# gradd.f:192 DENSE (post-UPDATE, before ESNUTR) supplies the PCCF that ESGENT→REGENT(LESTB) reads for the new regen crown
+# CR = 0.89722−0.0000461·PCCF (regent.f:178); nothing re-DENSEs between ESUCKR and ESTAB. jl read the start-of-cycle point CCF
+# (MEASURED private REGENT trace, 161035853010854 PLANT cycle 2: PCCF 105.02 live vs 78.60 ⇒ planted crowns 87/86 vs 88/87).
+@testset "SN regen crown from the post-growth PCCF (gradd.f:192, regent.f:178) vs FVSsn_g16" begin
+    for (st, rg) in (("161035853010854", "plant_cyc"), ("238813815010854", "plant_cyc"))
+        @test isempty(_casex(st, rg).ms)
+    end
+end
+
 end # module
