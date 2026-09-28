@@ -111,6 +111,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
         sn.origden[slot] = density; sn.year[slot] = Int32(year); sn.yrdead[slot] = Int32(yrdead)
         sn.bolevol[slot] = bolevol; sn.fallvol[slot] = fallvol >= 0f0 ? fallvol : bolevol
         sn.height[slot] = height; sn.htcur[slot] = htcur > 0f0 ? min(htcur, height) : height
+        sn.pbfris[slot] = 0f0; sn.pbfrih[slot] = 0f0
         return
     end
     # SNAGPSFT: a PSOFT fraction of the new snags is soft at creation (default 0 ⇒ all hard).
@@ -125,6 +126,7 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     push!(sn.den_hard, hard);  push!(sn.den_soft, soft)
     push!(sn.origden, density);  push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
     push!(sn.bolevol, bolevol);  push!(sn.fallvol, fv);  push!(sn.height, height); push!(sn.htcur, hc)
+    push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
     return
 end
 
@@ -252,6 +254,41 @@ end
 
 # The per-stem bole biomass (tons) of snag record `i` as FMDOUT's FMSVOL(I,HTIx)·V2T sees it: the stored death-time bole,
 # Jenkins for a record without one, reduced for a broken top (see snag_bole_carbon).
+_snag_east_vol(v) = v isa Southern || v isa CentralStates || v isa LakeStates || v isa Northeast
+
+"""
+    ffe_east_snag_vol_at(s, sp, d, htdead, xht) -> Float32 (cuft)
+
+FMSVOL(I, XHT) for the eastern family (CS/LS/NE/SN, fmsvol.f:98-153): NATCRS on the snag record's (DBHS, HTDEAD) —
+MCF = the DBH-gated merch cubic (LS/NE R9 Clark v4+v7, SN/CS R8 Clark via `_snag_merch_cuft_on`) — then, since
+XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·HTDEAD, MCF). FMDOUT/FMSOUT/FMSALV
+call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
+measured on the fat lower bole of its death-form tree.
+"""
+function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32; topkill::Bool = true)::Float32
+    coef = s.coef
+    local mcf, vmax
+    if s.variant isa LakeStates || s.variant isa Northeast
+        ifor = Int(s.plot.forest_idx)
+        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
+        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
+        v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
+        mcf = d >= dbhmin ? v[4] + v[7] : 0f0
+        vmax = v[1]
+    else
+        mcf = _snag_merch_cuft_on(s, sp, d, htd)
+        vmax = _fm_cuft(s, sp, d, htd; merch = false)
+    end
+    if topkill && mcf > 0f0
+        cc = s.control
+        merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
+                     scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
+        _, mcf, _ = cftopk(merch_std, sp, d, htd, vmax, mcf, 0f0, vmax, bark_ratio(coef, sp, d),
+                           unsafe_trunc(Int, xht * 100f0))
+    end
+    return max(0.005454154f0 * htd, mcf)
+end
 function _snag_bole_tons(s::StandState, i::Int)::Float32
     fs = s.fire; sn = fs.snags; coef = s.coef
     @inbounds begin
@@ -264,24 +301,14 @@ function _snag_bole_tons(s::StandState, i::Int)::Float32
         if _ffe_west_vol(s.variant) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i])       # {v}/fmsvol.f(XHT=HTIH): NATCRS(DBHS,HTDEAD) + CFTOPK at the current height
             b = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * coef_col(coef, :v2t)[sp] / 2000f0
+        elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
+            # fmdout.f:139-147 → fmsvol.f (CS/LS/NE/SN): FMSVOL(I, HTIH) recomputed at every report on (DBHS, HTDEAD)
+            sp = Int(sn.sp[i])
+            b = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]) * (coef_col(coef, :v2t)[sp] / 2000f0)
         elseif !isempty(fs.params.snag_htx) && sn.htcur[i] < sn.height[i] && sn.height[i] > 0f0
             sp = Int(sn.sp[i]); d = sn.dbh[i]; htd = sn.height[i]
-            # merch cubic (mcf_full) + total cubic (vmax) of the death-form tree (d, HTDEAD): LS/NE use the R9
-            # Clark volume (v4+v7 merch, v1 total — the same basis as their live-tree merch_cuft_vol / bolevol);
-            # SN uses _fm_cuft. (LS _fm_cuft returns 0 — the empty vol_eq path — which silently skipped this.)
-            local mcf_full, vmax
-            if s.variant isa LakeStates || s.variant isa Northeast
-                ifor = Int(s.plot.forest_idx)
-                fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-                dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-                prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-                v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
-                mcf_full = d >= dbhmin ? v[4] + v[7] : 0f0
-                vmax = v[1]
-            else
-                mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
-                vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
-            end
+            mcf_full = _fm_cuft(s, sp, d, htd; merch = true)
+            vmax = _fm_cuft(s, sp, d, htd; merch = false)          # v[1] total cubic (Behre vmax)
             if mcf_full > 0f0
                 cc = s.control
                 merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
@@ -410,9 +437,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
         # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
         # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
-        a = sn.fallvol[i]
-        a <= 0f0 && (a = sn.bolevol[i])
-        a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
+        a = _snag_fall_bole(s, i)
         idc = ffe_dkr_cls(s, sp)                            # decay-rate class (FUELPOOL-overridable)
         # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
         # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
@@ -448,21 +473,33 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # at a fire only when the scorch height exceeds PBSCOR (fmburn.f:414) — derive the last qualifying
             # burn from the accumulated burn_reports' scorch (fire_year is the scheduled year, cleared after firing).
             p = fs.params
-            if byr > 0 && Int(sn.yrdead[i]) <= byr && 0 <= (cur - byr) <= Int(p.pb_time)
-                dzr = (_FM_NZERO / 50f0) / denttl
-                # fmsfall.f:25-38: rates only when PBSOFT/PBSMAL > 0 (R6 fmvinit sets 0, SO −1 ⇒ none)
-                rsoft = p.pb_soft <= 0f0 ? 0f0 :
-                        p.pb_soft < 1f0 ? 1f0 - exp(log(1f0 - p.pb_soft) / p.pb_time) :
-                                          1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
-                pbfris = rsoft; pbfrih = 0f0
-                if sn.dbh[i] < p.pb_size                         # small snags accelerate (large hard do not)
-                    pbfrih = p.pb_smal <= 0f0 ? 0f0 :
-                             p.pb_smal < 1f0 ? 1f0 - exp(log(1f0 - p.pb_smal) / p.pb_time) :
-                                               1f0 - exp(log(max(1f-9, dzr)) / p.pb_time)
-                    pbfrih > pbfris && (pbfris = pbfrih)         # fmsnag.f:186-187: bump soft rate to the max
+            if byr > 0
+                # fmsnag.f:182-190: in the burn year and the year after ((IYR−BURNYR) ≤ 1) FMSNAG STORES the record's
+                # PBFRIS = RSOFT and PBFRIH (RSMAL for DBHS < PBSIZE, raised to PBFRIS for a snag whose HARD flag has
+                # flipped); later years reuse them. FMSFALL (fmsfall.f:22-38) gives the rates only while IYR−BURNYR <
+                # PBTIME, from this year's DENTTL when PBSOFT/PBSMAL ≥ 1 — expf/logf.
+                if eff - byr <= 1
+                    rsoft = 0f0; rsmal = 0f0
+                    if eff - byr < p.pb_time
+                        dzr = (_FM_NZERO / 50f0) / denttl
+                        rsoft = p.pb_soft <= 0f0 ? 0f0 :
+                                p.pb_soft < 1f0 ? 1f0 - fexp(flog(1f0 - p.pb_soft) / p.pb_time) :
+                                                  1f0 - fexp(flog(dzr) / p.pb_time)
+                        rsmal = p.pb_smal <= 0f0 ? 0f0 :
+                                p.pb_smal < 1f0 ? 1f0 - fexp(flog(1f0 - p.pb_smal) / p.pb_time) :
+                                                  1f0 - fexp(flog(dzr) / p.pb_time)
+                    end
+                    sn.pbfris[i] = rsoft; sn.pbfrih[i] = 0f0
+                    if sn.dbh[i] < p.pb_size
+                        sn.pbfrih[i] = rsmal
+                        (sn.pbfrih[i] < sn.pbfris[i] && !_snag_hard_flag(s, i, eff)) && (sn.pbfrih[i] = sn.pbfris[i])
+                        sn.pbfrih[i] > sn.pbfris[i] && (sn.pbfris[i] = sn.pbfrih[i])
+                    end
                 end
-                xs = pbfris * sn.den_soft[i]; xh = pbfrih * sn.den_hard[i]
-                dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                if Int(sn.yrdead[i]) <= byr && 0 <= (eff - byr) <= p.pb_time
+                    xs = sn.pbfris[i] * sn.den_soft[i]; xh = sn.pbfrih[i] * sn.den_hard[i]
+                    dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
+                end
             end
             # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50
             # falls entirely. (jl applied it only for the R6 variants — MEASURED FVSie_g16 4769882010690 2044: live
@@ -498,6 +535,29 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     return fallen
 end
 
+# FMSNAG's per-record HARD flag as the snag's year-`iyr` processing sees it: FMSADD creates every record HARD (fmsadd.f:239)
+# and FMSNAG flips it at the END of a year's pass once IYR−YRDEAD ≥ DKTIME (fmsnag.f:282-285). So at `iyr` the flag reflects
+# the check made at iyr−1 — and only if FMSNAG ran that year, i.e. never before the inventory year (the inventory report
+# and the first FMSNAG year still see every input snag HARD).
+function _snag_hard_flag(s::StandState, i::Int, iyr::Integer)::Bool
+    sn = s.fire.snags
+    (iyr - 1) >= Int(s.control.cycle_year[1]) || return true
+    sp = Int(sn.sp[i])
+    dcx = get(s.fire.params.snag_decayx_ovr, Int32(sp), coef_col(s.coef, :snag_decayx)[sp])
+    return Float32(iyr - 1 - Int(sn.yrdead[i])) < _snag_dktime(s, sp, sn.dbh[i], dcx)
+end
+
+# The per-stem fall bole (tons) CWD1/CWD2 book: the TOTAL-volume `fallvol`, else `bolevol`, else Jenkins.
+@inline function _snag_fall_bole(s::StandState, i::Int)::Float32
+    sn = s.fire.snags
+    a = sn.fallvol[i]
+    a <= 0f0 && (a = sn.bolevol[i])
+    a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(s.coef, sn.sp[i], sn.dbh[i]); j end)
+    return a
+end
+# Variants whose fmvinit HTX default is 0 for every species (no height loss), so only SNAGBRK populates `snag_htx`.
+_snag_htx0_default(v) = v isa Southern || v isa CentralStates
+
 # Snag first-50%-height loss rate HTR1 (fmvinit.f). LS=0.1 (faithful) and the SN SNAGBRK keyword's HTX is
 # CALIBRATED against this 0.1 (HTR·HTX cancels), so the shared default stays 0.1; only NE, which seeds a RAW
 # HTX=1.0 default (ne/fmvinit.f), needs its own HTR1=0.015. (SN/CS default HTX=0 ⇒ inert regardless.)
@@ -523,7 +583,11 @@ soft (SFTMULT=HTXSFT, once a snag has passed DKTIME). A snag dropping below 1.5 
 """
 function ffe_snag_height_loss!(s::StandState, nyears::Integer;
                                at_year::Union{Nothing,Integer} = nothing)
-    fs = s.fire; (fs === nothing || isempty(fs.params.snag_htx)) && return
+    fs = s.fire; fs === nothing && return
+    # SN/CS keep HTX=0 (sn/fmvinit.f:1089) yet FMSNAG still calls FMSNGHT for every standing pool: HTSNEW = HTCURR, then
+    # fmsnght.f:164 `HTSNEW < 1.5 ⇒ 0` — a snag shorter than 1.5 ft is broken to fuel (CWD2) and its density zeroed
+    # (fmsnag.f:262-270) in its first FMSNAG year. So the loop runs with HTX=0 for species without an entry.
+    (isempty(fs.params.snag_htx) && !_snag_htx0_default(s.variant)) && return
     sn = fs.snags; htxmap = fs.params.snag_htx
     iyr = at_year === nothing ? Int(current_cycle_year(s)) : Int(at_year)
     # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
@@ -547,7 +611,11 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
             sn.den_hard[i] > 0f0 && (x2h = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=1,…)
             sn.den_soft[i] > 0f0 && (x2s = r6_htls(r6, Int(sn.sp[i]), rann!(s.rng)))   # FMSNGHT(…,IHRD=0,…)
         end
-        htx = get(htxmap, Int32(sn.sp[i]), nothing); htx === nothing && continue
+        htx = get(htxmap, Int32(sn.sp[i]), nothing)
+        if htx === nothing
+            _snag_htx0_default(s.variant) || continue
+            htx = (0f0, 0f0, 0f0, 0f0)
+        end
         htd = sn.height[i]; htc = sn.htcur[i]
         (htd > 0f0 && htc > 0f0) || continue
         # FMSNGHT picks the hard/soft rate from the snag's INITIAL state (FMSNAG calls it with IHRD=1 for the
@@ -576,6 +644,10 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
             # CWD2(I, DIH, DIS, OLDHTH, OLDHTS) (fmcwd.f:207-246): HIHT = the old height, LOHT = the new one, the same
             # label-1000 split as CWD1 on TVOLI = FMSVL2('D') of (DBHS, HTDEAD)
             _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew)
+        elseif _snag_htx0_default(s.variant) && htnew < htc
+            # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
+            _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew;
+                           tvoli = max(0.005454154f0 * htd, _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], htd)))
         end
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
@@ -635,7 +707,8 @@ function snag_summary(s::StandState)
         # difference flips boundary cohorts' hard/soft classification. (XMOD=1 for SN.)
         dcx = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]])
         dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
-        if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
+        # …and FMSNAG never ran before the inventory year, so the inventory report still sees every snag HARD.
+        if (iyr - 1) >= Int(s.control.cycle_year[1]) && Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD + report 1yr behind
             ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
         end
         thd[7] += dh; tsf[7] += ds                          # slot 7 = total (all snags)
@@ -680,10 +753,9 @@ function snag_detail(s::StandState)
         d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
         sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
         vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
+              _snag_east_vol(s.variant) ? ffe_east_snag_vol_at(s, sp, d, sn.height[i], h) :   # fmsout.f:122-133
               _snag_merch_cuft_on(s, sp, d, h)
-        dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
-        dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
-        ishard = Float32(iyr - 1 - yd) < dktime
+        ishard = _snag_hard_flag(s, i, iyr)              # HARD(II) (fmsout.f:135; same flip as snag_summary)
         dh  = ishard ? denih : 0f0
         ds  = denis + (ishard ? 0f0 : denih)
         vh  = ishard ? vol * denih : 0f0

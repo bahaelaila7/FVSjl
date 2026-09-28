@@ -68,6 +68,19 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     loc = _fia_int(d, "LOCATION", 0)
     (loc == 0 && _fia_present(d, "REGION")) && (loc = _fia_int(d, "REGION", 0) * 100 + _fia_int(d, "FOREST", 0))
     loc != 0 && (p.user_forest_code = Int32(loc))
+    # tt/ut forkod.f: dbsstandin.f:525-552 calls FORKOD for the REGION*100+FOREST composite and AGAIN for the LOCATION
+    # override; each call with a code outside JFOR and the reservation pseudo-codes raises ERRGRO(3) (FVS03).
+    if s.variant isa Teton || s.variant isa Utah
+        calls = Int[]
+        (_fia_present(d, "REGION") && _fia_present(d, "FOREST")) &&
+            push!(calls, _fia_int(d, "REGION", 0) * 100 + _fia_int(d, "FOREST", 0))
+        _fia_present(d, "LOCATION") && push!(calls, _fia_int(d, "LOCATION", 0))
+        for k in calls
+            known = s.variant isa Teton ? (k == 7306 || k == 8107 || k in TT_JFOR) :
+                                          (haskey(UT_FOR_RESERV, k) || k in UT_JFOR)
+            known || errgro!(s, 3)
+        end
+    end
     # Fort Bragg (forkod.f CASE 701): a region-7/forest-1 FIA code (composite LOCATION=701) is remapped to
     # NC Uwharrie 81110 (region 8) — forkod runs for every stand, incl. DB input. Without it VOLEQDEF sees
     # region 7 ⇒ no R8 Clark equation ⇒ zero volume. (Shared with kw_stdinfo!.)
@@ -121,6 +134,10 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # index in the eastern crown-width models.
     _fia_present(d, "LATITUDE")  && (p.latitude  = _fia_f32(d, "LATITUDE", p.latitude))
     _fia_present(d, "LONGITUDE") && (p.longitude = _fia_f32(d, "LONGITUDE", p.longitude))
+    # STATE/COUNTY (ISTATE/ICNTY, dbsstandin.f:388-395 / 833-840; grinit.f:223-224 default 0) — read by FORTYP's
+    # California mixed-conifer test (fortyp.f:1121-1131). jl never read them (both stayed 0).
+    _fia_present(d, "STATE")  && (p.state  = Int32(_fia_int(d, "STATE", 0)))
+    _fia_present(d, "COUNTY") && (p.county = Int32(_fia_int(d, "COUNTY", 0)))
     # ECOREGION (ecological unit / EUT, e.g. "223Db") → eco_unit. FVS reads it from STANDINIT and adds a
     # per-species ecological-unit DG term (dgf.f EUT categorical coefficients dg_phys_*), plus it drives the
     # montane site/height/estab branches (eco_unit[1]=='M'). Without it the whole EUT DG term is dropped for
@@ -192,26 +209,17 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # self-thin under-kill (9:2 skew). Setting 79 makes the DF small-tree DDS bit-exact vs live.
         p.habitat_code = Int32(hc == 0 ? 79 : hc)
     end
-    # CI: the habitat KODTYP fed to ci_habtyp is the 3-digit NI code in PV_REF_CODE (e.g. 401); PV_CODE holds the
-    # 5-digit FIA code (out of ci_habtyp's 10-999 range). Without it habitat_code=0 ⇒ habitat_input defaults to 1
-    # ⇒ wrong DG (DGHAB via ICINDX) + wrong mortality ITYPE ⇒ multi-cycle divergence.
-    # FVS uses PV_CODE (the FIA habitat code) with PRIORITY over PV_REF_CODE — the .out prints "PV_CODE WAS
-    # USED, PV_REF_CODE WAS IGNORED". A 5-digit PV_CODE (e.g. 41732) is the 2-digit state prefix + 3-digit
-    # habitat (→ 732 = 41732 mod 1000); ci_habtyp then maps 732→(ICINDX 110, ITYPE 27). PV_REF_CODE (401) is
-    # only the fallback. Using PV_REF_CODE first (jl's old behavior) picked the WRONG habitat ⇒ wrong DGHAB
-    # (dg_const) + ITYPE (htgf) + mortality on stands where the two codes differ.
+    # CI (ci/habtyp.f:44-75 via dbsstandin.f:579-592): with a PV_REF_CODE, PVREF4 crosswalks the (PV_CODE text,
+    # PV_REF_CODE) pair to the CI habitat KODTYP; a pair PVREF4 does not know (FVS34/33/32) keeps the grinit default
+    # ICINDX=21 (habitat 260). Without a reference code KODTYP = the PV_CODE's integer value. jl used "PV_CODE mod
+    # 1000" instead — the 9999999 "no habitat" sentinel became habitat 999 and unknown pairs (45101/494) a real
+    # code (MEASURED FVSci_g16: 3369538010690 9999999/491 and 12276084010690 45101/494 both "MAPPED TO 260").
     if s.variant isa CentralIdaho
-        hc = 0
-        if _fia_present(d, "PV_CODE")
-            pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
-            pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41732 → 732)
-            (10 <= pvc <= 999) && (hc = pvc)
+        pvs = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        if !isempty(pvs)
+            kod, _, lpvxxx = ci_habitat_kodtyp(pvs, strip(p.pv_ref), something(tryparse(Int, pvs), 0))
+            p.habitat_code = Int32(lpvxxx ? 0 : kod)
         end
-        if hc == 0 && _fia_present(d, "PV_REF_CODE")       # fallback
-            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
-            (10 <= pvr <= 999) && (hc = pvr)
-        end
-        hc != 0 && (p.habitat_code = Int32(hc))
     end
     # EC (region-6, Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g. "CDG131"). The STDINFO
     # KEYWORD path was fixed in 70535053 (ec_hbdecd), but the FIA-DB PV_CODE column had no reader branch ⇒
@@ -314,7 +322,21 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # 3-digit code (470/310) is used directly. PV_REF_CODE is the fallback. Each variant's site_setup! then
     # maps habitat_code → habitat_input via its own habtyp. Confirmed live bug on EM stand 12344705010690
     # (live habitat 470, jl was defaulting to 1).
-    if s.variant isa EasternMontana || s.variant isa Utah || s.variant isa Teton || s.variant isa InlandEmpire
+    # TT/UT (tt/habtyp.f = ut/habtyp.f :152-228, see r4_habitat_itype): with a PV_REF_CODE, PVREF4 crosswalks the
+    # (PV_CODE, ref) pair to an R4HABT code (blank ⇒ FVS34/33/32 and ITYPE 0); CRDECD then matches the code TEXT
+    # against R4HABT — whose entries carry the 2-digit state prefix ('41734') — then the IHB ≤ NR4 sequence-number
+    # fallback. jl stripped the prefix (41734 → 734), which R4HABT never contains ⇒ ITYPE 0 on every TT/UT FIA
+    # stand, and unknown pairs fell back to the raw PV_REF_CODE (MEASURED FVStt_g16 2780339010690: "HABITAT TYPE
+    # CODE USED IN THIS PROJECTION IS 41734"; FVSut_g16 434219452489998 FVS33+FVS32 ⇒ default).
+    # habitat_code = the R4HABT code of ITYPE, which tt_habtyp/ut_habtyp map back to ITYPE in site setup.
+    if (s.variant isa Teton || s.variant isa Utah) && _fia_present(d, "PV_CODE")
+        pvs = String(strip(_fia_str(d, "PV_CODE", "")))
+        if !isempty(pvs)
+            itype, _ = r4_habitat_itype(pvs, strip(p.pv_ref), something(tryparse(Int, pvs), 0))
+            p.habitat_code = Int32(itype > 0 ? TT_R4HABT_CODE[itype] : 0)
+        end
+    end
+    if s.variant isa EasternMontana || s.variant isa InlandEmpire
         hc = 0
         isie = s.variant isa InlandEmpire
         pvref = _fia_present(d, "PV_REF_CODE") ? Int(round(_fia_f32(d, "PV_REF_CODE", 0f0))) : 0

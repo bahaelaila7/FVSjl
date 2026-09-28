@@ -35,7 +35,9 @@ _stride_take(rows, k) =
     rows[unique(clamp.(round.(Int, (0.5:1.0:min(k, length(rows))) .* (length(rows) / min(k, length(rows)))),
                        1, length(rows)))]
 
-function extract(variant::AbstractString, n::Int, out::AbstractString)
+# `where_extra` (optional): an extra SQL predicate on the stand row `s` (e.g. "AND s.LOCATION IN (110,113,114)"),
+# used when a variant's sample is drawn from another variant's FIA population (KT: see tiered make_fixtures.jl).
+function extract(variant::AbstractString, n::Int, out::AbstractString; where_extra::AbstractString = "")
     db = SQLite.DB(DB)
     # Pull all candidate stands for the variant with their inventory tree count, ordered by
     # (ECOREGION, LOCATION, STAND_CN) — deterministic. LEFT JOIN so the ZERO-tree stands are kept
@@ -43,7 +45,7 @@ function extract(variant::AbstractString, n::Int, out::AbstractString)
     rows = NamedTuple[]
     q = """SELECT s.STAND_CN cn, s.ECOREGION eco, s.LOCATION loc, COUNT(t.STAND_CN) nt
            FROM FVS_STANDINIT_COND s LEFT JOIN FVS_TREEINIT_COND t ON t.STAND_CN = s.STAND_CN
-           WHERE s.VARIANT = '$(variant)' AND s.STAND_CN IS NOT NULL
+           WHERE s.VARIANT = '$(variant)' AND s.STAND_CN IS NOT NULL $(where_extra)
            GROUP BY s.STAND_CN
            ORDER BY s.ECOREGION, s.LOCATION, s.STAND_CN"""
     for r in DBInterface.execute(db, q)

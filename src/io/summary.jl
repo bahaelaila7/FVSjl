@@ -405,7 +405,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
             _vt = _fm_will_triple(s)
-            fmcba!(s; vtrip = _vt)       # FMMAIN's FMCBA sees the tripled list in a tripling cycle
+            fmcba!(s; vtrip = _vt)       # FMCBA's TBA/TOTCRA walk the tripled FMPROB list too (fmcba.f:189-203)
             _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
             carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
@@ -414,8 +414,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # grow_cycle! hook below, like the carbon report.
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
-            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true, vtrip = _fm_will_triple(s))
-            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false)   # FMEFF/FMPTRH at the FMMAIN seam below
+            _vtp = _fm_will_triple(s)     # FMMAIN's FMCBA/FMPOCR run on the TRIPLEd list in a tripling cycle (fmcba.f:189-203)
+            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true, vtrip = _vtp)
+            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false, vtrip = _vtp)   # FMEFF/FMPTRH at the FMMAIN seam below
             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
@@ -537,27 +538,24 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     # FMMAIN point inside grow_cycle! (mortality_and_fire!'s post_fire seam), like a fire cycle.
                     r6_defer_fuel = true
                 elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
-                    ffe_fuel_update!(s, per)
+                    ffe_fuel_update!(s, per; vtrip = _fm_will_triple(s))   # pre-TRIPLE here; FVS's FMMAIN is post-TRIPLE
                 else
                     ffe_defer_init = true
                 end
             end
-            # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start; between FMBURN and FMCRBOUT only SN re-runs it
-            # (sn/fmburn.f:589, the post-burn FULIV2 shrub age), so EM's fire-year FLIVE is the PRE-fire load (live
-            # 196378260020004 2022 Shrub_Herb 0.263 = ½·(0.285+0.242); a post-fire FMCBA gave 0.392).
-            # Only SN re-runs it (fmburn.f:588 `IF (BURNYR.EQ.IYR .AND. VARACD.EQ.'SN')`); no western variant does (EC ect01 2003
-            # Surface_Shrub post-fire FMCBA 1.649 vs live pre-fire 0.420). CS/LS/NE keep the re-run pending a live check.
-            _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
-                              st.variant isa Northeast)
+            # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start. The only re-run is sn/fmburn.f:586-589 (the same
+            # line in the CS/LS/NE builds, gated `VARACD .EQ. 'SN'`): once BURNYR=IYR, SN calls FMCBA again BEFORE FMEFF kills
+            # (pre-fire FMPROB), which changes only the eco-unit FULIV2 shrub age — applied at the burn by fmburn!'s
+            # ffe_live_fuel_override — and leaves FMBURN's pre-kill PERCOV/COVTYP for FMCRBOUT and FMPOFL. A post-kill re-run
+            # here re-typed the stand on the SURVIVORS (MEASURED FVSsn_g16 216786838010854 SIMFIRE 2009 Shrub_Herb 0.02 live
+            # vs 0.175: the fire-thinned hardwood/pine read as pine/hardwood). EM's fire-year FLIVE is likewise the pre-fire
+            # load (live 196378260020004 2022 Shrub_Herb 0.263; a post-fire FMCBA gave 0.392).
             pf_fire = potfire_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
             chook = (fire_cycle || pf_fire) ? (st -> begin
-                        pc0 = st.fire.percov        # FMBURN's PERCOV: SN's re-run FMCBA (fmburn.f:588) precedes FMEFF's kill
-                        compute_density!(st); _refmcba(st) && fmcba!(st)
+                        compute_density!(st)
                         fire_cycle && _carb_push(st)
                         if pf_fire                                   # FMPOFL after FMBURN (fmmain.f:177-194)
-                            pc1 = st.fire.percov; st.fire.percov = pc0
                             pfr = fmpofl_report(st, Int(r.year); cyclen = per, fire_basis = true)
-                            st.fire.percov = pc1
                             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
                         end
                     end) : nothing

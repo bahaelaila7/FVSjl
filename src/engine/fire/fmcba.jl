@@ -14,6 +14,18 @@
 # (it feeds the fire-behavior / consumption chunks F5–F8).
 # =============================================================================
 
+# FMCBA's per-record species basal area (the cover type COVTYP = most BA; PRCL = TBA/TOTBA splits the initial dead fuel
+# into decay classes). The builds use three forms: bc/cs/em/ie/kt/sn `TBA += BA1·FMPROB`, BA1 = 3.14159·(DBH/24)·(DBH/24);
+# ak/bm/ca/ci/cr/ec/ls/nc/ne/oc/on/op/pn/tt/ut/wc/ws `FMTBA += FMPROB·DBH·DBH·0.0054542`; so `TBA += FMPROB·5.454153E-03·
+# DBH**2` (integer power = DBH·DBH). jl used the first form everywhere but AK (BM 12827438010497: 2005 initial fuel 1 ULP).
+_fmcba_pi_form(v) = v isa Southern || v isa CentralStates || v isa InlandEmpire || v isa EasternMontana ||
+                    v isa Kootenai || v isa BritishColumbia
+@inline function _fmcba_tba(v, p::Float32, d::Float32)::Float32
+    _fmcba_pi_form(v) && return 3.14159f0 * (d / 24f0) * (d / 24f0) * p
+    v isa SouthCentralOregon && return p * 5.454153f-3 * (d * d)
+    return p * d * d * 0.0054542f0
+end
+
 """
     fmcba!(s) -> StandState
 
@@ -110,26 +122,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
-    v = s.variant
-    _fmtba_form = v isa BlueMountains || v isa CentralIdaho || v isa Teton || v isa Utah || v isa CentralRockies ||
-                  v isa Klamath || v isa WestSierra || v isa CentralCalifornia || v isa WestCascades ||
-                  v isa PacificNorthwest || v isa EastCascades || v isa OregonCoast || v isa Olympic ||
-                  v isa SoutheastAlaska || v isa LakeStates || v isa Northeast
-    # `vtrip`: FMMAIN (hence FMCBA) runs on the TRIPLEd list in a tripling cycle — FMPROB = 0.6·PROB on records 1..ITRN,
-    # then 0.25/0.15·PROB on each record's two copies (ITRN+2I−1, ITRN+2I), in that order, all sharing the parent's
-    # CRWDTH. The Float32 TOTCRA/FMTBA sums (→ PERCOV, FLIVE, year-1 STFUEL) follow that walk (_fm_record_walk).
-    recs = Tuple{Int,Float32}[]
-    if vtrip
-        for i in 1:t.n; push!(recs, (i, t.tpa[i] * 0.60f0)); end
-        for i in 1:t.n; push!(recs, (i, t.tpa[i] * 0.25f0)); push!(recs, (i, t.tpa[i] * 0.15f0)); end
-    else
-        for i in 1:t.n; push!(recs, (i, t.tpa[i])); end
-    end
-    @inbounds for (i, pw) in recs
-        pw > 0f0 || continue
+    cwrec = zeros(Float32, t.n)
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += _fmtba_form ? pw * d * d * 0.0054542f0 :   # {bm,ci,tt,ut,cr,nc,ws,ca,wc,pn,ec,oc,op,ak,ls,ne}/fmcba.f
-                                 3.14159f0 * (d / 24f0) * (d / 24f0) * pw   # FMTBA += FMPROB·DBH·DBH·0.0054542; ie/em/kt/so/sn/cs BA1·FMPROB
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
@@ -151,7 +147,17 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
-        totcra += 3.1415927f0 * cw * cw / 4f0 * pw
+        cwrec[i] = cw
+    end
+    # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
+    # after TRIPLE, so in a tripling cycle the walk is the tripled list (originals ×.60, then each record's ×.25/×.15 copies,
+    # same DBH/CRWDTH) — jl's list is still untripled here (MEASURED FVSsn private FMCBA trace, 200267456010854 2002: sp74
+    # TBA 28.677080 live vs 28.677082 summing the untripled records ⇒ the initial 6-12" fuel 1.0099999 vs 1.01).
+    _fm_record_walk(t, vtrip) do i, pr
+        pr > 0f0 || return
+        sp = Int(t.species[i]); d = t.dbh[i]
+        tba[sp] += _fmcba_tba(s.variant, pr, d)
+        totcra += 3.1415927f0 * cwrec[i] * cwrec[i] / 4f0 * pr
     end
 
     # cover type = the species with the most basal area; total BA for the decay split
@@ -190,9 +196,12 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  # IE/KT: bare stand ⇒ COVINI(ITYPE) seral cover species (ie/fmcba.f:279), NOT a fixed species.
                  (s.variant isa InlandEmpire || s.variant isa Kootenai) ? Int32(ie_covini_default(Int(s.plot.habitat_input))) :
                  s.variant isa EasternMontana ? Int32(3)  :   # EM bare-stand default: DF (em/fmcba.f covtyp=3 path)
-                 s.variant isa CentralIdaho ? Int32(3)  :     # CI bare-stand default: DF (cit01 has trees ⇒ unused)
-                 s.variant isa Teton ? Int32(3)  :             # TT bare-stand default: DF
-                 s.variant isa Utah ? Int32(3)  :              # UT bare-stand default: DF
+                 # CI/TT/UT/WC/PN/EC bare stand: COVINI(ITYPE) (the seral cover of the habitat), else the variant's
+                 # "NO VALID HABITAT" default (ci:377-387 ICINDX→DF 3; tt:327-337 / ut:351-361 ITYPE→LP 7;
+                 # wc:451-462 / pn:425-436 COVINI6(ITYPE)→DF 16; ec:422-431 ITYPE→DF 3). Tables: covini_tables.jl.
+                 s.variant isa CentralIdaho ? _covini(CI_COVINI, Int(s.plot.habitat_input), 3) :   # ICINDX (ci/fmcba.f:377-387)
+                 s.variant isa Teton ? _covini(TT_COVINI, Int(s.plot.habitat_input), 7) :          # ITYPE (tt/habtyp.f)
+                 s.variant isa Utah ? _covini(UT_COVINI, Int(s.plot.habitat_input), 7) :           # ITYPE (ut/habtyp.f)
                  # BM bare stand: COVINI(ITYPE) (bm/fmcba.f:296-300), ITYPE = the PCOML index habtyp.f resolved (79 = its
                  # CWG113 default ⇒ COVINI 4 = grand fir, live herb/shrub 0.30/2.0 — the fixed DF (0.4/2.0) over-loaded FLIVE).
                  s.variant isa BlueMountains ? Int32(_BM_COVINI[(1 <= s.plot.habitat_code <= 92) ? Int(s.plot.habitat_code) : 79]) :
@@ -203,18 +212,29 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
                  s.variant isa Klamath ? Int32(3) :
-                 # WC bare stand: COVINI6(ITYPE) by R6 habitat (wc/fmcba.f:454-455); the full habitat→cover
-                 # map is a bare-stand-only path not exercised by wct01 (trees present) — fmcba.f's "no valid
-                 # habitat" fallback is Douglas-fir (16, wc/fmcba.f:462), used here until that map ports.
-                 s.variant isa WestCascades ? Int32(16) :
-                 s.variant isa PacificNorthwest ? Int32(16) :   # PN bare-stand fallback: Douglas-fir (pn/fmcba.f)
-                 s.variant isa EastCascades ? Int32(3) :        # EC bare-stand fallback: Douglas-fir (ec/fmcba.f:431)
+                 s.variant isa WestCascades ? _covini(WC_COVINI6, Int(s.plot.habitat_input), 16) :
+                 s.variant isa PacificNorthwest ? _covini(PN_COVINI6, Int(s.plot.habitat_input), 16) :
+                 s.variant isa EastCascades ? _covini(EC_COVINI, Int(s.plot.habitat_input), 3) :
                  s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
                  s.variant isa SoutheastAlaska ? Int32(11) :   # AK: western hemlock at IY(1) (ak/fmcba.f:236-242), else OLDCOVTYP
+                 # WS/CA/OC/OP "NO VALID HABITAT" defaults (ws/fmcba.f:509 PP 10; ca/oc fmcba.f:543 7; op/fmcba.f:436 DF
+                 # 16 after COVINI6(ITYPE)). These fell to the SN 75 before — a species index past their MAXSP, masked
+                 # only because the top-2 weights stayed 0. WS/CA/OC COVINI(ITYPE) waits on their habtyp ITYPE port.
+                 s.variant isa WestSierra ? Int32(10) :
+                 (s.variant isa CentralCalifornia || s.variant isa OregonCoast) ? Int32(7) :
+                 s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
+        # CA-FFE top-2 variants (nc:359-360, ws:514-515, ca/oc:548-549): a bare stand carries the ONE cover type,
+        # COVCA(1)=COVTYP with weight COVCAWT(1)=1 (COVCA(2)/COVCAWT(2) stay 0 from the FMCBA entry reset). jl kept
+        # COVCAWT=(0,0) ⇒ zero live AND initial dead fuel on every bare NC/WS/CA/OC stand. (OP's fmcba.f has no
+        # COVCA; its single-COVTYP load equals this one-weight pair.)
+        if s.variant isa Klamath || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+           s.variant isa OregonCoast || s.variant isa Olympic
+            covca = (Int(covtyp), 0); covcawt = (1f0, 0f0)
+        end
     end
     fs.covtyp = covtyp
-    fs.percov = (1f0 - fexp(-totcra / 43560f0)) * 100f0   # fmcba.f PERCOV = 100·(1−EXP(−TOTCRA/43560.)): gfortran expf
+    fs.percov = (1f0 - fexp(-totcra / 43560f0)) * 100f0   # fmcba.f:228-229 PERCOV=(1.0-EXP(-TOTCRA/43560.))·100 — EXP is expf
     # SO (FCCS/Ottmar) resolves BOTH the live (herb,shrub) and the 11-class dead pool from one COVRINI→FUELINI
     # lookup keyed by COVTYP, the FMSSTAGE structural stage ISSX (with the PERCOV≥60 SE-open→SE-closed bump),
     # and the logging-history model index (so/fmcba.f:639-726). Computed here (once COVTYP+PERCOV are known);
@@ -344,6 +364,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     end
     return s
 end
+
+# fmcba.f bare-stand seral cover: COVINI(ITYPE) when 1 ≤ ITYPE ≤ MXVCODE and nonzero, else the variant default.
+@inline _covini(tab::AbstractVector, itype::Int, dflt::Integer)::Int32 =
+    ((1 <= itype <= length(tab)) && tab[itype] != 0) ? Int32(tab[itype]) : Int32(dflt)
 
 # bm/fmcba.f DATA COVINI(1:92): the seral cover type (species index) per BM plant association (PCOML order).
 const _BM_COVINI = Int32[

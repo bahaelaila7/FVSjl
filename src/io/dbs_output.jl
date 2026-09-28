@@ -1087,6 +1087,7 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
                 DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
                     clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
             end
+            # dbsfmmort.f:147 `IF (TOTAL(J,8) .LE. 0) CYCLE` — the ALL row too: a fire over no trees writes no row
             sum(b.totcls) > 0f0 || continue
             DBInterface.execute(stmt, (caseid, standid, Int(b.year), "ALL", "ALL", "ALL",
                 clsvals(b.clskil, b.totcls)..., Float64(b.killed_ba), Float64(b.killed_vol)))
@@ -1462,7 +1463,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
                 end
             end
             dbal = Float32(round(Int, dbal, RoundNearestTiesAway))   # NINT(PTBALT(I))
-            dpct = (snap && kd <= length(s.calib.cratet_dead_pct)) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
+            dpct = kd <= length(s.calib.cratet_dead_pct) ? s.calib.cratet_dead_pct[kd] : t.crown_ratio[i]
             cw = tree_crwdth(s, sp, dd, t.height[i], t.crown_pct[i])     # CW = CRWDTH(I), forest-grown
             df = Int(t.defect[i])
             mdef = div(df - div(df, 10000) * 10000, 100); bdef = df - div(df, 100) * 100
@@ -1508,6 +1509,34 @@ SDImax and site index, and the cubic/board volume-equation ids and merch specs (
 diameter / stump for total, sawtimber, and board). All data the engine already holds after
 `compute_volumes!`. A static reference table, so it is written once per stand.
 """
+# The VEQNNC/VEQNNB the variant's VOLEQDEF gave species `sp` (dbsreference.f prints them as CFVolEq/BFVolEq). The
+# NVEL variants whose jl volume driver picks its equation table per forest inside the driver (NC/SO/CA/WS/AK)
+# leave `species.vol_eq` blank, so the report reads the SAME table their driver dispatches on (VEQNNB = VEQNNC).
+function invref_voleq(s::StandState, sp::Int)::String
+    v = s.variant; ifor = Int(s.plot.forest_idx)
+    if v isa Klamath                                   # compute_volumes_nc!: R7 BLM (IFOR 5,7) / R6 Siskiyou (4) / R5
+        ifor in (5, 7) && return (ifor == 7 && sp == 3) ? "B02BEHW202" : NC_R7_VOL_EQ[sp]
+        ifor == 4 && return NC_R6_VOL_EQ[sp]
+        return NC_VOL_EQ[sp]
+    elseif v isa SouthCentralOregon                    # compute_volumes_so!: R5 forests / Fremont-Winema / Deschutes
+        !(ifor <= 3 || ifor == 10) && return SO_R5_VOLEQ[sp]
+        return (ifor == 2 || ifor == 3) ? SO_VOLEQ_FR[sp] : SO_VOLEQ[sp]
+    elseif v isa CentralCalifornia
+        return ca_voleq(ifor, sp)
+    elseif v isa WestSierra
+        return WS_VOL_EQ[sp]
+    elseif v isa SoutheastAlaska                       # voleqdef.f R10_EQN: FORST '04' (Chugach) CHUEQN, else TONEQN
+        if _ak_forst04(Int(s.plot.user_forest_code))
+            _ak_is_dem04(sp) && return "A01DEMW000"
+            sp == 3 && return "A00DVEW094"
+        end
+        return AK_INVREF_VOLEQ[sp]
+    end
+    return String(strip(s.species.vol_eq[sp]))
+end
+_invref_bf_voleq(s::StandState, sp::Int) =
+    (bf = String(strip(s.control.sp_bf_vol_eq[sp])); isempty(bf) ? invref_voleq(s, sp) : bf)
+
 function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)
     # dbsreference.f prints DBHMIN/TOPD/… as SITSET left them — fill the per-stand standards even when no volume
@@ -1523,14 +1552,17 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for sp in 1:nsp
+            # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
+            # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
+            _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
             DBInterface.execute(stmt, (caseid, standid, sp,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
                 String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)
-                "FVS", String(strip(sp_eq[sp])),
+                "FVS", invref_voleq(s, sp),
                 Float64(c.sp_dbh_min[sp]), Float64(c.sp_top_diam[sp]), Float64(c.sp_stump_ht[sp]),
                 Float64(c.sp_scf_dbhmin[sp]), Float64(c.sp_scf_topd[sp]), Float64(c.sp_scf_stump[sp]),
-                String(strip(c.sp_bf_vol_eq[sp])),
+                _invref_bf_voleq(s, sp),
                 Float64(c.sp_bf_dbhmin[sp]), Float64(c.sp_bf_topd[sp]), Float64(c.sp_bf_stump[sp])))
         end
     finally

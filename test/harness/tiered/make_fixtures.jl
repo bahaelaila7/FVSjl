@@ -11,6 +11,19 @@
 include(joinpath(@__DIR__, "tiered_common.jl"))
 include(joinpath(@__DIR__, "..", "fia", "extract_sample.jl"))
 
+# Variants with NO FIA population of their own draw their stands from another variant's FIA stands (deterministic, so
+# the slow tier regenerates the same sample): (source VARIANT, extra SQL predicate on the stand row `s`).
+#   KT: FVS_STANDINIT_COND.VARIANT is never 'KT' (KT = Kootenai/Kaniksu/Tally Lake, superseded by IE). Its home
+#       forests — 110 Flathead (Tally Lake RD), 113 Idaho Panhandle (Kaniksu), 114 Kootenai — are in KT's forkod.f
+#       JFOR table and their FIA stands are assigned VARIANT='IE'.
+const SAMPLE_SOURCE = Dict("KT" => ("IE", "AND s.LOCATION IN (110,113,114)"))
+
+# A regime whose extension the oracle build STUBS (ex*.f in FVS<v>_buildDir, e.g. exrd.f in CA/AK, exclim.f in AK)
+# makes FVS print "FVS11 ERROR:  REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM" and ignore the block — the case
+# would test nothing. make_fixtures probes each regime on the first chosen stand and drops such regimes (recorded
+# in PROVENANCE `skipped_regimes`; the fast tier runs PROVENANCE `regimes` only).
+stubbed_extension(outtext::AbstractString) = occursin("FVS11 ERROR", outtext)
+
 function _sha256(path)
     try strip(first(split(read(`sha256sum $path`, String)))) catch; "unavailable" end
 end
@@ -48,7 +61,8 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     fx = joinpath(outroot, lowercase(v)); mkpath(fx)
     tmp = mktempdir()
     # candidate pool: 3K stratified stands; walk the K-sample first, substituting in stride order on failure
-    pool_path = joinpath(tmp, "pool.txt"); extract(v, 3K, pool_path)
+    src, wh = get(SAMPLE_SOURCE, uppercase(v), (uppercase(v), ""))
+    pool_path = joinpath(tmp, "pool.txt"); extract(src, 3K, pool_path; where_extra = wh)
     pool = [split(strip(l), '\t')[1] for l in eachline(pool_path) if !isempty(strip(l))]
     order = vcat(pool[2:3:end], pool[1:3:end], pool[3:3:end])   # K evenly spread first, then the rest
     pdb = joinpath(tmp, "pool.db"); build_subdb(pool, pdb)
@@ -70,8 +84,21 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     let h = SQLite.DB(sdb); DBInterface.execute(h, "VACUUM"); SQLite.close(h); end
     run_dir = mktempdir(); cp(sdb, joinpath(run_dir, "stands.db"))
     open(joinpath(fx, "stands.txt"), "w") do io; foreach(c -> println(io, c), chosen); end
+    # stub probe: the first chosen stand under each regime
+    regimes = String[]; skipped = String[]; probe_err = String[]
+    for r in REGIMES
+        write(joinpath(run_dir, "s.key"), tiered_keytext(chosen[1], r, get(iy, chosen[1], 0) + 10))
+        run_oracle(bin, run_dir)
+        op = joinpath(run_dir, "s.out"); ot = isfile(op) ? read(op, String) : ""
+        codes = sort(unique([m.match for m in eachmatch(r"FVS\d\d ERROR", ot)]))
+        isempty(codes) || push!(probe_err, "$r: $(join(codes, "/"))")
+        if stubbed_extension(ot)
+            push!(skipped, r); continue
+        end
+        push!(regimes, r)
+    end
     nfail = 0
-    for cn in chosen, r in REGIMES
+    for cn in chosen, r in regimes
         stem = "$(cn)_$(r)"
         key = tiered_keytext(cn, r, get(iy, cn, 0) + 10)
         write(joinpath(fx, stem * ".key"), key)
@@ -107,12 +134,15 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         println(io, "fvs_source_dirty = \"$(isempty(_git(fvs, "status", "--porcelain", "--untracked-files=no")) ? "no" : "yes")\"")
         println(io, "generator_commit = \"$(_git(here, "rev-parse", "HEAD"))\"")
         println(io, "generated = \"$(Base.Libc.strftime("%Y-%m-%d %H:%M:%S", Base.time()))\"")
-        println(io, "regimes = [", join(["\"$r\"" for r in REGIMES], ", "), "]")
+        println(io, "regimes = [", join(["\"$r\"" for r in regimes], ", "), "]")
+        println(io, "skipped_regimes = [", join(["\"$r\"" for r in skipped], ", "), "]   # FVS11: extension stubbed in this oracle build")
+        println(io, "probe_fvs_errors = [", join(["\"$e\"" for e in probe_err], ", "), "]   # FVSnn ERROR codes in the stub-probe .out (first stand)")
+        println(io, "sample_source = \"VARIANT=$(src)$(isempty(wh) ? "" : " " * wh)\"")
         println(io, "stands = [", join(["\"$c\"" for c in chosen], ", "), "]")
         println(io, "excluded_no_live_output = [", join(["\"$c\"" for c in excluded], ", "), "]")
         println(io, "live_no_output_cases = $nfail")
     end
-    println("$v: $(length(chosen)) stands × $(length(REGIMES)) regimes → $fx  (live no-output cases: $nfail, excluded: $(length(excluded)))")
+    println("$v: $(length(chosen)) stands × $(length(regimes)) regimes → $fx  (skipped (stubbed): $(join(skipped, ",")), live no-output cases: $nfail, excluded: $(length(excluded)))")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

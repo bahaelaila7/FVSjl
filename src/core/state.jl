@@ -1037,8 +1037,11 @@ mutable struct SnagList
     htcur::Vector{Float32}        # HTIH/HTIS — CURRENT snag height (ft), = `height` at creation; only shrinks
                                   # when SNAGBRK sets HTX>0 (FMSNGHT). Drives the recomputed bole then. At
                                   # default (HTX=0) it stays = `height`, so the frozen `bolevol` is used (bit-exact).
+    pbfris::Vector{Float32}       # PBFRIS/PBFRIH — the post-burn soft/hard fall rates FMSNAG stores per record in the
+    pbfrih::Vector{Float32}       # burn year and the year after (fmsnag.f:182-190) and reuses through PBTIME
 end
-SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[])
+SnagList() = SnagList(Int32[], Float32[], Float32[], Float32[], Float32[], Int32[], Int32[], Float32[], Float32[], Float32[], Float32[],
+                      Float32[], Float32[])
 
 """
 Preallocated, reused work buffers for `book_mortality_snags!`'s FMSADD snag-record binning (fire path only).
@@ -1211,6 +1214,8 @@ mutable struct FireState
     firkil::Vector{Float32}            # FIRKIL(I) of this cycle's burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL); empty ⇒ no burn
     fmcrow_on::Bool                    # FMCROW (ffe_fmcrow!) has filled TreeList.ffe_crownw — from then on every FFE
                                        # crown read takes the stored CROWNW(I,0:5) (_ffe_crownw), as FVS does
+    oldict_top2::NTuple{3,Float32}     # WC/PN/OP fmcfmd.f (OLDICT2, OLDICTWT(1), OLDICTWT(2)) — the second cover group and the
+                                       # top-2 weights a treeless call reuses (fmvinit.f 0 / 1.0 / 0.0; OLDICT = covtyp_ict)
     prob_prefire::Vector{Float32}      # PROB(I) at this cycle's burn, before FMEFF's kill: FVS takes the fire kill off
                                        # PROB only in FMKILL (GRADD), so FMMAIN's post-burn FMCFMD3→FMCFMD (fmmain.f:189,
                                        # bm/fmcfmd.f BMSTAGE; FMCBA's year-start FMTBA) still read the pre-fire density
@@ -1223,7 +1228,8 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, Float32[])
+                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
+                        Float32[])
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
