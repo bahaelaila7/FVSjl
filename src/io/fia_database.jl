@@ -399,6 +399,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # elevation drives the Hopkins index for hardwood open-grown crowns, so without it HI (and the
     # reported CCF) drift. Southern-gated: the SN forest_location table is keyed by KODFOR÷100 the
     # same way kw_stdinfo! keys it; NE/CS/LS use a different forkod keying (left as a follow-up).
+    # ON (canada/on/forkod.f, called by dbsstandin.f:618 BEFORE the DB LATITUDE/LONGITUDE overrides): a code outside
+    # JFOR keeps the grinit.f IFOR=9 (⇒ KODFOR=JFOR(9)=915); KODFOR 915/916 sets TLAT=46.78, TLONG=92.11, ELEV=16 where
+    # still 0. The FVSDataHardwood LD3001 stand (Region 9, Forest 15) has LATITUDE but no LONGITUDE ⇒ live TLONG=92.11
+    # (Hopkins index of the open-grown hardwood crown width ⇒ CCF); jl left 0.
+    if s.variant isa Ontario && (Int(p.user_forest_code) in (915, 916) ||
+                                 !(Int(p.user_forest_code) in (902, 903, 904, 906, 907, 909, 910, 913, 924)))
+        p.latitude  == 0f0 && (p.latitude  = 46.78f0)
+        p.longitude == 0f0 && (p.longitude = 92.11f0)
+        p.elevation == 0f0 && (p.elevation = 16f0)
+    end
     if s.variant isa Southern
         lat0, long0, elev0 = forest_location(s.coef, div(Int(p.user_forest_code), 100))
         p.latitude  == 0f0 && (p.latitude  = lat0)
