@@ -57,8 +57,9 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         s = StandState(Southern()); init_blockdata!(s, s.variant)
         s.fire = FireState()
         # add two cohorts; a zero-density add is a no-op
-        add_snag!(s.fire, 65, 14f0, 40f0, 2003)
-        add_snag!(s.fire, 5,  10f0, 25f0, 2003)
+        # FVS snag records always carry HTDEAD; fmcwd.f's cone split puts nothing down for a 0-ft stem
+        add_snag!(s.fire, 65, 14f0, 40f0, 2003; height = 70f0)
+        add_snag!(s.fire, 5,  10f0, 25f0, 2003; height = 60f0)
         add_snag!(s.fire, 33,  8f0,  0f0, 2003)        # no-op
         @test length(s.fire.snags.sp) == 2
         @test snag_standing_density(s.fire) == 65f0

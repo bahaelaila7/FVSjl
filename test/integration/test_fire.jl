@@ -216,6 +216,7 @@ end
         # propagated through faithful cwd accounting into the fire-basis fuel and amplified by _fmdyn. Bug #1 (input-snag
         # bole topwood) + the snag-record binning were REAL fixes en route (both landed this session). REFUTED along the
         # way: total-fallvol (regressed 12 tests). @test_broken vs rendered-== (not a padded bound). See task #72.
-        @test_broken round(sc; digits = 3) == 17.581
+        # shared-ungate: exact since the raw fmcwd.f cone split (CWD1/CWD3 on FMSVL2's TVOLI, not renormalized).
+        @test round(sc; digits = 3) == 17.581
     end
 end

@@ -957,7 +957,9 @@ end
             # CWD2B2 (fmscro.f:160-170, fmmain.f:243-257): the fire's crown debris waits in CWD2B2 and starts falling the
             # year after the burn — Standing-Dead is now exact (was 2.6). The later fall decays less, so DDW rose 15.2 → 15.6.
             @test abs(round(Int, sd05  * 10) -  28) == 0   # jl 2.8 = live 2.8
-            @test abs(round(Int, ddw05 * 10) - 148) == 8   # jl 15.6 vs live 14.8 = exactly 8 tenths (fallen-bole down wood)
+            # shared-ungate: the per-year crown lift on the post-fire FMPROB (fmcadd.f), FMEFF's three crown parts and the raw
+            # fmcwd.f cone split took DDW from 15.6 to within one tenth of live 14.8.
+            @test abs(round(Int, ddw05 * 10) - 148) == 1   # jl vs live 14.8 = exactly 1 tenth (fallen-bole down wood)
         end
     end
 end
