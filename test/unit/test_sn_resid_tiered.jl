@@ -31,4 +31,10 @@ end
     @test _cells("FVS_TreeList", ("Ht", "EstHt"), ("1972",)) == 0
 end
 
+# htcalc.f:170 AGET = 1./B3*(ALOG(1-((H-HB)/B1/SI**B2)**(1./B4/SI**B5))) divides in turn; jl divided by the products
+# (MEASURED FVSsn_g16 private HTGF trace, 1972: AGET 1-2 ULP off on 10 of 35 records ⇒ HTG1 ⇒ 1977 HtG).
+@testset "SN HTCALC tree age at htcalc.f's association (htcalc.f:170) vs FVSsn_g16" begin
+    @test _cells("FVS_TreeList", ("HtG",), ("1977",)) == 0
+end
+
 end # module
