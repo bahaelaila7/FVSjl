@@ -19,17 +19,6 @@
 variant = "BM"
 regime = "climate"
 file = "FVS_Climate"
-col = "AutoEstbTPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 172
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 172 cells [material=18 small=14 tiny=140] max|Δ|=35.55 | e.g. stand 647500316126144 year 2058: live=62.8782806 jl=62.87828063964844"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
 col = "BA"
 stand = "*"
 year = "*"
@@ -158,28 +147,6 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.04841 | e.g. stand 12827438010497 year 2025: live=19.54841423034668 jl=19.5"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "econ"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "BM"
@@ -1137,39 +1104,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 6 cells [ulp1=1 ulp2_16=2 ulpbig=3] max|Δ|=0.5415 | e.g. stand 12827438010497 year 2015: live=28.50272560119629 jl=28.502727508544922"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 5 cells [ulp1=1 ulpbig=4] max|Δ|=2.761e-5 | e.g. stand 177426703020004 year 2042: live=0.10786028951406479 jl=0.10787186026573181"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0478 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.0466 | e.g. stand 12827438010497 year 2025: live=28.32798194885254 jl=28.299999237060547"""
 
 [[residual]]
 variant = "IE"

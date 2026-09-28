@@ -20,10 +20,10 @@ const _BM_RG_REGYR = 10.0f0
 function bm_smhtgf(sp::Int, si::Float32, h::Float32, dtime::Float32)::Float32
     if sp == 1                                            # WP — Chapman-Richards
         c1 = 0.375045f0; c2 = 0.92503f0; c3 = -0.020796f0; c4 = 2.48811f0
-        arg = (1.0f0 - (c1 / si * h)^(1f0 / c4)) / c2
-        effage = arg > 0f0 ? log(arg) / c3 : 0f0
+        arg = (1.0f0 - fpow(c1 / si * h, 1f0 / c4)) / c2
+        effage = arg > 0f0 ? flog(arg) / c3 : 0f0
         agepdt = effage + dtime
-        return (si / c1) * (1f0 - c2 * exp(c3 * agepdt))^c4 - (si / c1) * (1f0 - c2 * exp(c3 * effage))^c4
+        return (si / c1) * fpow(1f0 - c2 * fexp(c3 * agepdt), c4) - (si / c1) * fpow(1f0 - c2 * fexp(c3 * effage), c4)
     elseif sp == 2
         return ((-3.9725f0 + 0.50995f0 * si) / (28.1168f0 - 0.05661f0 * si)) * dtime
     elseif sp == 3
@@ -62,7 +62,7 @@ function bm_essubh_hht(sp::Int, si::Float32, age::Float32)::Float32
     age <= 0f0 && return 0f0                                # SMHTGF: DTIME≤0 → HHT=0 (bm/smhtgf.f:76)
     if sp == 1                                              # WP — MODE=0: EFFAGE=0 (not H-derived)
         c1 = 0.375045f0; c2 = 0.92503f0; c3 = -0.020796f0; c4 = 2.48811f0
-        return (si / c1) * (1f0 - c2 * exp(c3 * age))^c4 - (si / c1) * (1f0 - c2)^c4
+        return (si / c1) * fpow(1f0 - c2 * fexp(c3 * age), c4) - (si / c1) * fpow(1f0 - c2, c4)
     end
     return bm_smhtgf(sp, si, 0f0, age)                      # linear/fixed species: H unused ⇒ = coef·AGE
 end
@@ -96,15 +96,15 @@ function bm_regent_hcor_init!(s::StandState, isct, ind1)
             s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
             (t.dbh[i] >= 5.0f0 || h < 0.01f0) && continue
             x = Float32(t.crown_pct[i]) / 100f0
-            vigor = (150.0f0 * (x^3.0f0) * exp(-6.0f0 * x)) + 0.3f0
+            vigor = (150.0f0 * fpow(x, 3.0f0) * fexp(-6.0f0 * x)) + 0.3f0
             vigor > 1.0f0 && (vigor = 1.0f0)
             sp == 6 && (vigor = 1.0f0 - ((1.0f0 - vigor) / 3.0f0))
             local edh::Float32
             if sp == 15                                   # aspen (Sheppard), regent.f:737-750
                 relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
-                ag1 = (h * 12.0f0 * 2.54f0 / 26.9825f0)^0.8509f0
+                ag1 = fpow(h * 12.0f0 * 2.54f0 / 26.9825f0, 0.8509f0)
                 ag2 = ag1 + 10.0f0
-                h2 = (26.9825f0 * ag2^1.1752f0) / (2.54f0 * 12.0f0)
+                h2 = (26.9825f0 * fpow(ag2, 1.1752f0)) / (2.54f0 * 12.0f0)
                 edh = (h2 - h) * rsimod * 1.0f0
                 edh = edh * 2.4f0
                 edh = edh * 0.75f0
@@ -122,7 +122,7 @@ function bm_regent_hcor_init!(s::StandState, isct, ind1)
         snx = snx / snp; sny = sny / snp
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
-        hc = log(cornew)
+        hc = flog(cornew)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (hc = 0f0)
         c.htg_cor_init[sp] = hc
     end
@@ -167,17 +167,17 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
         # 30.5 ⇒ POTHTG 6.13 vs live 4.80 ⇒ seedling DBH/HT one-directionally high). Pass the raw SITEAR.
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
         relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
-        con = exp(c.htg_cor_small[sp])                    # RHCON(=1)·exp(HCOR)
+        con = fexp(c.htg_cor_small[sp])                    # RHCON(=1)·exp(HCOR)
         xcr = Float32(t.crown_pct[i]) / 100.0f0
-        vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+        vigor = 150.0f0 * fpow(xcr, 3.0f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
         sp == 6 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)   # WJ pinyon (bm/regent.f:277)
         # POTHTG + HTGR (identical for every tripled pass: H/D/VIGOR are the central record's)
         local htgr0::Float32
         if sp == 12
             htgr0 = (si / 5.0f0) * pctred * vigor * con    # LM: regent.f:311 uses the CLAMPED SI
         elseif sp == 15                                   # aspen Sheppard (bm/regent.f:294-305)
-            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
-            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+            age = bm_findag(15, h, sitear)[1]              # regent.f:299 FINDAG SITAGE (non-LESTB)
+            hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
             htgr0 = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
             pothtg = bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)   # SMHTGF reads raw SITEAR (unclamped); DTIME=TEMT=10
@@ -252,8 +252,8 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                         # (seedling DBH frozen, e.g. BM 22960605010497 aspen 0.1→2.2 became 0.1→0.2). Match FVS +
                         # the cr/regent.f:158 & sprout.f:644 pattern.
                         bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
-                        dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
-                        dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+                        dk = bx / (flog(hk - 4.5f0) - ax) - 1.0f0
+                        dkk = h <= 4.5f0 ? d : bx / (flog(h - 4.5f0) - ax) - 1.0f0
                     end
                     # bm/regent.f:565-613 (XRDGRO=1): DKK=D below breast height; a negative DK/DKK falls back to
                     # DG=HTG·0.2·BARK; hardwoods PY/YC/CW/OH (13,14,16,18) floor a negative DG at 0.1 (others 0);
@@ -271,7 +271,7 @@ function small_tree_growth!(s::StandState, stash, ::BlueMountains; fint::Float32
                     (sp == 11 && (d + dgk) < BM_RG_DIAM[sp]) && (dgk = BM_RG_DIAM[sp] - d)
                     scale2 = _BM_RG_REGYR / fint                   # YR/FINT
                     dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-                    dgk = sqrt((d * bark)^2 + dds) - bark * d
+                    dgk = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d
                     (d + dgk) < BM_RG_DIAM[sp] && (dgk = BM_RG_DIAM[sp] - d)
                 end
             end
@@ -352,16 +352,16 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         sitear = p.sp_site_index[sp]
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
         relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
-        con = exp(c.htg_cor_small[sp])
+        con = fexp(c.htg_cor_small[sp])
         xcr = Float32(t.crown_pct[i]) / 100.0f0
-        vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+        vigor = 150.0f0 * fpow(xcr, 3.0f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
         sp == 6 && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
         local htgr::Float32
         if sp == 12
             htgr = (si / 5.0f0) * pctred * vigor * con
         elseif sp == 15
             age = t.birth_age[i]                          # regent.f:319 LESTB ⇒ SITAGE=ABIRTH (=AGEPL, estab.f:628)
-            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+            hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 2.40f0 * 0.75f0
         else
             pothtg = bm_smhtgf(sp, sitear, h, _BM_RG_REGYR)  # SMHTGF reads raw SITEAR (unclamped)
@@ -394,7 +394,7 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 dk = bm_htdbh(Int(p.forest_idx), sp, hk)
             else
                 bx = sd[:ht2][sp]; ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]   # AX = IABFLG==1?HT1:AA (bm/regent.f:411)
-                dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0
+                dk = bx / (flog(hk - 4.5f0) - ax) - 1.0f0
             end
             dbh = dk
             dbh < BM_RG_DIAM[sp] && (dbh = BM_RG_DIAM[sp])   # regent.f:554 IF(DBH<DIAM)DBH=DIAM
@@ -435,8 +435,8 @@ end
 @inline function bm_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
     (ifor < 1 || ifor > 3) && (ifor = 4)
     p2 = BM_HTDBH_P2[ifor,sp]; p3 = BM_HTDBH_P3[ifor,sp]; p4 = BM_HTDBH_P4[ifor,sp]
-    d >= 3f0 && return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
-    return ((4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+    d >= 3f0 && return 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(d, p4))
+    return ((4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
 end
 
 # bm/blkdat.f:168-177 Wykoff HT-DBH HT1/HT2 (the cratet dub/AA-fit coefficients). The species CSV ht1/ht2
@@ -454,11 +454,11 @@ function bm_cratet_dub(ifor::Int, sp::Int, d::Float32, icr::Integer,
                        lhtdrg::Bool, iabflg::Integer, aa::Float32)::Float32
     ax = iabflg == 0 ? aa : BM_BLK_HT1[sp]
     h = if d < 5f0 && (sp == 13 || sp == 14)
-        exp(1.5907f0 + 0.3040f0 * d)
+        fexp(1.5907f0 + 0.3040f0 * d)
     elseif d < 5f0 && (sp == 16 || sp == 18)
         0.0994f0 + 4.9767f0 * d
     else
-        exp(ax + BM_BLK_HT2[sp] / (d + 1f0)) + 4.5f0
+        fexp(ax + BM_BLK_HT2[sp] / (d + 1f0)) + 4.5f0
     end
     if (sp == 10 || sp == 17) && d < 3f0
         jcr = icr <= 0 ? 4 : clamp((icr - 1) ÷ 10 + 1, 1, 7)
@@ -473,10 +473,10 @@ end
 @inline function bm_htdbh(ifor::Int, sp::Int, h::Float32)::Float32
     (ifor < 1 || ifor > 4) && (ifor = 3)
     p2 = BM_HTDBH_P2[ifor,sp]; p3 = BM_HTDBH_P3[ifor,sp]; p4 = BM_HTDBH_P4[ifor,sp]
-    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+    hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
     if h >= hat3
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)
     else
-        return ((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0) + 0.3f0
+        return ((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4)) - 4.51f0) + 0.3f0
     end
 end
