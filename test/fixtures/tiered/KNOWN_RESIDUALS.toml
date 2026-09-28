@@ -866,17 +866,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 4 cells [jl_not_f32=2 material=2] max|Δ|=43.34 | e.g. stand 12827438010497 year 2015: live=42.0 jl=55.75133562088013"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Carbon"
 col = "Aboveground_Merch_Live"
 stand = "*"
@@ -1637,17 +1626,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 50
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 50 cells [ulp1=5 ulp2_16=9 ulpbig=36] max|Δ|=0.3083 | e.g. stand 11855985010690 year 2036: live=11.158248901367188 jl=11.188237190246582"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
@@ -2066,39 +2044,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "IE"
 regime = "simfire"
 file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=2.0 | e.g. stand 11855985010690 year 2056: live=95 jl=97"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2056: live=71 jl=72"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "Acc"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=4.0 | e.g. stand 11855985010690 year 2046: live=22 jl=23"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
 col = "BdFt"
 stand = "*"
 year = "*"
@@ -2142,83 +2087,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 [[residual]]
 variant = "IE"
 regime = "simfire"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=2.0 | e.g. stand 11855985010690 year 2056: live=95 jl=97"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 23
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 23 cells [material=6 ulpbig=17] max|Δ|=60.0 | e.g. stand 11855985010690 year 2036: live=1140 jl=1150"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2056: live=71 jl=72"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [material=1 ulpbig=7] max|Δ|=39.0 | e.g. stand 11855985010690 year 2056: live=479 jl=518"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=2.0 | e.g. stand 11855985010690 year 2056: live=95 jl=97"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2056: live=71 jl=72"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "Accr"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=4.0 | e.g. stand 11855985010690 year 2026: live=13 jl=14"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
 file = "sum"
 col = "BdFt"
 stand = "*"
@@ -2242,67 +2110,12 @@ issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON RE
 variant = "IE"
 regime = "simfire"
 file = "sum"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 15
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-26: 15 cells [gold_text9=8 jl_not_f32=4 small=3] max|Δ|=1.0 | e.g. stand 11855985010690 year 2026: live=4.6 jl=4.7"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
 col = "MCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 28
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2026: live=931 jl=939"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 9 cells [material=3 ulpbig=6] max|Δ|=2.0 | e.g. stand 11855985010690 year 2056: live=95 jl=97"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 23
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 23 cells [material=6 ulpbig=17] max|Δ|=60.0 | e.g. stand 11855985010690 year 2026: live=1024 jl=1033"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [material=1 ulpbig=7] max|Δ|=39.0 | e.g. stand 11855985010690 year 2026: live=158 jl=159"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 3 cells [material=1 ulpbig=2] max|Δ|=3.0 | e.g. stand 11855985010690 year 2056: live=71 jl=72"""
 
 [[residual]]
 variant = "IE"
@@ -4826,39 +4639,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the SN
 [[residual]]
 variant = "SN"
 regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 8 cells [material=8] max|Δ|=60.0 | e.g. stand 216786838010854 year 2009: live=80.0 jl=20.000001788139343"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: the SN campaign (not yet dug) | measured 2026-09-21: 8 cells [material=8] max|Δ|=60.0 | e.g. stand 216786838010854 year 2009: live=20.0 jl=79.99999523162842"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "Weight4"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: jl writer stores a Float64-computed value where FVS stores REAL*4 | measured 2026-09-21: 2 cells [jl_not_f32=1 material=1] max|Δ|=46.54 | e.g. stand 200267456010854 year 2007: live=3.0 jl=49.53809082508087"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
 file = "FVS_Carbon"
 col = "Aboveground_Merch_Live"
 stand = "*"
@@ -6521,17 +6301,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 49
-issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [ulp1=7 ulp2_16=12 ulpbig=30] max|Δ|=0.3369 | e.g. stand 5352355010661 year 2004: live=0.0018238779157400131 jl=0.0018238774500787258"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
@@ -7453,3 +7222,25 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """ie-resid crown OLDPCT thin reset: newly differing second species of Stratum 2 on a stand still off by ULPs in its stratum DBHs | 1 cells, e.g. year 2071: live=202 jl=263"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "sum"
+col = "MAI"
+stand = "196378260020004"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """2026-09-28 ie-resid FFE fmcwd/fmeff ports moved EM 196378260020004's pre-fire fuel bed (snag-fall cone split, fire crowns) - the post-fire .sum MAI 2052 lands 6.5 vs live 6.4 (F5.1 boundary); the stand's fire kill was already off live (86 cells). | 1 cells, e.g. year 2052: live=6.4 jl=6.5"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_BurnReport"
+col = "Weight3"
+stand = "200267456010854"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """2026-09-28 ie-resid FFE ports (FMSADD binning of SN inventory snags, fmcwd cone split): SN 200267456010854's pre-fire fuel moved (2002 Standing_Dead 3.592->3.306 vs live 3.271, 2007 DDW 1.4325->1.4172 vs 1.4184) and its 2007 fuel-model Weight3 renders 11 vs live 10; the stand's fire was already off live. | 1 cells, e.g. year 2007: live=10.0 jl=11.0"""
