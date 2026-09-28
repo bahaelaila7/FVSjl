@@ -1,0 +1,17 @@
+variant = "CR"
+k = 10
+oracle = "/workspace/.crwork/FVScr_clean"
+oracle_sha256 = "1898ca07c721f328e600fce898c941b01a427922afedfea551d665393827f7c7"
+oracle_build_script = "n/a (prebuilt/relinked)"
+oracle_main_std_legacy = "unknown"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "64f78fe6ad835aa82b5178b040483c7c5bc2a6b7"
+generated = "2026-09-28 09:21:08"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+skipped_regimes = []   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = []   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=CR"
+stands = ["5278473010690", "742164474290487", "471654338489998", "2463020010690", "224893914010661", "103573371010661", "316927881489998", "31673493010690", "46279527020004", "3026069010690"]
+excluded_no_live_output = []
+live_no_output_cases = 0
