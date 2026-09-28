@@ -167,4 +167,39 @@ end
     @test _cellsx("200267456010854", "simfire", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2007", "2012")) == 0
 end
 
+# fmsout.f:122-172 / fmssum: the snag reports read FMSNAG's HARD flag, which FMSADD sets TRUE and FMSNAG flips only at the end of
+# a year it ran — so the inventory-year report shows every input snag HARD (jl flipped the 1990 snags soft already in 2002),
+# and each record's volume is FMSVOL(II,HTIx) on (DBHS, HTDEAD) cut at the current height with the 0.005454154·HTDEAD floor
+# (jl used a (DBH, HTIH) tree's merch: SD 5.0" 0 vs live 2.2976; SO 8.9" 96.29 vs 109.53). Live golden: FVSsn_g16 on the
+# tiered SALVAGE key plus SNAGOUT/SNAGSUM/SNAGOUDB/SNAGSUDB.
+@testset "SN snag reports: inventory-year HARD flag + FMSVOL volume (fmsout.f:122-172) vs FVSsn_g16" begin
+    fx = fixture_dir("SN"); d = mktempdir()
+    cp(joinpath(fx, "stands.db"), joinpath(d, "stands.db"))
+    key = read(joinpath(fx, "200267456010854_salvage.key"), String)
+    key = replace(key, "SALVAGE          2.0       0.0     999.0       0.9\n" =>
+                       "SALVAGE          2.0       0.0     999.0       0.9\nSNAGOUT\nSNAGSUM\n",
+                  "POTFIRDB\n" => "POTFIRDB\nSNAGOUDB\nSNAGSUDB\n")
+    key = join([l == "out.db" ? joinpath(d, "out.db") : l == "stands.db" ? joinpath(d, "stands.db") : l
+                for l in split(key, '\n')], '\n')
+    write(joinpath(d, "x.key"), key)
+    FVSjl.run_keyfile(joinpath(d, "x.key"); variant = FVSjl.Southern())
+    col(h, r, c) = parse(Float64, string(r[findfirst(==(c), h)]))
+    h, rows = db_table_rows(joinpath(d, "out.db"), "FVS_SnagSum")
+    live = Dict(2002 => (36.1082763671875, 36.1082763671875, 0.0, 0.0, 36.1082763671875),
+                2007 => (42.9259033203125, 42.9259033203125, 8.559402465820312, 8.559402465820312, 51.48530578613281))
+    for r in rows
+        y = Int(col(h, r, "Year")); haskey(live, y) || continue
+        @test Tuple(col(h, r, c) for c in ("Hard_snags_class1", "Hard_snags_total", "Soft_snags_class1", "Soft_snags_total",
+                                             "Hard_soft_snags_total")) == live[y]
+    end
+    h, rows = db_table_rows(joinpath(d, "out.db"), "FVS_SnagDet")
+    det = Dict(("SD", 1) => (19.0, 0.0, 2.2976343631744385, 0.0, 12.036091804504395, 0.0),
+               ("SO", 1) => (49.999996185302734, 0.0, 109.5284423828125, 0.0, 12.036091804504395, 0.0),
+               ("SO", 2) => (51.0, 0.0, 238.16952514648438, 0.0, 12.036091804504395, 0.0))
+    got = Dict((strip(string(r[findfirst(==("SpeciesFVS"), h)])), Int(col(h, r, "DBH_Class"))) =>
+               Tuple(col(h, r, c) for c in ("Current_Ht_Hard", "Current_Ht_Soft", "Current_Vol_Hard", "Current_Vol_Soft",
+                                             "Density_Hard", "Density_Soft")) for r in rows if Int(col(h, r, "Year")) == 2002)
+    @test got == det
+end
+
 end # module

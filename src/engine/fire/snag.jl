@@ -691,7 +691,8 @@ function snag_summary(s::StandState)
         # difference flips boundary cohorts' hard/soft classification. (XMOD=1 for SN.)
         dcx = get(dcovr, Int32(sn.sp[i]), decayx[sn.sp[i]])
         dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
-        if Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD (cycle-end−1 ord. mort.) + report 1yr behind
+        # …and FMSNAG never ran before the inventory year, so the inventory report still sees every snag HARD.
+        if (iyr - 1) >= Int(s.control.cycle_year[1]) && Float32(iyr - 1 - Int(sn.yrdead[i])) >= dktime   # TRUE YRDEAD + report 1yr behind
             ds += dh; dh = 0f0                              # initially-hard snag now reported SOFT (HARD flag false)
         end
         thd[7] += dh; tsf[7] += ds                          # slot 7 = total (all snags)
@@ -736,10 +737,9 @@ function snag_detail(s::StandState)
         d >= _FM_SNPRCL[1] || continue                   # fmsout.f:117 DBHS < SNPRCL(1) skip
         sp = Int(sn.sp[i]); yd = Int(sn.yrdead[i]); jcl = _snag_detcl(d); h = sn.htcur[i]
         vol = _ffe_west_vol(s.variant) ? ffe_west_snag_vol_at(s, sp, d, sn.height[i], h) :   # FMSVOL(XHT=HTIH)
+              _snag_east_vol(s.variant) ? ffe_east_snag_vol_at(s, sp, d, sn.height[i], h) :   # fmsout.f:122-133
               _snag_merch_cuft_on(s, sp, d, h)
-        dcx = get(dcovr, Int32(sp), decayx[sp])          # DKTIME hard→soft flip (same as snag_summary)
-        dktime = _snag_dktime(s, Int(sn.sp[i]), d, dcx)
-        ishard = Float32(iyr - 1 - yd) < dktime
+        ishard = _snag_hard_flag(s, i, iyr)              # HARD(II) (fmsout.f:135; same flip as snag_summary)
         dh  = ishard ? denih : 0f0
         ds  = denis + (ishard ? 0f0 : denih)
         vh  = ishard ? vol * denih : 0f0
