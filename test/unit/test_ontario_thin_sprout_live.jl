@@ -89,3 +89,18 @@ end
         @test j == l
     end
 end
+
+const _ONT_LITE = _ont_run("ont_lite")
+const _ONT_LITE_LIVE = _ont_live("ont_lite_thin_tl_live.csv")
+
+# (5) cuts.f DO 1700 — the ONE pass that effects a thinning, in IND2 order: PREM=PROB−WK4; a record whose residual
+# would be ≤ .0005 is cut ENTIRELY (then TREDEL'd), a PREM < 1E-5 is not cut at all; totals and ESTUMP follow that
+# final PREM. jl cut/logged inside the trial loop: ont_lite THINBBA 2034 left rec 334 a 0.0005 residual (live: fully
+# cut, 25% more stump TPA) ⇒ one sprout record fewer in 2044.
+@testset "ON ont_lite thin: 2034-2054 record set + TPH == live (cuts.f DO 1700 final pass)" begin
+    jl = last(_ONT_LITE)
+    @test sort([k for k in keys(jl) if k[1] >= 2034]) == sort(collect(keys(_ONT_LITE_LIVE)))
+    for (j, l) in _ont_cmp(jl, _ONT_LITE_LIVE, :TPH)
+        @test j == l
+    end
+end
