@@ -138,6 +138,7 @@ using FVSjl
     include("unit/test_west_estab_live.jl")          # western PLANT establishment (SO/WS/CA/NC) vs live: tables, ESSUBH, ESGENT
     include("unit/test_west_smhtgf_live.jl")         # CA/WS SMHTGF in expf/logf/powf + statement order vs live
     include("unit/test_kt_grinit_defaults.jl")       # KT grinit.f SLOPE 30% / ASPECT 45° defaults (FIA stands without them)
+    include("unit/test_west_sprout_live.jl")         # PN/WC/CA/WS/AK ESUCKR sprout tables vs live (was KeyError :essprt_fsp)
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
