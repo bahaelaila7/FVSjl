@@ -193,6 +193,11 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
     return
 end
 
+# cuts.f:255-275 — the CUTS-entry TREDEL of the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
+# (PROB≤1E-10, swap-from-end, +RDTDEL/FMKILL crown carry). ONE implementation; idempotent, so it is called from cuts!
+# (a cycle with activities due, ahead of the thin — the .sum driver runs cuts! before grow_cycle!) and from grow_cycle!.
+cuts_entry_tredel!(s::StandState) = tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
+
 function cuts!(s::StandState; fint::Float32 = 5f0)
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT
     sched = s.control.schedule
@@ -244,7 +249,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # ties) and the ESTUMP stump order see the compacted list. The .sum driver calls cuts! AHEAD of grow_cycle!
     # (whose CUTS-entry TREDEL runs only after its start-of-cycle DENSE emulation), so a cycle with activities due
     # must compact here; a thin then re-DENSEs the compacted list, as FVS's post-cut density does. Idempotent.
-    tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
+    cuts_entry_tredel!(s)
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
     # method runs (cuts.f processes SPECPREF/MINHARV/… then the thin in the cycle).
     cc = s.control

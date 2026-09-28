@@ -826,7 +826,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # the end of growth (before ESNUTR), appending regen to an already-compacted list ⇒ a different physical record
     # order ⇒ different per-record REGENT/DGSCOR ZZRAN assignment. MEASURED FVSie_g16 24829032010900 post-SIMFIRE:
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
-    tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
+    cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
     # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
     # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
