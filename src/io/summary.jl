@@ -414,8 +414,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # grow_cycle! hook below, like the carbon report.
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
-            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true)
-            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false)   # FMEFF/FMPTRH at the FMMAIN seam below
+            _vtp = _fm_will_triple(s)     # FMMAIN's FMCBA/FMPOCR run on the TRIPLEd list in a tripling cycle (fmcba.f:189-203)
+            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true, vtrip = _vtp)
+            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false, vtrip = _vtp)   # FMEFF/FMPTRH at the FMMAIN seam below
             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
