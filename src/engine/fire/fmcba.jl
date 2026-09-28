@@ -110,11 +110,16 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    v = s.variant
+    _fmtba_form = v isa BlueMountains || v isa CentralIdaho || v isa Teton || v isa Utah || v isa CentralRockies ||
+                  v isa Klamath || v isa WestSierra || v isa CentralCalifornia || v isa WestCascades ||
+                  v isa PacificNorthwest || v isa EastCascades || v isa OregonCoast || v isa Olympic ||
+                  v isa SoutheastAlaska || v isa LakeStates || v isa Northeast
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += _ak_fm ? t.tpa[i] * d * d * 0.0054542f0 :        # ak/fmcba.f:187 FMPROB·DBH·DBH·0.0054542
-                            3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
+        tba[sp] += _fmtba_form ? t.tpa[i] * d * d * 0.0054542f0 :   # {bm,ci,tt,ut,cr,nc,ws,ca,wc,pn,ec,oc,op,ak,ls,ne}/fmcba.f
+                                 3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]   # FMTBA += FMPROB·DBH·DBH·0.0054542; ie/em/kt/so/sn/cs BA1·FMPROB
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
