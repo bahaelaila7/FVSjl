@@ -1401,7 +1401,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             estht = t.norm_ht[i] > 0 ? Float64((Float32(t.norm_ht[i]) + 5f0) / 100f0) : Float64(t.height[i])
             actpt = (1 <= pid <= length(s.plot.point_ids)) ? Int(s.plot.point_ids[pid]) : pid
             # intree.f:543-544: input dead records are stored from MAXTRE DOWNWARD (IREC2), so TreeIndex = MAXTRE+1-k.
-            rimp = Any[_fvs_tree_id(t.tree_id[i]), MAXTRE + 1 - (i - t.n), strip(c.code_alpha[sp]),
+            rimp = Any[_fvs_tree_id(t.tree_id[i]), variant_maxtre(s.variant) + 1 - (i - t.n), strip(c.code_alpha[sp]),
                 strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
                 Int(t.mort_code[i]), Int(t.special[i]), pid,
                 0.0, Float64(t.tpa[i] / g),                # TPA=0, MortPA = mortality expansion

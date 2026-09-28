@@ -729,7 +729,7 @@ mutable struct Density
                                  # canada/on/morts.f) — resets the ON self-thinning line when the
                                  # dominant species changes. Default 0 (inert for all other variants).
 end
-Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE),
+Density(maxtre::Int = MAXTRE) = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, maxtre),
                     zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
 
 # ---------------------------------------------------------------------------
@@ -781,11 +781,11 @@ mutable struct Scratch
     ind1_buf::Vector{Int32}
     sdi_baxsp::Vector{Float32}
 end
-Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
-                    zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
+Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros(Int32,mt), zeros(Int32,mt),
+                    zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
-                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,MAXTRE), zeros(Float32,MAXSP))
+                    zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
+                    zeros(Int32,mt), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
@@ -1422,8 +1422,8 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     ctrl.faithful = faithful
     ctrl.variant_code = variant_code(variant)
     StandState(
-        variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
-        Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
+        variant, coefficients(variant), ctrl, TreeList(variant_maxtre(variant)), PlotData(), SpeciesData(), Calibration(),
+        Density(variant_maxtre(variant)), OutputState(), Scratch(variant_maxtre(variant)), FVSRng(), Establishment(),
         DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end

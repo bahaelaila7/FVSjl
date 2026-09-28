@@ -126,7 +126,7 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
         end
 
         i = t.n + 1
-        i > MAXTRE && break
+        i > length(t.dbh) && break          # MAXTRE (the variant's allocated capacity)
         _store_tree!(t, i, rec, idx, Int32(pj); metric=metric)
         # intree.f:621-623 (label 100): a live record's IMC = IMC1 clamped to 1..3 (blank/0 ⇒ 1).
         imc = t.mort_code[i]; t.mort_code[i] = imc > 3 ? Int32(3) : imc <= 0 ? Int32(1) : imc
@@ -139,7 +139,7 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
     dead_seq = Int32[]
     for (rec, idx, pj, sq) in dead
         i = t.n + t.ndead + 1
-        i > MAXTRE && break
+        i > length(t.dbh) && break          # MAXTRE (the variant's allocated capacity)
         _store_tree!(t, i, rec, idx, pj; metric=metric)
         # intree.f:561-562: an input dead record gets IMC 7 (history 6,7 recent) or 9 (8,9 older).
         t.mort_code[i] = (rec.history == 8 || rec.history == 9) ? Int32(9) : Int32(7)

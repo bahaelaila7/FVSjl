@@ -304,7 +304,7 @@ therefore still diverges from Fortran by the compression — a *tracked*, visibl
 function kw_compress!(s::StandState, rec::KeywordRecord)
     v = rec.values; p = rec.present
     yr = p[1] ? nint(v[1]) : Int32(1)                  # date/cycle (default 1)
-    target = p[2] ? v[2] : Float32(MAXTRE ÷ 2)         # target records (default MAXTRE/2)
+    target = p[2] ? v[2] : Float32(variant_maxtre(s.variant) ÷ 2)   # target records (default MAXTRE/2)
     pn1 = p[3] ? v[3] : 50f0                            # % via Method 1 (default 50)
     push!(s.control.schedule, ScheduledActivity(yr, Int32(250), (target, pn1, 0f0, 0f0, 0f0, 0f0)))
     return

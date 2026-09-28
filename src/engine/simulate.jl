@@ -844,7 +844,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # live records × 3). jl stores the dead block UPWARD (t.n+1 … t.n+ndead), unlike FVS's downward IREC2…MAXTRE, so
     # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
-    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (MAXTRE - Int(t.ndead)) ÷ 3   # NOTRIP (prior-cycle COMPRESS) suppresses tripling
+    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
     # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)

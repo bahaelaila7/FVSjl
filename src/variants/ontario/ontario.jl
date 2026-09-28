@@ -37,6 +37,7 @@ struct Ontario <: AbstractVariant end
 
 variant_code(::Ontario) = "ON"
 nspecies(::Ontario) = 72
+variant_maxtre(::Ontario) = 6000   # canada/on PRGPRM.F77 PARAMETER (MAXTRE=6000)
 htg_period(::Ontario) = 10f0   # CONFIRM vs canada/on/grinit.f IFINT/YR before relying on this
 
 const ON_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "ontario"))
