@@ -204,6 +204,56 @@ function habtyp_errors!(s::Union{StandState{Teton},StandState{Utah}}, pv::Abstra
     return nothing
 end
 
+# WC/PN/EC habtyp.f (Region-6 plant associations, identical shape; defaults ITYPE 52 / 40 / 114): with a reference code
+# PVREF6 crosswalks (PV_CODE, ref) → HABPVR (blank / no full match ⇒ FVS34 / FVS33+FVS32 / FVS32 / FVS33 and LPVXXX);
+# then HBDECD matches the code against PCOML, else the IHB = IFIX(ARRAY2) sequence number in 1..NPA; unresolved and
+# not LPVXXX ⇒ FVS14. The PVREF6 rows (incl. blank HABPVR) come from each build's pvref6.f (data/<v>/pvref6_all.csv).
+const _R6PV = Dict{Symbol,Any}()
+function _r6pv(key::Symbol, dir::AbstractString)
+    get!(_R6PV, key) do
+        m = Dict{Tuple{String,String},String}(); codes = Set{String}(); refs = Set{String}()
+        for l in readlines(joinpath(dir, "pvref6_all.csv"))[2:end]
+            f = split(l, ','); length(f) >= 3 || continue
+            c = String(strip(f[1])); r = String(strip(f[2])); h = String(strip(f[3]))
+            push!(codes, c); push!(refs, r); haskey(m, (c, r)) || (m[(c, r)] = h)
+        end
+        (m, codes, refs)
+    end
+end
+function _r6_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, pcoml, key::Symbol, dir)
+    errs = Int[]; k = String(strip(pv)); r = String(strip(cpvref)); a2 = Int(kodtyp)
+    if !isempty(r)
+        m, codes, refs = _r6pv(key, dir)
+        h = get(m, (k, r), nothing)
+        if h === nothing
+            lc = k in codes; lr = r in refs; k = ""
+        else
+            lc = true; lr = true; k = h; a2 = 0                             # full match: KARD2=HABPVR, ARRAY2=0
+        end
+        if lc && lr && isempty(k); push!(errs, 34); return errs
+        elseif !lc && !lr;         push!(errs, 33, 32); return errs
+        elseif !lr && lc;          push!(errs, 32); return errs
+        elseif !lc && lr;          push!(errs, 33); return errs
+        end
+    end
+    npa = length(pcoml)
+    ihb = a2
+    resolved = if 0 <= ihb <= npa                                          # HBDECD
+        ihb > 0 ? true : (!isempty(k) && k[1] != '0' && findfirst(==(uppercase(first(k, 8))), pcoml) !== nothing)
+    else
+        false
+    end
+    resolved || (1 <= a2 <= npa) || push!(errs, 14)                        # label 20 sequence number, else 14
+    return errs
+end
+for (V, pc, key, dir) in ((:WestCascades, :WC_PCOML, :wc, :WC_DATADIR), (:PacificNorthwest, :PN_PCOML, :pn, :PN_DATADIR),
+                          (:EastCascades, :EC_PCOML, :ec, :EC_DATADIR))
+    @eval function habtyp_errors!(s::StandState{$V}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+        foreach(e -> errgro!(s, e), _r6_habtyp_errs(pv, cpvref, kodtyp, $pc, $(QuoteNode(key)), $dir))
+        return nothing
+    end
+end
+
 # --- FVS_Error DBS table (dbserror.f) ------------------------------------------------------------------------------
 const _FVS_ERROR_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Error(
