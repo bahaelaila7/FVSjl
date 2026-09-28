@@ -6,7 +6,7 @@
 # rate measures whether the bit-identity net would catch the kind of subtle change a refactor can introduce.
 # Requires committed SNAPSHOT.tsv manifests (snapshot.jl bless) at HEAD.
 # Usage: julia --project=. test/harness/tiered/mutation.jl [id ...]     (default: all mutations)
-# Env: TIERED_VARIANTS (default: all fixture variants)
+# Env: TIERED_VARIANTS (default: the CORE group — tiered_runner.jl TIERED_GROUPS)
 const ROOT = normpath(joinpath(@__DIR__, "..", "..", ".."))
 
 # (id, kind, file, old, new) — `old` must occur exactly once in the file at HEAD.

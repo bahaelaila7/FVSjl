@@ -1,0 +1,17 @@
+variant = "KT"
+k = 10
+oracle = "/workspace/.ktwork/FVSkt_clean"
+oracle_sha256 = "d52f03594408534b0abfccde64dd78441ec50bfe6901f66543d6a57dea3326ac"
+oracle_build_script = "n/a (prebuilt/relinked)"
+oracle_main_std_legacy = "unknown"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "64f78fe6ad835aa82b5178b040483c7c5bc2a6b7"
+generated = "2026-09-28 09:22:11"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+skipped_regimes = []   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = []   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=IE AND s.LOCATION IN (110,113,114)"
+stands = ["720724089290487", "4718785010690", "22404917010497", "1627650292290487", "31445998010690", "251193174489998", "750215552290487", "196396140020004", "3021216010690", "31454370010690"]
+excluded_no_live_output = []
+live_no_output_cases = 0

@@ -1,0 +1,4 @@
+Year,SpeciesFVS,SpeciesPLANTS,SpeciesFIA,Min_DIB,Max_DIB,Min_DBH,Max_DBH,TPA_Removed,TPA_Value,Tons_Per_Acre,Ft3_Removed,Ft3_Value,Board_Ft_Removed,Board_Ft_Value,Total_Value
+2019,DF,PSME,202,,,0.0,999.9000244140625,,,,1552,466,,,466
+2019,LP,PICO,108,,,0.0,999.9000244140625,,,,3139,942,,,942
+2019,PP,PIPO,122,,,0.0,999.9000244140625,,,,43,13,,,13

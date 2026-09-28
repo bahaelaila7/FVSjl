@@ -1,0 +1,5 @@
+StandID,Message
+2463020010690,FVS09 WARNING:  PLOT COUNTS DO NOT MATCH DATA ON THE DESIGN RECORD; DESIGN RECORD DATA USED.PLOT COUNT=   2; NONSTOCKABLE COUNT=   0                                                                                                                            
+2463020010690,FVS32 WARNING:  PV REFERENCE CODE WAS NOT RECOGNIZED; HABITAT/PLANT ASSOCIATION/ECOREGION SET TO DEFAULT CODE.                                                                                                                                                  
+2463020010690,FVS33 WARNING:  PV CODE WAS NOT RECOGNIZED; HABITAT/PLANT ASSOCIATION/ECOREGION SET TO DEFAULT CODE.                                                                                                                                                            
+2463020010690,"FVS43 WARNING: FIAVBC REQUESTED BUT ECODIVISION CODE NOT RECOGNIZED OR MISSING. USING ""0000"" BY DEFAULT                                                                                                                                                         "
