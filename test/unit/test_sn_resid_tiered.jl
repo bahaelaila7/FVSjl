@@ -233,4 +233,10 @@ end
     end
 end
 
+# dbsstrclass.f:120-128 returns on NTREES=0 before CREATE TABLE, so a stand with no StrClass row leaves no FVS_StrClass table;
+# jl created it empty (830602414290487 NONE, a bare stand: live table absent).
+@testset "SN FVS_StrClass not created without rows (dbsstrclass.f:120-128) vs FVSsn_g16" begin
+    @test isempty(_casex("830602414290487", "none").ms)
+end
+
 end # module
