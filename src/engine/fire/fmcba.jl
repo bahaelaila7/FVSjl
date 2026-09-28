@@ -14,13 +14,25 @@
 # (it feeds the fire-behavior / consumption chunks F5–F8).
 # =============================================================================
 
+# FMCBA's per-record species basal area (the cover type COVTYP = most BA; PRCL = TBA/TOTBA splits the initial dead fuel
+# into decay classes). The builds use three forms: bc/cs/em/ie/kt/sn `TBA += BA1·FMPROB`, BA1 = 3.14159·(DBH/24)·(DBH/24);
+# ak/bm/ca/ci/cr/ec/ls/nc/ne/oc/on/op/pn/tt/ut/wc/ws `FMTBA += FMPROB·DBH·DBH·0.0054542`; so `TBA += FMPROB·5.454153E-03·
+# DBH**2` (integer power = DBH·DBH). jl used the first form everywhere but AK (BM 12827438010497: 2005 initial fuel 1 ULP).
+_fmcba_pi_form(v) = v isa Southern || v isa CentralStates || v isa InlandEmpire || v isa EasternMontana ||
+                    v isa Kootenai || v isa BritishColumbia
+@inline function _fmcba_tba(v, p::Float32, d::Float32)::Float32
+    _fmcba_pi_form(v) && return 3.14159f0 * (d / 24f0) * (d / 24f0) * p
+    v isa SouthCentralOregon && return p * 5.454153f-3 * (d * d)
+    return p * d * d * 0.0054542f0
+end
+
 """
     fmcba!(s) -> StandState
 
 Update the stand's `FireState` cover type, percent cover, big DBH, live fuels, and
 (first FFE year) dead-fuel pools (FMCBA, fmcba.f). No-op unless FFE is active.
 """
-function fmcba!(s::StandState; load_dead::Bool = true)
+function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     t = s.trees; coef = s.coef
@@ -110,11 +122,10 @@ function fmcba!(s::StandState; load_dead::Bool = true)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    cwrec = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        tba[sp] += _ak_fm ? t.tpa[i] * d * d * 0.0054542f0 :        # ak/fmcba.f:187 FMPROB·DBH·DBH·0.0054542
-                            3.14159f0 * (d / 24f0) * (d / 24f0) * t.tpa[i]
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
@@ -132,7 +143,17 @@ function fmcba!(s::StandState; load_dead::Bool = true)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
-        totcra += 3.1415927f0 * cw * cw / 4f0 * t.tpa[i]
+        cwrec[i] = cw
+    end
+    # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
+    # after TRIPLE, so in a tripling cycle the walk is the tripled list (originals ×.60, then each record's ×.25/×.15 copies,
+    # same DBH/CRWDTH) — jl's list is still untripled here (MEASURED FVSsn private FMCBA trace, 200267456010854 2002: sp74
+    # TBA 28.677080 live vs 28.677082 summing the untripled records ⇒ the initial 6-12" fuel 1.0099999 vs 1.01).
+    _fm_record_walk(t, vtrip) do i, pr
+        pr > 0f0 || return
+        sp = Int(t.species[i]); d = t.dbh[i]
+        tba[sp] += _fmcba_tba(s.variant, pr, d)
+        totcra += 3.1415927f0 * cwrec[i] * cwrec[i] / 4f0 * pr
     end
 
     # cover type = the species with the most basal area; total BA for the decay split
@@ -195,7 +216,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
     end
     fs.covtyp = covtyp
-    fs.percov = (1f0 - exp(-totcra / 43560f0)) * 100f0
+    fs.percov = (1f0 - fexp(-totcra / 43560f0)) * 100f0   # fmcba.f:228-229 PERCOV=(1.0-EXP(-TOTCRA/43560.))·100 — EXP is expf
     # SO (FCCS/Ottmar) resolves BOTH the live (herb,shrub) and the 11-class dead pool from one COVRINI→FUELINI
     # lookup keyed by COVTYP, the FMSSTAGE structural stage ISSX (with the PERCOV≥60 SE-open→SE-closed bump),
     # and the logging-history model index (so/fmcba.f:639-726). Computed here (once COVTYP+PERCOV are known);

@@ -101,11 +101,11 @@ end
 # dense.f:179-188 walks DO 10 I3=ISCT(ISPC,1..2) / I=IND1(I3) — species-major IND1 — with WK5=D*(D*P) (DP=D*P first);
 # TSUMD2/TPROB are REAL*4 sums in that order. Live-measured BM/EM, IE (FVSie_g16 3285544010690 2012 QMD live
 # 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build), AK (ak/dense.f identical; akt01 +
-# the FIA 12-stand sample) and ON (canada/on links base/dense.f: FVSon_g16 DENSE dump RMSQD ont_all cyc1 411F20D4 /
-# ont_lite 41266DCA, BA ont_sm cyc0 441BF990 only with both; record order or p·d² is 1-4 ULP off ⇒ ont01 SB HtG).
-# ONE predicate for the dense.f IND1 + D*(D*P) mechanism (stand_ba / stand_qmd / _dense_order).
-_dense_ind1(v::AbstractVariant) = v isa BlueMountains || v isa EasternMontana || v isa InlandEmpire ||
-                                  v isa SoutheastAlaska || v isa Ontario
+# the FIA 12-stand sample), SN (FVSsn_g16 157577477010854 1977 QMD live 6.26626635, record order 6.26626682) and ON
+# (canada/on links base/dense.f: FVSon_g16 DENSE dump RMSQD ont_all cyc1 411F20D4 / ont_lite 41266DCA, BA ont_sm cyc0
+# 441BF990 only with both; record order or p·d² is 1-4 ULP off ⇒ ont01 SB HtG). dense.f is the same source in every build,
+# so every variant walks IND1 with WK5=D*(D*P). ONE predicate for the mechanism (stand_ba / stand_qmd / _dense_order).
+_dense_ind1(::AbstractVariant) = true
 _dense_order(s::StandState) = _dense_ind1(s.variant) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
@@ -267,19 +267,15 @@ function point_basal_area!(s::StandState; cratet_ind::Bool = false)
     # or :257's identity re-sort with dead records — bm_cratet_ind!), the IND the first cycle's DGDRIV PTBALT and the
     # cycle-0 TreeList PtBAL come from; afterwards gradd.f:186's fresh RDPSRT(.TRUE.).
     cratet_ind ? bm_cratet_ind!(s, order) : _rdpsrt!(view(t.dbh, 1:t.n), order)      # IND: DBH descending, FVS tie-break
-    # AK: ptbal.f XBALT+WK5·.005454154·PI/GROSPC with dense.f WK5=D·(D·P), in that Float32 order (the PBAL feeding
-    # AK's DGF/MORTS logistic; the shared form below rounds differently by a few ULP on dense points).
-    akw5 = s.variant isa SoutheastAlaska
+    # ptbal.f:148 (one file in every build): XBALT = XBALT + WK5·.005454154·PI/GROSPC with dense.f's WK5 = D·(D·P), in that
+    # REAL*4 order — the PBAL feeding the DGF/MORTS terms. (MEASURED AK, and FVSsn_g16 157577477010854 1982: PBAL 1 ULP
+    # off on 263 of 315 records with the P·(0.005454154·D²)·PI/GROSPC form.)
     pi_f = p.pi; gross = p.gross_space
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
-        if akw5
-            d = t.dbh[i]
-            pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
-        else
-            pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
-        end
+        d = t.dbh[i]
+        pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
     end
     return s
 end

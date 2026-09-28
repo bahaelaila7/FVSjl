@@ -482,7 +482,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
                 d = t.dbh[i]
                 bark = _mbark(t.species[i], d, t.height[i])
                 g = _mort_g(s, t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
-                de2 = 0.0054542f0 * (d + g)^2
+                de2 = 0.0054542f0 * fpow(d + g, 2f0)                     # morts.f:717-718 (0.0054542*(D+G)**2.) — powf
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]
             end
@@ -592,7 +592,8 @@ end
 # DBHCL = 2-inch dbh class (fmsadd.f:273-277), 19 for dbh≥36.
 @inline _snag_dbhcl(d::Float32)::Int = d >= 36f0 ? 19 : trunc(Int, d / 2f0 + 1f0)
 
-function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0)
+function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0;
+                               firkil::Union{Nothing,AbstractVector{Float32}} = nothing)
     # ORGANON variants (OC/OP) port growth+vol only — no SN snag/biomass coeffs (:v2t/:dkr_cls); skip FFE
     # snag-booking when they are absent (FFE for those variants is a separate unported extension).
     (s.fire === nothing || !s.fire.active || !haskey(s.coef.species, :v2t)) && return s
@@ -618,7 +619,10 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
         # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
         xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
-        fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
+        # fmsadd.f:300-306: the crown goes in with UNFIRE = SNGNEW − FIRKIL, and FMKILL(2) zeroes FIRKIL only AFTER
+        # FMSADD — so in a fire cycle SNGNEW (= WK2 − FIRKIL, fmkill.f:119-123) loses the fire kill a second time.
+        unfire = firkil === nothing ? den : (den > firkil[i] ? den - firkil[i] : 0f0)
+        fmscro!(s, sp, d, xv, unfire, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
         push!(items, (sp, d, h, h, h, den, -1f0))

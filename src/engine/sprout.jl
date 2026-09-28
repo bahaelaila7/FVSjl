@@ -454,17 +454,20 @@ all other forests their CSV row already holds the common-forest (ELSE) form.
 """
 function essprt_sn(coef::SpeciesCoefficients, ispc::Integer, prem::Float32,
                    dstmp::Float32, isefor::Integer)::Float32
+    # REAL*4 association is part of the result: essprt.f writes `PREM = PREM * 1. / (1. + EXP(...))`, which
+    # gfortran evaluates left-to-right as (PREM*1.)/(1.+EXPF(...)) = PREM/(1+e) — NOT PREM*(1/(1+e)) (1-ULP off on
+    # SN 238813815010854 thinbba sprout TPA 166.51021 vs live 166.51022). Only CASE(77)'s special-forest form is
+    # parenthesised as PREM*(1./(…)). EXP is expf (fexp).
     if coef_col(coef, :essprt_fsp)[ispc] == 1f0 && _es_special_forest(isefor)
         d = dstmp
-        m = if ispc == 64 || ispc == 66 || ispc == 75
-                (57.3f0 - 0.0032f0 * d^3) / 100f0          # essprt.f:547/554/571
-            elseif ispc == 70
-                1f0 / (1f0 + exp(-(2.3656f0 - 0.2781f0 * (d / 0.7801f0))))  # :561
-            else # ispc == 77
-                1f0 / (1f0 + exp(-(-2.8058f0 + 22.6839f0 *
-                                    (1f0 / ((d / 0.7788f0) - 0.4403f0)))))  # :578
-            end
-        return prem * Float32(m)
+        if ispc == 64 || ispc == 66 || ispc == 75
+            return prem * ((57.3f0 - 0.0032f0 * d^3) / 100f0)                   # essprt.f:547/554/571
+        elseif ispc == 70
+            return prem / (1f0 + fexp(-(2.3656f0 + (-0.2781f0 * (d / 0.7801f0)))))  # :561
+        else # ispc == 77
+            return prem * (1f0 / (1f0 + fexp(-(-2.8058f0 +
+                                    22.6839f0 * (1f0 / ((d / 0.7788f0) - 0.4403f0))))))  # :578
+        end
     end
     kind = coef_col(coef, :essprt_kind)[ispc]
     p1 = coef_col(coef, :essprt_p1)[ispc]
@@ -472,7 +475,7 @@ function essprt_sn(coef::SpeciesCoefficients, ispc::Integer, prem::Float32,
         return prem * p1                                    # constant multiplier
     end
     p2 = coef_col(coef, :essprt_p2)[ispc]
-    return prem * (1f0 / (1f0 + exp(-(p1 + p2 * dstmp))))   # logistic in DSTMP
+    return prem / (1f0 + fexp(-(p1 + p2 * dstmp)))          # logistic in DSTMP: (PREM*1.)/(1.+EXP(-(P1+P2*DSTMP)))
 end
 
 # --- CR sprout tables (cr/essprt.f CASE('CR'): NSPREC count, ESSPRT survival, SPRTHT height). CR sprouters =
@@ -854,7 +857,9 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.defect[n]      = Int32(0); t.special[n] = Int32(0)
             t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
             t.old_random[n]  = 0f0; t.old_crown_pct[n] = 0f0
-            t.mort_pa[n]     = 0f0                     # esuckr.f WK2(ITRN)=0. (FVS_TreeList MortPA of a new sprout)
+            # esuckr.f:321-328 WK1=WK2=WK4=0 + MISPUTZ(ITRN,0): a reused slot must not carry the deleted record's
+            # prior-DG / MortPA (FVS_TreeList MortPA of the birth year is 0) / HTIMLT / mistletoe rating.
+            t.dg_prev[n] = 0f0; t.mort_pa[n] = 0f0; t.htimlt[n] = 0f0; t.dmr[n] = Int32(0)
             created = true
         end
     end
@@ -864,12 +869,12 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # cut-free cycle — without this reset those persist and RE-sprout every subsequent cycle. Clear here so
     # the pool is drained exactly once, matching FVS.
     empty!(s.control.cut_log)
-    # esnutr.f: `IF (ITRNRM.GE.1) THEN … CALL ESUCKR; IREC1=ITRN; CALL SPESRT` — whenever there were stumps, SPESRT
-    # rebuilds IND1 in ascending PHYSICAL record order, discarding the post-TRIPLE REASS lineage interleave, so the
-    # next cycle's per-tree DGSCOR/REGENT draws walk physical order. Measured for ON (ont_sm THINBTA 2014: live
-    # cycle-3 DGSCOR visits PJ 2,3,4,8,… — jl walked the lineage 8,2,9,10,3,…). Gated to Ontario like the
-    # establishment SPESRT (uses_estab_spesrt); the same esnutr.f path is shared by the other sprouting variants.
-    s.variant isa Ontario && spesrt_reorder!(t)
+    # esnutr.f:119-125 (every variant build): after ESUCKR, whenever ITRNRM>=1, "IREC1=ITRN; CALL SPESRT TO
+    # REESTABLISH THE SPECIES ORDER SORT" — LNKCHN/SETUP relist each species in ASCENDING physical record order,
+    # discarding the post-TRIPLE REASS lineage interleave. The next cycle's DGDRIV/DGSCOR (and DENSE) walk that
+    # IND1, so the stale lineage key hands each tree another tree's BACHLO draw (SN 238813815010854 thinbba cyc-3
+    # WN records drew in order 3,1,4,5,2,6 vs live 1..6; ON ont_sm THINBTA 2014 cycle-3 DGSCOR visits PJ 2,3,4,8,…).
+    spesrt_reorder!(t)
     created && compute_density!(s)
     return created
 end
