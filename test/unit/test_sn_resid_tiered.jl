@@ -24,4 +24,11 @@ _cells(file, cols, yrs) = count(m -> m.file == file && m.col in cols && m.year i
     @test _cells("FVS_TreeList", ("PctCr", "CrWidth"), ("1972",)) == 0
 end
 
+# sn/cratet.f:300-305 fits AA as SUMX = SUMX+YY−XX ((SUMX+ALOG(H−4.5))−BX/(D+1)) and dubs H = EXP(AX+BX/(D+1))+4.5, and
+# htdbh.f:292-297 is H = 4.5+P2·EXP(−1.·P3·D**P4) — REAL*4 logf/expf/powf. jl used Julia log/exp/^ and SUMX+(YY−XX)
+# (MEASURED 1972: the dubbed LP 6.9" height 47.98899460 live vs 47.98899078).
+@testset "SN height dub in REAL*4 (sn/cratet.f:300-360, htdbh.f:292-297) vs FVSsn_g16" begin
+    @test _cells("FVS_TreeList", ("Ht", "EstHt"), ("1972",)) == 0
+end
+
 end # module
