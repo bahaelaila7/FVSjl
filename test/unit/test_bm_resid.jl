@@ -65,3 +65,22 @@ end
         end
     end
 end
+
+@testset "BM tiered 374443645489998 plant_cal FVS_Summary QMD (ESGENT HTG·WK4) vs live FVSbm_g16" begin
+    # bm/esgent.f HTG=HTG*WK4 (WK4=HTIMLT 0.99998) and the WK4<1 DBH/DG rescale; before, the planted cohort's QMD was
+    # 7e-6 high from 2035 on (1.8450947 vs 1.8450816).
+    fx = joinpath(@__DIR__, "..", "fixtures", "tiered", "bm")
+    dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+    key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+           for l in readlines(joinpath(fx, "374443645489998_plant_cal.key"))]
+    write(joinpath(dir, "s.key"), join(key, '\n'))
+    FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = FVSjl.BlueMountains())
+    gl = readlines(joinpath(fx, "374443645489998_plant_cal.FVS_Summary.csv")); hdr = split(gl[1], ',')
+    iy = findfirst(==("Year"), hdr); iq = findfirst(==("QMD"), hdr)
+    gold = Dict(parse(Int, split(l, ',')[iy]) => Float32(parse(Float64, split(l, ',')[iq])) for l in gl[2:end])
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    jl = Dict(Int(r[:Year]) => Float32(r[:QMD]) for r in DBInterface.execute(db, "SELECT Year, QMD FROM FVS_Summary"))
+    SQLite.close(db)
+    @test length(gold) == 6
+    @test all(jl[y] == q for (y, q) in gold)
+end
