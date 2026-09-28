@@ -1203,7 +1203,7 @@ mutable struct FireState
                                        # one FMSADD(IY(ICYC),2) at the end of the cut (fmscut.f:157) — see fmsadd_bin!
     ak_tonrms::Float32                 # AK: TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
                                        # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
-    ak_firkil::Vector{Float32}         # AK: FIRKIL(I) of this burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL)
+    firkil::Vector{Float32}            # FIRKIL(I) of this cycle's burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL); empty ⇒ no burn
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,

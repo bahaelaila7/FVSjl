@@ -655,6 +655,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
     empty!(s.fire.fmicr)                                       # FMICR of THIS burn only (set by fmburn!)
+    empty!(s.fire.firkil)                                      # FIRKIL of THIS burn only (set by fmburn!)
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
@@ -662,12 +663,12 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
     mort  = 0f0
-    akfk = s.variant isa SoutheastAlaska && length(s.fire.ak_firkil) >= min(n, t.n)
+    akfk = length(s.fire.firkil) >= min(n, t.n)                 # fmkill.f is identical in every variant build
     @inbounds for j in 1:min(n, t.n)
         fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
-        # AK: FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
-        # PROB−survivor difference, which rounds (akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
-        akfk && (fk = min(s.fire.ak_firkil[j], pre[j]))
+        # FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
+        # PROB−survivor difference, which rounds (AK akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
+        akfk && (fk = min(s.fire.firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
         m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
