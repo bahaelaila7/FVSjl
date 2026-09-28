@@ -133,6 +133,8 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     prinf::Vector{Float32}    # PRINF(1:ITOTRR) — weighted-average proportion of infected roots per disease type, as last
                               # set by RDSETP (:2200-2500) or RDCNTL DO 800 (after RDMORT); RDPR/RDDOUT report this value
     prinf_sp::Vector{Float32} # PRINF(KSP+ITOTRR) — the same per host species
+    oldtpa::Float32           # OLDTPA / ORMSQD as GRINCR saves them at the cycle start (grincr.f:281/285: DENSE's TPROB and
+    ormsqd::Float32           # RMSQD = SQRT(ΣD·(D·P)/TPROB), species-major IND1); RDROOT's SDI effect reads them. −1 = unset
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -146,6 +148,7 @@ oracle's RDIN option echo.
 """
 function rd_init_defaults!(rd::RootDiseaseState)
     rd.prinf = zeros(Float32, RD_ITOTRR); rd.prinf_sp = Float32[]
+    rd.oldtpa = -1f0; rd.ormsqd = -1f0
     rd.iroot  = Int32(0)
     rd.rrman  = false
     rd.rrtinv = false
@@ -2701,6 +2704,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     end
     oldtpa = tpa_sum
     ormsqd = tpa_sum > 0.0f0 ? sqrt(dsq_sum / tpa_sum) : 0.0f0
+    rd.ormsqd >= 0f0 && (oldtpa = rd.oldtpa; ormsqd = rd.ormsqd)   # GRINCR's cycle-start OLDTPA/ORMSQD (root_disease_mn2!)
     grospc = p.gross_space; ba = p.basal_area
     @inbounds for i in 1:n
         ksp = Int(t.species[i]); ksp == 0 && (d.rootl[i] = 0.0f0; continue)
@@ -2955,6 +2959,15 @@ function root_disease_mn2!(s::StandState, fint::Real)
     d === nothing && return nothing
     s.trees.n == 0 && return nothing
     rd.icyc += Int32(1)
+    # grincr.f:281/285 OLDTPA=TPROB, ORMSQD=RMSQD from the cycle-start DENSE (just run by compute_density!) — before CUTS,
+    # REGENT's small-tree DBH and the tripling; rd_control!'s RDROOT reads these, not a sum over its (grown) records.
+    let t = s.trees, tp = 0f0, sd2 = 0f0, ind1 = _dense_ind1(s.variant)
+        @inbounds for i in _dense_order(s)
+            p = t.tpa[i]; dd = t.dbh[i]
+            tp += p; sd2 += ind1 ? dd * (dd * p) : p * dd^2
+        end
+        rd.oldtpa = tp; rd.ormsqd = tp > 0f0 ? sqrt(sd2 / tp) : 0f0
+    end
     # rebuild the driver if the record count changed (COMCUP dropped PROB≤1e-5 records)
     d.n == s.trees.n || (d = rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s))
     rd_mn2_advance!(rd, d.rrkill, d.probit, d.probi, fint)
