@@ -428,41 +428,6 @@ function _fm_consumption_row(s::StandState, cons, burncr::Float32, icrb::Int32)
             smoke25 = cons.smoke[1], smoke10 = cons.smoke[2])
 end
 
-# PM2.5 smoke emission factors (fmcons.f:60-70): dead surface fuel by moisture-type (lb/ton consumed) and
-# the live/crown classes. SN reports potential smoke = Σ consumed-by-class × factor.
-const _FM_SMOKE_DEAD = 19.0f0          # representative dead-fuel PM2.5 factor (22.5/18.3/16.2 by moisture)
-const _FM_SMOKE_LIVE = 21.3f0          # live herb/shrub PM2.5 factor (EMFACL)
-
-"""
-    potential_fire_report(s) -> NamedTuple
-
-Bundle the FVS_PotFire report row (FMPOFL): the dual-scenario surface fire (`potential_fire`), the canopy
-bulk density (`canopy_bulk_density`), and torching probabilities (`torching_probability`). In SN total
-flame = surface flame and the crown-fire Torch/Crown indices are −1 (FMCFIR is skipped). Returns `nothing`
-without an active fire state.
-"""
-function potential_fire_report(s::StandState)
-    pf = potential_fire(s); pf === nothing && return nothing
-    cbd = canopy_bulk_density(s)
-    # FMPOFL_FMPTRH (fmpofl.f:506/649) does RANNGET(SAVES0) … RANN draws … RANNPUT(SAVES0): the POTENTIAL-fire
-    # REPORT is a hypothetical and must NOT consume the simulation RNG (its stochastic torching draws would
-    # otherwise shift the crown-ratio stream — a 1-CCF perturbation seen on a diverse FFE stand). Save/restore.
-    saved_s0 = s.rng.s0
-    pt = torching_probability(s, pf.severe.flame, pf.moderate.flame)
-    rannput!(s.rng, saved_s0)
-    return (; surf_flame_sev = pf.severe.flame, surf_flame_mod = pf.moderate.flame,
-            tot_flame_sev = pf.severe.flame, tot_flame_mod = pf.moderate.flame,   # = surface (no crown fire in SN)
-            ptorch_sev = pt.severe, ptorch_mod = pt.moderate,
-            torch_index = torching_index(s, cbd.cbd, cbd.actcbh, 1, s.variant),   # OINIT1 (torching, severe fmois=1); −1 for SN
-            crown_index = crowning_index(s, cbd.cbd, 1, s.variant),               # OACT1 (crowning, severe fmois=1); −1 for SN
-            canopy_ht = cbd.actcbh, canopy_density = cbd.cbd,   # FVS_PotFire Canopy_Ht = ACTCBH (fmpofl.f:302), the crown base
-            mort_ba_sev = pf.severe.ba_kill, mort_ba_mod = pf.moderate.ba_kill,
-            mort_vol_sev = pf.severe.vol_kill, mort_vol_mod = pf.moderate.vol_kill,
-            smoke_sev = pf.severe.smoke, smoke_mod = pf.moderate.smoke,
-            models = pf.severe.models)                                            # severe-case fuel models (fmpofl.f:230)
-end
-
-
 # FMEFF's per-record mortality proportion PMORT (fmeff.f:176-346), shared by the actual fire (ICALL=0) and the potential
 # fire (ICALL=1): the species model at FLAME and the crown-volume-scorched CSV, the burn-season adjustment, a ≤1" tree
 # with CSV>50 dies, the FMORTMLT multiplier, then clamped to [0,1].
@@ -473,108 +438,6 @@ end
     (d <= 1f0 && csv > 50f0) && (pmort = 1f0)     # fmeff.f:330
     pmort *= active_fmort_mult(s.control, sp, year, d)   # FMORTMLT per-tree multiplier (fmeff.f:340)
     return clamp(pmort, 0f0, 1f0)
-end
-
-"""
-    potential_fire_east(s; fire_basis=false, fmicr=nothing) -> NamedTuple
-
-FMPOFL for the eastern FFE (SN/CS, fmpofl.f:83-236 with no crown fire): for the severe (FMOIS=1, PREWND(1)/POTEMP(1))
-and moderate (FMOIS=3, PREWND(2)/POTEMP(2)) conditions — POTF* keyword overrides included — SWIND = INT(PREWND),
-FWIND = SWIND·WMULT; FMCFMD picks the weighted fuel models, FMFINT sums BYRAM over them and FLAME = 0.45·(BYRAM/60)**0.46,
-SCH from BYRAM and FWIND; FMEFF(ICALL=1) walks every record (one RANN each, rolled back) for POMORT = BAMORT/TOTBA
-(BAMORT += PMORT·FMPROB·(DBH/24)², TOTBA += FMPROB·(DBH/24)²), PVOLKL += MCFV·POMORT and the crown material PBRNCR a fire
-would burn; FMCONS(ICALL=1) gives the PM2.5 smoke PSMOKE. In a fire year FMPOFL runs after FMBURN, so the caller passes
-the post-fire crowns (`fmicr`) and the pre-fire FMTRET fuel point (`fire_basis`). Returns the FVS_PotFire_East fields.
-"""
-function potential_fire_east(s::StandState; fire_basis::Bool = false, fmicr = nothing, vtrip::Bool = false)
-    fs = s.fire
-    (fs === nothing || !fs.active) && return nothing
-    t = s.trees
-    wmult = fire_wind_reduction(fs.percov)
-    sw, st, mw, mt = potfire_env(s.variant)
-    year = Int(current_cycle_year(s))
-    yrscyc = Float32(cycle_year_at(s.control, Int(s.control.cycle) + 1) - year)   # IY(ICYC+1)−IYR
-    dpmod = _fueltret_dpmod(s, year)
-    crown(i) = (fmicr !== nothing && i <= length(fmicr)) ? Int(fmicr[i]) : Int(t.crown_pct[i])
-    function scenario(k::Int, fmois::Int)
-        pc = fs.params.potf[k]
-        mois = pc.mois[1] >= 0f0 ? _moisture_matrix(pc.mois) : fuel_moisture(fmois, s.variant)
-        prewnd = pc.wind >= 0f0 ? pc.wind : (k == 1 ? sw : mw)
-        potemp = pc.temp >= 0f0 ? pc.temp : (k == 1 ? st : mt)
-        season = pc.season > 0 ? Int(pc.season) : 1                  # POTSEAS default 1 (fminit.f:139-140)
-        potpab = pc.pab >= 0f0 ? pc.pab : 100f0                      # POTPAB default 100 (fminit.f:137-138)
-        fwind = Float32(unsafe_trunc(Int, prewnd)) * wmult           # SWIND(FMOIS)=INT(PREWND(IDPL)); FWIND=SWIND·WMULT
-        models = select_fuel_models(s, mois; fire_basis = fire_basis)
-        byram = 0f0
-        for (fm, w) in models
-            load, sav, depth, mext = fmgfmv(s, fm, mois)
-            depth *= dpmod
-            r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
-            byram += r.byram * w
-        end
-        flame = 0.45f0 * fpow(byram / 60f0, 0.46f0)                  # fmfint.f:541
-        sch = scorch_height(byram, potemp, fwind)                    # fmpofl.f:160-162
-        # FMEFF(ICALL=1): every record reaches label 90 — an unburned/empty record adds PMORT=0 but its TOTBA
-        bamort = 0f0; totba = 0f0; pvolkl = 0f0; bcrown = 0f0
-        rs0 = rannget(s.rng)                                         # RANNGET(SAVESO) … RANNPUT (fmeff.f:143/569)
-        walk = Tuple{Int,Float32}[]
-        _fm_record_walk(t, vtrip) do i, pr; push!(walk, (i, pr)); end   # FMEFF's DO I=1,ITRN (tripled in a tripling cycle)
-        @inbounds for (i, fmprob) in walk
-            pmort = 0f0
-            if !(rann!(s.rng) * 100f0 > potpab) && fmprob > 0f0
-                ht = t.height[i]; icr = crown(i)
-                csv = crown_volume_scorched(sch, ht, icr)
-                pmort = _fmeff_pmort(s, i, flame, csv, season, year)
-                # crown material a fire would burn (fmeff.f:396-453, CRBURN=0): the crown below the scorch height
-                crl = ht * (Float32(icr) / 100f0); crbot = ht - crl
-                if sch > crbot
-                    xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], ht, Int(t.crown_pct[i]))
-                    crbnl = min(sch - crbot, crl)
-                    propcr = crl > 0f0 ? crbnl / crl : 0f0
-                    crw1bn = 0.5f0 * propcr * xc[2]
-                    bcrown += 1f0 * fmprob * _FM_P2T * xc[1] * propcr
-                    bcrown += (crw1bn + 0.5f0 * yrscyc * t.ffe_oldcrw[1, i]) * 1f0 * fmprob * _FM_P2T
-                end
-            end
-            pomort = pmort * fmprob
-            x = t.dbh[i] / 24f0
-            bamort = bamort + pomort * (x * x)
-            totba = totba + fmprob * (x * x)
-            pvolkl = pvolkl + (t.merch_cuft_vol[i] * pomort)          # SN/CS/LS/NE: MCFV (fmeff.f:560-565)
-        end
-        rannput!(s.rng, rs0)
-        pokill = totba != 0f0 ? bamort / totba : 0f0
-        psmoke = _fmcons_potential_psmoke(fs, mois, potpab, bcrown)
-        return (; flame, pokill, povolk = pvolkl, psmoke, models = collect(models), mois, wind = prewnd, temp = potemp)
-    end
-    sev = scenario(1, 1); mod = scenario(2, 3)
-    cbd = canopy_bulk_density(s; vtrip = vtrip, fmicr = fmicr)   # FMPOCR (fmmain.f:188) on the same list
-    return (; severe = sev, moderate = mod, canopy_ht = cbd.actcbh, canopy_density = cbd.cbd)
-end
-
-# FMCONS(FMOIS,0,0.,IYR,ICALL=1,PSMOKE,PSBURN) (fmcons.f:86-360): the PM2.5 a fire would emit without touching the pools —
-# Σ_IL (PRBURN·BURNZ)·EMMFAC over the unpiled classes, then each live class (PLVBRN·FLIVE)·EMFACL added in turn, then the
-# potential crowns PBRNCR·EMFACL(4). PRBURN/PLVBRN carry ·PSBURN/100. Natural (non-activity) fuels.
-function _fmcons_potential_psmoke(fs::FireState, mois::AbstractMatrix{Float32}, psburn::Float32, pbrncr::Float32)::Float32
-    pr0 = fire_consumption_fractions(mois)
-    burnz = ntuple(11) do j
-        z = 0f0
-        @inbounds for k in 1:2, l in 1:4; z += fs.cwd[j, k, l]; end
-        z
-    end
-    small = burnz[3] > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
-    m4 = mois[1, 4]
-    im = m4 <= 0.20f0 ? 3 : m4 <= 0.375f0 ? 2 : 1
-    ts = 0f0
-    @inbounds for il in 1:11
-        pr = (il <= 2 ? small : pr0[il]) * psburn / 100f0
-        ts = ts + pr * burnz[il] * _FM_EMMFAC[im, il, 1]
-    end
-    plv1 = 1f0 * psburn / 100f0; plv2 = 0.6f0 * psburn / 100f0
-    ts = ts + plv1 * fs.flive[1] * _FM_EMFACL[1]
-    ts = ts + plv2 * fs.flive[2] * _FM_EMFACL[1]
-    ts = ts + pbrncr * _FM_EMFACL[1]
-    return ts
 end
 
 # Canopy minimum height (fminit.f:147 CANMHT=6.0): a tree must be taller than this to enter the canopy
@@ -596,13 +459,28 @@ fm_canopy_lsw(sp::Integer, ::BlueMountains) = (1 <= sp <= 14) || sp == 17   # bm
 # 26:49 = FALSE. The AbstractVariant `sp<=25` fallback wrongly dropped redwood (sp50) from the OC canopy
 # profile — a latent under-count of crown fuel on redwood stands (inert on all-conifer non-redwood stands).
 fm_canopy_lsw(sp::Integer, ::OregonCoast) = (1 <= sp <= 25) || sp == 50
+# Every other western build's {v}/fmvinit.f SELECT CASE (I) … LSW(I) (read from the buildDir sources): the hardwoods
+# are FALSE, so their crowns stay out of FMPOCR's canopy profile (CBD/ACTCBH ⇒ PotFire, crown fire, CanProfile).
+# The `sp<=25` fallback counted EM's aspen/cottonwood/birch/maples (11-17, 19) and IE's 18-22 as canopy fuel —
+# EM 2999215010690 got CBD 0.040 / ACTCBH 5 where live has 0 / −1 (a pure-hardwood canopy).
+fm_canopy_lsw(sp::Integer, ::EasternMontana) = (1 <= sp <= 10) || sp == 18
+fm_canopy_lsw(sp::Integer, ::InlandEmpire) = (1 <= sp <= 17) || sp == 23
+fm_canopy_lsw(sp::Integer, ::CentralIdaho) = (1 <= sp <= 12) || sp == 14 || sp == 16 || sp == 18
+fm_canopy_lsw(sp::Integer, ::Teton) = (1 <= sp <= 5) || (7 <= sp <= 12) || sp == 17
+fm_canopy_lsw(sp::Integer, ::Utah) = (1 <= sp <= 5) || (7 <= sp <= 12) || (14 <= sp <= 17) || sp == 23
+fm_canopy_lsw(sp::Integer, ::SoutheastAlaska) = 1 <= sp <= 13
+fm_canopy_lsw(sp::Integer, ::BritishColumbia) = (1 <= sp <= 10) || sp == 14
+fm_canopy_lsw(sp::Integer, ::Union{PacificNorthwest,WestCascades,Olympic}) = (1 <= sp <= 20) || (29 <= sp <= 33) || sp == 38
+fm_canopy_lsw(sp::Integer, ::EastCascades) = (1 <= sp <= 19) || sp == 31
+fm_canopy_lsw(sp::Integer, ::WestSierra) = (1 <= sp <= 27) || sp == 42
+fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 3) || sp == 6 || sp == 9 || sp == 10 || sp == 12
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
-# PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (sev_wind, sev_temp, mod_wind, mod_temp),
-# from each variant's fmvinit.f PREWND/POTEMP BLOCK DATA (SN fmvinit.f:63-66 vs NE fmvinit.f:63-66).
-potfire_env(::Southern)  = (20f0, 70f0, 8f0, 60f0)
-potfire_env(::Northeast) = (25f0, 80f0, 15f0, 50f0)
-potfire_env(::AbstractVariant) = (20f0, 70f0, 8f0, 60f0)
+# PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2)),
+# the fmvinit.f BLOCK DATA used by FMPOFL (fmpofl.f). Every {v}/fmvinit.f: SN/CS 20,70 / 8,60; NE/LS/ON 25,80 / 15,50; all western variants 20,70 / 6,70.
+potfire_env(::Union{Southern,CentralStates})  = (20f0, 70f0, 8f0, 60f0)
+potfire_env(::Union{Northeast,LakeStates,Ontario}) = (25f0, 80f0, 15f0, 50f0)
+potfire_env(::AbstractVariant) = (20f0, 70f0, 6f0, 70f0)
 potfire_env(::SoutheastAlaska) = (20f0, 70f0, 6f0, 70f0)   # ak/fmvinit.f:59-62 PREWND 20/6, POTEMP 70/70
 
 # Fuel model 10 (timber litter + understory) — the crown-fire reference fuel model. fmcfir.f:122-133 overlays a
@@ -883,156 +761,6 @@ function canopy_bulk_density(s::StandState; vtrip::Bool = false, fmicr = nothing
     end
     return (cbd = cbd, actcbh = actcbh, canopy_ht = Int(j2), tcload = tcload)
 end
-
-# Standard normal lower-tail CDF (FMPOFL_NPROB) — Abramowitz & Stegun 26.2.17 rational approximation.
-@inline function _normal_cdf(z::Float64)::Float64
-    s = z < 0 ? -1.0 : 1.0; x = abs(z) / sqrt(2.0)
-    tt = 1.0 / (1.0 + 0.3275911 * x)
-    y = 1.0 - (((((1.061405429tt - 1.453152027) * tt) + 1.421413741) * tt - 0.284496736) * tt + 0.254829592) * tt * exp(-x * x)
-    return 0.5 * (1.0 + s * y)
-end
-
-"""
-    torching_probability(s, flame_sev, flame_mod; reps=30) -> (; severe, moderate)
-
-Probability of crown torching under the severe / moderate flame lengths (FMPOFL_FMPTRH, fmpofl.f). A
-`reps`-rep Monte Carlo: each rep draws a virtual plot (trees present with Poisson probability
-`1−exp(−TPA·PSIZE)`, PSIZE=0.025), finds the lowest crown base height that must ignite for the plot to
-torch given the ladder-fuel rule (a tree carries fire up if the running max height ×1.25 exceeds the next
-crown base, until a tree reaches the critical height `CRIT = clamp(0.5·avg-height-of-top-40-TPA, 5, 50)`).
-Torching probability for a flame length is the mean over reps of the normal CDF that the required crown
-base ≤ the flame's max-needle-torch height `log((FL/0.0775)^1.45 / 30.5)` (log scale, σ=0.25). Uses the
-stand RNG (`rann!`), matching FVS's RANN-based stochastic torching. Returns 0 when a flame length is ~0.
-"""
-function torching_probability(s::StandState, flame_sev::Float32, flame_mod::Float32; reps::Int = 30)
-    t = s.trees; psize = 0.025f0
-    n = 0; prb = Float32[]; cbh = Float32[]; ht = Float32[]
-    @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 && t.height[i] > 0f0 || continue
-        push!(prb, t.tpa[i]); push!(ht, t.height[i])
-        push!(cbh, t.height[i] * (1f0 - Float32(t.crown_pct[i]) * 0.01f0)); n += 1
-    end
-    n == 0 && return (; severe = 0f0, moderate = 0f0)
-    ord = sortperm(cbh)                                  # trees by crown base height ascending (RDPSRT)
-    # CRIT: half the avg height of the top-40-TPA cohort (in list order), clamped [5, 50]
-    avht = 0f0; ssum = 0f0
-    @inbounds for i in 1:n
-        p = prb[i]; ssum + p > 40f0 && (p = 40f0 - ssum)
-        ssum += p; avht += ht[i] * p; ssum >= 40f0 && break
-    end
-    ssum > 0f0 && (avht /= ssum)
-    crit = clamp(0.5f0 * avht, 5f0, 50f0)
-    mincb = Float32[]                                    # required ignition crown base per torching rep
-    yes = Int[]
-    for _ in 1:reps
-        empty!(yes); itop = false
-        @inbounds for ii in 1:n
-            i = ord[ii]
-            (prb[i] > 1000f0 || rann!(s.rng) > exp(-prb[i] * psize)) || continue
-            push!(yes, i); ht[i] >= crit && (itop = true)
-        end
-        itop || continue
-        mc = -1f0
-        @inbounds for jj in length(yes):-1:1            # scan present trees from the top down
-            i = yes[jj]
-            if ht[i] >= crit
-                mc = cbh[i]; break
-            elseif jj > 1                                # can this tree ladder fire up to CRIT?
-                mxht = ht[i]
-                for kk in (jj - 1):-1:1
-                    j = yes[kk]
-                    if mxht * 1.25f0 > cbh[j]
-                        mxht < ht[j] && (mxht = ht[j])
-                        if mxht >= crit; mc = cbh[i]; break; end
-                    end
-                end
-                mc > -1f0 && break
-            end
-        end
-        mc > 0f0 && push!(mincb, mc)
-    end
-    isempty(mincb) && return (; severe = 0f0, moderate = 0f0)
-    p = 1.0 / reps
-    function ptorch(fl::Float32)
-        fl > 1f-4 || return 0f0
-        mxnt = log(((Float64(fl) / 0.0775)^1.45) / 30.5)
-        acc = 0.0
-        # PT1 = the RIGHT tail (fmpofl.f calls NPROB(Z,Q,PT1,…): PT1 receives Q = 1−CDF), so torching is
-        # likelier when the flame's reach MXNT exceeds the required crown base log(MINCB) (Z more negative).
-        for mc in mincb; acc += (1.0 - _normal_cdf((log(Float64(mc)) - mxnt) / 0.25)) * p; end
-        return Float32(acc)
-    end
-    return (; severe = ptorch(flame_sev), moderate = ptorch(flame_mod))
-end
-
-"""
-    potential_fire(s) -> (; severe, moderate)
-
-Potential SURFACE-fire behavior under the two FFE fixed weather scenarios (FMPOFL, fmpofl.f:103),
-WITHOUT applying mortality — the value-grounded core of the FVS_PotFire report. SEVERE = fmois 1, 20 mph,
-70°F; MODERATE = fmois 3, 8 mph, 60°F (fmvinit.f:63-66). Each scenario returns flame length, scorch
-height, potential fire-killed basal area / merch volume, an estimated PM2.5 smoke (consumed fuel ×
-emission factor), and the weighted standard fuel models. In SN the crown-fire spread model (FMCFIR) is
-skipped, so total flame = surface flame, there are no crown indices, and CBD/Canopy are 0.
-"""
-function potential_fire(s::StandState)
-    fs = s.fire
-    (fs === nothing || !fs.active) && return nothing
-    # CR: this hypothetical report refreshes cover/percov but must NOT latch the one-time dead-fuel load pre-thin
-    # (CR defers it to grow_cycle! post-cuts!, matching FVS FMMAIN's load-after-cut order). Eastern variants keep
-    # the original behavior (report loads + uses the dead fuel), so their PotFIRE report stays bit-exact (doctrine #5).
-    fmcba!(s; load_dead = (s.variant isa CentralRockies) ? fs.fuels_init : true)
-    coef = s.coef; t = s.trees
-    function scenario(sev::Int, fmois::Int, wind::Float32, temp::Float32, season::Int)
-        # POTF* keyword overrides for this severity (sev 1=SEVERE, 2=MODERATE); −1/0 ⇒ scenario default.
-        pc = fs.params.potf[sev]
-        mois = pc.mois[1] >= 0f0 ? _moisture_matrix(pc.mois) : fuel_moisture(fmois, s.variant)
-        pc.wind >= 0f0   && (wind = pc.wind)
-        pc.temp >= 0f0   && (temp = pc.temp)
-        pc.season > 0    && (season = Int(pc.season))
-        fwind = wind * fire_wind_reduction(fs.percov)
-        models = select_fuel_models(s, mois)
-        dpmod = _fueltret_dpmod(s, Int(current_cycle_year(s)))   # FUELTRET depth multiplier
-        byram = 0f0
-        for (fm, w) in models
-            load, sav, depth, mext = fmgfmv(s, fm, mois)
-            depth *= dpmod
-            r = rothermel_surface_fire(load, sav, depth, mext, mois; wind = fwind, slope_tan = s.plot.slope)
-            byram += r.byram * w
-        end
-        flame = byram > 0f0 ? 0.45f0 * (byram / 60f0)^0.46f0 : 0f0   # fmfint.f:541 — flame from weighted Byram
-        sch = byram > 0f0 ? scorch_height(byram, temp, fwind) : 0f0
-        ba_kill = 0f0; vol_kill = 0f0
-        @inbounds for i in 1:t.n
-            t.tpa[i] > 0f0 || continue
-            csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
-            sp = Int(t.species[i]); d = t.dbh[i]
-            pm = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
-            pm = fire_mortality_adjust(pm, sp, d, season, s.variant)
-            (d <= 1f0 && csv > 50f0) && (pm = 1f0)
-            pm = clamp(pm, 0f0, 1f0); kil = pm * t.tpa[i]
-            ba_kill += kil * 0.005454154f0 * d * d
-            vol_kill += kil * t.merch_cuft_vol[i]
-        end
-        # potential smoke (PM2.5): the surface fuel a fire would consume × emission factor (FMCONS), a
-        # NON-mutating estimate — Σ cwd[size]·consumed-fraction × dead factor + live shrub/herb × live factor.
-        fr = fire_consumption_fractions(mois)
-        consumed = 0f0
-        @inbounds for sz in 1:11; consumed += sum(@view fs.cwd[sz, :, :]) * fr[sz]; end
-        smoke = consumed * _FM_SMOKE_DEAD + (fs.flive[1] + fs.flive[2]) * _FM_SMOKE_LIVE
-        # POTFPAB: % area burned scales the potential kill + smoke (FMEFF/FMCONS take POTPAB, default 100 =
-        # full, which equals jl's unscaled values; an override < 100 reduces them).
-        if pc.pab >= 0f0
-            f = pc.pab * 0.01f0; ba_kill *= f; vol_kill *= f; smoke *= f
-        end
-        return (; flame, scorch = sch, ba_kill, vol_kill, smoke, models = collect(models))
-    end
-    # PotFire scenario wind (mi/h) + temperature (°F) are per-variant BLOCK DATA (fmvinit.f:63-66
-    # PREWND/POTEMP): SN severe 20/70°F + moderate 8/60°F; NE severe 25/80°F + moderate 15/50°F.
-    sw, st, mw, mt = potfire_env(s.variant)
-    return (; severe = scenario(1, 1, sw, st, 1), moderate = scenario(2, 3, mw, mt, 1))
-end
-
 
 # fmeff.f:353-527 (ICALL=0) — the crowns FMEFF books via FMSCRO for one burned record, in its three parts:
 #  * crown-fire share (CRBURN>0, MKODE≠0): CROWNW(0)=0, CROWNW(1)=½·CROWNW(1), OLDCRW(1) halved; DTHISC=FMPROB·CRBURN;

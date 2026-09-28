@@ -96,11 +96,12 @@ end
 # birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
 # dense.f:179-188 walks DO 10 I3=ISCT(ISPC,1..2) / I=IND1(I3) — species-major IND1 — with WK5=D*(D*P) (DP=D*P first);
 # TSUMD2/TPROB are REAL*4 sums in that order. Live-measured BM/EM, IE (FVSie_g16 3285544010690 2012 QMD live
-# 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build) and AK (ak/dense.f identical; akt01 +
-# the FIA 12-stand sample).
-# dense.f is ONE file in every build but ON (md5 of the 23 others identical), so every variant but Ontario walks IND1 with
-# WK5=D*(D*P) (MEASURED FVSsn_g16 157577477010854 1977 QMD live 6.26626635, record order 6.26626682).
-_dense_ind1(v) = !(v isa Ontario)
+# 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build), AK (ak/dense.f identical; akt01 +
+# the FIA 12-stand sample), SN (FVSsn_g16 157577477010854 1977 QMD live 6.26626635, record order 6.26626682) and ON
+# (canada/on links base/dense.f: FVSon_g16 DENSE dump RMSQD ont_all cyc1 411F20D4 / ont_lite 41266DCA, BA ont_sm cyc0
+# 441BF990 only with both; record order or p·d² is 1-4 ULP off ⇒ ont01 SB HtG). dense.f is the same source in every build,
+# so every variant walks IND1 with WK5=D*(D*P). ONE predicate for the mechanism (stand_ba / stand_qmd / _dense_order).
+_dense_ind1(::AbstractVariant) = true
 _dense_order(s::StandState) = _dense_ind1(s.variant) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
@@ -185,12 +186,15 @@ function stand_top_height(s::StandState; cratet_ind::Bool = false, legacy_double
     if _fvs_ind_lifecycle(s.variant) && !legacy_double
         idx = view(s.scratch.stat_idx, 1:t.n)
         cratet_ind ? bm_cratet_ind!(s, idx) : _rdpsrt!(view(t.dbh, 1:t.n), idx)
+        # canada/on/avht40.f: TARG = 100.0/HAtoACR ("METRIC VERSION = 40.47/AC" — the 100 largest trees per ha),
+        # not the imperial 40/ac.
+        targ = s.variant isa Ontario ? 100f0 / 2.471f0 : 40f0
         avh = 0f0; ssumn = 0f0
         for k in 1:t.n
             ii = Int(idx[k]); p = t.tpa[ii]
-            ssumn + p > 40f0 && (p = 40f0 - ssumn)
+            ssumn + p > targ && (p = targ - ssumn)
             ssumn += p; avh += t.height[ii] * p
-            ssumn >= 40f0 && break
+            ssumn >= targ && break
         end
         return ssumn > 0f0 ? avh / ssumn : 0f0
     end

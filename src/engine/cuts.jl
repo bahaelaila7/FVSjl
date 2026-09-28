@@ -159,9 +159,6 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # standing portion here (the ITYP=2 analog); gated on YARDLOSS (pl>0) so non-yarding cuts are untouched.
         pl = s.control.yardloss_prlost
         if pl > 0f0
-            v2t = coef_col(s.coef, :v2t)[sp]
-            tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
-            fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
             if ssng > 0f0
@@ -176,22 +173,26 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
-            # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
+            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D',LMERCH=F) of the cut tree, no top-kill — MAX(X,TCF), MAX(X,MCF)
+            # for CS/LS/NE/SN (fmsvol.f) — computed fresh by _fm_tvoli for every variant.
             dsng = loss * s.control.yardloss_prdsng
-            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D') of the cut tree, no top-kill
-            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i]; tvoli = max(0.005454154f0 * t.height[i],
-                                 _ffe_west_vol(s.variant) ? _fm_tvoli(s, sp, t.dbh[i], t.height[i]) : tcf))
+            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define
     # no :is_sprouting column (e.g. OC ORGANON — hardwood sprouting is not ported) have no sprouters.
-    (s.control.lsprut && haskey(s.coef.species, :is_sprouting) &&
-     coef_col(s.coef, :is_sprouting)[sp] == 1f0) || return
+    (s.control.lsprut && (s.variant isa Ontario ? (sp in ON_SPROUT_SPP) :
+                          (haskey(s.coef.species, :is_sprouting) && coef_col(s.coef, :is_sprouting)[sp] == 1f0))) || return
     push!(s.control.cut_log,
           (species = Int32(sp), dstmp = t.dbh[i], prem = prem,
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
     return
 end
+
+# cuts.f:255-275 — the CUTS-entry TREDEL of the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
+# (PROB≤1E-10, swap-from-end, +RDTDEL/FMKILL crown carry). ONE implementation; idempotent, so it is called from cuts!
+# (a cycle with activities due, ahead of the thin — the .sum driver runs cuts! before grow_cycle!) and from grow_cycle!.
+cuts_entry_tredel!(s::StandState) = tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT
@@ -239,6 +240,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         end
     end
     isempty(acts) && return _NO_REMOVAL
+    # cuts.f:255-275 — CUTS ENTRY deletes the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
+    # (PROB≤1E-10, TREDEL swap-from-end) BEFORE any thinning is evaluated, so the cut's priority sort (IND2, RDPSRT
+    # ties) and the ESTUMP stump order see the compacted list. The .sum driver calls cuts! AHEAD of grow_cycle!
+    # (whose CUTS-entry TREDEL runs only after its start-of-cycle DENSE emulation), so a cycle with activities due
+    # must compact here; a thin then re-DENSEs the compacted list, as FVS's post-cut density does. Idempotent.
+    cuts_entry_tredel!(s)
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
     # method runs (cuts.f processes SPECPREF/MINHARV/… then the thin in the cycle).
     cc = s.control
@@ -619,9 +626,8 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
     _rdpsrt!(key, order)                             # descending, FVS tie-break
     econ_cut_order!(s, order)                        # this method's IND2 (cuts.f:1135) for the ECON DO-1700 replay
 
-    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
     totcut = 0f0
-    @inbounds for it in order
+    @inbounds for it in order                        # cuts.f DO 1100: the trial thinning on WK4
         elig[it] || continue
         d = t.dbh[it]
         prem = wk4[it] * cuteff
@@ -635,14 +641,31 @@ function _thin_sorted!(s::StandState, act::ScheduledActivity)
         end
         totcut += cut_v
         wk4[it] -= prem
-        _log_cut!(s, t, it, prem)            # ESTUMP (cuts.f:1713), in removal order
+        totcut >= remove && break
+    end
+    return _cuts_do1700!(s, t, order, wk4)
+end
+
+# cuts.f DO 1700 (the one final pass that effects the removals, in IND2 order): PREM = PROB−WK4; a record whose
+# residual would be ≤ 0.0005 (and PREM≠0) is cut ENTIRELY (PREM=PROB, PROB=0 ⇒ TREDEL); a trivial PREM < 1E-5 is
+# NOT cut at all (PROB kept, no ESTUMP); otherwise PROB=PROB−PREM. Removal totals and ESTUMP (the stump list the
+# sprouting reads) follow that final PREM in that order. (_thin_sorted! used to cut/log inside the trial loop.)
+function _cuts_do1700!(s::StandState, t, order::AbstractVector{<:Integer}, wk4::AbstractVector{Float32})
+    rtpa = 0f0; rcuft = 0f0; rmcuft = 0f0; rscuft = 0f0; rbdft = 0f0
+    @inbounds for it in order
+        prob = t.tpa[it]
+        prem = prob - wk4[it]
+        p = prob - prem
+        if !(p > 0.0005f0 || prem == 0f0)
+            prem = prob; t.tpa[it] = 0f0                   # residual ≤ .0005: cut the whole record
+        else
+            prem < 0.00001f0 && continue                  # trivial removal: not cut (label 1650)
+            t.tpa[it] = p
+        end
+        _log_cut!(s, t, it, prem)                         # ESTUMP (cuts.f:1713), in removal order
         rtpa += prem; rcuft += prem * t.cuft_vol[it]
         rmcuft += prem * t.merch_cuft_vol[it]; rscuft += prem * t.saw_cuft_vol[it]
         rbdft += prem * t.bdft_vol[it]
-        totcut >= remove && break
-    end
-    @inbounds for i in 1:n
-        t.tpa[i] = wk4[i]
     end
     return (tpa = rtpa, cuft = rcuft, mcuft = rmcuft, scuft = rscuft, bdft = rbdft)
 end

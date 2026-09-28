@@ -93,10 +93,9 @@ const WSBWE_SEED0 = 55329.0f0   # bweran.f DATA S0/55329D0/ (every bwebk<v>.f)
 # End-to-end host_defol .sum DELTA is bit-exact-or-cornered by the EM #206 growth straddle.
 const WSBWE_APPLY_LIVE = true
 
-const WSBWE_LIBM = "libm.so.6"
-@inline wsbwe_log(x::Float32) = ccall((:logf, WSBWE_LIBM), Float32, (Float32,), x)
-@inline wsbwe_exp(x::Float32) = ccall((:expf, WSBWE_LIBM), Float32, (Float32,), x)
-@inline wsbwe_pow(x::Float32, y::Float32) = ccall((:powf, WSBWE_LIBM), Float32, (Float32,Float32), x, y)
+const wsbwe_log = logf   # glibc (FMath single libm binding)
+const wsbwe_exp = expf
+const wsbwe_pow = powf
 # gfortran real4 ** int4 (libgfortran pow_r4_i4): right-to-left binary exponentiation.
 # Julia's `^`(Int) uses a different multiply order ⇒ 1-ULP drift; replicate exactly.
 @inline function wsbwe_powi(base::Float32, n::Integer)::Float32

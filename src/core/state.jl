@@ -403,6 +403,10 @@ mutable struct Control
     ext_stub_strict::Bool
     dm_block_open::Bool
     habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
+    # grincr.f:74 LTRIP tests ITRN at GRINCR entry, BEFORE CUTS TREDELs the previous cycle's zero-PROB records (cuts.f:
+    # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
+    itrn_grincr::Int32
+    itrn_grincr_cycle::Int32
 end
 
 function Control()
@@ -484,6 +488,7 @@ function Control()
         false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
         String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
+        Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
     )
 end
 
@@ -768,7 +773,7 @@ mutable struct Density
                                  # canada/on/morts.f) — resets the ON self-thinning line when the
                                  # dominant species changes. Default 0 (inert for all other variants).
 end
-Density() = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, MAXTRE),
+Density(maxtre::Int = MAXTRE) = Density(0.0f0, zeros(Float32, MAXPLT), zeros(Float32, maxtre),
                     zeros(Float32, MAXPLT), zeros(Float32, MAXPLT), 0.0f0, 0.0f0, 0.0f0, Int32(0))
 
 # ---------------------------------------------------------------------------
@@ -820,11 +825,11 @@ mutable struct Scratch
     ind1_buf::Vector{Int32}
     sdi_baxsp::Vector{Float32}
 end
-Scratch() = Scratch(zeros(Float32,15,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE), zeros(Int32,MAXTRE),
-                    zeros(Float32,MAXTRE), zeros(Float32,MAXTRE), zeros(Float32,MAXTRE),
+Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros(Int32,mt), zeros(Int32,mt),
+                    zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
-                    zeros(Int32,MAXTRE), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,MAXTRE), zeros(Float32,MAXSP))
+                    zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
+                    zeros(Int32,mt), zeros(Float32,MAXSP))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.
@@ -1206,7 +1211,7 @@ mutable struct FireState
                                        # one FMSADD(IY(ICYC),2) at the end of the cut (fmscut.f:157) — see fmsadd_bin!
     tonrms::Float32                    # TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
                                        # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
-    firkil::Vector{Float32}            # FIRKIL(I) of this burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL)
+    firkil::Vector{Float32}            # FIRKIL(I) of this cycle's burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL); empty ⇒ no burn
     fmcrow_on::Bool                    # FMCROW (ffe_fmcrow!) has filled TreeList.ffe_crownw — from then on every FFE
                                        # crown read takes the stored CROWNW(I,0:5) (_ffe_crownw), as FVS does
 end
@@ -1494,8 +1499,8 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     ctrl.faithful = faithful
     ctrl.variant_code = variant_code(variant)
     StandState(
-        variant, coefficients(variant), ctrl, TreeList(), PlotData(), SpeciesData(), Calibration(),
-        Density(), OutputState(), Scratch(), FVSRng(), Establishment(),
+        variant, coefficients(variant), ctrl, TreeList(variant_maxtre(variant)), PlotData(), SpeciesData(), Calibration(),
+        Density(variant_maxtre(variant)), OutputState(), Scratch(variant_maxtre(variant)), FVSRng(), Establishment(),
         DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end

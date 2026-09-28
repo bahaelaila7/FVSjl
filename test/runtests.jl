@@ -83,6 +83,7 @@ using FVSjl
     include("unit/test_forkod_default.jl")     # forkod.f KODFOR→IFOR vs a 346-code table extracted from the Fortran: not-found keeps grinit IFOR (was forced 1), CA/OC/SO BIA reservation codes
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
     include("unit/test_ak_port.jl")        # AK ak/estab.f + esgent/regent (HTCALC small-tree growth) PLANT stand vs live FVSak_g16
+    include("unit/test_sdichk_order.jl")   # SDICHK last in CRATET (all variants): over-dense BM/SN inventory crown dub vs live
     include("unit/test_bc_crwidth.jl")
     include("unit/test_metric_dbs.jl")      # #259: BC/ON metric DBS tables (Summary/TreeList/CutList/ATRTList *_Metric, East naming for ON) vs live FVSbc_clean/FVSon_g16
     include("unit/test_bc_brokentop.jl")    # BC TREFMT (bc/blkdat.f metric layout) + broken-top NORMHT volume (bc/vols.f:137) vs FVSbc_clean     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
@@ -115,6 +116,7 @@ using FVSjl
     include("unit/test_ontario_growth_wired.jl")# ON: runnable growth — species table+translation (reader) + coefficients(::Ontario) standalone + DDS→DG on_bratio branch (d_ib/DDS/WKI) bit-exact vs FVSon_wkidump
     include("unit/test_ontario_htg.jl")    # ON: large-tree height growth (htgf.f/htont.f Penner diameter-height) — shipped height_growth!(::Ontario) per-tree HTG + HTONT bit-exact vs instrumented FVSon_g16 on ont01
     include("unit/test_ontario_volume.jl") # ON: per-tree volume (vols.f/varvol.f METHC=8 + volont.f ZAK/HONER + Mowraski cull) GTV/GMV/NMV + on_tree_age dump-replay bit-exact vs FVSon_g16
+    include("unit/test_ontario_ccf.jl")    # ON: open-grown crown width (cwcalc.f) all species + stand CCF 1895 + FORTYP/size/stock classes vs FVSon_g16 (ont01 cyc0)
     include("unit/test_ontario_sum_classification.jl")# ON: cyc0 .sum row bit-exact vs FVSon_g16 through FORTYP/size/stock (metric stkval; row tail 125 11)
     include("unit/test_ontario_allspecies_dgf.jl")   # ON full-port: Penner large-tree DGF (on_penner_dds) bit-exact across ALL 72 species vs FVSon_g16 (72-tree ont_all stand)
     include("unit/test_ontario_allspecies_htg.jl")   # ON full-port: Penner diameter-height (on_htont) bit-exact across ALL 72 species vs FVSon_htdump
@@ -124,6 +126,11 @@ using FVSjl
     include("unit/test_ontario_missing_height.jl")  # ON full-port: missing/broken-top height dub crash fix (_on_htdbh_height) + bit-exact volume vs FVSon_g16
     include("unit/test_ontario_database_reader.jl") # ON DATABASE reader: metric cm->in/m->ft conversion (was BC-only gate; ON DB was ~2.5x off)
     include("unit/test_ontario_db_path_equiv.jl")   # ON DATABASE-read path == inline `.tre` path on the REAL ON DB (FVSDataHardwood.db, LD3001, 94 trees): tree ingestion bit-exact + stand attrs + blank-ELEVFT fallback (oracle DB-path blocked: gcc-16 dbstreesin segfault, gcc-15 unavailable)
+    include("unit/test_ontario_cycle1_live.jl")      # ON growth cycle 1 per record vs LIVE FVSon_g16: ont01 TreeList (DG incl. TRIPLE copies, TPH/MortPH, DBH, Ht/HtG, TCuM/MCuM/CCum) + .sum rows of ont01/ont_all/ont_lite/ont_mh/ont_sm
+    include("unit/test_ontario_multicycle_live.jl")  # ON 5-cycle projections vs LIVE FVSon_g16: .sum rows of 6 fixture stands + ont_all per-record TreeList (TPH/MortPH/DBH/Ht) + metric keyword THIN decode
+    include("unit/test_ontario_thin_sprout_live.jl") # ON thinning + stump sprouting vs LIVE FVSon_g16: REGENT copies, ESUCKR sprouts, CUTS-entry TREDEL, SPESRT, DO-1700 cuts pass, per record + .sum
+    include("unit/test_ontario_db_live.jl")          # ON DATABASE stand (FVSDataHardwood.db LD3001, TIMEINT 5) vs LIVE FVSon_g16: metric design factors, SITE_INDEX, FORKOD, gradd DG FINT scaling, canonical 10-cycle .sum
+    include("unit/test_ontario_big_live.jl")         # ON ~1000-record stands vs LIVE FVSon_g16: MAXTRE=6000 tripling guard, VARMRT exhaustion (WK2+PROB), LTRIP on the pre-CUTS ITRN
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16

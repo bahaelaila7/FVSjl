@@ -103,6 +103,15 @@ const _CS_ES_HHTMAX = Float32[
 # (ls/essubh.f DATA MAPLS/, 68 species — DISTINCT from the htcalc MAPLS curve map).
 const _LS_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20]
 const _LS_ESSUBH_REFAGE = Int[20,15,20,20,5,15,15,20,20,10,20,20,10,10,20,35,15,15,20,20,20,20,20,20,20,20,20,20,20,10,30,10,10,20,10,10,20,20,20,20,20,20,20,20,20,20,10,10,10,10,10,10,10,20,10,10,10,10,25,20,10,10,10,10,10,10,10,10]
+# canada/on/blkdat.f:54-72 DATA XMIN / HHTMAX (72 species; the first 68 HHTMAX = LS's). ON has no :estab_min_ht column
+# in its species CSV, so an ON ESTAB/PLANT/STOCKADJ cycle crashed with KeyError :estab_min_ht.
+const _ON_ES_XMIN = Float32[
+ 0.33,0.33,0.25,0.25,0.33,0.25,0.25,0.33,0.25,0.50, 0.33,0.25,0.25,0.33,0.33,0.42,0.42,0.42,1.00,0.42,
+ 0.33,0.33,0.50,0.42,0.33,0.25,0.25,0.25,0.42,0.33, 0.33,0.25,0.33,0.42,0.33,1.40,0.50,0.33,0.33,0.42,
+ 0.42,0.42,0.42,0.50,0.33,0.33,0.42,0.58,0.33,0.33, 0.25,2.10,0.42,0.50,0.25,0.25,0.25,0.42,0.33,0.58,
+ 0.33,2.10,0.33,4.70,1.00,2.10,0.50,2.10,0.33,0.33, 0.25,0.25]
+const _ON_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,
+ 12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20,14,20,18,16]
 
 # Establishment min-height (XMIN) + max seedling height (HHTMAX) per species — from each variant's
 # blkdat.f (VERIFIED: IE blkdat.f:62 XMIN == _IE_ES_XMIN). EM/BM/UT/CI had no establishment.jl ⇒ the dispatch
@@ -422,10 +431,12 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
               s.variant isa Klamath ? _NC_ES_XMIN :
               s.variant isa Olympic ? _OP_ES_XMIN :
               (s.variant isa WestCascades || s.variant isa PacificNorthwest) ? _OP_ES_XMIN :   # wc/pn blkdat.f:70-71 XMIN = op/blkdat.f DATA
+              s.variant isa Ontario ? _ON_ES_XMIN :
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
                 s.variant isa LakeStates ? _LS_ES_HHTMAX :
+                s.variant isa Ontario ? _ON_ES_HHTMAX :
                 s.variant isa CentralRockies ? _CR_ES_HHTMAX :
                 s.variant isa InlandEmpire ? _IE_ES_HHTMAX :
                 s.variant isa Teton ? _TT_ES_HHTMAX :

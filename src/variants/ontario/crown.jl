@@ -13,7 +13,29 @@
 # the metric plot/TPA expansion (stand BA/QMD), the documented next density blocker.
 # =============================================================================
 
-crown_ratio_update!(s::StandState, ::Ontario; kwargs...) = _twigs_crown_update!(s; kwargs...)
+function crown_ratio_update!(s::StandState, ::Ontario; lstart::Bool = false, kwargs...)
+    _twigs_crown_update!(s; lstart = lstart, kwargs...)
+    lstart && on_dub_dead_crowns!(s)
+    return s
+end
+
+# canada/on/crown.f DO 79 (I=IREC2,MAXTRE): a cycle-0 inventory-dead record with no crown gets the same TWIGS
+# CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))), ICRI=INT(CR+0.5), top-kill re-expressed on NORMHT, bounded to
+# [10,95] (dub_dead_crowns!). BA = the CRATET backdating DENSE's OLDBA (on_cratet_dead_density).
+function on_dub_dead_crowns!(s::StandState)
+    t = s.trees
+    t.ndead > 0 || return s
+    sd = s.coef.species
+    bcr1 = sd[:crown_bcr1]; bcr2 = sd[:crown_bcr2]; bcr3 = sd[:crown_bcr3]; bcr4 = sd[:crown_bcr4]
+    ba = on_cratet_dead_density(s)[2]
+    dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); d = t.dbh[i]
+        den = 1f0 + bcr2[sp] * ba
+        cr = 10f0 * (bcr1[sp] / den + bcr3[sp] * (1f0 - fexp(bcr4[sp] * d)))
+        trunc(Int, cr + 0.5f0)
+    end
+    return s
+end
 
 # =============================================================================
 # ON open-grown crown WIDTH (canada/on/cwcalc.f, IWHO=1) → CCF (canada/on/ccfcal.f,

@@ -122,6 +122,35 @@ per-stand HT-DBH re-fit, which a no-measured-height SPROUT stand never triggers 
     return d < 0.1f0 ? 0.1f0 : d
 end
 
+# canada/on/blkdat.f DATA HT1/HT2 (72 species; 1-68 = LS's, 69-72 the planted JP/WP/SP/BP rows).
+const ON_HT1 = Float32[
+ 4.5084, 4.5457, 4.5084, 4.5084, 4.6090, 4.5084, 4.5084, 4.5084, 4.5084, 4.5084, 4.5084, 4.5084,
+ 4.0374, 4.4718, 4.6155, 4.6155, 4.9396, 4.5991, 4.3379, 4.3286, 4.6008, 4.6238, 4.3744, 4.4388,
+ 4.5820, 4.4834, 4.4834, 4.4772, 4.5959, 4.5463, 4.7342, 4.5225, 4.3420, 4.5202, 4.4747, 4.5225,
+ 4.5128, 4.5128, 4.5128, 4.9396, 4.5128, 4.5959, 4.4388, 4.4834, 4.5018, 4.5018, 4.0322, 4.4299,
+ 4.4207, 4.5018, 4.4207, 4.4207, 4.0322, 4.9396, 4.4207, 3.7301, 4.4207, 3.9678, 4.3802, 4.6355,
+ 4.4207, 4.4207, 3.9678, 4.4911, 4.4911, 4.4207, 4.3383, 4.4207, 4.5084, 4.6090, 4.5084, 4.5084]
+const ON_HT2 = Float32[
+ -6.0116, -6.8000, -6.0116, -6.0116, -6.1896, -6.0116, -6.0116, -6.0116, -6.0116, -6.0116, -6.0116, -6.0116,
+ -4.2964, -5.0078, -6.2945, -6.2945, -8.1838, -6.6706, -3.8214, -4.0922, -7.2732, -7.4847, -4.5257, -4.0872,
+ -5.0903, -4.5431, -4.5431, -4.7206, -6.4497, -5.2287, -6.2674, -4.9401, -5.1193, -4.8896, -4.8698, -4.9401,
+ -4.9918, -4.9918, -4.9918, -8.1838, -4.9918, -6.4497, -4.0872, -4.5431, -5.6123, -5.6123, -3.0833, -4.9920,
+ -5.1435, -5.6123, -5.1435, -5.1435, -3.0833, -8.1838, -5.1435, -2.7758, -5.1435, -3.2510, -4.7903, -5.2776,
+ -5.1435, -5.1435, -3.2510, -5.7928, -5.7928, -5.1435, -4.5018, -5.1435, -6.0116, -6.1896, -6.0116, -6.0116]
+# canada/on/blkdat.f DATA ISPSPE: the stump-sprouting species (ESTUMP records only these; esuckr.f DO 200 maps back)
+const ON_SPROUT_SPP = Set(vcat(15:43, 45:48, 50:68))
+"""
+    on_sprout_dbh(ispc, ht) -> Float32
+
+canada/on/esuckr.f sprout DBH: HT>4.5 ⇒ DBH=(BX/(ALOG(HT−4.5)−AX))−1 with BX=HT2(ISSP) and AX=HT1(ISSP) (IABFLG=1:
+LHTDRG defaults .FALSE., so CRATET never replaces AX with the calibrated AA), floored at 0.1; else 0.1.
+"""
+@inline function on_sprout_dbh(ispc::Integer, ht::Float32)::Float32
+    ht > 4.5f0 || return 0.1f0
+    d = (ON_HT2[ispc] / (on_logf(ht - 4.5f0) - ON_HT1[ispc])) - 1f0
+    return d < 0.1f0 ? 0.1f0 : d
+end
+
 """
     nsprec_ne(issp, dstmp) -> Int
 
@@ -336,7 +365,7 @@ LS per-record sprout-survival multiplier on the carried sprout TPA (PREM), by sp
 DBH (ls/essprt.f `CASE('LS','ON')`, essprt.f:256-345). DEFAULT keeps PREM unchanged (×1).
 """
 @inline function essprt_ls(issp::Integer, prem::Float32, dstmp::Float32)::Float32
-    logi(a, b, x) = (e = exp(a + b * x); e / (1f0 + e))
+    logi(a, b, x) = (e = fexp(a + b * x); e / (1f0 + e))   # gfortran EXP ⇒ glibc expf (Julia `exp` can differ 1 ULP)
     d = dstmp
     if issp in (15, 16, 18, 19, 20, 29)
         return prem * (d < 12f0 ? 0.80f0 : 0.50f0)
@@ -696,6 +725,10 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     ne = s.variant isa Northeast     # NE ESUCKR (NSPREC/ESSPRT NE tables + SPRTHT/Wykoff DBH) vs SN model
     cs = s.variant isa CentralStates # CS ESUCKR (cs/essprt.f CASE('CS') tables; structure == NE, aspen=sp76)
     ls = s.variant isa LakeStates    # LS ESUCKR (ls/essprt.f CASE('LS','ON') tables; structure == NE/CS, aspen=sp41)
+    on = s.variant isa Ontario       # ON ESUCKR (canada/on/esuckr.f == LS logic): ESSPRT/SPRTHT/ESASID share CASE('LS','ON')
+                                     # (aspen PT = sp41), but NSPREC has no 'ON' case ⇒ CASE DEFAULT NMSPRC=2 for every species,
+                                     # and the sprout DBH inverts ON's own HT1/HT2 Wykoff curve (canada/on/blkdat.f)
+    ls = ls || on
     cr = s.variant isa CentralRockies # CR ESUCKR (cr/essprt.f CASE('CR') tables; aspen=sp20)
     tt = s.variant isa Teton          # TT ESUCKR (tt/essprt.f CASE('TT') tables; aspen=sp6, sprouters {6,13,14,15})
     ut = s.variant isa Utah           # UT ESUCKR (canonical = strp/esuckr.f + vstrp/essprt.f CASE('UT'); aspen=sp6)
@@ -737,7 +770,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         # (both VARACD-branched in essprt.f). NE uses its own CASE('NE') tables (nsprec_ne / essprt_ne); SN
         # uses nsprec_sn / essprt_sn. ⚠ NE aspen suckering (ESASID(NE)=49 → ASSPTN) is still TODO — for a cut
         # sp49 record NE would call ASSPTN to reset PREM before ESSPRT; absent it, sp49 uses the plain PREM.
-        numspr = ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : ut ? nsprec_ut(issp, dstmp) : so ? nsprec_so(issp, dstmp) : nc ? nsprec_nc(issp, dstmp) : ie ? nsprec_ie(issp, dstmp) : em ? nsprec_em(issp, dstmp) : bm ? nsprec_bm(issp, dstmp) : nsprec_sn(issp, dstmp)
+        numspr = on ? 2 : ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : ut ? nsprec_ut(issp, dstmp) : so ? nsprec_so(issp, dstmp) : nc ? nsprec_nc(issp, dstmp) : ie ? nsprec_ie(issp, dstmp) : em ? nsprec_em(issp, dstmp) : bm ? nsprec_bm(issp, dstmp) : nsprec_sn(issp, dstmp)
         # NE/CS aspen: ASSPTN replaces PREM with the Crouch-polynomial sucker TPA (per cut aspen) BEFORE
         # ESSPRT (esuckr.f:225-228). SPA = poly(ISHAG) clamped [2608,30125], scaled by cut-aspen BA/198.
         if (ne || cs || ls || cr || tt || ut || so || ie || em || bm) && issp == asp_idx && astpar > 0f0
@@ -784,7 +817,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                 -1f0 <= randev <= 1f0 && break
             end
             ht += randev * ht / 5.5f0
-            dbh = ne ? ne_sprout_dbh(coef, issp, ht) :
+            dbh = on ? on_sprout_dbh(issp, ht) :
+                  ne ? ne_sprout_dbh(coef, issp, ht) :
                   cs ? cs_sprout_dbh(coef, issp, ht) :
                   ls ? ne_sprout_dbh(coef, issp, ht) :
                   cr ? ne_sprout_dbh(coef, issp, ht) :
@@ -839,7 +873,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # REESTABLISH THE SPECIES ORDER SORT" — LNKCHN/SETUP relist each species in ASCENDING physical record order,
     # discarding the post-TRIPLE REASS lineage interleave. The next cycle's DGDRIV/DGSCOR (and DENSE) walk that
     # IND1, so the stale lineage key hands each tree another tree's BACHLO draw (SN 238813815010854 thinbba cyc-3
-    # WN records drew in order 3,1,4,5,2,6 vs live 1..6).
+    # WN records drew in order 3,1,4,5,2,6 vs live 1..6; ON ont_sm THINBTA 2014 cycle-3 DGSCOR visits PJ 2,3,4,8,…).
     spesrt_reorder!(t)
     created && compute_density!(s)
     return created

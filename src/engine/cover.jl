@@ -833,8 +833,8 @@ end
 # BEFORE it is merged into cover.jl.  The merge recipe is in HANDOFF.md.
 
 # ---- Float32 libm transcendentals (1-ULP-faithful to Fortran REAL EXP/ALOG) -----------
-@inline _f32log(x::Float32) = ccall((:logf, "libm.so.6"), Float32, (Float32,), x)
-@inline _f32exp(x::Float32) = ccall((:expf, "libm.so.6"), Float32, (Float32,), x)
+const _f32log = logf   # glibc (FMath single libm binding)
+const _f32exp = expf
 
 # =====================================================================================
 # CVSCON coefficient tables (covr/cvscon.f).  Fortran DATA fills each (N,31) array

@@ -247,11 +247,6 @@ XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·
 call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
 measured on the fat lower bole of its death-form tree.
 """
-# CWD1/CWD2's TVOLI (fmcwd.f:176-183): FMSVL2(SP,DBHS,HTDEAD,-1.,…,'D',.FALSE.) — XHT=-1 ⇒ no top-kill (no CFTOPK), so
-# VOL2HT = MAX(0.005454154·HTDEAD, MCF) on the death-form tree, recomputed at each fall (not a round trip of stored tons).
-ffe_east_fmsvl2(s::StandState, sp::Int, d::Float32, htd::Float32)::Float32 =
-    ffe_east_snag_vol_at(s, sp, d, htd, htd; topkill = false)
-
 function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32; topkill::Bool = true)::Float32
     coef = s.coef
     local mcf, vmax
@@ -503,14 +498,11 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # faster ×1.1, hard/index-2 slower; fmcwd.f), so dumping all fallen bole into the hard pool
             # (as before) decayed the soft-snag boles too slowly → they accumulated as the size-5 DDW
             # overshoot. addS → soft pool, addH → hard pool.
-            # CWD1(I, DIH, DIS) (fmcwd.f:152-205): HIHT = HTIS/HTIH (the snag's current top), LOHT = 1.0/0.10. The west
-            # layer recomputes TVOLI = FMSVL2('D') on (DBHS, HTDEAD) as FVS does; elsewhere the stored fall bole is its basis.
+            # CWD1(I, DIH, DIS) (fmcwd.f:152-205): HIHT = HTIS/HTIH (the snag's current top), LOHT = 1.0/0.10, and TVOLI =
+            # FMSVL2('D') recomputed on (DBHS, HTDEAD) as FVS does — for every variant (_fm_tvoli), not the stored fall bole.
             if sn.height[i] > 0f0
                 _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
-                               tvoli = _ffe_west_vol(s.variant) ? max(0.005454154f0 * sn.height[i],
-                                                                      _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])) :
-                                       _snag_east_vol(s.variant) ? ffe_east_fmsvl2(s, Int(sp), sn.dbh[i], sn.height[i]) :
-                                       a / (coef_col(coef, :v2t)[sp] / 2000f0))
+                               tvoli = max(0.005454154f0 * sn.height[i], _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])))
             else    # jl-only: a snag with no recorded height (bare add_snag!) books its bole into the DBH class
                 kd = _cwd_size_class(sn.dbh[i])
                 fs.cwd[kd, 2, idc] += a * dfih; fs.cwd[kd, 1, idc] += a * dfis * 0.80f0
@@ -637,7 +629,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         elseif _snag_htx0_default(s.variant) && htnew < htc
             # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
             _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew;
-                           tvoli = ffe_east_fmsvl2(s, Int(sn.sp[i]), sn.dbh[i], htd))
+                           tvoli = max(0.005454154f0 * htd, _fm_tvoli(s, Int(sn.sp[i]), sn.dbh[i], htd)))
         end
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)
