@@ -2735,7 +2735,9 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     rd_inup!(rd, d, idi)
     if rd.parea[idi] != 0.0f0 && m > 0
         smbi = 0.0f0; smiu = 0.0f0
-        @inbounds for i in order; smbi += d.probit[i]; smiu += d.probiu[i]; end
+        # rdinsd.f DO 443 I=1,ITRN: RECORD order (not IND1) over the active-type hosts — the Float32 sums feed RRIDIM
+        # (MEASURED FVSbm_g16 177426703020004 rootdis cycle 2 RRIDIM 111.155777 live, 111.155792 in IND1 order)
+        @inbounds for i in sort(order); smbi += d.probit[i]; smiu += d.probiu[i]; end
         dennew = (smiu + smbi) / rd.parea[idi]
         @inbounds for i in 1:2, j in 1:5
             dennew += d.probd[idi, i, j] / (rd.parea[idi] + 1.0f-9)
