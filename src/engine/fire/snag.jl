@@ -247,7 +247,12 @@ XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·
 call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
 measured on the fat lower bole of its death-form tree.
 """
-function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32)::Float32
+# CWD1/CWD2's TVOLI (fmcwd.f:176-183): FMSVL2(SP,DBHS,HTDEAD,-1.,…,'D',.FALSE.) — XHT=-1 ⇒ no top-kill (no CFTOPK), so
+# VOL2HT = MAX(0.005454154·HTDEAD, MCF) on the death-form tree, recomputed at each fall (not a round trip of stored tons).
+ffe_east_fmsvl2(s::StandState, sp::Int, d::Float32, htd::Float32)::Float32 =
+    ffe_east_snag_vol_at(s, sp, d, htd, htd; topkill = false)
+
+function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32; topkill::Bool = true)::Float32
     coef = s.coef
     local mcf, vmax
     if s.variant isa LakeStates || s.variant isa Northeast
@@ -262,7 +267,7 @@ function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
         mcf = _snag_merch_cuft_on(s, sp, d, htd)
         vmax = _fm_cuft(s, sp, d, htd; merch = false)
     end
-    if mcf > 0f0
+    if topkill && mcf > 0f0
         cc = s.control
         merch_std = (stmp = cc.sp_stump_ht, topd = cc.sp_top_diam, scfstmp = cc.sp_scf_stump,
                      scftop = cc.sp_scf_topd, bftopd = cc.sp_bf_topd, bfstmp = cc.sp_bf_stump)
@@ -504,6 +509,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0;
                                tvoli = _ffe_west_vol(s.variant) ? max(0.005454154f0 * sn.height[i],
                                                                       _fm_tvoli(s, Int(sp), sn.dbh[i], sn.height[i])) :
+                                       _snag_east_vol(s.variant) ? ffe_east_fmsvl2(s, Int(sp), sn.dbh[i], sn.height[i]) :
                                        a / (coef_col(coef, :v2t)[sp] / 2000f0))
             else    # jl-only: a snag with no recorded height (bare add_snag!) books its bole into the DBH class
                 kd = _cwd_size_class(sn.dbh[i])
@@ -631,7 +637,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
         elseif _snag_htx0_default(s.variant) && htnew < htc
             # SN/CS: the only CWD2 piece at HTX=0 is a <1.5-ft snag broken to fuel — same TVOLI basis as its CWD1 fall
             _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], htd, sn.den_soft[i], sn.den_hard[i], htc, htc, htnew, htnew;
-                           tvoli = _snag_fall_bole(s, i) / (coef_col(s.coef, :v2t)[sn.sp[i]] / 2000f0))
+                           tvoli = ffe_east_fmsvl2(s, Int(sn.sp[i]), sn.dbh[i], htd))
         end
         sn.htcur[i] = htnew
         htnew <= 0f0 && (sn.den_hard[i] = 0f0; sn.den_soft[i] = 0f0)

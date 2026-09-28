@@ -286,4 +286,12 @@ end
     @test _cellsx("238813815010854", "simfire", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2015", "2020")) == 0
 end
 
+# fmcwd.f:176-183 (CWD1) and :230-236 (CWD2): TVOLI = FMSVL2(SP,DBHS,HTDEAD,-1.,…,'D',.FALSE.) recomputed at each fall —
+# MAX(0.005454154·HTDEAD, MCF) with no top-kill; jl divided the stored per-stem tons back by V2T/2000, a round trip off by an
+# ULP (MEASURED 161035853010854 SALVAGE 2003 DDW 1.3504815 vs live 1.3504814).
+@testset "SN snag-fall TVOLI from FMSVL2 (fmcwd.f:176-183) vs FVSsn_g16" begin
+    @test _cellsx("161035853010854", "salvage", "FVS_Carbon", ("Forest_Down_Dead_Wood",), ("2003",)) == 0
+    @test count(m -> m.file == "FVS_PotFire_East", _casex("216786838010854", "simfire").ms) == 0
+end
+
 end # module
