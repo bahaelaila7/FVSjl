@@ -182,16 +182,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
-            if dsng > 0f0 && s.variant isa SoutheastAlaska
-                _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
-            elseif dsng > 0f0
-                idc = ffe_dkr_cls(s, sp)
-                (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
-                addH = fallvol * dsng
-                @inbounds for j in 1:9
-                    frac_h[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac_h[j])
-                end
-            end
+            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define
@@ -208,13 +199,14 @@ end
 # yarding loss): for K=1 (soft: DIS, LOHT(1)) and K=2 (hard: DIH, LOHT(2)) each size class j gets
 # DIF = MAX(0, P(LOCUT)−P(HICUT))·TVOLI·DEN of the cone (R1 widened by LOHT(K) when HTD>4.5), NOT renormalized,
 # booked only if DIF > 1E-6, as ADD = DIF·V2T·SCNV(K) (SCNV = .80 soft, 1.00 hard) into CWD(1,j,K,DKRCLS). A stem
-# with HTD ≤ 4.5 (RHRAT ≤ 0) puts every breakpoint above its top and adds nothing. TVOLI = FMSVL2(…,'D') =
-# MAX(0.005454154·HTD, NATCRS TCF) at (DIAM, HTD). AK only (the shared jl path renormalizes the split — 1/P(0.1)
-# too much — and dumps short stems whole into the DBH class).
-function _ak_fm_cwd_split!(s::StandState, sp::Int, dbh::Float32, htd::Float32, dis::Float32, dih::Float32,
-                           hiht_s::Float32, hiht_h::Float32, loht_s::Float32, loht_h::Float32)
+# with HTD ≤ 4.5 (RHRAT ≤ 0) puts every breakpoint above its top and adds nothing. TVOLI = FMSVL2(…,'D',LMERCH=F) at
+# (DIAM, HTD) = MAX(0.005454154·HTD, TCF) — MCF for CS/LS/NE/SN (fmsvol.f) — the variant's FMSVOL volume
+# `_snag_merch_cuft_on`. fmcwd.f is identical in every variant build (a renormalized split puts 1/P(0.1) too much
+# into the classes and dumps short stems whole into the DBH class: AK akffe 1993 CWD(1,1,2,2) 4.747E-3 vs live 2.465E-4).
+function _fm_cwd_split!(s::StandState, sp::Int, dbh::Float32, htd::Float32, dis::Float32, dih::Float32,
+                        hiht_s::Float32, hiht_h::Float32, loht_s::Float32, loht_h::Float32)
     (dis + dih) <= 0f0 && return
-    tvoli = max(0.005454154f0 * htd, ak_tree_vol(s, sp, dbh, htd)[1])
+    tvoli = max(0.005454154f0 * htd, _snag_merch_cuft_on(s, sp, dbh, htd))
     diam = dbh <= 0.1f0 ? 0.1f0 : dbh
     rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * diam)
     bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))   # BPH(0:9) → 1:10
@@ -246,7 +238,7 @@ end
 # fmcwd.f ENTRY CWD3 (the downed yarding loss of a cut tree): HIHT(2)=HTH, LOHT(2)=.1, hard only. akffe 1993
 # THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only), the shared path 4.747E-3.
 _cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32) =
-    _ak_fm_cwd_split!(s, sp, dbh, hth, 0f0, dih, 0f0, hth, 1.0f0, 0.10f0)
+    _fm_cwd_split!(s, sp, dbh, hth, 0f0, dih, 0f0, hth, 1.0f0, 0.10f0)
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT

@@ -398,17 +398,8 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
         born_now = Int(sn.year[i]) == cur ? 1 : 0
         yrs = clamp(eff - Int(sn.year[i]) + born_now, 0, Int(nyears))
         yrs > 0 || continue
-        # a falling snag transfers its BOLE biomass to down wood; the crown is the separate CWD2B path (so
-        # don't double-count it). Use the TOTAL-volume `fallvol` (FVS CWD1 TVOLI='D'=total), NOT the merch
-        # `bolevol` the Stand-Dead report uses. Fall back to bolevol, then Jenkins, for cohorts with it unset.
-        a = sn.fallvol[i]
-        a <= 0f0 && (a = sn.bolevol[i])
-        a <= 0f0 && (a = let (j, _, _) = jenkins_biomass(coef, sp, sn.dbh[i]); j end)
-        idc = ffe_dkr_cls(s, sp)                            # decay-rate class (FUELPOOL-overridable)
-        # Distribute the fallen bole down the cone taper across size classes (FMCWD/CWD1) instead of
-        # dumping the whole bole into the DBH class. Fractions depend only on (dbh, height) → compute
-        # once per cohort. Height unset (0) ⇒ single-class fallback (no behavior change).
-        (frac_s, frac_h) = _cwd_cone_fractions(sn.dbh[i], sn.height[i], sn.htcur[i])
+        # A falling snag's bole goes to down wood through fmcwd.f CWD1 (_fm_cwd_split!, below): TVOLI = FMSVL2 at the
+        # record's (DBHS, HTDEAD), split down the cone from its current top; the crown is the separate CWD2B path.
         # NO hard→soft density transition for the FALL. FVS's DENIH/DENIS are the snag's INITIAL hard/soft
         # state at CREATION (all ordinary-mortality snags are created HARD → DENIH); the per-snag HARD flag
         # that flips at DKTIME (fmsnag.f:282-285) is a separate DECAY/REPORTING state and does NOT move the
@@ -464,23 +455,9 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 dfih > sn.den_hard[i] - dz && (dfih = sn.den_hard[i])
             end
             sn.den_soft[i] -= dfis; sn.den_hard[i] -= dfih
-            # Fallen-bole biomass into the down-wood pools, SPLIT by the snag's hard/soft state into the
-            # matching CWD pool (FMCWD CWD1, fmcwd.f:K=1 soft DIS → cwd[:,1,:]; K=2 hard DIH → cwd[:,2,:]),
-            # with the SCNV density conversion (fmcwd.f:61 SCNV=(0.80 soft,1.00 hard)): a SOFT (decayed)
-            # snag's bole contributes 0.80× its volume. The pools decay at DIFFERENT rates (soft/index-1
-            # faster ×1.1, hard/index-2 slower; fmcwd.f), so dumping all fallen bole into the hard pool
-            # (as before) decayed the soft-snag boles too slowly → they accumulated as the size-5 DDW
-            # overshoot. addS → soft pool, addH → hard pool.
-            addS = a * dfis * 0.80f0                        # soft-snag fall → soft down-wood (index 1)
-            addH = a * dfih                                 # hard-snag fall → hard down-wood (index 2)
-            if s.variant isa SoutheastAlaska                # fmcwd.f CWD1: HIHT=HTIS/HTIH, LOHT=1.0/.10, raw DIF
-                _ak_fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)
-            else
-                for j in 1:9
-                    frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
-                    frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
-                end
-            end
+            # Fallen bole into the down-wood pools by the snag's hard/soft state (K=1 soft DIS → cwd[:,1,:] ×SCNV .80;
+            # K=2 hard DIH → cwd[:,2,:]). fmcwd.f CWD1 (every variant build): HIHT=HTIS/HTIH, LOHT=1.0/.10, raw DIF on FMSVL2's TVOLI at (DBHS,HTDEAD)
+            _fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)
             fallen += dfall
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
             if r6fall && sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
@@ -1086,7 +1063,7 @@ function _ak_apply_salvage!(s::StandState)::Bool
             sn.den_soft[i] = sn.den_soft[i] - cutdis; sn.den_hard[i] = sn.den_hard[i] - cutdih
             sn.den_soft[i] <= 0f0 && (sn.den_soft[i] = 0f0); sn.den_hard[i] <= 0f0 && (sn.den_hard[i] = 0f0)
             cutvol = cutvol + (cutdis * isoftv + cutdih * ihardv)
-            _ak_fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
+            _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
                               sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)                     # CWD1(I, DIH, DIS)
             fs.ak_tonrms = fs.ak_tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
             fired = true
