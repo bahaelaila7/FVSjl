@@ -37,4 +37,11 @@ end
     @test _cells("FVS_TreeList", ("HtG",), ("1977",)) == 0
 end
 
+# htdbh.f:296-310 MODE 1 (REGENT's DK/DKK, sn/regent.f:317-321): HAT3 = 4.5+P2·EXP(−1.·P3·3.0**P4);
+# D = (ALOG(MIN(H−4.5,0.9999·P2))−ALOG(P2))/(−1.·P3); D = EXP(ALOG(D)·1./P4) — logf/expf/powf, (ALOG(D)·1.)/P4 not ·(1/P4),
+# and MIN on H−4.5 (MEASURED 1977: a 2.7" LP's REGENT DG 0.3353589 live vs 0.3353593).
+@testset "SN HTDBH height→diameter inverse in REAL*4 (htdbh.f:296-310) vs FVSsn_g16" begin
+    @test _cells("FVS_TreeList", ("DG", "DBH"), ("1977",)) == 0
+end
+
 end # module

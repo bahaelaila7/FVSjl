@@ -88,12 +88,15 @@ as a fallback. SN's htdbh.f has NO such floor, so SN keeps the default `db_floor
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)   # db (budwidth) is a per-species array, valid for Wykoff species too
     d = if _uses_wykoff(sd, sp)
         ht1, ht2 = _htdbh_wykoff(sd, sp, ifor, isne)
-        ht2 / (log(h - 4.5f0) - ht1) - 1f0          # htdbh.f:463 (:331)
+        ht2 / (flog(h - 4.5f0) - ht1) - 1f0         # htdbh.f:463 (:331)
     else
-        hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+        # htdbh.f:296-310 REAL*4: HAT3 = 4.5+P2*EXP(-1.*P3*3.0**P4); D = (ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3);
+        # D = EXP(ALOG(D)*1./P4) — logf/expf/powf, and (ALOG(D)*1.)/P4, not ·(1/P4). MEASURED FVSsn_g16 157577477010854
+        # 1977: the REGENT DK/DKK of a 2.7" LP 1-2 ULP off ⇒ DG 0.3353589 live vs 0.3353593.
+        hat3 = 4.5f0 + p2 * fexp((-1f0 * p3) * fpow(3.0f0, p4))
         if h >= hat3
-            ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
-            ratio > 0f0 ? exp(log(ratio) * (1f0 / p4)) : 100f0
+            ratio = (flog(min(h - 4.5f0, 0.9999f0 * p2)) - flog(p2)) / (-1f0 * p3)
+            ratio > 0f0 ? fexp((flog(ratio) * 1f0) / p4) : 100f0
         else
             ((h - 4.51f0) * (3f0 - db) / (hat3 - 4.51f0)) + db
         end
