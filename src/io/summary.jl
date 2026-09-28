@@ -362,23 +362,22 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # post-fire cycle-start-size stand) — else the fire's snag/AGL/Released effects surface one row late.
         # Carbon-Released-from-Fire: 0 unless a SIMFIRE burned in r.year (fmburn! records it in burn_reports);
         # convert tons-C/ac → the report units (same factor as stand_carbon_report's pools, carbon.jl).
-        _carb_push(st) = begin
+        _carb_push(st; vtrip::Bool = false) = begin
             rel = 0f0; tcon = 0f0
             if st.fire !== nothing
                 @inbounds for br in st.fire.burn_reports
                     br.year == Int(r.year) && (rel = br.released; tcon = get(br, :totcon, 0f0)::Float32)
                 end
             end
-            uf = st.control.carbon_units == 1 ? 0.90718474f0 / 0.40468564f0 :
-                 st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
+            uf = st.control.carbon_units == 1 ? 0.90718f0 / 0.4046945f0 :     # METRIC.F77 TItoTM / ACRtoHA
+                 st.control.carbon_units == 2 ? 0.90718f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
-            fl = merge(ffe_fuel_loadings(st), (consumed = tcon,))
-            # FMDOUT TONREM = TONRMS (+TONRMH+TONRMC) → Biomass_Removed, then TONRMS=0 (fmdout.f:274-289). TONRMS is the
-            # salvaged snag biomass _fm_apply_salvage! books (0 for the variants on the generic salvage).
+            fl = merge(ffe_fuel_loadings(st; vtrip = vtrip), (consumed = tcon,))
+            # FMDOUT TONREM = TONRMS (+TONRMH+TONRMC) → Biomass_Removed, then TONRMS=0 (fmdout.f:274-289)
             if st.fire !== nothing
                 fl = merge(fl, (removed = st.fire.tonrms,)); st.fire.tonrms = 0f0
             end
-            push!(carbon_collect, (r.year, stand_carbon_report(st), fl,
+            push!(carbon_collect, (r.year, stand_carbon_report(st; vtrip = vtrip), fl,
                                    snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
@@ -391,13 +390,16 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # cycle's CUTS (grincr.f:292 → cuts.f:1823 FMSCUT slash + YARDLOSS snags), so a thinned cycle reports the POST-
         # cut stand and the one-time dead-fuel load (fmcba.f:457) reads the post-cut FMTBA/PERCOV. Growing cycles run
         # this right after cuts! below; the final (post-projection) row keeps the cycle-top call (no cut happens).
+        carb_v3_pending = nothing   # (carbon_collect index, vtrip) of this cycle's pre-growth FMCRBOUT row
         _ffe_reports! = function ()
         # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
             compute_density!(s)
             fmcba!(s)
-            _carb_push(s)
+            _vt = _fm_will_triple(s)
+            _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
+            carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
@@ -415,7 +417,8 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         last && _ffe_reports!()
         # FVS_StrClass (sstage.f → dbsstrclass.f): the SSTAGE structure classification, BEFORE-thin (Removal_Code
         # 0) at the cycle-top stand. The AFTER-thin (cd=1) row is captured post-cuts! below (non-last cycles).
-        if strclass_collect !== nothing
+        # dbsstrclass.f:122 writes no row when SSTAGE found no record over 0.00001 TPA (NTREES=0, sstage.f:220-233)
+        if strclass_collect !== nothing && _sstage_ntrees(s) > 0
             compute_density!(s)
             push!(strclass_collect, (Int(r.year), 0, structure_report(s)))
         end
@@ -434,7 +437,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if !last
             # FMSDIT (grincr.f:227, before CUTS): FMCROW's height percentiles for this cycle's CROWNW.
             ffe_on && ffe_snapshot_hpct!(s)
-            ffe_on && ffe_fmcrow!(s)                # FMCROW at FMSDIT: per-record HPCT, GROW, CROWNW(I,0:5)
+            ffe_on && ffe_fmcrow!(s)                # FMCROW at FMSDIT: per-record HPCT, GROW, CROWNW(I,0:5) (all variants)
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||
@@ -456,7 +459,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 s.control.atrtlist_capture = nothing
             end
             # FVS_StrClass AFTER-thin row (Removal_Code 1), post-cuts! (identical to the cd=0 row on a no-thin cycle).
-            if strclass_collect !== nothing
+            if strclass_collect !== nothing && _sstage_ntrees(s) > 0
                 compute_density!(s)
                 push!(strclass_collect, (Int(r.year), 1, structure_report(s)))
             end
@@ -535,7 +538,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
                               st.variant isa Northeast)
             chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
-            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
+            _v3p = carb_v3_pending; carb_v3_pending = nothing
+            fhook = _v3p === nothing ? nothing :
+                    ((st, stash) -> (e = carbon_collect[_v3p[1]];
+                                     carbon_collect[_v3p[1]] = Base.setindex(e, carbon_report_fmmain_v3(e[2], st, stash, _v3p[2]), 2)))
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = fhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)

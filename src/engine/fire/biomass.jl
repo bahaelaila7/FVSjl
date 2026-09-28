@@ -40,20 +40,25 @@ Equations were fit for trees ≥ 2.5 cm DBH; smaller trees use the 2.5-cm aboveg
 biomass scaled linearly by DBH. Merch biomass is non-zero only at/above the species'
 merch DBH limit (`DBHMIN`).
 """
-@inline function jenkins_biomass(coef::SpeciesCoefficients, sp::Integer, dbh::Float32)
+# fmcbio.f is REAL*4 with gfortran's expf/logf (fexp/flog), and MBIO is gated on the variant's merch DBHMIN(KSP) — pass it
+# as `dbhmin` (the species CSV :dbh_min is 0 for the western variants, so every tree got a merch biomass; MEASURED
+# FVSie_g16 4769882010690: LP 5.4" MBIO live 0, jl 0.031; ABIO/RBIO 1 ULP off on 37 of 200 records).
+@inline function jenkins_biomass(coef::SpeciesCoefficients, sp::Integer, dbh::Float32;
+                                 dbhmin::Real = coef_col(coef, :dbh_min)[sp])
     dcm = dbh * _IN_TO_CM
     dcm > 0f0 || return (0f0, 0f0, 0f0)
     igrp = Int(coef_col(coef, :bio_group)[sp])
     jgrp = igrp > 5 ? 2 : 1                          # softwood (1) vs hardwood (2)
     b0a = _JENKINS_B0A[igrp]; b1a = _JENKINS_B1A[igrp]
     if dcm >= 2.5f0
-        above = exp(b0a + b1a * log(dcm))
-        root  = above * exp(_JENKINS_B0B[jgrp] + _JENKINS_B1B[jgrp] / dcm)
+        above = fexp(b0a + b1a * flog(dcm))
+        root  = above * fexp(_JENKINS_B0B[jgrp] + (_JENKINS_B1B[jgrp] / dcm))
     else                                             # < 2.5 cm: 2.5-cm value scaled by DBH
-        above = exp(b0a + b1a * log(2.5f0)) * (dcm / 2.5f0)
-        root  = above * exp(_JENKINS_B0B[jgrp] + _JENKINS_B1B[jgrp] / 2.5f0)
+        above = fexp(b0a + b1a * flog(2.5f0))
+        above = above * (dcm / 2.5f0)
+        root  = above * fexp(_JENKINS_B0B[jgrp] + (_JENKINS_B1B[jgrp] / 2.5f0))
     end
-    merch = dbh >= coef_col(coef, :dbh_min)[sp] ?
-            above * exp(_JENKINS_B0M[jgrp] + _JENKINS_B1M[jgrp] / dcm) : 0f0
+    merch = dbh >= Float32(dbhmin) ?
+            above * fexp(_JENKINS_B0M[jgrp] + (_JENKINS_B1M[jgrp] / dcm)) : 0f0
     return (above * _KG_TO_TI, merch * _KG_TO_TI, root * _KG_TO_TI)
 end

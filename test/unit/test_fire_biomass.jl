@@ -3,7 +3,7 @@
 using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
              crown_biomass, StandState, init_blockdata!, init_merch_standards!,
              ffe_dead_fuel_type, ffe_live_fuel_type, ffe_dead_fuel_loading, ffe_live_fuel_loading,
-             ffe_forest_type, fmcba!, FireState
+             ffe_forest_type, fmcba!, FireState, fexp, flog
 
 @testset "Jenkins tree biomass (FMCBIO)" begin
     coef = coefficients(Southern())
@@ -18,12 +18,13 @@ using FVSjl: jenkins_biomass, coefficients, Southern, coef_col,
         b0m = (-0.3737f0,-0.3065f0)[jgrp]; b1m = (-1.8055f0,-5.4240f0)[jgrp]
         b0b = (-1.5619f0,-1.6911f0)[jgrp]; b1b = (0.6614f0,0.8160f0)[jgrp]
         dcm = dbh * intocm
+        # fmcbio.f is REAL*4 with gfortran's expf/logf (fexp/flog), not Julia's own exp/log
         if dcm >= 2.5f0
-            a = exp(b0a + b1a*log(dcm)); r = a*exp(b0b + b1b/dcm)
+            a = fexp(b0a + b1a*flog(dcm)); r = a*fexp(b0b + b1b/dcm)
         else
-            a = exp(b0a + b1a*log(2.5f0))*(dcm/2.5f0); r = a*exp(b0b + b1b/2.5f0)
+            a = fexp(b0a + b1a*flog(2.5f0))*(dcm/2.5f0); r = a*fexp(b0b + b1b/2.5f0)
         end
-        m = dbh >= dbhmin ? a*exp(b0m + b1m/dcm) : 0f0
+        m = dbh >= dbhmin ? a*fexp(b0m + b1m/dcm) : 0f0
         (a*ktoti, m*ktoti, r*ktoti)
     end
 

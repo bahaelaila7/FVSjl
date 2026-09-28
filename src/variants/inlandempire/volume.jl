@@ -270,7 +270,13 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
     s.control.merch_init || init_merch_standards!(s)
     t = s.trees; veq = s.species.vol_eq
     ifor = Int(s.plot.forest_idx)
-    topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0; iregn = 1
+    topd = 4.5f0; bftopd = 4.5f0; stump = 1.0f0
+    # fvsvol.f:90-96 IREGN = KODFOR/100 (KODFOR/10000 for a 5-digit code) — the NVEL region VOLINIT receives, whose
+    # mrules.f merch rules the FW2 volumes follow: REGN 1 (FW2) COR='Y' (Scribner ×10 decimal-C), OPT 22; REGN 6 (the
+    # Colville, KODFOR 621) COR='N' (raw Scribner, ANINT), OPT 23. jl hard-wired region 1 (MEASURED FVSie_g16
+    # 374547584489998, KODFOR 621, 2015: RC 11.8" BdFt live 76 / jl 80, LP 12.6" MCuFt 36.9 / 36.6).
+    iregn = fvsvol_iregn(s)
+    bcor, mopt = iregn == 6 ? ('N', 23) : ('Y', 22)
     # vols.f:86-90 zeroes HT2TD for every record; FVSVOL/NATCRS then fills the FW2 merch-top heights.
     fill!(t.merch_top_cf, 0f0); fill!(t.merch_top_bf, 0f0)
     htb = zeros(Float32, 2)
@@ -318,7 +324,7 @@ function compute_volumes!(s::StandState, ::InlandEmpire)
             # sf_hs: MERLEN's merch-top height via the faithful SF_HS Newton (profile.f MERLEN → sf_hs.f), which also
             # supplies HT1PRD → HT2TD (fvsvol.f:337-339 cubic, :484-487 board).
             v = cr_fw2_vol(eq, d, hbase; bark = bark, topd = topd, bftopd = bftopd, stump = stump, iregn = iregn,
-                           sf_hs = true, ht2td = htb)
+                           board_cor = bcor, merch_opt = mopt, sf_hs = true, ht2td = htb)
             d >= dbhmin && (t.merch_top_cf[i] = htb[1])
             d >= bfmind && (t.merch_top_bf[i] = htb[2])
             tcf = max(v[1], 0f0)

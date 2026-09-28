@@ -163,8 +163,9 @@ end
         # (float-clean, like the SN #28 fire_carbon case): jl 11.8 vs live 12.0 = exactly 2 tenths — the emergent
         # snag-fall/OLD-state phasing on the render boundary (all constituent ops proven faithful per above). Locks
         # the residual: a model change flips the gap and flags for review. (Was atol 0.2, then 0.25.)
-        # shared-ungate: FMEFF's three crown parts (fmeff.f) closed one of the two tenths.
-        @test abs(round(Int, carb[2003][5] * 10) - 120) == 1    # jl exactly 1 tenth from live 12.0
+        # (The "proven faithful" claim above missed the fire-kill booking: FMEFF's crown-fire / scorched-kill / scorched-
+        # survivor FMSCRO calls and FMSADD's class-mean fire snags, fmeff.f:352-608 — with those ported jl renders 11.9.)
+        @test abs(round(Int, carb[2003][5] * 10) - 120) == 1    # jl renders 11.9, exactly 1 tenth below live 12.0
         # the fire raises Stand-Dead sharply then it falls away (LS fast snag fall): 2013 ≪ 2003.
         @test carb[2013][5] < 0.5 * carb[2003][5]
     end

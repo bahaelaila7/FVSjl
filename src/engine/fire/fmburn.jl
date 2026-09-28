@@ -289,25 +289,16 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                 sp_bak[sp] = get(sp_bak, sp, 0f0) + curkil * 0.005454154f0 * d * d
                 sp_vol[sp] = get(sp_vol, sp, 0f0) + curkil * vk
             end
-            # Fire-killed trees become standing snags. Carry the MERCH bole (mcf·v2t/2000) — the same basis
-            # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
-            # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
-            # double-counts the crown that belongs in the separate CWD2B path) (fmsvol.f merch MCF).
-            # Western snag bole is the TOTAL cubic (fmsvol.f:150 VOL2HT=MAX(X,TCF), LMERCH=F), not the SN merch
-            # (NVEL vol_eq ⇒ t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
-            mcf = s.variant isa Klamath ?
-                  max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
-                  _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
-                  max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            if _fmsadd_binned(s.variant)
-                push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))   # FMSSEE (fmeff.f:553)
-            else
-                add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
-            end
-            # The fire-killed (and scorched surviving) crowns go to the crown-debris pool (CWD2B2) in FMEFF's three parts
-            # — crown-fire share, scorched kill + scorched survivors, unscorched kill — see _fmeff_crowns!.
+            # Fire-killed trees become standing snags: FMSSEE (fmeff.f:553) stages them and one FMSADD(IYR,1) (fmeff.f:608)
+            # bins them into (species, 2" DBH, height-class) records whose bole is FMSVOL on the class-mean DBHS/HTDEAD
+            # (fmsadd.f, shared by every variant — see fmsadd_bin! below). MEASURED FVSie_g16 4769882010690 SIMFIRE 2014:
+            # 67 records live vs 617 per-tree jl records ⇒ Standing_Dead bole 52.424 vs 52.977 (class-mean volume).
+            push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))
+            # Crown debris of the burned record into CWD2B2 via FMSCRO, in FMEFF's order (_fmeff_crowns!, fmeff.f:352-527).
+            # MEASURED FVSie_g16 4769882010690 SIMFIRE 2014 CWD2B2 by size 0..3: 1899/3399/7488/2582 live vs the old
+            # single killed-tree booking 3248/3748/7427/2553 (crown-fire foliage kept, survivors' crowns missing).
             xc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
-            _fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen)   # fmeff.f (every variant build)
+            _fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen)
             # Fire-killed coarse ROOTS → the dead-root pool (BIOROOT, fmsadd.f:320 BIOROOT+=RBIO·SNGNEW·XDCAY).
             # Freshly killed ⇒ XDCAY=(1−CRDCAY)^0=1, same age-0 basis as ordinary mortality (mortality.jl). The
             # snag-FALL path transfers only the BOLE (not roots), so this is the sole root booking (no double-count).
@@ -337,11 +328,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     icrb = unsafe_trunc(Int32, crb_rep * 100f0 + 0.5f0)
     icrb < 0 && (icrb = Int32(-1))
     consumption = _fm_consumption_row(s, cons, bcrown, icrb)
-    # fmfout.f:297-340 (identical in every variant build but BC/ON's metric copy) accumulates the report in its own form —
-    # per record I (record order): TOTBAK(KSP) += CURKIL·DBH·DBH·.005454154 and TOTVOLK(KSP) += CURKIL·CFV (MCFV for
-    # CS/LS/NE/SN) for EVERY record (before the class test), the class tallies CLSKIL += CURKIL and TOTCLS += CURKIL +
-    # FMPROB (the post-kill FMPROB, not the pre-fire PROB), then the ALL row's BA/volume = Σ over species of
-    # TOTBAK/TOTVOLK. (AK Total_class2 325.944397 live vs 325.944366 via PROB.)
+    # fmfout.f:297-340 (one file in every build) accumulates the report in its own form — per record I (record order):
+    # TOTBAK(KSP) += CURKIL·DBH·DBH·.005454154 and TOTVOLK(KSP) += CURKIL·CFV (MCFV for CS/LS/NE/SN) for EVERY record
+    # (before the class test), the class tallies CLSKIL += CURKIL and TOTCLS += CURKIL + FMPROB (the post-kill FMPROB,
+    # not the pre-fire PROB), then the ALL row's BA/volume = Σ over species of TOTBAK/TOTVOLK. (AK Total_class2
+    # 325.944397 live vs 325.944366 via PROB.)
     if length(fs.firkil) >= t.n
         fill!(totcls, 0f0); fill!(clskil, 0f0)
         for v in values(sp_tot); fill!(v, 0f0); end
@@ -936,11 +927,12 @@ end
 #    PROPCR·CROWNW, OLDCRW=0, DTHISC=((1−CRBURN)−(1−CRBURN)·PMORT)·FMPROB;
 #  * surface part, crown above the scorch: killed trees keep the whole crown and the WHOLE OLDCRW(1),
 #    DTHISC=(1−CRBURN)·PMORT·FMPROB.
-# FMSCRO: ANNUAL = CROWNW + YRSCYC·OLDCRW (size>0; OLDCRW<0.0000625 ⇒ 0). CRL = HT·(FMICR/100). fmeff.f is identical in
-# every variant build; one crown booked for the whole kill (foliage on the crown-fire share, OLDCRW(1) always halved,
-# survivors skipped) was AK akffe 2003 CWD2B foliage +86 lb, 0-¼" −276 lb vs live FMSCRO debug.
+# FMSCRO: ANNUAL = CROWNW + YRSCYC·OLDCRW (size>0; OLDCRW<0.0000625 ⇒ 0). CRL = HT·(FMICR/100). A scorched record then
+# keeps CROWNW = TCROWN·(1−PROPCR), OLDCRW(1) halved and GROW=−1 (fmeff.f:494-506). Every variant (fmeff.f's skeleton is
+# shared); the earlier single-crown booking (foliage on the crown-fire share, OLDCRW(1) always halved, no survivors) was
+# measured off live both in AK (akffe 2003 CWD2B foliage +86 lb, 0-¼" −276 lb) and IE (4769882010690 2014).
 function _fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Float32, pmort::Float32,
-                           crburn::Float32, sch::Float32, cyclen)
+                        crburn::Float32, sch::Float32, cyclen)
     t = s.trees
     yrs = Float32(cyclen); dk = clamp(ffe_dkr_cls(s, sp), 1, 4)
     oc(sz) = (v = t.ffe_oldcrw[sz, i]; v < 0.0000625f0 ? 0f0 : v)
@@ -965,6 +957,7 @@ function _fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Floa
         fmscro!(s, sp, d, xs, ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp, dk)
         # fmeff.f:494-506: the record's CROWNW becomes TCROWN·(1−PROPCR) and GROW=−1 (kept through the next FMSDIT)
         @inbounds for k in 1:6; t.ffe_crownw[k, i] = xc[k] * (1f0 - propcr); end
+        t.ffe_oldcrw[1, i] *= 0.5f0                                    # OLDCRW(I,1) = TOLDCR(1)·0.5 (fmeff.f:498-503)
         t.ffe_grow[i] = Int32(-1)
     else
         xk = (xc[1], xc[2] + yrs * oc(1), xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
