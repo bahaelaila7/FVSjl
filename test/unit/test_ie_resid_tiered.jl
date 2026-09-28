@@ -154,4 +154,23 @@ end
     @test all(m -> _crel(m) < 1e-6, _scell("Aboveground_Total_Live", "2014"))
 end
 
+# fmcadd.f adds each year's crown lift as FMPROB(I)·OLDCRW(I,SIZE) with the CURRENT FMPROB/OLDCRW (per record, after its
+# litterfall and breakage) — so the fire's kill and OLDCRW(I,1) halving cut it at once; jl added a cycle-start total
+# (MEASURED 2014 FMCADD hard <0.25": +0.0183 live vs +0.0398 jl ⇒ 2024 Forest_Down_Dead_Wood 26.203 vs 26.624).
+@testset "FMCADD crown lift on the current FMPROB/OLDCRW (fmcadd.f) vs FVSie_g16" begin
+    @test all(m -> _crel(m) < 1e-6, _scell("Forest_Down_Dead_Wood", "2024"))
+end
+
+# FMSADD (fmsadd.f, identical in all 24 builds) bins EVERY snag source — inventory ITYP=3, cut ITYP=2, fire/pile ITYP=1,
+# mortality ITYP=4, SNAGINIT — into class-mean records in species-major slot order with emptied-record reuse. jl binned
+# only the R6 variants' sources (non-R6 inventory snags stayed one per tree, mortality records in first-seen order).
+# MEASURED FVSsn_g16 205045340010854 SALVAGE Standing_Dead 2023: live 0.259012, jl 0.259050.
+@testset "Snag records via FMSADD binning + slot order in every variant vs FVSsn_g16" begin
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("SN", "205045340010854", "salvage"; dir = d)
+    ms = compare_case("SN", "205045340010854", "salvage", txt, db)
+    @test !crashed
+    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2018", "2023"), ms)
+end
+
 end # module

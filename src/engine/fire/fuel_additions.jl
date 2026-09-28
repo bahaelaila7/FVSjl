@@ -220,7 +220,6 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
     fmcba!(s)
-    cl = fs.crown_lift_annual
     # FVS FMMAIN year-loop ORDER: FMSNAG (snag fall → bole into down wood) → FMCWD (decay) → FMCADD
     # (cwd2b crown fall + litterfall + woody breakage + crown-lift). The snag falldown MUST precede the
     # decay so the freshly-fallen bole is decayed in the same year it falls (else it over-accumulates by
@@ -234,14 +233,55 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
         isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
         ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
-        _cwd2b_fall!(fs)                               # FMCADD: CWD2B crown debris → down wood
-        fmcadd_litterfall!(s); fmcadd_woody!(s)        # FMCADD: litterfall + woody breakage
-        for dkcl in 1:4, sz in 1:9                     # FMCADD: crown-lift term (precomputed per cycle)
-            cl[sz, dkcl] > 0f0 && (fs.cwd[sz, 2, dkcl] += cl[sz, dkcl])
-        end
+        fmcadd!(s)                                     # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
     end
     fs.bioroot *= fpowi(1f0 - _FM_CRDCAY, nyrs)    # dead-root decay (fmcrbout.f:273, REAL**INTEGER ⇒ __powisf2)
+    return s
+end
+
+"""
+    fmcadd!(s) -> StandState
+
+One year of FMCADD (fmcadd.f, the same file in every variant build), in its own order and REAL*4 association: per
+live record I (FMPROB>0) the foliage litterfall (CROWNW(I,0)·FMPROB/LEAFLF)·P2T, then for SIZE 1..5 the limb breakage
+(LIMBRK·FMPROB·CROWNW(I,SIZE))·P2T and the crown lift (FMPROB·OLDCRW(I,SIZE))·P2T (0 when FMPROB·OLDCRW < 6.25E-5),
+all into the hard pool of DKRCLS(SP); then the year-1 CWD2B crown-debris slot falls (DOWN/2000) and the slots shift.
+The crown-lift term reads the CURRENT FMPROB and OLDCRW each year, so a fire's kill and its OLDCRW(I,1) halving
+(fmeff.f:498-503) shrink it at once — jl added a cycle-start total (MEASURED FVSie_g16 4769882010690 SIMFIRE 2014
+FMCADD: hard <0.25" +0.0183 live vs +0.0398 jl).
+"""
+function fmcadd!(s::StandState)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees; coef = s.coef
+    leaflf = coef_col(coef, :leaf_life); ocrw = t.ffe_oldcrw; cwd = fs.cwd
+    @inbounds for i in 1:t.n
+        p = t.tpa[i]; p > 0f0 || continue
+        sp = Int(t.species[i])
+        dkcl = clamp(ffe_dkr_cls(s, sp), 1, 4)
+        xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i])))
+        ll = leaflf[sp]
+        ll > 0f0 && (cwd[10, 2, dkcl] += (xv[1] * p / ll) * _FM_P2T)
+        for sz in 1:5
+            cwd[sz, 2, dkcl] += (_FM_LIMBRK * p * xv[sz + 1]) * _FM_P2T
+            po = p * ocrw[sz, i]
+            po < 0.0000625f0 || (cwd[sz, 2, dkcl] += po * _FM_P2T)
+        end
+    end
+    c2 = fs.cwd2b
+    @inbounds for dkcl in 1:4
+        for sz in 0:5
+            down = c2[dkcl, sz + 1, 1]                 # PDOWN·CWD2B(DKCL,SIZE,1)/NYRS, NYRS=1 in the annual loop
+            down > 0f0 && (cwd[sz == 0 ? 10 : sz, 2, dkcl] += down / 2000f0)
+        end
+    end
+    @inbounds for dkcl in 1:4, sz in 1:6
+        for yr in 1:59
+            c2[dkcl, sz, yr] = c2[dkcl, sz, yr + 1]
+        end
+        c2[dkcl, sz, 60] = 0f0
+    end
     return s
 end
 
