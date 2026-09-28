@@ -252,4 +252,16 @@ end
     @test count(m -> m.file == "FVS_Mortality", _casex("830602414290487", "simfire").ms) == 0
 end
 
+# morts.f:717-718 (the BAMAX check, the same line in 16 variant builds): BANEW = BANEW + (0.0054542*(D+G)**2.)*P — REAL**2.
+# compiles to powf, not (D+G)·(D+G). jl's shared mortality driver squared it, so a stand sitting at the BAMAX knife edge
+# iterated a different number of times (MEASURED FVSbm_g16 41136808010497 COVER: Summary/StrClass 4 cells, NONE 543 cells
+# ⇒ 127 with powf, all 4 COVER cells gone).
+@testset "MORTS BAMAX check (D+G)**2. as powf (morts.f:717-718) vs FVSbm_g16" begin
+    fx = fixture_dir("BM")
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("BM", "41136808010497", "cover"; dir = d)
+    @test !crashed
+    @test isempty(compare_case("BM", "41136808010497", "cover", txt, db))
+end
+
 end # module

@@ -477,7 +477,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
                 d = t.dbh[i]
                 bark = _mbark(t.species[i], d, t.height[i])
                 g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
-                de2 = 0.0054542f0 * (d + g)^2
+                de2 = 0.0054542f0 * fpow(d + g, 2f0)                     # morts.f:717-718 (0.0054542*(D+G)**2.) — powf
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]
             end
