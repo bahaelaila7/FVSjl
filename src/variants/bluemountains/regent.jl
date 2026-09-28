@@ -377,9 +377,9 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         htgr = (htgr + zzran * 0.1f0) * bscale           # birth-cycle subperiod (was scale=fint/REGYR)
         htg = htgr; htg < 0.1f0 && (htg = 0.1f0)          # regent.f:369 LESTB ⇒ XWT=0; :376 HTG<.1 ⇒ .1
         hk = h + htg
-        t.height[i] = hk; t.ht_growth[i] = htg
+        t.ht_growth[i] = htg                          # REGENT(LESTB) leaves HT; bm/esgent.f adds HTG·WK4 below
         bkpt = sp == 6 ? 99.0f0 : 3.0f0
-        d >= bkpt && continue                         # bm/regent.f:390 D>=BKPT ⇒ GO TO 23 (large-tree)
+        d >= bkpt && (_bm_esgent_wk4!(t, i, sp); continue)   # bm/regent.f:390 D>=BKPT ⇒ GO TO 23 (large-tree)
         # REGENT(LESTB) birth diameter is the ABSOLUTE dubbed DK, NOT the DDS growth-increment reconstruction
         # (bm/regent.f:542-556 `IF(LESTB) … DBH(K)=DK ; IF(DBH<DIAM .OR. HK<4.5)DBH=DIAM ; DBH=DBH+0.001*HK ;
         # DG(K)=DBH(K)`). All BM planted species (13/14/16/18 have LHTDRG=false) take the plain DBH(K)=DK arm.
@@ -403,8 +403,31 @@ function bm_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         else
             t.dbh[i] = d + 0.001f0 * hk; t.diam_growth[i] = 0.0f0   # regent.f:392-394 HK≤4.5
         end
+        _bm_esgent_wk4!(t, i, sp)
     end
     return s
+end
+
+# bm/esgent.f:54-66, after REGENT(.TRUE.): HTEMP=HT+HTG; HTG=HTG*WK4; HT=HT+HTG; when WK4<1 a tree under 4.5 ft gets
+# DBH=0.1+0.001*HT, DG=0, else DBH=DBH*(HT/HTEMP) and DG=DBH*(HT/HTEMP) — BM's esgent.f rescales DG from the NEW DBH
+# (em/ie use the old DG) — then HT is capped at HHTMAX. WK4=HTIMLT (bm/estab.f:508-516: MIN(TRAGE,GENTIM)/(GENTIM+1E-4),
+# 0.99998 for a start-of-cycle PLANT). MEASURED FVSbm_g16 374443645489998 plant_cal 2035: REGENT HTG 409059B8 → the
+# tree list's 409058FB (×WK4), DBH 3FF88910 → 3FF88899, DG 3FF88822.
+@inline function _bm_esgent_wk4!(t::TreeList, i::Integer, sp::Integer)
+    htemp = t.height[i] + t.ht_growth[i]
+    wk4 = t.htimlt[i]
+    t.ht_growth[i] = t.ht_growth[i] * wk4
+    t.height[i] = t.height[i] + t.ht_growth[i]
+    if wk4 < 1f0
+        if t.height[i] < 4.5f0
+            t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+        else
+            t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+            t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+        end
+    end
+    t.height[i] > _BM_ES_HHTMAX[sp] && (t.height[i] = _BM_ES_HHTMAX[sp])
+    return nothing
 end
 
 # --- bm/htdbh.f Curtis-Arney ht-dbh (forest-dependent P2/P3/P4), used for LHTDRG=false species ---

@@ -28,50 +28,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 
 [[residual]]
 variant = "BM"
-regime = "plant_cal"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 42
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cal"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 42
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 42
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
-
-[[residual]]
-variant = "BM"
-regime = "plant_cyc"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 42
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 61 cells [ulpbig=61] max|Δ|=0.04758 | e.g. stand 647500316126144 year 2038: live=1.6092103719711304 jl=1.600000023841858"""
-
-[[residual]]
-variant = "BM"
 regime = "rootdis"
 file = "FVS_RD_Sum"
 col = "Ave_Pct_Root_Inf"
