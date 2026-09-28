@@ -381,6 +381,10 @@ mutable struct Control
     # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
     # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
     sdical_bamax::Float32
+    # grincr.f:74 LTRIP tests ITRN at GRINCR entry, BEFORE CUTS TREDELs the previous cycle's zero-PROB records (cuts.f:
+    # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
+    itrn_grincr::Int32
+    itrn_grincr_cycle::Int32
 end
 
 function Control()
@@ -459,6 +463,7 @@ function Control()
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
         0f0,                                                     # sdical_bamax
+        Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
     )
 end
 

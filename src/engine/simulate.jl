@@ -700,6 +700,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     return (mort, tripled)
 end
 
+# grincr.f:74 LTRIP's ITRN (see Control.itrn_grincr): the record count at GRINCR entry of the current cycle, latched once.
+function latch_itrn_grincr!(s::StandState)
+    c = s.control
+    if c.itrn_grincr_cycle != c.cycle
+        c.itrn_grincr = Int32(s.trees.n); c.itrn_grincr_cycle = c.cycle
+    end
+    return c.itrn_grincr
+end
+
 """
     grow_cycle!(state; fint=5f0) -> (; accretion, mortality)
 
@@ -788,6 +797,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # FVS latches LTRIP (grincr.f:74) at cycle start from the CURRENT NOTRIP, BEFORE COMCUP (:391) may set
     # NOTRIP=.TRUE. So capture NOTRIP here: a COMPRESS this cycle suppresses tripling only from NEXT cycle.
     notrip_start = s.control.no_tripling
+    # grincr.f:74 evaluates LTRIP's ITRN.LE.(MAXTRE/3) at GRINCR entry — BEFORE CUTS (grincr.f:292) TREDELs the zero-PROB
+    # records the previous cycle's mortality left (cuts.f:255-275) and before COMCUP. Latched by the .sum driver ahead
+    # of its own CUTS call (latch_itrn_grincr!), else here.
+    itrn_grincr = Int(latch_itrn_grincr!(s))
     compressed = apply_compress!(s)                        # COMPRESS (act 250): cluster records → NCLAS (sets NOTRIP for later cycles)
     # ECON: zero the cycle's harvest accumulators; cuts!/_log_cut! values each removed tree.
     econ_on = s.econ !== nothing && s.econ.active
@@ -845,7 +858,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # live records × 3). jl stores the dead block UPWARD (t.n+1 … t.n+ndead), unlike FVS's downward IREC2…MAXTRE, so
     # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
-    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
+    trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && max(nlive, itrn_grincr) <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
     # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)

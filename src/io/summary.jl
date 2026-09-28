@@ -415,6 +415,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
             atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
+            latch_itrn_grincr!(s)   # grincr.f:74 LTRIP reads ITRN before CUTS TREDELs the zero-PROB records
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
