@@ -19,6 +19,7 @@ fmsnght.f 505/506/509/511/701/514 = California), so this returns `:SO` and the c
     v isa SouthCentralOregon && return :SO
     (v isa PacificNorthwest || v isa Olympic) && return :PN
     v isa WestCascades && return :WC
+    v isa SoutheastAlaska && return :AK   # vbase fmr6sdcy/fmr6fall CASE('AK'); FVSak's fmsfall.f/fmsngdk.f take the R6 path
     return :none
 end
 
@@ -45,13 +46,16 @@ function r6_sdcy(code::Symbol, ksp::Integer, dbh::Float32, itype::Integer)
     elseif code === :PN
         it = _r6_clamp(itype, 75); temp = _R6SD_PNWMC[it]; mois = _R6SD_PNWMD[it]
         spg = _R6SD_WSSPEC[ksp]; d1 = _R6SD_WSDBH1[ksp]
+    elseif code === :AK
+        temp = 3; mois = 1                                   # fmr6sdcy.f 'AK': assume cold, assume wet
+        spg = _R6SD_AKSPEC[ksp]; d1 = _R6SD_AKDBH1[ksp]
     else  # :WC
         it = _r6_clamp(itype, 139); temp = _R6SD_WCWMC[it]; mois = _R6SD_WCWMD[it]
         spg = _R6SD_WSSPEC[ksp]; d1 = _R6SD_WSDBH1[ksp]
     end
     d1f = Float32(d1); d2f = d1 == 20 ? 50f0 : 75f0
     sml = dbhcm < d1f ? 1 : (dbhcm < d2f ? 2 : 3)
-    if code === :PN
+    if code === :PN || code === :AK                          # fmr6sdcy.f CASE('PN','AK','OP')
         return (Int(_R6SD_PNYRSOFT[spg, temp, mois, sml]), Int(_R6SD_PNDCYADJ[spg, temp, mois, sml]), sml)
     elseif code === :WC
         return (Int(_R6SD_WCYRSOFT[spg, temp, mois, sml]), Int(_R6SD_WCDCYADJ[spg, temp, mois, sml]), sml)
@@ -84,6 +88,8 @@ function r6_fall_base(code::Symbol, ksp::Integer, dbh::Float32, itype::Integer, 
     elseif code === :PN
         it = _r6_clamp(itype, 75)
         spg = _R6FL_WSSPEC[ksp, j]; mois = _R6FL_PNWMD[it]; otsh = _R6FL_PNOTSH[it]; otrt = _R6FL_PNOTRT[it]
+    elseif code === :AK                                       # fmr6fall.f CASE('AK'): MOIS=OTSH=OTRT=1
+        spg = _R6FL_AKSPEC[ksp]; mois = 1; otsh = 1; otrt = 1
     else  # :WC
         it = _r6_clamp(itype, 139)
         spg = _R6FL_WSSPEC[ksp, j]; mois = _R6FL_WCWMD[it]; otsh = _R6FL_WCOTSH[it]; otrt = _R6FL_WCOTRT[it]

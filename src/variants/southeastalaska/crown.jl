@@ -58,40 +58,56 @@ function point_zeide!(s::StandState)
     dbharr = isempty(s.calib.calib_dbh) ? t.dbh : s.calib.calib_dbh
     npt = 0
     @inbounds for i in 1:t.n; npt = max(npt, Int(t.plot_id[i])); end
-    ptba  = zeros(Float32, npt)                 # PNTBA(pt) = Σ TREEBA
-    ptsdi = zeros(Float32, npt)                 # Σ SDIDEF·TREEBA
-    zrd   = zeros(Float32, npt)
-    totba = 0f0; xsdi = 0f0
+    nsp = length(sdidef)
+    # sdical.f DO 30 / SDICLS DO 140 walk IND1 (species-major, each species in its record order) — the Float32
+    # accumulation order. SDICAL fills BAXSP(sp) / BAXPSP(sp,pt) per SPECIES, then XMAX = Σ_sp SDIDEF·BAXSP / TOTBA
+    # and XMAXPT(pt) = Σ_sp SDIDEF·BAXPSP(sp,pt) / Σ_sp BAXPSP(sp,pt) (DO 60 / DO 64-65). The per-tree Σ SDIDEF·TREEBA
+    # in record order rounded differently: FIA 720755825290487 cycle-3 PRD 0.29534918 vs live 0.295348734 ⇒ DG ULPs ⇒
+    # TCuFt 1393/1394 at 2049.
+    ord = sort!(collect(1:t.n); by = j -> (Int(t.species[j]), t.sort_key[j]))
+    baxsp = zeros(Float32, nsp); baxpsp = zeros(Float32, nsp, max(npt, 1))
+    zrd = zeros(Float32, npt)
+    totba = 0f0
     pifac = p.pi - Float32(p.nonstockable)      # (PI − NONSTK)
     dbhzeide = s.control.dbh_zeide
-    @inbounds for i in 1:t.n
-        t.tpa[i] <= 0f0 && continue
+    @inbounds for i in ord
         d = dbharr[i]; sp = Int(t.species[i]); ip = Int(t.plot_id[i])
-        treeba = 0.0054542f0 * d * d * t.tpa[i]
-        totba += treeba; xsdi += sdidef[sp] * treeba
-        if 1 <= ip <= npt
-            ptba[ip]  += treeba
-            ptsdi[ip] += sdidef[sp] * treeba
-            d >= dbhzeide && (zrd[ip] += t.tpa[i] * pifac * (d / 10f0)^1.605f0)
-        end
+        treeba = 0.0054542f0 * d * d * t.tpa[i]                  # TREEBA = 0.0054542*DBH(I)*DBH(I)*PROB(I)
+        baxsp[sp] += treeba
+        totba += treeba
+        1 <= ip <= npt && (baxpsp[sp, ip] += treeba)
+        # SDICLS: TPACRE = PROB·(PI−NONSTK); SDIC2 += TPACRE·(DBH/10.)**1.605 (REAL**REAL = powf) for D ≥ DBHZEIDE
+        (1 <= ip <= npt && d >= dbhzeide) && (zrd[ip] += t.tpa[i] * pifac * fpow(d / 10f0, 1.605f0))
     end
-    xmax = totba <= 0f0 ? 1f0 : xsdi / totba
+    local xmax::Float32
+    if totba <= 0f0
+        xmax = 1f0
+    else
+        xmax = 0f0
+        @inbounds for sp in 1:nsp; xmax += sdidef[sp] * baxsp[sp]; end
+        xmax = xmax / totba
+    end
     xmaxpt = Vector{Float32}(undef, npt)
     @inbounds for ip in 1:npt
-        xmaxpt[ip] = ptba[ip] == 0f0 ? xmax : ptsdi[ip] / ptba[ip]
+        xm = 0f0; pntba = 0f0
+        for sp in 1:nsp
+            xm += sdidef[sp] * baxpsp[sp, ip]
+            pntba += baxpsp[sp, ip]
+        end
+        xmaxpt[ip] = pntba == 0f0 ? xmax : xm / pntba
     end
     return xmaxpt, zrd, xmax
 end
 
 # ak/dubscr.f — logistic crown for D<1 / missing CR with a bounded normal random error.
 @inline function ak_dubscr(rng, sp::Integer, d::Float32, h::Float32, prd::Float32, qmd::Float32)::Float32
-    cr = AK_CRINT[sp] + AK_CRHDR[sp] * log(h * 12f0 / d) + AK_CRRD[sp] * prd + AK_CRDQMD[sp] * (d / qmd)
+    cr = AK_CRINT[sp] + AK_CRHDR[sp] * flog(h * 12f0 / d) + AK_CRRD[sp] * prd + AK_CRDQMD[sp] * (d / qmd)
     sd = AK_CRSD[sp]
     fcr = bachlo(rng, 0f0, sd)
     while abs(fcr) > sd                          # dubscr.f label 10: reject |FCR|>SD
         fcr = bachlo(rng, 0f0, sd)
     end
-    cr = 1f0 / (1f0 + exp(cr + fcr))
+    cr = 1f0 / (1f0 + fexp(cr + fcr))
     cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
     return cr
 end
@@ -105,8 +121,10 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
     pb = s.density.point_ba; ptpa = s.density.point_tpa
     # ak/crown.f DO 70 ISPC … I=IND1(I3): species-major — DUBSCR/RANN draws follow this order.
     cur_year = current_cycle_year(s)   # ak/crown.f CRNMULT block overwrites CRNMLT/DLOW/DHI per species
+    # No PROB>0 screen: ak/crown.f DO 60 walks every IND1 record, so a record MORTS just zeroed (PROB=0, still in the
+    # list until the next compression) keeps getting its crown updated (FIA 10708179010497 2027: 135 such records live
+    # CR 73 = 81·(1−0.01·10), jl kept 81).
     @inbounds for i in species_major_order(s)
-        t.tpa[i] <= 0f0 && continue
         sp = Int(t.species[i]); (sp < 1 || sp > 23) && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue           # inventory crown present ⇒ keep (ak/crown.f:217)
@@ -114,7 +132,10 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
         d = t.dbh[i]; h = t.height[i]; ip = Int(t.plot_id[i])
         cmult, cdlow, cdhi = crn_mult_band(s.control, sp, cur_year; lstart = lstart)
         inband = cdlow <= d <= cdhi                       # ak/crown.f:330/338/383 `.GE. DLOW .AND. .LE. DHI`
-        baplt  = (1 <= ip <= length(pb))   ? pb[ip]   : 0f0
+        # BAPLT = PTBAA(ITRE(I)): at LSTART the CRATET DENSE's PTBAL total (live + inventory-dead at READ DBH, the dead
+        # PROB ×FINT/FINTM — calib.cratet_ptbaa), else the cycle's DENSE point BA.
+        pbl = (lstart && !isempty(s.calib.cratet_ptbaa)) ? s.calib.cratet_ptbaa : pb
+        baplt  = (1 <= ip <= length(pbl))  ? pbl[ip]  : 0f0
         tpaplt = (1 <= ip <= length(ptpa)) ? ptpa[ip] : 0f0
         qmdplt = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
         qmdplt <= 1f0 && (qmdplt = 1f0)
@@ -127,9 +148,9 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
             inband && (icri = trunc(Int, Float32(icri) * cmult))   # ak/crown.f:383-384
             dubbed = true                              # label 58 sits BELOW statement 55
         else
-            x = AK_CRINT[sp] + AK_CRHDR[sp] * log(h * 12f0 / d) + AK_CRRD[sp] * prd +
+            x = AK_CRINT[sp] + AK_CRHDR[sp] * flog(h * 12f0 / d) + AK_CRRD[sp] * prd +
                 AK_CRDQMD[sp] * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(x))
+            x = 1f0 / (1f0 + fexp(x))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = Float32(trunc(Int, x * 100f0 + 0.5f0))
             if !(lstart || icr == 0)               # change limit +3%/yr, −1%/yr (ak/crown.f:319-334)
@@ -159,10 +180,18 @@ function crown_ratio_update!(s::StandState, ::SoutheastAlaska; fint::Float32 = 1
     end
     # so/crown.f DO 79 — cycle-0 dead-record DUBSCR with the record's point PRD/QMDPLT.
     if lstart && t.ndead > 0
-        prd, qmdplt, _ = point_crown_inputs(s)
+        prd, _, _ = point_crown_inputs(s)
+        # ak/crown.f DO 79: BAPLT/TPAPLT = the same CRATET PTBAA/PTPA the live dub read (dead-inclusive point BA).
+        pbl = isempty(s.calib.cratet_ptbaa) ? pb : s.calib.cratet_ptbaa
+        function qmdplt_ak(pt)
+            baplt = (1 <= pt <= length(pbl)) ? pbl[pt] : 0f0
+            tpaplt = (1 <= pt <= length(ptpa)) ? ptpa[pt] : 0f0
+            q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
+            q <= 1f0 ? 1f0 : q
+        end
         dub_dead_crowns!(s) do i
             pt = Int(t.plot_id[i])
-            icri_round(ak_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prd(pt), qmdplt(pt)))
+            icri_round(ak_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], prd(pt), qmdplt_ak(pt)))
         end
     end
     return s

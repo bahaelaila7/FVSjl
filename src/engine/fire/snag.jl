@@ -473,9 +473,13 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             # overshoot. addS → soft pool, addH → hard pool.
             addS = a * dfis * 0.80f0                        # soft-snag fall → soft down-wood (index 1)
             addH = a * dfih                                 # hard-snag fall → hard down-wood (index 2)
-            for j in 1:9
-                frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
-                frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
+            if s.variant isa SoutheastAlaska                # fmcwd.f CWD1: HIHT=HTIS/HTIH, LOHT=1.0/.10, raw DIF
+                _ak_fm_cwd_split!(s, Int(sp), sn.dbh[i], sn.height[i], dfis, dfih, sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)
+            else
+                for j in 1:9
+                    frac_h[j] > 0f0 && (fs.cwd[j, 2, idc] += addH * frac_h[j])  # hard pool: loht=0.10 split
+                    frac_s[j] > 0f0 && (fs.cwd[j, 1, idc] += addS * frac_s[j])  # soft pool: loht=1.0 split (FVS K=1)
+                end
             end
             fallen += dfall
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
@@ -534,7 +538,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # HTR1 (first-50%-height loss rate) is VARIANT-specific (fmvinit.f): SN/CS 0.01, NE 0.015, LS 0.1. HTR2
     # (after-50%) = 0.01 all four. jl formerly hardcoded 0.1 (the LS value) — inert for NE (snag_htx empty)
     # but a latent cross-variant bug; NE now populates snag_htx (=1.0), so its HTR1 must be its own 0.015.
-    HTR1 = _snag_htr1(s.variant); HTR2 = 0.01f0; HTXSFT = _snag_htxsft(s.variant)
+    HTR1 = _snag_htr1(s.variant); HTR2 = _snag_htr2(s.variant); HTXSFT = _snag_htxsft(s.variant)
     ci75 = s.variant isa CentralIdaho
     # PN/WC/BM/EC/OP (+ SO's Oregon forests) FMSNGHT call FMR6HTLS (fmsnght.f:74-93) on EVERY call — one RANN per
     # FMSNGHT, i.e. per snag record per non-empty hard/soft pool — and use its SNHTLS loss whenever the pool's HTX is
@@ -543,6 +547,7 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # sequence, and the main stream is untouched.
     r6 = r6_ffe_code(s.variant)
     (r6 === :SO && _so_california_ht(Int(s.plot.user_forest_code))) && (r6 = :none)
+    r6 === :AK && (r6 = :none)          # fmsnght.f: 'AK' falls to CASE DEFAULT (HTR1/HTR2·HTX), no FMR6HTLS draw
     r6save = r6 === :none ? nothing : rannget(s.rng)
     @inbounds for i in eachindex(sn.sp)
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
@@ -881,6 +886,7 @@ end
 function apply_salvage!(s::StandState)::Bool
     fs = s.fire
     (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    s.variant isa SoutheastAlaska && return _ak_apply_salvage!(s)
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     sn = fs.snags; coef = s.coef; fired = false
     # SALVSP (act 2501): update the PERSISTENT species cut/leave filter when one is due this cycle.
@@ -1031,4 +1037,71 @@ function ffe_add_snaginit!(s::StandState)
         fs.bioroot += rbio * den * (1f0 - _FM_CRDCAY)^age      # dead-root decay over the snag's actual age
     end
     return s
+end
+
+
+# fmsalv.f (AK): SALVAGE with the FFE snag volumes FMSVOL(I,HTIH/HTIS) — the TOTAL cubic of (DBHS,HTDEAD) trimmed by
+# CFTOPK at the current height, in cuft (not the tons-per-snag fallvol, which weights species by V2T): TOTVOL over every
+# snag before any cut, CUTVOL = Σ CUTDIS·ISOFTV + CUTDIH·IHARDV, the PROPLV share left on site through CWD1 (the raw cone
+# split), TONRMS += (CUTDIS·ISOFTV + CUTDIH·IHARDV)·V2T·(1−PROPLV) (→ FVS_Fuels Biomass_Removed), then a CWDCUT =
+# CUTVOL/TOTVOL share of every CWD2B year-pool falls (DOWN/2000). akffe 2003: Biomass_Removed 1 (jl 0), and the
+# released crowns' litter/lt3 fed the fire (Litter_Consumption 2.18447 live vs 2.18676).
+function _ak_apply_salvage!(s::StandState)::Bool
+    fs = s.fire; sn = fs.snags; coef = s.coef; v2t = coef_col(coef, :v2t)
+    yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
+    fired = false
+    for a in s.control.schedule
+        a.icflag == Int32(2501) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        fs.salv_isalvs = Int32(round(a.params[1])); fs.salv_isalvc = Int32(round(a.params[2]))
+    end
+    isalvs = Int(fs.salv_isalvs); isalvc = Int(fs.salv_isalvc)
+    svol(i) = ffe_west_snag_vol_at(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
+    totvol = 0f0
+    @inbounds for i in eachindex(sn.sp)
+        (sn.den_soft[i] + sn.den_hard[i]) > 0f0 || continue
+        sn.den_soft[i] > 0f0 && (totvol = totvol + sn.den_soft[i] * svol(i))
+        sn.den_hard[i] > 0f0 && (totvol = totvol + sn.den_hard[i] * svol(i))
+    end
+    cutvol = 0f0
+    for a in s.control.schedule
+        a.icflag == Int32(2520) || continue
+        (Int(a.year) == yr || (0 < Int(a.year) < 1000 && Int(a.year) == fvscyc)) || continue
+        mindb, maxdb, maxag, oksft, prop, proplv = a.params
+        mindb = max(0f0, mindb); maxdb = min(999f0, maxdb); maxag = max(0f0, maxag)
+        (oksft > 2f0 || oksft < 0f0) && (oksft = 0f0)
+        oksoft = Int(trunc(oksft)); prop = min(1f0, max(0f0, prop)); proplv = min(1f0, max(0f0, proplv))
+        @inbounds for i in eachindex(sn.sp)
+            linc = _salv_included(s, Int(sn.sp[i]), isalvs)
+            (sn.den_soft[i] + sn.den_hard[i]) <= 0f0 && continue
+            (isalvc == 0 && !linc) && continue
+            (isalvc == 1 && linc) && continue
+            (sn.den_hard[i] <= 0f0 && oksoft == 1) && continue
+            (sn.den_soft[i] <= 0f0 && oksoft == 2) && continue
+            ((yr - Int(sn.yrdead[i])) > maxag || sn.dbh[i] >= maxdb || sn.dbh[i] < mindb) && continue
+            isoftv = sn.den_soft[i] > 0f0 ? svol(i) : 0f0
+            ihardv = sn.den_hard[i] > 0f0 ? svol(i) : 0f0
+            cutdih = sn.den_hard[i] > 0f0 && oksoft != 2 ? prop * sn.den_hard[i] : 0f0   # all jl snags are HARD
+            cutdis = (sn.den_soft[i] > 0f0 && oksoft != 1) ? prop * sn.den_soft[i] : 0f0
+            sn.den_soft[i] = sn.den_soft[i] - cutdis; sn.den_hard[i] = sn.den_hard[i] - cutdih
+            sn.den_soft[i] <= 0f0 && (sn.den_soft[i] = 0f0); sn.den_hard[i] <= 0f0 && (sn.den_hard[i] = 0f0)
+            cutvol = cutvol + (cutdis * isoftv + cutdih * ihardv)
+            _ak_fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
+                              sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)                     # CWD1(I, DIH, DIS)
+            fs.ak_tonrms = fs.ak_tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
+            fired = true
+        end
+    end
+    if totvol > 0f0
+        cwdcut = cutvol / totvol
+        c2 = fs.cwd2b
+        @inbounds for kyr in axes(c2, 3), dkcl in 1:4
+            for sz in 0:5
+                down = cwdcut * c2[dkcl, sz + 1, kyr]
+                fs.cwd[sz == 0 ? 10 : sz, 2, dkcl] += down / 2000f0
+                c2[dkcl, sz + 1, kyr] = c2[dkcl, sz + 1, kyr] - down
+            end
+        end
+    end
+    return fired
 end

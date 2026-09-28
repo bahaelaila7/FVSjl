@@ -145,7 +145,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
         _loss = prem * s.control.yardloss_prlost
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
-        let xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+        let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
@@ -170,8 +170,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
                 # R6: FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157)
                 push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
                 # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
-                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
-                fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled. AK: akffe 1993
+                # Standing_Snag_lt3 0.01872 live vs 0.01228 without these crowns; CROWNW = FMCROW's (_ffe_crownw).
+                fmscro!(s, sp, t.dbh[i], _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
                         ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
             elseif ssng > 0f0
                 add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
@@ -181,7 +182,9 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
-            if dsng > 0f0
+            if dsng > 0f0 && s.variant isa SoutheastAlaska
+                _cwd3!(s, sp, t.dbh[i], dsng, t.height[i])
+            elseif dsng > 0f0
                 idc = ffe_dkr_cls(s, sp)
                 (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
                 addH = fallvol * dsng
@@ -200,6 +203,50 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
            plot = Int32(t.plot_id[i]), ishag = round(Int32, s.plot.cycle_length)))
     return
 end
+
+# fmcwd.f label 1000 — the shared cone split behind CWD1 (a snag falls), CWD2 and CWD3 (a cut tree's downed
+# yarding loss): for K=1 (soft: DIS, LOHT(1)) and K=2 (hard: DIH, LOHT(2)) each size class j gets
+# DIF = MAX(0, P(LOCUT)−P(HICUT))·TVOLI·DEN of the cone (R1 widened by LOHT(K) when HTD>4.5), NOT renormalized,
+# booked only if DIF > 1E-6, as ADD = DIF·V2T·SCNV(K) (SCNV = .80 soft, 1.00 hard) into CWD(1,j,K,DKRCLS). A stem
+# with HTD ≤ 4.5 (RHRAT ≤ 0) puts every breakpoint above its top and adds nothing. TVOLI = FMSVL2(…,'D') =
+# MAX(0.005454154·HTD, NATCRS TCF) at (DIAM, HTD). AK only (the shared jl path renormalizes the split — 1/P(0.1)
+# too much — and dumps short stems whole into the DBH class).
+function _ak_fm_cwd_split!(s::StandState, sp::Int, dbh::Float32, htd::Float32, dis::Float32, dih::Float32,
+                           hiht_s::Float32, hiht_h::Float32, loht_s::Float32, loht_h::Float32)
+    (dis + dih) <= 0f0 && return
+    tvoli = max(0.005454154f0 * htd, ak_tree_vol(s, sp, dbh, htd)[1])
+    diam = dbh <= 0.1f0 ? 0.1f0 : dbh
+    rhrat = ((htd * 12f0) - 54f0) / (0.5f0 * diam)
+    bph = ntuple(j -> max(0.10f0, htd - (0.5f0 * _CWD_BP[j] * rhrat) / 12f0), Val(10))   # BPH(0:9) → 1:10
+    v2t = coef_col(s.coef, :v2t)[sp] / 2000f0              # fmvinit.f:466 V2T = lb/cuft / 2000
+    idc = ffe_dkr_cls(s, sp)
+    @inbounds for k in 1:2
+        den = k == 1 ? dis : dih
+        den <= 0f0 && continue
+        loht = max(0.10f0, k == 1 ? loht_s : loht_h); hiht = k == 1 ? hiht_s : hiht_h
+        r1 = diam * 0.0416666667f0
+        htd > 4.5f0 && (r1 = r1 + (loht * ((r1 * htd) / (htd - 4.5f0))))
+        r1sq = r1 * r1
+        scnv = k == 1 ? 0.80f0 : 1.00f0
+        for j in 1:9
+            (hiht <= bph[j + 1] || loht > bph[j]) && continue
+            hicut = hiht > bph[j] ? bph[j] : hiht
+            locut = loht <= bph[j + 1] ? bph[j + 1] : loht
+            locut == hicut && continue
+            r2 = r1 * (1f0 - (hicut / htd)); p1 = ((r2 * r2) * (htd - hicut)) / (r1sq * htd)
+            r2 = r1 * (1f0 - (locut / htd)); p2 = ((r2 * r2) * (htd - locut)) / (r1sq * htd)
+            dif = max(0f0, p2 - p1) * tvoli
+            dif = dif * den
+            dif > 1f-6 && (s.fire.cwd[j, k, idc] += dif * v2t * scnv)
+        end
+    end
+    return
+end
+
+# fmcwd.f ENTRY CWD3 (the downed yarding loss of a cut tree): HIHT(2)=HTH, LOHT(2)=.1, hard only. akffe 1993
+# THINDBH WH 0.1"×2' — live CWD(1,1,2,2) 2.465E-4 (crown slash only), the shared path 4.747E-3.
+_cwd3!(s::StandState, sp::Int, dbh::Float32, dih::Float32, hth::Float32) =
+    _ak_fm_cwd_split!(s, sp, dbh, hth, 0f0, dih, 0f0, hth, 1.0f0, 0.10f0)
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT

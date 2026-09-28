@@ -410,12 +410,9 @@ function wc_cur_vol(d::Float32, h::Float32, bark::Float32; topd::Float32, bftopd
     ht2td === nothing || (ht2td[1] = 0f0; ht2td[2] = 0f0)
     (d < 1f0 || h < 5f0) && return (0f0, 0f0, 0f0)                  # profile.f:117
     if ht2td !== nothing
-        # profile.f:225-228 R10HTS returns LMERCH but leaves HT1PRD unset (the assignment is commented out); only
-        # when LMERCH ≤ 0 does MERLEN run and set HT1PRD = LMERCH + STUMP (profile.f:322-342).
-        _curht(top) = _ak_cur_lmerch(d, h, top, stump) > 0f0 ? 0f0 :
-                      _cur_merlen(ht -> _ak_cur_dib(d, h, Float32(ht)), h, top, stump) + stump
-        ht2td[1] = _curht(topd * bark)
-        d >= bfmind && (ht2td[2] = _curht(bftopd * bark))
+        # profile.f HT1PRD of the R10HTS/MERLEN merch length (see _cur_ht1prd, shared with AK).
+        ht2td[1] = _cur_ht1prd(d, h, topd * bark, stump)
+        d >= bfmind && (ht2td[2] = _cur_ht1prd(d, h, bftopd * bark, stump))
     end
     dibat = ht -> _ak_cur_dib(d, h, Float32(ht))
     tcf = _nint(_fw2_tcubic(dibat, h) * 10.0f0) * 1f-1

@@ -243,7 +243,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
               s.variant isa BlueMountains || _ffe_west_vol(s.variant) ||
-              s.variant isa WestCascades || s.variant isa PacificNorthwest)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa SoutheastAlaska)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     # WC/PN (wc/pn fmmain.f run FMSDIT + the annual FMSNAG/FMCWD/FMCADD loop like every FFE variant) were off this
     # list ⇒ no inventory snags, no fuel dynamics: pnt01 stand 4's 2003 SIMFIRE sampled SMALL/LARGE 0.46/0.00 vs live
     # 3.79/11.65 ⇒ fuel models 2/5 instead of live 5/10 (FMDYN 0.66/0.34), flame 4.33 vs 6.09 ft, 2013 TPA 127 vs 71.
@@ -373,6 +373,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                  st.control.carbon_units == 2 ? 0.90718474f0 : 1f0
             # FVS_Fuels Consumed = NINT(TOTCON) of the fire burned in this FMDOUT year (fmdout.f:269/403)
             fl = merge(ffe_fuel_loadings(st), (consumed = tcon,))
+            # AK: FMDOUT TONREM = TONRMS (+TONRMH+TONRMC) → Biomass_Removed, then TONRMS=0 (fmdout.f:274-289)
+            if st.variant isa SoutheastAlaska && st.fire !== nothing
+                fl = merge(fl, (removed = st.fire.ak_tonrms,)); st.fire.ak_tonrms = 0f0
+            end
             push!(carbon_collect, (r.year, stand_carbon_report(st), fl,
                                    snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
         end
@@ -429,6 +433,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if !last
             # FMSDIT (grincr.f:227, before CUTS): FMCROW's height percentiles for this cycle's CROWNW.
             ffe_on && ffe_snapshot_hpct!(s)
+            ffe_on && ak_fmcrow!(s)                 # AK FMCROW at FMSDIT: per-record HPCT, GROW, CROWNW(I,0:5)
             # DBS FVS_Compute: snapshot the active COMPUTE variables at this (growing) cycle's
             # start — only the growing cycles get a row (the event monitor runs during growth).
             compute_collect === nothing ||

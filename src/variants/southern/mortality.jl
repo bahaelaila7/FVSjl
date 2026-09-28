@@ -609,9 +609,15 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
     # Dense preallocated bins (s.fire.snagbin) replace the per-call Dicts: minht/maxht index by lin2=(sp-1)*19+dbhcl
     # (dbhcl 1:19), gkey by lin3=((sp-1)*19+(dbhcl-1))*2+htcl. Reset each call; the i=1:n scan order — hence the
     # Float32 running-mean accumulation AND the emission order — is identical to the Dict version (bit-exact).
+    # R6 variants + AK (`_fmsadd_binned`): the mortality snags go through the one FMSADD port, fmsadd_bin! (ITYP=4) —
+    # species-major record slots with emptied-record reuse and the zero-initialized density-weighted DBHS/HTDEAD means
+    # (fmsadd.f:233-237, 334-340: even a class's first tree is averaged, (0·0+HT·SNGNEW)/SNGNEW). The crown + root stay
+    # per individual below. Other variants keep this routine's first-seen binning.
+    binned = _fmsadd_binned(s.variant)
+    items = binned ? Tuple{Int,Float32,Float32,Float32,Float32,Float32,Float32}[] : nothing
     sb = s.fire.snagbin
     fill!(sb.minht, 1000f0); fill!(sb.maxht, 0f0); fill!(sb.gkey, Int32(0))
-    @inbounds for i in 1:n
+    @inbounds for i in (binned ? (1:0) : (1:n))
         (basis[i] > 0f0 && t.dbh[i] > 0f0) || continue
         k2 = (Int(t.species[i]) - 1) * 19 + _snag_dbhcl(t.dbh[i]); h = t.height[i]
         h < sb.minht[k2] && (sb.minht[k2] = h); h > sb.maxht[k2] && (sb.maxht[k2] = h)
@@ -626,10 +632,11 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # CROWN (CWD2B) + ROOT are scheduled PER INDIVIDUAL TREE (fmsadd.f:306/312). FVS fmscro.f:144-147 dead-tree
         # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
         # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
+        binned && (push!(items, (sp, d, h, h, h, den, -1f0)); continue)
         dbhcl = _snag_dbhcl(d); k2 = (sp - 1) * 19 + dbhcl
         mh = (sb.maxht[k2] - sb.minht[k2]) > 20f0 ? (sb.maxht[k2] + sb.minht[k2]) / 2f0 : 0f0
         htcl = (mh <= 0f0 || h < mh) ? 1 : 2                                    # fmsadd.f:279-287
@@ -645,24 +652,18 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
             sb.gden[g] = totden
         end
     end
+    binned && return fmsadd_bin!(s, items, yr; yrdead = yrdead, ityp = 4, bolefn = _r6_snag_bolefn(s))
     gsp = sb.gsp; gdbh = sb.gdbh; ght = sb.ght; gden = sb.gden
     # emit one merged snag per (sp,dbhcl,htcl) class — bole (MCF) on the class-MEAN dbh/ht, floored at the tiny-tree
     # cone volume X=0.005454154·H (fmsvol.f VOL2HT=MAX(X,MCF)), ×V2T→tons, weighted by class density.
-    # R6 variants: FMSADD gives the records slots in species-major (SPCL, DBHCL, HTCL) order with emptied-record reuse
-    # (fmsadd.f:41-62) — their FMR6HTLS draws are handed out per record. Others keep first-seen order + append.
-    r6 = _fmsadd_binned(s.variant)
-    gorder = r6 ? Int[Int(sb.gkey[k]) for k in eachindex(sb.gkey) if sb.gkey[k] != 0] : (1:ng)   # lin3 = species-major
-    ctx = r6 ? _fmsadd_ctx(s.fire) : nothing
-    @inbounds for g in gorder
+    @inbounds for g in 1:ng
         sp = Int(gsp[g]); d = gdbh[g]; h = ght[g]
         mcf = max(0.005454154f0 * h, _snag_merch_cuft_on(s, sp, d, h))
         # NOTE: the fall→cwd uses this MERCH bolevol (fallvol left unset). REFUTED that FVS uses TOTAL here
         # (fmcwd.f:187 CWD1 'D') — setting fallvol=total REGRESSED 12 live-validated carbon-DDW + fire tests
         # (2026-07-06), so jl's merch is what matches live. The scorch big-wood cwd excess is NOT a fall-volume
         # bug; it's the snag density/fall-timing (see task #72).
-        slot = r6 ? _fmsadd_slot!(s.fire, ctx) : 0
-        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead, slot = slot)
-        (r6 && slot == 0) && push!(ctx.taken, length(s.fire.snags.sp))
+        add_snag!(s.fire, sp, d, gden[g], yr; bolevol = mcf * v2t[sp] / 2000f0, height = h, yrdead = yrdead)
     end
     return s
 end
