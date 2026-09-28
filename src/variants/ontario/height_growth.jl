@@ -149,3 +149,94 @@ function height_growth!(s::StandState, ::Ontario; scale::Float32 = 1.0f0)
     end
     return s
 end
+
+"""
+    on_cratet_dead_density(s) -> (rmsqd, ba, sim)
+
+The stand RMSQD and BA canada/on/cratet.f's dead-record height dub (DO 145) reads: what the LSTART backdating
+DENSE (cratet.f:157-161, LBKDEN) leaves. Pass 1 sums BAT over WK3 (live: DBH — no measured-DG backdating here; dead:
+DBH, but 0 for the older dead IMC=9), and `BA=OLDBA` keeps it; pass 2 sums TSUMD2/TPROB over the real DBH of every
+record, live and inventory-dead (dense.f:176-185), so RMSQD=SQRT(TSUMD2/TPROB) includes the dead at their notre.f
+PROB, which is inflated by FINT/FINTM (notre.f:122-124). Both walk IND1 — species-major, each species in read
+order with the dead interleaved (setup.f at CRATET time).
+`sim` = htont.f's SIM = SITEAR(ISISP)·FTtoM — the SITE species' index, whatever the record's species.
+Measured on FVSDataHardwood LD3001 (instrumented cratet.f): RMSQD 8.2343, BA 111.7419 = these sums.
+"""
+function on_cratet_dead_density(s::StandState)
+    t = s.trees; n = t.n; nt = n + Int(t.ndead)
+    fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+    iseq = s.calib.input_seq
+    ord = Int[]
+    @inbounds for sp in 1:MAXSP
+        mem = Int[j for j in 1:nt if Int(t.species[j]) == sp]
+        length(iseq) == nt && sort!(mem; by = j -> iseq[j])
+        append!(ord, mem)
+    end
+    tsumd2 = 0f0; tprob = 0f0; bat = 0f0
+    @inbounds for j in ord
+        p = j > n ? t.tpa[j] * fintr : t.tpa[j]
+        d = t.dbh[j]
+        tprob += p; tsumd2 += d * (d * p)
+        d1 = (j > n && t.mort_code[j] == 9) ? 0f0 : d
+        bat += 0.005454154f0 * (d1 * (d1 * p))
+    end
+    isisp = Int(s.plot.site_species)
+    sim = (1 <= isisp <= length(s.plot.sp_site_index)) ? s.plot.sp_site_index[isisp] * ON_FTtoM : 0f0
+    return (tprob > 0f0 ? sqrt(tsumd2 / tprob) : 0f0, bat, sim)
+end
+
+"""
+    on_cratet_dead_snapshot!(s)
+
+The inventory FVS_TreeList BAPctile (fvs.f:328 PRTRLS(1) reports PCT as CRATET left it) — `c.cratet_pct` for the live
+records, `c.cratet_dead_pct`/`c.cratet_dead_ptbal` for the inventory-dead ones (dbstrls.f:308-440).
+canada/on/cratet.f:128-131,160: `IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.)` over every inventory record (the dead
+are not yet deleted), then the backdating DENSE's first pass computes `PCTILE(ITRN,IND,WK5,PCT)` (dense.f:241-244)
+with WK5 = WK3·(WK3·PROB): WK3 = DBH for live records (no measured-DG backdating here) and the recent dead (IMC 7),
+0 for the older dead (IMC 9); dead PROB is notre.f's FINT/FINTM-inflated one. The dead PTBAL stays 0 (ON's DENSE
+point-BAL loop runs over the live records only). Measured on LD3001: dead PCT 5.62/100/62.57, PtBAL 0; on the
+tie-heavy, dead-free ont_c950 the IND1-seeded order fixes the equal-DBH live PCTs (an identity-seeded RDPSRT
+permuted them).
+The growth cycles recompute PCT from a fresh RDPSRT(.TRUE.) IND, so this is the inventory list's PCT only.
+"""
+function on_cratet_dead_snapshot!(s::StandState)
+    t = s.trees; n = t.n; nd = Int(t.ndead); nt = n + nd
+    c = s.calib
+    fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
+    iseq = c.input_seq
+    ord = Int32[]
+    @inbounds for sp in 1:MAXSP
+        mem = Int32[j for j in 1:nt if Int(t.species[j]) == sp]
+        length(iseq) == nt && sort!(mem; by = j -> iseq[j])
+        append!(ord, mem)
+    end
+    _rdpsrt!(view(t.dbh, 1:nt), ord; lseq = false)
+    w = zeros(Float32, nt)
+    @inbounds for j in 1:nt
+        p = j > n ? t.tpa[j] * fintr : t.tpa[j]
+        d = (j > n && t.mort_code[j] == 9) ? 0f0 : t.dbh[j]
+        w[j] = d * (d * p)
+    end
+    pct = zeros(Float32, nt)
+    if nt == 1
+        pct[1] = n == 1 ? 100f0 : 0f0                  # pctile.f N=1: PERCNT(1)=100 — array element 1, a live slot
+    elseif nt > 1
+        @inbounds begin
+            pct[ord[nt]] = w[ord[nt]]
+            for k in (nt - 1):-1:1; pct[ord[k]] = pct[ord[k + 1]] + w[ord[k]]; end
+            i1 = ord[1]; tot = pct[i1]; pct[i1] = tot / 100f0
+            if tot > 0f0
+                pin1 = pct[i1]
+                for k in 2:nt; pct[ord[k]] = pct[ord[k]] / pin1; end
+                pct[i1] = 100f0
+            end
+        end
+    end
+    # Live records: with inventory dead present the inventory list's live PCT is the later identity-seeded
+    # RDPSRT(.TRUE.) one (cratet.f:235 after the dead are dropped — bm_cratet_ind!'s rule; LD3001 live PCT matches it),
+    # so only a dead-free stand keeps this IND1-seeded live PCT.
+    c.cratet_pct = nd == 0 ? pct[1:n] : Float32[]
+    c.cratet_dead_pct = pct[(n + 1):nt]
+    c.cratet_dead_ptbal = zeros(Float32, nd)
+    return s
+end

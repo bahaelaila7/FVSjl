@@ -270,6 +270,7 @@ function setup_growth!(s::StandState)
         on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
                                           # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
         compute_density!(s)               # current-stand density (BA) for the crown dub
+        on_cratet_dead_snapshot!(s)       # cycle-0 dead records' BAPctile/PtBAL (cratet.f:128-160 DENSE)
         crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
                                           # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
                                           # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.

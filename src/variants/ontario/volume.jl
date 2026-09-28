@@ -422,7 +422,9 @@ function compute_volumes_on!(s::StandState)
     t = s.trees; c = s.control; p = s.plot
     dbhmin = c.sp_dbh_min; bfmind = c.sp_bf_dbhmin; bftopd = c.sp_bf_topd
     topd = c.sp_top_diam; stmp = c.sp_stump_ht
-    @inbounds for i in 1:t.n
+    # vols.f IPASS=2 (:372-378, ILOW=IREC2..MAXTRE): the cycle-0 inventory-dead records are volumed too (their
+    # FVS_TreeList TCuM/MCuM/CCum); jl keeps them after the live block.
+    @inbounds for i in 1:(t.n + Int(t.ndead))
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
         # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.
@@ -451,7 +453,9 @@ function compute_volumes_on!(s::StandState)
             # volont.f:405 reads ABIRTH(IT) as it stands: dubbed ONCE for every inventory record by CRATET's FINDAG
             # (cratet_findag_dub!(::Ontario), from the INVENTORY height) and advanced by FINT after UPDATE's VOLS
             # (gradd.f:205) — never re-dubbed here from the grown height (a record with FINDAG age 0 keeps 0).
-            nmv = on_mowraski(sp, max(vm, 0f0), t.birth_age[i])
+            # varvol.f OBFVOL: `IF (IMC(IT) .GT. 3 ...) GOTO 200` — an inventory-dead record (IMC 7/9) keeps the OVM=0.0001
+            # sentinel as the MOWRASKI input (its cubic OCFVOL volume is computed normally).
+            nmv = on_mowraski(sp, i > t.n ? 0.0001f0 : max(vm, 0f0), t.birth_age[i])
             t.bdft_vol[i] = nmv > 0f0 ? nmv : 0f0
         else
             t.bdft_vol[i] = 0f0
