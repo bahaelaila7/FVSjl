@@ -404,7 +404,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
             fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true)
-            pfr = fmpofl_report(s, Int(r.year); cyclen = per, ptorch = false)   # PTORCH at the FMMAIN seam below
+            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false)   # FMEFF/FMPTRH at the FMMAIN seam below
             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
@@ -550,14 +550,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
                         end
                     end) : nothing
-            # PotFire torching probability (FMPOFL_FMPTRH) at the FMMAIN seam of a non-fire cycle: FVS's FMMAIN RNG state
-            # and TRIPLEd record list; the rest of the row was sampled on the year-start fuels in _ffe_reports!.
+            # PotFire tree-list half (FMEFF ICALL=1 + FMPOFL_FMPTRH) at the FMMAIN seam of a non-fire cycle: FVS's FMMAIN
+            # RNG state and TRIPLEd record list; the fire behaviour was sampled on the year-start fuels in _ffe_reports!.
             mhook = (potfire_collect !== nothing && !pf_fire && !isempty(potfire_collect) &&
                      potfire_collect[end][1] == r.year) ?
                     ((st, stash) -> begin
                         y, row, c1 = potfire_collect[end]
-                        pt = _pofl_fmptrh(st, Int(y), row.surf_sev, row.surf_mod, stash)
-                        potfire_collect[end] = (y, merge(row, (ptorch_sev = pt[1], ptorch_mod = pt[2])), c1)
+                        potfire_collect[end] = (y, _pofl_with_fmmain_trees(() -> fmpofl_fmmain(st, row), st, stash), c1)
                     end) : nothing
             gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,

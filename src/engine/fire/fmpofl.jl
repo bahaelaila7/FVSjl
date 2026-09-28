@@ -169,15 +169,28 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
     return (pomort, pvolkl, bcrown)
 end
 
-# FMCONS ICALL=1 (fmcons.f): the PM2.5 a fire would emit — consumed down wood × EMMFAC + live herb/shrub + PBRNCR,
-# without consuming anything (the pools are restored). Returns PSMOKE·P2T (tons/ac), as DBSFMPF reports it.
-function _pofl_smoke(s::StandState, mois::AbstractMatrix{Float32}, psburn::Float32, pbrncr::Float32)
-    fs = s.fire
-    cwd0 = copy(fs.cwd)
-    c = fire_consumption!(fs, mois; psburn = psburn, burncr = pbrncr)
-    copyto!(fs.cwd, cwd0)
-    return c.smoke[1]
+# FMCONS ICALL=1 (fmcons.f:196-360, BTYPE=0, IPM=1): TSMOKE = Σ PRBURN·BURNZ·EMMFAC over the fuel classes, then
+# PLVBRN·FLIVE·EMFACL for herb and shrub one at a time — the pools are not touched. PBRNCR·EMFACL(4) is added by
+# `_pofl_smoke` once FMEFF has produced PBRNCR (the FMMAIN seam), and PSMOKE·P2T is what DBSFMPF reports.
+function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32)::Float32
+    pr0 = fire_consumption_fractions(mois)
+    burnz3 = 0f0
+    @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
+    small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
+    m4 = mois[1, 4]
+    im = m4 <= 0.20f0 ? 3 : m4 <= 0.375f0 ? 2 : 1
+    ts = 0f0
+    @inbounds for il in 1:11
+        z = 0f0
+        for k in 1:2, l in 1:4; z += fs.cwd[il, k, l]; end
+        f = (il <= 2 ? small : pr0[il]) * psburn / 100f0
+        ts = ts + f * z * _FM_EMMFAC[im, il, 1]
+    end
+    ts = ts + (1f0 * psburn / 100f0) * fs.flive[1] * _FM_EMFACL[1]
+    ts = ts + (0.6f0 * psburn / 100f0) * fs.flive[2] * _FM_EMFACL[1]
+    return ts
 end
+_pofl_smoke(tsbase::Float32, pbrncr::Float32) = (tsbase + pbrncr * _FM_EMFACL[1]) * _FM_P2T
 
 # FMPOFL_NPROB (fmpofl.f, Adams 1969 Algorithm 39): returns Q, the upper-tail probability (FMPOFL calls it as
 # NPROB(Z,Q,PT,PDF), so PT receives the routine's Q).
@@ -203,11 +216,11 @@ base heights sorted DESCENDING (RDPSRT), MOD(IYR,10) discarded draws, 30 virtual
 record in sorted order), the lowest ignitable crown per plot, then the NPROB upper tail on the log scale
 (σ .25) averaged over the reps in mixed REAL/DOUBLE as FVS sums it. The RNG state is restored (RANNGET/RANNPUT).
 """
-function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32, stash = nothing)
-    prb, ht, icr = _pofl_fmmain_records(s.trees, stash)
-    mxi = length(prb)
+function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32)
+    t = s.trees; mxi = t.n
     (mxi <= 0 || (flm1 <= 0f0 && flm2 <= 0f0)) && return (0f0, 0f0)
-    cbh = Float32[ht[i] * (1f0 - (Float32(icr[i]) * 0.01f0)) for i in 1:mxi]
+    prb = t.tpa; ht = t.height
+    cbh = Float32[ht[i] * (1f0 - (Float32(t.crown_pct[i]) * 0.01f0)) for i in 1:mxi]
     indx = zeros(Int, max(mxi, 30))
     rdpsrt!(mxi, cbh, view(indx, 1:mxi), true)
     saved = rannget(s.rng)
@@ -277,27 +290,19 @@ function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32
     return (r1, r2)
 end
 
-# The FMMAIN-time record list (FMPROB, HT, ICR in storage order). In a tripling cycle FVS has already run TRIPLE
-# (grincr.f:543) before GRADD calls FMMAIN, while jl's non-fire path triples after the FMMAIN seam: rebuild the
-# tripled view from the stash exactly as triple_records! lays it out (originals ×0.60, then per original the
-# upper ×0.25 / lower ×0.15 copies at nlive+2i−1 / nlive+2i, same HT, crown from crU/crL when the variant sets it).
-function _pofl_fmmain_records(t, stash)
-    n = t.n
-    if stash === nothing
-        return (t.tpa[1:n], t.height[1:n], Int[t.crown_pct[i] for i in 1:n])
+# FVS calls FMMAIN from GRADD after GRINCR's increment draws and after TRIPLE (grincr.f:543): FMEFF's potential
+# kill and FMPTRH run over that TRIPLEd record list at that RNG state. jl's non-fire path reaches the FMMAIN seam
+# before it triples, so the seam runs them on a scratch copy tripled from the cycle's stash (same records FVS has).
+function _pofl_with_fmmain_trees(f, s::StandState, stash)
+    stash === nothing && return f()
+    t0 = s.trees; w0 = s.wpbr
+    s.trees = deepcopy(t0); s.wpbr = nothing
+    try
+        triple_records!(s, stash)
+        return f()
+    finally
+        s.trees = t0; s.wpbr = w0
     end
-    nl = stash.nlive
-    prb = Vector{Float32}(undef, 3nl); ht = Vector{Float32}(undef, 3nl); icr = Vector{Int}(undef, 3nl)
-    hascr = hasproperty(stash, :crU)
-    @inbounds for i in 1:nl
-        prb[i] = t.tpa[i] * 0.60f0; ht[i] = t.height[i]; icr[i] = t.crown_pct[i]
-        u = nl + 2i - 1; l = nl + 2i
-        prb[u] = t.tpa[i] * 0.25f0; prb[l] = t.tpa[i] * 0.15f0
-        ht[u] = t.height[i]; ht[l] = t.height[i]
-        icr[u] = (hascr && stash.crU[i] >= 0) ? stash.crU[i] : t.crown_pct[i]
-        icr[l] = (hascr && stash.crL[i] >= 0) ? stash.crL[i] : t.crown_pct[i]
-    end
-    return (prb, ht, icr)
 end
 
 # SN/CS skip FMCFIR (CRBURN=0, OINIT1=OACT1=−1); CR/CS/LS/SN/TT/UT re-select the fuel models under each scenario's
@@ -307,16 +312,17 @@ _pofl_reselect(v) = v isa CentralRockies || v isa CentralStates || v isa LakeSta
                     v isa Teton || v isa Utah
 
 """
-    fmpofl_report(s, year; cyclen) -> NamedTuple
+    fmpofl_report(s, year; cyclen, fire_basis, seam) -> NamedTuple
 
 One FMPOFL year: the DBSFMPF row values (surface/total flame, fire types, PTORCH, OINIT1(1)/OACT1(1), ACTCBH,
 CBD, INT(POKILL·100), INT(POVOLK), PSMOKE·P2T, the severe (SFMOD/SFWT) and current (FMOD/FWT) fuel models with
 weights INT(W·100+.5)) and the DBSFMPFC conditions (wind PREWND, INT(POTEMP), 100·MOIS) per scenario.
-`ptorch=false` leaves PTORCH to the FMMAIN-time seam (`_pofl_fmptrh` needs FVS's FMMAIN RNG state and record list).
-`fire_basis`: a fire burned this FMMAIN year — FMCFMD3 re-selects the models after FMBURN (fmmain.f:189) but on
-FMTRET's year-start SMALL/LARGE (fmtret.f:371-387, computed before the fire consumed the down wood).
+`seam=false` samples the fire behaviour on the year-start fuels and leaves FMEFF/FMPTRH (tree list + RNG) to
+`fmpofl_fmmain`, called at the FMMAIN seam; `seam=true` (a SIMFIRE cycle's post-fire hook, already at the seam
+on the tripled list) does both. `fire_basis`: a fire burned this FMMAIN year — FMCFMD3 re-selects the models
+after FMBURN (fmmain.f:189) but on FMTRET's year-start SMALL/LARGE (fmtret.f:371-387, before the consumption).
 """
-function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basis::Bool = false, ptorch::Bool = true)
+function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basis::Bool = false, seam::Bool = true)
     fs = s.fire
     (fs === nothing || !fs.active) && return nothing
     wmult = fire_wind_reduction(fs.percov)
@@ -335,7 +341,8 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
         psburn = pc.pab >= 0f0 ? pc.pab : 100f0
         swind = unsafe_trunc(Int, prewnd)                                             # SWIND = INT(PREWND)
         fwind = Float32(swind) * wmult
-        models = (_pofl_reselect(s.variant) || base_models === nothing) ? select_fuel_models(s, mois; fire_basis = fire_basis) : base_models
+        models = (_pofl_reselect(s.variant) || base_models === nothing) ?
+                 select_fuel_models(s, mois; fire_basis = fire_basis) : base_models
         base_models === nothing && (base_models = models)
         f = _pofl_fmfint(s, models, mois, fwind, dpmod)
         surf = f.flame; pflam = f.flame
@@ -350,23 +357,44 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             pflam = flb + cfir.crburn * (flt - flb)
             sch = (63f0 / (140f0 - potemp)) * (fpow(finten, 7f0 / 6f0) / fpow(finten + fpow(fwind, 3f0), 0.5f0))
         end
-        pomort, povolk, pbrncr = _pofl_fmeff(s, pflam, sch, cfir.crburn, burnseas, psburn, year, cyclen)
-        smoke = _pofl_smoke(s, mois, psburn, pbrncr)
-        sc[k] = (; surf, pflam, cftype = cfir.cftype, oinit = cfir.oinit, oact = cfir.oact, pomort, povolk, smoke,
-                 models = collect(models), prewnd, potemp, mois)
+        sc[k] = (; surf, pflam, sch, crburn = cfir.crburn, burnseas, psburn, cftype = cfir.cftype, oinit = cfir.oinit,
+                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn), models = collect(models), prewnd,
+                 potemp, mois)
     end
-    pt = ptorch ? _pofl_fmptrh(s, year, sc[1].surf, sc[2].surf) : (0f0, 0f0)
     mw(m) = (ntuple(i -> i <= length(m) ? Int(m[i][1]) : 0, 4),
              ntuple(i -> i <= length(m) ? Float64(unsafe_trunc(Int, m[i][2] * 100f0 + 0.5f0)) : 0.0, 4))
     smod, swt = mw(sc[1].models); fmod, fwt = mw(sc[2].models)
-    return (; surf_sev = sc[1].surf, surf_mod = sc[2].surf, tot_sev = sc[1].pflam, tot_mod = sc[2].pflam,
-            type_sev = sc[1].cftype, type_mod = sc[2].cftype, ptorch_sev = pt[1], ptorch_mod = pt[2],
+    row = (; surf_sev = sc[1].surf, surf_mod = sc[2].surf, tot_sev = sc[1].pflam, tot_mod = sc[2].pflam,
+            type_sev = sc[1].cftype, type_mod = sc[2].cftype, ptorch_sev = 0f0, ptorch_mod = 0f0,
             torch_index = sc[1].oinit, crown_index = sc[1].oact, canopy_ht = Int(cf.actcbh), cbd = cf.cbd,
-            mort_ba_sev = unsafe_trunc(Int, sc[1].pomort * 100f0), mort_ba_mod = unsafe_trunc(Int, sc[2].pomort * 100f0),
-            mort_vol_sev = unsafe_trunc(Int, sc[1].povolk), mort_vol_mod = unsafe_trunc(Int, sc[2].povolk),
-            smoke_sev = sc[1].smoke, smoke_mod = sc[2].smoke, smod, swt, fmod, fwt,
+            mort_ba_sev = 0, mort_ba_mod = 0, mort_vol_sev = 0, mort_vol_mod = 0,
+            smoke_sev = _pofl_smoke(sc[1].tsbase, 0f0), smoke_mod = _pofl_smoke(sc[2].tsbase, 0f0),
+            smod, swt, fmod, fwt, year = Int(year), cyclen = cyclen,
+            eff = ((sc[1].pflam, sc[1].sch, sc[1].crburn, sc[1].burnseas, sc[1].psburn, sc[1].tsbase),
+                   (sc[2].pflam, sc[2].sch, sc[2].crburn, sc[2].burnseas, sc[2].psburn, sc[2].tsbase)),
             cond = ntuple(k -> (; wind = sc[k].prewnd, temp = unsafe_trunc(Int, sc[k].potemp),
                                 mois = (100f0 * sc[k].mois[1, 1], 100f0 * sc[k].mois[1, 2], 100f0 * sc[k].mois[1, 3],
                                         100f0 * sc[k].mois[1, 4], 100f0 * sc[k].mois[1, 5], 100f0 * sc[k].mois[2, 1],
                                         100f0 * sc[k].mois[2, 2])), 2))
+    return seam ? fmpofl_fmmain(s, row) : row
+end
+
+"""
+    fmpofl_fmmain(s, row) -> NamedTuple
+
+The tree-list half of FMPOFL at the FMMAIN seam (FVS's RNG state, the TRIPLEd records): FMEFF ICALL=1 for each
+scenario (INT(POKILL·100), INT(POVOLK), PBRNCR into the smoke) and FMPOFL_FMPTRH on the two surface flames.
+"""
+function fmpofl_fmmain(s::StandState, row)
+    pom = zeros(Float32, 2); pvk = zeros(Float32, 2); smk = zeros(Float32, 2)
+    for k in 1:2
+        pflam, sch, crburn, burnseas, psburn, tsbase = row.eff[k]
+        pom[k], pvk[k], pbrncr = _pofl_fmeff(s, pflam, sch, crburn, burnseas, psburn, row.year, row.cyclen)
+        smk[k] = _pofl_smoke(tsbase, pbrncr)
+    end
+    pt = _pofl_fmptrh(s, row.year, row.surf_sev, row.surf_mod)
+    return merge(row, (; ptorch_sev = pt[1], ptorch_mod = pt[2],
+                       mort_ba_sev = unsafe_trunc(Int, pom[1] * 100f0), mort_ba_mod = unsafe_trunc(Int, pom[2] * 100f0),
+                       mort_vol_sev = unsafe_trunc(Int, pvk[1]), mort_vol_mod = unsafe_trunc(Int, pvk[2]),
+                       smoke_sev = smk[1], smoke_mod = smk[2]))
 end
