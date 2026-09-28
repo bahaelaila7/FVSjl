@@ -53,6 +53,18 @@ using FVSjl: snag_fall_density, snag_decay_fraction, coefficients, Southern, coe
         @test snag_decay_fraction(coef, 2)  == 0.35f0   # slow snag class 3 (redcedar)
     end
 
+    # fmsnag.f:216-230 (the same file in every variant build): a pool that would keep less than DZERO = NZERO/50 = 0.0002
+    # stems/ac falls whole, and a record left at or under DZERO is emptied. jl applied it only to the R6 variants
+    # (MEASURED FVSie_g16 4769882010690 SIMFIRE 2044: live emptied two records jl still carried at 1E-4/1E-5).
+    @testset "DZERO: a snag pool under NZERO/50 falls whole (fmsnag.f:216-230), every variant" begin
+        s = StandState(Southern()); init_blockdata!(s, s.variant)
+        s.fire = FireState()
+        add_snag!(s.fire, 65, 14f0, 0.00021f0, 2003; height = 60f0)
+        s.control.cycle_year[1] = Int32(2004)
+        update_snags!(s, 1)
+        @test s.fire.snags.den_hard[1] == 0f0 && s.fire.snags.den_soft[1] == 0f0
+    end
+
     @testset "snag list: creation + per-cycle aging" begin
         s = StandState(Southern()); init_blockdata!(s, s.variant)
         s.fire = FireState()

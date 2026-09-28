@@ -356,7 +356,6 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
     # (no at_year) = cur, so all other callers are unchanged.
     eff = at_year === nothing ? cur : Int(at_year)
     fallen = 0f0
-    r6fall = _fmsadd_binned(s.variant)
     # Last qualifying burn year (scorch > PBSCOR) for the post-burn PBTIME fall window — snag- AND
     # year-INDEPENDENT, so compute it ONCE here. (It used to be recomputed inside the per-snag × per-year
     # loops, and `fs.burn_reports::Vector{Any}` boxes `.scorch`/`.year` on every access ⇒ ~1.4 MB per fire
@@ -440,10 +439,10 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
                 xs = pbfris * sn.den_soft[i]; xh = pbfrih * sn.den_hard[i]
                 dfis < xs && (dfis = xs); dfih < xh && (dfih = xh)
             end
-            # fmsnag.f:216-219: a pool that would keep less than DZERO = NZERO/50 falls entirely. (Applied for the R6
-            # variants, whose FMR6HTLS draw count per record depends on which records are still standing.)
-            if r6fall
-                dz = _FM_NZERO / 50f0
+            # fmsnag.f:216-219 (identical in all 24 variant builds): a pool that would keep less than DZERO = NZERO/50
+            # falls entirely. (jl applied it only for the R6 variants — MEASURED FVSie_g16 4769882010690 2044: live
+            # emptied two records jl still carried at 1E-4/1E-5 stems/ac.)
+            let dz = _FM_NZERO / 50f0
                 dfis > sn.den_soft[i] - dz && (dfis = sn.den_soft[i])
                 dfih > sn.den_hard[i] - dz && (dfih = sn.den_hard[i])
             end
@@ -465,7 +464,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             end
             fallen += dfall
             # fmsnag.f:226-230: fewer than DZERO left in the record ⇒ it is emptied (the remnant is not added to CWD)
-            if r6fall && sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
+            if sn.den_soft[i] + sn.den_hard[i] <= _FM_NZERO / 50f0
                 sn.den_soft[i] = 0f0; sn.den_hard[i] = 0f0
             end
         end
