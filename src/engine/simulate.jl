@@ -1691,8 +1691,14 @@ function run_keyfile(keypath::AbstractString;
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
                     write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
-            pf_rows === nothing ||
-                write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+            # dbsfmpf.f:115 `IF(IPOTFIRE.EQ.0) RETURN` — the table needs POTFIRDB (IPOTFIRE) as well as the POTFIRE report
+            if pf_rows !== nothing && s.control.dbs_potfire
+                if _potfire_east(s.variant)
+                    write_dbs_potfire_east!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+                else
+                    write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+                end
+            end
             # fmchrvout.f: ICHRVB defaults to 9999 (fminit.f:899), so the `ICHRVB .EQ. 0` exit never fires and DBSFMHRPT
             # writes a row every FFE year once CARBREDB set ICHRPT — zero rows included (jl required a removal).
             hc_rows === nothing || isempty(hc_rows) ||

@@ -1172,6 +1172,67 @@ function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractStr
     return dbpath
 end
 
+# SN/CS write FVS_PotFire_East (dbsfmpf.f:121-157) and, at the first FMPOFL, FVS_PotFire_Cond (dbsfmpfc.f).
+_potfire_east(v) = v isa Southern || v isa CentralStates
+
+const _FVS_POTFIRE_EAST_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_PotFire_East(
+  CaseID text not null, StandID text not null, Year int null,
+  Flame_Len_Sev real null, Flame_Len_Mod real null, Canopy_Ht int null, Canopy_Density real null,
+  Mortality_BA_Sev real null, Mortality_BA_Mod real null, Mortality_VOL_Sev real null, Mortality_VOL_Mod real null,
+  Pot_Smoke_Sev real null, Pot_Smoke_Mod real null,
+  Fuel_Mod1_Sev int null, Fuel_Mod2_Sev int null, Fuel_Mod3_Sev int null, Fuel_Mod4_Sev int null,
+  Fuel_Wt1_Sev real null, Fuel_Wt2_Sev real null, Fuel_Wt3_Sev real null, Fuel_Wt4_Sev real null,
+  Fuel_Mod1_Mod int null, Fuel_Mod2_Mod int null, Fuel_Mod3_Mod int null, Fuel_Mod4_Mod int null,
+  Fuel_Wt1_Mod real null, Fuel_Wt2_Mod real null, Fuel_Wt3_Mod real null, Fuel_Wt4_Mod real null)"""
+
+const _FVS_POTFIRE_COND_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_PotFire_Cond(
+  CaseID text not null, StandID text not null, Fire_Condition text null, Wind_Speed real null, Temperature int null,
+  One_Hr_Moisture real null, Ten_Hr_Moisture real null, Hundred_Hr_Moisture real null, Thousand_Hr_Moisture real null,
+  Duff_Moisture real null, Live_Woody_Moisture real null, Live_Herb_Moisture real null)"""
+
+"""
+    write_dbs_potfire_east!(dbpath, caseid, standid, rows) -> dbpath
+
+The SN/CS potential-fire tables: one FVS_PotFire_East row per FMPOFL call (dbsfmpf.f:236-360) from
+`potential_fire_east` — surface flame severe/moderate, ACTCBH/CBD, INT(POKILL·100) and INT(POVOLK), PSMOKE·P2T, and the
+severe (SFMOD/SFWT) and moderate (FMOD/FWT) fuel models with weights DBLE(INT(FWT·100+.5)) — plus, from the first row,
+the two FVS_PotFire_Cond rows (dbsfmpfc.f, written at ICYC=1: PREWND, INT(POTEMP), 100·MOIS).
+"""
+function write_dbs_potfire_east!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+    isempty(rows) && return dbpath
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_POTFIRE_COND_CREATE)
+        c1 = rows[1][2]
+        stc = DBInterface.prepare(db, "INSERT INTO FVS_PotFire_Cond VALUES (" * join(fill("?", 12), ",") * ")")
+        for (nm, sc) in (("Severe", c1.severe), ("Moderate", c1.moderate))
+            m = sc.mois
+            DBInterface.execute(stc, (caseid, standid, nm, Float64(sc.wind), unsafe_trunc(Int, sc.temp),
+                Float64(100f0 * m[1, 1]), Float64(100f0 * m[1, 2]), Float64(100f0 * m[1, 3]), Float64(100f0 * m[1, 4]),
+                Float64(100f0 * m[1, 5]), Float64(100f0 * m[2, 1]), Float64(100f0 * m[2, 2])))
+        end
+        _ensure_table!(db, _FVS_POTFIRE_EAST_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire_East VALUES (" * join(fill("?", 29), ",") * ")")
+        fm(sc, i) = i <= length(sc.models) ? Int(sc.models[i][1]) : 0
+        fw(sc, i) = i <= length(sc.models) ? Float64(unsafe_trunc(Int, sc.models[i][2] * 100f0 + 0.5f0)) : 0.0
+        for (yr, r) in rows
+            sv = r.severe; md = r.moderate
+            DBInterface.execute(stmt, (caseid, standid, Int(yr),
+                Float64(sv.flame), Float64(md.flame), Int(r.canopy_ht), Float64(r.canopy_density),
+                unsafe_trunc(Int, sv.pokill * 100f0), unsafe_trunc(Int, md.pokill * 100f0),
+                unsafe_trunc(Int, sv.povolk), unsafe_trunc(Int, md.povolk),
+                Float64(sv.psmoke * _FM_P2T), Float64(md.psmoke * _FM_P2T),
+                fm(sv, 1), fm(sv, 2), fm(sv, 3), fm(sv, 4), fw(sv, 1), fw(sv, 2), fw(sv, 3), fw(sv, 4),
+                fm(md, 1), fm(md, 2), fm(md, 3), fm(md, 4), fw(md, 1), fw(md, 2), fw(md, 3), fw(md, 4)))
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
 # FVS_Hrv_Carbon schema (dbsfmhrpt.f:94-100) — harvested-wood-products carbon fate (metric tons C/ha).
 const _FVS_HRVCARBON_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Hrv_Carbon(

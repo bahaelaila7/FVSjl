@@ -264,4 +264,12 @@ end
     @test isempty(compare_case("BM", "41136808010497", "cover", txt, db))
 end
 
+# FMPOFL for SN/CS (fmpofl.f:83-306 → dbsfmpf.f:121-360, dbsfmpfc.f): FVS_PotFire_East (surface flame, ACTCBH/CBD, INT(POKILL·100),
+# INT(POVOLK), PSMOKE·P2T, severe/moderate fuel models) once per FMMAIN — never the final row, after FMBURN in a fire year —
+# and FVS_PotFire_Cond at the first call. jl wrote the western FVS_PotFire layout with an approximate mortality/smoke.
+@testset "SN FVS_PotFire_East + FVS_PotFire_Cond (fmpofl.f, dbsfmpf.f:121-360) vs FVSsn_g16" begin
+    ms = _casex("216786838010854", "salvage").ms
+    @test count(m -> startswith(m.file, "FVS_PotFire"), ms) == 0
+end
+
 end # module

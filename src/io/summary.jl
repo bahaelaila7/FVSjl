@@ -402,7 +402,17 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
         # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
-        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
+        # SN/CS (FVS_PotFire_East, dbsfmpf.f:121): FMPOFL runs once per FMMAIN — every projection cycle, never the final
+        # row — and in a fire cycle after FMBURN (fmmain.f:170-196), so that cycle's sample is taken in the fire hook.
+        if potfire_collect !== nothing && _potfire_east(s.variant)
+            if !last && !fire_this_cycle && s.fire !== nothing && s.fire.active
+                compute_density!(s)
+                _vtp = _fm_will_triple(s)
+                carbon_on || fmcba!(s; vtrip = _vtp)   # FMMAIN's year-start FMCBA (the carbon block ran it already)
+                pfr = potential_fire_east(s; vtrip = _vtp)
+                pfr !== nothing && push!(potfire_collect, (r.year, pfr))
+            end
+        elseif potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
             compute_density!(s)
             pfr = potential_fire_report(s)
             pfr !== nothing && push!(potfire_collect, (r.year, pfr))
@@ -536,7 +546,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # ffe_live_fuel_override. A post-kill re-run here re-typed the stand on the SURVIVORS (MEASURED FVSsn_g16
             # 216786838010854 SIMFIRE 2009 Shrub_Herb 0.02 live vs 0.175: the fire-thinned hardwood/pine read as pine/hardwood).
             # EM's fire-year FLIVE is likewise the pre-fire load (live 196378260020004 2022 Shrub_Herb 0.263).
-            chook = fire_cycle ? (st -> (compute_density!(st); _carb_push(st))) : nothing
+            _pfyr = r.year
+            pfhook = (potfire_collect !== nothing && _potfire_east(s.variant) && fire_this_cycle) ?
+                     (st -> (compute_density!(st);
+                             pfr = potential_fire_east(st; fire_basis = true, fmicr = st.fire.fmicr);
+                             pfr === nothing || push!(potfire_collect, (_pfyr, pfr)))) : nothing
+            chook = (fire_cycle || pfhook !== nothing) ?
+                    (st -> (pfhook === nothing || pfhook(st); fire_cycle && (compute_density!(st); _carb_push(st)))) : nothing
             _v3p = carb_v3_pending; carb_v3_pending = nothing
             fhook = _v3p === nothing ? nothing :
                     ((st, stash) -> (e = carbon_collect[_v3p[1]];
