@@ -174,7 +174,7 @@ function fmcba!(s::StandState; load_dead::Bool = true)
                  # CI/TT/UT/WC/PN/EC bare stand: COVINI(ITYPE) (the seral cover of the habitat), else the variant's
                  # "NO VALID HABITAT" default (ci:377-387 ICINDX→DF 3; tt:327-337 / ut:351-361 ITYPE→LP 7;
                  # wc:451-462 / pn:425-436 COVINI6(ITYPE)→DF 16; ec:422-431 ITYPE→DF 3). Tables: covini_tables.jl.
-                 s.variant isa CentralIdaho ? Int32(3) :   # (CI_COVINI(ICINDX) lands with the CI habitat default fix)
+                 s.variant isa CentralIdaho ? _covini(CI_COVINI, Int(s.plot.habitat_input), 3) :   # ICINDX (ci/fmcba.f:377-387)
                  s.variant isa Teton ? _covini(TT_COVINI, Int(s.plot.habitat_input), 7) :          # ITYPE (tt/habtyp.f)
                  s.variant isa Utah ? _covini(UT_COVINI, Int(s.plot.habitat_input), 7) :           # ITYPE (ut/habtyp.f)
                  # BM bare stand: COVINI(ITYPE) (bm/fmcba.f:296-300), ITYPE = the PCOML index habtyp.f resolved (79 = its

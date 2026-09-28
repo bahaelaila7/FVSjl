@@ -113,6 +113,7 @@ include("variants/britishcolumbia/crown_width.jl")           # BC FVS_TreeList c
 include("variants/centralidaho/centralidaho.jl")     # CI singleton + registration (MAXSP 19) — chunk 0 scaffold
 include("variants/centralidaho/species.jl")          # CI species block-data init (ci/blkdat.f + grinit.f) — chunk 1
 include("variants/centralidaho/site_index.jl")       # CI habtyp/forkod/sitset (chunk 2): ICINDX/ITYPE, R4SDI SDImax
+include("variants/centralidaho/pvref4_data.jl")      # ci/pvref4.f (PV_CODE, PV_REF_CODE) → habitat crosswalk (generated)
 include("variants/centralidaho/dg_coefficients.jl")  # CI large-tree DDS coefficient arrays (ci/dgf.f) — chunk 3
 include("variants/centralidaho/diameter_growth.jl")  # CI large-tree DDS hooks (ci_dgcons! + dgf!) — chunk 3
 include("variants/centralidaho/crown.jl")            # CI per-tree CCF (ci/ccfcal.f MODE=1) → RELDEN — chunk 5

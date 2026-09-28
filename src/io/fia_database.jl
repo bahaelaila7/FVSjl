@@ -192,26 +192,17 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # self-thin under-kill (9:2 skew). Setting 79 makes the DF small-tree DDS bit-exact vs live.
         p.habitat_code = Int32(hc == 0 ? 79 : hc)
     end
-    # CI: the habitat KODTYP fed to ci_habtyp is the 3-digit NI code in PV_REF_CODE (e.g. 401); PV_CODE holds the
-    # 5-digit FIA code (out of ci_habtyp's 10-999 range). Without it habitat_code=0 ⇒ habitat_input defaults to 1
-    # ⇒ wrong DG (DGHAB via ICINDX) + wrong mortality ITYPE ⇒ multi-cycle divergence.
-    # FVS uses PV_CODE (the FIA habitat code) with PRIORITY over PV_REF_CODE — the .out prints "PV_CODE WAS
-    # USED, PV_REF_CODE WAS IGNORED". A 5-digit PV_CODE (e.g. 41732) is the 2-digit state prefix + 3-digit
-    # habitat (→ 732 = 41732 mod 1000); ci_habtyp then maps 732→(ICINDX 110, ITYPE 27). PV_REF_CODE (401) is
-    # only the fallback. Using PV_REF_CODE first (jl's old behavior) picked the WRONG habitat ⇒ wrong DGHAB
-    # (dg_const) + ITYPE (htgf) + mortality on stands where the two codes differ.
+    # CI (ci/habtyp.f:44-75 via dbsstandin.f:579-592): with a PV_REF_CODE, PVREF4 crosswalks the (PV_CODE text,
+    # PV_REF_CODE) pair to the CI habitat KODTYP; a pair PVREF4 does not know (FVS34/33/32) keeps the grinit default
+    # ICINDX=21 (habitat 260). Without a reference code KODTYP = the PV_CODE's integer value. jl used "PV_CODE mod
+    # 1000" instead — the 9999999 "no habitat" sentinel became habitat 999 and unknown pairs (45101/494) a real
+    # code (MEASURED FVSci_g16: 3369538010690 9999999/491 and 12276084010690 45101/494 both "MAPPED TO 260").
     if s.variant isa CentralIdaho
-        hc = 0
-        if _fia_present(d, "PV_CODE")
-            pvc = Int(round(_fia_f32(d, "PV_CODE", 0f0)))
-            pvc > 999 && (pvc = pvc % 1000)               # strip the 2-digit state prefix (41732 → 732)
-            (10 <= pvc <= 999) && (hc = pvc)
+        pvs = _fia_present(d, "PV_CODE") ? String(strip(_fia_str(d, "PV_CODE", ""))) : ""
+        if !isempty(pvs)
+            kod, _, lpvxxx = ci_habitat_kodtyp(pvs, strip(p.pv_ref), something(tryparse(Int, pvs), 0))
+            p.habitat_code = Int32(lpvxxx ? 0 : kod)
         end
-        if hc == 0 && _fia_present(d, "PV_REF_CODE")       # fallback
-            pvr = Int(round(_fia_f32(d, "PV_REF_CODE", 0f0)))
-            (10 <= pvr <= 999) && (hc = pvr)
-        end
-        hc != 0 && (p.habitat_code = Int32(hc))
     end
     # EC (region-6, Wykoff-DDS): PV_CODE is the ALPHA plant-association code (e.g. "CDG131"). The STDINFO
     # KEYWORD path was fixed in 70535053 (ec_hbdecd), but the FIA-DB PV_CODE column had no reader branch ⇒

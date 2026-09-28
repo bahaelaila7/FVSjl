@@ -43,4 +43,19 @@ end
     end
 end
 
+# ci/habtyp.f:44-90: PVREF4 crosswalks (PV_CODE, PV_REF_CODE) → KODTYP; an unknown pair (FVS34/33/32) or a KODTYP outside
+# 10..999 (FVS14) keeps ci/grinit.f ICINDX=21 / ITYPE=4 (habitat 260). jl used PV_CODE mod 1000 and ICINDX 1 (MEASURED
+# FVSci_g16: 3369538010690 9999999/491 and 12276084010690 45101/494 "MAPPED TO 260"; jl 999 / 101 ⇒ DGHAB/ITYPE wrong,
+# e.g. 3369538010690 2006 HtG 11.67 live / 8.64 jl, BdFt 1246 / 1201).
+@testset "CI habitat via PVREF4 + ICINDX 21 default (ci/habtyp.f, ci/pvref4.f) vs FVSci_g16" begin
+    for cn in ("3369538010690", "12276084010690")
+        c = _case("CI", cn, "none")
+        @test !c.crashed
+        @test count(m -> m.file == "sum", c.ms) == 0
+        @test count(m -> m.file == "FVS_Error", c.ms) == 0          # FVS33 + FVS32 (unknown pair)
+    end
+    c = _case("CI", "3159852010690", "salvage")                        # bare, no PV code: FVS14 + CIPVG(ICINDX 21)
+    @test count(m -> m.file in ("FVS_Error", "FVS_PotFire", "FVS_Carbon"), c.ms) == 0
+end
+
 end # module

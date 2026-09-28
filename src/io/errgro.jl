@@ -189,6 +189,12 @@ function habtyp_errors!(s::StandState{BlueMountains}, pv::AbstractString, cpvref
     return nothing
 end
 
+function habtyp_errors!(s::StandState{CentralIdaho}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    _, errs, _ = ci_habitat_kodtyp(pv, cpvref, kodtyp)                       # ci/habtyp.f:54-75
+    foreach(e -> errgro!(s, e), errs)
+    return nothing
+end
+
 # --- FVS_Error DBS table (dbserror.f) ------------------------------------------------------------------------------
 const _FVS_ERROR_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Error(
