@@ -239,17 +239,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 variant = "BM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 23
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 23 cells [ulp1=7 ulp2_16=4 ulpbig=12] max|Δ|=0.002396 | e.g. stand 12827438010497 year 2005: live=4.536309242248535 jl=4.536309719085693"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
