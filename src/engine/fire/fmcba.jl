@@ -122,12 +122,19 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    # nc/so/ca fmcba.f read CWIDTH = CRWDTH(I), and cwcalc.f routes their Region-5 forests to R5CRWD (a function of
+    # sp/D/H only): NC IFOR ≤ 3 or 5 (cwcalc.f:382), SO IFOR 4-9 (:376), CA IFOR ≤ 5 (:385) — the same CRWDTH FVS_TreeList
+    # reports (_forest_crwdth). jl ran the R6 Crookston kernels on every forest (MEASURED FVSnc_g16 23660512010900,
+    # forest 508→510: inventory PERCOV live 15.09 = the TreeList CrWidth; jl 10.0).
+    _ifor = Int(s.plot.forest_idx)
+    _r5cw = (_nc_fm && (_ifor <= 3 || _ifor == 5)) || (_so_fm && 4 <= _ifor <= 9) || (_ca_fm && _ifor <= 5)
     cwrec = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+        cw = _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
+             _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
              _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
