@@ -1058,10 +1058,11 @@ struct SnagBinScratch
     ght::Vector{Float32}     # [MAXTRE] class density-weighted running-mean height
     gden::Vector{Float32}    # [MAXTRE] class total density
 end
+# class slots ≤ dying records ≤ the largest variant MAXTRE (ON 6000; variant_maxtre)
 SnagBinScratch() = SnagBinScratch(Vector{Float32}(undef, MAXSP * 19), Vector{Float32}(undef, MAXSP * 19),
-                                  zeros(Int32, MAXSP * 19 * 2), Vector{Int32}(undef, MAXTRE),
-                                  Vector{Float32}(undef, MAXTRE), Vector{Float32}(undef, MAXTRE),
-                                  Vector{Float32}(undef, MAXTRE))
+                                  zeros(Int32, MAXSP * 19 * 2), Vector{Int32}(undef, 6000),
+                                  Vector{Float32}(undef, 6000), Vector{Float32}(undef, 6000),
+                                  Vector{Float32}(undef, 6000))
 
 """
 PotFire-report weather-scenario conditions, overridable by the POTF* keywords (POTFMOIS/POTFWIND/

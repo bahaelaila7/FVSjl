@@ -2698,7 +2698,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
                 propi_o[kk, it, ip] = d.propi[i, it, ip]
             end
             rrninf, polp = rd_insd!(rd, idi, rriare, rridim, rd.parea[idi],
-                                    10 * MAXTRE, n, 1, ksp_o, rootl_o, probiu_o,
+                                    10 * variant_maxtre(s.variant), n, 1, ksp_o, rootl_o, probiu_o,   # IRINIT=10*MAXTRE (rdinit.f:703)
                                     probi_o, propi_o; fint = fintf, pint = pint,
                                     sptran = RD_SPTRAN,
                                     probd = @view(d.probd[idi, :, :]),

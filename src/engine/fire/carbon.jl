@@ -328,7 +328,7 @@ end
 
 # Is the cycle about to start a TRIPLE (grincr.f:74 LTRIP=(ICYC.LE.ICL4 .AND. ITRN.LE.MAXTRE/3 .AND. .NOT.NOTRIP))?
 _fm_will_triple(s::StandState) = !s.control.no_tripling && Int(s.control.cycle) < Int(s.control.icl4) &&
-                                 s.trees.n > 0 && s.trees.n <= (MAXTRE - Int(s.trees.ndead)) ÷ 3
+                                 s.trees.n > 0 && s.trees.n <= (variant_maxtre(s.variant) - Int(s.trees.ndead)) ÷ 3
 
 """
     fmdout_bio(s; vtrip=false) -> NamedTuple

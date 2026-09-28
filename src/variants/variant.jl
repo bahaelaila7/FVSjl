@@ -77,7 +77,7 @@ function height_growth! end               # htgf.f
 htg_period(::AbstractVariant) = 5f0       # /CONTRL/ YR (blkdat.f)
 # PRGPRM.F77 PARAMETER (MAXTRE=…): the tree-record capacity, which also sets the tripling guard (grincr.f
 # ITRN.LE.MAXTRE/3), the cycle-0 dead-record TreeIndex (IREC2 counts down from MAXTRE) and the COMPRESS default.
-# 3000 in most variants; ON overrides (canada/on PRGPRM.F77 MAXTRE=6000).
+# 3000 in most variants; ON 6000, BC 4000, OC/OP 2000 override it (each build's PRGPRM.F77).
 variant_maxtre(::AbstractVariant) = MAXTRE
 # grinit.f FINT — the DG MEASUREMENT period, which grincr.f uses as cycle 1's OLDFNT (the "previous period" in
 # AUTCOR's serial correlation). Equal to YR in every variant except NC (YR=5, FINT=10).
