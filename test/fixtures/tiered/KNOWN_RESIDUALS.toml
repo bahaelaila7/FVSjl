@@ -756,45 +756,12 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "rootdis"
 file = "FVS_RD_Sum"
-col = "Mort_CuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 7 cells [ulp1=3 ulp2_16=3 ulpbig=1] max|Δ|=0.001099 | e.g. stand 11855985010690 year 2016: live=2.8177809715270996 jl=2.8177807331085205"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_RD_Sum"
 col = "Mort_TPA"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 8 cells [ulp1=2 ulp2_16=4 ulpbig=2] max|Δ|=8.011e-5 | e.g. stand 11855985010690 year 2016: live=0.08070546388626099 jl=0.08070545643568039"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_RD_Sum"
-col = "New_Inf_Prp_Ins"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 7 cells [ulp2_16=7] max|Δ|=2.384e-7 | e.g. stand 39518122010690 year 2019: live=0.003174996003508568 jl=0.003174999263137579"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_RD_Sum"
-col = "New_Inf_Prp_Tot"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 7
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 7 cells [ulp2_16=7] max|Δ|=2.384e-7 | e.g. stand 39518122010690 year 2019: live=0.003174996003508568 jl=0.003174999263137579"""
 
 [[residual]]
 variant = "IE"
@@ -839,28 +806,6 @@ year = "*"
 status = "OPEN"
 max_cells = 41
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 41 cells [material=14 ulp1=7 ulp2_16=9 ulpbig=11] max|Δ|=244.7 | e.g. stand 11855985010690 year 2036: live=50.59978103637695 jl=50.5909423828125"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 54
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
-
-[[residual]]
-variant = "IE"
-regime = "rootdis"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 54
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.04921 | e.g. stand 1627682513290487 year 2071: live=7.892569065093994 jl=7.900000095367432"""
 
 [[residual]]
 variant = "IE"

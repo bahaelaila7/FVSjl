@@ -2761,8 +2761,11 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
             @inbounds for (kk, i) in enumerate(order)
                 rd.corinf[idi, 2] += d.probiu[i]            # rdinsd.f:398 CORINF(IDI,2) += PROBIU (before infection, ALL records)
                 rrninf[kk] <= 1.0f-4 && continue
-                nk = rrninf[kk]                              # /NINSIM (=1)
-                pl = polp[kk]
+                # rdinsd.f:404-405 RRNINF/(REAL(NINSIM)+1E-6), POLP/(REAL(NINSIM)+1E-6): NINSIM=1, but 1.0+1E-6 is
+                # 1.00000095 in REAL, so the division moves both by ~1E-6 (MEASURED FVSbm_g16 177426703020004 rootdis
+                # cycle 1 PROBI(9,2,1) 0.821117043 live, 0.821117818 undivided)
+                nk = rrninf[kk] / (1.0f0 + 1.0f-6)
+                pl = polp[kk] / (1.0f0 + 1.0f-6)
                 d.probiu[i] -= nk; d.probiu[i] < 0.0f0 && (d.probiu[i] = 0.0f0)
                 d.probi[i, istep, 1] += nk
                 d.propi[i, istep, 1] = -pl
