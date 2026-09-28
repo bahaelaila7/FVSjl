@@ -120,6 +120,8 @@ using FVSjl
     include("unit/test_ontario_database_reader.jl") # ON DATABASE reader: metric cm->in/m->ft conversion (was BC-only gate; ON DB was ~2.5x off)
     include("unit/test_ontario_db_path_equiv.jl")   # ON DATABASE-read path == inline `.tre` path on the REAL ON DB (FVSDataHardwood.db, LD3001, 94 trees): tree ingestion bit-exact + stand attrs + blank-ELEVFT fallback (oracle DB-path blocked: gcc-16 dbstreesin segfault, gcc-15 unavailable)
     include("unit/test_ontario_cycle1_live.jl")      # ON growth cycle 1 per record vs LIVE FVSon_g16: ont01 TreeList (DG incl. TRIPLE copies, TPH/MortPH, DBH, Ht/HtG, TCuM/MCuM/CCum) + .sum rows of ont01/ont_all/ont_lite/ont_mh/ont_sm
+    include("unit/test_ontario_multicycle_live.jl")  # ON 5-cycle projections vs LIVE FVSon_g16: .sum rows of 6 fixture stands + ont_all per-record TreeList (TPH/MortPH/DBH/Ht) + metric keyword THIN decode
+    include("unit/test_ontario_thin_sprout_live.jl") # ON thinning + stump sprouting vs LIVE FVSon_g16: REGENT copies, ESUCKR sprouts, CUTS-entry TREDEL, SPESRT, DO-1700 cuts pass, per record + .sum
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
