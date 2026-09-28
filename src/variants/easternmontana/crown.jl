@@ -317,10 +317,9 @@ const _EM_CWMAP = ("10105","07303","20203","11301","07204","06602","10803","0930
 # gfortran-16 oracle's REAL*4 EXP/LOG/** resolve to these, so this is bit-exact vs
 # FVSem_g16 (verified 353/353).  The core/fmath shim is built by a *different* gfortran and
 # is ~1 ULP off here, so it is intentionally NOT used on this crown-width path.
-const _EMCW_LIBM = "libm.so.6"
-@inline _emcw_log(x::Float32) = ccall((:logf, _EMCW_LIBM), Float32, (Float32,), x)
-@inline _emcw_exp(x::Float32) = ccall((:expf, _EMCW_LIBM), Float32, (Float32,), x)
-@inline _emcw_pow(x::Float32, y::Float32) = ccall((:powf, _EMCW_LIBM), Float32, (Float32,Float32), x, y)
+const _emcw_log = logf   # glibc (FMath single libm binding)
+const _emcw_exp = expf
+const _emcw_pow = powf
 
 # Crookston Region-1 form: mult*EXP(c0 + ccl*ln(CL) + cd*ln(Dm) + ch*ln(H) + cba*ln(BAREA)).
 # Only the ln(D) term floors to `dfloor`; CL/H/BAREA use actual values.  Small-tree scale

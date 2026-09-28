@@ -22,8 +22,8 @@ const WWPB_PI24 = 3.14159f0 / (24.0f0 * 24.0f0)   # bmsdit.f/bminit.f PI24 = PIE
 
 # glibc single-precision transcendentals — match gfortran REAL EXP()/x**y bit-exact
 # (WWPB's Fortran is all-REAL, so the operations are expf/powf, not the Float64 forms).
-@inline _wwpb_expf(x::Float32)::Float32 = ccall((:expf, "libm.so.6"), Float32, (Float32,), x)
-@inline _wwpb_powf(x::Float32, y::Float32)::Float32 = ccall((:powf, "libm.so.6"), Float32, (Float32, Float32), x, y)
+const _wwpb_expf = expf   # glibc (FMath single libm binding)
+const _wwpb_powf = powf
 
 # -----------------------------------------------------------------------------
 # BMDBHC (bmdbhc.f) — assign a DBH to a size class from the UPSIZ breakpoints.
@@ -1032,7 +1032,7 @@ function bmatct_multi!(ls::WwpbLandscape, stands::Vector{WwpbStand}, w::WwpbStat
 end
 
 # glibc single-precision logf for AS245/AS63 (matches gfortran REAL LOG bit-exact).
-@inline _wwpb_logf(x::Float32)::Float32 = ccall((:logf, "libm.so.6"), Float32, (Float32,), x)
+const _wwpb_logf = logf
 
 # ALNGAM (bmcbet.f, ALGORITHM AS245 APPL. STATIST. 1989) — log-gamma via rational
 # approximations, single-precision REAL. Faithful port (the AS functions are
