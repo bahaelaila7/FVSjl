@@ -84,7 +84,9 @@ _pccf_base(path) = [split(l) for l in eachline(path)
         # in a grown DBH/HT→crown_width on the ~30 dense-point overstory terms, tipping the regen
         # INT(CR·100+0.5) half-integer boundary — a grown-Float32 accumulation-floor primitive, not a logic gap.
         # ⇒ EXPOSED @test_broken vs the print-half-width (doctrine #9). 7/10 pts bit-exact.
-        @test_broken isapprox(mean(cr), 82.46; atol = 0.05)          # crown center — per-point PCCF boundary (Δ0.10 > 2-dec half)
+        # RESOLVED (2026-09-28): not a Float32 floor — the regen crown reads the gradd.f:192 DENSE PCCF (post-UPDATE,
+        # pre-ESNUTR), and jl passed the START-of-cycle point CCF. With the post-growth PCCF the center is live's 82.46.
+        @test isapprox(mean(cr), 82.46; atol = 0.05)                 # crown center — per-point PCCF (gradd.f:192 DENSE)
         @test maximum(cr) <= 87                                       # capped near live's 86 (NOT the ~90 of PCCF=0)
     end
 end

@@ -64,13 +64,14 @@ end
 @inline function _htdbh_height(sd, sp::Integer, d::Float32, ifor::Integer = 0; isne::Bool = false)
     if _uses_wykoff(sd, sp)
         ht1, ht2 = _htdbh_wykoff(sd, sp, ifor, isne)
-        return exp(ht1 + ht2 / (d + 1f0)) + 4.5f0
+        return fexp(ht1 + ht2 / (d + 1f0)) + 4.5f0
     end
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)
+    # htdbh.f:292-297 REAL*4: H = 4.5 + P2*EXP(-1.*P3*D**P4) (expf/powf)
     if d >= 3f0
-        return 4.5f0 + p2 * exp(-p3 * d ^ p4)
+        return 4.5f0 + p2 * fexp((-1f0 * p3) * fpow(d, p4))
     else
-        hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+        hat3 = 4.5f0 + p2 * fexp((-1f0 * p3) * fpow(3f0, p4))
         return (hat3 - 4.51f0) * (d - db) / (3f0 - db) + 4.51f0
     end
 end
@@ -87,12 +88,15 @@ as a fallback. SN's htdbh.f has NO such floor, so SN keeps the default `db_floor
     p2, p3, p4, db = _htdbh_params(sd, sp, ifor)   # db (budwidth) is a per-species array, valid for Wykoff species too
     d = if _uses_wykoff(sd, sp)
         ht1, ht2 = _htdbh_wykoff(sd, sp, ifor, isne)
-        ht2 / (log(h - 4.5f0) - ht1) - 1f0          # htdbh.f:463 (:331)
+        ht2 / (flog(h - 4.5f0) - ht1) - 1f0         # htdbh.f:463 (:331)
     else
-        hat3 = 4.5f0 + p2 * exp(-p3 * 3f0 ^ p4)
+        # htdbh.f:296-310 REAL*4: HAT3 = 4.5+P2*EXP(-1.*P3*3.0**P4); D = (ALOG(MIN(H-4.5,0.9999*P2))-ALOG(P2))/(-1.*P3);
+        # D = EXP(ALOG(D)*1./P4) — logf/expf/powf, and (ALOG(D)*1.)/P4, not ·(1/P4). MEASURED FVSsn_g16 157577477010854
+        # 1977: the REGENT DK/DKK of a 2.7" LP 1-2 ULP off ⇒ DG 0.3353589 live vs 0.3353593.
+        hat3 = 4.5f0 + p2 * fexp((-1f0 * p3) * fpow(3.0f0, p4))
         if h >= hat3
-            ratio = (log(min(h, 4.5f0 + p2 * 0.9999f0) - 4.5f0) - log(p2)) / (-p3)
-            ratio > 0f0 ? exp(log(ratio) * (1f0 / p4)) : 100f0
+            ratio = (flog(min(h - 4.5f0, 0.9999f0 * p2)) - flog(p2)) / (-1f0 * p3)
+            ratio > 0f0 ? fexp((flog(ratio) * 1f0) / p4) : 100f0
         else
             ((h - 4.51f0) * (3f0 - db) / (hat3 - 4.51f0)) + db
         end
@@ -306,7 +310,8 @@ function dub_missing_heights!(s::StandState)
             sp = Int(t.species[i]); (1 <= sp <= nmax && lhtdrg[sp]) || continue
             h = t.height[i]; d = t.dbh[i]
             (h > 4.5f0 && t.norm_ht[i] >= 0 && d >= 3f0) || continue       # measured, sound, ≥3" (cratet.f:301)
-            sumx[sp] += log(h - 4.5f0) - ht2[sp] / (d + 1f0)               # REAL (Float32), as FVS
+            # cratet.f: XX = BX/(D+1.); YY = ALOG(H-4.5); SUMX = SUMX+YY-XX — (SUMX+YY)−XX with logf, REAL (Float32)
+            sumx[sp] = (sumx[sp] + flog(h - 4.5f0)) - ht2[sp] / (d + 1f0)
             k1[sp]   += 1
         end
         @inbounds for sp in 1:nmax
@@ -359,7 +364,7 @@ function dub_missing_heights!(s::StandState)
             cal = lhtdrg[sp] && iabflg[sp] == 0
             ci_cratet_dub(Int(sp), d, cal ? aa[sp] : CI_BLK_HT1[sp], lhtdrg[sp], cal)
         elseif lhtdrg[sp] && iabflg[sp] == 0
-            exp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0
+            fexp(aa[sp] + ht2[sp] / (d + 1f0)) + 4.5f0            # cratet.f H=EXP(AX+BX/(D+1.0))+4.5 (expf)
         elseif iscr_dub && Int(s.plot.model_type) == 3 && lhtdrg[sp] && iabflg[sp] == 1
             # cratet.f:352-360 — Black Hills (IMODTY 3, no AA fit): a distinct SI-driven logistic height
             # curve, NOT the Curtis-Arney/Wykoff dub. Without it, all-missing-height Black Hills ponderosa

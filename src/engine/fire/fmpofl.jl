@@ -149,14 +149,16 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
         lpsburn = !(rann!(s.rng) * 100f0 > psburn)
         fmprob = t.tpa[i]; d = t.dbh[i]
         if lpsburn && fmprob > 0f0
-            csv = crown_volume_scorched(sch, t.height[i], Int(t.crown_pct[i]))
+            # FMEFF CRL = HT·FMICR/100 (fmeff.f:167): after a burn FMICR is the fire-shortened crown (FMKILL hands it back later)
+            icr = length(fs.fmicr) == t.n ? Int(fs.fmicr[i]) : Int(t.crown_pct[i])
+            csv = crown_volume_scorched(sch, t.height[i], icr)
             sp = Int(t.species[i])
             pmort = fire_tree_mortality(coef, sp, d, flame, csv, s.variant)
             pmort = fire_mortality_adjust(pmort, sp, d, burnseas, s.variant)
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)
             pmort *= active_fmort_mult(s.control, sp, year, d)
             pmort = clamp(pmort, 0f0, 1f0)
-            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true)
+            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true; icr = icr)
         end
         pomort = pmort * fmprob                                                        # fmeff.f:556-564
         lpsburn && (pomort = pomort + crburn * (fmprob - pomort))
@@ -322,11 +324,15 @@ weights INT(W·100+.5)) and the DBSFMPFC conditions (wind PREWND, INT(POTEMP), 1
 on the tripled list) does both. `fire_basis`: a fire burned this FMMAIN year — FMCFMD3 re-selects the models
 after FMBURN (fmmain.f:189) but on FMTRET's year-start SMALL/LARGE (fmtret.f:371-387, before the consumption).
 """
-function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basis::Bool = false, seam::Bool = true)
+function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basis::Bool = false, seam::Bool = true,
+                       vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return nothing
     wmult = fire_wind_reduction(fs.percov)
-    cf = canopy_bulk_density(s)
+    # FMPOCR (fmmain.f:188) walks FMMAIN's list: the TRIPLEd one in a tripling cycle (`vtrip` when sampled pre-TRIPLE), and
+    # after a burn the fire-shortened FMICR (MEASURED FVSsn_g16 216786838010854 2004 CBD 0.019078491 live vs 0.019078489
+    # on the untripled list).
+    cf = canopy_bulk_density(s; vtrip = vtrip, fmicr = length(fs.fmicr) == s.trees.n ? fs.fmicr : nothing)
     dpmod = _fueltret_dpmod(s, Int(year))
     env = potfire_env(s.variant)                     # (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2))
     east = _pofl_east(s.variant)

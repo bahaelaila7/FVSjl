@@ -43,7 +43,9 @@ const REGENT_DGMAX = 5f0
     dg < 0f0 && (dg = 0.1f0)
     dg > dgmx && (dg = dgmx)
     dds = dg * (2f0 * bark * d + dg) * scale2
-    dg = sqrt((d * bark)^2 + dds) - bark * d
+    # regent.f:360 DG = SQRT((D*BARK)**2.0+DDS)-BARK*D: REAL**2.0 is powf, not D·D (MEASURED FVSsn_g16 238813815010854 cyc-3 LK
+    # record 24: DG 3F0E7B0E live, 3F0E7B0C with (D·BARK)^2 — every input bit-identical)
+    dg = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
     return dg
 end
 
@@ -112,6 +114,11 @@ function small_tree_growth!(s::StandState, stash, ::Southern; fint::Float32 = 5f
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 dg = _regent_dg(sd, c.bark_a, c.bark_b, sp, d, h, htg, scale2, dgmx, Int(p.forest_idx), xrdgro)
+                # regent.f:284-287: HK = H+HTG ≤ 4.5 ⇒ DG(K)=0 and DBH(K)=D+0.001·HK set DIRECTLY (outside bark, before
+                # MORTS/UPDATE). jl passed 0.001·HK through UPDATE's DBH += DG/BARK, i.e. ×1/BARK too much (MEASURED FVSsn_g16
+                # 830602414290487 PLANT 2035: planted PI DBH 0.1052496 vs live 0.1043516, FVS_TreeList DG 0.0036 vs 0).
+                bump = (h + htg) <= 4.5f0 ? 0.001f0 * (h + htg) : 0f0
+                bump > 0f0 && (dg = 0f0)
                 # A seedling still BELOW breast height (HK = H+HTG ≤ 4.5) takes FVS's nominal DBH nudge only —
                 # regent.f:284-287 sets DG=0, DBH=D+0.001·HK and SKIPS the DIAM budwidth floor + DGBND (those
                 # live in the HK>4.5 branch). jl previously applied the DIAM floor to sub-breast-height regen,
@@ -131,10 +138,15 @@ function small_tree_growth!(s::StandState, stash, ::Southern; fint::Float32 = 5f
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
+                    # copies start from the PRE-REGENT DBH plus their own bump (triple_records!, stash dbh0/bumpU/bumpL)
+                    (stash !== nothing && !isempty(stash.dbh0)) && (stash.dbh0[i] = d)
+                    bump > 0f0 && (t.dbh[i] = d + bump)
                 elseif l == 1
                     stash.dgU[i] = dg; stash.htgU[i] = htg; stash.is_small[i] = true
+                    bump > 0f0 && (stash.bumpU[i] = bump)
                 else
                     stash.dgL[i] = dg; stash.htgL[i] = htg
+                    bump > 0f0 && (stash.bumpL[i] = bump)
                 end
             end
         end

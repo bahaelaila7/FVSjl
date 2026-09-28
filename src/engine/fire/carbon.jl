@@ -47,7 +47,9 @@ function ffe_down_wood(s::StandState)
     fs = s.fire
     (fs === nothing || !fs.active) && return (vol_hard = z8, vol_soft = z8, cov_hard = z7, cov_soft = z7)
     cw = fs.cwd; den = (18.72f0, 24.96f0)                    # CWDDEN by cwd hardness index (1=soft, 2=hard)
-    vol(sz, K) = (let v = 0f0; for L in 1:4; v += cw[sz, K, L]; end; v end) * 2000f0 / den[K]
+    # fmdout.f:316-343: CWDVOL(I,J,K,L) = CWD(I,J,K,L)·2000/CWDDEN per decay class, then summed over I (piles) and L —
+    # the volume of each pool, not the volume of the pooled biomass.
+    vol(sz, K) = (let v = 0f0; for L in 1:4; v += (cw[sz, K, L] * 2000f0) / den[K]; end; v end)
     function vbins(K)
         b = (vol(1, K) + vol(2, K) + vol(3, K), vol(4, K), vol(5, K), vol(6, K), vol(7, K), vol(8, K), vol(9, K))
         (b..., sum(b))
@@ -360,6 +362,13 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
             # with CFTOPK at the current height on every snag (XHT>−1 ⇒ LTKIL), fresh each report — then (SNVIS+SNVIH)·V2T
             sp = Int(sn.sp[i])
             vv = ffe_west_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i]; always = true)
+            snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
+            snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
+            v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
+        elseif _snag_east_vol(s.variant) && sn.height[i] > 0f0
+            # same FMSVOL(I,HTIx)·DENIx, (SNVIS+SNVIH)·V2T with V2T pre-divided by 2000 (fmvinit.f:1094) — CS/LS/NE/SN
+            sp = Int(sn.sp[i])
+            vv = ffe_east_snag_vol_at(s, sp, sn.dbh[i], sn.height[i], sn.htcur[i])
             snvih = sn.den_hard[i] > 0f0 ? vv * sn.den_hard[i] : 0f0
             snvis = sn.den_soft[i] > 0f0 ? vv * sn.den_soft[i] : 0f0
             v = (snvis + snvih) * (coef_col(coef, :v2t)[sp] / 2000f0)
