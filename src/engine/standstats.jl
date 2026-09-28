@@ -94,9 +94,12 @@ end
 # test_allspecies cell off live (19765 vs 19766) — SN dense.f is a different source revision (open lead).
 # EM compiles the identical dense.f (FVSem_buildDir/dense.f == ie/bm modulo CRLF) and its IND1 lineage is live-exact (the
 # birth-cycle REGENT ZRAND draw order walks the same IND1 and matches FVSem_g16 record for record), so EM walks IND1 too.
-# AK (ak/dense.f identical): live-measured on akt01 + the FIA 12-stand sample.
+# dense.f:179-188 walks DO 10 I3=ISCT(ISPC,1..2) / I=IND1(I3) — species-major IND1 — with WK5=D*(D*P) (DP=D*P first);
+# TSUMD2/TPROB are REAL*4 sums in that order. Live-measured BM/EM, IE (FVSie_g16 3285544010690 2012 QMD live
+# 7.00555182, record order 7.00555038 — dense.f is byte-identical in the IE build) and AK (ak/dense.f identical; akt01 +
+# the FIA 12-stand sample).
 _dense_order(s::StandState) = (s.variant isa BlueMountains || s.variant isa EasternMontana ||
-                               s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
+                               s.variant isa InlandEmpire || s.variant isa SoutheastAlaska) ? _ind1_order(s) : (1:s.trees.n)
 
 function stand_ba(s::StandState)
     t = s.trees; ba = 0f0
@@ -119,7 +122,8 @@ function stand_qmd(s::StandState)
     t = s.trees; sd2 = 0f0; tpa = 0f0
     @inbounds for i in _dense_order(s)
         d = t.dbh[i]; p = t.tpa[i]
-        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) ?
+        sd2 += (s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa InlandEmpire ||
+                s.variant isa SoutheastAlaska) ?
                d * (d * p) : p * d^2
         tpa += p
     end

@@ -172,9 +172,12 @@ function crown_ratio_update!(s::StandState, ::InlandEmpire; fint::Float32 = 10.0
                          IE_CRPARM[sp,4]*rdm1 + IE_CRPARM[sp,5]*rdm1*rdm1 + IE_CRPARM[sp,6]*x2
                 db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
                 hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-                # OLDPCT: previous cycle's PCT (gradd.f:267 snapshot). crown.f:480 falls back to current PCT
-                # when OLDPCT<=0 (or OLDPCT>PCT under thinning — the thin branch is omitted; no removals here).
-                pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i])
+                # OLDPCT: previous cycle's PCT (gradd.f:267 snapshot). crown.f:479-480 falls back to the current PCT
+                # when OLDPCT<=0, or when OLDPCT>PCT in a cycle that removed trees (ONTREM(7)>0) — a thin lowers every
+                # survivor's start-of-cycle percentile. jl omitted the thin branch (MEASURED FVSie_g16 3027007010690
+                # THINBBA 2006: LP PctCr at 2016 live 47/48/50, jl 44/42/44 on 25 records).
+                pb = t.old_crown_pct[i]
+                (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
                 pb < 0.01f0 && (pb = 0.01f0)
                 dcr = dcrcon + b7*db + b8*db*db + b9*flog(db) + b10*hb + b11*hb*hb + b12*flog(hb) + b13*pb + b14*flog(pb)
                 expdcr = fexp(dcr)

@@ -270,6 +270,9 @@ function structure_class(s::StandState; iba::Int = 1, thresh = s.control.strclas
     return (class = cls, nstr = st.nstr, cover = st.cover, strdbh = tmpdbh)
 end
 
+"SSTAGE's NTREES (sstage.f:220-226): the live records carrying more than 0.00001 TPA."
+_sstage_ntrees(s::StandState) = (t = s.trees; count(i -> t.tpa[i] > 0.00001f0, 1:t.n))
+
 """
     structure_report(s) -> (; class, nstr, cover, strata)
 

@@ -1082,6 +1082,8 @@ function ie_autoes_tally(; seed0::Integer, nplots::Integer, ihab::Integer, iser:
               prob1_pt_ip[clamp(_ptn, 1, size(prob1_pt_ip, 1)), clamp(Int(ipprep[n]), 1, size(prob1_pt_ip, 2))] :
               ((prep_active && !isempty(prob1_prep) && isempty(prob1_pt) && n <= length(ipprep)) ?
                Float32(prob1_prep[ipprep[n]]) : p1)
+        # estab.f:583 IF(FTEMP.LT.PNN(NCOUNT)) FTEMP=PNN(NCOUNT)+0.0001 — after the [0.0001,0.999] clamp.
+        (has_state && p1n < pn) && (p1n = pn + 0.0001f0)
         # ESPROB (estab.f:944-951): a tree at plot-index I gets full PROB1 if new (I>NSTORE); an old tree
         # (I≤NSTORE) gets the increment PROB1-PNN; an ingrowth tally scales ALL trees by NEWTPP/ITPP.
         prob_old = max(p1n - pn, 0.0001f0)
@@ -1909,7 +1911,10 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
             # a LARGER NSTORE (more existing trees per plot) ⇒ less NEWTPP, matching the oracle's per-point suppression.
             fill!(nstore, Int32(0))
             @inbounds for pt in 1:npt
-                ns_pt = floor(Int32, Float32(point_small_tpa[pt]) * Float32(npt) / (prob1_of(pt) * 300f0) + 0.5f0)
+                # FTEMP = the plot's PROB1 after the estab.f:583 PNN floor (PNN = ESA on a calibrated ingrowth tally)
+                _p1 = prob1_of(pt); _pb = (pt - 1) * Int(idup) + 1
+                (_pb <= length(pnn) && _p1 < pnn[_pb]) && (_p1 = pnn[_pb] + 0.0001f0)
+                ns_pt = floor(Int32, Float32(point_small_tpa[pt]) * Float32(npt) / (_p1 * 300f0) + 0.5f0)
                 ns_pt <= 0 && continue
                 base = (pt - 1) * Int(idup)
                 for k in 1:Int(idup); nstore[base + k] = ns_pt; end
@@ -2377,6 +2382,15 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
                     end
                     nstore_ptip_d1b = _nsip
                 end
+            end
+            # estab.f:545-549 PNN(NCOUNT)=ESA (the UNCLAMPED ESA of :320) on every plot of a calibrated fresh tally — the
+            # ingrowth tally too (INGRO=1 runs as NTALLY=1, :256), not just the disturbance D1b above. estab.f:583 then
+            # floors each plot's PROB1 at PNN+0.0001, and the ingrowth NSTORE (:587-589) divides by that floored PROB1.
+            # jl left PNN=0 on the ingrowth tally (MEASURED FVSie_g16 3285544010690 2011 ingrowth: point 1 PROB1
+            # logistic 0.3833 < PNN 0.429568 ⇒ live PROB1 0.429668, NSTORE 3; jl PROB1 0.3833, NSTORE 4 ⇒ the point-1
+            # plots booked 0.948/1.896 TPA/tree vs live 0.620/1.416/1.239).
+            if _ntally == 99 && length(est.es_pnn) == dupnpt_i
+                fill!(est.es_pnn, 1f0 / (1f0 + fexp(-(-5.17397f0 + 0.85131f0 * flog(tpacre)))))
             end
         end
         esb_shift = est.esb_shift

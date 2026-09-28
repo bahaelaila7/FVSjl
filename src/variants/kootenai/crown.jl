@@ -168,8 +168,10 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
                 db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
                 hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
                 # kt/crown.f:306-308 P=OLDPCT (the previous cycle's PCT, gradd.f:267 / cratet.f:578), reset to PCT when
-                # OLDPCT≤0 (new records). The ONTREM(7)>0 thinning reset is not ported (no removal counter), as in IE.
-                pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i]; t.old_crown_pct[i] = pb)
+                # OLDPCT≤0 (new records) or, in a cycle that removed trees (ONTREM(7)>0), OLDPCT>PCT.
+                pb = t.old_crown_pct[i]
+                (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) &&
+                    (pb = t.crown_ratio[i]; t.old_crown_pct[i] = pb)
                 pb < 0.01f0 && (pb = 0.01f0)
                 dcr = dcrcon + b7*db + b8*db*db + b9*log(db) + b10*hb + b11*hb*hb + b12*log(hb) + b13*pb + b14*log(pb)
                 expdcr = exp(dcr)

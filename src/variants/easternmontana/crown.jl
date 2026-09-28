@@ -259,10 +259,11 @@ function crown_ratio_update!(s::StandState, ::EasternMontana; fint::Float32 = 10
             db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
             hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
             # crown.f:395-398 P=OLDPCT (the previous cycle's PCT, gradd.f:267; the first cycle's is the backdated
-            # CRATET percentile, cratet.f:481), falling back to PCT when OLDPCT<=0. The OLDPCT>PCT-after-thinning
-            # branch (ONTREM(7)>0) is not carried (as IE/BC). jl used the CURRENT PCT, which held LL crowns at 55
+            # CRATET percentile, cratet.f:481), falling back to PCT when OLDPCT<=0 or, in a cycle that removed trees
+            # (ONTREM(7)>0), when OLDPCT>PCT (crown.f:399-400). jl used the CURRENT PCT, which held LL crowns at 55
             # where live FVSem_g16 drew them down 55→53→51→49.
-            pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i])
+            pb = t.old_crown_pct[i]
+            (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
             dcr = dcrcon + P[7]*db + P[8]*db*db + P[9]*log(db) + P[10]*hb + P[11]*hb*hb + P[12]*log(hb) + P[13]*pb + P[14]*log(pb)
             chg = exppcr - exp(dcr)

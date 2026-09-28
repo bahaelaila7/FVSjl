@@ -665,12 +665,12 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
     mort  = 0f0
-    akfk = s.variant isa SoutheastAlaska && length(s.fire.ak_firkil) >= min(n, t.n)
+    akfk = length(s.fire.firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
         fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
-        # AK: FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
+        # FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
         # PROB−survivor difference, which rounds (akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
-        akfk && (fk = min(s.fire.ak_firkil[j], pre[j]))
+        akfk && (fk = min(s.fire.firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
         m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
@@ -736,7 +736,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
-                     wwpb_barrier::Union{Nothing,Function} = nothing)
+                     wwpb_barrier::Union{Nothing,Function} = nothing,
+                     fmmain_hook::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
@@ -965,6 +966,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH, before UPDATE)
+    fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
@@ -1466,6 +1469,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
     # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
     s.wpbr !== nothing && wpbr_brpr!(s)
+    s.control.total_removal = 0f0            # fvs.f:432 ONTREM(7)=0 for the next cycle
     # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO — so after GRADD's ESNUTR). estab.f:1247/1336/1426 call
     # RDESTB for every record ESTAB books, entering it into the disease area (PROBIU=PROB·PAREA, FPROB=PROB): size the
     # driver over this cycle's regen HERE, then report — post DBH-UPDATE (grown DBH for Live_BA), post the end-of-period
