@@ -59306,3 +59306,1975 @@ year = "*"
 status = "OPEN"
 max_cells = 8
 issue = """per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 8 cells [ulp1=6 ulp2_16=2] max|Δ|=1.907e-6 | e.g. stand 374401353489998 year 2025: live=8.37219524383545 jl=8.372194290161133"""
+
+# 2026-09-28 (tiered-west): WS added — 10 stratified FIA stands x 11 regimes vs FVSws_g16; entries drafted from measurement
+# (report.jl -> allowlist_draft.jl), all OPEN, owner = the WS campaign (not yet dug).
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "AutoEstbTPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 12 cells [gold_text9=12] max|Δ|=0.001282 | e.g. stand 1123894228290487 year 2021: live=19.3863564 jl=19.386261"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 10 cells [gold_text9=10] max|Δ|=1.6e-5 | e.g. stand 1123894228290487 year 2041: live=1.60412073 jl=1.60412025"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "GrowthMult"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 5 cells [gold_text9=5] max|Δ|=2.4e-7 | e.g. stand 1123894228290487 year 2041: live=0.119999953 jl=0.11999996"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 5 cells [gold_text9=5] max|Δ|=1.5e-5 | e.g. stand 1123894228290487 year 2061: live=2.28988433 jl=2.28988314"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "ViabMort"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 2 cells [gold_text9=2] max|Δ|=6.0e-8 | e.g. stand 1123894228290487 year 2021: live=0.853333354 jl=0.853333414"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Climate"
+col = "dClimMort"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 5 cells [gold_text9=5] max|Δ|=2.9e-8 | e.g. stand 1123894228290487 year 2041: live=0.0711307451 jl=0.0711307526"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 1123894228290487 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 1123894228290487 year *: live=500WO2W108 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 1123894228290487 year *: live=500WO2W108 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 35
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 35 cells [ulp1=16 ulp2_16=18 ulpbig=1] max|Δ|=3.433e-5 | e.g. stand 1123894228290487 year 2061: live=32.60187530517578 jl=32.60184097290039"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2061: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 35
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 35 cells [ulp1=16 ulp2_16=18 ulpbig=1] max|Δ|=3.433e-5 | e.g. stand 1123894228290487 year 2061: live=32.60187530517578 jl=32.60184097290039"""
+
+[[residual]]
+variant = "WS"
+regime = "climate"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 1123894228290487 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_StrClass"
+col = "Stratum_1_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 24
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=16 ulp2_16=8] max|Δ|=2.289e-5 | e.g. stand 1123894228290487 year 2071: live=79.84210205078125 jl=79.84209442138672"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_StrClass"
+col = "Stratum_2_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=7 ulp2_16=9 ulpbig=5] max|Δ|=1.693e-5 | e.g. stand 1123894228290487 year 2071: live=3.986323833465576 jl=3.98630690574646"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_StrClass"
+col = "Stratum_3_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulp1=2 ulp2_16=2] max|Δ|=4.768e-7 | e.g. stand 850400255290487 year 2040: live=2.6893486976623535 jl=2.6893489360809326"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 39
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 39 cells [ulp1=11 ulp2_16=23 ulpbig=5] max|Δ|=4.959e-5 | e.g. stand 1123894228290487 year 2061: live=15.233078956604004 jl=15.233033180236816"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2061: live=124771 jl=124773"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2061: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=0.004082 | e.g. stand 1123894228290487 year 2051: live=67.63673400878906 jl=67.64081573486328"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2051: live=16571 jl=16572"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 39
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 39 cells [ulp1=11 ulp2_16=23 ulpbig=5] max|Δ|=4.959e-5 | e.g. stand 1123894228290487 year 2061: live=15.233078956604004 jl=15.233033180236816"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16428 jl=16429"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2051: live=16571 jl=16572"""
+
+[[residual]]
+variant = "WS"
+regime = "cover"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16428 jl=16429"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """jl CRASH — KeyError: key :essprt_fsp not found | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live= jl=KeyError: key :essprt_fsp not found"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_EconHarvestValue"
+col = "Ft3_Removed"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 1123894228290487 year 2031: live=373416 jl=373419"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_EconHarvestValue"
+col = "Ft3_Value"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2031: live=112025 jl=112026"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_EconHarvestValue"
+col = "Total_Value"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2031: live=112025 jl=112026"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_EconSummary"
+col = "Mrch_Cubic_Volume"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=3.0 | e.g. stand 1123894228290487 year 2031: live=388384 jl=388387"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 1123894228290487 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 301
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 301 cells [structural=301] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 301
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 301 cells [structural=301] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=10 ulp2_16=7 ulpbig=4] max|Δ|=0.003006 | e.g. stand 1123894228290487 year 2061: live=86.05191802978516 jl=86.04975891113281"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2061: live=17157 jl=17183"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 1123894228290487 year 2031: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=0.01887 | e.g. stand 1123894228290487 year 2061: live=59.22745132446289 jl=59.23921585083008"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2061: live=2222 jl=2225"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 23
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp1=12 ulp2_16=6 ulpbig=5] max|Δ|=0.003006 | e.g. stand 1123894228290487 year 2061: live=86.05191802978516 jl=86.04975891113281"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2061: live=2222 jl=2225"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [small=1] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2061: live=86.1 jl=86.0"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 1123894228290487 year 2021: live=371 jl=224"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2041: live=2000 jl=2001"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [small=1] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2061: live=86.1 jl=86.0"""
+
+[[residual]]
+variant = "WS"
+regime = "econ"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2041: live=2000 jl=2001"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Spp_Sum"
+col = "Mean_DMI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 16 cells [ulp1=5 ulp2_16=10 ulpbig=1] max|Δ|=8.583e-6 | e.g. stand 23762384010900 year 2031: live=2.9472877979278564 jl=2.9472880363464355"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Spp_Sum"
+col = "Mean_DMR"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 16 cells [ulp1=5 ulp2_16=10 ulpbig=1] max|Δ|=8.583e-6 | e.g. stand 23762384010900 year 2031: live=2.9472877979278564 jl=2.9472880363464355"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Spp_Sum"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 23953388010900 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Inf_Vol"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2071: live=8428 jl=8429"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Mean_DMI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 11 cells [ulp1=3 ulp2_16=8] max|Δ|=7.153e-6 | e.g. stand 23762384010900 year 2041: live=4.370814800262451 jl=4.370815277099609"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Mean_DMR"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 11 cells [ulp1=3 ulp2_16=6 ulpbig=2] max|Δ|=1.383e-5 | e.g. stand 23762384010900 year 2041: live=0.8767127394676208 jl=0.8767129182815552"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Mort_BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2021: live=0 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Mort_Vol"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [material=1] max|Δ|=22.0 | e.g. stand 1123894228290487 year 2021: live=22 jl=44"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 23953388010900 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "Stnd_Vol"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16222 jl=16223"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live=500WO2W108 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live=500WO2W108 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 38
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 38 cells [ulp1=14 ulp2_16=20 ulpbig=4] max|Δ|=3.433e-5 | e.g. stand 23762384010900 year 2031: live=6.247321128845215 jl=6.247319221496582"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2061: live=119981 jl=119982"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 23762384010900 year 2031: live=371 jl=201"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=0.003777 | e.g. stand 1123894228290487 year 2071: live=64.24905395507812 jl=64.2528305053711"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2071: live=17026 jl=17027"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 38
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 38 cells [ulp1=14 ulp2_16=20 ulpbig=4] max|Δ|=3.433e-5 | e.g. stand 23762384010900 year 2031: live=6.247321128845215 jl=6.247319221496582"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16222 jl=16223"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2061: live=119981 jl=119982"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 23762384010900 year 2021: live=371 jl=201"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [gold_text9=1] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2071: live=64.2 jl=64.3"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2071: live=17026 jl=17027"""
+
+[[residual]]
+variant = "WS"
+regime = "mistletoe"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16222 jl=16223"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 15353585010497 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_StrClass"
+col = "Stratum_1_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 24
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=16 ulp2_16=8] max|Δ|=2.289e-5 | e.g. stand 850400255290487 year 2040: live=38.1595344543457 jl=38.15953063964844"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_StrClass"
+col = "Stratum_2_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=7 ulp2_16=9 ulpbig=5] max|Δ|=1.693e-5 | e.g. stand 850400255290487 year 2040: live=13.214241027832031 jl=13.214240074157715"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_StrClass"
+col = "Stratum_3_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulp1=2 ulp2_16=2] max|Δ|=4.768e-7 | e.g. stand 850400255290487 year 2040: live=2.6893486976623535 jl=2.6893489360809326"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 39
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 39 cells [ulp1=11 ulp2_16=23 ulpbig=5] max|Δ|=4.959e-5 | e.g. stand 850400255290487 year 2070: live=7.071476936340332 jl=7.071478366851807"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2061: live=124771 jl=124773"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 850400255290487 year 2070: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=0.004082 | e.g. stand 1123894228290487 year 2051: live=67.63673400878906 jl=67.64081573486328"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2051: live=16571 jl=16572"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 39
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 39 cells [ulp1=11 ulp2_16=23 ulpbig=5] max|Δ|=4.959e-5 | e.g. stand 850400255290487 year 2070: live=7.071476936340332 jl=7.071478366851807"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16428 jl=16429"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "BAPctile"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5937
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5937 cells [material=3 ulp1=2754 ulp2_16=2158 ulpbig=1022] max|Δ|=100.0 | e.g. stand 7689156010901 year 2006: live=0.0 jl=26.528457641601562"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 460
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 460 cells [ulp1=421 ulp2_16=36 ulpbig=3] max|Δ|=10.0 | e.g. stand 850400255290487 year 2070: live=1689.9998779296875 jl=1690.0"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "CrWidth"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2297
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2297 cells [ulp1=1020 ulp2_16=1205 ulpbig=72] max|Δ|=4.196e-5 | e.g. stand 850400255290487 year 2070: live=25.900434494018555 jl=25.90043830871582"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2905
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2905 cells [ulp1=1386 ulp2_16=1327 ulpbig=192] max|Δ|=5.341e-5 | e.g. stand 850400255290487 year 2070: live=33.977046966552734 jl=33.97705078125"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DG"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2479
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2479 cells [ulp1=52 ulp2_16=1347 ulpbig=1080] max|Δ|=2.67e-5 | e.g. stand 850400255290487 year 2060: live=1.1832237243652344 jl=1.1832199096679688"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "EstHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2951
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2951 cells [ulp1=1754 ulp2_16=1042 ulpbig=155] max|Δ|=0.0002823 | e.g. stand 850400255290487 year 2040: live=65.72978210449219 jl=65.72977447509766"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2962
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2962 cells [ulp1=1763 ulp2_16=1044 ulpbig=155] max|Δ|=0.0002823 | e.g. stand 850400255290487 year 2040: live=65.72978210449219 jl=65.72977447509766"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "Ht2TDBF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2051: live=57.0 jl=56.900001525878906"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "HtG"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4543
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4543 cells [ulp1=1092 ulp2_16=2391 ulpbig=1060] max|Δ|=0.000144 | e.g. stand 850400255290487 year 2040: live=4.34808349609375 jl=4.348082542419434"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 838
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 838 cells [ulp1=523 ulp2_16=312 ulpbig=3] max|Δ|=1.8 | e.g. stand 850400255290487 year 2040: live=87.79999542236328 jl=87.80000305175781"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "MortPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5569
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5569 cells [ulp1=301 ulp2_16=3192 ulpbig=2076] max|Δ|=0.00137 | e.g. stand 850400255290487 year 2060: live=0.025114234536886215 jl=0.02511420100927353"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "PctCr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=53.0 | e.g. stand 7689156010901 year 2006: live=10 jl=0"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "PtBAL"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 6 cells [material=2 ulpbig=4] max|Δ|=40.0 | e.g. stand 7689156010901 year 2006: live=0.0 jl=40.0"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1127
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1127 cells [ulp1=658 ulp2_16=458 ulpbig=11] max|Δ|=0.1 | e.g. stand 850400255290487 year 2060: live=110.99999237060547 jl=111.0"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "FVS_TreeList"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4485
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4485 cells [ulp1=1039 ulp2_16=2310 ulpbig=1136] max|Δ|=0.001373 | e.g. stand 850400255290487 year 2060: live=0.14616604149341583 jl=0.14616605639457703"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=2.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 25 cells [material=25] max|Δ|=170.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2051: live=16571 jl=16572"""
+
+[[residual]]
+variant = "WS"
+regime = "none"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=16428 jl=16429"""
+
+[[residual]]
+variant = "WS"
+regime = "plant_cal"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """jl CRASH — KeyError: key :estab_min_ht not found | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live= jl=KeyError: key :estab_min_ht not found"""
+
+[[residual]]
+variant = "WS"
+regime = "plant_cyc"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """jl CRASH — KeyError: key :estab_min_ht not found | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live= jl=KeyError: key :estab_min_ht not found"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 7 cells [structural=7] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 430
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 430 cells [structural=430] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Ave_Pct_Root_Inf"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 20 cells [material=2 ulp2_16=3 ulpbig=15] max|Δ|=1.488 | e.g. stand 23762384010900 year 2031: live=81.64258575439453 jl=81.60140228271484"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Inf_TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 13 cells [ulp1=2 ulp2_16=10 ulpbig=1] max|Δ|=2.098e-5 | e.g. stand 23762384010900 year 2031: live=0.08731497824192047 jl=0.08731498569250107"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Live_BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 19
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 19 cells [ulp1=12 ulp2_16=2 ulpbig=5] max|Δ|=0.003281 | e.g. stand 23762384010900 year 2051: live=79.25707244873047 jl=79.257080078125"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Live_Merch_CuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 27 cells [material=6 ulp1=9 ulp2_16=8 ulpbig=4] max|Δ|=6138.0 | e.g. stand 23762384010900 year 2041: live=15.117342948913574 jl=15.117341995239258"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Mort_CuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 9 cells [ulp1=3 ulp2_16=5 ulpbig=1] max|Δ|=0.0009155 | e.g. stand 850400255290487 year 2070: live=36.33513259887695 jl=36.33515167236328"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Mort_TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 12 cells [ulp1=2 ulp2_16=9 ulpbig=1] max|Δ|=6.104e-5 | e.g. stand 23762384010900 year 2041: live=0.07245565205812454 jl=0.07245565950870514"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "New_Inf_Prp_Ins"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 9 cells [ulp2_16=9] max|Δ|=2.086e-7 | e.g. stand 850400255290487 year 2070: live=0.019687334075570107 jl=0.0196873527020216"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "New_Inf_Prp_Tot"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 9 cells [ulp2_16=9] max|Δ|=2.086e-7 | e.g. stand 850400255290487 year 2070: live=0.019687334075570107 jl=0.0196873527020216"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=absent jl=present"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Stumps_BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 24
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 24 cells [ulp1=3 ulp2_16=20 ulpbig=1] max|Δ|=4.578e-5 | e.g. stand 23762384010900 year 2031: live=0.31942614912986755 jl=0.31942620873451233"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "Stumps_per_Acre"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 14 cells [ulp1=3 ulp2_16=8 ulpbig=3] max|Δ|=1.144e-5 | e.g. stand 23762384010900 year 2011: live=0.058629464358091354 jl=0.05862946808338165"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_RD_Sum"
+col = "UnInf_TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 22
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 22 cells [ulp1=6 ulp2_16=11 ulpbig=5] max|Δ|=0.000948 | e.g. stand 23762384010900 year 2031: live=18.271162033081055 jl=18.271160125732422"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 35
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 35 cells [ulp1=11 ulp2_16=19 ulpbig=5] max|Δ|=3.338e-5 | e.g. stand 23762384010900 year 2031: live=5.532998085021973 jl=5.532995223999023"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2061: live=100497 jl=100498"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=150.0 | e.g. stand 850400255290487 year 2070: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=0.004253 | e.g. stand 1123894228290487 year 2071: live=53.50943374633789 jl=53.513206481933594"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2071: live=14180 jl=14181"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 35
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 35 cells [ulp1=11 ulp2_16=19 ulpbig=5] max|Δ|=3.338e-5 | e.g. stand 23762384010900 year 2031: live=5.532998085021973 jl=5.532995223999023"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=98503 jl=98504"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 17 cells [material=17] max|Δ|=150.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "rootdis"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 1123894228290487 year 2041: live=13882 jl=13883"""
+
+[[residual]]
+variant = "WS"
+regime = "salvage"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """jl CRASH — FFE fuel tables not ported for this variant (CR FFE chunk pending): ffe_fuel_live is empty. FFE keywords (POTFIRE/SIMFIRE) are unsupported until ported. | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live= jl=FFE fuel tables not ported for this variant (CR FFE chunk pe"""
+
+[[residual]]
+variant = "WS"
+regime = "simfire"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """jl CRASH — FFE fuel tables not ported for this variant (CR FFE chunk pending): ffe_fuel_live is empty. FFE keywords (POTFIRE/SIMFIRE) are unsupported until ported. | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 23762384010900 year *: live= jl=FFE fuel tables not ported for this variant (CR FFE chunk pe"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """jl CRASH — KeyError: key :essprt_fsp not found | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 7689398010901 year *: live= jl=KeyError: key :essprt_fsp not found"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "BAPctile"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 231
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 231 cells [gold_text9=229 tiny=2] max|Δ|=9.92e-5 | e.g. stand 850400255290487 year 2030: live=8.71221733 jl=8.71221638"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 15 cells [gold_text9=3 jl_not_f32=5 tiny=7] max|Δ|=0.00049 | e.g. stand 1123894228290487 year 2031: live=109.999992 jl=110.000008"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "CrWidth"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 15 cells [gold_text9=15] max|Δ|=3.9e-6 | e.g. stand 850400255290487 year 2030: live=5.13929319 jl=5.13929367"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 21 cells [gold_text9=21] max|Δ|=3.8e-6 | e.g. stand 850400255290487 year 2030: live=1.41289306 jl=1.4128933"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "DG"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 21 cells [gold_text9=21] max|Δ|=3.81e-6 | e.g. stand 850400255290487 year 2030: live=1.09941661 jl=1.09941685"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "EstHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 29 cells [gold_text9=29] max|Δ|=1.5e-5 | e.g. stand 850400255290487 year 2030: live=7.74026299 jl=7.74026394"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 29 cells [gold_text9=29] max|Δ|=1.5e-5 | e.g. stand 850400255290487 year 2030: live=7.74026299 jl=7.74026394"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "HtG"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 53
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 53 cells [gold_text9=53] max|Δ|=1.335e-5 | e.g. stand 850400255290487 year 2030: live=6.50032425 jl=6.50032473"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-28: 9 cells [gold_text9=7 jl_not_f32=1 tiny=1] max|Δ|=6.1e-5 | e.g. stand 1123894228290487 year 2031: live=13.1000004 jl=13.1000013"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 12 cells [gold_text9=6 tiny=6] max|Δ|=0.00012 | e.g. stand 1123894228290487 year 2031: live=9.60000134 jl=9.60000038"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_CutList"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 90
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 90 cells [gold_text9=90] max|Δ|=0.001373 | e.g. stand 15353585010497 year 2020: live=1.270836 jl=1.27084744"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Error"
+col = "Message"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 850400255290487 year *: live=FVS14 WARNING: HABITAT/PLANT ASSOCIATION jl=FVS40 WARNING: TREE RECORD REPRESENTING GREATER THAN 1000 TP"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Error"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 15353585010497 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Error"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 2 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 23771657010900 year *: live=2 jl=1"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 301
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 301 cells [structural=301] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 301
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 301 cells [structural=301] max|Δ|=0.0 | e.g. stand 23771657010900 year *: live=500DVEW631 jl="""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 11 cells [ulp2_16=4 ulpbig=7] max|Δ|=0.002052 | e.g. stand 15353585010497 year 2040: live=31.72500991821289 jl=31.725006103515625"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 21 cells [ulp1=10 ulp2_16=7 ulpbig=4] max|Δ|=0.003006 | e.g. stand 850400255290487 year 2070: live=66.90216827392578 jl=66.90217590332031"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2061: live=17157 jl=17183"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=0.01887 | e.g. stand 1123894228290487 year 2061: live=59.22745132446289 jl=59.23921585083008"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2061: live=2222 jl=2225"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 23
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 23 cells [ulp1=12 ulp2_16=6 ulpbig=5] max|Δ|=0.003006 | e.g. stand 850400255290487 year 2070: live=66.90216827392578 jl=66.90217590332031"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2061: live=2222 jl=2225"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [small=1] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2061: live=86.1 jl=86.0"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [ulpbig=5] max|Δ|=36.0 | e.g. stand 1123894228290487 year 2031: live=104443 jl=104444"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 5 cells [material=5] max|Δ|=149.0 | e.g. stand 850400255290487 year 2020: live=371 jl=222"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2041: live=2000 jl=2001"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [small=1] max|Δ|=0.1 | e.g. stand 1123894228290487 year 2061: live=86.1 jl=86.0"""
+
+[[residual]]
+variant = "WS"
+regime = "thinbba"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2041: live=2000 jl=2001"""
