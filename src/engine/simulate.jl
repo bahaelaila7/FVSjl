@@ -694,6 +694,13 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # ICR makes the next CROWN keep FMICR instead of recomputing (crown.f "ICR(I) WAS CALCULATED ELSEWHERE");
     # jl stores the kept value in crown_bypass, applied by crown_ratio_update_fvs!.
     fm = s.fire.fmicr
+    # FMOLDC (fmoldc.f, fmmain.f:268) closes the fire cycle's FMMAIN AFTER FMBURN: OLDCRL = HT·FMICR/100 with the fire-
+    # shortened FMICR (FMKILL's ≥1 floor comes later), so the next FMSDIT crown lift of a scorched survivor starts from its
+    # post-fire crown base (MEASURED private FMCADD trace, SN 238813815010854 SIMFIRE: 2010 crown-lift size 1 0.0131616 live
+    # vs 0.0116946 from the pre-fire ICR).
+    if length(fm) == n
+        @inbounds for j in 1:n; t.ffe_oldcr[j] = Float32(fm[j]); end
+    end
     if length(fm) == n
         byp = s.fire.crown_bypass
         resize!(byp, n); fill!(byp, Int32(0))

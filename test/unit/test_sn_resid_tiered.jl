@@ -279,4 +279,11 @@ end
     @test count(m -> m.file == "FVS_PotFire_East", _casex("205045340010854", "simfire").ms) == 0
 end
 
+# fmoldc.f (fmmain.f:268) closes the fire cycle's FMMAIN after FMBURN, so OLDCRL = HT·FMICR/100 uses the fire-shortened crown;
+# the next FMSDIT crown lift (fmsdit.f:103-118) of a scorched survivor starts from that crown base. jl kept the pre-fire ICR
+# (MEASURED private FMCADD trace, 238813815010854 SIMFIRE 2010: crown-lift size 1 0.0116946 vs live 0.0131616 ⇒ DDW 2015+).
+@testset "FFE FMOLDC with the post-fire FMICR (fmoldc.f, fmsdit.f:103-118) vs FVSsn_g16" begin
+    @test _cellsx("238813815010854", "simfire", "FVS_Carbon", ("Forest_Down_Dead_Wood", "Forest_Floor"), ("2015", "2020")) == 0
+end
+
 end # module
