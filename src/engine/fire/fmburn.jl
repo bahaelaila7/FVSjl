@@ -484,6 +484,21 @@ fm_canopy_lsw(sp::Integer, ::BlueMountains) = (1 <= sp <= 14) || sp == 17   # bm
 # 26:49 = FALSE. The AbstractVariant `sp<=25` fallback wrongly dropped redwood (sp50) from the OC canopy
 # profile — a latent under-count of crown fuel on redwood stands (inert on all-conifer non-redwood stands).
 fm_canopy_lsw(sp::Integer, ::OregonCoast) = (1 <= sp <= 25) || sp == 50
+# Every other western build's {v}/fmvinit.f SELECT CASE (I) … LSW(I) (read from the buildDir sources): the hardwoods
+# are FALSE, so their crowns stay out of FMPOCR's canopy profile (CBD/ACTCBH ⇒ PotFire, crown fire, CanProfile).
+# The `sp<=25` fallback counted EM's aspen/cottonwood/birch/maples (11-17, 19) and IE's 18-22 as canopy fuel —
+# EM 2999215010690 got CBD 0.040 / ACTCBH 5 where live has 0 / −1 (a pure-hardwood canopy).
+fm_canopy_lsw(sp::Integer, ::EasternMontana) = (1 <= sp <= 10) || sp == 18
+fm_canopy_lsw(sp::Integer, ::InlandEmpire) = (1 <= sp <= 17) || sp == 23
+fm_canopy_lsw(sp::Integer, ::CentralIdaho) = (1 <= sp <= 12) || sp == 14 || sp == 16 || sp == 18
+fm_canopy_lsw(sp::Integer, ::Teton) = (1 <= sp <= 5) || (7 <= sp <= 12) || sp == 17
+fm_canopy_lsw(sp::Integer, ::Utah) = (1 <= sp <= 5) || (7 <= sp <= 12) || (14 <= sp <= 17) || sp == 23
+fm_canopy_lsw(sp::Integer, ::SoutheastAlaska) = 1 <= sp <= 13
+fm_canopy_lsw(sp::Integer, ::BritishColumbia) = (1 <= sp <= 10) || sp == 14
+fm_canopy_lsw(sp::Integer, ::Union{PacificNorthwest,WestCascades,Olympic}) = (1 <= sp <= 20) || (29 <= sp <= 33) || sp == 38
+fm_canopy_lsw(sp::Integer, ::EastCascades) = (1 <= sp <= 19) || sp == 31
+fm_canopy_lsw(sp::Integer, ::WestSierra) = (1 <= sp <= 27) || sp == 42
+fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 3) || sp == 6 || sp == 9 || sp == 10 || sp == 12
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 # PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2)),
