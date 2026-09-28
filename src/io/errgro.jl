@@ -51,18 +51,22 @@ const _ERRGRO_TEXT = Dict{Int,String}(
     34 => "FVS34 WARNING:  PV CODE/PV REFERENCE CODE COMBINATION WAS NOT RECOGNIZED; HABITAT/PLANT " *
           "ASSOCIATION/ECOREGION SET TO DEFAULT CODE.",
     40 => "FVS40 WARNING:  TREE RECORD REPRESENTING GREATER THAN 1000 TPA ENCOUNTERED. MAY CAUSE MATHEMATICAL ERRORS.",
-    41 => "FVS41 WARNING:  INITIAL STAND STOCKING IS MORE THAN 5% ABOVE LIMIT, SDI MAXIMUM RESET.")
+    41 => "FVS41 WARNING:  INITIAL STAND STOCKING IS MORE THAN 5% ABOVE LIMIT, SDI MAXIMUM RESET.",
+    43 => "FVS43 WARNING: FIAVBC REQUESTED BUT ECODIVISION CODE NOT RECOGNIZED OR MISSING. USING \"0000\" BY DEFAULT")
 
 """
     errgro!(s, ierrn; irecnt, irec1, irecrd)
 
 ERRGRO(.TRUE.,IERRN): record the CMSG text (errgro.f FORMAT 1111/1811/2111/…) for the stand's FVS_Error table.
 FVS01 carries the keyword record count IRECNT (I4); FVS08 the projectable/total tree-record counts (I2/I4) and the
-stand id (A26).
+stand id (A26); FVS09 the counted plots IPTKNT and nonstockable plots NSTKNT (both I4, passed as irec1/irecrd).
 """
 function errgro!(s::StandState, ierrn::Integer; irecnt::Integer = 0, irec1::Integer = 0, irecrd::Integer = 0)
     msg = if ierrn == 1
         "FVS01 ERROR:  INVALID KEYWORD WAS SPECIFIED.  RECORDS READ=" * _fI(irecnt, 4)            # errgro.f:1111
+    elseif ierrn == 9
+        "FVS09 WARNING:  PLOT COUNTS DO NOT MATCH DATA ON THE DESIGN RECORD; DESIGN RECORD DATA USED." *   # errgro.f:1911
+            "PLOT COUNT=" * _fI(irec1, 4) * "; NONSTOCKABLE COUNT=" * _fI(irecrd, 4)
     elseif ierrn == 8
         "FVS08 WARNING:  TOO FEW PROJECTABLE TREE RECORDS.  PROJECTABLE RECORDS:" * _fI(irec1, 2) *   # errgro.f:1811
             "; TREE RECORDS:" * _fI(irecrd, 4) * "; STAND ID: " * rpad(first(s.plot.stand_id, 26), 26)
@@ -462,6 +466,16 @@ function habtyp_errors!(s::StandState{CentralRockies}, pv::AbstractString, cpvre
     # "(CODE 306)" 3026069010690 PV 10507/201, 470 5278473010690 011330/301, 526 742164474290487 201020/301.
     s.plot.habitat_code = Int32(kod); s.plot.habitat_input = Int32(itype); s.control.icl5 = Int32(kod)
     return nothing
+end
+
+# nvb_region_check.f (called by dbsstandin.f:607-610 for every stand with an ECOREGION): the code up to its last digit,
+# that digit set to '0', must be one of the 19 NSVB ecodivisions; otherwise ECOREG='0000' and ERRGRO(.TRUE.,43).
+const _NVB_DIVS = Set(["130", "210", "220", "230", "240", "250", "260", "310", "330", "340",
+                       "M130", "M210", "M220", "M230", "M240", "M260", "M310", "M330", "M340"])
+function nvb_region_valid(ecoreg::AbstractString)::Bool
+    e = String(strip(ecoreg))
+    i = findlast(isdigit, e); i === nothing && return false
+    return (e[1:prevind(e, i)] * "0") in _NVB_DIVS
 end
 
 # --- FVS_Error DBS table (dbserror.f) ------------------------------------------------------------------------------
