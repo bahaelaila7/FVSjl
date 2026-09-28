@@ -133,4 +133,16 @@ end
     @test isempty(_ccol("Belowground_Live"))
 end
 
+# ---- FFE fire kill: IE 4769882010690 SIMFIRE (fire 2014) vs FVSie_g16 --------------------------------------------------
+# fmeff.f:352-527 pools the burned record's crowns into CWD2B2 in three FMSCRO calls — the crown-fire share CRBURN (no
+# foliage, half the 0-0.25" + its OLDCRW), the killed rest ((1−CRBURN)·PMORT, foliage and CRW1BN burned over the scorched
+# PROPCR) and the survivors' scorched-dead crown ((1−CRBURN)(1−PMORT), no foliage, PROPCR of each woody size) — and
+# FMSADD(IYR,1) (fmeff.f:608) bins the killed trees into class-mean snag records. jl booked every killed tree's crown with
+# the scorched-kill form and kept one snag per tree (MEASURED 2014: CWD2B2 sizes 0-3 1899/3399/7488/2582 live vs
+# 3248/3748/7427/2553; 67 snag records vs 617 ⇒ Standing_Dead 30.519 vs 31.197).
+@testset "Fire-killed crowns (fmeff.f:352-527) + binned fire snags (fmeff.f:608) vs FVSie_g16" begin
+    ms = _case("4769882010690", "simfire").ms
+    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2004", "2014"), ms)
+end
+
 end # module
