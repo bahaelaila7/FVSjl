@@ -161,6 +161,7 @@ include("variants/easternmontana/establishment.jl") # EM ESSUBH base height (em/
 include("variants/teton/teton.jl")            # TT singleton + registration (MAXSP 18, western Wykoff DDS, oracle verified)
 include("variants/teton/species.jl")          # TT blkdat init (18 species, seed 55329, ZEIDE SDI) + SPCTRN
 include("variants/teton/habtyp_table.jl")      # TT R4HABT(363) habitat code → ITYPE (tt/habtyp.f)
+include("variants/teton/pvref4_data.jl")        # tt/ut pvref4.f + habtyp.f PV crosswalk → ITYPE (generated, TT = UT)
 include("variants/teton/site_index.jl")        # TT sitset (SITEAR interp + SDIDEF) + forkod (chunk 2)
 include("variants/teton/crown.jl")             # TT per-tree CCF (tt/ccfcal.f MODE=1) — RELDEN+PCCF for DG (chunk 3)
 include("variants/teton/dg_coefficients.jl")   # TT large-tree DG coefficient arrays (tt/dgf.f DATA, generated)

@@ -40,6 +40,8 @@ ext_stub_keywords(::AbstractVariant) = ()
 _fI(n::Integer, w::Int) = (t = string(n); length(t) > w ? "*"^w : lpad(t, w))
 
 const _ERRGRO_TEXT = Dict{Int,String}(
+    3 => "FVS03 WARNING:  FOREST CODE INDICATES THE GEOGRAPHIC LOCATION IS OUTSIDE THE RANGE OF THE MODEL.  " *
+         "DEFAULT CODE IS USED.",
     11 => "FVS11 ERROR:  REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM.",
     14 => "FVS14 WARNING:  HABITAT/PLANT ASSOCIATION/ECOREGION CODE WAS NOT RECOGNIZED; HABITAT/PLANT " *
           "ASSOCIATION/ECOREGION SET TO DEFAULT CODE.",
@@ -191,6 +193,13 @@ end
 
 function habtyp_errors!(s::StandState{CentralIdaho}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
     _, errs, _ = ci_habitat_kodtyp(pv, cpvref, kodtyp)                       # ci/habtyp.f:54-75
+    foreach(e -> errgro!(s, e), errs)
+    return nothing
+end
+
+function habtyp_errors!(s::Union{StandState{Teton},StandState{Utah}}, pv::AbstractString, cpvref::AbstractString,
+                        kodtyp::Integer)
+    _, errs = r4_habitat_itype(pv, cpvref, kodtyp)                     # tt|ut/habtyp.f:152-228
     foreach(e -> errgro!(s, e), errs)
     return nothing
 end
