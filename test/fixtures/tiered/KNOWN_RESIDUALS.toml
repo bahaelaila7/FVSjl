@@ -6301,17 +6301,6 @@ issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE r
 variant = "BM"
 regime = "simfire"
 file = "FVS_PotFire"
-col = "Fuel_Wt3"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 12827438010497 year 2015: live=2.0 jl=3.0"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_PotFire"
 col = "Mortality_BA_Mod"
 stand = "*"
 year = "*"
