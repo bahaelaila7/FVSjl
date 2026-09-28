@@ -259,19 +259,15 @@ function point_basal_area!(s::StandState; cratet_ind::Bool = false)
     # or :257's identity re-sort with dead records — bm_cratet_ind!), the IND the first cycle's DGDRIV PTBALT and the
     # cycle-0 TreeList PtBAL come from; afterwards gradd.f:186's fresh RDPSRT(.TRUE.).
     cratet_ind ? bm_cratet_ind!(s, order) : _rdpsrt!(view(t.dbh, 1:t.n), order)      # IND: DBH descending, FVS tie-break
-    # AK: ptbal.f XBALT+WK5·.005454154·PI/GROSPC with dense.f WK5=D·(D·P), in that Float32 order (the PBAL feeding
-    # AK's DGF/MORTS logistic; the shared form below rounds differently by a few ULP on dense points).
-    akw5 = s.variant isa SoutheastAlaska
+    # ptbal.f:148 (one file in every build): XBALT = XBALT + WK5·.005454154·PI/GROSPC with dense.f's WK5 = D·(D·P), in that
+    # REAL*4 order — the PBAL feeding the DGF/MORTS terms. (MEASURED AK, and FVSsn_g16 157577477010854 1982: PBAL 1 ULP
+    # off on 263 of 315 records with the P·(0.005454154·D²)·PI/GROSPC form.)
     pi_f = p.pi; gross = p.gross_space
     @inbounds for i in order
         ip = Int(t.plot_id[i])
         pbal[i] = pb[ip]                                # BA already accumulated = larger trees
-        if akw5
-            d = t.dbh[i]
-            pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
-        else
-            pb[ip] += t.tpa[i] * BA_PER_TREE * t.dbh[i]^2 * scale
-        end
+        d = t.dbh[i]
+        pb[ip] += d * (d * t.tpa[i]) * 0.005454154f0 * pi_f / gross
     end
     return s
 end

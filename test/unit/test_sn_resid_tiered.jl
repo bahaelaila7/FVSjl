@@ -51,4 +51,11 @@ end
     @test _cells("FVS_Summary", ("QMD", "ATQMD"), ("1977", "1982", "1987", "1992", "1997")) == 0
 end
 
+# ptbal.f:148 (one file in every build) XBALT = XBALT + WK5·.005454154·PI/GROSPC, WK5 = D·(D·P): the point BA/BAL that
+# DGF's PBAL term reads. jl used P·(0.005454154·D²)·PI/GROSPC outside AK (MEASURED FVSsn_g16 private DGF trace, 1982:
+# PBAL 1 ULP off on 263 of 315 records ⇒ DDS). With it the whole stand — .sum, Summary, TreeList, StrClass — equals live.
+@testset "SN point BAL from ptbal.f's WK5 form (ptbal.f:148): 157577477010854 NONE all cells vs FVSsn_g16" begin
+    @test isempty(_case157().ms)
+end
+
 end # module
