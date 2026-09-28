@@ -208,4 +208,11 @@ end
     @test count(m -> m.file == "FVS_Mortality", _casex("200267456010854", "simfire").ms) == 0
 end
 
+# sn/fmburn.f:586-589 re-runs FMCBA once BURNYR=IYR BEFORE FMEFF reduces FMPROB (and only for VARACD='SN'); jl re-ran it after the
+# kills, so FMSNFT typed the fire-thinned stand on the survivors' pine share (MEASURED 216786838010854 SIMFIRE 2009: IFFEFT 3
+# pine/hardwood ⇒ FULIV 0.35 vs live hardwood/pine 0.04 ⇒ Shrub_Herb 0.175 vs 0.02).
+@testset "SN post-burn FMCBA re-run on the pre-kill list (sn/fmburn.f:586-589) vs FVSsn_g16" begin
+    @test _cellsx("216786838010854", "simfire", "FVS_Carbon", ("Forest_Shrub_Herb", "Total_Stand_Carbon"), ("2009",)) == 0
+end
+
 end # module

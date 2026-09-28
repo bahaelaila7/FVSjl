@@ -530,14 +530,13 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     ffe_defer_init = true
                 end
             end
-            # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start; between FMBURN and FMCRBOUT only SN re-runs it
-            # (sn/fmburn.f:589, the post-burn FULIV2 shrub age), so EM's fire-year FLIVE is the PRE-fire load (live
-            # 196378260020004 2022 Shrub_Herb 0.263 = ½·(0.285+0.242); a post-fire FMCBA gave 0.392).
-            # Only SN re-runs it (fmburn.f:588 `IF (BURNYR.EQ.IYR .AND. VARACD.EQ.'SN')`); no western variant does (EC ect01 2003
-            # Surface_Shrub post-fire FMCBA 1.649 vs live pre-fire 0.420). CS/LS/NE keep the re-run pending a live check.
-            _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
-                              st.variant isa Northeast)
-            chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
+            # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start. The only re-run is sn/fmburn.f:586-589 (the same
+            # line in the CS/LS/NE builds, gated `VARACD .EQ. 'SN'`): once BURNYR=IYR, SN calls FMCBA again BEFORE FMEFF kills
+            # (pre-fire FMPROB), which changes only the eco-unit FULIV2 shrub age — applied at the burn by fmburn!'s
+            # ffe_live_fuel_override. A post-kill re-run here re-typed the stand on the SURVIVORS (MEASURED FVSsn_g16
+            # 216786838010854 SIMFIRE 2009 Shrub_Herb 0.02 live vs 0.175: the fire-thinned hardwood/pine read as pine/hardwood).
+            # EM's fire-year FLIVE is likewise the pre-fire load (live 196378260020004 2022 Shrub_Herb 0.263).
+            chook = fire_cycle ? (st -> (compute_density!(st); _carb_push(st))) : nothing
             _v3p = carb_v3_pending; carb_v3_pending = nothing
             fhook = _v3p === nothing ? nothing :
                     ((st, stash) -> (e = carbon_collect[_v3p[1]];
