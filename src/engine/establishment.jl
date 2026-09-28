@@ -113,6 +113,41 @@ const _ON_ES_XMIN = Float32[
 const _ON_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,
  12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20,14,20,18,16]
 
+# ESSUBH fixed base heights. ca/essubh.f == oc/essubh.f (GO TO labels 10/40→1.0, 20/50→2.0, 30→3.0);
+# ws/essubh.f SELECT CASE (41 = the PY site form, handled inline).
+const _CA_ESSUBH_HHT = Float32[2,2,2,2,1,1,2,2,1,3, 3,3,3,3,2,2,2,2,2,2, 3,2,2,1,2,2,2,2,2,1, 1,2,2,2,2,2,2,2,1,1,
+                               2,2,2,2,2,2,2,2,2,2]
+const _WS_ESSUBH_HHT = let h = zeros(Float32, 43)
+    for i in (1, 11, 24, 3, 13, 4, 23, 5); h[i] = 2f0; end
+    for i in (2, 22, 42); h[i] = 1f0; end
+    for i in (28:33..., 40, 43, 34:39...); h[i] = 7f0; end
+    h[6] = 0.8f0; h[7] = 5f0; h[8] = 4f0; h[18] = 4f0; h[9] = 3f0; h[10] = 3f0
+    for i in (12, 14, 15, 16, 17, 19, 20, 25, 26, 27); h[i] = 3f0; end
+    h[21] = 0.5f0
+    h
+end
+
+# The establishment XMIN / HHTMAX of the variants whose species CSV has no :estab_min_ht column (their ESTAB/PLANT/
+# NATURAL cycle crashed with KeyError :estab_min_ht — the stock tests/FVS<v> keys of KT, SO, CA, BC).
+# kt/blkdat.f DATA XMIN / HHTMAX (MAXSP 11)
+const _KT_ES_XMIN = Float32[1, 1, 1, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5]
+const _KT_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 24, 18, 18, 17, 22]
+# so/blkdat.f DATA XMIN / HHTMAX (MAXSP 33)
+const _SO_ES_XMIN = Float32[1, 1, 1.5, 1.5, 0.5, 0.5, 1.5, 0.5, 0.8, 1.3, 0.5, 1.5, 0.8, 0.5, 1, 1, 1, 0.5, 1, 1, 1, 1, 1, 6, 1, 1, 1.5, 1, 1, 1, 1, 1.5, 1]
+const _SO_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 20, 18, 20, 17, 6, 21, 20, 21, 20, 23, 27, 22, 20, 20, 20, 50, 20, 16, 20, 20, 20, 20, 20, 20, 20, 21, 20]
+# ws/blkdat.f DATA XMIN / HHTMAX (MAXSP 43)
+const _WS_ES_XMIN = Float32[2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 0.5, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2]
+const _WS_ES_HHTMAX = Float32[27, 21, 21, 22, 20, 18, 18, 17, 20, 20, 27, 20, 21, 20, 20, 20, 20, 17, 20, 20, 9, 21, 22, 27, 20, 20, 20, 24, 24, 24, 24, 24, 24, 22, 22, 22, 22, 22, 22, 24, 20, 23, 24]
+# ca/blkdat.f DATA XMIN / HHTMAX 50*20 (MAXSP 50)
+const _CA_ES_XMIN = Float32[0.5, 0.5, 0.3, 0.8, 0.8, 0.8, 0.8, 0.3, 0.5, 1.2, 1, 1, 1, 1, 1, 0.8, 0.8, 1, 0.8, 1.2, 1, 0.5, 1, 0.3, 0.8, 1, 0.5, 1, 1, 0.8, 1, 0.8, 1, 0.5, 0.8, 0.8, 0.5, 0.8, 0.5, 0.8, 1, 0.5, 1, 1.2, 1.2, 1, 0.3, 0.5, 0.75, 1]
+const _CA_ES_HHTMAX = Float32[20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+# oc/blkdat.f DATA XMIN / HHTMAX MAXSP*20 (MAXSP 50)
+const _OC_ES_XMIN = Float32[0.5, 0.5, 0.3, 0.8, 0.8, 0.8, 0.8, 0.3, 0.5, 1.2, 1, 1, 1, 1, 1, 0.8, 0.8, 1, 0.8, 1.2, 1, 0.5, 1, 0.3, 0.8, 1, 0.5, 1, 1, 0.8, 1, 0.8, 1, 0.5, 0.8, 0.8, 0.5, 0.8, 0.5, 0.8, 1, 0.5, 1, 1.2, 1.2, 1, 0.3, 0.5, 0.75, 1]
+const _OC_ES_HHTMAX = Float32[20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+# canada/bc blkdat.f:47-55 DATA XMIN / HHTMAX (MAXSP 15)
+const _BC_ES_XMIN = Float32[1, 1, 1, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1, 1, 1, 1]
+const _BC_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 24, 18, 18, 17, 20, 20, 20, 21, 20]
+
 # Establishment min-height (XMIN) + max seedling height (HHTMAX) per species — from each variant's
 # blkdat.f (VERIFIED: IE blkdat.f:62 XMIN == _IE_ES_XMIN). EM/BM/UT/CI had no establishment.jl ⇒ the dispatch
 # fell to the missing `:estab_min_ht` coef ⇒ KeyError crash on ESTAB/PLANT-keyword stands (full utt01/emt01/
@@ -432,11 +467,17 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
               s.variant isa Olympic ? _OP_ES_XMIN :
               (s.variant isa WestCascades || s.variant isa PacificNorthwest) ? _OP_ES_XMIN :   # wc/pn blkdat.f:70-71 XMIN = op/blkdat.f DATA
               s.variant isa Ontario ? _ON_ES_XMIN :
+              s.variant isa Kootenai ? _KT_ES_XMIN : s.variant isa SouthCentralOregon ? _SO_ES_XMIN :
+              s.variant isa WestSierra ? _WS_ES_XMIN : s.variant isa CentralCalifornia ? _CA_ES_XMIN :
+              s.variant isa OregonCoast ? _OC_ES_XMIN : s.variant isa BritishColumbia ? _BC_ES_XMIN :
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
                 s.variant isa LakeStates ? _LS_ES_HHTMAX :
                 s.variant isa Ontario ? _ON_ES_HHTMAX :
+                s.variant isa Kootenai ? _KT_ES_HHTMAX : s.variant isa SouthCentralOregon ? _SO_ES_HHTMAX :
+                s.variant isa WestSierra ? _WS_ES_HHTMAX : s.variant isa CentralCalifornia ? _CA_ES_HHTMAX :
+                s.variant isa OregonCoast ? _OC_ES_HHTMAX : s.variant isa BritishColumbia ? _BC_ES_HHTMAX :
                 s.variant isa CentralRockies ? _CR_ES_HHTMAX :
                 s.variant isa InlandEmpire ? _IE_ES_HHTMAX :
                 s.variant isa Teton ? _TT_ES_HHTMAX :
@@ -501,7 +542,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
           s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
           s.variant isa CentralIdaho || s.variant isa EastCascades ||
           s.variant isa Klamath || s.variant isa Olympic || s.variant isa WestCascades ||
-          s.variant isa PacificNorthwest) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa PacificNorthwest || s.variant isa Kootenai || s.variant isa SouthCentralOregon ||
+          s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa OregonCoast ||
+          s.variant isa BritishColumbia) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -517,7 +560,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains ||
+                      s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+                      s.variant isa OregonCoast || s.variant isa BritishColumbia) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -661,7 +706,8 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 (ls_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
             elseif s.variant isa CentralRockies
                 _CR_ESSUBH_HHT[sp]        # cr/essubh.f: a FIXED per-species base height (not a height-at-age curve)
-            elseif s.variant isa InlandEmpire
+            elseif s.variant isa InlandEmpire || s.variant isa Kootenai
+                # KT: kt/essubh.f is ie/essubh.f's first 11 species verbatim (same PN/SIG/UHAB/UPRE/UPHY; OT(11) = the WH form).
                 # IE NATURAL/PLANT base height (ie/essubh.f) — the subsequent/planted-tree height model
                 # HHT = EXP(PN + EMSQR·DILATE·BNORM·SIG). IHTSER from the shared estab MYGRUP→MYHTS bracket
                 # (em_ihtser); IPREP=1 (NONE) / IPHY=3 defaults (esplt2.f:191-192); BAA = overstory competition
@@ -770,6 +816,19 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                     per < 5 && (hht_op *= Float32(per) / 5f0)
                     hht_op
                 end
+            elseif s.variant isa SouthCentralOregon
+                # so/essubh.f: SH/WO (9,27) HHT=1, AS (24) HHT=5, else SMHTGF(MODE=0) — the small-tree height at total
+                # AGE (MODE0 is an unset -fno-automatic local ⇒ 0; H likewise 0; CR=0; SI=SITEAR(I)).
+                sp == 9 || sp == 27 ? 1f0 : sp == 24 ? 5f0 :
+                    so_smhtgf(sp, 0f0, 0f0, 0f0, Float32(age), 0; si = si, ba = s.plot.basal_area, pct = 0f0,
+                              avh = s.plot.avg_height)
+            elseif s.variant isa WestSierra
+                sp == 41 ? ((1.47043f0 + 0.23317f0 * si) / (31.56252f0 - 0.05586f0 * si)) * Float32(age) :   # ws/essubh.f
+                           _WS_ESSUBH_HHT[sp]
+            elseif s.variant isa CentralCalifornia || s.variant isa OregonCoast
+                _CA_ESSUBH_HHT[sp]        # ca/essubh.f == oc/essubh.f: a fixed per-species base height (GO TO table)
+            elseif s.variant isa BritishColumbia
+                1f0                       # canada/bc essubh.f: HHT=1.0 for every species
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -842,7 +901,9 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
             elseif hht < 4.5f0
                 dbh = 0.1f0 + 0.001f0 * hht
             elseif s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades ||
-                   s.variant isa PacificNorthwest   # pn/estab.f:626 == wc's
+                   s.variant isa PacificNorthwest ||   # pn/estab.f:626 == wc's
+                   s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+                   s.variant isa OregonCoast || s.variant isa BritishColumbia   # so/ws/ca/oc estab.f == wc's; bc :620
                 # ec/estab.f:626 and op/estab.f:626 (wc/estab.f:626 is the same source) both assign the establishment DBH = 0.1 flat; their
                 # esgent.f only recomputes DBH when WK4<1 (a partial birth cycle). A full-birth-cycle
                 # PLANT/NATURAL tree (WK4=1) keeps DBH=0.1 even after its height exceeds breast height —
@@ -887,7 +948,10 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
                                       s.variant isa Teton || s.variant isa Utah ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
-                                      s.variant isa Olympic   # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
+                                      s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
+                                      s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
+                                      s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same
+                                      s.variant isa BritishColumbia
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
