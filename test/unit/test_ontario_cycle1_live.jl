@@ -120,6 +120,12 @@ end
     for (k, lv, jv) in _on1_col(:MCuM; sel = (k, v) -> v.TPH > 0)
         @test (k, jv) == (k, lv)
     end
+    # A record the first MORTS empties is skipped by VOLS (vols.f:125 P≤0): its WK1 keeps what dgdriv.f DO 5 loaded at
+    # the top of the cycle — cycle 1: the LSTART DO-220 DG (dgdriv.f:700-729, on_do220_dg); TRIPLE copies it
+    # (triple.f:68). jl re-volumed them (the three zero-TPH PJ records: MCuM sentinel vs live WK1=DG).
+    for (k, lv, jv) in _on1_col(:MCuM; sel = (k, v) -> v.TPH == 0)
+        @test (k, :MCuM0, jv) == (k, :MCuM0, lv)
+    end
     for col in (:TCuM, :CCum), (k, lv, jv) in _on1_col(col; sel = (k, v) -> v.TPH == 0)
         @test (k, col, jv) == (k, col, lv)
     end

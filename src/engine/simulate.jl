@@ -879,8 +879,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # EM: the .tre carries a measured past DG (intree.f:151 reads DG(I) into diam_growth); FVS's cycle-1 WK1 is that
     # value verbatim (oracle FVSem_g16 WK1={1.0,2.3,0.6,0.7} == em_LM.tre DG field). jl's post-cycle snapshot left
     # dg_prev=0 at cycle 1 ⇒ the LM/added-species Hamilton G collapsed ⇒ ~2.5× first-cycle mortality over-kill.
-    (s.variant isa BritishColumbia || s.variant isa EasternMontana) &&
+    # ON: the same dgdriv.f DO 5 `WK1(I)=DG(I)` — ON's MORTS does not read it, but a record MORTS empties keeps it: VOLS
+    # skips P≤0 (vols.f:125), so its FVS_TreeList MCuM (WK1·FT3toM3) is this DG (compute_volumes_on!).
+    (s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa Ontario) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    (s.variant isa Ontario && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = on_do220_dg(s, i); end)   # cycle 1's WK1 = the LSTART DO-220 DG
     (s.variant isa EasternMontana && Int(s.control.cycle) == 0) && em_cycle0_wk1!(s)   # dgdriv.f DO 220 precedence
     # IE: same ie/morts.f Hamilton path (WK1=DG at dgdriv.f:142). ie/morts.f:273 override
     # (ICYC.EQ.1 .OR. WK1==0) .AND. DG>0.5 ⇒ G=DG/(BARK·10) MASKS WK1=0 for every measured-DG tree whose

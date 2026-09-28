@@ -425,6 +425,13 @@ function compute_volumes_on!(s::StandState)
     # vols.f IPASS=2 (:372-378, ILOW=IREC2..MAXTRE): the cycle-0 inventory-dead records are volumed too (their
     # FVS_TreeList TCuM/MCuM/CCum); jl keeps them after the live block.
     @inbounds for i in 1:(t.n + Int(t.ndead))
+        # vols.f:125 `IF(P.LE.0.0) GO TO 200`: a record emptied this cycle is not re-volumed — WK1 (MCuM) keeps the DG
+        # dgdriv.f DO 5 loaded at the top of the cycle (TRIPLE copies it to the copies, triple.f:68); CFV/BFV go to 0
+        # through gradd's PROB round trip (_vol_prob_roundtrip!).
+        if i <= t.n && t.tpa[i] <= 0f0 && t.vol_bark[i] > 0f0
+            t.merch_cuft_vol[i] = t.dg_prev[i]
+            continue
+        end
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
         # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
         # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.

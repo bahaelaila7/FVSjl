@@ -231,3 +231,29 @@ function on_gradd_dg_scale!(s::StandState, fint::Float32)
     end
     return s
 end
+
+"""
+    on_do220_dg(s, i) -> Float32
+
+canada/on/dgdriv.f:700-729 DO 220 (LSTART, after the DGF(WK3) re-call): the DG each inventory record carries into cycle 1
+— a measured increment (> 0 with HT > 4.5; capped at the inside-bark DBH when IDG < 2), 0 for HT ≤ 4.5, else the dub
+`SQRT(D*D+EXP(WK2+OLDRN)*SCALE)−D` (D = WK3·BRATIO(ISPC,DBH,HT), SCALE = FINT/YR, capped at D, then DGBND). Cycle 1's
+dgdriv.f DO 5 copies it into WK1.
+"""
+function on_do220_dg(s::StandState, i::Int)::Float32
+    t, c = s.trees, s.calib
+    sp = Int(t.species[i])
+    bark = on_bratio(sp, t.dbh[i], t.height[i])
+    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
+        dg = t.diam_growth[i]
+        (s.control.growth_idg < 2 && dg > t.dbh[i] * bark) && (dg = t.dbh[i] * bark)
+        return dg
+    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
+        return 0f0
+    end
+    sc = s.control.growth_fint / htg_period(s.variant)
+    d = c.dub_wk3[i] * bark
+    dg = sqrt(d * d + on_expf(c.dub_wk2[i] + t.old_random[i]) * sc) - d
+    dg > d && (dg = d)
+    return _on_dgbnd(t.dbh[i], dg)
+end

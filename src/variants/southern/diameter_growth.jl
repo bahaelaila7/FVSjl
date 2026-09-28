@@ -737,8 +737,10 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # (which ran with COR=0). Same context: FORTYP 0, current AVH, the current-RMSQD stash for aspen DGFASP.
     # CI, KT and TT likewise (ci/dgdriv.f:795, kt/dgdriv.f:705, tt/dgdriv.f DGF(WK3) then DO 220): their LSTART REGCAL
     # DO 49 reads that DG (ci_do220_dg / kt_do220_dg / tt_do220_dg). IE too (ie/dgdriv.f:759 → DO 220, ie_cycle0_wk1!).
+    # ON (canada/on/dgdriv.f:694 CALL DGF(WK3) → DO 220): the dub DG is only reported — it is cycle 1's WK1, the MCuM of
+    # a record the first MORTS empties (on_do220_dg).
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire
+       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         _TT_CUR_RMSQD[] = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
