@@ -1124,43 +1124,88 @@ function write_dbs_consumption!(dbpath, caseid::AbstractString, standid::Abstrac
     return dbpath
 end
 
-# FVS_PotFire schema (dbsfmpf.f:168-195) — potential fire behavior under severe/moderate weather.
+# FVS_PotFire (west) / FVS_PotFire_East (SN, CS) schemas (dbsfmpf.f:121-195) and FVS_PotFire_Cond (dbsfmpfc.f:48-62).
 const _FVS_POTFIRE_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_PotFire(
   CaseID text not null, StandID text not null, Year int null,
   Surf_Flame_Sev real null, Surf_Flame_Mod real null, Tot_Flame_Sev real null, Tot_Flame_Mod real null,
+  Fire_Type_Sev text null, Fire_Type_Mod text null,
   PTorch_Sev real null, PTorch_Mod real null, Torch_Index real null, Crown_Index real null,
   Canopy_Ht int null, Canopy_Density real null,
   Mortality_BA_Sev real null, Mortality_BA_Mod real null, Mortality_VOL_Sev real null, Mortality_VOL_Mod real null,
   Pot_Smoke_Sev real null, Pot_Smoke_Mod real null,
   Fuel_Mod1 int null, Fuel_Mod2 int null, Fuel_Mod3 int null, Fuel_Mod4 int null,
   Fuel_Wt1 real null, Fuel_Wt2 real null, Fuel_Wt3 real null, Fuel_Wt4 real null)"""
+const _FVS_POTFIRE_EAST_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_PotFire_East(
+  CaseID text not null, StandID text not null, Year int null,
+  Flame_Len_Sev real null, Flame_Len_Mod real null, Canopy_Ht int null, Canopy_Density real null,
+  Mortality_BA_Sev real null, Mortality_BA_Mod real null, Mortality_VOL_Sev real null, Mortality_VOL_Mod real null,
+  Pot_Smoke_Sev real null, Pot_Smoke_Mod real null,
+  Fuel_Mod1_Sev int null, Fuel_Mod2_Sev int null, Fuel_Mod3_Sev int null, Fuel_Mod4_Sev int null,
+  Fuel_Wt1_Sev real null, Fuel_Wt2_Sev real null, Fuel_Wt3_Sev real null, Fuel_Wt4_Sev real null,
+  Fuel_Mod1_Mod int null, Fuel_Mod2_Mod int null, Fuel_Mod3_Mod int null, Fuel_Mod4_Mod int null,
+  Fuel_Wt1_Mod real null, Fuel_Wt2_Mod real null, Fuel_Wt3_Mod real null, Fuel_Wt4_Mod real null)"""
+const _FVS_POTFIRE_COND_CREATE = """
+CREATE TABLE IF NOT EXISTS FVS_PotFire_Cond(
+  CaseID text not null, StandID text not null, Fire_Condition text null, Wind_Speed real null,
+  Temperature int null, One_Hr_Moisture real null, Ten_Hr_Moisture real null, Hundred_Hr_Moisture real null,
+  Thousand_Hr_Moisture real null, Duff_Moisture real null, Live_Woody_Moisture real null,
+  Live_Herb_Moisture real null)"""
 
 """
-    write_dbs_potfire!(dbpath, caseid, standid, rows) -> dbpath
+    write_dbs_potfire!(dbpath, caseid, standid, rows; east=false) -> dbpath
 
-Write the Potential Fire report to the `FVS_PotFire` DBS table (dbsfmpf.f). `rows` is the `(year, report)`
-collection where `report` is a `potential_fire_report` named tuple (severe/moderate surface fire behavior,
-canopy bulk density, torching probabilities, and the severe-case weighted fuel models).
+The Potential Fire report (DBSFMPF, dbsfmpf.f): `rows` are `(year, fmpofl_report(...))`. SN and CS write
+FVS_PotFire_East (flames + the severe AND moderate fuel models; no crown-fire columns), every other variant
+FVS_PotFire. The mortality columns are the INT'd FMPOFL values bound as integers into REAL columns.
 """
-function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector)
+function write_dbs_potfire!(dbpath, caseid::AbstractString, standid::AbstractString, rows::AbstractVector;
+                            east::Bool = false)
     isempty(rows) && return dbpath
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_POTFIRE_CREATE)
-        stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire VALUES (" * join(fill("?", 27), ",") * ")")
-        for (yr, r) in rows
-            fm = r.models
-            mw(i) = i <= length(fm) ? Int(fm[i][1]) : 0
-            ww(i) = i <= length(fm) ? Float64(fm[i][2])*100 : 0.0   # fraction → % (live weights are %)
-            DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                Float64(r.surf_flame_sev), Float64(r.surf_flame_mod), Float64(r.tot_flame_sev), Float64(r.tot_flame_mod),
-                Float64(r.ptorch_sev), Float64(r.ptorch_mod), Float64(r.torch_index), Float64(r.crown_index),
-                Int(r.canopy_ht), Float64(r.canopy_density),
-                Float64(r.mort_ba_sev), Float64(r.mort_ba_mod), Float64(r.mort_vol_sev), Float64(r.mort_vol_mod),
-                # potential smoke is lb/ac in the FFE model; live writes tons/ac (PSMOKE·P2T, fmpofl.f:303)
-                Float64(r.smoke_sev) * _FM_P2T, Float64(r.smoke_mod) * _FM_P2T,
-                mw(1), mw(2), mw(3), mw(4), ww(1), ww(2), ww(3), ww(4)))
+        if east
+            _ensure_table!(db, _FVS_POTFIRE_EAST_CREATE)
+            stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire_East VALUES (" * join(fill("?", 29), ",") * ")")
+            for (yr, r) in rows
+                DBInterface.execute(stmt, (caseid, standid, Int(yr), Float64(r.surf_sev), Float64(r.surf_mod),
+                    r.canopy_ht, Float64(r.cbd), Float64(r.mort_ba_sev), Float64(r.mort_ba_mod),
+                    Float64(r.mort_vol_sev), Float64(r.mort_vol_mod), Float64(r.smoke_sev), Float64(r.smoke_mod),
+                    r.smod..., r.swt..., r.fmod..., r.fwt...))
+            end
+        else
+            _ensure_table!(db, _FVS_POTFIRE_CREATE)
+            stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire VALUES (" * join(fill("?", 29), ",") * ")")
+            for (yr, r) in rows
+                DBInterface.execute(stmt, (caseid, standid, Int(yr), Float64(r.surf_sev), Float64(r.surf_mod),
+                    Float64(r.tot_sev), Float64(r.tot_mod), r.type_sev, r.type_mod,
+                    Float64(r.ptorch_sev), Float64(r.ptorch_mod), Float64(r.torch_index), Float64(r.crown_index),
+                    r.canopy_ht, Float64(r.cbd), Float64(r.mort_ba_sev), Float64(r.mort_ba_mod),
+                    Float64(r.mort_vol_sev), Float64(r.mort_vol_mod), Float64(r.smoke_sev), Float64(r.smoke_mod),
+                    r.fmod..., r.fwt...))
+            end
+        end
+    finally
+        SQLite.close(db)
+    end
+    return dbpath
+end
+
+"""
+    write_dbs_potfire_cond!(dbpath, caseid, standid, cond) -> dbpath
+
+FVS_PotFire_Cond (DBSFMPFC, dbsfmpfc.f): written by FMPOFL in cycle 1 — one "Severe" and one "Moderate" row with the
+scenario wind PREWND, INT(POTEMP) and the seven fuel moistures ×100 (REAL*4, bound as doubles).
+"""
+function write_dbs_potfire_cond!(dbpath, caseid::AbstractString, standid::AbstractString, cond)
+    db = SQLite.DB(dbpath)
+    try
+        _ensure_table!(db, _FVS_POTFIRE_COND_CREATE)
+        stmt = DBInterface.prepare(db, "INSERT INTO FVS_PotFire_Cond VALUES (" * join(fill("?", 12), ",") * ")")
+        for (k, lab) in enumerate(("Severe", "Moderate"))
+            c = cond[k]
+            DBInterface.execute(stmt, (caseid, standid, lab, Float64(c.wind), c.temp, map(Float64, c.mois)...))
         end
     finally
         SQLite.close(db)
