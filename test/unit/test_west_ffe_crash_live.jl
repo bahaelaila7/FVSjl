@@ -49,3 +49,19 @@ const _FF_CASES = [
         end
     end
 end
+
+# fminit.f loads fuel models 14 ("11A") and Ray Hermit's R5 models 25/26 for every variant; the CA/WS/NC FMCFMD
+# candidate list is IPTR = 1..13, 25, 26. jl's table stopped at 13 (BoundsError [26, 1:9] in the potential-fire
+# pass — this stand and the stock wst01 key). The stand's own SIMFIRE (2016-2026 cycle) still burns hotter in jl
+# (fuel-model weights 12/10 vs live 10/12 at the fire year); the rows before it must equal live.
+@testset "WS FFE fuel model 26 (fminit.f R5 models) — WS 7689398010901 simfire" begin
+    txt, err = _ff_run("ws", "7689398010901_simfire")
+    @test err == ""
+    if isempty(err)
+        jl = [split(l) for l in split(txt, '\n') if occursin(r"^\d{4} ", l) && length(split(l)) >= 20]
+        lv = [split(l) for l in readlines(joinpath(_FF_TIER, "ws", "7689398010901_simfire.live.sum")) if occursin(r"^\d{4} ", l)]
+        @test length(jl) == length(lv)
+        @test jl[1] == lv[1]                       # 2006, before the fire cycle
+        @test jl[2][1:12] == lv[2][1:12]           # 2016 stand attributes (the row's Accr/Mort span the fire cycle)
+    end
+end
