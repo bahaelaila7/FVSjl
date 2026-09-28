@@ -1,0 +1,17 @@
+variant = "UT"
+k = 10
+oracle = "/workspace/.utwork/FVSut_g16"
+oracle_sha256 = "6c74b02d82a6276e9858eb610bdf0d36a52d4313de495f6549e20cbdcdd63add"
+oracle_build_script = "/workspace/.utwork/build_g16.sh"
+oracle_main_std_legacy = "no (NOLEGACY_MAIN)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "64f78fe6ad835aa82b5178b040483c7c5bc2a6b7"
+generated = "2026-09-28 09:19:09"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+skipped_regimes = []   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = []   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=UT"
+stands = ["434219452489998", "2923601010690", "2900815010690", "41442932010690", "286785821489998", "2402179010690", "286789233489998", "42642675010690", "471768556489998", "2390216010690"]
+excluded_no_live_output = []
+live_no_output_cases = 0

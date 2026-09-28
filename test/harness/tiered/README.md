@@ -20,6 +20,11 @@ Why both oracle and snapshot tiers: the oracle tier allowlists known residuals (
 that shifts an already-allowlisted OPEN/CORNER cell, or drifts below print precision, is invisible to it. The
 snapshot tier sees every bit.
 
+**Variant groups** (`TIERED_VARIANTS`, tiered_runner.jl `TIERED_GROUPS`): unset = **CORE** (BM, EM, IE, SN — the
+variants under an active regime-close campaign; this is what `Pkg.test` runs). **WEST** = the western coverage fixtures
+(TT, UT, CI, CR, KT, NC, WC, PN, EC, SO, CA, WS, AK: 10 stands each, measured OPEN residual maps, not yet dug) — run them
+with `TIERED_VARIANTS=WEST` (or `ALL`, or a list such as `CORE,TT`). A variant moves into CORE when its campaign starts.
+
 ## Fixtures (`test/fixtures/tiered/<v>/`, git-tracked)
 
 Built by `test/harness/tiered/make_fixtures.jl <VARIANT> <K>` from the **live oracle** (`BIN` in
@@ -33,7 +38,11 @@ Built by `test/harness/tiered/make_fixtures.jl <VARIANT> <K>` from the **live or
   `plant_cal` uses a calendar PLANT date, `plant_cyc` the cycle-number form (both real user forms);
 * `<cn>_<regime>.live.sum`, `<cn>_<regime>.<Table>.csv`, `<cn>_<regime>.tables` — the goldens;
 * `PROVENANCE.toml` — oracle path + sha256, build script and whether `main.f` was built `-std=legacy`, FVS source
-  commit + dirty flag, generator commit, date, stand list;
+  commit + dirty flag, generator commit, date, stand list, `sample_source`, and `regimes` / `skipped_regimes`: each
+  regime is probed on the first stand and dropped when the oracle build STUBS its extension (FVS11 "requested
+  extension is not part of this program" — e.g. CA/AK have no WRD, AK no Climate-FVS). The fast tier runs the
+  PROVENANCE `regimes` only. KT has no FIA population of its own (VARIANT is never 'KT'); its stands are drawn from
+  the IE-assigned FIA stands of KT's home forests 110/113/114 (`SAMPLE_SOURCE` in make_fixtures.jl);
 * `SNAPSHOT.tsv` — the blessed bit-identity manifest (one SHA-1 per stand×regime×{sum, table, cycle}).
 
 WPBR is not in the matrix: the standard `FVS{v}_g16` oracles are not linked with BRUST; `test_wpbr` carries its own

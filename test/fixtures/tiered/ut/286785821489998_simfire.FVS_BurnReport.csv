@@ -1,0 +1,2 @@
+StandID,Year,One_Hr_Moisture,Ten_Hr_Moisture,Hundred_Hr_Moisture,Thousand_Hr_Moisture,Duff_Moisture,Live_Woody_Moisture,Live_Herb_Moisture,Midflame_Wind,Slope,Flame_length,Scorch_height,Fire_Type,FuelModl1,Weight1,FuelModl2,Weight2,FuelModl3,Weight3,FuelModl4,Weight4
+286785821489998,2023,4.0,4.0,5.0,10.0,15.000000953674316,70.0,70.0,1.0122613906860352,10,0.6271675229072571,0.9234475493431091,SURFACE,8,100.0,0,0.0,0,0.0,0,0.0

@@ -1,0 +1,17 @@
+variant = "AK"
+k = 10
+oracle = "/workspace/.akwork/FVSak_g16"
+oracle_sha256 = "dd05c7de20a29e9307039bc98e2ff4498021665a88f27379df50b733cb8406cd"
+oracle_build_script = "/workspace/.akwork/build_g16.sh"
+oracle_main_std_legacy = "no (NOLEGACY_MAIN)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "a9a647ff4a3a87e80cef783c37bea8ef5d291734"
+generated = "2026-09-28 09:26:48"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "econ", "cover"]
+skipped_regimes = ["rootdis", "climate"]   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = ["rootdis: FVS01 ERROR/FVS11 ERROR", "climate: FVS01 ERROR/FVS11 ERROR"]   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=AK"
+stands = ["10707449010497", "644809321126144", "666760633126144", "10709171010497", "24739968010497", "251006657489998", "10709344010497", "10706662010497", "666741868126144", "10708678010497"]
+excluded_no_live_output = []
+live_no_output_cases = 0

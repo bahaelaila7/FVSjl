@@ -9,7 +9,9 @@
 # FAILS ("unexpected pass — remove it"); an entry without status/proof/issue FAILS; a missing fixture FAILS (never a
 # skip); a jl crash FAILS.
 #   TIERED=quick            → first 3 stands × QUICK_REGIMES per variant (refactor iteration, a few minutes)
-#   TIERED_VARIANTS=BM,SN   → restrict variants
+#   TIERED_VARIANTS=BM,SN   → restrict variants. Default (unset) = the CORE group (BM, EM, IE, SN); the western
+#                             coverage fixtures run on request: TIERED_VARIANTS=WEST, =ALL, or e.g. =CORE,TT,UT
+#                             (tiered_runner.jl TIERED_GROUPS). TIERED_THREADS=N runs N cases in parallel per worker.
 using Test, FVSjl
 include(joinpath(@__DIR__, "..", "harness", "tiered", "tiered_runner.jl"))
 include(joinpath(@__DIR__, "..", "harness", "tiered", "aggregate.jl"))

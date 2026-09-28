@@ -8,8 +8,12 @@
 _agg_num(x) = tryparse(Float64, strip(x))
 
 "Compared-cell denominators per (variant, regime) and per (variant, file), from the committed goldens."
+# A fixture stem is "<cn>_<regime>" with a numeric CN; the regime itself may contain '_' (plant_cal, plant_cyc).
+_stem_split(stem) = (p = split(stem, '_'; limit = 2); (String(p[1]), length(p) == 2 ? String(p[2]) : ""))
+
 function golden_cell_counts(vs::Vector{String})
     per_vr = Dict{Tuple{String,String},Int}(); per_vf = Dict{Tuple{String,String},Int}()
+    per_case = Dict{Tuple{String,String,String},Int}()      # (variant, cn, regime) => golden cells
     for v in vs
         dir = fixture_dir(v)
         isdir(dir) || continue
@@ -18,13 +22,14 @@ function golden_cell_counts(vs::Vector{String})
             if endswith(f, ".csv")
                 stem = f[1:end-4]; parts = split(stem, '.')
                 length(parts) >= 2 || continue
-                regime = String(last(split(parts[1], '_'))); file = String(parts[2])
+                cn, regime = _stem_split(parts[1]); file = String(parts[2])
                 ls = readlines(path); length(ls) >= 2 || continue
                 cells = (length(ls) - 1) * (count(==(','), ls[1]) + 1)
                 per_vr[(v, regime)] = get(per_vr, (v, regime), 0) + cells
+                per_case[(v, cn, regime)] = get(per_case, (v, cn, regime), 0) + cells
                 per_vf[(v, file)]   = get(per_vf, (v, file), 0) + cells
             elseif endswith(f, ".live.sum")
-                regime = String(last(split(f[1:end-9], '_')))
+                cn, regime = _stem_split(f[1:end-9])
                 cells = 0
                 for l in readlines(path)
                     occursin("-999", l) && continue
@@ -32,10 +37,11 @@ function golden_cell_counts(vs::Vector{String})
                 end
                 per_vr[(v, regime)] = get(per_vr, (v, regime), 0) + cells
                 per_vf[(v, "sum")]  = get(per_vf, (v, "sum"), 0) + cells
+                per_case[(v, cn, regime)] = get(per_case, (v, cn, regime), 0) + cells
             end
         end
     end
-    (per_vr, per_vf)
+    (per_vr, per_vf, per_case)
 end
 
 "|Δ| of a mismatch when both sides parse as numbers, else `nothing` (text/presence difference)."
@@ -51,7 +57,7 @@ Print the aggregate view: per-variant match rate, magnitude distribution, per-va
 columns carrying the most mismatching cells (with the worst |Δ| and an example). Print-only.
 """
 function print_aggregate_stats(all_ms, vs::Vector{String})
-    per_vr, per_vf = golden_cell_counts(vs)
+    per_vr, per_vf, per_case = golden_cell_counts(vs)
     tot_v = Dict{String,Int}(); for ((v, _), n) in per_vr; tot_v[v] = get(tot_v, v, 0) + n; end
     mm_v = Dict{String,Int}(); mm_vr = Dict{Tuple{String,String},Int}(); mm_vfc = Dict{Tuple{String,String,String},Int}()
     bands = Dict{String,Dict{String,Int}}(); stands = Dict{String,Set{String}}()
@@ -59,13 +65,15 @@ function print_aggregate_stats(all_ms, vs::Vector{String})
     for m in all_ms
         m.file in ("TALLY", "FIXTURE") && continue
         v = m.variant
-        mm_v[v] = get(mm_v, v, 0) + 1
-        mm_vr[(v, m.regime)] = get(mm_vr, (v, m.regime), 0) + 1
+        # a CRASHed case produced no output: every golden cell of it is unmatched (not 1 cell)
+        w8 = m.file == "CRASH" ? max(get(per_case, (v, m.stand, m.regime), 1), 1) : 1
+        mm_v[v] = get(mm_v, v, 0) + w8
+        mm_vr[(v, m.regime)] = get(mm_vr, (v, m.regime), 0) + w8
         k = (v, m.file, m.col); mm_vfc[k] = get(mm_vfc, k, 0) + 1
         push!(get!(stands, v, Set{String}()), m.stand)
         d = _absdiff(m); b = get!(bands, v, Dict{String,Int}())
-        lbl = d === nothing ? "text" : d <= 1e-4 ? "<=1e-4" : d <= 1.0 ? "<=1" : ">1"
-        b[lbl] = get(b, lbl, 0) + 1
+        lbl = m.file == "CRASH" ? "crash" : d === nothing ? "text" : d <= 1e-4 ? "<=1e-4" : d <= 1.0 ? "<=1" : ">1"
+        b[lbl] = get(b, lbl, 0) + w8
         if d !== nothing
             w = get(worst, k, (-1.0, nothing)); d > w[1] && (worst[k] = (d, m))
         end
@@ -76,7 +84,7 @@ function print_aggregate_stats(all_ms, vs::Vector{String})
     for v in sort(vs)
         tot = get(tot_v, v, 0); mm = get(mm_v, v, 0); tot == 0 && continue
         b = get(bands, v, Dict{String,Int}())
-        mag = join(["$k=$(get(b,k,0))" for k in ("text", "<=1e-4", "<=1", ">1") if get(b, k, 0) > 0], " ")
+        mag = join(["$k=$(get(b,k,0))" for k in ("crash", "text", "<=1e-4", "<=1", ">1") if get(b, k, 0) > 0], " ")
         println(rpad(v, 9), lpad(tot, 11), lpad(mm, 10),
                 lpad(string(round(100 * (tot - mm) / tot; digits = 2)), 9),
                 lpad(length(get(stands, v, Set{String}())), 8), "   ", mag)
