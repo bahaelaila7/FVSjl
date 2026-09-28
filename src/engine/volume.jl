@@ -283,7 +283,10 @@ function dub_missing_heights!(s::StandState)
     # IE's cratet AA-fit uses its blkdat Wykoff HT-DBH HT2 (`:ht2`); `:wykoff_ht2` is IE's separate SPROUT
     # column (≠ blkdat HT2) ⇒ using it gave AA 4.512 vs live 4.2112. Other variants keep `:wykoff_ht2`.
     # BM fits AA with its blkdat HT2 (bm/cratet.f BX=HT2(ISPC)); its CSV ht2/wykoff_ht2 are CR placeholders.
-    ht2 = !any(lhtdrg) ? nothing : s.variant isa BlueMountains ? BM_BLK_HT2 :
+    # BC: canada/bc cratet.f BX=HT2(ISPC) — the blkdat HT2 or its becset.f BEC reparameterization (bc_ht_coefs), with
+    # the metric fit form for LMHTDUB species (cratet.f:319-340).
+    bc_ht = s.variant isa BritishColumbia ? bc_ht_coefs(s) : nothing
+    ht2 = !any(lhtdrg) ? nothing : bc_ht !== nothing ? bc_ht[2] : s.variant isa BlueMountains ? BM_BLK_HT2 :
           s.variant isa EasternMontana ? EM_BLK_HT2 : s.variant isa CentralIdaho ? CI_BLK_HT2 :
           coef_col(s.coef, (s.variant isa InlandEmpire || s.variant isa Utah) ? :ht2 : :wykoff_ht2)
     # TT height-dubbing (tt/cratet.f CASE DEFAULT) uses its OWN Wykoff HT-DBH: H=exp(AX+HT2/(D+1))+4.5,
@@ -302,11 +305,18 @@ function dub_missing_heights!(s::StandState)
         nmax = length(lhtdrg)
         # FVS accumulates SUMX in REAL (Float32) (cratet.f:292-305); match the dtype.
         sumx = zeros(Float32, nmax); k1 = zeros(Int, nmax)
+        # cratet.f DO 80 walks I3=ISCT(ISPC,1..2), I=IND1(I3) — the SUMX order (BC: IND1; others keep record order).
         @inbounds for i in 1:t.n
             sp = Int(t.species[i]); (1 <= sp <= nmax && lhtdrg[sp]) || continue
             h = t.height[i]; d = t.dbh[i]
             (h > 4.5f0 && t.norm_ht[i] >= 0 && d >= 3f0) || continue       # measured, sound, ≥3" (cratet.f:301)
-            sumx[sp] += log(h - 4.5f0) - ht2[sp] / (d + 1f0)               # REAL (Float32), as FVS
+            if bc_ht !== nothing                                            # BC cratet.f:319-340: SUMX=SUMX+YY-XX, left-assoc
+                yy = bc_ht[3][sp] ? logf(h * 0.3048f0 - 1.3f0) : logf(h - 4.5f0)   # LMHTDUB: YY=ALOG(HM−1.3), XX=BX/(DM+1)
+                xx = bc_ht[3][sp] ? ht2[sp] / (d * 2.54f0 + 1f0) : ht2[sp] / (d + 1f0)
+                sumx[sp] = (sumx[sp] + yy) - xx
+            else
+                sumx[sp] += log(h - 4.5f0) - ht2[sp] / (d + 1f0)           # REAL (Float32), as FVS
+            end
             k1[sp]   += 1
         end
         @inbounds for sp in 1:nmax
@@ -346,6 +356,14 @@ function dub_missing_heights!(s::StandState)
             # cratet.f DO 145: dead records take the Wykoff form regardless of LHTDRG
             ax = iabflg[sp] == 0 ? aa[sp] : ie_ht1[sp]
             max(fexp(ax + ht2[sp] / (d + 1f0)) + 4.5f0, 4.5f0)
+        elseif bc_ht !== nothing
+            # canada/bc cratet.f:377-393 (live, DO 130) and :445-460 (dead, DO 145): Wykoff only — AX = AA when
+            # IABFLG==0 else HT1, BX = HT2 (blkdat or becset BEC); LMHTDUB species use the metric form
+            # (EXP(AX+BX/(DM+1))+1.3)·MtoFT. Never the Curtis-Arney HTDBH (jl sent uncalibrated BC species there and fit
+            # AA with the wykoff_ht2 column).
+            ax = iabflg[sp] == 0 ? aa[sp] : bc_ht[1][sp]
+            bc_ht[3][sp] ? (expf(ax + bc_ht[2][sp] / (d * 2.54f0 + 1f0)) + 1.3f0) * 3.28084f0 :
+                           expf(ax + bc_ht[2][sp] / (d + 1f0)) + 4.5f0     # glibc EXP (FMath)
         elseif s.variant isa BlueMountains
             bm_cratet_dub(ifor, Int(sp), d, t.crown_pct[i], lhtdrg[sp], iabflg[sp], aa[sp])
         elseif s.variant isa EasternMontana

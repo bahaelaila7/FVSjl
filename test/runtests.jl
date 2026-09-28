@@ -129,6 +129,7 @@ using FVSjl
     include("unit/test_ontario_db_live.jl")          # ON DATABASE stand (FVSDataHardwood.db LD3001, TIMEINT 5) vs LIVE FVSon_g16: metric design factors, SITE_INDEX, FORKOD, gradd DG FINT scaling, canonical 10-cycle .sum
     include("unit/test_ontario_big_live.jl")         # ON ~1000-record stands vs LIVE FVSon_g16: MAXTRE=6000 tripling guard, VARMRT exhaustion (WK2+PROB), LTRIP on the pre-CUTS ITRN
     include("unit/test_variant_maxtre_live.jl")      # per-variant MAXTRE (PRGPRM.F77) vs live: BC 4000 tripling guard, OC/OP 2000 dead-record TreeIndex
+    include("unit/test_bc_htdub_live.jl")            # BC missing-height dub (cratet.f Wykoff, htgf.f HTCONS V3 HT1/HT2) vs live FVSbc_clean
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
