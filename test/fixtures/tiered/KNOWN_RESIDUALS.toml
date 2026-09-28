@@ -61278,3 +61278,3218 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """per-record Float32 drift below .sum print precision — owner: the WS campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=5.0 | e.g. stand 1123894228290487 year 2041: live=2000 jl=2001"""
+
+# 2026-09-28 (tiered-west): AK added — 10 stratified FIA stands x 9 regimes vs FVSak_g16; entries drafted from measurement
+# (report.jl -> allowlist_draft.jl), all OPEN, owner = the AK campaign (not yet dug).
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live=A00DVEW375 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live=A00DVEW375 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=71361 jl=71360"""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=71361 jl=71360"""
+
+[[residual]]
+variant = "AK"
+regime = "cover"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """jl CRASH — KeyError: key :essprt_fsp not found | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live= jl=KeyError: key :essprt_fsp not found"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 207
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 207 cells [structural=207] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 207
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 207 cells [structural=207] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10709171010497 year 2039: live=48 jl=42"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10709171010497 year 2019: live=56 jl=54"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=13 ulpbig=3] max|Δ|=12.63 | e.g. stand 10709171010497 year 2019: live=12.694364547729492 jl=15.246670722961426"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10709171010497 year 2039: live=65 jl=47"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10709171010497 year 2019: live=19 jl=20"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [material=6 ulpbig=3] max|Δ|=9.0 | e.g. stand 10709171010497 year 2019: live=10 jl=11"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10709171010497 year 2039: live=48 jl=42"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=195.0 | e.g. stand 10709171010497 year 2039: live=8436 jl=8520"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10709171010497 year 2019: live=56 jl=54"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=694.0 | e.g. stand 10706662010497 year 2047: live=305 jl=999"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=0.1021 | e.g. stand 10709171010497 year 2039: live=29.55555534362793 jl=29.639999389648438"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=5 ulpbig=6] max|Δ|=24.0 | e.g. stand 10709171010497 year 2039: live=1616 jl=1635"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=13 ulpbig=3] max|Δ|=12.63 | e.g. stand 10709171010497 year 2019: live=12.694364547729492 jl=15.246670722961426"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10709171010497 year 2039: live=65 jl=47"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "SizeCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=4.0 | e.g. stand 10706662010497 year 2047: live=1 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "StkCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 10706662010497 year 2047: live=4 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=6 ulpbig=6] max|Δ|=119.0 | e.g. stand 10709171010497 year 2039: live=1778 jl=1752"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10709171010497 year 2019: live=19 jl=20"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=16] max|Δ|=625.0 | e.g. stand 10709171010497 year 2019: live=46 jl=32"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "TALLY"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """one-directional population bias (over=0 under=3) — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand * year *: live=balanced jl=over=0 under=3"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "TALLY"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """one-directional population bias (over=0 under=4) — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand * year *: live=balanced jl=over=0 under=4"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10709171010497 year 2029: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10709171010497 year 2019: live=56 jl=54"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [gold_text9=1 jl_not_f32=1 material=13 small=1] max|Δ|=12.7 | e.g. stand 10709171010497 year 2019: live=12.7 jl=15.2"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10709171010497 year 2029: live=49 jl=45"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10709171010497 year 2019: live=19 jl=20"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [material=6 ulpbig=3] max|Δ|=9.0 | e.g. stand 10709171010497 year 2019: live=10 jl=11"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10709171010497 year 2029: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=195.0 | e.g. stand 10709171010497 year 2029: live=8600 jl=8627"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10709171010497 year 2019: live=56 jl=54"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=694.0 | e.g. stand 10706662010497 year 2047: live=305 jl=999"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=3] max|Δ|=0.1 | e.g. stand 10709171010497 year 2049: live=28.3 jl=28.4"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=5 ulpbig=6] max|Δ|=24.0 | e.g. stand 10709171010497 year 2029: live=1585 jl=1592"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [gold_text9=1 jl_not_f32=1 material=13 small=1] max|Δ|=12.7 | e.g. stand 10709171010497 year 2019: live=12.7 jl=15.2"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10709171010497 year 2029: live=49 jl=45"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "SizeCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=4.0 | e.g. stand 10706662010497 year 2047: live=1 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "StkCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 10706662010497 year 2047: live=4 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=6 ulpbig=6] max|Δ|=119.0 | e.g. stand 10709171010497 year 2029: live=1702 jl=1707"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=16] max|Δ|=625.0 | e.g. stand 10709171010497 year 2019: live=46 jl=32"""
+
+[[residual]]
+variant = "AK"
+regime = "econ"
+file = "sum"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10709171010497 year 2019: live=19 jl=20"""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_DM_Spp_Sum"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_DM_Stnd_Sum"
+col = "PRESENCE"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=present jl=missing"""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live=A00DVEW375 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live=A00DVEW375 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=14340 jl=14341"""
+
+[[residual]]
+variant = "AK"
+regime = "mistletoe"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=14340 jl=14341"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=71361 jl=71360"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "FVS_TreeList"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=0.3 | e.g. stand 10706662010497 year 2007: live=0.0 jl=0.30000001192092896"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 666741868126144 year 2046: live=71361 jl=71360"""
+
+[[residual]]
+variant = "AK"
+regime = "none"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=A01DEMW000 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=A01DEMW000 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulp1=1] max|Δ|=9.537e-7 | e.g. stand 666741868126144 year 2066: live=11.934301376342773 jl=11.93430233001709"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulp1=1] max|Δ|=9.537e-7 | e.g. stand 666741868126144 year 2066: live=11.934301376342773 jl=11.93430233001709"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9485 jl=9486"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cal"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9485 jl=9486"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=A01DEMW000 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=A01DEMW000 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulp1=1] max|Δ|=9.537e-7 | e.g. stand 666741868126144 year 2066: live=11.934301376342773 jl=11.93430233001709"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulp1=1] max|Δ|=9.537e-7 | e.g. stand 666741868126144 year 2066: live=11.934301376342773 jl=11.93430233001709"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9485 jl=9486"""
+
+[[residual]]
+variant = "AK"
+regime = "plant_cyc"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9485 jl=9486"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Aboveground_Merch_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulp2_16=3 ulpbig=3] max|Δ|=0.04298 | e.g. stand 10706662010497 year 2017: live=71.92400360107422 jl=71.96697998046875"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Aboveground_Total_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=1 ulpbig=6] max|Δ|=0.0581 | e.g. stand 10706662010497 year 2017: live=93.04352569580078 jl=93.10162353515625"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Belowground_Dead"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulp2_16=2 ulpbig=4] max|Δ|=0.004062 | e.g. stand 10706662010497 year 2017: live=13.151103973388672 jl=13.147042274475098"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Belowground_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulpbig=6] max|Δ|=0.01519 | e.g. stand 10706662010497 year 2017: live=24.038829803466797 jl=24.05402374267578"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Forest_Down_Dead_Wood"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 29 cells [ulp1=9 ulp2_16=10 ulpbig=10] max|Δ|=0.004387 | e.g. stand 10706662010497 year 2017: live=24.84085464477539 jl=24.840862274169922"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Forest_Floor"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [ulp1=6 ulp2_16=6 ulpbig=5] max|Δ|=0.0001545 | e.g. stand 10706662010497 year 2037: live=21.852521896362305 jl=21.85267448425293"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Forest_Shrub_Herb"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulp2_16=6] max|Δ|=1.192e-7 | e.g. stand 10707449010497 year 2041: live=0.4310999810695648 jl=0.43109992146492004"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Standing_Dead"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulpbig=6] max|Δ|=0.01461 | e.g. stand 10706662010497 year 2017: live=48.314247131347656 jl=48.29963302612305"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Carbon"
+col = "Total_Stand_Carbon"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [ulp1=2 ulpbig=14] max|Δ|=0.06238 | e.g. stand 10706662010497 year 2017: live=225.99740600585938 jl=226.05203247070312"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=A00DVEW094 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 230
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 230 cells [structural=230] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=A00DVEW094 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [ulp2_16=6 ulpbig=3] max|Δ|=1.05e-5 | e.g. stand 10706662010497 year 2017: live=0.057664401829242706 jl=0.05765390396118164"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [ulp2_16=6 ulpbig=3] max|Δ|=0.004539 | e.g. stand 10706662010497 year 2017: live=34.14405059814453 jl=34.148590087890625"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=64.0 jl=65.0"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Fuel_Wt2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=36.0 jl=35.0"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [ulp2_16=2 ulpbig=8] max|Δ|=3.128e-5 | e.g. stand 10706662010497 year 2017: live=0.00021657880279235542 jl=0.00021637858299072832"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [ulpbig=10] max|Δ|=0.02039 | e.g. stand 10706662010497 year 2017: live=0.14285950362682343 jl=0.14279811084270477"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [ulp1=7 ulp2_16=3 ulpbig=10] max|Δ|=2.795e-5 | e.g. stand 10706662010497 year 2017: live=0.41240063309669495 jl=0.4124006927013397"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 22
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 22 cells [ulp1=8 ulp2_16=3 ulpbig=11] max|Δ|=3.511e-5 | e.g. stand 10706662010497 year 2017: live=0.7710346579551697 jl=0.7710325121879578"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 13 cells [ulp1=2 ulp2_16=5 ulpbig=6] max|Δ|=0.0005069 | e.g. stand 10706662010497 year 2017: live=3.882807731628418 jl=3.8826069831848145"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [ulp1=2 ulp2_16=4 ulpbig=6] max|Δ|=0.001307 | e.g. stand 10706662010497 year 2017: live=7.398005962371826 jl=7.397237777709961"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [ulp2_16=8 ulpbig=6] max|Δ|=0.0254 | e.g. stand 10706662010497 year 2017: live=57.14052200317383 jl=57.15745162963867"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 13 cells [ulp1=2 ulp2_16=5 ulpbig=6] max|Δ|=0.0005069 | e.g. stand 10706662010497 year 2017: live=3.882807731628418 jl=3.8826069831848145"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [ulp1=3 ulp2_16=6 ulpbig=6] max|Δ|=0.001492 | e.g. stand 10706662010497 year 2017: live=7.398005962371826 jl=7.397237777709961"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=295 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2017: live=341 jl=342"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [ulp2_16=3 ulpbig=5] max|Δ|=0.007513 | e.g. stand 10706662010497 year 2017: live=20.344043731689453 jl=20.3486270904541"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=342 jl=343"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2007: live=62 jl=63"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=295 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=96.0 | e.g. stand 10706662010497 year 2017: live=69102 jl=69125"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2017: live=341 jl=342"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=0.05991 | e.g. stand 10706662010497 year 2017: live=68.50267028808594 jl=68.53475952148438"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=13.0 | e.g. stand 10706662010497 year 2017: live=12810 jl=12816"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [ulp2_16=3 ulpbig=5] max|Δ|=0.007513 | e.g. stand 10706662010497 year 2017: live=20.344043731689453 jl=20.3486270904541"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=342 jl=343"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=9.0 | e.g. stand 10706662010497 year 2017: live=13868 jl=13877"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=295 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2017: live=341 jl=342"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=342 jl=343"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2007: live=62 jl=63"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=295 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=96.0 | e.g. stand 10706662010497 year 2017: live=69102 jl=69125"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2017: live=341 jl=342"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "EXTRA_CONTENT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows | measured 2026-09-28: 10 cells [structural=10] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=none jl=15 non-summary lines: --------------------------------------"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [gold_text9=1] max|Δ|=0.1 | e.g. stand 10706662010497 year 2047: live=58.2 jl=58.3"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=13.0 | e.g. stand 10706662010497 year 2017: live=12810 jl=12816"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 10706662010497 year 2027: live=342 jl=343"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulpbig=4] max|Δ|=9.0 | e.g. stand 10706662010497 year 2017: live=13868 jl=13877"""
+
+[[residual]]
+variant = "AK"
+regime = "salvage"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 251006657489998 year 2053: live=9446 jl=9445"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """jl CRASH — KeyError: key :essprt_fsp not found | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 644809321126144 year *: live= jl=KeyError: key :essprt_fsp not found"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_BurnReport"
+col = "Flame_length"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulp2_16=2] max|Δ|=7.153e-7 | e.g. stand 10706662010497 year 2007: live=3.149029493331909 jl=3.1490302085876465"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_BurnReport"
+col = "Scorch_height"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulp2_16=2] max|Δ|=3.815e-6 | e.g. stand 10706662010497 year 2007: live=11.64645767211914 jl=11.646461486816406"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Aboveground_Merch_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [ulpbig=8] max|Δ|=0.4826 | e.g. stand 10706662010497 year 2037: live=66.27406311035156 jl=66.14756774902344"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Aboveground_Total_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=1 ulp1=1 ulpbig=14] max|Δ|=1.022 | e.g. stand 10706662010497 year 2017: live=85.80242919921875 jl=85.78697204589844"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Belowground_Dead"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [ulpbig=10] max|Δ|=0.004745 | e.g. stand 10706662010497 year 2037: live=7.649844646453857 jl=7.652972221374512"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Belowground_Live"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [ulpbig=15] max|Δ|=0.2779 | e.g. stand 10706662010497 year 2017: live=22.204387664794922 jl=22.203292846679688"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Carbon_Released_From_Fire"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulp1=1 ulp2_16=1 ulpbig=1] max|Δ|=0.0002766 | e.g. stand 10706662010497 year 2007: live=22.558656692504883 jl=22.558658599853516"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Forest_Down_Dead_Wood"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 22
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 22 cells [ulp1=8 ulp2_16=2 ulpbig=12] max|Δ|=0.1682 | e.g. stand 10706662010497 year 2017: live=24.938934326171875 jl=24.938932418823242"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Forest_Floor"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [ulp1=1 ulp2_16=3 ulpbig=10] max|Δ|=0.02168 | e.g. stand 10706662010497 year 2017: live=5.658862590789795 jl=5.6588616371154785"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Forest_Shrub_Herb"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [ulp2_16=2 ulpbig=6] max|Δ|=0.08136 | e.g. stand 10709171010497 year 2019: live=0.4811038076877594 jl=0.4848714768886566"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Standing_Dead"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [ulpbig=12] max|Δ|=0.03083 | e.g. stand 10706662010497 year 2017: live=50.64697265625 jl=50.661624908447266"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Total_Stand_Carbon"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=1 ulpbig=15] max|Δ|=1.105 | e.g. stand 10706662010497 year 2017: live=203.3941650390625 jl=203.3922576904297"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 184
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 184 cells [structural=184] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=A00DVEW094 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 184
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 184 cells [structural=184] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=A00DVEW094 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "ROWCOUNT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """NEW: jl emits a different number of rows than live for this table (e.g. live 0 rows, jl 1) — row emission/gating gap | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 24739968010497 year 2014: live=0 jl=1"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=3 ulp2_16=4] max|Δ|=0.01172 | e.g. stand 10707449010497 year 2011: live=3422.59765625 jl=3422.594482421875"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [ulp1=2 ulp2_16=6] max|Δ|=1.144e-5 | e.g. stand 10706662010497 year 2007: live=21.281774520874023 jl=21.281770706176758"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class3"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=1 ulp2_16=6] max|Δ|=7.629e-6 | e.g. stand 10706662010497 year 2007: live=33.77765655517578 jl=33.77766418457031"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class4"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulp1=2 ulp2_16=2] max|Δ|=3.815e-6 | e.g. stand 10706662010497 year 2007: live=4.992844581604004 jl=4.992845058441162"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class5"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=3 ulp2_16=4] max|Δ|=3.815e-6 | e.g. stand 10706662010497 year 2007: live=13.296183586120605 jl=13.296182632446289"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Mortality"
+col = "Total_class6"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 4 cells [ulp1=1 ulp2_16=3] max|Δ|=1.907e-6 | e.g. stand 10706662010497 year 2007: live=9.9516019821167 jl=9.951601028442383"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [ulp2_16=1 ulpbig=14] max|Δ|=0.0595 | e.g. stand 10706662010497 year 2017: live=0.051831845194101334 jl=0.051817987114191055"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [material=4 ulpbig=2] max|Δ|=29.0 | e.g. stand 10706662010497 year 2027: live=45 jl=48"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=3 ulp2_16=1 ulpbig=11] max|Δ|=5.952 | e.g. stand 10706662010497 year 2017: live=36.900543212890625 jl=36.90771484375"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fire_Type_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 10709171010497 year 2029: live=PASSIVE jl=SURFACE"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=4.0 | e.g. stand 10706662010497 year 2037: live=65.0 jl=66.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=4.0 | e.g. stand 10706662010497 year 2037: live=35.0 jl=34.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=11.0 jl=10.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [material=1 ulpbig=4] max|Δ|=79.0 | e.g. stand 10706662010497 year 2037: live=17.0 jl=18.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [material=3 ulpbig=7] max|Δ|=24.0 | e.g. stand 10706662010497 year 2037: live=1259.0 jl=1252.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=5213.0 | e.g. stand 10706662010497 year 2017: live=1503.0 jl=1505.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 10 cells [ulpbig=10] max|Δ|=1.0 | e.g. stand 10706662010497 year 2017: live=1.5517383872065693e-5 jl=3.8095895433798432e-6"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [ulpbig=15] max|Δ|=0.9132 | e.g. stand 10706662010497 year 2017: live=0.10834617912769318 jl=0.04764551296830177"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [ulp1=2 ulpbig=15] max|Δ|=0.001684 | e.g. stand 10706662010497 year 2017: live=0.23552662134170532 jl=0.2354438453912735"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [ulp1=2 ulpbig=15] max|Δ|=0.05013 | e.g. stand 10706662010497 year 2017: live=0.32166746258735657 jl=0.3216073215007782"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [ulp2_16=2 ulpbig=15] max|Δ|=0.07079 | e.g. stand 10706662010497 year 2017: live=3.994692802429199 jl=3.9979469776153564"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 18 cells [ulp1=1 ulp2_16=2 ulpbig=15] max|Δ|=0.256 | e.g. stand 10706662010497 year 2017: live=7.8449530601501465 jl=7.856916904449463"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [material=7 ulp2_16=2 ulpbig=5] max|Δ|=132.7 | e.g. stand 10706662010497 year 2017: live=114.08187866210938 jl=113.60787963867188"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [ulp2_16=2 ulpbig=15] max|Δ|=0.07079 | e.g. stand 10706662010497 year 2017: live=3.994692802429199 jl=3.9979469776153564"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 18 cells [material=1 ulp1=1 ulp2_16=2 ulpbig=14] max|Δ|=9.028 | e.g. stand 10706662010497 year 2017: live=7.8449530601501465 jl=7.856916904449463"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=5 ulpbig=7] max|Δ|=8.0 | e.g. stand 10706662010497 year 2047: live=260 jl=259"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 19 cells [material=14 ulpbig=5] max|Δ|=25.0 | e.g. stand 10706662010497 year 2017: live=309 jl=308"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [material=12 ulpbig=8] max|Δ|=10.98 | e.g. stand 10706662010497 year 2017: live=21.405929565429688 jl=22.965913772583008"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=15.0 | e.g. stand 10706662010497 year 2047: live=294 jl=290"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [material=1 ulpbig=6] max|Δ|=2.0 | e.g. stand 10706662010497 year 2047: live=131 jl=130"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=16.0 | e.g. stand 10706662010497 year 2017: live=54 jl=60"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=5 ulpbig=7] max|Δ|=8.0 | e.g. stand 10706662010497 year 2047: live=260 jl=259"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=909.0 | e.g. stand 10706662010497 year 2047: live=64469 jl=64870"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 19 cells [material=14 ulpbig=5] max|Δ|=25.0 | e.g. stand 10706662010497 year 2017: live=309 jl=308"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=0.447 | e.g. stand 10706662010497 year 2047: live=53.986175537109375 jl=54.023040771484375"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=3 ulpbig=8] max|Δ|=97.0 | e.g. stand 10706662010497 year 2047: live=11715 jl=11723"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "Mort"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 10707449010497 year 2031: live=1 jl=0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [material=12 ulpbig=8] max|Δ|=10.98 | e.g. stand 10706662010497 year 2017: live=21.405929565429688 jl=22.965913772583008"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=15.0 | e.g. stand 10706662010497 year 2047: live=294 jl=290"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [material=6 ulpbig=8] max|Δ|=182.0 | e.g. stand 10706662010497 year 2047: live=12630 jl=12626"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [material=1 ulpbig=6] max|Δ|=2.0 | e.g. stand 10706662010497 year 2047: live=131 jl=130"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [material=20] max|Δ|=642.0 | e.g. stand 10706662010497 year 2017: live=109 jl=94"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "TALLY"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """one-directional population bias (over=0 under=4) — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand * year *: live=balanced jl=over=0 under=4"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=5 ulpbig=7] max|Δ|=8.0 | e.g. stand 10706662010497 year 2027: live=267 jl=268"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 19 cells [material=14 ulpbig=5] max|Δ|=25.0 | e.g. stand 10706662010497 year 2017: live=309 jl=308"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=2 jl_not_f32=3 material=12] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=21.4 jl=23.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=15.0 | e.g. stand 10706662010497 year 2037: live=299 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [material=1 ulpbig=6] max|Δ|=2.0 | e.g. stand 10706662010497 year 2047: live=131 jl=130"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=16.0 | e.g. stand 10706662010497 year 2017: live=54 jl=60"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=5 ulpbig=7] max|Δ|=8.0 | e.g. stand 10706662010497 year 2027: live=267 jl=268"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=909.0 | e.g. stand 10706662010497 year 2027: live=64874 jl=65062"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 19
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 19 cells [material=14 ulpbig=5] max|Δ|=25.0 | e.g. stand 10706662010497 year 2017: live=309 jl=308"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "EXTRA_CONTENT"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows | measured 2026-09-28: 8 cells [structural=8] max|Δ|=0.0 | e.g. stand 10706662010497 year *: live=none jl=15 non-summary lines: --------------------------------------"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [gold_text9=2 jl_not_f32=2 small=5] max|Δ|=0.4 | e.g. stand 10706662010497 year 2027: live=60.2 jl=60.5"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=3 ulpbig=8] max|Δ|=97.0 | e.g. stand 10706662010497 year 2027: live=11861 jl=11912"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "Mort"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 10707449010497 year 2031: live=1 jl=0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=2 jl_not_f32=3 material=12] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=21.4 jl=23.0"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 15 cells [material=9 ulpbig=6] max|Δ|=15.0 | e.g. stand 10706662010497 year 2037: live=299 jl=296"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [material=6 ulpbig=8] max|Δ|=182.0 | e.g. stand 10706662010497 year 2027: live=12763 jl=12818"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [material=20] max|Δ|=642.0 | e.g. stand 10706662010497 year 2017: live=109 jl=94"""
+
+[[residual]]
+variant = "AK"
+regime = "simfire"
+file = "sum"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 7 cells [material=1 ulpbig=6] max|Δ|=2.0 | e.g. stand 10706662010497 year 2047: live=131 jl=130"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "CRASH"
+col = "*"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """jl CRASH — KeyError: key :essprt_fsp not found | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 10709344010497 year *: live= jl=KeyError: key :essprt_fsp not found"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_InvReference"
+col = "BFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 207
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 207 cells [structural=207] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_InvReference"
+col = "CFVolEq"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 207
+issue = """NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap | measured 2026-09-28: 207 cells [structural=207] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live=A32CURW351 jl="""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_InvReference"
+col = "SpeciesFIA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [structural=9] max|Δ|=0.0 | e.g. stand 10707449010497 year *: live= jl=094"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Number_of_Strata"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=2 jl=1"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_Crown_Base"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [material=6 ulpbig=3] max|Δ|=6.0 | e.g. stand 10706662010497 year 2037: live=71 jl=72"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_Crown_Cover"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 6 cells [ulpbig=6] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=8 jl=7"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 26
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 26 cells [ulpbig=26] max|Δ|=0.8238 | e.g. stand 10706662010497 year 2037: live=49.686588287353516 jl=49.267250061035156"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_Lg_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [material=2 ulpbig=3] max|Δ|=2.0 | e.g. stand 10709171010497 year 2049: live=113 jl=114"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_Nom_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 17 cells [material=9 ulpbig=8] max|Δ|=2.0 | e.g. stand 10706662010497 year 2037: live=166 jl=164"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_Sm_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [material=4 ulpbig=1] max|Δ|=16.0 | e.g. stand 666741868126144 year 2036: live=175 jl=159"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesFIA_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [material=1] max|Δ|=165.0 | e.g. stand 10706662010497 year 2007: live=263 jl=098"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesFIA_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [material=1 structural=4] max|Δ|=165.0 | e.g. stand 10706662010497 year 2007: live=098 jl=263"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesFVS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 10706662010497 year 2007: live=WH jl=SS"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesFVS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 10706662010497 year 2007: live=SS jl=WH"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesPLANTS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 10706662010497 year 2007: live=TSHE jl=PISI"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_1_SpeciesPLANTS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 10706662010497 year 2007: live=PISI jl=TSHE"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Crown_Base"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 14 cells [material=8 ulpbig=6] max|Δ|=8.0 | e.g. stand 10706662010497 year 2037: live=6 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Crown_Cover"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 20 cells [material=18 ulpbig=2] max|Δ|=22.0 | e.g. stand 10706662010497 year 2037: live=8 jl=3"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 28
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 28 cells [material=2 ulpbig=26] max|Δ|=1.04 | e.g. stand 10706662010497 year 2037: live=3.473189115524292 jl=2.6418657302856445"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Lg_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 22
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 22 cells [material=21 ulpbig=1] max|Δ|=11.0 | e.g. stand 10706662010497 year 2037: live=27 jl=21"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Nom_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 21 cells [material=13 ulpbig=8] max|Δ|=8.0 | e.g. stand 10706662010497 year 2037: live=21 jl=16"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Sm_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 18 cells [material=13 ulpbig=5] max|Δ|=13.0 | e.g. stand 10706662010497 year 2027: live=3 jl=4"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFIA_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=165.0 | e.g. stand 666741868126144 year 2036: live=263 jl=098"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFIA_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=7 structural=2 ulpbig=2] max|Δ|=165.0 | e.g. stand 10706662010497 year 2017: live=242 jl=098"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFVS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 666741868126144 year 2036: live=WH jl=SS"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesFVS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [structural=11] max|Δ|=0.0 | e.g. stand 10706662010497 year 2017: live=RC jl=SS"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesPLANTS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 666741868126144 year 2036: live=TSHE jl=PISI"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_SpeciesPLANTS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [structural=11] max|Δ|=0.0 | e.g. stand 10706662010497 year 2017: live=THPL jl=PISI"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_2_Status_Code"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=1.0 | e.g. stand 10706662010497 year 2037: live=1 jl=0"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_DBH"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=0.1016 | e.g. stand 251006657489998 year 2033: live=0.0 jl=0.1016034483909607"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_Lg_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=2.0 | e.g. stand 251006657489998 year 2033: live=0 jl=2"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_Nom_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [material=2] max|Δ|=2.0 | e.g. stand 251006657489998 year 2033: live=0 jl=2"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_Sm_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 251006657489998 year 2033: live=0 jl=1"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesFIA_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=263"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesFIA_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=108"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesFVS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=WH"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesFVS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=LP"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesPLANTS_1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=TSHE"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Stratum_3_SpeciesPLANTS_2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 2
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 251006657489998 year 2033: live=-- jl=PICO"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Structure_Class"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [structural=11] max|Δ|=0.0 | e.g. stand 10706662010497 year 2037: live=6=OM jl=5=OS"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_StrClass"
+col = "Total_Cover"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 25 cells [material=18 ulpbig=7] max|Δ|=19.0 | e.g. stand 10706662010497 year 2037: live=15 jl=11"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10706662010497 year 2047: live=36 jl=34"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10706662010497 year 2017: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=13 ulpbig=3] max|Δ|=12.63 | e.g. stand 10706662010497 year 2017: live=12.578032493591309 jl=15.306302070617676"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10706662010497 year 2047: live=43 jl=35"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=16 jl=19"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "Acc"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [material=6 ulpbig=3] max|Δ|=9.0 | e.g. stand 10706662010497 year 2037: live=7 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10706662010497 year 2047: live=36 jl=34"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=195.0 | e.g. stand 10706662010497 year 2047: live=9397 jl=9358"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10706662010497 year 2017: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=694.0 | e.g. stand 10706662010497 year 2047: live=305 jl=999"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [ulpbig=11] max|Δ|=0.1021 | e.g. stand 10706662010497 year 2047: live=57.38248825073242 jl=57.299537658691406"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=5 ulpbig=6] max|Δ|=24.0 | e.g. stand 10706662010497 year 2047: live=1635 jl=1617"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=13 ulpbig=3] max|Δ|=12.63 | e.g. stand 10706662010497 year 2017: live=12.578032493591309 jl=15.306302070617676"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10706662010497 year 2047: live=43 jl=35"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "SizeCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=4.0 | e.g. stand 10706662010497 year 2047: live=1 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "StkCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """per-record Float32 drift below .sum print precision — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 10706662010497 year 2047: live=4 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=6 ulpbig=6] max|Δ|=119.0 | e.g. stand 10706662010497 year 2047: live=1772 jl=1732"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=16 jl=19"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "Tpa"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=16] max|Δ|=625.0 | e.g. stand 10706662010497 year 2017: live=44 jl=30"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "TALLY"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """one-directional population bias (over=0 under=3) — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand * year *: live=balanced jl=over=0 under=3"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "TALLY"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """one-directional population bias (over=0 under=4) — owner: the AK campaign (not yet dug) | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand * year *: live=balanced jl=over=0 under=4"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ATBA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10706662010497 year 2037: live=36 jl=34"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ATCCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10706662010497 year 2017: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ATQMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [gold_text9=1 jl_not_f32=1 material=13 small=1] max|Δ|=12.7 | e.g. stand 10706662010497 year 2017: live=12.6 jl=15.3"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ATSDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10706662010497 year 2027: live=37 jl=35"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ATTopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=16 jl=19"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "Accr"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 9 cells [material=6 ulpbig=3] max|Δ|=9.0 | e.g. stand 10706662010497 year 2027: live=7 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "BA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 8 cells [material=6 ulpbig=2] max|Δ|=14.0 | e.g. stand 10706662010497 year 2037: live=36 jl=34"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "BdFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=4 ulpbig=7] max|Δ|=195.0 | e.g. stand 10706662010497 year 2027: live=10306 jl=10324"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "CCF"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=14 ulpbig=2] max|Δ|=64.0 | e.g. stand 10706662010497 year 2017: live=42 jl=41"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "ForTyp"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=694.0 | e.g. stand 10706662010497 year 2047: live=305 jl=999"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "MAI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [gold_text9=3] max|Δ|=0.1 | e.g. stand 10706662010497 year 2047: live=57.4 jl=57.3"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "MCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 11
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 11 cells [material=5 ulpbig=6] max|Δ|=24.0 | e.g. stand 10706662010497 year 2027: live=1792 jl=1791"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "QMD"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [gold_text9=1 jl_not_f32=1 material=13 small=1] max|Δ|=12.7 | e.g. stand 10706662010497 year 2017: live=12.6 jl=15.3"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "SDI"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=35.0 | e.g. stand 10706662010497 year 2027: live=37 jl=35"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "SizeCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [material=3] max|Δ|=4.0 | e.g. stand 10706662010497 year 2047: live=1 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "StkCls"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the AK campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 10706662010497 year 2047: live=4 jl=5"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "TCuFt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=6 ulpbig=6] max|Δ|=119.0 | e.g. stand 10706662010497 year 2027: live=1908 jl=1902"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "TPA"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 16 cells [material=16] max|Δ|=625.0 | e.g. stand 10706662010497 year 2017: live=44 jl=30"""
+
+[[residual]]
+variant = "AK"
+regime = "thinbba"
+file = "sum"
+col = "TopHt"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10706662010497 year 2017: live=16 jl=19"""
