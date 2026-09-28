@@ -655,6 +655,8 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
     empty!(s.fire.fmicr)                                       # FMICR of THIS burn only (set by fmburn!)
+    empty!(s.fire.firkil)                                      # FIRKIL of THIS burn only: fmburn! refills it; a fire-due
+                                                               # cycle whose burn never reaches FMEFF keeps WK2 = MORTS
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
