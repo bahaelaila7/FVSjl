@@ -5,14 +5,23 @@
 # Usage: julia test/harness/tiered/allowlist_draft.jl <report.tsv> [owner_note] >> KNOWN_RESIDUALS.toml
 include(joinpath(@__DIR__, "classify_fns.jl"))
 
-function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sample)
+# DBS merch-spec columns of FVS_InvReference that jl historically wrote as 0 (the only InvReference gap on SN/IE/EM/BM).
+const INVREF_MERCH = Set(["CFMinDBH", "CFTopDia", "CFStump", "CFSawMinDBH", "CFSawTopDia", "CFSawStump",
+                          "BFMinDBH", "BFTopDia", "BFStump", "CFCruiseType", "CFVolEq", "BFVolEq"])
+
+function tag(variant, file, col, classes::Dict{String,Int}, maxabs::Float64, sample; gold = "", got = "")
     owner_drift = variant == "BM" ? "fork bm-base-resid3" : variant == "IE" ? "fork ie-ulp3" :
                   "the $(variant) campaign (not yet dug)"
     dom = isempty(classes) ? "" : first(sort(collect(classes); by = x -> -x[2]))[1]
     driftonly = all(k -> k in ("ulp1", "ulp2_16", "ulpbig", "tiny", "small"), keys(classes))
-    if file in ("FVS_TreeList", "FVS_CutList", "FVS_ATRTList") && col in ("Ht2TDCF", "Ht2TDBF")
+    if gold == "column" && got == "missing"
+        # a whole COLUMN the live table has and jl's writer lacks (schema), not a value divergence
+        return "NEW: jl $(file) lacks column $(col) that the live oracle writes — DBS writer schema gap"
+    elseif gold == "absent" && got == "extra column"
+        return "NEW: jl $(file) writes column $(col) that the live oracle does not — DBS writer schema gap"
+    elseif file in ("FVS_TreeList", "FVS_CutList", "FVS_ATRTList") && col in ("Ht2TDCF", "Ht2TDBF")
         return "list-table merch-top heights not filled by jl (written 0) — owner: fork list-ht2td"
-    elseif file == "FVS_InvReference"
+    elseif file == "FVS_InvReference" && col in INVREF_MERCH
         return "NEW: jl FVS_InvReference merch-spec columns (CFMinDBH/CFTopDia/BFMinDBH/…) written as 0 — DBS writer gap"
     elseif file == "sum" && col == "EXTRA_CONTENT"
         return "NEW: jl run_keyfile's .sum text includes FFE report tables (CARBON REPORT); FVS writes those to .out, its .sum has only -999 + summary rows"
@@ -58,7 +67,8 @@ function draft(path)
         end
         s = rs[1]; sample = "e.g. stand $(s[2]) year $(s[6]): live=$(first(s[7], 40)) jl=$(first(s[8], 60))"
         t = tag(k[1], k[3], k[4], cl, maxabs, k[4] == "PRESENCE" ? "live=$(s[7]), jl=$(s[8])" :
-                k[3] in ("TALLY", "CRASH") ? s[8] : "")
+                k[4] == "ROWCOUNT" ? "e.g. live $(s[7]) rows, jl $(s[8])" :
+                k[3] in ("TALLY", "CRASH") ? s[8] : ""; gold = String(s[7]), got = String(s[8]))
         println("\n[[residual]]")
         println("variant = \"$(k[1])\"\nregime = \"$(k[2])\"\nfile = \"$(k[3])\"\ncol = \"$(k[4])\"\nstand = \"*\"\nyear = \"*\"")
         println("status = \"OPEN\"")

@@ -25,9 +25,22 @@ fixture_stands(v) = [strip(l) for l in eachline(joinpath(fixture_dir(v), "stands
 
 # QUICK tier (TIERED=quick): first 3 stands × these regimes — for refactor iteration (a few minutes).
 const QUICK_REGIMES = ["none", "thinbba", "plant_cyc", "simfire", "mistletoe"]
+
+"""
+The regimes a variant's fixture covers: PROVENANCE.toml `regimes` (make_fixtures drops a regime whose extension the
+variant's oracle build STUBS — FVS11 "requested extension is not part of this program", e.g. CA/AK have no WRD, AK no
+Climate-FVS — and lists it under `skipped_regimes`), in REGIMES order. Falls back to REGIMES when absent.
+"""
+function fixture_regimes(v)
+    p = joinpath(fixture_dir(v), "PROVENANCE.toml")
+    isfile(p) || return REGIMES
+    rs = get(TOML.parsefile(p), "regimes", nothing)
+    rs === nothing ? REGIMES : [r for r in REGIMES if r in rs]
+end
+
 function tiered_cases(v; quick::Bool = get(ENV, "TIERED", "") == "quick")
-    st = fixture_stands(v); rg = REGIMES
-    if quick; st = st[1:min(3, length(st))]; rg = QUICK_REGIMES; end
+    st = fixture_stands(v); rg = fixture_regimes(v)
+    if quick; st = st[1:min(3, length(st))]; rg = [r for r in QUICK_REGIMES if r in rg]; end
     [(cn, r) for cn in st for r in rg]
 end
 
