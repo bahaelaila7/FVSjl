@@ -467,8 +467,6 @@ function write_dbs_strclass!(dbpath::AbstractString, caseid::AbstractString,
     fvs(i)    = i > 0 ? String(strip(coef.code_alpha[i]))  : "--"
     plants(i) = i > 0 ? String(strip(coef.code_plants[i])) : "--"
     fia(i)    = i > 0 ? String(fia3(coef.code_fia[i]))     : "--"
-    # dbsstrclass.f:122 returns on NTREES=0 BEFORE the CREATE TABLE (:125-128): a stand with no row never creates it
-    isempty(rows) && return dbpath
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_STRCLASS_CREATE)
