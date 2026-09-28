@@ -88,10 +88,12 @@ function crown_ratio_update!(s::StandState, ::Southern; fint::Float32 = 5f0, cro
     relden = relden_override >= 0f0 ? relden_override : stand_ccf(s)  # RELDEN — crown competition factor
                                          # (override = the DENSE-backdated CCF, used by CRATET init crown)
     sdidef = s.plot.sp_sdi_def
-    # Ascending diameter rank: isort[i] = 1 (smallest) … n (largest); x = rank/n.
-    ord = sortperm(view(t.dbh, 1:n))
-    isort = Vector{Int32}(undef, n)
-    @inbounds for r in 1:n; isort[ord[r]] = Int32(r); end
+    # ISORT(IND(JJ)) = ITRN−JJ+1 (sn/crown.f:156-159): the rank in FVS's IND — RDPSRT's DESCENDING diameter order with
+    # its own tie order — not a stable ascending sort. LSTART: CRATET's IND (sn/cratet.f:155-157 IND=IND1 + RDPSRT(.FALSE.),
+    # :261 RDPSRT(.TRUE.) when dead records exist — the shared crown_isort/bm_cratet_ind!); cycling: gradd.f:186 RDPSRT.
+    # MEASURED FVSsn_g16 157577477010854 1972: tied LP pairs (7.1"/49.0', 6.4"/45.4', 5.9"/42.6') had their dubbed CRs
+    # 34/35, 31/29, 26/27 swapped against live.
+    isort = crown_isort(s; lstart = lstart)
     scale = clamp(1f0 - 0.00167f0 * (relden - 100f0), 0.30f0, 1f0)
 
     eqn = sd[:mcr_eqn]; ma = sd[:mcr_a]; mc = sd[:mcr_c]; mb = sd[:mcr_b]
