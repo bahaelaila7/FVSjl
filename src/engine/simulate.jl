@@ -667,6 +667,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # fuel update here so they see the post-fire, start-of-cycle fuel pools + fresh fire snags (#28).
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
+    unfire = Vector{Float32}(undef, n)                         # FMSADD's UNFIRE = SNGNEW − FIRKIL for FMSCRO
     mort  = 0f0
     akfk = length(s.fire.firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
@@ -676,6 +677,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
         akfk && (fk = min(s.fire.firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
+        unfire[j] = extra[j] > fk ? extra[j] - fk : 0f0        # fmsadd.f:292-296 (SNGNEW already net of FIRKIL)
         m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
@@ -690,7 +692,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
             d != 0f0 && (mort += d * t.cuft_vol[j]; t.mort_pa[j] += d)
         end
     end
-    book_mortality_snags!(s, extra, n, fint)                   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
+    book_mortality_snags!(s, extra, n, fint; crown_basis = unfire)   # FMSDIT snags for the EXCESS MORTS only (FMKILL)
     # FMKILL crown hand-back (fmkill.f:92-94): IF(FMICR<1) FMICR=1; IF(FMICR<|ICR|) ICR=-FMICR. The negative
     # ICR makes the next CROWN keep FMICR instead of recomputing (crown.f "ICR(I) WAS CALCULATED ELSEWHERE");
     # jl stores the kept value in crown_bypass, applied by crown_ratio_update_fvs!.

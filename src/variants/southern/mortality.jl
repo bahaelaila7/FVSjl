@@ -587,7 +587,8 @@ end
 # DBHCL = 2-inch dbh class (fmsadd.f:273-277), 19 for dbh≥36.
 @inline _snag_dbhcl(d::Float32)::Int = d >= 36f0 ? 19 : trunc(Int, d / 2f0 + 1f0)
 
-function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0)
+function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n::Int, fint::Real = 5f0;
+                               crown_basis::Union{Nothing,AbstractVector{Float32}} = nothing)
     # ORGANON variants (OC/OP) port growth+vol only — no SN snag/biomass coeffs (:v2t/:dkr_cls); skip FFE
     # snag-booking when they are absent (FFE for those variants is a separate unported extension).
     (s.fire === nothing || !s.fire.active || !haskey(s.coef.species, :v2t)) && return s
@@ -613,7 +614,10 @@ function book_mortality_snags!(s::StandState, basis::AbstractVector{Float32}, n:
         # crown = CROWNW + YRSCYC·OLDCRW·X, but the OLDCRW crown-lift term is GATED by `IF (ICALL .NE. 4)`; ordinary
         # mortality reaches FMSCRO with ITYP=4 (fmkill.f:143) ⇒ CROWNW ONLY. (Verified vs live: adding it overshoots.)
         xv = _ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
-        fmscro!(s, sp, d, xv, den, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4) mortality reconciliation
+        # FMSADD passes FMSCRO UNFIRE = SNGNEW−FIRKIL (0 if not larger, fmsadd.f:292-296), and on a fire cycle SNGNEW is
+        # already WK2−FIRKIL (fmkill.f:129) — FIRKIL comes off twice for the crown (`crown_basis`), once for the snag/root.
+        cden = crown_basis === nothing ? den : crown_basis[i]
+        cden > 0f0 && fmscro!(s, sp, d, xv, cden, clamp(Int(dkr[sp]), 1, 4); icall = 4)   # FMKILL → FMSADD(…,4)
         _, _, rbio = jenkins_biomass(coef, sp, d)
         s.fire.bioroot += rbio * den
         push!(items, (sp, d, h, h, h, den, -1f0))
