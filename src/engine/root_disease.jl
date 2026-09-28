@@ -3011,7 +3011,12 @@ function rd_cycle_start!(s::StandState)
     # increment, 0 at HT≤4.5, else the DGF dub — which EM/IE carry in dg_prev (em_cycle0_wk1!/ie_cycle0_wk1!, already
     # applied here); afterwards dg_prev == diam_growth. The raw input DG left every unmeasured tree at 0 (MEASURED
     # FVSem_g16 3087467010690 rootdis 1998: Live_Merch_CuFt = ΣTCLAS·WK1 live 472.71, jl 0).
-    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev : t.diam_growth
+    # BM: bm/dgdriv.f:161 WK1(I)=DG(I) reads the same DO-220 array (:746-769), which bm_cycle0_dg rebuilds from the
+    # calibration stash — a MEASURED increment (DG>0, HT>4.5; inside-bark after the IDG=1/3 DO-105 BRATIO) is KEPT,
+    # only the unmeasured records get the DGF dub. (The old dub-only overwrite in diameter_growth! replaced measured
+    # DG too: FVSbm_g16 177426703020004 rootdis 2022 Live_Merch_CuFt live 14.767031, jl 7.051225 ⇒ 14.767029.)
+    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev :
+           (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) : t.diam_growth
     rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
     return
 end
