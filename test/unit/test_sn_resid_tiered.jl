@@ -44,4 +44,11 @@ end
     @test _cells("FVS_TreeList", ("DG", "DBH"), ("1977",)) == 0
 end
 
+# dense.f (one file in 23 of the 24 builds, not ON) sums TPROB/TSUMD2 over IND1 with WK5 = D·(D·P); RMSQD = QMD. jl did
+# that only for BM/EM/IE/AK (MEASURED 1977: QMD 6.26626635 live vs 6.26626682 record order) — the QMD feeds SN's
+# SDI/mortality, so every later cycle drifted.
+@testset "SN QMD over IND1 with dense.f's WK5 (dense.f:179-188) vs FVSsn_g16" begin
+    @test _cells("FVS_Summary", ("QMD", "ATQMD"), ("1977", "1982", "1987", "1992", "1997")) == 0
+end
+
 end # module
