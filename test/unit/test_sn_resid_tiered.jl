@@ -202,4 +202,10 @@ end
     @test got == det
 end
 
+# fmfout.f:326-333 TOTCLS(KSP,ICLS) = TOTCLS(KSP,ICLS) + CURKIL(I) + FMPROB(I): gfortran adds left to right, (TOTCLS+CURKIL)+FMPROB;
+# jl grouped CURKIL+FMPROB first (MEASURED 200267456010854 SIMFIRE 2007 Total_class2 8.7718506 vs live 8.7718487).
+@testset "SN FVS_Mortality class totals in fmfout.f's order (fmfout.f:326-333) vs FVSsn_g16" begin
+    @test count(m -> m.file == "FVS_Mortality", _casex("200267456010854", "simfire").ms) == 0
+end
+
 end # module

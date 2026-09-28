@@ -348,8 +348,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             haskey(sp_tot, sp) || continue                       # species present at the fire (same row set as before)
             get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += ck
             clskil[c] += ck
-            sp_tot[sp][c] = sp_tot[sp][c] + (ck + fp)
-            totcls[c] = totcls[c] + (ck + fp)
+            sp_tot[sp][c] = sp_tot[sp][c] + ck + fp            # TOTCLS + CURKIL(I) + FMPROB(I), left to right
+            totcls[c] = totcls[c] + ck + fp
         end
         empty!(sp_bak); empty!(sp_vol)
         killed_ba = 0f0; killed_vol = 0f0
