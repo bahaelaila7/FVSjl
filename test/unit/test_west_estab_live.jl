@@ -148,3 +148,24 @@ const _WE_KT = ["kt_22404917010497_none", "kt_22404917010497_plant_cyc"]
         end
     end
 end
+
+# estb/estab.f's no-stocking branch (STOADJ≈0: NOAUTOES / NATURAL / STOCKADJ 0) still samples the per-plot site preps
+# (:333-399, ESPREP defaults on NTALLY=1) and sets each plot's ESSUBH inputs before its PLANT/NATURAL trees. Stock
+# ktt01 stand 5 (bare ground, NOAUTOES, PLANT 400 WL + 400 PP in 1992): live plots 1-41 NONE, 42-48 MECH, 49-50 BURN.
+@testset "estb no-stocking branch: planted-tree site preps (KT ktt01 bare PLANT) vs live" begin
+    case = "kt_ktt01_bareplant"
+    err, db = _we_run(case)
+    @test (case, err) == (case, "")
+    if isempty(err)
+        jl_rows = [l for l in split(_WE_SUM[case], '\n') if occursin(r"^\d{4} ", l)]
+        lv_rows = readlines(joinpath(_WE_FX, case * "_live.rows"))
+        @test length(jl_rows) == length(lv_rows)
+        for (a, b) in zip(jl_rows, lv_rows)
+            @test split(a) == split(b)
+        end
+        lv = _we_live(case); jl = _we_jl(db, 1)
+        for k in sort(collect(keys(lv)))
+            @test (k, get(jl, k, nothing)) == (k, lv[k])
+        end
+    end
+end
