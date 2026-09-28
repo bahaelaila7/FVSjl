@@ -560,8 +560,12 @@ function write_dbs_climate!(dbpath::AbstractString, caseid::AbstractString,
                 sp = r.sp
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
                     strip(coef.code_alpha[sp]), strip(coef.code_plants[sp]), strip(coef.code_fia[sp]),
-                    Float64(r.viab), Float64(r.ba), Float64(r.tpa), Float64(r.mort1), Float64(r.mort2),
-                    Float64(r.gmult), Float64(r.sitgm), Float64(r.mxden), Float64(r.potestab)))
+                    # dbsclsum.f:66-76 builds the INSERT with a list-directed WRITE(SQLStmtStr,*): each REAL*4 reaches
+                    # SQLite as 9-significant-digit text (e.g. 0.775909066), not a bound double (jl stored the exact
+                    # Float32, 0.7759090662002563 — every FVS_Climate real cell off). _r9 = that text through the
+                    # oracle's SQLite 3.33 atof (the same path dbscuts/dbsatrtls take).
+                    _r9(r.viab), _r9(r.ba), _r9(r.tpa), _r9(r.mort1), _r9(r.mort2),
+                    _r9(r.gmult), _r9(r.sitgm), _r9(r.mxden), _r9(r.potestab)))
             end
         end
     finally
@@ -584,8 +588,8 @@ CREATE TABLE IF NOT EXISTS FVS_DM_Stnd_Sum(
 
 const _FVS_DM_SPPSUM_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_DM_Spp_Sum(
-  CaseID char(36) not null, StandID char(26) not null, Year Int null, Spp char(2) null,
-  Mean_DMR real null, Mean_DMI real null, Inf_TPA int null, Mort_TPA int null,
+  CaseID text not null, StandID text not null, Year Int null, SpeciesFVS text null, SpeciesPLANTS text null,
+  SpeciesFIA text null, Mean_DMR real null, Mean_DMI real null, Inf_TPA int null, Mort_TPA  int null,
   Inf_TPA_Pct int null, Mort_TPA_Pct int null, Stnd_TPA_Pct int null)"""
 
 const _FVS_DM_SZSUM_CREATE = """
@@ -607,7 +611,7 @@ function write_dbs_dm_stndsum!(dbpath::AbstractString, caseid::AbstractString,
         _ensure_table!(db, _FVS_DM_STNDSUM_CREATE)
         ins = "INSERT INTO FVS_DM_Stnd_Sum VALUES (" * join(fill("?", 19), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             st = rep.stand
             DBInterface.execute(stmt, (caseid, standid, Int(yr), Int(rep.nage),
@@ -634,13 +638,15 @@ function write_dbs_dm_sppsum!(dbpath::AbstractString, caseid::AbstractString,
     db = SQLite.DB(dbpath)
     try
         _ensure_table!(db, _FVS_DM_SPPSUM_CREATE)
-        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 11), ",") * ")"
+        ins = "INSERT INTO FVS_DM_Spp_Sum VALUES (" * join(fill("?", 13), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
-        ni(x) = round(Int, x)
+        ni(x) = round(Int, x, RoundNearestTiesAway)          # Fortran NINT (misprt.f / dbsmis.f)
         for (yr, rep) in rows
             for sp in rep.species
+                # dbsmis.f DBSMIS1: SpeciesFVS/SpeciesPLANTS/SpeciesFIA = JSP/PLNJSP/FIAJSP of the top-4 species
                 DBInterface.execute(stmt, (caseid, standid, Int(yr),
-                    String(strip(coef.code_alpha[sp.sp])),
+                    String(strip(coef.code_alpha[sp.sp])), String(strip(coef.code_plants[sp.sp])),
+                    String(strip(coef.code_fia[sp.sp])),
                     Float64(sp.mean_dmr), Float64(sp.mean_dmi),
                     ni(sp.inf_tpa), ni(sp.mort_tpa),
                     ni(sp.inf_pct), ni(sp.mort_pct), ni(sp.comp_pct)))
@@ -1288,7 +1294,7 @@ HtG, PctCr, CrWidth, MistCD, BAPctile, PtBAL, TCuFt, MCuFt, SCuFt, BdFt, MDefect
 Ht2TDCF, Ht2TDBF, TreeAge]. `tpa`/`mortpa` are the per-acre values the caller binds (TreeList: PROB/GROSPC and the
 mortality expansion; CutList: WK3/GROSPC and DP=0).
 """
-function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
+function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64; cycle0::Bool = false)
     t = s.trees; c = s.coef; pbal = s.density.point_bal
     iscr = s.variant isa CentralRockies
     fia3(x) = iscr ? lpad(strip(x), 3, '0') : strip(x)
@@ -1308,16 +1314,24 @@ function _treelist_row(s::StandState, i::Integer, tpa::Float64, mortpa::Float64)
         strip(c.code_plants[sp]), fia3(c.code_fia[sp]),
         Int(t.mort_code[i]), Int(t.special[i]), pid,           # TreeVal, SSCD, PtIndex
         tpa, mortpa,                                          # TPA, MortPA
-        Float64(t.dbh[i]), Float64(t.diam_growth[i]), Float64(t.height[i]),
-        Float64(t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
+        # DG: at the inventory (ICYC=0 and TEM=0) dbstrls.f:215-216 binds WORK1(I), which dgdriv.f:785-805 set to the
+        # measured increment when DG>0 .AND. HT>4.5 and to 0 otherwise — not the calibration's −1 "missing" sentinel
+        # (MEASURED FVSem_g16 3006831010690 1989: every no-DG record DG 0, jl −1).
+        Float64(t.dbh[i]), Float64(cycle0 ? (t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0 ? t.diam_growth[i] : 0f0) :
+                                            t.diam_growth[i]), Float64(t.height[i]),
+        # HtG: dbstrls.f:256 binds HTG(I). A missing height increment is 0 in FVS (cratet.f:541-548 converts only
+        # HTG>0); jl's −1 "missing" sentinel (apply_growth_input_types!) must not reach the inventory-year row
+        # (MEASURED FVSem_g16 3006831010690 1989: live HtG 0 on 11 records, jl −1).
+        Float64(cycle0 && t.ht_growth[i] == -1f0 ? 0f0 : t.ht_growth[i]), Int(t.crown_pct[i]), Float64(cw),
         _dm_report_variant(s.variant) ? Int(t.dmr[i]) : 0,     # MistCD = MISGET(I,IDMR) (dbstrls.f:179); 0 w/o MISTOE
         # PtBAL: IPTBAL = NINT(PTBALT(I)) (dbstrls.f:189, dbscuts.f) — an INTEGER column value
         Float64(t.crown_ratio[i]), round(Int, i <= length(pbal) ? pbal[i] : 0f0, RoundNearestTiesAway),
         Float64(t.cuft_vol[i]), Float64(t.merch_cuft_vol[i]), Float64(t.saw_cuft_vol[i]),
         Float64(t.bdft_vol[i]), mdef, bdef, div(Int(t.trunc[i]) + 5, 100),  # BdFt, MDefect, BDefect, TruncHt
         estht, actpt,                                          # EstHt, ActPt (dbstrls.f: (ITRUNC+5)/100)
-        # TreeAge: ABIRTH only when the age was INPUT (LBIRTH, intree.f:190-195 / dbstreesin.f AGE), else 0
-        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
+        # TreeAge: ABIRTH only when the SLOT's LBIRTH is set (intree.f:190-195 / dbstreesin.f AGE / triple.f:82 —
+        # LBIRTH stays with the slot through TREDEL and ESTAB, see TreeList.slot_lbirth), else 0
+        Float64(t.merch_top_cf[i]), Float64(t.merch_top_bf[i]), t.slot_lbirth[i] ? Float64(t.birth_age[i]) : 0.0]
 end
 
 # Variants whose CRWDTH is the western forest-grown cwcalc value in _forest_crwdth (the same list as its branches).
@@ -1363,7 +1377,7 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     pct_keep = pct_swap ? t.crown_ratio[1:t.n] : Float32[]
     pct_swap && copyto!(t.crown_ratio, 1, s.calib.cratet_pct, 1, t.n)
     @inbounds for i in _ind1_order(s)
-        r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g))
+        r = _treelist_row(s, i, Float64(t.tpa[i] / g), Float64(t.mort_pa[i] / g); cycle0 = cycle == 0)
         push!(rows, met ? _metric_treelist_row(r, t.trunc[i]) : r)
     end
     pct_swap && copyto!(t.crown_ratio, 1, pct_keep, 1, t.n)

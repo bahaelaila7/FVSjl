@@ -145,7 +145,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
         _loss = prem * s.control.yardloss_prlost
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
-        let xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+        let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
@@ -160,35 +160,27 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         pl = s.control.yardloss_prlost
         if pl > 0f0
             v2t = coef_col(s.coef, :v2t)[sp]
-            mcf = max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            bolevol = mcf * v2t / 2000f0
             tcf = max(0.005454154f0 * t.height[i], t.cuft_vol[i])
             fallvol = tcf * v2t / 2000f0                    # TOTAL for the fall→down-wood (CWD1/CWD3 TVOLI='D')
             loss = prem * pl
             ssng = loss * (1f0 - s.control.yardloss_prdsng)
-            if ssng > 0f0 && _fmsadd_binned(s.variant)
-                # R6: FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157)
+            if ssng > 0f0
+                # FMSSEE only; the cut's snags are binned into records by one FMSADD after CUTS (fmscut.f:157 — fmsadd.f is
+                # the same in every variant build, so non-R6 variants bin + book the standing loss's crowns too)
                 push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
                 # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
-                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
-                fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled. AK: akffe 1993
+                # Standing_Snag_lt3 0.01872 live vs 0.01228 without these crowns; CROWNW = FMCROW's (_ffe_crownw).
+                fmscro!(s, sp, t.dbh[i], _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
                         ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
-            elseif ssng > 0f0
-                add_snag!(s.fire, sp, t.dbh[i], ssng, Int(current_cycle_year(s));
-                          bolevol = bolevol, fallvol = fallvol, height = t.height[i])
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3
             # (fmcwd.f:258): the bole is cone-split across size classes into cwd[:,2,idc], all hard (SCNV=1).
             # CWD3 uses TVOLI = FMSVL2 'D' = TOTAL stem volume (fmcwd.f:283-286), NOT merch.
             dsng = loss * s.control.yardloss_prdsng
-            if dsng > 0f0
-                idc = ffe_dkr_cls(s, sp)
-                (_, frac_h) = _cwd_cone_fractions(t.dbh[i], t.height[i])   # CWD3 downed bole is all HARD (SCNV=1)
-                addH = fallvol * dsng
-                @inbounds for j in 1:9
-                    frac_h[j] > 0f0 && (s.fire.cwd[j, 2, idc] += addH * frac_h[j])
-                end
-            end
+            # CWD3 (fmcwd.f:258-290): TVOLI = FMSVL2(…,'D') of the cut tree, no top-kill
+            dsng > 0f0 && _cwd3!(s, sp, t.dbh[i], dsng, t.height[i]; tvoli = max(0.005454154f0 * t.height[i],
+                                 _ffe_west_vol(s.variant) ? _fm_tvoli(s, sp, t.dbh[i], t.height[i]) : tcf))
         end
     end
     # ESTUMP cut log (sprouting species only, when sprouting is on). Variants whose coefficients define
@@ -278,11 +270,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     cl_armed = s.control.cutlist_capture !== nothing       # FVS_CutList sink (DBSCUTS needs WK3 = PROB − WK4)
     al_armed = s.control.atrtlist_capture !== nothing      # FVS_ATRTList sink (DBSATRTLS: post-thin PROB, pre-TREDEL layout)
     tpa_snap = (minharv_on || pretend || cl_armed) ? copy(@view s.trees.tpa[1:s.trees.n]) : Float32[]
-    # AUTOES (IE): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
+    # AUTOES (IE/EM): pre-thin stand TPA (ONTCUR) for the removal-fraction XTES=ONTREM/ONTCUR the establishment
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
     autoes_pre_cuft = 0f0
-    if s.variant isa InlandEmpire
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana   # shared estb/esnutr.f LAUTAL (see the stash below)
         @inbounds for i in 1:s.trees.n
             autoes_pre_tpa  += s.trees.tpa[i]
             autoes_pre_cuft += s.trees.tpa[i] * s.trees.cuft_vol[i]   # ONCUR: OCVCUR(7) total cubic vol
@@ -362,7 +354,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         al_armed && _atrtlist_capture!(s)           # PRTRLS(3) → DBSATRTLS (cuts.f:1740, right after PRTRLS(2))
         rem.tpa > 0f0 && tredel_compact!(s.trees; onmove = _record_move_hook(s))   # TREDEL (+RDTDEL, +FMKILL crown carry): swap-from-end (oracle's exact post-thin layout)
     end
-    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags (R6 variants)
+    # FMSCUT's FMSADD(IY(ICYC),2) (fmscut.f:157, end of CUTS): bin this cut's standing yarding-loss snags
     if s.fire !== nothing && !isempty(s.fire.pend_cut)
         pc = [(Int(x[1]), x[2], x[3], x[4], x[5], x[6], x[7]) for x in s.fire.pend_cut]
         empty!(s.fire.pend_cut)
@@ -377,17 +369,23 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         rem = (tpa = rem.tpa, cuft = rem.cuft, mcuft = rem.mcuft * f,
                scuft = rem.scuft * f, bdft = rem.bdft * f)
     end
-    # AUTOES (IE): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
+    # AUTOES (IE/EM): stash the within-cycle removal fraction for the establishment scheduler (esnutr.f LAUTAL).
     # ★ #143 (2026-08-06): live esnutr.f:271-275 uses XTES=AMAX1(XTPA,XCUF) — the MAX of the TPA-removal fraction
     # (ONTREM(7)/ONTCUR(7)) AND the CUBIC-VOLUME-removal fraction (OCVREM(7)/OCVCUR(7)). jl previously used only the
     # TPA fraction, so an OVERSTORY thin (removes few TREES = low XTPA but high VOLUME = high XCUF) failed to trip the
     # LAUTAL removal trigger (xtes<THRES1) and fell through to the LINGRW ingrowth tally — WRONG tally type. Measured
     # repro 12343703010690: live fired NTALLY=1 (removal) at icyc2/4, jl fired ntally=99 (ingrowth). Add the XCUF term.
-    if s.variant isa InlandEmpire && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
+    # EM compiles the identical estb/esnutr.f (FVSem_buildDir == FVSie_buildDir), so its thins trip the LAUTAL tally too:
+    # MEASURED FVSem_g16 196378260020004 thinbba @2022 "XTPA XCUF= 0.950 0.456" ⇒ NTALLY=1, IDSDAT=2022 — jl (IE-gated)
+    # ran the post-thin tally as ingrowth (NTALLY 99, TIME=SHORTY) ⇒ 127 vs live 182 TPA at 2032.
+    if (s.variant isa InlandEmpire || s.variant isa EasternMontana) && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
         xtpa = rem.tpa / autoes_pre_tpa
         xcuf = autoes_pre_cuft > 0f0 ? rem.cuft / autoes_pre_cuft : 0f0
         s.estab.last_xtes = max(xtpa, xcuf)
     end
+    # ONTREM(7): this cycle's removed TPA (cuts.f), read by crown.f:479's OLDPCT reset; cleared at the cycle end
+    # (fvs.f:432). cuts! can run twice per cycle (the .sum writer's pre-growth call, then grow_cycle!'s idempotent one).
+    rem.tpa > 0f0 && (s.control.total_removal = rem.tpa)
     return rem
 end
 
@@ -448,9 +446,9 @@ end
     t = s.trees; cstock = 0f0
     @inbounds for i in 1:n
         _cut_eligible(s, i, ispcut, dl, du, hl, hu, sp_groups) || continue
-        # cutstk.f CLSSTK (every variant build): CSTOCK = CSTOCK + TPA*(D*D*0.005454154) — the BA factor binds to
-        # D*D first; (TPA*D²)*K rounds differently and moved the last partial record of a THINBBA (ON ont_lite 2034:
-        # PREM 3B008A66 vs live 3B20ACFF).
+        # cutstk.f CLSSTK: CSTOCK=CSTOCK+TPA*(D*D*0.005454154) — the per-tree BA factor first, then ×TPA (REAL*4;
+        # jl's (TPA·D²)·0.005454154 rounds differently ⇒ REMOVE and the last record's partial PREM ULPs off: MEASURED
+        # FVSie_g16 3027007010690 THINBBA 2006: record 19 cut 5.32047272, jl 5.32045555).
         cstock += jtyp == 2 ? wk4[i] * (t.dbh[i] * t.dbh[i] * _BA_PER_TREE) : wk4[i]
     end
     return cstock

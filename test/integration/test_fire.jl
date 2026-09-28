@@ -200,22 +200,9 @@ end
         @test fl !== nothing
         # PRODUCTION flame — BIT-EXACT vs live's 3-dec print (production 4.17171 → 4.172).
         @test round(fl; digits = 3) == 4.172
-        # Scorch keeps a genuine Δ0.0035 (17.5775 vs live 17.581). CORNERED to the GROWN-FLOAT32 ACCUMULATION FLOOR
-        # (a permitted primitive) by EXHAUSTIVE both-sides elimination (2026-07-06; ~28 turns of live stamps): the
-        # residual is the _fmdyn fuel-model WEIGHTS (jl 0.5639/0.4361 vs live 0.5634/0.4366), from a +0.0084 big-wood
-        # fire-basis cwd (LARGE) excess (jl 3.2908 vs live 3.2824), amplified by _fmdyn's near-iso-line sensitivity.
-        # scorch_height's own transcendentals match (routed **0.5/**3.0/**(7/6), inert); per-model BYRAMT bit-exact.
-        # The cwd excess is traced: EVERY down-wood source's LOGIC matches FVS (snag-fall cone-split _cwd_cone_fractions
-        # == fmcwd.f CWD1 R1/pat/DIF+LOHT; woody-breakage == fmcadd.f:81 LIMBRK·CROWNW; cwd2b-fall == fmcadd.f:113-135;
-        # crown-lift == fmcadd.f:95-102), and the DIRECTLY value-comparable pieces bit-MATCH live: 1990 FUINI inventory
-        # LARGE (2.45==2.45), crown-lift big-wood (0.261==0.0521607×5), decay (DKR==fmvinit.f), snag density (FMDOUT
-        # exact). So each source is bit-exact GIVEN the same grown tree state — the only residual is that the GROWN
-        # crown_pct (feeding woody-breakage CROWNW) and grown dbh (feeding the snag-fall cone-split) differ by their
-        # DOCUMENTED grown-Float32 accumulation floors (crown_pct = the carbon:335 @test_broken; grown-dbh = MYBA/MYSDI,
-        # test_dbs_compute). i.e. the SAME accumulated-Float32-growth primitive (doctrine #9's permitted class),
-        # propagated through faithful cwd accounting into the fire-basis fuel and amplified by _fmdyn. Bug #1 (input-snag
-        # bole topwood) + the snag-record binning were REAL fixes en route (both landed this session). REFUTED along the
-        # way: total-fallvol (regressed 12 tests). @test_broken vs rendered-== (not a padded bound). See task #72.
-        @test_broken round(sc; digits = 3) == 17.581
+        # Scorch was @test_broken (Δ0.0035, 17.5775 vs live 17.581) and cornered to a "grown-Float32 accumulation floor";
+        # the real cause was the fire-basis LARGE fuel: jl renormalized the snag-fall cone split to the whole stem where
+        # fmcwd.f:388-403 books MAX(0,P2−P1)·TVOLI from LOHT=0.10 (drops the stub). With that faithful, scorch is exact.
+        @test round(sc; digits = 3) == 17.581
     end
 end

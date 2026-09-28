@@ -381,6 +381,28 @@ mutable struct Control
     # The FVS common BAMAX as a variant's CROWN reads it (ci/crown.f:217 RELSDI=BA/BAMAX): SITSET's BAMAXA(ICINDX) or
     # the user BAMAX, then overwritten by every SDICAL with XMAX·0.5454154·PMSDIU unless LBAMAX (sdical.f:203-204).
     sdical_bamax::Float32
+    # FFE DBS tables: each needs its DATABASE toggle (dbsin.f) AND, where FVS has one, its FMIN report switch.
+    #   CARBREDB → ICMRPT/ICHRPT (FVS_Carbon, FVS_Hrv_Carbon; fmcrbout.f/fmchrvout.f run every FMMAIN year —
+    #   ICRPTB/ICHRVB default 9999, never 0); POTFIRDB → IPOTFIRE/IPOTFIREC (FVS_PotFire[_East], FVS_PotFire_Cond);
+    #   SNAGSUDB → ISSUM + FMIN SNAGSUM (ISNGSM≠−1, fmssum.f); SNAGOUDB → ISDET + FMIN SNAGOUT (fmsout.f window);
+    #   DWDVLDB → IDWDVOL + FMIN DWDVLOUT; DWDCVDB → IDWDCOV + FMIN DWDCVOUT (fmdout.f LPRINT2/LPRINT3).
+    dbs_carbrept::Bool
+    dbs_potfire::Bool
+    dbs_snagsum::Bool
+    dbs_snagdet::Bool
+    dbs_dwdvol::Bool
+    dbs_dwdcov::Bool
+    ffe_snagsum::Bool
+    ffe_snagout::Bool
+    ffe_dwdvlout::Bool
+    ffe_dwdcvout::Bool
+    # ERRGRO (errgro.f) message text (CMSG) per stand, written to FVS_Error by DBSERROR (dbserror.f) — see io/errgro.jl.
+    # `ext_stub_strict`: an extension IN keyword hit its ex*.f stub (FVS11) ⇒ the following records are read by the base
+    # reader (FVS01 for any non-keywds.f name). `dm_block_open`: a linked MISTOE block whose sub-keywords jl reads here.
+    error_msgs::Vector{String}
+    ext_stub_strict::Bool
+    dm_block_open::Bool
+    habtyp_done::Bool          # HABTYP ran for this stand (DB PV_CODE / STDINFO) ⇒ initre.f:384 skips its default call
     # grincr.f:74 LTRIP tests ITRN at GRINCR entry, BEFORE CUTS TREDELs the previous cycle's zero-PROB records (cuts.f:
     # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
     itrn_grincr::Int32
@@ -463,6 +485,9 @@ function Control()
         false, false, false, false, false, false, 0f0,           # BURNREDB/BURNREPT, MORTREDB/MORTREPT, FUELREDB/FUELREPT, PGR3
         Int32(-1),                                               # dbs_ifint
         0f0,                                                     # sdical_bamax
+        false, false, false, false, false, false,                # CARBREDB, POTFIRDB, SNAGSUDB, SNAGOUDB, DWDVLDB, DWDCVDB
+        false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
+        String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
     )
 end
@@ -698,6 +723,17 @@ mutable struct Calibration
     # dbstrls.f reports on the inventory-year FVS_TreeList dead rows (no later DENSE touches IREC2..MAXTRE).
     cratet_dead_pct::Vector{Float32}
     cratet_dead_ptbal::Vector{Float32}
+    # PTBAA(IP) that CRATET DENSE's PTBAL leaves (dense.f:280 → ptbal.f XBALT): per point, live + every inventory-dead
+    # record at its READ DBH and FINT/FINTM-inflated PROB. The LSTART CROWN (ak/crown.f BAPLT → QMDPLT) reads it.
+    cratet_ptbaa::Vector{Float32}
+    # PTBALT(I) of the LIVE records from that same PTBAL walk (cratet.f:150-157 IND = IND1; RDPSRT(.FALSE.), dead
+    # interleaved) — the PBAL the AK LSTART calibration DGF reads (no DENSE between it and dgdriv.f).
+    cratet_live_ptbal::Vector{Float32}
+    # The CURRENT-stand RMSQD the calibration's aspen DGFASP reads (#191/#195; ≥0 only while DGSCOR calibration /
+    # the :770 dub DGF run, −1 otherwise ⇒ dgf! uses stand_qmd). Per stand: it was a process-global Ref
+    # (_TT_CUR_RMSQD), so under TIERED_THREADS>1 one stand's calibration leaked its RMSQD into another stand's growth
+    # dgf! (non-deterministic aspen DG — 474187636489998 econ flipped between runs).
+    cur_rmsqd::Float32
 end
 Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),
@@ -716,7 +752,10 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
-    Float32[], Float32[])                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
+    Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)
+    Float32[],                                                       # cratet_live_ptbal (CRATET PTBAL, live records)
+    -1f0)                                                            # cur_rmsqd (calibration-time RMSQD stash)
 
 # ---------------------------------------------------------------------------
 # Density — COMMON /PDEN/ : stand density / SDI scratch (C4). Minimal for now.
@@ -928,6 +967,29 @@ mutable struct Establishment
     # the ≤19-yr continuation ⇒ NTALLY+1, a lone PLANT/NATURAL ⇒ 1; 0 = no ESTAB call) and the cycle year it is for.
     cyc_ntally::Int32
     cyc_ntally_year::Int32
+    # AK (ak/estab.f) full-establishment-model state SAVEd across ESTAB calls (the per-regen-plot ESB1/PNN/PLPROB/
+    # NSTORE/PROB1/XSTORE/IPPREP vectors, IFT0, the site-prep dates, the SAVEd locals). `nothing` for other variants.
+    ak_state::Any
+    # The two halves of the stocking calibration kept separately, because estab.f:579 evaluates
+    # 1/(1+EXP(-(PN+ESB-ESB1(NCOUNT)))) LEFT-TO-RIGHT — (PN+ESB)−ESB1 — which rounds differently from PN+(ESB−ESB1)
+    # (1-ULP PROB1 ⇒ 1-ULP PROB on the ingrowth records). esb_value=ESB (NaN until the ESB block runs); esb1_*
+    # = ESB1 for the scalar (point-1), per-point and per-(point × IPREP) forms that parallel esb_shift/_pt/_ptip.
+    esb_value::Float32
+    esb1_scalar::Float32
+    esb1_pt::Vector{Float32}
+    esb1_ptip::Matrix{Float32}
+    # LOAD (ESHAP): 1 ⇒ the disturbance tally takes each plot's site prep from the plot data (IPPREP, default 1 = none)
+    # instead of sampling ESPREP's default proportions. esplt2.f:274 sets it when plot site data came with the tree
+    # records (IPINFO 1-4: every FIA-DB stand with ≥1 tree row); estab.f:167-170 (>20 yr past inventory), :246 (an
+    # ingrowth call) and esetpr.f (a MECHPREP/BURNPREP) clear it — permanently (it is never set again).
+    load::Bool
+    # The ESSUBH inputs of each inventory point for this cycle's DO 322 PLANT/NATURAL heights (estab.f:473-493, set
+    # once per point in the plot loop): (BAA=BAAA(NNID) clamped [1,400], XCOS=COS(PASP)·SLO, XSIN=SIN(PASP)·SLO,
+    # SLO=PSLO(NNID)); IHTSER=MYHTS(IHAB), IPHY. Filled by ie_autoes_establish! (IE/EM) before the tally; empty ⇒
+    # estb_planted_height falls back to the stand values.
+    es_pt_hin::Vector{NTuple{4,Float32}}
+    es_hin_ihtser::Int32
+    es_hin_iphy::Int32
 end
 Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}(), Set{Int32}(),
                                 true, true, 0.10f0, 0.30f0, 0f0, NaN32, 0f0, Int32[], Float32[], Int32[], 1f0,
@@ -935,7 +997,9 @@ Establishment() = Establishment(false, Int32(-9999), Int32(0), 0f0, Set{Int32}()
                                 5.0f0, AddTreesActivity[], NaN32, false, Float32[], Float32[],
                                 Dict{Int,Int32}(), Set{Int32}(), Int32(0), Int32(-99999), Dict{Int,Int32}(),
                                 Float64[], Float32[], Int32(-1), Int32(0), Int32[], Float32[], Int32(0), Int32(-99), Int[],
-                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1))
+                                Matrix{Float32}(undef, 0, 0), 0f0, Int32(-1), Int32(0), Int32(-1), nothing,
+                                NaN32, NaN32, Float32[], Matrix{Float32}(undef, 0, 0), false,
+                                NTuple{4,Float32}[], Int32(0), Int32(3))
 
 mutable struct DbsState
     enabled::Bool
@@ -1142,6 +1206,11 @@ mutable struct FireState
                                        # snag (ICALL≠4); FMMAIN adds it onto CWD2B after each year's FMCADD (fmmain.f:243)
     pend_cut::Vector{NTuple{7,Float32}} # R6 variants: this CUTS call's standing yarding-loss snags (FMSSEE), binned by
                                        # one FMSADD(IY(ICYC),2) at the end of the cut (fmscut.f:157) — see fmsadd_bin!
+    tonrms::Float32                    # TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
+                                       # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
+    firkil::Vector{Float32}            # FIRKIL(I) of this burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL)
+    fmcrow_on::Bool                    # FMCROW (ffe_fmcrow!) has filled TreeList.ffe_crownw — from then on every FFE
+                                       # crown read takes the stored CROWNW(I,0:5) (_ffe_crownw), as FVS does
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1151,7 +1220,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[])
+                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

@@ -74,6 +74,17 @@ end
 end
 
 """
+    _fm_dbhmin(s, sp) -> Float32
+
+DBHMIN(KSP), the merch cubic minimum DBH that FMCBIO (Jenkins MBIO) and FMCROWE read: the variant's merch standards once
+set (AK carries them in `ak_merch`), else the species table's `:dbh_min` (a stand run without the volume setup).
+"""
+_fm_dbhmin(s::StandState, sp::Int)::Float32 =
+    s.variant isa SoutheastAlaska ? ak_merch_dbhmin(s, sp) :
+    (s.control.merch_init && sp <= length(s.control.sp_dbh_min)) ? s.control.sp_dbh_min[sp] :
+    Float32(coef_col(s.coef, :dbh_min)[sp])
+
+"""
     crown_biomass(s, sp, d, h, ic) -> NTuple{6,Float32}
 
 Per-tree crown biomass by FFE size class `XV(0:5)` (FMCROWE, fmcrowe.f) for species
@@ -159,8 +170,8 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] * _FM_P2T   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
-    # DBHMIN(SPIYV): the merch cubic min DBH — AK carries it in its merch standards, not a species CSV column.
-    dbhmin = s.variant isa SoutheastAlaska ? ak_merch_dbhmin(s, Int(sp)) : coef_col(coef, :dbh_min)[sp]
+    # DBHMIN(SPIYV): the merch cubic min DBH (`_fm_dbhmin`, the same array FMCBIO reads)
+    dbhmin = _fm_dbhmin(s, Int(sp))
     ifor  = Int(s.plot.forest_idx)
     cr    = Float32(ic)
     dx, hx = d, h
@@ -321,4 +332,61 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
     end
     (d > dobf && d > dbhmin) && (xv4 += lilpce)       # add the LILPCE back for large trees
     return (xv0, xv1, xv2, xv3, xv4, xv5)
+end
+
+
+"""
+    _ffe_crownw(s, i, sp, d, h, ic) -> NTuple{6,Float32}
+
+CROWNW(I,0:5) of record `i` as FFE holds it: once FMCROW has run (`ffe_fmcrow!`, fs.fmcrow_on), the array it filled at
+this cycle's FMSDIT — per-record PCTILE height percentile, the GROW freeze of a fire-scorched survivor — carried with the
+record through TRIPLE/TREDEL; before that (or on a stand driven without the report loop) `crown_biomass(s, sp, d, h, ic)`.
+"""
+@inline function _ffe_crownw(s::StandState, i::Integer, sp::Integer, d::Float32, h::Float32, ic::Integer)
+    t = s.trees; fs = s.fire
+    if fs !== nothing && fs.fmcrow_on && 1 <= i <= size(t.ffe_crownw, 2)
+        return ntuple(k -> t.ffe_crownw[k, i], 6)
+    end
+    return crown_biomass(s, sp, d, h, ic)
+end
+
+"""
+    ffe_fmcrow!(s)
+
+FMCROW at FMSDIT ({variant}/fmcrow.f; every build has the same GROW/PCTILE skeleton): RDPSRT(ITRN,HT,HPOINT,.TRUE.) +
+PCTILE(ITRN,HPOINT,PROB,HPCT) give each record its height percentile — equal heights get DIFFERENT percentiles by their
+place in the sort, where the height-threshold form gave them all the top one (akffe 2013 YC rec 16: CROWNW(0) 9.27 live
+vs 15.45) — then, per record, GROW=GROW+1 while < 1 and CROWNW(I,0:5) = FMCROWE/FMCROWW(D, HT, ICR, HPCT) unless GROW is
+still < 1 (a fire-scorched survivor keeps its reduced crown, fmeff.f:494-509, fmcrow.f:126-127). The eastern builds
+(CS/LS/NE/ON/SN) compute no HPCT; their crown equations ignore `hp`.
+"""
+function ffe_fmcrow!(s::StandState)
+    fs = s.fire; (fs === nothing || !fs.active) && return s
+    fs.fmcrow_on = true
+    t = s.trees; n = t.n
+    n == 0 && return s
+    ord = Vector{Int32}(undef, n)
+    _rdpsrt!(view(t.height, 1:n), ord)                                  # HPOINT: HT descending, identity-seeded
+    hpct = zeros(Float32, n)
+    if n == 1
+        hpct[1] = 100f0
+    else
+        hpct[Int(ord[n])] = t.tpa[Int(ord[n])]
+        @inbounds for k in (n - 1):-1:1
+            hpct[Int(ord[k])] = hpct[Int(ord[k + 1])] + t.tpa[Int(ord[k])]
+        end
+        i1 = Int(ord[1]); tot = hpct[i1]; hpct[i1] = tot / 100f0
+        if tot > 0f0
+            p1 = hpct[i1]
+            @inbounds for k in 2:n; ii = Int(ord[k]); hpct[ii] = hpct[ii] / p1; end
+            hpct[i1] = 100f0
+        end
+    end
+    @inbounds for i in 1:n
+        t.ffe_grow[i] < 1 && (t.ffe_grow[i] += Int32(1))
+        t.ffe_grow[i] < 1 && continue
+        xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], t.height[i], Int(t.crown_pct[i]); hp = hpct[i])
+        for k in 1:6; t.ffe_crownw[k, i] = xv[k]; end
+    end
+    return s
 end

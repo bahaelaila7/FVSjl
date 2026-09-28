@@ -34,12 +34,14 @@ function setup_growth!(s::StandState)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
     compute_density!(s)
     snapshot_esb_inputs!(s)              # ESFLTR (fvs.f:201): freeze the AUTOES ESB inventory-calibration inputs
+    ak_esfltr!(s)                        # AK ESFLTR (fvs.f:201): inventory per-point overstory BAAINV/TPAAINV
                                          # (small-tree TPACRE + per-point overstory BAAINV) BEFORE any growth
     root_disease_setup!(s)               # WRD fvs.f RDMN1 init seam — inert unless an RDIN block is active
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
-    sdi_max_check!(s)                     # SDICHK — reset species SDImax if over-dense
+    s.variant isa SoutheastAlaska || sdi_max_check!(s)   # SDICHK — reset species SDImax if over-dense (AK: at the
+                                         # END of CRATET, after the crown dub + calibration — see the AK branch)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
@@ -209,6 +211,11 @@ function setup_growth!(s::StandState)
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
+        sdi_max_check!(s)                 # ak/cratet.f:664 CALL SDICHK is the LAST step of CRATET — after the :522 CROWN dub
+                                          # (whose PRD = ZRD/XMAXPT reads the UNRESET SDIDEF) and the :600 DGDRIV + REGENT
+                                          # calibration. Resetting first fed an over-dense stand's dub the reset SDImax:
+                                          # FIA 10708179010497 XMAXPT 711.63 vs live 614.10 ⇒ PRD 0.8497 vs 0.9846 ⇒ crowns
+                                          # 1-3 pts high ⇒ diverged from 2007.
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
@@ -355,7 +362,7 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
     # Ontario to keep the shared density path byte-identical for every other variant.
     s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
-    point_basal_area!(s)
+    point_basal_area!(s; cratet_ind = cratet_ind)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
     # RELDEN = stand CCF, set by DENSE for EVERY variant (dense.f → CCFCAL sum). This was a per-variant whitelist
@@ -662,11 +669,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     post_fire === nothing || post_fire(s)
     extra = Vector{Float32}(undef, n)
     mort  = 0f0
+    akfk = length(s.fire.firkil) >= min(n, t.n)
     @inbounds for j in 1:min(n, t.n)
         fk = pre[j] - t.tpa[j]                                 # fire kill (FIRKIL) on this record
+        # FMKILL(1) reads FIRKIL itself (clamped ≤ PROB, fmkill.f:75) and WK2 = MAX(WK2,FIRKIL) is MortPA — not the
+        # PROB−survivor difference, which rounds (akffe 2013 FVS_TreeList MortPA 1.6238010 live vs 1.6238011).
+        akfk && (fk = min(s.fire.firkil[j], pre[j]))
         t.tpa[j] = pre[j] - max(mk[j], fk)                     # WK2 = MAX(MORTS, fire), per fmkill.f:86
         extra[j] = max(0f0, mk[j] - fk)                        # regular snags = WK2 − FIRKIL (fmkill.f:135)
-        m = pre[j] - t.tpa[j]
+        m = akfk ? max(mk[j], fk) : pre[j] - t.tpa[j]
         mort += m * t.cuft_vol[j]                              # OMORT on the cycle-start per-record CFV
         t.mort_pa[j] = m                                       # FVS_TreeList MortPA (post-TRIPLE)
     end
@@ -739,7 +750,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
-                     wwpb_barrier::Union{Nothing,Function} = nothing)
+                     wwpb_barrier::Union{Nothing,Function} = nothing,
+                     fmmain_hook::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
@@ -816,7 +828,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))   # cuts.f:259-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
+    # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
+    # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
+    # FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into slot 511, live PBAL 255.53
+    # (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002 ⇒ DG/LTHG/HTG ⇒ mortality.
+    ncomcup = s.variant isa SoutheastAlaska ? count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n) : 0
     comcup!(s.trees; onmove = _record_move_hook(s))         # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
+    ncomcup > 0 && compute_density!(s)
     _trim_crown_bypass!(s)
     rem.tpa > 0f0 && compute_density!(s)                    # recompute post-thin density
     if s.fire !== nothing && s.fire.active
@@ -970,6 +988,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH, before UPDATE)
+    fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
@@ -1164,7 +1184,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 t.mort_pa[c] = m
             end
             # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
-            mis_book && book_mortality_snags!(s, Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
+            # AK: fmkill.f books SNGNEW from the WK2 array itself (= t.mort_pa here), not PROB−survivor, which rounds
+            # to the survivor's ULP — FMSADD's density-weighted HTDEAD then drifts (akffe YC 8.4"×5' ⇒ 4.9999995 live).
+            mis_book && book_mortality_snags!(s, s.variant isa SoutheastAlaska ? Float32[t.mort_pa[c] for c in 1:n2] :
+                                                 Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
@@ -1329,17 +1352,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     if s.variant isa Ontario
         @inbounds for i in 1:t.n; t.birth_age[i] += fint; end
     end
-    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO). Collected HERE — post DBH-UPDATE
-    # (grown DBH for Live_BA) + post compute_volumes! (end-of-period CFV) + post rd_grow_apply!→
-    # rdinoc decay (decayed PROBDA stump pool). The rd driver (probiu/probit/rdkill/probda) is intact.
-    if !tripled && (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.root_disease !== nothing &&
-       rd_active(s.root_disease) && s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-        let yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
-            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
-            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
-            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
-        end
-    end
     accr = 0f0
     @inbounds for i in 1:n
         d = t.cuft_vol[i] - old_cfv2[i]     # OACC over the tripled set; FVS clamps
@@ -1372,6 +1384,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
     es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
+    # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
+    # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
+    # gradd.f:192 DENSE's — post-growth, PRE-ESNUTR. jl's AUTOES booking re-DENSEs with the new cohort first
+    # (MEASURED FVSem_g16 196378260020004 @2031: live RELDEN 109.1242 / point-1 PCCF 88.5849 vs jl post-regen
+    # 109.1673 / 88.6849 ⇒ every birth-cycle HTGRR ~2e-4 low).
+    es_em_relden_pre, es_em_ba_pre, es_em_pccf_pre = s.variant isa EasternMontana ?
+        (stand_ccf(s), stand_ba(s), _fresh_point_ccf(s)) : (-1f0, -1f0, Float32[])
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
     es_nstart = s.trees.n                    # records before ESTAB (CR grows the new regen in its birth cycle)
     es_avh_pre = s.plot.avg_height           # #194: ci/regent.f ATAVH = PRE-regen avg height (0 on bare) for the
@@ -1397,12 +1416,14 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && ie_autoes_establish!(s; fint = fint)
     # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
     # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || estab_prep_esnutr!(s)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
         (stand_ccf(s), stand_top_height(s)) : (0f0, 0f0)
     establish!(s; fint = fint)              # ESNUTR — adds scheduled PLANT/NATURAL regen (ICR=0), recomputes density
+    # AK: estb/esnutr.f + ak/estab.f (natural tally + PLANT/NATURAL) + ak/esgent.f, one ESNUTR call per cycle.
+    s.variant isa SoutheastAlaska && ak_esnutr!(s; fint = fint)
     # WPBR BRESTB (estab.f, IE/EM): seed this cycle's new host records at their birth state before ESGENT grows them.
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
@@ -1417,7 +1438,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
-        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
+        atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh,
+        relden_pre = es_em_relden_pre, ba_pre = es_em_ba_pre, pccf_pre = es_em_pccf_pre)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
@@ -1482,6 +1504,27 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WPBR BRPR (fvs.f:408, after TREGRO/DISPLY): BRTSTA tree statuses + BRSTAT stand statistics that the
     # next cycle's BRCREM/BRECAN read. Inert (no-op) unless a BRUST block is active with host pines.
     s.wpbr !== nothing && wpbr_brpr!(s)
+    s.control.total_removal = 0f0            # fvs.f:432 ONTREM(7)=0 for the next cycle
+    # RDSUM: FVS_RD_Sum row (rdpr.f at fvs.f:404, after TREGRO — so after GRADD's ESNUTR). estab.f:1247/1336/1426 call
+    # RDESTB for every record ESTAB books, entering it into the disease area (PROBIU=PROB·PAREA, FPROB=PROB): size the
+    # driver over this cycle's regen HERE, then report — post DBH-UPDATE (grown DBH for Live_BA), post the end-of-period
+    # VOLS, post rd_grow_apply!→rdinoc decay. jl reported before establishment and entered the regen only at the next
+    # cycle start (MEASURED FVSem_g16 196378260020004 rootdis 2032: UnInf_TPA live 341.25, jl 284.12 — the 2031 cohort).
+    if !tripled && s.root_disease !== nothing && rd_active(s.root_disease) && s.root_disease.iroot != 0 &&
+       s.root_disease.driver !== nothing
+        let rd = s.root_disease, d = rd.driver::RDDriver
+            if d.n != s.trees.n
+                rd.wk1_nold = d.n                   # rd_cycle_start!: WK1 of these records is still 0 (estab.f WK1=0)
+                rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s)
+            end
+        end
+        if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+            yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
+            iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
+            s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
+            s.control.dbs_rd_detail && push!(s.root_disease.det_rows, (yr, rd_det_report(s.root_disease, s, yr)))
+        end
+    end
     s.control.cycle += Int32(1)
     return (; accretion = accr / fint / g, mortality = mort / fint / g)
 end
@@ -1548,9 +1591,15 @@ function run_keyfile(keypath::AbstractString;
         al_cycles = al_on ? Tuple[] : nothing
         # FFE Stand Carbon Report (CARBREPT) / Potential Fire (POTFIRE): collect per cycle, same simulation.
         _fuels_db = s.control.dbs_fuels && s.control.ffe_fuelout      # FVS_Fuels gate (FUELSOUT + FUELOUT window)
-        carb_rows = ((s.control.carbon_report_on || _fuels_db) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        # fmmain.f runs FMSOUT/FMSSUM/FMPOFL/FMDOUT/FMCRBOUT/FMCHRVOUT every FFE year; each DBS table is written only
+        # when its DATABASE toggle is set (and, for the snag/down-wood tables, its FMIN report keyword).
+        ctl0 = s.control
+        _ffe_tbls = has_db && (ctl0.dbs_carbrept || (ctl0.dbs_snagsum && ctl0.ffe_snagsum) ||
+                               (ctl0.dbs_snagdet && ctl0.ffe_snagout) || (ctl0.dbs_dwdvol && ctl0.ffe_dwdvlout) ||
+                               (ctl0.dbs_dwdcov && ctl0.ffe_dwdcvout))
+        carb_rows = ((ctl0.carbon_report_on || _fuels_db || _ffe_tbls) && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         pf_rows = (s.control.potfire_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
-        hc_rows = (s.control.carbon_report_on && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
+        hc_rows = (has_db && ctl0.dbs_carbrept && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         clim_rows = (s.control.dbs_climate && s.climate !== nothing && s.climate.active) ? Tuple[] : nothing
         cprof_rows = (s.control.dbs_canprofile && s.fire !== nothing && s.fire.active) ? Tuple[] : nothing
         strcl_rows = s.control.dbs_strclass ? Tuple[] : nothing
@@ -1592,6 +1641,7 @@ function run_keyfile(keypath::AbstractString;
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
             write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
             if sum_on
@@ -1646,13 +1696,18 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_calibstats!(s.control.dbs_out_file, caseid, String(sid), s.calib, s.coef)
             _fuels_db && carb_rows !== nothing &&
                 write_dbs_fuels!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-            if carb_rows !== nothing && s.control.carbon_report_on
-                write_dbs_carbon!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_snagsum!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_snagdet!(s.control.dbs_out_file, caseid, String(sid),
-                                   [(r[1], r[7]) for r in carb_rows], s.coef)
-                write_dbs_dwd_vol!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
-                write_dbs_dwd_cov!(s.control.dbs_out_file, caseid, String(sid), carb_rows)
+            if carb_rows !== nothing
+                ctl1 = s.control
+                ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
+                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
+                    write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
+                    write_dbs_snagdet!(ctl1.dbs_out_file, caseid, String(sid), [(r[1], r[7]) for r in carb_rows], s.coef)
+                (ctl1.dbs_dwdvol && ctl1.ffe_dwdvlout) &&                # fmdout.f LPRINT2 + dbsfmdwvol.f IDWDVOL
+                    write_dbs_dwd_vol!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                (ctl1.dbs_dwdcov && ctl1.ffe_dwdcvout) &&                # fmdout.f LPRINT3 + dbsfmdwcov.f IDWDCOV
+                    write_dbs_dwd_cov!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
             end
             # Fire-EVENT DBS tables: one row per SIMFIRE event (captured by fmburn!), independent of CARBREPT
             if s.fire !== nothing && s.fire.active && !isempty(s.fire.burn_reports)
@@ -1668,9 +1723,10 @@ function run_keyfile(keypath::AbstractString;
             end
             pf_rows === nothing ||
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
-            if hc_rows !== nothing && any(r -> r[2].removed != 0f0, hc_rows)
+            # fmchrvout.f: ICHRVB defaults to 9999 (fminit.f:899), so the `ICHRVB .EQ. 0` exit never fires and DBSFMHRPT
+            # writes a row every FFE year once CARBREDB set ICHRPT — zero rows included (jl required a removal).
+            hc_rows === nothing || isempty(hc_rows) ||
                 write_dbs_hrvcarbon!(s.control.dbs_out_file, caseid, String(sid), hc_rows)
-            end
             if cp_on
                 var_names = String[nm for (_, nm, _) in s.control.compute_defs]
                 write_dbs_compute!(s.control.dbs_out_file, caseid, String(sid), var_names, cp_rows)

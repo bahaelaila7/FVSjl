@@ -138,6 +138,19 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # stand (e.g. YSM029-271 is IDFdk3: ICH cedar-hemlock coeffs over-predict Pl DG on a dry IDF stand).
         p.eco_unit = rpad(_fia_str(d, "ECOREGION", ""), 10)
     end
+    # CPVREF (dbsstandin.f:568-574): PV_REF_CODE > 0 ⇒ WRITE(CPVREF,'(I10)') (PVREF1/6 compare it ADJUSTL'd), ≤0 ⇒ blank.
+    if _fia_present(d, "PV_REF_CODE")
+        r = _fia_f32(d, "PV_REF_CODE", 0f0)
+        p.pv_ref = r > 0f0 ? string(Int(round(r))) : ""
+    end
+    # dbsstandin.f:579-592 — HABTYP runs for a non-blank PV_CODE (SN with an ECOREGION skips it); only its ERRGRO
+    # branches (FVS14/32/33/34) are mirrored here, the habitat itself is resolved below.
+    if _fia_present(d, "PV_CODE") && !isempty(strip(_fia_str(d, "PV_CODE", ""))) &&
+       !(s.variant isa Southern && _fia_present(d, "ECOREGION"))
+        chab = strip(_fia_str(d, "PV_CODE", ""))
+        habtyp_errors!(s, chab, strip(p.pv_ref), something(tryparse(Int, chab), 0))   # READ(CHAB,'(I10)',ERR=40)
+        s.control.habtyp_done = true
+    end
     # PV_CODE (potential-vegetation / habitat-type code, e.g. 531) → habitat_code (KODTYP), the input to
     # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
     # KODTYP→KKTYPE. Eastern variants key DG off forest type (habitat-input left a documented gap there), so
@@ -327,8 +340,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
             # dbsstandin.f:590 ICL5 = KODTYP = IFIX(numeric PV_CODE) BEFORE HABTYP remaps KODTYP — the DGCONS
             # habitat (rcon.f IDTYPE) keys off this RAW code, not the PVREF1/default IEMTYP (live 474157097489998:
             # KODTYP 130 → 260 for FMCFMD, but DG on IHCODE(130)).
-            raw = tryparse(Float64, strip(_fia_str(d, "PV_CODE", "")))
-            (raw !== nothing && raw > 0) && (s.control.icl5 = Int32(trunc(raw)))
+        end
+        # dbsstandin.f:590-593 (EVERY stand with a PV_CODE, ref or not): ICL5 = KODTYP = IFIX(numeric PV_CODE) BEFORE
+        # HABTYP translates KODTYP; em/habtyp.f never touches ICL5, and `IF(ICL5.LE.0) ICL5=KODTYP` only fires for a
+        # non-numeric code (READ …'(I10)' ERR ⇒ 0). ICL5 is "the actual input habitat code" (grinit.f:200): rcon.f's
+        # DGCONS IDTYPE and esplt2.f's AUTOES habitat bracket (IHTYPE) both key off it, not the translated KODTYP.
+        # MEASURED FVSem_g16: 3006831010690 PV_CODE 9999999 (→ habitat 260) runs ESTAB with ISER 5 (bracket(9999999)
+        # = group 16, the AF series), 2999215010690 PV_CODE 356 (→ 250) with bracket(356) = group 4.
+        if s.variant isa EasternMontana && _fia_present(d, "PV_CODE")
+            raw = tryparse(Int, strip(_fia_str(d, "PV_CODE", "")))      # READ(CHAB,'(I10)'): integer text only
+            (raw !== nothing && 0 < raw < typemax(Int32)) && (s.control.icl5 = Int32(raw))
         end
         # ★ ESTAB ICL5 fix: for IE a 6-char plant-association PV_CODE is decoded by ie/habtyp.f's PCOML block
         # (dbsstandin.f DB path keeps KARD2 as the alpha code ⇒ HBDECD→NITYPE→ICL5=JTYPE(NITYPE)), INDEPENDENT
@@ -636,6 +657,10 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     #   (zero tree rows) is the only IPINFO=0 case. (MEASURED: 4733242010690 has 1 DB tree row but s.trees.n=0.)
     npt_inv = max(1, Int(p.points_inv) - Int(p.nonstockable))          # IPTINV-NONSTK (esplt2.f nptids)
     npt = length(recs) == 0 ? npt_trees : max(npt_trees, npt_inv)
+    # esplt1.f:68 IPINFO=2 for tree records carrying plot site data ⇒ esplt2.f:274 LOAD=1 (the establishment site
+    # prep comes from the plot data, not ESPREP's default proportions) — MEASURED FVSem_g16 196378260020004 thinbba
+    # disturbance tally: "PNONE= 0 PMECH= 0 PBURN= 0", no ESPREP draw, every plot IPREP 1.
+    length(recs) > 0 && (s.estab.load = true)
     # Always populate for DATABASE input (this reader is DATABASE-only; TREEDATA uses a different path so iet01 etc.
     # keep the empty→stand-slope fallback). A NULL DB slope ⇒ 0, which is the CORRECT establishment slope live uses.
     if npt >= 1

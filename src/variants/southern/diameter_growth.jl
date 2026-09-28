@@ -405,10 +405,18 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # YC (sp3) the omission gave PBAL 52.8 vs live 187.5 (=3×BAF 62.5) ⇒ COR 1.389 vs live 1.434.
     _ak_pbal_fix = s.variant isa SoutheastAlaska
     cur_point_bal = _ak_pbal_fix ? copy(s.density.point_bal) : Float32[]
+    # AK: the live records' PTBALT is the one the CRATET DENSE's PTBAL walk left (crown_init: cratet.f:150-157 IND =
+    # IND1; RDPSRT(.FALSE.) with the dead interleaved), not point_basal_area!'s identity-seeded RDPSRT(.TRUE.) — the
+    # two order equal-DBH live/dead pairs differently. FIA 720755825290487: live WS I=4 (6.3") walks BEFORE dead 2993
+    # (6.3") ⇒ PBAL 33.0357 (live DEBUG PTBAL/DGF), jl had 34.3385; I=14 38.0839 vs 39.2656 ⇒ WS COR −0.0306824 vs
+    # −0.0306006 ⇒ cycle-1 DG 1e-4 off ⇒ TCuFt 1393/1394 at 2049.
+    if _ak_pbal_fix && length(s.calib.cratet_live_ptbal) == t.n
+        @inbounds for i in 1:t.n; cur_point_bal[i] = s.calib.cratet_live_ptbal[i]; end
+    end
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    _TT_CUR_RMSQD[] = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
+    s.calib.cur_rmsqd = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
                       s.calib.cratet_rmsqd :   # IE/EM (identical dense.f): the cratet
                       stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
@@ -556,8 +564,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     _saved_avh = s.plot.avg_height
     s.plot.avg_height = _cur_avh
     dgf!(s, s.variant)                        # WK2 = DGF prediction at the PAST stand (variant dgf)
-    _em_dub_rmsqd = _TT_CUR_RMSQD[]   # EM's :770 dub DGF runs with the same current-RMSQD stash (aspen DGFASP)
-    _TT_CUR_RMSQD[] = -1.0f0     # #191/#195: clear the current-RMSQD stash (actual growth uses stand_qmd); unconditional to avoid leaks
+    _em_dub_rmsqd = s.calib.cur_rmsqd   # EM's :770 dub DGF runs with the same current-RMSQD stash (aspen DGFASP)
+    s.calib.cur_rmsqd = -1.0f0     # #191/#195: clear the current-RMSQD stash (actual growth uses stand_qmd); unconditional to avoid leaks
     s.plot.avg_height = _saved_avh
     c.calib_dbh = Float32[]
     s.plot.forest_type = saved_fortype
@@ -742,7 +750,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
        s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario
         _wk2_keep = s.scratch.wk[2, 1:t.n]
-        _TT_CUR_RMSQD[] = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
+        s.calib.cur_rmsqd = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height
         s.plot.forest_type = 0; s.plot.avg_height = _cur_avh
         dgf!(s, s.variant)
@@ -750,7 +758,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         c.dub_wk3 = Float32[t.dbh[i] for i in 1:t.n]
         s.plot.forest_type = _sft; s.plot.avg_height = _savh
         s.scratch.wk[2, 1:t.n] .= _wk2_keep
-        _TT_CUR_RMSQD[] = -1.0f0
+        s.calib.cur_rmsqd = -1.0f0
     end
 
     # Small-tree height-growth calibration: HCOR_init (regent.f:411-516). For each
@@ -814,6 +822,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # applied DIRECTLY as CON=exp(HCOR) in the growth loop (no dgdriv attenuation). Without it NC small trees
     # used CON=1 ⇒ ~2× over-prediction of the small-tree HTG/DG (BO CON≈0.50) ⇒ over-growth ⇒ SDI over-thin.
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # AK (ak/regent.f LSTART, cratet.f:629): HTCALC-predicted vs measured small-tree (DBH<3) height increment.
+    s.variant isa SoutheastAlaska && ak_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒
     # HCOR_init stayed 0 (CA FIA 1123865229290487: live DF small-tree scale factor 0.73, jl 1.00).
     s.variant isa CentralCalifornia && ca_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
@@ -1534,6 +1544,7 @@ function triple_records!(s::StandState, stash)
         # walks after a thin, so it must match the oracle's append order exactly.
         u = nlive + 2 * i - 1; l = nlive + 2 * i
         copy_tree!(t, u, i); copy_tree!(t, l, i)
+        t.slot_lbirth[u] = t.slot_lbirth[l] = t.slot_lbirth[i]   # triple.f:82 LBIRTH(ITFN)=LBIRTH(I)
         # REGENT's per-copy sub-4.5' DBH(K)=D+0.001*HK (BM; see stash dbh0): copies start from the central
         # record's PRE-REGENT DBH plus their own bump, not the central's already-bumped DBH.
         if haskey(stash, :dbh0) && stash.dbh0[i] > 0f0

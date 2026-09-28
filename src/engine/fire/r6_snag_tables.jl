@@ -578,4 +578,5 @@ const _FM_TFALL_OP = Float32[
     1f0 10f0 15f0 15f0 15f0 15f0]
 "The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
-                     v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP : nothing
+                     v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
+                     v isa SoutheastAlaska ? _FM_TFALL_AK : nothing

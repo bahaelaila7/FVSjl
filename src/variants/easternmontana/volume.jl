@@ -22,6 +22,10 @@ const _EM_R1KEMP_BF = Dict{String,NTuple{4,Float32}}(
     "106" => (0f0, 0f0, 0f0, 0f0),   # pinyon: BFVOL(15,1,:)=0 ⇒ BFGRS=0 ⇒ BFNET floored to 10/tree
 )
 
+# dvest.f:142 `VOL(2) = ANINT(VOL(2))` — every DVE (direct volume estimator) board-foot volume is rounded to the
+# nearest whole board foot (half away from zero) after the region routine returns (live FVSem_g16 CW/AS BdFt 62, 56, …).
+@inline _dvest_anint(x::Float32)::Float32 = round(x, RoundNearestTiesAway)
+
 # R1KEMP gross board-foot (r1kemp.f:300, JTAB=1): BFGRS = BFVOL·D2H100 + intercept (DBH split at 21).
 @inline function _em_r1kemp_board(fia::AbstractString, d::Float32, h::Float32)::Float32
     bf = get(_EM_R1KEMP_BF, fia, nothing); bf === nothing && return 0f0
@@ -68,7 +72,8 @@ end
     elseif fia in _EM_R1KEMP_LINEAR
         cb[5] * d2h100 + cb[6]      # ISPEC 14/15 (pinyon): linear from DBH≥5, no polynomial branch
     elseif d <= 9.5f0
-        d2h100 * (cb[1] * d + cb[2] * d * d + cb[3] * d * d * d + cb[4])
+        # r1kemp.f:363 D2H100*(C1*DBHOB + C2*DBHOB**2 + C3*DBHOB**3 + C4): integer powers first (x*x; __powisf2)
+        d2h100 * (cb[1] * d + cb[2] * (d * d) + cb[3] * fpowi(d, 3) + cb[4])
     elseif d <= 20.5f0
         cb[5] * d2h100 + cb[6]
     else
@@ -129,7 +134,7 @@ function compute_volumes_em!(s::StandState)
             if eq[1] == '2' && fia == "746"          # OH aspen (200DVEW746) — R2OLDV RM-232
                 tcf, mcf, bdf = _em_r2oldv_aspen(d, h)
                 t.cuft_vol[i] = tcf; t.merch_cuft_vol[i] = mcf   # GCUFT(top4) has its own floor
-                t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = bdf
+                t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = _dvest_anint(bdf)
             else
                 r1kemp  = eq[1] == '1' && eq[2:3] == "02"
                 r1allen = eq[1] == '1' && eq[2:3] == "01"
@@ -140,7 +145,7 @@ function compute_volumes_em!(s::StandState)
                 t.merch_cuft_vol[i] = ((r1kemp || r1allen) && d >= 7f0) ? max(tcf, 0f0) : 0f0
                 t.saw_cuft_vol[i] = 0f0
                 # R1KEMP board (VOL(3)=BFNET, BFMIND=7); R1ALLEN returns 0 board for 375/740 (r1allen.f:369).
-                t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _em_r1kemp_board(fia, d, h) : 0f0
+                t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _dvest_anint(_em_r1kemp_board(fia, d, h)) : 0f0
             end
         else
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0

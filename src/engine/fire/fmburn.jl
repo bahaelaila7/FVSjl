@@ -142,7 +142,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
     # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
     # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra) && flmult == 1f0 && byram > 0f0
+    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
             crb, rfinal, hpa, fire_type = (s.variant isa Klamath || s.variant isa OregonCoast ||
@@ -152,7 +152,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                                            s.variant isa CentralRockies || s.variant isa Teton || s.variant isa Utah ||
                                            s.variant isa WestCascades || s.variant isa PacificNorthwest ||
                                            s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
-                                           s.variant isa WestSierra) ?
+                                           s.variant isa WestSierra || s.variant isa SoutheastAlaska) ?   # FVSak fmcfir.f == FVSpn's
                   # cr/tt/ut/wc/pn/ie/em/kt/ci/op fmcfir.f are byte-identical (comments aside) to nc/fmcfir.f: RACT =
                   # 3.34·SFRATE(2) with FM10 at the FIXED midflame SWIND·0.4 (fmcfir.f:143,173). CR on S248112 1990:
                   # RFINAL 27.38 (shared path) vs live 65.761.
@@ -232,6 +232,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         # survivors and FMKILL hands it back to FVS as ICR=-FMICR (see mortality_and_fire!).
         resize!(fs.fmicr, t.n)
         @inbounds for i in 1:t.n; fs.fmicr[i] = t.crown_pct[i]; end
+        resize!(fs.firkil, t.n); fill!(fs.firkil, 0f0)
         @inbounds for i in 1:t.n
             # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
             # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
@@ -259,6 +260,8 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             pmort = clamp(pmort, 0f0, 1f0)
             curkil = pmort * t.tpa[i]
             crfrac > 0f0 && (curkil += crfrac * (t.tpa[i] - curkil))  # crown-fire share (fmeff.f:549)
+            fmprob0 = t.tpa[i]                                        # FMPROB(I) before the kill (fmeff.f:487)
+            fs.firkil[i] += curkil                                 # FIRKIL(I) = FIRKIL(I) + CURKIL(I) (fmeff.f:546)
             t.tpa[i] -= curkil
             t.tpa[i] < 0f0 && (t.tpa[i] = 0f0)
             # Fire-killed sprouting trees feed the ESUCKR stump-sprout pool exactly as cutting does: FVS
@@ -286,46 +289,16 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                 sp_bak[sp] = get(sp_bak, sp, 0f0) + curkil * 0.005454154f0 * d * d
                 sp_vol[sp] = get(sp_vol, sp, 0f0) + curkil * vk
             end
-            # Fire-killed trees become standing snags. Carry the MERCH bole (mcf·v2t/2000) — the same basis
-            # as ordinary-mortality snags (mortality.jl) and the carbon_snt-validated StandDead/down-wood
-            # bole — so the fall transfers a stem-only bole, NOT the jenkins TOTAL-AGB fallback (which
-            # double-counts the crown that belongs in the separate CWD2B path) (fmsvol.f merch MCF).
-            # Western snag bole is the TOTAL cubic (fmsvol.f:150 VOL2HT=MAX(X,TCF), LMERCH=F), not the SN merch
-            # (NVEL vol_eq ⇒ t.merch_cuft_vol is merch-only and ~15% low for the snag report/fall).
-            mcf = s.variant isa Klamath ?
-                  max(0.005454154f0 * t.height[i], nc_snag_bole_cuft(s, sp, d, t.height[i])) :
-                  _ffe_west_vol(s.variant) ? ffe_west_snag_bole(s, sp, d, t.height[i]) :   # {v}/fmsvol.f MAX(X,TCF)
-                  max(0.005454154f0 * t.height[i], t.merch_cuft_vol[i])
-            if _fmsadd_binned(s.variant)
-                push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))   # FMSSEE (fmeff.f:553)
-            else
-                add_snag!(fs, sp, d, curkil, year; bolevol = mcf * v2t[sp] / 2000f0, height = t.height[i])
-            end
-            # Pool the fire-killed CROWN into the crown-debris pool (CWD2B), as FMEFF does for the dead
-            # trees. But FIRST consume the fire-REACHED fine crown the way FMEFF does (fmeff.f:457-460)
-            # BEFORE it is booked as snags: in the scorched crown zone the fire burns 100% of the foliage
-            # (size 0) and 50% of the 0-0.25" branches (size 1, incl. its OLDCRW crown-lift) — those go to
-            # the atmosphere (BCROWN released), NOT to down-wood. PROPCR = the scorched fraction of the
-            # crown LENGTH (fmeff.f:435 = sl/CRL; the parabolic `csv` used for mortality is a DIFFERENT,
-            # volume measure). Tall trees whose crown sits above the scorch height get PROPCR=0 (crown
-            # intact — the prior "above the flame" assumption, correct only for them); small trees get
-            # PROPCR=1 (foliage gone, size-1 halved). Live-validated per-tree vs FVSsn CROWNW at the fire:
-            # sugar-maple d1.28 size-1 0.2725→0.136 (PROPCR 1), beech d6.9 ×0.822 (PROPCR≈0.36). Sizes 2-5
-            # are above the flames / too coarse to burn ⇒ unchanged, so the fine down-wood path is intact.
-            xc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
-            ol = crown_lift_at_death(t, i, cyclen)             # YRSCYC·OLDCRW (fmscro.f:147)
-            crl = t.height[i] * Float32(t.crown_pct[i]) / 100f0
-            sl  = crl > 0f0 ? clamp(sch - (t.height[i] - crl), 0f0, crl) : 0f0
-            propcr = crl > 0f0 ? sl / crl : 0f0
-            ol2 = 0.5f0 * ol[2]                                # fmeff.f:460 ALWAYS halves OLDCRW(1) for fire-killed
-            #   trees (inside IF(ICALL.EQ.0), NOT gated on the scorch zone). The other half is burned (fmeff.f:448
-            #   BCROWN += 0.5·YRSCYC·OLDCRW(1)). The old `propcr>0 ? 0.5·ol[2] : ol[2]` over-booked the FULL crown-
-            #   lift into CWD2B for propcr=0 trees (bark-killed, crown above the scorch) ⇒ StandDead-high (SN/CS/NE
-            #   fire crowns are scorched, propcr>0, so were unaffected; LS bark-driven jack-pine kills expose it).
-            xvc = (xc[1] * (1f0 - propcr),                     # foliage burned over the scorched length
-                   xc[2] * (1f0 - 0.5f0 * propcr) + ol2,       # half the scorched 0-0.25" branches burned
-                   xc[3] + ol[3], xc[4] + ol[4], xc[5] + ol[5], xc[6] + ol[6])
-            fmscro!(s, sp, d, xvc, curkil, clamp(ffe_dkr_cls(s, sp), 1, 4))  # FUELPOOL-overridable
+            # Fire-killed trees become standing snags: FMSSEE (fmeff.f:553) stages them and one FMSADD(IYR,1) (fmeff.f:608)
+            # bins them into (species, 2" DBH, height-class) records whose bole is FMSVOL on the class-mean DBHS/HTDEAD
+            # (fmsadd.f, shared by every variant — see fmsadd_bin! below). MEASURED FVSie_g16 4769882010690 SIMFIRE 2014:
+            # 67 records live vs 617 per-tree jl records ⇒ Standing_Dead bole 52.424 vs 52.977 (class-mean volume).
+            push!(_fire_pend, (sp, d, t.height[i], t.height[i], t.height[i], curkil, -1f0))
+            # Crown debris of the burned record into CWD2B2 via FMSCRO, in FMEFF's order (_fmeff_crowns!, fmeff.f:352-527).
+            # MEASURED FVSie_g16 4769882010690 SIMFIRE 2014 CWD2B2 by size 0..3: 1899/3399/7488/2582 live vs the old
+            # single killed-tree booking 3248/3748/7427/2553 (crown-fire foliage kept, survivors' crowns missing).
+            xc = _ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
+            _fmeff_crowns!(s, i, sp, d, xc, fmprob0, pmort, crfrac, sch, cyclen)
             # Fire-killed coarse ROOTS → the dead-root pool (BIOROOT, fmsadd.f:320 BIOROOT+=RBIO·SNGNEW·XDCAY).
             # Freshly killed ⇒ XDCAY=(1−CRDCAY)^0=1, same age-0 basis as ordinary mortality (mortality.jl). The
             # snag-FALL path transfers only the BOLE (not roots), so this is the sole root booking (no double-count).
@@ -355,6 +328,36 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     icrb = unsafe_trunc(Int32, crb_rep * 100f0 + 0.5f0)
     icrb < 0 && (icrb = Int32(-1))
     consumption = _fm_consumption_row(s, cons, bcrown, icrb)
+    # fmfout.f:297-340 (one file in every build) accumulates the report in its own form — per record I (record order):
+    # TOTBAK(KSP) += CURKIL·DBH·DBH·.005454154 and TOTVOLK(KSP) += CURKIL·CFV (MCFV for CS/LS/NE/SN) for EVERY record
+    # (before the class test), the class tallies CLSKIL += CURKIL and TOTCLS += CURKIL + FMPROB (the post-kill FMPROB,
+    # not the pre-fire PROB), then the ALL row's BA/volume = Σ over species of TOTBAK/TOTVOLK. (AK Total_class2
+    # 325.944397 live vs 325.944366 via PROB.)
+    if length(fs.firkil) >= t.n
+        fill!(totcls, 0f0); fill!(clskil, 0f0)
+        for v in values(sp_tot); fill!(v, 0f0); end
+        for v in values(sp_kil); fill!(v, 0f0); end
+        totbak = zeros(Float32, MAXSP); totvolk = zeros(Float32, MAXSP)
+        @inbounds for i in 1:t.n
+            sp = Int(t.species[i]); sp > 0 || continue
+            ck = fs.firkil[i]; d = t.dbh[i]
+            totbak[sp] = totbak[sp] + (ck * d * d * 0.005454154f0)
+            totvolk[sp] = totvolk[sp] + (ck * (_fm_volkill_merch(s.variant) ? t.merch_cuft_vol[i] : t.cuft_vol[i]))
+            c = _fm_mort_class(d); c >= 1 || continue
+            fp = t.tpa[i]
+            haskey(sp_tot, sp) || continue                       # species present at the fire (same row set as before)
+            get!(() -> zeros(Float32, 7), sp_kil, sp)[c] += ck
+            clskil[c] += ck
+            sp_tot[sp][c] = sp_tot[sp][c] + (ck + fp)
+            totcls[c] = totcls[c] + (ck + fp)
+        end
+        empty!(sp_bak); empty!(sp_vol)
+        killed_ba = 0f0; killed_vol = 0f0
+        for sp in 1:MAXSP
+            haskey(sp_tot, sp) && (sp_bak[sp] = totbak[sp]; sp_vol[sp] = totvolk[sp])
+            killed_ba = killed_ba + totbak[sp]; killed_vol = killed_vol + totvolk[sp]
+        end
+    end
     # per-species mortality rows (FVS_Mortality emits one row per present species + the ALL aggregate),
     # sorted by species index for determinism (FMFOUT/dbsfmmort.f).
     species_mort = NamedTuple[]
@@ -383,7 +386,7 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
-    xc = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
+    xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
     yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
     b = 0f0
     if crfrac > 0f0 && mk
@@ -489,6 +492,7 @@ fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 potfire_env(::Southern)  = (20f0, 70f0, 8f0, 60f0)
 potfire_env(::Northeast) = (25f0, 80f0, 15f0, 50f0)
 potfire_env(::AbstractVariant) = (20f0, 70f0, 8f0, 60f0)
+potfire_env(::SoutheastAlaska) = (20f0, 70f0, 6f0, 70f0)   # ak/fmvinit.f:59-62 PREWND 20/6, POTEMP 70/70
 
 # Fuel model 10 (timber litter + understory) — the crown-fire reference fuel model. fmcfir.f:122-133 overlays a
 # ROUNDED FM10 (.138/.092/.23/.092 lb/ft²), but the FMFINT(FTYP=2, ICALL=1) call that produces SFRATE(2)/SIRXI(2)/
@@ -508,7 +512,7 @@ Computed from the FM10 crown-fuel-model intermediates at the scenario moisture (
 `xio`, heat sink SRHOBQ = `rhobqig`, slope factor SPHIS = `phis`) and the canopy bulk density `cbd`.
 """
 crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
-function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra})::Float32
+function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska})::Float32
     cbd > 0f0 || return -1f0
     r = rothermel_surface_fire(_fm10(s)..., fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
     r.xio < 1f-5 && return -1f0
@@ -527,7 +531,7 @@ the stand's WEIGHTED surface-fuel-model spread = RINIT1. NB the torching bisecti
 STAND models (fmfint.f:120-134, the ICALL=2 ELSE branch) — NOT the fixed FM10 the crowning index uses.
 """
 torching_index(::StandState, ::Float32, ::Integer, ::Int, ::AbstractVariant; fire_basis::Bool = false) = -1f0
-function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra}; fire_basis::Bool = false)::Float32
+function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska}; fire_basis::Bool = false)::Float32
     (cbd > 0f0 && actcbh >= 0) || return -1f0
     mois = fuel_moisture(fmois, s.variant)
     # FVS computes ONE dynamic fuel model (FMCFMD3) per cycle and uses it for the surface fire AND every
@@ -565,7 +569,7 @@ end
 # the flame adjustment in fmburn!. CRBURN=0 ⇒ SURFACE fire (flame path unchanged ⇒ mild fires stay bit-exact).
 # NE/CR only. swind = actual 20-ft wind (mi/h).
 function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int, swind::Float32,
-                           ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest}; fire_basis::Bool = false)
+                           ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,SoutheastAlaska}; fire_basis::Bool = false)
     oinit = torching_index(s, cbd, actcbh, fmois, s.variant; fire_basis = fire_basis)   # OINIT1
     oact  = crowning_index(s, cbd, fmois, s.variant)           # OACT1
     (oinit < 0f0 || oact < 0f0) && return (0f0, 0f0, 0f0, "SURFACE")   # SURFACE (fmcfir.f:334) + Fire_Type
@@ -691,7 +695,7 @@ function canopy_crfill(s::StandState)::Vector{Float32}
         fm_canopy_lsw(sp, s.variant) || continue
         icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
-        xv = crown_biomass(s, sp, t.dbh[i], h, Int(round(icr)))
+        xv = _ffe_crownw(s, i, sp, t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
         crbio > 0f0 || continue
         # Black-Hills-ponderosa special crown-shape distribution (fmpocr.f:129-221): spread CRBIO over the
@@ -912,4 +916,53 @@ function potential_fire(s::StandState)
     # PREWND/POTEMP): SN severe 20/70°F + moderate 8/60°F; NE severe 25/80°F + moderate 15/50°F.
     sw, st, mw, mt = potfire_env(s.variant)
     return (; severe = scenario(1, 1, sw, st, 1), moderate = scenario(2, 3, mw, mt, 1))
+end
+
+
+# fmeff.f:353-527 (ICALL=0) — the crowns FMEFF books via FMSCRO for one burned record, in its three parts:
+#  * crown-fire share (CRBURN>0, MKODE≠0): CROWNW(0)=0, CROWNW(1)=½·CROWNW(1), OLDCRW(1) halved; DTHISC=FMPROB·CRBURN;
+#  * surface part, crown base below the scorch height: killed trees get CROWNW(0)−PROPCR·CROWNW(0), CROWNW(1)−CRW1BN
+#    (CRW1BN=½·PROPCR·CROWNW(1)) and OLDCRW(1) halved, DTHISC=(1−CRBURN)·PMORT·FMPROB; the SURVIVORS' scorched crown
+#    too coarse to burn is dead as well — CROWNW(0)=0, CROWNW(1)=PROPCR·(CROWNW(1)+CRW1BN)−CRW1BN, CROWNW(2:5)=
+#    PROPCR·CROWNW, OLDCRW=0, DTHISC=((1−CRBURN)−(1−CRBURN)·PMORT)·FMPROB;
+#  * surface part, crown above the scorch: killed trees keep the whole crown and the WHOLE OLDCRW(1),
+#    DTHISC=(1−CRBURN)·PMORT·FMPROB.
+# FMSCRO: ANNUAL = CROWNW + YRSCYC·OLDCRW (size>0; OLDCRW<0.0000625 ⇒ 0). CRL = HT·(FMICR/100). A scorched record then
+# keeps CROWNW = TCROWN·(1−PROPCR), OLDCRW(1) halved and GROW=−1 (fmeff.f:494-506). Every variant (fmeff.f's skeleton is
+# shared); the earlier single-crown booking (foliage on the crown-fire share, OLDCRW(1) always halved, no survivors) was
+# measured off live both in AK (akffe 2003 CWD2B foliage +86 lb, 0-¼" −276 lb) and IE (4769882010690 2014).
+function _fmeff_crowns!(s::StandState, i::Int, sp::Int, d::Float32, xc, fp::Float32, pmort::Float32,
+                        crburn::Float32, sch::Float32, cyclen)
+    t = s.trees
+    yrs = Float32(cyclen); dk = clamp(ffe_dkr_cls(s, sp), 1, 4)
+    oc(sz) = (v = t.ffe_oldcrw[sz, i]; v < 0.0000625f0 ? 0f0 : v)
+    och = (v = 0.5f0 * t.ffe_oldcrw[1, i]; v < 0.0000625f0 ? 0f0 : v)      # OLDCRW(1) halved
+    if crburn > 0f0
+        xcf = (0f0, 0.5f0 * xc[2] + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
+               xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xcf, fp * crburn, dk)
+    end
+    crburn >= 1f0 && return
+    ht = t.height[i]
+    crl = ht * (Float32(t.crown_pct[i]) / 100f0)
+    crbot = ht - crl
+    if sch > crbot
+        crbnl = sch - crbot; crbnl > crl && (crbnl = crl)
+        propcr = crl > 0f0 ? crbnl / crl : 0f0
+        crw1bn = 0.5f0 * propcr * xc[2]
+        c0 = xc[1] - propcr * xc[1]; c1 = xc[2] - crw1bn
+        xk = (c0, c1 + yrs * och, xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4), xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
+        xs = (0f0, propcr * (c1 + crw1bn) - crw1bn, propcr * xc[3], propcr * xc[4], propcr * xc[5], propcr * xc[6])
+        fmscro!(s, sp, d, xs, ((1f0 - crburn) - (1f0 - crburn) * pmort) * fp, dk)
+        # fmeff.f:494-506: the record's CROWNW becomes TCROWN·(1−PROPCR) and GROW=−1 (kept through the next FMSDIT)
+        @inbounds for k in 1:6; t.ffe_crownw[k, i] = xc[k] * (1f0 - propcr); end
+        t.ffe_oldcrw[1, i] *= 0.5f0                                    # OLDCRW(I,1) = TOLDCR(1)·0.5 (fmeff.f:498-503)
+        t.ffe_grow[i] = Int32(-1)
+    else
+        xk = (xc[1], xc[2] + yrs * oc(1), xc[3] + yrs * oc(2), xc[4] + yrs * oc(3), xc[5] + yrs * oc(4),
+              xc[6] + yrs * oc(5))
+        fmscro!(s, sp, d, xk, (1f0 - crburn) * pmort * fp, dk)
+    end
+    return
 end

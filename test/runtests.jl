@@ -82,6 +82,7 @@ using FVSjl
     include("unit/test_ca_so_forkod_crash.jl") # CA/SO forest-index-overflow SIGSEGV: ca/so forkod.f "FOREST MAPPING CORRECTION" (CA 518→IFOR5, SO 514→4/702→8) remaps IFOR into the 1..10 array range; + SO WB(16) small-tree t.plot_id/point_ccf field fix. 3 previously-crashing FIA stands run end-to-end
     include("unit/test_forkod_default.jl")     # forkod.f KODFOR→IFOR vs a 346-code table extracted from the Fortran: not-found keeps grinit IFOR (was forced 1), CA/OC/SO BIA reservation codes
     include("unit/test_ak_crwidth.jl")     # AK FVS_TreeList CrWidth via national cwcalc.f AKMAP (+ '08' form _cw08 + R10 codes) — 3200/3200 vs FVSak_clean, 18th variant
+    include("unit/test_ak_port.jl")        # AK ak/estab.f + esgent/regent (HTCALC small-tree growth) PLANT stand vs live FVSak_g16
     include("unit/test_bc_crwidth.jl")
     include("unit/test_metric_dbs.jl")      # #259: BC/ON metric DBS tables (Summary/TreeList/CutList/ATRTList *_Metric, East naming for ON) vs live FVSbc_clean/FVSon_g16
     include("unit/test_bc_brokentop.jl")    # BC TREFMT (bc/blkdat.f metric layout) + broken-top NORMHT volume (bc/vols.f:137) vs FVSbc_clean     # BC FVS_TreeList CrWidth via national cwcalc.f BCMAP (0 new codes; metric) — log-forms bit-exact vs FVSbc_clean, 19th (final western) variant
@@ -99,6 +100,8 @@ using FVSjl
     include("unit/test_regcal_west.jl")     # CR+UT+BM+NC LSTART REGCAL vs live per-species SUMS (all arms); BM 3-cycle .sum exact
     include("unit/test_cr_cyc1_heights.jl")  # CR cycle-1 heights vs live: FINDAG ABIRTH on CRATET-DENSE RELDEN; H30 HHE reset
     include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
+    include("unit/test_em_autoes_tiered.jl") # EM AUTOES per record vs live FVSem_g16 tiered goldens: per-point PSLO/PASP topography for ESNSPE/ESPADV/ESPSUB/ESPXCS/ESADVH/ESSUBH (estab.f:474-479)
+    include("unit/test_ie_resid_tiered.jl")  # IE per record vs live FVSie_g16 tiered goldens: KODFOR-region NVEL merch rules, AUTOES ingrowth PNN floor
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
     include("unit/test_ppe_sort.jl")       # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (master stand ordering) — bit-exact vs gfortran-16 golden (recovered PPE source)

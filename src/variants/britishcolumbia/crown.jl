@@ -84,7 +84,9 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
         if !lstart
             db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
             hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-            pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i])   # OLDPCT fallback (crown.f:474-476)
+            # crown.f:469-470 OLDPCT fallback: ≤0, or >PCT in a cycle that removed trees (ONTREM(7)>0)
+            pb = t.old_crown_pct[i]
+            (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
             balb = (1f0 - pb/100f0) * oba
             # V3 backdated CR reuses XCRCON (crown.f:486) — DCRCON is the V2-only branch; density term not re-backdated.
@@ -187,7 +189,9 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
                      prm[4]*rdm1 + prm[5]*rdm1*rdm1 + prm[6]*x2
             db = d - t.diam_growth[i]/bark; db <= 0f0 && (db = d)
             hb = h - t.ht_growth[i]; hb <= 0f0 && (hb = h)
-            pb = t.old_crown_pct[i]; pb <= 0f0 && (pb = t.crown_ratio[i]); pb < 0.01f0 && (pb = 0.01f0)
+            pb = t.old_crown_pct[i]                                          # crown.f:469-470 (see above)
+            (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
+            pb < 0.01f0 && (pb = 0.01f0)
             dcr = dcrcon + prm[7]*db + prm[8]*db*db + prm[9]*log(db) + prm[10]*hb + prm[11]*hb*hb +
                   prm[12]*log(hb) + prm[13]*pb + prm[14]*log(pb)
             expdcr = exp(dcr)

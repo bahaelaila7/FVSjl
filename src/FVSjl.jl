@@ -258,7 +258,8 @@ include("variants/southeastalaska/diameter_growth.jl") # AK large-tree DDS (chun
 include("variants/southeastalaska/site_index.jl")      # AK site index (ak/sitset.f SITEAR) + SDImax + forkod — chunk 2 (SITEAR validated)
 include("variants/southeastalaska/height_growth.jl")   # AK large-tree height growth (ak/htgf.f) — chunk 4 (validated bit-exact cyc0)
 include("variants/southeastalaska/crown.jl")           # AK crown ratio (ak/crown.f logistic + dubscr) + point-Zeide (sdical) — chunk 5
-include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f) — chunk 6 STUB (no-op)
+include("variants/southeastalaska/regent.jl")          # AK small-tree growth (ak/regent.f + htcalc.f) + ESGENT + LSTART HCOR
+include("variants/southeastalaska/establishment.jl")   # AK establishment (estb/esnutr.f + ak/estab.f 2020 refit)
 include("variants/southeastalaska/mortality.jl")       # AK mortality (ak/morts.f logistic survival + SDI/BA iterative pass) — chunk 7
 include("../data/southeastalaska/volume_coefficients.jl") # AK R10 F32 Flewelling profile coeffs (SHP_AK/FDBT_AK)
 include("variants/southeastalaska/volume.jl")          # AK Region-10 volume (VOLEQDEF→NVEL): F32 Flewelling (chunk 8)
@@ -422,6 +423,7 @@ include("../data/utah/fire/ffe_fuel.jl")                 # UT FFE FULIVE/FUINIE 
 include("../data/klamath/fire/ffe_fuel.jl")              # NC FFE FULIVE/FULIVI/FUINIE/FUINII (top-2 cover-type; reuses _cr_algslp2)
 include("../data/westsierra/fire/ffe_fuel.jl")           # WS FFE FULIVE/FULIVI/FUINIE/FUINII (43-species top-2 cover-type; reuses _cr_algslp2)
 include("../data/centralcalifornia/fire/ffe_fuel.jl")    # CA FFE FULIVE/FULIVI/FUINIE/FUINII (50-species top-2 cover; reuses _cr_algslp2)
+include("../data/southeastalaska/fire/ffe_fuel.jl")      # AK FFE (fire/ak fmcba/fmbrkt/fmvinit + the vbase R6 snag AK branches)
 include("../data/oregoncoast/fire/ffe_fuel.jl")          # OC FFE FUINIE/FUINII/FULIVE/FULIVI (50-species ORGANON top-2 cover; reuses _cr_algslp2)
 include("../data/olympic/fire/ffe_fuel.jl")              # OP FFE FUINIE/FUINII/FULIVE/FULIVI (39-species NWO top-2 cover) + op_cwcalc
 include("../data/westcascades/fire/ffe_fuel.jl")         # WC FFE FULIVE/FULIVI/FUINIE/FUINII (39-species SINGLE cover-type) + wc_cwcalc
@@ -454,6 +456,7 @@ include("engine/econ.jl")                # C8 — ECON economic-analysis core (e
 include("engine/econ_calc.jl")           # C8 — faithful per-cycle ECSTATUS/ECHARV/ECCALC engine → FVS_EconSummary
 include("engine/mistletoe_report.jl")   # dwarf-mistletoe infection/mortality summary (misprt.f) → FVS_DM_* DBS tables
 include("io/summary.jl")
+include("io/errgro.jl")                # ERRGRO messages + FVS_Error (errgro.f/dbserror.f)
 include("io/dbs_output.jl")
 include("engine/simulate.jl")
 include("engine/svs.jl")                 # SVS (Stand Visualization System) data path — chunk 0
