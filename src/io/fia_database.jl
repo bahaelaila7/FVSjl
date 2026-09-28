@@ -83,8 +83,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # (TANS·SLOPE + FCOS·SLOPE·cos(ASP) + FSIN·SLOPE·sin(ASP), dgf.f:1125-1127) → over-grew species
     # with large slope coefficients (e.g. sp39 loblolly-bay FCOS=-10.15: a 0.05 slope = -0.68 in
     # ln(DDS) ⇒ ~2× DBH growth). Apply the grinit default so a missing slope matches live FVS.
-    p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : 5f0 / 100f0
-    p.slope_raw = _fia_present(d, "SLOPE") ? trunc(Int32, _fia_f32(d, "SLOPE", 0f0)) : Int32(5)   # ISLOP=IFIX(SLOPE), initre.f:437
+    # KT is the one build whose grinit.f carries other defaults: kt/grinit.f:161,223 ASPECT = 45., SLOPE = 30.0 (every
+    # other variant ASPECT = 0., SLOPE = 5.0). A KT stand with no SLOPE/ASPECT (e.g. the bare FIA conditions) runs on
+    # those — live FVSkt prints "ASPECT AZIMUTH IN DEGREES= 45.; SLOPE= 30.%" and its ESTAB tally uses SLO 0.30,
+    # ASPECT 0.785. jl gave KT 5%/0°.
+    _slope_def = s.variant isa Kootenai ? 30f0 : 5f0
+    if !_fia_present(d, "ASPECT") && s.variant isa Kootenai
+        p.aspect = 45f0 * 0.0174533f0; p.aspect_deg = Int32(45)
+    end
+    p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : _slope_def / 100f0
+    p.slope_raw = _fia_present(d, "SLOPE") ? trunc(Int32, _fia_f32(d, "SLOPE", 0f0)) : trunc(Int32, _slope_def)   # ISLOP=IFIX(SLOPE), initre.f:437
     # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710).
     # ⚠ METRIC DBs (BC/ON) store ELEVATION in METRES: the metric dbsstandin.f (FVSbc_buildDir, header
     # "METRIC-VDBSQLITE") does RSTANDDATA(9) = ELEVATION * MtoFt / 100 (:351) — metres→hundreds-of-feet —
