@@ -327,47 +327,54 @@ end
 """
     _ffe_crownw(s, i, sp, d, h, ic) -> NTuple{6,Float32}
 
-CROWNW(I,0:5) of record `i` as FFE holds it. AK: the array FMCROW filled at this cycle's FMSDIT (`ak_fmcrow!`) — with
-the per-record PCTILE height percentile and the GROW freeze — and carried with the record; everyone else recomputes
-`crown_biomass(s, sp, d, h, ic)`.
+CROWNW(I,0:5) of record `i` as FFE holds it: the array FMCROW filled at this cycle's FMSDIT (`ffe_fmcrow!`) — with the
+per-record PCTILE height percentile (western fmcrow.f) and the GROW freeze — carried with the record through
+tripling/moves. The FFE consumers (cuts, fire, mortality, fuels, carbon) read this, as FVS reads CROWNW; before any
+FMSDIT (no stored crowns yet) it falls back to `crown_biomass(s, sp, d, h, ic)`.
 """
 @inline function _ffe_crownw(s::StandState, i::Integer, sp::Integer, d::Float32, h::Float32, ic::Integer)
-    t = s.trees
-    if s.variant isa SoutheastAlaska && 1 <= i <= size(t.ffe_crownw, 2)
+    t = s.trees; fs = s.fire
+    if fs !== nothing && fs.fmcrow_done && 1 <= i <= size(t.ffe_crownw, 2)
         return ntuple(k -> t.ffe_crownw[k, i], 6)
     end
     return crown_biomass(s, sp, d, h, ic)
 end
 
-"""
-    ak_fmcrow!(s)
+# fmcrow.f ranks heights with RDPSRT + PCTILE in every western build; the eastern CS/LS/NE/SN/ON fmcrow.f (FMCROWE
+# only, no height-percentile branch) do not.
+_fmcrow_pctile(v) = !(v isa CentralStates || v isa LakeStates || v isa Northeast || v isa Southern || v isa Ontario)
 
-ak/fmcrow.f at FMSDIT: RDPSRT(ITRN,HT,HPOINT,.TRUE.) + PCTILE(ITRN,HPOINT,PROB,HPCT) give each record its height
-percentile — equal heights get DIFFERENT percentiles by their place in the sort, where the height-threshold form gave
-them all the top one (akffe 2013 YC rec 16: CROWNW(0) 9.27 live vs 15.45) — then, per record, GROW=GROW+1 while < 1
-and CROWNW(I,0:5) = FMCROWE/FMCROWW(D, HT, ICR, HPCT) unless GROW is still < 1 (a fire-scorched survivor keeps its
-reduced crown, fmeff.f:494-509).
 """
-function ak_fmcrow!(s::StandState)
-    s.variant isa SoutheastAlaska || return s
+    ffe_fmcrow!(s)
+
+fmcrow.f at FMSDIT (every variant build; fmsdit.f:128): the western builds rank the records with
+RDPSRT(ITRN,HT,HPOINT,.TRUE.) + PCTILE(ITRN,HPOINT,PROB,HPCT) — equal heights get DIFFERENT percentiles by their place
+in the sort, where a height-threshold form gives them all the top one (AK akffe 2013 YC rec 16: CROWNW(0) 9.27 live vs
+15.45) — then, per record, GROW=GROW+1 while < 1 and CROWNW(I,0:5) = FMCROWE/FMCROWW(D, HT, ICR, HPCT) unless GROW is
+still < 1 (a fire-scorched survivor keeps its reduced crown, fmeff.f:494-509).
+"""
+function ffe_fmcrow!(s::StandState)
     fs = s.fire; (fs === nothing || !fs.active) && return s
     t = s.trees; n = t.n
     n == 0 && return s
-    ord = Vector{Int32}(undef, n)
-    _rdpsrt!(view(t.height, 1:n), ord)                                  # HPOINT: HT descending, identity-seeded
-    hpct = zeros(Float32, n)
-    if n == 1
-        hpct[1] = 100f0
-    else
-        hpct[Int(ord[n])] = t.tpa[Int(ord[n])]
-        @inbounds for k in (n - 1):-1:1
-            hpct[Int(ord[k])] = hpct[Int(ord[k + 1])] + t.tpa[Int(ord[k])]
-        end
-        i1 = Int(ord[1]); tot = hpct[i1]; hpct[i1] = tot / 100f0
-        if tot > 0f0
-            p1 = hpct[i1]
-            @inbounds for k in 2:n; ii = Int(ord[k]); hpct[ii] = hpct[ii] / p1; end
-            hpct[i1] = 100f0
+    pctile = _fmcrow_pctile(s.variant)
+    hpct = fill(-1f0, n)
+    if pctile
+        ord = Vector{Int32}(undef, n)
+        _rdpsrt!(view(t.height, 1:n), ord)                              # HPOINT: HT descending, identity-seeded
+        if n == 1
+            hpct[1] = 100f0
+        else
+            hpct[Int(ord[n])] = t.tpa[Int(ord[n])]
+            @inbounds for k in (n - 1):-1:1
+                hpct[Int(ord[k])] = hpct[Int(ord[k + 1])] + t.tpa[Int(ord[k])]
+            end
+            i1 = Int(ord[1]); tot = hpct[i1]; hpct[i1] = tot / 100f0
+            if tot > 0f0
+                p1 = hpct[i1]
+                @inbounds for k in 2:n; ii = Int(ord[k]); hpct[ii] = hpct[ii] / p1; end
+                hpct[i1] = 100f0
+            end
         end
     end
     @inbounds for i in 1:n
@@ -376,5 +383,6 @@ function ak_fmcrow!(s::StandState)
         xv = crown_biomass(s, Int(t.species[i]), t.dbh[i], t.height[i], Int(t.crown_pct[i]); hp = hpct[i])
         for k in 1:6; t.ffe_crownw[k, i] = xv[k]; end
     end
+    fs.fmcrow_done = true
     return s
 end

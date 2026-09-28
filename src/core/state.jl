@@ -1204,6 +1204,7 @@ mutable struct FireState
     ak_tonrms::Float32                 # AK: TONRMS (fmsalv.f:265) — salvaged snag biomass removed this cycle, reported by
                                        # FMDOUT as TONREM (FVS_Fuels Biomass_Removed) then zeroed (fmdout.f:289)
     firkil::Vector{Float32}            # FIRKIL(I) of this cycle's burn (fmeff.f:546) — FMKILL's WK2 = MAX(WK2, FIRKIL); empty ⇒ no burn
+    fmcrow_done::Bool                  # FMCROW has filled TreeList.ffe_crownw (CROWNW) at an FMSDIT (see _ffe_crownw)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1213,7 +1214,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Tuple{Int32,Float32}[],
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
-                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[])
+                        zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false)
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,
