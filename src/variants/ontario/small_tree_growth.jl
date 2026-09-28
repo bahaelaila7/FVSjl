@@ -66,7 +66,7 @@ end
         p2 = ON_REG_SNALL_P2[sp]; p3 = ON_REG_SNALL_P3[sp]; p4 = ON_REG_SNALL_P4[sp]
         hat3 = 4.5f0 + p2 * on_expf(-p3 * on_powf(3f0, p4))
         if h >= hat3
-            d = on_expf(on_logf((on_logf(h - 4.5f0) - on_logf(p2)) / (-p3)) * (1f0 / p4))
+            d = on_expf(on_logf((on_logf(h - 4.5f0) - on_logf(p2)) / (-p3)) / p4)   # htdbh.f: ALOG(..) * 1./P4 = (X*1.)/P4
         else
             db = ON_REG_SNDBAL[sp]
             d = (((h - 4.51f0) * (3f0 - db)) / (4.5f0 + p2*on_expf(-p3*on_powf(3f0, p4)) - 4.51f0)) + db

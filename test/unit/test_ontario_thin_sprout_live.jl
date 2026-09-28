@@ -104,3 +104,11 @@ const _ONT_LITE_LIVE = _ont_live("ont_lite_thin_tl_live.csv")
         @test j == l
     end
 end
+
+# (6) canada/on/htdbh.f Curtis-Arney inverse (MODE=1, REGENT's DK/DKK): D=EXP(ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3))
+# * 1./P4) evaluates (X*1.)/P4, not X*(1/P4) — one ULP on the BB sprouts' DG in 2044.
+@testset "ON ont_lite thin: 2034-2054 DBH/Ht per record == live (htdbh.f Curtis-Arney X*1./P4)" begin
+    for col in (:DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_LITE), _ONT_LITE_LIVE, col)
+        @test j == l
+    end
+end
