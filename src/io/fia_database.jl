@@ -440,7 +440,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # ON (canada/on dbsstandin.f:357-376, METRIC reader): BASAL_AREA_FACTOR <0 (inverse fixed-plot size, per ha) is
     # /HAtoACR, ≥0 (m²/ha) is *M2pHAtoFT2pACR; INV_PLOT_SIZE /HAtoACR; BRK_DBH (cm) *CMtoIN — so notre.f expands the
     # per-plot TREE_COUNT to trees/ACRE itself (PROB = count·(−BAF)/PI). (TREE_COUNT is NOT converted.)
-    on_db = s.variant isa Ontario
+    on_db = s.variant isa Ontario || s.variant isa BritishColumbia   # both METRIC dbsstandin.f builds (canada/bc too)
     if _fia_present(d, "BASAL_AREA_FACTOR")
         b = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0)
         on_db && (b = b < 0f0 ? b / 2.471f0 : b * 4.3560773f0)
@@ -625,14 +625,8 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     # the same class as the BC bug 42eb555.)
     metric_db = s.variant isa BritishColumbia || s.variant isa Ontario
     res = ingest_tree_records!(s, recs; metric = metric_db)
-    if metric_db && !(s.variant isa Ontario)     # ON: the design factors are converted instead (see BASAL_AREA_FACTOR)
-        # DB TREE_COUNT (PROB) is per-HECTARE; FVS's metric expansion yields per-acre (via the metric
-        # plot area). notre! here multiplies by the design factor only, so pre-scale the raw PROB
-        # per-ha→per-acre (× ACRtoHA) so the expanded internal TPA is per-acre like every other variant.
-        @inbounds for i in 1:s.trees.n
-            s.trees.tpa[i] *= 0.40468564f0
-        end
-    end
+    # TREE_COUNT is read raw (dbstreesin.f:100): the METRIC readers (BC/ON) convert the design factors instead (see
+    # BASAL_AREA_FACTOR), so notre.f's expansion yields trees/acre.
     p = s.plot
     npt_trees = s.trees.n > 0 ? maximum(Int(pp) for pp in @view s.trees.plot_id[1:s.trees.n]) : 0
     # ★ Size point_slope/point_aspect to the FULL inventory-point count (IPTINV-NONSTK = nptids) — but ONLY when
