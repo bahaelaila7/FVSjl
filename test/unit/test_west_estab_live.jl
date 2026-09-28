@@ -47,13 +47,19 @@ function _we_jl(db, lo)
     rows
 end
 
-const _WE_CASES = ["so_645126898126144_plant_cyc", "ws_15353585010497_plant_cyc", "ca_15320267010497_plant_cyc"]
+const _WE_CASES = ["so_645126898126144_plant_cyc", "ws_15353585010497_plant_cyc", "ca_15320267010497_plant_cyc",
+                   "nc_15303130010497_plant_cyc"]
+# cases whose first-cycle planted heights/DBH are compared per record (NC: FINT=5 ⇒ LSKIPH, the listed height IS the
+# ESTAB height)
+const _WE_FIRST = ["nc_15303130010497_plant_cyc"]
+const _WE_RUNS = Dict{String,Any}()
 
 @testset "western PLANT establishment vs live: planted cohort per record" begin
     for case in _WE_CASES
         lv = _we_live(case)
         lo = minimum(k[2] for k in keys(lv))
         err, db = _we_run(case)
+        _WE_RUNS[case] = (err, db)
         @test (case, err) == (case, "")
         isempty(err) || continue
         jl = _we_jl(db, lo)
@@ -64,6 +70,20 @@ const _WE_CASES = ["so_645126898126144_plant_cyc", "ws_15353585010497_plant_cyc"
         for k in k1
             haskey(jl, k) || continue
             @test (case, k, jl[k][1:2]) == (case, k, lv[k][1:2])
+        end
+    end
+end
+
+@testset "western PLANT establishment vs live: first-cycle height and DBH per record" begin
+    for case in _WE_FIRST
+        err, db = get(() -> _we_run(case), _WE_RUNS, case)
+        isempty(err) || continue
+        lv = _we_live(case)
+        lo = minimum(k[2] for k in keys(lv)); yr1 = minimum(k[1] for k in keys(lv))
+        jl = _we_jl(db, lo)
+        for k in sort([k for k in keys(lv) if k[1] == yr1])
+            haskey(jl, k) || continue
+            @test (case, k, jl[k][3], jl[k][4]) == (case, k, lv[k][3], lv[k][4])
         end
     end
 end

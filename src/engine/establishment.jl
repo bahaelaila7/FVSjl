@@ -562,7 +562,7 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
     ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains ||
                       s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                      s.variant isa OregonCoast || s.variant isa BritishColumbia) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
+                      s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC/NC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -857,7 +857,6 @@ function establish!(s::StandState; fint::Float32 = 5f0)::Bool
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa Klamath ||
                    s.variant isa InlandEmpire
                 # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
                 # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
