@@ -521,13 +521,13 @@ end
 # rd.rd_cdf, memoized on OLDPRP. Returns (INTNUM, LREV).
 function _rd_ranp_setup!(rd::RootDiseaseState, prop::Real)
     propin = Float32(prop)
-    intnum = round(Int, 5.0f0 / propin)                  # NINT(5/PROPIN)
+    intnum = round(Int, 5.0f0 / propin, RoundNearestTiesAway)   # NINT(5/PROPIN) (ties away from zero)
     intnum > 100 && (intnum = 100)
     intnum < 10  && (intnum = 10)
 
     L = 0                                                # rdranp.f label 100
     while true
-        exprop = propin / (1.0f0 - (1.0f0 - propin)^intnum)
+        exprop = propin / (1.0f0 - fpowi(1.0f0 - propin, intnum))   # REAL**INTEGER ⇒ __powisf2
         if abs(propin - exprop) > (1.0f0 / Float32(intnum)) && L < 10
             propin = propin - (0.5f0 * (propin - exprop))
             L += 1
@@ -546,7 +546,7 @@ function _rd_ranp_setup!(rd::RootDiseaseState, prop::Real)
         rd.rd_oldprp = propin
         length(rd.rd_cdf) < intnum + 1 && (rd.rd_cdf = zeros(Float32, max(intnum + 1, 1001)))
         cdf = rd.rd_cdf
-        pdf = (1.0f0 - propin)^intnum
+        pdf = fpowi(1.0f0 - propin, intnum)
         cdf[1] = pdf
         @inbounds for k in 1:intnum
             pdf = pdf > 1.0f-15 ?
@@ -895,14 +895,14 @@ path; g16 bit-exact, incl. the `^1.605` / exp / log rounding).
 function rd_root(dbh::Float32, ht::Float32, proot::Float32, rslop::Float32,
                  sdislp::Float32, yincpt::Float32, oldtpa::Float32,
                  grospc::Float32, ormsqd::Float32, ba::Float32)::Float32
-    sdinew = (oldtpa / grospc) * (ormsqd / 10.0f0)^1.605f0
+    sdinew = (oldtpa / grospc) * fpow(ormsqd / 10.0f0, 1.605f0)   # rdroot.f:54 REAL**REAL ⇒ powf
     effect = sdinew > 0.0f0 ? sdislp * sdinew + yincpt : 1.0f0
     effect = min(effect, 1.5f0)
     effect = max(effect, 0.5f0)
     if dbh < 3.5f0
         ans = 0.01f0
         if ht != 0.0f0 && ba != 0.0f0
-            ans = exp(0.61157f0 * log(ht) + 0.04032f0 * log(ba) - 0.80815f0)
+            ans = fexp(0.61157f0 * flog(ht) + 0.04032f0 * flog(ba) - 0.80815f0)   # rdroot.f:77 EXP/ALOG ⇒ expf/logf
             ans = ans * effect
         end
         return ans
@@ -1766,7 +1766,7 @@ function rd_sprd!(rd::RootDiseaseState, idi::Int;
                         # baseline infection test
                         if sick[in_] == 0 && yrrs[in_] <= trurad[in_]
                             r = rd_rann!(rd)
-                            pnin = irstep == 1 ? pnsp : 1.0f0 - (1.0f0 - pnsp)^(nrf/rpint)
+                            pnin = irstep == 1 ? pnsp : 1.0f0 - fpow(1.0f0 - pnsp, nrf/rpint)   # rdsprd.f:425 powf
                             if r <= pnin
                                 sick[in_] = 1; radnew[in_] = -yrrs[in_]; sine[in_] = 1.0f0
                             end
@@ -1778,7 +1778,7 @@ function rd_sprd!(rd::RootDiseaseState, idi::Int;
                                 if radnow[it] > 0.0f0
                                     if radnew[in_] < -(distnc[it,in_] - radnow[it])
                                         r = rd_rann!(rd)
-                                        pnin = 1.0f0 - (1.0f0 - pnsp)^(nrf/fintf)
+                                        pnin = 1.0f0 - fpow(1.0f0 - pnsp, nrf/fintf)   # rdsprd.f:460 powf
                                         if r <= pnin
                                             sick[in_] = 1
                                             radnew[in_] = -(distnc[it,in_] - radnow[it])
@@ -1941,7 +1941,7 @@ fraction `PNSP *= SPPROP·SPTRAN + (1-SPPROP)`. `base = irtspc(ksp)`. Float32.
 function rd_inf_pnsp(rd::RootDiseaseState, ksp::Integer, idi::Int, fint::Real, pint::Real;
                      spprop::Float32 = RD_SPPROP0, sptran::Float32 = 0.5f0)
     base = Int(rd.irtspc[ksp])
-    pnsp = 1.0f0 - (1.0f0 - RD_PNINF[base, idi])^(Float32(fint)/Float32(pint))
+    pnsp = 1.0f0 - fpow(1.0f0 - RD_PNINF[base, idi], Float32(fint)/Float32(pint))   # rdinf.f:73 powf
     return pnsp * (spprop * sptran + (1.0f0 - spprop))
 end
 
