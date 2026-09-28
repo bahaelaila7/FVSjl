@@ -154,9 +154,9 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
-        # AK: FMOLDC saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) — the array ak_fmcrow! filled at
-        # the last FMSDIT with its PCTILE height percentile (and any fire reduction), not a recompute from the old dims.
-        xvold = s.variant isa SoutheastAlaska ? ntuple(k -> t.ffe_crownw[k, i], 6) :
+        # FMOLDC saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) — the array ffe_fmcrow! filled at the
+        # last FMSDIT with its PCTILE height percentile (and any fire reduction), not a recompute from the old dims.
+        xvold = fs.fmcrow_done ? ntuple(k -> t.ffe_crownw[k, i], 6) :
                 crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
@@ -224,10 +224,10 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
         _cwd2b_fall!(fs)                               # FMCADD: CWD2B crown debris → down wood
         fmcadd_litterfall!(s); fmcadd_woody!(s)        # FMCADD: litterfall + woody breakage
-        if s.variant isa SoutheastAlaska
-            # fmcadd.f:86-102 per tree per year on the CURRENT FMPROB: a fire earlier in this cycle has already cut the
-            # killed trees' density, so their crown lift stops (akffe 2003-2012: the cycle-start precompute kept adding
-            # the fire-killed trees' lift ⇒ lt3 +0.56 t/ac by 2013).
+        let
+            # fmcadd.f:86-102 (every variant build) per tree per year on the CURRENT FMPROB: a fire earlier in this cycle
+            # has already cut the killed trees' density, so their crown lift stops (AK akffe 2003-2012: the cycle-start
+            # precompute kept adding the fire-killed trees' lift ⇒ lt3 +0.56 t/ac by 2013); one Float32 add per tree.
             t = s.trees; dkr = coef_col(s.coef, :dkr_cls)
             @inbounds for i in 1:t.n
                 pr = t.tpa[i]; pr > 0f0 || continue
@@ -237,10 +237,6 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer)
                     amt < 0.0000625f0 && continue
                     fs.cwd[sz, 2, dk] += amt * _FM_P2T
                 end
-            end
-        else
-            for dkcl in 1:4, sz in 1:9                     # FMCADD: crown-lift term (precomputed per cycle)
-                cl[sz, dkcl] > 0f0 && (fs.cwd[sz, 2, dkcl] += cl[sz, dkcl])
             end
         end
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0
