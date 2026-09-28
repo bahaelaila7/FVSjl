@@ -19,101 +19,12 @@
 variant = "BM"
 regime = "climate"
 file = "FVS_Climate"
-col = "GrowthMult"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 68
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 69 cells [small=14 tiny=54 ulpbig=1] max|Δ|=0.09723 | e.g. stand 12827438010497 year 2045: live=1.42343092 jl=1.4234306812286377"""
-# 2026-09-26 bm-clim-mort: max_cells 69 -> 68 (BAMAX from the pre-CLMAXDEN XMAX, sdical.f:204 before :216)
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
 col = "ViabMort"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 91
 issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 91 cells [small=37 tiny=54] max|Δ|=0.3264 | e.g. stand 647500316126144 year 2058: live=0.303454638 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "climate"
-file = "FVS_Climate"
-col = "dClimMort"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 50
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 50 cells [small=1 tiny=49] max|Δ|=0.002318 | e.g. stand 12827438010497 year 2045: live=0.540329397 jl=0.5403293371200562"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1687
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 1687 cells [material=10 ulp1=462 ulp2_16=1175 ulpbig=40] max|Δ|=100.0 | e.g. stand 12827438010497 year 2005: live=100.0 jl=0.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "CrWidth"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 342
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 342 cells [ulp1=106 ulp2_16=232 ulpbig=4] max|Δ|=4.888e-6 | e.g. stand 374435108489998 year 2065: live=1.939073085784912 jl=1.9390681982040405"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 293
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 293 cells [ulp1=60 ulp2_16=230 ulpbig=3] max|Δ|=2.861e-6 | e.g. stand 374435108489998 year 2065: live=0.6880903244018555 jl=0.6880886554718018"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "DG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 315
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 315 cells [ulp2_16=156 ulpbig=159] max|Δ|=1.0 | e.g. stand 374435108489998 year 2015: live=0.0 jl=-1.0"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "Ht2TDBF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 81
-issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_TreeList"
-col = "Ht2TDCF"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 81
-issue = """list-table merch-top heights now filled from the NVEL HT1PRD/HT2PRD (dbs-merch); the remaining cells are rows whose DBH/Ht already differ from live (Ht2TD is exact on every row whose DBH and Ht match) | measured 2026-09-27: 81 cells max|Δ|=1.526e-05 | e.g. stand 22960873010497 year 2047: live=55.12296676635742 jl=55.122982025146484"""
 
 [[residual]]
 variant = "BM"
@@ -334,17 +245,6 @@ year = "*"
 status = "OPEN"
 max_cells = 35
 issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 35 cells [material=30 ulp1=1 ulpbig=4] max|Δ|=4.646 | e.g. stand 12827438010497 year 2025: live=25.43031883239746 jl=23.799123764038086"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 30 cells [ulp1=6 ulp2_16=19 ulpbig=5] max|Δ|=2.742e-6 | e.g. stand 12827438010497 year 2025: live=0.23137164115905762 jl=0.23137161135673523"""
 
 [[residual]]
 variant = "BM"
@@ -592,17 +492,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork b
 variant = "BM"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "Killed_class2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulp2_16=1] max|Δ|=9.537e-7 | e.g. stand 1127619588290487 year 2031: live=6.350955486297607 jl=6.350956439971924"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "ROWCOUNT"
 stand = "*"
 year = "*"
@@ -730,39 +619,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: fork bm-base-resid3 | measured 2026-09-21: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 22960873010497 year 2057: live=93 jl=94"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 9 cells [gold_text9=9] max|Δ|=9.6e-7 | e.g. stand 1127619588290487 year 2031: live=2.08476639 jl=2.08476615"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: fork bm-base-resid3 | measured 2026-09-21: 2 cells [gold_text9=1 tiny=1] max|Δ|=4.8e-7 | e.g. stand 1127619588290487 year 2031: live=6.04551935 jl=6.04551888"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_CutList"
-col = "DG"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 1 cells [gold_text9=1] max|Δ|=4.77e-7 | e.g. stand 1127619588290487 year 2031: live=0.928694725 jl=0.928694248"""
 
 [[residual]]
 variant = "BM"
