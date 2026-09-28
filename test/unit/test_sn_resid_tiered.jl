@@ -15,6 +15,15 @@ function _case157()
 end
 _cells(file, cols, yrs) = count(m -> m.file == file && m.col in cols && m.year in yrs, _case157().ms)
 
+const _C238 = Ref{Any}(nothing)
+function _case238()
+    _C238[] === nothing || return _C238[]
+    d = mktempdir()
+    txt, db, crashed, _ = run_case("SN", "238813815010854", "thinbba"; dir = d)
+    _C238[] = (crashed = crashed, ms = compare_case("SN", "238813815010854", "thinbba", txt, db))
+end
+_cells238(file, cols, yrs) = count(m -> m.file == file && m.col in cols && m.year in yrs, _case238().ms)
+
 # sn/crown.f:156-159 ISORT(IND(JJ)) = ITRN−JJ+1 over FVS's IND — at the inventory CRATET's IND1-seeded RDPSRT(.FALSE.)
 # (sn/cratet.f:155-157; :261 RDPSRT(.TRUE.) with dead records) — so tied diameters rank in RDPSRT's order, and the
 # Weibull X = ISORT/ITRN·SCALE dubs their crowns accordingly. jl ranked by a stable ascending sortperm (MEASURED 1972:
@@ -56,6 +65,18 @@ end
 # PBAL 1 ULP off on 263 of 315 records ⇒ DDS). With it the whole stand — .sum, Summary, TreeList, StrClass — equals live.
 @testset "SN point BAL from ptbal.f's WK5 form (ptbal.f:148): 157577477010854 NONE all cells vs FVSsn_g16" begin
     @test isempty(_case157().ms)
+end
+
+# esnutr.f:119-125 (every build): after ESUCKR, whenever ITRNRM>=1, IREC1=ITRN; CALL SPESRT — IND1 is relisted in
+# ascending physical record order, dropping the post-TRIPLE REASS lineage; the sprout records also start with
+# WK1=WK2=WK4=0 (esuckr.f:321-328). 238813815010854 THINBBA (2005 thin of the sprouting hardwoods): jl kept the lineage
+# key, so cycle-3 DGSCOR walked the WN records 3,1,4,5,2,6 (live 1..6) and every later BACHLO draw landed on another
+# tree (MEASURED private DGSCOR trace: cyc-3 RANN draws 105 live vs 108); the reused slots also printed the deleted
+# records' MortPA in 2010 (private TREELIST run).
+@testset "SN SPESRT after ESUCKR (esnutr.f:119-125, esuckr.f:321-328): 238813815010854 THINBBA vs FVSsn_g16" begin
+    @test !_case238().crashed
+    @test _cells238("FVS_Summary", ("Tpa", "BA", "QMD", "TCuFt", "Acc", "Mort"), ("2010", "2015", "2020", "2025")) == 0
+    @test count(m -> m.file == "sum", _case238().ms) == 0
 end
 
 end # module

@@ -820,6 +820,9 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             t.defect[n]      = Int32(0); t.special[n] = Int32(0)
             t.cull[n]        = 0f0; t.decay_code[n] = Int32(0); t.woodland_stems[n] = Int32(0)
             t.old_random[n]  = 0f0; t.old_crown_pct[n] = 0f0
+            # esuckr.f:321-328 WK1=WK2=WK4=0 + MISPUTZ(ITRN,0): a reused slot must not carry the deleted record's
+            # prior-DG / MortPA (FVS_TreeList MortPA of the birth year is 0) / HTIMLT / mistletoe rating.
+            t.dg_prev[n] = 0f0; t.mort_pa[n] = 0f0; t.htimlt[n] = 0f0; t.dmr[n] = Int32(0)
             created = true
         end
     end
@@ -829,6 +832,12 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # cut-free cycle — without this reset those persist and RE-sprout every subsequent cycle. Clear here so
     # the pool is drained exactly once, matching FVS.
     empty!(s.control.cut_log)
+    # esnutr.f:119-125 (every variant build): after ESUCKR, whenever ITRNRM>=1, "IREC1=ITRN; CALL SPESRT TO
+    # REESTABLISH THE SPECIES ORDER SORT" — LNKCHN/SETUP relist each species in ASCENDING physical record order,
+    # discarding the post-TRIPLE REASS lineage interleave. The next cycle's DGDRIV/DGSCOR (and DENSE) walk that
+    # IND1, so the stale lineage key hands each tree another tree's BACHLO draw (SN 238813815010854 thinbba cyc-3
+    # WN records drew in order 3,1,4,5,2,6 vs live 1..6).
+    spesrt_reorder!(t)
     created && compute_density!(s)
     return created
 end
