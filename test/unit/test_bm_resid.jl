@@ -36,3 +36,32 @@ end
     bad = [k for k in keys(gold) if get(jl, k, Float32[]) != gold[k]]
     @test isempty(bad)
 end
+
+@testset "BM tiered 645155287126144 simfire FVS_Carbon 2018 + 2028 (fire year) vs live FVSbm_g16" begin
+    # BM snags on the western FMSVOL layer (fmsvol.f CFTOPK at HTIH, fmcwd.f CWD2 broken tops): before, the fire-year
+    # Standing_Dead was 7.02 vs live 1.99 and Forest_Down_Dead_Wood 3.19 vs 5.95 (snag densities already equal).
+    fx = joinpath(@__DIR__, "..", "fixtures", "tiered", "bm")
+    dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+    key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+           for l in readlines(joinpath(fx, "645155287126144_simfire.key"))]
+    write(joinpath(dir, "s.key"), join(key, '\n'))
+    FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = FVSjl.BlueMountains())
+    gl = readlines(joinpath(fx, "645155287126144_simfire.FVS_Carbon.csv")); hdr = split(gl[1], ',')
+    num = [c for c in hdr if !(c in ("StandID",))]
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    jl = Dict(Int(r[:Year]) => [Float32(r[Symbol(c)]) for c in num]
+              for r in DBInterface.execute(db, "SELECT " * join(num, ",") * " FROM FVS_Carbon"))
+    SQLite.close(db)
+    for l in gl[2:end]
+        g = Dict(zip(hdr, split(l, ','))); y = parse(Int, g["Year"])
+        y in (2018, 2028) || continue
+        gv = [Float32(parse(Float64, g[c])) for c in num]
+        for (k, c) in enumerate(num)
+            if y == 2028 && c == "Standing_Dead"
+                @test isapprox(jl[y][k], gv[k]; rtol = 1f-6)   # 1 ULP (1.9869455 live, the fmdout.f sum order) — open
+            else
+                @test jl[y][k] == gv[k]
+            end
+        end
+    end
+end
