@@ -398,11 +398,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             fmcba!(s)
             _carb_push(s)
         end
-        # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
-        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
+        # FVS_PotFire / PotFire_East (FMPOFL, fmmain.f:194): once per FMMAIN year (never the post-projection row), on the
+        # year-start FMCBA state. A SIMFIRE cycle reports the POST-fire stand (FMPOFL follows FMBURN) — deferred to the
+        # grow_cycle! hook below, like the carbon report.
+        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
-            pfr = potential_fire_report(s)
-            pfr !== nothing && push!(potfire_collect, (r.year, pfr))
+            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true)
+            pfr = fmpofl_report(s, Int(r.year); cyclen = per, ptorch = false)   # PTORCH at the FMMAIN seam below
+            pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
@@ -533,8 +536,28 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # Surface_Shrub post-fire FMCBA 1.649 vs live pre-fire 0.420). CS/LS/NE keep the re-run pending a live check.
             _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
                               st.variant isa Northeast)
-            chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
-            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook,
+            pf_fire = potfire_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
+            chook = (fire_cycle || pf_fire) ? (st -> begin
+                        pc0 = st.fire.percov        # FMBURN's PERCOV: SN's re-run FMCBA (fmburn.f:588) precedes FMEFF's kill
+                        compute_density!(st); _refmcba(st) && fmcba!(st)
+                        fire_cycle && _carb_push(st)
+                        if pf_fire                                   # FMPOFL after FMBURN (fmmain.f:177-194)
+                            pc1 = st.fire.percov; st.fire.percov = pc0
+                            pfr = fmpofl_report(st, Int(r.year); cyclen = per, fire_basis = true)
+                            st.fire.percov = pc1
+                            pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
+                        end
+                    end) : nothing
+            # PotFire torching probability (FMPOFL_FMPTRH) at the FMMAIN seam of a non-fire cycle: FVS's FMMAIN RNG state
+            # and TRIPLEd record list; the rest of the row was sampled on the year-start fuels in _ffe_reports!.
+            mhook = (potfire_collect !== nothing && !pf_fire && !isempty(potfire_collect) &&
+                     potfire_collect[end][1] == r.year) ?
+                    ((st, stash) -> begin
+                        y, row, c1 = potfire_collect[end]
+                        pt = _pofl_fmptrh(st, Int(y), row.surf_sev, row.surf_mod, stash)
+                        potfire_collect[end] = (y, merge(row, (ptorch_sev = pt[1], ptorch_mod = pt[2])), c1)
+                    end) : nothing
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)

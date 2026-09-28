@@ -734,6 +734,7 @@ end
 
 function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
+                     fmmain_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing)
@@ -1021,8 +1022,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # before the WK2 combine — the FVS fmmain.f order (FMBURN:170 → FMCRBOUT:206 → annual loop:228 → FMKILL).
     # So the fire consumes/snags the START-of-cycle fuels (the report driver withholds the pre-grow
     # ffe_fuel_update! for the fire cycle and hands its period here). Non-fire cycles pass neither ⇒ no-op.
-    pf = (carbon_hook !== nothing || fuel_period !== nothing) ?
-         (st -> (carbon_hook === nothing || carbon_hook(st);
+    # `fmmain_hook(st, stash)`: an FMMAIN-time sampler (the PotFire torching probability) — it sees FVS's FMMAIN RNG
+    # state and, in a non-fire cycle, the stash of the TRIPLE that FVS has already applied by then (grincr.f:543).
+    pf = (carbon_hook !== nothing || fuel_period !== nothing || fmmain_hook !== nothing) ?
+         (st -> (fmmain_hook === nothing || fmmain_hook(st, _fire_due(st) ? nothing : stash);
+                 carbon_hook === nothing || carbon_hook(st);
                  fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
     # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
@@ -1682,8 +1686,12 @@ function run_keyfile(keypath::AbstractString;
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
                     write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
-            pf_rows === nothing ||
-                write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+            # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
+            # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.
+            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows)
+                write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows; east = _pofl_east(s.variant))
+                pf_rows[1][3] && write_dbs_potfire_cond!(s.control.dbs_out_file, caseid, String(sid), pf_rows[1][2].cond)
+            end
             # fmchrvout.f: ICHRVB defaults to 9999 (fminit.f:899), so the `ICHRVB .EQ. 0` exit never fires and DBSFMHRPT
             # writes a row every FFE year once CARBREDB set ICHRPT — zero rows included (jl required a removal).
             hc_rows === nothing || isempty(hc_rows) ||
