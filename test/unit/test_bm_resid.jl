@@ -84,3 +84,92 @@ end
     @test length(gold) == 6
     @test all(jl[y] == q for (y, q) in gold)
 end
+
+# Run one BM tiered fixture case; return (live golden rows, jl rows) of `table` as Year => Dict(column => Float32 or String),
+# the jl side `nothing` when jl wrote no such table.
+function _bm_case_table(cn::AbstractString, rg::AbstractString, table::AbstractString)
+    fx = joinpath(@__DIR__, "..", "fixtures", "tiered", "bm")
+    dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+    key = [l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l
+           for l in readlines(joinpath(fx, "$(cn)_$(rg).key"))]
+    write(joinpath(dir, "s.key"), join(key, '\n'))
+    FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = FVSjl.BlueMountains())
+    val(x) = x isa AbstractString ? (y = tryparse(Float64, x); y === nothing ? String(x) : Float32(y)) :
+             x isa Real ? Float32(x) : string(x)
+    gold = Dict{Int,Dict{String,Any}}()
+    gp = joinpath(fx, "$(cn)_$(rg).$(table).csv")
+    if isfile(gp)
+        gl = readlines(gp); hdr = split(gl[1], ',')
+        for l in gl[2:end]
+            g = Dict(String(h) => val(v) for (h, v) in zip(hdr, split(l, ',')))
+            gold[Int(g["Year"])] = g
+        end
+    end
+    db = SQLite.DB(joinpath(dir, "out.db"))
+    has = !isempty(collect(DBInterface.execute(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'")))
+    jl = has ? Dict{Int,Dict{String,Any}}() : nothing
+    if has
+        for r in DBInterface.execute(db, "SELECT * FROM $table")
+            nt = NamedTuple(r)
+            jl[Int(nt.Year)] = Dict(String(k) => val(v) for (k, v) in pairs(nt))
+        end
+    end
+    SQLite.close(db)
+    return gold, jl
+end
+
+@testset "BM WRD 177426703020004 rootdis FVS_RD_Sum vs live FVSbm_g16 (WK1, PRINF, NINSIM)" begin
+    # bm/dgdriv.f:161/746-769 WK1 keeps the measured DG (Live_Merch_CuFt 2022 was 7.05 vs 14.77); rdcntl.f DO 800 PRINF
+    # stored at RDMORT time (Ave_Pct_Root_Inf 2032 was 32.952 vs 33.00258); rdinsd.f:404 /(REAL(NINSIM)+1E-6).
+    gold, jl = _bm_case_table("177426703020004", "rootdis", "FVS_RD_Sum")
+    @test jl !== nothing
+    for y in (2012, 2022), (c, v) in gold[y]
+        c in ("StandID", "CaseID") && continue
+        @test jl[y][c] == v
+    end
+    @test isapprox(jl[2032]["Ave_Pct_Root_Inf"], gold[2032]["Ave_Pct_Root_Inf"]; rtol = 1f-5)
+    g2, j2 = _bm_case_table("22960873010497", "rootdis", "FVS_RD_Sum")
+    # grincr.f:281-285 OLDTPA/ORMSQD at the cycle start feed RDROOT (was 0.487087 / 10.0826 vs 0.484182 / 10.154723)
+    for y in (2017, 2027)
+        @test isapprox(j2[y]["Ave_Pct_Root_Inf"], g2[y]["Ave_Pct_Root_Inf"]; rtol = 1f-5)
+    end
+    # rdpr.f:78 ITRN=0 ⇒ no report: a bare stand has no FVS_RD_Sum table in live
+    _, j3 = _bm_case_table("722766017290487", "rootdis", "FVS_RD_Sum")
+    @test j3 === nothing
+end
+
+@testset "BM FFE snag/crown pools 645155287126144 salvage FVS_Carbon vs live FVSbm_g16 (FMSADD slots, TFALL)" begin
+    # fmsadd.f:47-62 empty height-class records shift the FMR6HTLS draws; bm/fmvinit.f TFALL (3/10/15/15 yr for DF).
+    # Before: Standing_Dead 2048 0.2500 vs live 0.4512.
+    gold, jl = _bm_case_table("645155287126144", "salvage", "FVS_Carbon")
+    for y in sort(collect(keys(gold)))
+        @test isapprox(jl[y]["Standing_Dead"], gold[y]["Standing_Dead"]; rtol = 1f-6)
+        @test isapprox(jl[y]["Forest_Down_Dead_Wood"], gold[y]["Forest_Down_Dead_Wood"]; rtol = 1f-6)
+    end
+end
+
+@testset "BM SIMFIRE 12827438010497 fire-year PotFire + post-fire carbon vs live FVSbm_g16" begin
+    # fire-basis FMCFMD on pre-fire PROB/FMTBA, FMPOCR and FMEFF on the scorched FMICR (fmmain.f:188-196), and FMOLDC
+    # recording the scorched crown (fmoldc.f:53). Before: Fuel_Wt 79/17 vs 56/42, Canopy_Density 0.016526 vs 0.017175,
+    # Mortality_BA_Sev 22 vs 17, Aboveground_Total_Live 2025 22.6185 vs 22.6070, Forest_Down_Dead_Wood 2035 1.915 vs 1.832.
+    gold, jl = _bm_case_table("12827438010497", "simfire", "FVS_PotFire")
+    for c in ("Surf_Flame_Sev", "Surf_Flame_Mod", "Tot_Flame_Sev", "Tot_Flame_Mod", "Canopy_Density", "Crown_Index",
+              "Torch_Index", "Mortality_BA_Sev", "Mortality_BA_Mod", "Mortality_VOL_Sev", "Mortality_VOL_Mod",
+              "Fuel_Mod1", "Fuel_Mod2", "Fuel_Mod3", "Fuel_Wt1", "Fuel_Wt2", "Fuel_Wt3")
+        @test jl[2015][c] == gold[2015][c]
+    end
+    gc, jc = _bm_case_table("12827438010497", "simfire", "FVS_Carbon")
+    @test jc[2025]["Aboveground_Total_Live"] == gc[2025]["Aboveground_Total_Live"]
+    @test isapprox(jc[2035]["Forest_Down_Dead_Wood"], gc[2035]["Forest_Down_Dead_Wood"]; rtol = 1f-6)
+    # fmkill.f:129 + fmsadd.f:292-296: fire-cycle mortality crowns on UNFIRE = SNGNEW-FIRKIL (was 5.60227 vs 5.53913)
+    g4, j4 = _bm_case_table("41136808010497", "simfire", "FVS_Carbon")
+    @test isapprox(j4[2025]["Standing_Dead"], g4[2025]["Standing_Dead"]; rtol = 1f-6)
+    # FMCBA's CRWDTH = the last CWIDTH's (gradd.f:254), not REGENT-grown seedlings: PERCOV ⇒ midflame wind exact (was
+    # 2.1490381 vs 2.1491208). Flame/scorch carry the year-1 fuel split's ULPs (FMTBA still sums the seedlings' pre-REGENT
+    # DBH, fmcba.f:246-270 at FMMAIN reads the grown ones) — open, so compared at 1E-5.
+    g5, j5 = _bm_case_table("22960873010497", "simfire", "FVS_BurnReport")
+    @test j5[2017]["Midflame_Wind"] == g5[2017]["Midflame_Wind"]
+    for c in ("Flame_length", "Scorch_height")
+        @test isapprox(j5[2017][c], g5[2017][c]; rtol = 1f-5)
+    end
+end
