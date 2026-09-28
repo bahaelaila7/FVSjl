@@ -223,4 +223,14 @@ end
     @test count(m -> m.file == "FVS_Mortality", _casex("238813815010854", "simfire").ms) == 0
 end
 
+# sn/regent.f:284-287: a seedling that stays under breast height (HK = H+HTG ≤ 4.5) gets DG(K)=0 and DBH(K)=D+0.001·HK set
+# directly; jl pushed 0.001·HK through UPDATE's DBH += DG/BARK (MEASURED 830602414290487 PLANT 2035: planted PI DBH
+# 0.1052496 vs live 0.1043516 ⇒ QMD 0.117378 vs live 0.116691).
+@testset "SN REGENT sub-breast-height DBH set directly (sn/regent.f:284-287) vs FVSsn_g16" begin
+    for rg in ("plant_cyc", "plant_cal")
+        @test !_casex("830602414290487", rg).crashed
+        @test isempty(_casex("830602414290487", rg).ms)
+    end
+end
+
 end # module
