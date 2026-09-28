@@ -71,9 +71,9 @@ const ON_SI_THT2 = Float32[0,0,0,0,0,0,0,0,0,0,0,0,0, 19.46, 19.78, 19.24, 25.02
 const ON_SI_THT3 = Float32[0,0,0,0,0,0,0,0,0,0,0,0,0, 16.36, 16.56, 14.06, 21.12]
 const ON_SI_THT4 = Float32[0,0,0,0,0,0,0,0,0,0,0,0,0, 13.32, 13.04, 8.3, 17.3]
 
-@inline _on_logf(x::Float32) = ccall(:logf, Float32, (Float32,), x)
-@inline _on_expf(x::Float32) = ccall(:expf, Float32, (Float32,), x)
-@inline _on_powf(x::Float32, y::Float32) = ccall(:powf, Float32, (Float32, Float32), x, y)
+const _on_logf = logf      # glibc (FMath single libm binding)
+const _on_expf = expf
+const _on_powf = powf
 
 # canada/on/sitset.f:390-477 — Ontario top-height→SI equations (LONT branch). `ksp`=OSP(ISISP),
 # `htneg`=SITEAR(ISISP) (negative; the entered top height in ft). Returns SIM (metres) or 0.

@@ -165,11 +165,19 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     t = s.trees
     rt(v::Float32, p::Float32) = (v * p) / p
     bio = cycle0 || s.control.fia_nvb
+    # ON: canada/on vols.f never loads MCFV/SCFV — its merch volume lives only in the WK1 scratch (the metric
+    # FVS_TreeList MCuM binds WK1·FT3toM3, dbstrls.f:346), which the gradd.f/fvs.f PROB round trip does not touch;
+    # jl's merch_cuft_vol carries that WK1. A PROB=0 record keeps CFV·0 = BFV·0 = 0 (the divide-back is PROB>0-only).
+    _on = s.variant isa Ontario
     @inbounds for i in 1:t.n
         p = t.tpa[i]
-        p > 0f0 || continue
+        if !(p > 0f0)
+            _on && (t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0)
+            continue
+        end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
-        t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p); t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
+        _on || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
+        t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
         if bio
             t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
             t.cubsaw_bio[i] = rt(t.cubsaw_bio[i], p);   t.foliage_bio[i] = rt(t.foliage_bio[i], p)
@@ -401,11 +409,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
             carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
-        # FVS_PotFire: the potential-fire behavior under fixed severe/moderate weather (FMPOFL), per cycle
-        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !isempty(s.coef.ffe_fuel_live)
+        # FVS_PotFire / PotFire_East (FMPOFL, fmmain.f:194): once per FMMAIN year (never the post-projection row), on the
+        # year-start FMCBA state. A SIMFIRE cycle reports the POST-fire stand (FMPOFL follows FMBURN) — deferred to the
+        # grow_cycle! hook below, like the carbon report.
+        if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
             compute_density!(s)
-            pfr = potential_fire_report(s)
-            pfr !== nothing && push!(potfire_collect, (r.year, pfr))
+            fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true)
+            pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false)   # FMEFF/FMPTRH at the FMMAIN seam below
+            pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
         end
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
@@ -449,6 +460,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             cutlist_collect === nothing || (s.control.cutlist_capture = Any[])
             atrtlist_collect === nothing || (s.control.atrtlist_capture = Any[])
             econ_cycle_start!(s)   # ECON ECSETP/ECSTATUS(…,0) precede CUTS (grincr.f:273) — ECHARV needs the start year
+            latch_itrn_grincr!(s)   # grincr.f:74 LTRIP reads ITRN before CUTS TREDELs the zero-PROB records
             rem = cuts!(s; fint = Float32(per))
             if cutlist_collect !== nothing
                 push!(cutlist_collect, (r.year, per, s.control.cutlist_capture))
@@ -537,12 +549,31 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # Surface_Shrub post-fire FMCBA 1.649 vs live pre-fire 0.420). CS/LS/NE keep the re-run pending a live check.
             _refmcba = st -> (st.variant isa Southern || st.variant isa CentralStates || st.variant isa LakeStates ||
                               st.variant isa Northeast)
-            chook = fire_cycle ? (st -> (compute_density!(st); _refmcba(st) && fmcba!(st); _carb_push(st))) : nothing
+            pf_fire = potfire_collect !== nothing && fire_this_cycle && s.fire !== nothing && s.fire.active
+            chook = (fire_cycle || pf_fire) ? (st -> begin
+                        pc0 = st.fire.percov        # FMBURN's PERCOV: SN's re-run FMCBA (fmburn.f:588) precedes FMEFF's kill
+                        compute_density!(st); _refmcba(st) && fmcba!(st)
+                        fire_cycle && _carb_push(st)
+                        if pf_fire                                   # FMPOFL after FMBURN (fmmain.f:177-194)
+                            pc1 = st.fire.percov; st.fire.percov = pc0
+                            pfr = fmpofl_report(st, Int(r.year); cyclen = per, fire_basis = true)
+                            st.fire.percov = pc1
+                            pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
+                        end
+                    end) : nothing
+            # PotFire tree-list half (FMEFF ICALL=1 + FMPOFL_FMPTRH) at the FMMAIN seam of a non-fire cycle: FVS's FMMAIN
+            # RNG state and TRIPLEd record list; the fire behaviour was sampled on the year-start fuels in _ffe_reports!.
+            mhook = (potfire_collect !== nothing && !pf_fire && !isempty(potfire_collect) &&
+                     potfire_collect[end][1] == r.year) ?
+                    ((st, stash) -> begin
+                        y, row, c1 = potfire_collect[end]
+                        potfire_collect[end] = (y, _pofl_with_fmmain_trees(() -> fmpofl_fmmain(st, row), st, stash), c1)
+                    end) : nothing
             _v3p = carb_v3_pending; carb_v3_pending = nothing
             fhook = _v3p === nothing ? nothing :
                     ((st, stash) -> (e = carbon_collect[_v3p[1]];
                                      carbon_collect[_v3p[1]] = Base.setindex(e, carbon_report_fmmain_v3(e[2], st, stash, _v3p[2]), 2)))
-            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = fhook,
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = fhook, pofl_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
                              ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)

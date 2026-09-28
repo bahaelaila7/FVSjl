@@ -27,7 +27,7 @@ _f2h(x::Float32) = uppercase(string(reinterpret(UInt32, x); base=16, pad=8))
 end
 
 @testset "ON stand CCF = live FVSon_g16 (ont01 cyc0 1895)" begin
-    for s in _F.each_stand("scratchpad/on/ont01.key"; variant=_F.Ontario(), faithful=true)
+    for s in _F.each_stand(joinpath(@__DIR__, "..", "fixtures", "ontario", "ont01.key"); variant=_F.Ontario(), faithful=true)
         _F.notre!(s); _F.setup_growth!(s)
         # forkod default location wired through kw_stdinfo! (metric elevation + US-Superior lat/long)
         @test s.plot.latitude  == 46.78f0
@@ -42,7 +42,7 @@ end
     # stkval.f (Arner-2001 VBASE) + fortyp.f decision tree; ON was missing the TAB2/TAB3/FTYPE data
     # (stocking_coeffs / fia_stocking_map / forest_type_codes — the base eastern tables, ON is in the
     # no-western-redefine VARACD CASE). With them wired the cyc0 .sum classification columns match.
-    for s in _F.each_stand("scratchpad/on/ont01.key"; variant=_F.Ontario(), faithful=true)
+    for s in _F.each_stand(joinpath(@__DIR__, "..", "fixtures", "ontario", "ont01.key"); variant=_F.Ontario(), faithful=true)
         _F.notre!(s); _F.setup_growth!(s)
         @test Int(s.plot.forest_type)    == 125   # red pine
         @test Int(s.plot.size_class)     == 1     # sawtimber

@@ -210,7 +210,7 @@ end
 @inline _r5_pw(c, D::Float32, H::Float32) =
     Float32(_r8(c[1]) * dpow(Float64(D), _r8(c[2])) * dpow(Float64(H), _r8(c[3])) * dpow(10.0, _r8(c[4])))
 # gfortran LOG10 of a REAL → glibc log10f
-@inline _r5_log10(x::Float32) = ccall((:log10f, "libm.so.6"), Float32, (Float32,), x)
+const _r5_log10 = log10f   # glibc (FMath single libm binding)
 
 # ---------------------------------------------------------------------------
 # WO2W: R5TAP — Wensel & Krumland (Region-5 California) profile taper (r5tap.f).

@@ -1,0 +1,131 @@
+# test_ontario_thin_sprout_live.jl — ON (Ontario) thinning + stump sprouting per record vs LIVE FVSon_g16.
+#
+# ont_sm (8 sub-12 cm trees) and ont_lite (72 species), NUMCYCLE 5, THINBTA 2014 (500 trees/ha, eff 1.0) and
+# THINBBA 2034 (10 m²/ha, eff 0.8): cycle 1 triples small trees through REGENT, the thins cut hardwood sprouters,
+# ESUCKR adds stump sprouts, and later cycles grow them. Goldens: live FVS_TreeList_East_Metric of the same runs
+# (ont_sm_thin_tl_live.csv — every year; ont_lite_thin_tl_live.csv — 2034..2054) compared EXACTLY per record.
+
+using Test, FVSjl, SQLite, DBInterface
+const _ONT = FVSjl
+const _ONT_FX = joinpath(@__DIR__, "..", "fixtures", "ontario")
+const _ONT_THIN = [rpad("THINBTA", 10) * lpad("2014", 10) * lpad("500.0", 10) * lpad("1.0", 10),
+                   rpad("THINBBA", 10) * lpad("2034", 10) * lpad("10.0", 10) * lpad("0.8", 10)]
+
+# fixture stand → temp dir, NUMCYCLE 5, the two thins before TREEDATA, the ON DATABASE/TREELIDB layout
+function _ont_run(stem::AbstractString)
+    dir = mktempdir(); out = String[]
+    for ln in eachline(joinpath(_ONT_FX, "$stem.key"))
+        if startswith(ln, "NUMCYCLE")
+            push!(out, "NUMCYCLE" * lpad("5.0", 13))
+        elseif startswith(ln, "PROCESS")
+            append!(out, ["DATABASE", "SUMMARY", "TREELIDB", "END", ln])
+        elseif startswith(ln, "TREEDATA")
+            append!(out, _ONT_THIN); push!(out, ln); push!(out, "TREELIST           0")
+        else
+            push!(out, ln)
+        end
+        length(out) == 2 && append!(out, ["DATABASE", "DSNout", "$stem.db", "END"])
+    end
+    write(joinpath(dir, "$stem.key"), join(out, "\n") * "\n")
+    cp(joinpath(_ONT_FX, "$stem.tre"), joinpath(dir, "$stem.tre"))
+    txt = cd(() -> _ONT.run_keyfile("$stem.key"; variant = _ONT.Ontario(), output = :sum), dir)
+    rows = [split(l) for l in split(txt, '\n') if occursin(r"^\d{4} ", l)]
+    db = SQLite.DB(joinpath(dir, "$stem.db"))
+    tl = Dict{Tuple{Int,Int},NamedTuple}()
+    for r in DBInterface.execute(db, "SELECT Year,TreeIndex,TPH,MortPH,DBH,Ht,TCuM FROM FVS_TreeList_East_Metric")
+        tl[(Int(r.Year), Int(r.TreeIndex))] = (; TPH = Float64(r.TPH), MortPH = Float64(r.MortPH),
+            DBH = Float64(r.DBH), Ht = Float64(r.Ht), TCuM = Float64(r.TCuM))
+    end
+    return rows, tl
+end
+function _ont_live(file)
+    tl = Dict{Tuple{Int,Int},NamedTuple}(); hdr = String[]
+    for ln in eachline(joinpath(_ONT_FX, file))
+        startswith(ln, "#") && continue
+        f = split(ln, ',')
+        if f[1] == "Year"; hdr = String.(f); continue; end
+        tl[(parse(Int, f[1]), parse(Int, f[2]))] = (; (Symbol(hdr[k]) => parse(Float64, f[k]) for k in 4:length(f))...)
+    end
+    return tl
+end
+const _ONT_SM = _ont_run("ont_sm")
+const _ONT_SM_LIVE = _ont_live("ont_sm_thin_tl_live.csv")
+_ont_cmp(jl, lv, col; sel = (k, v) -> true) =
+    [((k, col, haskey(jl, k) ? jl[k][col] : NaN), (k, col, v[col])) for (k, v) in sort(collect(lv)) if sel(k, v)]
+
+# (1) canada/on/regent.f DGGR = DGSM·(1−XWT) + XWT·DG(K): a tripled copy K blends ITS OWN large-tree DG
+# (dgdriv.f DG(ITRIPU)/DG(ITRIPL)), not the central's; an HK≤4.5 record gets DBH(K)=D+0.001·HK directly (DG=0).
+@testset "ON ont_sm cycle 1: TRIPLE-copy DBH/Ht/TPH (REGENT DGGR blend) == live" begin
+    for col in (:TPH, :DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_SM), _ONT_SM_LIVE, col; sel = (k, v) -> k[1] == 2014)
+        @test j == l
+    end
+end
+
+# (2) ON stump sprouting (canada/on/esuckr.f = LS logic, essprt.f CASE('LS','ON'); NSPREC has no 'ON' case ⇒ 2
+# records per stump; DBH from ON's HT1/HT2 Wykoff inverse; ISPSPE sprouter list). jl never logged ON stumps
+# (no :is_sprouting column) so the 2014 hardwood cut produced no sprouts.
+@testset "ON ont_sm thin: stump sprouts — per-year record count and total TPH == live" begin
+    jl = last(_ONT_SM)
+    for yr in (2014, 2024)                            # the cut cycle and the cycle whose ESUCKR adds the sprouts
+        jk = [v.TPH for (k, v) in jl if k[1] == yr]; lk = [v.TPH for (k, v) in _ONT_SM_LIVE if k[1] == yr]
+        @test (yr, length(jk)) == (yr, length(lk))
+        @test (yr, round(sum(jk); digits = 2)) == (yr, round(sum(lk); digits = 2))
+    end
+end
+
+# (3) cuts.f:255-275 deletes the zero-PROB records left by the previous cycle's mortality (TREDEL swap-from-end) at
+# CUTS ENTRY, before the thin's priority sort; the .sum driver ran jl's cut before that compaction, so tied-DBH
+# stumps (the three BE copies) were logged — and sprouted — in a different order.
+@testset "ON ont_sm thin: 2024 records (sprout order) TPH/MortPH/DBH/Ht == live (CUTS-entry TREDEL)" begin
+    for col in (:TPH, :MortPH, :DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_SM), _ONT_SM_LIVE, col; sel = (k, v) -> k[1] == 2024)
+        @test j == l
+    end
+end
+
+# (4) esnutr.f: after ESUCKR (ITRNRM≥1) CALL SPESRT rebuilds IND1 in ascending PHYSICAL order, discarding the
+# post-TRIPLE REASS lineage — the next cycle's per-tree DGSCOR/REGENT draws walk physical order.
+@testset "ON ont_sm thin: 2034-2054 records == live (SPESRT after ESUCKR)" begin
+    for col in (:TPH, :MortPH, :DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_SM), _ONT_SM_LIVE, col; sel = (k, v) -> k[1] >= 2034)
+        @test j == l
+    end
+end
+
+const _ONT_LITE = _ont_run("ont_lite")
+const _ONT_LITE_LIVE = _ont_live("ont_lite_thin_tl_live.csv")
+
+# (5) cuts.f DO 1700 — the ONE pass that effects a thinning, in IND2 order: PREM=PROB−WK4; a record whose residual
+# would be ≤ .0005 is cut ENTIRELY (then TREDEL'd), a PREM < 1E-5 is not cut at all; totals and ESTUMP follow that
+# final PREM. jl cut/logged inside the trial loop: ont_lite THINBBA 2034 left rec 334 a 0.0005 residual (live: fully
+# cut, 25% more stump TPA) ⇒ one sprout record fewer in 2044.
+@testset "ON ont_lite thin: 2034-2054 record set + TPH == live (cuts.f DO 1700 final pass)" begin
+    jl = last(_ONT_LITE)
+    @test sort([k for k in keys(jl) if k[1] >= 2034]) == sort(collect(keys(_ONT_LITE_LIVE)))
+    for (j, l) in _ont_cmp(jl, _ONT_LITE_LIVE, :TPH)
+        @test j == l
+    end
+end
+
+# (6) canada/on/htdbh.f Curtis-Arney inverse (MODE=1, REGENT's DK/DKK): D=EXP(ALOG((ALOG(H-4.5)-ALOG(P2))/(-1.*P3))
+# * 1./P4) evaluates (X*1.)/P4, not X*(1/P4) — one ULP on the BB sprouts' DG in 2044.
+@testset "ON ont_lite thin: 2034-2054 DBH/Ht per record == live (htdbh.f Curtis-Arney X*1./P4)" begin
+    for col in (:DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_LITE), _ONT_LITE_LIVE, col)
+        @test j == l
+    end
+end
+
+# (7) canada/on vols.f/varvol.f OCFVOL has no DBH<1 gate: a record below DBHMIN (incl. sub-inch sprouts) gets the
+# VN=VM=0.0001 sentinel; jl zeroed every DBH<1" record.
+@testset "ON ont_lite thin: TCuM per live record == live (OCFVOL 0.0001 below DBHMIN, no D<1 gate)" begin
+    for (j, l) in _ont_cmp(last(_ONT_LITE), _ONT_LITE_LIVE, :TCuM; sel = (k, v) -> v.TPH > 0)
+        @test j == l
+    end
+end
+
+# Whole .sum of the four thinning runs (every row, 2004-2054) == live FVSon_g16.
+@testset "ON thinning + sprouting runs: every .sum row == live" begin
+    @test first(_ONT_SM) == [split(l) for l in readlines(joinpath(_ONT_FX, "ont_sm_thin_live.rows"))]
+    @test first(_ONT_LITE) == [split(l) for l in readlines(joinpath(_ONT_FX, "ont_lite_thin_live.rows"))]
+    for stem in ("ont01", "ont_all")
+        @test (stem, first(_ont_run(stem))) == (stem, [split(l) for l in readlines(joinpath(_ONT_FX, "$(stem)_thin_live.rows"))])
+    end
+end

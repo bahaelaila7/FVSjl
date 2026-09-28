@@ -37,7 +37,8 @@ using DBInterface
 
 # --- core (order matters: parameters → rng/units/trees → variant → state) ----
 include("core/fmath.jl")                       # gfortran-identical exp/log/pow (doctrine #8)
-using .FMath: fexp, flog, fpow, fpowi, fexp_julia, flog_julia, fpow_julia, dexp, dlog, dpow, dlog10, fsin, fcos
+using .FMath: fexp, flog, fpow, fpowi, fexp_julia, flog_julia, fpow_julia, dexp, dlog, dpow, dlog10, fsin, fcos,
+    ftan, fatan, expf, logf, powf, log10f
 include("core/parameters.jl")
 include("core/rng.jl")
 include("core/units.jl")
@@ -446,6 +447,7 @@ include("engine/fire/wc_fuel_model.jl")  # FFE F4b — WC FIRE-VPN cover-metagro
 include("engine/fire/ec_fuel_model.jl")  # FFE F4  — EC FMDYN dynamic cover-metagroup fuel-model selection (ec/fmcfmd.f)
 include("engine/fire/so_fuel_model.jl")  # FFE F4  — SO FMDYN Oregon 8-plant-group fuel-model selection (so/fmcfmd.f)
 include("engine/fire/fmburn.jl")         # FFE F5b — fire event driver (FMBURN/FMEFF) → kill TPA
+include("engine/fire/fmpofl.jl")         # FFE potential fire report (FMPOFL + FMCFIR/FMEFF/FMCONS/FMPTRH ICALL=1 shapes)
 include("engine/fire/carbon.jl")         # FFE F8 — standing live-tree carbon pools (FMCRBOUT)
 include("engine/fire/west_ffe.jl")       # FFE — western FMSVOL basis (no-cut NATCRS TCF/MCF) for snags + live stem
 include("engine/fire/r6_snag_tables.jl") # FFE F7 — R6 snag tables (fmr6sdcy/fmr6fall/fmr6htls DATA)

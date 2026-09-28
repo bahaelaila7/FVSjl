@@ -108,17 +108,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "BM"
 regime = "cover"
 file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "BM"
-regime = "cover"
-file = "FVS_StrClass"
 col = "Stratum_1_DBH"
 stand = "*"
 year = "*"
@@ -257,17 +246,6 @@ year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-21: 41 cells [ulpbig=41] max|Δ|=0.1181 | e.g. stand 12827438010497 year 2025: live=19.761640548706055 jl=19.700000762939453"""
-
-[[residual]]
-variant = "BM"
-regime = "none"
-file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "BM"
@@ -778,28 +756,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 [[residual]]
 variant = "BM"
 regime = "salvage"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "salvage"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -1086,28 +1042,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork bm-base
 [[residual]]
 variant = "BM"
 regime = "simfire"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "BM"
-regime = "simfire"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -1192,17 +1126,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 1 cells [gold_text9=1] max|Δ|=4.77e-7 | e.g. stand 1127619588290487 year 2031: live=0.928694725 jl=0.928694248"""
-
-[[residual]]
-variant = "BM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 647500316126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "BM"
@@ -1593,17 +1516,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 52
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 52 cells [ulp1=11 ulp2_16=16 ulpbig=25] max|Δ|=0.008832 | e.g. stand 11855985010690 year 2036: live=0.876318633556366 jl=0.8830597400665283"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
@@ -1654,28 +1566,6 @@ year = "*"
 status = "OPEN"
 max_cells = 59
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 59 cells [material=49 ulp2_16=1 ulpbig=9] max|Δ|=42.26 | e.g. stand 11855985010690 year 2036: live=84.49238586425781 jl=77.84492492675781"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -1962,28 +1852,6 @@ year = "*"
 status = "OPEN"
 max_cells = 43
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 43 cells [material=42 ulpbig=1] max|Δ|=1734.0 | e.g. stand 11855985010690 year 2016: live=608.2630004882812 jl=279.6322326660156"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 11855985010690 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "IE"
@@ -2358,17 +2226,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "cover"
-file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -3260,17 +3117,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 2 cells [ulpbig=2] max|Δ|=2.0 | e.g. stand 238813815010854 year 2010: live=3447 jl=3448"""
-
-[[residual]]
-variant = "SN"
-regime = "none"
-file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -4287,39 +4133,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SN campa
 [[residual]]
 variant = "SN"
 regime = "salvage"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
-file = "FVS_PotFire_East"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "salvage"
 file = "FVS_Summary"
 col = "ATBA"
 stand = "*"
@@ -4811,39 +4624,6 @@ year = "*"
 status = "OPEN"
 max_cells = 20
 issue = """per-record Float32 drift below .sum print precision — owner: the SN campaign (not yet dug) | measured 2026-09-21: 20 cells [ulp1=1 ulp2_16=3 ulpbig=16] max|Δ|=0.894 | e.g. stand 216786838010854 year 2009: live=129.0489044189453 jl=128.96498107910156"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=absent jl=present"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SN"
-regime = "simfire"
-file = "FVS_PotFire_East"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-21: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 216786838010854 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SN"
@@ -5361,17 +5141,6 @@ year = "*"
 status = "OPEN"
 max_cells = 30
 issue = """NEW: FVS stores this table's REALs as 9-significant-digit list-directed text; jl stores full double | measured 2026-09-21: 30 cells [gold_text9=30] max|Δ|=0.1923 | e.g. stand 210838699010854 year 2003: live=1.75944781 jl=1.75944519"""
-
-[[residual]]
-variant = "SN"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=absent, jl=present) — table emission/gating gap | measured 2026-09-21: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 651101880126144 year *: live=absent jl=present"""
 
 [[residual]]
 variant = "SN"
@@ -6213,17 +5982,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 46
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 46 cells [material=1 ulp1=2 ulp2_16=4 ulpbig=39] max|Δ|=1.392 | e.g. stand 5352355010661 year 2024: live=0.00025533189182169735 jl=0.0002699981559999287"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
@@ -6278,28 +6036,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "salvage"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 5352355010661 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
 file = "sum"
 col = "EXTRA_CONTENT"
 stand = "*"
@@ -6318,17 +6054,6 @@ year = "*"
 status = "OPEN"
 max_cells = 7
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [material=6 ulpbig=1] max|Δ|=6.004 | e.g. stand 5352355010661 year 2004: live=7.262538433074951 jl=1.2690271139144897"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_BurnReport"
-col = "ROWCOUNT"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 10
-issue = """NEW: jl emits a different number of rows than live for this table () — row emission/gating gap | measured 2026-09-26: 10 cells [ulpbig=10] max|Δ|=1.0 | e.g. stand 474187636489998 year 2026: live=1 jl=0"""
 
 [[residual]]
 variant = "EM"
@@ -6455,28 +6180,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "Bakill"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 32
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 32 cells [material=18 ulp2_16=1 ulpbig=13] max|Δ|=60.98 | e.g. stand 474187636489998 year 2026: live=12.41086196899414 jl=10.665704727172852"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Killed_class2"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 19
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 19 cells [material=16 ulpbig=3] max|Δ|=81.39 | e.g. stand 474187636489998 year 2026: live=41.40951156616211 jl=35.914939880371094"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "Total_class1"
 stand = "*"
 year = "*"
@@ -6516,39 +6219,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 2 cells [ulp1=2] max|Δ|=1.192e-7 | e.g. stand 3087467010690 year 1998: live=1.8326609134674072 jl=1.8326607942581177"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Volkill"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 28
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 28 cells [material=28] max|Δ|=771.0 | e.g. stand 474187636489998 year 2026: live=183.96583557128906 jl=121.72124481201172"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire_Cond"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 12
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 12 cells [structural=12] max|Δ|=0.0 | e.g. stand 474187636489998 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "EM"
@@ -6663,17 +6333,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 [[residual]]
 variant = "EM"
 regime = "simfire"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 49
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=46 ulpbig=3] max|Δ|=438.0 | e.g. stand 474187636489998 year 2036: live=264 jl=292"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
 file = "sum"
 col = "ATBA"
 stand = "*"
@@ -6780,17 +6439,6 @@ year = "*"
 status = "OPEN"
 max_cells = 49
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=43 ulpbig=6] max|Δ|=1697.0 | e.g. stand 474187636489998 year 2026: live=208 jl=206"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 49
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=46 ulpbig=3] max|Δ|=438.0 | e.g. stand 474187636489998 year 2036: live=264 jl=292"""
 
 [[residual]]
 variant = "EM"
@@ -7122,3 +6770,1302 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """2026-09-28 ie-resid (re-added at the master merge): FFE fmcwd/fmeff ports moved EM 196378260020004's pre-fire fuel bed — the post-fire .sum MAI 2052 lands 6.5 vs live 6.4 (F5.1 boundary); the stand's fire kill was already off live. | 1 cells, e.g. year 2052: live=6.4 jl=6.5"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 18 cells [ulp1=1 ulp2_16=8 ulpbig=9] max|Δ|=0.001437 | e.g. stand 177426703020004 year 2032: live=0.0404076911509037 jl=0.040407679975032806"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 14 cells [ulp1=1 ulp2_16=4 ulpbig=9] max|Δ|=0.9096 | e.g. stand 177426703020004 year 2032: live=43.92226791381836 jl=43.92227554321289"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 6 cells [material=3 ulpbig=3] max|Δ|=29.0 | e.g. stand 41136808010497 year 2025: live=62.0 jl=63.0"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Fuel_Wt2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 7 cells [material=3 ulpbig=4] max|Δ|=29.0 | e.g. stand 41136808010497 year 2025: live=38.0 jl=37.0"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 1 cells [material=1] max|Δ|=3.0 | e.g. stand 41136808010497 year 2045: live=21.0 jl=18.0"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=132.0 | e.g. stand 41136808010497 year 2025: live=901.0 jl=897.0"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 9
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 9 cells [ulp2_16=2 ulpbig=7] max|Δ|=0.003105 | e.g. stand 177426703020004 year 2022: live=0.0002944570151157677 jl=0.00029445922700688243"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 14 cells [ulp1=1 ulp2_16=2 ulpbig=11] max|Δ|=0.04252 | e.g. stand 177426703020004 year 2032: live=0.10582457482814789 jl=0.10582611709833145"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 32
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 32 cells [ulp1=1 ulp2_16=1 ulpbig=30] max|Δ|=0.0325 | e.g. stand 177426703020004 year 2032: live=0.02326533943414688 jl=0.02319079264998436"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 32
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 32 cells [ulp1=1 ulp2_16=1 ulpbig=30] max|Δ|=0.03253 | e.g. stand 177426703020004 year 2032: live=0.0401553213596344 jl=0.04008251801133156"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 18 cells [ulp1=3 ulp2_16=7 ulpbig=8] max|Δ|=0.3477 | e.g. stand 177426703020004 year 2032: live=0.5852533578872681 jl=0.5852537155151367"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 14 cells [ulp1=1 ulp2_16=4 ulpbig=9] max|Δ|=0.7311 | e.g. stand 177426703020004 year 2032: live=2.2769618034362793 jl=2.2769672870635986"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 18 cells [material=3 ulp2_16=6 ulpbig=9] max|Δ|=26.52 | e.g. stand 177426703020004 year 2032: live=117.48316955566406 jl=117.48297119140625"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 18 cells [ulp1=3 ulp2_16=7 ulpbig=8] max|Δ|=0.3477 | e.g. stand 177426703020004 year 2032: live=0.5852533578872681 jl=0.5852537155151367"""
+
+[[residual]]
+variant = "BM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 15 cells [ulp1=1 ulp2_16=5 ulpbig=9] max|Δ|=0.778 | e.g. stand 177426703020004 year 2032: live=2.2769618034362793 jl=2.2769672870635986"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 17 cells [ulp2_16=2 ulpbig=15] max|Δ|=0.006978 | e.g. stand 12827438010497 year 2025: live=0.016336455941200256 jl=0.017823852598667145"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 15 cells [material=7 ulpbig=8] max|Δ|=9.387 | e.g. stand 12827438010497 year 2025: live=83.70997619628906 jl=78.646728515625"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Mod1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 3→4) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=5.0 | e.g. stand 41136808010497 year 2035: live=10 jl=9"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Mod2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 3→4) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=5.0 | e.g. stand 41136808010497 year 2035: live=9 jl=10"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 5→7) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=5] max|Δ|=23.0 | e.g. stand 12827438010497 year 2015: live=56.0 jl=79.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 6→7) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 6 cells [material=5 ulpbig=1] max|Δ|=25.0 | e.g. stand 12827438010497 year 2015: live=42.0 jl=17.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt3"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 12827438010497 year 2015: live=2.0 jl=3.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 177426703020004 year 2022: live=37.0 jl=36.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 3→5) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=3] max|Δ|=5.0 | e.g. stand 12827438010497 year 2015: live=17.0 jl=22.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 8
+issue = """integ-0938: BM simfire post-fire down wood is below live (known FFE residual, e.g. 645155287126144 2038 3.13 vs 5.35); the unified FFE layer moved it and PotFire's fuel-model/mortality columns read that state (max_cells 7→8) | FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 7 cells [material=4 ulpbig=3] max|Δ|=116.0 | e.g. stand 12827438010497 year 2015: live=365.0 jl=481.0"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 4 cells [ulp2_16=1 ulpbig=3] max|Δ|=1.608e-5 | e.g. stand 41136808010497 year 2025: live=1.9842988763230096e-7 jl=1.505663220768838e-7"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 12
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 12 cells [ulp2_16=2 ulpbig=10] max|Δ|=0.009224 | e.g. stand 12827438010497 year 2015: live=0.14051485061645508 jl=0.1421322524547577"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 32
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 32 cells [ulp1=1 ulp2_16=2 ulpbig=29] max|Δ|=0.01772 | e.g. stand 177426703020004 year 2032: live=0.023768289014697075 jl=0.023956788703799248"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 32
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 32 cells [ulp1=1 ulp2_16=1 ulpbig=30] max|Δ|=0.01775 | e.g. stand 177426703020004 year 2032: live=0.027626318857073784 jl=0.02787068486213684"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 16 cells [ulp1=3 ulp2_16=4 ulpbig=9] max|Δ|=0.3549 | e.g. stand 12827438010497 year 2025: live=1.5854355096817017 jl=1.5854358673095703"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 13 cells [ulp1=1 ulp2_16=3 ulpbig=9] max|Δ|=0.4304 | e.g. stand 12827438010497 year 2015: live=8.24030590057373 jl=8.298948287963867"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 17 cells [material=7 ulp2_16=4 ulpbig=6] max|Δ|=15.14 | e.g. stand 12827438010497 year 2025: live=80.33811950683594 jl=77.79042053222656"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 16 cells [ulp1=3 ulp2_16=4 ulpbig=9] max|Δ|=0.3549 | e.g. stand 12827438010497 year 2025: live=1.5854355096817017 jl=1.5854358673095703"""
+
+[[residual]]
+variant = "BM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 13 cells [ulp1=1 ulp2_16=3 ulpbig=9] max|Δ|=0.4304 | e.g. stand 12827438010497 year 2015: live=8.24030590057373 jl=8.298948287963867"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 17 cells [ulp1=5 ulp2_16=3 ulpbig=9] max|Δ|=0.007173 | e.g. stand 242065538010661 year 2030: live=0.008696036413311958 jl=0.008698240853846073"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 16 cells [material=1 ulp1=2 ulp2_16=5 ulpbig=8] max|Δ|=1.517 | e.g. stand 242065538010661 year 2030: live=131.79579162597656 jl=131.77232360839844"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 20 cells [ulp1=1 ulp2_16=4 ulpbig=15] max|Δ|=0.1162 | e.g. stand 888512560290487 year 2031: live=1.093931789597491e-8 jl=1.0939180228319856e-8"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 20
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 20 cells [ulp1=2 ulp2_16=1 ulpbig=17] max|Δ|=0.06615 | e.g. stand 474157097489998 year 2016: live=0.8620116710662842 jl=0.8620116114616394"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 50
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 50 cells [ulp1=4 ulp2_16=5 ulpbig=41] max|Δ|=0.004089 | e.g. stand 242065538010661 year 2030: live=0.045496027916669846 jl=0.04549625143408775"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 53
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 53 cells [ulp1=3 ulp2_16=3 ulpbig=47] max|Δ|=0.01544 | e.g. stand 242065538010661 year 2030: live=0.07431130111217499 jl=0.07431142777204514"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 26
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 26 cells [ulp1=2 ulp2_16=8 ulpbig=16] max|Δ|=0.02365 | e.g. stand 474157097489998 year 2026: live=1.0572904348373413 jl=1.0572882890701294"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 27 cells [ulp1=4 ulp2_16=7 ulpbig=16] max|Δ|=0.05249 | e.g. stand 474157097489998 year 2016: live=5.38961124420166 jl=5.389610290527344"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 21 cells [material=2 ulp2_16=9 ulpbig=10] max|Δ|=6.259 | e.g. stand 474157097489998 year 2016: live=34.02943801879883 jl=34.02944564819336"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 26
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 26 cells [ulp1=2 ulp2_16=8 ulpbig=16] max|Δ|=0.02365 | e.g. stand 474157097489998 year 2026: live=1.0572904348373413 jl=1.0572882890701294"""
+
+[[residual]]
+variant = "EM"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 34
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 34 cells [material=2 ulp1=3 ulp2_16=10 ulpbig=19] max|Δ|=8.545 | e.g. stand 242065538010661 year 2030: live=13.05061149597168 jl=13.050711631774902"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 16 cells [ulp1=5 ulp2_16=2 ulpbig=9] max|Δ|=0.002797 | e.g. stand 474157097489998 year 2026: live=0.08876003324985504 jl=0.09042807668447495"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 4 cells [material=3 ulpbig=1] max|Δ|=16.0 | e.g. stand 3087467010690 year 1998: live=20 jl=18"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 15 cells [material=2 ulp1=3 ulp2_16=4 ulpbig=6] max|Δ|=291.8 | e.g. stand 474157097489998 year 2026: live=23.16924476623535 jl=22.8155517578125"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=9.0 | e.g. stand 196420598020004 year 2042: live=79.0 jl=83.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt3"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 1 cells [material=1] max|Δ|=2.0 | e.g. stand 3087467010690 year 2008: live=17.0 jl=15.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 231908428020004 year 2023: live=99.0 jl=98.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=63.0 jl=62.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=2.0 | e.g. stand 3087467010690 year 1998: live=278.0 jl=279.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 7 cells [material=3 ulpbig=4] max|Δ|=37.0 | e.g. stand 3087467010690 year 2008: live=1173.0 jl=1179.0"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 15
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 15 cells [ulp1=1 ulp2_16=2 ulpbig=12] max|Δ|=0.1162 | e.g. stand 196420598020004 year 2012: live=0.008591119199991226 jl=0.008591110818088055"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 14 cells [ulp1=2 ulpbig=12] max|Δ|=0.07261 | e.g. stand 474157097489998 year 2016: live=0.8620116710662842 jl=0.8620116114616394"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 50
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 50 cells [ulp1=4 ulp2_16=3 ulpbig=43] max|Δ|=0.004914 | e.g. stand 474187636489998 year 2036: live=0.04128214344382286 jl=0.04113856703042984"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 52
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 52 cells [ulp1=5 ulp2_16=1 ulpbig=46] max|Δ|=0.00483 | e.g. stand 474187636489998 year 2036: live=0.057868391275405884 jl=0.05802779644727707"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 27 cells [ulp1=2 ulp2_16=6 ulpbig=19] max|Δ|=0.1151 | e.g. stand 196420598020004 year 2052: live=3.8252055644989014 jl=3.824833869934082"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 27 cells [ulp1=2 ulp2_16=6 ulpbig=19] max|Δ|=0.2879 | e.g. stand 474157097489998 year 2016: live=5.38961124420166 jl=5.389610290527344"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 18
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 18 cells [material=6 ulp2_16=6 ulpbig=6] max|Δ|=32.24 | e.g. stand 474157097489998 year 2016: live=34.02943801879883 jl=34.02944564819336"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 27 cells [ulp1=2 ulp2_16=6 ulpbig=19] max|Δ|=0.1128 | e.g. stand 196420598020004 year 2052: live=3.8774094581604004 jl=3.869980812072754"""
+
+[[residual]]
+variant = "EM"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 29 cells [ulp1=5 ulp2_16=5 ulpbig=19] max|Δ|=0.5536 | e.g. stand 474157097489998 year 2036: live=35.93758773803711 jl=35.937591552734375"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 17
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 17 cells [ulp1=6 ulp2_16=6 ulpbig=5] max|Δ|=0.003188 | e.g. stand 1627682513290487 year 2021: live=0.053659722208976746 jl=0.05365971103310585"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 14 cells [ulp1=6 ulp2_16=3 ulpbig=5] max|Δ|=0.7318 | e.g. stand 1627682513290487 year 2021: live=34.29059982299805 jl=34.29060363769531"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 30
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 30 cells [ulp1=1 ulpbig=29] max|Δ|=0.01448 | e.g. stand 1627682513290487 year 2061: live=0.5090585947036743 jl=0.5072627663612366"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 34
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 34 cells [ulp2_16=1 ulpbig=33] max|Δ|=0.1492 | e.g. stand 1627682513290487 year 2061: live=0.9008042812347412 jl=0.900622546672821"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 52
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 52 cells [ulp1=2 ulpbig=50] max|Δ|=0.02941 | e.g. stand 1627682513290487 year 2061: live=0.1467670053243637 jl=0.14671577513217926"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 53
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 53 cells [ulp2_16=3 ulpbig=50] max|Δ|=0.07044 | e.g. stand 1627682513290487 year 2061: live=0.20133861899375916 jl=0.20128558576107025"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 45
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 45 cells [ulp2_16=1 ulpbig=44] max|Δ|=0.07706 | e.g. stand 1627682513290487 year 2061: live=3.538052558898926 jl=3.533298969268799"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 45
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 45 cells [ulp1=1 ulpbig=44] max|Δ|=0.304 | e.g. stand 1627682513290487 year 2061: live=6.247951030731201 jl=6.241793155670166"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 33
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 33 cells [material=3 ulp2_16=1 ulpbig=29] max|Δ|=3.771 | e.g. stand 1627682513290487 year 2061: live=34.326881408691406 jl=34.40626525878906"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 45
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 45 cells [ulp1=1 ulpbig=44] max|Δ|=0.1795 | e.g. stand 1627682513290487 year 2061: live=3.538052558898926 jl=3.533298969268799"""
+
+[[residual]]
+variant = "IE"
+regime = "salvage"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 45
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 45 cells [material=2 ulp2_16=1 ulpbig=42] max|Δ|=2.023 | e.g. stand 1627682513290487 year 2061: live=6.247951030731201 jl=6.241793155670166"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 31
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 31 cells [ulp1=5 ulp2_16=9 ulpbig=17] max|Δ|=0.0036 | e.g. stand 1627682513290487 year 2061: live=0.048291001468896866 jl=0.04830290004611015"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Canopy_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 4 cells [material=2 ulpbig=2] max|Δ|=8.0 | e.g. stand 1627682513290487 year 2031: live=68 jl=60"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Crown_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 27
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 27 cells [material=2 ulp1=2 ulp2_16=8 ulpbig=15] max|Δ|=17.56 | e.g. stand 1627682513290487 year 2061: live=37.20918655395508 jl=37.202125549316406"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Mod2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=3] max|Δ|=4.0 | e.g. stand 39518122010690 year 2039: live=8 jl=12"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt1"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 21 cells [material=13 ulpbig=8] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2061: live=94.0 jl=93.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Fuel_Wt2"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 21 cells [material=13 ulpbig=8] max|Δ|=9.0 | e.g. stand 1627682513290487 year 2061: live=6.0 jl=7.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 6 cells [material=2 ulpbig=4] max|Δ|=3.0 | e.g. stand 1627682513290487 year 2061: live=26.0 jl=28.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 14
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 14 cells [material=7 ulpbig=7] max|Δ|=13.0 | e.g. stand 1627682513290487 year 2031: live=11.0 jl=15.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=35.0 | e.g. stand 1627682513290487 year 2061: live=688.0 jl=723.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 26
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 26 cells [material=12 ulpbig=14] max|Δ|=302.0 | e.g. stand 1627682513290487 year 2061: live=2690.0 jl=2689.0"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 23
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 23 cells [ulp1=1 ulpbig=22] max|Δ|=0.01384 | e.g. stand 1627682513290487 year 2021: live=0.9999974370002747 jl=0.9999973773956299"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "PTorch_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 40
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 40 cells [ulp1=2 ulpbig=38] max|Δ|=0.01932 | e.g. stand 1627682513290487 year 2061: live=0.8340160846710205 jl=0.8336189985275269"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 54
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 54 cells [ulp1=2 ulpbig=52] max|Δ|=0.0121 | e.g. stand 1627682513290487 year 2061: live=0.236451655626297 jl=0.2340177297592163"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 54
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 54 cells [ulp2_16=3 ulpbig=51] max|Δ|=0.03684 | e.g. stand 1627682513290487 year 2061: live=0.25400644540786743 jl=0.2508598268032074"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 48 cells [ulp2_16=1 ulpbig=47] max|Δ|=0.6268 | e.g. stand 1627682513290487 year 2061: live=5.570985794067383 jl=5.406288146972656"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Surf_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 48 cells [ulp1=1 ulpbig=47] max|Δ|=0.8159 | e.g. stand 1627682513290487 year 2061: live=10.667191505432129 jl=10.10939884185791"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Torch_Index"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 38
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 38 cells [material=16 ulp2_16=1 ulpbig=21] max|Δ|=63.24 | e.g. stand 1627682513290487 year 2031: live=292.425537109375 jl=249.0882568359375"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 48 cells [ulp1=1 ulpbig=47] max|Δ|=0.6268 | e.g. stand 1627682513290487 year 2061: live=6.446389675140381 jl=6.366221904754639"""
+
+[[residual]]
+variant = "IE"
+regime = "simfire"
+file = "FVS_PotFire"
+col = "Tot_Flame_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 48
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 48 cells [ulp2_16=1 ulpbig=47] max|Δ|=0.8159 | e.g. stand 1627682513290487 year 2061: live=31.630441665649414 jl=31.762306213378906"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 21
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 21 cells [ulp1=4 ulp2_16=11 ulpbig=6] max|Δ|=0.01689 | e.g. stand 216786838010854 year 2009: live=0.020366936922073364 jl=0.020366942510008812"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Flame_Len_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 16
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 16 cells [ulp1=2 ulp2_16=1 ulpbig=13] max|Δ|=0.1183 | e.g. stand 238813815010854 year 2020: live=3.2363643646240234 jl=3.238612174987793"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Flame_Len_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 22
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 22 cells [ulp1=6 ulp2_16=3 ulpbig=13] max|Δ|=0.12 | e.g. stand 238813815010854 year 2020: live=4.979058742523193 jl=4.9813971519470215"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt1_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=3 ulpbig=2] max|Δ|=7.0 | e.g. stand 238813815010854 year 2010: live=96.0 jl=95.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt1_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=3 ulpbig=2] max|Δ|=7.0 | e.g. stand 238813815010854 year 2010: live=96.0 jl=95.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt2_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=3 ulpbig=2] max|Δ|=7.0 | e.g. stand 238813815010854 year 2010: live=4.0 jl=5.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt2_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=3 ulpbig=2] max|Δ|=7.0 | e.g. stand 238813815010854 year 2010: live=4.0 jl=5.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Mortality_VOL_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 5
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 5 cells [material=2 ulpbig=3] max|Δ|=9.0 | e.g. stand 200267456010854 year 2017: live=364.0 jl=360.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 4
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 4 cells [material=2 ulpbig=2] max|Δ|=25.0 | e.g. stand 200267456010854 year 2017: live=596.0 jl=587.0"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 29 cells [ulp1=2 ulp2_16=1 ulpbig=26] max|Δ|=0.003694 | e.g. stand 238813815010854 year 2020: live=0.1648228019475937 jl=0.16494321823120117"""
+
+[[residual]]
+variant = "SN"
+regime = "salvage"
+file = "FVS_PotFire_East"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 30
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 30 cells [ulp1=2 ulp2_16=2 ulpbig=26] max|Δ|=0.01007 | e.g. stand 238813815010854 year 2020: live=0.21303722262382507 jl=0.21314069628715515"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Canopy_Density"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 23
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 23 cells [ulp1=2 ulp2_16=7 ulpbig=14] max|Δ|=0.002376 | e.g. stand 216786838010854 year 2024: live=0.015565450303256512 jl=0.015636272728443146"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Canopy_Ht"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 3
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 3 cells [material=2 ulpbig=1] max|Δ|=3.0 | e.g. stand 161035853010854 year 2013: live=39 jl=41"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Flame_Len_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 25
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 25 cells [ulp1=2 ulp2_16=1 ulpbig=22] max|Δ|=0.6316 | e.g. stand 238813815010854 year 2020: live=2.2943084239959717 jl=2.507596015930176"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Flame_Len_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 28
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 28 cells [ulp1=4 ulp2_16=2 ulpbig=22] max|Δ|=0.9771 | e.g. stand 238813815010854 year 2020: live=4.066352367401123 jl=4.259195327758789"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt1_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 13 cells [material=12 ulpbig=1] max|Δ|=27.0 | e.g. stand 238813815010854 year 2020: live=98.0 jl=89.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt1_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 13 cells [material=12 ulpbig=1] max|Δ|=27.0 | e.g. stand 238813815010854 year 2020: live=98.0 jl=89.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt2_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 13 cells [material=12 ulpbig=1] max|Δ|=27.0 | e.g. stand 238813815010854 year 2020: live=2.0 jl=11.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Fuel_Wt2_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 13 cells [material=12 ulpbig=1] max|Δ|=27.0 | e.g. stand 238813815010854 year 2020: live=2.0 jl=11.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Mortality_BA_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 7
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 238813815010854 year 2020: live=38.0 jl=39.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Mortality_BA_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 6
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 6 cells [material=2 ulpbig=4] max|Δ|=3.0 | e.g. stand 216786838010854 year 2014: live=48.0 jl=51.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Mortality_VOL_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 10
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=10.0 | e.g. stand 216786838010854 year 2024: live=163.0 jl=165.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Mortality_VOL_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 13
+issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 13 cells [material=8 ulpbig=5] max|Δ|=25.0 | e.g. stand 238813815010854 year 2010: live=140.0 jl=146.0"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Pot_Smoke_Mod"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 29
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 29 cells [ulp1=2 ulpbig=27] max|Δ|=0.02511 | e.g. stand 238813815010854 year 2020: live=0.09924829751253128 jl=0.10778025537729263"""
+
+[[residual]]
+variant = "SN"
+regime = "simfire"
+file = "FVS_PotFire_East"
+col = "Pot_Smoke_Sev"
+stand = "*"
+year = "*"
+status = "OPEN"
+max_cells = 30
+issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 30 cells [ulp1=2 ulpbig=28] max|Δ|=0.02681 | e.g. stand 238813815010854 year 2020: live=0.13051427900791168 jl=0.1386290192604065"""
+

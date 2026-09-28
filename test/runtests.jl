@@ -103,6 +103,7 @@ using FVSjl
     include("unit/test_em_wk1dub.jl")       # EM DO-220 WK1 dub from the post-COR (second) calibration DGF — calibrated added-species mortality G
     include("unit/test_em_autoes_tiered.jl") # EM AUTOES per record vs live FVSem_g16 tiered goldens: per-point PSLO/PASP topography for ESNSPE/ESPADV/ESPSUB/ESPXCS/ESADVH/ESSUBH (estab.f:474-479)
     include("unit/test_ie_resid_tiered.jl")  # IE per record vs live FVSie_g16 tiered goldens: KODFOR-region NVEL merch rules, AUTOES ingrowth PNN floor
+    include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
     include("unit/test_ppe_sort.jl")       # PPE PPBASE C11SRT/C26SRT/CH8SRT character index QuickerSort (master stand ordering) — bit-exact vs gfortran-16 golden (recovered PPE source)
@@ -114,6 +115,7 @@ using FVSjl
     include("unit/test_ontario_growth_wired.jl")# ON: runnable growth — species table+translation (reader) + coefficients(::Ontario) standalone + DDS→DG on_bratio branch (d_ib/DDS/WKI) bit-exact vs FVSon_wkidump
     include("unit/test_ontario_htg.jl")    # ON: large-tree height growth (htgf.f/htont.f Penner diameter-height) — shipped height_growth!(::Ontario) per-tree HTG + HTONT bit-exact vs instrumented FVSon_g16 on ont01
     include("unit/test_ontario_volume.jl") # ON: per-tree volume (vols.f/varvol.f METHC=8 + volont.f ZAK/HONER + Mowraski cull) GTV/GMV/NMV + on_tree_age dump-replay bit-exact vs FVSon_g16
+    include("unit/test_ontario_ccf.jl")    # ON: open-grown crown width (cwcalc.f) all species + stand CCF 1895 + FORTYP/size/stock classes vs FVSon_g16 (ont01 cyc0)
     include("unit/test_ontario_sum_classification.jl")# ON: cyc0 .sum row bit-exact vs FVSon_g16 through FORTYP/size/stock (metric stkval; row tail 125 11)
     include("unit/test_ontario_allspecies_dgf.jl")   # ON full-port: Penner large-tree DGF (on_penner_dds) bit-exact across ALL 72 species vs FVSon_g16 (72-tree ont_all stand)
     include("unit/test_ontario_allspecies_htg.jl")   # ON full-port: Penner diameter-height (on_htont) bit-exact across ALL 72 species vs FVSon_htdump
@@ -123,6 +125,11 @@ using FVSjl
     include("unit/test_ontario_missing_height.jl")  # ON full-port: missing/broken-top height dub crash fix (_on_htdbh_height) + bit-exact volume vs FVSon_g16
     include("unit/test_ontario_database_reader.jl") # ON DATABASE reader: metric cm->in/m->ft conversion (was BC-only gate; ON DB was ~2.5x off)
     include("unit/test_ontario_db_path_equiv.jl")   # ON DATABASE-read path == inline `.tre` path on the REAL ON DB (FVSDataHardwood.db, LD3001, 94 trees): tree ingestion bit-exact + stand attrs + blank-ELEVFT fallback (oracle DB-path blocked: gcc-16 dbstreesin segfault, gcc-15 unavailable)
+    include("unit/test_ontario_cycle1_live.jl")      # ON growth cycle 1 per record vs LIVE FVSon_g16: ont01 TreeList (DG incl. TRIPLE copies, TPH/MortPH, DBH, Ht/HtG, TCuM/MCuM/CCum) + .sum rows of ont01/ont_all/ont_lite/ont_mh/ont_sm
+    include("unit/test_ontario_multicycle_live.jl")  # ON 5-cycle projections vs LIVE FVSon_g16: .sum rows of 6 fixture stands + ont_all per-record TreeList (TPH/MortPH/DBH/Ht) + metric keyword THIN decode
+    include("unit/test_ontario_thin_sprout_live.jl") # ON thinning + stump sprouting vs LIVE FVSon_g16: REGENT copies, ESUCKR sprouts, CUTS-entry TREDEL, SPESRT, DO-1700 cuts pass, per record + .sum
+    include("unit/test_ontario_db_live.jl")          # ON DATABASE stand (FVSDataHardwood.db LD3001, TIMEINT 5) vs LIVE FVSon_g16: metric design factors, SITE_INDEX, FORKOD, gradd DG FINT scaling, canonical 10-cycle .sum
+    include("unit/test_ontario_big_live.jl")         # ON ~1000-record stands vs LIVE FVSon_g16: MAXTRE=6000 tripling guard, VARMRT exhaustion (WK2+PROB), LTRIP on the pre-CUTS ITRN
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16
