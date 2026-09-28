@@ -150,4 +150,13 @@ end
     end
 end
 
+# fmsadd.f:300-306: FMSADD books each mortality snag's crown with UNFIRE = SNGNEW − FIRKIL, and FMKILL(2) clears FIRKIL only
+# after FMSADD — so in a fire cycle, where SNGNEW = WK2 − FIRKIL (fmkill.f:119-123), the crown density is WK2 − 2·FIRKIL.
+# jl scheduled WK2 − FIRKIL (MEASURED private FMSCRO trace, 200267456010854 SIMFIRE 2007: sp74 9.66" 0.0623765 vs live
+# 0.0369589 = 0.08779417 − 2·0.025417633) ⇒ 2012 Standing_Dead 1.4473 vs live 1.4302.
+@testset "SN fire-cycle mortality crowns at SNGNEW−FIRKIL (fmsadd.f:300-306) vs FVSsn_g16" begin
+    @test !_casex("200267456010854", "simfire").crashed
+    @test _cellsx("200267456010854", "simfire", "FVS_Carbon", ("Standing_Dead",), ("2007", "2012", "2017", "2022")) == 0
+end
+
 end # module
