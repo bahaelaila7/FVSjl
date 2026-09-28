@@ -254,6 +254,129 @@ for (V, pc, key, dir) in ((:WestCascades, :WC_PCOML, :wc, :WC_DATADIR), (:Pacifi
     end
 end
 
+# Region-5 / Region-5+6 habtyp.f (WS; NC/SO/CA). PVREF5 zeroes ARRAY2 on every call, PVREF6 only on a full match;
+# both blank KARD2 unless a full (PV_CODE, ref) row matches. Tables: data/<v>/pvref5_all.csv, pvref6_all.csv,
+# r5habt.csv (generated from each build's pvref5.f / pvref6.f / habtyp.f R5HABT).
+const _PVALL = Dict{String,Any}()
+function _pvall(path::AbstractString)
+    get!(_PVALL, path) do
+        m = Dict{Tuple{String,String},String}(); codes = Set{String}(); refs = Set{String}()
+        for l in readlines(path)[2:end]
+            f = split(l, ','); length(f) >= 3 || continue
+            c = String(strip(f[1])); r = String(strip(f[2])); h = String(strip(f[3]))
+            push!(codes, c); push!(refs, r); haskey(m, (c, r)) || (m[(c, r)] = h)
+        end
+        (m, codes, refs)
+    end
+end
+const _R5HABT = Dict{String,Vector{String}}()
+_r5habt(dir::AbstractString) = get!(() -> [String(strip(l)) for l in readlines(joinpath(dir, "r5habt.csv"))[2:end]],
+                                    _R5HABT, dir)
+_crdecd(k::AbstractString, tab) = isempty(k) ? 0 : something(findfirst(==(uppercase(first(k, 8))), tab), 0)
+
+# ws/habtyp.f (R5HABT only; the TT/UT shape with PVREF5): a ≥2-char code with a reference code → PVREF5 (FVS34/33/32),
+# CRDECD vs R5HABT, then IHB = IFIX(ARRAY2) ≤ NR5; unresolved and not LPVXXX ⇒ FVS14.
+function _ws_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    errs = Int[]; lpvxxx = false; k0 = String(strip(pv)); k = k0; r = String(strip(cpvref)); a2 = Int(kodtyp); kod = 0
+    r5 = _r5habt(WS_DATADIR)
+    if length(k) >= 2
+        if !isempty(r)
+            m, codes, refs = _pvall(joinpath(WS_DATADIR, "pvref5_all.csv"))
+            h = get(m, (k, r), nothing); a2 = 0
+            if h === nothing
+                lc = k0 in codes; lr = r in refs; k = ""
+            else
+                lc = true; lr = true; k = String(strip(h))
+            end
+            if lc && lr && isempty(k);  push!(errs, 34); lpvxxx = true
+            elseif !lc && !lr;          push!(errs, 33, 32); lpvxxx = true
+            elseif !lr && lc;           push!(errs, 32); lpvxxx = true
+            elseif !lc && lr;           push!(errs, 33); lpvxxx = true
+            end
+        end
+        kod = _crdecd(k, r5)
+    end
+    kod == 0 && a2 <= length(r5) && (kod = a2)
+    kod <= 0 && !lpvxxx && push!(errs, 14)
+    return errs
+end
+
+# nc/so/ca habtyp.f (R5HABT on the Region-5 forests, PCOML on the Region-6 ones — IR5/IR6 by the FORKOD-mapped
+# KODFOR). The PVREF branches only fire while KODTYP ≤ 0; an unresolved code (the R5HABT/PCOML text loop and the
+# IHB sequence number both fail) is FVS14 unless LPVXXX.
+function _r56_habtyp_errs(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer, kodfor::Int, ir5::Bool,
+                          ir6::Bool, dir::AbstractString, pcoml)
+    errs = Int[]; lpvxxx = false; k0 = String(strip(pv)); k = k0; r = String(strip(cpvref))
+    a2 = Int(kodtyp); kod = Int(kodtyp)
+    r5 = _r5habt(dir); nr5 = length(r5); npa = length(pcoml)
+    if !isempty(r)
+        lc = false; lr = false
+        if ir5 || ir6
+            m, codes, refs = _pvall(joinpath(dir, ir5 ? "pvref5_all.csv" : "pvref6_all.csv"))
+            kod = 0; ir5 && (a2 = 0)
+            h = get(m, (k0, r), nothing)
+            if h === nothing
+                lc = k0 in codes; lr = r in refs; k = ""
+            else
+                lc = true; lr = true; k = String(strip(h)); a2 = 0
+            end
+        end
+        if kod <= 0
+            if lc && lr && isempty(k);  push!(errs, 34); lpvxxx = true
+            elseif !lc && !lr;          push!(errs, 33, 32); lpvxxx = true
+            elseif !lr && lc;           push!(errs, 32); lpvxxx = true
+            elseif !lc && lr;           push!(errs, 33); lpvxxx = true
+            end
+        end
+        lpvxxx && return errs                                           # GO TO 300 with KODTYP 0, LPVXXX
+    end
+    if ir5
+        kod = _crdecd(k, r5)
+    elseif ir6                                                          # HBDECD vs PCOML
+        ihb = a2
+        kod = (0 <= ihb <= npa) ? (ihb > 0 ? ihb + nr5 :
+              ((isempty(k) || k[1] == '0') ? 0 : (i = findfirst(==(uppercase(first(k, 8))), pcoml); i === nothing ? 0 : i + nr5))) : 0
+    end
+    if kodfor == 0 || kod == 0
+        kk = first(k, 8); found = false
+        if kodfor == 0 || ir5
+            i = findfirst(==(kk), r5); i !== nothing && (kod = i; found = true)
+        end
+        if !found
+            i = findfirst(==(kk), pcoml); i !== nothing && (kod = i + nr5; found = true)
+        end
+        if !found
+            kod = (a2 <= nr5 && ir5) ? a2 : (nr5 < a2 <= nr5 + npa && ir6) ? a2 : 0
+        end
+    end
+    kod == 0 && !lpvxxx && push!(errs, 14)
+    return errs
+end
+_mapped_kodfor(s::StandState, forkod!) = (q = deepcopy(s.plot); forkod!(q); Int(q.user_forest_code))
+
+function habtyp_errors!(s::StandState{WestSierra}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    foreach(e -> errgro!(s, e), _ws_habtyp_errs(pv, cpvref, kodtyp))
+    return nothing
+end
+function habtyp_errors!(s::StandState{Klamath}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    kf = _mapped_kodfor(s, nc_forkod!)
+    ir5 = kf > 0 && (kf < 600 || kf == 705 || kf == 800); ir6 = !ir5 && kf > 0 && (kf == 611 || kf == 712)
+    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, NC_DATADIR, NC_PCOML))
+    return nothing
+end
+function habtyp_errors!(s::StandState{SouthCentralOregon}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    kf = _mapped_kodfor(s, so_forkod!)
+    ir5 = kf in (505, 506, 509, 511, 701, 514); ir6 = kf in (601, 602, 620, 799)
+    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, SO_DATADIR, SO_PCOML))
+    return nothing
+end
+function habtyp_errors!(s::StandState{CentralCalifornia}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    kf = _mapped_kodfor(s, ca_forkod!)
+    ir5 = 0 < kf < 600; ir6 = kf >= 600
+    foreach(e -> errgro!(s, e), _r56_habtyp_errs(pv, cpvref, kodtyp, kf, ir5, ir6, CA_DATADIR, CA_PCOML))
+    return nothing
+end
+
 # --- FVS_Error DBS table (dbserror.f) ------------------------------------------------------------------------------
 const _FVS_ERROR_CREATE = """
 CREATE TABLE IF NOT EXISTS FVS_Error(
