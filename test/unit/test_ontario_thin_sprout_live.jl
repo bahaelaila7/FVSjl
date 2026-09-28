@@ -72,3 +72,12 @@ end
         @test (yr, round(sum(jk); digits = 2)) == (yr, round(sum(lk); digits = 2))
     end
 end
+
+# (3) cuts.f:255-275 deletes the zero-PROB records left by the previous cycle's mortality (TREDEL swap-from-end) at
+# CUTS ENTRY, before the thin's priority sort; the .sum driver ran jl's cut before that compaction, so tied-DBH
+# stumps (the three BE copies) were logged — and sprouted — in a different order.
+@testset "ON ont_sm thin: 2024 records (sprout order) TPH/MortPH/DBH/Ht == live (CUTS-entry TREDEL)" begin
+    for col in (:TPH, :MortPH, :DBH, :Ht), (j, l) in _ont_cmp(last(_ONT_SM), _ONT_SM_LIVE, col; sel = (k, v) -> k[1] == 2024)
+        @test j == l
+    end
+end

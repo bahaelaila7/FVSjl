@@ -247,6 +247,12 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
         end
     end
     isempty(acts) && return _NO_REMOVAL
+    # cuts.f:255-275 — CUTS ENTRY deletes the records that "GET HERE WITH ZERO PROB FROM PREVIOUS CYCLE MORTALITY"
+    # (PROB≤1E-10, TREDEL swap-from-end) BEFORE any thinning is evaluated, so the cut's priority sort (IND2, RDPSRT
+    # ties) and the ESTUMP stump order see the compacted list. The .sum driver calls cuts! AHEAD of grow_cycle!
+    # (whose CUTS-entry TREDEL runs only after its start-of-cycle DENSE emulation), so a cycle with activities due
+    # must compact here; a thin then re-DENSEs the compacted list, as FVS's post-cut density does. Idempotent.
+    tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
     # method runs (cuts.f processes SPECPREF/MINHARV/… then the thin in the cycle).
     cc = s.control
