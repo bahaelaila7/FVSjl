@@ -29,6 +29,13 @@ const _AK_VOL_JSP = Int[34, 34, 31, 0, 0, 0, 0, 33, 34, 32, 34, 34, 0, 0, 0, 0, 
 # SF AF YC  TA WS LS BE  SS LP RC WH MH  OS  AD RA  PB  AB  BA  AS  CW  WI  SU  OH
 const _AK_DVE_GRP = Int[0, 0, 0, 94, 94, 94, 94, 0, 0, 0, 0, 0, 94, 0, 0, 375, 375, 747, 375, 747, 747, 747, 747]
 
+# voleqdef.f R10_EQN TONEQN (FORST '05', Tongass) per AK species 1..23 — the equation id FVS_InvReference reports as
+# CFVolEq/BFVolEq (FORST '04' Chugach swaps SF/AF/LP/RC/MH to A01DEMW000 and YC to A00DVEW094 — see _ak_forst04).
+const AK_INVREF_VOLEQ = String[
+    "A00F32W260", "A00F32W260", "A00F32W042", "A00DVEW094", "A00DVEW094", "A00DVEW094", "A00DVEW094", "A00F32W098",
+    "A00F32W260", "A00F32W242", "A00F32W260", "A00F32W260", "A00DVEW094", "A32CURW351", "A32CURW351", "A00DVEW375",
+    "A00DVEW375", "A00DVEW747", "A00DVEW375", "A00DVEW747", "A00DVEW747", "A00DVEW747", "A00DVEW747"]
+
 # JSP → F-coefficient column (31=YC/F1, 32=RC/F2, 33=spruce/F3, 34=spruce+hemlock share/F3).
 @inline function _ak_vol_fcoef(jsp::Int)
     jsp == 31 && return _AK_VOL_F1
