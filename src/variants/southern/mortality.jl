@@ -41,6 +41,11 @@ const PRETZSCH_SDIK = 0.02483133f0
     dgy  = sqrt(dib * dib + ddsy) - dib       # YR-year inside-bark DG
     return (dgy / bark) * (fint / yr)         # outside-bark, linear FINT extrapolation
 end
+# MORTS's G for a variant whose DG is still on the YR-year basis at MORTS (gradd.f:79-90 rescales it only after
+# GRINCR — _gradd_rescale): morts.f `G = (DG(I)/BARK) * (FINT/YR)` directly; otherwise jl's FINT-year DG is taken back
+# to YR years first (_mort_traj_g).
+@inline _mort_g(s::StandState, dg::Float32, dbh::Float32, bark::Float32, fint::Float32, yr::Float32) =
+    _gradd_rescale(s.variant) ? (dg / bark) * (fint / yr) : _mort_traj_g(dg, dbh, bark, fint, yr)
 # Background-mortality coefficients (PMSC/PMD) and SDIMAX defaults live in
 # data/southern/species_coefficients.csv (mort_bkgd_intercept/mort_bkgd_dbh).
 
@@ -301,7 +306,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             d < dthresh && continue
             pr = t.tpa[i]
             bark = _mbark(t.species[i], d, t.height[i])
-            g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
+            g = _mort_g(s, t.diam_growth[i], d, bark, fint, yr)   # morts.f:225 (linear FINT extrap)
             ciobds = 2f0 * d * g + g * g              # morts.f:223-224 CIOBDS=(2.0*D*G+G*G); SD2SQ+P*(D*D+CIOBDS)
             sd2sq += pr * (d * d + ciobds)            #   (d² + (2dg+g²)) — NOT Julia's left-assoc (d²+2dg)+g²
             sdq0  += pr * fpow(d, 2f0)                # morts.f:225 P*(D)**2. — REAL exponent ⇒ gfortran powf(D,2.) (≠ D·D on ~0.07% of inputs), then ·P
@@ -383,7 +388,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
                 # does not do (verified vs an instrumented morts.f: FVS cycle-1 = ONE pass,
                 # tn10=516.50). Identical to the old form at fint=5 (both = dg/bark), so
                 # snt01 and every 5-yr scenario stay bit-exact.
-                g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)
+                g = _mort_g(s, t.diam_growth[i], d, bark, fint, yr)
                 if zeide
                     sdr += pr * fpow(d + g, 1.605f0)                    # morts.f:588 (D+G)**(1.605)
                 else
@@ -457,7 +462,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             # G is the OUTSIDE-bark, LINEARLY FINT-extrapolated 5-yr increment
             # (sn/morts.f:692 — `(DG/BARK)·(FINT/5)`), same trajectory as the SDI
             # self-thinning calc above. NOT the raw sqrt fint-year diam_growth.
-            g = _mort_traj_g(t.diam_growth[i], d, _mbark(sp, d, t.height[i]), fint, yr)
+            g = _mort_g(s, t.diam_growth[i], d, _mbark(sp, d, t.height[i]), fint, yr)
             if (d + g) >= sc[sp, 1]
                 kc = min(t.tpa[i] * sc[sp, 2] * fint / yr, t.tpa[i])
                 killed[i] < kc && (killed[i] = kc)
@@ -476,7 +481,7 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             for i in 1:n
                 d = t.dbh[i]
                 bark = _mbark(t.species[i], d, t.height[i])
-                g = _mort_traj_g(t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
+                g = _mort_g(s, t.diam_growth[i], d, bark, fint, yr)   # morts.f:721 `(DG/BARK)·(FINT/YR)` (linear)
                 de2 = 0.0054542f0 * (d + g)^2
                 banew  += de2 * (t.tpa[i] - killed[i])
                 badead += de2 * killed[i]

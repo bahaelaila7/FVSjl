@@ -1261,7 +1261,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         end
     end
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
-    s.variant isa Ontario && on_gradd_dg_scale!(s, fint)   # gradd.f:79-90 DG → FINT basis (after GRINCR, before MISTOE)
+    _gradd_rescale(s.variant) && gradd_dg_scale!(s, fint)   # gradd.f:79-90 DG → FINT basis (after GRINCR, before MISTOE)
     # MISTOE post-triple seam. FVS runs MISTOE at gradd.f:96 — in GRADD, AFTER GRINCR's MORTS+TRIPLE — so on a
     # TRIPLING cycle the spread draws its per-host-tree rann! on the ALREADY-TRIPLED record list (ITRN×3). jl
     # ran ie_mistoe! before TRIPLE (the pre-mortality seam above), so on a tripling cycle it drew only 1/3 of
