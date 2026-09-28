@@ -863,7 +863,9 @@ end
 function apply_salvage!(s::StandState)::Bool
     fs = s.fire
     (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
-    s.variant isa SoutheastAlaska && return _ak_apply_salvage!(s)
+    # fmsalv.f (every variant build) on FMSVOL's current-top snag volumes: faithful for the variants whose FMSVOL
+    # (NATCRS + CFTOPK at HTIH) is ported (_ffe_west_vol); the rest keep the generic salvage below.
+    _ffe_west_vol(s.variant) && return _fm_apply_salvage!(s)
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     sn = fs.snags; coef = s.coef; fired = false
     # SALVSP (act 2501): update the PERSISTENT species cut/leave filter when one is due this cycle.
@@ -1017,13 +1019,13 @@ function ffe_add_snaginit!(s::StandState)
 end
 
 
-# fmsalv.f (AK): SALVAGE with the FFE snag volumes FMSVOL(I,HTIH/HTIS) — the TOTAL cubic of (DBHS,HTDEAD) trimmed by
+# fmsalv.f: SALVAGE with the FFE snag volumes FMSVOL(I,HTIH/HTIS) — the TOTAL cubic of (DBHS,HTDEAD) trimmed by
 # CFTOPK at the current height, in cuft (not the tons-per-snag fallvol, which weights species by V2T): TOTVOL over every
 # snag before any cut, CUTVOL = Σ CUTDIS·ISOFTV + CUTDIH·IHARDV, the PROPLV share left on site through CWD1 (the raw cone
 # split), TONRMS += (CUTDIS·ISOFTV + CUTDIH·IHARDV)·V2T·(1−PROPLV) (→ FVS_Fuels Biomass_Removed), then a CWDCUT =
 # CUTVOL/TOTVOL share of every CWD2B year-pool falls (DOWN/2000). akffe 2003: Biomass_Removed 1 (jl 0), and the
 # released crowns' litter/lt3 fed the fire (Litter_Consumption 2.18447 live vs 2.18676).
-function _ak_apply_salvage!(s::StandState)::Bool
+function _fm_apply_salvage!(s::StandState)::Bool
     fs = s.fire; sn = fs.snags; coef = s.coef; v2t = coef_col(coef, :v2t)
     yr = Int(current_cycle_year(s)); fvscyc = Int(s.control.cycle) + 1
     fired = false
@@ -1065,7 +1067,7 @@ function _ak_apply_salvage!(s::StandState)::Bool
             cutvol = cutvol + (cutdis * isoftv + cutdih * ihardv)
             _fm_cwd_split!(s, Int(sn.sp[i]), sn.dbh[i], sn.height[i], cutdis * proplv, cutdih * proplv,
                               sn.htcur[i], sn.htcur[i], 1.0f0, 0.10f0)                     # CWD1(I, DIH, DIS)
-            fs.ak_tonrms = fs.ak_tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
+            fs.tonrms = fs.tonrms + (cutdis * isoftv + cutdih * ihardv) * (v2t[sn.sp[i]] / 2000f0) * (1f0 - proplv)
             fired = true
         end
     end
