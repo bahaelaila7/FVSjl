@@ -184,10 +184,13 @@ function on_varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float
             tpalft < 0.00001f0 && continue
             xkill = temwk2[i] * adjust
             if (t.tpa[i] - killed[i] - xkill) <= 0.00001f0
-                xk = t.tpa[i] - killed[i]
-                short_v += xkill - xk
+                # varmrt.f:246-253: TEMWK2(I)=PROB(I) (the WHOLE PROB, not the PROB−WK2 left), SHORT=SHORT+(XKILL−PROB+
+                # WK2), then WK2=WK2+TEMWK2 ⇒ a record exhausted on a later JPASS ends with WK2 > PROB (UPDATE clamps the
+                # kill to PROB; the FVS_TreeList MortPH and TPAMRT keep the excess).
+                short_v += (xkill - t.tpa[i]) + killed[i]
                 pass1 -= efftr[i]
-                killed[i] += xk; sumkil += xk
+                temwk2[i] = t.tpa[i]
+                killed[i] += t.tpa[i]; sumkil += t.tpa[i]
             else
                 killed[i] += xkill; sumkil += xkill
             end

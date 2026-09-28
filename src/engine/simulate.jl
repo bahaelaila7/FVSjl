@@ -717,8 +717,9 @@ volumes to be present in `trees.cuft_vol` (run `compute_volumes!` once at setup)
 function _morts_wk2(s::StandState, old_tpa::Vector{Float32}, nlive::Int)::Vector{Float32}
     t = s.trees; kb = s.scratch.mort_killed
     w = Vector{Float32}(undef, nlive)
+    on = s.variant isa Ontario        # ON VARMRT can leave WK2 > PROB (varmrt.f exhaustion); WK2 is reported unclamped
     @inbounds for i in 1:nlive
-        k = i <= length(kb) ? min(kb[i], old_tpa[i]) : -1f0
+        k = i <= length(kb) ? (on ? kb[i] : min(kb[i], old_tpa[i])) : -1f0
         w[i] = (k >= 0f0 && t.tpa[i] == max(0f0, old_tpa[i] - k)) ? k : old_tpa[i] - t.tpa[i]
     end
     return w
@@ -1112,9 +1113,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # FVS_TreeList MortPA (dbstrls.f DP=WK2/GROSPC) and OMORT (Σ WK2·CFV) read MORTS's WK2 itself, not the
         # PROB−(PROB−WK2) difference, which rounds to the survivor's ULP (±10-20 ULP of WK2 on small kills).
         wk2_0 = _morts_wk2(s, old_tpa, nlive)
+        _on_wk = s.variant isa Ontario
         @inbounds for i in 1:nlive
             m = wk2_0[i]
-            mort += m * old_cfv[i]
+            mort += (_on_wk ? min(m, old_tpa[i]) : m) * old_cfv[i]   # update.f:72-74 WK6 = MIN(WK2,PROB)·CFV
             t.mort_pa[i] = m                   # per-record period mortality (FVS_TreeList MortPA), pre-TRIPLE
         end
         if mis_post && !rd_post_triple
