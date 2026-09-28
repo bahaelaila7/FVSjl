@@ -112,3 +112,20 @@ end
         @test j == l
     end
 end
+
+# (7) canada/on vols.f/varvol.f OCFVOL has no DBH<1 gate: a record below DBHMIN (incl. sub-inch sprouts) gets the
+# VN=VM=0.0001 sentinel; jl zeroed every DBH<1" record.
+@testset "ON ont_lite thin: TCuM per live record == live (OCFVOL 0.0001 below DBHMIN, no D<1 gate)" begin
+    for (j, l) in _ont_cmp(last(_ONT_LITE), _ONT_LITE_LIVE, :TCuM; sel = (k, v) -> v.TPH > 0)
+        @test j == l
+    end
+end
+
+# Whole .sum of the four thinning runs (every row, 2004-2054) == live FVSon_g16.
+@testset "ON thinning + sprouting runs: every .sum row == live" begin
+    @test first(_ONT_SM) == [split(l) for l in readlines(joinpath(_ONT_FX, "ont_sm_thin_live.rows"))]
+    @test first(_ONT_LITE) == [split(l) for l in readlines(joinpath(_ONT_FX, "ont_lite_thin_live.rows"))]
+    for stem in ("ont01", "ont_all")
+        @test (stem, first(_ont_run(stem))) == (stem, [split(l) for l in readlines(joinpath(_ONT_FX, "$(stem)_thin_live.rows"))])
+    end
+end

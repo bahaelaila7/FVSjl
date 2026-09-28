@@ -424,11 +424,6 @@ function compute_volumes_on!(s::StandState)
     topd = c.sp_top_diam; stmp = c.sp_stump_ht
     @inbounds for i in 1:t.n
         d = t.dbh[i]; h = t.height[i]; sp = Int(t.species[i])
-        if d < 1f0
-            t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
-            t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
-            continue
-        end
         # vols.f:131 BARK=BRATIO(ISPC,D,H) is evaluated BEFORE `IF(.NOT.LSTART) D=D+DG/BARK`, i.e. at the cycle-START
         # DBH and the already-updated HT (update.f DO 90 runs first), and OCFVOL/volont reuse that BARK for the dib.
         # The update loop stashes exactly that value in vol_bark; 0 ⇒ the LSTART (fvs.f:211) call, D unchanged.
