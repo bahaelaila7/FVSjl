@@ -12,12 +12,26 @@ struct Mismatch
 end
 key_str(m::Mismatch) = "$(m.variant)/$(m.stand)/$(m.regime)/$(m.file)/$(m.col)/$(m.year)"
 
-"Variants that have a fixture directory (sorted), optionally restricted by ENV TIERED_VARIANTS=BM,SN."
+# Variant groups for TIERED_VARIANTS. CORE = the variants under an active regime-close campaign — the DEFAULT set
+# (Pkg.test runtime). WEST = the western coverage fixtures (measured residual maps, not yet dug): each adds ~1.5-4 min
+# at TIERED_THREADS=3, so they run on request (TIERED_VARIANTS=WEST / ALL / CORE,TT,…), not in the default suite.
+const TIERED_GROUPS = Dict(
+    "CORE" => ["BM", "EM", "IE", "SN"],
+    "WEST" => ["TT", "UT", "CI", "CR", "KT", "NC", "WC", "PN", "EC", "SO", "CA", "WS", "AK"])
+
+"""
+Variants to run (sorted, only those with a fixture directory). ENV TIERED_VARIANTS: unset/empty ⇒ CORE; otherwise a
+comma list of variant codes and/or group names (CORE, WEST, ALL = every fixture directory), e.g. `CORE,TT`.
+"""
 function tiered_variants()
     isdir(TIERED_ROOT) || return String[]
     vs = sort([uppercase(d) for d in readdir(TIERED_ROOT) if isdir(joinpath(TIERED_ROOT, d))])
-    sel = get(ENV, "TIERED_VARIANTS", "")
-    isempty(sel) ? vs : [v for v in vs if v in split(uppercase(sel), ',')]
+    sel = uppercase(strip(get(ENV, "TIERED_VARIANTS", "")))
+    toks = isempty(sel) ? ["CORE"] : [String(strip(t)) for t in split(sel, ',') if !isempty(strip(t))]
+    "ALL" in toks && return vs
+    want = Set{String}()
+    for t in toks; haskey(TIERED_GROUPS, t) ? union!(want, TIERED_GROUPS[t]) : push!(want, t); end
+    [v for v in vs if v in want]
 end
 
 fixture_dir(v) = joinpath(TIERED_ROOT, lowercase(v))
@@ -25,9 +39,22 @@ fixture_stands(v) = [strip(l) for l in eachline(joinpath(fixture_dir(v), "stands
 
 # QUICK tier (TIERED=quick): first 3 stands × these regimes — for refactor iteration (a few minutes).
 const QUICK_REGIMES = ["none", "thinbba", "plant_cyc", "simfire", "mistletoe"]
+
+"""
+The regimes a variant's fixture covers: PROVENANCE.toml `regimes` (make_fixtures drops a regime whose extension the
+variant's oracle build STUBS — FVS11 "requested extension is not part of this program", e.g. CA/AK have no WRD, AK no
+Climate-FVS — and lists it under `skipped_regimes`), in REGIMES order. Falls back to REGIMES when absent.
+"""
+function fixture_regimes(v)
+    p = joinpath(fixture_dir(v), "PROVENANCE.toml")
+    isfile(p) || return REGIMES
+    rs = get(TOML.parsefile(p), "regimes", nothing)
+    rs === nothing ? REGIMES : [r for r in REGIMES if r in rs]
+end
+
 function tiered_cases(v; quick::Bool = get(ENV, "TIERED", "") == "quick")
-    st = fixture_stands(v); rg = REGIMES
-    if quick; st = st[1:min(3, length(st))]; rg = QUICK_REGIMES; end
+    st = fixture_stands(v); rg = fixture_regimes(v)
+    if quick; st = st[1:min(3, length(st))]; rg = [r for r in QUICK_REGIMES if r in rg]; end
     [(cn, r) for cn in st for r in rg]
 end
 

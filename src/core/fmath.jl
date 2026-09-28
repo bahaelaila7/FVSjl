@@ -86,6 +86,9 @@ end
 # sin/cos by 1 ULP. Used in the per-species DG/HTG site constants (dgf.f DGCON/SMCON aspect terms).
 @inline fsin(x::Float32) = ccall((:sinf, "libm.so.6"), Float32, (Float32,), x)
 @inline fcos(x::Float32) = ccall((:cosf, "libm.so.6"), Float32, (Float32,), x)
+# TAN/ATAN of REAL*4 likewise (FFE FMCROWE's bole-tip cone angle, fmcrowe.f:381/433)
+@inline ftan(x::Float32) = ccall((:tanf, "libm.so.6"), Float32, (Float32,), x)
+@inline fatan(x::Float32) = ccall((:atanf, "libm.so.6"), Float32, (Float32,), x)
 
 """
     fpowi(x::Float32, m::Integer) -> Float32

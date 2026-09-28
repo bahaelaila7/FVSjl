@@ -133,11 +133,10 @@ end
             # totals now match live). All four rendered-== green.
             f[1] == "2000" && @test round(Float64(r.standing_dead); digits=2) == 5.18
             f[1] == "2005" && @test round(Float64(r.standing_dead); digits=2) == 4.47
-            # 2000 BOLE: jl 3.71495 vs the instrumented 3.72 — on the 3.715 render boundary. FMSADD's record means are
-            # zero-initialized (fmsadd.f:334-340, (0·0+DBH·SNGNEW)/SNGNEW, as ported from the AK/R6 measurements): jl's
-            # SNGNEW (the MORTS kill as PROB−survivors) makes a 12" record 11.999999, which takes SN's d<12 linear fall
-            # (fmsfall.f) and empties by 2000, where FVS's WK2 evidently yields 12.0. Open: book the MORTS WK2 itself.
-            f[1] == "2000" && @test_broken round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
+            # 2000 BOLE (#277): FMKILL(2) books each TRIPLED record's WK2 (the kill ·.60/.25/.15) into FMSADD's zero-
+            # initialized class means (fmsadd.f:334-340); booking the whole un-tripled kill made a 12" record 11.999999,
+            # which took SN's d<12 linear fall (fmsfall.f) and emptied by 2000 (bole 3.71495). From the parts: 12.0, 3.7153.
+            f[1] == "2000" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO);  digits=2) == 3.72   # BOLE rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_bole_carbon(s) * TO); digits=2) == 3.28  # BOLE rendered-== (binning-closed)
             f[1] == "2000" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.46   # CROWN rendered-==
             f[1] == "2005" && @test round(Float64(FVSjl.snag_crown_carbon(s) * TO); digits=2) == 1.19   # CROWN rendered-==
@@ -540,9 +539,9 @@ end
     end
 end
 
-@testset "potential_fire — dual-scenario surface fire behavior (FVS_PotFire core, fmpofl.f)" begin
-    # potential_fire computes the SEVERE (fmois1/20mph/70F) + MODERATE (fmois3/8mph/60F) surface fire
-    # behavior WITHOUT applying mortality — the value-grounded core of FVS_PotFire (SN skips crown fire).
+@testset "fmpofl_report — FMPOFL severe/moderate potential fire (fmpofl.f)" begin
+    # SEVERE (FMOIS 1, PREWND/POTEMP(1)) + MODERATE (FMOIS 3) potential fires with FMEFF/FMCONS in their ICALL=1
+    # shapes — nothing is burned, killed or drawn from the RNG.
     s = FVSjl.StandState(FVSjl.Southern())
     FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
     s.plot.forest_type = Int32(520); s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
@@ -550,15 +549,17 @@ end
     t.species[1] = Int32(65); t.dbh[1] = 14f0; t.height[1] = 72f0; t.tpa[1] = 30f0; t.crown_pct[1] = Int32(40)
     t.species[2] = Int32(22); t.dbh[2] = 4f0;  t.height[2] = 18f0; t.tpa[2] = 30f0; t.crown_pct[2] = Int32(50)
     s.fire = FVSjl.FireState(); s.fire.active = true
-    pf = FVSjl.potential_fire(s)
-    @test pf !== nothing
-    @test pf.severe.flame >= pf.moderate.flame                # severe weather → larger fire
-    @test pf.severe.scorch >= pf.moderate.scorch
-    @test pf.severe.ba_kill >= pf.moderate.ba_kill >= 0f0     # more mortality under severe
-    @test pf.severe.smoke > 0f0 && pf.moderate.smoke > 0f0
-    @test !isempty(pf.severe.models)
-    # non-mutating: the stand TPA is unchanged after a potential-fire computation
-    @test t.tpa[1] == 30f0 && t.tpa[2] == 30f0
+    FVSjl.fmcba!(s)
+    rng0 = FVSjl.rannget(s.rng); cwd0 = copy(s.fire.cwd)
+    r = FVSjl.fmpofl_report(s, 2003)
+    @test r !== nothing
+    @test r.surf_sev >= r.surf_mod                            # severe weather → larger fire
+    @test 0 <= r.mort_ba_mod <= r.mort_ba_sev <= 100          # INT(POKILL·100), % of basal area
+    @test r.smoke_sev > 0f0 && r.smoke_mod > 0f0
+    @test r.smod[1] > 0 && sum(r.swt) >= 99.0                  # weights INT(FWT·100+.5)
+    @test r.cond[1].wind == 20f0 && r.cond[2].wind == 8f0 && r.cond[2].temp == 60   # sn/fmvinit.f PREWND/POTEMP
+    # non-mutating: TPA, down wood and the RNG stream are untouched (FMEFF/FMPTRH restore the stream)
+    @test t.tpa[1] == 30f0 && t.tpa[2] == 30f0 && s.fire.cwd == cwd0 && FVSjl.rannget(s.rng) == rng0
 end
 
 @testset "FVS_Hrv_Carbon — harvested-wood-products carbon fate (fmscut.f/fmchrvout.f, FAPROP)" begin
@@ -597,9 +598,9 @@ end
     @test res[1].Rm == Float64(r0.removed)
 end
 
-@testset "FVS_PotFire DBS table — potential fire report + writer (fmpofl.f / dbsfmpf.f)" begin
-    # potential_fire_report bundles the dual-scenario surface fire + canopy bulk density + torching
-    # probability; write_dbs_potfire! writes the 27-col FVS_PotFire. SN: Tot_Flame = Surf_Flame, indices −1.
+@testset "FVS_PotFire_East / FVS_PotFire_Cond DBS tables — SN writer (dbsfmpf.f / dbsfmpfc.f)" begin
+    # SN/CS write FVS_PotFire_East (no crown-fire columns; severe AND moderate fuel models) and every variant the
+    # FVS_PotFire_Cond Severe/Moderate conditions (wind PREWND, INT(POTEMP), moistures ×100).
     s = FVSjl.StandState(FVSjl.Southern())
     FVSjl.init_blockdata!(s, s.variant); FVSjl.init_merch_standards!(s)
     s.plot.forest_type = Int32(520); s.plot.latitude = 35f0; s.plot.longitude = -80f0; s.plot.elevation = 10f0
@@ -609,24 +610,25 @@ end
     t.species[3] = Int32(65); t.dbh[3] = 8f0;  t.height[3] = 40f0; t.tpa[3] = 120f0; t.crown_pct[3] = Int32(45)
     s.fire = FVSjl.FireState(); s.fire.active = true
     FVSjl.fmcba!(s)
-    r = FVSjl.potential_fire_report(s)
-    @test r !== nothing
-    @test r.tot_flame_sev == r.surf_flame_sev                 # SN: no crown fire → total = surface
+    r = FVSjl.fmpofl_report(s, 2003)
     @test r.torch_index == -1f0 && r.crown_index == -1f0      # FMCFIR skipped in SN
-    @test 0f0 <= r.canopy_density <= 0.35f0                   # CBD capped at 0.35
-    @test r.surf_flame_sev >= r.surf_flame_mod                # severe weather → larger fire
+    @test r.tot_sev == r.surf_sev
+    @test 0f0 <= r.cbd <= 0.35f0                              # CBD capped at 0.35
     @test 0f0 <= r.ptorch_sev <= 1f0 && 0f0 <= r.ptorch_mod <= 1f0
     dbpath = joinpath(mktempdir(), "pf.db")
-    FVSjl.write_dbs_potfire!(dbpath, "C1", "S1", [(2003, r)])
+    FVSjl.write_dbs_potfire!(dbpath, "C1", "S1", [(2003, r)]; east = true)
+    FVSjl.write_dbs_potfire_cond!(dbpath, "C1", "S1", r.cond)
     db = SQLite.DB(dbpath)
-    res = [(; Year = x.Year, SF = x.Surf_Flame_Sev, CH = x.Canopy_Ht, CD = x.Canopy_Density,
-            TI = x.Torch_Index, FM1 = x.Fuel_Mod1)
-           for x in DBInterface.execute(db, "SELECT * FROM FVS_PotFire")]
+    tabs = Set(String(x.name) for x in DBInterface.execute(db, "SELECT name FROM sqlite_master WHERE type='table'"))
+    res = [(; Year = x.Year, SF = x.Flame_Len_Sev, CD = x.Canopy_Density, M1 = x.Fuel_Mod1_Sev)
+           for x in DBInterface.execute(db, "SELECT * FROM FVS_PotFire_East")]
+    cond = [(String(x.Fire_Condition), x.Wind_Speed, x.Temperature, x.One_Hr_Moisture)
+            for x in DBInterface.execute(db, "SELECT * FROM FVS_PotFire_Cond")]
     SQLite.close(db)
+    @test "FVS_PotFire_East" in tabs && !("FVS_PotFire" in tabs)
     @test length(res) == 1 && res[1].Year == 2003
-    @test res[1].SF == Float64(r.surf_flame_sev)
-    @test res[1].CD == Float64(r.canopy_density)
-    @test res[1].TI == -1.0
+    @test res[1].SF == Float64(r.surf_sev) && res[1].CD == Float64(r.cbd) && res[1].M1 == r.smod[1]
+    @test cond == [("Severe", 20.0, 70, Float64(100f0 * 0.05f0)), ("Moderate", 8.0, 60, Float64(100f0 * 0.07f0))]
 end
 
 @testset "FVS_BurnReport DBS table — captured from a SIMFIRE event (dbsfmburn.f)" begin

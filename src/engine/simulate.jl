@@ -40,8 +40,6 @@ function setup_growth!(s::StandState)
     dfb_setup!(s)                        # DFB fvs.f DFBSCH init seam — RANSCHED auto-schedule; inert unless a DFB block is active
     dftm_schedule!(s)                    # DFTM DFTMGO→INSCYC seam — force the outbreak cycle to TMBASE=5yr; inert unless a DFTM MANSCHED outbreak is due
     wpbr_setup!(s)                       # WPBR fvs.f BRSETP init seam — per-tree canker init; inert unless a BRUST block is active with a host pine
-    s.variant isa SoutheastAlaska || sdi_max_check!(s)   # SDICHK — reset species SDImax if over-dense (AK: at the
-                                         # END of CRATET, after the crown dub + calibration — see the AK branch)
     # The DG-constant + calibration pass is variant-specific. NE's DGCONS is trivial
     # (ne/dgf.f:188 zeros DGCON/ATTEN/SMCON; the DG model reads B1/B2/B3 + SITEAR directly),
     # and an uncalibrated NE stand (no measured-DG input) has COR=0 — so the SN LSTART
@@ -211,11 +209,6 @@ function setup_growth!(s::StandState)
         crown_init_lstart_dead_inclusive!(s)  # cratet.f (== bm core) backdated dead-inclusive DENSE → CROWN. CRATET/DUBSCR dub of MISSING (ICR=0) inventory crowns (ak/crown.f);
                                           # D<1 seedlings draw a bounded-normal crown (ak/dubscr.f, RNG-aligned via bachlo).
         calibrate_diameter_growth!(s; scale = dgscale)
-        sdi_max_check!(s)                 # ak/cratet.f:664 CALL SDICHK is the LAST step of CRATET — after the :522 CROWN dub
-                                          # (whose PRD = ZRD/XMAXPT reads the UNRESET SDIDEF) and the :600 DGDRIV + REGENT
-                                          # calibration. Resetting first fed an over-dense stand's dub the reset SDImax:
-                                          # FIA 10708179010497 XMAXPT 711.63 vs live 614.10 ⇒ PRD 0.8497 vs 0.9846 ⇒ crowns
-                                          # 1-3 pts high ⇒ diverged from 2007.
     elseif s.variant isa WestCascades
         wc_dgcons!(s)                     # WC DGCON (DGFOR/MAPLOC + elev/aspect + King's-SI WO transform) — chunk 3
         compute_density!(s)               # current-stand density (RELDEN) for the crown dub SCALE
@@ -291,6 +284,10 @@ function setup_growth!(s::StandState)
     end
     cratet_findag_dub!(s)                 # cratet.f "ESTIMATE MISSING TOTAL TREE AGES" (FINDAG → ABIRTH) for the
                                           # variants whose own growth never reads ABIRTH (Climate-FVS BIRTHYR only)
+    # SDICHK — reset the species SDImax when the inventory is over-dense. Every variant's cratet.f calls it LAST
+    # (after the CROWN dub, the DGDRIV/REGENT calibration and the final DENSE), so the dub and the calibration read the
+    # unreset SDIDEF. AK FIA 10708179010497: resetting first gave XMAXPT 711.63 vs live 614.10 ⇒ crowns 1-3 pts high.
+    sdi_max_check!(s)
     return s
 end
 
@@ -662,6 +659,8 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
     empty!(s.fire.fmicr)                                       # FMICR of THIS burn only (set by fmburn!)
+    empty!(s.fire.firkil)                                      # FIRKIL of THIS burn only: fmburn! refills it; a fire-due
+                                                               # cycle whose burn never reaches FMEFF keeps WK2 = MORTS
     _maybe_burn!(s, fint)                                      # FMBURN/FIRKIL — independent XRAN per record
     # FVS FMMAIN order: FMBURN (just done) → FMCRBOUT carbon report → annual fuel loop (FMSNAG/FMCWD/
     # FMCADD) — all BEFORE FMKILL's WK2 combine below. `post_fire` runs the carbon sample + the FFE annual
@@ -748,6 +747,7 @@ end
 
 function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
+                     pofl_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
                      ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing,
@@ -828,11 +828,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # fire-killed ingrowth stubs (TPA 0) persist in the 2024 treelist; 193/193 regen height increments desynced.
     cuts_entry_tredel!(s)                                   # cuts.f:255-275 CUTS-entry zero-PROB TREDEL (+RDTDEL, +FMKILL crown carry)
     rem = cuts!(s; fint = fint)                             # CUTS — thin (accrues econ per cut tree; stashes AUTOES XTES)
-    # comcup.f:103-140: when COMCUP deletes records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads a fresh
-    # PTBALT for the moved records (TREMOV does not carry PTBALT). AK only here (base code; other variants untested):
-    # FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into slot 511, live PBAL 255.53
-    # (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002 ⇒ DG/LTHG/HTG ⇒ mortality.
-    ncomcup = s.variant isa SoutheastAlaska ? count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n) : 0
+    # comcup.f:103-140 (identical in every variant build, called from the shared grincr.f:391): when COMCUP deletes
+    # records (NDEL>0) it re-runs SPESRT … DENSE, so the growth DGF reads fresh density for the moved records (TREMOV
+    # does not carry PTBALT/PCT). AK FIA 644916319126144 cycle 4 — 25 PROB≤1E-5 records deleted, ES020605 moved into
+    # slot 511, live PBAL 255.53 (its own) vs jl 351.94 (the deleted slot-511 record's) ⇒ WK2 −1.930 vs −2.002.
+    ncomcup = count(i -> s.trees.tpa[i] <= 1f-5, 1:s.trees.n)
     comcup!(s.trees; onmove = _record_move_hook(s))         # COMCUP (grincr.f:391): PROB≤1E-5, after CUTS, before growth
     ncomcup > 0 && compute_density!(s)
     _trim_crown_bypass!(s)
@@ -1046,8 +1046,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # before the WK2 combine — the FVS fmmain.f order (FMBURN:170 → FMCRBOUT:206 → annual loop:228 → FMKILL).
     # So the fire consumes/snags the START-of-cycle fuels (the report driver withholds the pre-grow
     # ffe_fuel_update! for the fire cycle and hands its period here). Non-fire cycles pass neither ⇒ no-op.
-    pf = (carbon_hook !== nothing || fuel_period !== nothing) ?
-         (st -> (carbon_hook === nothing || carbon_hook(st);
+    # `pofl_hook(st, stash)`: an FMMAIN-time sampler (the PotFire torching probability) — it sees FVS's FMMAIN RNG
+    # state and, in a non-fire cycle, the stash of the TRIPLE that FVS has already applied by then (grincr.f:543).
+    # (Distinct from `fmmain_hook`, the carbon V(3) reader at the post-REGENT point above.)
+    pf = (carbon_hook !== nothing || fuel_period !== nothing || pofl_hook !== nothing) ?
+         (st -> (pofl_hook === nothing || pofl_hook(st, _fire_due(st) ? nothing : stash);
+                 carbon_hook === nothing || carbon_hook(st);
                  fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
     # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
@@ -1057,8 +1061,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # from the FINAL post-TRIPLE WK2 — AFTER MISMRT has MAX-combined the dwarf-mistletoe kill (mistoe.f:522). Booking
     # inside mortality! (pre-TRIPLE, pre-MISMRT) dropped every DM-killed tree from the snag pools (EM 196378260020004
     # cycle 1: LP snags 11.77 vs live 15.38 TPA — the 3.6 TPA MISMRT added). Defer the booking to that seam.
-    mis_book = mis_post && !rd_post_triple
-    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !mis_book)
+    # Every NON-fire tripling cycle books its snags the same way (#277): FMKILL(2) (fmkill.f:129-143) hands FMSADD each
+    # TRIPLED record's WK2 (the per-original MORTS kill ·.60/.25/.15, after MISMRT/BRTREG/RDEND), in record order — not
+    # the un-tripled kill inside MORTS. FMSADD's zero-initialized class means (fmsadd.f:334-340) round differently on
+    # the three parts (MEASURED SN carbon_jenkins: a 12" record's DBHS 11.999999 from the whole kill, 12.0 from the parts).
+    post_book = stash !== nothing && !_fire_due(s)
+    (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !post_book)
     s.control.dm_mrt_defer = false
     # WRD rd/rdend.f: reconcile the RD infected-tree kill (RRKILL) with FVS's just-applied
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
@@ -1183,11 +1191,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 mort += m * t.cuft_vol[c]
                 t.mort_pa[c] = m
             end
-            # FMKILL(2) (fmkill.f:135-143): snags from the final post-TRIPLE WK2 (MORTS + MISMRT [+ BRTREG]).
-            # AK: fmkill.f books SNGNEW from the WK2 array itself (= t.mort_pa here), not PROB−survivor, which rounds
-            # to the survivor's ULP — FMSADD's density-weighted HTDEAD then drifts (akffe YC 8.4"×5' ⇒ 4.9999995 live).
-            mis_book && book_mortality_snags!(s, s.variant isa SoutheastAlaska ? Float32[t.mort_pa[c] for c in 1:n2] :
-                                                 Float32[max(0f0, full_prob[c] - t.tpa[c]) for c in 1:n2], n2, fint)
         elseif rd_post_triple
             # ==== FVS-faithful WRD seam: the whole RD chain on the TRIPLED, FULL pre-mortality PROB list ====
             # Mirror gradd.f: MORTS set WK2 (jl applied it eagerly → t.tpa are survivors); TRIPLE splits FULL
@@ -1260,6 +1263,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             end
         end
     end
+    # FMKILL(2) (fmkill.f:135-143): the non-fire tripling cycle's snags from the final post-TRIPLE WK2 per record — the
+    # WK2 array itself (t.mort_pa), not PROB−survivor, which rounds to the survivor's ULP (FMSADD's density-weighted
+    # HTDEAD then drifts: akffe YC 8.4"×5' ⇒ 4.9999995 live).
+    post_book && book_mortality_snags!(s, Float32[t.mort_pa[c] for c in 1:t.n], t.n, fint)
     fertilizer_growth!(s; fint = fint)     # FFERT fertilizer DG/HTG boost (grincr.f:564, after TRIPLE)
     _gradd_rescale(s.variant) && gradd_dg_scale!(s, fint)   # gradd.f:79-90 DG → FINT basis (after GRINCR, before MISTOE)
     # MISTOE post-triple seam. FVS runs MISTOE at gradd.f:96 — in GRADD, AFTER GRINCR's MORTS+TRIPLE — so on a
@@ -1659,7 +1666,7 @@ function run_keyfile(keypath::AbstractString;
                 write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
             cprof_rows === nothing ||
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
-            strcl_rows === nothing ||
+            (strcl_rows === nothing || isempty(strcl_rows)) ||   # DBSSTRCLASS creates the table on its first row
                 write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
             if dm_rows !== nothing && !isempty(dm_rows)
                 # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1); the by-DBH-class FVS_DM_Sz_Sum
@@ -1718,8 +1725,12 @@ function run_keyfile(keypath::AbstractString;
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
                     write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
-            pf_rows === nothing ||
-                write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows)
+            # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
+            # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.
+            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows)
+                write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows; east = _pofl_east(s.variant))
+                pf_rows[1][3] && write_dbs_potfire_cond!(s.control.dbs_out_file, caseid, String(sid), pf_rows[1][2].cond)
+            end
             # fmchrvout.f: ICHRVB defaults to 9999 (fminit.f:899), so the `ICHRVB .EQ. 0` exit never fires and DBSFMHRPT
             # writes a row every FFE year once CARBREDB set ICHRPT — zero rows included (jl required a removal).
             hc_rows === nothing || isempty(hc_rows) ||

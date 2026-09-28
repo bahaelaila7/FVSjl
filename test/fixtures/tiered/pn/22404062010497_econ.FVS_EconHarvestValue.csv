@@ -1,0 +1,4 @@
+Year,SpeciesFVS,SpeciesPLANTS,SpeciesFIA,Min_DIB,Max_DIB,Min_DBH,Max_DBH,TPA_Removed,TPA_Value,Tons_Per_Acre,Ft3_Removed,Ft3_Value,Board_Ft_Removed,Board_Ft_Value,Total_Value
+2015,DF,PSME,202,,,0.0,999.9000244140625,,,,6826,2048,,,2048
+2015,RC,THPL,242,,,0.0,999.9000244140625,,,,1029,309,,,309
+2015,WH,TSHE,263,,,0.0,999.9000244140625,,,,1035,311,,,311

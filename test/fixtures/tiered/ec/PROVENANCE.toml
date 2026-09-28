@@ -1,0 +1,17 @@
+variant = "EC"
+k = 10
+oracle = "/workspace/.ecwork/FVSec_g16"
+oracle_sha256 = "28bb921dbacf405d3c326d62a711d8794a74d90ab5626c3d4f98e8e3d13d210b"
+oracle_build_script = "/workspace/.ecwork/build_g16.sh"
+oracle_main_std_legacy = "no (NOLEGACY_MAIN)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "64f78fe6ad835aa82b5178b040483c7c5bc2a6b7"
+generated = "2026-09-28 09:24:19"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate", "econ", "cover"]
+skipped_regimes = []   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = []   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=EC"
+stands = ["450507010497", "30193987010497", "374300286489998", "1143391214290487", "504392203126144", "248652369489998", "450445010497", "850598965290487", "374615528489998", "1287295274290487"]
+excluded_no_live_output = []
+live_no_output_cases = 0
