@@ -239,4 +239,11 @@ end
     @test isempty(_casex("830602414290487", "none").ms)
 end
 
+# sn/regent.f:360 DG(K) = SQRT((D*BARK)**2.0+DDS)-BARK*D — REAL**2.0 compiles to powf, which is not bit-equal to D·D here
+# (MEASURED private REGENT trace, 238813815010854 cycle 3 LK record: every input bit-identical, DG 3F0E7B0E live vs
+# 3F0E7B0C with (D·BARK)²). With it the whole NONE case equals live.
+@testset "SN REGENT DG with REAL**2.0 as powf (sn/regent.f:360): 238813815010854 NONE all cells vs FVSsn_g16" begin
+    @test isempty(_casex("238813815010854", "none").ms)
+end
+
 end # module

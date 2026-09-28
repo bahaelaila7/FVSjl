@@ -43,7 +43,9 @@ const REGENT_DGMAX = 5f0
     dg < 0f0 && (dg = 0.1f0)
     dg > dgmx && (dg = dgmx)
     dds = dg * (2f0 * bark * d + dg) * scale2
-    dg = sqrt((d * bark)^2 + dds) - bark * d
+    # regent.f:360 DG = SQRT((D*BARK)**2.0+DDS)-BARK*D: REAL**2.0 is powf, not D·D (MEASURED FVSsn_g16 238813815010854 cyc-3 LK
+    # record 24: DG 3F0E7B0E live, 3F0E7B0C with (D·BARK)^2 — every input bit-identical)
+    dg = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
     return dg
 end
 
