@@ -2,7 +2,7 @@
 # =============================================================================
 # fvsjl-run.jl — run an FVS stand and write its summary.
 #
-#   julia --project bin/fvsjl-run.jl <key.{key,yaml}> [--variant SN|NE] [--output sum|csv] [-o out]
+#   julia --project bin/fvsjl-run.jl <key.{key,yaml}> [--variant SN|NE] [--output sum|csv|out] [-o out]
 #
 # Output goes to stdout (or a file with -o). Two run-level choices, because a legacy
 # `.key`/`.tre` carries neither:
@@ -10,7 +10,8 @@
 #                     `.key` defaults to SN — pass --variant to run it as NE. (flag overrides)
 #   --output  sum|csv the summary format. `.sum` (legacy fixed-column) is the default; `csv`
 #                     is the modern named-column form. A YAML's `output_format:` is used when
-#                     omitted; an explicit --output overrides it. Default sum.
+#                     omitted; an explicit --output overrides it. Default sum. `out` returns the report text FVS
+#                     writes to the `.out` (FFE Stand Carbon Report, COVER canopy statistics) — never in the .sum.
 #
 # The companion tree file (`<stem>.csv`/`.tre`) is found by base name (see docs/FORMATS.md).
 # =============================================================================
@@ -36,7 +37,7 @@ function main(args)
         end
     end
     if isempty(pos)
-        println(stderr, "usage: fvsjl-run <key.{key,yaml}> [--variant SN|NE] [--output sum|csv] [-o outfile]")
+        println(stderr, "usage: fvsjl-run <key.{key,yaml}> [--variant SN|NE] [--output sum|csv|out] [-o outfile]")
         return 1
     end
     key = pos[1]
