@@ -246,4 +246,10 @@ end
     @test isempty(_casex("238813815010854", "none").ms)
 end
 
+# dbsfmmort.f:147 `IF (TOTAL(J,8) .LE. 0) CYCLE` skips the ALL row as well: a SIMFIRE over a treeless stand writes no
+# FVS_Mortality row (830602414290487 SIMFIRE 2025: live 0 rows, jl wrote an all-zero ALL row).
+@testset "SN FVS_Mortality ALL row only with trees (dbsfmmort.f:147) vs FVSsn_g16" begin
+    @test count(m -> m.file == "FVS_Mortality", _casex("830602414290487", "simfire").ms) == 0
+end
+
 end # module

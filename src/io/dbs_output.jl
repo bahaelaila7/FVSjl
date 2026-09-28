@@ -1086,6 +1086,8 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
                 DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
                     clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
             end
+            # dbsfmmort.f:147 `IF (TOTAL(J,8) .LE. 0) CYCLE` — the ALL row too: a fire over no trees writes no row
+            sum(b.totcls) > 0f0 || continue
             DBInterface.execute(stmt, (caseid, standid, Int(b.year), "ALL", "ALL", "ALL",
                 clsvals(b.clskil, b.totcls)..., Float64(b.killed_ba), Float64(b.killed_vol)))
         end
