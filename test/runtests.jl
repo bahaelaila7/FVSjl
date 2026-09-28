@@ -113,6 +113,7 @@ using FVSjl
     include("unit/test_ontario_growth_wired.jl")# ON: runnable growth — species table+translation (reader) + coefficients(::Ontario) standalone + DDS→DG on_bratio branch (d_ib/DDS/WKI) bit-exact vs FVSon_wkidump
     include("unit/test_ontario_htg.jl")    # ON: large-tree height growth (htgf.f/htont.f Penner diameter-height) — shipped height_growth!(::Ontario) per-tree HTG + HTONT bit-exact vs instrumented FVSon_g16 on ont01
     include("unit/test_ontario_volume.jl") # ON: per-tree volume (vols.f/varvol.f METHC=8 + volont.f ZAK/HONER + Mowraski cull) GTV/GMV/NMV + on_tree_age dump-replay bit-exact vs FVSon_g16
+    include("unit/test_ontario_ccf.jl")    # ON: open-grown crown width (cwcalc.f) all species + stand CCF 1895 + FORTYP/size/stock classes vs FVSon_g16 (ont01 cyc0)
     include("unit/test_ontario_sum_classification.jl")# ON: cyc0 .sum row bit-exact vs FVSon_g16 through FORTYP/size/stock (metric stkval; row tail 125 11)
     include("unit/test_ontario_allspecies_dgf.jl")   # ON full-port: Penner large-tree DGF (on_penner_dds) bit-exact across ALL 72 species vs FVSon_g16 (72-tree ont_all stand)
     include("unit/test_ontario_allspecies_htg.jl")   # ON full-port: Penner diameter-height (on_htont) bit-exact across ALL 72 species vs FVSon_htdump
