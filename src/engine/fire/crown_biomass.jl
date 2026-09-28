@@ -74,6 +74,15 @@ end
 end
 
 """
+    ffe_crownw(s, i, sp, d, h, ic) -> NTuple{6,Float32}
+
+CROWNW(I,0:5) of record `i` as FVS holds it: the post-fire frozen crown while GROW(I)<1 (fmeff.f:492-506 sets it,
+fmcrow.f:126-127 skips the recompute), else the usual `crown_biomass(s, sp, d, h, ic)`.
+"""
+@inline ffe_crownw(s, i::Integer, sp, d, h, ic) =
+    s.trees.ffe_grow[i] < 1 ? ntuple(k -> s.trees.ffe_crw[k, i], 6) : crown_biomass(s, sp, d, h, ic)
+
+"""
     crown_biomass(s, sp, d, h, ic) -> NTuple{6,Float32}
 
 Per-tree crown biomass by FFE size class `XV(0:5)` (FMCROWE, fmcrowe.f) for species

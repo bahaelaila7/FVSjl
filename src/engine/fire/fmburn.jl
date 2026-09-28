@@ -303,7 +303,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             #  (c) otherwise only the killed trees' full crowns (fmeff.f:522-525).
             # MEASURED FVSie_g16 4769882010690 SIMFIRE 2014 CWD2B2 by size 0..3: 1899/3399/7488/2582 live vs
             # jl's single killed-tree booking 3248/3748/7427/2553 (crown-fire foliage kept, survivors' crowns missing).
-            xc = crown_biomass(s, sp, d, t.height[i], Int(t.crown_pct[i]))
+            xc = ffe_crownw(s, i, sp, d, t.height[i], Int(t.crown_pct[i]))
             ol = crown_lift_at_death(t, i, cyclen)             # YRSCYC·OLDCRW (fmscro.f:147); ol[1] (foliage) ≡ 0
             dkc = clamp(ffe_dkr_cls(s, sp), 1, 4)              # FUELPOOL-overridable decay class
             ol2 = 0.5f0 * ol[2]                                # OLDCRW(1)·0.5 (fmeff.f:378/460)
@@ -323,6 +323,11 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
                                        xc[6] + ol[6]), (1f0 - crfrac) * pmort * fmp, dkc)
                     fmscro!(s, sp, d, (0f0, propcr * (c1 + crw1bn) - crw1bn, propcr * xc[3], propcr * xc[4],
                                        propcr * xc[5], propcr * xc[6]), ((1f0 - crfrac) - (1f0 - crfrac) * pmort) * fmp, dkc)
+                    # fmeff.f:495-506: the record's live crown is what the scorch left, CROWNW = TCROWN·(1−PROPCR), and its
+                    # size-1 crown-lift halves; GROW=−1 holds that crown through the next FMCROW (fmcrow.f:126-127)
+                    @inbounds for k in 1:6; t.ffe_crw[k, i] = xc[k] * (1f0 - propcr); end
+                    t.ffe_oldcrw[1, i] *= 0.5f0
+                    t.ffe_grow[i] = Int8(-1)
                 else
                     fmscro!(s, sp, d, (xc[1], xc[2] + ol[2], xc[3] + ol[3], xc[4] + ol[4], xc[5] + ol[5], xc[6] + ol[6]),
                             (1f0 - crfrac) * pmort * fmp, dkc)
@@ -385,7 +390,7 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool)::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
-    xc = crown_biomass(s, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
+    xc = ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
     yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
     b = 0f0
     if crfrac > 0f0 && mk
@@ -693,7 +698,7 @@ function canopy_crfill(s::StandState)::Vector{Float32}
         fm_canopy_lsw(sp, s.variant) || continue
         icr = Float32(t.crown_pct[i]); icr > 0f0 || continue
         crbot = h * (1f0 - icr * 0.01f0); crbot < 0f0 && (crbot = 0f0)
-        xv = crown_biomass(s, sp, t.dbh[i], h, Int(round(icr)))
+        xv = ffe_crownw(s, i, sp, t.dbh[i], h, Int(round(icr)))
         crbio = (xv[1] + xv[2] * 0.5f0) * t.tpa[i]      # foliage + ½ finest woody, ×TPA (lbs/ac)
         crbio > 0f0 || continue
         # Black-Hills-ponderosa special crown-shape distribution (fmpocr.f:129-221): spread CRBIO over the

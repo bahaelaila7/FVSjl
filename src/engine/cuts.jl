@@ -145,7 +145,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
         _loss = prem * s.control.yardloss_prlost
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
-        let xv = crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+        let xv = ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
             @inbounds for isz in 1:5
@@ -170,7 +170,7 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
                 push!(s.fire.pend_cut, (Float32(sp), t.dbh[i], t.height[i], t.height[i], t.height[i], ssng, -1f0))
                 # FMSADD → FMSCRO(I,SPCL,YEAR,SNGNEW,2) (fmsadd.f:306): the standing loss's crowns wait in CWD2B2
                 # (they are not in CTCRWN). The ICALL=2 OLDCRW crown-lift term is not modelled.
-                fmscro!(s, sp, t.dbh[i], crown_biomass(s, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
+                fmscro!(s, sp, t.dbh[i], ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
                         ssng, clamp(ffe_dkr_cls(s, sp), 1, 4); icall = 2)
             end
             # DOWNED portion (cuts.f:1384 DSNG = LOSS·PRDSNG) → HARD down-wood at cut time via CWD3

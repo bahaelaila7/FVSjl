@@ -785,7 +785,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 # oak species for X (tt/ut/cr fmcfmd.f OBCT): UT sp 13, CR 23-27, TT has no oak (GO TO 60 ⇒ X=0)
                 _oak = s.variant isa Utah ? spi == 13 : s.variant isa Teton ? false : (23 <= spi <= 27)
                 _oak && (xh += hh2 * pr; psum += pr)
-                xv = crown_biomass(s, spi, dd, hh2, Int(t.crown_pct[i]))   # BL over ALL trees (NO USHT filter)
+                xv = ffe_crownw(s, i, spi, dd, hh2, Int(t.crown_pct[i]))   # BL over ALL trees (NO USHT filter)
                 bl += xv[1] * pr * p2t
                 for j in 2:6
                     bl += (xv[j] + t.ffe_oldcrw[j - 1, i]) * pr * p2t
@@ -946,7 +946,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
             @inbounds for i in 1:t.n
                 (t.tpa[i] > 0f0 && t.height[i] <= usht) || continue
                 spi = Int(t.species[i]); dd = t.dbh[i]; hh2 = t.height[i]
-                xv = crown_biomass(s, spi, dd, hh2, Int(t.crown_pct[i]))   # (0..5) crown biomass (pounds)
+                xv = ffe_crownw(s, i, spi, dd, hh2, Int(t.crown_pct[i]))   # (0..5) crown biomass (pounds)
                 bl += xv[1] * t.tpa[i] * p2t                                # foliage (current crown only)
                 for j in 2:6
                     bl += (xv[j] + t.ffe_oldcrw[j - 1, i]) * t.tpa[i] * p2t # wood j: current + OLDCRW(j-1)
@@ -1527,7 +1527,7 @@ function build_dynamic_fuel_model(s::StandState, mois::AbstractMatrix{Float32})
     woody = 0f0
     @inbounds for i in 1:t.n
         (t.tpa[i] > 0f0 && t.height[i] <= _FM_CANMHT) || continue
-        xv = crown_biomass(s, t.species[i], t.dbh[i], t.height[i], Int(t.crown_pct[i]))
+        xv = ffe_crownw(s, i, t.species[i], t.dbh[i], t.height[i], Int(t.crown_pct[i]))
         woody += (xv[1] + 0.5f0 * xv[2]) * t.tpa[i] * _FM_P2T    # ×P2T undoes crown_biomass's /P2T
     end
     woody = (woody + fs.flive[2]) * _TONS_TO_LBFT2

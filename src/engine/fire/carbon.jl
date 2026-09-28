@@ -109,7 +109,7 @@ function ffe_fuel_loadings(s::StandState)
     @inbounds for i in 1:t.n
         pr = t.tpa[i]; pr > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         foliage += xv[1] * pr * _FM_P2T
         for j in 1:3; live_lt3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
         for j in 4:5; live_ge3 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr; end
@@ -165,7 +165,7 @@ function ffe_live_carbon(s::StandState)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
+        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))   # (foliage, woody 1..5), lb
         crown = xv[1]; for sz in 1:5; crown += xv[sz + 1]; end         # foliage + all woody (lb)
         # Stem volume = FMSVL2 with LMERCH=.FALSE., which for SN (VARACD∈{CS,LS,NE,SN}) returns MAX(X,MCF)
         # (fmsvol.f:149-151), where X = 0.005454154·H is the tiny-tree cone floor — NOT gross/TCF. SN's MCF is the
@@ -401,7 +401,7 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
     totfol = 0f0; tl1 = 0f0; tl2 = 0f0
     _fm_record_walk(t, vtrip) do i, pr
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
-        xv = crown_biomass(s, sp, d, h, Int(round(t.crown_pct[i])))
+        xv = ffe_crownw(s, i, sp, d, h, Int(round(t.crown_pct[i])))
         totfol += xv[1] * pr * _FM_P2T
         for j in 1:3
             tl1 += (xv[j + 1] + ocw[j, i]) * _FM_P2T * pr

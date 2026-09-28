@@ -144,6 +144,12 @@ mutable struct TreeList
     # reports the hole's flag, and a cohort record booked in a reused slot reports the flag its old occupant left.
     # Never copied by copy_tree!. (The per-record `lbirth` is kept for the input-dead records, intree.f:564.)
     slot_lbirth::Vector{Bool}
+    # FFE post-fire crown freeze (fmeff.f:492-506, fmcrow.f:126-127): a scorched record's CROWNW(I,0:5) is set to
+    # TCROWN·(1−PROPCR) with GROW(I)=−1, and FMCROW skips recomputing it until GROW has climbed back to 1 (two FMCROW
+    # calls, i.e. the rest of the fire cycle and the whole next one). `ffe_grow` is GROW (1 = crowns recomputed as
+    # usual), `ffe_crw` the frozen CROWNW. Carried with the record by copy_tree!/TRIPLE (fmtrip.f:40) and TREDEL.
+    ffe_grow::Vector{Int8}
+    ffe_crw::Matrix{Float32}     # 6 crown sizes 0..5 (foliage, woody 1-5), lb/tree   (CROWNW while GROW<1)
 end
 
 function TreeList(maxtre::Int = MAXTRE)
@@ -171,6 +177,8 @@ function TreeList(maxtre::Int = MAXTRE)
         zeros(Float32, maxtre),                 # stale_ht
         fill(-1f0, maxtre),                     # temhtg (−1 = not set by an HTGF cap pass this cycle)
         zeros(Bool, maxtre),                    # slot_lbirth
+        ones(Int8, maxtre),                     # ffe_grow (fminit.f:972 GROW=1)
+        zeros(Float32, 6, maxtre),              # ffe_crw
     )
 end
 
@@ -186,7 +194,7 @@ const _TREE_VEC_FIELDS = (
     :merch_top_cf, :cull, :abvgrd_bio, :merch_bio, :cubsaw_bio, :foliage_bio,
     :abvgrd_carb, :merch_carb, :cubsaw_carb, :foliage_carb, :carbon_frac,
     :mort_pa, :old_crown_pct, :old_random, :tree_random, :sort_key,
-    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat, :zrand)
+    :ffe_oldht, :ffe_olddbh, :ffe_oldcr, :vol_bark, :dg_prev, :dmr, :htimlt, :iestat, :zrand, :ffe_grow)
 
 # Unrolled, type-stable copy of every per-tree vector field. The old `for f in _TREE_VEC_FIELDS`
 # loop passed a RUNTIME Symbol to `getfield(t, f)`, whose result type is `Any` — so each copied
@@ -216,6 +224,7 @@ fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
         for k in 1:6; t.damage[k, dst]    = t.damage[k, src];    end
         for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
         for k in 1:5; t.ffe_oldcrw[k, dst] = t.ffe_oldcrw[k, src]; end
+        for k in 1:6; t.ffe_crw[k, dst] = t.ffe_crw[k, src]; end
     end
     return t
 end
@@ -316,6 +325,7 @@ function permute_records!(t::TreeList, lo::Int, perm::Vector{Int})
     t.damage[:, lo:hi]     = t.damage[:, perm]
     t.pest_vars[:, lo:hi]  = t.pest_vars[:, perm]
     t.ffe_oldcrw[:, lo:hi] = t.ffe_oldcrw[:, perm]
+    t.ffe_crw[:, lo:hi]    = t.ffe_crw[:, perm]
     return t
 end
 

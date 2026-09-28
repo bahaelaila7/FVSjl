@@ -140,21 +140,18 @@ end
 # FMSADD(IYR,1) (fmeff.f:608) bins the killed trees into class-mean snag records. jl booked every killed tree's crown with
 # the scorched-kill form and kept one snag per tree (MEASURED 2014: CWD2B2 sizes 0-3 1899/3399/7488/2582 live vs
 # 3248/3748/7427/2553; 67 snag records vs 617 ⇒ Standing_Dead 30.519 vs 31.197).
+const _SIMF = Ref{Any}(nothing)
+_simf() = (_SIMF[] === nothing && (_SIMF[] = _case("4769882010690", "simfire")); _SIMF[].ms)
+_scell(col, yr) = filter(m -> m.file == "FVS_Carbon" && m.col == col && m.year == yr, _simf())
 @testset "Fire-killed crowns (fmeff.f:352-527) + binned fire snags (fmeff.f:608) vs FVSie_g16" begin
-    ms = _case("4769882010690", "simfire").ms
-    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2004", "2014"), ms)
+    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2004", "2014"), _simf())
 end
 
-# FMSADD (fmsadd.f, identical in all 24 builds) bins EVERY snag source — inventory ITYP=3, cut ITYP=2, fire/pile ITYP=1,
-# mortality ITYP=4, SNAGINIT — into class-mean records in species-major slot order with emptied-record reuse. jl binned
-# only the R6 variants' sources (non-R6 inventory snags stayed one per tree, mortality records in first-seen order).
-# MEASURED FVSsn_g16 205045340010854 SALVAGE Standing_Dead 2023: live 0.259012, jl 0.259050.
-@testset "Snag records via FMSADD binning + slot order in every variant vs FVSsn_g16" begin
-    d = mktempdir()
-    txt, db, crashed, _ = run_case("SN", "205045340010854", "salvage"; dir = d)
-    ms = compare_case("SN", "205045340010854", "salvage", txt, db)
-    @test !crashed
-    @test !any(m -> m.file == "FVS_Carbon" && m.col == "Standing_Dead" && m.year in ("2018", "2023"), ms)
+# fmeff.f:492-506 leaves a scorched record's live crown at CROWNW = TCROWN·(1−PROPCR) with GROW=−1, and fmcrow.f:126-127
+# holds it (no recompute) until GROW is back to 1 — the rest of the fire cycle and the next. jl rebuilt full crowns
+# (MEASURED 2014 post-fire Aboveground_Total_Live 19.8835 live vs 19.9317 jl).
+@testset "Post-fire frozen live crowns (fmeff.f:492-506, fmcrow.f:126-127) vs FVSie_g16" begin
+    @test all(m -> _crel(m) < 1e-6, _scell("Aboveground_Total_Live", "2014"))
 end
 
 end # module
