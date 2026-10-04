@@ -311,7 +311,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
     # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
     cons = if fire_carries
-        c = fire_consumption!(fs, mois; psburn, burncr = bcrown)
+        c = fire_consumption!(fs, mois; psburn, burncr = bcrown, so = s.variant isa SouthCentralOregon)
         fs.exposr_last = c.exposr
         c
     else
