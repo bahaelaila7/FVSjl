@@ -289,6 +289,7 @@ function setup_growth!(s::StandState)
     # (after the CROWN dub, the DGDRIV/REGENT calibration and the final DENSE), so the dub and the calibration read the
     # unreset SDIDEF. AK FIA 10708179010497: resetting first gave XMAXPT 711.63 vs live 614.10 ⇒ crowns 1-3 pts high.
     sdi_max_check!(s)
+    cwidth!(s)                            # fvs.f:207 CWIDTH — initial CRWDTH(I) after CRATET (IE/EM stored)
     return s
 end
 
@@ -1516,6 +1517,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                                             # NE/CS crown model reads (was stale pre-growth ⇒ CS crown/DG drift).
                                             # SN's crown uses the pre-growth crown_sdi captured above, so unaffected.
     crown_ratio_update_fvs!(s; fint = fint, crown_sdi = crown_sdi)  # CROWN — pre-growth Reineke RELSDI
+    cwidth!(s)                              # gradd.f:254 CWIDTH — CRWDTH(I) after DENSE/CROWN (IE/EM stored)
     # gradd.f:267 — snapshot PCT into OLDPCT AFTER crown, so next cycle's crown DCR reads this cycle's PCT.
     # (IE crown uses OLDPCT in the backdated DCR term; other variants approximate OLDPCT≈PCT so this is inert.)
     if s.variant isa InlandEmpire || s.variant isa BritishColumbia || s.variant isa EasternMontana ||

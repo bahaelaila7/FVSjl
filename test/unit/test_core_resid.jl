@@ -136,3 +136,18 @@ end
     SQLite.close(d)
     @test n == 0
 end
+
+@testset "IE 3356357010690 / EM 196420598020004 thinbba FVS_StrClass after-thin cover: SSTAGE reads the stored CRWDTH" begin
+    # sstage.f:238/276 WK6=CRWDTH(I), filled by CWIDTH at load / gradd.f:254 — the pre-thin stand BA in the Crookston
+    # BAREA term, not the residual BA (after-thin Total_Cover 17 vs live 16 before; COVER 16.6095 vs 16.2964).
+    for (v, cn) in (("ie", "3356357010690"), ("em", "196420598020004"))
+        db = _cr_run(v, cn, "thinbba")
+        gold, jl = _cr_table(v, cn, "thinbba", db, "FVS_StrClass")
+        k(r) = (string(r["Year"]), string(r["Removal_Code"]))
+        jd = Dict(k(r) => r for r in jl)
+        @test length(jl) == length(gold)
+        for g in gold, c in ("Stratum_1_Crown_Cover", "Stratum_2_Crown_Cover", "Total_Cover", "Structure_Class")
+            @test string(jd[k(g)][c]) == g[c] || _cr_f32(jd[k(g)][c]) == _cr_f32(g[c])
+        end
+    end
+end
