@@ -1006,7 +1006,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
     # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
-    cr_mistoe!(s; fint = fint)
+    # (CR joins the IE-family seam below: the spread runs here only on a NON-tripling cycle.)
     # MISTOE TRIPLING SEAM (mirrors the RD rd_post_triple pattern below). FVS runs MISTOE at gradd.f:96 —
     # in GRADD, AFTER GRINCR's MORTS+TRIPLE (grincr.f:535/543) — so on a TRIPLING cycle the spread draws its
     # per-infected-tree rann! on the ALREADY-TRIPLED record list (ITRN×3), not the un-tripled ITRN. jl ran
@@ -1018,7 +1018,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MORTS: MISMRT is called inside MISTOE after the spread and MISINF (mistoe.f:517-522), so on a tripling cycle
     # it too moves post-triple (mis_post below). Non-tripling cycles keep the existing seam (MORTS/TRIPLE draw no
     # rann!, and spread → MISINF → DM max-combine in mortality! is the FVS order) — byte-identical there.
-    mis_defer = _ie_mis_variant(s.variant) && (stash !== nothing)
+    # CR (cr/mistoe.f + mismrt.f + misinf.f, the same GRADD MISTOE call) takes the same seam: MEASURED live FVScr
+    # 5278473010690 MISTPINF 1 0 1.0 3.0 — MISINF's MISRAN visits the 27 TRIPLED records (live MistCD round-robin
+    # 1,2,3 over the post-REASS physical index); jl ran it pre-TRIPLE on 9 records and the copies inherited the
+    # parent's DMR (2015 DMR1 16.8 vs live 102 TPA, Mort 16 vs 17).
+    mis_defer = (_ie_mis_variant(s.variant) || s.variant isa CentralRockies) && (stash !== nothing)
     # mis_post: on a NON-fire tripling cycle the WHOLE GRADD MISTOE call (mistoe.f: spread → MISINF :517 →
     # MISMRT :522) runs post-TRIPLE on the tripled records at full pre-UPDATE PROB (the post-triple block
     # below) — not just the spread. MISINF must follow the spread (else the spread intensifies the
@@ -1028,6 +1032,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
         _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+        s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_post || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
@@ -1186,7 +1191,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             triple_records!(s, stash)
             n2 = t.n
             full_prob = Float32[t.tpa[i] for i in 1:n2]
-            ie_mistoe!(s; fint = fint)         # mistoe.f spread (rann! over ITRN×3)
+            _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
             @inbounds for i in 1:nlive
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
@@ -1217,7 +1222,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             n2 = t.n
             full_prob = Float32[t.tpa[i] for i in 1:n2]                  # tripled pre-mort PROB (= RDTREG input)
             if mis_post                                                  # gradd.f:96 MISTOE precedes :131 RDTREG
-                ie_mistoe!(s; fint = fint)
+                _dm_spread!(s; fint = fint)
                 dm_misinf!(s)
             end
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
@@ -1292,7 +1297,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # reads the POST-spread DMR). Only a FIRE tripling cycle still runs the spread here. The DM growth-loss
     # (start-of-cycle DMR, applied at diameter_growth!) is unchanged. Non-tripling cycles keep the pre-mortality
     # seam (MORTS/TRIPLE draw no rann! ⇒ identical RNG position) — byte-identical there.
-    (mis_defer && !mis_post) && ie_mistoe!(s; fint = fint)   # fire tripling cycle only (non-fire: the seam above)
+    (mis_defer && !mis_post) && _dm_spread!(s; fint = fint)   # fire tripling cycle only (non-fire: the seam above)
     htgstp!(s; fint = fint)                # HTGSTOP/TOPKILL top damage (gradd.f:158, before UPDATE)
     # WRD rd/rdgrow.f (+ tail rd/rdinoc.f decay): reduce the per-record DG/HTG by the infected-
     # root proportion, on the PRE-DBH-update increments (FVS RDGROW runs in RDTREG before UPDATE,
