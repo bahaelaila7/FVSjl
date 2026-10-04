@@ -302,3 +302,23 @@ end
         @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "IE 3027007010690 / 39518122010690 simfire: FMOLDC at FMMAIN — regen booked later keeps its slot's OLDCRL (fmoldc.f)" begin
+    # FMOLDC (fmmain.f:268) stores OLDHT/OLDCRL=HT·(FMICR/100) over FMMAIN's list, before ESTAB; the next FMSDIT's crown lift
+    # (fmsdit.f:103-119) reads them, so a record established after FMMAIN (a fresh slot: 0, fminit.f:970) sheds no crown lift.
+    # jl snapshotted after ESTAB (and as HT·ICR/100): 4769882010690's post-fire regeneration got OLDCRW > 0 ⇒ 2034
+    # Aboveground_Total_Live 26.598488 vs live 26.598484.
+    for cn in ("3027007010690", "39518122010690")
+        db = _cr_run("ie", cn, "simfire")
+        for tb in ("FVS_Carbon", "FVS_PotFire")
+            gold, jl = _cr_table("ie", cn, "simfire", db, tb)
+            jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+            @test length(jl) == length(gold)
+            cols = tb == "FVS_Carbon" ? ("Aboveground_Total_Live", "Forest_Down_Dead_Wood", "Forest_Floor", "Total_Stand_Carbon") :
+                   ("Surf_Flame_Sev", "Surf_Flame_Mod", "Torch_Index", "PTorch_Sev", "Pot_Smoke_Sev", "Pot_Smoke_Mod")
+            for g in gold, c in cols
+                @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+            end
+        end
+    end
+end

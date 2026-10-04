@@ -144,6 +144,13 @@ mutable struct TreeList
     # variant at FMSDIT and every FFE crown read goes through _ffe_crownw.
     ffe_grow::Vector{Int32}
     ffe_crownw::Matrix{Float32}
+    # FFE FMOLDC (fmoldc.f, the end of FMMAIN, gradd.f:118): OLDHT(I)=HT(I), OLDCRL(I)=HT(I)*(FMICR(I)/100) over the FMMAIN
+    # list (TRIPLEd, pre-UPDATE, before ESTAB), which the next FMSDIT's crown lift reads (fmsdit.f:103-119). They move
+    # with a record (FMTRIP fmtrip.f:38-39, FMTDEL fmtdel.f:41-42, via copy_tree!) but a record booked after FMMAIN
+    # inherits whatever its slot held (0 for a never-used slot, fminit.f:970-971), so they are NOT permuted with the
+    # newly established block (permute_records!).
+    fm_oldht::Vector{Float32}
+    fm_oldcrl::Vector{Float32}
     # Per-SLOT LBIRTH (the TreeAge gate of dbstrls/dbscuts/dbsatrtls: TREAGE = LBIRTH(I) ? ABIRTH(I) : 0). FVS sets
     # LBIRTH only at input (intree.f:190-194, the IREC1 live slots) and in TRIPLE (triple.f:82 LBIRTH(ITFN)=LBIRTH(I));
     # TREMOV (tremov.f), COMPRS and ESTAB never touch it, so it stays with the SLOT: a record TREDEL moves into a hole
@@ -178,6 +185,8 @@ function TreeList(maxtre::Int = MAXTRE)
         fill(-1f0, maxtre),                     # temhtg (−1 = not set by an HTGF cap pass this cycle)
         ones(Int32, maxtre),                    # ffe_grow (fminit.f:972 GROW=1)
         zeros(Float32, 6, maxtre),              # ffe_crownw
+        zeros(Float32, maxtre),                 # fm_oldht
+        zeros(Float32, maxtre),                 # fm_oldcrl
         zeros(Bool, maxtre),                    # slot_lbirth
     )
 end
@@ -225,6 +234,7 @@ fields plus the `damage`/`pest_vars` matrix columns). Used by record tripling.
         for k in 1:5; t.pest_vars[k, dst] = t.pest_vars[k, src]; end
         for k in 1:5; t.ffe_oldcrw[k, dst] = t.ffe_oldcrw[k, src]; end
         for k in 1:6; t.ffe_crownw[k, dst] = t.ffe_crownw[k, src]; end
+        t.fm_oldht[dst] = t.fm_oldht[src]; t.fm_oldcrl[dst] = t.fm_oldcrl[src]
     end
     return t
 end

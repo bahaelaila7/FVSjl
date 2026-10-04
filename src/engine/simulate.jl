@@ -716,6 +716,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     if length(fm) == n
         @inbounds for j in 1:n; t.ffe_oldcr[j] = Float32(fm[j]); end
     end
+    ffe_fmoldc!(s; fmicr = fm)                                 # FMOLDC, the fire cycle's FMMAIN on the burned list
     if length(fm) == n
         byp = s.fire.crown_bypass
         resize!(byp, n); fill!(byp, Int32(0))
@@ -1090,7 +1091,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # TRIPLED record's WK2 (the per-original MORTS kill ·.60/.25/.15, after MISMRT/BRTREG/RDEND), in record order — not
     # the un-tripled kill inside MORTS. FMSADD's zero-initialized class means (fmsadd.f:334-340) round differently on
     # the three parts (MEASURED SN carbon_jenkins: a 12" record's DBHS 11.999999 from the whole kill, 12.0 from the parts).
-    post_book = stash !== nothing && !_fire_due(s)
+    fire_cyc = _fire_due(s)
+    post_book = stash !== nothing && !fire_cyc
     (mortf, tripled) = mortality_and_fire!(s; fint = fint, stash = stash, post_fire = pf, book_snags = !post_book,
                                            mis_fire = mis_defer && !mis_post)
     s.control.dm_mrt_defer = false
@@ -1300,6 +1302,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             end
         end
     end
+    # FMOLDC (fmmain.f:268) closes a non-fire cycle's FMMAIN on its list: TRIPLEd, heights and ICR not yet UPDATEd, before
+    # ESTAB books this cycle's regeneration (a fire cycle ran it after FMBURN, inside mortality_and_fire!).
+    fire_cyc || ffe_fmoldc!(s)
     # FMKILL(2) (fmkill.f:135-143): the non-fire tripling cycle's snags from the final post-TRIPLE WK2 per record — the
     # WK2 array itself (t.mort_pa), not PROB−survivor, which rounds to the survivor's ULP (FMSADD's density-weighted
     # HTDEAD then drifts: akffe YC 8.4"×5' ⇒ 4.9999995 live).
