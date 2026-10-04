@@ -229,3 +229,81 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
     end
     return s
 end
+
+# nc/esgent.f: SPESRT, CALL REGENT(.TRUE.,ITRNIN), then HT += HTG·WK4 (WK4=HTIMLT=1) and the HHTMAX cap. jl had NO NC
+# birth-cycle growth (planted/natural cohorts sat at their ESTAB height for the cycle). REGENT(LESTB) (nc/regent.f:
+# 101-330): FNT=FINT−5 (LSKIPH when FINT≤5), SCALE=FNT/REGYR, SCALE2=YR/FNT; DO 13 (STORAGE order) draws each new
+# record's crown; DO 30 ISPC / DO 25 I3 (IND1) grows only I≥ITRNIN with XWT=0: HTGR5·CON·(XRHMLT·SCALE), SIZCAP; below
+# DGMIN the LESTB diameter DBH=max(DK,DIAM)+0.001·HK (DG=DBH) or D+0.001·HK under breast height, then DGBND. REGENT
+# reads the gradd.f:192 DENSE (post-growth, pre-regen): ba/avh/pccf.
+const NC_HHTMAX = Float32[27, 31, 25, 25, 26, 24, 28, 20, 20, 18, 26, 25]   # nc/blkdat.f:80-81
+function nc_esgent!(s::StandState, nstart::Int; fint::Float32 = 5.0f0, ba_pre::Float32 = -1f0,
+                    avh_pre::Float32 = -1f0, pccf_pre::Vector{Float32} = Float32[])
+    p, t = s.plot, s.trees
+    n = t.n; nstart >= n && return s
+    ba = ba_pre >= 0f0 ? ba_pre : p.basal_area
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    @inline _pccf(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
+    yr = htg_period(s.variant)
+    lskiph = fint <= 5.0f0
+    fnt = lskiph ? fint : fint - 5.0f0
+    scale = fnt / NC_REGYR; scale2 = yr / fnt
+    cur_year = current_cycle_year(s)
+    @inbounds for i in (nstart + 1):n                         # estab.f: new records enter with DG=HTG=0
+        t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0
+    end
+    @inbounds for i in (nstart + 1):n                         # regent.f:136-147 DO 13 crown (storage order)
+        cr0 = 0.89722f0 - 0.0000461f0 * _pccf(i)
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        t.crown_pct[i] = trunc(Int32, cr0 * 100f0 + 0.5f0)
+    end
+    order = sort(collect((nstart + 1):n); by = i -> (Int(t.species[i]), i))   # SPESRT IND1 (new records only grow)
+    hcor = s.calib.htg_cor_small
+    @inbounds for i in order
+        sp = Int(t.species[i]); (1 <= sp <= 12) || continue
+        d = t.dbh[i]; d >= NC_ST_XMAX[sp] && continue
+        h = t.height[i]
+        xrhgro = active_multiplier(s.control, :regh, sp, cur_year) * scale   # regent.f:154 XRHGRO=XRHMLT·SCALE
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            xba = ba <= 0f0 ? 0.1f0 : ba
+            cr = Float32(t.crown_pct[i]) / 10.0f0
+            relht = (h > 0f0 && avh > 0f0) ? h / avh : 1f0
+            tpccf = _pccf(i)
+            tpccf <= 75.0f0 && (relht = 1.0f0 - ((relht - 1.0f0) / 75.0f0) * tpccf)
+            relht > 1.5f0 && (relht = 1.5f0)
+            htgr = nc_htgr5(sp, p.sp_site_index[sp], xba, relht, cr, h) * fexp(hcor[sp]) * xrhgro   # ·CON·XRHGRO
+            htg = htgr                                         # XWT=0 (LESTB); RW HTGR2=HTGR
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = cap - h; htg < 0.1f0 && (htg = 0.1f0))
+        end
+        t.ht_growth[i] = htg
+        if d < NC_ST_DGMIN[sp]                                 # regent.f:243-327
+            hk = h + htg
+            local dbhk::Float32, dg::Float32
+            if hk <= 4.5f0
+                dbhk = d + hk * 0.001f0; dg = 0f0
+            else
+                dk = nc_htdbh_d(sp, hk)                        # LHTDRG off ⇒ HTDBH (SISKIY)
+                dbhk = dk < NC_ST_DIAM[sp] ? NC_ST_DIAM[sp] : dk
+                dbhk = dbhk + 0.001f0 * hk
+                dg = dbhk
+                (dbhk + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - dbhk)
+            end
+            dg = nc_dgbnd(sp, dbhk, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dg
+        end
+    end
+    @inbounds for i in (nstart + 1):n                         # esgent.f:58-71
+        sp = Int(t.species[i])
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        (1 <= sp <= 12 && t.height[i] > NC_HHTMAX[sp]) && (t.height[i] = NC_HHTMAX[sp])
+    end
+    return s
+end

@@ -517,7 +517,10 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
+    # strp/estab.f:485-486 RAN∈[0,1.5] (every western build, SN, ON); only CS/LS/NE accept [−2.5,2.5]. NC/SO added
+    # (MEASURED FVSnc_g16 450603388489998 PLANT DF: 2026 TopHt 2 / QMD 0.10152 live, jl took no RAN ⇒ 1 / 0.10100).
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains ||
+                      s.variant isa Klamath || s.variant isa SouthCentralOregon) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -798,8 +801,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa Klamath ||
-                   s.variant isa InlandEmpire
+                   s.variant isa InlandEmpire                  # (NOT NC: FVSnc builds strp/estab.f, which draws RAN)
                 # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
                 # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
                 # debug: ESSUBH 7.805 → HHT 8.41 for WL. BM takes the default RAN branch below.)
@@ -832,7 +834,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah || s.variant isa CentralIdaho
+            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah || s.variant isa CentralIdaho ||
+               s.variant isa Klamath
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
                 # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
                 # birth, which fed the wrong D into the birth-cycle REGENT. TT/UT build the same strp estab.f
@@ -1058,7 +1061,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
                          s.variant isa WestCascades || s.variant isa CentralRockies ||   # CR: cr_esgent! (regent.f:247-261)
                          s.variant isa PacificNorthwest ||  # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
-                         s.variant isa CentralIdaho         # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
+                         s.variant isa CentralIdaho ||      # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
+                         s.variant isa Klamath              # NC: nc/regent.f:136-147 DO 13 in nc_esgent!
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0

@@ -1401,7 +1401,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # (tt/regent.f:160-180,274-330; ut/regent.f:162-171,233). establish! re-DENSEs with the seedlings and jl's
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
     es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah ||
-                                                                      s.variant isa CentralRockies) ?
+                                                                      s.variant isa CentralRockies || s.variant isa Klamath) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
     # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
     # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
@@ -1468,6 +1468,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
+    s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, ba_pre = es_tu_ba_pre, avh_pre = es_tu_avh_pre,
+        pccf_pre = es_tu_pccf_pre)   # NC: nc/esgent.f → REGENT(LESTB) (was missing: no birth-cycle growth)
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
         atccf = es_at_relden, relden_pre = es_wc_relden, ba_pre = es_wc_ba, avh_pre = es_wc_avh,
         pccf_pre = es_wc_pccf, ptba_pre = es_wc_ptba)   # CI: ci/esgent.f → REGENT(LESTB) (_ci_regent!)
