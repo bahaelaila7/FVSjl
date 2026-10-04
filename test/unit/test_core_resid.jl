@@ -190,3 +190,16 @@ end
         @test _cr_f32(jd[g["Year"]]["Aboveground_Merch_Live"]) == _cr_f32(g["Aboveground_Merch_Live"])
     end
 end
+
+@testset "EM 3087467010690 FFE live merch stem (FMSVL2 NATCRS SF_HS merch top) vs live FVSem_g16" begin
+    # em_nocut_cuft ran the FW2 profile with the bisection merch top; NATCRS (as in VOLS) solves it with SF_HS
+    # (PP D9.2199 H39.4966: MCF 5.5 live vs 5.8 ⇒ 2008 Aboveground_Merch_Live 11.94416 vs 11.94876).
+    for rg in ("salvage", "simfire")
+        db = _cr_run("em", "3087467010690", rg)
+        gold, jl = _cr_table("em", "3087467010690", rg, db, "FVS_Carbon")
+        jd = Dict(string(r["Year"]) => r for r in jl)
+        for g in gold
+            @test _cr_f32(jd[g["Year"]]["Aboveground_Merch_Live"]) == _cr_f32(g["Aboveground_Merch_Live"])
+        end
+    end
+end

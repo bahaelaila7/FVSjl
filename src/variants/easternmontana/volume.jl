@@ -182,7 +182,10 @@ function em_nocut_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::NTuple{2
     eq = s.species.vol_eq[sp]
     (sp == 10 && Int(s.plot.forest_idx) == 2) && (eq = "203FW2W122")
     if startswith(eq, "I") || eq[4:6] == "FW2"
-        v = cr_fw2_vol(eq, d, h; bark = em_bratio(sp, d), topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)
+        # the same NATCRS as VOLS: the merch top from the SF_HS Newton (MEASURED FVSem_g16 3087467010690 2008 FMCRBOUT, PP
+        # D9.2199 H39.4966 MCF 5.5 live; the bisection merch top gave 5.8 ⇒ Aboveground_Merch_Live 11.94876 vs 11.94416).
+        v = cr_fw2_vol(eq, d, h; bark = em_bratio(sp, d), topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1,
+                       sf_hs = true)
         dbhmin = sp == 7 ? 6f0 : 7f0
         return (max(v[1], 0f0), d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0)
     elseif length(eq) >= 6 && eq[4:6] == "DVE"
