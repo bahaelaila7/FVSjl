@@ -334,6 +334,9 @@ mutable struct Control
     mistpinf::Vector{ScheduledActivity}
     dm_jran::Int32                            # MISRAN dwarf-mistletoe LCG state (misin0.f JRAN=123231, MISCOM);
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
+    dm_flag::Bool                             # MISCOM DMFLAG: cleared by each MISTOE call (mistoe.f:193), set when a host
+                                              # species carries mistletoe (mistoe.f:267) or MISTPINF targets a host species
+                                              # (misinf.f:182, even with no trees of it); MISPRT reports when it is set
     dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
                                               # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
     # Tree-list activities (TREELIST/CUTLIST/ATRTLIST) and the OPDONE state of their per-cycle copies,
@@ -477,6 +480,7 @@ function Control()
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
+        false,                                                   # dm_flag (DMFLAG)
         false,                                                   # dm_mrt_defer
         ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
         false,                                                   # dbs_atrtlist (ATRTLIDB)
@@ -1357,6 +1361,8 @@ mutable struct EconCalc
     tree_logs_bf::Dict{Int,Vector{NTuple{2,Float32}}}    # logDibBf/logBfVol (LOGVOL(1,·) gross Scribner)
     tree_logs_ft3::Dict{Int,Vector{NTuple{2,Float32}}}   # logDibFt3/logFt3Vol (LOGVOL(4,·) gross cubic)
     hv_rows::Vector{Any}                 # FVS_EconHarvestValue rows (eccalc.f:745-855 DBSECHARV_insert)
+    hv_open::Bool                        # DBSECHARV_open ran (eccalc.f:745-746: a non-PCT harvest with IDBSECON=2) — the
+                                         # table is created even when no HRVRVN-valued row follows
     lbs_ft3::Vector{Float32}             # lbsFt3Amt(MAXSP) — LBSCFV pounds per cubic foot (Tons column)
     # --- ECON keywords inside an IF/THEN block (ecin.f addEvent LMODE path): the event keywords
     #     (PRETEND/SPECCST/SPECRVN/STRTECON) are captured as templates (date = WAIT time) while the IF
@@ -1379,7 +1385,7 @@ function EconCalc(nsp::Integer)
              zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
              zeros(Float32, nsp, ECON_MAX_REV_UNITS, ECON_MAX_KEYWORDS), Any[],
              Int32[], Float32[], Float32[], Float32[], Float32[],
-             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[],
+             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[], false,
              zeros(Float32, nsp), nothing, Set{Tuple{Int,Int}}())
 end
 

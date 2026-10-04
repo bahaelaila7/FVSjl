@@ -1284,12 +1284,18 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
     cormlt_h = exp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
+    # dgdriv.f:186-205 (every variant): `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the attenuation, so a species
+    # with no records this cycle keeps its previous COR/HCOR — which ESTAB's REGENT then uses for that species' new
+    # regeneration (MEASURED FVSie_g16 1627682513290487 thinbba: the 2031 thin removed every WH, the cycle-2 attenuation
+    # skipped WH ⇒ HCOR 0.00339259 (cycle 1) for the new WH seedlings; jl attenuated to 0.0059646 ⇒ HtG +0.26%).
+    species_sort!(s)
+    isct = s.control.sp_count_tab
     @inbounds for sp in 1:MAXSP
+        (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
         c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
     end
 
-    species_sort!(s)
     dgf!(s, s.variant)
     wk2 = view(s.scratch.wk, 2, :)
 

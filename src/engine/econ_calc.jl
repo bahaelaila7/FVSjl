@@ -938,6 +938,7 @@ function econ_calc!(s::StandState, icyc::Int)
         end
         # Harvest Volume/Value report → FVS_EconHarvestValue (eccalc.f:737-855; DBSECHARV_insert needs IDBSECON=2).
         if c.dbs_econ == 2 && c.harvest[ECON_TPA_U] > 0f0 && !l.is_pct
+            c.hv_open = true                 # eccalc.f:746 DBSECHARV_open creates the table before any row
             t = begin_year - Int(c.econ_start_year) + 1
             nintf(x) = round(Int, x, RoundNearestTiesAway)
             for i in axes(c.rev, 1), j in 1:ECON_MAX_REV_UNITS

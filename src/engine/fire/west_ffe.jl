@@ -11,7 +11,7 @@
 # kernels as its compute_volumes (FW2 / MATW r4vol / DVE / Behre / NVB), minus the CFTOPK broken-top trim — plus the
 # FMSVOL bark ratio BRATIO(JS,D,H) and whether that equation family takes the CFTOPK trim (`trim`: fmsvol.f calls
 # NATCRS, which returns CTKFLG=.TRUE. (fvsvol.f:535) for every family — the CI/TT/UT DVE woodland included — and
-# FMSVOL has no vols.f:191 NVB exemption; EM keeps its own family gate).
+# FMSVOL has no vols.f:191 NVB exemption; EM included (em/fmsvol.f:139-140)).
 # `nothing` for a variant not yet on this layer (its own snag/live paths stay in force).
 # =============================================================================
 
@@ -41,8 +41,11 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
         tcf, mcf, _ = ak_tree_vol(s, sp, d, h)
         return (max(tcf, 0f0), max(mcf, 0f0), ak_bratio(sp, d), true)
     elseif v isa EasternMontana
+        # em/fmsvol.f:139-140 `IF(CTKFLG .AND. LTKIL) CALL CFTOPK` — NATCRS returns CTKFLG=.TRUE. for the DVE woodland
+        # equations too (fvsvol.f:531), so every EM family trims (MEASURED FVSem_g16 684750664126144 inventory AS snag
+        # D6.1 HTDEAD 35 XHT 26: VMAX 2.4 → VOL2HT 2.3469481).
         tcf, mcf = em_nocut_cuft(s, sp, d, h)
-        return (tcf, mcf, em_bratio(sp, d), startswith(eq, "I") || mdl == "FW2")
+        return (tcf, mcf, em_bratio(sp, d), true)
     elseif v isa CentralRockies                                # cr: NVEL DVE / NVB / FW2 (compute_volumes_cr!)
         tcf, mcf = cr_nocut_cuft(s, sp, d, h)
         return (tcf, mcf, cr_bratio(s.coef.species, sp, d, Int(s.plot.model_type)), true)
@@ -176,9 +179,14 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
             tcf, mcf, _, _ = ie_behre_vol(sp, Int(s.plot.forest_idx), d, h, bark)
             return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
         end
+        # NATCRS gets the stand's NVEL region (fvsvol.f:90-96 IREGN=KODFOR/100) exactly as compute_volumes! — the Colville
+        # (KODFOR 621, REGN 6) merch rules (MEASURED FVSie_g16 374547584489998 2015 Aboveground_Merch_Live 39.78778 live,
+        # region-1 rules 39.71698).
+        iregn = fvsvol_iregn(s)
+        bcor, mopt = iregn == 6 ? ('N', 23) : ('Y', 22)
         w = startswith(eq, "I") ?
-            cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1,
-                       sf_hs = true, ht2td = zeros(Float32, 2)) :
+            cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = iregn,
+                       board_cor = bcor, merch_opt = mopt, sf_hs = true, ht2td = zeros(Float32, 2)) :
             ie_dve_vol(eq, d, h, true)
         return (max(w[1], 0f0), d >= dbhmin ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
     end
