@@ -770,7 +770,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      carbon_hook::Union{Nothing,Function} = nothing,
                      pofl_hook::Union{Nothing,Function} = nothing,
                      fuel_period::Union{Nothing,Real} = nothing,
-                     ffe_init_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing,
                      fmmain_hook::Union{Nothing,Function} = nothing)
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
@@ -867,10 +866,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # samples. The summary driver stashes `fire_smlg` at the cycle START (pre-salvage); nothing between
         # then and here touches `cwd`, so on a fire cycle re-stash it to reflect the post-salvage down wood.
         fuel_period !== nothing && (s.fire.fire_smlg = _small_large_fuel(s.fire))
-        # FFE-init year (non-fire), DEFERRED from the pre-grow driver: FVS FMMAIN loads the initial dead-fuel
-        # pools (FMCBA) AFTER the cut phase, so the one-time load reads the POST-THIN stand (matches live PERCOV).
-        # No-op for any stand without an init-year thin (pre==post state) ⇒ eastern FFE unaffected.
-        ffe_init_period !== nothing && ffe_fuel_update!(s, Int(ffe_init_period); vtrip = _fm_will_triple(s))
+        # (A non-fire cycle's FMMAIN pass — FMCBA's one-time dead-fuel load on the post-cut stand included — runs at the
+        # FMMAIN seam below, `fmmain_hook`.)
     end
     econ_on && econ_status!(s, Int(s.control.cycle) + 1, 1)   # ECSTATUS(…,1) after CUTS (grincr.f:370)
     if econ_on
@@ -1009,7 +1006,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
-    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH, before UPDATE)
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH/ICR and GRINCR's
+    # TRIPLE, before UPDATE): a non-fire cycle's whole FMMAIN pass (FMCBA, the FFE reports, the annual fuel loop), run on
+    # the TRIPLEd list (`stash`) when the cycle triples.
     fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
@@ -1069,7 +1068,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # ffe_fuel_update! for the fire cycle and hands its period here). Non-fire cycles pass neither ⇒ no-op.
     # `pofl_hook(st, stash)`: an FMMAIN-time sampler (the PotFire torching probability) — it sees FVS's FMMAIN RNG
     # state and, in a non-fire cycle, the stash of the TRIPLE that FVS has already applied by then (grincr.f:543).
-    # (Distinct from `fmmain_hook`, the carbon V(3) reader at the post-REGENT point above.)
+    # (`fmmain_hook`, above, ran the rest of the non-fire FMMAIN pass: FMCBA, the reports, the annual fuel loop.)
     # gradd.f:96 MISTOE precedes gradd.f:118 FMMAIN: on a non-fire tripling cycle whose MISTOE runs post-TRIPLE
     # (mis_post) the PotFire sampler waits for the spread's draws and runs in that block on the tripled full-PROB
     # list (MEASURED FVSem_g16 196378260020004 2012 FMPTRH: RANNGET 2036729867 = jl's state after the spread, jl ran

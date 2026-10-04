@@ -215,3 +215,18 @@ end
         @test _cr_f32(jd[g["Year"]]["Live_Merch_CuFt"]) == _cr_f32(g["Live_Merch_CuFt"])
     end
 end
+
+@testset "IE 11855985010690 salvage FVS_Carbon: the non-fire FMMAIN pass runs after REGENT's direct small-tree DBH (gradd.f:118)" begin
+    # FMCBA's TBA (fmcba.f:236-237) reads the seedlings' REGENT DBH (ie/regent.f:881) because FMMAIN follows GRINCR: sp-9 TBA
+    # 21.4268 live vs 21.4036 from the start-of-cycle DBH ⇒ PRCL ⇒ the initial dead fuels 1 ULP (2006 Forest_Down_Dead_Wood
+    # 14.608339 vs live 14.608341), drifting every later fuel/carbon row.
+    db = _cr_run("ie", "11855985010690", "salvage")
+    gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_Carbon")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    @test length(jl) == length(gold)
+    cols = ["Aboveground_Total_Live", "Aboveground_Merch_Live", "Belowground_Live", "Belowground_Dead", "Standing_Dead",
+            "Forest_Down_Dead_Wood", "Forest_Floor", "Forest_Shrub_Herb", "Total_Stand_Carbon"]
+    for g in gold, c in cols
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
