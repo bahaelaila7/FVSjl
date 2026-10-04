@@ -1098,9 +1098,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MORTS WK2 (= old_tpa − t.tpa) and re-apply the RD-adjusted WK2 — FVS runs RDEND at
     # MORTS time (GRINCR MORTS → GRADD RDTREG/RDEND). Non-fire, non-tripled RD path only;
     # gated so a no-RD stand is byte-identical (root_disease === nothing ⇒ no-op).
+    rd_wk2 = nothing
     if !tripled && !rd_post_triple && (s.root_disease !== nothing) && rd_active(s.root_disease) &&
        s.root_disease.iroot != 0 && s.root_disease.driver !== nothing
-        rd_end_apply!(s.root_disease, s, old_tpa)   # RDEND (un-tripled path only; tripled RD runs post-triple below)
+        rd_wk2 = rd_end_apply!(s.root_disease, s, old_tpa; wk2_in = _morts_wk2(s, old_tpa, t.n))   # RDEND (un-tripled path only; tripled RD runs post-triple below)
     end
     # DFB dfb/dfbdrv.f (DFBDBH→DFBMOD→DFBMRT) gated by DFBGO: on a cycle with a scheduled Douglas-fir
     # Beetle outbreak, raise the large-DF WK2 mortality to MAX(background, DFKILL). FVS calls DFBDRV in
@@ -1185,6 +1186,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         # FVS_TreeList MortPA (dbstrls.f DP=WK2/GROSPC) and OMORT (Σ WK2·CFV) read MORTS's WK2 itself, not the
         # PROB−(PROB−WK2) difference, which rounds to the survivor's ULP (±10-20 ULP of WK2 on small kills).
         wk2_0 = _morts_wk2(s, old_tpa, nlive)
+        if rd_wk2 !== nothing                  # RDEND's WK2 where nothing after it re-killed the record
+            @inbounds for i in 1:min(nlive, length(rd_wk2))
+                t.tpa[i] == max(0f0, old_tpa[i] - rd_wk2[i]) && (wk2_0[i] = rd_wk2[i])
+            end
+        end
         _on_wk = s.variant isa Ontario
         @inbounds for i in 1:nlive
             m = wk2_0[i]
@@ -1245,7 +1251,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             wk2t = _wk2_trip(wk2_u, nlive)
             mis_post && ie_dm_mismrt_post!(s, full_prob, fint; wk2 = wk2t)   # MISMRT into WK2 before RDEND
             br_post && wpbr_brtreg!(s, fint, full_prob; wk2_hint = _wk2_trip(wk2_u, nlive))   # gradd.f:126 BRTREG (before RDTREG's RDEND)
-            rd_end_apply!(s.root_disease, s, full_prob)                  # RDEND: fold RRKILL into WK2, re-apply
+            # RDEND reads WK2 itself: TRIPLE's WK2·WEIGHT, or MISMRT/BRTREG's raised kill where they re-killed the record
+            wk2r = Float32[t.tpa[c] == full_prob[c] - wk2t[c] ? wk2t[c] : full_prob[c] - t.tpa[c] for c in 1:n2]
+            wk2e = rd_end_apply!(s.root_disease, s, full_prob; wk2_in = wk2r)   # RDEND: fold RRKILL into WK2, re-apply
+            wk2e === nothing || (wk2t = wk2e)                            # OMORT/MortPA read RDEND's WK2
             mort = 0f0                                                   # OMORT + MortPA from the final tripled kill
             @inbounds for c in 1:n2
                 # WK2 where BRTREG/RDEND left the record's kill untouched; else the survivor difference

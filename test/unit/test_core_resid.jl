@@ -244,3 +244,22 @@ end
     @test FVSjl.cr_crownw(18, 17.8f0, 92f0, 0, 70, 50f0, 0.33f0)[1] ==
           FVSjl.fexp(1.0404f0 + 1.7096f0 * FVSjl.flog(17.8f0)) * (0.5738f0 * FVSjl.fexp(-0.0325f0 * 17.8f0))
 end
+
+@testset "EM 242065538010661 / 474187636489998 rootdis: RDEND reads WK2 itself (rdend.f:102 BACKGD=WK2/PROB)" begin
+    # rdend.f's natural mortality NATIU=BACKGD·PROBIU (BACKGD=WK2/PROB) on the TRIPLEd copies reads WK2·WEIGHT (triple.f:69),
+    # not PROB−(PROB−WK2): the ×.25 copies' PROBIU after RDEND 14.322094 live vs 14.322093 ⇒ rdgrow.f's HTG·(OUTNUM+PROBIU)/
+    # BOTTOM 1 ULP ⇒ small-DF HtG drift from 2040 ⇒ 2060 QMD 2.2100935 vs live 2.2101290.
+    for (cn, tabs) in (("242065538010661", ("FVS_Summary", "FVS_RD_Sum")), ("474187636489998", ("FVS_RD_Sum",)))
+        db = _cr_run("em", cn, "rootdis")
+        for tb in tabs
+            gold, jl = _cr_table("em", cn, "rootdis", db, tb)
+            jd = Dict(string(r["Year"]) => r for r in jl)
+            @test length(jl) == length(gold)
+            cols = tb == "FVS_Summary" ? ("Tpa", "BA", "QMD", "ATQMD", "TCuFt", "TopHt") :
+                   ("UnInf_TPA", "Inf_TPA", "Live_Merch_CuFt", "Live_BA", "Stumps_per_Acre", "Stumps_BA", "Mort_TPA")
+            for g in gold, c in cols
+                @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+            end
+        end
+    end
+end
