@@ -408,7 +408,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 htgrl < 0.0f0 && (htgrl = 0.0f0)
                 wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro * con
             else
-                htgrl = fexp(rhcon[sp] + KT_RG_RHLH[sp]*flog(h1) + KT_RG_RHCCF[sp]*rdj + KT_RG_RHBAL[sp]*balmh)
+                htgrl = fexp(rhcon[sp] + KT_RG_RHLH[sp]*flog(h1) + KT_RG_RHCCF[sp]*rdj + KT_RG_RHBAL[sp]*balmh + c.htg_cor_small[sp])
                 htgrl < 0.0f0 && (htgrl = 0.0f0)
                 wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro
             end
