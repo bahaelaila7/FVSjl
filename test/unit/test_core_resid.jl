@@ -395,3 +395,16 @@ end
         end
     end
 end
+
+@testset "BM 12827438010497 climate FVS_Climate ViabMort: SPCALIB survival via ALGSLP's own form (clmorts.f:97)" begin
+    # ALGSLP(XV,VS*X*2.,SR,2) = Y(1)+((Y(2)-Y(1))/(X(2)-X(1)))*(XX-X(1)): (1/(HI-LO))·(XV-LO), not (XV-LO)/(HI-LO)
+    # (2025 ViabMort 0.0319396853 vs live 0.0319397449, one ULP of the survival near 1).
+    db = _cr_run("bm", "12827438010497", "climate")
+    gold, jl = _cr_table("bm", "12827438010497", "climate", db, "FVS_Climate")
+    k(r) = (string(r["Year"]), string(r["SpeciesFVS"]))
+    jd = Dict(k(r) => r for r in jl)
+    @test length(jl) == length(gold)
+    for g in gold, c in ("ViabMort", "Viability", "dClimMort", "GrowthMult")
+        @test _cr_f32(jd[k(g)][c]) == _cr_f32(g[c])
+    end
+end
