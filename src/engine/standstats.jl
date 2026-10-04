@@ -335,10 +335,10 @@ function point_density!(s::StandState)
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
+        elseif s.variant isa CentralRockies
+            ccft = cr_tree_ccf(Int(t.species[i]), t.dbh[i], Int(p.model_type)) * t.tpa[i]   # cr/ccfcal.f CCFT·P
         else
-            cw  = s.variant isa CentralRockies ?
-                  cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
-                  crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
+            cw  = crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
                               p.latitude, p.longitude, p.elevation)
             ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
         end
@@ -438,8 +438,8 @@ end
     v isa SoutheastAlaska   && return ak_tree_ccf(sp, d) * tpa
     v isa SouthCentralOregon && return so_tree_ccf(sp, d, t.height[i]; ifor = Int(p.forest_idx)) * tpa
     v isa WestSierra        && return ws_ccft(sp, d, t.height[i], tpa)
-    cw = v isa CentralRockies ? cr_crown_width(sp, d, Int(p.model_type)) :
-         crown_width(s.coef, s.species.code2[sp], d, t.height[i], 90, 1, p.latitude, p.longitude, p.elevation)
+    v isa CentralRockies    && return cr_tree_ccf(sp, d, Int(p.model_type)) * tpa   # cr/ccfcal.f CCFT·P (not via CRWDTH)
+    cw = crown_width(s.coef, s.species.code2[sp], d, t.height[i], 90, 1, p.latitude, p.longitude, p.elevation)
     return d > 0.1f0 ? 0.001803f0 * cw * cw * tpa : 0.001f0 * tpa
 end
 

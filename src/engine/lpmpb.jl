@@ -406,8 +406,7 @@ function mpb_lp_ccf(s::StandState, idxlp::Int)::Float32
             elseif s.variant isa EastCascades;       ec_tree_ccf(idxlp, d)
             elseif s.variant isa SouthCentralOregon; so_tree_ccf(idxlp, d, t.height[i]; ifor = Int(s.plot.forest_idx))
             elseif s.variant isa CentralRockies
-                cw = cr_crown_width(idxlp, d, Int(s.plot.model_type))
-                d > 0.1f0 ? 0.001803f0 * cw * cw : 0.001f0
+                cr_tree_ccf(idxlp, d, Int(s.plot.model_type))   # cr/ccfcal.f CCFT (not 0.001803·CRWDTH²)
             else
                 0.0f0
             end

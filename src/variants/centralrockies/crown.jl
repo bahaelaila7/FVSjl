@@ -179,6 +179,17 @@ const _CR_CCF_RD3 = (0.00365f0, 0.00259f0, 0.00405f0, 0.00363f0, 0.00490f0, 0.00
 const _CR_CCF_RDA = (0.009187f0, 0.017299f0, 0.015248f0, 0.011109f0, 0.008915f0, 0.007875f0, 0.011402f0, 0.007813f0)
 const _CR_CCF_RDB = (1.7600f0, 1.5571f0, 1.7333f0, 1.7250f0, 1.7800f0, 1.7360f0, 1.7560f0, 1.7680f0)
 
+# cr/ccfcal.f MODE=1 CCFT (before ×P): the per-model-type RD polynomial / RDA·D**RDB itself. CRWDTH=SQRT(CCFT/0.001803)
+# is derived FROM it; jl rebuilt the CCF as 0.001803·CW² from that square root, which round-trips 1 ULP off
+# (MEASURED FVScr_clean 3026069010690: GEMHT imodty 5 HHE1 4218262C live / 4218262B jl via the point-CCF CCFTEM).
+@inline function cr_tree_ccf(sp::Int, d::Float32, imodty::Int)::Float32
+    m = 1 <= imodty <= 5 ? imodty : 5
+    imap = _CR_CCF_MAP[m][sp]
+    d >= 10.0f0 && return _CR_CCF_RD1[imap] + d * _CR_CCF_RD2[imap] + d * d * _CR_CCF_RD3[imap]
+    d > 0.1f0 && return _CR_CCF_RDA[imap] * fpow(d, _CR_CCF_RDB[imap])
+    return 0.001f0
+end
+
 @inline function cr_crown_width(sp::Int, d::Float32, imodty::Int)::Float32
     m = 1 <= imodty <= 5 ? imodty : 5
     imap = _CR_CCF_MAP[m][sp]
