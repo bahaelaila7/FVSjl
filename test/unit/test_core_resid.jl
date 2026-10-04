@@ -85,3 +85,28 @@ end
         end
     end
 end
+
+@testset "EM 196378260020004 mistletoe stand: MISTOE (gradd.f:96) before FMMAIN (gradd.f:118) vs live FVSem_g16" begin
+    # Non-fire tripling cycle: FMPTRH must draw after the post-TRIPLE mistletoe spread (live RANNGET 2036729867 at 2012;
+    # jl sampled at 431495394 ⇒ PTorch_Mod 0.13873 vs 0.25494). SIMFIRE tripling cycle: the spread precedes the burn
+    # (jl burned first ⇒ 2022 PTorch_Sev 0.23130 vs 0.18498, BA 45 vs 46 at 2042).
+    db = _cr_run("em", "196378260020004", "salvage")
+    gold, jl = _cr_table("em", "196378260020004", "salvage", db, "FVS_PotFire")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("PTorch_Sev", "PTorch_Mod", "Torch_Index", "Crown_Index", "Mortality_BA_Sev")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+    db = _cr_run("em", "196378260020004", "simfire")
+    gold, jl = _cr_table("em", "196378260020004", "simfire", db, "FVS_Summary")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("Tpa", "BA", "SDI", "CCF", "TopHt", "QMD", "TCuFt", "MCuFt", "BdFt")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+    gold, jl = _cr_table("em", "196378260020004", "simfire", db, "FVS_PotFire")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold
+        g["Year"] in ("2012", "2022") || continue
+        @test _cr_f32(jd[g["Year"]]["PTorch_Sev"]) == _cr_f32(g["PTorch_Sev"])
+        @test _cr_f32(jd[g["Year"]]["PTorch_Mod"]) == _cr_f32(g["PTorch_Mod"])
+    end
+end
