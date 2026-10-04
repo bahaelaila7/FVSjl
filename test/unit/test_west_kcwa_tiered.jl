@@ -165,4 +165,16 @@ end
     @test count(m -> m.file == "sum", c.ms) == 0
 end
 
+# kt/morts.f:188 CALL SDICAL(0,SDIMAX) re-derives the common BAMAX = XMAX·0.5454154·PMSDIU (kt/sdical.f:203-204) when no
+# user BAMAX is in effect; kt/sitset.f:39's BAMAXA(ITYPE) seed does not survive the REAL*4 round trip (310 ⇒ 309.99994) and
+# BAMAX divides RIPP (morts.f:286). jl used the raw table value: 3021216010690 cycle 2 RIPP 1 ULP off, and on
+# 196396140020004 the drift surfaced in 2042 (3,847 cells).
+@testset "KT MORTS BAMAX from SDICAL (kt/morts.f:188, kt/sdical.f:203-204)" begin
+    for cn in ("3021216010690", "196396140020004")
+        c = _case("KT", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
