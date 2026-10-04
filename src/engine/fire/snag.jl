@@ -130,6 +130,16 @@ function add_snag!(fs::FireState, sp::Integer, dbh::Float32, density::Float32, y
     return
 end
 
+"An FMSADD record that no tree was binned into (fmsadd.f:47-62, :104-111): SPS/YRDEAD set, DEND=DBHS=HTDEAD=0, no density."
+function add_empty_snag!(fs::FireState, sp::Integer, year::Integer; yrdead::Integer = year)
+    sn = fs.snags
+    push!(sn.sp, Int32(sp)); push!(sn.dbh, 0f0); push!(sn.den_hard, 0f0); push!(sn.den_soft, 0f0)
+    push!(sn.origden, 0f0); push!(sn.year, Int32(year)); push!(sn.yrdead, Int32(yrdead))
+    push!(sn.bolevol, 0f0); push!(sn.fallvol, 0f0); push!(sn.height, 0f0); push!(sn.htcur, 0f0)
+    push!(sn.pbfris, 0f0); push!(sn.pbfrih, 0f0)
+    return
+end
+
 # ── FMSADD (fmsadd.f, identical in all variants) ──────────────────────────────────────────────────────────────────
 # One FMSADD call bins that call's new dead trees into snag records by (species SPCL, DBHCL = INT(D/2+1) capped 19,
 # HTCL split at MIDHT when the class height range exceeds 20 ft) and gives the records slots in SPECIES-MAJOR order
@@ -198,8 +208,17 @@ function fmsadd_bin!(s::StandState, items, year::Integer; yrdead::Integer = year
     end
     ctx = _fmsadd_ctx(fs)
     for k in keys3
-        r = rec[k]; r[1] > 0f0 || continue
+        r = rec[k]
         j = _fmsadd_slot!(fs, ctx)
+        # fmsadd.f:47-62 hands EVERY (SPCL,DBHCL,HTCL) class a record before the trees are binned, so a height class
+        # that no tree lands in (HTCL picked on HT(I), the MIDHT split on FMSSEE's heights) still takes a slot — left
+        # at DEND=0, DENIH=DENIS=0 (:196 skips it). Later FMSADD calls reuse it as a gap, and it shifts every later
+        # record's FMR6HTLS draw (MEASURED FVSbm_g16 645155287126144 salvage: live NSNAG=4 with record 2 empty from
+        # 2018, the 2037 snag reused slot 2; jl appended it at 4 ⇒ the height-loss draws landed on other snags).
+        if r[1] <= 0f0
+            j == 0 && (add_empty_snag!(fs, k[1], year; yrdead = yrdead); push!(ctx.taken, length(fs.snags.sp)))
+            continue
+        end
         bv, fv = bolefn(k[1], r[2], r[3])
         add_snag!(fs, k[1], r[2], r[1], year; bolevol = bv, fallvol = fv, height = r[3],
                   htcur = ityp == 3 ? r[4] : r[3], yrdead = yrdead, slot = j)

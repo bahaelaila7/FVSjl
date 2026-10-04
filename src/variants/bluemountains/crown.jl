@@ -65,13 +65,13 @@ const _BM_ADJ_IMAP = Int32[fill(Int32(1),12); fill(Int32(2),6); Int32(3); fill(I
     if grp == 1;      si < 33f0 && return 0f0; a = -63.689706f0 + 1.9402941f0*si
     elseif grp == 2;  si < 11f0 && return 0f0; a = -12.0388f0 + 1.18672f0*si
     elseif grp == 3;  a = 5.972615f0 + 1.857675f0*si
-    elseif grp == 4;  a = 2.305357f0 + 0.033890056f0*si + 0.0090108543f0*si*si
-    elseif grp == 5;  si < 29f0 && return 0f0; a = -10.303313f0 + .032929911f0*si + .012207163f0*si*si - .00003543129f0*si*si*si
-    elseif grp == 6;  si < 11f0 && return 0f0; a = -6.0892857f0 + .45178571f0*si + .014464286f0*si*si
+    elseif grp == 4;  a = 2.305357f0 + 0.033890056f0*si + 0.0090108543f0*(si*si)             # adjmai.f:50 C*SINDEX**2
+    elseif grp == 5;  si < 29f0 && return 0f0; a = -10.303313f0 + .032929911f0*si + .012207163f0*(si*si) + (-.00003543129f0*(si*si*si))   # adjmai.f:54-55
+    elseif grp == 6;  si < 11f0 && return 0f0; a = -6.0892857f0 + .45178571f0*si + .014464286f0*(si*si)
     elseif grp == 7;  si < 10f0 && return 0f0; a = -18.4f0 + 1.92f0*si
     elseif grp == 8;  si < 32f0 && return 0f0; a = -53.892857f0 + 1.7178571f0*si
-    elseif grp == 9;  a = -4.89001f0 + 311.29546f0*((exp((si/170f0-1f0)^3/0.343f0)-0.055f0)/0.95f0)
-    elseif grp == 10; si < 62f0 && return 0f0; a = 157.94643f0 - 1.78125f0*si + .014330357f0*si*si
+    elseif grp == 9;  a = -4.89001f0 + 311.29546f0*((fexp((si/170f0-1f0)^3/0.343f0)-0.055f0)/0.95f0)   # adjmai.f:70 EXP = expf
+    elseif grp == 10; si < 62f0 && return 0f0; a = 157.94643f0 - 1.78125f0*si + .014330357f0*(si*si)
     end
     a < 0f0 && (a = 0f0)                                  # ADJMAI = ADJMAI*POINTS/10 (POINTS=10 ⇒ ×1), floored 0
     return a
@@ -117,7 +117,7 @@ end
         cr = ((cr - 1f0)*10f0 + 1f0)/100f0
     else                                                   # CASE(1:12,15,17): logistic
         abs(cr + fcr) >= 86f0 && (cr = 86f0)               # faithful: sets +86 regardless of sign
-        cr = 1f0/(1f0 + exp(cr + fcr))
+        cr = 1f0/(1f0 + fexp(cr + fcr))                     # dubscr.f:73 EXP = expf
     end
     cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
     return cr
@@ -236,7 +236,7 @@ function crown_ratio_update!(s::StandState, ::BlueMountains; fint::Float32 = 10.
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
         x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        crnew = (A + B * fpow(-1f0 * flog(1f0 - x), 1f0 / C)) * 10f0   # crown.f:133 B*((-1.0*ALOG(1-X))**(1.0/C)) — logf/powf
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)

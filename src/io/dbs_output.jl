@@ -1079,8 +1079,11 @@ function write_dbs_mortality!(dbpath, caseid::AbstractString, standid::AbstractS
         _ensure_table!(db, _FVS_MORTALITY_CREATE)
         stmt = DBInterface.prepare(db, "INSERT INTO FVS_Mortality VALUES (" * join(fill("?", 22), ",") * ")")
         clsvals(kil, tot) = (v = Float64[]; for c in 1:7; push!(v, Float64(kil[c]), Float64(tot[c])); end; v)
+        # dbsfmmort.f:122-123 DO J=1,MXSP1 / IF (TOTAL(J,8) .LE. 0) CYCLE — a species row, and the ALL row, only when that
+        # row's all-class total (TOTCLS(J,MAXCL1)) is positive: a fire on a treeless stand writes no rows at all.
         for b in burns
             for sm in (hasproperty(b, :species_mort) ? b.species_mort : ())
+                sum(sm.totcls) > 0f0 || continue
                 DBInterface.execute(stmt, (caseid, standid, Int(b.year), sm.fvs, sm.plants, sm.fia,
                     clsvals(sm.clskil, sm.totcls)..., Float64(sm.bakill), Float64(sm.volkill)))
             end

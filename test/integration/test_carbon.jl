@@ -306,7 +306,7 @@ end
         @test_skip "ne_firecarb scenario not available"
     else
         ft = [parse.(Float64, split(strip(l))) for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l))]
-        out = FVSjl.run_keyfile(key; variant = FVSjl.Northeast())
+        out = FVSjl.run_keyfile(key; variant = FVSjl.Northeast(), output = :out)   # the carbon report is .out text
         rows = [parse.(Float64, split(strip(l)))
                 for l in split(out, '\n') if occursin(r"^(19|20)\d\d +\d+\.\d", l)]
         rows = filter(r -> length(r) >= 12 && r[1] in getindex.(ft, 1), rows)[1:length(ft)]
@@ -338,8 +338,9 @@ end
     if !isfile(key) || !isfile(sav)
         @test_skip "carbon_snt scenario not available"
     else
-        out = FVSjl.run_keyfile(key)
+        out = FVSjl.run_keyfile(key; output = :out)
         @test occursin("STAND CARBON REPORT", out)                 # the report block is in the .out
+        @test !occursin("STAND CARBON REPORT", FVSjl.run_keyfile(key))   # ...and never in the .sum (FVS's .sum: -999 + rows)
         @test occursin("YEAR    Total    Merch", out)              # column header present
         ft = Dict(parse(Int, split(strip(l))[1]) => parse.(Float64, split(strip(l)))
                   for l in eachline(sav) if occursin(r"^(19|20)\d\d\s", strip(l)))
@@ -911,7 +912,7 @@ end
     if !isfile(key)
         @test_skip "fire_carbon.key not available"
     else
-        out = FVSjl.run_keyfile(key)
+        out = FVSjl.run_keyfile(key; output = :out)
         incarb = false; rows = Dict{String,Vector{SubString{String}}}()
         for ln in split(out, '\n')
             occursin("STAND CARBON REPORT", ln) && (incarb = true)

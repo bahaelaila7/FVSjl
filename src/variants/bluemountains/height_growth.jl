@@ -35,12 +35,12 @@ function bm_findag(sp::Int, h::Float32, sindx::Float32)
         return (agmax + (h - htmax) / 0.10f0, h, htmax, agmax)
     end
     if sp == 15
-        return ((h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0), h, htmax, agmax)
+        return (fpow(h * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0), h, htmax, agmax)
     elseif sp == 6 || sp == 11 || sp == 12
         return (0f0, h, htmax, agmax)
     end
     ag = 2.0f0
-    (sp == 10 || sp == 17) && (ag = 98.38f0 * exp(sindx * (-0.0422f0)) + 1.0f0)
+    (sp == 10 || sp == 17) && (ag = 98.38f0 * fexp(sindx * (-0.0422f0)) + 1.0f0)
     ag < 2.0f0 && (ag = 2.0f0)
     sp == 3 && (ag = 18.0f0)
     incrng = 0; hguess = 0f0
@@ -123,7 +123,7 @@ function height_growth!(s::StandState, ::BlueMountains; scale::Float32 = 1.0f0)
         (d <= 0f0 || h <= 0f0) && continue
         sp == 6 && continue                                # WJ(6) height from REGENT
         if sp == 11 || sp == 12 || sp == 15                # WB/LM/AS — Johnson's SBB (bm/htgf.f CASE(11,12,15))
-            htcon = exp(c.htg_cor[sp])
+            htcon = fexp(c.htg_cor[sp])
             iicr = trunc(Int, Float32(t.crown_pct[i]) / 10f0 + 0.5f0); iicr > 9 && (iicr = 9); iicr < 1 && (iicr = 1)
             k = iicr <= 2 ? 1 : (iicr <= 7 ? 2 : 3)
             cof = (sp == 11 || sp == 12) ? _BM_HT_COF1 : _BM_HT_COF6
@@ -134,8 +134,8 @@ function height_growth!(s::StandState, ::BlueMountains; scale::Float32 = 1.0f0)
                 t.ht_growth[i] = 0.1f0 * scale * htcon; continue
             end
             y1 = (d - 0.1f0) / cof1; y2 = (h - 4.5f0) / cof2
-            fby1 = log(y1 / (1f0 - y1)); fby2 = log(y2 / (1f0 - y2))
-            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * (1f0 - cof7 * cof7)^(-0.5f0)
+            fby1 = flog(y1 / (1f0 - y1)); fby2 = flog(y2 / (1f0 - y2))
+            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * fpow(1f0 - cof7 * cof7, -0.5f0)
             # ZBIAS: AZBIAS=BZBIAS=0 for all BM SBB species (bm/htgf.f:145-147) ⇒ ZBIAS≡0, inert.
             if sp == 12 || sp == 15                         # LM/AS bias correction (NOT WB) — bm/htgf.f:357
                 zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
@@ -156,8 +156,8 @@ function height_growth!(s::StandState, ::BlueMountains; scale::Float32 = 1.0f0)
             bark = bm_bratio(s.coef.species, sp, d)
             dia = d + t.diam_growth[i] / bark
             if (0.1f0 + cof1) > dia
-                psi = cof8 * ((dia - 0.1f0) / (0.1f0 + cof1 - dia))^cof9 *
-                      exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
+                psi = cof8 * fpow((dia - 0.1f0) / (0.1f0 + cof1 - dia), cof9) *
+                      fexp(z * fpow(1f0 - cof7 * cof7, 0.5f0) / cof6)
                 hnew = (psi / (1f0 + psi)) * cof2 + 4.5f0
                 hnew < h && (hnew = h)
                 htg = hnew - h; htg < 0.1f0 && (htg = 0.1f0)
@@ -169,7 +169,7 @@ function height_growth!(s::StandState, ::BlueMountains; scale::Float32 = 1.0f0)
         end
         sindx = p.sp_site_index[sp]
         sitage, sitht, htmax, agmax = bm_findag(sp, h, sindx)
-        htcon = exp(c.htg_cor[sp])
+        htcon = fexp(c.htg_cor[sp])
         if h >= htmax
             slo = site_lo[sp]; shi = site_hi[sp]
             si = sindx; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
@@ -190,16 +190,16 @@ function height_growth!(s::StandState, ::BlueMountains; scale::Float32 = 1.0f0)
         end
         # modifiers
         crf = Float32(t.crown_pct[i]) / 100f0
-        hgmdcr = BM_HT_CRA * crf^BM_HT_CRB * exp(BM_HT_CRC * crf)
+        hgmdcr = BM_HT_CRA * fpow(crf, BM_HT_CRB) * fexp(BM_HT_CRC * crf)
         hgmdcr > 1f0 && (hgmdcr = 1f0)
         relht = avh > 0f0 ? h / avh : 0f0
         relht > 1.5f0 && (relht = 1.5f0)
         rhx = relht
-        fctrkx = (BM_HT_RHK / BM_RHYXS[sp])^(BM_RHM[sp] - 1f0) - 1f0
+        fctrkx = fpow(BM_HT_RHK / BM_RHYXS[sp], BM_RHM[sp] - 1f0) - 1f0
         fctrrb = -1f0 * (BM_RHR[sp] / (1f0 - BM_RHB[sp]))
-        fctrxb = rhx^(1f0 - BM_RHB[sp]) - BM_HT_RHXS^(1f0 - BM_RHB[sp])
+        fctrxb = fpow(rhx, 1f0 - BM_RHB[sp]) - fpow(BM_HT_RHXS, 1f0 - BM_RHB[sp])
         fctrm  = -1f0 / (BM_RHM[sp] - 1f0)
-        hgmdrh = BM_HT_RHK * (1f0 + fctrkx * exp(fctrrb * fctrxb))^fctrm
+        hgmdrh = BM_HT_RHK * fpow(1f0 + fctrkx * fexp(fctrrb * fctrxb), fctrm)
         htgmod = 0.25f0 * hgmdcr + 0.75f0 * hgmdrh
         htgmod >= 2f0 && (htgmod = 2f0)
         htgmod <= 0.1f0 && (htgmod = 0.1f0)

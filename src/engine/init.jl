@@ -53,7 +53,7 @@ end
 # no output preference, so for it the format comes only from the argument (else :sum).
 function _resolve_output(keypath::AbstractString, output::Union{Symbol,AbstractString,Nothing})
     norm(x) = (s = lowercase(strip(String(x)));
-               s in ("sum", "csv") ? Symbol(s) : error("unknown output format '$x' (use :sum or :csv)"))
+               s in ("sum", "csv", "out") ? Symbol(s) : error("unknown output format '$x' (use :sum, :csv or :out)"))
     output === nothing || return norm(output)
     ext = lowercase(splitext(keypath)[2])
     if ext == ".yaml" || ext == ".yml"

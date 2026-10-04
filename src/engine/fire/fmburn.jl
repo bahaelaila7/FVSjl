@@ -233,6 +233,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         resize!(fs.fmicr, t.n)
         @inbounds for i in 1:t.n; fs.fmicr[i] = t.crown_pct[i]; end
         resize!(fs.firkil, t.n); fill!(fs.firkil, 0f0)
+        resize!(fs.prob_prefire, t.n); copyto!(fs.prob_prefire, 1, t.tpa, 1, t.n)   # PROB until FMKILL (see FireState)
         @inbounds for i in 1:t.n
             # FMEFF draws RANN for EVERY record (DO 100 I=1,ITRN, fmeff.f:144/152), UNCONDITIONALLY
             # before any FMPROB/tpa guard. Draw first so the stream count matches live FVS exactly;
