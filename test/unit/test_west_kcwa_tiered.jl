@@ -101,4 +101,13 @@ end
     @test count(m -> m.file == "sum", c.ms) == 0
 end
 
+# fortyp.f:1166 IF(ICYC.EQ.0) IIFORTP=IFORTP — the inventory forest type, which ak/estab.f:296-302 falls back to when the
+# current type is not one of its 17 named types (e.g. 999 nonstocked). jl never set it (0 ⇒ IFT 14 ⇒ TPP 0): FVSak_g16
+# 10706662010497 thinbba, the 2037 ingrowth tally on a 999 stand: live IFT 6 (inventory 301), 2047 TPA 571 / jl 52.
+@testset "AK ESTAB falls back to the inventory forest type IIFORTP (fortyp.f:1166, ak/estab.f:296-302)" begin
+    c = _case("AK", "10706662010497", "thinbba")
+    @test !c.crashed
+    @test count(m -> m.file == "sum", c.ms) == 0
+end
+
 end # module
