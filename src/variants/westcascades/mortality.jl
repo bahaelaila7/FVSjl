@@ -27,29 +27,29 @@ const WC_BM5 = Float32[0.00063849,0.00063849,0.00063849,0.00063849,0.00063849,0.
 @inline function wc_mort_rip(sp::Int, d::Float32, cr::Float32, bal::Float32, ptbal::Float32,
                              ht::Float32, avh::Float32, ba::Float32, xsite1::Float32, xsite2::Float32)::Float32
     # --- large-tree ORGANON RIP (MORTMAP CASE) ---
-    cradj = cr <= 0.17f0 ? 1.0f0 - exp(-(25.0f0 * cr)^2) : 1.0f0
+    cradj = cr <= 0.17f0 ? 1.0f0 - fexp(-fpow(25.0f0 * cr, 2f0)) : 1.0f0   # wc/morts.f:331 (25*CR)**2.0 = powf
     b0 = WC_BM0[sp]; b1 = WC_BM1[sp]; b2 = WC_BM2[sp]; b3 = WC_BM3[sp]; b4 = WC_BM4[sp]; b5 = WC_BM5[sp]
     local rip::Float32
     mm = WC_MORTMAP[sp]
     if mm == 1
-        r = b0 + b1 * sqrt(d) + b3 * cr^0.25f0 + b4 * (xsite1 + 4.5f0) + b5 * bal
-        r = 1.0f0 / (1.0f0 + exp(-r)); r = (1.0f0 - r)^0.2f0; rip = 1.0f0 - r * cradj
+        r = b0 + b1 * fpow(d, 0.5f0) + b3 * fpow(cr, 0.25f0) + b4 * (xsite1 + 4.5f0) + b5 * bal   # D**.5 = powf
+        r = 1.0f0 / (1.0f0 + fexp(-r)); r = fpow((1.0f0 - r), 0.2f0); rip = 1.0f0 - r * cradj
     elseif mm == 2
         r = b0 + b1 * d + b4 * (xsite1 + 4.5f0) + b5 * (bal / d)
-        r = 1.0f0 / (1.0f0 + exp(-r)); r = (1.0f0 - r)^0.2f0; rip = 1.0f0 - r * cradj
+        r = 1.0f0 / (1.0f0 + fexp(-r)); r = fpow((1.0f0 - r), 0.2f0); rip = 1.0f0 - r * cradj
     elseif mm == 3
-        r = b0 + b1 * d + b2 * d * d + b3 * cr + b4 * (xsite2 + 4.5f0) + b5 * bal
-        r = 1.0f0 / (1.0f0 + exp(-r)); r = (1.0f0 - r)^0.2f0; rip = 1.0f0 - r * cradj
+        r = b0 + b1 * d + b2 * (d * d) + b3 * cr + b4 * (xsite2 + 4.5f0) + b5 * bal   # BM2*D**2: D² first
+        r = 1.0f0 / (1.0f0 + fexp(-r)); r = fpow((1.0f0 - r), 0.2f0); rip = 1.0f0 - r * cradj
     elseif mm == 4
-        r = b0 + b1 * d + b2 * d * d + b3 * cr + b4 * (xsite1 + 4.5f0) + b5 * bal
-        r = 1.0f0 / (1.0f0 + exp(-r)); r = (1.0f0 - r)^0.2f0; rip = 1.0f0 - r * cradj
+        r = b0 + b1 * d + b2 * (d * d) + b3 * cr + b4 * (xsite1 + 4.5f0) + b5 * bal
+        r = 1.0f0 / (1.0f0 + fexp(-r)); r = fpow((1.0f0 - r), 0.2f0); rip = 1.0f0 - r * cradj
     elseif mm == 5                                     # WO — Gould-Harrington (no ^0.2, no CRADJ)
         relht = avh > 0f0 ? ht / avh : 0f0; relht > 1.5f0 && (relht = 1.5f0)
-        r = -6.6707f0 + 0.5105f0 * log(5f0 + ba) - 1.3183f0 * relht
-        rip = 1.0f0 - 1.0f0 / (1.0f0 + exp(r))
+        r = -6.6707f0 + 0.5105f0 * flog(5f0 + ba) - 1.3183f0 * relht
+        rip = 1.0f0 - 1.0f0 / (1.0f0 + fexp(r))
     else                                               # mm == 6 — redwood (Castle 2021)
         r = 2.901447f0 + 0.578694f0 * d - 0.001793f0 * ptbal
-        rip = 1.0f0 / (1.0f0 + exp(r))
+        rip = 1.0f0 / (1.0f0 + fexp(r))
     end
     # --- small-tree Gould-Harrington override (D<3, not redwood) ---
     if d < 3.0f0 && sp != 17
@@ -59,7 +59,7 @@ const WC_BM5 = Float32[0.00063849,0.00063849,0.00063849,0.00063849,0.00063849,0.
         avalue = WC_MORT_MVALUES[WC_MCLASS[sp]]
         r = ptbal * avalue / sqrt(dbha + 1.0f0)
         r = WC_MORT_ALPHA[1] + WC_MORT_ALPHA[2] * r + WC_MORT_ALPHA[3] * relht
-        rip = 1.0f0 - 1.0f0 / (1.0f0 + exp(r))
+        rip = 1.0f0 - 1.0f0 / (1.0f0 + fexp(r))
     end
     return rip
 end
@@ -101,7 +101,7 @@ function _wcpn_mortality!(s::StandState, v; fint::Float32 = 10.0f0, book_snags::
         ptbal = s.density.point_bal[i]
         rip = wc_mort_rip(sp, d, cr, bal, ptbal, t.height[i], avh, ba, xsite1, xsite2)
         rip < 0.001f0 && (rip = 0.001f0)                    # morts.f:425 floor
-        wki = pr * (1.0f0 - (1.0f0 - rip)^fint)             # X=1 (no MORTMULT default)
+        wki = pr * (1.0f0 - fpow((1.0f0 - rip), fint))             # X=1 (no MORTMULT default)
         # morts.f:428-436 SIZE CAP: a tree growing past SIZCAP(1) dies at least at SIZCAP(2)·FINT/10 per cycle
         # (unless SIZCAP(3)=1). G = DG/BARK·FINT/10 on the floored D.
         gsc = (t.diam_growth[i] / wc_bratio(sd, sp, d)) * (fint / 10.0f0)
@@ -135,7 +135,7 @@ function _wcpn_mortality!(s::StandState, v; fint::Float32 = 10.0f0, book_snags::
             end
             ta <= 0f0 && break
             dq10a = sqrt(sd2sqa / ta); baa = 0.005454154f0 * dq10a * dq10a * ta
-            sdia = ta * (dq10a / 10.0f0)^1.605f0
+            sdia = ta * fpow((dq10a / 10.0f0), 1.605f0)
             (sdia < sdimax && baa < 550.0f0) && break
             pass += 1
         end

@@ -34,7 +34,7 @@ const WC_DUB_CRSD = Float32[1.3167, 1.3756, 1.9658, 2.0426, 0.5, 0.5]
     g = Int(WC_DUB_IMAP[sp])
     if sp == 17                                    # redwood logistic (wc/dubscr.f RW branch)
         hdr = Float32(h) * 12f0 / Float32(d)
-        cr = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
+        cr = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
              0.116274f0 * (Float32(d) / Float32(qmdplt))
         sd = 0.15f0
         fcr = 0f0
@@ -43,7 +43,7 @@ const WC_DUB_CRSD = Float32[1.3167, 1.3756, 1.9658, 2.0426, 0.5, 0.5]
             abs(fcr) > sd && continue
             break
         end
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     else
         cr = WC_DUB_BCR0[g] + WC_DUB_BCR1[g] * Float32(h) + WC_DUB_BCR2[g] * Float32(ba)
         sd = WC_DUB_CRSD[g]
@@ -103,8 +103,8 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
         local crnew::Float32
         if sp == 17                                       # redwood logistic (wc/crown.f CASE(17))
             hdr = d > 0f0 ? h * 12f0 / d : 1f0
-            xl = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(xl))
+            xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+            x = 1f0 / (1f0 + fexp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 10f0                               # CASE(17): CRNEW = X*10
         else
@@ -117,7 +117,7 @@ function crown_ratio_update!(s::StandState, ::WestCascades; fint::Float32 = 10.0
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # d≤0 uses RANN (not in wct01)
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = A + B * (-log(1f0 - x))^(1f0 / C)
+            crnew = A + B * fpow((-flog(1f0 - x)), 1f0 / C)
         end
         crnew *= 10f0
         # ±1%/yr change limit (skip when lstart or icr==0)

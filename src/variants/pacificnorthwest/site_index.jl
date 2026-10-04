@@ -161,7 +161,7 @@ function pn_sitset!(s::StandState)
         if ispc == 20 && isisp != 20
             v = v / 3.281f0; v > 28f0 && (v = 28f0)
         elseif ispc == 28 && isisp != 28
-            v = 114.2f0 * (1f0 - exp(-0.0266f0 * v))^2.26f0
+            v = 114.2f0 * fpow((1f0 - fexp(-0.0266f0 * v)), 2.26f0)
         elseif ispc != isisp && redux[ispc] != 1f0
             v = v * redux[ispc]
         end

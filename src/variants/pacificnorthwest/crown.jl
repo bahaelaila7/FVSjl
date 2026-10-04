@@ -28,11 +28,11 @@ const PN_DUB_CRSD = Float32[1.3167,1.3756,1.9658,2.0426,0.5,0.5]
     g = Int(PN_DUB_IMAP[sp])
     if sp == 17
         hdr = Float32(h) * 12f0 / Float32(d)
-        cr = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
+        cr = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
              0.116274f0 * (Float32(d) / Float32(qmdplt))
         sd = 0.15f0; fcr = 0f0
         while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     else
         cr = PN_DUB_BCR0[g] + PN_DUB_BCR1[g] * Float32(h) + PN_DUB_BCR2[g] * Float32(ba)
         sd = PN_DUB_CRSD[g]; fcr = 0f0
@@ -91,8 +91,8 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
         local crnew::Float32
         if sp == 17
             hdr = d > 0f0 ? h * 12f0 / d : 1f0
-            xl = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(xl)); x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
+            xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+            x = 1f0 / (1f0 + fexp(xl)); x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 10f0
         else
             A = PN_WEIBA[grp]
@@ -102,7 +102,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = A + B * (-log(1f0 - x))^(1f0 / C)
+            crnew = A + B * fpow((-flog(1f0 - x)), 1f0 / C)
         end
         crnew *= 10f0
         if !(lstart || icr == 0)
