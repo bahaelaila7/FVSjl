@@ -26,7 +26,7 @@ _t5_stand(rows) = (k = 1; [i == 1 ? 1 : (parse(Int, rows[i][1]) < parse(Int, row
 #  • bmt01/cit01 stand 5 (bare ground, PLANT 1992): jl's planted cohort runs one 5-year cycle ahead of live (regent.f LESTB
 #    FNT−5 / LSKIPH when FINT≤5 — the establishment-cycle height growth under 5-year cycles is not ported);
 #  • one-unit print knife-edges in a single volume column: ect01 row 2018 TCuFt, wct01 rows 2010 MCuFt / 2018 BdFt,
-#    cit01 rows 2060/2008/2018 BdFt.
+#    cit01 rows 2008/2018 BdFt (its 2060 BdFt edge became exact earlier on this branch).
 const _T5_CASES = [("pnt01_t5", _T5.PacificNorthwest(), Int[], Int[]),
                    ("ect01_t5", _T5.EastCascades(),    Int[], Int[]),
                    ("wct01_t5", _T5.WestCascades(),    Int[], Int[]),
@@ -46,7 +46,28 @@ const _T5_CASES = [("pnt01_t5", _T5.PacificNorthwest(), Int[], Int[]),
             nfull += (jl[i] == lv[i])
         end
         # every full row exact except the named one-unit volume knife-edges
-        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 1, "wct01_t5" => 2, "bmt01_t5" => 0, "cit01_t5" => 3)[stem]
+        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 1, "wct01_t5" => 2, "bmt01_t5" => 0, "cit01_t5" => 2)[stem]
         @test (stem, nfull) == (stem, count(i -> !(st[i] in skip_stands), eachindex(lv)) - nknife)
+    end
+end
+
+# KT, CR, WS, CA, SO under TIMEINT 5 (kt/cr/ws/ca/so tests keys; live FVSkt_clean / FVScr_clean / FVS<v>_g16 rows).
+# Their DG stays on the YR=10 basis through GRINCR like the variants above, REGENT's SCALE2 is YR/FNT, and KT's MORTS
+# reads cycle-1 WK1 from the DO-220 calibration DG with OLDFNT = the previous period. Rows still off are named
+# elsewhere (the FFE TEST stands of wst01/cat01, the residuals the 10-year keys also carry, one-unit print edges), so
+# this is a ratchet on the exact-row counts measured when the rescale landed (before, full rows / Year..QMD rows:
+# KT 1/6, CR 1/28, WS 3/9, CA 32/51, SO 11/27).
+const _T5_RATCHET = [("ktt01_t5", _T5.Kootenai(),           29, 46),
+                     ("crt01_t5", _T5.CentralRockies(),     29, 35),
+                     ("wst01_t5", _T5.WestSierra(),         52, 53),
+                     ("cat01_t5", _T5.CentralCalifornia(),  50, 53),
+                     ("sot01_t5", _T5.SouthCentralOregon(), 44, 47)]
+
+@testset "TIMEINT 5, KT/CR/WS/CA/SO: exact .sum rows vs live (ratchet)" begin
+    for (stem, v, nfull, nhead) in _T5_RATCHET
+        jl = _t5_rows(stem, v); lv = _t5_live(stem)
+        @test length(jl) == length(lv)
+        @test (stem, count(i -> jl[i] == lv[i], eachindex(lv)) >= nfull) == (stem, true)
+        @test (stem, count(i -> jl[i][1:8] == lv[i][1:8], eachindex(lv)) >= nhead) == (stem, true)
     end
 end
