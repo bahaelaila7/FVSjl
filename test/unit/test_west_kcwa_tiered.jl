@@ -22,4 +22,15 @@ _before(ms, y) = [m for m in ms if (k = _yr(m); k !== nothing && k < y)]
     @test !c.crashed
     @test isempty(_before(c.ms, 2000))
 end
+
+# kt/regent.f:560-562: a sub-4.5 ft record gets DBH(K)=0.1+DIAM·0.01+HK·0.001 with DG(K)=0 in its OWN slot — the tripled
+# copies too (kt/dgdriv.f:253/261 put the pre-REGENT D in their slots; TRIPLE does not copy DBH). jl gave the copies the
+# central DBH plus an equivalent increment (TreeList DG 7.9E-4 vs live 0) and a direct-set central's DBH for the others.
+@testset "KT REGENT sub-4.5 ft tripled copies keep their own DBH(K) (kt/regent.f:560-562)" begin
+    c = _case("KT", "4718785010690", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList" && m.col == "DG" && m.year == "2014", c.ms) == 0
+    c = _case("KT", "1627650292290487", "none")
+    @test isempty(_before(c.ms, 2050))          # 8325 cells from 2030 before
+end
 end # module

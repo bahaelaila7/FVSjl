@@ -520,7 +520,6 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             d1 = sp == 11 ? 0.0729f0*fpow(h - 4.5f0, 1.1988f0) + dadj : KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj
         end
         nrec = stash !== nothing ? 3 : 1
-        central_dbh = d
         for l in 0:(nrec - 1)
             zzran = 0.0f0
             if dgsd >= 1.0f0
@@ -557,17 +556,24 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 t.ht_growth[i] = htg
                 if small_d
                     if dbh_dir >= 0.0f0
-                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
+                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0
                     else
                         t.diam_growth[i] = dg_inc                           # increment; DBH via GRADD
                     end
                 end
             elseif l == 1
+                # kt/regent.f:560-562 HK<4.5: the copy's own DBH(K) is set directly with DG(K)=0 (TRIPLE carries the
+                # slot's DBH), not the central DBH plus an equivalent increment (FVS_TreeList DG 0 vs 7.9E-4); else the
+                # slot keeps the pre-REGENT D (kt/dgdriv.f:253/261) even when the central record was direct-set.
                 stash.htgU[i] = htg; stash.is_small[i] = true
-                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dbhU[i] = dbh_dir >= 0.0f0 ? dbh_dir : d; stash.dgU[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                end
             else
                 stash.htgL[i] = htg
-                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dbhL[i] = dbh_dir >= 0.0f0 ? dbh_dir : d; stash.dgL[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                end
             end
             # kt/regent.f:614-650 — a SMALL record (D<3; `IF(D.GE.3.0) GO TO 23` skips the rest) that reaches DBH≥3
             # this cycle (DNEW=D+DG on the cycle's DDS scale) gets a fresh DUBSCR crown (one FCR draw), capped at the
@@ -575,7 +581,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             # their slots, so they draw as well — but their ICR(K) is overwritten by TRIPLE's ICR(ITFN)=ICR(I), so for
             # them only the RNG draw survives. (Measured on ktt01 cycle 2: live dubs K=50,180,181,12,104,105,51,…)
             if small_d
-                dK = dbh_dir >= 0.0f0 ? dbh_dir : central_dbh           # DBH(K): the HK<4.5 direct set, else DBH(I)
+                dK = dbh_dir >= 0.0f0 ? dbh_dir : d                     # DBH(K): the HK<4.5 direct set, else the slot's D
                 dgK = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
                 barkK = bark_ratio(c.bark_a, c.bark_b, sp, dK)
                 dds2 = dgK * (2.0f0 * barkK * dK + dgK) * (fint / 10.0f0)       # SCALE2=FINT/YR
