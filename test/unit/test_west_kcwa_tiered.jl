@@ -199,4 +199,14 @@ end
     @test count(m -> m.col in ("DG", "DBH", "Ht", "HtG", "TPA"), c.ms) == 0             # 4,066 cells before
 end
 
+# fmcons.f:247-258: after a fire, IF(LAUTAL) FMCONS OPADDs a BurnPrep (491, PRMS(1)=EXPOSR) and a TALLY (427) at the fire
+# year. ak/esinit.f defaults LAUTAL=.TRUE. like IE/EM/KT, but jl scheduled them only for those three, so AK fell to the
+# NTALLY=99 ingrowth tally (ITPP capped at MAXING=3): FVSak_g16 644809321126144 simfire 2036 TPA 459 live / 198 jl. ak/esetpr.f
+# reads the BurnPrep percent from PRMS(1) — jl's (year, %) layout keeps it in params[2]; AK read the year.
+@testset "AK post-fire TALLY + BurnPrep (fmcons.f:247-258, ak/esetpr.f:85)" begin
+    c = _case("AK", "644809321126144", "simfire")
+    @test !c.crashed
+    @test count(m -> m.file == "sum", c.ms) == 0                                         # 72 .sum cells before
+end
+
 end # module

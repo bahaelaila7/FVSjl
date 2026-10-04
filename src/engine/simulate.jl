@@ -540,7 +540,10 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     # uses; the existing scheduled-427 path in ie_autoes_establish! then consumes it (idt=fire year sits in
     # [year,next_year) at the fire cycle ⇒ fires exactly once, inert every other cycle). ESB1 uses est.inv_baaold
     # (the ESFLTR-frozen inventory BA) so the post-fire tally calibrates against inventory, not the depleted BA.
-    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai)
+    # AK too: ak/esinit.f also defaults LAUTAL=.TRUE. and links the same fmcons.f:247-258 (FVSak_g16 644809321126144
+    # simfire: the 2026 fire's TALLY ⇒ NTALLY=1, BurnPrep 60.52% ⇒ PBURN 0.6052; jl ran the NTALLY=99 ingrowth tally).
+    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
+                          s.variant isa SoutheastAlaska)
         push!(s.control.schedule, ScheduledActivity(Int32(yr), Int32(427),
               (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
         # EXPOSR (fmcons.f:186-208): PRDUF(%) = 83.7 − 0.426·m_duff%, floored 0; EXPOSR = (−8.98 + 0.899·PRDUF)·
