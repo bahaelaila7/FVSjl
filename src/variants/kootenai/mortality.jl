@@ -97,7 +97,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
     aved = dsum / wprob
     # MORCON: POTEN → GMULT/REIN per size class (morts.f:646-653)
     ifor = kt_ifor(p)
@@ -105,8 +105,8 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     it = (1 <= itype <= 30) ? itype : 1
     poten1 = KT_MORT_POT[KT_MORT_IPDG[it, ifor]]
     poten2 = KT_MORT_POT[KT_MORT_IPDG2[it, ifor]]
-    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
     # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (kt/grinit.f:173 FINT=10., or the GROWTH card / FIA DG_MEASURE),
@@ -134,13 +134,13 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
               0.554421f0 / dd + KT_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))
         rip = rip * (ip == 1 ? rein1 : rein2)                # ·POTENT
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)                 # X=1 (no MORTMULT window)
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint))                 # X=1 (no MORTMULT window)
         gsc = (dgi / bark) * (fint / 10f0)
         if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)

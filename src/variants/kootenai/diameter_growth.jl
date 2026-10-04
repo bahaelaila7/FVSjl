@@ -32,9 +32,9 @@ function kt_dgcons!(s::StandState)
         (ispfor < 1 || ispfor > 7) && (ispfor = 1)
         dgcon = KT_DGHAB[isphab, sp] + KT_DGFOR[ispfor, sp] +
                 KT_DGEL[sp] * elev + KT_DGEL2[sp] * elev * elev +
-                (KT_DGSASP[sp] * sin(asp) + KT_DGCASP[sp] * cos(asp) + KT_DGSLOP[sp]) * slope +
+                (KT_DGSASP[sp] * fsin(asp) + KT_DGCASP[sp] * fcos(asp) + KT_DGSLOP[sp]) * slope +
                 KT_DGSLSQ[sp] * slope * slope
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         c.atten[sp]    = Float32(KT_OBSERV[isphab, sp])   # ATTEN = OBSERV(ISPHAB, ISPC)
         c.bark_a[sp]   = 0f0                              # KT bark: intercept 0, slope BKRAT (bratio chunk)
@@ -50,7 +50,7 @@ function dgf!(s::StandState, ::Kootenai)
     relden = p.relative_density        # RELDEN = stand CCF, set by compute_density!/DENSE (backdated-inclusive
                                        # during calibration at t.n=nlive+ndead, live-only during growth)
     ba = p.basal_area
-    lnba = ba > 0f0 ? log(ba) : 0f0
+    lnba = ba > 0f0 ? flog(ba) : 0f0
     managed = p.managed == Int32(1)
     @inbounds for i in 1:t.n
         d = t.dbh[i]
@@ -58,7 +58,7 @@ function dgf!(s::StandState, ::Kootenai)
         sp = Int(t.species[i])
         rd = sp == 11 ? 0.01f0 * KT_DGCCFA[sp] * relden : KT_DGCCFA[sp] * relden
         conspp = c.dg_const[sp] + c.dg_cor[sp] + rd
-        ald = log(d)
+        ald = flog(d)
         cr  = Float32(t.crown_pct[i]) * 0.01f0                 # CR = ICR*0.01 (fraction 0..1; kt/dgf.f:327)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba            # PCT = BA percentile
         sp == 11 && (bal = bal / 100f0)
@@ -68,7 +68,7 @@ function dgf!(s::StandState, ::Kootenai)
         dds = conspp +
               KT_DGLD[sp]   * ald +
               cr * (KT_DGCR[sp] + cr * KT_DGCRSQ[sp]) +
-              KT_DGDBAL[sp] * bal / log(d + 1f0) +
+              KT_DGDBAL[sp] * bal / flog(d + 1f0) +
               KT_CCFSQ[sp]  * relden * relden +
               KT_DGDS[sp]   * d * d +
               KT_DGLBA[sp]  * lnba +
