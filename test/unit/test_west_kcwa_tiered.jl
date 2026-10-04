@@ -144,4 +144,15 @@ end
     end
 end
 
+# dgdriv.f DO 155/160 (ws/dgdriv.f:459-525): the DG self-calibration sums run over each species' IND1 slice in
+# REAL*4 with glibc EXP/ALOG and SNXX=SNXX+P*EDDS*EDDS left-to-right; jl summed in record order with Julia exp/log
+# and P*EDDS^2 ⇒ CONSPP 1.48652804 jl vs 1.48652816 live (15353585010497 cycle 1, 1 ULP) ⇒ DG drift.
+@testset "DG self-calibration sums in IND1 order, glibc EXP/ALOG (ws/dgdriv.f:459-525)" begin
+    for cn in ("15353585010497", "23771657010900", "248626203489998")
+        c = _case("WS", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
