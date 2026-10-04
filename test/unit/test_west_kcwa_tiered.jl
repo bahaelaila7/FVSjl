@@ -41,4 +41,10 @@ end
     c = _case("KT", "3021216010690", "none")
     @test count(m -> m.file == "FVS_TreeList" && m.col == "DG" && m.year == "2009", c.ms) == 0
 end
+
+# kt/morts.f:201-203 CIOBDS=(2.0*D*G+G*G); SD2SQ=SD2SQ+P*(D*D+CIOBDS) — D²+(2DG+G²), not (D²+2DG)+G².
+@testset "KT MORTS SD2SQ association (kt/morts.f:201-203)" begin
+    c = _case("KT", "4718785010690", "none")
+    @test isempty(_before(c.ms, 2034))          # first divergence 2024 before
+end
 end # module

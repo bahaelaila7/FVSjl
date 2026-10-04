@@ -88,7 +88,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = bark_ratio(bark_a, bark_b, sp, d)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr     # SD2SQ+P*(D*D+CIOBDS), CIOBDS=2DG+G² (morts.f:201-203)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
