@@ -82,6 +82,12 @@ variant_maxtre(::AbstractVariant) = MAXTRE
 # grinit.f FINT — the DG MEASUREMENT period, which grincr.f uses as cycle 1's OLDFNT (the "previous period" in
 # AUTCOR's serial correlation). Equal to YR in every variant except NC (YR=5, FINT=10).
 dg_measure_period(v::AbstractVariant) = htg_period(v)
+# grincr.f:60-64 OLDFNT, the "previous period" the Hamilton MORTS vigor term G=WK1/(BARK·OLDFNT) divides by: cycle 1 =
+# FINT as read (the DG measurement period: GROWTH card / FIA DG_MEASURE, else grinit's), later cycles = the previous
+# cycle's length IY(ICYC)−IY(ICYC−1).
+morts_oldfnt(s) = Int(s.control.cycle) == 0 ?
+    ((s.control.growth_dg_set && s.control.growth_fint > 0f0) ? s.control.growth_fint : Float32(dg_measure_period(s.variant))) :
+    Float32(max(1, cycle_period_at(s.control, Int(s.control.cycle) - 1)))
 function height_from_dbh end              # htcalc.f / htdbh.f
 function crown_ratio! end                 # crown.f
 function mortality! end                   # morts.f

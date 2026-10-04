@@ -109,6 +109,9 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
+    # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (kt/grinit.f:173 FINT=10., or the GROWTH card / FIA DG_MEASURE),
+    # later cycles = the previous cycle's length IY(ICYC)−IY(ICYC−1). jl had 10 for every cycle (wrong under TIMEINT).
+    oldfnt = morts_oldfnt(s)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
@@ -118,9 +121,9 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         dgi = t.diam_growth[i]
         ip = d <= 5f0 ? 2 : 1
         gmult = ip == 1 ? gmult1 : gmult2
-        # G growth term (morts.f:259-272). WK1 = previous cycle's applied DG (vigor proxy), OLDFNT = its
-        # period (10 for uniform cycles). Cycle 1 (WK1=0) falls to the DG override.
-        wk1 = t.dg_prev[i]; oldfnt = 10f0
+        # G growth term (morts.f:259-272). WK1 = DG at the top of DGDRIV (dgdriv.f:130-132): the previous cycle's
+        # applied DG, at cycle 1 the DO-220 calibration DG (kt_do220_dg); OLDFNT = the period it grew over.
+        wk1 = t.dg_prev[i]
         dgt = wk1 / oldfnt
         d <= 1f0 && dgt < 0.05f0 && (dgt = 0.05f0)
         (1f0 < d <= 5f0) && dgt < 0.05f0 && (dgt = 0.05f0 * (5f0 - d) / 4f0)
