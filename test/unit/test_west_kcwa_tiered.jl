@@ -110,4 +110,13 @@ end
     @test count(m -> m.file == "sum", c.ms) == 0
 end
 
+# ca/htgf.f, htcalc.f, dgf.f, crown.f, htdbh.f, regent.f: REAL*4 EXP/ALOG/SIN/COS/** are glibc expf/logf/sinf/cosf/powf
+# (doctrine §4), (D*BARK)**2.0 is powf at -O0, and htcalc.f's constant ALOG(50.)/EXP(50.0*(-0.0440853))/50.0**1.51744
+# are folded (correctly rounded) by gfortran. 23742358010900: DF HTG 9.54881763 live / 9.54880428 jl at 2011.
+@testset "CA growth kernels in glibc expf/logf/powf (ca/htgf.f, htcalc.f, dgf.f)" begin
+    c = _case("CA", "23742358010900", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList" && m.col == "HtG" && m.year == "2011", c.ms) == 0
+end
+
 end # module
