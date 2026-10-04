@@ -230,23 +230,8 @@ end
 
 # tt/dgdriv.f DO 220 DG(I) — measured (capped at inside-bark DBH when IDG<2), 0 at HT<=4.5, else the dub from the
 # second DGF(WK3) (COR final; dub_wk2/dub_wk3 stash). Read by the LSTART REGCAL DO 49.
-@inline function tt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32
-    t, c = s.trees, s.calib
-    sp = Int(t.species[i])
-    bark = tt_bratio(sp, dcur)
-    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
-        dg = t.diam_growth[i]
-        (s.control.growth_idg < 2 && dg > dcur * bark) && (dg = dcur * bark)
-        return dg
-    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
-        return 0f0
-    end
-    sc = s.control.growth_fint / 10f0
-    dd = c.dub_wk3[i] * bark
-    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
-    dub > dd && (dub = dd)
-    return dg_bound(nothing, nothing, sp, dcur, dub, s.control.sp_size_cap)
-end
+@inline tt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32 =
+    do220_dg(s, i, dcur, tt_bratio(Int(s.trees.species[i]), dcur))
 
 """
     tt_regent_hcor_init!(s, isct, ind1, saved_dbh, temba, temccf, pccfv, avh)
