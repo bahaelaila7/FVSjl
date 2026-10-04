@@ -179,3 +179,14 @@ end
         @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "IE 374547584489998 (KODFOR 621) FFE live merch stem on the stand's NVEL region vs live FVSie_g16" begin
+    # FMSVL2 → NATCRS uses IREGN=KODFOR/100 (fvsvol.f:90-96): the Colville's region-6 merch rules, as VOLS does.
+    # Before: Aboveground_Merch_Live 39.71698 vs live 39.78778 at 2015 (region-1 rules).
+    db = _cr_run("ie", "374547584489998", "salvage")
+    gold, jl = _cr_table("ie", "374547584489998", "salvage", db, "FVS_Carbon")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold
+        @test _cr_f32(jd[g["Year"]]["Aboveground_Merch_Live"]) == _cr_f32(g["Aboveground_Merch_Live"])
+    end
+end

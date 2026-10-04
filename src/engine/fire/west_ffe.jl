@@ -141,9 +141,14 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
             tcf, mcf, _, _ = ie_behre_vol(sp, Int(s.plot.forest_idx), d, h, bark)
             return (max(tcf, 0f0), d >= dbhmin ? max(mcf, 0f0) : 0f0, bark, true)
         end
+        # NATCRS gets the stand's NVEL region (fvsvol.f:90-96 IREGN=KODFOR/100) exactly as compute_volumes! — the Colville
+        # (KODFOR 621, REGN 6) merch rules (MEASURED FVSie_g16 374547584489998 2015 Aboveground_Merch_Live 39.78778 live,
+        # region-1 rules 39.71698).
+        iregn = fvsvol_iregn(s)
+        bcor, mopt = iregn == 6 ? ('N', 23) : ('Y', 22)
         w = startswith(eq, "I") ?
-            cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1,
-                       sf_hs = true, ht2td = zeros(Float32, 2)) :
+            cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = iregn,
+                       board_cor = bcor, merch_opt = mopt, sf_hs = true, ht2td = zeros(Float32, 2)) :
             ie_dve_vol(eq, d, h, true)
         return (max(w[1], 0f0), d >= dbhmin ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
     end
