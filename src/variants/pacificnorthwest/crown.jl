@@ -159,5 +159,5 @@ const PN_ISPMAP = Int[
     (sp < 1 || sp > 39) && return 0f0
     ic = PN_CCF_INDCCF[sp]; D = Float32(d)
     return D < 1.0f0 ? D * (PN_CCF_RD1[ic] + PN_CCF_RD2[ic] + PN_CCF_RD3[ic]) :
-                       PN_CCF_RD1[ic] + PN_CCF_RD2[ic] * D + PN_CCF_RD3[ic] * D * D
+                       PN_CCF_RD1[ic] + PN_CCF_RD2[ic] * D + PN_CCF_RD3[ic] * fpow(D, 2f0)   # pn/ccfcal.f:109 RD3*D**2.0 (powf)
 end

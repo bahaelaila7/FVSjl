@@ -173,7 +173,7 @@ const SO_ISPMAP = Int32[
     end
     if sp in SO_CCF_HARDWOOD                            # WC-hardwood set
         D < 1f0 && return D * (SO_CCF_RD1[sp] + SO_CCF_RD2[sp] + SO_CCF_RD3[sp])
-        return SO_CCF_RD1[sp] + SO_CCF_RD2[sp]*D + SO_CCF_RD3[sp]*D*D
+        return SO_CCF_RD1[sp] + SO_CCF_RD2[sp]*D + SO_CCF_RD3[sp]*fpow(D, 2f0)   # so/ccfcal.f:198 RD3*D**2.0 (powf)
     end
     D >= 1f0 && return SO_CCF_RD1[sp] + D*SO_CCF_RD2[sp] + D*D*SO_CCF_RD3[sp]
     D > 0.1f0 && return SO_CCF_RDA[sp] * fpow(D, SO_CCF_RDB[sp])

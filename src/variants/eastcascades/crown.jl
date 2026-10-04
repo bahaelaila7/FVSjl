@@ -144,7 +144,7 @@ const EC_CCF_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7800,1.7333,1.7600,1.73
 @inline function ec_tree_ccf(sp::Integer, d::Real)::Float32
     (sp < 1 || sp > 32) && return 0f0
     D = Float32(d)
-    D >= 1.0f0 && return EC_CCF_RD1[sp] + EC_CCF_RD2[sp] * D + EC_CCF_RD3[sp] * D * D
+    D >= 1.0f0 && return EC_CCF_RD1[sp] + D * EC_CCF_RD2[sp] + D * D * EC_CCF_RD3[sp]   # ec/ccfcal.f:221 D*D*RD3 (D² first)
     if sp in EC_NATIVE_SP                               # EC-form small-tree CCF
         D > 0.1f0 && return EC_CCF_RDA[sp] * fpow(D, EC_CCF_RDB[sp])
         return 0.001f0

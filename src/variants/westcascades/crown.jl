@@ -164,7 +164,7 @@ const WC_CCF_RD3 = Float32[0.00207,0.00524,0.00466,0.00183,0.00207,0.00261,0.003
     (sp < 1 || sp > 39) && return 0f0
     ic = WC_CCF_INDCCF[sp]; D = Float32(d)
     return D < 1.0f0 ? D * (WC_CCF_RD1[ic] + WC_CCF_RD2[ic] + WC_CCF_RD3[ic]) :
-                       WC_CCF_RD1[ic] + WC_CCF_RD2[ic] * D + WC_CCF_RD3[ic] * D * D
+                       WC_CCF_RD1[ic] + WC_CCF_RD2[ic] * D + WC_CCF_RD3[ic] * fpow(D, 2f0)   # wc/ccfcal.f:120 RD3*D**2.0 (powf)
 end
 
 # ---------------------------------------------------------------------------
