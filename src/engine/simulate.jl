@@ -26,6 +26,7 @@ function setup_growth!(s::StandState)
     s.variant isa OregonCoast && oc_organon_prepare!(s)
     s.variant isa Olympic && op_organon_prepare!(s)   # OP ORGANON NWO PREPARE (op/cratet.f) — dub valid-ORGANON HT/CR + ACALIB
     s.variant isa Utah && ut_cratet_site_adjust!(s)   # ut/cratet.f:99-150 50-yr-base SITEAR (TEMCCF on NOTRE-expanded PROB)
+    s.variant isa BritishColumbia && bc_cratet_site_adjust!(s)   # canada/bc cratet.f:70-110 PY 50-yr-base SITEAR
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
     setup_volume_equations!(s)           # VOLEQDEF — per-species NVEL equation ids
