@@ -104,6 +104,19 @@ function op_organon_prepare!(s::StandState)
     return nothing
 end
 
+# op/dgdriv.f:494-513: `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the attenuation, so a species with no records this
+# cycle keeps its previous COR (the shared driver's skip, 08184f5c; the same line in every variant's dgdriv.f).
+function _op_cor_attenuate!(s::StandState, cormlt::Float32)
+    c = s.calib
+    species_sort!(s)
+    isct = s.control.sp_count_tab
+    @inbounds for sp in 1:MAXSP
+        (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
+        c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+    end
+    return s
+end
+
 """
     diameter_growth!(s, ::Olympic; sfint=5, tripling=false, kwargs...) -> nothing
 
@@ -120,9 +133,7 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     # clock from the IY schedule (cormlt=1 at the first projection cycle). Inert (COR=0) when no calibration.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
     cormlt = exp(-0.02773f0 * elapsed)
-    @inbounds for sp in 1:MAXSP
-        c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
-    end
+    _op_cor_attenuate!(s, cormlt)
     op_dgcons!(s)                                           # ENTRY DGCONS — per-species site DGCON
     dgf!(s, s.variant)                                      # WK2 = op-native ln(DDS) for IORG=0 trees
     wk2 = view(s.scratch.wk, 2, :)

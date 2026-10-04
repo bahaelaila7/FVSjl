@@ -334,3 +334,13 @@ end
         @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "OP DGDRIV: no COR attenuation for a species without records this cycle (op/dgdriv.f:494-495 IF(I1.EQ.0) GO TO 50)" begin
+    s = FVSjl.StandState(FVSjl.Olympic()); t = s.trees; c = s.calib
+    t.n = 2; t.species[1] = 3; t.species[2] = 3; t.dbh[1] = 10f0; t.dbh[2] = 12f0; t.tpa[1] = t.tpa[2] = 10f0
+    c.dg_cor_goal[3] = 0.2f0; c.dg_cor[3] = 0.4f0                # present species: attenuated
+    c.dg_cor_goal[5] = 0.1f0; c.dg_cor[5] = 0.17f0               # absent species: keeps its previous COR
+    FVSjl._op_cor_attenuate!(s, 0.5f0)
+    @test c.dg_cor[3] == 0.2f0 + 0.5f0 * 0.2f0
+    @test c.dg_cor[5] == 0.17f0
+end
