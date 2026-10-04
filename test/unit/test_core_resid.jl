@@ -68,3 +68,20 @@ end
         @test isapprox(_cr_f32(jd[y][c]), _cr_f32(g[c]); rtol = 2f-6)
     end
 end
+
+@testset "IE 11855985010690 simfire 2016 burn (FMCBA CRWDTH = last CWIDTH dims) vs live FVSie_g16" begin
+    # ie/fmcba.f:244 CWIDTH=CRWDTH(I): the end-of-previous-cycle crown width TRIPLE copied, not one recomputed from the
+    # seam DBH of this cycle's grown small trees. Before: TOTCRA 30163.06 vs 30151.213 ⇒ Midflame_Wind 1.66760 vs
+    # 1.66796 and every FVS_Mortality fire-kill cell of the 2016 burn off (Bakill 132.00223 vs 132.00040).
+    db = _cr_run("ie", "11855985010690", "simfire")
+    for t in ("FVS_BurnReport", "FVS_Mortality")
+        gold, jl = _cr_table("ie", "11855985010690", "simfire", db, t)
+        @test length(jl) == length(gold)
+        k(r) = (string(r["Year"]), string(get(r, "SpeciesFVS", "")))
+        jd = Dict(k(r) => r for r in jl)
+        cols = [c for c in keys(gold[1]) if !(c in ("StandID", "Year", "SpeciesFIA")) && tryparse(Float64, gold[1][c]) !== nothing]
+        for g in gold, c in cols
+            @test _cr_f32(jd[k(g)][c]) == _cr_f32(g[c])
+        end
+    end
+end

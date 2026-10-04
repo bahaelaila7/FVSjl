@@ -122,12 +122,23 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    # CWIDTH=CRWDTH(I) (ie/fmcba.f:244, em/fmcba.f:253) is the crown width CWIDTH last stored — end of the previous
+    # cycle's GRADD (or the load) — and TRIPLE copies it to a record's copies: its dims are the FMOLDC snapshot
+    # (`ffe_old*`, taken after each grow and carried by the tripling), not the record's current DBH/HT. They differ at
+    # a SIMFIRE cycle's FMMAIN seam, where the small trees already carry this cycle's growth (MEASURED FVSie_g16
+    # 11855985010690 2016 burn, private FMCBA trace: records 12/116 CRWDTH 1.0721917 both, jl from the seam DBH
+    # 1.0777394 ⇒ TOTCRA 30163.06 vs 30151.213 ⇒ PERCOV/WMULT ⇒ Midflame_Wind 1.66760 vs 1.66796, fire kill).
+    _old_cw = s.variant isa InlandEmpire || s.variant isa EasternMontana
     cwrec = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+        cw = (_old_cw && t.ffe_oldht[i] > 0f0) ?
+                 (_em_fm ? em_cwcalc(sp, t.ffe_olddbh[i], t.ffe_oldht[i], t.ffe_oldcr[i], s.plot.basal_area,
+                                     s.plot.elevation, _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :
+                           tree_crwdth(s, sp, t.ffe_olddbh[i], t.ffe_oldht[i], t.ffe_oldcr[i])) :
+             _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
