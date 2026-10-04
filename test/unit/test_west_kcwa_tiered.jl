@@ -186,4 +186,17 @@ end
     @test count(m -> m.col in ("TPA", "MortPA") || m.file == "sum", c.ms) == 0      # 9,818 cells before
 end
 
+# ca/dgf.f:383-387: DDS = CONSPP + … ; DDS = DDS + DGPCCF·PCCF + DGHAH·RELHT + DGLBA·ALOG(BA) + DGBAL·BAL, left to right.
+# jl's `dds += a + b + c + d` summed the four terms before adding DDS: 23742358010900 cycle-1 WK2 3.9585423 jl / 3.95854211
+# live (record 31) ⇒ DDS 52.380917 / 52.3809052 ⇒ the tripled DGs 1 ULP off from 2011.
+@testset "CA DGF second DDS line left-to-right (ca/dgf.f:386-387)" begin
+    for cn in ("23676707010900", "374203872489998", "374401353489998")
+        c = _case("CA", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+    c = _case("CA", "23742358010900", "none")
+    @test count(m -> m.col in ("DG", "DBH", "Ht", "HtG", "TPA"), c.ms) == 0             # 4,066 cells before
+end
+
 end # module
