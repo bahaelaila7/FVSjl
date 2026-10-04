@@ -679,7 +679,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                     bark_c = em_bratio(sp, d)
                     dg = (dk - dkk) * bark_c
                     dds = dg * (2.0f0 * bark_c * d + dg) * scale
-                    dg = sqrt(max((d * bark_c)^2 + dds, 0f0)) - bark_c * d
+                    dg = sqrt(max(fpow(d * bark_c, 2.0f0) + dds, 0f0)) - bark_c * d
                     if lestb                                                # regent.f:895-898
                         dbhk = dk; dbh_set = true
                         dg > dgmx && (dg = dgmx)
@@ -712,7 +712,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                             bark_c = em_bratio(sp, d)
                             dgt = (dk - dkk) * bark_c
                             dds = dgt * (2.0f0 * bark_c * d + dgt)
-                            dgt = sqrt(max((d * bark_c)^2 + dds, 0f0)) - bark_c * d
+                            dgt = sqrt(max(fpow(d * bark_c, 2.0f0) + dds, 0f0)) - bark_c * d
                         else
                             dgt = 0.0f0
                         end
@@ -746,7 +746,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
                     bark_c = em_bratio(sp, dbhk)     # regent.f:1002 BRATIO(ISPC,DBH(K),HT(K))
                     dg = kind == 2 ? dgk * bark_c : (kind == 3 ? dgt : dgk)
                     dds = dg * (2.0f0 * bark_c * d + dg) * scale
-                    dg = sqrt(max((d * bark_c)^2 + dds, 0f0)) - bark_c * d
+                    dg = sqrt(max(fpow(d * bark_c, 2.0f0) + dds, 0f0)) - bark_c * d
                     (dbhk + dg) < diam && (dg = diam - dbhk)
                     dgk_out = dg
                     end

@@ -263,3 +263,18 @@ end
         end
     end
 end
+
+@testset "IE 4769882010690 none FVS_TreeList: REGENT's (D*BARK)**2.0 is powf, not D·D (ie/regent.f:982)" begin
+    # A REAL exponent compiles to glibc powf, which is not always the correctly rounded square: RC record 314's 2034 DG
+    # 0.20906734 from (D·BARK)² vs live 0.20906758 from powf (same D/BARK/DDS) ⇒ DBH from 2034. Now bit-exact.
+    db = _cr_run("ie", "4769882010690", "none")
+    gold, jl = _cr_table("ie", "4769882010690", "none", db, "FVS_TreeList")
+    key(r) = (parse(Int, string(r["Year"])), parse(Int, string(r["TreeIndex"])))
+    jd = Dict(key(r) => r for r in jl)
+    @test length(jl) == length(gold)
+    num = ["TPA", "MortPA", "DBH", "DG", "Ht", "HtG", "TCuFt", "MCuFt", "BdFt"]
+    bad = [key(g) for g in gold if !haskey(jd, key(g)) || any(_cr_f32(jd[key(g)][c]) != _cr_f32(g[c]) for c in num)]
+    @test isempty(bad)
+    x = reinterpret(Float32, 0x401E94E7)          # that record's D·BARK
+    @test FVSjl.fpow(x, 2.0f0) != x * x            # the case where the two differ
+end
