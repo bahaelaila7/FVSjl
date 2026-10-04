@@ -80,7 +80,7 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
     D = Float32(d)
     if sp == 41                                            # MC (SO surrogate)
         D < 1f0 && return D * (0.0204f0 + 0.0246f0 + 0.0074f0)
-        return 0.0204f0 + 0.0246f0 * D + 0.0074f0 * D * D
+        return 0.0204f0 + 0.0246f0 * D + 0.0074f0 * fpow(D, 2.0f0)       # ws/ccfcal.f:225 D**2.0 = powf
     elseif sp == 21                                        # GB (UT surrogate)
         D >= 10f0 && return 0.01925f0 + 0.01676f0 * D + 0.00365f0 * D * D
         D > 0.1f0 && return 0.009187f0 * fpow(D, 1.7600f0)
@@ -90,7 +90,7 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
         return cw * cw * 0.001803f0
     end
     # CASE DEFAULT (WS-native, incl SP/DF/WF/RF): crown-width² (RD1+D·RD2)² · 0.001803
-    D >= 1f0 && return ((WS_CCF_RD1[sp] + D * WS_CCF_RD2[sp])^2) * 0.001803f0
+    D >= 1f0 && return fpow(WS_CCF_RD1[sp] + D * WS_CCF_RD2[sp], 2.0f0) * 0.001803f0   # ws/ccfcal.f:243 (..)**2.0 = powf
     D > 0.1f0 && return WS_CCF_RDA[sp] * fpow(D, WS_CCF_RDB[sp])
     return 0.001f0
 end

@@ -355,7 +355,7 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         pct = t.crown_ratio[i]
         bal = ((100f0 - pct) / 100f0) * ba
         bal <= 0f0 && (bal = 0.001f0)
-        bai = (d + dg) * (d + dg) - d * d
+        bai = fpow(d + dg, 2.0f0) - d * d                        # ws/htgf.f:828,873 ((DBH+DG)**2.0) = powf
         htg = htcon + WS_HGDG2[isp] * dg + WS_HGRDG2[isp] * sqrt(dg) + WS_HGBA2[isp] * ba +
               WS_HGBAI2[isp] * bai + WS_HGLBA2[isp] * alba + WS_HGBLT2[isp] * bal +
               WS_HGBAD2[isp] * bal / d + WS_HGCR2[isp] * icr + WS_HGDSQ[isp] * d * d
@@ -368,7 +368,7 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         end
         # HTMAX cap (oaks 28:33,40,43 use (D+DG+1)², else (D+DG+1)); floor 0.1.
         htmax = (isp in (28,29,30,31,32,33,40,43)) ?
-            fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / ((d + dg + 1f0)^2)) + 4.5f0 :
+            fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / fpow(d + dg + 1f0, 2.0f0)) + 4.5f0 :   # ws/htgf.f:889 **2.0 = powf
             fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dg + 1f0)) + 4.5f0
         (h + htg) > htmax && (htg = htmax - h)
         htg < 0.1f0 && (htg = 0.1f0)
@@ -408,7 +408,7 @@ function ws_triple_htg!(s::StandState, stash)
         for l in 1:2
             dgc = l == 1 ? stash.dgU[i] : stash.dgL[i]
             hc = tem * dgc / dgi
-            htmax = oak ? fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / ((d + dgc + 1f0)^2)) + 4.5f0 :
+            htmax = oak ? fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / fpow(d + dgc + 1f0, 2.0f0)) + 4.5f0 :
                           fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dgc + 1f0)) + 4.5f0
             (h + hc) > htmax && (hc = htmax - h)
             hc < 0.1f0 && (hc = 0.1f0)
