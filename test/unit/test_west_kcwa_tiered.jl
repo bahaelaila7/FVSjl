@@ -47,4 +47,18 @@ end
     c = _case("KT", "4718785010690", "none")
     @test isempty(_before(c.ms, 2034))          # first divergence 2024 before
 end
+
+# kt/morts.f:288-307: X = XMORT inside the MORTMULT DBH window, then the ESTAB best-tree IESTAT guard. jl ran X=1 for every
+# record. ktt01 with MORTMULT 1990 all-species ×2.5 on 5-15" and 2010 DF ×0.4: every .sum row equals live FVSkt_clean
+# (all 7 rows off without the window).
+@testset "KT MORTS MORTMULT window (kt/morts.f:288-292) vs live FVSkt" begin
+    dir = joinpath(@__DIR__, "..", "fixtures", "kootenai", "ktt01_mortmult")
+    out = mktempdir()
+    for f in ("ktmm.key", "ktmm.tre"); cp(joinpath(dir, f), joinpath(out, f)); end
+    rows(t) = [l for l in split(t, '\n') if occursin(r"^\s?\d{4} ", l)]
+    jl = rows(cd(() -> FVSjl.run_keyfile("ktmm.key"; variant = FVSjl.Kootenai(), output = :sum), out))
+    lv = rows(read(joinpath(dir, "ktmm.live.sum"), String))
+    @test length(jl) == length(lv)
+    for (g, j) in zip(lv, jl); @test rstrip(j) == rstrip(g); end
+end
 end # module

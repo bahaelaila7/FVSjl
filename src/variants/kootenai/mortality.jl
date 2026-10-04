@@ -113,6 +113,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     # later cycles = the previous cycle's length IY(ICYC)−IY(ICYC−1). jl had 10 for every cycle (wrong under TIMEINT).
     oldfnt = morts_oldfnt(s)
     sc = s.control.sp_size_cap
+    cur_year = current_cycle_year(s)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
         d = t.dbh[i]; bark = bark_ratio(bark_a, bark_b, sp, d)
@@ -140,9 +141,20 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - fpow(1f0 - ripp, fint))                 # X=1 (no MORTMULT window)
-        gsc = (dgi / bark) * (fint / 10f0)
-        if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
+        # kt/morts.f:288-307: X = XMORT inside the MORTMULT [XMDIA1,XMDIA2) window (on the D≤0.5→0.5 clamped D), then
+        # the ESTAB "best" trees are immune for 20 yr after the disturbance date: IESTAT cleared once IY(ICYC)
+        # reaches it, else X·(1−XCHECK), XCHECK = clamp((IESTAT−IY(ICYC))/FINT, 0, 1). jl ran X=1 for every record.
+        x = active_mort_mult(s.control, sp, cur_year, dd)
+        if t.iestat[i] > 0
+            iyc = Int32(cur_year)
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = clamp(Float32(t.iestat[i] - iyc) / fint, 0f0, 1f0)
+            x = x * (1f0 - xchk)
+        end
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * x
+        # kt/morts.f:309-312 BARK=BRATIO(ISPC,D,HT) and D+G on the clamped D
+        gsc = (dgi / bark_ratio(bark_a, bark_b, sp, dd)) * (fint / 10f0)
+        if (dd + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
         end
         wki > pr && (wki = pr)
