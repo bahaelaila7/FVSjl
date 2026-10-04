@@ -942,6 +942,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # kt/morts.f:259-264 vigor G=WK1/(BARK·OLDFNT) of every record whose DG≤0.5 (the :268 override covers the rest).
     (s.variant isa Kootenai && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = kt_do220_dg(s, i, t.dbh[i]); end)
+    # TT: the same tt/dgdriv.f WK1(I)=DG(I) — tt/morts.f:543-552 (PP, CASE 10) reads it as G=WK1/(BARK·OLDFNT).
+    (s.variant isa Teton && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = tt_do220_dg(s, i, t.dbh[i]); end)
     # DFTM DFTMGO+TMBMAS predict seam (grincr.f:402/424, BEFORE DGDRIV): on a scheduled tussock-moth
     # outbreak this cycle, gate on host presence and compute the IBMTYP=2 foliage biomass/percent-new
     # from the PRIOR-cycle DG (t.diam_growth still holds it here) for the gradd TMCOUP coupler. Inert
