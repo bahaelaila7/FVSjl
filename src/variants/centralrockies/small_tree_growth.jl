@@ -174,15 +174,27 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
                 pctred, con, 1.0f0, 1.0f0, scale, scale2, (cw === nothing ? 1f0 : cw[i]), htg_large, s.control.sp_size_cap[sp, 4],
                 p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
                 diamv[sp], ax, ht2v[sp])
+            # regent.f:343-346: HK=H+HTG(K)≤4.5 ⇒ DG(K)=0 and DBH(K)=D+0.001·HK set IMMEDIATELY — MORTS (SDQ0/
+            # SUMDR0 on DBH, G=DG/BARK=0) and every other pre-UPDATE consumer reads the bumped DBH with a zero
+            # increment. Carrying the bump as dg=0.001·HK·BARK instead left the start-of-cycle Zeide DR0 low on
+            # seedling-heavy stands (46279527020004: SUMDR0 16531.86 vs live 16533.72) ⇒ a lower self-thinning
+            # target and a ~1e-3 relative MortPA drift on every record. Tripled copies get their own D+0.001·HK_L
+            # through stash.dbhU/dbhL (applied at TRIPLE, as UT/CI).
+            direct = small_d && (h + htg) <= 4.5f0
+            dbhk = direct ? d + 0.001f0 * (h + htg) : d
+            direct && (dg = 0f0)
             if l == 0
                 t.ht_growth[i] = htg
                 small_d && (t.diam_growth[i] = dg)
+                direct && (t.dbh[i] = dbhk)
             elseif l == 1
                 stash.htgU[i] = htg; stash.is_small[i] = true
                 small_d && (stash.dgU[i] = dg)              # D<BKPT ⇒ regent DG; else keep the driver's gemdg dgU
+                small_d && hasproperty(stash, :dbhU) && (stash.dbhU[i] = dbhk)
             else
                 stash.htgL[i] = htg
                 small_d && (stash.dgL[i] = dg)
+                small_d && hasproperty(stash, :dbhL) && (stash.dbhL[i] = dbhk)
             end
         end
     end
