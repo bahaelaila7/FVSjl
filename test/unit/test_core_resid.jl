@@ -168,3 +168,14 @@ end
         @test _cr_f32(jd2[k(g)][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "IE 3285544010690 thinbba: REGENT(LESTB) seedling crown on the pre-ESNUTR PCCF vs live FVSie_g16" begin
+    # regent.f:301-319 CR=0.89722-0.0000461*PCCF reads the gradd.f:192 DENSE PCCF (before ESNUTR); jl's density had
+    # the AUTOES cohort in it (point 2 178.16805 vs 177.69788) ⇒ ICR 89 vs 90 ⇒ QMD off at 2052.
+    db = _cr_run("ie", "3285544010690", "thinbba")
+    gold, jl = _cr_table("ie", "3285544010690", "thinbba", db, "FVS_Summary")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("Tpa", "BA", "QMD", "ATQMD", "TCuFt", "TopHt")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+end

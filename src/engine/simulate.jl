@@ -1485,7 +1485,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
     s.variant isa InlandEmpire && ie_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden,
-        relden_pre = es_ie_relden_pre, ba_pre = es_ie_ba_pre)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
+        relden_pre = es_ie_relden_pre, ba_pre = es_ie_ba_pre, pccf_pre = es_pccf_pre)   # IE western: grow birth-cycle regen (ie/esgent.f, #186; NIVAR). #194-class: start-of-cycle TEMAHT/TEMBA/TEMCCF for DADJ
     # dgdriv.f:142 WK1(I)=DG(I) runs at the START of the next cycle's DGDRIV over ALL records, so a tree born this
     # cycle enters next cycle's MORTS with WK1 = its birth-cycle DG (regent.f:941 LESTB NIVAR: DG(K)=DK). jl copies
     # dg_prev in the growth-apply loop above, which runs BEFORE establishment — so the new records kept WK1=0 and
