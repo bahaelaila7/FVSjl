@@ -547,7 +547,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                     dgk = (dk - d1) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0) # kt/regent.f:591 (DK−D1)·XRDGRO
                     dg0 = dgk * bark                                        # DG(K)=DGK·BARK (:599)
                     dds = dg0 * (2.0f0*bark*d + dg0) * scale                # :600
-                    dg_inc = sqrt((d*bark)^2 + dds) - bark*d              # :601
+                    dg_inc = sqrt(fpow(d*bark, 2.0f0) + dds) - bark*d     # :601 (D*BARK)**2.0 is powf under gfortran -O0
                     (d + dg_inc) < KT_RG_DIAM[sp] && (dg_inc = KT_RG_DIAM[sp] - d)  # :603 DIAM floor
                     dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)  # DGBND :610
                 end
