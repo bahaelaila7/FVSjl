@@ -151,3 +151,20 @@ end
         end
     end
 end
+
+@testset "IE 1627682513290487 thinbba: no COR/HCOR attenuation for a species with no records (dgdriv.f IF(I1.EQ.0) GO TO 50)" begin
+    # The 2031 thin removed every WH; dgdriv.f skips the attenuation for WH that cycle, so ESTAB's REGENT books the new
+    # WH regeneration with the cycle-1 HCOR 0.00339259 (jl attenuated to 0.0059646 ⇒ HtG +0.26%, QMD off from 2051).
+    db = _cr_run("ie", "1627682513290487", "thinbba")
+    gold, jl = _cr_table("ie", "1627682513290487", "thinbba", db, "FVS_Summary")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("Tpa", "BA", "QMD", "ATQMD", "TCuFt", "TopHt")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+    gold, jl = _cr_table("ie", "1627682513290487", "thinbba", db, "FVS_StrClass")
+    k(r) = (string(r["Year"]), string(r["Removal_Code"]))
+    jd2 = Dict(k(r) => r for r in jl)
+    for g in gold, c in ("Stratum_1_DBH", "Stratum_2_DBH")
+        @test _cr_f32(jd2[k(g)][c]) == _cr_f32(g[c])
+    end
+end
