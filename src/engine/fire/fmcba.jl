@@ -182,7 +182,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
              _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # PN = wc/cwcalc.f (byte-identical) with PN's KODFOR
              _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
-             _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
+             # SO: CRWDTH(I) = the FVS_TreeList CrWidth (_forest_crwdth: SOMAP with the KODFOR BF on R6 forests, R5CRWD on
+             # IFOR 4-9). MEASURED FVSso_g16 DEBUG FMCBA 15184869010497 (forest 601) 2010: PERCOV 38.904 live = jl with
+             # _forest_crwdth; the old so_cwcalc gave 38.550 (2020: 40.491 vs 40.185) ⇒ surface flame/torching off.
+             _so_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
              _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
