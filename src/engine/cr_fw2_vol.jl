@@ -114,8 +114,8 @@ end
 # because JRSP=JSP-22=0 has no F(:,0) column. Ported so Black Hills ponderosa stands (voleq 203FW2W..122,
 # geosub 03) get volume instead of 0.
 function _fw2_shp_bh(d::Float32, h::Float32)
-    D = Float64(d); H = Float64(h); lnH = log(H)
-    dmedian = 1.6802 * (H - 4.5)^(0.4085 + 0.00169 * H)
+    D = Float64(d); H = Float64(h); lnH = dlog(H)
+    dmedian = 1.6802 * dpow(H - 4.5, 0.4085 + 0.00169 * H)
     dform = D / dmedian - 1.0
     u7 = -1.2726446 - 0.0048259438 * H
     u9 = 0.1821947
@@ -133,11 +133,11 @@ function _fw2_shp_bh(d::Float32, h::Float32)
     u7 = clamp(u7, -7.0, 7.0)
     u8 > 0.99 && (u8 = 0.99)
     u9 = u9 > 0.3 ? 0.3 : (u9 < 0.0 ? 0.0 : u9)
-    r1 = exp(u1) / (1.0 + exp(u1)); r2 = exp(u2) / (1.0 + exp(u2))
-    r3 = exp(u3) / (1.0 + exp(u3)); r4 = exp(u4) / (1.0 + exp(u4))
-    r5 = u5 <= 7.0 ? 0.5 + 0.5 * exp(u5) / (1.0 + exp(u5)) : 1.0
+    r1 = dexp(u1) / (1.0 + dexp(u1)); r2 = dexp(u2) / (1.0 + dexp(u2))
+    r3 = dexp(u3) / (1.0 + dexp(u3)); r4 = dexp(u4) / (1.0 + dexp(u4))
+    r5 = u5 <= 7.0 ? 0.5 + 0.5 * dexp(u5) / (1.0 + dexp(u5)) : 1.0
     a3 = u6
-    rhi1 = exp(u7) / (1.0 + exp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
+    rhi1 = dexp(u7) / (1.0 + dexp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
     rhlongi = u9; rhi2 = rhi1 + rhlongi; rhc = u8
     rhc < rhi2 + 0.01 && (rhc = min(rhi2 + 0.01, (rhi2 + 1.0) / 2.0))
     rflw = (Float32(r1), Float32(r2), Float32(r3), Float32(r4), Float32(r5), Float32(a3))
@@ -207,7 +207,7 @@ function _fw2_fdbt_c2(jsp::Int, d::Float32, h::Float32)::Float32
     end
     y2 = a00 + a[2] * duse + a[3] * duse * duse + a[4] * H + a[5] * H * duse
     y2 = clamp(y2, -8.0, 8.0)
-    ratio = exp(y2) / (1.0 + exp(y2))
+    ratio = dexp(y2) / (1.0 + dexp(y2))
     return Float32(ratio * D)
 end
 
@@ -313,9 +313,9 @@ function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Fl
     elseif rh >= rhi2                               # middle (I_SEG=2)
         x = (R - Float64(rhi2)) / (Float64(rhc) - Float64(rhi2))
         if x > 0.0
-            sus2 = (b1 * log10(x) <= -20.0) ? 0.0 : x^b1
+            sus2 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1)
             y = b0 + x * (b4 + x * (-b2 / ((b1 + 1.0) * (b1 + 2.0)) * sus2 + b2 / 6.0 * x))
-            sus3 = (b1 * log10(x) <= -20.0) ? 0.0 : x^(b1 + 1.0)
+            sus3 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1 + 1.0)
             dy_dx = b4 - b2 / (b1 + 1.0) * sus3 + b2 / 2.0 * x * x
         else
             y = b0; dy_dx = b4
@@ -326,7 +326,7 @@ function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Fl
         dy_dx = e2; rh_length = 1.0; iseg = 3
     else                                            # lower (I_SEG=4)
         x = (Float64(rhi1) - R) / Float64(rhi1)
-        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * log(1.0 - x / a3)
+        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * dlog(1.0 - x / a3)
         dy_dx = a4 + a2 / a3 + a2 / (a3 * a3) * x + 3.0 * a1 * x * x - a2 / (a3 - x)
         rh_length = Float64(rhi1); iseg = 4
     end
@@ -358,12 +358,12 @@ given double-bark-thickness `dbtbh` (>0 from cr_bratio ⇒ the model-DBHIB branc
     dr = DOB > 0.0 ? DOB / Float64(dbhob) : 0.0
     local py::Float64
     if ht2 > 4.5f0
-        py = dr > 0.01 ? (dr * ((b2 - 1.0) / (b2 - dr^b3)) - ((dr^b5 - 1.0) / DBT)) : 0.0
+        py = dr > 0.01 ? (dr * ((b2 - 1.0) / (b2 - dpow(dr, b3))) - ((dpow(dr, b5) - 1.0) / DBT)) : 0.0
     elseif ht2 == 4.5f0
         py = 1.0
     else
         clx = c1 * (dr - 1.0)
-        py = clx >= 0.0 ? 1.0 + clx^(c2 + c3 * DBT) : 1.0
+        py = clx >= 0.0 ? 1.0 + dpow(clx, c2 + c3 * DBT) : 1.0
     end
     dib = DOB - py * DBT
     return dib < 0.0 ? 0.0f0 : Float32(dib)
