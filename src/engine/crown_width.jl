@@ -76,3 +76,33 @@ function crown_width(coef::SpeciesCoefficients, sp2::AbstractString, d::Real, h:
     cw > 99.9f0 && (cw = 99.9f0)
     return cw
 end
+
+# -----------------------------------------------------------------------------
+# CWIDTH (base/cwidth.f): the per-record CRWDTH(I) array. FVS fills it only at load (fvs.f:207, after CRATET) and at the
+# end of every cycle (gradd.f:254, after DENSE/CROWN); TRIPLE copies it to a record's copies and COMPRESS averages it.
+# Its consumers in between — SSTAGE (sstage.f:238/276 WK6=CRWDTH(I)) and FFE FMCBA (CWIDTH=CRWDTH(I)) — therefore see the
+# dims AND the stand BA (the Crookston BAREA term) of that last CWIDTH call, not a thin's residual BA or a SIMFIRE seam's
+# grown small trees. Stored in `t.crown_width` for the variants whose consumers read it.
+# -----------------------------------------------------------------------------
+"Variants whose SSTAGE/FMCBA read the stored CRWDTH(I) that `cwidth!` fills."
+_stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana
+
+"""
+    cwidth!(s) -> s
+
+CWIDTH (cwidth.f): CRWDTH(I) for every live record from its current DBH/HT/ICR and the current stand BA (the forest-grown
+`tree_crwdth`, the value FVS_TreeList reports). Called at the two FVS CWIDTH points; no-op outside `_stored_crwdth`.
+"""
+function cwidth!(s::StandState)
+    _stored_crwdth(s.variant) || return s
+    t = s.trees
+    @inbounds for i in 1:t.n
+        t.crown_width[i] = tree_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i])
+    end
+    return s
+end
+
+"The CRWDTH(I) a consumer reads: the stored CWIDTH value when set, else computed from the record's current dims."
+@inline stored_crwdth(s::StandState, i::Integer) =
+    s.trees.crown_width[i] > 0f0 ? s.trees.crown_width[i] :
+    tree_crwdth(s, Int(s.trees.species[i]), s.trees.dbh[i], s.trees.height[i], s.trees.crown_pct[i])
