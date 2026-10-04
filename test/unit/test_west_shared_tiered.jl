@@ -102,7 +102,8 @@ end
 @testset "western habtyp / forkod FVS_Error rows (FVS03/14/32/33/34) vs live" begin
     for (v, cn) in (("TT", "1589567497290487"), ("UT", "434219452489998"), ("WC", "1127545052290487"), ("WC", "25075210010900"),
                     ("PN", "1166897755290487"), ("EC", "30193987010497"), ("SO", "15184869010497"), ("SO", "374286168489998"),
-                    ("NC", "30192555010497"), ("CA", "22960323010497"), ("WS", "15353585010497"), ("CI", "3261005010690"))
+                    ("NC", "30192555010497"), ("CA", "22960323010497"), ("WS", "15353585010497"), ("CI", "3261005010690"),
+                    ("KT", "22404917010497"))
         c = _case(v, cn, "none")
         @test count(m -> m.file == "FVS_Error", c.ms) == 0
     end
@@ -124,6 +125,22 @@ end
     for (cn, y) in (("374286168489998", "2015"), ("15184869010497", "2010"))
         c = _case("SO", cn, "salvage")
         @test isempty(_material([m for m in c.ms if m.year == y && m.file == "FVS_Carbon"]))
+    end
+end
+
+# cr/regent.f:343-346 HK ≤ 4.5 ⇒ DG = 0 and DBH = D + 0.001·HK at once, so MORTS reads the bumped DBH (MEASURED
+# FVScr_clean 46279527020004: SUMDR0 16533.72 live, 16531.86 when jl carried the bump as an UPDATE-time DG ⇒ MortPA drift).
+@testset "CR REGENT sub-4.5 ft DBH set before MORTS (cr/regent.f:343-346) vs FVScr_clean" begin
+    c = _case("CR", "46279527020004", "none")
+    @test isempty(_material([m for m in c.ms if m.file == "FVS_TreeList" && m.year in ("2003", "2013", "2021")]))
+end
+
+# tt/cratet.f:99-148 50-yr-base SITEAR conversion reads TEMCCF on the NOTRE-expanded PROB (MEASURED FVStt_g16 335002534489998:
+# TEMCCF 152.30, LP 70 → 42.42; at INITRE time TEMCCF was the 125 floor ⇒ LP 43.99 ⇒ FVS_InvReference SiteIndex 44 vs 42).
+@testset "TT CRATET site conversion at CRATET time (tt/cratet.f:99-148) vs FVStt_g16" begin
+    for cn in ("335002534489998", "2750433010690")
+        c = _case("TT", cn, "none")
+        @test count(m -> m.file == "FVS_InvReference" && m.col == "SiteIndex", c.ms) == 0
     end
 end
 

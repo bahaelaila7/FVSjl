@@ -205,7 +205,11 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     nstr = count(oks)
     cover = _ss_cover(crarea, 1:n, cccoef)
     if nstr == 0 && tprob >= Float64(thresh[5])   # < TPAMIN ⇒ stays 0
-        str = [(1, n, 1, n)]; covers = [cover]; oks = [true]; nstr = 1
+        # sstage.f:476-482: IS1OK=1, NSTR=1, IS1I1=1, IS1I2=NTREES — ONLY stratum 1's bounds are widened; strata 2/3
+        # keep their gap-split bounds and still get SSTGHP (status 0), and ICRCV1 stays CRS1 (the candidate's cover).
+        # jl replaced the whole list (MEASURED FVStt_g16 2839796010690 1999: Stratum_2 DBH 0.1 / heights 1 / ES,WB
+        # with status 0; jl wrote 0/"--").
+        str[1] = (1, n, 1, n); oks = [k == 1 for k in eachindex(str)]; nstr = 1
     end
     return (data..., ord, strata = str, oks, covers, nstr, tprob, cover)
 end
