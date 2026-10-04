@@ -69,7 +69,7 @@ function dgf!(s::StandState, ::Kootenai)
               KT_DGLD[sp]   * ald +
               cr * (KT_DGCR[sp] + cr * KT_DGCRSQ[sp]) +
               KT_DGDBAL[sp] * bal / flog(d + 1f0) +
-              KT_CCFSQ[sp]  * relden * relden +
+              KT_CCFSQ[sp]  * (relden * relden) +              # DGCCF2*CCF2, CCF2=RELDEN*RELDEN (kt/dgf.f:324,342)
               KT_DGDS[sp]   * d * d +
               KT_DGLBA[sp]  * lnba +
               dgpc * pccf1
