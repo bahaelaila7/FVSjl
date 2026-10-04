@@ -159,6 +159,8 @@ end
         # young-dense-lodgepole self-thin gap stays OPEN for the BC campaign.
         # 2026-09-27 (#259): 1088/1241 → 1087/1240 — the metric .sum is now sumout.f's two-stage INT(IOSUM/ACRtoHA)
         # of disply.f's imperial integers (was a one-stage NINT(x·2.471)); the c0 oracle row above is unchanged.
-        @test tpa(cN) == 1087 && sdi(cN) == 1240
+        # 2026-10-04: 1087/1240 → 1092/1240 — ccfcal.f's PN-derived CCF for EP/AT/AC/OH (bc_tree_ccf returned 0 for them),
+        # which feeds RELDEN/CCF in the crown and small-tree models.
+        @test tpa(cN) == 1092 && sdi(cN) == 1240
     end
 end
