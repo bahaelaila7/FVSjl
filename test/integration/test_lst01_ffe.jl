@@ -129,7 +129,7 @@ end
     if !isfile(key)
         @info "ffe_carb.key fixture not present; skipping LS snag Stand-Dead test"
     else
-        txt = FVSjl.run_keyfile(key; variant = LakeStates())
+        txt = FVSjl.run_keyfile(key; variant = LakeStates(), output = :out)   # the carbon report is .out text
         lines = split(txt, "\n")
         i0 = findfirst(l -> occursin("STAND CARBON REPORT", uppercase(l)), lines)
         @test i0 !== nothing

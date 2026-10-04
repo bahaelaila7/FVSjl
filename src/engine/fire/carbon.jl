@@ -460,7 +460,7 @@ fmcrbout.f:98-112 V(3) = Σ RBIO(DBH(I))·FMPROB(I) is taken inside FMMAIN (grad
 reset the DBH of the small trees it sizes directly — e.g. ie/regent.f:882 `DBH(K)=0.1+DIAM(ISPC)*.01+HK*0.001` for a
 seedling still under 4.5 ft, per tripled record K. jl samples the non-fire report before growth, so re-derive V(3)
 (and the stand total) from the post-REGENT DBH once `small_tree_growth!` has run: the central record's `t.dbh`, a
-tripled copy's `stash.dbhU/dbhL` (−1 ⇒ unchanged). Every other pool is REGENT-independent and kept.
+tripled copy's `stash.dbhU/dbhL` (−1 ⇒ unchanged; BM: `dbh0 + bumpU/bumpL`). Every other pool is REGENT-independent and kept.
 (MEASURED FVSie_g16 11855985010690 2006: seedlings DBH 0.1060/0.1054 vs 0.1 ⇒ Belowground_Live 7.19485 vs 7.19215.)
 """
 function carbon_report_fmmain_v3(rep, s::StandState, stash, vtrip::Bool)
@@ -470,9 +470,15 @@ function carbon_report_fmmain_v3(rep, s::StandState, stash, vtrip::Bool)
     rb(i, d, pr) = (sp = Int(t.species[i]); (_, _, r) = jenkins_biomass(coef, sp, d; dbhmin = _jenkins_dbhmin(s, sp)); r * pr)
     @inbounds if vtrip
         for i in 1:n; v3 += rb(i, t.dbh[i], t.tpa[i] * 0.60f0); end
+        bmb = vtrip && stash !== nothing && hasproperty(stash, :dbh0) && length(stash.dbh0) >= n
         for i in 1:n
             du = trip && stash.dbhU[i] >= 0f0 ? stash.dbhU[i] : t.dbh[i]
             dl = trip && stash.dbhL[i] >= 0f0 ? stash.dbhL[i] : t.dbh[i]
+            # BM regent.f:395-397: a sub-4.5' copy K gets its own DBH(K)=D+0.001*HK from the PRE-REGENT D (stash dbh0 +
+            # bumpU/bumpL, the same values TRIPLE later gives the copies) — not the central record's already-bumped DBH.
+            if bmb && stash.dbh0[i] > 0f0
+                du = stash.dbh0[i] + stash.bumpU[i]; dl = stash.dbh0[i] + stash.bumpL[i]
+            end
             v3 += rb(i, du, t.tpa[i] * 0.25f0); v3 += rb(i, dl, t.tpa[i] * 0.15f0)
         end
     else

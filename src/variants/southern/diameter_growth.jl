@@ -1326,28 +1326,6 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
         end
     end
 
-    # BM cycle-1 WK1 = the LSTART calibration dub (bm/dgdriv.f:735-769): DGF(WK3) then, per record, HT≤4.5 ⇒ DG=0;
-    # measured DG>0 kept; else DG=SQRT(D_ib²+EXP(WK2+OLDRN)·SCALE)−D_ib (SCALE=FINT/YR, capped at D_ib, DGBND) —
-    # INCLUDING the seeded OLDRN residual. dgdriv.f:160 WK1(I)=DG(I) hands it to cycle 1; BM's only functional
-    # reader is the WRD report (rdpr.f:213 Live_Merch_CuFt = Σ TCLAS·WK1), so it goes to rd.wk1 (snapshotted just
-    # before this call, ⇒ same timing). jl left it 0 (FVS_RD_Sum 2017 Live_Merch_CuFt 0 vs live 84.42).
-    if s.variant isa BlueMountains && Int(s.control.cycle) == 0 && s.root_disease !== nothing &&
-       length(s.root_disease.wk1) >= nlive
-        _bm_scap = s.control.sp_size_cap
-        _sc = s.control.growth_fint / 10f0                          # SCALE = FINT/YR (YR=10)
-        @inbounds for i in 1:nlive
-            if t.height[i] <= 4.5f0
-                s.root_disease.wk1[i] = 0f0
-            else
-                _spi = Int(t.species[i])
-                _dib = t.dbh[i] * bm_bratio(sd, _spi, t.dbh[i])
-                _dub = sqrt(_dib * _dib + exp(wk2[i] + t.old_random[i]) * _sc) - _dib
-                _dub > _dib && (_dub = _dib)
-                s.root_disease.wk1[i] = dg_bound(dlo_v, dhi_v, _spi, t.dbh[i], _dub, _bm_scap)
-            end
-        end
-    end
-
     # per-cycle ARMA multipliers: AUTCOR(new, old) where `new` = THIS cycle's period and
     # `old` = the PREVIOUS cycle's period (dgdriv.f). For uniform 5-yr cycles both are 5
     # (unchanged); a non-uniform TIMEINT/CYCLEAT schedule (e.g. a 10-yr cycle following a

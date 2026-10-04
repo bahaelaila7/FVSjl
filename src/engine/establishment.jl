@@ -887,6 +887,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
                                       s.variant isa Teton || s.variant isa Utah ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
+                                      s.variant isa BlueMountains ||   # bm/estab.f:508-516 (bm/essubh.f DELAY→INT(+.5), TRAGE=TIME−DELAY)
                                       s.variant isa Olympic   # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
