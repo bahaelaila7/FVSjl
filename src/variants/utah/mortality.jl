@@ -56,12 +56,15 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     # grown-stand sums (ut/morts.f): T (total tpa), Reineke DR10/DR0 (LZEIDE path, ut/morts.f:218-219,260-263).
     # Using QMD over-stated D10 on dense sub-1" cohorts ⇒ TMD10 uncapped ⇒ TN10 low ⇒ RN self-thin OVER-KILL
     # (real-FIA sp814 oak seedlings: jl killed 45% vs live 11%, #147). g = DG/BARK (UT FINT==YR==10).
-    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0
-    @inbounds for i in 1:n
+    # ut/morts.f:201-223 DO 20 ISPC / DO 12 I3 / I=IND1(I3) (species-major IND1, D≥DBHZEIDE): REAL*4 sums in that order;
+    # (D+G)**1.605 / D**1.605 are powf.
+    tt = 0f0; sumdr10 = 0f0; sumdr0 = 0f0; dbhz = s.control.dbh_zeide
+    @inbounds for i in _ind1_order(s)
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
+        d < dbhz && continue
         bark = ut_bratio(s.coef.species, sp, d)
         g = t.diam_growth[i] / bark
-        sumdr10 += pr * (d + g)^1.605f0; sumdr0 += pr * d^1.605f0; tt += pr
+        sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
     end
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
     # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
@@ -75,7 +78,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     # but still reaches CLMORTS / FIXMORT (label 45 on). jl returned outright, leaving the climate report's SPMORT
     # stale from the previous cycle.
     tt < 1f0 && @goto morts45
-    dr10 = (sumdr10 / tt)^(1f0 / 1.605f0); dia0 = (sumdr0 / tt)^(1f0 / 1.605f0)
+    dr10 = fpow(sumdr10 / tt, 1f0 / 1.605f0); dia0 = fpow(sumdr0 / tt, 1f0 / 1.605f0)
     if dia0 < 0.3f0; dr10 = 0.3f0 + dr10 - dia0; dia0 = 0.3f0; end
     sdimax0 = stand_sdimax(s)                             # SDICAL XMAX before CLMAXDEN (BAMAX is set from this)
     sdimax = clim_sdical_xmax(s, sdimax0, fint)   # morts.f:323 SDICAL (+ sdical.f:216 CLMAXDEN under CLIMATE)
@@ -94,9 +97,9 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     @inbounds for i in 1:n
         pr = t.tpa[i]; pr <= 0f0 && continue
         sp = Int(t.species[i]); d = t.dbh[i]
-        ri = 0.5f0 * (1f0 / (1f0 + exp(UT_PMSC[sp] + UT_PMD[sp] * d)))
+        ri = 0.5f0 * (1f0 / (1f0 + fexp(UT_PMSC[sp] + UT_PMD[sp] * d)))
         x = active_mort_mult(s.control, sp, cur_year, d)         # MORTMULT (background only)
-        bg_tokill += min(pr * (1f0 - (1f0 - min(ri, 1f0))^fint) * x, pr)
+        bg_tokill += min(pr * (1f0 - fpow(1f0 - min(ri, 1f0), fint)) * x, pr)
     end
 
     if sdimax < 5f0
@@ -109,8 +112,8 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
         # (|d10−d10n|≤0.1) or the QMD would fall below dia0. Up to 10 passes (ut/morts.f:591 IPASS.EQ.10).
         d10 = dr10
         @inbounds for _ in 1:10
-            tmd10 = const_ * d10^(-1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
-            tmd0  = const_ * dia0^(-1.605f0); tmd0 > 35000f0 && (tmd0 = 35000f0)
+            tmd10 = const_ * fpow(d10, -1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
+            tmd0  = const_ * fpow(dia0, -1.605f0); tmd0 > 35000f0 && (tmd0 = 35000f0)
             t85d10 = tmd10 * pmsdiu; t55d10 = tmd10 * pmsdil
             t85d0  = tmd0  * pmsdiu; t55d0  = tmd0  * pmsdil
             local tn10::Float32
@@ -125,7 +128,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
                 tn10 = _em_tn10_iter(tt, dia0, d10, const_, pmsdil, pmsdiu, t85d10, t55d0, true; dens = s.density)
             end
             tn10 > tt && (tn10 = tt); tn10 < 0.1f0 && (tn10 = 0f0)
-            rn = 1f0 - (1f0 - (tt - tn10) / tt)^(1f0 / fint)
+            rn = 1f0 - fpow(1f0 - (tt - tn10) / tt, 1f0 / fint)
             tem = t55d10          # SDI-in-effect gate (ut/morts.f:506-508), the missing CAP fix (#147/#156)
             density_on = !(tt <= tem || rn <= 0f0)               # RIP==RN gate (ut/morts.f:504-508)
             if tn10 >= 0.1f0
@@ -137,7 +140,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
                 fill!(killed, 0f0)
                 @inbounds for i in 1:n
                     pr = t.tpa[i]; pr <= 0f0 && continue
-                    killed[i] = pr * (1f0 - (1f0 - min(rn, 1f0))^fint)
+                    killed[i] = pr * (1f0 - fpow(1f0 - min(rn, 1f0), fint))
                     killed[i] > pr && (killed[i] = pr)
                 end
             end
@@ -146,12 +149,13 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             ttn = 0f0; sdr = 0f0
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
+                d < dbhz && continue                            # ut/morts.f DO 30 D<DBHZEIDE gate
                 bark = ut_bratio(s.coef.species, Int(t.species[i]), d)
                 g = t.diam_growth[i] / bark
-                sdr += pr * (d + g)^1.605f0; ttn += pr
+                sdr += pr * fpow(d + g, 1.605f0); ttn += pr
             end
             ttn <= 0f0 && break
-            d10n = (sdr / ttn)^(1f0 / 1.605f0)
+            d10n = fpow(sdr / ttn, 1f0 / 1.605f0)
             (abs(d10 - d10n) <= 0.1f0 || d10n <= dia0) && break
             d10 = d10n
         end
@@ -169,7 +173,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
                 d = t.dbh[i]; sp = Int(t.species[i])
                 bark = ut_bratio(s.coef.species, sp, d)
                 g = t.diam_growth[i] / bark
-                ba = 0.0054542f0 * (d + g)^2
+                ba = 0.0054542f0 * fpow(d + g, 2f0)          # ut/morts.f:708 (D+G)**2. = powf
                 banew  += ba * (t.tpa[i] - killed[i])
                 badead += ba * killed[i]
             end
