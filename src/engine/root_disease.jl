@@ -2845,8 +2845,11 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     isp_rec = Int[Int(t.species[i]) for i in 1:n]
     dbh_rec = Float32[t.dbh[i] for i in 1:n]
     rd_mort_kernel!(rd, d.probi, d.propi, d.rrkill, d.rdkill, dbh_rec, isp_rec, istep, fintf)
-    @inbounds for i in 1:n
-        d.rdkill[i] > 0.0f0 && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
+    # rdmort.f:112-177 books each killed record's stump (RDSTP) inside its species-major `DO 400 J=ISCT(KSP,1),ISCT(KSP,2);
+    # I=IND1(J)` walk, so the stump-class weighted means (rdstp.f DBHDA/ROOTDA) accumulate in IND1 order, not record order
+    # (MEASURED FVSem_g16 3087467010690 rootdis 1998: same 464 RDSTP calls, record order ⇒ Stumps_BA 28.005869 vs live 28.005877).
+    @inbounds for i in species_major_order(s)
+        (i <= n && d.rdkill[i] > 0.0f0) && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
     end
     rd_prinf_store!(rd, s, d.probi, d.propi, istep, 2)          # RDCNTL DO 800 (rdcntl.f:487-526), right after RDMORT
     rd_sum!(d.probit, d.probi, istep)

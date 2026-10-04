@@ -381,3 +381,17 @@ end
         @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "EM 3087467010690 / 474157097489998 rootdis: RDMORT books stumps in species-major IND1 order (rdmort.f:112-177)" begin
+    # RDSTP's per-class weighted means (rdstp.f DBHDA/ROOTDA) accumulate in RDMORT's ISCT/IND1 walk; jl booked them in
+    # record order after the kernel (same 464 calls, different order ⇒ 1998 Stumps_BA 28.005869 vs live 28.005877).
+    for cn in ("3087467010690", "474157097489998")
+        db = _cr_run("em", cn, "rootdis")
+        gold, jl = _cr_table("em", cn, "rootdis", db, "FVS_RD_Sum")
+        jd = Dict(string(r["Year"]) => r for r in jl)
+        @test length(jl) == length(gold)
+        for g in gold, c in ("Stumps_per_Acre", "Stumps_BA", "Ave_Pct_Root_Inf", "Live_BA", "Live_Merch_CuFt", "Inf_TPA")
+            @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+        end
+    end
+end
