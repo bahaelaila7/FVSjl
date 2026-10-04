@@ -369,3 +369,15 @@ end
         end
     end
 end
+
+@testset "IE 374547584489998 climate: FW2 GETDIB log dibs on SF_YHAT's mixed REAL/REAL*8 kernel (sf_yhat.f)" begin
+    # sf_yhat.f forms X and the coefficient sub-terms in REAL, Y in REAL*8: the all-Float64 kernel put the WL 12.05"×107'
+    # 83.5-ft log dib at 4.5010004 vs live 4.5009999 — across GETDIB's 0.501 class cut (profile.f) ⇒ 2035 MCuFt 29.8 /
+    # BdFt 154 vs live 29.3 / 148 ⇒ .sum BdFt 42867 vs 42865.
+    db = _cr_run("ie", "374547584489998", "climate")
+    gold, jl = _cr_table("ie", "374547584489998", "climate", db, "FVS_Summary")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold, c in ("TCuFt", "MCuFt", "BdFt")
+        @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+    end
+end
