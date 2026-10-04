@@ -338,7 +338,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     sd = s.coef.species
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
     sigmar = s.variant isa Olympic ? OP_DG_SIGMAR :   # OP SIGMAR (op/blkdat.f); OP CSV has no dg_resid_sd column
-             s.variant isa Ontario ? ON_DG_SIGMAR : sd[:dg_resid_sd]   # ON SIGMAR (canada/on/blkdat.f:268)
+             s.variant isa Ontario ? ON_DG_SIGMAR :     # ON SIGMAR (canada/on/blkdat.f:268)
+             s.variant isa CentralRockies ? cr_sigmar(Int(s.plot.model_type)) : sd[:dg_resid_sd]   # cr/sitset.f by IMODTY
     _op_cal = s.variant isa Olympic           # OP bark = op_bratio (op/bratio.f) — same watchpoint class as WC (WF COR)
     _cr_cal = s.variant isa CentralRockies; _cr_cal_imod = _cr_cal ? Int(s.plot.model_type) : 0
     _tt_cal = s.variant isa Teton   # TT bark = tt_bratio (PP sp10 IMAP=4 power model, not linear a+b·d)

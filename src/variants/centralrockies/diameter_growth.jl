@@ -334,6 +334,23 @@ end
 # calibration backdating (CR bark is cr_bratio; calib.bark_a/b only feed the no-op backdate on stands
 # without measured DG). Enables the shared calibrate_diameter_growth! to set c.sigma=SIGMAR (dg_resid_sd),
 # which drives the DG serial-correlation (DGSD≥1) — the negative-bias reduction FVS applies.
+# cr/sitset.f:109-121 + :262-293 SIGMAR by model type: 0.2 everywhere but WF 0.26, AS 0.3433, LP 0.4125, ES 0.4243,
+# PP 0.4671, GO 0.11645; model type 2 (SW ponderosa) then sets 23-27 = 0.043 and 12/33-35 = 0.181; model type 3 (Black
+# Hills) sets every species 0.346 and 17-19 0.468. The species CSV (dg_resid_sd) carries the model-type-2 table for every
+# stand (MEASURED FVScr_clean 224893914010661, IMODTY 3: DGSCOR SSIG 0.346 live, jl 0.2 ⇒ every DGSCOR/HTGF/REGENT
+# draw after the first desynced).
+function cr_sigmar(imodty::Integer)
+    sg = fill(0.2f0, MAXSP)
+    sg[4] = 0.260f0; sg[6] = 0.3433f0; sg[7] = 0.4125f0; sg[8] = 0.4243f0; sg[10] = 0.4671f0; sg[14] = 0.11645f0
+    if imodty == 2
+        for i in 23:27; sg[i] = 0.043f0; end
+        for i in (12, 33, 34, 35); sg[i] = 0.181f0; end
+    elseif imodty == 3
+        fill!(sg, 0.346f0)
+        for i in 17:19; sg[i] = 0.468f0; end
+    end
+    return sg
+end
 const _CR_ATTEN = Dict(4 => 21277f0, 6 => 880f0, 7 => 1176f0, 8 => 900f0, 10 => 123f0, 14 => 306f0)
 function cr_dgcons!(s::StandState)
     c = s.calib; ctl = s.control
