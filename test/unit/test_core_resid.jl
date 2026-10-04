@@ -3,7 +3,8 @@
 # as text) unless a test states an upstream ULP residual that is still open.
 using FVSjl, Test, SQLite, DBInterface
 
-const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern())
+const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(),
+                     "bm" => FVSjl.BlueMountains())
 
 "Run tiered fixture `<v>/<cn>_<rg>.key` through run_keyfile; returns the output DB path."
 function _cr_run(v::AbstractString, cn::AbstractString, rg::AbstractString)
@@ -288,4 +289,16 @@ end
     t.n = 1; t.dbh[1] = d; t.tpa[1] = 1f0; t.species[1] = 3; t.height[1] = 40f0
     s.control.zeide_sdi = false
     @test FVSjl.stand_sdi_reineke(s) == FVSjl.stand_sdi(s) == 0.02603549f0
+end
+
+@testset "BM 12827438010497 salvage FVS_PotFire: FMCFMD STNDBA = Σ FMTBA over species (bm/fmcfmd.f:130-132)" begin
+    # STNDBA sums the per-species FMTBA, not the records: the record-order total moved PRDF/PRPP ⇒ WT1 ⇒ EQWT(2)/(5) 2 ULP ⇒
+    # FMDYN weights 5/2 3 ULP ⇒ the torching bisection (fmcfir.f:205-268) settled elsewhere: 2005 Torch_Index 69.88524 vs
+    # live 69.88519.
+    db = _cr_run("bm", "12827438010497", "salvage")
+    gold, jl = _cr_table("bm", "12827438010497", "salvage", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Torch_Index", "Surf_Flame_Sev", "Surf_Flame_Mod", "PTorch_Sev", "Fuel_Wt1", "Fuel_Wt2")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
 end
