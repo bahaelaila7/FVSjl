@@ -1782,8 +1782,10 @@ function run_keyfile(keypath::AbstractString;
             end
             # FVS_EconHarvestValue (DBSECHARV, eccalc.f:745-855): faithful per-cycle rows from revVolume (all
             # revenue units); written only when ECONRPTS set IDBSECON=2 (dbsecharv.f:16,86).
+            # DBSECHARV_open creates the table on every non-PCT harvest even when no HRVRVN-valued row is inserted
+            # (MEASURED FVSem_g16 231908428020004 econ: empty FVS_EconHarvestValue present).
             if s.econ !== nothing && s.econ.calc !== nothing && s.econ.calc.dbs_econ == 2 &&
-               !isempty(s.econ.calc.hv_rows)
+               (s.econ.calc.hv_open || !isempty(s.econ.calc.hv_rows))
                 write_dbs_econharvest_rows!(s.control.dbs_out_file, caseid, s.econ.calc.hv_rows, s.coef)
             end
         end

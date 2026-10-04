@@ -1355,6 +1355,8 @@ mutable struct EconCalc
     tree_logs_bf::Dict{Int,Vector{NTuple{2,Float32}}}    # logDibBf/logBfVol (LOGVOL(1,·) gross Scribner)
     tree_logs_ft3::Dict{Int,Vector{NTuple{2,Float32}}}   # logDibFt3/logFt3Vol (LOGVOL(4,·) gross cubic)
     hv_rows::Vector{Any}                 # FVS_EconHarvestValue rows (eccalc.f:745-855 DBSECHARV_insert)
+    hv_open::Bool                        # DBSECHARV_open ran (eccalc.f:745-746: a non-PCT harvest with IDBSECON=2) — the
+                                         # table is created even when no HRVRVN-valued row follows
     lbs_ft3::Vector{Float32}             # lbsFt3Amt(MAXSP) — LBSCFV pounds per cubic foot (Tons column)
     # --- ECON keywords inside an IF/THEN block (ecin.f addEvent LMODE path): the event keywords
     #     (PRETEND/SPECCST/SPECRVN/STRTECON) are captured as templates (date = WAIT time) while the IF
@@ -1377,7 +1379,7 @@ function EconCalc(nsp::Integer)
              zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS), zeros(Float32, ECON_MAX_KEYWORDS),
              zeros(Float32, nsp, ECON_MAX_REV_UNITS, ECON_MAX_KEYWORDS), Any[],
              Int32[], Float32[], Float32[], Float32[], Float32[],
-             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[],
+             Dict{Int,Vector{NTuple{2,Float32}}}(), Dict{Int,Vector{NTuple{2,Float32}}}(), Any[], false,
              zeros(Float32, nsp), nothing, Set{Tuple{Int,Int}}())
 end
 

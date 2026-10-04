@@ -125,3 +125,14 @@ end
     gold, jl = _cr_table("em", "231908428020004", "mistletoe", db, "FVS_DM_Spp_Sum")
     @test isempty(gold) && isempty(jl)
 end
+
+@testset "EM 231908428020004 econ: DBSECHARV_open creates FVS_EconHarvestValue on a non-PCT harvest vs live FVSem_g16" begin
+    # eccalc.f:745-746 opens (creates) the table for every non-PCT harvest with IDBSECON=2, before any HRVRVN-valued
+    # row; this stand's harvest has none, so live carries the empty table (jl omitted it).
+    db = _cr_run("em", "231908428020004", "econ")
+    d = SQLite.DB(db)
+    tabs = [r[:name] for r in DBInterface.execute(d, "SELECT name FROM sqlite_master WHERE type='table'")]
+    n = "FVS_EconHarvestValue" in tabs ? only(r[1] for r in DBInterface.execute(d, "SELECT COUNT(*) FROM FVS_EconHarvestValue")) : -1
+    SQLite.close(d)
+    @test n == 0
+end
