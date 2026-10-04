@@ -145,6 +145,8 @@ volumes, summed over the cut). Call at the top of `grow_cycle!`, before growth.
         # PRLOST=0/PRCRWN=1). ect01 FFE stand (YARDLOSS .5 .7 .5) left 0.6·PREM, not PREM.
         _loss = prem * s.control.yardloss_prlost
         _ctcrwn = s.control.yardloss_prcrwn * (prem - _loss) + _loss * s.control.yardloss_prdsng
+        # fmscut.f:75-76: HARVYR = IY(ICYC) when the cut leaves crown slash (CTCRWN) or downed snags (DSNG = LOSS·PRDSNG).
+        (_ctcrwn > 0f0 || _loss * s.control.yardloss_prdsng > 0f0) && (s.fire.harvyr = Int32(current_cycle_year(s)))
         let xv = _ffe_crownw(s, i, sp, t.dbh[i], t.height[i], Int(round(t.crown_pct[i]))),
             idc = ffe_dkr_cls(s, sp), xcr = _ctcrwn * _FM_P2T
             s.fire.cwd[10, 2, idc] += xv[1] * xcr                     # foliage → litter (size 10)
