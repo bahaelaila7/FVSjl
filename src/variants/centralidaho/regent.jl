@@ -499,23 +499,8 @@ end
 # The DG(I) ci/dgdriv.f DO 220 (:797-822) leaves on record i: the measured increment (capped at the inside-bark
 # DBH when IDG<2) when DG>0 and HT>4.5; 0 when HT<=4.5; otherwise the dub from the second DGF(WK3) call (:795,
 # COR final) — needs the calibration's dub_wk2/dub_wk3 stash. Read by the LSTART REGCAL DO 49.
-@inline function ci_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32
-    t, c = s.trees, s.calib
-    sp = Int(t.species[i])
-    bark = ci_bratio(s.coef.species, sp, dcur)
-    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
-        dg = t.diam_growth[i]
-        (s.control.growth_idg < 2 && dg > dcur * bark) && (dg = dcur * bark)
-        return dg
-    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
-        return 0f0
-    end
-    sc = s.control.growth_fint / 10f0                     # SCALE = 1/(YR/FINT)
-    dd = c.dub_wk3[i] * bark
-    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
-    dub > dd && (dub = dd)
-    return dg_bound(nothing, nothing, sp, dcur, dub, s.control.sp_size_cap)
-end
+@inline ci_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32 =
+    do220_dg(s, i, dcur, ci_bratio(s.coef.species, Int(s.trees.species[i]), dcur))
 
 """
     ci_regent_hcor_init!(s, isct, ind1, saved_dbh)

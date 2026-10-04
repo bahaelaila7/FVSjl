@@ -45,6 +45,18 @@ function _tt_dub_ages!(s::StandState)
     return s
 end
 
+# tt/htgf.f label 201 (:728-741), the tail every HTGF case falls into: HTG·SCALE·XHMULT·EXP(HTCON) (HTCON = ln HCOR2
+# under READCORH, htgf.f HTCONS), MISHGF (TT's HGPDMR is all 1), then the SIZCAP(sp,4) height cap with its 0.1 floor.
+@inline function _tt_htg_tail(ctl, sp::Int, h::Float32, htg::Float32, scale::Float32, cur_year)::Float32
+    htcon = (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0f0) ? flog(ctl.htg_cor2[sp]) : 0f0
+    htg = htg * scale * active_multiplier(ctl, :htg, sp, cur_year) * fexp(htcon)
+    cap = ctl.sp_size_cap[sp, 4]
+    if h + htg > cap
+        htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+    end
+    return htg
+end
+
 function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
     p, t, c, ctl = s.plot, s.trees, s.calib, s.control
     elev = p.elevation
@@ -65,13 +77,14 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         (d <= 0f0 || h <= 0f0) && continue
         if sp == 10
-            # tt/htgf.f CASE(10) — PP from the CI variant (NOT SBB): direct HTG, then only the SIZE-CAP
-            # tail (no ZZRAN, no SCALE·XHMULT·exp(HTCON) — those live in other cases). DBH<1.5 → REGENT.
+            # tt/htgf.f:309-315 CASE(10) — PP from the CI variant (NOT SBB): direct HTG (no ZZRAN), then the common
+            # label-201 tail (:728) like every other case: ·SCALE·XHMULT·exp(HTCON), MISHGF, SIZCAP. SCALE=FINT/YR is
+            # 1 at 10-year cycles, so omitting it only showed under TIMEINT 5 (PP stand: 1995 HT 46.4 vs live 38.2).
             d < 1.5f0 && continue
             con = 2.03035f0 + 0.7316f0 - 0.00013358f0 * h * h - 0.5657f0 * flog(d) + 0.23315f0 * flog(h)
             htg = fexp(con + 0.62144f0 * flog(t.diam_growth[i])) + 0.4809f0
             htg < 0.1f0 && (htg = 0.1f0)
-            t.ht_growth[i] = htg
+            t.ht_growth[i] = _tt_htg_tail(ctl, sp, h, htg, scale, cur_year)
             continue
         elseif sp == 4 || sp == 11 || sp == 12 || sp == 13 || sp == 16
             continue                                     # PM/UJ/RM/BI/MC: height from REGENT
@@ -153,8 +166,8 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
                 htg < 0.1f0 && (htg = 0.1f0)
             end
         end
-        # finalize (label 201): HTG·SCALE·XHMULT·exp(HTCON). XHMULT=1 (no MULTS); HTCON=0 (uncalibrated ttt01).
-        t.ht_growth[i] = htg * scale
+        # finalize (label 201, tt/htgf.f:728-741): HTG·SCALE·XHMULT·exp(HTCON), MISHGF (1: TT's HGPDMR), SIZCAP.
+        t.ht_growth[i] = _tt_htg_tail(ctl, sp, h, htg, scale, cur_year)
     end
     return s
 end

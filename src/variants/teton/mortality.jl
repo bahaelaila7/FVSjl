@@ -153,7 +153,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = tt_bratio(sp, d)
-        g = t.diam_growth[i] / bark
+        g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr; dsum += d * pr
     end
     tt < 1f0 && @goto morts45   # morts.f IF(T.LT.1.0) GO TO 45 — still reaches CLMORTS
@@ -299,7 +299,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
             pr = t.tpa[i] - killed[i]
             d = t.dbh[i]; sp = Int(t.species[i])
             bark = tt_bratio(sp, d)
-            g = t.diam_growth[i] / bark
+            g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
             sumdr10n += pr * fpow(d + g, 1.605f0)
             tn_surv += pr
         end
@@ -322,7 +322,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                 @inbounds for i in 1:n
                     d = t.dbh[i]; sp = Int(t.species[i])
                     bark = tt_bratio(sp, d)
-                    g = t.diam_growth[i] / bark
+                    g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
                     ba_ = 0.0054542f0 * (d + g)^2
                     banew  += ba_ * (t.tpa[i] - killed[i])
                     badead += ba_ * killed[i]

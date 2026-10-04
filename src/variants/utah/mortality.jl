@@ -60,7 +60,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = ut_bratio(s.coef.species, sp, d)
-        g = t.diam_growth[i] / bark
+        g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
         sumdr10 += pr * (d + g)^1.605f0; sumdr0 += pr * d^1.605f0; tt += pr
     end
     killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
@@ -147,7 +147,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             for i in 1:n
                 d = t.dbh[i]; pr = t.tpa[i] - killed[i]; pr <= 0f0 && continue
                 bark = ut_bratio(s.coef.species, Int(t.species[i]), d)
-                g = t.diam_growth[i] / bark
+                g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
                 sdr += pr * (d + g)^1.605f0; ttn += pr
             end
             ttn <= 0f0 && break
@@ -168,7 +168,7 @@ function mortality!(s::StandState, ::Utah; fint::Float32 = 10.0f0, book_snags::B
             @inbounds for i in 1:n
                 d = t.dbh[i]; sp = Int(t.species[i])
                 bark = ut_bratio(s.coef.species, sp, d)
-                g = t.diam_growth[i] / bark
+                g = (t.diam_growth[i] / bark) * (fint / 10f0)          # G=(DG/BARK)*(FINT/10.0): DG is on the YR=10 basis in MORTS
                 ba = 0.0054542f0 * (d + g)^2
                 banew  += ba * (t.tpa[i] - killed[i])
                 badead += ba * killed[i]

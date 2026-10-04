@@ -59,7 +59,7 @@ ca/htdbh.f MODE=1: predicted DBH for species `sp` at total height `h` (inverse o
     p2 = CA_CURARN_P2[sp]; p3 = CA_CURARN_P3[sp]; p4 = CA_CURARN_P4[sp]; z = CA_SPLINE[sp]
     hatz = 4.5f0 + p2 * fexp(-1.0f0 * p3 * fpow(z, p4))
     if h >= hatz
-        return fexp(log((log(h - 4.5f0) - log(p2)) / (-1.0f0 * p3)) * (1.0f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1.0f0 * p3)) * 1.0f0 / p4)   # ALOG(..)*1./P4, left to right
     else
         return (((h - 4.51f0) * (z - 0.3f0)) / (4.5f0 + p2 * fexp(-1.0f0 * p3 * fpow(z, p4)) - 4.51f0)) + 0.3f0
     end

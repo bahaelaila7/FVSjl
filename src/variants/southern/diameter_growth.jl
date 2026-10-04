@@ -467,10 +467,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         # needs this exact tie-break (validated: a dead 16.1" ties live tree1, live PCT=89.068 not 100).
         # Every other variant ranks by cratet.f's IND=IND1; RDPSRT(.FALSE.) (bm_cratet166_ind): measured on SN tiered
         # (26735 vs 27063 residual cells with the stable sortperm) and the EC/NC FIA samples (EC 65 -> 69 exact rows).
-        if s.variant isa Kootenai
-            ord = Vector{Int32}(undef, ntot)
-            _rdpsrt!(rankd, ord)
-        elseif length(s.calib.input_seq) == ntot   # every variant's cratet.f has the IND=IND1; RDPSRT(.FALSE.) block
+        if length(s.calib.input_seq) == ntot   # every variant's cratet.f has the IND=IND1; RDPSRT(.FALSE.) block
             # CI: ci/cratet.f:230-233 IND=IND1; RDPSRT(.FALSE.) ahead of the :262 backdating DENSE. FIA 753207086290487
             # DF rec 13 / AF rec 26 both 8.5" now (7.8/8.0 past): the stable sortperm ranked the DF first ⇒ its PCT took
             # the AF's backdated BA (36.45 vs live 33.62) ⇒ DGF BAL 46.94 vs 49.04 ⇒ WK2 2.1206 vs 2.1146 ⇒ DF COR.
@@ -612,12 +609,15 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                _ci_cal ? CI_GST_BKPT : _em_cal ? EM_GST_BKPT : nothing
     dn = fill(999f0, MAXSP); dx = zeros(Float32, MAXSP)
     pn = zeros(Float32, MAXSP); px = zeros(Float32, MAXSP)
-    @inbounds for i in 1:t.n
-        sp = t.species[i]
+    # dgdriv.f DO 155 / DO 160 walk each species' IND1(ISCT(ISPC,1)..ISCT(ISPC,2)) slice: the strict </> DN/DX
+    # tie-break and every REAL*4 running sum (SPOPX/SNX/SNY/SNXX/SNXY/DEV/DEVSQ) follow that order, and
+    # EXP/ALOG are glibc expf/logf (ws/dgdriv.f:459-525).
+    @inbounds for sp in 1:MAXSP, k in (isct[sp, 1] == 0 ? (1:0) : (isct[sp, 1]:isct[sp, 2]))
+        i = ind1[k]
         bkpt = break_cr === nothing ? gst_min : break_cr[sp]
         (t.dbh[i] < bkpt || t.diam_growth[i] <= 0f0) && continue
-        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
-        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
+        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = fexp(wk2[i]); end
+        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = fexp(wk2[i]); end
     end
 
     # per-species sums; remember each measured tree's residual
@@ -626,19 +626,20 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     dev = zeros(Float32, MAXSP); devsq = zeros(Float32, MAXSP); fn = zeros(Float32, MAXSP)
     snp = zeros(Float32, MAXSP); snx = zeros(Float32, MAXSP); sny = zeros(Float32, MAXSP)
     snxx = zeros(Float32, MAXSP); snxy = zeros(Float32, MAXSP)
-    @inbounds for i in 1:t.n
-        sp = t.species[i]; wk3 = t.dbh[i]; dg = t.diam_growth[i]; p = t.tpa[i]
+    @inbounds for sp in 1:MAXSP, k in (isct[sp, 1] == 0 ? (1:0) : (isct[sp, 1]:isct[sp, 2]))
+        i = ind1[k]
+        wk3 = t.dbh[i]; dg = t.diam_growth[i]; p = t.tpa[i]
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
-        edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
+        edds = fexp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
         dg <= 0f0 && continue
         bark = variant_bratio(s, sp, saved_dbh[i], t.height[i])   # bark at CURRENT dbh (dgdriv.f:435 BRATIO(ISPC,DBH,HT)) — shared variant BRATIO
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
-        reslog = log(term) - wk2[i]
+        reslog = flog(term) - wk2[i]
         reslog_t[i] = reslog; measured[i] = true
         fn[sp] += 1f0; dev[sp] += reslog; devsq[sp] += reslog^2
         snp[sp] += p; snx[sp] += p * edds; sny[sp] += p * reslog
-        snxx[sp] += p * edds^2; snxy[sp] += p * reslog * edds
+        snxx[sp] += p * edds * edds; snxy[sp] += p * reslog * edds   # (P*EDDS)*EDDS left-to-right
     end
 
     # per-species COR / SIGMA / regression line / VARDG
@@ -702,7 +703,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 if measured[i]
                     oldrn[i] = reslog_t[i]
                 else
-                    oldrn[i] = bny[sp] + (exp(wk2[i]) - bnx[sp]) * slop[sp]
+                    oldrn[i] = bny[sp] + (fexp(wk2[i]) - bnx[sp]) * slop[sp]
                     t.dbh[i] < dn[sp] && (oldrn[i] = rn)
                     t.dbh[i] > dx[sp] && (oldrn[i] = rx)
                 end

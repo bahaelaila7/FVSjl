@@ -251,10 +251,14 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
               s.variant isa SouthCentralOregon || s.variant isa OregonCoast || s.variant isa Olympic ||
               s.variant isa InlandEmpire || s.variant isa Kootenai ||
               s.variant isa BlueMountains || _ffe_west_vol(s.variant) ||
-              s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa SoutheastAlaska)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
+              s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa SoutheastAlaska ||
+              s.variant isa CentralCalifornia || s.variant isa WestSierra)   # OC/OP live fuel in fire_fuel_covtype_live.csv (non-reserved) ⇒ ffe_fuel_live empty
     # WC/PN (wc/pn fmmain.f run FMSDIT + the annual FMSNAG/FMCWD/FMCADD loop like every FFE variant) were off this
     # list ⇒ no inventory snags, no fuel dynamics: pnt01 stand 4's 2003 SIMFIRE sampled SMALL/LARGE 0.46/0.00 vs live
     # 3.79/11.65 ⇒ fuel models 2/5 instead of live 5/10 (FMDYN 0.66/0.34), flame 4.33 vs 6.09 ft, 2013 TPA 127 vs 71.
+    # CA/WS (ca|ws/fmmain.f: FMSDIT + the same annual FMSNAG/FMCWD/FMCADD loop) were off it too once their live fuel moved
+    # to the top-2 cover loaders (af607b99, ffe_fuel_live empty): no inventory snags (WS 7689156010901 Standing_Dead 0 vs
+    # live 10.61, Belowground_Dead 0 vs 3.37) and no down-wood dynamics.
     # CI/TT/UT/CR (ci/tt/ut/cr fmsdit.f + FMSNAG/FMCWD/FMCADD, the same annual loop as IE/EM) were off this list ⇒ no
     # inventory snags and no fuel dynamics: S248112 no-fire DDW 2.40 flat vs live 4.65→4.34 (CI), Standing_Dead 0.
     if ffe_on

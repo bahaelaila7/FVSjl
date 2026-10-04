@@ -71,3 +71,38 @@ const _T5_RATCHET = [("ktt01_t5", _T5.Kootenai(),           29, 46),
         @test (stem, count(i -> jl[i][1:8] == lv[i][1:8], eachindex(lv)) >= nhead) == (stem, true)
     end
 end
+
+# tt/htgf.f:309-315 + :728: the PP case (CASE 10, the CI equation) falls into the common label-201 tail like every other
+# case, HTG·SCALE·XHMULT·EXP(HTCON) with SCALE=FINT/YR. jl returned the 10-year HTG for PP, so under 5-year cycles a PP
+# stand doubled its height growth (S248112 PP, TIMEINT 5: 1995 TopHt 67 live; live FVStt_g16 rows).
+@testset "TIMEINT 5, TT ponderosa HTG scaled by FINT/YR (tt/htgf.f:728)" begin
+    jl = _t5_rows("ttpp_t5", _T5.Teton()); lv = _t5_live("ttpp_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i][7]) == (i, lv[i][7]); end     # TopHt
+end
+
+# /CONTRL/ YR is the growth models' base period (blkdat.f DATA YR/10.0/), not the TIMEINT cycle length jl kept in
+# control.year: em/regent.f:218 SCALE=YR/FINT, ie/regent.f SCALE2=YR/NTYR, ak/dgf.f:521 DGPRED=YR·BASEDG·PFMOD,
+# ak/regent.f:200 SCALE2=YR/FNT. emt01 with TIMEINT 5: 35 → 10 rows off live FVSem_g16 (the same 10 the 10-year key has).
+@testset "TIMEINT 5, EM REGENT reads YR=10 (em/regent.f:218)" begin
+    jl = _t5_rows("emt01_t5", _T5.EasternMontana()); lv = _t5_live("emt01_t5")
+    @test length(jl) == length(lv)
+    @test count(i -> jl[i] == lv[i], eachindex(lv)) >= 46
+end
+
+# AK keeps DG on the YR=10 basis through GRINCR and GRADD rescales it to FINT (gradd.f:79-90), like the other YR=10
+# variants, once its DGF/REGENT read YR: akt01 with TIMEINT 5, every row equals live FVSak_g16 (54 of 56 off before).
+@testset "TIMEINT 5, AK .sum rows == live (gradd.f:79-90, ak/dgf.f:521)" begin
+    jl = _t5_rows("akt01_t5", _T5.SoutheastAlaska()); lv = _t5_live("akt01_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i]) == (i, lv[i]); end
+end
+
+# tt/morts.f:228,701,812,836 (and ut/morts.f:214,571,682,706) G=(DG(I)/BARK)*(FINT/10.0): MORTS reads the 10-year DG
+# (GRADD rescales after GRINCR), so the Zeide D10, the D10N re-pass and the BAMAX check scale it to the cycle. jl used the
+# 10-year G under 5-year cycles ⇒ over-thinning (S248112 PP TIMEINT 5: 1995 TPA 516 jl / 521 live).
+@testset "TIMEINT 5, TT MORTS G on FINT/10 (tt/morts.f:228) — every row == live" begin
+    jl = _t5_rows("ttpp_t5", _T5.Teton()); lv = _t5_live("ttpp_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i]) == (i, lv[i]); end
+end
