@@ -600,7 +600,25 @@ const _FM_TFALL_BM = Float32[
     1f0  5f0  5f0 15f0 15f0 15f0;   # 16 CW
     3f0 10f0 10f0 10f0 10f0 10f0;   # 17 OS
     1f0  5f0  5f0 15f0 15f0 15f0]   # 18 OH
-"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM), or `nothing` ⇒ the SN tfall-class rows."
+# nc/fmvinit.f:167-300 TFALL(I,0:5): per-species TFALL(I,0)/TFALL(I,3), then for every species TFALL(I,1)=10,
+# TFALL(I,2)=15, TFALL(I,4)=TFALL(I,5)=TFALL(I,3), TFALL(I,0)=MIN(TFALL(I,0),LEAFLF(I)) and TFALL(I,2)<=TFALL(I,3).
+# The CSV tfall_cls (= TFALL(I,3) 10/15/20) fed to the SN class rows clamped NC to row 6 (1/1/1/2/4/4 yr), so a fire's
+# snag crowns fell within ~4 yr. MEASURED FVSnc_g16 23660512010900 simfire 2011: Standing_Dead 2.840 live vs 2.395 jl.
+const _FM_TFALL_NC = Float32[
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  1 OS (CASE 3,1)
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  2 SP
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  3 DF
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  4 WF (CASE 4,9; LEAFLF 7)
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  5 MA
+    1f0 10f0 15f0 20f0 20f0 20f0;   #  6 IC
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  7 BO
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  8 TO (CASE 8,11)
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  9 RF
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 10 PP (TFALL(3)=10 caps TFALL(2))
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 11 OH
+    3f0 10f0 15f0 20f0 20f0 20f0]   # 12 RW
+"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM/NC), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
                      v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
-                     v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM : nothing
+                     v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM :
+                     v isa Klamath ? _FM_TFALL_NC : nothing
