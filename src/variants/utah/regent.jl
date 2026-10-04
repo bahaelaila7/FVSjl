@@ -54,21 +54,21 @@ function small_tree_growth!(s::StandState, stash, ::Utah; fint::Float32 = 10.0f0
         si = sitear; si > shi[sp] && (si = shi[sp]); si <= slo[sp] && (si = slo[sp] + 0.5f0)
         relsi = (si - slo[sp]) / (shi[sp] - slo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
         sj = sitear
-        con = exp(c.htg_cor_small[sp])                # RHCON(=1)·exp(HCOR)
+        con = fexp(c.htg_cor_small[sp])                # RHCON(=1)·exp(HCOR)
         # POTHTG + HTGR
         if _ut_rg_conifer(sp)
             pothtg = sj / 5.0f0
             xcr = Float32(t.crown_pct[i]) / 100.0f0
-            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+            vigor = 150.0f0 * fpow(xcr, 3f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
             htgr = pothtg * pctred * vigor * con
         elseif sp == 6                                # aspen — FINDAG site age from HEIGHT (ut/findag.f:97)
-            age = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)   # SITAGE=(H·30.48/26.9825)^(1/1.1752)
-            hite1 = 26.9825f0 * age^1.1752f0; hite2 = 26.9825f0 * (age + 10.0f0)^1.1752f0
+            age = fpow(h * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0)   # SITAGE=(H·30.48/26.9825)^(1/1.1752)
+            hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
             htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0   # aspen: HTGR=POTHTG (no PCTRED/VIGOR)
         else                                          # PJ/GB/MC (non-aspen non-conifer)
             pothtg = (sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0) * 0.83f0
             xcr = Float32(t.crown_pct[i]) / 100.0f0
-            vigor = 150.0f0 * xcr^3 * exp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
+            vigor = 150.0f0 * fpow(xcr, 3f0) * fexp(-6.0f0 * xcr) + 0.3f0; vigor > 1.0f0 && (vigor = 1.0f0)
             (11 <= sp <= 17 || sp == 24) && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
             htgr = pothtg * pctred * vigor * con
         end
@@ -155,9 +155,9 @@ function _ut_rg_dk_dg(s, c, sd, sp::Int, d::Float32, h::Float32, hk::Float32, ht
         # (`.NOT.LHTDRG .OR. IABFLG==1`) — always for MC (LHTDRG(20)=.FALSE.).
         if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
             p2, p3, p4 = sp == 20 ? (1709.7229f0, 5.8887f0, -0.2286f0) : (76.5170f0, 2.2107f0, -0.6365f0)
-            hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
-            ca(hh) = hh >= hat3 ? exp(log((log(hh - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4)) :
-                                  ((hh - 4.51f0) * 2.7f0) / (4.5f0 + p2 * exp(-1f0 * p3 * (3f0^p4)) - 4.51f0) + 0.3f0
+            hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
+            ca(hh) = hh >= hat3 ? fexp(flog((flog(hh - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4) :
+                                  ((hh - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4)) - 4.51f0) + 0.3f0
             dk = ca(hk)
             dkk = h <= 4.5f0 ? d : ca(h)
         end
@@ -166,8 +166,8 @@ function _ut_rg_dk_dg(s, c, sd, sp::Int, d::Float32, h::Float32, hk::Float32, ht
         # all LHTDRG=.TRUE. species (every non-MC/BI conifer).
         ax = c.ht_dbh_iabflg[sp] == 0 ? c.ht_dbh_aa[sp] : sd[:ht1][sp]
         bx = sd[:ht2][sp]
-        dk = bx / (log(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
-        dkk = h <= 4.5f0 ? d : bx / (log(h - 4.5f0) - ax) - 1.0f0
+        dk = bx / (flog(hk - 4.5f0) - ax) - 1.0f0; dk < 0.1f0 && (dk = 0.1f0)
+        dkk = h <= 4.5f0 ? d : bx / (flog(h - 4.5f0) - ax) - 1.0f0
     end
     dgmx = UT_RG_DGMAX[sp] * scale
     local dgk::Float32
@@ -192,7 +192,7 @@ function _ut_rg_dk_dg(s, c, sd, sp::Int, d::Float32, h::Float32, hk::Float32, ht
     dgk > dgmx && (dgk = dgmx)
     scale2 = _UT_RG_REGYR / fint                # YR/FINT (=1 for 10-yr ⇒ transform is identity)
     dds = dgk * (2.0f0 * bark * d + dgk) * scale2
-    dgk = sqrt((d * bark)^2 + dds) - bark * d
+    dgk = sqrt(fpow(d * bark, 2f0) + dds) - bark * d     # regent.f:552 (D*BARK)**2.0 = powf
     (d + dgk) < UT_RG_DIAM[sp] && (dgk = UT_RG_DIAM[sp] - d)
     return dgk
 end
