@@ -36,7 +36,7 @@ const CI_RG_BREAK = Float32[3,3,3,3,3,3,3,3,3,3, 3,3,3, 99,99, 3, 1, 3, 1]
 @inline function _ci_ut_htdbh(ht::Float32)::Float32
     p2 = 1709.7229f0; p3 = 5.8887f0; p4 = -0.2286f0
     hat3 = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))
-    ht >= hat3 ? fexp(flog((flog(ht - 4.5f0) - flog(p2)) / (-p3)) * (1.0f0 / p4)) :
+    ht >= hat3 ? fexp(flog((flog(ht - 4.5f0) - flog(p2)) / (-p3)) * 1.0f0 / p4) :   # regent.f:1059 ALOG(..)*1./P4
                  ((ht - 4.51f0) * 2.7f0 / (hat3 - 4.51f0)) + 0.3f0
 end
 

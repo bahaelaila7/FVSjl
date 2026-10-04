@@ -108,7 +108,7 @@ end
     p2 = WC_HTDBH_P2[ifor, sp]; p3 = WC_HTDBH_P3[ifor, sp]; p4 = WC_HTDBH_P4[ifor, sp]
     hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
     if h >= hat3
-        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)   # htdbh.f:315 ALOG(..)*1./P4
     else
         return (((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4)) - 4.51f0)) + 0.3f0
     end
