@@ -9,9 +9,9 @@
 #
 # `ffe_west_nocut` gives each western variant's NATCRS (TCF, MCF) on an arbitrary (d, h) with no top-kill — the same
 # kernels as its compute_volumes (FW2 / MATW r4vol / DVE / Behre / NVB), minus the CFTOPK broken-top trim — plus the
-# FMSVOL bark ratio BRATIO(JS,D,H) and whether that equation family takes the CFTOPK trim (`trim`: the DVE woodland
-# families in CI/TT/UT are kept untrimmed as in their compute_volumes (EM trims every family, em/vols.f:194); CR trims every family — fmsvol.f calls
-# NATCRS, which returns CTKFLG=.TRUE. (fvsvol.f:535), and FMSVOL has no vols.f:191 NVB exemption).
+# FMSVOL bark ratio BRATIO(JS,D,H) and whether that equation family takes the CFTOPK trim (`trim`: fmsvol.f calls
+# NATCRS, which returns CTKFLG=.TRUE. (fvsvol.f:535) for every family — the CI/TT/UT DVE woodland included — and
+# FMSVOL has no vols.f:191 NVB exemption; EM included (em/fmsvol.f:139-140)).
 # `nothing` for a variant not yet on this layer (its own snag/live paths stay in force).
 # =============================================================================
 
@@ -152,7 +152,7 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
             ie_dve_vol(eq, d, h, true)
         return (max(w[1], 0f0), d >= dbhmin ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
     end
-    # CI / TT / UT (compute_volumes_{ci,tt,ut}!): MATW r4vol, FW2 (region 4), DVE woodland (not trimmed)
+    # CI / TT / UT (compute_volumes_{ci,tt,ut}!): MATW r4vol, FW2 (region 4), DVE woodland
     dbhmin = sp == 7 ? 7f0 : 8f0
     bark = v isa CentralIdaho ? ci_bratio(s.coef.species, sp, d) :
            v isa Teton        ? tt_bratio(sp, d) :
@@ -165,8 +165,10 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
         w = cr_fw2_vol(eq, d, h; bark = bark, topd = 6f0, bftopd = 6f0, stump = 1f0, iregn = 4)
         return (max(w[1], 0f0), d >= dbhmin ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
     end
+    # DVE woodland: NATCRS ends CTKFLG = .TRUE. for every equation (fvsvol.f:509-531), so fmsvol.f:141-142's CFTOPK
+    # trims a lost-height DVE snag as well (trim = true).
     vol1 = (v isa Utah && se[1] == '3') ? r3d2hv_vol1(eq, d, h) : r4d2h_vol1(eq, d, h)
-    return (max(vol1, 0f0), d >= (v isa Teton ? 8f0 : dbhmin) ? max(vol1, 0f0) : 0f0, bark, false)
+    return (max(vol1, 0f0), d >= (v isa Teton ? 8f0 : dbhmin) ? max(vol1, 0f0) : 0f0, bark, true)
 end
 
 "FMSVOL snag bole for an intact stem: MAX(0.005454154·H, TCF) (fmsvol.f:150). `nothing` off the western layer."

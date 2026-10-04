@@ -112,7 +112,7 @@ end
 # ci/cratet.f:127-168 — adjust SITEAR to a 50-YEAR age base for WB/LM/PY (11,12,16),
 # whose growth eqns were fit on a 50-yr-base site index (Alexander-Tackle-Dahms RM-29).
 # CRATET does this once at init, after SITSET, using stand CCF (TEMCCF, floored 125; DBH-only
-# open-grown CCF, valid at site_setup!). Inert unless a WB/LM/PY tree/site-species is present.
+# open-grown CCF over the NOTRE-expanded PROB ⇒ called from setup_growth!). Inert unless a WB/LM/PY is present.
 function ci_cratet_site_adjust!(s::StandState)
     p, t = s.plot, s.trees
     temccf = 0f0
@@ -139,7 +139,7 @@ function ci_site_index_setup!(s::StandState)
     (icindx < 1 || icindx > 130) && (icindx = 21)
     p.habitat_input = Int32(icindx)                       # DG reads ICHBCL(ICINDX) ← stash ICINDX here
     ci_sitset!(s, icindx, ifor)
-    ci_cratet_site_adjust!(s)                             # CRATET 50-yr-base site adjust (WB/LM/PY)
+    # The CRATET 50-yr-base site adjust (ci_cratet_site_adjust!) runs from setup_growth! (CRATET time, NOTRE-expanded PROB).
     return s
 end
 
