@@ -86,7 +86,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = KT_BKRAT[sp]                                   # kt/bratio.f BRATIO = BKRAT(IS) ((0+b·d)/d is 1 ULP off)
         g = t.diam_growth[i] / bark
         sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr     # SD2SQ+P*(D*D+CIOBDS), CIOBDS=2DG+G² (morts.f:201-203)
         wprob += pr; dsum += d * pr
@@ -116,7 +116,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     cur_year = current_cycle_year(s)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
-        d = t.dbh[i]; bark = bark_ratio(bark_a, bark_b, sp, d)
+        d = t.dbh[i]; bark = KT_BKRAT[sp]
         reldbh = d / aved
         dd = d <= 0.5f0 ? 0.5f0 : d
         dgi = t.diam_growth[i]
@@ -153,7 +153,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         end
         wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * x
         # kt/morts.f:309-312 BARK=BRATIO(ISPC,D,HT) and D+G on the clamped D
-        gsc = (dgi / bark_ratio(bark_a, bark_b, sp, dd)) * (fint / 10f0)
+        gsc = (dgi / KT_BKRAT[sp]) * (fint / 10f0)
         if (dd + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
         end

@@ -356,7 +356,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         @inbounds for i in 1:n
             d1 = t.dbh[i]; d1 < 3.0f0 && continue
             sp = Int(t.species[i]); pr = t.tpa[i]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            bark = KT_BKRAT[sp]                                     # kt/bratio.f BRATIO = BKRAT(IS)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
             # CCFCAL returns CCFT·P (kt/ccfcal.f MODE=1), so RDNEXT(J)+K·CI/P·PN nets one P; kt_tree_ccf is per tree.
@@ -510,7 +510,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         cap = s.control.sp_size_cap[sp, 4]
         large_htg = t.ht_growth[i]                          # large-tree htgf value for the blend
         xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
-        bark = bark_ratio(c.bark_a, c.bark_b, sp, d)        # BRATIO(DBH(K)=D, HT(K)=H)
+        bark = KT_BKRAT[sp]                                 # BRATIO(DBH(K)=D, HT(K)=H) = BKRAT(IS), kt/bratio.f
         small_d = d < 3.0f0
         # deterministic dub base D1 (kt/regent.f:544-555)
         relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
@@ -583,7 +583,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             if small_d
                 dK = dbh_dir >= 0.0f0 ? dbh_dir : d                     # DBH(K): the HK<4.5 direct set, else the slot's D
                 dgK = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
-                barkK = bark_ratio(c.bark_a, c.bark_b, sp, dK)
+                barkK = KT_BKRAT[sp]
                 dds2 = dgK * (2.0f0 * barkK * dK + dgK) * (fint / 10.0f0)       # SCALE2=FINT/YR
                 dg2 = sqrt((dK * barkK)^2 + dds2) - barkK * dK; dg2 < 0.0f0 && (dg2 = 0.0f0)
                 if dK + dg2 >= 3.0f0
@@ -608,7 +608,7 @@ end
 # kt/dgdriv.f DO 220 (:707-731) DG(I) — measured (capped at inside-bark DBH when IDG<2), 0 at HT<=4.5, else the dub
 # from the second DGF(WK3) (:705, COR final; dub_wk2/dub_wk3 stash). Read by the LSTART REGCAL DO 49.
 @inline kt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32 =
-    do220_dg(s, i, dcur, bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(s.trees.species[i]), dcur))
+    do220_dg(s, i, dcur, KT_BKRAT[Int(s.trees.species[i])])          # kt/bratio.f BRATIO = BKRAT(IS)
 
 """
     kt_regent_hcor_init!(s, isct, ind1, saved_dbh)
@@ -650,7 +650,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     if nper > 1                                         # DO 49 (regent.f:699-717)
         @inbounds for i in 1:t.n
             d1 = t.dbh[i]; sp = Int(t.species[i]); pr = t.tpa[i]
-            d2 = d1 + kt_do220_dg(s, i, saved_dbh[i]) / bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            d2 = d1 + kt_do220_dg(s, i, saved_dbh[i]) / KT_BKRAT[sp]
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
             c1 = kt_tree_ccf(sp, d1) * pr; c2 = kt_tree_ccf(sp, d2) * pr
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0

@@ -70,4 +70,14 @@ end
     c = _case("KT", "196396140020004", "none")
     @test isempty(_before(c.ms, 2032))          # 18712 cells from 2022 before
 end
+
+# kt/bratio.f: BRATIO = BKRAT(IS), exactly. jl's linear (0 + BKRAT·D)/D is 1 ULP off for many D (22404917010497 REGENT
+# BARK 0.915000021 live / 0.91499996 jl ⇒ small-tree DG/DBH in the 7th digit, compounding).
+@testset "KT bark ratio = BKRAT(IS) (kt/bratio.f)" begin
+    for cn in ("22404917010497", "31445998010690", "720724089290487", "31454370010690", "251193174489998", "750215552290487")
+        c = _case("KT", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
 end # module
