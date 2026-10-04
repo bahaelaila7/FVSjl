@@ -40,7 +40,7 @@ const EC_DUB_CRSD  = Float32[0.5000,0.5000,0.6957,0.6957,0.6957,0.9310,0.6124,0.
         sd = EC_DUB_CRSD[sp]; fcr = 0f0
         while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
         abs(cr + fcr) >= 86f0 && (cr = 86f0)
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     else                                                # WC-form linear
         cr = EC_DUB_BCR0[sp] + EC_DUB_BCR2[sp]*H + EC_DUB_BCR3[sp]*BA
         sd = EC_DUB_CRSD[sp]; fcr = 0f0
@@ -92,7 +92,7 @@ function crown_ratio_update!(s::StandState, ::EastCascades; fint::Float32 = 10.0
         scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
         x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
         x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-        crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+        crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint
             pdifpy > 0.01f0 && (chg = Float32(icr) * 0.01f0 * fint)
@@ -146,7 +146,7 @@ const EC_CCF_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7800,1.7333,1.7600,1.73
     D = Float32(d)
     D >= 1.0f0 && return EC_CCF_RD1[sp] + EC_CCF_RD2[sp] * D + EC_CCF_RD3[sp] * D * D
     if sp in EC_NATIVE_SP                               # EC-form small-tree CCF
-        D > 0.1f0 && return EC_CCF_RDA[sp] * D^EC_CCF_RDB[sp]
+        D > 0.1f0 && return EC_CCF_RDA[sp] * fpow(D, EC_CCF_RDB[sp])
         return 0.001f0
     end
     return D * (EC_CCF_RD1[sp] + EC_CCF_RD2[sp] + EC_CCF_RD3[sp])  # WC-form small-tree CCF
