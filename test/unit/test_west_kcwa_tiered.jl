@@ -119,4 +119,19 @@ end
     @test count(m -> m.file == "FVS_TreeList" && m.col == "HtG" && m.year == "2011", c.ms) == 0
 end
 
+# ca/fmcba.f:579-745 sets CA's FFE decay rates at the first FFE year (R5: 0.025/0.0125 woody; R6: the Oregon table ×
+# DKRADJ(CAHMC,CAWMD); litter 0.5, duff 0.002; ×DCYMLT from the Dunning code for KODFOR<600); ws/fmvinit.f + fmcba.f:541-581
+# the same California table × DCYMLT. jl decayed both with the SN table (woody 0.07-0.11, litter 0.65): bare CA stands'
+# initial down wood fell ~4x too fast (23999387010900 2012 Forest_Down_Dead_Wood 0.255 live / 0.296 jl).
+@testset "CA/WS FFE decay rates (ca/fmcba.f:579-745, ws/fmvinit.f:120-150, ws/fmcba.f:541-581)" begin
+    for cn in ("23999387010900", "647485752126144", "249049837489998"), r in ("simfire", "salvage")
+        c = _case("CA", cn, r)
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+    c = _case("WS", "23771657010900", "salvage")          # 1-ULP down-wood residue remains (Float32 decay order)
+    rel(m) = (a = tryparse(Float64, m.gold); b = tryparse(Float64, m.got); (a === nothing || b === nothing) ? Inf : abs(a - b) / max(abs(a), 1e-9))
+    @test count(m -> m.file == "FVS_Carbon" && rel(m) > 1e-5, c.ms) == 0
+end
+
 end # module
