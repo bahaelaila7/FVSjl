@@ -61,4 +61,13 @@ end
     @test length(jl) == length(lv)
     for (g, j) in zip(lv, jl); @test rstrip(j) == rstrip(g); end
 end
+
+# kt/cratet.f:148-151 IND=IND1; RDPSRT(ITRN,DBH,IND,.FALSE.) is the order the :184 backdating DENSE's PCTILE ranks the
+# calibration percentile in (as every other variant's cratet.f, bm_cratet166_ind). KT re-sorted afresh (.TRUE.), which put
+# 196396140020004's two 13.4" trees in the other order: DGF BAL 244.979 vs live 239.103 ⇒ the DO-220 dub WK2 2.4734 vs
+# 2.4888 ⇒ cycle-1 MORTS WK1 0.4768 vs 0.4840 ⇒ the kill.
+@testset "KT calibration PCT in cratet.f's IND1 RDPSRT(.FALSE.) order (kt/cratet.f:148-151)" begin
+    c = _case("KT", "196396140020004", "none")
+    @test isempty(_before(c.ms, 2032))          # 18712 cells from 2022 before
+end
 end # module
