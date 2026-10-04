@@ -286,4 +286,13 @@ end
     c = _case("CR", "46279527020004", "none")
     @test _cells(c) == 0
 end
+# ut|tt|nc|on/morts.f `IF(ICYC.GT.1 .AND. ABS(T-TPAMRT).GT.1.)` resets CEPMRT/SLPMRT at ICYC=2 already; jl's 0-based
+# control.cycle made the test `cycle > 1` (ICYC>2) ⇒ the cycle-2 reset after a cycle-1 trajectory change (here the MISTOE
+# kill: live T 4475.32 vs TPAMRT 4568.13) never fired and jl kept the latched line (cycle-2 mortality ~20% low for every
+# species). MEASURED FVSut_g16 42642675010690 MISTOE DEBUG MORTS.
+@testset "MORTS ICYC>1 TPAMRT reset at cycle 2 (ut/morts.f:234) vs FVSut_g16" begin
+    c = _case("UT", "42642675010690", "mistletoe")
+    @test !c.crashed
+    @test _cells(c) == 0
+end
 end # module
