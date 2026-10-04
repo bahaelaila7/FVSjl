@@ -216,7 +216,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
         @inbounds for i in 1:t.n
             (rann!(s.rng) * 100f0 > psburn) && continue
             t.tpa[i] > 0f0 || continue
-            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, false)
+            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, false)
         end
         rannput!(s.rng, _rs0)
     end
@@ -240,7 +240,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
             # the FMPROB>0 guard (fmeff.f:176) applies only after the draw.
             (rann!(s.rng) * 100f0 > psburn) && continue  # unburned portion (fmeff.f:159 GOTO 90)
             t.tpa[i] > 0f0 || continue                   # FMPROB>0 guard (fmeff.f:176), post-draw
-            bcrown += _fm_bcrown(s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
+            bcrown = _fm_bcrown(bcrown, s, i, crfrac, sch, cyclen, true)   # crown burned (BCROWN), on pre-kill FMPROB/FMICR
             # FMEFF new fire-model crown length (fmeff.f:170, :401-419, :513): for the non-crown-fire part
             # (CRBURN<1) of a record whose crown base sits below the scorch height, the scorched length CRBNL
             # is lost: FMICR = IFIX(100·(CRL−CRBNL)/HT). CRL = HT·(FMICR/100) in FVS's own association.
@@ -380,13 +380,14 @@ _fm_volkill_merch(v) = v isa CentralStates || v isa LakeStates || v isa Northeas
 # FMEFF BCROWN share of one record (fmeff.f:372-374 crown fire, :444-453 scorch), tons/ac, on the PRE-kill FMPROB
 # (TPA) and the fire-time FMICR (= ICR; call before the scorch shortening). `mk` = MKODE≠0: the crown-fire part (CRBURN·FMPROB burns all foliage + half the
 # 0-0.25" crown and its crown-lift) needs MKODE≠0, and the scorched part is weighted (1−CRBURN), else 1.0.
-function _fm_bcrown(s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
+# Each term is added to the running BCROWN `b` itself (BCROWN = BCROWN + …, term by term), not summed per record first:
+# the association differs by an ULP (MEASURED FVSie_g16 11855985010690 2006 FMPOFL PBRNCR 6.14480 live, 6.14479 per-record).
+function _fm_bcrown(b::Float32, s::StandState, i::Integer, crfrac::Float32, sch::Float32, cyclen::Real, mk::Bool;
                     icr::Integer = Int(s.trees.crown_pct[i]))::Float32
     t = s.trees
     fmprob = t.tpa[i]; h = t.height[i]
     xc = _ffe_crownw(s, i, Int(t.species[i]), t.dbh[i], h, Int(t.crown_pct[i]))   # CROWNW(I,0:5), lb/tree
     yrscyc = Float32(cyclen); ol1 = t.ffe_oldcrw[1, i]                              # OLDCRW(I,1)
-    b = 0f0
     if crfrac > 0f0 && mk
         b += crfrac * fmprob * _FM_P2T * xc[1]
         b += 0.5f0 * crfrac * fmprob * _FM_P2T * (xc[2] + yrscyc * ol1)

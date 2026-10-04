@@ -153,7 +153,7 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
             (d <= 1f0 && csv > 50f0) && (pmort = 1f0)
             pmort *= active_fmort_mult(s.control, sp, year, d)
             pmort = clamp(pmort, 0f0, 1f0)
-            bcrown += _fm_bcrown(s, i, crburn, sch, cyclen, true; icr = icr)
+            bcrown = _fm_bcrown(bcrown, s, i, crburn, sch, cyclen, true; icr = icr)
         end
         pomort = pmort * fmprob                                                        # fmeff.f:556-564
         lpsburn && (pomort = pomort + crburn * (fmprob - pomort))

@@ -58,14 +58,14 @@ end
 @testset "IE 11855985010690 salvage FVS_PotFire Pot_Smoke_Sev — FMEFF CWD2B head on the FMPOFL-year pools" begin
     # fmmain.f:196 FMPOFL → FMEFF (ICALL=1) burns CRBURN of the waiting snag crowns CWD2B/CWD2B2 (fmeff.f:118-138)
     # BEFORE the year's FMCADD drops them (fmmain.f:241). Before: 2016 0.3109127 vs live 0.3129615 (head 0.0017 vs
-    # 0.1941 t/ac). The 2006 cycle-0 Canopy_Density is 1 ULP off (open, upstream of this), so the later years are
-    # compared at 2e-6 relative.
+    # 0.1941 t/ac). FMEFF adds each record's crown terms to BCROWN one at a time (fmeff.f:373-374/446-453), not as a
+    # per-record subtotal: 2006 PBRNCR 6.144805 live vs 6.144801 (Pot_Smoke_Sev 0.27717915 vs 0.27717921). Bit-exact.
     db = _cr_run("ie", "11855985010690", "salvage")
     gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_PotFire")
     jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
     for g in gold, c in ("Pot_Smoke_Sev", "Pot_Smoke_Mod")
         y = parse(Int, g["Year"])
-        @test isapprox(_cr_f32(jd[y][c]), _cr_f32(g[c]); rtol = 2f-6)
+        @test _cr_f32(jd[y][c]) == _cr_f32(g[c])
     end
 end
 
