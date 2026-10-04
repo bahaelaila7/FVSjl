@@ -175,8 +175,12 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
     # KODTYP→KKTYPE. Eastern variants key DG off forest type (habitat-input left a documented gap there), so
     # KT-gated. Live FVSkt reads PV_CODE from the DB automatically; this matches it on the jl side.
+    # With a PV_REF_CODE, kt/habtyp.f takes KODTYP from the kt/pvref1.f crosswalk (HABPVR of the full (PV_CODE, PV_REF)
+    # match; no full match ⇒ KKTYPE 97) — kt_habitat_kodtyp; without one, the numeric PV_CODE (READ(CHAB,'(I10)')).
     if s.variant isa Kootenai && _fia_present(d, "PV_CODE")
-        p.habitat_code = Int32(round(_fia_f32(d, "PV_CODE", 0f0)))
+        chab = strip(_fia_str(d, "PV_CODE", ""))
+        kod = something(tryparse(Int, chab), 0)                             # READ(CHAB,'(I10)',ERR=40) ⇒ 0
+        p.habitat_code = Int32(isempty(chab) ? kod : kt_habitat_kodtyp(chab, strip(p.pv_ref), kod)[1])
     end
     # BM (region-6): PV_CODE is the ALPHA plant-community code (e.g. "CWF312"), decoded to the KODTYP index
     # into BM_PCOML by habtyp/HBDECD. Without it, bm_sitset! gets no ECOCLS row ⇒ SDIDEF=0 ⇒ stand_sdimax=0 ⇒

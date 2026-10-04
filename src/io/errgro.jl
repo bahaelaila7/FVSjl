@@ -201,6 +201,12 @@ function habtyp_errors!(s::StandState{CentralIdaho}, pv::AbstractString, cpvref:
     return nothing
 end
 
+function habtyp_errors!(s::StandState{Kootenai}, pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    _, errs = kt_habitat_kodtyp(pv, cpvref, kodtyp)                     # kt/habtyp.f:58-95
+    foreach(e -> errgro!(s, e), errs)
+    return nothing
+end
+
 function habtyp_errors!(s::Union{StandState{Teton},StandState{Utah}}, pv::AbstractString, cpvref::AbstractString,
                         kodtyp::Integer)
     _, errs = r4_habitat_itype(pv, cpvref, kodtyp)                     # tt|ut/habtyp.f:152-228
