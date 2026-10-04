@@ -832,7 +832,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah
+            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah || s.variant isa CentralIdaho
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
                 # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
                 # birth, which fed the wrong D into the birth-cycle REGENT. TT/UT build the same strp estab.f
@@ -1057,7 +1057,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
                          s.variant isa WestCascades || s.variant isa CentralRockies ||   # CR: cr_esgent! (regent.f:247-261)
-                         s.variant isa PacificNorthwest   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa PacificNorthwest ||  # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa CentralIdaho         # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0

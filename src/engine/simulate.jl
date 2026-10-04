@@ -1390,10 +1390,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WC: gradd.f:192 DENSE (post-UPDATE, pre-ESNUTR). ESTAB's ESSUBH reads AVH from it and ESGENT (called inside
     # ESTAB, before gradd.f:244's DENSE) reads its PCCF/PTBAA/AVH — the post-growth PRE-regen values.
     local es_wc_ptba::Vector{Float32}, es_wc_pccf::Vector{Float32}, es_wc_avh::Float32
-    if s.variant isa WestCascades || s.variant isa PacificNorthwest   # PN compiles the same gradd/estab/esgent
+    es_wc_relden = -1f0; es_wc_ba = -1f0
+    if s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # PN compiles the same gradd/estab/esgent
+       s.variant isa CentralIdaho                                        # CI REGENT(LESTB) reads the same DENSE (ci/regent.f)
         compute_density!(s)
         es_wc_ptba = copy(s.density.point_ba); es_wc_pccf = copy(s.density.point_ccf)
-        es_wc_avh = s.plot.avg_height
+        es_wc_avh = s.plot.avg_height; es_wc_relden = s.plot.relative_density; es_wc_ba = s.plot.basal_area
     end
     # TT/UT REGENT(LESTB) likewise reads GRADD's post-growth, PRE-regen DENSE: RELDEN/BA/AVH and the per-point PCCF
     # (tt/regent.f:160-180,274-330; ut/regent.f:162-171,233). establish! re-DENSEs with the seedlings and jl's
@@ -1466,7 +1468,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     s.variant isa Utah && ut_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # UT western: grow birth-cycle regen (ut/esgent.f, #184); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
-    s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
+    s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
+        atccf = es_at_relden, relden_pre = es_wc_relden, ba_pre = es_wc_ba, avh_pre = es_wc_avh,
+        pccf_pre = es_wc_pccf, ptba_pre = es_wc_ptba)   # CI: ci/esgent.f → REGENT(LESTB) (_ci_regent!)
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED
