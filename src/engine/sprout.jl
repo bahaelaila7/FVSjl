@@ -696,6 +696,129 @@ end
     return d < 0.1f0 ? 0.1f0 : d
 end
 
+# --- strp/essprt.f CASE('PN','WC'), ('OP'), ('CA','OC'), ('WS'), ('EC') and estb/essprt.f CASE('AK'): ESSPRT survival,
+#     NSPREC record count, SPRTHT height; ESASID aspen = 26 (PN/WC/OP/EC), 44 (CA/OC), 36 (WS), 19 (AK). These builds had
+#     no jl sprout tables, so a cut sprouting species fell to the SN form (KeyError :essprt_fsp). The sprout DBH is
+#     strp|estb/esuckr.f:296-310: BX=HT2(ISSP), AX = HT1(ISSP) when IABFLG=1 else the calibrated AA, floor 0.1. ---
+const _SPR_HT1_CA = Float32[4.7874, 5.2052, 4.7874, 5.218, 5.2973, 5.2973, 5.3076, 4.7874, 4.7874, 4.7874, 4.6843, 4.8358, 4.7874, 4.7874, 5.1419, 5.3371, 5.2649, 5.382, 4.7874, 4.6236, 4.7874, 4.7874, 5.3401, 4.7874, 4.7874, 4.6618, 4.6618, 4.6618, 4.6618, 3.8314, 4.4907, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.4809, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 4.6618, 5.3401]   # ca/blkdat.f DATA HT1
+const _SPR_HT2_CA = Float32[-7.317, -20.1443, -7.317, -14.8682, -17.2042, -17.2042, -14.474, -7.317, -7.317, -7.317, -6.5516, -9.2077, -7.317, -7.317, -19.8143, -19.3151, -15.5907, -20.4097, -7.317, -13.0049, -7.317, -7.317, -15.9354, -7.317, -7.317, -8.3312, -8.3312, -8.3312, -8.3312, -4.8221, -7.703, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -7.5989, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -8.3312, -15.9354]   # ca/blkdat.f DATA HT2
+const _SPR_HT1_OP = Float32[5.487, 5.308, 5.308, 5.313, 5.313, 5.517, 5.327, 5.143, 5.188, 5.188, 4.865, 5.333, 5.382, 5.382, 5.333, 5.563, 5.3401, 5.233, 5.355, 5.081, 4.7, 4.875, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.188, 5.188, 5.188, 5.188, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152]   # op/blkdat.f DATA HT1
+const _SPR_HT2_OP = Float32[-16.701, -13.624, -13.624, -15.321, -15.321, -17.944, -15.45, -13.497, -13.801, -13.801, -9.305, -17.762, -15.866, -15.866, -17.762, -16.475, -15.9354, -14.737, -13.878, -13.43, -6.326, -8.639, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.801, -13.801, -13.801, -13.801, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576]   # op/blkdat.f DATA HT2
+const _SPR_HT1_AK = Float32[5.047089, 5.047089, 4.683932, 4.35032, 4.633182, 4.633182, 4.35032, 5.047089, 4.513771, 4.716522, 5.007972, 4.701229, 4.633182, 4.622461, 4.542755, 4.393426, 4.393426, 4.622461, 4.479633, 4.622461, 4.622461, 4.622461, 4.622461]   # ak/blkdat.f DATA HT1
+const _SPR_HT2_AK = Float32[-12.629014, -12.629014, -10.690737, -5.776563, -6.81926, -6.81926, -5.776563, -12.629014, -10.853785, -11.426736, -12.085418, -12.133655, -6.81926, -6.696442, -6.654068, -3.968868, -3.968868, -6.696442, -5.03023, -6.696442, -6.696442, -6.696442, -6.696442]   # ak/blkdat.f DATA HT2
+const _SPR_HT1_WS = Float32[4.86039, 4.86039, 4.86039, 5.3401, 4.86039, 4.86039, 4.86039, 4.86039, 4.8358, 4.8358, 4.86039, 4.6843, 4.86039, 4.6843, 4.6843, 4.6843, 4.6843, 4.86039, 4.6843, 4.6843, 4.192, 4.86039, 5.3401, 4.86039, 4.6843, 4.6843, 4.6843, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 4.8042, 5.152, 4.86039, 4.8042]   # ws/blkdat.f DATA HT1
+const _SPR_HT2_WS = Float32[-9.32795, -9.32795, -9.32795, -15.9354, -9.32795, -9.32795, -9.32795, -9.32795, -9.2077, -9.2077, -9.32795, -6.5516, -9.32795, -6.5516, -6.5516, -6.5516, -6.5516, -9.32795, -6.5516, -6.5516, -5.1651, -9.32795, -15.9354, -9.32795, -6.5516, -6.5516, -6.5516, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -9.92422, -13.576, -9.32795, -9.92422]   # ws/blkdat.f DATA HT2
+const _SPR_HT1_WC = Float32[5.288, 5.308, 5.308, 5.313, 5.313, 5.313, 5.327, 5.143, 5.188, 5.188, 4.865, 5.333, 5.382, 5.382, 5.333, 5.288, 5.3401, 5.271, 5.298, 5.081, 4.7, 4.886, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.188, 5.188, 5.188, 5.188, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152]   # wc/blkdat.f DATA HT1
+const _SPR_HT2_WC = Float32[-14.147, -13.624, -13.624, -15.321, -15.321, -15.321, -15.45, -13.497, -13.801, -13.801, -9.305, -17.762, -15.866, -15.866, -17.762, -14.147, -15.9354, -14.996, -13.24, -13.43, -6.326, -8.792, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.801, -13.801, -13.801, -13.801, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576]   # wc/blkdat.f DATA HT2
+const _SPR_HT1_PN = Float32[5.487, 5.308, 5.308, 5.313, 5.313, 5.517, 5.327, 5.143, 5.188, 5.188, 4.865, 5.333, 5.382, 5.382, 5.333, 5.563, 5.3401, 5.233, 5.355, 5.081, 4.7, 4.875, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.188, 5.188, 5.188, 5.188, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152]   # pn/blkdat.f DATA HT1
+const _SPR_HT2_PN = Float32[-16.701, -13.624, -13.624, -15.321, -15.321, -17.944, -15.45, -13.497, -13.801, -13.801, -9.305, -17.762, -15.866, -15.866, -17.762, -16.475, -15.9354, -14.737, -13.878, -13.43, -6.326, -8.639, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.801, -13.801, -13.801, -13.801, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576]   # pn/blkdat.f DATA HT2
+const _SPR_HT1_EC = Float32[5.035, 4.961, 4.92, 5.032, 4.896, 5.032, 4.854, 4.948, 4.834, 4.884, 5.298, 3.9715, 5.188, 5.188, 5.327, 5.032, 5.188, 5.143, 5.152, 4.7, 4.7, 4.886, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 5.152, 3.9715, 5.152]   # ec/blkdat.f DATA HT1
+const _SPR_HT2_EC = Float32[-10.674, -8.247, -9.003, -10.482, -8.391, -10.482, -8.296, -9.041, -9.042, -9.741, -13.24, -6.7145, -13.801, -13.801, -15.45, -10.482, -13.801, -13.497, -13.576, -6.326, -6.326, -8.792, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -13.576, -6.7145, -13.576]   # ec/blkdat.f DATA HT2
+
+@inline _spr_lin(prem::Float32, d::Float32, lim::Float32, a::Float32, b::Float32) =
+    d < lim ? prem * ((a - b * d) / 100f0) : 0f0                      # IF(DSTMP.LT.lim) PREM*((a-b*DSTMP)/100.) ELSE 0
+@inline function essprt_west(v::Symbol, issp::Integer, prem::Float32, d::Float32)::Float32
+    if v === :wcpn || v === :op
+        issp == 17 && return _spr_lin(prem, d, 216.7f0, 93.2669f0, 0.4303f0)
+        issp == 22 && return _spr_lin(prem, d, 25.9f0, 99.9999f0, 3.8462f0)
+        v === :wcpn && issp == 24 && return prem * 0.70f0
+        v === :op && issp == 24 && return prem * 0.90f0
+        issp in (21, 23, 25, 27, 28, 34, 36, 37) && return prem * 0.90f0
+        issp == 35 && return prem * 0.70f0
+        issp == 33 && return prem * 0.40f0
+        return prem * 1f0
+    elseif v === :caoc
+        issp == 24 && return prem * 0.40f0
+        issp in (26, 27, 33) && return prem * 0.50f0
+        issp == 28 && return _spr_lin(prem, d, 27.1f0, 70.7857f0, 2.6071f0)
+        (29 <= issp <= 32 || issp == 34 || 37 <= issp <= 39 || issp in (42, 45, 46, 48)) && return prem * 0.90f0
+        issp in (35, 40, 47) && return prem * 0.80f0
+        issp == 36 && return _spr_lin(prem, d, 25.9f0, 99.9999f0, 3.8462f0)
+        issp == 41 && return d < 8f0 ? prem * 0.8f0 : prem * 0.5f0
+        issp == 43 && return prem * 0.70f0
+        issp == 50 && return _spr_lin(prem, d, 216.7f0, 93.2669f0, 0.4303f0)
+        return prem * 1f0
+    elseif v === :ws
+        issp == 23 && return _spr_lin(prem, d, 216.7f0, 93.2669f0, 0.4303f0)
+        issp in (28, 29, 33) && return prem * 0.50f0
+        issp == 30 && return _spr_lin(prem, d, 27.1f0, 70.7857f0, 2.6071f0)
+        (issp in (31, 32, 34, 35) || 37 <= issp <= 40) && return prem * 0.90f0
+        return prem * 1f0
+    elseif v === :ec
+        issp == 22 && return _spr_lin(prem, d, 25.9f0, 99.9999f0, 3.8462f0)
+        issp in (23, 29) && return prem * 0.70f0
+        issp in (20, 21, 24, 25, 27, 28, 30) && return prem * 0.90f0
+        return prem * 1f0
+    else # :ak (estb/essprt.f:40-68)
+        (issp == 14 || issp == 15) && return _spr_lin(prem, d, 25.9f0, 99.9999f0, 3.8462f0)
+        if issp == 16 || issp == 17
+            return d < 6f0 ? prem * 0.92f0 : (d < 9f0 ? prem * (-0.13333f0 * d + 1.70f0) : prem * 0.50f0)
+        elseif issp == 18 || issp == 20
+            return d < 6.25f0 ? prem * 0.39f0 : (d < 8.75f0 ? prem * 0.32f0 : prem * 0.25f0)
+        end
+        (issp == 21 || issp == 22) && return prem * 0.90f0
+        return prem * 1f0
+    end
+end
+@inline function nsprec_west(v::Symbol, issp::Integer, d::Float32)::Int
+    nint(x) = floor(Int, x + 0.5f0)
+    two(d)   = d < 5f0 ? 1 : (d <= 10f0 ? nint(0.2f0 * d) : 2)            # NINT(0.2*DSTMP), 2 above 10"
+    three(d) = d < 5f0 ? 1 : (d <= 10f0 ? nint(-1f0 + 0.4f0 * d) : 3)     # NINT(-1+0.4*DSTMP), 3 above 10"
+    if v === :wcpn || v === :op
+        issp == 26 && return 2
+        (issp == 28 || issp == 34) && return two(d)
+        (issp in (17, 21, 23, 25, 27, 36) || (v === :op && issp == 24)) && return three(d)
+        return 1
+    elseif v === :caoc
+        ((26 <= issp <= 33) || issp in (35, 39, 40)) && return two(d)
+        issp in (34, 37, 38, 42, 45, 48, 50) && return three(d)
+        issp == 44 && return 2
+        return 1
+    elseif v === :ws
+        issp == 36 && return 2
+        ((28 <= issp <= 33) || issp == 39) && return two(d)
+        issp in (23, 34, 35, 37, 38, 40) && return three(d)
+        return 1
+    elseif v === :ec
+        issp in (20, 21, 24, 27) && return three(d)
+        (issp == 25 || issp == 28) && return two(d)
+        issp == 26 && return 2
+        return 1
+    else # :ak — estb/essprt.f:171-185 (the middle band is DSTMP.LT.10.0)
+        (issp == 18 || issp == 20) && return d < 5f0 ? 1 : (d < 10f0 ? nint(-1f0 + 0.4f0 * d) : 3)
+        issp == 19 && return 2
+        return 1
+    end
+end
+@inline function sprtht_west(v::Symbol, issp::Integer, si::Float32, iag::Integer)::Float32
+    a = Float32(iag)
+    if v === :wcpn || v === :op
+        (issp == 17 || issp == 21 || (23 <= issp <= 27) || (33 <= issp <= 37)) && return (0.1f0 + si / 100f0) * a
+        issp == 28 && return (0.1f0 + si / 300f0) * a
+        issp == 22 && return (0.1f0 + si / 20f0) * a
+    elseif v === :caoc
+        (issp == 24 || (26 <= issp <= 48)) && return (0.1f0 + si / 50f0) * a
+    elseif v === :ws
+        (issp == 23 || (28 <= issp <= 40)) && return (0.1f0 + si / 50f0) * a
+    elseif v === :ak
+        (14 <= issp <= 22) && return (0.1f0 + si / 100f0) * a
+    end                                                                  # EC: CASE(99999) only ⇒ default
+    return 0.5f0 + 0.5f0 * a
+end
+@inline function west_sprout_dbh(s::StandState, v::Symbol, issp::Integer, ht::Float32)::Float32
+    ht > 4.5f0 || return 0.1f0
+    h1, h2 = v === :wcpn ? (s.variant isa PacificNorthwest ? (_SPR_HT1_PN, _SPR_HT2_PN) : (_SPR_HT1_WC, _SPR_HT2_WC)) :
+             v === :op ? (_SPR_HT1_OP, _SPR_HT2_OP) : v === :caoc ? (_SPR_HT1_CA, _SPR_HT2_CA) :
+             v === :ws ? (_SPR_HT1_WS, _SPR_HT2_WS) : v === :ec ? (_SPR_HT1_EC, _SPR_HT2_EC) : (_SPR_HT1_AK, _SPR_HT2_AK)
+    bx = h2[issp]
+    ax = s.calib.ht_dbh_iabflg[issp] == 1 ? h1[issp] : s.calib.ht_dbh_aa[issp]
+    d = (bx / (flog(ht - 4.5f0) - ax)) - 1f0
+    return d < 0.1f0 ? 0.1f0 : d
+end
+_west_sprout_kind(v) = (v isa WestCascades || v isa PacificNorthwest) ? :wcpn : v isa Olympic ? :op :
+                       (v isa CentralCalifornia || v isa OregonCoast) ? :caoc : v isa WestSierra ? :ws :
+                       v isa EastCascades ? :ec : v isa SoutheastAlaska ? :ak : :none
+
 """
     esuckr!(s; fint) -> Bool
 
@@ -737,11 +860,14 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     ie = s.variant isa InlandEmpire   # IE ESUCKR (ie/essprt.f CASE('IE'); aspen=sp18, sprouters {17,18,19,20,21})
     em = s.variant isa EasternMontana # EM ESUCKR (em/essprt.f CASE('EM'); aspen=sp12, sprouters {11:17})
     bm = s.variant isa BlueMountains  # BM ESUCKR (bm essprt.f CASE('BM'); aspen=sp15, sprouters {13,15,16})
+    wv = _west_sprout_kind(s.variant) # PN/WC/OP/CA/OC/WS/EC (strp essprt.f) and AK (estb essprt.f) tables
+    west = wv !== :none
     # NE/CS aspen suckering (ASSPTN, essprt.f:1228): each aspen sprout's TPA depends on the TOTAL cut-aspen
     # BA/TPA (estump.f:110-111, summed over ALL cut aspen records). Accumulate up front (ESASID=49 NE / 76 CS).
-    asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : (tt || ut) ? 6 : so ? 24 : ie ? 18 : em ? 12 : bm ? 15 : -1 # ESASID(VAR) aspen species index
+    asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : (tt || ut) ? 6 : so ? 24 : ie ? 18 : em ? 12 : bm ? 15 :
+              (wv === :wcpn || wv === :op || wv === :ec) ? 26 : wv === :caoc ? 44 : wv === :ws ? 36 : wv === :ak ? 19 : -1 # ESASID(VAR) aspen species index
     asbar = 0f0; astpar = 0f0
-    if ne || cs || ls || cr || tt || ut || so || ie || em || bm
+    if ne || cs || ls || cr || tt || ut || so || ie || em || bm || west
         @inbounds for rec in s.control.cut_log
             Int(rec.species) == asp_idx || continue
             astpar += rec.prem
@@ -770,10 +896,10 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
         # (both VARACD-branched in essprt.f). NE uses its own CASE('NE') tables (nsprec_ne / essprt_ne); SN
         # uses nsprec_sn / essprt_sn. ⚠ NE aspen suckering (ESASID(NE)=49 → ASSPTN) is still TODO — for a cut
         # sp49 record NE would call ASSPTN to reset PREM before ESSPRT; absent it, sp49 uses the plain PREM.
-        numspr = on ? 2 : ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : ut ? nsprec_ut(issp, dstmp) : so ? nsprec_so(issp, dstmp) : nc ? nsprec_nc(issp, dstmp) : ie ? nsprec_ie(issp, dstmp) : em ? nsprec_em(issp, dstmp) : bm ? nsprec_bm(issp, dstmp) : nsprec_sn(issp, dstmp)
+        numspr = on ? 2 : ne ? nsprec_ne(issp, dstmp) : cs ? nsprec_cs(issp, dstmp) : ls ? nsprec_ls(issp, dstmp) : cr ? nsprec_cr(issp, dstmp) : tt ? nsprec_tt(issp, dstmp) : ut ? nsprec_ut(issp, dstmp) : so ? nsprec_so(issp, dstmp) : nc ? nsprec_nc(issp, dstmp) : ie ? nsprec_ie(issp, dstmp) : em ? nsprec_em(issp, dstmp) : bm ? nsprec_bm(issp, dstmp) : west ? nsprec_west(wv, issp, dstmp) : nsprec_sn(issp, dstmp)
         # NE/CS aspen: ASSPTN replaces PREM with the Crouch-polynomial sucker TPA (per cut aspen) BEFORE
         # ESSPRT (esuckr.f:225-228). SPA = poly(ISHAG) clamped [2608,30125], scaled by cut-aspen BA/198.
-        if (ne || cs || ls || cr || tt || ut || so || ie || em || bm) && issp == asp_idx && astpar > 0f0
+        if (ne || cs || ls || cr || tt || ut || so || ie || em || bm || west) && issp == asp_idx && astpar > 0f0
             rshag = Float32(ishag)
             spa = 40100.45f0 - 3574.02f0 * rshag^2 + 554.02f0 * rshag^3 -
                   3.5208f0 * rshag^5 + 0.011797f0 * rshag^7
@@ -790,7 +916,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                nc ? essprt_nc(issp, prem, dstmp) :
                ie ? essprt_ie(issp, prem, dstmp) :
                em ? essprt_em(issp, prem, dstmp) :
-               bm ? essprt_bm(issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
+               bm ? essprt_bm(issp, prem, dstmp) :
+               west ? essprt_west(wv, issp, prem, dstmp) : essprt_sn(coef, issp, prem, dstmp, isefor)
         prem < 0.001f0 && continue                     # esuckr.f:170/244
         si = s.plot.sp_site_index[issp]                # SITEAR(ISSP)
         sp2 = s.species.code2[issp]      # 2-char alpha code (for CWCALC)
@@ -810,7 +937,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   nc ? sprtht_nc(issp, si, ishag) :
                   ie ? sprtht_ie(issp, si, ishag) :
                   em ? sprtht_em(issp, si, ishag) :
-                  bm ? sprtht_bm(issp, si, ishag) : sprtht_sn(issp, si, ishag)) * hmult
+                  bm ? sprtht_bm(issp, si, ishag) :
+                  west ? sprtht_west(wv, issp, si, ishag) : sprtht_sn(issp, si, ishag)) * hmult
             randev = 0f0
             while true
                 randev = bachlo(s.rng, 0f0, 0.5f0; stream = :estab)
@@ -826,7 +954,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   ut ? tt_sprout_dbh(coef, issp, ht) :
                   so ? so_sprout_dbh(coef, issp, ht) :
                   nc ? nc_sprout_dbh(coef, issp, ht) :
-                  (ie || em || bm) ? ie_em_sprout_dbh(s, issp, ht) : sprout_dbh(coef, issp, ht)  # UT ht-dbh = Wykoff BX/(ln(HT-4.5)-AX)-1 (strp/esuckr.f:303), same form as TT
+                  (ie || em || bm) ? ie_em_sprout_dbh(s, issp, ht) :
+                  west ? west_sprout_dbh(s, wv, issp, ht) : sprout_dbh(coef, issp, ht)  # UT ht-dbh = Wykoff BX/(ln(HT-4.5)-AX)-1 (strp/esuckr.f:303), same form as TT
             # CWCALC's CR arg is the dummy CRDUM=1.0 (esuckr.f:317), NOT the record's ICR=70 (that is the
             # discarded 6th arg IICR, cwcalc.f). Passing 70 inflated sprout CrWidth by cr_coef·69 for Bechtold spp.
             cw = tree_crwdth(s, issp, dbh, ht, 1f0)    # CRWDTH(ITRN)=CW (esuckr.f:314-316); western ⇒ variant cwcalc

@@ -113,6 +113,41 @@ const _ON_ES_XMIN = Float32[
 const _ON_ES_HHTMAX = Float32[14,20,18,18,20,18,18,20,16,24,16,16,16,16,18,24,24,18,20,26,16,12,20,22,16,16,16,14,24,16,16,14,
  12,20,16,20,20,14,14,20,20,24,18,20,18,20,20,24,10,16,18,20,20,20,12,18,16,20,16,24,30,20,20,20,32,20,18,20,14,20,18,16]
 
+# ESSUBH fixed base heights. ca/essubh.f == oc/essubh.f (GO TO labels 10/40→1.0, 20/50→2.0, 30→3.0);
+# ws/essubh.f SELECT CASE (41 = the PY site form, handled inline).
+const _CA_ESSUBH_HHT = Float32[2,2,2,2,1,1,2,2,1,3, 3,3,3,3,2,2,2,2,2,2, 3,2,2,1,2,2,2,2,2,1, 1,2,2,2,2,2,2,2,1,1,
+                               2,2,2,2,2,2,2,2,2,2]
+const _WS_ESSUBH_HHT = let h = zeros(Float32, 43)
+    for i in (1, 11, 24, 3, 13, 4, 23, 5); h[i] = 2f0; end
+    for i in (2, 22, 42); h[i] = 1f0; end
+    for i in (28:33..., 40, 43, 34:39...); h[i] = 7f0; end
+    h[6] = 0.8f0; h[7] = 5f0; h[8] = 4f0; h[18] = 4f0; h[9] = 3f0; h[10] = 3f0
+    for i in (12, 14, 15, 16, 17, 19, 20, 25, 26, 27); h[i] = 3f0; end
+    h[21] = 0.5f0
+    h
+end
+
+# The establishment XMIN / HHTMAX of the variants whose species CSV has no :estab_min_ht column (their ESTAB/PLANT/
+# NATURAL cycle crashed with KeyError :estab_min_ht — the stock tests/FVS<v> keys of KT, SO, CA, BC).
+# kt/blkdat.f DATA XMIN / HHTMAX (MAXSP 11)
+const _KT_ES_XMIN = Float32[1, 1, 1, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5]
+const _KT_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 24, 18, 18, 17, 22]
+# so/blkdat.f DATA XMIN / HHTMAX (MAXSP 33)
+const _SO_ES_XMIN = Float32[1, 1, 1.5, 1.5, 0.5, 0.5, 1.5, 0.5, 0.8, 1.3, 0.5, 1.5, 0.8, 0.5, 1, 1, 1, 0.5, 1, 1, 1, 1, 1, 6, 1, 1, 1.5, 1, 1, 1, 1, 1.5, 1]
+const _SO_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 20, 18, 20, 17, 6, 21, 20, 21, 20, 23, 27, 22, 20, 20, 20, 50, 20, 16, 20, 20, 20, 20, 20, 20, 20, 21, 20]
+# ws/blkdat.f DATA XMIN / HHTMAX (MAXSP 43)
+const _WS_ES_XMIN = Float32[2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 2, 1, 1, 1, 1, 2, 1, 1, 0.5, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2]
+const _WS_ES_HHTMAX = Float32[27, 21, 21, 22, 20, 18, 18, 17, 20, 20, 27, 20, 21, 20, 20, 20, 20, 17, 20, 20, 9, 21, 22, 27, 20, 20, 20, 24, 24, 24, 24, 24, 24, 22, 22, 22, 22, 22, 22, 24, 20, 23, 24]
+# ca/blkdat.f DATA XMIN / HHTMAX 50*20 (MAXSP 50)
+const _CA_ES_XMIN = Float32[0.5, 0.5, 0.3, 0.8, 0.8, 0.8, 0.8, 0.3, 0.5, 1.2, 1, 1, 1, 1, 1, 0.8, 0.8, 1, 0.8, 1.2, 1, 0.5, 1, 0.3, 0.8, 1, 0.5, 1, 1, 0.8, 1, 0.8, 1, 0.5, 0.8, 0.8, 0.5, 0.8, 0.5, 0.8, 1, 0.5, 1, 1.2, 1.2, 1, 0.3, 0.5, 0.75, 1]
+const _CA_ES_HHTMAX = Float32[20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+# oc/blkdat.f DATA XMIN / HHTMAX MAXSP*20 (MAXSP 50)
+const _OC_ES_XMIN = Float32[0.5, 0.5, 0.3, 0.8, 0.8, 0.8, 0.8, 0.3, 0.5, 1.2, 1, 1, 1, 1, 1, 0.8, 0.8, 1, 0.8, 1.2, 1, 0.5, 1, 0.3, 0.8, 1, 0.5, 1, 1, 0.8, 1, 0.8, 1, 0.5, 0.8, 0.8, 0.5, 0.8, 0.5, 0.8, 1, 0.5, 1, 1.2, 1.2, 1, 0.3, 0.5, 0.75, 1]
+const _OC_ES_HHTMAX = Float32[20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+# canada/bc blkdat.f:47-55 DATA XMIN / HHTMAX (MAXSP 15)
+const _BC_ES_XMIN = Float32[1, 1, 1, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1, 1, 1, 1]
+const _BC_ES_HHTMAX = Float32[23, 27, 21, 21, 22, 20, 24, 18, 18, 17, 20, 20, 20, 21, 20]
+
 # Establishment min-height (XMIN) + max seedling height (HHTMAX) per species — from each variant's
 # blkdat.f (VERIFIED: IE blkdat.f:62 XMIN == _IE_ES_XMIN). EM/BM/UT/CI had no establishment.jl ⇒ the dispatch
 # fell to the missing `:estab_min_ht` coef ⇒ KeyError crash on ESTAB/PLANT-keyword stands (full utt01/emt01/
@@ -275,7 +310,7 @@ Idempotent. The per-point BA uses the same PTBAA scale as `point_basal_area!` (v
 BAAA), filtered to point-1 overstory records.
 """
 function snapshot_esb_inputs!(s::StandState)
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return s
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) || return s
     isnan(s.estab.inv_baaold) || return s              # snapshot once (setup)
     p, t = s.plot, s.trees
     scale = p.gross_space > 0f0 ? p.pi / p.gross_space : 1f0   # PTBAA scale (= point_basal_area!)
@@ -334,11 +369,13 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
     baa, xc, xs, slo = (1 <= pt <= length(hin)) ? hin[pt] :
         (clamp(s.plot.basal_area, 1f0, 400f0), s.plot.slope*cos(s.plot.aspect), s.plot.slope*sin(s.plot.aspect),
          s.plot.slope)
-    ihts = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_ihtser) : em_ihtser(Int(s.plot.habitat_code))
+    # KT: the estb habitat bracket input is ICL5 (kt_site_index_setup!; grinit default 571) — p.habitat_code is KKTYPE
+    ihts = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_ihtser) :
+           em_ihtser(s.variant isa Kootenai ? (s.control.icl5 > 0 ? Int(s.control.icl5) : 571) : Int(s.plot.habitat_code))
     iphy = (1 <= pt <= length(hin)) ? Int(s.estab.es_hin_iphy) : 3
     ipr = clamp(iprep, 1, 4)
     disp = emsqr * dil * _IE_ES_BNORML[iage]
-    hht = if s.variant isa InlandEmpire
+    hht = if s.variant isa InlandEmpire || s.variant isa Kootenai   # kt/essubh.f = ie/essubh.f's species 1-11
         ie_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)
     else
         em_essubh(sp, age, baa, ihts, ipr, iphy, xc, xs, slo, s.plot.elevation, disp)   # em/essubh.f (EM species map)
@@ -354,10 +391,10 @@ function estb_planted_height(s::StandState, a, per::Int, yr::Int, emsqr::Float32
         hht += hadj; hht < 0.05f0 && (hht = 0.05f0)
     else
         hht += hadj
-        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : _EM_ES_XMIN[sp]
+        xmn = s.variant isa InlandEmpire ? _IE_ES_XMIN[sp] : s.variant isa Kootenai ? _KT_ES_XMIN[sp] : _EM_ES_XMIN[sp]
         hht < xmn && (hht = xmn)
     end
-    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
+    hmx = s.variant isa InlandEmpire ? _IE_ES_HHTMAX[sp] : s.variant isa Kootenai ? _KT_ES_HHTMAX[sp] : _EM_ES_HHTMAX[sp]
     hht > hmx && (hht = hmx)
     return hht
 end
@@ -432,11 +469,17 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
               s.variant isa Olympic ? _OP_ES_XMIN :
               (s.variant isa WestCascades || s.variant isa PacificNorthwest) ? _OP_ES_XMIN :   # wc/pn blkdat.f:70-71 XMIN = op/blkdat.f DATA
               s.variant isa Ontario ? _ON_ES_XMIN :
+              s.variant isa Kootenai ? _KT_ES_XMIN : s.variant isa SouthCentralOregon ? _SO_ES_XMIN :
+              s.variant isa WestSierra ? _WS_ES_XMIN : s.variant isa CentralCalifornia ? _CA_ES_XMIN :
+              s.variant isa OregonCoast ? _OC_ES_XMIN : s.variant isa BritishColumbia ? _BC_ES_XMIN :
               sd[:estab_min_ht]   # per-species establishment min height (eastern SN/NE/CS/LS have this column)
     es_hhtmax = s.variant isa Northeast ? _NE_ES_HHTMAX :
                 s.variant isa CentralStates ? _CS_ES_HHTMAX :
                 s.variant isa LakeStates ? _LS_ES_HHTMAX :
                 s.variant isa Ontario ? _ON_ES_HHTMAX :
+                s.variant isa Kootenai ? _KT_ES_HHTMAX : s.variant isa SouthCentralOregon ? _SO_ES_HHTMAX :
+                s.variant isa WestSierra ? _WS_ES_HHTMAX : s.variant isa CentralCalifornia ? _CA_ES_HHTMAX :
+                s.variant isa OregonCoast ? _OC_ES_HHTMAX : s.variant isa BritishColumbia ? _BC_ES_HHTMAX :
                 s.variant isa CentralRockies ? _CR_ES_HHTMAX :
                 s.variant isa InlandEmpire ? _IE_ES_HHTMAX :
                 s.variant isa Teton ? _TT_ES_HHTMAX :
@@ -501,7 +544,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
           s.variant isa EasternMontana || s.variant isa BlueMountains || s.variant isa Utah ||
           s.variant isa CentralIdaho || s.variant isa EastCascades ||
           s.variant isa Klamath || s.variant isa Olympic || s.variant isa WestCascades ||
-          s.variant isa PacificNorthwest) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa PacificNorthwest || s.variant isa Kootenai || s.variant isa SouthCentralOregon ||
+          s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa OregonCoast ||
+          s.variant isa BritishColumbia) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -517,7 +562,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # NE, CS, AND LS all = [-2.5,2.5] (ne/cs/ls estab.f:490). The old `Northeast ? … : (0,1.5)` wrongly gave
     # CS AND LS the SN window [0,1.5], which REJECTS the low tail (RAN<0) ⇒ biased the planted-seedling
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
-    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM = SN window (cr/estab.f:486; ec/estab.f:486; op estab.f:486; BM strp/estab.f:486 RAN∈[0,1.5])
+    ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains ||
+                      s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+                      s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC/NC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -572,7 +619,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # the tally's seed chain; use them verbatim and leave ESS0 at the post-tally ESAVE it set. No ESTAB call this
     # cycle (no states) ⇒ the replicate chain below.
     es_ps = s.estab.es_plot_state
-    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana) &&
+    use_ps = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) &&
              s.estab.es_plot_year == yr && length(es_ps) == nptids * idup
     es0_post_tally = s.rng.es0
     pl_plot = Int32[]                  # plot NCOUNT of each record this pass creates (use_ps mode)
@@ -661,7 +708,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 (ls_htcalc_height(sp, si, carage) / carage) * min(5f0, Float32(per) - Float32(delay))
             elseif s.variant isa CentralRockies
                 _CR_ESSUBH_HHT[sp]        # cr/essubh.f: a FIXED per-species base height (not a height-at-age curve)
-            elseif s.variant isa InlandEmpire
+            elseif s.variant isa InlandEmpire || s.variant isa Kootenai
+                # KT: kt/essubh.f is ie/essubh.f's first 11 species verbatim (same PN/SIG/UHAB/UPRE/UPHY; OT(11) = the WH form).
                 # IE NATURAL/PLANT base height (ie/essubh.f) — the subsequent/planted-tree height model
                 # HHT = EXP(PN + EMSQR·DILATE·BNORM·SIG). IHTSER from the shared estab MYGRUP→MYHTS bracket
                 # (em_ihtser); IPREP=1 (NONE) / IPHY=3 defaults (esplt2.f:191-192); BAA = overstory competition
@@ -770,6 +818,19 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                     per < 5 && (hht_op *= Float32(per) / 5f0)
                     hht_op
                 end
+            elseif s.variant isa SouthCentralOregon
+                # so/essubh.f: SH/WO (9,27) HHT=1, AS (24) HHT=5, else SMHTGF(MODE=0) — the small-tree height at total
+                # AGE (MODE0 is an unset -fno-automatic local ⇒ 0; H likewise 0; CR=0; SI=SITEAR(I)).
+                sp == 9 || sp == 27 ? 1f0 : sp == 24 ? 5f0 :
+                    so_smhtgf(sp, 0f0, 0f0, 0f0, Float32(age), 0; si = si, ba = s.plot.basal_area, pct = 0f0,
+                              avh = s.plot.avg_height)
+            elseif s.variant isa WestSierra
+                sp == 41 ? ((1.47043f0 + 0.23317f0 * si) / (31.56252f0 - 0.05586f0 * si)) * Float32(age) :   # ws/essubh.f
+                           _WS_ESSUBH_HHT[sp]
+            elseif s.variant isa CentralCalifornia || s.variant isa OregonCoast
+                _CA_ESSUBH_HHT[sp]        # ca/essubh.f == oc/essubh.f: a fixed per-species base height (GO TO table)
+            elseif s.variant isa BritishColumbia
+                1f0                       # canada/bc essubh.f: HHT=1.0 for every species
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -798,8 +859,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 hht += hadj                                        # estab.f:1033 HHT=HHT+HTADJ (before the 0.05 floor)
                 hht < 0.05f0 && (hht = 0.05f0)                      # PLANT floor 0.05 (estab.f:1034)
             elseif s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-                   s.variant isa Klamath ||
-                   s.variant isa InlandEmpire
+                   s.variant isa InlandEmpire || s.variant isa Kootenai   # KT: the same estb/estab.f
                 # (BM is NOT in this group: FVSbm is built from strp/estab.f, whose no-user-height PLANT path
                 # (estab.f:485-489) DOES draw RAN=BACHLO(0.5,0.25) in [0,1.5] and adds it — live FVSbm_g16
                 # debug: ESSUBH 7.805 → HHT 8.41 for WL. BM takes the default RAN branch below.)
@@ -832,7 +892,11 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             # over-sized sub-breast-height regen (bare_natural: DBH 0.225 vs live 0.10 at HT~3.4 ft),
             # inflating stand BA ~0.26% and biasing large-tree DGF growth (D10). Only HT ≥ 4.5 uses the
             # inverse, floored to the species min DIAM + the height-proportional add.
-            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah
+            if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah ||
+               s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
+               s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath
+                # SO/WS/CA/OC/NC build the same strp estab.f (:626) and canada/bc estab.f:620 the same DBH=0.1, whatever
+                # the height: REGENT(LESTB) reads D=0.1 (e.g. HK≤4.5 ⇒ DBH=D+0.001·HK).
                 # strp/estab.f:626 DBH(ITRN)=0.1 for every new record regardless of height; REGENT(LESTB) (bm_esgent!)
                 # then assigns the dubbed DK / D+0.001·HK. The HTDBH inverse here gave 1.3"/2.7" planted WL/PP at
                 # birth, which fed the wrong D into the birth-cycle REGENT. TT/UT build the same strp estab.f
@@ -859,7 +923,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 use_ps && push!(pl_plot, Int32((nn - 1) * idup + rep))
                 t.iestat[n]      = Int32(0)  # estab.f:1438 PLANT/NATURAL records: IESTAT=0 (slot may be reused)
                 t.zrand[n]       = -999f0    # estab.f:1424 ZRAND(ITRN)=-999.
-                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai
                     # estb/estab.f:1427-1439: DG=HTG=0, OLDPCT=OLDRN=0, WK1=WK2=0, MISPUTZ(ITRN,0) — clear a reused slot.
                     t.diam_growth[n] = 0f0; t.ht_growth[n] = 0f0
                     t.old_crown_pct[n] = 0f0; t.old_random[n] = 0f0
@@ -884,11 +948,14 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # Other variants keep the full birth-cycle HTG (1.0; guards slot reuse). #193
                 # TT/UT (strp estab.f:506-516, same shape after tt|ut/essubh.f:64-69 rounds/clamps DELAY and sets
                 # TRAGE=TIME−DELAY): HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) = 0.99998 for a start-of-cycle PLANT.
-                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana ||
+                t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
                                       s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
                                       s.variant isa BlueMountains ||   # bm/estab.f:508-516 (bm/essubh.f DELAY→INT(+.5), TRAGE=TIME−DELAY)
-                                      s.variant isa Olympic   # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
+                                      s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
+                                      s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
+                                      s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same
+                                      s.variant isa BritishColumbia || s.variant isa Klamath   # nc estab.f = strp's
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
@@ -922,7 +989,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # HITE1=f(ABIRTH)) — and esgent_add_gentim! adds the cycle's final GENTIM afterwards (estab.f:1504).
                 # jl had stored AGE−GENTIM(FINT−5): IE planted aspen then grew from SITAGE 2 instead of live's 7
                 # (DBH 0.7728 vs 0.7812).
-                if s.variant isa InlandEmpire || s.variant isa EasternMontana
+                if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai
                     _pdi = Float32(clamp(delay, -3, per))
                     t.birth_age[n] = Float32(per) - _pdi + trage
                     s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
@@ -1055,9 +1122,13 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         # TT (tt/regent.f:302-316 DO 13, storage order, before the SMHTGF ZRANDs) and UT (ut/regent.f:230-241, inside
         # the species-major record loop, interleaved with ZZRAN) likewise draw the crown in their own esgent.
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
+                         s.variant isa Kootenai ||   # KT: kt/regent.f DO 13 (kt_esgent!)
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
                          s.variant isa WestCascades || s.variant isa CentralRockies ||   # CR: cr_esgent! (regent.f:247-261)
-                         s.variant isa PacificNorthwest   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa PacificNorthwest ||   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
+                         s.variant isa SouthCentralOregon ||   # SO/WS/CA: regent.f LESTB crown inside the species loop;
+                         s.variant isa WestSierra || s.variant isa CentralCalifornia ||   # NC: regent.f DO 13, storage order
+                         s.variant isa Klamath                 # (so_/ws_/ca_/nc_esgent!)
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0
@@ -1343,4 +1414,27 @@ function estab_prep_npnats_estb!(s::StandState)
              ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc)), s.control.schedule) || return
     estab_prep_tally!(s, 99, y2 - 20, y2 - 1)
     return
+end
+
+# strp/esgent.f and estb/esgent.f DO 100 (after REGENT(.TRUE.,ITRNIN)) for one new record i whose REGENT height
+# increment is `htg` (DBH/DG already set by REGENT): HTEMP=HT+HTG; HTG=HTG·WK4; HT=HT+HTG; when WK4<1 (a partial
+# birth cycle) HT<4.5 ⇒ DBH=0.1+0.001·HT, DG=0, else DBH=DBH·(HT/HTEMP), DG=DBH·(HT/HTEMP) (the rescaled DBH, as
+# written); HT capped at HHTMAX(sp). WK4 = HTIMLT (t.htimlt).
+function esgent_finish!(t, i::Int, htg::Float32, hhtmax::Float32)
+    h = t.height[i]
+    wk4 = t.htimlt[i]
+    htemp = h + htg
+    htg = htg * wk4
+    hn = h + htg
+    if wk4 < 1f0
+        if hn < 4.5f0
+            t.dbh[i] = 0.1f0 + 0.001f0 * hn; t.diam_growth[i] = 0f0
+        else
+            t.dbh[i] = t.dbh[i] * (hn / htemp); t.diam_growth[i] = t.dbh[i] * (hn / htemp)
+        end
+    end
+    t.ht_growth[i] = htg
+    hn > hhtmax && (hn = hhtmax)
+    t.height[i] = hn
+    return nothing
 end

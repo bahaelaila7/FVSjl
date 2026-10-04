@@ -26,7 +26,7 @@ scale, NOT the 0–1 proportion (regent.f:183 `CR=ICR(I)/10.0`). Final floor `IF
     im = NC_HG_IMETH[sp]
     htgr = if im == 2
         b = baa <= 5.0f0 ? 5.0f0 : baa
-        exp(NC_HG_HCON[sp] + NC_HG_HBA[sp] * log(b))
+        fexp(NC_HG_HCON[sp] + NC_HG_HBA[sp] * flog(b))
     elseif im == 1
         NC_HG_HCON[sp] + relht * 4.292f0 + 0.0566f0 * cr * cr +
             0.1699f0 * h + NC_HG_HBA[sp] * baa + 0.00768f0 * ssite
@@ -35,10 +35,10 @@ scale, NOT the 0–1 proportion (regent.f:183 `CR=ICR(I)/10.0`). Final floor `IF
         if htmax - h <= 1.0f0
             0.0f0
         else
-            age1 = (1.0f0 / -0.010742f0) * log(1.0f0 - (h / 2.242202f0 / ssite)^(1.0f0 / 0.919076f0))
+            age1 = (1.0f0 / -0.010742f0) * flog(1.0f0 - fpow(h / 2.242202f0 / ssite, 1.0f0 / 0.919076f0))
             age2 = age1 + 5.0f0
-            h1 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age1))^0.919076f0
-            h2 = 2.242202f0 * ssite * (1.0f0 - exp(-0.010742f0 * age2))^0.919076f0
+            h1 = 2.242202f0 * ssite * fpow(1.0f0 - fexp(-0.010742f0 * age1), 0.919076f0)
+            h2 = 2.242202f0 * ssite * fpow(1.0f0 - fexp(-0.010742f0 * age2), 0.919076f0)
             h2 - h1
         end
     end
@@ -49,9 +49,9 @@ end
 "nc/htdbh.f — Curtis-Arney HT-DBH (SISKIY, all forests). mode 1: H→D."
 @inline function nc_htdbh_d(sp::Int, h::Float32)
     p2 = NC_HD_P2[sp]; p3 = NC_HD_P3[sp]; p4 = NC_HD_P4[sp]
-    hlim = 4.5f0 + p2 * exp(-p3 * 3.0f0^p4)            # H at D=3 (curve→linear break)
+    hlim = 4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4))            # H at D=3 (curve→linear break)
     if h > hlim
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-p3)) / p4)
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-p3)) / p4)
     else
         return ((h - 4.51f0) * 2.7f0) / (hlim - 4.51f0) + 0.3f0
     end
@@ -64,8 +64,8 @@ blockdata column, so the generic `_htdbh_height` gave a too-short height ⇒ bro
 clamped to the recorded (broken) height ⇒ 16-31% low cubic/board volume on large old redwood."
 @inline function nc_htdbh_h(sp::Int, d::Float32)::Float32
     p2 = NC_HD_P2[sp]; p3 = NC_HD_P3[sp]; p4 = NC_HD_P4[sp]
-    h = d >= 3.0f0 ? 4.5f0 + p2 * exp(-p3 * d^p4) :
-        ((4.5f0 + p2 * exp(-p3 * 3.0f0^p4) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+    h = d >= 3.0f0 ? 4.5f0 + p2 * fexp(-p3 * fpow(d, p4)) :
+        ((4.5f0 + p2 * fexp(-p3 * fpow(3.0f0, p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
     h <= 4.5f0 && (h = 4.5f0)
     return h
 end
@@ -88,14 +88,14 @@ DGSM·(1−XDWT) + DGLT·XDWT, where DGLT is THIS record's large-tree DG (centra
     return nc_dgbnd(sp, d, dg, cap1, cap3)                     # regent.f:327 DGBND
 end
 
-"""nc/regent.f LSTART calibration (DO 90 loop): the small-tree HEIGHT-increment CON = RHCON·exp(HCOR).
+"""nc/regent.f LSTART calibration (DO 90 loop): the small-tree HEIGHT-increment CON = RHCON·fexp(HCOR).
 HCOR = ln(CORNEW), CORNEW = Σ(observed·P)/Σ(predicted·P) over DBH<5 trees with a measured HTG — observed =
 the measured height increment scaled to 5-yr (HTG·SCALE3, SCALE3=REGYR/FINTH), predicted = the raw HTGR5 on
 the BACKDATED height/stand (RHCON=1). Trapped to CORNEW∈[0.0821,12.1825] (±2.5 SD of ln), else reset to 1.
 Called from calibrate_diameter_growth! where t.dbh is backdated and t.ht_growth holds the measured increment.
 The RAW HCOR goes into htg_cor_init; the shared dgdriv per-cycle attenuation (diameter_growth.jl:1133-1136)
 produces the applied htg_cor_small = WCI + cormlt_h·(HCOR_init−WCI), WCI=dg_cor_goal (=0 for a species with no
-diameter COR), cormlt_h=exp(−0.02773·elapsed_end). At cyc1 (elapsed 0, +5) ⇒ CON=exp(0.8705·HCOR_raw). Verified
+diameter COR), cormlt_h=fexp(−0.02773·elapsed_end). At cyc1 (elapsed 0, +5) ⇒ CON=fexp(0.8705·HCOR_raw). Verified
 vs FVSnc_g16 dumps: BO raw HCOR −0.8059 (CORNEW 0.4467) → applied −0.7016 (CON 0.4958) → cyc1 HTG/DG bit-exact."""
 function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
                               saved_dbh::AbstractVector, avh::Float32)
@@ -136,7 +136,7 @@ function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
         # RAW HCOR into htg_cor_init; the shared dgdriv attenuation (calibrate/diameter_growth.jl:1133-1136)
         # produces the applied htg_cor_small = WCI + cormlt_h·(HCOR_init − WCI) each cycle (WCI=dg_cor_goal).
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end
@@ -148,7 +148,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
     scale = fint / NC_REGYR
     scale2 = NC_REGYR / fint         # regent.f:126 SCALE2=YR/FNT (=1 for the native 5-yr NC cycle)
     bark_a = s.calib.bark_a; bark_b = s.calib.bark_b
-    hcor = s.calib.htg_cor_small     # regent.f:159 CON = RHCON(=1)·exp(HCOR)
+    hcor = s.calib.htg_cor_small     # regent.f:159 CON = RHCON(=1)·fexp(HCOR)
     trip = stash !== nothing         # tripling active: replicate the small-tree DG/HTG onto upper/lower records
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0f0 && continue
@@ -162,7 +162,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         tpccf <= 75.0f0 && (relht = 1.0f0 - ((relht - 1.0f0) / 75.0f0) * tpccf)
         relht > 1.5f0 && (relht = 1.5f0)
         cr = Float32(t.crown_pct[i]) * 0.1f0                   # regent.f:183 CR=ICR(I)/10.0 (0–10 scale, NOT /100)
-        htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale * exp(hcor[sp])   # ·CON(=exp(HCOR)); XRHMLT=1
+        htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale * fexp(hcor[sp])   # ·CON(=fexp(HCOR)); XRHMLT=1
         # height: XWT blend with the large-tree HTG (already in t.ht_growth[i])
         xmn = NC_ST_XMIN[sp]; xmx = NC_ST_XMAX[sp]
         xwt = d <= xmn ? 0f0 : (d - xmn) / (xmx - xmn)
@@ -226,6 +226,83 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
                 stash.htgU[i] = htg; stash.htgL[i] = htg; stash.is_small[i] = true
             end
         end
+    end
+    return s
+end
+
+"""
+    nc_esgent!(s, nstart; fint, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → nc/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). NC was missing from the esgent dispatch; the shared establish! crown pass
+drew the new records' crowns from the START-of-cycle point CCF.
+
+REGENT(LESTB): LSKIPH when FINT≤5, else FNT=FINT−5 (regent.f:106-114), SCALE=FNT/REGYR. The crown dub runs FIRST,
+over the new records in STORAGE order (DO 13 I=1,ITRN, :136-149), with the PCCF of the gradd.f:192 DENSE (post-
+growth, pre-regen). Then species-major over the new records: LSKIPH ⇒ HTG=0; else HTGR5 (XBA=BA, RELHT from AVH and
+the point CCF, CR=ICR/10)·CON·XRHGRO·SCALE, XWT=0 (no HTG floor), SIZCAP. DBH below DGMIN (:243-327): HK≤4.5 ⇒
+DBH=D+0.001·HK, DG=0; else DBH=HTDBH⁻¹(HK) floored at DIAM, +0.001·HK, DG=DBH; then DGBND.
+"""
+function nc_esgent!(s::StandState, nstart::Int; fint::Float32 = 5.0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / NC_REGYR
+    _pccf(i) = (ip = Int(t.plot_id[i]); (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip])
+    @inbounds for i in (nstart + 1):t.n                        # DO 13: crown dub, storage order
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * _pccf(i)
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+    end
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= NC_ST_XMAX[sp] && continue
+        h = t.height[i]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now) * scale
+            xba = ba_pre; xba <= 0f0 && (xba = 0.1f0)
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = (h > 0f0 && avh_pre > 0f0) ? h / avh_pre : 1f0
+            tpccf = _pccf(i)
+            tpccf <= 75f0 && (relht = 1f0 - ((relht - 1f0) / 75f0) * tpccf)
+            relht > 1.5f0 && (relht = 1.5f0)
+            htgr = nc_htgr5(sp, p.sp_site_index[sp], xba, relht, cr, h) * con * xrhgro
+            htg = htgr                                          # XWT=0 under LESTB (RW: HTGR2=HTGR)
+            cap = s.control.sp_size_cap[sp, 4]
+            if h + htg > cap
+                htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+        end
+        if d < NC_ST_DGMIN[sp]
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dbhk = d + hk * 0.001f0; dgk = 0f0
+            else
+                dbhk = nc_htdbh_d(sp, hk)                        # LHTDRG=.FALSE. ⇒ HTDBH(IFOR,ISPC,DK,HK,1)
+                dbhk < NC_ST_DIAM[sp] && (dbhk = NC_ST_DIAM[sp])
+                dbhk = dbhk + 0.001f0 * hk
+                dgk = dbhk
+                (dbhk + dgk) < NC_ST_DIAM[sp] && (dgk = NC_ST_DIAM[sp] - dbhk)
+            end
+            dgk = nc_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _NC_ES_HHTMAX[sp])
     end
     return s
 end

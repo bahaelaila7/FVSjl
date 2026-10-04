@@ -410,6 +410,10 @@ mutable struct Control
     # 255-275): the record count latched there for cycle `itrn_grincr_cycle` (the .sum driver runs CUTS before grow_cycle!).
     itrn_grincr::Int32
     itrn_grincr_cycle::Int32
+    # IPTINV / NONSTK given by DESIGN fields 4/5 or the DB NUM_PLOTS / NONSTK_PLOTS (grinit.f:206 default −9999 ⇒
+    # initre.f:330-331 takes the counted IPTKNT / NSTKNT, kept in lstknt / nstknt by the tree reader).
+    iptinv_set::Bool
+    nonstk_set::Bool
 end
 
 function Control()
@@ -493,6 +497,7 @@ function Control()
         false, false, false, false,                              # FMIN SNAGSUM, SNAGOUT, DWDVLOUT, DWDCVOUT
         String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
+        false, false,                                            # iptinv_set, nonstk_set
     )
 end
 
@@ -1065,10 +1070,11 @@ struct SnagBinScratch
     ght::Vector{Float32}     # [MAXTRE] class density-weighted running-mean height
     gden::Vector{Float32}    # [MAXTRE] class total density
 end
+# class slots ≤ dying records ≤ the largest variant MAXTRE (ON 6000; variant_maxtre)
 SnagBinScratch() = SnagBinScratch(Vector{Float32}(undef, MAXSP * 19), Vector{Float32}(undef, MAXSP * 19),
-                                  zeros(Int32, MAXSP * 19 * 2), Vector{Int32}(undef, MAXTRE),
-                                  Vector{Float32}(undef, MAXTRE), Vector{Float32}(undef, MAXTRE),
-                                  Vector{Float32}(undef, MAXTRE))
+                                  zeros(Int32, MAXSP * 19 * 2), Vector{Int32}(undef, 6000),
+                                  Vector{Float32}(undef, 6000), Vector{Float32}(undef, 6000),
+                                  Vector{Float32}(undef, 6000))
 
 """
 PotFire-report weather-scenario conditions, overridable by the POTF* keywords (POTFMOIS/POTFWIND/

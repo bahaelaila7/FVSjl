@@ -286,29 +286,73 @@ CON = exp(HCOR) small-tree height calibration reuses c.htg_cor_small (shared REG
 computes it). NOTE: density subcycle feedback from OTHER small trees (regent.f:444) is omitted in this first
 implementation (only the large-tree density contribution is included) — refine if the differential needs it.
 """
-function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10.0f0)
+function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10.0f0,
+                            lestb::Bool = false, itrnin::Int = 1,
+                            atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0,
+                            ba_now::Float32 = -1f0, relden_now::Float32 = -1f0, pccf_now::Vector{Float32} = Float32[])
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     t.n == 0 && return s
     n = t.n
     rhcon = kt_regcons!(s)
-    ba = p.basal_area; relden = p.relative_density; avh = p.avg_height
+    # ESTAB mode (REGENT(.TRUE.,ITRNIN) from esgent.f): BA/RELDEN/PCCF are the gradd.f:192 DENSE's (post-growth,
+    # PRE-ESNUTR — snapshotted by the caller before the new cohort exists); the new records (≥ITRNIN) have PCT=0.
+    ba = (lestb && ba_now >= 0f0) ? ba_now : p.basal_area
+    relden = (lestb && relden_now >= 0f0) ? relden_now : p.relative_density
+    avh = p.avg_height
+    _pccf(pt) = (lestb && 1 <= pt <= length(pccf_now)) ? pccf_now[pt] :
+                (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+    _pct(i) = (lestb && i >= itrnin) ? 0f0 : t.crown_ratio[i]
     managed = p.managed == Int32(1)
     dgsd = s.control.dg_sd
     regyr = KT_RG_REGYR                                    # 5.0
     # subcycle count + lengths (regent.f:186-203)
     ntyr = Int(round(fint)); iyr = Int(regyr)
-    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); nper < 1 && (nper = 1)
-    kper = zeros(Int, nper); itot = ntyr; nn = nper
+    lskiph = false
+    if lestb                                               # regent.f:187-188 ESTAB: the cycle after year 5
+        ntyr -= 5; lskiph = ntyr <= 0
+    end
+    nper = ntyr ÷ iyr; (ntyr % iyr != 0) && (nper += 1); (!lestb && nper < 1) && (nper = 1)
+    lestb && nper < 0 && (nper = 0)
+    kper = zeros(Int, max(nper, 1)); itot = ntyr; nn = nper
     @inbounds for i in 1:nper
         if nn == 1; kper[i] = itot; break; end
         kper[i] = itot ÷ nn; itot -= kper[i]; nn -= 1
     end
-    kper[nper] = itot == ntyr ? kper[nper] : itot          # KPER(NPER)=ITOT (regent.f:203)
+    nper > 0 && (kper[nper] = itot == ntyr ? kper[nper] : itot)          # KPER(NPER)=ITOT (regent.f:203)
     # recompute ITOT-based last (mirror FVS exactly): after the loop ITOT holds the remainder
     # (the loop already assigned kper[nper]=itot when nn hit 1)
     # per-subcycle stand density from the LARGE trees (regent.f:236-256)
-    banext = fill(ba, nper); rdnext = fill(relden, nper)
-    if nper > 1
+    banext = fill(ba, max(nper, 1)); rdnext = fill(relden, max(nper, 1))
+    # regent.f:206-211 after-thin TEMBA/TEMCCF/TEMAHT (ATBA/ATCCF ≤0 ⇒ the current BA/RELDEN)
+    temba = (atba > 0f0) ? atba : ba; temccf = (atccf > 0f0) ? atccf : relden; temaht = atavh
+    if lestb
+        # regent.f:269-281 — ESTAB: interpolate each subcycle's start density from the after-thin and the current
+        # (post-growth) values; BAYR/CCFYR divide by ITOT (the remainder after the KPER split), 0 when LSKIPH.
+        bayr = 0f0; ccfyr = 0f0
+        if !lskiph
+            bayr = (ba - temba) / Float32(itot); ccfyr = (relden - temccf) / Float32(itot)
+        end
+        nyr = 5
+        @inbounds for j in 1:nper
+            rdnext[j] = temccf + Float32(nyr) * ccfyr
+            banext[j] = temba + Float32(nyr) * bayr
+            nyr += kper[j]
+        end
+        # regent.f:287-300 DO 13 — dub the crown of each new record, STORAGE order, before any growth draw
+        @inbounds for i in itrnin:n
+            pccf = _pccf(Int(t.plot_id[i]))
+            cr0 = 0.89722f0 - 0.0000461f0 * pccf
+            ran = 0f0
+            while true
+                ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+            end
+            cr0 = cr0 + 0.07985f0 * ran
+            cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+            icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+            t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        end
+    end
+    if !lestb && nper > 1
         @inbounds for i in 1:n
             d1 = t.dbh[i]; d1 < 3.0f0 && continue
             sp = Int(t.species[i]); pr = t.tpa[i]
@@ -328,10 +372,10 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         end
     end
     # DELMAX (regent.f:313), R=RELDEN, AH=AVH
-    delmax = (avh / 36.0f0) * (0.01232f0 * relden - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
+    ah = lestb ? temaht : avh                               # regent.f:306-312 ESTAB: R=TEMCCF, AH=TEMAHT
+    delmax = (ah / 36.0f0) * (0.01232f0 * (lestb ? temccf : relden) - 1.75f0); delmax > 0.0f0 && (delmax = 0.0f0)
     # per-tree height accumulator (WK3), starts at HT
     wk3 = Float32[t.height[i] for i in 1:n]
-    ah = avh
     # ---- subcycle height loop (regent.f:321-460) ----
     ind1 = species_major_order(s)                     # DO 16 ISPC / DO 15 I3=I1,I2 / I=IND1(I3)
     ky = 0
@@ -343,16 +387,17 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         for i in ind1
             sp = Int(t.species[i]); d = t.dbh[i]
             d >= KT_RG_XMAX[sp] && continue
+            (lestb && i < itrnin) && continue                 # regent.f:376
             t.tpa[i] <= 0.0f0 && continue
             # kt/regent.f:329-331 CON = RCOR2 (READCORR, LRCOR2) · EXP(HCOR)
             con = ((s.control.lrcor2 && s.control.sp_rcor2[sp] > 0f0) ? s.control.sp_rcor2[sp] : 1f0) *
                   exp(c.htg_cor_small[sp])
             h1 = wk3[i]
-            pct = t.crown_ratio[i]
+            pct = _pct(i)
             bal = baj * (100.0f0 - pct) * 0.01f0
             balmh = baj * (100.0f0 - pct) * 0.0001f0
             cr = Float32(t.crown_pct[i]) / 100.0f0
-            pt = Int(t.plot_id[i]); pccf1 = (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0
+            pt = Int(t.plot_id[i]); pccf1 = _pccf(pt)
             htpc1 = managed ? KT_RG_HTPCC1[sp] : 0.0f0
             xrhgro = active_multiplier(s.control, :regh, sp, current_cycle_year(s))
             local htgrl::Float32
@@ -401,6 +446,57 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     #      gemdg balloons tiny DBH) ⇒ regen BA over-predicted 30-60%. The DG dub is the FAITHFUL non-ESTAB path
     #      (kt/regent.f:591-604): DG(K)=(DK−D1)·XRDGRO·BARK on the DDS scale, DBH grows via GRADD — the old code
     #      did a raw (DK−D1)·XRDGRO with NO bark/DDS/SIZCAP scaling. DBH-direct is the HK<4.5 tiny edge only. ----
+    if lestb
+        # regent.f:473-651 under LESTB, the new records only (I<ITRNIN skipped), species-major: LSKIPH ⇒ HTG=0 (no
+        # draw); else HTGR = (WK3−H) + ZZRAN·HSIGMA (ZZRAN∈[−1.5,1]), ≥0.15, XWT=0, SIZCAP. D<3: HK<4.5 ⇒ DBH =
+        # 0.1+DIAM·0.01+0.001·HK, DG=0; else the height dub DK (≥DIAM, +0.001·HK) is BOTH DBH and DG (:582-584).
+        # DGBND; no tripling, no DUBSCR.
+        dgsd_e = s.control.dg_sd
+        @inbounds for i in species_major_order(s)
+            i < itrnin && continue
+            sp = Int(t.species[i]); d = t.dbh[i]
+            d >= KT_RG_XMAX[sp] && continue
+            h = t.height[i]
+            local htg::Float32
+            if lskiph
+                htg = 0f0
+            else
+                htgr1 = wk3[i] - h; htgr1 < 0f0 && (htgr1 = 0f0)
+                zzran = 0f0
+                if dgsd_e >= 1f0
+                    while true
+                        zzran = bachlo(s.rng, 0f0, 1f0)
+                        (zzran <= 1f0 && zzran >= -1.5f0) && break
+                    end
+                end
+                htgr = htgr1 + zzran * KT_RG_HSIGMA; htgr < 0.15f0 && (htgr = 0.15f0)
+                htg = htgr
+                cap = s.control.sp_size_cap[sp, 4]
+                if h + htg > cap
+                    htg = cap - h; htg < 0.1f0 && (htg = 0.1f0)
+                end
+            end
+            t.ht_growth[i] = htg
+            if d < 3f0
+                relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1f0 && (relh = 1f0); relh < 0f0 && (relh = 0f0)
+                dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
+                hk = h + htg
+                local dbhk::Float32, dgk::Float32
+                if hk < 4.5f0
+                    dbhk = 0.1f0 + KT_RG_DIAM[sp]*0.01f0 + hk*0.001f0; dgk = 0f0
+                else
+                    dk = sp == 11 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj : KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj
+                    dk < KT_RG_DIAM[sp] && (dk = KT_RG_DIAM[sp])
+                    dk = dk + hk*0.001f0
+                    dbhk = dk; dgk = dk
+                    (dbhk + dgk) < KT_RG_DIAM[sp] && (dgk = KT_RG_DIAM[sp] - dbhk)
+                end
+                dgk = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)
+                t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+            end
+        end
+        return s
+    end
     scale = fint > 0.0f0 ? 10.0f0 / fint : 1.0f0           # SCALE=YR/FINT (kt/regent.f:220), YR=10
     _sp_order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
     @inbounds for i in _sp_order
@@ -624,5 +720,43 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew <= 0f0 && (cornew = 1f-4)
         c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
     end
+    return s
+end
+
+"""
+    kt_esgent!(s, nstart; fint, atavh, atba, atrelden, relden_pre, ba_pre, pccf_pre)
+
+estb/esgent.f (KT) — SPESRT, REGENT(.TRUE.,ITRNIN) (small_tree_growth! in ESTAB mode) for the records ESTAB created
+this cycle (nstart+1:n), then DO 100: HTEMP=HT+HTG; HTG=HTG·WK4; HT=HT+HTG; WK4<1 ⇒ HT<4.5: DBH=0.1+0.001·HT, DG=0,
+else DBH and DG scaled by HT/HTEMP; HT>HHTMAX ⇒ HT=HHTMAX, DBH=2.95. estab.f:1504 then adds GENTIM to ABIRTH.
+"""
+function kt_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0, pccf_pre::Vector{Float32} = Float32[])
+    t = s.trees
+    nstart >= t.n && return s
+    species_sort!(s)                                   # esgent.f CALL SPESRT
+    small_tree_growth!(s, nothing, s.variant; fint = fint, lestb = true, itrnin = nstart + 1,
+                       atba = atba, atccf = atrelden, atavh = atavh, ba_now = ba_pre, relden_now = relden_pre,
+                       pccf_now = pccf_pre)
+    @inbounds for i in (nstart+1):t.n
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        wk4 = t.htimlt[i]
+        t.ht_growth[i] = t.ht_growth[i] * wk4
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if wk4 < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.diam_growth[i] * (t.height[i] / htemp)
+            end
+        end
+        if t.height[i] > _KT_ES_HHTMAX[sp]
+            t.height[i] = _KT_ES_HHTMAX[sp]; t.dbh[i] = 2.95f0
+        end
+    end
+    esgent_add_gentim!(s, nstart, fint)                # estab.f:1504 ABIRTH += GENTIM (after ESGENT)
     return s
 end

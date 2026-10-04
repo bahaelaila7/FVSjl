@@ -151,6 +151,13 @@ function kt_site_index_setup!(s::StandState)
         kktype, itype = kt_habtyp(kodtyp_in)
         p.habitat_code  = Int32(kktype)   # KKTYPE for chunk-3 DG (MAPHAB)
         p.habitat_input = Int32(itype)    # ITYPE for sitset BAMAX/SDIDEF
+        # ICL5 = "the actual input habitat code" (grinit.f:182-185, default 571), the ESTAB habitat bracket input
+        # (esplt2.f:46 IHTYPE=ICL5). dbsstandin.f:590-593 / initre.f:869-871 set ICL5=KODTYP (the numeric input
+        # code) before HABTYP; kt/habtyp.f:71 zeroes it when a PV reference code is present, and the caller then
+        # takes the translated KODTYP (habtyp.f end: MTYPE(ITYPE)). No habitat input ⇒ ICL5 stays 571.
+        if kodtyp_in > 0
+            s.control.icl5 = isempty(strip(p.pv_ref)) ? Int32(kodtyp_in) : KT_MTYPE[itype]
+        end
     else
         itype = Int(p.habitat_input)      # already an ITYPE
     end

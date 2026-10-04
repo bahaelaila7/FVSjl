@@ -32,27 +32,30 @@ function ca_smhtgf(sp::Int, d::Float32, h::Float32, cr::Float32, ba::Float32, ba
     tembal = bal < 5f0 ? 5f0 : bal
     grp = CA_SMH_MAPSP[sp]
     local htgr::Float32
+    # EXP/ALOG/** of REAL*4 are glibc expf/logf/powf in the gfortran build (fexp/flog/fpow), and SMHMOD is formed
+    # first (smhtgf.f:152-155: SMHMOD=1.016605*CRMOD*RHMOD; HTGR=DOMHTGR*SMHMOD).
     if grp == 1                                     # pines
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
     elseif grp == 2                                 # firs incl. Douglas-fir
         domhtgr = 5f0*(2.2227f0 + 0.4314f0*si)/(29.0f0 - 0.05f0*si)
         crr = cr/10f0
-        crmod = 1f0 - exp(-4.26558f0*crr)
-        rhmod = exp(2.54119f0*(relht^0.250537f0 - 1f0))
-        htgr = domhtgr * 1.016605f0*crmod*rhmod
+        crmod = 1f0 - fexp(-4.26558f0*crr)
+        rhmod = fexp(2.54119f0*(fpow(relht, 0.250537f0) - 1f0))
+        smhmod = 1.016605f0*crmod*rhmod
+        htgr = domhtgr * smhmod
     elseif grp == 3                                 # black oak
-        htgr = exp(3.817f0 - 0.7829f0*log(tembal)) * factor
+        htgr = fexp(3.817f0 - 0.7829f0*flog(tembal)) * factor
     elseif grp == 4                                 # tanoak
-        htgr = exp(3.385f0 - 0.5898f0*log(tembal)) * factor
+        htgr = fexp(3.385f0 - 0.5898f0*flog(tembal)) * factor
     else                                            # coast redwood
         htmax = 2.242202f0*si
         if htmax - h <= 1f0
             htgr = 0f0
         else
-            age1 = 1f0/-0.010742f0 * log(1f0 - (h/2.242202f0/si)^(1f0/0.919076f0))
+            age1 = 1f0/-0.010742f0 * flog(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
             age2 = age1 + 5f0
-            h1 = 2.242202f0*si*(1f0-exp(-0.010742f0*age1))^0.919076f0
-            h2 = 2.242202f0*si*(1f0-exp(-0.010742f0*age2))^0.919076f0
+            h1 = 2.242202f0*si*fpow(1f0-fexp(-0.010742f0*age1), 0.919076f0)
+            h2 = 2.242202f0*si*fpow(1f0-fexp(-0.010742f0*age2), 0.919076f0)
             htgr = h2 - h1
         end
     end
@@ -76,7 +79,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
     # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
     avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
     scale = fint / CA_RG_REGYR                       # SCALE = FNT/REGYR (non-estab FNT=FINT)
-    scale2 = s.control.year / fint                   # SCALE2 = YR/FNT
+    scale2 = htg_period(s.variant) / fint            # SCALE2 = YR/FNT
     yr_now = current_cycle_year(s)                   # ca/regent.f:113-114 MULTS(3/6, IY(ICYC))
     # Tripled copies (ca/regent.f:351-356): with LTRIP each record I is followed by its two copies K=ITRN+2I−2+L
     # (L=1,2), each rerunning labels 2-23 — a FRESH ZZRAN draw, the XWT blend with the copy's own large-tree HTG(K),
@@ -94,7 +97,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
         relht > 1.05f0 && (relht = 1.05f0)
         si = p.sp_site_index[sp]
         bark = wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
-        con = exp(c.htg_cor_small[sp])               # RHCON(=1)·exp(HCOR)
+        con = fexp(c.htg_cor_small[sp])               # RHCON(=1)·fexp(HCOR)
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         htgrr = ca_smhtgf(sp, d, h, cr, ba, bal, si, relht)
@@ -199,7 +202,88 @@ function ca_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
+    end
+    return s
+end
+
+"""
+    ca_esgent!(s, nstart; fint, relden_pre, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → ca/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). CA was missing from the esgent dispatch.
+
+REGENT(LESTB): FNT=FINT−5 (LSKIPH when FINT≤5, regent.f:124-131), SCALE=FNT/REGYR (REGYR 5). Species-major over the
+new records: the crown draw (:166-174, PCCF of the gradd.f:192 DENSE), CR=ICR/10, BAL=BA (new record PCT=0),
+RELHT=H/AVH (≤1.05), then unless LSKIPH: HTGR=SMHTGF·CON, the ZZRAN draw, HTGR=(HTGR+0.1·ZZRAN)·XRHGRO·SCALE, XWT=0
+(GS/RW keep HTGR under LESTB), HTG≥0.1, SIZCAP. DBH below DGMIN (:258-347): HK≤4.5 ⇒ DBH=D+0.001·HK, DG=0; else
+DBH=DK (HTDBH) floored at DIAM, +0.001·HK, DG=DBH; then DGBND.
+"""
+function ca_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / CA_RG_REGYR
+    dgsd = s.control.dg_sd
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= CA_RG_XMAX[sp] && continue
+        ip = Int(t.plot_id[i])
+        pccf = (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip]
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        cr = Float32(icr0) / 10f0
+        h = t.height[i]
+        relht = avh_pre <= 0f0 ? 1f0 : h / avh_pre
+        relht > 1.05f0 && (relht = 1.05f0)
+        si = p.sp_site_index[sp]
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now)
+            htgrr = ca_smhtgf(sp, d, h, cr, ba_pre, ba_pre, si, relht)
+            htgr = htgrr * con
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr + zzran*0.1f0) * xrhgro * scale
+            htg = htgr; htg < 0.1f0 && (htg = 0.1f0)
+            cap = s.control.sp_size_cap[sp, 4]
+            (h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        end
+        if d < CA_RG_DGMIN[sp]
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dgk = 0f0; dbhk = d + 0.001f0*hk
+            else
+                dbhk = ca_htdbh_dbh(sp, hk)
+                dbhk < CA_RG_DIAM[sp] && (dbhk = CA_RG_DIAM[sp])
+                dbhk = dbhk + 0.001f0*hk
+                dgk = dbhk
+                (dbhk + dgk) < CA_RG_DIAM[sp] && (dgk = CA_RG_DIAM[sp] - dbhk)
+            end
+            dgk = ca_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _CA_ES_HHTMAX[sp])
     end
     return s
 end

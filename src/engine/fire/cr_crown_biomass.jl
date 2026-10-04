@@ -338,6 +338,8 @@ end
     spi == 14 && return 0.070f0 + 0.02446f0 * h * h          # whitebark pine
     spi == 15 && return 0.3292f0 * h                         # western white pine
     spi == 17 && return 0.81135f0 * h / 5.1213f0             # tanoak / CA black oak
+    spi == 21 && return 0.81135f0 * h / 5.3539f0             # Pacific madrone (fmcroww.f:246-247)
+    spi == 10 && return 0.54599f0 * h / 8.2176f0             # (fmcroww.f:213-214)
     spi == 18 && return fexp(-3.932f0 + 2.571f0 * flog(h))     # Engelmann spruce
     (spi == 6 || spi == 24) &&
         return fexp(-5.126f0 + 2.563f0 * flog(h))              # western/mountain hemlock (CASE 6,24)
@@ -354,7 +356,8 @@ end
         return (0.52f0, 0.27f0, 0.21f0)                                            # CASE (3,11,14,15)
     spi == 5 && return (0.20f0, 0.09f0, 0.71f0)                                    # bigleaf maple (CASE 5)
     spi == 8 && return (0.40f0, 0.42f0, 0.18f0)                                    # western larch
-    spi == 17 && return (0.38f0, 0.32f0, 0.30f0)                                   # CASE (17,21) tanoak/oak
+    (spi == 17 || spi == 21) && return (0.38f0, 0.32f0, 0.30f0)                    # CASE (17,21) tanoak/oak/madrone
+    spi == 10 && return (0.43f0, 0.35f0, 0.22f0)                                   # CASE (10), fmcroww.f:301-305
     (spi == 19 || spi == 20) && return (0.52f0, 0.28f0, 0.20f0)                    # giant sequoia/incense cedar (CASE 19,20)
     spi == 23 && return (0.32f0, 0.39f0, 0.29f0)                                   # red alder (CASE 23)
     error("cr_crownw: small-tree proportions for SPIE group $spi not ported")
@@ -504,7 +507,18 @@ function _cr_crownw_large(spi::Int, d::Float32, r::Float32, c::Float32, hp::Floa
         dp1 = d < 1.4f0 ? 1f0 : 0.268f0 + (1.1733f0 / d)
         dp2 = 1f0
         return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
-    elseif spi == 17                     # tanoak / CA black oak (Snell & Little 1983)
+    elseif spi == 10                     # fmcroww.f:699-722 (CASE 10)
+        livewt = fexp(-0.7881f0 + 2.4839f0 * flog(d))
+        deadwt = fexp(-2.3938f0 + 2.2936f0 * flog(d))
+        p1 = 1f0 / (1.6013f0 + 0.3591f0 * fpow(d, 1.3090f0))
+        p2 = 1f0 / (1.0357f0 + 0.2263f0 * fpow(d, 1.3567f0))
+        p3 = 1f0 / (1.0281f0 + 0.0084f0 * fpow(d, 2.1850f0))
+        p4 = d >= 4.2f0 ? 1f0 / (0.8778f0 + 0.0115f0 * fpow(d, 1.6394f0)) : 1f0
+        dp1 = -0.0632f0 + (0.7214f0 * fpow(d, 0.25f0)) - (0.4655f0 * flog(d))
+        dp2 = d >= 2.5f0 ? 1.2671f0 - (0.1686f0 * fpow(d, 0.5f0)) : 1f0
+        dp3 = d >= 7.6f0 ? fexp(0.0281f0 - (0.0004714f0 * d * d)) : 1f0
+        return (livewt, deadwt, p1, p2, p3, p4, dp1, dp2, dp3)
+    elseif spi == 17 || spi == 21        # tanoak / CA black oak / Pacific madrone (CASE 17,21; Snell & Little 1983)
         livewt = fexp(-0.3169f0 + 2.2774f0 * flog(d))
         deadwt = fexp(-2.4895f0 + 2.0374f0 * flog(d))
         p1 = 1f0 / (1.7936f0 + 0.5952f0 * fpow(d, 0.7239f0))

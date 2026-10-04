@@ -140,7 +140,8 @@ function nc_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32,
     elseif eqn == "01505"; return _cr_r6m2(5.0312f0,0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el, 2f0,75f0,35f0)  # white fir
     elseif eqn == "02006"; return _nc_donnelly(3.1146f0,0.5780f0, d, 65f0)                                                               # red fir
     else
-        error("nc_cwcalc: crown-width equation $(eqn) (NC species $(sp)) not yet ported — nct01 exercises " *
-              "only SP/DF/WF/RF/PP/OS; the MA/IC/BO/TO/OH/RW equations are a follow-up crown-width chunk.")
+        # MA/IC/BO/TO/OH/RW (81802/08105/36102/63102/21104): the same cwcalc.f cases the national library ports
+        # (BF=1 for these R5 forests), including cwcalc.f's final [0.5, 99.9] clamp.
+        return _cwcalc_national(eqn, d, h, cr, barea, el, hi; bf = 1f0)
     end
 end

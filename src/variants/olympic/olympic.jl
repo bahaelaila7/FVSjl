@@ -40,6 +40,7 @@ struct Olympic <: AbstractVariant end
 
 variant_code(::Olympic) = "OP"
 nspecies(::Olympic) = 39
+variant_maxtre(::Olympic) = 2000   # op PRGPRM.F77 PARAMETER (MAXTRE=2000)
 htg_period(::Olympic) = 5f0     # /CONTRL/ YR = 5 (op FINT=5) — ORGANON's native 5-yr step
 organon_version(::Olympic) = 2  # MEASURED: sitset.f IMODTY=2 default ⇒ VERSION=2 (NWO)
 

@@ -225,6 +225,7 @@ end
 # follow-on). Validated bit-exact-or-cornered vs FVSkt_clean (11-row rdsum_oracle).
 # -----------------------------------------------------------------------------
 const _RD_ACRtoHA        = 0.4046945f0    # base/PRGPRM.F77 PARAMETERs
+const _RD_HAtoACR        = 2.471f0        # METRIC.F77 HAtoACR (rdin.f LMTRIC keyword-field conversions)
 const _RD_FTtoM          = 0.3048f0
 const _RD_FT2pACRtoM2pHA = 0.2295643f0
 const _RD_FT3pACRtoM3pHA = 0.0699713f0
@@ -1197,9 +1198,9 @@ function kw_rdin!(s::StandState, rec, kr::KeywordReader)
         elseif k == "RRTYPE"                # rd/rdin.f option 42
             rd_in_rrtype!(rd, r)
         elseif k == "RRINIT"                # rd/rdin.f option 5
-            rd_in_rrinit!(rd, r)
+            rd_in_rrinit!(rd, r; lmtric = _rd_lmtric(s))
         elseif k == "SAREA"                 # rd/rdin.f option 10
-            rd_in_sarea!(rd, r)
+            rd_in_sarea!(rd, r; lmtric = _rd_lmtric(s))
         elseif k == "RSEED"                 # rd/rdin.f option 25 — reseed the RD RNG
             # ARRAY(1)==0 ⇒ GETSED clock-seed (non-deterministic; out of scope).
             if r.present[1] && r.values[1] != 0.0f0
@@ -1246,7 +1247,11 @@ end
 #   1 = center-placement flag (<1 ⇒ random), 2 = #centers, 3 = infected TPA/acre,
 #   4 = uninfected TPA/acre, 5 = proportion roots infected, 6 = disease area acres,
 #   7 = disease type (else MINRR).
-function rd_in_rrinit!(rd::RootDiseaseState, r)
+# rdinit.f:728-731: LMTRIC = VARACD 'BC' or 'ON' — the metric builds read the RD keyword fields in metric units
+# (ha, trees/ha, m) and rdin.f converts them to the imperial internals (the same flag rdpr.f uses for the metric report).
+_rd_lmtric(s::StandState) = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
+
+function rd_in_rrinit!(rd::RootDiseaseState, r; lmtric::Bool = false)
     idi = Int(rd.minrr)
     (length(r.present) >= 7 && r.present[7]) && (idi = clamp(Int(nint(r.values[7])), 1, RD_ITOTRR))
     rd.rrman = true
@@ -1255,7 +1260,8 @@ function rd_in_rrinit!(rd::RootDiseaseState, r)
     if rndcenters
         (r.present[2]) && (rd.ncents[idi] = Int32(min(100, Int(nint(r.values[2])))))
         if r.present[6]
-            rd.parea[idi] = Float32(r.values[6]); rd.lparea[idi] = true
+            rd.parea[idi] = lmtric ? Float32(r.values[6]) * _RD_HAtoACR : Float32(r.values[6])   # rdin.f:651-655
+            rd.lparea[idi] = true
         end
         rd.ipcflg[idi] = Int32(0)
         (rd.ncents[idi] == 1 && rd.parea[idi] == rd.sarea) && (rd.lonect[idi] = Int32(1))
@@ -1265,16 +1271,20 @@ function rd_in_rrinit!(rd::RootDiseaseState, r)
         rd.parea[idi] = -1.0f0; rd.lparea[idi] = true; rd.ipcflg[idi] = Int32(1)
     end
     # field 3/4 = infected/uninfected TPA in diseased area; field 5 = initial root-infection proportion
-    (r.present[3] && r.values[3] >= 0.0f0) && (rd.prkill[idi] = Float32(r.values[3]))
-    (r.present[4] && r.values[4] >= 0.0f0) && (rd.prun[idi]   = Float32(r.values[4]))
+    # rdin.f:670-679: PRKILL/PRUN only when BOTH fields are given (LINIT); metric trees/ha ÷ HAtoACR.
+    if r.present[3] && r.present[4]
+        f = lmtric ? _RD_HAtoACR : 1.0f0
+        r.values[3] >= 0.0f0 && (rd.prkill[idi] = lmtric ? Float32(r.values[3]) / f : Float32(r.values[3]))
+        r.values[4] >= 0.0f0 && (rd.prun[idi]   = lmtric ? Float32(r.values[4]) / f : Float32(r.values[4]))
+    end
     (r.present[5] && 0.0f0 <= r.values[5] <= 1.0f0) && (rd.rrincs[idi] = Float32(r.values[5]))
     return nothing
 end
 
 # rd/rdin.f option 10 — SAREA: stand area (acres). DIMEN = sqrt(SAREA)*208.7.
-function rd_in_sarea!(rd::RootDiseaseState, r)
+function rd_in_sarea!(rd::RootDiseaseState, r; lmtric::Bool = false)
     if r.present[1] && r.values[1] > 0.0f0
-        rd.sarea = Float32(r.values[1])
+        rd.sarea = lmtric ? Float32(r.values[1]) * _RD_HAtoACR : Float32(r.values[1])   # rdin.f:1344-1345 (ha → acres)
         rd.dimen = sqrt(rd.sarea) * 208.7f0
     end
     return nothing
@@ -2754,7 +2764,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
                 propi_o[kk, it, ip] = d.propi[i, it, ip]
             end
             rrninf, polp = rd_insd!(rd, idi, rriare, rridim, rd.parea[idi],
-                                    10 * MAXTRE, n, 1, ksp_o, rootl_o, probiu_o,
+                                    10 * variant_maxtre(s.variant), n, 1, ksp_o, rootl_o, probiu_o,   # IRINIT=10*MAXTRE (rdinit.f:703)
                                     probi_o, propi_o; fint = fintf, pint = pint,
                                     sptran = RD_SPTRAN,
                                     probd = @view(d.probd[idi, :, :]),
