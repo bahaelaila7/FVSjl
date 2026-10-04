@@ -333,7 +333,7 @@ function wc_behre_vol(sp::Int, ifor::Int, d::Float32, h::Float32, bark::Float32;
     end
     vol2 = 0f0; vol4 = 0f0
     v1 = if h <= 17.3f0
-        0.00272708f0 * dbhib * dbhib * h            # R6VOL short-tree cylinder (R6DIBS/R6VOL1 skipped)
+        0.00272708f0 * (dbhib * dbhib) * h            # R6VOL short-tree cylinder (R6DIBS/R6VOL1 skipped)
     else
         v = bm_r6vol3(d, dbtbh, fclass, h, 1)
         mtopp = topd * bark                          # TOPDIAM = TOPD·BARK
