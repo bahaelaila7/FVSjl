@@ -212,7 +212,7 @@ function dgf!(s::StandState, ::WestSierra)
         pt_i = Int(t.plot_id[i])
         pccf = (1 <= pt_i <= length(dens.point_ccf)) ? dens.point_ccf[pt_i] : 0f0
         icr = Float32(t.crown_pct[i])                             # ICR (crown %, 0-100)
-        cr = icr * 0.01f0
+        cr = icr / 100f0                                          # ws/dgf.f:618 CR=FLOAT(ICR(I))/100. (a divide, not ×0.01)
         pctfrac = 1f0 - t.crown_ratio[i] / 100f0                  # 1 − PCT/100 (BA-percentile complement)
         bal = pctfrac * ba
         ald = flog(d)

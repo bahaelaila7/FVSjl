@@ -134,4 +134,14 @@ end
     @test count(m -> m.file == "FVS_Carbon" && rel(m) > 1e-5, c.ms) == 0
 end
 
+# ws/dgf.f:618 CR=FLOAT(ICR(I))/100. — a divide; jl multiplied by 0.01 (0.39999998 vs 0.400000006 for ICR 40), putting the
+# DGF WK2 2 ULP off (7689398010901 cycle 1 WF record 16: WK2 2.61435175 live / 2.6143513 jl ⇒ DG ⇒ HTG).
+@testset "WS DGF crown ratio CR = ICR/100 (ws/dgf.f:618)" begin
+    for cn in ("7689398010901", "446847010497", "23762384010900", "850400255290487")
+        c = _case("WS", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
 end # module
