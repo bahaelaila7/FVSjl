@@ -31,19 +31,19 @@ const WS_HTDBH_SPLINE = Float32[
 @inline function ws_htdbh_height(ifor::Int, sp::Int, d::Float32)::Float32
     p2 = WS_HTDBH_P2[sp]; p3 = WS_HTDBH_P3[sp]; p4 = WS_HTDBH_P4[sp]; z = WS_HTDBH_SPLINE[sp]
     if d >= z
-        return 4.5f0 + p2 * exp(-1f0 * p3 * fpow(d, p4))
+        return 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(d, p4))
     else
-        return ((4.5f0 + p2 * exp(-1f0 * p3 * fpow(z, p4)) - 4.51f0) * (d - 0.3f0) / (z - 0.3f0)) + 4.51f0
+        return ((4.5f0 + p2 * fexp(-1f0 * p3 * fpow(z, p4)) - 4.51f0) * (d - 0.3f0) / (z - 0.3f0)) + 4.51f0
     end
 end
 
 # ws/htdbh.f MODE=1 (H→D). Returns predicted DBH for total height h (ft). ifor unused (matches Fortran).
 @inline function ws_htdbh_dbh(ifor::Int, sp::Int, h::Float32)::Float32
     p2 = WS_HTDBH_P2[sp]; p3 = WS_HTDBH_P3[sp]; p4 = WS_HTDBH_P4[sp]; z = WS_HTDBH_SPLINE[sp]
-    hatz = 4.5f0 + p2 * exp(-1f0 * p3 * fpow(z, p4))
+    hatz = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(z, p4))
     if h >= hatz
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)   # ALOG(..)*1./P4, left to right
     else
-        return (((h - 4.51f0) * (z - 0.3f0)) / (4.5f0 + p2 * exp(-1f0 * p3 * fpow(z, p4)) - 4.51f0)) + 0.3f0
+        return (((h - 4.51f0) * (z - 0.3f0)) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(z, p4)) - 4.51f0)) + 0.3f0
     end
 end

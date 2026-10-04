@@ -158,7 +158,7 @@ function ws_dgcons!(s::StandState)
     ifor = Int(p.forest_idx)
     (ifor < 1 || ifor > 7) && (ifor = 1)
     elev = p.elevation; slope = p.slope; asp = p.aspect
-    sina = sin(asp); cosa = cos(asp)
+    sina = fsin(asp); cosa = fcos(asp)
     itlat = round(Int, p.latitude)
     ilat = itlat <= 35 ? 1 : itlat == 36 ? 2 : itlat == 37 ? 3 : itlat == 38 ? 4 : 5
     ctl = s.control
@@ -168,7 +168,7 @@ function ws_dgcons!(s::StandState)
         temel = elev
         (isp == 41 && temel > 30f0) && (temel = 30f0)
         if isp == 4 || isp == 23                                  # GS/RW (Castle 2019)
-            dgcon = -3.502444f0 + 0.415435f0 * log(sitear)
+            dgcon = -3.502444f0 + 0.415435f0 * flog(sitear)
         elseif isp == 7                                           # RF (original WS, latitude)
             dgcon = WS_DGLAT9[ilat] - 0.00700f0 * elev - 0.83400f0 * slope * slope +
                     0.00734f0 * sitear
@@ -179,11 +179,11 @@ function ws_dgcons!(s::StandState)
             dgcon = WS_DGFOR[isfor, isp] + WS_DGEL[isp] * temel + WS_DGELSQ[isp] * temel * temel +
                     WS_DGSASP[isp] * sina * slope + WS_DGCASP[isp] * cosa * slope +
                     WS_DGSLOP[isp] * slope + WS_DGSLSQ[isp] * slope * slope +
-                    WS_DGSITE[isp] * log(tsite)
+                    WS_DGSITE[isp] * flog(tsite)
         end
         # LDCOR2 (READCORD/REUSCORD): add ln(COR2) to DGCON, except GS/RW. Default COR2=1 ⇒ inert.
         if cor2on && !(isp == 4 || isp == 23) && ctl.dg_cor2[isp] > 0f0
-            dgcon += log(ctl.dg_cor2[isp])
+            dgcon += flog(ctl.dg_cor2[isp])
         end
         c.dg_const[isp] = dgcon
         c.atten[isp] = WS_OBSERV[isp]
@@ -204,7 +204,7 @@ function dgf!(s::StandState, ::WestSierra)
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
     slope = p.slope; asp = p.aspect
-    cosa = cos(asp)
+    cosa = fcos(asp)
     prdf = ws_point_prd_fn(s)                                     # ZRD/XMAXPT per point (ws/dgf.f:506-525)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
@@ -215,9 +215,9 @@ function dgf!(s::StandState, ::WestSierra)
         cr = icr * 0.01f0
         pctfrac = 1f0 - t.crown_ratio[i] / 100f0                  # 1 − PCT/100 (BA-percentile complement)
         bal = pctfrac * ba
-        ald = log(d)
+        ald = flog(d)
         hoavh = avh > 0f0 ? t.height[i] / avh : 0f0
-        alba = ba > 0f0 ? log(ba) : 0f0
+        alba = ba > 0f0 ? flog(ba) : 0f0
         cor = c.dg_cor[isp]
         si = p.sp_site_index[isp]
         conspp = (isp == 4 || isp == 23) ? c.dg_const[isp] : c.dg_const[isp] + cor
@@ -226,18 +226,18 @@ function dgf!(s::StandState, ::WestSierra)
         pbal = pba_raw * pctfrac
         pbal < 0f0 && (pbal = bal)
         pba = pba_raw <= 0f0 ? (ba > 1f0 ? ba : 1f0) : pba_raw
-        crid = d < 2f0 ? 1.8f0 : ((icr * icr) / log(d + 1f0)) / 1000f0
+        crid = d < 2f0 ? 1.8f0 : ((icr * icr) / flog(d + 1f0)) / 1000f0
 
         if isp in WS_CA_SURR                                      # CA-variant surrogate
             hv = hoavh > 1.5f0 ? 1.5f0 : hoavh
             dgbal = (isp == 9 || isp == 10) ? 0f0 : -0.000893f0
             dds = conspp + WS_DGLD[isp] * ald + WS_DGCR[isp] * cr + WS_DGCRSQ[isp] * cr * cr +
-                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / log(d + 1f0) +
+                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / flog(d + 1f0) +
                   WS_DGPCCF[isp] * pccf + WS_DGHAH[isp] * hv + WS_DGBA[isp] * alba + dgbal * bal
         elseif isp == 41                                          # MC (SO surrogate) — DGBA·BA raw
             hv = hoavh > 1.5f0 ? 1.5f0 : hoavh
             dds = conspp + WS_DGLD[isp] * ald + WS_DGCR[isp] * cr + WS_DGCRSQ[isp] * cr * cr +
-                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / log(d + 1f0) +
+                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / flog(d + 1f0) +
                   WS_DGPCCF[isp] * pccf + WS_DGHAH[isp] * hv + WS_DGBA[isp] * ba
         elseif isp == 21                                          # GB (UT DF-projection + DSTAG)
             dpp = d < 1f0 ? 1f0 : d
@@ -249,38 +249,38 @@ function dgf!(s::StandState, ::WestSierra)
             diagr = (df - dpp) * bark
             # DSTAG (RELSDI stagnation, ws/dgf.f:543-559) needs SDICAL — an unported engine-gap (AK #209
             # class). ISTAGF is off by default ⇒ DSTAG inert; GB(21) is absent from the ref stand. Follow-on.
-            dds = diagr <= 0f0 ? -9.21f0 : log(diagr * (2f0 * dpp * bark + diagr)) + cor + c.dg_const[isp]
+            dds = diagr <= 0f0 ? -9.21f0 : flog(diagr * (2f0 * dpp * bark + diagr)) + cor + c.dg_const[isp]
             dds < -9.21f0 && (dds = -9.21f0)
         elseif isp == 4 || isp == 23                             # GS/RW (Castle 2019 DGLT-exp)
             prd = prdf(pt_i)
             bark = ws_bratio(sd, isp, d)
-            dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
-                       0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
+            dglt = fexp(conspp + 0.185911f0 * flog(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
+                       0.42078f0 * prd + 0.589318f0 * flog(cr * 100f0) - 0.000926f0 * slope * 100f0 -
                        0.002203f0 * (slope * 100f0) * cosa)
             tempd1 = d * bark
             tempd2 = (d + dglt) * bark
-            dds = log(tempd2 * tempd2 - tempd1 * tempd1) + cor + log(cor2_of(c, isp))
+            dds = flog(tempd2 * tempd2 - tempd1 * tempd1) + cor + flog(cor2_of(c, isp))
         elseif isp == 7                                          # RF (original WS)
             dds = conspp + 1.53339f0 * ald - 0.47442f0 * d * d / 1000f0 +
-                  0.35739f0 * crid - 0.44256f0 * pbal / log(d + 1f0) / 100f0 -
-                  0.12359f0 * log(pba)
+                  0.35739f0 * crid - 0.44256f0 * pbal / flog(d + 1f0) / 100f0 -
+                  0.12359f0 * flog(pba)
         else                                                     # GENERAL Wykoff (SP/DF/WF/…)
             dds = conspp + WS_DGLD[isp] * ald + WS_DGCR[isp] * cr + WS_DGCRSQ[isp] * cr * cr +
-                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / log(d + 1f0) +
+                  WS_DGDS[isp] * d * d + WS_DGDBAL[isp] * bal / flog(d + 1f0) +
                   WS_DGPCCF[isp] * pccf + WS_DGHAH[isp] * hoavh + WS_DGBA[isp] * alba
             (isp == 3 || isp == 13) && (dds -= 0.15032f0)        # WF/SF offset
             if d < 10f0                                           # small-tree sub-forms (JP / CONSJP grp)
                 if isp == 6
                     consjp = ws_consjp(s, isp, si, cor)
                     dds = consjp + 1.23864f0 * ald + 0.64311f0 * cr - 0.48754f0 * alba -
-                          0.00189f0 * bal / log(d + 1f0) - 0.00096f0 * pccf
+                          0.00189f0 * bal / flog(d + 1f0) - 0.00096f0 * pccf
                 elseif isp in WS_CONSJP_GRP
-                    consjp = cor + 0.233713f0 * log(si) + 1.53962f0
+                    consjp = cor + 0.233713f0 * flog(si) + 1.53962f0
                     dds = consjp - 0.52776f0 * alba + 1.64163f0 * ald -
-                          0.00205f0 * bal / log(d + 1f0) - 0.00105f0 * pccf
+                          0.00205f0 * bal / flog(d + 1f0) - 0.00105f0 * pccf
                 end
             end
-            (isp in WS_HARDWOOD_5YR) && (dds = log(exp(dds) * 2f0))   # 5-yr → 10-yr
+            (isp in WS_HARDWOOD_5YR) && (dds = flog(fexp(dds) * 2f0))   # 5-yr → 10-yr
         end
         isp == 5 && (dds += 0.30f0 * (0.80f0 + 0.004f0 * (si - 50f0)))   # IC calibration bump
         dds < -9.21f0 && (dds = -9.21f0)
@@ -301,8 +301,8 @@ end
     p = s.plot
     ifor = Int(p.forest_idx); slope = p.slope; asp = p.aspect; elev = p.elevation
     forcon = ifor == 2 ? 0.59493f0 : 0.74162f0
-    return cor + 0.40657f0 * log(si) + 0.56709f0 * slope - 0.14671f0 * cos(asp) * slope +
-           0.26785f0 * sin(asp) * slope - 0.00164f0 * elev + forcon
+    return cor + 0.40657f0 * flog(si) + 0.56709f0 * slope - 0.14671f0 * fcos(asp) * slope +
+           0.26785f0 * fsin(asp) * slope - 0.00164f0 * elev + forcon
 end
 
 # PRD = ZRD(point)/XMAXPT(point) per-point Zeide relative density — SDICAL/SDICLS engine-gap (AK #209
