@@ -193,6 +193,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
+        # CRWDTH(I) is CWCALC's output, clamped to [0.5,99.9] (cwcalc.f:2391-2392); the raw NC/WC/PN/EC kernels above are not.
+        (_nc_fm || _wc_fm || _pn_fm || _ec_fm) && (cw = clamp(cw, 0.5f0, 99.9f0))
         cwrec[i] = cw
     end
     # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
