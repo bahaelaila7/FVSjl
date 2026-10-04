@@ -10,7 +10,7 @@
 # `ffe_west_nocut` gives each western variant's NATCRS (TCF, MCF) on an arbitrary (d, h) with no top-kill — the same
 # kernels as its compute_volumes (FW2 / MATW r4vol / DVE / Behre / NVB), minus the CFTOPK broken-top trim — plus the
 # FMSVOL bark ratio BRATIO(JS,D,H) and whether that equation family takes the CFTOPK trim (`trim`: the DVE woodland
-# families in CI/TT/UT/EM are kept untrimmed as in their compute_volumes; CR trims every family — fmsvol.f calls
+# families in CI/TT/UT are kept untrimmed as in their compute_volumes (EM trims every family, em/vols.f:194); CR trims every family — fmsvol.f calls
 # NATCRS, which returns CTKFLG=.TRUE. (fvsvol.f:535), and FMSVOL has no vols.f:191 NVB exemption).
 # `nothing` for a variant not yet on this layer (its own snag/live paths stay in force).
 # =============================================================================
@@ -40,8 +40,11 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
         tcf, mcf, _ = ak_tree_vol(s, sp, d, h)
         return (max(tcf, 0f0), max(mcf, 0f0), ak_bratio(sp, d), true)
     elseif v isa EasternMontana
+        # em/fmsvol.f:139-140 `IF(CTKFLG .AND. LTKIL) CALL CFTOPK` — NATCRS returns CTKFLG=.TRUE. for the DVE woodland
+        # equations too (fvsvol.f:531), so every EM family trims (MEASURED FVSem_g16 684750664126144 inventory AS snag
+        # D6.1 HTDEAD 35 XHT 26: VMAX 2.4 → VOL2HT 2.3469481).
         tcf, mcf = em_nocut_cuft(s, sp, d, h)
-        return (tcf, mcf, em_bratio(sp, d), startswith(eq, "I") || mdl == "FW2")
+        return (tcf, mcf, em_bratio(sp, d), true)
     elseif v isa CentralRockies                                # cr: NVEL DVE / NVB / FW2 (compute_volumes_cr!)
         tcf, mcf = cr_nocut_cuft(s, sp, d, h)
         return (tcf, mcf, cr_bratio(s.coef.species, sp, d, Int(s.plot.model_type)), true)

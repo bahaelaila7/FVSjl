@@ -106,6 +106,7 @@ using FVSjl
     include("unit/test_ie_resid_tiered.jl")  # IE per record vs live FVSie_g16 tiered goldens: KODFOR-region NVEL merch rules, AUTOES ingrowth PNN floor
     include("unit/test_west_shared_tiered.jl") # western shared fixes per record vs live western tiered goldens (TT/UT FMCROWW route, bare-stand COVINI, …)
     include("unit/test_ffe_fmcrowe_west.jl") # FFE FMCROWE on a western variant (EM aspen): eastern-only small-tree bole/LILPCE terms off, REAL*4 SG/EXP/LOG/**/TAN/ATAN — CROWNW bit-exact vs FVSem_g16
+    include("unit/test_core_resid.jl")      # CORE (IE/EM/SN) tiered residual fixes vs live FVS{ie,em,sn}_g16 goldens: EM DVE dead KLASS + CFTOPK, FMPOFL CWD2B head, …
     include("unit/test_sn_resid_tiered.jl")  # SN per record vs live FVSsn_g16 tiered goldens: RDPSRT crown ISORT, REAL*4 height dub / HTCALC age / HTDBH inverse, dense.f IND1 QMD, ptbal.f WK5 point BAL
     include("unit/test_cover.jl")          # COVER beachhead: CVCW crown-area (CRAREA=Σ CRWDTH²·PROB·0.785398) dump-replay bit-exact vs FVSem_g16 (report-only extension)
     include("unit/test_cvbcal.jl")         # COVER shrub CALIBRATION (cvbcal.f): BHTCF/BPCCF by-layer (SHRBLAYR) + by-species (SHRUBHT/SHRUBPC) correction factors + apply, Float32-hex dump-replay bit-exact vs FVSem_g16
