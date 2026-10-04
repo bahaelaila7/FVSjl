@@ -133,7 +133,10 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     # CR uses cr_cwcalc (cwcalc.f IWHO=0, the CRWDTH FMSSTAGE reads), not the generic crown_width (0.5 default
     # for CR ⇒ zero cover ⇒ wrong strata/class). Eastern variants keep crown_width. Precompute CR stand inputs.
     _cr_ss = s.variant isa CentralRockies
-    _so_ss = s.variant isa SouthCentralOregon    # SO CRWDTH via so_cwcalc (SOMAP Crookston R6, forest-601 BF)
+    # SO reads its CRWDTH like every western variant (_forest_crwdth: R5CRWD on IFOR 4-9, SOMAP with the KODFOR BF on
+    # the R6 forests) — the old so_cwcalc baked one forest's BF and no R5 branch (MEASURED FVSso_g16 7690240010901
+    # inventory SSTAGE WK6 of CW 40.84 ft = the TreeList CrWidth; so_cwcalc 29.2 ⇒ stratum-2 cover 38 vs 55).
+    _so_ss = false
     _oc_ss = s.variant isa OregonCoast           # OC/ORGANON CRWDTH via oc_cwcalc (else generic crown_width→0 cover)
     # Every other western variant: its forest-grown cwcalc CRWDTH (_forest_crwdth — the TreeList CrWidth value);
     # the eastern crown_width returns the 0.5 default for western species ⇒ ~zero cover ⇒ wrong stage/class.
