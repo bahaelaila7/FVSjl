@@ -344,3 +344,14 @@ end
     @test c.dg_cor[3] == 0.2f0 + 0.5f0 * 0.2f0
     @test c.dg_cor[5] == 0.17f0
 end
+
+@testset "IE 1627682513290487 simfire FVS_PotFire: FMPOCR TCLOAD summed layer by layer (fmpocr.f:236-239)" begin
+    # TCLOAD = Σ CRFILL(1..400) in order; Julia's sum(::Vector) reassociates: post-fire 2012 TCLOAD 0.56985438 vs live
+    # 0.56985432 (3356357010690) ⇒ FINTEN ⇒ Tot_Flame 81.63462 vs 81.63461; this stand's 18 PotFire/Carbon cells.
+    db = _cr_run("ie", "1627682513290487", "simfire")
+    gold, jl = _cr_table("ie", "1627682513290487", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Tot_Flame_Sev", "Tot_Flame_Mod", "Surf_Flame_Sev", "Torch_Index", "Canopy_Density", "PTorch_Sev")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end

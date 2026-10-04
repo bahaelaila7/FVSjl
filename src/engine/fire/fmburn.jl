@@ -735,7 +735,10 @@ function canopy_bulk_density(s::StandState; vtrip::Bool = false, fmicr = nothing
     fs = s.fire
     (fs === nothing || !fs.active) && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = 0f0)
     crfill = canopy_crfill(s; vtrip = vtrip, fmicr = fmicr)   # crown fuel by 1-ft height layer (lbs/ac-ft)
-    tcload = sum(crfill) / 43560f0                       # lbs/ac → lbs/ft²
+    # fmpocr.f:236-239 `DO I=1,400: TCLOAD=TCLOAD+CRFILL(I)` in order — Julia's sum(::Vector) reassociates (pairwise/SIMD)
+    tcload = 0f0
+    @inbounds for j in 1:length(crfill); tcload += crfill[j]; end
+    tcload = tcload / 43560f0                            # lbs/ac → lbs/ft²
     # crown start/end = lowest/highest 1-ft layer with > 5 lbs/ac-ft
     j1 = findfirst(>(5f0), crfill); j1 === nothing && return (cbd = 0f0, actcbh = -1, canopy_ht = 0, tcload = tcload)
     j2 = findlast(>(5f0), crfill)
