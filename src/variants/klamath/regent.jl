@@ -186,7 +186,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
             else
                 dk = nc_htdbh_d(sp, hk)
                 dkk = h <= 4.5f0 ? d : nc_htdbh_d(sp, h)
-                bark = bark_ratio(bark_a, bark_b, sp, d)
+                bark = variant_bratio(s, sp, d)          # nc/bratio.f
                 dgsm = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark : (dk - dkk) * bark
                 dgsm < 0f0 && (dgsm = 0f0)
                 # regent.f:305-318 — DDS-space transform (SCALE2=YR/FNT), then back to DBH increment.
@@ -198,7 +198,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
                     # (regent.f:305-311). At D≤XMN=2 XDWT=0 ⇒ pure small-tree (all tripled records equal); at
                     # 2<D<DGMIN=7 XDWT>0 ⇒ each tripled record blends with its own large-tree DG (upper/lower
                     # DIFFER, verified vs FVSnc_g16). The DIAM floor + DGBND (regent.f:319-327) apply per record.
-                    dgsm2 = sqrt((d * bark)^2 + dds) - bark * d
+                    dgsm2 = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
                     xdwt = d <= xmn ? 0f0 : (d - xmn) / (NC_ST_DGMIN[sp] - xmn)
                     dg = _nc_rw_blend(dgsm2, xdwt, t.diam_growth[i], d, sp, cap1, cap3)
                     if trip
@@ -207,7 +207,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
                     end
                     t.diam_growth[i] = dg
                 else
-                    dg = sqrt((d * bark)^2 + dds) - bark * d
+                    dg = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
                     (d + dg) < NC_ST_DIAM[sp] && (dg = NC_ST_DIAM[sp] - d)   # regent.f:319 DIAM floor
                     dg = nc_dgbnd(sp, d, dg, cap1, cap3)
                     t.diam_growth[i] = dg

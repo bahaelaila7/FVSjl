@@ -100,7 +100,7 @@ function ec_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     ifor = Int(p.forest_idx)
     elev = p.elevation; slope = p.slope; asp = p.aspect
-    sina = sin(asp); cosa = cos(asp)
+    sina = fsin(asp); cosa = fcos(asp)
     @inbounds for isp in 1:32
         si = p.sp_site_index[isp]
         isfor = EC_MAPLOC[isp, ifor]
@@ -113,13 +113,13 @@ function ec_dgcons!(s::StandState)
         xsite = si
         (isp == 12 || isp == 31) && (xsite = xsite * 3.281f0)                       # MH/OS: m→ft
         if isp == 28                                                                 # WO King's DF SI
-            x = 1f0 - (xsite / 114.24569f0)^0.4444f0
-            xsite = x <= 0f0 ? 125f0 : -37.60812f0 * log(x)
+            x = 1f0 - fpow(xsite / 114.24569f0, 0.4444f0)
+            xsite = x <= 0f0 ? 125f0 : -37.60812f0 * flog(x)
         end
         temel = elev
         (isp in EC_ELCAP_SP && temel > 30f0) && (temel = 30f0)
         dgcon = EC_DGFOR[isp, isfor] + EC_DGEL[isp] * temel + EC_DGEL2[isp] * temel * temel +
-                EC_DGSITE[isp] * log(max(xsite, 1f0)) + sasp
+                EC_DGSITE[isp] * flog(max(xsite, 1f0)) + sasp
         isp == 9 && (dgcon += 0.3835f0)                                             # AF constant
         c.dg_const[isp] = dgcon
     end
@@ -155,20 +155,20 @@ function dgf!(s::StandState, ::EastCascades)
             diagr = d <= 18f0 ? const0 - 0.166496f0 * d + 0.004618f0 * d * d :
                                 const0 - (const0 / 10f0) * (d - 18f0)
             diagr < 0.1f0 && (diagr = 0.1f0)
-            dds = log(diagr * (2f0 * d * brat + diagr)) + log(cor2_of(c, isp)) + cor
+            dds = flog(diagr * (2f0 * d * brat + diagr)) + flog(cor2_of(c, isp)) + cor
         elseif isp in EC_NATIVE_SP                            # EC-native equations
             dummy = (isp == 4 || isp == 6 || isp == 16) ? 1f0 : 0f0
             dgdsq = EC_DGDS[isp, 1]
-            dds = conspp + EC_DGLD[isp] * log(d) + EC_DGDUM[isp] * dummy +
+            dds = conspp + EC_DGLD[isp] * flog(d) + EC_DGDUM[isp] * dummy +
                   cr * (EC_DGCR[isp] + cr * EC_DGCRSQ[isp]) +
-                  dgdsq * d * d + EC_DGDBAL[isp] * bal / log(d + 1f0) +
+                  dgdsq * d * d + EC_DGDBAL[isp] * bal / flog(d + 1f0) +
                   EC_DGPCCF[isp] * pccf + EC_DGHCCF[isp] * relht * pccf / 100f0 +
                   EC_DGCCFA[isp] * pccf * pccf / 1000f0
             isp == 1 && (dds += 0.49649f0 * relht)            # WP relht bonus
         else                                                  # WC-variant equations
             dgdsq = EC_DGDS[isp, 1]
-            dds = conspp + EC_DGLD[isp] * log(d) + cr * (EC_DGCR[isp] + cr * EC_DGCRSQ[isp]) +
-                  dgdsq * d * d + EC_DGDBAL[isp] * bal / log(d + 1f0) +
+            dds = conspp + EC_DGLD[isp] * flog(d) + cr * (EC_DGCR[isp] + cr * EC_DGCRSQ[isp]) +
+                  dgdsq * d * d + EC_DGDBAL[isp] * bal / flog(d + 1f0) +
                   EC_DGPCCF[isp] * pccf + EC_DGBA[isp] * ba
             isp == 11 && (dds -= 0.000358f0 * relht)          # WH penalty
             isp == 28 && (dds -= 0.00326f0 * bal)             # WO BAL penalty

@@ -156,9 +156,15 @@ function so_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # persisted — the R6 PP reference stand (IPAG=1) does not use it, so 0 here; the LP/juniper ACTCBH path is
     # a documented follow-on (same deferral class as the R5-California SOSPDM branch).
     actcbh = 0f0
-    # DSTLG (years since last disturbance) — undisturbed stands (no harvest/burn) ⇒ large; only the dry-PP
-    # WT1(1)>0 (PERCOV<45) branch reads it, which the reference (PERCOV 66.6) does not take.
-    dstlg = 999f0
+    # DSTLG = MIN(IYR−HARVYR, IYR−BURNYR) (so/fmcfmd.f:415): years since the last harvest (fmscut.f HARVYR, 0 if none)
+    # or the last carried burn with SCH > PBSCOR (fmburn.f BURNYR, −1 if none). MEASURED FVSso_g16 15184869010497
+    # simfire 2020 (the fire year, PERCOV 40.5 < 45): live Fuel_Mod3 = 2 (DSTLG 0 ⇒ WT2=0 ⇒ FM2), jl FM6 from DSTLG=999.
+    dstlg = let yr = Int(current_cycle_year(s)), burnyr = -1, fs = s.fire
+        for br in fs.burn_reports
+            (get(br, :carried, true)::Bool && (br.scorch::Float32) > fs.params.pb_scor) && (burnyr = max(burnyr, Int(br.year::Int)))
+        end
+        Float32(min(yr - Int(fs.harvyr), yr - burnyr))
+    end
 
     if ipag == 1                          # DRY PONDEROSA PINE
         w2 = alg(percov, 35, 45); w1 = 1f0 - w2

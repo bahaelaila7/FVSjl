@@ -154,7 +154,9 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
                     z += zadj; z > 2.0f0 && (z = 2.0f0)
                 end
             end
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            # tt/htgf.f:278 BARK=BRATIO(ISPC,DBH,HT) — tt/bratio.f IMAP 2 returns BARK1 itself; the linear (0+b·d)/d
+            # form is 1 ULP off it ⇒ DIA ⇒ the SBB H 1 ULP (MEASURED FVStt_g16 2750433010690 LP D6.0 H39 cycle 1).
+            bark = tt_bratio(sp, d)
             dia = d + t.diam_growth[i] / bark
             if (_TT_XI1 + cof1) > dia
                 # glibc logf/expf/powf (tt/htgf.f ALOG/EXP/**, doctrine §4) — Julia's native Float32 log/exp/^ round differently

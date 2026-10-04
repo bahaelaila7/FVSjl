@@ -64,7 +64,7 @@ end
     p2, p3, p4 = _so_htdbh_coefs(ifor, sp)
     hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4))
     if h >= hat3
-        return fexp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)
     else
         return (((h - 4.51f0) * 2.7f0) / (4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3f0, p4)) - 4.51f0)) + 0.3f0
     end

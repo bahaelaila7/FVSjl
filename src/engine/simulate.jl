@@ -667,7 +667,7 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # draws precede FMBURN/FMEFF's (MEASURED FVSem_g16 196378260020004 SIMFIRE 2022: jl spread after the burn ⇒ the
     # burn and FMPTRH drew from a shifted stream, PTorch_Sev 0.23130 vs live 0.18498, every later cycle off).
     if mis_fire
-        ie_mistoe!(s; fint = fint)
+        _dm_spread!(s; fint = fint)
         dm_misinf!(s)
     end
     n   = t.n
@@ -1024,7 +1024,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
     # in mortality! (below); the DM diameter growth-loss is applied in diameter_growth!.
-    cr_mistoe!(s; fint = fint)
+    # (CR joins the IE-family seam below: the spread runs here only on a NON-tripling cycle.)
     # MISTOE TRIPLING SEAM (mirrors the RD rd_post_triple pattern below). FVS runs MISTOE at gradd.f:96 —
     # in GRADD, AFTER GRINCR's MORTS+TRIPLE (grincr.f:535/543) — so on a TRIPLING cycle the spread draws its
     # per-infected-tree rann! on the ALREADY-TRIPLED record list (ITRN×3), not the un-tripled ITRN. jl ran
@@ -1036,7 +1036,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # MORTS: MISMRT is called inside MISTOE after the spread and MISINF (mistoe.f:517-522), so on a tripling cycle
     # it too moves post-triple (mis_post below). Non-tripling cycles keep the existing seam (MORTS/TRIPLE draw no
     # rann!, and spread → MISINF → DM max-combine in mortality! is the FVS order) — byte-identical there.
-    mis_defer = _ie_mis_variant(s.variant) && (stash !== nothing)
+    # CR (cr/mistoe.f + mismrt.f + misinf.f, the same GRADD MISTOE call) takes the same seam: MEASURED live FVScr
+    # 5278473010690 MISTPINF 1 0 1.0 3.0 — MISINF's MISRAN visits the 27 TRIPLED records (live MistCD round-robin
+    # 1,2,3 over the post-REASS physical index); jl ran it pre-TRIPLE on 9 records and the copies inherited the
+    # parent's DMR (2015 DMR1 16.8 vs live 102 TPA, Mort 16 vs 17).
+    mis_defer = (_ie_mis_variant(s.variant) || s.variant isa CentralRockies) && (stash !== nothing)
     # mis_post: on a NON-fire tripling cycle the WHOLE GRADD MISTOE call (mistoe.f: spread → MISINF :517 →
     # MISMRT :522) runs post-TRIPLE on the tripled records at full pre-UPDATE PROB (the post-triple block
     # below) — not just the spread. MISINF must follow the spread (else the spread intensifies the
@@ -1046,6 +1050,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
         _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+        s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
@@ -1210,7 +1215,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             triple_records!(s, stash)
             n2 = t.n
             full_prob = Float32[t.tpa[i] for i in 1:n2]
-            ie_mistoe!(s; fint = fint)         # mistoe.f spread (rann! over ITRN×3)
+            _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
             pofl_late && pofl_hook(s, nothing)   # gradd.f:118 FMMAIN (FMPOFL) after MISTOE, FMPROB = full PROB
             @inbounds for i in 1:nlive
@@ -1242,7 +1247,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             n2 = t.n
             full_prob = Float32[t.tpa[i] for i in 1:n2]                  # tripled pre-mort PROB (= RDTREG input)
             if mis_post                                                  # gradd.f:96 MISTOE precedes :131 RDTREG
-                ie_mistoe!(s; fint = fint)
+                _dm_spread!(s; fint = fint)
                 dm_misinf!(s)
             end
             pofl_late && pofl_hook(s, nothing)                           # gradd.f:118 FMMAIN, before :131 RDTREG
@@ -1416,16 +1421,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # WC: gradd.f:192 DENSE (post-UPDATE, pre-ESNUTR). ESTAB's ESSUBH reads AVH from it and ESGENT (called inside
     # ESTAB, before gradd.f:244's DENSE) reads its PCCF/PTBAA/AVH — the post-growth PRE-regen values.
     local es_wc_ptba::Vector{Float32}, es_wc_pccf::Vector{Float32}, es_wc_avh::Float32
-    if s.variant isa WestCascades || s.variant isa PacificNorthwest   # PN compiles the same gradd/estab/esgent
+    es_wc_relden = -1f0; es_wc_ba = -1f0
+    if s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # PN compiles the same gradd/estab/esgent
+       s.variant isa CentralIdaho                                        # CI REGENT(LESTB) reads the same DENSE (ci/regent.f)
         compute_density!(s)
         es_wc_ptba = copy(s.density.point_ba); es_wc_pccf = copy(s.density.point_ccf)
-        es_wc_avh = s.plot.avg_height
+        es_wc_avh = s.plot.avg_height; es_wc_relden = s.plot.relative_density; es_wc_ba = s.plot.basal_area
     end
     # TT/UT REGENT(LESTB) likewise reads GRADD's post-growth, PRE-regen DENSE: RELDEN/BA/AVH and the per-point PCCF
     # (tt/regent.f:160-180,274-330; ut/regent.f:162-171,233). establish! re-DENSEs with the seedlings and jl's
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
     es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah ||
-                                                                      s.variant isa CentralRockies) ?
+                                                                      s.variant isa CentralRockies || s.variant isa Klamath) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
     # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
     # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
@@ -1506,7 +1513,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         pccf_pre = es_pccf_pre)                                                                                  # ca/esgent.f (strp)
     s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
         pccf_pre = es_pccf_pre)                                                                                  # nc/esgent.f (strp)
-    s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, avh_pre = es_avh_pre)   # CI western: grow birth-cycle regen (ci/esgent.f, #185); #194 pass pre-regen ATAVH
+    s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
+        atccf = es_at_relden, relden_pre = es_wc_relden, ba_pre = es_wc_ba, avh_pre = es_wc_avh,
+        pccf_pre = es_wc_pccf, ptba_pre = es_wc_ptba)   # CI: ci/esgent.f → REGENT(LESTB) (_ci_regent!)
     s.variant isa BlueMountains && bm_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
         relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # BM western: grow birth-cycle regen (bm/esgent.f, #185); #194-class start-of-cycle ATAVH/ATCCF blend for PCTRED

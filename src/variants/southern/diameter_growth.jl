@@ -417,9 +417,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    s.calib.cur_rmsqd = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
-                      s.calib.cratet_rmsqd :   # IE/EM (identical dense.f): the cratet
-                      stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
+    # The calibration DGF runs on the RMSQD that cratet.f's dead-inclusive LSTART DENSE left in the common (dense.f:249-252,
+    # current DBH, live+dead) — cratet.f is the bm core in every western variant and dense.f is one source, so this is not
+    # IE/EM-specific: MEASURED FVSut_g16 42642675010690 calibration DGFASP RMSQD 402504D0 (2.578, live+dead) vs live-only
+    # 2.177 ⇒ UT aspen COR 0.0430 live / 0.0810 jl ⇒ AS DG +5% from cycle 1. Variants whose init never ran that DENSE
+    # (cratet_rmsqd unset) keep the current live-only RMSQD. #195/#191: read by the aspen DGFASP calibration (TT/UT/BM/CI/EM/IE/SO).
+    s.calib.cur_rmsqd = s.calib.cratet_rmsqd > 0f0 ? s.calib.cratet_rmsqd : stand_qmd(s)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
@@ -696,6 +699,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
         if calibrated[sp]
+            # dgdriv.f:429 OLDRN(I)=RESLOG and :536-547 (the regression seed) both sit under IF(DGSD.GE.1.0)
+            s.control.dg_stddev_bound >= 1f0 || continue
             rx = bny[sp] + (px[sp] - bnx[sp]) * slop[sp]
             rn = bny[sp] + (pn[sp] - bnx[sp]) * slop[sp]
             for k in i1:i2
@@ -832,6 +837,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.variant isa SouthCentralOregon && so_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     s.variant isa WestSierra && ws_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     s.variant isa EastCascades && ec_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)   # ec/cratet.f:726
+    (s.variant isa WestCascades || s.variant isa PacificNorthwest) &&
+        wcpn_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)   # wc|pn/cratet.f:616
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over
@@ -1276,7 +1283,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # jl's dg_cor at cycle N = the value FVS USES for cycle N's DG (the pre-update one) —
     # the START clock here is correct; do NOT "fix" it to elapsed+sfint.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
-    cormlt = exp(-0.02773f0 * elapsed)
+    cormlt = fexp(-0.02773f0 * elapsed)               # dgdriv.f:192 CORMLT=EXP(-0.02773*SFINT) (expf)
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
     # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
     # HCOR = WCI + cormlt_h·DIFH, DIFH = HCOR_init − WCI (set at ICYC=1). This runs for LDGCAL
@@ -1287,7 +1294,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # the WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
-    cormlt_h = exp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
+    cormlt_h = fexp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
     # dgdriv.f:186-205 (every variant): `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the attenuation, so a species
     # with no records this cycle keeps its previous COR/HCOR — which ESTAB's REGENT then uses for that species' new
     # regeneration (MEASURED FVSie_g16 1627682513290487 thinbba: the 2031 thin removed every WH, the cycle-2 attenuation

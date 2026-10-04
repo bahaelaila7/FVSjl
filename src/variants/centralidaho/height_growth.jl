@@ -38,7 +38,7 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
         dg = t.diam_growth[i]
         # HTCON(sp): NI (1-10,18) = HGHCH+HGSC(sp); 11-17,19 = 0. +ln(HCOR2) when LHCOR2.
         htcon = (_ci_is_weibull(sp) || sp == 14 || sp == 15) ? 0.0f0 : hghch + CI_HGSC[sp]
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
         htg = 0.0f0
         if !_ci_is_weibull(sp)
             dg <= 0.0f0 && continue                            # ln(DG) undefined
@@ -56,8 +56,8 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
             else
                 temd = d <= 0.2f0 ? 0.2f0 : d
                 y1 = (temd - 0.1f0) / c1; y2 = (hti - 4.5f0) / c2
-                fby1 = log(y1 / (1.0f0 - y1)); fby2 = log(y2 / (1.0f0 - y2))
-                z = (c4 + c6 * fby2 - c7 * (c3 + c5 * fby1)) * (1.0f0 - c7^2)^(-0.5f0)
+                fby1 = flog(y1 / (1.0f0 - y1)); fby2 = flog(y2 / (1.0f0 - y2))
+                z = (c4 + c6 * fby2 - c7 * (c3 + c5 * fby1)) * fpow(1.0f0 - c7^2, -0.5f0)
                 if sp == 13 || sp == 17 || sp == 19                # aspen-group z-adjust (COFAS)
                     zadj = 0.1f0 - 0.10273f0 * z + 0.00273f0 * z * z
                     zadj < 0.0f0 && (zadj = 0.0f0)
@@ -76,7 +76,7 @@ function height_growth!(s::StandState, ::CentralIdaho; scale::Float32 = 1.0f0)
                 bark = ci_bratio(sd, sp, d)
                 dia = d + dg / bark
                 if (0.1f0 + c1) > dia
-                    psi = c8 * ((dia - 0.1f0) / (0.1f0 + c1 - dia))^c9 * exp(z * ((1.0f0 - c7^2))^0.5f0 / c6)
+                    psi = c8 * fpow((dia - 0.1f0) / (0.1f0 + c1 - dia), c9) * fexp(z * fpow(1.0f0 - c7^2, 0.5f0) / c6)
                     h = ((psi / (1.0f0 + psi)) * c2) + 4.5f0
                     h < hti && (h = hti)
                     htg = h - hti
@@ -126,7 +126,7 @@ function ci_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
         d = t.dbh[i]; hti = t.height[i]
         (d <= 0.0f0 || hti <= 0.0f0 || t.diam_growth[i] <= 0.0f0) && continue   # central skipped ⇒ copies flat
         htcon = hghch + CI_HGSC[sp]
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
         con = htcon + h2cof * hti * hti + CI_HGLD[sp] * flog(d) + CI_HGLH * flog(hti)
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         cap = ctl.sp_size_cap[sp, 4]

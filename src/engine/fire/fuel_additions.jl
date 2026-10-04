@@ -65,6 +65,18 @@ end
 # fall TFALL(I,0)=MIN(2,LEAFLF(I)). The SN class rows above clamp these variants to row 6 (foliage 1 yr, branches 1 yr,
 # size 3-5 2/4 yr) — MEASURED FVSie_g16 11855985010690: LP foliage CWD2B(4,0,·) 118.08 in slots 1 AND 2 (TFALL(7,0)=
 # MIN(2,3)=2), jl 236.16 all in slot 1.
+# so/fmcba.f:1033-1099 (SO-FFE initialization at FMCBA): TFALL(I,0:2) = 3/10/15 on the California forests (KODFOR 500-599
+# or 701), 2/5/5 on the Oregon ones; TFALL(I,0)=1 for IC (6), WL (17), the hardwoods 21-31 and 33; TFALL(I,3)=20 for
+# IC/RC/PY (6,18,20), 10 for ES/PP (8,10), else 15; TFALL(4:5)=TFALL(3), TFALL(0)<=LEAFLF, TFALL(2)<=TFALL(3).
+@inline function _fm_tfall_so(coef, sp::Int, sz::Int, kodfor::Int)::Float32
+    ca = (500 <= kodfor < 600) || kodfor == 701
+    t0, t1, t2 = ca ? (3f0, 10f0, 15f0) : (2f0, 5f0, 5f0)
+    (sp == 6 || sp == 17 || 21 <= sp <= 31 || sp == 33) && (t0 = 1f0)
+    t3 = (sp == 6 || sp == 18 || sp == 20) ? 20f0 : (sp == 8 || sp == 10) ? 10f0 : 15f0
+    t0 = min(t0, Float32(coef_col(coef, :leaf_life)[sp]))
+    t2 > t3 && (t2 = t3)
+    return sz == 0 ? t0 : sz == 1 ? t1 : sz == 2 ? t2 : t3
+end
 _fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai
 @inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
     t3 = coef_col(coef, :tfall_cls)[sp]
@@ -96,6 +108,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         # holds TFALL(I,3) (10/15/20), which the SN class lookup clamps to row 6 (open for IE/EM/CR/BM/… too).
         tft = _fm_tfall_table(s.variant)
         tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
+             s.variant isa SouthCentralOregon ? _fm_tfall_so(coef, Int(sp), sz, Int(s.plot.user_forest_code)) :
              _fm_tfall(cls, sz, sp)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife

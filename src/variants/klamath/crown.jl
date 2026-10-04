@@ -51,7 +51,7 @@ every stand with a missing crown). RMAI=50 (nc/grinit.f:139)."""
     local cr::Float32
     if sp == 12                                          # redwood — logistic on HDR/PRD/D:QMDPLT
         hdr = (hf * 12f0) / df
-        cr = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * Float32(prd) - 0.116274f0 * (df / Float32(qmdplt))
+        cr = -1.021064f0 + 0.309296f0 * flog(hdr) + 0.869720f0 * Float32(prd) - 0.116274f0 * (df / Float32(qmdplt))
     else
         cr = NC_BCR0[sp] + NC_BCR1[sp]*df + NC_BCR2[sp]*hf + NC_BCR3[sp]*Float32(ba) +
              NC_BCR5[sp]*Float32(tpccf) + NC_BCR6[sp]*(Float32(avh)/hf) + NC_BCR8[sp]*Float32(avh) +
@@ -60,7 +60,7 @@ every stand with a missing crown). RMAI=50 (nc/grinit.f:139)."""
     sd = NC_CRSD[sp]; fcr = 0f0
     while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
     abs(cr + fcr) >= 86f0 && (cr = 86f0)                 # dubscr.f: IF(ABS(CR+FCR).GE.86.)CR=86.
-    cr = 1f0 / (1f0 + exp(cr + fcr))
+    cr = 1f0 / (1f0 + fexp(cr + fcr))
     cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
     return cr
 end
@@ -70,7 +70,7 @@ end
     if dd >= 1.0f0
         return NC_RD1[sp] + dd * NC_RD2[sp] + dd * dd * NC_RD3[sp]
     elseif dd > 0.1f0
-        return NC_RDA[sp] * dd^NC_RDB[sp]
+        return NC_RDA[sp] * fpow(dd, NC_RDB[sp])
     else
         return 0.001f0
     end
@@ -130,8 +130,8 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
         if sp == 12                                       # redwood — logistic (nc/crown.f:233-277, all POINT terms)
             pt = Int(t.plot_id[i])
             hdr = (h * 12f0) / d
-            xl = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * _prd(pt) - 0.116274f0 * (d / _qmdplt(pt))
-            x = 1f0 / (1f0 + exp(xl))
+            xl = -1.021064f0 + 0.309296f0 * flog(hdr) + 0.869720f0 * _prd(pt) - 0.116274f0 * (d / _qmdplt(pt))
+            x = 1f0 / (1f0 + fexp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 100f0
         else
@@ -142,7 +142,7 @@ function crown_ratio_update!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, l
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (b * (-log(1f0 - x))^(1f0 / c)) * 10f0    # A=WEIBA=0
+            crnew = (b * fpow(-flog(1f0 - x), 1f0 / c)) * 10f0    # A=WEIBA=0
         end
         if !(lstart || icr == 0)
             chg = crnew - Float32(icr); pdifpy = chg / Float32(icr) / fint

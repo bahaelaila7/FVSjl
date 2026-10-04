@@ -600,7 +600,135 @@ const _FM_TFALL_BM = Float32[
     1f0  5f0  5f0 15f0 15f0 15f0;   # 16 CW
     3f0 10f0 10f0 10f0 10f0 10f0;   # 17 OS
     1f0  5f0  5f0 15f0 15f0 15f0]   # 18 OH
-"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM), or `nothing` ⇒ the SN tfall-class rows."
+# cr/ci/tt/ut fmvinit.f TFALL(I,0:5) — each variant's own per-species TFALL(I,0)/TFALL(I,3) plus its post-SELECT block
+# (CR: TFALL(1)=10, TFALL(2)=15, TFALL(0)=MIN(2,LEAFLF); CI/TT/UT: per-species CASE groups, TFALL(1)=TFALL(2)=5 for most).
+# Values are the arrays FMVINIT itself leaves (dumped by linking a driver against the oracle objects: CALL FMVINIT, print
+# TFALL), so every species' row is the oracle's. The CSV tfall_cls (= TFALL(I,3) 10/15/20) fed to the SN class rows
+# clamped these variants to row 6 (1/1/1/2/4/4 yr): snag crowns fell 2-10x too fast after a fire / harvest.
+const _FM_TFALL_CR = Float32[
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  1
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  2
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  3
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  4
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  5
+      2f0  10f0  10f0  10f0  10f0  10f0;   #  6
+      2f0  10f0  15f0  20f0  20f0  20f0;   #  7
+      1f0  10f0  15f0  15f0  15f0  15f0;   #  8
+      2f0  10f0  15f0  20f0  20f0  20f0;   #  9
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 10
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 11
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 12
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 13
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 14
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 15
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 16
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 17
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 18
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 19
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 20
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 21
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 22
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 23
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 24
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 25
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 26
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 27
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 28
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 29
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 30
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 31
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 32
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 33
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 34
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 35
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 36
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 37
+      1f0  10f0  10f0  10f0  10f0  10f0]   # 38
+const _FM_TFALL_CI = Float32[
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  1
+      1f0   5f0   5f0  15f0  15f0  15f0;   #  2
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  3
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  4
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  5
+      2f0   5f0   5f0  20f0  20f0  20f0;   #  6
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  7
+      2f0   5f0   5f0  10f0  10f0  10f0;   #  8
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  9
+      2f0   5f0   5f0  10f0  10f0  10f0;   # 10
+      2f0   5f0   5f0  15f0  15f0  15f0;   # 11
+      2f0   5f0   5f0  15f0  15f0  15f0;   # 12
+      1f0   5f0   5f0  10f0  10f0  10f0;   # 13
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 14
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 15
+      2f0   5f0   5f0  15f0  15f0  15f0;   # 16
+      1f0   5f0   5f0  10f0  10f0  10f0;   # 17
+      2f0   5f0   5f0  15f0  15f0  15f0;   # 18
+      1f0   5f0   5f0  10f0  10f0  10f0]   # 19
+const _FM_TFALL_TT = Float32[
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  1
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  2
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  3
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  4
+      2f0   5f0   5f0  10f0  10f0  10f0;   #  5
+      1f0   5f0   5f0  10f0  10f0  10f0;   #  6
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  7
+      2f0   5f0   5f0  10f0  10f0  10f0;   #  8
+      2f0   5f0   5f0  15f0  15f0  15f0;   #  9
+      2f0   5f0   5f0  10f0  10f0  10f0;   # 10
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 11
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 12
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 13
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 14
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 15
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 16
+      2f0   5f0   5f0  15f0  15f0  15f0;   # 17
+      1f0  10f0  10f0  10f0  10f0  10f0]   # 18
+const _FM_TFALL_UT = Float32[
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  1
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  2
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  3
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  4
+      2f0  10f0  10f0  10f0  10f0  10f0;   #  5
+      1f0  10f0  10f0  10f0  10f0  10f0;   #  6
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  7
+      2f0  10f0  10f0  10f0  10f0  10f0;   #  8
+      2f0  10f0  15f0  15f0  15f0  15f0;   #  9
+      2f0  10f0  10f0  10f0  10f0  10f0;   # 10
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 11
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 12
+      1f0  10f0  15f0  15f0  15f0  15f0;   # 13
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 14
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 15
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 16
+      2f0  10f0  15f0  20f0  20f0  20f0;   # 17
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 18
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 19
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 20
+      1f0   5f0   5f0  15f0  15f0  15f0;   # 21
+      1f0  10f0  10f0  10f0  10f0  10f0;   # 22
+      2f0  10f0  15f0  15f0  15f0  15f0;   # 23
+      1f0  10f0  15f0  15f0  15f0  15f0]   # 24
+
+# nc/fmvinit.f:167-300 TFALL(I,0:5): per-species TFALL(I,0)/TFALL(I,3), then for every species TFALL(I,1)=10,
+# TFALL(I,2)=15, TFALL(I,4)=TFALL(I,5)=TFALL(I,3), TFALL(I,0)=MIN(TFALL(I,0),LEAFLF(I)) and TFALL(I,2)<=TFALL(I,3).
+# The CSV tfall_cls (= TFALL(I,3) 10/15/20) fed to the SN class rows clamped NC to row 6 (1/1/1/2/4/4 yr), so a fire's
+# snag crowns fell within ~4 yr. MEASURED FVSnc_g16 23660512010900 simfire 2011: Standing_Dead 2.840 live vs 2.395 jl.
+const _FM_TFALL_NC = Float32[
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  1 OS (CASE 3,1)
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  2 SP
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  3 DF
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  4 WF (CASE 4,9; LEAFLF 7)
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  5 MA
+    1f0 10f0 15f0 20f0 20f0 20f0;   #  6 IC
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  7 BO
+    1f0 10f0 15f0 15f0 15f0 15f0;   #  8 TO (CASE 8,11)
+    3f0 10f0 15f0 15f0 15f0 15f0;   #  9 RF
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 10 PP (TFALL(3)=10 caps TFALL(2))
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 11 OH
+    3f0 10f0 15f0 20f0 20f0 20f0]   # 12 RW
+"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM/NC/CR/CI/TT/UT), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
                      v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
-                     v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM : nothing
+                     v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM :
+                     v isa Klamath ? _FM_TFALL_NC : v isa CentralRockies ? _FM_TFALL_CR :
+                     v isa CentralIdaho ? _FM_TFALL_CI : v isa Teton ? _FM_TFALL_TT : v isa Utah ? _FM_TFALL_UT : nothing

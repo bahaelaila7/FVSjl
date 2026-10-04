@@ -116,12 +116,12 @@ function wc_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     jfor = wc_jfor(Int(p.forest_idx))
     elev = p.elevation; slope = p.slope; asp = p.aspect
-    sina = sin(asp); cosa = cos(asp)
+    sina = fsin(asp); cosa = fcos(asp)
     @inbounds for isp in 1:39
         jspc = WC_MAPSPC[isp]
         si = p.sp_site_index[isp]
         if isp == 17                                  # REDWOOD — ln-site const, no DGDSQ
-            c.dg_const[isp] = -3.502444f0 + 0.415435f0 * log(max(si, 1f0))
+            c.dg_const[isp] = -3.502444f0 + 0.415435f0 * flog(max(si, 1f0))
             continue
         end
         isfor = WC_MAPLOC[jspc, jfor]
@@ -129,11 +129,11 @@ function wc_dgcons!(s::StandState)
                WC_DGSLSQ[jspc] * slope * slope
         xsite = si
         jspc == 10 && (xsite = xsite * 3.281f0)                                    # ES: m→ft site
-        jspc == 18 && (xsite = -37.60812f0 * log(1f0 - (xsite / 114.24569f0)^0.4444f0))  # WO: King's DF SI
+        jspc == 18 && (xsite = -37.60812f0 * flog(1f0 - fpow((xsite / 114.24569f0), 0.4444f0)))  # WO: King's DF SI
         temel = elev
         (jspc == 14 && temel > 30f0) && (temel = 30f0)                             # group-14 elev cap
         c.dg_const[isp] = WC_DGFOR[jspc, isfor] + WC_DGEL[jspc] * temel +
-                          WC_DGEL2[jspc] * temel * temel + WC_DGSITE[jspc] * log(max(xsite, 1f0)) + sasp
+                          WC_DGEL2[jspc] * temel * temel + WC_DGSITE[jspc] * flog(max(xsite, 1f0)) + sasp
     end
     # wc/dgf.f DGCONS: `ATTEN(JSPC)=OBSERV(JSPC)` — written at the GROUP index, but dgdriv.f:364 reads
     # XNOB=ATTEN(ISPC) by SPECIES. So species isp pooling weight = OBSERV(isp) iff isp is some group's
@@ -169,24 +169,24 @@ function dgf!(s::StandState, ::WestCascades)
             diagr = d <= 18f0 ? const0 - 0.166496f0 * d + 0.004618f0 * d * d :
                                 const0 - (const0 / 10f0) * (d - 18f0)
             diagr < 0.1f0 && (diagr = 0.1f0)
-            dds = log(diagr * (2f0 * d * brat + diagr)) + log(cor2_of(c, isp)) + cor
+            dds = flog(diagr * (2f0 * d * brat + diagr)) + flog(cor2_of(c, isp)) + cor
         elseif isp == 17                               # REDWOOD (wc/dgf.f DGLT exp eq)
             conspp = c.dg_const[isp]                    # RW: COR applied AFTER, not in CONSPP
             pbal = ptba * pctfrac; pbal < 0f0 && (pbal = bal)
             prd = (1 <= pt_i <= length(_xmaxpt) && _xmaxpt[pt_i] > 0f0) ? _zrd[pt_i] / _xmaxpt[pt_i] : 0f0   # dgf.f PRD=ZRD/XMAXPT (point)
-            dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
-                       0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
-                       0.002203f0 * (slope * 100f0) * cos(asp))
+            dglt = fexp(conspp + 0.185911f0 * flog(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
+                       0.42078f0 * prd + 0.589318f0 * flog(cr * 100f0) - 0.000926f0 * slope * 100f0 -
+                       0.002203f0 * (slope * 100f0) * fcos(asp))
             et = Int(sd[:bark_imap][isp]); brat = wc_bratio(sd[:bark1][isp], sd[:bark2][isp], et, d)
             t1 = d * brat; t2 = (d + dglt) * brat
-            dds = log(t2 * t2 - t1 * t1) + cor + log(cor2_of(c, isp))
+            dds = flog(t2 * t2 - t1 * t1) + cor + flog(cor2_of(c, isp))
         else                                           # DEFAULT — validated bit-exact vs live
             conspp = c.dg_const[isp] + cor
             relht = avh > 0f0 ? min(t.height[i] / avh, 1.5f0) : 0f0
             dgdsq = WC_DGDS[jspc, WC_MAPDSQ[jspc, wc_jfor(Int(p.forest_idx))]]
-            dds = conspp + WC_DGLD[jspc] * log(d) + cr * (WC_DGCR[jspc] + cr * WC_DGCRSQ[jspc]) +
-                  dgdsq * d * d + WC_DGDBAL[jspc] * bal / log(d + 1f0) +
-                  WC_DGPCCF[jspc] * pccf + WC_DGHAH[jspc] * relht + WC_DGLBA[jspc] * log(ba) +
+            dds = conspp + WC_DGLD[jspc] * flog(d) + cr * (WC_DGCR[jspc] + cr * WC_DGCRSQ[jspc]) +
+                  dgdsq * d * d + WC_DGDBAL[jspc] * bal / flog(d + 1f0) +
+                  WC_DGPCCF[jspc] * pccf + WC_DGHAH[jspc] * relht + WC_DGLBA[jspc] * flog(ba) +
                   WC_DGBAL[jspc] * bal + WC_DGBA[jspc] * ba
         end
         dds < -9.21f0 && (dds = -9.21f0)               # shared final clamp (wc/dgf.f:445)

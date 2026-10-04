@@ -352,21 +352,26 @@ const _FW2_BK = (
 "BRK_OT (f_other.f): inside-bark dib at height ht2 from the profile's outside-bark diameter `dob`,
 given double-bark-thickness `dbtbh` (>0 from cr_bratio ⇒ the model-DBHIB branch is skipped)."
 @inline function _fw2_brk_ot(jsp::Int, dbhob::Float32, dob::Float32, ht2::Float32, dbtbh::Float32)::Float32
+    # f_other.f BRK_OT: BK is REAL*8 but DATA-initialized from default-REAL literals (Float32-rounded, then widened);
+    # DR=DOB/DBHOB is a REAL quotient stored to REAL*8; PY is REAL*8; DBT=PY*DBTBH is stored to REAL (DBT) before
+    # the REAL DIB=DOB-DBT. Each of those roundings is load-bearing (1-ULP Ht2TD on R2 aspen 200FW2W746).
     bk = _FW2_BK[jsp - 21]
-    b2 = bk[1]; b3 = bk[2]; b5 = bk[3]; c1 = bk[4]; c2 = bk[5]; c3 = bk[6]
-    DOB = Float64(dob); DBT = Float64(dbtbh)
-    dr = DOB > 0.0 ? DOB / Float64(dbhob) : 0.0
+    w(x) = Float64(Float32(x))
+    b2 = w(bk[1]); b3 = w(bk[2]); b5 = w(bk[3]); c1 = w(bk[4]); c2 = w(bk[5]); c3 = w(bk[6])
+    dr = dob > 0f0 ? Float64(dob / dbhob) : 0.0
+    DBT = Float64(dbtbh)
     local py::Float64
     if ht2 > 4.5f0
-        py = dr > 0.01 ? (dr * ((b2 - 1.0) / (b2 - dr^b3)) - ((dr^b5 - 1.0) / DBT)) : 0.0
+        py = dr > 0.01 ? (dr * ((b2 - 1.0) / (b2 - dpow(dr, b3))) - ((dpow(dr, b5) - 1.0) / DBT)) : 0.0
     elseif ht2 == 4.5f0
         py = 1.0
     else
         clx = c1 * (dr - 1.0)
-        py = clx >= 0.0 ? 1.0 + clx^(c2 + c3 * DBT) : 1.0
+        py = clx >= 0.0 ? 1.0 + dpow(clx, c2 + c3 * DBT) : 1.0
     end
-    dib = DOB - py * DBT
-    return dib < 0.0 ? 0.0f0 : Float32(dib)
+    dbt = Float32(py * DBT)
+    dib = (dob > 0f0 ? dob : 0f0) - dbt
+    return dib < 0f0 ? 0f0 : dib
 end
 
 "FWSMALL (profile.f): corrected stump dib at 1 ft for small trees (HTTOT≤15), `dib_at_1`=profile dib

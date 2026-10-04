@@ -93,9 +93,9 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
         if h > 4.5f0 && (_UT_XI1 + cof1) > d && (_UT_XI2 + cof2) > h && d > 0.1f0
             y1 = (d - _UT_XI1) / cof1
             y2 = (h - _UT_XI2) / cof2
-            fby1 = log(y1 / (1f0 - y1))
-            fby2 = log(y2 / (1f0 - y2))
-            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * (1f0 - cof7 * cof7)^(-0.5f0)
+            fby1 = flog(y1 / (1f0 - y1))
+            fby2 = flog(y2 / (1f0 - y2))
+            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * fpow(1f0 - cof7 * cof7, -0.5f0)
             zbias = zon ? UT_AZBIAS[sp] + UT_BZBIAS[sp] * (elev - 20f0) : 0f0
             (z - zbias >= 2f0 && zbias < 0f0) && (zbias = 0f0)
             z -= zbias
@@ -117,8 +117,8 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
             bark = ut_bratio(s.coef.species, sp, d)
             dia = d + t.diam_growth[i] / bark
             if (_UT_XI1 + cof1) > dia
-                psi = cof8 * ((dia - _UT_XI1) / (_UT_XI1 + cof1 - dia))^cof9 *
-                      exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
+                psi = cof8 * fpow((dia - _UT_XI1) / (_UT_XI1 + cof1 - dia), cof9) *
+                      fexp(z * fpow(1f0 - cof7 * cof7, 0.5f0) / cof6)
                 hh = (psi / (1f0 + psi)) * cof2 + _UT_XI2
                 hh < h && (hh = h)
                 htg = hh - h
@@ -127,7 +127,7 @@ function height_growth!(s::StandState, ::Utah; scale::Float32 = 1.0f0)
             end
         end
         # finalize (ut/htgf.f:730): HTG·SCALE·XHMULT·exp(HTCON)·MISHGF. XHMULT=1, MISHGF=1, HTCON=htg_cor (0 for utt01).
-        t.ht_growth[i] = htg * scale * exp(c.htg_cor[sp])
+        t.ht_growth[i] = htg * scale * fexp(c.htg_cor[sp])
     end
     return s
 end
@@ -135,19 +135,19 @@ end
 # ut/htgf.f uneven-aged GENGYM diameter curve HHU (sp17 pinyon form; sp18/19/22 aspen/birch form).
 @inline function _ut_hhu(sp::Int, d::Float32, tsite::Float32, ba::Float32)::Float32
     if sp == 17
-        return 42.269377f0 * (1f0 - exp(-0.165687f0 * d))^1.184734f0 + 4.5f0
+        return 42.269377f0 * fpow(1f0 - fexp(-0.165687f0 * d), 1.184734f0) + 4.5f0
     else                                                       # 18,19,22
         batem = ba < 10f0 ? 10f0 : ba
         return (-2.04f0 + 1.4534f0 * tsite) *
-               (1f0 - exp(-0.058112f0 * d))^(1.894400f0 * batem^(-0.192979f0)) + 4.5f0
+               fpow(1f0 - fexp(-0.058112f0 * d), 1.894400f0 * fpow(batem, -0.192979f0)) + 4.5f0
     end
 end
 
 # ut/htgf.f even-aged HHE (Alexander RM-32 spruce-fir site curve, IMODTY=4).
 @inline function _ut_hhe(age::Float32, tsite::Float32, bautba::Float32)::Float32
     agetem = age < 30f0 ? 30f0 : age
-    hhe = (2.75780f0 * tsite^0.83312f0) *
-          (1f0 - exp(-0.015701f0 * agetem))^(22.71944f0 * tsite^(-0.63557f0)) + 4.5f0
+    hhe = (2.75780f0 * fpow(tsite, 0.83312f0)) *
+          fpow(1f0 - fexp(-0.015701f0 * agetem), 22.71944f0 * fpow(tsite, -0.63557f0)) + 4.5f0
     age < agetem && (hhe = ((hhe - 4.5f0) / agetem) * age + 4.5f0)
     ratio = 1f0 - bautba; ratio < 0.728f0 && (ratio = 0.728f0)
     return hhe * ratio
@@ -190,7 +190,7 @@ function _ut_htg_crsurr(sp::Int, ssite::Float32, d::Float32, hnow::Float32, dgi:
     htg += zzran * 0.1f0                                       # ut/htgf.f:423 (ISTAGF=0 ⇒ no DSTAG factor)
     htg < 0.1f0 && (htg = 0.1f0)
     # finalize (ut/htgf.f:730 + 740): HTG·SCALE·XHMULT·exp(HTCON)·MISHGF, then SIZCAP(sp,4). XHMULT=MISHGF=1.
-    htg = htg * scale * exp(htcon)
+    htg = htg * scale * fexp(htcon)
     (hnow + htg > cap) && (htg = max(cap - hnow, 0.1f0))
     return htg
 end
@@ -206,8 +206,8 @@ function _ut_findag_so(sp::Int, h::Float32, sindx::Float32)
     while true
         oldhg = hguess
         s45 = sindx - 4.5f0
-        hguess = s45 / (0.6192f0 - 5.3394f0 / s45 + 240.29f0 * ag^(-1.4f0) +
-                        (3368.9f0 / s45) * ag^(-1.4f0)) + 4.5f0
+        hguess = s45 / (0.6192f0 - 5.3394f0 / s45 + 240.29f0 * fpow(ag, -1.4f0) +
+                        (3368.9f0 / s45) * fpow(ag, -1.4f0)) + 4.5f0
         if hguess >= 1f0
             (abs(hguess - h) <= 2f0 || h < hguess) && return (ag, hguess, htmax1, agmax1)
             d2 = hguess - oldhg
@@ -227,7 +227,7 @@ Chapman-Richards POTHTG, crown + relative-height HTGMOD. `icr` = raw ICR (crown 
 """
 function _ut_htg_mcbi(sp::Int, ssite::Float32, d::Float32, hnow::Float32, avh::Float32, icr::Float32,
                       htcon::Float32, scale::Float32, cap::Float32)::Float32
-    sc = scale * exp(htcon)                                   # SCALE·XHMULT·exp(HTCON), XHMULT=1
+    sc = scale * fexp(htcon)                                   # SCALE·XHMULT·exp(HTCON), XHMULT=1
     sitage, sitht, htmax, agmax = _ut_findag_so(sp, hnow, ssite)
     local htg::Float32
     if hnow >= htmax
@@ -239,20 +239,21 @@ function _ut_htg_mcbi(sp::Int, ssite::Float32, d::Float32, hnow::Float32, avh::F
         else
             agp10 = sitage + 10f0
             s45 = ssite - 4.5f0
-            hguess = s45 / (0.6192f0 - 5.3394f0 / s45 + 240.29f0 * agp10^(-1.4f0) +
-                            (3368.9f0 / s45) * agp10^(-1.4f0)) + 4.5f0
+            hguess = s45 / (0.6192f0 - 5.3394f0 / s45 + 240.29f0 * fpow(agp10, -1.4f0) +
+                            (3368.9f0 / s45) * fpow(agp10, -1.4f0)) + 4.5f0
             pothtg = hguess - sitht
         end
         # modifiers (ut/htgf.f:489-545): crown Hoerl (CRA=100,CRB=3,CRC=-5) + relative-height Chapman-Richards.
         relht = avh > 0f0 ? hnow / avh : 0f0; relht > 1.5f0 && (relht = 1.5f0)
         crf = icr / 100f0
-        hgmdcr = 100f0 * crf^3 * exp(-5f0 * crf); hgmdcr > 1f0 && (hgmdcr = 1f0)
+        hgmdcr = 100f0 * fpow(crf, 3f0) * fexp(-5f0 * crf);   # (CRA*(ICR/100.)**CRB) — CRB a REAL ⇒ powf
+        hgmdcr > 1f0 && (hgmdcr = 1f0)
         rhb, rhr, rhm, rhyxs = sp == 20 ? (-1.45f0, 15f0, 1.10f0, 0.10f0) : (-1.10f0, 20f0, 1.10f0, 0.20f0)
-        fctrkx = (1f0 / rhyxs)^(rhm - 1f0) - 1f0               # RHK=1
+        fctrkx = fpow(1f0 / rhyxs, rhm - 1f0) - 1f0               # RHK=1
         fctrrb = -1f0 * (rhr / (1f0 - rhb))
-        fctrxb = relht^(1f0 - rhb) - 0f0^(1f0 - rhb)          # RHXS=0
+        fctrxb = fpow(relht, 1f0 - rhb) - fpow(0f0, 1f0 - rhb)          # RHXS=0
         fctrm  = -1f0 / (rhm - 1f0)
-        hgmdrh = 1f0 * (1f0 + fctrkx * exp(fctrrb * fctrxb))^fctrm
+        hgmdrh = 1f0 * fpow(1f0 + fctrkx * fexp(fctrrb * fctrxb), fctrm)
         htgmod = 0.25f0 * hgmdcr + 0.75f0 * hgmdrh
         htgmod >= 2f0 && (htgmod = 2f0)
         htgmod <= 0f0 && (htgmod = 0.1f0)
@@ -300,7 +301,7 @@ function _ut_dub_ages!(s::StandState; misscr::Union{Nothing,Bool} = nothing)
         ssite = p.sp_site_index[sp]
         sitage = 0f0
         if sp == 6 || sp == 13 || sp == 24
-            sitage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)   # aspen/oak (findag.f:97)
+            sitage = fpow(h * 2.54f0 * 12f0 / 26.9825f0, 1f0 / 1.1752f0)   # aspen/oak (findag.f:97)
         elseif _ut_ht_crsurr(sp)
             bautba = 0f0
             if bau !== nothing

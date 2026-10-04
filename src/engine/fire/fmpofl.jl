@@ -186,8 +186,8 @@ end
 # FMCONS ICALL=1 (fmcons.f:196-360, BTYPE=0, IPM=1): TSMOKE = Σ PRBURN·BURNZ·EMMFAC over the fuel classes, then
 # PLVBRN·FLIVE·EMFACL for herb and shrub one at a time — the pools are not touched. PBRNCR·EMFACL(4) is added by
 # `_pofl_smoke` once FMEFF has produced PBRNCR (the FMMAIN seam), and PSMOKE·P2T is what DBSFMPF reports.
-function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32)::Float32
-    pr0 = fire_consumption_fractions(mois)
+function _pofl_tsmoke_base(fs, mois::AbstractMatrix{Float32}, psburn::Float32; so::Bool = false)::Float32
+    pr0 = fire_consumption_fractions(mois; so = so)
     burnz3 = 0f0
     @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
     small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
@@ -376,7 +376,7 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             sch = (63f0 / (140f0 - potemp)) * (fpow(finten, 7f0 / 6f0) / fpow(finten + fpow(fwind, 3f0), 0.5f0))
         end
         sc[k] = (; surf, pflam, sch, crburn = cfir.crburn, burnseas, psburn, cftype = cfir.cftype, oinit = cfir.oinit,
-                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn),
+                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn; so = s.variant isa SouthCentralOregon),
                  bcrown0 = _pofl_bcrown_cwd2b(fs, cfir.crburn, psburn), models = collect(models), prewnd,
                  potemp, mois)
     end

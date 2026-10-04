@@ -339,10 +339,10 @@ function point_density!(s::StandState)
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
+        elseif s.variant isa CentralRockies
+            ccft = cr_tree_ccf(Int(t.species[i]), t.dbh[i], Int(p.model_type)) * t.tpa[i]   # cr/ccfcal.f CCFT·P
         else
-            cw  = s.variant isa CentralRockies ?
-                  cr_crown_width(Int(t.species[i]), t.dbh[i], Int(p.model_type)) :
-                  crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
+            cw  = crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
                               p.latitude, p.longitude, p.elevation)
             ccft = t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
         end
@@ -413,6 +413,40 @@ function _pctile!(pct::AbstractVector{Float32}, t, idx, n::Int)
     return pct
 end
 
+# dense.f:166-223 (the SAME source in every variant build — md5-identical in TT/UT/CI/CR/NC/SO/PN/WC/EC/CA/WS/AK/KT/BC/
+# SN/NE/CS/OC/OP/IE/EM; BM/LS/ON differ elsewhere but keep this loop): DO 50 ISPC=1,MAXSP / DO 10 I3=ISCT(ISPC,1..2) /
+# I=IND1(I3): RELDSP(ISPC)=RELDSP(ISPC)+CCFT, then RELDT=RELDT+RELDSP(ISPC) once per species. The per-species subtotal
+# and IND1 order are part of the REAL*4 RELDEN. This was ported for IE/EM/BM/CI only; every other variant summed the
+# records flat in storage order (MEASURED FVStt_g16 2750433010690 1998 RELDEN 433DB31A live vs 433DB312 flat ⇒ CONSPP
+# 1 ULP ⇒ the cycle-1 LP DG/HTG ULPs that cascade through the TT tree list). ONE accumulation for all variants;
+# `_tree_ccfp` is each variant's ccfcal.f MODE=1 CCFT (already ×P).
+@inline function _tree_ccfp(s::StandState, i::Int)
+    t = s.trees; p = s.plot; v = s.variant
+    sp = Int(t.species[i]); d = t.dbh[i]; tpa = t.tpa[i]
+    v isa Kootenai          && return kt_tree_ccf(sp, d) * tpa
+    v isa InlandEmpire      && return ie_tree_ccf(sp, d) * tpa
+    v isa Ontario           && return on_tree_ccf(sp, d, p.latitude, p.longitude, p.elevation) * tpa
+    v isa BritishColumbia   && return bc_tree_ccf(sp, d, tpa)
+    v isa EasternMontana    && return em_tree_ccf(sp, d) * tpa
+    v isa Utah              && return ut_tree_ccf(sp, d) * tpa
+    v isa BlueMountains     && return bm_tree_ccf(sp, d) * tpa
+    v isa Klamath           && return nc_tree_ccf(sp, d) * tpa
+    v isa WestCascades      && return wc_tree_ccf(sp, d) * tpa
+    v isa PacificNorthwest  && return pn_tree_ccf(sp, d) * tpa
+    v isa Olympic           && return pn_tree_ccf(sp, d) * tpa     # op/ccfcal.f DATA == pn/ccfcal.f ("PN $Id$")
+    v isa EastCascades      && return ec_tree_ccf(sp, d) * tpa
+    v isa CentralIdaho      && return ci_tree_ccf(sp, d) * tpa
+    v isa Teton             && return tt_tree_ccf(sp, d) * tpa
+    v isa OregonCoast       && return oc_tree_ccf(sp, d, t.height[i]) * tpa      # R5CRWD crown-width area
+    v isa CentralCalifornia && return ca_tree_ccf(sp, d, t.height[i]) * tpa      # ca/ccfcal.f == oc's R5CRWD
+    v isa SoutheastAlaska   && return ak_tree_ccf(sp, d) * tpa
+    v isa SouthCentralOregon && return so_tree_ccf(sp, d, t.height[i]; ifor = Int(p.forest_idx)) * tpa
+    v isa WestSierra        && return ws_ccft(sp, d, t.height[i], tpa)
+    v isa CentralRockies    && return cr_tree_ccf(sp, d, Int(p.model_type)) * tpa   # cr/ccfcal.f CCFT·P (not via CRWDTH)
+    cw = crown_width(s.coef, s.species.code2[sp], d, t.height[i], 90, 1, p.latitude, p.longitude, p.elevation)
+    return d > 0.1f0 ? 0.001803f0 * cw * cw * tpa : 0.001f0 * tpa
+end
+
 """
     stand_ccf(state)
 
@@ -420,185 +454,17 @@ Crown competition factor (RELDEN): Σ over trees of the open-grown crown area
 (CCFCAL/ccfcal.f): `0.001803·crownwidth²·tpa` (or `0.001·tpa` for DBH ≤ 0.1).
 """
 function stand_ccf(s::StandState)
-    p, t = s.plot, s.trees
-    ccf = 0f0
-    if s.variant isa Kootenai
-        # KT CCF is a direct per-tree polynomial (kt/ccfcal.f), not the crown-width→area path. Sum over the
-        # CURRENT tree list (1:t.n). The dead partition is folded in ONLY when the caller has bumped t.n to
-        # include it — i.e. the backdated calibration density pass (compute_density! at t.n=nlive+ndead);
-        # the growth-cycle pass runs with t.n=nlive so dead are (correctly) excluded. RELDEN is stored by
-        # compute_density! into p.relative_density and read by dgf!, matching FVS's DENSE→DGF flow.
-        # dense.f:168-229 sums CCFT·P species-major in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC)
-        # (as IE below); the flat record-order sum put RELDEN 1 ULP off (MEASURED FVSkt 3021216010690 cycle 2:
-        # DGF CCF2 11904.7773 live / 11904.774 jl ⇒ every tripled copy's DG and HTG off in the 7th digit).
-        sp_cur = 0; relsp = 0f0
-        @inbounds for i in _ind1_order(s)
-            sp = Int(t.species[i])
-            if sp != sp_cur
-                sp_cur == 0 || (ccf += relsp)
-                sp_cur = sp; relsp = 0f0
-            end
-            relsp += kt_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
+    t = s.trees; ccf = 0f0; sp_cur = 0; relsp = 0f0
+    # KT: the dead partition enters only when the caller bumped t.n to include it (the backdated calibration pass).
+    @inbounds for i in _ind1_order(s)
+        sp = Int(t.species[i])
+        if sp != sp_cur
+            sp_cur == 0 || (ccf += relsp)
+            sp_cur = sp; relsp = 0f0
         end
-        sp_cur == 0 || (ccf += relsp)
-        return ccf
-    elseif s.variant isa InlandEmpire
-        # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        # dense.f:168-229 accumulates it SPECIES-MAJOR in IND1 order into a per-species subtotal RELDSP(ISPC), then
-        # RELDT=RELDT+RELDSP(ISPC) — a different Float32 summation order than a flat record-order sum.
-        sp_cur = 0; relsp = 0f0
-        @inbounds for i in _ind1_order(s)
-            sp = Int(t.species[i])
-            if sp != sp_cur
-                sp_cur == 0 || (ccf += relsp)
-                sp_cur = sp; relsp = 0f0
-            end
-            relsp += ie_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
-        end
-        sp_cur == 0 || (ccf += relsp)
-        return ccf
-    elseif s.variant isa Ontario
-        # ON CCF = ccfcal.f (LS form) → cwcalc.f open-grown crown WIDTH (IWHO=1, CR=90) via the
-        # ISPC→US-code (JSP2) remap, then 0.001803·CW²·P. HI needs stand lat/long/elev.
-        lat = p.latitude; long = p.longitude; elev = p.elevation
-        @inbounds for i in 1:t.n
-            ccf += on_tree_ccf(Int(t.species[i]), t.dbh[i], lat, long, elev) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa BritishColumbia
-        # BC CCF is the same direct per-species polynomial (bc/ccfcal.f MODE=1); bc_tree_ccf folds in ×P.
-        @inbounds for i in 1:t.n
-            ccf += bc_tree_ccf(Int(t.species[i]), t.dbh[i], t.tpa[i])
-        end
-        return ccf
-    elseif s.variant isa EasternMontana
-        # EM CCF is the same direct per-species polynomial (em/ccfcal.f MODE=1, Paine-Hann/NI form). dense.f (the
-        # IE/BM file) accumulates it SPECIES-MAJOR in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC)
-        # (MEASURED FVSem_g16 196378260020004 cyc1 RELDEN 42B41C64 vs the flat record-order sum 42B41C67).
-        sp_cur = 0; relsp = 0f0
-        @inbounds for i in _ind1_order(s)
-            sp = Int(t.species[i])
-            if sp != sp_cur
-                sp_cur == 0 || (ccf += relsp)
-                sp_cur = sp; relsp = 0f0
-            end
-            relsp += em_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
-        end
-        sp_cur == 0 || (ccf += relsp)
-        return ccf
-    elseif s.variant isa Utah
-        # UT CCF is the same direct per-species polynomial (ut/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += ut_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa BlueMountains
-        # BM CCF is the same direct per-species polynomial (bm/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN, which
-        # dense.f:95-140 (the IE/EM file) accumulates SPECIES-MAJOR in IND1 order into RELDSP(ISPC), then RELDT=RELDT+
-        # RELDSP(ISPC). MEASURED FVSbm_g16 22960873010497 2017 REGENT CCF 42FAF772 vs the flat record-order 42FAF775.
-        sp_cur = 0; relsp = 0f0
-        @inbounds for i in _ind1_order(s)
-            sp = Int(t.species[i])
-            if sp != sp_cur
-                sp_cur == 0 || (ccf += relsp)
-                sp_cur = sp; relsp = 0f0
-            end
-            relsp += bm_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
-        end
-        sp_cur == 0 || (ccf += relsp)
-        return ccf
-    elseif s.variant isa Klamath
-        # NC CCF = the direct per-species ccfcal polynomial (nc/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += nc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa WestCascades
-        # WC CCF = the direct 16-group ccfcal polynomial (wc/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += wc_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa PacificNorthwest
-        @inbounds for i in 1:t.n
-            ccf += pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa Olympic
-        # OP CCF = op/ccfcal.f MODE=1, a direct per-species RD1+RD2·D+RD3·D² polynomial. op/ccfcal.f
-        # carries the "PN $Id$" header and its INDCCF/RD1/RD2/RD3 DATA blocks are byte-identical to
-        # pn/ccfcal.f, so `pn_tree_ccf` reproduces it exactly; stand CCF = Σ CCFT·P.
-        @inbounds for i in 1:t.n
-            ccf += pn_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa EastCascades
-        @inbounds for i in 1:t.n
-            ccf += ec_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa CentralIdaho
-        # CI CCF is the same direct per-species polynomial (ci/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN,
-        # accumulated SPECIES-MAJOR (dense.f RELDSP(ISPC) subtotals, as IE). The flat record-order sum was a few ULP
-        # off: REGCAL fixture backdated RELDEN 215.12527 vs live 215.1252 ⇒ CW/OH SNX 610.90 vs 610.91.
-        sp_cur = 0; relsp = 0f0
-        @inbounds for i in _ind1_order(s)
-            sp = Int(t.species[i])
-            if sp != sp_cur
-                sp_cur == 0 || (ccf += relsp)
-                sp_cur = sp; relsp = 0f0
-            end
-            relsp += ci_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
-        end
-        sp_cur == 0 || (ccf += relsp)
-        return ccf
-    elseif s.variant isa Teton
-        # TT CCF is the same direct per-species polynomial (tt/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += tt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa OregonCoast
-        # OC CCF is the open-grown crown-width → area form (oc/ccfcal.f MODE=1, R5CRWD); stand CCF = Σ CCFT·P.
-        @inbounds for i in 1:t.n
-            ccf += oc_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa CentralCalifornia
-        # CA CCF = the open-grown crown-width → area form (ca/ccfcal.f MODE=1, R5CRWD = byte-identical to OC's).
-        @inbounds for i in 1:t.n
-            ccf += ca_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa SoutheastAlaska
-        # AK CCF is the open-grown crown-width → area form (ak/ccfcal.f MODE=1); stand CCF = Σ CCFT·P.
-        @inbounds for i in 1:t.n
-            ccf += ak_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa SouthCentralOregon
-        # SO CCF = so/ccfcal.f MODE=1 (RD polynomial + WC-hardwood + SH/WO r6crwd crown-width²);
-        # stand CCF = Σ CCFT·P = RELDEN, read by dgf! CONSPP and regent PCTRED.
-        @inbounds for i in 1:t.n
-            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]; ifor = Int(s.plot.forest_idx)) * t.tpa[i]
-        end
-        return ccf
-    elseif s.variant isa WestSierra
-        # WS CCF = ws/ccfcal.f MODE=1 (crown-width² (RD1+D·RD2)²·0.001803 native; GB/MC/CA specials);
-        # stand CCF = Σ CCFT·P = RELDEN, read by the crown-ratio SCALE (ws/crown.f).
-        @inbounds for i in 1:t.n
-            ccf += ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])
-        end
-        return ccf
+        relsp += _tree_ccfp(s, Int(i))
     end
-    @inbounds for i in 1:t.n
-        sp = t.species[i]
-        cw = s.variant isa CentralRockies ?
-             cr_crown_width(Int(sp), t.dbh[i], Int(p.model_type)) :
-             crown_width(s.coef, s.species.code2[sp], t.dbh[i], t.height[i], 90, 1,
-                         p.latitude, p.longitude, p.elevation)
-        ccf += t.dbh[i] > 0.1f0 ? 0.001803f0 * cw * cw * t.tpa[i] : 0.001f0 * t.tpa[i]
-    end
+    sp_cur == 0 || (ccf += relsp)
     return ccf
 end
 

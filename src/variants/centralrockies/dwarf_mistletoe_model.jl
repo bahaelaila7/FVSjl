@@ -128,6 +128,7 @@ No-op for non-CentralRockies. Order-independent (per-tree max), so iterate physi
 """
 function cr_dm_mortality_combine!(killed::AbstractVector{Float32}, s::StandState, fint::Float32, n::Int)
     s.variant isa CentralRockies || return
+    s.control.dm_mrt_defer && return   # tripling cycle: MISMRT runs post-TRIPLE (ie_dm_mismrt_post!), not in MORTS
     t = s.trees
     @inbounds for i in 1:n
         dmr = Int(t.dmr[i]); dmr == 0 && continue

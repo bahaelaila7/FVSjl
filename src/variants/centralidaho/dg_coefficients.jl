@@ -40,7 +40,7 @@ const CI_PSIGSQ = Float32[0.0408, 0.0586, 0.1556, 0.0970, 0.0858, 0.1433, 0.0636
 @inline function ci_bratio(sd, sp::Int, d::Real)::Float32
     b1 = sd[:bark1][sp]; b2 = sd[:bark2][sp]; dd = Float32(d)
     if sp == 3 || sp == 5 || sp == 9 || sp == 10
-        r = dd > 0f0 ? b1 * dd^b2 / dd : 0.97f0
+        r = dd > 0f0 ? b1 * fpow(dd, b2) / dd : 0.97f0
         return r > 0.97f0 ? 0.97f0 : r
     elseif sp == 14
         temd = clamp(dd, 1f0, 19f0)

@@ -729,13 +729,12 @@ tripled PROB; raise the kill wherever the DM kill is larger.
 """
 function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, fint::Float32;
                             wk2::Union{Nothing,AbstractVector{Float32}} = nothing)
-    _dm_effects_on(s) || return
+    (_dm_effects_on(s) || s.variant isa CentralRockies) || return   # CR: cr/mismrt.f, same seam
     t = s.trees
-    _, _, pmc, maxsp = _mis_tables(s.variant)
     @inbounds for c in 1:t.n
         dmr = Int(t.dmr[c]); dmr == 0 && continue
         pr = full_prob[c]; pr <= 0f0 && continue
-        wki = pr * ie_dm_mortality_rate(pmc, maxsp, Int(t.species[c]), dmr, t.dbh[c], fint)
+        wki = pr * _dm_mortality_rate(s, Int(t.species[c]), dmr, t.dbh[c], fint)
         # mismrt.f:191 IF(WK2(ITREE).LT.WKI) WK2(ITREE)=WKI — compare against WK2 itself when the caller tracks it
         cur = wk2 === nothing ? pr - t.tpa[c] : wk2[c]
         if cur < wki
@@ -745,6 +744,10 @@ function ie_dm_mismrt_post!(s::StandState, full_prob::AbstractVector{Float32}, f
     end
     return
 end
+
+# MISTOE spread for the active DM model (cr_mistoe! for CR, ie_mistoe! for the shared western model).
+_dm_spread!(s::StandState; fint::Float32) =
+    s.variant isa CentralRockies ? cr_mistoe!(s; fint = fint) : ie_mistoe!(s; fint = fint)
 
 """
     ie_mistoe!(s; fint)

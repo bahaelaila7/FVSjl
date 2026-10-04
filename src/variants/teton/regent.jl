@@ -169,14 +169,14 @@ end
 @inline function _tt_utvar_htgrl(sp::Int, h::Float32, cr::Float32, sj::Float32, rsimod::Float32,
                                  pctred::Float32, con::Float32)::Float32
     if sp == 14
-        sitage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
-        hite1  = 26.9825f0 * sitage^1.1752f0
-        hite2  = 26.9825f0 * (sitage + 10f0)^1.1752f0
+        sitage = fpow(h * 2.54f0 * 12f0 / 26.9825f0, 1f0 / 1.1752f0)
+        hite1  = 26.9825f0 * fpow(sitage, 1.1752f0)
+        hite2  = 26.9825f0 * fpow(sitage + 10f0, 1.1752f0)
         return (hite2 - hite1) / (2.54f0 * 12f0) * rsimod * con * 0.75f0
     end
     pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
     x = cr / 100f0
-    vigor = (150f0 * x * x * x * exp(-6f0 * x)) + 0.3f0
+    vigor = (150f0 * fpow(x, 3f0) * fexp(-6f0 * x)) + 0.3f0         # tt/regent.f:533 X**3.0 = powf
     vigor > 1f0 && (vigor = 1f0)
     (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - ((1f0 - vigor) / 3f0))
     return pothtg * pctred * vigor * con
@@ -202,9 +202,9 @@ end
         # old "don't add ·2.54·12, it regresses" note was a two-bug ARTIFACT: the SITAGE under-growth was masked by
         # the fint=10 subcycle DOUBLE-APPLY (now gated to J=1 below). With both fixes jl htgr is bit-close to live —
         # MEASURED FVStt_g16 SMHTGF: #205 seedling jl 2.76=live 4.77·RSIMOD; ttt01 seedling jl 5.06=live 5.09.
-        sitage = (h * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
-        hite1 = 26.9825f0 * sitage^1.1752f0
-        hite2 = 26.9825f0 * (sitage + 5f0)^1.1752f0
+        sitage = fpow(h * 2.54f0 * 12f0 / 26.9825f0, 1f0 / 1.1752f0)
+        hite1 = 26.9825f0 * fpow(sitage, 1.1752f0)
+        hite2 = 26.9825f0 * fpow(sitage + 5f0, 1.1752f0)
         htgr = (hite2 - hite1) / (2.54f0 * 12f0)
         # ·0.75 (Dixon 8-27-92) is smhtgf.f CASE(6)-specific; MM(14) is CASE DEFAULT ⇒ no ·0.75 (matches live faster MM)
         htgrl = (htgr + zrand * 0.1f0) * (sp == 6 ? 0.75f0 : 1.0f0)
@@ -220,8 +220,8 @@ end
         end
         return htgrl
     else
-        beta1 = exp(TT_B0ACCF[sp] + TT_B1ACCF[sp] * log(tpccf))
-        beta2 = exp(TT_B0BCCF[sp] + TT_B1BCCF[sp] * log(tpccf))
+        beta1 = fexp(TT_B0ACCF[sp] + TT_B1ACCF[sp] * flog(tpccf))
+        beta2 = fexp(TT_B0BCCF[sp] + TT_B1BCCF[sp] * flog(tpccf))
         htg1 = beta1 + beta2 * cr
         stddev = htg1 * (TT_B0ASTD[sp] + TT_B1BSTD[sp] * cr)
         return htg1 + zrand * stddev
@@ -343,8 +343,8 @@ function tt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                         edh = 0f0                                  # D<=0 ⇒ 0, bypassing the 0.1 floor
                     else
                         if sp == 6                                 # CASE(6): FINDAG age from the CURRENT HT(I)
-                            sitage = (t.height[i] * 2.54f0 * 12f0 / 26.9825f0)^(1f0 / 1.1752f0)
-                            htgr = (26.9825f0 * (sitage + 5f0)^1.1752f0 - 26.9825f0 * sitage^1.1752f0) / (2.54f0 * 12f0)
+                            sitage = fpow(t.height[i] * 2.54f0 * 12f0 / 26.9825f0, 1f0 / 1.1752f0)
+                            htgr = (26.9825f0 * fpow(sitage + 5f0, 1.1752f0) - 26.9825f0 * fpow(sitage, 1.1752f0)) / (2.54f0 * 12f0)
                             edh = (htgr + t.tree_random[i] * 0.1f0) * 0.75f0
                         else
                             edh = _tt_smhtgf(sp, h, cr, tpccf, t.tree_random[i], si6)
@@ -355,11 +355,11 @@ function tt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                     hk += edh
                 else                                               # UTVAR
                     xv = cr / 100f0
-                    vigor = 150f0 * xv^3 * exp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
                     (sp == 4 || sp == 11 || sp == 12) && (vigor = 1f0 - (1f0 - vigor) / 3f0)
                     if sp == 14
-                        ag1 = (h * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
-                        h2 = (26.9825f0 * (ag1 + 10f0)^1.1752f0) / (2.54f0 * 12f0)
+                        ag1 = fpow(h * 12f0 * 2.54f0 / 26.9825f0, 0.8509f0)
+                        h2 = (26.9825f0 * fpow(ag1 + 10f0, 1.1752f0)) / (2.54f0 * 12f0)
                         edh = (h2 - h) * rsimod * rhcon[sp] * 0.75f0
                     else
                         edh = pothtg * pctred * vigor * rhcon[sp]
@@ -377,7 +377,7 @@ function tt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         snx /= snp; sny /= snp
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
-        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : flog(cornew)
     end
     return s
 end
@@ -493,7 +493,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
             # woodland cluster (stand 325585226489998: oracle CON=0.4476).
             xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
             xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
-            con = exp(c.htg_cor_small[sp])
+            con = fexp(c.htg_cor_small[sp])
             si = p.sp_site_index[sp]
             si > TT_SITEHI[sp] && (si = TT_SITEHI[sp]); si <= TT_SITELO[sp] && (si = TT_SITELO[sp] + 0.5f0)
             rsimod = 0.5f0 * (1f0 + (si - TT_SITELO[sp]) / (TT_SITEHI[sp] - TT_SITELO[sp]))
@@ -609,7 +609,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
                     b1 = tt_bratio(sp, dfl)                 # regent.f:934 BARK=BRATIO(ISPC,D,HT(K)), D floored
                     dgk = (wk5[i] - dkk) * b1
                     dds = dgk * (2f0 * b1 * dfl + dgk) * scale2
-                    dgk = sqrt(max((dfl * b1)^2 + dds, 0f0)) - b1 * dfl
+                    dgk = sqrt(max(fpow(dfl * b1, 2f0) + dds, 0f0)) - b1 * dfl
                 end
                 # regent.f:1033-1047: the non-ESTAB tail runs for TTVAR too — floor at 0, BARK=BRATIO(ISPC,DBH(K),HT(K)),
                 # and a SECOND DDS conversion (the identity when SCALE2=1). There is no DGMX cap here: TTVAR's
@@ -617,7 +617,7 @@ function small_tree_growth!(s::StandState, stash, ::Teton; fint::Float32 = 10.0f
                 dgk < 0f0 && (dgk = 0f0)
                 bark = tt_bratio(sp, d)
                 dds = dgk * (2f0 * bark * dfl + dgk) * scale2
-                dgk = sqrt(max((dfl * bark)^2 + dds, 0f0)) - bark * dfl
+                dgk = sqrt(max(fpow(dfl * bark, 2f0) + dds, 0f0)) - bark * dfl
                 (d + dgk) < diam && (dgk = diam - d)        # regent.f:1049 DIAM floor on DBH(K)+DG(K)
                 dgk = dg_bound(nothing, nothing, sp, d, dgk, s.control.sp_size_cap)   # regent.f:1055 DGBND
                 # DG is NOT XWT-blended: for D<BKPT the regent DG fully REPLACES the large-tree DG (BKPT=XMAX=3 for TTVAR).

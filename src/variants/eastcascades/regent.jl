@@ -31,16 +31,16 @@ end
 @inline function ec_htdbh_height(fidx::Int, sp::Int, d::Float32)::Float32
     p2 = EC_HTDBH_P2[fidx, sp]; p3 = EC_HTDBH_P3[fidx, sp]; p4 = EC_HTDBH_P4[fidx, sp]
     if d >= 3.0f0
-        return 4.5f0 + p2 * exp(-1f0 * p3 * d^p4)
+        return 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(d, p4))
     else
-        return ((4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
+        return ((4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4)) - 4.51f0) * (d - 0.3f0) / 2.7f0) + 4.51f0
     end
 end
 @inline function ec_htdbh_dbh(fidx::Int, sp::Int, h::Float32)::Float32
     p2 = EC_HTDBH_P2[fidx, sp]; p3 = EC_HTDBH_P3[fidx, sp]; p4 = EC_HTDBH_P4[fidx, sp]
-    hat3 = 4.5f0 + p2 * exp(-1f0 * p3 * 3.0f0^p4)
+    hat3 = 4.5f0 + p2 * fexp(-1f0 * p3 * fpow(3.0f0, p4))
     if h >= hat3
-        return exp(log((log(h - 4.5f0) - log(p2)) / (-1f0 * p3)) * (1f0 / p4))
+        return fexp(flog((flog(h - 4.5f0) - flog(p2)) / (-1f0 * p3)) * 1f0 / p4)   # htdbh.f:354 ALOG(..)*1./P4 = (x*1.)/P4
     else
         return (((h - 4.51f0) * 2.7f0) / (hat3 - 4.51f0)) + 0.3f0
     end
@@ -60,20 +60,20 @@ const EC_RG_XMIN  = Float32[2.0,2.0,2.0,2.0,2.0,2.0,1.0,2.0,2.0,2.0,2.0,2.0,2.0,
 const EC_RG_SLO   = Float32[20,50,50,50,15,50,30,40,50,70,0,15,0,0,0,50,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15,0]
 const EC_RG_SHI   = Float32[80,110,110,110,30,110,70,120,150,140,999,30,999,999,999,110,999,999,999,999,999,999,999,999,999,999,999,999,999,999,30,999]
 const EC_RG_DIAM  = Float32[0.4,0.3,0.3,0.3,0.2,0.3,0.4,0.3,0.3,0.5,0.2,0.2,0.2,0.4,0.3,0.3,0.3,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2,0.2]
-const EC_RG_AB    = Float64[1.11436,-0.011493,0.43012e-4,-0.72221e-7,0.5607e-10,-0.1641e-13]
+const EC_RG_AB    = Float32[1.11436,-0.011493,0.43012e-4,-0.72221e-7,0.5607e-10,-0.1641e-13]   # ec/regent.f:89 REAL AB(9) — single-precision Horner
 const EC_RG_REGYR = 10.0f0
 
 # ec/smhtgf.f — small-tree potential HEIGHT increment over DTIME years (MODE 1 = established, effective-age).
 @inline function ec_smhtgf(ispc::Int, h::Float32, dtime::Float32, si::Float32)::Float32
     if ispc == 1                                       # WP — Chapman-Richards
         c1=0.375045f0; c2=0.92503f0; c3=-0.020796f0; c4=2.48811f0
-        effage = log((1f0 - (c1/si*h)^(1f0/c4))/c2)/c3; agepdt = effage + dtime
-        return (si/c1)*(1f0-c2*exp(c3*agepdt))^c4 - (si/c1)*(1f0-c2*exp(c3*effage))^c4
+        effage = flog((1f0 - fpow(c1/si*h, 1f0/c4))/c2)/c3; agepdt = effage + dtime
+        return (si/c1)*fpow(1f0-c2*fexp(c3*agepdt), c4) - (si/c1)*fpow(1f0-c2*fexp(c3*effage), c4)
     elseif ispc == 5                                   # RC — Chapman-Richards
         c1=0.752842f0; c2=1.0f0; c3=-0.0174f0; c4=1.4711f0
-        e = (1f0 - (c1/si*h)^(1f0/c4))/c2
-        effage = e > 0f0 ? log(e)/c3 : 100f0; agepdt = effage + dtime
-        return (si/c1)*(1f0-c2*exp(c3*agepdt))^c4 - (si/c1)*(1f0-c2*exp(c3*effage))^c4
+        e = (1f0 - fpow(c1/si*h, 1f0/c4))/c2
+        effage = e > 0f0 ? flog(e)/c3 : 100f0; agepdt = effage + dtime
+        return (si/c1)*fpow(1f0-c2*fexp(c3*agepdt), c4) - (si/c1)*fpow(1f0-c2*fexp(c3*effage), c4)
     elseif ispc == 2 || ispc == 17
         return ((-3.97245f0 + 0.50995f0*si)/(28.11668f0-0.05661f0*si))*dtime
     elseif ispc == 3
@@ -99,7 +99,7 @@ const EC_RG_REGYR = 10.0f0
     elseif ispc == 22
         return (-0.007025f0 + 0.056794f0*si)*dtime
     elseif ispc == 28
-        return (((-37.60812f0*log(1f0-(si/114.24569f0)^0.44444f0))*0.01f0)-0.1f0)*dtime
+        return (((-37.60812f0*flog(1f0-fpow(si/114.24569f0, 0.44444f0)))*0.01f0)-0.1f0)*dtime
     else                                               # 13,14,18:21,23:27,29,30,32
         return ((1.47043f0 + 0.23317f0*si)/(31.56252f0 - 0.05586f0*si))*dtime
     end
@@ -112,10 +112,10 @@ end
     age <= 0f0 && return 0f0                            # SMHTGF: DTIME≤0 → no growth (ec/smhtgf.f:97)
     if sp == 1
         c1=0.375045f0; c2=0.92503f0; c3=-0.020796f0; c4=2.48811f0
-        return (si/c1)*(1f0-c2*exp(c3*age))^c4 - (si/c1)*(1f0-c2)^c4     # EFFAGE=0
+        return (si/c1)*fpow(1f0-c2*fexp(c3*age), c4) - (si/c1)*fpow(1f0-c2, c4)     # EFFAGE=0
     elseif sp == 5
         c1=0.752842f0; c2=1.0f0; c3=-0.0174f0; c4=1.4711f0
-        return (si/c1)*(1f0-c2*exp(c3*age))^c4 - (si/c1)*(1f0-c2)^c4     # EFFAGE=0
+        return (si/c1)*fpow(1f0-c2*fexp(c3*age), c4) - (si/c1)*fpow(1f0-c2, c4)     # EFFAGE=0
     else
         return ec_smhtgf(sp, 0f0, age, si)             # linear species: H unused ⇒ = coef·AGE
     end
@@ -130,11 +130,11 @@ function _ec_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, d::Float32, h::Flo
     local dk::Float32, dkk::Float32
     if sp == 11 || (13 <= sp <= 15) || (17 <= sp <= 30) || sp == 32      # WC logic
         if sp == 11
-            dkk = -0.674f0 + 1.522f0*log(h); dk = -0.674f0 + 1.522f0*log(hk)
+            dkk = -0.674f0 + 1.522f0*flog(h); dk = -0.674f0 + 1.522f0*flog(hk)
         elseif (13 <= sp <= 15) || sp == 17
-            dkk = -2.089f0 + 1.980f0*log(h); dk = -2.089f0 + 1.980f0*log(hk)
+            dkk = -2.089f0 + 1.980f0*flog(h); dk = -2.089f0 + 1.980f0*flog(hk)
         elseif sp == 18 || sp == 19
-            dkk = -0.532f0 + 1.531f0*log(h); dk = -0.532f0 + 1.531f0*log(hk)
+            dkk = -0.532f0 + 1.531f0*flog(h); dk = -0.532f0 + 1.531f0*flog(hk)
         else
             dkk = 3.102f0 + 0.021f0*h; dk = 3.102f0 + 0.021f0*hk
         end
@@ -146,8 +146,8 @@ function _ec_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, d::Float32, h::Flo
     else                                                                   # 1-9,12,16,31: inverse Wykoff
         bx = sd[:ht2][sp]
         ax = c.ht_dbh_iabflg[sp] == 1 ? sd[:ht1][sp] : c.ht_dbh_aa[sp]
-        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0
-        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0
+        dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0
+        dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1f0
     end
     if !s.control.ht_drag_sp[sp] || c.ht_dbh_iabflg[sp] == 1
         dk = ec_htdbh_dbh(ifor, sp, hk)
@@ -181,9 +181,9 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
         # to the site species' range, so on Mt Hood (site species GF, SHI 110) ES's SI 148 became 110 and its
         # seedlings grew 7.9 ft instead of live's 17.4 ft in one cycle.
         si = p.sp_site_index[sp]
-        con = exp(c.htg_cor_small[sp])                  # RHCON=1 default ⇒ CON = exp(HCOR)
+        con = fexp(c.htg_cor_small[sp])                  # RHCON=1 default ⇒ CON = exp(HCOR)
         x = Float32(t.crown_pct[i]) / 100f0
-        vigor = 150f0 * x^3 * exp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+        vigor = 150f0 * fpow(x, 3f0) * fexp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
         pothtg = ec_smhtgf(sp, h, 10f0, si)
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
@@ -236,7 +236,7 @@ function small_tree_growth!(s::StandState, stash, ::EastCascades; fint::Float32 
                     dgmx = EC_RG_DGMAX[sp] * scale
                     dg > dgmx && (dg = dgmx)
                     dds = dg*(2f0*bark*d + dg)*scale2
-                    dg = sqrt((d*bark)^2 + dds) - bark*d
+                    dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
                     (d + dg) < EC_RG_DIAM[sp] && (dg = EC_RG_DIAM[sp] - d)
                 end
                 dg = wc_dgbnd(sp, dbh_set >= 0f0 ? dbh_set : d, dg, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
@@ -268,9 +268,9 @@ const EC_HHTMAX = Float32[23,27,21,21,22,20,24,18,18,17, 20,22,20,20,20,20,20,20
                           20,50,20,20,20,20,20,20,20,20, 22,20]
 # ec/regent.f:385-397 DAT45 (the WC-logic diameter at 4.5 ft; 0 for the EC-logic species).
 @inline function _ec_dat45(sp::Int)::Float32
-    sp == 11 && return -0.674f0 + 1.522f0*log(4.5f0)
-    ((13 <= sp <= 15) || sp == 17) && return -2.089f0 + 1.980f0*log(4.5f0)
-    (sp == 18 || sp == 19) && return -0.532f0 + 1.531f0*log(4.5f0)
+    sp == 11 && return -0.674f0 + 1.522f0*flog(4.5f0)
+    ((13 <= sp <= 15) || sp == 17) && return -2.089f0 + 1.980f0*flog(4.5f0)
+    (sp == 18 || sp == 19) && return -0.532f0 + 1.531f0*flog(4.5f0)
     ((20 <= sp <= 30) || sp == 32) && return 3.102f0 + 0.021f0*4.5f0
     return 0f0
 end
@@ -326,9 +326,9 @@ function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         if lskiph
             htg = 0f0
         else
-            con = exp(c.htg_cor_small[sp])
+            con = fexp(c.htg_cor_small[sp])
             x = Float32(icr0) / 100f0
-            vigor = 150f0 * x^3 * exp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            vigor = 150f0 * fpow(x, 3f0) * fexp(-6f0*x) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             htgr = ec_smhtgf(sp, h, 10f0, p.sp_site_index[sp]) * pctred * vigor * con
             zzran = 0f0
             if dgsd >= 1f0
@@ -398,7 +398,7 @@ function ec_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
             (saved_dbh[i] >= 5f0 || h < 0.01f0) && continue
             xv = Float32(t.crown_pct[i]) / 100f0
-            vigor = 150f0 * xv^3 * exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             edh = ec_smhtgf(sp, h, EC_RG_REGYR, p.sp_site_index[sp]) * pctred * vigor * rhcon
             edh < 0.1f0 && (edh = 0.1f0)
             hg = t.ht_growth[i]; hg < 0.001f0 && continue
@@ -410,7 +410,7 @@ function ec_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end

@@ -311,7 +311,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # FMCONS runs only when the fire carries (fmburn.f:469 FLAG(1)=1 ⇒ GOTO 500 skips FMEFF+FMCONS): a fire that
     # does not carry consumes nothing, and FMFOUT reports the FMMAIN-zeroed BURNED/SMOKE with the stale EXPOSR.
     cons = if fire_carries
-        c = fire_consumption!(fs, mois; psburn, burncr = bcrown)
+        c = fire_consumption!(fs, mois; psburn, burncr = bcrown, so = s.variant isa SouthCentralOregon)
         fs.exposr_last = c.exposr
         c
     else
@@ -475,7 +475,8 @@ fm_canopy_lsw(sp::Integer, ::BritishColumbia) = (1 <= sp <= 10) || sp == 14
 fm_canopy_lsw(sp::Integer, ::Union{PacificNorthwest,WestCascades,Olympic}) = (1 <= sp <= 20) || (29 <= sp <= 33) || sp == 38
 fm_canopy_lsw(sp::Integer, ::EastCascades) = (1 <= sp <= 19) || sp == 31
 fm_canopy_lsw(sp::Integer, ::WestSierra) = (1 <= sp <= 27) || sp == 42
-fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 3) || sp == 6 || sp == 9 || sp == 10 || sp == 12
+fm_canopy_lsw(sp::Integer, ::SouthCentralOregon) = (1 <= sp <= 20) || sp == 32   # so/fmcba.f:997-1004 CASE(1:20,32) (fmvinit.f sets all FALSE)
+fm_canopy_lsw(sp::Integer, ::Klamath) = (1 <= sp <= 4) || sp == 6 || (9 <= sp <= 10) || sp == 12   # nc/fmvinit.f CASE(2),(3,1),(4,9),(6),(10),(12)
 fm_canopy_lsw(sp::Integer, ::AbstractVariant) = sp <= 25
 
 # PotFire severe/moderate scenario wind (mi/h) + temperature (°F): (PREWND(1), POTEMP(1), PREWND(2), POTEMP(2)),

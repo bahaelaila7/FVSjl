@@ -933,8 +933,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 (t.tpa[i] > 0f0 && t.height[i] > 10f0) || continue
                 spi = Int(t.species[i])
                 _fm_asct_excl(s.variant, spi) && continue    # per-variant CVR10 exclusion set
-                cw = uttt ? tree_crwdth(s, spi, t.dbh[i], t.height[i], t.crown_pct[i]) :   # XW=CRWDTH(I)
-                            cr_cwcalc(spi, t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi)
+                cw = tree_crwdth(s, spi, t.dbh[i], t.height[i], t.crown_pct[i])   # XW=CRWDTH(I) (clamped [0.5,99.9])
                 area += Float64(cw)^2 * Float64(t.tpa[i]) * 0.785398
             end
             pccu = cccoef * (area / 43560.0)

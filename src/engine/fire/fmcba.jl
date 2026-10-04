@@ -32,6 +32,35 @@ end
 Update the stand's `FireState` cover type, percent cover, big DBH, live fuels, and
 (first FFE year) dead-fuel pools (FMCBA, fmcba.f). No-op unless FFE is active.
 """
+# so/fmcba.f:893-990 (the SO-FFE snag block FMVINIT leaves "unset" = -1, applied every FMCBA with IF(X.LT.0)): on the
+# California forests (KODFOR 500-599, 701) ALLDWN 100 (juniper 150), FALLX 1.235/0.882/0.687 by species group, DECAYX 999
+# (hard snags never soften), HTX 1/0/1/0 (height loss stops at 50%), PBSOFT 1.0 / PBSMAL 0.9; on the Oregon forests the
+# fire_species_props.csv values (ALLDWN 110/90/100, FALLX = DECAYX = 1), HTX 1 for all four (FMR6HTLS), PBSOFT=PBSMAL=0.
+# A SNAGFALL/SNAGDCAY/SNAGBRK/SNAGPBN keyword value is kept (the per-species override dicts / a non-negative PB*).
+# MEASURED FVSso_g16 15364795010497 (forest 505) FVS_SnagDet 2020: the inventory SH snags 23.5->17.79 ft live, jl held them.
+function _so_snag_params!(s::StandState)
+    p = s.fire.params
+    kodfor = Int(s.plot.user_forest_code)
+    ca = (500 <= kodfor < 600) || kodfor == 701
+    nsp = nspecies(s.variant)
+    @inbounds for sp in 1:nsp
+        k = Int32(sp)
+        if ca
+            fx, ad = sp in (3, 4, 8, 9, 12, 13, 14, 15, 17, 32) ? (0.882f0, 100f0) :
+                     sp in (6, 18, 20) ? (0.687f0, 100f0) : sp == 11 ? (0.687f0, 150f0) : (1.235f0, 100f0)
+            haskey(p.snag_fallx_ovr, k) || (p.snag_fallx_ovr[k] = fx)
+            haskey(p.snag_alldwn_ovr, k) || (p.snag_alldwn_ovr[k] = ad)
+            haskey(p.snag_decayx_ovr, k) || (p.snag_decayx_ovr[k] = 999f0)
+            haskey(p.snag_htx, k) || (p.snag_htx[k] = (1f0, 0f0, 1f0, 0f0))
+        else
+            haskey(p.snag_htx, k) || (p.snag_htx[k] = (1f0, 1f0, 1f0, 1f0))
+        end
+    end
+    p.pb_soft < 0f0 && (p.pb_soft = ca ? 1f0 : 0f0)
+    p.pb_smal < 0f0 && (p.pb_smal = ca ? 0.9f0 : 0f0)
+    return
+end
+
 function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
@@ -47,6 +76,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
               "FFE keywords (FMIn/SIMFIRE/SNAGINIT/…) from this stand, or run growth+volume only.")
     end
     nsp = length(coef_col(coef, :dbh_min))            # MAXSP
+    s.variant isa SouthCentralOregon && _so_snag_params!(s)
 
     # live herb/shrub fuels are re-set every year. NE (ne/fmcba.f:68) uses a flat constant
     # FULIV=(0.31,0.31) for all forest types; SN uses the FFE-forest-type table with a
@@ -141,7 +171,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _old_cw ? stored_crwdth(s, i) :
              _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
-             _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _cr_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # cr/fmcba.f:378 CWIDTH=CRWDTH(I) (clamped [0.5,99.9])
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
@@ -153,7 +183,10 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
              _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # PN = wc/cwcalc.f (byte-identical) with PN's KODFOR
              _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
-             _so_fm ? so_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :  # SO R6 Crookston (so/cwcalc.f SOMAP; forest-601 BF)
+             # SO: CRWDTH(I) = the FVS_TreeList CrWidth (_forest_crwdth: SOMAP with the KODFOR BF on R6 forests, R5CRWD on
+             # IFOR 4-9). MEASURED FVSso_g16 DEBUG FMCBA 15184869010497 (forest 601) 2010: PERCOV 38.904 live = jl with
+             # _forest_crwdth; the old so_cwcalc gave 38.550 (2020: 40.491 vs 40.185) ⇒ surface flame/torching off.
+             _so_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
              _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
              _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
              _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
@@ -161,6 +194,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
              _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
              crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
+        # CRWDTH(I) is CWCALC's output, clamped to [0.5,99.9] (cwcalc.f:2391-2392); the raw NC/WC/PN/EC kernels above are not.
+        (_nc_fm || _wc_fm || _pn_fm || _ec_fm) && (cw = clamp(cw, 0.5f0, 99.9f0))
         cwrec[i] = cw
     end
     # fmcba.f:189-203 DO I=1,ITRN: TBA(KSP) += BA1·FMPROB(I), TOTCRA += CAREA·FMPROB(I), in FVS's record order. FMMAIN runs
@@ -396,7 +431,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         # follow-on, same deferral as growth). habitat_input>0 (a decoded PA) is honored when present.
         if s.variant isa SouthCentralOregon && size(fs.params.dkr, 1) != 11
             _ity = Int(s.plot.habitat_input); _ity <= 0 && (_ity = 49)
-            fs.params.dkr = so_adjusted_dkr(_ity)
+            _kf = Int(s.plot.user_forest_code)
+            fs.params.dkr = ((500 <= _kf < 600) || _kf == 701) ? so_california_dkr() : so_adjusted_dkr(_ity)
         end
         fs.fuels_init = true
     end

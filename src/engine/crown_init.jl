@@ -116,6 +116,10 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     ht_saved = ht_swap ? t.height[1:t.n] : Float32[]
     ht_swap && @inbounds(for i in 1:t.n; t.height[i] = s.calib.cratet_ht_in[i]; end)
     compute_density!(s)                    # CRATET DENSE: backdated live (+ dead-inclusive) BA / point-CCF
+    # RELDEN of that DENSE: dense.f's RELDSP walk is species-major over the SAME read-order IND1 (dead interleaved), so
+    # take it while the read-order keys are still in place (MEASURED FVSso_g16 449489561489998 REGENT-calibration
+    # RELDEN 43445D43 live; jl's restored-key (dead-after-live) walk gave 43445D41 ⇒ PCTRED ⇒ HCOR 2 ULP).
+    s.calib.cratet_relden = stand_ccf(s)
     sk_saved === nothing || @inbounds(for i in 1:t.n; t.sort_key[i] = sk_saved[i]; end)
     # dense.f:244 `CALL PCTILE(ITRN,IND,WK5,PCT,TOTAL)` — in the BACKDATING pass, PCT is accumulated over
     # **IND**, which cratet.f sorted on the REAL `DBH`, while the per-tree weight `WK5 = D*D*PROB` uses the
@@ -135,7 +139,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         idx = view(s.scratch.stat_idx, 1:t.n); idx .= ind153
         _pctile!(t.crown_ratio, t, idx, t.n)
     end
-    s.calib.cratet_relden = stand_ccf(s)   # RELDEN after cratet.f:195 DENSE (backdated, dead-inclusive) → REGENT HCOR cal
+    # (s.calib.cratet_relden — RELDEN after cratet.f:195 DENSE, backdated + dead-inclusive — set above → REGENT HCOR cal)
     ht_swap && @inbounds(for i in 1:t.n; t.height[i] = ht_saved[i]; end)
     # The rest of that DENSE's state for the EM LSTART REGCAL (em/cratet.f:553 — no DENSE in between): BA (=OLDBA,
     # backdated), AVH (the AVHT40 walk above), the per-point PCCF (dense.f:202 accumulates it only in the backdated
