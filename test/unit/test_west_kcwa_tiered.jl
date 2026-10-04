@@ -33,4 +33,12 @@ end
     c = _case("KT", "1627650292290487", "none")
     @test isempty(_before(c.ms, 2050))          # 8325 cells from 2030 before
 end
+
+# dense.f:168-229 sums CCFT·P species-major in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC). The flat
+# record-order sum put KT's RELDEN 1 ULP off (3021216010690 cycle 2: DGF CCF2 11904.7773 live / 11904.774 jl), and the
+# tripled copies' DG with it (TreeIndex 114 DG 2.35536575 live / 2.3553638 jl).
+@testset "KT stand CCF summed per species (dense.f:168-229 RELDSP)" begin
+    c = _case("KT", "3021216010690", "none")
+    @test count(m -> m.file == "FVS_TreeList" && m.col == "DG" && m.year == "2009", c.ms) == 0
+end
 end # module
