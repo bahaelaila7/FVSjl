@@ -334,6 +334,9 @@ mutable struct Control
     mistpinf::Vector{ScheduledActivity}
     dm_jran::Int32                            # MISRAN dwarf-mistletoe LCG state (misin0.f JRAN=123231, MISCOM);
                                               # advanced ONLY by the MISTPINF random-method infection (misran.f)
+    dm_flag::Bool                             # MISCOM DMFLAG: cleared by each MISTOE call (mistoe.f:193), set when a host
+                                              # species carries mistletoe (mistoe.f:267) or MISTPINF targets a host species
+                                              # (misinf.f:182, even with no trees of it); MISPRT reports when it is set
     dm_mrt_defer::Bool                        # true while MORTS runs on a non-fire TRIPLING cycle: the DM mortality
                                               # (MISMRT) is then applied post-TRIPLE in the GRADD MISTOE seam instead
     # Tree-list activities (TREELIST/CUTLIST/ATRTLIST) and the OPDONE state of their per-cycle copies,
@@ -473,6 +476,7 @@ function Control()
         fill(Int32(6), MAXSP),                                   # sp_methc: cubic vol method per species (6=Clark default)
         false, Int32(0), Int32(0), Int32(0), "",                 # SVS: svs_on, svs_iplgem, svs_igrid, svs_imetric, svs_keystem
         ScheduledActivity[], Int32(123231),                      # mistpinf (MISTPINF cards, activity 2006), dm_jran (MISRAN seed)
+        false,                                                   # dm_flag (DMFLAG)
         false,                                                   # dm_mrt_defer
         ListActivity[], Set{Tuple{Int,Int}}(),                   # list_acts (TREELIST/CUTLIST/ATRTLIST), list_done
         false,                                                   # dbs_atrtlist (ATRTLIDB)

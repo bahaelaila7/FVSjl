@@ -110,3 +110,18 @@ end
         @test _cr_f32(jd[g["Year"]]["PTorch_Mod"]) == _cr_f32(g["PTorch_Mod"])
     end
 end
+
+@testset "EM 231908428020004 MISTPINF on an absent host: MISPRT DMFLAG from MISINF vs live FVSem_g16" begin
+    # misinf.f:182 sets DMFLAG for any host species a MISTPINF card targets, even with no trees of it; MISPRT
+    # (fvs.f:400) then writes one zero-infection FVS_DM_Stnd_Sum row and creates an empty FVS_DM_Spp_Sum; the next
+    # MISTOE (mistoe.f:193) clears it. jl wrote neither table.
+    db = _cr_run("em", "231908428020004", "mistletoe")
+    gold, jl = _cr_table("em", "231908428020004", "mistletoe", db, "FVS_DM_Stnd_Sum")
+    @test length(jl) == length(gold) == 1
+    for c in keys(gold[1])
+        c == "StandID" && continue
+        @test _cr_f32(jl[1][c]) == _cr_f32(gold[1][c])
+    end
+    gold, jl = _cr_table("em", "231908428020004", "mistletoe", db, "FVS_DM_Spp_Sum")
+    @test isempty(gold) && isempty(jl)
+end
