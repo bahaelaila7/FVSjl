@@ -2480,6 +2480,13 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:min(nspecies(s.variant), length(tab))
                 fs.params.snag_htx[Int32(sp)] = tab[sp]
             end
+        elseif s.variant isa Klamath
+            # nc/fmvinit.f:278-283: HTX(I,1)=HTX(I,3)=1.0, HTX(I,2)=HTX(I,4)=0.0 for every species (HTR1 0.03406,
+            # HTR2 0.01, HTXSFT 10): snags lose height at HTR1 until 50% of HTD, then stop (FMSNGHT CASE DEFAULT).
+            # MEASURED FVSnc_g16 23660512010900 simfire FVS_SnagDet 2011: the 2006 fire snags 44.11→37.09 ft live; jl held them.
+            @inbounds for sp in 1:nspecies(s.variant)
+                fs.params.snag_htx[Int32(sp)] = (1f0, 0f0, 1f0, 0f0)
+            end
         elseif r6_ffe_code(s.variant) !== :none && !(s.variant isa SouthCentralOregon)
             # bm/ec/pn/op/wc fmvinit.f: HTX(I,1:4) = 1.0 for every species ⇒ FMSNGHT takes the FMR6HTLS random
             # loss (snag.jl). SO sets its snag parameters per forest in FMCBA (so/fmcba.f:925-990) — not here.
