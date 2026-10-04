@@ -68,9 +68,15 @@ function compute_volumes_ut!(s::StandState)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
         else                                                 # DVE woodland — dvest.f geocode dispatch
             # geocode '3' → Region-3 R3D2HV (GO); '4' → Region-4 R4D2H (PJ). (dvest.f:71/86)
-            vol1 = se[1] == '3' ? r3d2hv_vol1(eq, d, h) : r4d2h_vol1(eq, d, h)
-            t.cuft_vol[i] = max(vol1, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(vol1, 0f0) : 0f0
+            # ut/vols.f:57-58,190-193: a top-killed record's NATCRS call takes H = NORMHT, and NATCRS returns CTKFLG=.TRUE.
+            # with VMAX = TCF for every equation (fvsvol.f:509-531) — the DVE woodland included — so CFTOPK trims TCF/MCF
+            # to the break as for MAT (MEASURED FVSut_g16 286785821489998 2013: UJ D11.3 HT 7 NORMHT 8.29 ITRUNC 6 TCuFt
+            # 1.781 live, jl 1.538 at HT untrimmed; UJ D8.6 HT 10 NORMHT 10.05 ITRUNC 9 1.2416 live, jl 1.2440).
+            vol1 = se[1] == '3' ? r3d2hv_vol1(eq, d, hv) : r4d2h_vol1(eq, d, hv)
+            tcf = max(vol1, 0f0); mcf = d >= dbhmin ? tcf : 0f0
+            tcf, mcf, _ = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, 0f0, utmerch)
+            t.cuft_vol[i] = max(tcf, 0f0)
+            t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
         end
     end
