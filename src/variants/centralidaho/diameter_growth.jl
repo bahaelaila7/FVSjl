@@ -110,7 +110,7 @@ function dgf!(s::StandState, ::CentralIdaho)
             cr = Float32(t.crown_pct[i]) * 0.01f0
             dds = conspp + CI_DGLD[sp] * ald + CI_DGBAL[sp] * bal +
                   cr * (CI_DGCR[sp] + cr * CI_DGCRSQ[sp]) + CI_DGDS[sp] * d * d +
-                  CI_DGBA[sp] * bal / flog(d + 1f0)
+                  CI_DGBA[sp] * bal / flog(d + 1f0) - 0.000981f0 * ba     # ci/dgf.f:461-463 (…−0.000981*BA)
         elseif sp == 17 || sp == 19
             bark = ci_bratio(sd, sp, d)
             dpp = d < 1f0 ? 1f0 : d
