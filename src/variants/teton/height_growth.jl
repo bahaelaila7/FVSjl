@@ -68,8 +68,8 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
             # tt/htgf.f CASE(10) — PP from the CI variant (NOT SBB): direct HTG, then only the SIZE-CAP
             # tail (no ZZRAN, no SCALE·XHMULT·exp(HTCON) — those live in other cases). DBH<1.5 → REGENT.
             d < 1.5f0 && continue
-            con = 2.03035f0 + 0.7316f0 - 0.00013358f0 * h * h - 0.5657f0 * log(d) + 0.23315f0 * log(h)
-            htg = exp(con + 0.62144f0 * log(t.diam_growth[i])) + 0.4809f0
+            con = 2.03035f0 + 0.7316f0 - 0.00013358f0 * h * h - 0.5657f0 * flog(d) + 0.23315f0 * flog(h)
+            htg = fexp(con + 0.62144f0 * flog(t.diam_growth[i])) + 0.4809f0
             htg < 0.1f0 && (htg = 0.1f0)
             t.ht_growth[i] = htg
             continue
@@ -114,9 +114,9 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
         if h > 4.5f0 && (_TT_XI1 + cof1) > d && (_TT_XI2 + cof2) > h && d > 0.1f0
             y1 = (d - _TT_XI1) / cof1
             y2 = (h - _TT_XI2) / cof2
-            fby1 = log(y1 / (1f0 - y1))
-            fby2 = log(y2 / (1f0 - y2))
-            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * (1f0 - cof7 * cof7)^(-0.5f0)
+            fby1 = flog(y1 / (1f0 - y1))
+            fby2 = flog(y2 / (1f0 - y2))
+            z = (cof4 + cof6 * fby2 - cof7 * (cof3 + cof5 * fby1)) * fpow(1f0 - cof7 * cof7, -0.5f0)
             zbias = zon ? (sp == 6 || sp == 14 ? TT_AZBIAS[sp] + TT_BZBIAS[sp] * (elev - 20f0) :
                                                  TT_AZBIAS[sp] + TT_BZBIAS[sp] * elev) : 0f0
             (z - zbias >= 2f0 && zbias < 0f0) && (zbias = 0f0)
@@ -144,8 +144,9 @@ function height_growth!(s::StandState, ::Teton; scale::Float32 = 1.0f0)
             bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
             dia = d + t.diam_growth[i] / bark
             if (_TT_XI1 + cof1) > dia
-                psi = cof8 * ((dia - _TT_XI1) / (_TT_XI1 + cof1 - dia))^cof9 *
-                      exp(z * ((1f0 - cof7 * cof7)^0.5f0) / cof6)
+                # glibc logf/expf/powf (tt/htgf.f ALOG/EXP/**, doctrine §4) — Julia's native Float32 log/exp/^ round differently
+                psi = cof8 * fpow((dia - _TT_XI1) / (_TT_XI1 + cof1 - dia), cof9) *
+                      fexp(z * fpow(1f0 - cof7 * cof7, 0.5f0) / cof6)
                 hh = (psi / (1f0 + psi)) * cof2 + _TT_XI2
                 hh < h && (hh = h)
                 htg = hh - h

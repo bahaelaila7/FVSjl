@@ -26,6 +26,8 @@ function setup_growth!(s::StandState)
     s.variant isa OregonCoast && oc_organon_prepare!(s)
     s.variant isa Olympic && op_organon_prepare!(s)   # OP ORGANON NWO PREPARE (op/cratet.f) — dub valid-ORGANON HT/CR + ACALIB
     s.variant isa Utah && ut_cratet_site_adjust!(s)   # ut/cratet.f:99-150 50-yr-base SITEAR (TEMCCF on NOTRE-expanded PROB)
+    s.variant isa Teton && tt_cratet_site_adjust!(s)  # tt/cratet.f:99-148 the same conversion, same NOTRE-expanded TEMCCF
+    s.variant isa CentralIdaho && ci_cratet_site_adjust!(s)   # ci/cratet.f:127-168 WB/LM/PY, same TEMCCF
     s.variant isa BritishColumbia && bc_cratet_site_adjust!(s)   # canada/bc cratet.f:70-110 PY 50-yr-base SITEAR
     dub_missing_heights!(s)              # CRATET — dub HT=0 / resolve broken-top NORMHT
     apply_growth_input_types!(s)         # GROWTH IDG/IHTG=1/3 — past DBH/HT field ⇒ increment
@@ -1404,7 +1406,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # TT/UT REGENT(LESTB) likewise reads GRADD's post-growth, PRE-regen DENSE: RELDEN/BA/AVH and the per-point PCCF
     # (tt/regent.f:160-180,274-330; ut/regent.f:162-171,233). establish! re-DENSEs with the seedlings and jl's
     # density.point_ccf is still the start-of-cycle one here, so recompute the point CCF over the current records.
-    es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah) ?
+    es_tu_relden_pre, es_tu_ba_pre, es_tu_avh_pre, es_tu_pccf_pre = (s.variant isa Teton || s.variant isa Utah ||
+                                                                      s.variant isa CentralRockies) ?
         (stand_ccf(s), stand_ba(s), stand_top_height(s), _fresh_point_ccf(s)) : (-1f0, -1f0, -1f0, Float32[])
     # EM likewise: em/esgent.f → REGENT(LESTB) runs inside ESTAB, before gradd.f:244's post-regen DENSE, so its RELDEN/
     # BA (RDNEXT/BANEXT, PPCCF) and the per-point PCCF (TPCCF for SMHTGF/SMDGF, the seedling crown dub) are the
@@ -1461,7 +1464,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     (s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.wpbr !== nothing && wpbr_brestb_new!(s, es_nstart)
     # CR-only: esgent.f grows the just-established regen IN their creation cycle via REGENT (eastern leaves them
     # ungrown per GRADD order — bit-exact). Fixes the ESTAB 1-cycle-offset (TopHt lag) on cr_estab.
-    s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint)
+    s.variant isa CentralRockies && cr_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atrelden = es_at_relden,
+        relden_pre = es_tu_relden_pre, avh_pre = es_tu_avh_pre, pccf_pre = es_tu_pccf_pre)   # cr/esgent.f → REGENT(LESTB)
     s.variant isa Teton && tt_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atba = es_at_ba, atrelden = es_at_relden,
         relden_pre = es_tu_relden_pre, ba_pre = es_tu_ba_pre, pccf_pre = es_tu_pccf_pre)   # TT: tt/esgent.f → REGENT(LESTB)

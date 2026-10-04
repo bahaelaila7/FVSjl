@@ -81,6 +81,7 @@ include("variants/centralrockies/dwarf_mistletoe_model.jl")  # CR dwarf mistleto
 include("variants/kootenai/kootenai.jl")             # KT singleton + registration (MAXSP 11, western Wykoff DDS)
 include("variants/kootenai/species.jl")              # KT blkdat init (11 species, seed 55329, Stage SDI) + SPCTRN col 12
 include("variants/kootenai/habitat_tables.jl")       # KT habtyp/sitset lookup tables (KOTHAB/JTYPE/KTYPE/MTYPE/BAMAXA)
+include("variants/kootenai/pvref1_data.jl")         # kt/pvref1.f (PVCODE, PVREF) → HABPVR crosswalk (generated)
 include("variants/kootenai/site_index.jl")           # KT habtyp 2-level mapping + sitset SDImax (site_setup!)
 include("variants/kootenai/dg_coefficients.jl")      # KT large-tree DDS coefficient arrays (kt/dgf.f DATA)
 include("variants/kootenai/crown.jl")                # KT per-tree CCF (ccfcal MODE=1) → RELDEN

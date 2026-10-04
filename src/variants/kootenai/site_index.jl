@@ -24,6 +24,51 @@ function kt_habtyp(kodtyp_in::Integer)
     return kktype, itype
 end
 
+# kt/pvref1.f (PVCODE, PVREF) → HABPVR, first full match wins (pvref1_data.jl, generated from the DATA statements).
+const _KT_PVREF1 = let d = Dict{Tuple{String,String},Int}()
+    for ln in eachline(IOBuffer(_KT_PVREF1_RAW))
+        f = split(ln); (length(f) == 3 && !startswith(ln, "#")) || continue
+        haskey(d, (f[1], f[2])) || (d[(f[1], f[2])] = f[3] == "-" ? 0 : parse(Int, f[3]))
+    end
+    d
+end
+const _KT_PVSETS = let rows = [split(l) for l in eachline(IOBuffer(_KT_PVREF1_RAW)) if !startswith(l, "#")]
+    (Set(String(r[1]) for r in rows if length(r) == 3), Set(String(r[2]) for r in rows if length(r) == 3))
+end
+
+"""
+    kt_habitat_kodtyp(pv, cpvref, kodtyp) -> (kodtyp, errs)
+
+kt/habtyp.f:58-95 before the KOTHAB search: KARD2 ADJUSTL'd, a ≤2-char all-digit code given a leading '0'; with a PV
+reference code PVREF1 (code cut at its last '.') sets KODTYP = HABPVR on the first full (PVCODE, PVREF) match, else 0,
+and the LPVCOD/LPVREF flags of any row; then FVS34 (both flags, KODTYP outside 10..999) / FVS33+FVS32 / FVS32 /
+FVS33 set LPVXXX (KKTYPE 97). Unresolved (KODTYP outside 10..999) and not LPVXXX ⇒ FVS14 (KKTYPE 97). Without a
+reference code KODTYP is the caller's IFIX(ARRAY2). Returns the KODTYP the KOTHAB search sees (out of range ⇒ the
+search's 97 default, as kt_habtyp) and the ERRGRO numbers in call order.
+"""
+function kt_habitat_kodtyp(pv::AbstractString, cpvref::AbstractString, kodtyp::Integer)
+    k = String(strip(pv)); (length(k) == 2 && all(isdigit, k)) && (k = "0" * k)
+    kodtyp = Int(kodtyp); errs = Int[]; lpvxxx = false
+    if !isempty(cpvref)
+        i = findlast('.', k); key = i === nothing ? k : k[1:i-1]
+        kodtyp = get(_KT_PVREF1, (key, cpvref), 0)
+        full = haskey(_KT_PVREF1, (key, cpvref))
+        lc = full || key in _KT_PVSETS[1]; lr = full || cpvref in _KT_PVSETS[2]
+        if lc && lr && (kodtyp < 10 || kodtyp > 999)
+            push!(errs, 34); lpvxxx = true
+        elseif !lc && !lr
+            push!(errs, 33, 32); lpvxxx = true
+        elseif !lr && lc
+            push!(errs, 32); lpvxxx = true
+        elseif !lc && lr
+            push!(errs, 33); lpvxxx = true
+        end
+    end
+    (kodtyp < 10 || kodtyp > 999) && !lpvxxx && push!(errs, 14)
+    lpvxxx && (kodtyp = 0)                       # KKTYPE = 97 (kt_habtyp(0) ⇒ 97)
+    return kodtyp, errs
+end
+
 # kt/forkod.f JFOR/KFOR tables: national-forest code list + geographic-location class.
 const KT_JFOR = Int[103, 104, 105, 106, 621, 110, 113, 114, 116, 117, 118, 613]
 const KT_KFOR = Int[1, 1, 3, 2, 1, 1, 1, 1, 1, 3, 2, 1]

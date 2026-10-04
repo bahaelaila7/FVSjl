@@ -148,7 +148,15 @@ _fm_dkr_default(::InlandEmpire) = _FM_DKR_NR     # ie/fmvinit.f:77-88 — DKR(I,
 _fm_dkr_default(::Kootenai) = _FM_DKR_NR         # kt/fmvinit.f:73-83 — NO ×0.45
 _fm_dkr_default(::EasternMontana) = _FM_DKR_NR   # em/fmvinit.f:87-96 — NO ×0.45
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_NR     # ci/fmvinit.f:118-128 — NO ×0.45
-_fm_dkr_default(::Teton) = _FM_DKR_CR            # tt/fmvinit.f:23-25 — DKR(I,J)=DKR(I,1)*0.45 (== CR)
+# TT (tt/fmvinit.f:72-92): DKR(I,J) = DKR(I,1)·0.45 for the woody classes I = 1..9 only, THEN litter/duff DKR(10,J) = 0.5,
+# DKR(11,J) = 0.002 for every decay class — unlike CR/UT, whose ×0.45 loop runs to MXFLCL after the litter/duff set
+# (cr|ut/fmvinit.f), giving 0.225/0.0009. jl gave TT the CR table ⇒ litter decayed at 0.225 not 0.5 (MEASURED FVStt_g16
+# 2780339010690 FVS_Fuels litter 2010: live 1.363 t/ac, jl 2.832).
+const _FM_DKR_TT = let m = copy(_FM_DKR_CR)
+    m[10, :] .= 0.5f0; m[11, :] .= 0.002f0
+    m
+end
+_fm_dkr_default(::Teton) = _FM_DKR_TT
 _fm_dkr_default(::Utah) = _FM_DKR_CR             # ut/fmvinit.f — DKR ×0.45 (== CR)
 _fm_dkr_default(::SoutheastAlaska) = _FM_DKR_AK   # ak/fmvinit.f DKR(11,4) (data/southeastalaska/fire/ffe_fuel.jl)
 # NC (Klamath) base decay table (nc/fmvinit.f:70-92) — decay-class-INDEPENDENT and MUCH slower than the SN

@@ -89,14 +89,19 @@ function compute_volumes_tt!(s::StandState)
         else
             # DVEW (PM/UJ/RM/MC/OH) — TT woodland volume = R4D2H (Chojnacky INT-339 D2H regression,
             # volume/NVEL/r4d2h.f), routed via GROSSVOL→DVEST (region 4). VOL(1)=VOL(4)=entire cubic;
-            # NO Behre/CFTOPK trim in the DVE path (grossvol.f:172 + dvest.f:90). fvsvol.f NATCRS then maps
+            # NO Behre trim inside NVEL's DVE path (grossvol.f:172 + dvest.f:90). fvsvol.f NATCRS then maps
             # TCF=VOL(1), MCF=(D≥DBHMIN)·VOL(4) [VOL(7)=0], SCF=0 (region-4, not R8/R9), BdFt=0 (DVE has no
             # board-foot: fvsvol.f:411 skips DVE, BFPFLG=0 for R4). DRCOB=0 passed ⇒ D2H uses DBH not DRC;
             # FCLASS=0 ⇒ MSTEM=0 (the c-coefficient term drops). Earlier CR region-2 Chojnacky was ~5× high.
-            vol1 = r4d2h_vol1(eq, d, h)
+            # A top-killed record: tt/vols.f passes H = NORMHT to NATCRS, which returns CTKFLG=.TRUE., VMAX = TCF for the
+            # DVE equations too (fvsvol.f:509-517) ⇒ vols.f's CFTOPK trims TCF/MCF to the break, as for MAT.
+            hv = (t.trunc[i] > 0 && t.norm_ht[i] > 0) ? Float32(t.norm_ht[i]) / 100f0 : h
+            vol1 = r4d2h_vol1(eq, d, hv)
             dbhmin = 8.0f0                                   # tt/grinit.f DBHMIN(I)=8 (woodland: no override)
-            t.cuft_vol[i] = max(vol1, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(vol1, 0f0) : 0f0
+            tcf = max(vol1, 0f0); mcf = d >= dbhmin ? tcf : 0f0
+            tcf, mcf, _ = r4_topkill(t, i, sp, d, hv, tt_bratio(sp, d), tcf, mcf, 0f0, merch)
+            t.cuft_vol[i] = max(tcf, 0f0)
+            t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
         end
     end

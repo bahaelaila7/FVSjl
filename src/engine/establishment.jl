@@ -949,7 +949,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # TT/UT (strp estab.f:506-516, same shape after tt|ut/essubh.f:64-69 rounds/clamps DELAY and sets
                 # TRAGE=TIME−DELAY): HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) = 0.99998 for a start-of-cycle PLANT.
                 t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
-                                      s.variant isa Teton || s.variant isa Utah ||
+                                      s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
                                       s.variant isa BlueMountains ||   # bm/estab.f:508-516 (bm/essubh.f DELAY→INT(+.5), TRAGE=TIME−DELAY)
                                       s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
@@ -979,8 +979,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # (the strp estab.f of UT/NC/PN/WC/EC/SO/CA/WS/OC/OP, the IE-family one of CI/KT, and BC's) — needed by
                 # Climate-FVS BIRTHYR (clgmult/clmorts) now that those variants are climate-wired. BM keeps its own
                 # measured AGEPL form below; IE/EM take the per-record AGEPL form below.
-                (s.variant isa CentralRockies ||
-                 s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa Klamath ||
+                (s.variant isa CentralIdaho || s.variant isa Kootenai || s.variant isa Klamath ||
                  s.variant isa PacificNorthwest || s.variant isa WestCascades || s.variant isa EastCascades ||
                  s.variant isa SouthCentralOregon || s.variant isa CentralCalifornia || s.variant isa WestSierra ||
                  s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa BritishColumbia) &&
@@ -1002,7 +1001,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # TT/UT (strp estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE with the essubh-rounded DELAY and the
                 # ORIGINAL TRAGE (:438) — read by REGENT(LESTB) as SITAGE for aspen/MM (tt/smhtgf.f:45, tt|ut/regent.f
                 # LESTB). esgent_add_gentim! adds the call's final GENTIM after ESGENT (estab.f:707).
-                if s.variant isa Teton || s.variant isa Utah
+                if s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies   # cr/estab.f == tt's
                     _pdi = Float32(clamp(delay, -3, per))
                     t.birth_age[n] = Float32(per) - _pdi + trage
                     s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
@@ -1125,7 +1124,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         _ie_own_esgent = s.variant isa InlandEmpire || s.variant isa BlueMountains || s.variant isa EasternMontana ||
                          s.variant isa Kootenai ||   # KT: kt/regent.f DO 13 (kt_esgent!)
                          s.variant isa EastCascades || s.variant isa Teton || s.variant isa Utah ||
-                         s.variant isa WestCascades ||
+                         s.variant isa WestCascades || s.variant isa CentralRockies ||   # CR: cr_esgent! (regent.f:247-261)
                          s.variant isa PacificNorthwest ||   # WC/PN: regent.f LESTB draws the crown (wc_esgent!)
                          s.variant isa SouthCentralOregon ||   # SO/WS/CA: regent.f LESTB crown inside the species loop;
                          s.variant isa WestSierra || s.variant isa CentralCalifornia ||   # NC: regent.f DO 13, storage order

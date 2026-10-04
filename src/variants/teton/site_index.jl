@@ -84,8 +84,8 @@ end
 # tt/cratet.f:117-142 — adjust SITEAR to a 50-YEAR age base for the species whose growth
 # equations were fit on a 50-yr-base site index: WB/LM/LP/OS (1,2,7,17) via Alexander-Tackle-
 # Dahms 1967 (RM-29), BS/ES/AF (5,8,9) via Alexander 1967 (RM-32). CRATET does this ONCE at
-# init, AFTER SITSET, using stand CCF (TEMCCF, floored at 125). Uses ONLY DBH (open-grown CCF),
-# so it is valid at site_setup! time (trees loaded, crowns not yet). Inert when the site species
+# init, AFTER SITSET and NOTRE, using stand CCF (TEMCCF = Σ CCFCAL·PROB over the NOTRE-expanded PROB, floored at 125)
+# — so it runs from setup_growth!: at site_setup! the raw per-record PROB left TEMCCF at the 125 floor. Inert when the site species
 # is DF/PP/etc (not in the set) — which is why ttt01 (DF-dominated) was bit-exact without it, but
 # an FIA stand whose SITE_SPECIES is LP/WB/… over-grew large-tree DG (raw SI feeds DGCON DGSIC·XSITE).
 function tt_cratet_site_adjust!(s::StandState)
@@ -114,7 +114,8 @@ function tt_site_index_setup!(s::StandState)
     tt_forkod!(s.plot)          # IFOR → p.forest_idx (DG DGFOR/DGDS); IGL → p.geo_location
     s.plot.habitat_input = tt_habtyp(Int(s.plot.habitat_code))   # KODTYP → ITYPE (tt/habtyp.f)
     tt_sitset!(s)               # SITEAR (p.sp_site_index) + SDIDEF (p.sp_sdi_def)
-    tt_cratet_site_adjust!(s)   # CRATET 50-yr-base site adjust (WB/LM/BS/LP/ES/AF/OS)
+    # The CRATET 50-yr-base site adjust (tt_cratet_site_adjust!) runs from setup_growth! — CRATET time — not here: its
+    # TEMCCF sums CCFT·PROB over the NOTRE-expanded PROB (fvs.f INITRE→SITSET, then NOTRE, then CRATET), as UT.
     return s
 end
 

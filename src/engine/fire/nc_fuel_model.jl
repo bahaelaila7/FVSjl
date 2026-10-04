@@ -205,13 +205,11 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 13)              # NC ICLSS = 13 fuel models (nc/fmcfmd.f)
     # per-tree crown widths (CRWDTH) — same load-time BAREA clamp as fmcba (cwcalc.f:859)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
-    el = s.plot.elevation
-    hi = _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)
     cws = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        cws[i] = _nc_fmcba_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i],
-                                  Float32(t.crown_pct[i]), ba, el, hi)   # CRWDTH (R5CRWD on the R5 forests)
+        cws[i] = _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i];
+                                barea = ba)   # CRWDTH (nc/cwcalc.f: R5CRWD on the R5 forests, NCMAP+BF on the rest)
     end
 
     # per-species BA% (BAPCT)

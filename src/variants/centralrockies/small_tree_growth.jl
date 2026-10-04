@@ -174,73 +174,171 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
                 pctred, con, 1.0f0, 1.0f0, scale, scale2, (cw === nothing ? 1f0 : cw[i]), htg_large, s.control.sp_size_cap[sp, 4],
                 p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
                 diamv[sp], ax, ht2v[sp])
+            # regent.f:343-346: HK=H+HTG(K)≤4.5 ⇒ DG(K)=0 and DBH(K)=D+0.001·HK set IMMEDIATELY — MORTS (SDQ0/
+            # SUMDR0 on DBH, G=DG/BARK=0) and every other pre-UPDATE consumer reads the bumped DBH with a zero
+            # increment. Carrying the bump as dg=0.001·HK·BARK instead left the start-of-cycle Zeide DR0 low on
+            # seedling-heavy stands (46279527020004: SUMDR0 16531.86 vs live 16533.72) ⇒ a lower self-thinning
+            # target and a ~1e-3 relative MortPA drift on every record. Tripled copies get their own D+0.001·HK_L
+            # through stash.dbhU/dbhL (applied at TRIPLE, as UT/CI).
+            direct = small_d && (h + htg) <= 4.5f0
+            dbhk = direct ? d + 0.001f0 * (h + htg) : d
+            direct && (dg = 0f0)
             if l == 0
                 t.ht_growth[i] = htg
                 small_d && (t.diam_growth[i] = dg)
+                direct && (t.dbh[i] = dbhk)
             elseif l == 1
                 stash.htgU[i] = htg; stash.is_small[i] = true
                 small_d && (stash.dgU[i] = dg)              # D<BKPT ⇒ regent DG; else keep the driver's gemdg dgU
+                small_d && hasproperty(stash, :dbhU) && (stash.dbhU[i] = dbhk)
             else
                 stash.htgL[i] = htg
                 small_d && (stash.dgL[i] = dg)
+                small_d && hasproperty(stash, :dbhL) && (stash.dbhL[i] = dbhk)
             end
         end
     end
     return s
 end
 
-# cr_esgent! (esgent.f) — CR-specific: grow the JUST-ESTABLISHED regen records IN their creation cycle via
-# REGENT(LESTB=T), then apply HT+=HTG·WK4, derive DBH if WK4<1, cap at HHTMAX. Eastern variants leave birth-cycle
-# regen ungrown (GRADD order, bit-exact) — this is CR-only. `nstart` = tree count BEFORE establish! (the new
-# records are nstart+1..t.n). Applies the increment directly to t.height/t.dbh (not via the wk2 stash).
-function cr_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
+# cr_esgent! — cr/esgent.f: SPESRT, REGENT(.TRUE.,ITRNIN) over the records this cycle's ESTAB appended (ITRNIN =
+# nstart+1), then the WK4=HTIMLT tail. REGENT(LESTB) (cr/regent.f) differs from the cycle REGENT in:
+# - FNT = FINT−5 (LSKIPH, HTG=0, when FINT ≤ 5); SCALE = FNT/REGYR (:155-163).
+# - CCF/AVHT blend the gradd.f:192 DENSE (post-growth, PRE-regen RELDEN/AVH) with the start-of-cycle ATCCF/ATAVH:
+#   CCF = (5/FINT)·RELDEN + ((FINT−5)/FINT)·ATCCF (:178-181) for PCTRED.
+# - each new record (species-major IND1 order, I ≥ ITRNIN) first draws its open-grown crown on the main stream
+#   CR = 0.89722 − 0.0000461·PCCF(ITRE) + 0.07985·RAN, RAN ∈ [−1,1], clamp [.20,.90] (:247-261), THEN its ZZRAN (:308-310)
+#   — interleaved per record, so CR owns the crown draw (not establish!'s shared phase 2).
+# - HTGR·…·WK4(I) with WK4 = HTIMLT (:313), XWT = 0 (:320), no tripling (:433).
+# - D < BREAK: HK ≤ 4.5 ⇒ DG = 0, DBH = D + 0.001·HK; else DBH = DK (floored at DIAM) + 0.001·HK and DG = DBH (:343-399).
+# esgent.f:49-65: HTEMP = HT+HTG; HTG·=WK4; HT+=HTG; WK4 < 1 ⇒ HT < 4.5: DBH = 0.1+0.001·HT, DG = 0, else DBH·=HT/HTEMP,
+# DG = DBH·HT/HTEMP; HT capped at HHTMAX. estab.f:700 then adds GENTIM to ABIRTH.
+function cr_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
+                    atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
     p, t, c, sd = s.plot, s.trees, s.calib, s.coef.species
     nstart >= t.n && return s
-    dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; xminv = sd[:st_xmin]; diamv = sd[:st_diam]
+    dgmax = sd[:st_dgmax]; xmaxv = sd[:st_xmax]; diamv = sd[:st_diam]
     htadj = sd[:st_htadj]; brkv = sd[:st_break]; ht2v = sd[:ht2]; ht1v = sd[:ht1]
     lo = sd[:site_lo]; hi = sd[:site_hi]
     aa = c.ht_dbh_aa; iabflg = c.ht_dbh_iabflg
     imodty = Int(p.model_type)
-    # Birth-cycle regen grows only FINT−GENTIM years (established mid-cycle at GENTIM=FINT−5, estab.f:448), not the
-    # full cycle — so the regent SCALE uses the PARTIAL period (else the birth-cycle HTG ~2× over-shoots).
-    gentim = max(fint - 5.0f0, 0.0f0)
-    scale = (fint - gentim) / 10.0f0; scale2 = htg_period(s.variant) / fint; dgsd = s.control.dg_sd
-    ccf = stand_ccf(s); avht = p.avg_height
+    n = t.n
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    @inline _pccf(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0)
+    cur_year = Int(current_cycle_year(s))
+    # regent.f:155-176
+    fnt = fint; lskiph = false
+    fint <= 5f0 ? (lskiph = true) : (fnt = fnt - 5f0)
+    scale = fnt / 10.0f0                                  # REGYR = 10
+    relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
+    avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
+    ccf = relden; avht = avh
+    if fnt > 0f0
+        ccf = (5.0f0 / fint) * relden + ((fint - 5.0f0) / fint) * (atrelden >= 0f0 ? atrelden : relden)
+        avht = (5.0f0 / fint) * avh + ((fint - 5.0f0) / fint) * (atavh >= 0f0 ? atavh : avh)
+    end
     x = avht * (ccf / 100.0f0); x > 300.0f0 && (x = 300.0f0)
     pctred = _CR_AB[1] + x*(_CR_AB[2] + x*(_CR_AB[3] + x*(_CR_AB[4] + x*(_CR_AB[5] + x*_CR_AB[6]))))
     pctred > 1.0f0 && (pctred = 1.0f0); pctred < 0.01f0 && (pctred = 0.01f0)
-    @inbounds for i in (nstart+1):t.n
-        t.tpa[i] <= 0.0f0 && continue
-        sp = Int(t.species[i]); d = t.dbh[i]
-        d >= xmaxv[sp] && continue
-        h = t.height[i]
-        si = p.sp_site_index[sp]; si > hi[sp] && (si = hi[sp]); si <= lo[sp] && (si = lo[sp] + 0.5f0)
-        relsi = (si - lo[sp]) / (hi[sp] - lo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
-        pothtg = p.sp_site_index[sp] / (15.0f0 - 4.0f0 * relsi) * htadj[sp]
-        con = exp(c.htg_cor_small[sp]); ivf = sp in _CR_IVFLAG
-        ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]; bark = cr_bratio(sd, sp, d, imodty)
-        zzran = 0.0f0
-        if dgsd >= 1.0f0
-            while true
-                zzran = bachlo(s.rng, 0.0f0, 1.0f0)
-                (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+    dgsd = s.control.dg_sd
+    @inbounds for i in (nstart + 1):n                      # estab.f: a new record starts with DG = HTG = 0
+        t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0
+    end
+    order = sort(collect((nstart + 1):n); by = i -> (Int(t.species[i]), i))   # SPESRT (esgent.f:44), I ≥ ITRNIN
+    @inbounds for i in order
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        # regent.f:247-261 crown of the new record (before the D ≥ XMAX skip)
+        cr0 = 0.89722f0 - 0.0000461f0 * _pccf(i)
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr = trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr; t.crown_ratio[i] = Float32(icr)
+        d >= xmaxv[sp] && continue                         # regent.f:265
+        bark = cr_bratio(sd, sp, d, imodty)
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+            con = fexp(c.htg_cor_small[sp])                # RHCON·EXP(HCOR)
+            si = p.sp_site_index[sp]
+            si > hi[sp] && (si = hi[sp]); si <= lo[sp] && (si = lo[sp] + 0.5f0)
+            relsi = (si - lo[sp]) / (hi[sp] - lo[sp]); rsimod = 0.5f0 * (1.0f0 + relsi)
+            local htgr::Float32
+            if sp == 20 || sp == 28                        # aspen / paper birch (Sheppard), SITAGE = ABIRTH
+                ag1 = t.birth_age[i]; ag1 < 5f0 && (ag1 = 5f0)
+                hite1 = 26.9825f0 * fpow(ag1, 1.1752f0)
+                hite2 = 26.9825f0 * fpow(ag1 + 10.0f0, 1.1752f0)
+                htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con
+                htgr = htgr * 0.75f0
+            else
+                xv = Float32(icr) / 100f0
+                vigor = 150.0f0 * fpow(xv, 3.0f0) * fexp(-6.0f0 * xv) + 0.3f0
+                vigor > 1.0f0 && (vigor = 1.0f0)
+                (sp in _CR_IVFLAG) && (vigor = 1.0f0 - (1.0f0 - vigor) / 3.0f0)
+                pothtg = p.sp_site_index[sp] / (15.0f0 - 4.0f0 * relsi) * htadj[sp]
+                htgr = pothtg * pctred * vigor * con
+            end
+            zzran = 0f0
+            if dgsd >= 1.0f0
+                while true
+                    zzran = bachlo(s.rng, 0.0f0, 1.0f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = (htgr + zzran * 0.2f0) * xrhgro * scale * t.htimlt[i]
+            htg = htgr * (1.0f0 - 0f0) + 0f0 * t.ht_growth[i]    # XWT = 0 under LESTB
+            htg < 0.1f0 && (htg = 0.1f0)
+            sizcap4 = s.control.sp_size_cap[sp, 4]
+            if h + htg > sizcap4
+                htg = sizcap4 - h; htg < 0.1f0 && (htg = 0.1f0)
             end
         end
-        htg, dg = _cr_regent_tree(sp, d, h, Int(t.crown_pct[i]), t.birth_age[i], rsimod, pothtg,
-            pctred, con, 1.0f0, 1.0f0, scale, scale2, 1.0f0, t.ht_growth[i], s.control.sp_size_cap[sp, 4],
-            p.sp_site_index[sp], bark, ivf, false, zzran, dgmax[sp], brkv[sp], xminv[sp], xmaxv[sp],
-            diamv[sp], ax, ht2v[sp])
-        # esgent.f:48 CALL REGENT(.TRUE.) grows BOTH height AND diameter in the birth cycle; the returned DG
-        # must be APPLIED to DBH (outside-bark, dbh += DG/BRATIO, as update.f:115 / simulate.jl:460 do for the
-        # regular cycles). jl previously DISCARDED the regent DG here (grew only height) ⇒ planted/regen
-        # seedlings kept DBH≈0.1 while HT grew to ~5 ft (inconsistent HT-DBH pair) ⇒ every downstream small-tree
-        # DG started from a too-small DBH ⇒ the ~24-29% PLANT-regime under-growth. Live ESGENT trace: DF HT=4.8
-        # ⇒ DBH=0.58 (vs jl's 0.10). WK4=1 here (no FIXHTG), matching esgent.f's DBH-derive skip AFTER REGENT.
-        nh = h + htg
-        nh > _CR_ES_HHTMAX[sp] && (nh = _CR_ES_HHTMAX[sp])
-        t.height[i] = nh
         t.ht_growth[i] = htg
-        d < brkv[sp] && (t.dbh[i] = d + dg / bark)   # small-tree regent DG (D≥BREAK uses the driver's gemdg DBH)
+        d >= brkv[sp] && continue                          # regent.f:342 D ≥ BKPT ⇒ no diameter assignment
+        hk = h + htg
+        local dbh::Float32, dg::Float32
+        if hk <= 4.5f0
+            dg = 0f0; dbh = d + 0.001f0 * hk
+        else
+            local dk::Float32
+            if sp == 13 || sp == 36                        # ponderosa / Chihuahua pine
+                dk = (hk - 8.31485f0 + 0.59200f0 * 7.0f0) / 3.03659f0
+            elseif sp in _CR_IVFLAG                        # pinyon/juniper/oak/bristlecone (IVFLAG = 1)
+                dk = (hk - 4.5f0) * 10.0f0 / (p.sp_site_index[sp] - 4.5f0)
+            else
+                ax = iabflg[sp] == 0 ? aa[sp] : ht1v[sp]
+                dk = (ht2v[sp] / (flog(hk - 4.5f0) - ax)) - 1.0f0
+            end
+            dk < 0.1f0 && (dk = 0.1f0)
+            dbh = dk; dbh < diamv[sp] && (dbh = diamv[sp])
+            dbh = dbh + 0.001f0 * hk
+            dg = dbh
+            (dbh + dg) < diamv[sp] && (dg = diamv[sp] - dbh)
+        end
+        dg = dg_bound(nothing, nothing, sp, dbh, dg, s.control.sp_size_cap)   # DGBND
+        t.dbh[i] = dbh; t.diam_growth[i] = dg
     end
+    # esgent.f:49-65
+    @inbounds for i in (nstart + 1):n
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * t.htimlt[i]
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if t.htimlt[i] < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > _CR_ES_HHTMAX[sp] && (t.height[i] = _CR_ES_HHTMAX[sp])
+    end
+    esgent_add_gentim!(s, nstart, fint)                    # estab.f:700 ABIRTH += GENTIM
     return s
 end
