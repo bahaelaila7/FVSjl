@@ -171,7 +171,7 @@ function ws_findag(ispc::Int, h::Float32, sindx::Float32, ifor::Int, d1::Float32
         while true
             agetem = ap < 30f0 ? 30f0 : ap
             hh = (2.75780f0 * fpow(site, 0.83312f0)) *
-                 fpow(1f0 - exp(-0.015701f0 * agetem), 22.71944f0 * fpow(site, -0.63557f0)) + 4.5f0
+                 fpow(1f0 - fexp(-0.015701f0 * agetem), 22.71944f0 * fpow(site, -0.63557f0)) + 4.5f0
             ratio = 1f0 - bautba; ratio < 0.728f0 && (ratio = 0.728f0)
             hh *= ratio
             if abs(hh - h) < tol || hh > h
@@ -206,7 +206,7 @@ end
 
 "Alexander (1967) RM-32 breast-height-age site curve used by ws/htgf.f CASE(21) (base-age-100 ES/AF)."
 @inline _ws_alexander(tsite::Float32, age::Float32)::Float32 =
-    (2.75780f0 * fpow(tsite, 0.83312f0)) * fpow(1f0 - exp(-0.015701f0 * age), 22.71944f0 * fpow(tsite, -0.63557f0)) + 4.5f0
+    (2.75780f0 * fpow(tsite, 0.83312f0)) * fpow(1f0 - fexp(-0.015701f0 * age), 22.71944f0 * fpow(tsite, -0.63557f0)) + 4.5f0
 
 "ws/htgf.f SIZCAP (col 4) compliance on one record: HT+HTG ≤ cap, floor 0.1."
 @inline function _ws_sizcap(htg::Float32, h::Float32, cap::Float32)::Float32
@@ -238,7 +238,7 @@ end
 function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
     p, t, c = s.plot, s.trees, s.calib
     ba = p.basal_area
-    alba = ba > 0f0 ? log(ba) : 0f0
+    alba = ba > 0f0 ? flog(ba) : 0f0
     ctl = s.control
     cor2on = ctl.htg_cor2_on
     sd = s.coef.species; ifor = Int(p.forest_idx); avh = p.avg_height; pccf = s.density.point_ccf
@@ -306,12 +306,12 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
             end
             relht = avh > 0f0 ? h / avh : 0f0; relht > 1.5f0 && (relht = 1.5f0)
             xcr = Float32(t.crown_pct[i]) / 100f0
-            hgmdcr = (100f0 * fpow(xcr, 3f0)) * exp(-5f0 * xcr); hgmdcr > 1f0 && (hgmdcr = 1f0)
+            hgmdcr = (100f0 * fpow(xcr, 3f0)) * fexp(-5f0 * xcr); hgmdcr > 1f0 && (hgmdcr = 1f0)
             fctrkx = fpow(1f0 / 0.10f0, 1.10f0 - 1f0) - 1f0
             fctrrb = -1f0 * (15f0 / (1f0 - (-1.45f0)))
             fctrxb = fpow(relht, 1f0 - (-1.45f0)) - fpow(0f0, 1f0 - (-1.45f0))
             fctrm = -1f0 / (1.10f0 - 1f0)
-            hgmdrh = 1f0 * fpow(1f0 + fctrkx * exp(fctrrb * fctrxb), fctrm)
+            hgmdrh = 1f0 * fpow(1f0 + fctrkx * fexp(fctrrb * fctrxb), fctrm)
             htgmod = 0.25f0 * hgmdcr + 0.75f0 * hgmdrh
             htgmod >= 2f0 && (htgmod = 2f0); htgmod <= 0f0 && (htgmod = 0.1f0)
             htg = pothtg * htgmod
@@ -326,8 +326,8 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
                 # RW/GS Castle LN(HI) on the 10-yr outside-bark DG, bounded between 217 and 380 ft.
                 brat = ws_bratio(sd, isp, d)
                 dg10 = dg / brat; h < 4.5f0 && (dg10 = 0.1f0)
-                lthtg = exp(1.412947f0 - 0.000204f0 * d * d + 0.31971f0 * log(d) + 0.394005f0 * log(sindx) +
-                            0.399888f0 * log(dg10) - 0.451708f0 * log(h))
+                lthtg = fexp(1.412947f0 - 0.000204f0 * d * d + 0.31971f0 * flog(d) + 0.394005f0 * flog(sindx) +
+                            0.399888f0 * flog(dg10) - 0.451708f0 * flog(h))
                 hgbnd = (h >= 217f0 && h < 380f0) ? max(1f0 - ((h - 217f0) / (380f0 - 217f0)), 0.1f0) :
                         (h < 217f0 ? 1f0 : 0.1f0)
                 htg = lthtg * hgbnd
@@ -340,8 +340,8 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
                 relht > 1f0 && (relht = 1f0)
                 pt = Int(t.plot_id[i])
                 ((1 <= pt <= length(pccf)) ? pccf[pt] : 0f0) < 100f0 && (relht = 1f0)
-                crmod = 1f0 - exp(-4.26558f0 * cratio)
-                rhmod = exp(2.54119f0 * (fpow(relht, 0.250537f0) - 1f0))
+                crmod = 1f0 - fexp(-4.26558f0 * cratio)
+                rhmod = fexp(2.54119f0 * (fpow(relht, 0.250537f0) - 1f0))
                 htg = pothtg * (1.016605f0 * crmod * rhmod)
             end
             htg < 0.1f0 && (htg = 0.1f0)
@@ -355,7 +355,7 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         pct = t.crown_ratio[i]
         bal = ((100f0 - pct) / 100f0) * ba
         bal <= 0f0 && (bal = 0.001f0)
-        bai = (d + dg) * (d + dg) - d * d
+        bai = fpow(d + dg, 2.0f0) - d * d                        # ws/htgf.f:828,873 ((DBH+DG)**2.0) = powf
         htg = htcon + WS_HGDG2[isp] * dg + WS_HGRDG2[isp] * sqrt(dg) + WS_HGBA2[isp] * ba +
               WS_HGBAI2[isp] * bai + WS_HGLBA2[isp] * alba + WS_HGBLT2[isp] * bal +
               WS_HGBAD2[isp] * bal / d + WS_HGCR2[isp] * icr + WS_HGDSQ[isp] * d * d
@@ -363,13 +363,13 @@ function height_growth!(s::StandState, ::WestSierra; scale::Float32 = 1.0f0)
         htg < 0.5f0 && (htg = 0.5f0)                              # temporary DSQ-neg trap (Dixon 8-18-93)
         (dg < 1f0 && d > 30f0) && (htg *= dg)                     # small-DG large-tree damp
         if isp == 42 || isp == 6                                  # JP/OS BAI-based MAXHTG cap
-            maxhtg = -2.16f0 + 4.22f0 * log(bai)
+            maxhtg = -2.16f0 + 4.22f0 * flog(bai)
             htg > maxhtg && (htg = maxhtg)
         end
         # HTMAX cap (oaks 28:33,40,43 use (D+DG+1)², else (D+DG+1)); floor 0.1.
         htmax = (isp in (28,29,30,31,32,33,40,43)) ?
-            exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / ((d + dg + 1f0)^2)) + 4.5f0 :
-            exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dg + 1f0)) + 4.5f0
+            fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / fpow(d + dg + 1f0, 2.0f0)) + 4.5f0 :   # ws/htgf.f:889 **2.0 = powf
+            fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dg + 1f0)) + 4.5f0
         (h + htg) > htmax && (htg = htmax - h)
         htg < 0.1f0 && (htg = 0.1f0)
         htg = htg * scale * xht * xht2                            # × SCALE·XHT·XHT2
@@ -408,8 +408,8 @@ function ws_triple_htg!(s::StandState, stash)
         for l in 1:2
             dgc = l == 1 ? stash.dgU[i] : stash.dgL[i]
             hc = tem * dgc / dgi
-            htmax = oak ? exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / ((d + dgc + 1f0)^2)) + 4.5f0 :
-                          exp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dgc + 1f0)) + 4.5f0
+            htmax = oak ? fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / fpow(d + dgc + 1f0, 2.0f0)) + 4.5f0 :
+                          fexp(WS_MXHTG1[isp] + WS_MXHTG2[isp] / (d + dgc + 1f0)) + 4.5f0
             (h + hc) > htmax && (hc = htmax - h)
             hc < 0.1f0 && (hc = 0.1f0)
             (cap > 0f0 && (h + hc) > cap) && (hc = max(cap - h, 0.1f0))

@@ -31,7 +31,7 @@ ws/bratio.f: IMAP dispatch, clamped [0.80, 0.99] for IMAP 2/3.
         temd = D < 1f0 ? 1f0 : D
         b1 + b2 * (1f0 / temd)
     else                                                   # IMAP 3 (power)
-        (b1 * D^b2) / D
+        (b1 * fpow(D, b2)) / D                             # ws/bratio.f:136 DIB=BARK1*D**BARK2 (powf)
     end
     br > 0.99f0 && (br = 0.99f0)
     br < 0.80f0 && (br = 0.80f0)

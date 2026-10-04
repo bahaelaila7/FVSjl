@@ -89,27 +89,31 @@ const WS_DUNL1 = Float32[-88.9, -82.2, -78.3, -82.1, -56.0, -33.8]
 const WS_DUNL2 = Float32[49.7067, 44.1147, 39.1441, 35.4160, 26.7173, 18.6400]
 const WS_DUNL3 = Float32[2.375, 2.025, 1.650, 1.225, 1.075, 0.875]
 
+# ws/htcalc.f:153-156 constant subexpressions EXP(50.0*(-0.0440853)) and 50.0**1.51744 are folded by gfortran at compile
+# time (correctly rounded), not evaluated by glibc at run time.
+const _WS_EXP50 = Float32(exp(Float64(50f0 * (-0.0440853f0))))
+const _WS_POW50 = Float32(50.0^Float64(1.51744f0))
 function ws_htcalc(ifor::Int, sindx::Float32, ispc::Int, ag::Float32)::Float32
     if (1 <= ispc <= 6) || (8 <= ispc <= 20) || (22 <= ispc <= 27) || ispc == 42
         indx = sindx <= 44f0 ? 6 : sindx <= 52f0 ? 5 : sindx <= 65f0 ? 4 :
                sindx <= 82f0 ? 3 : sindx <= 98f0 ? 2 : 1
-        return ag <= 40f0 ? WS_DUNL3[indx] * ag : WS_DUNL1[indx] + WS_DUNL2[indx] * log(ag)
+        return ag <= 40f0 ? WS_DUNL3[indx] * ag : WS_DUNL1[indx] + WS_DUNL2[indx] * flog(ag)
     elseif (28 <= ispc <= 40) || ispc == 43                     # Powers oak
         a = sqrt(ag) - sqrt(50f0)
         return (sindx * (1f0 + 0.322f0 * a) - 6.413f0 * a) * 0.80f0
     elseif ispc == 7                                            # Dolph red-fir
-        term = ag * exp(ag * (-0.0440853f0)) * 1.4151f-6
+        term = ag * fexp(ag * (-0.0440853f0)) * 1.4151f-6
         b = sindx * term - 3.0495f6 * term * term + 5.72474f-4
-        term2 = 50f0 * exp(50f0 * (-0.0440853f0)) * 1.4151f-6
+        term2 = 50f0 * _WS_EXP50 * 1.4151f-6                       # EXP(50.0*(-0.0440853)) folded by gfortran
         b50 = sindx * term2 - 3.0495f6 * term2 * term2 + 5.72474f-4
-        return (sindx - 4.5f0) * (1f0 - exp(-b * fpow(ag, 1.51744f0))) /
-               (1f0 - exp(-b50 * fpow(50f0, 1.51744f0))) + 4.5f0
+        return (sindx - 4.5f0) * (1f0 - fexp(-b * fpow(ag, 1.51744f0))) /
+               (1f0 - fexp(-b50 * _WS_POW50)) + 4.5f0
     elseif ispc == 41                                           # Curtis
         return (sindx - 4.5f0) / (0.6192f0 - 5.3394f0 / (sindx - 4.5f0) +
                240.29f0 * fpow(ag, -1.4f0) + (3368.9f0 / (sindx - 4.5f0)) * fpow(ag, -1.4f0)) + 4.5f0
     elseif ispc == 21                                           # Alexander (bristlecone GB)
         return 4.5f0 + (2.75780f0 * fpow(sindx, 0.83312f0)) *
-               fpow(1f0 - exp(-0.015701f0 * ag), 22.71944f0 * fpow(sindx, -0.63557f0))
+               fpow(1f0 - fexp(-0.015701f0 * ag), 22.71944f0 * fpow(sindx, -0.63557f0))
     end
     return 0f0
 end

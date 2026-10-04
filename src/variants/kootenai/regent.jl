@@ -254,7 +254,7 @@ function kt_regcons!(s::StandState)
     p = s.plot
     kotfor = Int(p.forest_idx); kktype = Int(p.habitat_code)
     slope = p.slope; elev = p.elevation; asp = p.aspect
-    ca = cos(asp); sa = sin(asp)
+    ca = fcos(asp); sa = fsin(asp)
     igl = Int(p.geo_location)                       # IGL = KFOR(IFOR) from forkod (sp11 only); 0 → default 3
     (igl < 1 || igl > 3) && (igl = 3)
     rhcon = zeros(Float32, 11)
@@ -356,7 +356,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         @inbounds for i in 1:n
             d1 = t.dbh[i]; d1 < 3.0f0 && continue
             sp = Int(t.species[i]); pr = t.tpa[i]
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            bark = KT_BKRAT[sp]                                     # kt/bratio.f BRATIO = BKRAT(IS)
             d2 = d1 + t.diam_growth[i] / bark
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
             # CCFCAL returns CCFT·P (kt/ccfcal.f MODE=1), so RDNEXT(J)+K·CI/P·PN nets one P; kt_tree_ccf is per tree.
@@ -365,7 +365,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             k = 0
             for j in 2:nper
                 k += kper[j-1]
-                pn = pr * 0.985f0^k
+                pn = pr * fpowi(0.985f0, k)
                 rdnext[j] += k * ci / pr * pn
                 banext[j] += k * bi * pn
             end
@@ -382,7 +382,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
     @inbounds for j in 1:nper
         ky += kper[j]                                  # kt/regent.f:319 KY=KY+KPER(J)
         baj = banext[j]; rdj = rdnext[j]
-        alba = baj > 0.0f0 ? log(baj) : 0.0f0
+        alba = baj > 0.0f0 ? flog(baj) : 0.0f0
         kpj = Float32(kper[j])
         for i in ind1
             sp = Int(t.species[i]); d = t.dbh[i]
@@ -391,7 +391,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             t.tpa[i] <= 0.0f0 && continue
             # kt/regent.f:329-331 CON = RCOR2 (READCORR, LRCOR2) · EXP(HCOR)
             con = ((s.control.lrcor2 && s.control.sp_rcor2[sp] > 0f0) ? s.control.sp_rcor2[sp] : 1f0) *
-                  exp(c.htg_cor_small[sp])
+                  fexp(c.htg_cor_small[sp])
             h1 = wk3[i]
             pct = _pct(i)
             bal = baj * (100.0f0 - pct) * 0.01f0
@@ -408,7 +408,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 htgrl < 0.0f0 && (htgrl = 0.0f0)
                 wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro * con
             else
-                htgrl = exp(rhcon[sp] + KT_RG_RHLH[sp]*log(h1) + KT_RG_RHCCF[sp]*rdj + KT_RG_RHBAL[sp]*balmh)
+                htgrl = fexp(rhcon[sp] + KT_RG_RHLH[sp]*flog(h1) + KT_RG_RHCCF[sp]*rdj + KT_RG_RHBAL[sp]*balmh + c.htg_cor_small[sp])
                 htgrl < 0.0f0 && (htgrl = 0.0f0)
                 wk3[i] = h1 + htgrl * (kpj / regyr) * xrhgro
             end
@@ -423,8 +423,8 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 d1 = KT_RG_DIAM[sp] + dadj
                 local d2::Float32
                 if sp == 11
-                    h1 > 4.5f0 && (d1 = 0.0729f0*(h1 - 4.5f0)^1.1988f0 + dadj)
-                    d2 = 0.0729f0*(h2 - 4.5f0)^1.1988f0 + dadj
+                    h1 > 4.5f0 && (d1 = 0.0729f0*fpow(h1 - 4.5f0, 1.1988f0) + dadj)
+                    d2 = 0.0729f0*fpow(h2 - 4.5f0, 1.1988f0) + dadj
                 else
                     h1 > 4.5f0 && (d1 = KT_RG_HCON[sp]*h1 + KT_RG_DCON[sp] + dadj)
                     d2 = KT_RG_HCON[sp]*h2 + KT_RG_DCON[sp] + dadj
@@ -434,7 +434,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 d2 = d + dgj
                 c1 = kt_tree_ccf(sp, d) * pr; c2 = kt_tree_ccf(sp, d2) * pr     # CCFCAL(…,P,…) = CCFT·P
                 b1 = 0.005454154f0 * d * d
-                f = 0.985f0^ky
+                f = fpowi(0.985f0, ky)
                 rdnext[j+1] += Float32(ky) * (c2 - c1) / 10.0f0 * f
                 banext[j+1] += (0.005454154f0 * d2 * d2 - b1) * pr * f
             end
@@ -485,7 +485,7 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 if hk < 4.5f0
                     dbhk = 0.1f0 + KT_RG_DIAM[sp]*0.01f0 + hk*0.001f0; dgk = 0f0
                 else
-                    dk = sp == 11 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj : KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj
+                    dk = sp == 11 ? 0.0729f0*fpow(hk - 4.5f0, 1.1988f0) + dadj : KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj
                     dk < KT_RG_DIAM[sp] && (dk = KT_RG_DIAM[sp])
                     dk = dk + hk*0.001f0
                     dbhk = dk; dgk = dk
@@ -510,17 +510,16 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
         cap = s.control.sp_size_cap[sp, 4]
         large_htg = t.ht_growth[i]                          # large-tree htgf value for the blend
         xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
-        bark = bark_ratio(c.bark_a, c.bark_b, sp, d)        # BRATIO(DBH(K)=D, HT(K)=H)
+        bark = KT_BKRAT[sp]                                 # BRATIO(DBH(K)=D, HT(K)=H) = BKRAT(IS), kt/bratio.f
         small_d = d < 3.0f0
         # deterministic dub base D1 (kt/regent.f:544-555)
         relh = (h - 4.5f0) / (ah - 4.5f0); relh > 1.0f0 && (relh = 1.0f0); relh < 0.0f0 && (relh = 0.0f0)
         dadj = delmax*relh*relh - 2.0f0*delmax*relh + 0.65f0
         d1 = KT_RG_DIAM[sp] + dadj
         if h > 4.5f0
-            d1 = sp == 11 ? 0.0729f0*(h - 4.5f0)^1.1988f0 + dadj : KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj
+            d1 = sp == 11 ? 0.0729f0*fpow(h - 4.5f0, 1.1988f0) + dadj : KT_RG_HCON[sp]*h + KT_RG_DCON[sp] + dadj
         end
         nrec = stash !== nothing ? 3 : 1
-        central_dbh = d
         for l in 0:(nrec - 1)
             zzran = 0.0f0
             if dgsd >= 1.0f0
@@ -541,14 +540,14 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 if hk < 4.5f0
                     dbh_dir = 0.1f0 + KT_RG_DIAM[sp]*0.01f0 + hk*0.001f0   # kt/regent.f:562 (DBH set, DG=0)
                 else
-                    dk = sp == 11 ? 0.0729f0*(hk - 4.5f0)^1.1988f0 + dadj :
+                    dk = sp == 11 ? 0.0729f0*fpow(hk - 4.5f0, 1.1988f0) + dadj :
                                     KT_RG_HCON[sp]*hk + KT_RG_DCON[sp] + dadj
                     dk < KT_RG_DIAM[sp] && (dk = KT_RG_DIAM[sp])           # kt/regent.f:582
                     dk = dk + hk*0.001f0
                     dgk = (dk - d1) * xrdgro; dgk < 0.0f0 && (dgk = 0.0f0) # kt/regent.f:591 (DK−D1)·XRDGRO
                     dg0 = dgk * bark                                        # DG(K)=DGK·BARK (:599)
                     dds = dg0 * (2.0f0*bark*d + dg0) * scale                # :600
-                    dg_inc = sqrt((d*bark)^2 + dds) - bark*d              # :601
+                    dg_inc = sqrt(fpow(d*bark, 2.0f0) + dds) - bark*d     # :601 (D*BARK)**2.0 is powf under gfortran -O0
                     (d + dg_inc) < KT_RG_DIAM[sp] && (dg_inc = KT_RG_DIAM[sp] - d)  # :603 DIAM floor
                     dg_inc = dg_bound(nothing, nothing, sp, d, dg_inc, s.control.sp_size_cap)  # DGBND :610
                 end
@@ -557,17 +556,24 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
                 t.ht_growth[i] = htg
                 if small_d
                     if dbh_dir >= 0.0f0
-                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0; central_dbh = dbh_dir
+                        t.dbh[i] = dbh_dir; t.diam_growth[i] = 0.0f0
                     else
                         t.diam_growth[i] = dg_inc                           # increment; DBH via GRADD
                     end
                 end
             elseif l == 1
+                # kt/regent.f:560-562 HK<4.5: the copy's own DBH(K) is set directly with DG(K)=0 (TRIPLE carries the
+                # slot's DBH), not the central DBH plus an equivalent increment (FVS_TreeList DG 0 vs 7.9E-4); else the
+                # slot keeps the pre-REGENT D (kt/dgdriv.f:253/261) even when the central record was direct-set.
                 stash.htgU[i] = htg; stash.is_small[i] = true
-                small_d && (stash.dgU[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dbhU[i] = dbh_dir >= 0.0f0 ? dbh_dir : d; stash.dgU[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                end
             else
                 stash.htgL[i] = htg
-                small_d && (stash.dgL[i] = dbh_dir >= 0.0f0 ? (dbh_dir - central_dbh)*bark : dg_inc)
+                if small_d
+                    stash.dbhL[i] = dbh_dir >= 0.0f0 ? dbh_dir : d; stash.dgL[i] = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
+                end
             end
             # kt/regent.f:614-650 — a SMALL record (D<3; `IF(D.GE.3.0) GO TO 23` skips the rest) that reaches DBH≥3
             # this cycle (DNEW=D+DG on the cycle's DDS scale) gets a fresh DUBSCR crown (one FCR draw), capped at the
@@ -575,9 +581,9 @@ function small_tree_growth!(s::StandState, stash, ::Kootenai; fint::Float32 = 10
             # their slots, so they draw as well — but their ICR(K) is overwritten by TRIPLE's ICR(ITFN)=ICR(I), so for
             # them only the RNG draw survives. (Measured on ktt01 cycle 2: live dubs K=50,180,181,12,104,105,51,…)
             if small_d
-                dK = dbh_dir >= 0.0f0 ? dbh_dir : central_dbh           # DBH(K): the HK<4.5 direct set, else DBH(I)
+                dK = dbh_dir >= 0.0f0 ? dbh_dir : d                     # DBH(K): the HK<4.5 direct set, else the slot's D
                 dgK = dbh_dir >= 0.0f0 ? 0.0f0 : dg_inc
-                barkK = bark_ratio(c.bark_a, c.bark_b, sp, dK)
+                barkK = KT_BKRAT[sp]
                 dds2 = dgK * (2.0f0 * barkK * dK + dgK) * (fint / 10.0f0)       # SCALE2=FINT/YR
                 dg2 = sqrt((dK * barkK)^2 + dds2) - barkK * dK; dg2 < 0.0f0 && (dg2 = 0.0f0)
                 if dK + dg2 >= 3.0f0
@@ -601,23 +607,8 @@ end
 
 # kt/dgdriv.f DO 220 (:707-731) DG(I) — measured (capped at inside-bark DBH when IDG<2), 0 at HT<=4.5, else the dub
 # from the second DGF(WK3) (:705, COR final; dub_wk2/dub_wk3 stash). Read by the LSTART REGCAL DO 49.
-@inline function kt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32
-    t, c = s.trees, s.calib
-    sp = Int(t.species[i])
-    bark = bark_ratio(c.bark_a, c.bark_b, sp, dcur)
-    if t.diam_growth[i] > 0f0 && t.height[i] > 4.5f0
-        dg = t.diam_growth[i]
-        (s.control.growth_idg < 2 && dg > dcur * bark) && (dg = dcur * bark)
-        return dg
-    elseif t.height[i] <= 4.5f0 || length(c.dub_wk2) < i
-        return 0f0
-    end
-    sc = s.control.growth_fint / 10f0
-    dd = c.dub_wk3[i] * bark
-    dub = sqrt(dd * dd + fexp(c.dub_wk2[i] + t.old_random[i]) * sc) - dd
-    dub > dd && (dub = dd)
-    return dg_bound(nothing, nothing, sp, dcur, dub, s.control.sp_size_cap)
-end
+@inline kt_do220_dg(s::StandState, i::Int, dcur::Float32)::Float32 =
+    do220_dg(s, i, dcur, KT_BKRAT[Int(s.trees.species[i])])          # kt/bratio.f BRATIO = BKRAT(IS)
 
 """
     kt_regent_hcor_init!(s, isct, ind1, saved_dbh)
@@ -640,7 +631,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     ctl.growth_ifinth == 0 && return s                  # regent.f:681 IF(IFINTH.EQ.0) GOTO 100
     rhcon = kt_regcons!(s)
     if ctl.regh_cor2_on                                 # REGCON: sp11 + ln RCOR2 (1-10 carry RCOR2 as CON below)
-        length(ctl.regh_cor2) >= 11 && ctl.regh_cor2[11] > 0f0 && (rhcon[11] += log(ctl.regh_cor2[11]))
+        length(ctl.regh_cor2) >= 11 && ctl.regh_cor2[11] > 0f0 && (rhcon[11] += flog(ctl.regh_cor2[11]))
     end
     snap = c.cratet_relden > 0f0
     temba = snap ? c.cratet_ba : p.basal_area; temccf = snap ? c.cratet_relden : p.relative_density
@@ -659,7 +650,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
     if nper > 1                                         # DO 49 (regent.f:699-717)
         @inbounds for i in 1:t.n
             d1 = t.dbh[i]; sp = Int(t.species[i]); pr = t.tpa[i]
-            d2 = d1 + kt_do220_dg(s, i, saved_dbh[i]) / bark_ratio(c.bark_a, c.bark_b, sp, d1)
+            d2 = d1 + kt_do220_dg(s, i, saved_dbh[i]) / KT_BKRAT[sp]
             b1 = 0.005454154f0 * d1 * d1; b2 = 0.005454154f0 * d2 * d2
             c1 = kt_tree_ccf(sp, d1) * pr; c2 = kt_tree_ccf(sp, d2) * pr
             bi = (b2 - b1) / 10.0f0; ci = (c2 - c1) / 10.0f0
@@ -696,7 +687,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             hk = h
             for j in 1:nper
                 baj = banext[j]; rdj = rdnext[j]
-                baj > 0f0 && (alba = log(baj))
+                baj > 0f0 && (alba = flog(baj))
                 bal = baj * (100f0 - pctv[i]) * 0.01f0
                 balmh = baj * (100f0 - pctv[i]) * 0.0001f0
                 if sp != 11
@@ -705,7 +696,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                     edh < 0f0 && (edh = 0f0)
                     hk += edh * con
                 else
-                    edh = exp(bhab + blh * log(hk) + bccf * rdj + bbalmh * balmh)
+                    edh = fexp(bhab + blh * flog(hk) + bccf * rdj + bbalmh * balmh)
                     edh < 0f0 && (edh = 0f0)
                     hk += edh
                 end
@@ -718,7 +709,7 @@ function kt_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         snx /= snp; sny /= snp
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
-        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : log(cornew)
+        c.htg_cor_init[sp] = (cornew < 0.0821f0 || cornew > 12.1825f0) ? 0f0 : flog(cornew)
     end
     return s
 end

@@ -81,18 +81,18 @@ function ca_dgcons!(s::StandState)
     c = s.calib; p = s.plot
     ifor = Int(p.forest_idx)
     elev = p.elevation; slope = p.slope; asp = p.aspect
-    sina = sin(asp); cosa = cos(asp)
+    sina = fsin(asp); cosa = fcos(asp)
     @inbounds for isp in 1:50
         jspc = CA_MAPSPC[isp]
         xsite = p.sp_site_index[isp]
         if isp == 23 || isp == 50                                  # GS / RW: ln(SITEAR) form, DGDSQ=0
-            c.dg_const[isp] = -3.502444f0 + 0.415435f0 * log(xsite)
+            c.dg_const[isp] = -3.502444f0 + 0.415435f0 * flog(xsite)
         else
             isfor = CA_MAPLOC[jspc, ifor]
             sasp = (CA_DGSASP[jspc] * sina + CA_DGCASP[jspc] * cosa + CA_DGSLOP[jspc]) * slope +
                    CA_DGSLSQ[jspc] * slope * slope
             c.dg_const[isp] = CA_DGFOR[jspc, isfor] + CA_DGEL[jspc] * elev + CA_DGELSQ[jspc] * elev * elev +
-                              CA_DGSITE[jspc] * log(xsite) + sasp
+                              CA_DGSITE[jspc] * flog(xsite) + sasp
         end
     end
     # ca/dgf.f:454 ATTEN(ISPC)=OBSERV(JSPC) — species-indexed, group value (dgdriv.f:554 SIGMA pooling).
@@ -108,7 +108,7 @@ function dgf!(s::StandState, ::CentralCalifornia)
     dens = s.density; sd = s.coef.species
     wk2 = view(s.scratch.wk, 2, :)
     ba = p.basal_area; avh = p.avg_height
-    slope = p.slope; asp = p.aspect; cosa = cos(asp)
+    slope = p.slope; asp = p.aspect; cosa = fcos(asp)
     prdf = ws_point_prd_fn(s)          # ca/dgf.f:290-306 SDICAL(IWHO=2) XMAXPT + per-point SDICLS ZRD (== ws/dgf.f)
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
@@ -125,21 +125,21 @@ function dgf!(s::StandState, ::CentralCalifornia)
             pbal = (1 <= pt_i <= length(dens.point_ba)) ? dens.point_ba[pt_i] * pctfrac : bal
             pbal < 0f0 && (pbal = bal)
             prd = prdf(pt_i)                                        # ca/dgf.f:339-344 PRD = ZRD(ITRE)/XMAXPT(ITRE)
-            dglt = exp(conspp + 0.185911f0 * log(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
-                       0.42078f0 * prd + 0.589318f0 * log(cr * 100f0) - 0.000926f0 * slope * 100f0 -
+            dglt = fexp(conspp + 0.185911f0 * flog(d) - 0.000073f0 * d * d - 0.001796f0 * pbal -
+                       0.42078f0 * prd + 0.589318f0 * flog(cr * 100f0) - 0.000926f0 * slope * 100f0 -
                        0.002203f0 * (slope * 100f0) * cosa)
             brat = wc_bratio(sd[:bark1][isp], sd[:bark2][isp], Int(sd[:bark_imap][isp]), d)
             tempd1 = d * brat; dup = d + dglt; tempd2 = dup * brat
-            dds = log(tempd2 * tempd2 - tempd1 * tempd1) + cor + log(cor2_of(c, isp))
+            dds = flog(tempd2 * tempd2 - tempd1 * tempd1) + cor + flog(cor2_of(c, isp))
         else                                                        # STANDARD Wykoff ln(DDS)
             conspp = c.dg_const[isp] + cor
-            dds = conspp + CA_DGLD[jspc] * log(d) +
+            dds = conspp + CA_DGLD[jspc] * flog(d) +
                   cr * (CA_DGCR[jspc] + cr * CA_DGCRSQ[jspc]) +
-                  CA_DGDS[jspc] * d * d + CA_DGDBAL[jspc] * bal / log(d + 1f0)
+                  CA_DGDS[jspc] * d * d + CA_DGDBAL[jspc] * bal / flog(d + 1f0)
             dds += CA_DGPCCF[jspc] * pccf + CA_DGHAH[jspc] * relht +
-                   CA_DGLBA[jspc] * log(ba) + CA_DGBAL[jspc] * bal
+                   CA_DGLBA[jspc] * flog(ba) + CA_DGBAL[jspc] * bal
         end
-        isp == 42 && (dds = log(exp(dds) * 2f0))                    # TANOAK: 5-yr → 10-yr basis
+        isp == 42 && (dds = flog(fexp(dds) * 2f0))                    # TANOAK: 5-yr → 10-yr basis
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end

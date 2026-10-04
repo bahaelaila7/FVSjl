@@ -48,9 +48,9 @@ function height_growth!(s::StandState, ::Kootenai; scale::Float32 = 1.0f0)
         dg <= 0.0f0 && continue                              # ln(DG) undefined; DGBND keeps DG>0 for grown trees
         # HTCON(sp) = HGHCH + HGSC(sp) (+ ln(HCOR2) when READCORH active) (htgf.f:196-197)
         htcon = hghch + KT_HGSC[sp]
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
-        con = htcon + h2cof * hti * hti + KT_HGLD[sp] * log(d) + KT_HGLH * log(hti)
-        htg = exp(con + hdgcof * log(dg)) + KT_HTBIAS
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
+        con = htcon + h2cof * hti * hti + KT_HGLD[sp] * flog(d) + KT_HGLH * flog(hti)
+        htg = fexp(con + hdgcof * flog(dg)) + KT_HTBIAS
         htg < 0.1f0 && (htg = 0.1f0)
         xht = active_multiplier(ctl, :htg, sp, cur_year)     # XHMULT (MULTS kind 2); MISHGF=1
         htg = htg * scale * xht
@@ -87,11 +87,11 @@ function kt_triple_htg!(s::StandState, stash; scale::Float32 = 1.0f0)
         d = t.dbh[i]; hti = t.height[i]
         (d <= 0.0f0 || hti <= 0.0f0 || t.diam_growth[i] <= 0.0f0) && continue   # central skipped ⇒ copies flat
         htcon = hghch + KT_HGSC[sp]
-        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += log(ctl.htg_cor2[sp]))
-        con = htcon + h2cof * hti * hti + KT_HGLD[sp] * log(d) + KT_HGLH * log(hti)
+        (ctl.htg_cor2_on && ctl.htg_cor2[sp] > 0.0f0) && (htcon += flog(ctl.htg_cor2[sp]))
+        con = htcon + h2cof * hti * hti + KT_HGLD[sp] * flog(d) + KT_HGLH * flog(hti)
         xht = active_multiplier(ctl, :htg, sp, cur_year)
         cap = ctl.sp_size_cap[sp, 4]
-        e(dgc) = dgc > 0.0f0 ? exp(con + hdgcof * log(dgc)) : 0.0f0     # ALOG(0)=-Inf ⇒ EXP term 0
+        e(dgc) = dgc > 0.0f0 ? fexp(con + hdgcof * flog(dgc)) : 0.0f0     # ALOG(0)=-Inf ⇒ EXP term 0
         hu = e(dgU[i]) + KT_HTBIAS; hu < 0.1f0 && (hu = 0.1f0); hu = hu * scale * xht      # htgf.f:141-143
         (hti + hu > cap) && (hu = max(cap - hti, 0.1f0))
         hl = (e(dgL[i]) + KT_HTBIAS) * scale * xht; hl < 0.1f0 && (hl = 0.1f0)            # htgf.f:152-154
@@ -190,7 +190,7 @@ function kt_dub_missing_heights!(s::StandState)
     deads = collect((n + nd):-1:(n + 1))
     function dub_h(sp, d, aa, bb)
         if k1 < 3 || !lhtdrg[sp] || counter == 1f0
-            return d >= KT_SMDBH[sp] ? exp(aa + bb / (d + 1f0)) + 4.5f0 : KT_SMA[sp] * d + 4.5f0
+            return d >= KT_SMDBH[sp] ? fexp(aa + bb / (d + 1f0)) + 4.5f0 : KT_SMA[sp] * d + 4.5f0
         end
         h = aa + bb * sqrt(d)
         step1 = bb * bb - 4f0 * KT_SMA[sp] * (4.5f0 - aa)

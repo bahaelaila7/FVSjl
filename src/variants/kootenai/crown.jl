@@ -20,7 +20,7 @@ const KT_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,1
     if d >= 10f0
         return KT_RD1[sp] + d * KT_RD2[sp] + d * d * KT_RD3[sp]
     else
-        return KT_RDA[sp] * d ^ KT_RDB[sp]
+        return KT_RDA[sp] * fpow(Float32(d), KT_RDB[sp])
     end
 end
 # crown.f PARM(sp,1:14): 1-6 density terms (BA,BA²,lnBA,RELDEN,RELDEN²,lnRELDEN), 7-14 = B7..B14 (D,D²,lnD,H,H²,lnH,P,lnP). [sp][col]
@@ -107,7 +107,7 @@ function kt_dubscr_cr(sp::Int, d::Float32, h::Float32, ba::Float32, dgsd::Float3
         end
     end
     abs(cr + fcr) >= 86.0f0 && (cr = 86.0f0)
-    crf = 1.0f0 / (1.0f0 + exp(cr + fcr))
+    crf = 1.0f0 / (1.0f0 + fexp(cr + fcr))
     crf < 0.05f0 && (crf = 0.05f0); crf > 0.95f0 && (crf = 0.95f0)
     return crf
 end
@@ -124,11 +124,11 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
     t.n == 0 && return s
     itype = Int(p.habitat_input); it = (1 <= itype <= 30) ? itype : 1
     ba = p.basal_area; relden = p.relative_density
-    lnba = ba > 0f0 ? log(ba) : 0f0; lnrd = relden > 0f0 ? log(relden) : 0f0
+    lnba = ba > 0f0 ? flog(ba) : 0f0; lnrd = relden > 0f0 ? flog(relden) : 0f0
     reldm1 = p.relative_density_prev; oba = p.old_ba
     if reldm1 < 100f0; oba = ba; reldm1 = relden; end
-    x1 = (!lstart && oba > 0f0) ? log(oba) : 0f0
-    x2 = (!lstart && reldm1 > 0f0) ? log(reldm1) : 0f0
+    x1 = (!lstart && oba > 0f0) ? flog(oba) : 0f0
+    x2 = (!lstart && reldm1 > 0f0) ? flog(reldm1) : 0f0
     dgsd = s.control.dg_sd
     ba_a = c.bark_a; ba_b = c.bark_b
     # kt/crown.f walks the LIVE records species-major (DO ISPC … I=IND1(I3)) — the lstart BACHLO draws follow that
@@ -153,8 +153,8 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
             b7=KT_CRPARM[sp,7]; b8=KT_CRPARM[sp,8]; b9=KT_CRPARM[sp,9]; b10=KT_CRPARM[sp,10]
             b11=KT_CRPARM[sp,11]; b12=KT_CRPARM[sp,12]; b13=KT_CRPARM[sp,13]; b14=KT_CRPARM[sp,14]
             pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
-            pcr = xcrcon + b7*d + b8*d*d + b9*log(d) + b10*h + b11*h*h + b12*log(h) + b13*pp + b14*log(pp)
-            exppcr = exp(pcr)
+            pcr = xcrcon + b7*d + b8*d*d + b9*flog(d) + b10*h + b11*h*h + b12*flog(h) + b13*pp + b14*flog(pp)
+            exppcr = fexp(pcr)
             local chg::Float32
             if lstart
                 chg = exppcr
@@ -173,8 +173,8 @@ function crown_ratio_update!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, 
                 (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) &&
                     (pb = t.crown_ratio[i]; t.old_crown_pct[i] = pb)
                 pb < 0.01f0 && (pb = 0.01f0)
-                dcr = dcrcon + b7*db + b8*db*db + b9*log(db) + b10*hb + b11*hb*hb + b12*log(hb) + b13*pb + b14*log(pb)
-                expdcr = exp(dcr)
+                dcr = dcrcon + b7*db + b8*db*db + b9*flog(db) + b10*hb + b11*hb*hb + b12*flog(hb) + b13*pb + b14*flog(pb)
+                expdcr = fexp(dcr)
                 chg = exppcr - expdcr
                 if icr > 0                                             # bound ±1%/yr (crown.f:329-332)
                     pdifpy = chg / Float32(icr) / fint * 100f0

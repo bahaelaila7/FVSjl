@@ -191,6 +191,41 @@ end
 # NC decay table scaled by DCYMLT (all classes; nct01 has no FUELDCAY ⇒ every SETDECAY<0 ⇒ all scaled).
 @inline nc_adjusted_dkr(si::Float32)::Matrix{Float32} = _FM_DKR_NC .* nc_dcymlt(si)
 
+# WS (ws/fmvinit.f:120-150): the NC table (0.025 / 0.0125 woody, litter 0.5, duff 0.002, PRDUFF 0.02), scaled at the
+# first FFE year by the same Dunning DCYMLT (ws/fmcba.f:541-581; ws/dunn.f GETDUNN = DUNN50) on SITEAR(ISISP) — RF's
+# SITEAR(7) when the site species is GB(21)/MC(41), whose site indices are 100-year Dunning values.
+_fm_dkr_default(::WestSierra) = _FM_DKR_NC
+function ws_adjusted_dkr(sitear::AbstractVector{Float32}, isisp::Int)::Matrix{Float32}
+    si = (isisp == 21 || isisp == 41) ? sitear[7] : ((1 <= isisp <= length(sitear)) ? sitear[isisp] : 0f0)
+    return _FM_DKR_NC .* nc_dcymlt(si)
+end
+
+# CA (ca/fmcba.f:579-745, the decay rates CA sets at the first FFE year instead of fmvinit.f): KODFOR 500-599 (R5) the
+# California table (= the NC values), else the Oregon base table (= the EC/SO base) × DKRADJ(CAHMC(ITYPE),CAWMD(ITYPE),K)
+# capped at 1 with the small-wood bump (r6_adjusted_dkr); litter 0.5, duff 0.002; then, for KODFOR < 600, ×DCYMLT on
+# SITEAR(ISISP) (GETDUNN = DUNN50, as NC/WS). ITYPE is HABTYP's PCOML index (46 = CWC221 when undecoded, ca/sitset.f).
+const _FM_CAHMC = Int8[2,2,2,2,2,1,2,1,2,2, 2,2,2,1,2,1,1,2,2,2, 2,2,2,2,2,2,2,3,2,2, 2,2,2,2,3,3,2,2,2,3,
+                       2,2,2,2,2,2,2,1,1,1, 3,2,2,2,2,3,3,3,2,3, 2,2,3,3,2,2,2,2,2,2, 2,2,2,2,1,1,2,2,2,2,
+                       2,2,2,2,1,2,2,2,1,2]
+const _FM_CAWMD = Int8[2,3,3,2,2,3,3,3,2,2, 2,2,2,3,2,3,3,2,3,1, 1,2,2,1,2,2,2,2,3,2, 3,3,3,3,2,1,2,2,2,2,
+                       1,2,2,2,2,2,3,3,3,3, 1,1,2,2,2,2,2,2,2,1, 2,2,2,1,2,2,3,2,2,2, 2,2,2,2,3,3,1,2,2,2,
+                       2,2,2,2,3,2,2,2,3,2]
+_fm_dkr_default(::CentralCalifornia) = _FM_DKR_NC
+function ca_adjusted_dkr(kodfor::Int, itype::Int, sitear::AbstractVector{Float32}, isisp::Int)::Matrix{Float32}
+    if 500 <= kodfor < 600
+        dkr = copy(_FM_DKR_NC)
+    else
+        it = (1 <= itype <= 90) ? itype : 46
+        dkr = r6_adjusted_dkr(_FM_DKR_EC, Int(_FM_CAHMC[it]), Int(_FM_CAWMD[it]))
+        dkr[10, :] .= 0.5f0; dkr[11, :] .= 0.002f0
+    end
+    if kodfor < 600
+        si = (1 <= isisp <= length(sitear)) ? sitear[isisp] : 0f0
+        dkr .*= nc_dcymlt(si)
+    end
+    return dkr
+end
+
 # BM has its OWN base decay table (bm/fmvinit.f:68-113) — NOT the CR table. Faster litter (0.65 vs CR 0.5)
 # and different woody rates; used as the base the habitat DKRADJ then scales (see bm_adjusted_dkr).
 const _FM_DKR_BM = Float32[

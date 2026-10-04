@@ -86,9 +86,9 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     tt = 0f0; sd2sq = 0f0; dsum = 0f0; wprob = 0f0
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
-        bark = bark_ratio(bark_a, bark_b, sp, d)
+        bark = KT_BKRAT[sp]                                   # kt/bratio.f BRATIO = BKRAT(IS) ((0+b·d)/d is 1 ULP off)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr     # SD2SQ+P*(D*D+CIOBDS), CIOBDS=2DG+G² (morts.f:201-203)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
@@ -97,7 +97,7 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     ba10 = ba + (bamax - ba) / bamax * deltba
     tb = ba10 / (0.005454154f0 * dq10 * dq10)
     ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
-    rz = 1f0 - (1f0 - ttb)^0.1f0
+    rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
     aved = dsum / wprob
     # MORCON: POTEN → GMULT/REIN per size class (morts.f:646-653)
     ifor = kt_ifor(p)
@@ -105,17 +105,18 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
     it = (1 <= itype <= 30) ? itype : 1
     poten1 = KT_MORT_POT[KT_MORT_IPDG[it, ifor]]
     poten2 = KT_MORT_POT[KT_MORT_IPDG2[it, ifor]]
-    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - (poten1 / 20f0 + 1f0)^(-1.605f0)) / 0.06821f0
-    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - (poten2 + 1f0)^(-1.605f0)) / 0.86610f0
+    gmult1 = 0.90f0 / poten1; rein1 = (1f0 - fpow(poten1 / 20f0 + 1f0, -1.605f0)) / 0.06821f0
+    gmult2 = 2.50f0 / poten2; rein2 = (1f0 - fpow(poten2 + 1f0, -1.605f0)) / 0.86610f0
     sqba = sqrt(ba)
     icyc1 = Int(s.control.cycle) == 0
     # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (kt/grinit.f:173 FINT=10., or the GROWTH card / FIA DG_MEASURE),
     # later cycles = the previous cycle's length IY(ICYC)−IY(ICYC−1). jl had 10 for every cycle (wrong under TIMEINT).
     oldfnt = morts_oldfnt(s)
     sc = s.control.sp_size_cap
+    cur_year = current_cycle_year(s)
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
-        d = t.dbh[i]; bark = bark_ratio(bark_a, bark_b, sp, d)
+        d = t.dbh[i]; bark = KT_BKRAT[sp]
         reldbh = d / aved
         dd = d <= 0.5f0 ? 0.5f0 : d
         dgi = t.diam_growth[i]
@@ -134,15 +135,26 @@ function mortality!(s::StandState, ::Kootenai; fint::Float32 = 10.0f0, book_snag
         rip = 2.76253f0 + 0.222310f0 * sqrt(dd) - 0.0460508f0 * sqba + 11.2007f0 * g -
               0.554421f0 / dd + KT_MORT_PMSC[sp] + 0.246301f0 * reldbh + 6.07129f0 * g / dd
         rip > 70f0 && (rip = 70f0); rip < -70f0 && (rip = -70f0)
-        rip = 1f0 / (1f0 + exp(rip))
+        rip = 1f0 / (1f0 + fexp(rip))
         rip = rip * (ip == 1 ? rein1 : rein2)                # ·POTENT
         ripp = ba * rz
         ba <= bamax && (ripp += (bamax - ba) * rip)
         ripp /= bamax
         ripp < rip && (ripp = rip); ripp > 1f0 && (ripp = 1f0)
-        wki = pr * (1f0 - (1f0 - ripp)^fint)                 # X=1 (no MORTMULT window)
-        gsc = (dgi / bark) * (fint / 10f0)
-        if (d + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
+        # kt/morts.f:288-307: X = XMORT inside the MORTMULT [XMDIA1,XMDIA2) window (on the D≤0.5→0.5 clamped D), then
+        # the ESTAB "best" trees are immune for 20 yr after the disturbance date: IESTAT cleared once IY(ICYC)
+        # reaches it, else X·(1−XCHECK), XCHECK = clamp((IESTAT−IY(ICYC))/FINT, 0, 1). jl ran X=1 for every record.
+        x = active_mort_mult(s.control, sp, cur_year, dd)
+        if t.iestat[i] > 0
+            iyc = Int32(cur_year)
+            iyc >= t.iestat[i] && (t.iestat[i] = Int32(0))
+            xchk = clamp(Float32(t.iestat[i] - iyc) / fint, 0f0, 1f0)
+            x = x * (1f0 - xchk)
+        end
+        wki = pr * (1f0 - fpow(1f0 - ripp, fint)) * x
+        # kt/morts.f:309-312 BARK=BRATIO(ISPC,D,HT) and D+G on the clamped D
+        gsc = (dgi / KT_BKRAT[sp]) * (fint / 10f0)
+        if (dd + gsc) >= sc[sp, 1] && trunc(Int, sc[sp, 3]) != 1
             wki = max(wki, pr * sc[sp, 2] * fint / 10f0)
         end
         wki > pr && (wki = pr)

@@ -142,7 +142,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
                     end
                     dgsm = (dk - dkk)*bark*xrdgro; dgsm < 0f0 && (dgsm = 0f0)
                     dds = dgsm*(2f0*bark*d + dgsm)*scale2
-                    dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
+                    dgsm = sqrt(fpow(d*bark, 2.0f0) + dds) - bark*d;  # ca/regent.f:332 (D*BARK)**2.0 = powf; dgsm < 0f0 && (dgsm = 0f0)
                     dgk = dgsm*(1f0-xdwt) + dglt*xdwt
                     (d + dgk) < CA_RG_DIAM[sp] && (dgk = CA_RG_DIAM[sp] - d)   # DBH(K)=D here
                 end
