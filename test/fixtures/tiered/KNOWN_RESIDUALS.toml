@@ -391,61 +391,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 
 [[residual]]
 variant = "IE"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 39518122010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
-
-[[residual]]
-variant = "IE"
-regime = "econ"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 3285544010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 3285544010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "IE"
 regime = "none"
 file = "FVS_TreeList"
 col = "DBH"
@@ -613,17 +558,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Aboveground_Merch_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 58 cells [material=6 ulpbig=52] max|Δ|=2.764 | e.g. stand 11855985010690 year 2036: live=34.730716705322266 jl=35.01457977294922"""
-
-[[residual]]
-variant = "IE"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Aboveground_Total_Live"
 stand = "*"
 year = "*"
@@ -690,17 +624,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "simfire"
 file = "FVS_BurnReport"
-col = "Midflame_Wind"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 5 cells [ulpbig=5] max|Δ|=0.04617 | e.g. stand 11855985010690 year 2016: live=1.6679614782333374 jl=1.6675984859466553"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_BurnReport"
 col = "Scorch_height"
 stand = "*"
 year = "*"
@@ -729,17 +652,6 @@ year = "*"
 status = "OPEN"
 max_cells = 21
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 55 cells [material=40 ulp2_16=1 ulpbig=14] max|Δ|=10.29 | e.g. stand 11855985010690 year 2036: live=7.5944294929504395 jl=7.077737331390381"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 51→52) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 51 cells [ulp1=9 ulp2_16=12 ulpbig=30] max|Δ|=0.01734 | e.g. stand 11855985010690 year 2036: live=3.49619460105896 jl=3.4916903972625732"""
 
 [[residual]]
 variant = "IE"
@@ -833,17 +745,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: fork i
 variant = "IE"
 regime = "simfire"
 file = "FVS_Mortality"
-col = "Killed_class1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 13 cells [ulp1=4 ulp2_16=3 ulpbig=6] max|Δ|=1.011 | e.g. stand 11855985010690 year 2016: live=2242.6123046875 jl=2242.612060546875"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Mortality"
 col = "Killed_class2"
 stand = "*"
 year = "*"
@@ -872,17 +773,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=0.01878 | e.g. stand 11855985010690 year 2016: live=7.714269638061523 jl=7.7116594314575195"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Mortality"
-col = "Total_class1"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """measured 2026-09-26 on integ-0927 e82197d5: +1/+2 cells inside records that already diverge (IE ie-dbs WK2 fire path 1-ULP Total_class1; EM stand 684750664126144 last-digit drift; EM FuelModl order inside EM's open fire-behavior residual, fork em-fire) (max_cells 16→17) | per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 16 cells [ulp1=5 ulp2_16=11] max|Δ|=0.0009766 | e.g. stand 11855985010690 year 2016: live=2242.730224609375 jl=2242.730712890625"""
 
 [[residual]]
 variant = "IE"
@@ -954,28 +844,6 @@ issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3
 variant = "IE"
 regime = "simfire"
 file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=1 ulpbig=27] max|Δ|=1.02 | e.g. stand 11855985010690 year 2036: live=4.92417049407959 jl=4.952606678009033"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2036: live=1039 jl=1045"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "FVS_Summary"
 col = "QMD"
 stand = "*"
 year = "*"
@@ -993,83 +861,6 @@ year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 31 cells [material=13 ulpbig=18] max|Δ|=922.0 | e.g. stand 11855985010690 year 2026: live=5128 jl=5172"""
-
-[[residual]]
-variant = "IE"
-regime = "simfire"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 28 cells [material=7 ulpbig=21] max|Δ|=51.0 | e.g. stand 11855985010690 year 2026: live=931 jl=939"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 20 cells [ulpbig=20] max|Δ|=1.0 | e.g. stand 1627682513290487 year 2071: live=9 jl=8"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 58 cells [ulp2_16=2 ulpbig=56] max|Δ|=0.7096 | e.g. stand 1627682513290487 year 2061: live=33.56245040893555 jl=33.60248565673828"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_DBH"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 8
-issue = """material divergence (model/report) — needs dig; owner: fork ie-ulp3 | measured 2026-09-26: 70 cells [material=3 ulpbig=67] max|Δ|=23.32 | e.g. stand 1627682513290487 year 2061: live=1.459452509880066 jl=1.6203365325927734"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Total_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """per-record Float32 drift below .sum print precision — owner: fork ie-ulp3 | measured 2026-09-26: 20 cells [ulpbig=20] max|Δ|=1.0 | e.g. stand 11855985010690 year 2056: live=20 jl=19"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 69 cells [ulpbig=69] max|Δ|=0.0954 | e.g. stand 1287253083290487 year 2062: live=5.574125289916992 jl=5.599999904632568"""
 
 [[residual]]
 variant = "SN"
@@ -1180,50 +971,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 49→51) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [small=1 tiny=48] max|Δ|=5.965e-8 | e.g. stand 474187636489998 year 2046: live=0.0278182626 jl=0.027818262577056885"""
-
-[[residual]]
-variant = "EM"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 231908428020004 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 888512560290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 5
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-26: 5 cells [structural=5] max|Δ|=0.0 | e.g. stand 888512560290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EM"
-regime = "none"
-file = "FVS_TreeList"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 3646 cells [material=346 ulp1=324 ulp2_16=51 ulpbig=2925] max|Δ|=3.9 | e.g. stand 474187636489998 year 2036: live=7.300000190734863 jl=7.200000286102295"""
 
 [[residual]]
 variant = "EM"
@@ -1372,17 +1119,6 @@ issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDB
 variant = "EM"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Aboveground_Merch_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 57 cells [material=1 ulp1=1 ulp2_16=1 ulpbig=54] max|Δ|=3.27 | e.g. stand 5352355010661 year 2004: live=0.0 jl=0.008246622048318386"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Aboveground_Total_Live"
 stand = "*"
 year = "*"
@@ -1403,28 +1139,6 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 
 [[residual]]
 variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
-col = "Standing_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 22
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 48 cells [material=4 ulp2_16=2 ulpbig=42] max|Δ|=6.187 | e.g. stand 5352355010661 year 2024: live=0.0016339367721229792 jl=0.001816427567973733"""
-
-[[residual]]
-variant = "EM"
-regime = "salvage"
-file = "FVS_Carbon"
-col = "Total_Stand_Carbon"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 20
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 58 cells [material=56 ulpbig=2] max|Δ|=13.72 | e.g. stand 5352355010661 year 2004: live=4.0541605949401855 jl=5.074192523956299"""
-
-[[residual]]
-variant = "EM"
 regime = "simfire"
 file = "FVS_BurnReport"
 col = "Scorch_height"
@@ -1438,45 +1152,12 @@ issue = """material divergence (model/report) — needs dig; owner: the EM campa
 variant = "EM"
 regime = "simfire"
 file = "FVS_Carbon"
-col = "Aboveground_Merch_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 56 cells [material=20 ulp1=1 ulp2_16=1 ulpbig=34] max|Δ|=7.354 | e.g. stand 474187636489998 year 2036: live=0.18481133878231049 jl=0.38389110565185547"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
 col = "Aboveground_Total_Live"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 12
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 56 cells [material=34 ulpbig=22] max|Δ|=16.73 | e.g. stand 474187636489998 year 2036: live=0.33950257301330566 jl=0.6923245191574097"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Belowground_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 50 cells [material=16 ulpbig=34] max|Δ|=3.277 | e.g. stand 474187636489998 year 2036: live=0.34014272689819336 jl=0.2939605712890625"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Belowground_Live"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 55 cells [material=16 ulp1=4 ulp2_16=5 ulpbig=30] max|Δ|=4.503 | e.g. stand 474187636489998 year 2036: live=0.09253732115030289 jl=0.19227609038352966"""
 
 [[residual]]
 variant = "EM"
@@ -1543,281 +1224,6 @@ year = "*"
 status = "OPEN"
 max_cells = 19
 issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 58 cells [material=40 ulpbig=18] max|Δ|=15.44 | e.g. stand 474187636489998 year 2036: live=4.416850566864014 jl=4.159252643585205"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 40 cells [material=33 ulpbig=7] max|Δ|=95.0 | e.g. stand 474187636489998 year 2036: live=2 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=165.0 | e.g. stand 474187636489998 year 2036: live=9 jl=17"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 40 cells [material=33 ulpbig=7] max|Δ|=95.0 | e.g. stand 474187636489998 year 2036: live=2 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=6820.0 | e.g. stand 474187636489998 year 2036: live=91 jl=201"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "MAI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 40 cells [material=31 ulpbig=9] max|Δ|=15.9 | e.g. stand 474187636489998 year 2036: live=0.0 jl=3.0999999046325684"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 39 cells [material=37 ulpbig=2] max|Δ|=1416.0 | e.g. stand 474187636489998 year 2036: live=34 jl=62"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """QMD/ATQMD full-REAL store FIXED (sum-qmd-real, sumout.f:209 QSDBT/QDBHAT); remaining cells = stand-trajectory QMD differences; was: rounded to 1 decimal | measured 2026-09-26: 68 cells [material=20 ulpbig=48] max|Δ|=4.611 | e.g. stand 474187636489998 year 2036: live=1.2248725891113281 jl=1.7000000476837158"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=165.0 | e.g. stand 474187636489998 year 2036: live=9 jl=17"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_Summary"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=43 ulpbig=6] max|Δ|=1697.0 | e.g. stand 474187636489998 year 2036: live=34 jl=70"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 40 cells [material=33 ulpbig=7] max|Δ|=95.0 | e.g. stand 474187636489998 year 2036: live=2 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 41 cells [gold_text9=16 jl_not_f32=2 material=20 small=3] max|Δ|=4.6 | e.g. stand 474187636489998 year 2036: live=1.2 jl=1.7"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "ATSDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=165.0 | e.g. stand 474187636489998 year 2036: live=9 jl=17"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 40 cells [material=33 ulpbig=7] max|Δ|=95.0 | e.g. stand 474187636489998 year 2036: live=2 jl=4"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "BdFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=6820.0 | e.g. stand 474187636489998 year 2026: live=433 jl=434"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "MCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 39 cells [material=37 ulpbig=2] max|Δ|=1416.0 | e.g. stand 474187636489998 year 2036: live=34 jl=62"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 41 cells [gold_text9=16 jl_not_f32=2 material=20 small=3] max|Δ|=4.6 | e.g. stand 474187636489998 year 2036: live=1.2 jl=1.7"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "SDI"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 42 cells [material=38 ulpbig=4] max|Δ|=165.0 | e.g. stand 474187636489998 year 2036: live=9 jl=17"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "TCuFt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 49 cells [material=43 ulpbig=6] max|Δ|=1697.0 | e.g. stand 474187636489998 year 2026: live=208 jl=206"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_1_Crown_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """measured 2026-09-27 on integ-0928 ca9a9995: +1..+4 cells shifted by the em-fire/ffe-west EM habitat (pvref1) + snag rework while EM total fell 119307→90796 cells; IE Belowground_Dead 1-ULP (max_cells 7→8) | per-record Float32 drift below .sum print precision — owner: the EM campaign (not yet dug) | measured 2026-09-26: 7 cells [ulpbig=7] max|Δ|=1.0 | e.g. stand 196420598020004 year 2022: live=24 jl=25"""
-
-[[residual]]
-variant = "EM"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Total_Cover"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the EM campaign (not yet dug) | measured 2026-09-26: 36 cells [material=21 ulpbig=15] max|Δ|=6.0 | e.g. stand 474157097489998 year 2046: live=22 jl=21"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFVS_2"
-stand = "1627682513290487"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=DF jl=WH"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesPLANTS_2"
-stand = "1627682513290487"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=PSME jl=TSHE"""
-
-[[residual]]
-variant = "IE"
-regime = "thinbba"
-file = "FVS_StrClass"
-col = "Stratum_2_SpeciesFIA_2"
-stand = "1627682513290487"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """2026-09-27 ie-resid (re-added at the master merge): the CLSSTK/OLDPCT thin fixes flip 1627682513290487 thinbba 2071 Stratum_2 2nd species DF->WH (a near-tie in stratum-2 species TPA; the stand's small-tree growth is still off live). | 1 cells, e.g. year 2071: live=202 jl=263"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "sum"
-col = "MAI"
-stand = "196378260020004"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """2026-09-28 ie-resid (re-added at the master merge): FFE fmcwd/fmeff ports moved EM 196378260020004's pre-fire fuel bed — the post-fire .sum MAI 2052 lands 6.5 vs live 6.4 (F5.1 boundary); the stand's fire kill was already off live. | 1 cells, e.g. year 2052: live=6.4 jl=6.5"""
 
 [[residual]]
 variant = "BM"
@@ -2181,39 +1587,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 15 cells [material=2 ulp1=3 ulp2_16=4 ulpbig=6] max|Δ|=291.8 | e.g. stand 474157097489998 year 2026: live=23.16924476623535 jl=22.8155517578125"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Mortality_BA_Sev"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 196378260020004 year 2052: live=63.0 jl=62.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Mortality_VOL_Mod"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """FMPOFL potential fire within Float32 drift of live — FMFINT weighted byram/flame, FMPOCR CBD, FMCONS smoke and the INT-truncated FMEFF columns carry the 1-2 ULP of the fuel/crown state (first FMMAIN year: IE 11855985010690 2006, EM 2012, BM 2007 all 1-2 ULP) — owner: FFE state ULP (potfire follow-up) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=2.0 | e.g. stand 3087467010690 year 1998: live=278.0 jl=279.0"""
-
-[[residual]]
-variant = "EM"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Mortality_VOL_Sev"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """FMPOFL potential fire follows the FFE stand/fuel state: the first FMMAIN year matches to 1-2 ULP, later years (and stands whose cycle-1 FFE state already differs) carry the down-wood (smoke, FMCFMD weights), cover/PERCOV (wind reduction) and crown-fuel (CBD/ACTCBH/torching, crown-fire type) residuals of the FFE dynamics, not FMPOFL — owner: FFE fuel dynamics (ie-resid / sn-resid / bm-base) | measured 2026-09-28: 7 cells [material=3 ulpbig=4] max|Δ|=37.0 | e.g. stand 3087467010690 year 2008: live=1173.0 jl=1179.0"""
 
 [[residual]]
 variant = "EM"
@@ -4521,17 +3894,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the TT
 variant = "TT"
 regime = "simfire"
 file = "FVS_PotFire"
-col = "Canopy_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 26 cells [material=21 ulpbig=5] max|Δ|=35.0 | e.g. stand 2839796010690 year 1999: live=3 jl=5"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_PotFire"
 col = "Crown_Index"
 stand = "*"
 year = "*"
@@ -4719,17 +4081,6 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "FVS_Summary"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 15 cells [material=6 ulpbig=9] max|Δ|=9.0 | e.g. stand 335002534489998 year 2044: live=72 jl=71"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
 col = "ATCCF"
 stand = "*"
 year = "*"
@@ -4763,34 +4114,12 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=10.0 | e.g. stand 2839796010690 year 2039: live=19 jl=20"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
 col = "Acc"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 7 cells [material=4 ulpbig=3] max|Δ|=6.0 | e.g. stand 335002534489998 year 2014: live=47 jl=48"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 15 cells [material=6 ulpbig=9] max|Δ|=9.0 | e.g. stand 335002534489998 year 2044: live=72 jl=71"""
 
 [[residual]]
 variant = "TT"
@@ -4862,56 +4191,12 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "FVS_Summary"
-col = "SizeCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the TT campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1856089798290487 year 2073: live=3 jl=2"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
 col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 20 cells [material=10 ulpbig=10] max|Δ|=200.0 | e.g. stand 2839796010690 year 2049: live=1 jl=2"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=10.0 | e.g. stand 2839796010690 year 2039: live=19 jl=20"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "FVS_Summary"
-col = "Tpa"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 18 cells [material=8 ulpbig=10] max|Δ|=25.0 | e.g. stand 335002534489998 year 2044: live=151 jl=126"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
-col = "ATBA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 15 cells [material=6 ulpbig=9] max|Δ|=9.0 | e.g. stand 335002534489998 year 2034: live=65 jl=64"""
 
 [[residual]]
 variant = "TT"
@@ -4928,17 +4213,6 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
 col = "ATSDI"
 stand = "*"
 year = "*"
@@ -4950,34 +4224,12 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=10.0 | e.g. stand 2839796010690 year 2019: live=16 jl=17"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
 col = "Accr"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 3
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 7 cells [material=4 ulpbig=3] max|Δ|=6.0 | e.g. stand 335002534489998 year 2014: live=47 jl=48"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
-col = "BA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 15 cells [material=6 ulpbig=9] max|Δ|=9.0 | e.g. stand 335002534489998 year 2034: live=65 jl=64"""
 
 [[residual]]
 variant = "TT"
@@ -5016,17 +4268,6 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 17 cells [gold_text9=12 jl_not_f32=1 material=4] max|Δ|=2.3 | e.g. stand 2839796010690 year 2019: live=5.8 jl=6.3"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
 col = "SDI"
 stand = "*"
 year = "*"
@@ -5038,45 +4279,12 @@ issue = """material divergence (model/report) — needs dig; owner: the TT campa
 variant = "TT"
 regime = "simfire"
 file = "sum"
-col = "SizeCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the TT campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 1856089798290487 year 2073: live=3 jl=2"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
 col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 20 cells [material=10 ulpbig=10] max|Δ|=200.0 | e.g. stand 2839796010690 year 2049: live=1 jl=2"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
-col = "TPA"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 18 cells [material=8 ulpbig=10] max|Δ|=25.0 | e.g. stand 335002534489998 year 2034: live=153 jl=128"""
-
-[[residual]]
-variant = "TT"
-regime = "simfire"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the TT campaign (not yet dug) | measured 2026-09-28: 10 cells [material=5 ulpbig=5] max|Δ|=10.0 | e.g. stand 2839796010690 year 2019: live=16 jl=17"""
 
 [[residual]]
 variant = "TT"
@@ -6302,17 +5510,6 @@ issue = """material divergence (model/report) — needs dig; owner: the UT campa
 [[residual]]
 variant = "UT"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 286785821489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "UT"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_BA"
 stand = "*"
@@ -6397,17 +5594,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the UT campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 42642675010690 year 2060: live=87 jl=88"""
-
-[[residual]]
-variant = "UT"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 286785821489998 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "UT"
@@ -10372,17 +9558,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the CI
 [[residual]]
 variant = "CI"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 12276084010690 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "CI"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Mean_DMI"
 stand = "*"
@@ -10401,17 +9576,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the CI campaign (not yet dug) | measured 2026-09-28: 14 cells [ulp1=8 ulp2_16=2 ulpbig=4] max|Δ|=0.5347 | e.g. stand 3369538010690 year 2016: live=1.9015252590179443 jl=1.9602514505386353"""
-
-[[residual]]
-variant = "CI"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 12276084010690 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "CI"
@@ -12067,17 +11231,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the CI
 variant = "CI"
 regime = "simfire"
 file = "FVS_PotFire"
-col = "Canopy_Ht"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the CI campaign (not yet dug) | measured 2026-09-28: 6 cells [material=4 ulpbig=2] max|Δ|=35.0 | e.g. stand 3369538010690 year 2016: live=-1 jl=32"""
-
-[[residual]]
-variant = "CI"
-regime = "simfire"
-file = "FVS_PotFire"
 col = "Crown_Index"
 stand = "*"
 year = "*"
@@ -12128,17 +11281,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """material divergence (model/report) — needs dig; owner: the CI campaign (not yet dug) | measured 2026-09-28: 4 cells [material=3 ulpbig=1] max|Δ|=14.0 | e.g. stand 5385337010690 year 2035: live=6.0 jl=0.0"""
-
-[[residual]]
-variant = "CI"
-regime = "simfire"
-file = "FVS_PotFire"
-col = "Mortality_BA_Mod"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """material divergence (model/report) — needs dig; owner: the CI campaign (not yet dug) | measured 2026-09-28: 5 cells [material=3 ulpbig=2] max|Δ|=42.0 | e.g. stand 3369538010690 year 2036: live=8.0 jl=9.0"""
 
 [[residual]]
 variant = "CI"
@@ -12452,17 +11594,6 @@ issue = """material divergence (model/report) — needs dig; owner: the CI campa
 variant = "CI"
 regime = "simfire"
 file = "sum"
-col = "ATQMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the CI campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.7 | e.g. stand 3369538010690 year 2006: live=11.1 jl=11.2"""
-
-[[residual]]
-variant = "CI"
-regime = "simfire"
-file = "sum"
 col = "ATSDI"
 stand = "*"
 year = "*"
@@ -12535,17 +11666,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """material divergence (model/report) — needs dig; owner: the CI campaign (not yet dug) | measured 2026-09-28: 5 cells [material=1 ulpbig=4] max|Δ|=31.0 | e.g. stand 3369538010690 year 2006: live=40 jl=9"""
-
-[[residual]]
-variant = "CI"
-regime = "simfire"
-file = "sum"
-col = "QMD"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the CI campaign (not yet dug) | measured 2026-09-28: 6 cells [gold_text9=3 jl_not_f32=1 small=2] max|Δ|=0.7 | e.g. stand 3369538010690 year 2006: live=11.1 jl=11.2"""
 
 [[residual]]
 variant = "CI"
@@ -17019,17 +16139,6 @@ issue = """material divergence (model/report) — needs dig; owner: the KT campa
 [[residual]]
 variant = "KT"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 750215552290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "KT"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_Vol"
 stand = "*"
@@ -17081,17 +16190,6 @@ year = "*"
 status = "OPEN"
 max_cells = 16
 issue = """material divergence (model/report) — needs dig; owner: the KT campaign (not yet dug) | measured 2026-09-28: 16 cells [material=9 ulpbig=7] max|Δ|=125.0 | e.g. stand 1627650292290487 year 2060: live=88 jl=104"""
-
-[[residual]]
-variant = "KT"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 750215552290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "KT"
@@ -21323,17 +20421,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 [[residual]]
 variant = "NC"
 regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 723056768290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "NC"
-regime = "econ"
 file = "FVS_EconSummary"
 col = "Mrch_Cubic_Volume"
 stand = "*"
@@ -21576,17 +20663,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the NC
 [[residual]]
 variant = "NC"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 449523860489998 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "NC"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_BA"
 stand = "*"
@@ -21627,17 +20703,6 @@ year = "*"
 status = "OPEN"
 max_cells = 7
 issue = """per-record Float32 drift below .sum print precision — owner: the NC campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=1 ulp2_16=4 ulpbig=2] max|Δ|=3.338e-6 | e.g. stand 44777283020004 year 2026: live=2.469252586364746 jl=2.469252347946167"""
-
-[[residual]]
-variant = "NC"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 3 cells [structural=3] max|Δ|=0.0 | e.g. stand 449523860489998 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "NC"
@@ -23559,28 +22624,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the WC
 [[residual]]
 variant = "WC"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 1127545052290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "WC"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 1127545052290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "WC"
-regime = "mistletoe"
 file = "FVS_Summary"
 col = "ATQMD"
 stand = "*"
@@ -25033,17 +24076,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the PN
 [[residual]]
 variant = "PN"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 1127550283290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "PN"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_BA"
 stand = "*"
@@ -25139,17 +24171,6 @@ year = "*"
 status = "OPEN"
 max_cells = 2
 issue = """per-record Float32 drift below .sum print precision — owner: the PN campaign (not yet dug) | measured 2026-09-28: 2 cells [ulpbig=2] max|Δ|=1.0 | e.g. stand 720634155290487 year 2059: live=7 jl=8"""
-
-[[residual]]
-variant = "PN"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 1127550283290487 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "PN"
@@ -27390,17 +26411,6 @@ issue = """per-record Float32 drift below .sum print precision — owner: the EC
 [[residual]]
 variant = "EC"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 504392203126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "EC"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Mean_DMI"
 stand = "*"
@@ -27419,17 +26429,6 @@ year = "*"
 status = "OPEN"
 max_cells = 6
 issue = """per-record Float32 drift below .sum print precision — owner: the EC campaign (not yet dug) | measured 2026-09-28: 7 cells [ulp1=3 ulp2_16=4] max|Δ|=7.153e-7 | e.g. stand 248652369489998 year 2033: live=0.9036838412284851 jl=0.9036837816238403"""
-
-[[residual]]
-variant = "EC"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 504392203126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "EC"
@@ -29373,17 +28372,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 [[residual]]
 variant = "SO"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 645126898126144 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "SO"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_TPA"
 stand = "*"
@@ -29446,17 +28434,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 3 cells [material=1 ulpbig=2] max|Δ|=9.0 | e.g. stand 15364795010497 year 2060: live=1167 jl=1158"""
-
-[[residual]]
-variant = "SO"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 645126898126144 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "SO"
@@ -31277,17 +30254,6 @@ issue = """2026-09-28 integ west-shared+master 9b534d72 (max_cells 13→16) | ma
 variant = "SO"
 regime = "simfire"
 file = "FVS_Summary"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 374286168489998 year 2055: live=88 jl=87"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Summary"
 col = "Acc"
 stand = "*"
 year = "*"
@@ -31387,34 +30353,12 @@ issue = """2026-09-28 integ west-shared+master 9b534d72 (max_cells 13→16) | ma
 variant = "SO"
 regime = "simfire"
 file = "FVS_Summary"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 374286168489998 year 2065: live=2 jl=3"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Summary"
 col = "TCuFt"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 19
 issue = """2026-09-28 integ west-shared+master 9b534d72 (max_cells 16→19) | material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 16 cells [material=8 ulpbig=8] max|Δ|=355.0 | e.g. stand 850566877290487 year 2040: live=4336 jl=4254"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Summary"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 374286168489998 year 2055: live=88 jl=87"""
 
 [[residual]]
 variant = "SO"
@@ -31470,17 +30414,6 @@ year = "*"
 status = "OPEN"
 max_cells = 16
 issue = """2026-09-28 integ west-shared+master 9b534d72 (max_cells 13→16) | material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 13 cells [material=7 ulpbig=6] max|Δ|=23.0 | e.g. stand 850566877290487 year 2040: live=1367 jl=1361"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "sum"
-col = "ATTopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SO campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 374286168489998 year 2055: live=88 jl=87"""
 
 [[residual]]
 variant = "SO"
@@ -31585,17 +30518,6 @@ issue = """2026-09-28 integ west-shared+master 9b534d72 (max_cells 13→16) | ma
 variant = "SO"
 regime = "simfire"
 file = "sum"
-col = "StkCls"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SO campaign (not yet dug) | measured 2026-09-28: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 374286168489998 year 2065: live=2 jl=3"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "sum"
 col = "TCuFt"
 stand = "*"
 year = "*"
@@ -31613,17 +30535,6 @@ year = "*"
 status = "OPEN"
 max_cells = 18
 issue = """2026-10-04 west-shared-2 (SO 7690240010901 simfire: the R5 CRWDTH FMCBA cover + SOSPDM moved the 2016 fire kill by ~1e-7 relative — FVS_Mortality Total_class2 38.398754/38.398750 — so integer TPA/BA/Mort prints flip ±1) (max_cells 17→18) | 2026-09-28 integ west-shared+master 9b534d72 (max_cells 13→17) | material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 13 cells [material=7 ulpbig=6] max|Δ|=28.0 | e.g. stand 850566877290487 year 2040: live=5707 jl=5703"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "sum"
-col = "TopHt"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 3
-issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner: the SO campaign (not yet dug) | measured 2026-09-28: 3 cells [ulpbig=3] max|Δ|=1.0 | e.g. stand 374286168489998 year 2055: live=88 jl=87"""
 
 [[residual]]
 variant = "SO"
@@ -32211,17 +31122,6 @@ issue = """2026-10-04 bc-maxtre: cases that CRASHED on master (estab_min_ht / es
 [[residual]]
 variant = "CA"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 22959652010497 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "CA"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Mean_DMR"
 stand = "*"
@@ -32229,17 +31129,6 @@ year = "*"
 status = "OPEN"
 max_cells = 4
 issue = """integ-0941: moved by integ-0940 shared changes (dense.f IND1 walk + SPESRT for every variant) on thin/econ regimes — ±1 print knife-edges (max_cells 3→4) | per-record Float32 drift below .sum print precision — owner: the CA campaign (not yet dug) | measured 2026-09-28: 3 cells [ulp1=3] max|Δ|=2.384e-7 | e.g. stand 23742358010900 year 2041: live=2.1243724822998047 jl=2.1243722438812256"""
-
-[[residual]]
-variant = "CA"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 22959652010497 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "CA"
@@ -32907,17 +31796,6 @@ issue = """integ-0941: moved by integ-0940 shared changes (dense.f IND1 walk + S
 [[residual]]
 variant = "WS"
 regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 23953388010900 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "WS"
-regime = "mistletoe"
 file = "FVS_DM_Stnd_Sum"
 col = "Inf_Vol"
 stand = "*"
@@ -32969,17 +31847,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-09-28: 1 cells [material=1] max|Δ|=22.0 | e.g. stand 1123894228290487 year 2021: live=22 jl=44"""
-
-[[residual]]
-variant = "WS"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 2 cells [structural=2] max|Δ|=0.0 | e.g. stand 23953388010900 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "WS"
@@ -34325,28 +33192,6 @@ year = "*"
 status = "OPEN"
 max_cells = 15
 issue = """2026-10-04 bc-maxtre: cases that CRASHED on master (estab_min_ht / essprt_fsp / CA-WS FFE fuel / NC crownw grp 21 / EC bark_intercept) now run and their measured cells join this entry (max_cells 12→15) | material divergence (model/report) — needs dig; owner: the AK campaign (not yet dug) | measured 2026-09-28: 12 cells [material=10 ulpbig=2] max|Δ|=11.0 | e.g. stand 10709171010497 year 2019: live=19 jl=20"""
-
-[[residual]]
-variant = "AK"
-regime = "mistletoe"
-file = "FVS_DM_Spp_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "AK"
-regime = "mistletoe"
-file = "FVS_DM_Stnd_Sum"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 4
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-09-28: 4 cells [structural=4] max|Δ|=0.0 | e.g. stand 10709171010497 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "AK"
@@ -40075,17 +38920,6 @@ issue = """±1 print-boundary .sum cells from per-record Float32 drift — owner
 
 [[residual]]
 variant = "WC"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-10-04: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 1127545052290487 year *: live=present jl=missing"""
-
-[[residual]]
-variant = "WC"
 regime = "simfire"
 file = "FVS_BurnReport"
 col = "Midflame_Wind"
@@ -40402,17 +39236,6 @@ year = "*"
 status = "OPEN"
 max_cells = 1
 issue = """per-record Float32 drift below .sum print precision — owner: the WC campaign (not yet dug) | measured 2026-10-04: 1 cells [ulpbig=1] max|Δ|=1.0 | e.g. stand 214084313020004 year 2020: live=12 jl=13"""
-
-[[residual]]
-variant = "WS"
-regime = "econ"
-file = "FVS_EconHarvestValue"
-col = "PRESENCE"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 1
-issue = """NEW: DBS table presence differs from live (live=present, jl=missing) — table emission/gating gap | measured 2026-10-04: 1 cells [structural=1] max|Δ|=0.0 | e.g. stand 248626203489998 year *: live=present jl=missing"""
 
 [[residual]]
 variant = "WS"
@@ -42204,8 +41027,8 @@ col = "ATSDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
+max_cells = 13
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 12→13) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
 
 [[residual]]
 variant = "WS"
@@ -42314,8 +41137,8 @@ col = "SDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
+max_cells = 13
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 12→13) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
 
 [[residual]]
 variant = "WS"
@@ -42358,8 +41181,8 @@ col = "Tpa"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 10 cells [material=7 ulpbig=3] max|Δ|=19.0 | e.g. stand 23762384010900 year 2041: live=1355 jl=1354"""
+max_cells = 11
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 10→11) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 10 cells [material=7 ulpbig=3] max|Δ|=19.0 | e.g. stand 23762384010900 year 2041: live=1355 jl=1354"""
 
 [[residual]]
 variant = "WS"
@@ -42402,8 +41225,8 @@ col = "ATSDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
+max_cells = 13
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 12→13) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
 
 [[residual]]
 variant = "WS"
@@ -42512,8 +41335,8 @@ col = "SDI"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 12
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
+max_cells = 13
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 12→13) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 12 cells [material=8 ulpbig=4] max|Δ|=40.0 | e.g. stand 23762384010900 year 2051: live=425 jl=424"""
 
 [[residual]]
 variant = "WS"
@@ -42545,8 +41368,8 @@ col = "TPA"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 10
-issue = """material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 10 cells [material=7 ulpbig=3] max|Δ|=19.0 | e.g. stand 23762384010900 year 2041: live=1355 jl=1354"""
+max_cells = 11
+issue = """measured 2026-10-04 integ-1004d (core-resid + bc-maxtre combined) (max_cells 10→11) | material divergence (model/report) — needs dig; owner: the WS campaign (not yet dug) | measured 2026-10-04: 10 cells [material=7 ulpbig=3] max|Δ|=19.0 | e.g. stand 23762384010900 year 2041: live=1355 jl=1354"""
 
 [[residual]]
 variant = "WS"
