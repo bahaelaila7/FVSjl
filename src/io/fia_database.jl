@@ -155,6 +155,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
         # stand (e.g. YSM029-271 is IDFdk3: ICH cedar-hemlock coeffs over-predict Pl DG on a dry IDF stand).
         p.eco_unit = rpad(_fia_str(d, "ECOREGION", ""), 10)
     end
+    # dbsstandin.f:607-610 NVB_REGION_CHECK: an ECOREGION that does not reduce to an NSVB ecodivision ⇒ FVS43 (MEASURED
+    # FVScr_clean 2463020010690 ECOREGION 321Aj → 320: FVS43 row).
+    _fia_present(d, "ECOREGION") && !nvb_region_valid(_fia_str(d, "ECOREGION", "")) && errgro!(s, 43)
     # CPVREF (dbsstandin.f:568-574): PV_REF_CODE > 0 ⇒ WRITE(CPVREF,'(I10)') (PVREF1/6 compare it ADJUSTL'd), ≤0 ⇒ blank.
     if _fia_present(d, "PV_REF_CODE")
         r = _fia_f32(d, "PV_REF_CODE", 0f0)
@@ -172,8 +175,12 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # habtyp. KT/western: the DG habitat term (KKTYPE→MAPHAB→DGHAB) needs it; site_setup!(::Kootenai) maps
     # KODTYP→KKTYPE. Eastern variants key DG off forest type (habitat-input left a documented gap there), so
     # KT-gated. Live FVSkt reads PV_CODE from the DB automatically; this matches it on the jl side.
+    # With a PV_REF_CODE, kt/habtyp.f takes KODTYP from the kt/pvref1.f crosswalk (HABPVR of the full (PV_CODE, PV_REF)
+    # match; no full match ⇒ KKTYPE 97) — kt_habitat_kodtyp; without one, the numeric PV_CODE (READ(CHAB,'(I10)')).
     if s.variant isa Kootenai && _fia_present(d, "PV_CODE")
-        p.habitat_code = Int32(round(_fia_f32(d, "PV_CODE", 0f0)))
+        chab = strip(_fia_str(d, "PV_CODE", ""))
+        kod = something(tryparse(Int, chab), 0)                             # READ(CHAB,'(I10)',ERR=40) ⇒ 0
+        p.habitat_code = Int32(isempty(chab) ? kod : kt_habitat_kodtyp(chab, strip(p.pv_ref), kod)[1])
     end
     # BM (region-6): PV_CODE is the ALPHA plant-community code (e.g. "CWF312"), decoded to the KODTYP index
     # into BM_PCOML by habtyp/HBDECD. Without it, bm_sitset! gets no ECOCLS row ⇒ SDIDEF=0 ⇒ stand_sdimax=0 ⇒
@@ -657,6 +664,17 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
         end
     end
     p = s.plot
+    # initre.f:320-335 after INTREE: IPTKNT = the distinct plot ids INTREE met (IPVEC; one plot when IPTINV=1), NSTKNT
+    # the IMC1=8 nonstockable-plot records; IPTINV/NONSTK from the design (NUM_PLOTS / NONSTK_PLOTS, else the counts).
+    # A mismatch on a stand with projectable trees (not LNOTRE) is FVS09 (MEASURED FVScr_clean 742164474290487:
+    # NUM_PLOTS 4, trees on plots 1-3 ⇒ "PLOT COUNT=   3; NONSTOCKABLE COUNT=   0").
+    if s.trees.n >= 1 && !isempty(recs)
+        iptknt = Int(p.points_inv) == 1 ? 1 : min(length(unique(r.plot for r in recs)), MAXPLT)
+        nstknt = count(r -> r.mort_code == 8, recs)
+        iptinv = Int(p.points_inv) <= 0 ? iptknt : Int(p.points_inv)
+        iptinv > MAXPLT && (iptinv = iptknt)
+        (iptinv != iptknt || Int(p.nonstockable) != nstknt) && errgro!(s, 9; irec1 = iptknt, irecrd = nstknt)
+    end
     npt_trees = s.trees.n > 0 ? maximum(Int(pp) for pp in @view s.trees.plot_id[1:s.trees.n]) : 0
     # ★ Size point_slope/point_aspect to the FULL inventory-point count (IPTINV-NONSTK = nptids) — but ONLY when
     # the stand carries ≥1 tree record. esplt2.f keys the per-plot slope on IPINFO:

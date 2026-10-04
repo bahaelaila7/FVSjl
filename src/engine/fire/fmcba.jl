@@ -122,12 +122,19 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    # nc/so/ca fmcba.f read CWIDTH = CRWDTH(I), and cwcalc.f routes their Region-5 forests to R5CRWD (a function of
+    # sp/D/H only): NC IFOR ≤ 3 or 5 (cwcalc.f:382), SO IFOR 4-9 (:376), CA IFOR ≤ 5 (:385) — the same CRWDTH FVS_TreeList
+    # reports (_forest_crwdth). jl ran the R6 Crookston kernels on every forest (MEASURED FVSnc_g16 23660512010900,
+    # forest 508→510: inventory PERCOV live 15.09 = the TreeList CrWidth; jl 10.0).
+    _ifor = Int(s.plot.forest_idx)
+    _r5cw = (_nc_fm && (_ifor <= 3 || _ifor == 5)) || (_so_fm && 4 <= _ifor <= 9) || (_ca_fm && _ifor <= 5)
     cwrec = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        cw = _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+        cw = _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
+             _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
@@ -211,19 +218,35 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  # NC bare stand: COVINI5(ITYPE)/COVINI6(ITYPE) by habitat (nc/fmcba.f:337-355); the full
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
-                 s.variant isa Klamath ? Int32(3) :
+                 # NC (nc/fmcba.f:337-355): R5 forests (KODFOR 5xx or ≥ 705) COVINI5(ITYPE), else COVINI6(ITYPE); DF 3 default.
+                 s.variant isa Klamath ?
+                     (let kf = Int(s.plot.user_forest_code)
+                          ((500 <= kf < 600) || kf >= 705) ? _covini(NC_COVINI5, Int(s.plot.habitat_input), 3) :
+                                                             _covini(NC_COVINI6, Int(s.plot.habitat_input), 3)
+                      end) :
                  s.variant isa WestCascades ? _covini(WC_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa PacificNorthwest ? _covini(PN_COVINI6, Int(s.plot.habitat_input), 16) :
                  s.variant isa EastCascades ? _covini(EC_COVINI, Int(s.plot.habitat_input), 3) :
-                 s.variant isa SouthCentralOregon ? Int32(10) : # SO bare stand ⇒ COVINI(ITYPE); default PP (so/fmcba.f:615)
+                 # SO (so/fmcba.f:608-616): COVINI(ITYPE) when ITYPE > 0 on an R6 forest (600-699, 799), else PP 10.
+                 s.variant isa SouthCentralOregon ?
+                     (let kf = Int(s.plot.user_forest_code)
+                          ((600 <= kf < 700) || kf == 799) ? _covini(SO_COVINI, Int(s.plot.habitat_input), 10) : Int32(10)
+                      end) :
                  s.variant isa SoutheastAlaska ? Int32(11) :   # AK: western hemlock at IY(1) (ak/fmcba.f:236-242), else OLDCOVTYP
                  # WS/CA/OC/OP "NO VALID HABITAT" defaults (ws/fmcba.f:509 PP 10; ca/oc fmcba.f:543 7; op/fmcba.f:436 DF
-                 # 16 after COVINI6(ITYPE)). These fell to the SN 75 before — a species index past their MAXSP, masked
-                 # only because the top-2 weights stayed 0. WS/CA/OC COVINI(ITYPE) waits on their habtyp ITYPE port.
-                 s.variant isa WestSierra ? Int32(10) :
-                 (s.variant isa CentralCalifornia || s.variant isa OregonCoast) ? Int32(7) :
+                 # 16 after COVINI6(ITYPE)). OC's COVINI waits on its habtyp ITYPE port.
+                 s.variant isa WestSierra ? _covini(WS_COVINI, Int(s.plot.habitat_input), 10) :     # ws/fmcba.f:500-509
+                 # CA (ca/fmcba.f:527-543): IFOR ≥ 6 (R6/BLM) COVINI6(ITYPE), else COVINI5(ITYPE); 7 default.
+                 s.variant isa CentralCalifornia ?
+                     (Int(s.plot.forest_idx) >= 6 ? _covini(CA_COVINI6, Int(s.plot.habitat_input), 7) :
+                                                    _covini(CA_COVINI5, Int(s.plot.habitat_input), 7)) :
+                 s.variant isa OregonCoast ? Int32(7) :
                  s.variant isa Olympic ? _covini(OP_COVINI6, Int(s.plot.habitat_input), 16) :
-                 s.variant isa CentralRockies ? Int32(11) : Int32(75)   # CR: lodgepole pine (fmcba.f:432)
+                 # CR (cr/fmcba.f:417-433): COVINI2(ITYPE) on Region-2 forests, COVINI3(ITYPE) on Region 3, else LP 11.
+                 s.variant isa CentralRockies ?
+                     (Int(s.plot.user_forest_code) ÷ 100 == 2 ? _covini(CR_COVINI2, Int(s.plot.habitat_input), 11) :
+                      Int(s.plot.user_forest_code) ÷ 100 == 3 ? _covini(CR_COVINI3, Int(s.plot.habitat_input), 11) :
+                      Int32(11)) : Int32(75)
         # CA-FFE top-2 variants (nc:359-360, ws:514-515, ca/oc:548-549): a bare stand carries the ONE cover type,
         # COVCA(1)=COVTYP with weight COVCAWT(1)=1 (COVCA(2)/COVCAWT(2) stay 0 from the FMCBA entry reset). jl kept
         # COVCAWT=(0,0) ⇒ zero live AND initial dead fuel on every bare NC/WS/CA/OC stand. (OP's fmcba.f has no

@@ -64,10 +64,14 @@ function compute_volumes_ci!(s::StandState)
             tcf, mcf, bf = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, bf, cimerch)
             t.cuft_vol[i] = max(tcf, 0f0); t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = max(bf, 0f0)
-        else                                                 # DVE woodland (r4d2h, region 4): NO CFTOPK trim
-            vol1 = r4d2h_vol1(eq, d, h)
-            t.cuft_vol[i] = max(vol1, 0f0)
-            t.merch_cuft_vol[i] = d >= dbhmin ? max(vol1, 0f0) : 0f0
+        else                                                 # DVE woodland (r4d2h, region 4)
+            # ci/vols.f (== ut/vols.f): a top-killed record is volumed at NORMHT and NATCRS returns CTKFLG=.TRUE. with
+            # VMAX = TCF (fvsvol.f:509-531) for DVE too ⇒ the CFTOPK trim, as for MAT/FW2.
+            vol1 = r4d2h_vol1(eq, d, hv)
+            tcf = max(vol1, 0f0); mcf = d >= dbhmin ? tcf : 0f0
+            tcf, mcf, _ = r4_topkill(t, i, sp, d, hv, bark, tcf, mcf, 0f0, cimerch)
+            t.cuft_vol[i] = max(tcf, 0f0)
+            t.merch_cuft_vol[i] = max(mcf, 0f0)
             t.saw_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0
         end
     end
