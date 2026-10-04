@@ -244,7 +244,11 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
             htg = htgr*(1f0 - xwt) + xwt*lthg
             htg < 0.1f0 && (htg = 0.1f0)
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-            dbhk, dg = _so_regent_dg(s, sp, ifor, d, h, htg, icr, si_raw, bkpt, scale, scale2, dgmx, dglt, xrdgro, i)
+            # WB DK/DKK read ICR(K) (so/regent.f:494-512). A tripled copy K = ITRN+2I−2+L is the copy's FUTURE slot, which
+            # TRIPLE fills only later ⇒ FVS reads that slot's current contents: 0 if never used, else what TREDEL left
+            # (t.stale_icr) — the same quirk as bm/regent.f (MEASURED FVSso_g16 15184869010497 2020 WB K=416: ICR 0).
+            icrk = l == 0 ? icr : Float32(t.stale_icr[n + 2i - 2 + l])
+            dbhk, dg = _so_regent_dg(s, sp, ifor, d, h, htg, icrk, si_raw, bkpt, scale, scale2, dgmx, dglt, xrdgro, i)
             if l == 0
                 t.ht_growth[i] = htg; t.diam_growth[i] = dg
                 dbhk >= 0f0 && (t.dbh[i] = dbhk)
