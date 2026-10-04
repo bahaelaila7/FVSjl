@@ -836,6 +836,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.variant isa SouthCentralOregon && so_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     s.variant isa WestSierra && ws_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     s.variant isa EastCascades && ec_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)   # ec/cratet.f:726
+    (s.variant isa WestCascades || s.variant isa PacificNorthwest) &&
+        wcpn_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)   # wc|pn/cratet.f:616
 
     # The CS/NE regent HCOR calibration's BALMOD reads the BACKDATED-dbh stand BA (live regent.f BA=177.5,
     # the backdated value, NOT the restored current 242). FVS DENSE (dense.f:79-86) sums the backdated BA over

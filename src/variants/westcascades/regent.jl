@@ -437,3 +437,60 @@ end
 # a separate keyword-gated driver). Provide a no-op so the abstract dispatch resolves.
 regenerate!(s::StandState, ::WestCascades; kwargs...) = s
 
+
+"""
+    wcpn_regent_hcor_init!(s, isct, ind1, saved_dbh, avh)
+
+wc|pn/regent.f label 40 (the two builds' calibration sections are identical) — the LSTART small-tree HEIGHT
+calibration that cratet.f:616 runs (REGENT(.FALSE.,1)) after the second DGDRIV. Per species (IND1 order, LHTCAL
+default .TRUE.): DBH<5 and backdated H=HT−HTG (IHTG<2) ≥0.01; EDH = (two 5-yr SMHGDG calls)·RHCON floored at 0.1;
+records with a measured HTG≥0.001 enter TERM=HTG·REGYR/FINTH. CORNEW = mean TERM / mean EDH when N≥NCALHT(5),
+≤0 ⇒ 1E−4, outside [0.0821, 12.1825] ⇒ 1; HCOR = ln(CORNEW) → htg_cor_init. SMHGDG MODE 1 reads ICR(I), PTBALT(I),
+PTBAA(ITRE(I)) of the cratet.f:171 DENSE and AVHT=(5/FINT)·AVH+((FINT−5)/FINT)·ATAVH with ATAVH=0 (grinit.f:232; only
+grincr.f:318 sets it). Neither WC nor PN had this port ⇒ CON=1 for every small tree (MEASURED FVSpn_g16
+720634155290487 cycle 1: WH CON = exp(HCOR) = 0.503 live, jl 1 ⇒ HtG 9.18 / 18.25).
+"""
+function wcpn_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                                saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    v = s.variant
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                  # regent.f:484 IF(IFINTH.EQ.0) GOTO 95
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = _WC_RG_REGYR / finth                             # regent.f:485 SCALE3 = REGYR/FINTH
+    fint = s.control.growth_fint > 0f0 ? s.control.growth_fint : 10f0
+    avht = (5f0 / fint) * avh + ((fint - 5f0) / fint) * 0f0   # smhgdg.f:250 MODE 1, ATAVH = 0 at LSTART
+    ptbaa = c.cratet_ptbaa; ptbal = c.cratet_live_ptbal
+    dens = s.density
+    @inbounds for sp in 1:size(isct, 1)
+        i1 = Int(isct[sp, 1]); i1 == 0 && continue
+        i2 = Int(isct[sp, 2])
+        rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0  # REGCON
+        si = p.sp_site_index[sp]
+        snp = 0f0; snx = 0f0; sny = 0f0; nh = 0
+        for k in i1:i2
+            i = Int(ind1[k])
+            d = saved_dbh[i]; h = t.height[i]
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            cr = Float32(t.crown_pct[i]) * 0.01f0
+            ip = Int(t.plot_id[i])
+            pbal = i <= length(ptbal) ? ptbal[i] : dens.point_bal[i]
+            pba = (1 <= ip <= length(ptbaa)) ? ptbaa[ip] : ((1 <= ip <= length(dens.point_ba)) ? dens.point_ba[ip] : 0f0)
+            hg1, dg1 = _rg_smhgdg(v, sp, h, d, cr, pbal, pba, si, avht)
+            hg2, _ = _rg_smhgdg(v, sp, h + hg1, d + dg1, cr, pbal, pba, si, avht)
+            edh = (hg1 + hg2) * rhcon
+            edh < 0.1f0 && (edh = 0.1f0)
+            hg = t.ht_growth[i]; hg < 0.001f0 && continue
+            pr = t.tpa[i]
+            snp += pr; snx += edh * pr; sny += hg * scale3 * pr; nh += 1
+        end
+        nh < 5 && continue                                    # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && continue  # CORNEW=1 ⇒ HCOR=0
+        c.htg_cor_init[sp] = flog(cornew)
+    end
+    return s
+end
