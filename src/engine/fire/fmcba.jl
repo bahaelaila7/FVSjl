@@ -170,7 +170,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         d > fs.bigdbh && (fs.bigdbh = d)
         cw = _old_cw ? stored_crwdth(s, i) :
              _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
-             _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _cr_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # cr/fmcba.f:378 CWIDTH=CRWDTH(I) (clamped [0.5,99.9])
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))

@@ -132,7 +132,10 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
     species = Int[]; icr = Float64[]; crarea32 = Float32[]
     # CR uses cr_cwcalc (cwcalc.f IWHO=0, the CRWDTH FMSSTAGE reads), not the generic crown_width (0.5 default
     # for CR ⇒ zero cover ⇒ wrong strata/class). Eastern variants keep crown_width. Precompute CR stand inputs.
-    _cr_ss = s.variant isa CentralRockies
+    # CR now reads CRWDTH(I) like the other western variants (_forest_crwdth: cr_cwcalc + the cwcalc.f:2391-2392 [0.5,99.9]
+    # clamp). MEASURED private FVScr SSTGHP trace, 46279527020004 2011 stratum 2: 0.1-in AF seedlings WK6/PROB = 0.19635
+    # (CW 0.5, the clamp) live; the unclamped cr_cwcalc gave CW 0.343 ⇒ AF cover 138 vs 295 ⇒ the stratum's top species flipped.
+    _cr_ss = false
     # SO reads its CRWDTH like every western variant (_forest_crwdth: R5CRWD on IFOR 4-9, SOMAP with the KODFOR BF on
     # the R6 forests) — the old so_cwcalc baked one forest's BF and no R5 branch (MEASURED FVSso_g16 7690240010901
     # inventory SSTAGE WK6 of CW 40.84 ft = the TreeList CrWidth; so_cwcalc 29.2 ⇒ stratum-2 cover 38 vs 55).
