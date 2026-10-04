@@ -98,7 +98,7 @@ WC bark BRATIO (wc/bratio.f). `eqtype` is the WC BARKB equation type (species_co
     d <= 0f0 && return 0.99f0
     br = eqtype == 2 ? (a + b * d) / d :
          eqtype == 3 ? a :
-         (a * d^b) / d                      # eqtype 1 (POWER) — the WC default
+         (a * fpow(d, b)) / d               # eqtype 1 (POWER) — the WC default; DIB=BARK1*D**BARK2 is powf
     br > 0.99f0 && (br = 0.99f0)
     br < 0.80f0 && (br = 0.80f0)
     return br
