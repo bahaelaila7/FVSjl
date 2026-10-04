@@ -155,4 +155,14 @@ end
     end
 end
 
+# kt/blkdat.f:113-128 OCURNF(IFO,sp) (= ie/blkdat.f species 1-11; KT row 11 all 0) multiplies every ESPADV/ESPXCS/ESPSUB
+# species probability. KT had no table (1.0 default), so 3021216010690 (IFO 10: OCURNF 1 1 1 1 0 0 1 1 1 0 0) booked PP
+# ingrowth live zeroes, and every later regen record's species/height shifted (17,382 cells from 2009).
+@testset "KT AUTOES OCURNF national-forest occupancy (kt/blkdat.f:113-128, espadv.f)" begin
+    c = _case("KT", "3021216010690", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList" && m.year == "2009" && m.col in ("SpeciesFVS", "Ht", "HtG", "DBH"), c.ms) == 0
+    @test count(m -> m.file == "sum", c.ms) == 0
+end
+
 end # module
