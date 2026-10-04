@@ -80,3 +80,12 @@ end
     @test length(jl) == length(lv)
     for i in eachindex(lv); @test (i, jl[i][7]) == (i, lv[i][7]); end     # TopHt
 end
+
+# /CONTRL/ YR is the growth models' base period (blkdat.f DATA YR/10.0/), not the TIMEINT cycle length jl kept in
+# control.year: em/regent.f:218 SCALE=YR/FINT, ie/regent.f SCALE2=YR/NTYR, ak/dgf.f:521 DGPRED=YR·BASEDG·PFMOD,
+# ak/regent.f:200 SCALE2=YR/FNT. emt01 with TIMEINT 5: 35 → 10 rows off live FVSem_g16 (the same 10 the 10-year key has).
+@testset "TIMEINT 5, EM REGENT reads YR=10 (em/regent.f:218)" begin
+    jl = _t5_rows("emt01_t5", _T5.EasternMontana()); lv = _t5_live("emt01_t5")
+    @test length(jl) == length(lv)
+    @test count(i -> jl[i] == lv[i], eachindex(lv)) >= 46
+end

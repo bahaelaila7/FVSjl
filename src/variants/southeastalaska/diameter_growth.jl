@@ -60,7 +60,7 @@ end
 function dgf!(s::StandState, ::SoutheastAlaska)
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
     wk2 = view(s.scratch.wk, 2, :)
-    yr = s.control.year                       # YR (=10)
+    yr = htg_period(s.variant)                # /CONTRL/ YR = 10 (ak/blkdat.f DATA YR /10.0/), not the TIMEINT cycle length
     temel  = p.elevation * 100f0              # TEMEL = ELEV·100
     temslp = p.slope * 100f0                  # TEMSLP = SLOPE·100
     temsasp = temslp * fcos(p.aspect)         # TEMSASP = TEMSLP·COS(ASPECT) (glibc cosf)

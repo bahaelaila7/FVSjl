@@ -182,7 +182,7 @@ function small_tree_growth!(s::StandState, stash, ::SoutheastAlaska; fint::Float
     p, t = s.plot, s.trees
     t.n == 0 && return s
     scale1 = fint / AK_RG_REGYR                        # SCALE1 = FNT/REGYR
-    scale2 = s.control.year / fint                     # SCALE2 = YR/FNT
+    scale2 = htg_period(s.variant) / fint               # SCALE2 = YR/FNT (YR = 10, ak/blkdat.f)
     trip = stash !== nothing && !isempty(stash.dgU)
     yr_now = current_cycle_year(s)
     @inbounds for i in species_major_order(s)          # DO 30 ISPC / DO 25 I3 → I=IND1(I3)
@@ -242,7 +242,7 @@ function ak_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, pccf_pre
     lskiph = fint <= 5f0
     fnt = lskiph ? fint : fint - 5f0
     scale1 = fnt / AK_RG_REGYR
-    scale2 = s.control.year / fnt
+    scale2 = htg_period(s.variant) / fnt
     yr_now = current_cycle_year(s)
     spesrt_reorder!(t)                                   # esgent.f:52 SPESRT
     newidx = filter(>(nstart), species_major_order(s))
