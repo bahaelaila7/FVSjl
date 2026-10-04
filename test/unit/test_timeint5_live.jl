@@ -97,3 +97,12 @@ end
     @test length(jl) == length(lv)
     for i in eachindex(lv); @test (i, jl[i]) == (i, lv[i]); end
 end
+
+# tt/morts.f:228,701,812,836 (and ut/morts.f:214,571,682,706) G=(DG(I)/BARK)*(FINT/10.0): MORTS reads the 10-year DG
+# (GRADD rescales after GRINCR), so the Zeide D10, the D10N re-pass and the BAMAX check scale it to the cycle. jl used the
+# 10-year G under 5-year cycles ⇒ over-thinning (S248112 PP TIMEINT 5: 1995 TPA 516 jl / 521 live).
+@testset "TIMEINT 5, TT MORTS G on FINT/10 (tt/morts.f:228) — every row == live" begin
+    jl = _t5_rows("ttpp_t5", _T5.Teton()); lv = _t5_live("ttpp_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i]) == (i, lv[i]); end
+end
