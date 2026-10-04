@@ -295,4 +295,13 @@ end
     @test !c.crashed
     @test _cells(c) == 0
 end
+# gradd.f:96 MISTOE precedes gradd.f:118 FMMAIN; on a non-fire tripling cycle jl runs MISTOE post-TRIPLE (mis_post), so the
+# deferred R6 FFE annual loop (fmmain.f:228 FMSNAG → FMR6HTLS RANN per snag pool) must wait for the spread's draws too.
+# jl drew Y 0.920/0.025 at the pre-TRIPLE seam; live 0.61/0.76 (= 275 spread draws later) ⇒ the 2015 LP snag lost 78% of
+# its height in jl, 0 live (MEASURED FVSso_g16 374286168489998 SALVAGE, DEBUG FMR6HTLS FMSNAG).
+@testset "R6 FFE annual loop after MISTOE spread on tripling cycles (gradd.f:96/:118, fmsnag.f, fmr6htls.f) vs FVSso_g16" begin
+    c = _case("SO", "374286168489998", "salvage")
+    @test !c.crashed
+    @test _cells(c; pred = m -> m.col in ("Standing_Dead", "Total_Stand_Carbon") || (m.file == "FVS_Carbon" && _rel(m) > 1e-5)) == 0
+end
 end # module

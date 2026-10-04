@@ -1089,10 +1089,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # list (MEASURED FVSem_g16 196378260020004 2012 FMPTRH: RANNGET 2036729867 = jl's state after the spread, jl ran
     # at 431495394 before it ⇒ PTorch_Mod 0.13873 vs live 0.25494).
     pofl_late = mis_post && pofl_hook !== nothing
+    # The deferred FFE annual loop (fuel_period: FMSNAG/FMCWD/FMCADD, fmmain.f:228) is part of the same gradd.f:118
+    # FMMAIN, so on a mis_post cycle it too waits for MISTOE's spread draws and runs on the tripled full-PROB list:
+    # FMSNAG's FMR6HTLS draws start from the main-stream state AFTER the spread (MEASURED FVSso_g16 374286168489998
+    # SALVAGE cycle 1: live Y 0.61/0.76 = jl's stream 275 spread draws past the pre-TRIPLE seam where jl drew 0.920/0.025).
+    fuel_late = mis_post && fuel_period !== nothing
     pf = (carbon_hook !== nothing || fuel_period !== nothing || pofl_hook !== nothing) ?
          (st -> (pofl_hook === nothing || pofl_late || pofl_hook(st, _fire_due(st) ? nothing : stash);
                  carbon_hook === nothing || carbon_hook(st);
-                 fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
+                 fuel_period === nothing || fuel_late || ffe_fuel_update!(st, fuel_period))) : nothing
     # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
     # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
@@ -1218,6 +1223,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
             pofl_late && pofl_hook(s, nothing)   # gradd.f:118 FMMAIN (FMPOFL) after MISTOE, FMPROB = full PROB
+            fuel_late && ffe_fuel_update!(s, fuel_period)   # fmmain.f:228 annual loop (same FMMAIN), tripled full PROB
             @inbounds for i in 1:nlive
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
@@ -1251,6 +1257,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 dm_misinf!(s)
             end
             pofl_late && pofl_hook(s, nothing)                           # gradd.f:118 FMMAIN, before :131 RDTREG
+            fuel_late && ffe_fuel_update!(s, fuel_period)                # fmmain.f:228 annual loop (same FMMAIN)
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
             @inbounds for i in 1:nlive                                   # survivors = PROB − WK2 (triple.f WEIGHT split)
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
