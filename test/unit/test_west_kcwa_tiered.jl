@@ -209,4 +209,15 @@ end
     @test count(m -> m.file == "sum", c.ms) == 0                                         # 72 .sum cells before
 end
 
+# base cwidth.f: CRWDTH(I) is filled at load (fvs.f:207) and at cycle end (gradd.f:254) only; SSTAGE (sstage.f:238/276) and
+# FMCBA read that stored value — its dims and the stand BA of that call — not the post-thin residual BA. AK/KT/WS/CA
+# recomputed it at the residual BA: FVSak_g16 10709344010497 thinbba 2006 post-thin StrClass cover 23 live / 20 jl.
+@testset "Stored CRWDTH for AK/KT/WS/CA SSTAGE + FMCBA (cwidth.f, fvs.f:207, gradd.f:254)" begin
+    for (v, cn) in (("AK", "10709344010497"), ("AK", "10706662010497"), ("KT", "4718785010690"), ("CA", "23742358010900"))
+        c = _case(v, cn, "thinbba")
+        @test !c.crashed
+        @test count(m -> m.file == "FVS_StrClass", c.ms) == 0
+    end
+end
+
 end # module

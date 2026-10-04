@@ -84,8 +84,12 @@ end
 # dims AND the stand BA (the Crookston BAREA term) of that last CWIDTH call, not a thin's residual BA or a SIMFIRE seam's
 # grown small trees. Stored in `t.crown_width` for the variants whose consumers read it.
 # -----------------------------------------------------------------------------
+# AK/KT/WS/CA run the same base cwidth.f at fvs.f:207 / gradd.f:254: a THINBBA's post-thin StrClass row read the
+# residual-BA crown widths in jl (FVSak_g16 10709344010497 2006 Removal_Code 1: cover 23 live / 20 jl, top species YC/MH
+# live / RA/YC jl; KT 4718785010690, CA 23742358010900 likewise), and FMCBA's crown biomass the same.
 "Variants whose SSTAGE/FMCBA read the stored CRWDTH(I) that `cwidth!` fills."
-_stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana
+_stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa SoutheastAlaska || v isa Kootenai ||
+                    v isa WestSierra || v isa CentralCalifornia
 
 """
     cwidth!(s) -> s
