@@ -762,7 +762,8 @@ count/order. No-op for non-IE. Mirrors the validated cr_mistoe! exactly.
 function ie_mistoe!(s::StandState; fint::Float32)
     _ie_mis_variant(s.variant) || return s
     t = s.trees
-    t.n == 0 && return s
+    t.n == 0 && return s                              # mistoe.f: ITRN=0 skips out before DMFLAG=.FALSE.
+    s.control.dm_flag = false                         # mistoe.f:193
     species_sort!(s)
     isct = s.control.sp_count_tab
     ind1 = s.scratch.idx1
@@ -783,6 +784,7 @@ function ie_mistoe!(s::StandState; fint::Float32)
         tottpa <= 0f0 && continue
         smr /= tottpa
         smr == 0f0 && continue                        # mistletoe-free species ⇒ NO draws
+        s.control.dm_flag = true                      # mistoe.f:267 at least one host species carries mistletoe
         # MISTMULT YPLMLT/YNGMLT (mistoe.f:219-227) — 1.0 by default (no keyword ⇒ byte-identical)
         yplmlt = active_multiplier(s.control, :dm_inc, ispc, cur_year)
         yngmlt = active_multiplier(s.control, :dm_dec, ispc, cur_year)
@@ -953,6 +955,7 @@ function dm_misinf!(s::StandState)
         end
     end
     newflg || return s
+    s.control.dm_flag = true                          # misinf.f:182 DMFLAG=.TRUE. for a host species with NEWPRP>0
 
     # visit order over the ITRN records (misinf.f:222-255). RDPSRT(.TRUE.) reinitializes the index to
     # 1..ITRN then sorts DESCENDING on height, so both branches ultimately visit PHYSICAL records.
