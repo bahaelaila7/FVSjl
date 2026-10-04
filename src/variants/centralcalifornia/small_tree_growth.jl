@@ -79,7 +79,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralCalifornia; fint::Flo
     # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
     avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
     scale = fint / CA_RG_REGYR                       # SCALE = FNT/REGYR (non-estab FNT=FINT)
-    scale2 = s.control.year / fint                   # SCALE2 = YR/FNT
+    scale2 = htg_period(s.variant) / fint            # SCALE2 = YR/FNT
     yr_now = current_cycle_year(s)                   # ca/regent.f:113-114 MULTS(3/6, IY(ICYC))
     # Tripled copies (ca/regent.f:351-356): with LTRIP each record I is followed by its two copies K=ITRN+2I−2+L
     # (L=1,2), each rerunning labels 2-23 — a FRESH ZZRAN draw, the XWT blend with the copy's own large-tree HTG(K),

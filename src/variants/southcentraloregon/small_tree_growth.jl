@@ -177,7 +177,7 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
     sd = s.coef.species
     # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
     avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
-    relden = p.relative_density; ifor = Int(p.forest_idx); yr = s.control.year
+    relden = p.relative_density; ifor = Int(p.forest_idx); yr = htg_period(s.variant)
     fnt = fint                                             # LESTB=false (cycling): FNT=FINT
     # PCTRED density modifier (regent.f:220-225) — computed once from stand AVHT·CCF.
     xden = avh * (relden / 100f0); xden > 300f0 && (xden = 300f0)
