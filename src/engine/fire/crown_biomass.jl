@@ -272,6 +272,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa SouthCentralOregon ? so_bratio(coef.species, Int(sp), d) :  # SO bark (so/bratio.f 3-path)
              s.variant isa OregonCoast ? oc_bratio(Int(sp), d) :  # OC ORGANON bark (oc/dgdriv.f BRATIO, clamp [0.80,0.99])
              s.variant isa Olympic ? op_bratio(Int(sp), d) :      # OP ORGANON bark (op/dgdriv.f BRATIO)
+             s.variant isa EastCascades ? variant_bratio(s, Int(sp), d) :   # EC bark (ec/bratio.f = the wc 3-method form)
 
 
              s.variant isa EasternMontana ? em_bratio(Int(sp), d) :                  # em/bratio.f

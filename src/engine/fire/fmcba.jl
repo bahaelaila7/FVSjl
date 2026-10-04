@@ -64,7 +64,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
            s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains ||
            s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest ||
            s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
-           s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska
+           s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska ||
+           s.variant isa CentralCalifornia || s.variant isa WestSierra   # CA/WS: ca|ws/fmcba.f top-2 FULIVE/FULIVI below
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
@@ -146,7 +147,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
                        bm_cwcalc(sp, t.ffe_olddbh[i], t.ffe_oldht[i], t.ffe_oldcr[i], _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
                        bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf)) :
-             _nc_fm ? nc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :
+             _nc_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]; barea = _nc_ba) :   # NC R6/BLM forests: NCMAP + Siskiyou BF
              _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
              _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
              _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)

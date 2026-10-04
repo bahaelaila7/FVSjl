@@ -96,8 +96,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # (TANS·SLOPE + FCOS·SLOPE·cos(ASP) + FSIN·SLOPE·sin(ASP), dgf.f:1125-1127) → over-grew species
     # with large slope coefficients (e.g. sp39 loblolly-bay FCOS=-10.15: a 0.05 slope = -0.68 in
     # ln(DDS) ⇒ ~2× DBH growth). Apply the grinit default so a missing slope matches live FVS.
-    p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : 5f0 / 100f0
-    p.slope_raw = _fia_present(d, "SLOPE") ? trunc(Int32, _fia_f32(d, "SLOPE", 0f0)) : Int32(5)   # ISLOP=IFIX(SLOPE), initre.f:437
+    # KT is the one build whose grinit.f carries other defaults: kt/grinit.f:161,223 ASPECT = 45., SLOPE = 30.0 (every
+    # other variant ASPECT = 0., SLOPE = 5.0). A KT stand with no SLOPE/ASPECT (e.g. the bare FIA conditions) runs on
+    # those — live FVSkt prints "ASPECT AZIMUTH IN DEGREES= 45.; SLOPE= 30.%" and its ESTAB tally uses SLO 0.30,
+    # ASPECT 0.785. jl gave KT 5%/0°.
+    _slope_def = s.variant isa Kootenai ? 30f0 : 5f0
+    if !_fia_present(d, "ASPECT") && s.variant isa Kootenai
+        p.aspect = 45f0 * 0.0174533f0; p.aspect_deg = Int32(45)
+    end
+    p.slope = _fia_present(d, "SLOPE") ? _fia_f32(d, "SLOPE", 0f0) / 100f0 : _slope_def / 100f0
+    p.slope_raw = _fia_present(d, "SLOPE") ? trunc(Int32, _fia_f32(d, "SLOPE", 0f0)) : trunc(Int32, _slope_def)   # ISLOP=IFIX(SLOPE), initre.f:437
     # ELEVATION in hundreds of feet; ELEVFT is feet → ×0.01 (dbsstandin.f:710).
     # ⚠ METRIC DBs (BC/ON) store ELEVATION in METRES: the metric dbsstandin.f (FVSbc_buildDir, header
     # "METRIC-VDBSQLITE") does RSTANDDATA(9) = ELEVATION * MtoFt / 100 (:351) — metres→hundreds-of-feet —
@@ -469,7 +477,7 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     # ON (canada/on dbsstandin.f:357-376, METRIC reader): BASAL_AREA_FACTOR <0 (inverse fixed-plot size, per ha) is
     # /HAtoACR, ≥0 (m²/ha) is *M2pHAtoFT2pACR; INV_PLOT_SIZE /HAtoACR; BRK_DBH (cm) *CMtoIN — so notre.f expands the
     # per-plot TREE_COUNT to trees/ACRE itself (PROB = count·(−BAF)/PI). (TREE_COUNT is NOT converted.)
-    on_db = s.variant isa Ontario
+    on_db = s.variant isa Ontario || s.variant isa BritishColumbia   # both METRIC dbsstandin.f builds (canada/bc too)
     if _fia_present(d, "BASAL_AREA_FACTOR")
         b = _fia_f32(d, "BASAL_AREA_FACTOR", 0f0)
         on_db && (b = b < 0f0 ? b / 2.471f0 : b * 4.3560773f0)
@@ -478,17 +486,16 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     _fia_present(d, "INV_PLOT_SIZE")     && (p.fixed_plot_inv = _fia_f32(d, "INV_PLOT_SIZE", 0f0) / (on_db ? 2.471f0 : 1f0))
     _fia_present(d, "BRK_DBH")           && (p.min_dbh_var_plot = on_db ? _fia_f32(d, "BRK_DBH", 0f0) * 0.3937f0 :
                                                                           _fia_f32(d, "BRK_DBH", p.min_dbh_var_plot))
-    _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)))
-    _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)))
+    _fia_present(d, "NUM_PLOTS")         && (p.points_inv = Int32(_fia_int(d, "NUM_PLOTS", 1)); s.control.iptinv_set = true)
+    _fia_present(d, "NONSTK_PLOTS")      && (p.nonstockable = Int32(_fia_int(d, "NONSTK_PLOTS", 0)); s.control.nonstk_set = true)
     _fia_present(d, "SAM_WT")            && (p.sample_weight = _fia_f32(d, "SAM_WT", p.sample_weight))
-    # GROSPC: STK_PCNT (1..100 → ÷100) if given, else (IPTINV − NONSTK)/IPTINV (dbsstandin.f:740)
+    # GROSPC: STK_PCNT (1..100 → ÷100) if given (dbsstandin.f:765-770); otherwise GROSPC stays unset and INITRE's end
+    # (finalize_design!, initre.f:350-357) computes (PI−NONSTK)/PI once IPTINV/NONSTK are final (the counted IPTKNT/NSTKNT
+    # when the DB gives no NUM_PLOTS/NONSTK_PLOTS).
     if _fia_present(d, "STK_PCNT")
         g = _fia_f32(d, "STK_PCNT", 1f0)
         (g > 1f0 && g <= 100f0) && (g *= 0.01f0)
         (g > 0f0 && g <= 1f0) && (p.gross_space = g)
-    else
-        ip = max(1, Int(p.points_inv))
-        p.gross_space = Float32(ip - Int(p.nonstockable)) / Float32(ip)
     end
     # Growth calibration transition/measurement (GROWTH card: IDG/FINT/IHTG/FINTH/FINTM).
     # DG_TRANS=1 ⇒ the DG field is a PAST diameter (not an increment) measured DG_MEASURE yrs ago.
@@ -655,14 +662,8 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     # the same class as the BC bug 42eb555.)
     metric_db = s.variant isa BritishColumbia || s.variant isa Ontario
     res = ingest_tree_records!(s, recs; metric = metric_db)
-    if metric_db && !(s.variant isa Ontario)     # ON: the design factors are converted instead (see BASAL_AREA_FACTOR)
-        # DB TREE_COUNT (PROB) is per-HECTARE; FVS's metric expansion yields per-acre (via the metric
-        # plot area). notre! here multiplies by the design factor only, so pre-scale the raw PROB
-        # per-ha→per-acre (× ACRtoHA) so the expanded internal TPA is per-acre like every other variant.
-        @inbounds for i in 1:s.trees.n
-            s.trees.tpa[i] *= 0.40468564f0
-        end
-    end
+    # TREE_COUNT is read raw (dbstreesin.f:100): the METRIC readers (BC/ON) convert the design factors instead (see
+    # BASAL_AREA_FACTOR), so notre.f's expansion yields trees/acre.
     p = s.plot
     # initre.f:320-335 after INTREE: IPTKNT = the distinct plot ids INTREE met (IPVEC; one plot when IPTINV=1), NSTKNT
     # the IMC1=8 nonstockable-plot records; IPTINV/NONSTK from the design (NUM_PLOTS / NONSTK_PLOTS, else the counts).

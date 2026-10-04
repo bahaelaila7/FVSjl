@@ -1432,9 +1432,11 @@ TREEDATA
     # (SITECODE/BEC head). The control run was long documented as a "+36% baseline-BA straddle" (jl BA 224 vs live
     # 165 at 2000). It was not a straddle: UPDATE grew DBH by DG/0.80 (the generic bark floor) instead of BC's
     # constant BARK1. With the shared variant_bratio (2026-09-22) the control is within ±1 BA / +2 TPA through 2090.
-    # The rd run still kills ~20 trees/ha more than live at 2000 — OPEN (BC WRD kill). (Was 19: the faithful keyrdr.f
-    # G10.0 field decode made the 1990 inventory exact, 2089 -> 2087 = live, and the kill gap is measured from there.)
-    @testset "BC WRD ABSOLUTE .sum vs FVSbc live oracle (ctrl floor; rd OPEN: BC WRD kill +20/ha)" begin
+    # The rd run killed ~20 trees/ha more than live at 2000: BC is a METRIC build (rdinit.f:728 LMTRIC for BC/ON), so
+    # rdin.f reads RRINIT's disease area (ha ×HAtoACR), infected/uninfected density (/ha ÷HAtoACR) and SAREA (ha
+    # ×HAtoACR) in metric units; jl took them as acres/TPA (RD_Area 4.06 vs live 10.03 ha). With the conversion (and
+    # BC's Wykoff height dub, htgf.f HTCONS V3 table) TPA and BA are exact in all 11 rows of both runs.
+    @testset "BC WRD ABSOLUTE .sum vs FVSbc live oracle (TPA/BA exact: rdin.f LMTRIC keyword fields)" begin
         d  = mktempdir()
         ck = joinpath(d, "c.key"); rk = joinpath(d, "r.key")
         bc_head(title) = """
@@ -1466,15 +1468,9 @@ TREEDATA
         LCB = [8, 165, 161, 156, 153, 148, 145, 142, 139, 136, 133]
         LRT = [2087, 1947, 1875, 1801, 1737, 1672, 1611, 1554, 1502, 1448, 1398]
         LRB = [8, 154, 150, 146, 143, 139, 136, 133, 131, 128, 126]
-        for k in 1:11
-            @test abs(ct[k] - LCT[k]) <= 2       # control: at the floor (print rounding)
-            @test abs(cb[k] - LCB[k]) <= 1
-            @test abs(rt[k] - LRT[k]) <= 20      # rd: OPEN, bounded at today's measured max
-            @test abs(rb[k] - LRB[k]) <= 2
-        end
+        @test (ct, cb) == (LCT, LCB)             # control
+        @test (rt, rb) == (LRT, LRB)             # rd: the WRD kill (was +20/ha at 2000)
         @test rt != ct                           # the WRD signal is live
-        @test all(rb[k] <= cb[k] for k in 1:11)
-        @test_broken (rt, rb) == (LRT, LRB)
     end
 
 end

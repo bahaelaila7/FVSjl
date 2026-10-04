@@ -30,6 +30,7 @@ function init_blockdata!(s::StandState, v::Klamath)
     fill!(s.control.ht_drag_sp, false) # nc/grinit.f:102 LHTDRG default .FALSE. (verify per-species exceptions ch4)
     s.control.dg_sd = 2.0f0            # DGSD default (nc/grinit.f DGSD=2.0)
     s.control.dg_stddev_bound = 2.0f0  # set BOTH (the BM/CI DGSD field-disconnect lesson)
+    s.plot.latitude = 42.0f0; s.plot.longitude = 123.0f0   # nc/grinit.f:221-222 TLAT=42./TLONG=123. (LOCATE/DB override)
     return s
 end
 

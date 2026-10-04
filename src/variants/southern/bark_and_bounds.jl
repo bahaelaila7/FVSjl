@@ -111,3 +111,43 @@ increment to the `sfint`-year cycle (gradd.f:79-90: `DDS=(DG·(2·d_ib+DG))·(FI
     dds = dg * (2f0 * dib + dg) * (s / y)
     return sqrt(dib * dib + dds) - dib
 end
+
+# gradd.f:79-90 (base GRADD, every FVS build): DGDRIV/HTGF/REGENT/MORTS/TRIPLE all read DG on the YR-year basis of the DG
+# model; GRADD rescales it to FINT years only AFTER GRINCR, before MISTOE/UPDATE. The variants listed keep DG at YR through
+# GRINCR (the shared driver skips its FINT scaling) and rescale here — each measured with TIMEINT 5 against its live oracle
+# (tests/FVS<v> key, .sum rows differing: BM 45→10, EM 55→35, CI 55→13, EC 46→1, PN 53→0, WC 52→2, TT 55→39, UT 54→32, IE
+# closer in every column; ON exact; KT 55→27 with its cycle-1 WK1/OLDFNT fixes, kt/htgf.f:114 HTG=EXP(CON+HDGCOF·ln DG)
+# and kt/morts.f:201/:310 reading the 10-year DG; CR 55→27 with REGENT's SCALE2=YR/FNT, cr/regent.f:171,417-418). The
+# others still scale inside the DG driver: SN/NC (YR=5) and LS/NE/CS carry their own FINT-basis emulation in REGENT/MORTS
+# (the switch made LS 11→49, NE 13→52, CS 14→52), BC and AK did not improve, and OC/OP run ORGANON's driver. WS/CA/SO
+# (ws|ca|so/regent.f SCALE2=YR/FNT, htgf.f/morts.f on the 10-year DG): WS 53→4, CA 24→6, SO 45→12.
+_gradd_rescale(v::AbstractVariant) = v isa Ontario || v isa BlueMountains || v isa EasternMontana || v isa CentralIdaho ||
+                                    v isa EastCascades || v isa PacificNorthwest || v isa WestCascades || v isa Teton ||
+                                    v isa Utah || v isa InlandEmpire || v isa Kootenai || v isa CentralRockies ||
+                                    v isa WestSierra || v isa CentralCalifornia || v isa SouthCentralOregon
+
+"""
+    gradd_dg_scale!(s, fint)
+
+gradd.f:79-90: `IF (ITRN.GT.0 .AND. FINT.NE.YR)` rescale every record's DG from the YR-year basis to FINT years:
+`DDS=(DG*(2.0*BARK*D+DG))*SCALE; DG=SQRT((D*BARK)**2+DDS)-BARK*D`, `BARK=BRATIO(IS,D,HT)` (pre-UPDATE HT), `DG≤0 ⇒ 0`.
+"""
+function gradd_dg_scale!(s::StandState, fint::Float32)
+    yr = htg_period(s.variant)
+    t = s.trees
+    (t.n > 0 && fint != yr) || return s
+    scale = fint / yr
+    @inbounds for i in 1:t.n
+        d = t.dbh[i]
+        bark = variant_bratio(s, t.species[i], d, t.height[i])
+        dg = t.diam_growth[i]
+        if dg > 0f0
+            dds = (dg * (2f0 * bark * d + dg)) * scale
+            db = d * bark
+            t.diam_growth[i] = sqrt(db * db + dds) - bark * d
+        else
+            t.diam_growth[i] = 0f0
+        end
+    end
+    return s
+end

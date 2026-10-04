@@ -134,6 +134,16 @@ using FVSjl
     include("unit/test_ontario_thin_sprout_live.jl") # ON thinning + stump sprouting vs LIVE FVSon_g16: REGENT copies, ESUCKR sprouts, CUTS-entry TREDEL, SPESRT, DO-1700 cuts pass, per record + .sum
     include("unit/test_ontario_db_live.jl")          # ON DATABASE stand (FVSDataHardwood.db LD3001, TIMEINT 5) vs LIVE FVSon_g16: metric design factors, SITE_INDEX, FORKOD, gradd DG FINT scaling, canonical 10-cycle .sum
     include("unit/test_ontario_big_live.jl")         # ON ~1000-record stands vs LIVE FVSon_g16: MAXTRE=6000 tripling guard, VARMRT exhaustion (WK2+PROB), LTRIP on the pre-CUTS ITRN
+    include("unit/test_variant_maxtre_live.jl")      # per-variant MAXTRE (PRGPRM.F77) vs live: BC 4000 tripling guard, OC/OP 2000 dead-record TreeIndex
+    include("unit/test_bc_htdub_live.jl")            # BC missing-height dub (cratet.f Wykoff, htgf.f HTCONS V3 HT1/HT2) vs live FVSbc_clean
+    include("unit/test_bc_db_live.jl")               # BC DATABASE stand (SkyRanch-Control) vs live: metric BAF/INV_PLOT_SIZE/BRK_DBH, raw TREE_COUNT, IPTINV=IPTKNT
+    include("unit/test_timeint5_live.jl")            # TIMEINT 5 in YR=10 variants (PN/EC/WC/BM/CI) vs live: gradd.f DG rescale after GRINCR
+    include("unit/test_west_estab_live.jl")          # western PLANT establishment (SO/WS/CA/NC) vs live: tables, ESSUBH, ESGENT
+    include("unit/test_west_smhtgf_live.jl")         # CA/WS SMHTGF in expf/logf/powf + statement order vs live
+    include("unit/test_kt_grinit_defaults.jl")       # KT grinit.f SLOPE 30% / ASPECT 45° defaults (FIA stands without them)
+    include("unit/test_west_sprout_live.jl")         # PN/WC/CA/WS/AK ESUCKR sprout tables vs live (was KeyError :essprt_fsp)
+    include("unit/test_west_ffe_crash_live.jl")      # EC/NC/CA/WS FFE salvage/SIMFIRE crash cases vs live .sum
+    include("unit/test_west_fortyp_live.jl")         # FORTYP California mixed-conifer test + R5 grinit TLAT/TLONG (wst01/nct01) vs live
     include("unit/test_dvee_volume.jl")    # D35: R9 Gevorkiantz '900DVEE' volume vs live
     include("unit/test_ie_estock.jl")      # #143: IE AUTOES ESTOCK P(stocking) vs live FVSie
     include("unit/test_ie_esb_inventory.jl")# D1: IE/EM AUTOES ESB1 inventory-BAAOLD freeze (ESFLTR) + continuation reuse — post-thin re-stocking sign flip vs FVS{ie,em}_g16

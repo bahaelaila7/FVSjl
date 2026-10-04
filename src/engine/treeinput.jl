@@ -109,8 +109,8 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
             push!(plot_ids, rec.plot); pj = length(plot_ids)
         end
 
-        # IMC1 == 8 marks a non-stockable plot record — not a tree (intree.f:368)
-        rec.mort_code == 8 && continue
+        # IMC1 == 8 marks a non-stockable plot record — not a tree (intree.f:358-362 NSTKNT=NSTKNT+1)
+        rec.mort_code == 8 && (s.control.nstknt += Int32(1); continue)
 
         idx, fmt = resolve_species(rec.species_code, s.variant, s.species, s.coef)
         p.sp_format[idx] = fmt
@@ -151,6 +151,7 @@ function ingest_tree_records!(s::StandState, records::Vector{TreeRecord}; metric
     s.calib.input_seq = n0 == 0 ? vcat(live_seq, dead_seq) : Int32[]
 
     s.control.ntrees_active = Int32(t.n)
+    s.control.lstknt = max(s.control.lstknt, Int32(length(plot_ids)))   # IPTKNT (intree.f:324-332, every record's plot)
     # Save the IPVEC (internal point index → inventory point number) so outputs that report the actual
     # inventory point can map it (FVS_TreeList ActPt = IPVEC(ITRE), dbstrls.f:292). plot_id holds the
     # internal index (1..NPTS); plot_ids[plot_id] is the original .tre point number.
