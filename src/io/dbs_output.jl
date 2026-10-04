@@ -1273,7 +1273,9 @@ live record (the columns FVSjl computes directly). Called per cycle by `write_su
 # eastern open-grown crown_width() handles the rest (0.5 default for unknown species). Shared by both the live-tree
 # snapshot and the cut-record builder so the two tables stay consistent, and by `tree_crwdth` (THINCC/COVER/sprouts).
 # BM is the faithful BMMAP + per-forest R6 BF port (bm_cwcalc, shared with FFE); the SO/CA kernels still bake in one forest's R6 BF.
-function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Float32
+# `barea`: the stand BA CWCALC's Crookston equations read (cwcalc.f:859, floored at 1). The TreeList CrWidth reads the
+# current BA; FMCBA/FMCFMD read the stored CRWDTH(I), whose BA at the inventory load is clamped to 1 (they pass it).
+function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp; barea::Float32 = s.plot.basal_area)::Float32
     p = s.plot
     # WS (WestSierra) is Region-5: cwcalc.f branches to R5CRWD (a function of sp/D/H only — no forest BF,
     # which R5 skips), so ws_r5crwd is per-tree exact for the TreeList (unlike the R6 BF-baked BM/SO kernels).
@@ -1290,7 +1292,7 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp)::Fl
     # the 611 values and CASE(611,712) the same table. _cwcalc_national applies the [0.5,99.9] clamp.
     if s.variant isa Klamath
         eq = _NC_CWMAP[sp]
-        return _cwcalc_national(eq, d, h, Float32(crp), p.basal_area, p.elevation, hi; bf = get(_R6_CWBF, (611, eq[1:3]), 1f0))
+        return _cwcalc_national(eq, d, h, Float32(crp), barea, p.elevation, hi; bf = get(_R6_CWBF, (611, eq[1:3]), 1f0))
     end
     # SO R6 forests (IFOR 1-3,10 = 601/602/620/799): SOMAP with the KODFOR BF (CASE(601,799)/602/620).
     if s.variant isa SouthCentralOregon

@@ -204,33 +204,6 @@ function on_dgcons!(s::StandState)
     return s
 end
 
-"""
-    on_gradd_dg_scale!(s, fint)
-
-canada/on gradd.f:79-90 (base gradd.f): `IF (ITRN.GT.0 .AND. FINT.NE.YR)` rescale every record's DG from the
-YR(=10)-year basis to FINT years — AFTER GRINCR (DGDRIV, HTGF, REGENT, MORTS, TRIPLE all read the 10-yr DG) and
-before UPDATE: `DDS=(DG*(2.0*BARK*D+DG))*SCALE; DG=SQRT((D*BARK)**2+DDS)-BARK*D` with `BARK=BRATIO(IS,D,HT)`
-(pre-UPDATE HT), and `DG≤0 ⇒ DG=0`.
-"""
-function on_gradd_dg_scale!(s::StandState, fint::Float32)
-    yr = htg_period(s.variant)
-    t = s.trees
-    (t.n > 0 && fint != yr) || return s
-    scale = fint / yr
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]
-        bark = on_bratio(Int(t.species[i]), d, t.height[i])
-        dg = t.diam_growth[i]
-        if dg > 0f0
-            dds = (dg * (2f0 * bark * d + dg)) * scale
-            db = d * bark
-            t.diam_growth[i] = sqrt(db * db + dds) - bark * d
-        else
-            t.diam_growth[i] = 0f0
-        end
-    end
-    return s
-end
 
 """
     on_do220_dg(s, i) -> Float32

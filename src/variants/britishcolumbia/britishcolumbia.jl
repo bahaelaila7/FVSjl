@@ -24,6 +24,7 @@ struct BritishColumbia <: AbstractVariant end
 
 variant_code(::BritishColumbia) = "BC"
 nspecies(::BritishColumbia) = 15
+variant_maxtre(::BritishColumbia) = 4000   # canada/bc PRGPRM.F77 PARAMETER (MAXTRE=4000)
 htg_period(::BritishColumbia) = 10f0
 
 const BC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "britishcolumbia"))

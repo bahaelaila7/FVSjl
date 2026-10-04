@@ -20,8 +20,12 @@ the divisor NOTRE actually uses (NOT π). Also finalizes the stockable proportio
 GROSPC into the reciprocal multiplier NOTRE applies.
 """
 function finalize_design!(s::StandState)
-    p = s.plot
+    p = s.plot; c = s.control
+    # initre.f:329-333: IPTINV/NONSTK not given (grinit −9999) ⇒ the counted plots IPTKNT / non-stockable NSTKNT.
+    c.iptinv_set || (p.points_inv = c.lstknt)
+    c.nonstk_set || (p.nonstockable = c.nstknt)
     p.points_inv <= 0 && (p.points_inv = Int32(1))
+    p.points_inv > MAXPLT && (p.points_inv = c.lstknt)
     p.pi = Float32(p.points_inv)                      # PI := IPTINV (NOTRE divisor!)
     p.sample_weight < 0f0 && (p.sample_weight = Float32(p.points_inv))
     if p.gross_space < 0f0                             # default (set to -1 at stand start)

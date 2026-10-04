@@ -205,18 +205,11 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, 13)              # NC ICLSS = 13 fuel models (nc/fmcfmd.f)
     # per-tree crown widths (CRWDTH) — same load-time BAREA clamp as fmcba (cwcalc.f:859)
     ba = (s.control.cycle <= Int32(1)) ? 1f0 : s.plot.basal_area
-    el = s.plot.elevation
-    # CWHR reads CWID = CRWDTH(I) (nc/fmcfmd.f:233), the same array FMCBA reads: cwcalc.f:382 routes NC's Region-5
-    # forests (IFOR <= 3 or 5) to R5CRWD (sp/D/H only) — the FVS_TreeList CrWidth (_forest_crwdth). MEASURED FVSnc_g16
-    # 23660512010900 simfire (forest 510): CWHR CC(0) 29.84 live (record 1 CRWDTH 21.57) vs 19.00 from the Crookston
-    # nc_cwcalc (16.45) ⇒ the post-fire CWHR fell to 'X' (FM5) instead of 5P (FM8).
-    ifor = Int(s.plot.forest_idx)
-    r5cw = ifor <= 3 || ifor == 5
     cws = zeros(Float32, t.n)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        cws[i] = r5cw ? _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i]) :
-                 nc_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), ba, el, 0f0)
+        cws[i] = _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i];
+                                barea = ba)   # CRWDTH (nc/cwcalc.f: R5CRWD on the R5 forests, NCMAP+BF on the rest)
     end
 
     # per-species BA% (BAPCT)

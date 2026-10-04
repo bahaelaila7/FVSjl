@@ -197,6 +197,17 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
     # target (TMD10=CONST·D10^−1.605) and kills MORE. FVS re-runs the whole TN10/RN/kill/TTMRT block with
     # D10←D10N until |D10−D10N| ≤ 0.1 (or D10N ≤ DIA0, or IPASS=10). Omitting it made jl stop at IPASS=1 and
     # UNDER-self-thin dense conifer stands (e.g. CN 388908802489998 cyc1 TPA 2967 vs oracle 2682).
+    # The record tt/morts.f's DO 50 ISPC / DO 40 IND1 loop processes last (P>0): its RIP decides SUMTRE (below).
+    lastrec = 0
+    let isct = s.control.sp_count_tab, ind1 = s.scratch.idx1
+        @inbounds for sp in MAXSP:-1:1
+            i1 = isct[sp, 1]; i1 <= 0 && continue
+            for k in isct[sp, 2]:-1:i1
+                (1 <= ind1[k] <= n && t.tpa[ind1[k]] > 0f0) && (lastrec = Int(ind1[k]); break)
+            end
+            lastrec > 0 && break
+        end
+    end
     for ipass in 1:10
         tmd10 = const_ * fpow(d10, -1.605f0); tmd10 > 35000f0 && (tmd10 = 35000f0)
         t85d10 = tmd10 * pmsdiu; t55d10 = tmd10 * pmsdil
@@ -222,6 +233,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         ttb = (tt - tb) / tt; ttb > 0.9999f0 && (ttb = 0.9999f0)
         rz = 1f0 - fpow(1f0 - ttb, 0.1f0)
         fill!(killed, 0f0)
+        lastrip = NaN32                                   # RIP of the last record the DO 50/DO 40 loop processes
         @inbounds for i in 1:n
             sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue
             d = t.dbh[i]
@@ -230,28 +242,32 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                 rip = rn
                 (tt <= tem || rn <= 0f0) && (rip = ri)              # background when SDI not yet limiting
                 rip > 1f0 && (rip = 1f0)
+                i == lastrec && (lastrip = rip)
                 wki = pr * (1f0 - fpow(1f0 - rip, fint))
                 wki > pr && (wki = pr)
                 sdimax < 5f0 && (wki = pr)
                 killed[i] = wki
             else
                 # tt/morts.f CASE(10) — PP from the CI variant. RIP logistic → REIN(IP) potential rate;
-                # RIPP blends BA·RZ with a BAMAX-approach term. WK1=prior-cycle DG (dg_prev, 0 at cycle 1 ⇒
-                # the ICYC==1 override G=DG/(bark·10) fires for every DG>0.5 tree, matching live).
+                # RIPP blends BA·RZ with a BAMAX-approach term. WK1 = DG at the top of DGDRIV (tt/dgdriv.f WK1=DG):
+                # the prior cycle's applied DG, at cycle 1 the DO-220 calibration DG (tt_do220_dg); OLDFNT = the
+                # period it grew over (grincr.f:60-64, morts_oldfnt).
                 dm = d <= 0.5f0 ? 0.5f0 : d
                 bark = tt_bratio(10, d)
                 reldbh = d / aved
-                wk1 = t.dg_prev[i]                      # prior applied DG (inside-bark); 0 at cycle 1
-                dgt = wk1 / fint                          # OLDFNT = FINT for the uniform-cycle case
+                wk1 = t.dg_prev[i]
+                oldfnt = morts_oldfnt(s)
+                dgt = wk1 / oldfnt
                 if dm <= 1f0 && dgt < 0.05f0
                     dgt = 0.05f0
                 elseif dm > 1f0 && dm <= 5f0 && dgt < 0.05f0
                     dgt = 0.05f0 * (5f0 - dm) / 4f0
                 end
-                g = wk1 / (bark * fint)
-                (wk1 / fint < dgt) && (g = dgt / bark)
+                g = wk1 / (bark * oldfnt)
+                (wk1 / oldfnt < dgt) && (g = dgt / bark)
                 dgcur = t.diam_growth[i]                  # current applied DG (inside-bark)
-                (wk1 == 0f0 && dgcur > 0.5f0) && (g = dgcur / (bark * 10f0))   # ICYC==1/WK1==0 override
+                ((Int(s.control.cycle) == 0 || wk1 == 0f0) && dgcur > 0.5f0) &&
+                    (g = dgcur / (bark * 10f0))           # tt/morts.f:551-552 (ICYC.EQ.1 .OR. WK1.EQ.0) .AND. DG>0.5
                 ip = dm <= 5f0 ? 2 : 1
                 g *= TT_PP_GMULT[ip]
                 rip = 2.76253f0 + 0.222310f0 * sqrt(dm) - 0.0460508f0 * sqrt(ba) + 11.2007f0 * g -
@@ -259,6 +275,7 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
                 rip = rip > 88.5f0 ? 88.5f0 : (rip < -88.5f0 ? -88.5f0 : rip)
                 rip = 1f0 / (1f0 + fexp(rip))
                 rip *= TT_PP_REIN[ip]                     # POTENT = REIN(IP)
+                i == lastrec && (lastrip = rip)
                 ripp = ba * rz
                 ba <= bamax && (ripp += (bamax - ba) * rip)
                 ripp /= bamax
@@ -273,8 +290,11 @@ function mortality!(s::StandState, ::Teton; fint::Float32 = 10.0f0, book_snags::
         # tt/morts.f:682 — REDISTRIBUTE the mortality by percentile+EFFTR (TTMRT). When self-thinning (default
         # trees have rip==rn, i.e. tt>tem & rn>0) TOKILL = T−TN10; else TOKILL=0 ⇒ redistribute the background.
         if tn10 >= 0.1f0
-            self_thin = tt > tem && rn > 0f0
-            tokill = self_thin ? (tt - tn10) : 0f0
+            # tt/morts.f:676-677 `IF(RIP .EQ. RN) SUMTRE = T-TN10` reads RIP as the LAST record of the species loop left
+            # it (ISCT/IND1 order: the highest species index present). A default-species record leaves RN (self-thin
+            # on) or RI; a ponderosa (CASE 10) record leaves its Hamilton RIP·POTENT, so a stand whose last species is
+            # PP redistributes only the background (SUMTRE=0) even when the SDI line is in effect.
+            tokill = lastrip == rn ? (tt - tn10) : 0f0
             tokill < 0f0 && (tokill = 0f0)
             _tt_ttmrt!(killed, tokill, s, n)
         end

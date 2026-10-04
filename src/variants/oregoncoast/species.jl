@@ -33,6 +33,7 @@ function init_blockdata!(s::StandState, v::OregonCoast)
     s.rng.s0 = Float64(OC_RNG_SEED); s.rng.ss = OC_RNG_SEED
     fill!(s.control.ht_drag_sp, false) # LHTDRG all .FALSE. (oc/grinit.f:105) — ht from ORGANON
     s.control.dg_sd = 0.0f0            # DGSD=0 (oc/grinit.f:172) — no DG serial-corr
+    s.plot.latitude = 42.0f0; s.plot.longitude = 124.0f0   # oc/grinit.f:228-229 TLAT=42./TLONG=124. (LOCATE/DB override)
     return s
 end
 

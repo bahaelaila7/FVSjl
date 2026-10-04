@@ -14,22 +14,32 @@ const BC_CCF_RD3 = Float32[.00230,.00338,.00259,.00405,.00363,.00490,.00365,.002
 const BC_CCF_RDA = Float32[0.009884,0.007244,0.017299,0.015248,0.011109,0.008915,0.009187,0.007875,0.011402,0.007813,0.011109]
 const BC_CCF_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.7250,1.7800,1.7600,1.7360,1.7560,1.7680,1.7250]
 
-"""IC species→coefficient-class map (ccfcal.f:162-171): sp1-10 → sp; sp14(OC) → 3(FD). ⚠ sp11-13,15 (PN) TODO."""
+"""IC species→coefficient-class map (ccfcal.f:162-171): sp1-10 → sp; sp14(OC) → 3(FD); the PN-derived species → 0."""
 @inline function _bc_ccf_ic(sp::Integer)
     (1 <= sp <= 10) ? sp : (sp == 14 ? 3 : 0)
 end
 
-"""
-    bc_tree_ccf(sp, d, p) -> per-tree CCF contribution (ccfcal.f MODE 1, NI species)
+# ccfcal.f:200-221 — EP/AT/AC/OH (11-13, 15) take the PN CCF equations: IC = INDCCF(24) for EP/OH, INDCCF(26) for AT,
+# INDCCF(27) for AC (INDCCF :139-143 ⇒ 17, 17, 18); pnRD1/2/3 entries 17 and 18 (:145-161).
+const BC_CCF_PN = Dict(11 => (1.70887f-2, 2.13617f-2, 6.67579f-3), 15 => (1.70887f-2, 2.13617f-2, 6.67579f-3),
+                       12 => (1.70887f-2, 2.13617f-2, 6.67579f-3), 13 => (4.50757f-4, 2.92090f-3, 4.73186f-3))
 
-D in inches, P = trees/acre. Returns 0 for PN species (11-13,15) until pnRD ported.
+"""
+    bc_tree_ccf(sp, d, p) -> per-tree CCF contribution (ccfcal.f MODE 1)
+
+D in inches, P = trees/acre. NI equations for sp 1-10/14 (:175-183), PN equations for 11-13/15 (:213-220).
 """
 @inline function bc_tree_ccf(sp::Integer, d::Real, p::Real)
-    ic = _bc_ccf_ic(sp)
-    ic < 1 && return 0f0                                     # PN species (TODO)
     D = Float32(d)
-    ccf = D >= 10f0 ? BC_CCF_RD1[ic] + D*BC_CCF_RD2[ic] + D*D*BC_CCF_RD3[ic] :
-                      BC_CCF_RDA[ic] * (D ^ BC_CCF_RDB[ic])
+    ic = _bc_ccf_ic(sp)
+    if ic < 1
+        haskey(BC_CCF_PN, Int(sp)) || return 0f0
+        r1, r2, r3 = BC_CCF_PN[Int(sp)]
+        ccf = D >= 1f0 ? r1 + r2 * D + r3 * D * D : D * (r1 + r2 + r3)
+    else
+        ccf = D >= 10f0 ? BC_CCF_RD1[ic] + D*BC_CCF_RD2[ic] + D*D*BC_CCF_RD3[ic] :
+                          BC_CCF_RDA[ic] * (D ^ BC_CCF_RDB[ic])
+    end
     ccf < 0.001f0 && (ccf = 0.001f0)
     return ccf * Float32(p)
 end

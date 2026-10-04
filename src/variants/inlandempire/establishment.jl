@@ -1811,7 +1811,8 @@ function ie_autoes_run(; habitat_code::Integer, forest_code::Integer, seed0::Int
     # Per-IPREP PROB1 for the DISTURBANCE tally's per-plot IPPREP sampler (estab.f:572 ESTOCK carries a per-IPREP
     # SPRE term). Only needed when site prep is active (default ESPREP or a MECHPREP/BURNPREP keyword); otherwise
     # every plot uses the scalar prob1 (IPREP=1). Mirrors the prob1 pipeline above for IPREP∈{1,2,3}.
-    _is_ie = variant !== nothing && variant isa InlandEmpire
+    _is_ie = variant !== nothing && (variant isa InlandEmpire || variant isa Kootenai)   # KT: the identical estb estab.f;
+                                                                                        # its es* = ie's species 1-11
     # IE and EM compile the IDENTICAL estb/estab.f + esnutr.f + estock.f + esprep.f + esetpr.f (FVSie/FVSem buildDir,
     # byte-compared 2026-09-19); their species routines (espadv/espsub/esxcsh/essubh/esadvh) differ ONLY at the
     # OCURNF-zeroed EM positions 4-6/11+. So every estab.f-level branch below (per-IPREP PROB1, per-point PROB1,
@@ -1986,8 +1987,53 @@ end
 # per-species TPA as fresh seedling records (DBH≈0.1, height floored to XMIN — all
 # establishment heights are sub-breast-height so esgent.f's nominal DBH applies).
 # `xtes` = the removal fraction from THIS cycle's within-cycle thin (see grow_cycle!).
+# estab.f:333-399 (estb): the site-prep proportions of an ESTAB call — MECHPREP/BURNPREP (esetpr.f), the plot-data
+# LOAD path, or ESPREP's defaults by habitat series — as the normalized SUMUP the per-plot IPPREP sampler reads
+# (nothing ⇒ every plot IPREP=1). Also applies estab.f's LOAD bookkeeping. Shared by the stocked tally and the
+# STOADJ≈0 no-stocking branch (which still samples the preps its planted trees' ESSUBH reads).
+function _autoes_prep_sumup!(s::StandState, est, _ntally::Integer, is_ingro::Bool, kdt::Integer, inv_year::Integer,
+                             icyc::Integer, year::Integer, next_year::Integer, ihab_code::Integer, baaa::Float32,
+                             es_slope::Float32, es_aspect::Float32)
+    prep_sumup = nothing
+    p = s.plot
+    # LOAD (ESHAP): estab.f:167-170 clears it once the call is >20 yr past the inventory, :246 on an ingrowth call;
+    # esetpr.f (below) on a MECHPREP/BURNPREP. Never set again ⇒ a later disturbance tally samples ESPREP.
+    (kdt + 1 - inv_year > 20 || is_ingro) && (est.load = false)
+    if _ntally == 1 && !is_ingro
+        pmech_pct = nothing; pburn_pct = nothing
+        for a in s.control.schedule
+            (a.icflag == Int32(493) || a.icflag == Int32(491)) || continue
+            ay = Int(a.year)
+            idt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay
+            (year <= idt < next_year) || continue
+            a.icflag == Int32(493) ? (pmech_pct = a.params[2]) : (pburn_pct = a.params[2])
+        end
+        if pmech_pct !== nothing || pburn_pct !== nothing
+            est.load = false                                                    # esetpr.f IP=0
+            es = ie_esetpr(pmech_pct, pburn_pct)
+            prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
+        elseif est.load
+            # estab.f:338-348 LOAD=1: IPPREP from the plot data (no SITEPREP on the tree rows ⇒ 1 = NONE on every
+            # plot); ESPREP is not called. The DO 183 WK6 draws are still consumed by the tally.
+            prep_sumup = nothing
+        else
+            # estab.f:365-370 (shared estb/estab.f — IE AND EM) — the user supplied NO site-prep keyword ⇒ ESPREP DEFAULT proportions by habitat
+            # series drive the per-plot IPPREP (MEASURED FVSie_g16 na_def: NONE/MECH/BURN ≈ 0.48/0.26/0.26). This
+            # is NOT inert: ie_estock's per-IPREP SPRE term then splits the per-plot PROB1 (0.699/0.663977/0.657729
+            # by IPREP), and the 48/26/26 mean 0.6792 = the oracle stocking prob — closing the bare-IE dated-ESTAB
+            # baseline (jl 629→610 internal, ×0.909 = 555). Only the DISTURBANCE tally (NTALLY==1, non-ingrowth);
+            # the ingrowth path forces IPREP=1 (estab.f). Species/series from ie_estab_indices; topo/BA/elev = the
+            # same stand values fed to ie_estock below.
+            _dx = ie_estab_indices(ihab_code, Int(p.user_forest_code))
+            pn0, pm0, pb0 = ie_esprep(_dx.iser, es_aspect, es_slope, baaa, p.elevation)
+            prep_sumup = ie_esetpr_normalize(pn0, pm0, pb0, 0, 0)
+        end
+    end
+    return prep_sumup
+end
+
 function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana) || return false
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) || return false
     est = s.estab
     est.es_aut_first = Int32(0); empty!(est.es_aut_plot)   # this cycle's natural-record plot tags (set when booking)
     empty!(est.es_plot_dil); est.es_plot_nph = Int32(0)    # this cycle's PLANT DILATEs (set by the tally)
@@ -2037,8 +2083,11 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # via ie_habtyp(habitat_code), and ie_habtyp(590)==ie_habtyp(510)==ITYPE 12 (identical MTYPE 510).
     # EM: esplt2.f:46-53/230-239 bracket the INPUT habitat code ICL5 (the raw PV_CODE / STDINFO field, grinit default
     # 260), not the translated KODTYP; ICL5 unset (0) ⇒ the translated code (dbsstandin.f:593 IF(ICL5.LE.0) ICL5=KODTYP).
+    # KT: ICL5 (kt_site_index_setup!: the input habitat code, or MTYPE(ITYPE) when a PV reference code is present;
+    # grinit.f:185 default 571). p.habitat_code holds KKTYPE there, not an estb habitat code.
     ihab_code = s.variant isa EasternMontana ?
         (s.control.icl5 > 0 ? Int(s.control.icl5) : Int(EM_JTYPE[clamp(Int(s.plot.habitat_code), 1, 118)])) :
+        s.variant isa Kootenai ? (s.control.icl5 > 0 ? Int(s.control.icl5) : 571) :
         Int(s.plot.habitat_code)
     per = round(Int, fint)
     year = Int(current_cycle_year(s))
@@ -2187,7 +2236,46 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # (seed0 draw + post-tally ESS0) is already faithful; book nothing here, leave NSTORE/PNN/ESB untouched.
     # (The :1077 NBEST skip ⇒ planted IMC=1 and :1559/:1611 are report-only.) Measured live FVSie_g16 bare PLANT
     # stand: NOAUTOES / NATURAL / STOCKADJ 0.0 all give 364 TPA @2002 (planted only), jl was 911.
-    est.stoadj < 0.0001f0 && (est.kdtold = Int32(next_year - 1); return false)   # still ends ESTAB (:1654 KDTOLD=KDT)
+    if est.stoadj < 0.0001f0
+        # The no-stocking branch still runs estab.f:333-399 before the plot loop — the DO 183 WK6 draws (the first
+        # DUPNPT draws of the seed0 stream) and, on NTALLY=1, the ESPREP/ESETPR site-prep sample — and :473-482 sets
+        # each plot's BAAA/PSLO/PASP: the DO 322 planted trees' ESSUBH reads IPREP (UPRE) and those inputs. jl
+        # returned before either, so every planted tree took IPREP=1 and the growth-model stand slope (MEASURED live
+        # FVSkt ktt01 bare PLANT stand, NOAUTOES: plots 1-41 NONE, 42-48 MECH, 49-50 BURN; WL HHT 3.80 on plot 42,
+        # jl 4.25).
+        _baaa0 = isempty(s.density.point_ba) ? 0f0 : s.density.point_ba[1]
+        _sl0 = isempty(pslo_es) ? Float32(p.slope_raw) * 0.01f0 : Float32(pslo_es[1])
+        _as0 = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
+        _ps = _autoes_prep_sumup!(s, est, _ntally, _ntally == 99, kdt, inv_year, icyc, year, next_year, ihab_code,
+                                  _baaa0, _sl0, _as0)
+        if _ntally == 1
+            if _ps === nothing
+                est.es_ipprep = ones(Int32, Int(dupnpt))
+            else
+                _rng = IEEstabRNG(isodd(seed0) ? seed0 : seed0 + 1)
+                _wk6 = Float32[ie_esrann!(_rng) for _ in 1:Int(dupnpt)]
+                est.es_ipprep = Int32.(ie_esetpr_sample(_ps, _wk6, nptids, idup))
+            end
+        end
+        let _idx = ie_estab_indices(ihab_code, Int(p.user_forest_code)), _opba = zeros(Float32, nptids)
+            _pi = p.pi; _gs = p.gross_space
+            @inbounds for i in _ind1_order(s)
+                d = s.trees.dbh[i]; d < 2.999f0 && continue                   # dense.f:212 REGNBK
+                pid = Int(s.trees.plot_id[i]); (1 <= pid <= nptids) || continue
+                _opba[pid] += 0.005454154f0 * (d * (d * s.trees.tpa[i])) * _pi / _gs
+            end
+            est.es_pt_hin = map(1:nptids) do k
+                baa_k = clamp(_opba[k], 1f0, 400f0)
+                sl_k = (k <= length(pslo_es)) ? Float32(pslo_es[k]) : _sl0
+                as_k = (k <= length(pslo_es)) ? ((k <= length(pasp_es)) ? Float32(pasp_es[k]) : 0f0) : _as0
+                (baa_k, fcos(as_k) * sl_k, fsin(as_k) * sl_k, sl_k)::NTuple{4,Float32}
+            end
+            est.es_hin_ihtser = Int32(_IE_MYHTS[clamp(Int(_idx.ihab), 1, length(_IE_MYHTS))])
+            est.es_hin_iphy = Int32(_idx.iphy)
+        end
+        est.kdtold = Int32(next_year - 1)
+        return false                                                          # still ends ESTAB (:1654 KDTOLD=KDT)
+    end
     # ESTOCK/species-prob BAA = the per-INVENTORY-POINT basal area BAAA(NNID) (estab.f:482, dense.f:213), NOT the
     # whole-stand BA. After a heavy overstory removal the regen point is bare → BAAA≈0 → TBAAA=max(BAAA,1)=1 →
     # ESTOCK PN high → PROB1 high (the disturbance re-stocking pulse). Using stand_ba (which keeps the residual
@@ -2415,40 +2503,8 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # for NTALLY>1, and the ingrowth path forces IPREP=1. Gather the scheduled prep %-of-plots at the disturbance
     # date → normalized SUMUP for ie_autoes_tally's per-plot IPPREP sampler. No keyword ⇒ prep_sumup=nothing ⇒
     # every plot IPREP=1 (byte-identical to the pre-wire behaviour).
-    prep_sumup = nothing
-    # LOAD (ESHAP): estab.f:167-170 clears it once the call is >20 yr past the inventory, :246 on an ingrowth call;
-    # esetpr.f (below) on a MECHPREP/BURNPREP. Never set again ⇒ a later disturbance tally samples ESPREP.
-    (kdt + 1 - inv_year > 20 || is_ingro) && (est.load = false)
-    if _ntally == 1 && !is_ingro
-        pmech_pct = nothing; pburn_pct = nothing
-        for a in s.control.schedule
-            (a.icflag == Int32(493) || a.icflag == Int32(491)) || continue
-            ay = Int(a.year)
-            idt = (0 < ay < 1000) ? (ay == icyc ? year : -1) : ay
-            (year <= idt < next_year) || continue
-            a.icflag == Int32(493) ? (pmech_pct = a.params[2]) : (pburn_pct = a.params[2])
-        end
-        if pmech_pct !== nothing || pburn_pct !== nothing
-            est.load = false                                                    # esetpr.f IP=0
-            es = ie_esetpr(pmech_pct, pburn_pct)
-            prep_sumup = ie_esetpr_normalize(0f0, es.pmech, es.pburn, es.ialn2, es.ialn3)
-        elseif est.load
-            # estab.f:338-348 LOAD=1: IPPREP from the plot data (no SITEPREP on the tree rows ⇒ 1 = NONE on every
-            # plot); ESPREP is not called. The DO 183 WK6 draws are still consumed by the tally.
-            prep_sumup = nothing
-        else
-            # estab.f:365-370 (shared estb/estab.f — IE AND EM) — the user supplied NO site-prep keyword ⇒ ESPREP DEFAULT proportions by habitat
-            # series drive the per-plot IPPREP (MEASURED FVSie_g16 na_def: NONE/MECH/BURN ≈ 0.48/0.26/0.26). This
-            # is NOT inert: ie_estock's per-IPREP SPRE term then splits the per-plot PROB1 (0.699/0.663977/0.657729
-            # by IPREP), and the 48/26/26 mean 0.6792 = the oracle stocking prob — closing the bare-IE dated-ESTAB
-            # baseline (jl 629→610 internal, ×0.909 = 555). Only the DISTURBANCE tally (NTALLY==1, non-ingrowth);
-            # the ingrowth path forces IPREP=1 (estab.f). Species/series from ie_estab_indices; topo/BA/elev = the
-            # same stand values fed to ie_estock below.
-            _dx = ie_estab_indices(ihab_code, Int(p.user_forest_code))
-            pn0, pm0, pb0 = ie_esprep(_dx.iser, es_aspect, es_slope, baaa, p.elevation)
-            prep_sumup = ie_esetpr_normalize(pn0, pm0, pb0, 0, 0)
-        end
-    end
+    prep_sumup = _autoes_prep_sumup!(s, est, _ntally, is_ingro, kdt, inv_year, icyc, year, next_year, ihab_code,
+                                     baaa, es_slope, es_aspect)
     # ★#143 follow-on: the END-OF-CYCLE stocking PN (estab.f:572 ESTOCK(BAA=BAAA(NNID))) uses the POST-growth
     # per-point BA. jl's s.density was last refreshed PRE-growth (simulate.jl:548, before diameter/height growth),
     # so point_ba lagged one cycle — MEASURED jl 62.51 vs live end-cycle BAAA 77.51 at ic=1 ⇒ PN too low ⇒ PROB1
@@ -2649,7 +2705,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # (the AUTOES ingrowth cohort is a small fraction of tree TPA — ~100 tiny seedlings vs thousands), so this is
     # a faithfulness alignment to the oracle-measured WK4, not a visible .sum mover on the sampled EM stands.
     _autoes_gentim = max(fint - 5f0, 0f0)
-    _autoes_trage = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? 3f0 : 2f0
+    _autoes_trage = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) ? 3f0 : 2f0
     _autoes_htimlt = min(_autoes_trage, _autoes_gentim) / (_autoes_gentim + 0.0001f0)
     created = false
     npt_c = size(r.tally_pt, 2)                          # inventory points; established TPA is split per point so
@@ -2712,7 +2768,7 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         # Climate-FVS (BIRTHYR=THISYR−ABIRTH → Leites XDF/XPP/XWL; apply_climate_dds! + regent clim_treemult) and the
         # aspen REGENT SITAGE. A uniform TRAGE (3) over-aged the cohort (FIA 303115495489998 climate: 2064 TCuFt 200
         # vs live 194); the cross-indexed values make that stand's .sum exact.
-        t.birth_age[n]   = (s.variant isa InlandEmpire || s.variant isa EasternMontana) ? babirth[bi] :
+        t.birth_age[n]   = (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) ? babirth[bi] :
                            _autoes_gentim      # IE/EM: AGADSB(N)/AGEXC(I) (estab.f:1235/:1324); +GENTIM after ESGENT (:1504)
         t.htimlt[n]      = bwk4[bi]           # per-tree WK4=HTIMLT (advance 0.60 / subsequent 0.20/0.00 / excess STOMLT)
         # IESTAT (estab.f:1269 best: IDSDAT+20 — mortality immunity for 20 yr after the disturbance date, morts.f

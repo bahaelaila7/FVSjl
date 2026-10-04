@@ -58,6 +58,7 @@ function ws_grinit!(s::StandState)
     s.control.dg_sd = 2.0f0             # ws/grinit.f:251 DGSD=2.0
     s.control.dg_stddev_bound = 2.0f0
     s.plot.latitude = 39.0f0            # ws/grinit.f TLAT=39. (ws_forkod! overrides it only for 5-digit location codes)
+    s.plot.longitude = 120.0f0          # ws/grinit.f:308 TLONG=120. (FORTYP's California mixed-conifer test reads it)
     s.rng.s0 = Float64(WS_RNG_SEED); s.rng.ss = WS_RNG_SEED
     # ws/grinit.f:178-183 LHTDRG: SELECT CASE — .FALSE. for surrogate/juniper species, .TRUE. (DEFAULT)
     # for the WS-native conifers (SP/DF/WF/RF/…). Natives use the calibrated Wykoff HT-DBH dub; the FALSE

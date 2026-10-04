@@ -35,3 +35,20 @@ function bc_site_index_setup!(s::StandState)
 end
 
 site_setup!(s::StandState, ::BritishColumbia) = bc_site_index_setup!(s)
+
+# canada/bc cratet.f:70-110 — at CRATET (after SITSET and NOTRE) the PY (10) site index goes to a 50-YEAR age base
+# (Alexander, Tackle & Dahms 1967, RM-29): TEMCCF = Σ CCFCAL(mode 1)·PROB over records 1..IREC1, floored at 125;
+# SITEAR(10) = 9.89311 − 0.19177·50 + 0.00124·50² − 0.00082·(TEMCCF−125)·SI + 0.01387·50·SI − 0.0000455·50²·SI.
+# The same block as tt|ci|ut|ie/cratet.f (BC keeps only CASE(10)); run from setup_growth! on the NOTRE-expanded PROB.
+function bc_cratet_site_adjust!(s::StandState)
+    p, t = s.plot, s.trees
+    temccf = 0f0
+    @inbounds for i in 1:t.n
+        temccf += bc_tree_ccf(Int(t.species[i]), t.dbh[i], t.tpa[i])
+    end
+    temccf < 125f0 && (temccf = 125f0)
+    si = p.sp_site_index[10]
+    p.sp_site_index[10] = 9.89311f0 - 0.19177f0 * 50f0 + 0.00124f0 * 50f0^2 -
+        0.00082f0 * (temccf - 125f0) * si + 0.01387f0 * 50f0 * si - 0.0000455f0 * 50f0^2 * si
+    return s
+end

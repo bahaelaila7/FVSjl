@@ -60,5 +60,6 @@ function ca_grinit!(s::StandState)
     s.control.dg_stddev_bound = 1.7f0
     s.rng.s0 = Float64(CA_RNG_SEED); s.rng.ss = CA_RNG_SEED
     fill!(s.control.ht_drag_sp, false)  # ca/grinit.f LHTDRG default .FALSE.
+    s.plot.latitude = 42.0f0; s.plot.longitude = 124.0f0   # ca/grinit.f:225-226 TLAT=42./TLONG=124. (LOCATE/DB override)
     return s
 end
