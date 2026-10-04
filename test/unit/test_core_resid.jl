@@ -355,3 +355,17 @@ end
         @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "IE 3356357010690 climate/plant_cal .sum volumes: PCTILE totals in IND order (gradd.f:289-322, pctile.f)" begin
+    # FVS's stand TPA/volume totals are PCTILE's cumulative sums walking IND (DBH-descending RDPSRT) from the smallest
+    # tree, not a record-order sum: 2032 per-tree BdFt identical, record order Σ 81635.55 ⇒ 81635 vs live 81636.
+    for rg in ("climate", "plant_cal")
+        db = _cr_run("ie", "3356357010690", rg)
+        gold, jl = _cr_table("ie", "3356357010690", rg, db, "FVS_Summary")
+        jd = Dict(string(r["Year"]) => r for r in jl)
+        @test length(jl) == length(gold)
+        for g in gold, c in ("Tpa", "TCuFt", "MCuFt", "SCuFt", "BdFt")
+            @test _cr_f32(jd[g["Year"]][c]) == _cr_f32(g[c])
+        end
+    end
+end

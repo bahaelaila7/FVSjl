@@ -676,14 +676,15 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # every variant stores); metric/vbase/sumout.f converts them to per-ha metric only when printing / calling
     # DBSSUMRY — see `metric_sumout`. QMD and MAI are kept UNROUNDED here (QSDBT / BCYMAI are REALs).
     met  = _metric_variant(s.variant)
-    # BM: FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:682) — a Float32
+    # FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:601 / fvs.f:212-236) — a Float32
     # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
     # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
-    # gradd.f:186's fresh RDPSRT(.TRUE.) after. Record order flipped knife-edge rows by ±1 (41134819010497:
-    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). BM-gated (the base
-    # gradd.f is shared; other variants not yet re-validated on this order).
+    # the fresh RDPSRT(DBH,IND,.TRUE.) of gradd.f:186 / esnutr.f:142,405 after. Record order flipped knife-edge rows
+    # by ±1 (BM 41134819010497: per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332; IE
+    # 3356357010690 climate 2032: per-tree BdFt identical, Σ 81635.55 → BdFt 81635 vs live 81636). gradd.f, fvs.f
+    # and cratet.f are the base routines in every variant build.
     bm_ind = nothing
-    if s.variant isa BlueMountains && s.trees.n > 0
+    if s.trees.n > 0
         bm_ind = Vector{Int32}(undef, s.trees.n)
         cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
     end
