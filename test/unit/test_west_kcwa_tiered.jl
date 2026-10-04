@@ -177,4 +177,13 @@ end
     end
 end
 
+# ws/morts.f:560-563 (ca/morts.f:486-489): the giant-sequoia / redwood background rate RI=1/(1+EXP(B0+B1·D)) is floored at
+# 0.0001 before RI=0.5·RI. jl never floored it, so the VARMRT background TOKILL (the per-tree WK2 sum) came out short and
+# every record's kill scaled by it: 1123894228290487 cycle 1 TOKILL 11.157074 live; record 33 MortPA 5.0992 live / 5.0978 jl.
+@testset "WS/CA GS-RW background RI floor 0.0001 (ws/morts.f:560-563, ca/morts.f:486-489)" begin
+    c = _case("WS", "1123894228290487", "none")
+    @test !c.crashed
+    @test count(m -> m.col in ("TPA", "MortPA") || m.file == "sum", c.ms) == 0      # 9,818 cells before
+end
+
 end # module

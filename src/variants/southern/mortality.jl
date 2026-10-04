@@ -350,6 +350,10 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
         # morts.f background-mortality rate: EXP(B0+B1·D) and (1-RI)**FINT are gfortran transcendentals — route
         # via the FFI companion (doctrine #8), not native openlibm, so bg_tokill matches FVS bit-for-bit.
         ri = ri_scale / (1f0 + fexp(mort_b0[sp] + mort_b1[sp] * t.dbh[i]))   # NE halves the rate (morts.f:504)
+        # ws/morts.f:560-563, ca/morts.f:486-489: the redwood / giant-sequoia RI is floored at 0.0001 BEFORE the 0.5
+        # halving (RI=1/(1+EXP(B0+B1·D)); IF(RI.LT.0.0001) RI=0.0001; RI=0.5·RI). ri_scale is a power of two, so
+        # ri_scale/x == ri_scale·(1/x) bitwise and the floor can be applied on the unscaled rate here.
+        mort_ri_floor_sp(v, Int(sp)) && (ri / ri_scale < 0.0001f0) && (ri = ri_scale * 0.0001f0)
         ri > 1f0 && (ri = 1f0)
         xmort = active_mort_mult(s.control, sp, cur_year, t.dbh[i])  # 1 outside the DBH window
         bg_tokill += min(pr * (1f0 - fpow(1f0 - ri, fint)) * xmort, pr)
