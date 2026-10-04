@@ -130,17 +130,12 @@ FMEFF with ICALL=1 (fmeff.f): per record a RANN draw against PSBURN (the stream 
 FMEFF mortality PMORT for burned records, POMORT = PMORT·FMPROB plus the crown-fire share CRBURN·(FMPROB−POMORT),
 accumulated as BA (DBH/24)² and volume (MCFV for CS/LS/NE/SN, CFV elsewhere). Returns POMORT = BAMORT/TOTBA, the
 volume killed PVOLKL and the potential crown material burned PBRNCR (BCROWN, tons/ac) that FMCONS smokes.
+`bcrown0` is the snag-crown (CWD2B/CWD2B2) head of BCROWN, taken by `_pofl_bcrown_cwd2b` on the FMPOFL year's pools.
 """
 function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float32, burnseas::Integer,
-                     psburn::Float32, year::Integer, cyclen::Real)
+                     psburn::Float32, year::Integer, cyclen::Real, bcrown0::Float32 = _pofl_bcrown_cwd2b(s.fire, crburn, psburn))
     fs = s.fire; t = s.trees; coef = s.coef
-    bcrown = 0f0
-    if crburn > 0f0                                                                    # fmeff.f:118-130
-        @inbounds for isz in axes(fs.cwd2b, 2), idc in axes(fs.cwd2b, 1), itm in axes(fs.cwd2b, 3)
-            bcrown += crburn * fs.cwd2b[idc, isz, itm] * psburn / 100f0 * _FM_P2T
-            bcrown += crburn * fs.cwd2b2[idc, isz, itm] * psburn / 100f0 * _FM_P2T
-        end
-    end
+    bcrown = bcrown0
     saved = rannget(s.rng)                                                             # fmeff.f:143
     bamort = 0f0; totba = 0f0; pvolkl = 0f0; pomort = 0f0
     merch = _fm_volkill_merch(s.variant)
@@ -169,6 +164,23 @@ function _pofl_fmeff(s::StandState, flame::Float32, sch::Float32, crburn::Float3
     rannput!(s.rng, saved)
     totba != 0f0 && (pomort = bamort / totba)                                          # fmeff.f:603
     return (pomort, pvolkl, bcrown)
+end
+
+# FMEFF's first BCROWN term (fmeff.f:118-138): the crown of pre-existing snags still waiting to fall (CWD2B, CWD2B2)
+# burned by the crown-fire share, ISZ-major / IDC / ITM order. FMPOFL calls FMEFF inside the FMMAIN year (fmmain.f:196)
+# BEFORE that year's FMSNAG/FMCWD/FMCADD (fmmain.f:232-241) drop the year's crown fall, so the pools are the
+# FMPOFL-year ones — jl's non-fire path runs FMEFF later at the FMMAIN seam, after the cycle's fuel years advanced
+# CWD2B, so the head is taken at report time (MEASURED FVSie 11855985010690 salvage 2016 sev: live CWD2B head
+# 0.19410081 t/ac, seam-time pools gave 0.0017268 ⇒ Pot_Smoke_Sev 0.31296 live vs 0.31091).
+function _pofl_bcrown_cwd2b(fs, crburn::Float32, psburn::Float32)::Float32
+    bcrown = 0f0
+    if crburn > 0f0
+        @inbounds for isz in axes(fs.cwd2b, 2), idc in axes(fs.cwd2b, 1), itm in axes(fs.cwd2b, 3)
+            bcrown += crburn * fs.cwd2b[idc, isz, itm] * psburn / 100f0 * _FM_P2T
+            bcrown += crburn * fs.cwd2b2[idc, isz, itm] * psburn / 100f0 * _FM_P2T
+        end
+    end
+    return bcrown
 end
 
 # FMCONS ICALL=1 (fmcons.f:196-360, BTYPE=0, IPM=1): TSMOKE = Σ PRBURN·BURNZ·EMMFAC over the fuel classes, then
@@ -364,7 +376,8 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             sch = (63f0 / (140f0 - potemp)) * (fpow(finten, 7f0 / 6f0) / fpow(finten + fpow(fwind, 3f0), 0.5f0))
         end
         sc[k] = (; surf, pflam, sch, crburn = cfir.crburn, burnseas, psburn, cftype = cfir.cftype, oinit = cfir.oinit,
-                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn), models = collect(models), prewnd,
+                 oact = cfir.oact, tsbase = _pofl_tsmoke_base(fs, mois, psburn),
+                 bcrown0 = _pofl_bcrown_cwd2b(fs, cfir.crburn, psburn), models = collect(models), prewnd,
                  potemp, mois)
     end
     mw(m) = (ntuple(i -> i <= length(m) ? Int(m[i][1]) : 0, 4),
@@ -376,8 +389,8 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
             mort_ba_sev = 0, mort_ba_mod = 0, mort_vol_sev = 0, mort_vol_mod = 0,
             smoke_sev = _pofl_smoke(sc[1].tsbase, 0f0), smoke_mod = _pofl_smoke(sc[2].tsbase, 0f0),
             smod, swt, fmod, fwt, year = Int(year), cyclen = cyclen,
-            eff = ((sc[1].pflam, sc[1].sch, sc[1].crburn, sc[1].burnseas, sc[1].psburn, sc[1].tsbase),
-                   (sc[2].pflam, sc[2].sch, sc[2].crburn, sc[2].burnseas, sc[2].psburn, sc[2].tsbase)),
+            eff = ((sc[1].pflam, sc[1].sch, sc[1].crburn, sc[1].burnseas, sc[1].psburn, sc[1].tsbase, sc[1].bcrown0),
+                   (sc[2].pflam, sc[2].sch, sc[2].crburn, sc[2].burnseas, sc[2].psburn, sc[2].tsbase, sc[2].bcrown0)),
             cond = ntuple(k -> (; wind = sc[k].prewnd, temp = unsafe_trunc(Int, sc[k].potemp),
                                 mois = (100f0 * sc[k].mois[1, 1], 100f0 * sc[k].mois[1, 2], 100f0 * sc[k].mois[1, 3],
                                         100f0 * sc[k].mois[1, 4], 100f0 * sc[k].mois[1, 5], 100f0 * sc[k].mois[2, 1],
@@ -394,8 +407,8 @@ scenario (INT(POKILL·100), INT(POVOLK), PBRNCR into the smoke) and FMPOFL_FMPTR
 function fmpofl_fmmain(s::StandState, row)
     pom = zeros(Float32, 2); pvk = zeros(Float32, 2); smk = zeros(Float32, 2)
     for k in 1:2
-        pflam, sch, crburn, burnseas, psburn, tsbase = row.eff[k]
-        pom[k], pvk[k], pbrncr = _pofl_fmeff(s, pflam, sch, crburn, burnseas, psburn, row.year, row.cyclen)
+        pflam, sch, crburn, burnseas, psburn, tsbase, bcrown0 = row.eff[k]
+        pom[k], pvk[k], pbrncr = _pofl_fmeff(s, pflam, sch, crburn, burnseas, psburn, row.year, row.cyclen, bcrown0)
         smk[k] = _pofl_smoke(tsbase, pbrncr)
     end
     pt = _pofl_fmptrh(s, row.year, row.surf_sev, row.surf_mod)
