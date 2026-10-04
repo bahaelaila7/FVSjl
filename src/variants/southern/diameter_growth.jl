@@ -417,9 +417,12 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # #191: stash the CURRENT-stand RMSQD before backdating so the TT aspen DGFASP calibration prediction uses it
     # (FVS uses current RMSQD in the calibration DGFASP, like the AVH exception below; jl's stand_qmd on the
     # backdated stand would under-predict aspen ⇒ measured>>predicted ⇒ COR falsely BOOSTS aspen DG).
-    s.calib.cur_rmsqd = ((s.variant isa InlandEmpire || s.variant isa EasternMontana) && s.calib.cratet_rmsqd > 0f0) ?
-                      s.calib.cratet_rmsqd :   # IE/EM (identical dense.f): the cratet
-                      stand_qmd(s)    # DENSE's dead-inclusive current RMSQD (live FVSie DGFASP GOFAD ⇒ 2.0217 = it; live-only 1.920). #195: current RMSQD for the aspen DGFASP calibration (ALL variants: TT/UT/BM/CI/EM/IE aspen dgf! read it; others ignore)
+    # The calibration DGF runs on the RMSQD that cratet.f's dead-inclusive LSTART DENSE left in the common (dense.f:249-252,
+    # current DBH, live+dead) — cratet.f is the bm core in every western variant and dense.f is one source, so this is not
+    # IE/EM-specific: MEASURED FVSut_g16 42642675010690 calibration DGFASP RMSQD 402504D0 (2.578, live+dead) vs live-only
+    # 2.177 ⇒ UT aspen COR 0.0430 live / 0.0810 jl ⇒ AS DG +5% from cycle 1. Variants whose init never ran that DENSE
+    # (cratet_rmsqd unset) keep the current live-only RMSQD. #195/#191: read by the aspen DGFASP calibration (TT/UT/BM/CI/EM/IE/SO).
+    s.calib.cur_rmsqd = s.calib.cratet_rmsqd > 0f0 ? s.calib.cratet_rmsqd : stand_qmd(s)
     _backdate_dbh!(s)                         # dense.f:70-128 backdating (IDG-faithful); shared w/ init_crown_ratios!
     # The backdated stand BA/AVH still include the dead trees (kept at current dbh):
     # expose the dead partition for this density pass, then restore. (PTBAA itself is
