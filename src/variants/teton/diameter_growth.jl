@@ -48,7 +48,7 @@ const TT_IMAP  = Int[2, 2, 2, 1, 2, 2, 2, 2, 2, 4, 1, 1, 3, 2, 3, 2, 2, 3]
         br = b1 + b2 * (1f0 / temd)
     else                                        # IMAP=4 (PP): power model, cap 0.97, no 0.80 floor
         d <= 0f0 && return 0.97f0
-        br = (b1 * d^b2) / d
+        br = (b1 * fpow(d, b2)) / d
         return br > 0.97f0 ? 0.97f0 : br
     end
     br > 0.99f0 && (br = 0.99f0)
@@ -92,9 +92,9 @@ function tt_dgcons!(s::StandState)
         ispdsq = Int(TT_MAPDSQ[ifor, sp]); (ispdsq < 1 || ispdsq > 4) && (ispdsq = 1)
         temel = elev; xsite = xss; asptem = aspect
         if sp == 16
-            temel > 30f0 && (temel = 30f0); xsite = log(xsite); asptem = aspect
+            temel > 30f0 && (temel = 30f0); xsite = flog(xsite); asptem = aspect
         elseif sp == 13
-            xsite = log(xsite); asptem = aspect
+            xsite = flog(xsite); asptem = aspect
         elseif sp == 10
             asptem = aspect
         else
@@ -102,7 +102,7 @@ function tt_dgcons!(s::StandState)
         end
         idgs = Int(TT_IDGSIM[isi, sp]); (idgs < 1 || idgs > 5) && (idgs = 1)
         dgcon = TT_DGSIC[idgs, sp] * xsite + TT_DGFOR[ispfor, sp] +
-                (TT_DGSASP[sp] * sin(asptem) + TT_DGCASP[sp] * cos(asptem) + TT_DGSLOP[sp]) * slope +
+                (TT_DGSASP[sp] * fsin(asptem) + TT_DGCASP[sp] * fcos(asptem) + TT_DGSLOP[sp]) * slope +
                 TT_DGSLSQ[sp] * slope * slope + TT_DGEL[sp] * temel + TT_DGEL2[sp] * temel * temel
         c.dg_dsq[sp] = TT_DGDS[ispdsq, sp]
         if sp == 10
@@ -115,7 +115,7 @@ function tt_dgcons!(s::StandState)
         else
             c.atten[sp] = Float32(TT_IBSERV[isic, sp])
         end
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         c.bark_a[sp], c.bark_b[sp] = _tt_bark_ab(sd, sp)
     end
@@ -155,7 +155,7 @@ function dgf!(s::StandState, ::Teton)
     relden = p.relative_density
     ba = p.basal_area
     ba100 = ba / 100f0
-    logba = ba > 0f0 ? log(ba) : 0f0   # PP CONSPP term uses raw ALOG(BA) (dgf.f:520; TEMBA clamp is dead code)
+    logba = ba > 0f0 ? flog(ba) : 0f0   # PP CONSPP term uses raw ALOG(BA) (dgf.f:520; TEMBA clamp is dead code)
     rmsqd = s.calib.cur_rmsqd >= 0f0 ? s.calib.cur_rmsqd : stand_qmd(s)   # #191: current RMSQD during calibration
     bau = any(j -> (sp = Int(t.species[j]); sp == 15 || sp == 18), 1:t.n) ? _tt_badist_bau(t) : nothing
     @inbounds for i in 1:t.n
@@ -165,17 +165,17 @@ function dgf!(s::StandState, ::Teton)
         if sp <= 3 || sp == 5 || (7 <= sp <= 9) || sp == 17
             cr  = Float32(t.crown_pct[i]) * 0.01f0
             bal = (1f0 - t.crown_ratio[i] / 100f0) * ba100
-            dds = conspp + TT_DGLD[sp] * log(d) + TT_DGBAL[sp] * bal +
+            dds = conspp + TT_DGLD[sp] * flog(d) + TT_DGBAL[sp] * bal +
                   cr * TT_DGCR[sp] + cr * cr * TT_DGCRSQ[sp] + c.dg_dsq[sp] * d * d
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 6 || sp == 14
             cr = Float32(t.crown_pct[i])                       # aspen: raw crown pct (÷10 inside DGFASP)
-            bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
+            bark = tt_bratio(sp, d)                           # tt/dgf.f:545 BARK=BRATIO(ISPC,D,HT)
             si = p.sp_site_index[sp]
             aspdg = _tt_dgfasp(d, cr, bark, si, rmsqd, ba)
             cor2 = (s.control.dg_cor2_on && s.control.dg_cor2[sp] > 0f0) ? s.control.dg_cor2[sp] : 1f0
-            dds = aspdg + log(cor2) + c.dg_cor[sp]
+            dds = aspdg + flog(cor2) + c.dg_cor[sp]
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 10
@@ -184,8 +184,8 @@ function dgf!(s::StandState, ::Teton)
             ipccf = Int(t.plot_id[i])
             pbal = (1f0 - t.crown_ratio[i] / 100f0) * dens.point_ba[ipccf]
             csp = conspp - 0.257322f0 * logba
-            dds = csp + TT_DGLD[sp] * log(d) + cr * (TT_DGCR[sp] + cr * TT_DGCRSQ[sp]) +
-                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * pbal / log(d + 1f0)
+            dds = csp + TT_DGLD[sp] * flog(d) + cr * (TT_DGCR[sp] + cr * TT_DGCRSQ[sp]) +
+                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * pbal / flog(d + 1f0)
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
         elseif sp == 4 || sp == 11 || sp == 12
@@ -202,19 +202,19 @@ function dgf!(s::StandState, ::Teton)
             if diagr <= 0f0
                 wk2[i] = -9.21f0
             else
-                dds = log(diagr * (2f0 * dpp * bark + diagr)) + conspp
+                dds = flog(diagr * (2f0 * dpp * bark + diagr)) + conspp
                 dds < -9.21f0 && (dds = -9.21f0)
                 wk2[i] = dds
             end
         elseif sp == 13 || sp == 16
             # tt/dgf.f CASE(13,16) BI/MC — Wykoff form (surrogate from CR/SO) w/ extra DGPCCF·PCCF + DGBA·BA.
-            ald = log(d)
+            ald = flog(d)
             cr  = Float32(t.crown_pct[i]) * 0.01f0
             bal = (1f0 - t.crown_ratio[i] / 100f0) * ba
             ipccf = Int(t.plot_id[i])
             pccf = (1 <= ipccf <= length(dens.point_ccf)) ? dens.point_ccf[ipccf] : 0f0
             dds = conspp + TT_DGLD[sp] * ald + TT_DGBAL[sp] * bal + cr * (TT_DGCR[sp] + cr * TT_DGCRSQ[sp]) +
-                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * bal / log(d + 1f0) +
+                  c.dg_dsq[sp] * d * d + TT_DGDBAL[sp] * bal / flog(d + 1f0) +
                   TT_DGPCCF[sp] * pccf + TT_DGBA[sp] * ba
             dds < -9.21f0 && (dds = -9.21f0)
             wk2[i] = dds
@@ -227,14 +227,14 @@ function dgf!(s::StandState, ::Teton)
             dpp = d < 1f0 ? 1f0 : d
             batem = ba < 5f0 ? 5f0 : ba
             bark = tt_bratio(sp, d)
-            df = (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * log(batem) +
+            df = (1.55986f0 + 1.01825f0 * dpp - 0.29342f0 * flog(batem) +
                   0.00672f0 * si - 0.00073f0 * bautba) * 1.05f0
             df < dpp && (df = dpp)
             diagr = (df - dpp) * bark
             if diagr <= 0f0
                 wk2[i] = -9.21f0
             else
-                dds = log(diagr * (2f0 * dpp * bark + diagr)) + c.dg_cor[sp] + c.dg_const[sp]
+                dds = flog(diagr * (2f0 * dpp * bark + diagr)) + c.dg_cor[sp] + c.dg_const[sp]
                 dds < -9.21f0 && (dds = -9.21f0)
                 wk2[i] = dds
             end
@@ -249,12 +249,12 @@ end
 @inline function _tt_dgfasp(d::Float32, cr::Float32, bark::Float32, si::Float32, rmsqd::Float32, ba::Float32)::Float32
     rel = rmsqd > 0f0 ? d / rmsqd : 0f0
     aspcr = cr / 10f0
-    pot = (0.4755f0 - 3.8336f-6 * d^4.1488f0) + (4.510f-2 * aspcr * d^0.67266f0)
+    pot = (0.4755f0 - 3.8336f-6 * fpow(d, 4.1488f0)) + (4.510f-2 * aspcr * fpow(d, 0.67266f0))
     pot <= 0f0 && (pot = 0.01f0)
-    fofr = 1.07528f0 * (1f0 - exp(-1.89022f0 * rel))
-    gofad = 2.1963f-1 * (rmsqd + 1f0)^0.73355f0
+    fofr = 1.07528f0 * (1f0 - fexp(-1.89022f0 * rel))
+    gofad = 2.1963f-1 * fpow(rmsqd + 1f0, 0.73355f0)
     baact = ba >= 310f0 ? 305f0 : ba
-    valmod = 1f0 - exp(-fofr * gofad * ((310f0 - baact) / 310f0)^0.5f0)
+    valmod = 1f0 - fexp(-fofr * gofad * fpow((310f0 - baact) / 310f0, 0.5f0))
     predgr = pot * valmod * (0.48630f0 + 0.01258f0 * si)
-    return log(2f0 * d * bark * predgr + predgr * predgr)
+    return flog(2f0 * d * bark * predgr + predgr * predgr)
 end
