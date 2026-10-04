@@ -507,9 +507,9 @@ crowning_index(::StandState, ::Float32, ::Int, ::AbstractVariant) = -1f0
 function crowning_index(s::StandState, cbd::Float32, fmois::Int, ::Union{Northeast,CentralRockies,InlandEmpire,Kootenai,EasternMontana,CentralIdaho,Teton,Utah,BlueMountains,Klamath,CentralCalifornia,WestCascades,PacificNorthwest,Olympic,EastCascades,SouthCentralOregon,WestSierra,SoutheastAlaska})::Float32
     cbd > 0f0 || return -1f0
     r = rothermel_surface_fire(_fm10(s)..., fuel_moisture(fmois, s.variant); slope_tan = s.plot.slope)
-    r.xio < 1f-5 && return -1f0
+    r.xio < 1f0 && return -1f0                     # fmcfir.f:157 `IF (SIRXI(2) .LT. 00001)` — the INTEGER 1
     o = ((2.95f0 * r.rhobqig / (r.xio * cbd)) - r.phis - 1f0) / 0.001612f0
-    return o > 0f0 ? o^0.7f0 * 0.01137f0 / 0.4f0 : 0f0
+    return o > 0f0 ? fpow(o, 0.7f0) * 0.01137f0 / 0.4f0 : 0f0   # OACT1**0.7 ⇒ glibc powf
 end
 
 """
@@ -541,7 +541,7 @@ function torching_index(s::StandState, cbd::Float32, actcbh::Integer, fmois::Int
     (ssig > 0f0 && sxir > 0f0) || return -1f0
     hpa = sxir * 384f0 / ssig
     folmc = 100f0                                     # foliar moisture content (fminit.f:150 default)
-    init1 = ((460f0 + 25.9f0 * folmc) * 0.001333f0 * Float32(actcbh))^1.5f0
+    init1 = fpow((460f0 + 25.9f0 * folmc) * 0.001333f0 * Float32(actcbh), 1.5f0)   # fmcfir.f:100-101 (…)**(3.0/2.0)
     rinit1 = 60f0 * init1 / hpa
     wmult = fire_wind_reduction(s.fire.percov)
     # weighted-model surface spread (ft/min) at a 20-ft wind `oi` (canopy-reduced to midflame `oi·wmult`)
@@ -574,7 +574,7 @@ function crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmois::
         sxir += r.xir * w; ssig += r.sigma * w
     end
     hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
-    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    init1 = fpow((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh), 1.5f0)   # FOLMC=100; (…)**(3.0/2.0) ⇒ powf
     rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
     spr(oi) = sum(rothermel_surface_fire(fmgfmv(s, fm, mois)..., mois;
                   wind = oi * wmult, slope_tan = s.plot.slope).spread * w for (fm, w) in models)
@@ -613,7 +613,7 @@ function nc_crown_fire_result(s::StandState, cbd::Float32, actcbh::Integer, fmoi
         sxir += r.xir * w; ssig += r.sigma * w
     end
     hpa = ssig > 0f0 ? sxir * 384f0 / ssig : 0f0
-    init1 = ((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh))^1.5f0   # FOLMC=100
+    init1 = fpow((460f0 + 25.9f0 * 100f0) * 0.001333f0 * Float32(actcbh), 1.5f0)   # FOLMC=100; (…)**(3.0/2.0) ⇒ powf
     rinit1 = hpa > 0f0 ? 60f0 * init1 / hpa : 0f0
     # SFRATE(FMOIS) = surface spread (SELECTED models) at the actual midflame wind
     sfrate_act = sum(rothermel_surface_fire(fmgfmv(s, fm, mois)..., mois;
@@ -678,7 +678,7 @@ function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vec
     msdi = 0f0
     @inbounds for (i, pr) in walk
         dcm = t.dbh[i] * 2.54f0
-        msdi += (pr * 2.47f0) * (dcm / 25.4f0)^1.6f0
+        msdi += (pr * 2.47f0) * fpow(dcm / 25.4f0, 1.6f0)   # REAL**REAL ⇒ glibc powf
     end
     mrd = msdi / 1111.97f0; mrd > 1f0 && (mrd = 1f0)
     lbhpp_kodfor = Int(s.plot.user_forest_code)
@@ -704,15 +704,15 @@ function canopy_crfill(s::StandState; vtrip::Bool = false, fmicr = nothing)::Vec
             (i1 <= i2 && crbio > 0f0) || continue
             weibb = 7.1386f0 - 0.0608f0 * (h / 3.28f0)
             weibc = 3.3126f0 - 0.0214f0 * (h / 3.28f0) - 1.1622f0 * mrd
-            wtradj = 1f0 - exp(-((10f0 / weibb)^weibc))
+            wtradj = 1f0 - fexp(-fpow(10f0 / weibb, weibc))   # fmpocr.f:164 EXP/** ⇒ glibc expf/powf
             tscl = Float32(i2 - i1)
             secint = 10f0 / (tscl + 1f0)
             secbnd = 0f0
             for j in i2:-1:i1                            # from crown top down, fill each 1-ft section
                 secbnd += secint
-                wprop = j == i2 ? (1f0 - exp(-((secbnd / weibb)^weibc))) :
-                        (1f0 - exp(-((secbnd / weibb)^weibc))) -
-                        (1f0 - exp(-(((secbnd - secint) / weibb)^weibc)))
+                wprop = j == i2 ? (1f0 - fexp(-fpow(secbnd / weibb, weibc))) :
+                        (1f0 - fexp(-fpow(secbnd / weibb, weibc))) -
+                        (1f0 - fexp(-fpow((secbnd - secint) / weibb, weibc)))
                 crfill[j] += (crbio * wprop) / wtradj
             end
             continue

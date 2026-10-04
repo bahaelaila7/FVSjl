@@ -212,7 +212,7 @@ function _pofl_nprob_upper(z::Float64)::Float64
     zabs = abs(z)
     zabs > 12.7 && return z < 0 ? 1.0 : 0.0
     y = 0.5 * z * z
-    pdf = exp(-y) * 0.398942280385
+    pdf = dexp(-y) * 0.398942280385                    # DOUBLE PRECISION EXP ⇒ glibc exp
     q = zabs > 1.28 ?
         pdf / (zabs - 3.8052e-8 + 1.00000615302 / (zabs + 3.98064794e-4 + 1.98615381364 / (zabs - 0.151679116635 +
                5.29330324926 / (zabs + 4.8385912808 - 15.1508972451 / (zabs + 0.742380924027 + 30.789933034 /
@@ -255,7 +255,7 @@ function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32
         @inbounds for ii in 1:mxi
             i = indx[ii]
             ran = rann!(s.rng)
-            if prb[i] > 1000f0 || ran > exp(-prb[i] * 0.025f0)
+            if prb[i] > 1000f0 || ran > fexp(-prb[i] * 0.025f0)   # fmpofl.f:544 REAL EXP ⇒ glibc expf
                 nyes += 1; yes[nyes] = i
                 ht[i] >= crit && (itop = true)
             end
@@ -284,12 +284,12 @@ function _pofl_fmptrh(s::StandState, year::Integer, flm1::Float32, flm2::Float32
         end
     end
     sel = [i for i in 1:30 if mincb[i] != -1f0]
-    lmin = Float32[log(mincb[i]) for i in sel]
+    lmin = Float32[flog(mincb[i]) for i in sel]       # fmpofl.f:605-611 REAL LOG ⇒ glibc logf
     p = 1f0 / 30f0
     ptr(flm) = begin
         acc = 0f0
         if flm > 0.0001f0
-            mxnt = log(fpow(flm / 0.0775f0, 1.45f0) / 30.5f0)
+            mxnt = flog(fpow(flm / 0.0775f0, 1.45f0) / 30.5f0)
             for lm in lmin
                 z = Float64(lm - mxnt) / 0.25
                 pt = _pofl_nprob_upper(z)

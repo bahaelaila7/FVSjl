@@ -322,3 +322,15 @@ end
         end
     end
 end
+
+@testset "EM 3087467010690 simfire FVS_PotFire canopy: FMPOCR's Black-Hills PP Weibull on glibc expf/powf (fmpocr.f:62-220)" begin
+    # EM/IE/KT ponderosa (ISP 10) spread their crown by the Keyser-Smith truncated Weibull: (DCM/25.4)**1.6, EXP(-((10/WEIBB)
+    # **WEIBC)) and the per-foot WPROP are REAL EXP/** ⇒ glibc expf/powf. Julia's exp/^ put 2008 Canopy_Density at 0.07557285
+    # vs live 0.07557286 (Crown_Index 27.791910 vs 27.791908).
+    db = _cr_run("em", "3087467010690", "simfire")
+    gold, jl = _cr_table("em", "3087467010690", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Canopy_Density", "Crown_Index", "Torch_Index", "Canopy_Ht")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
