@@ -37,7 +37,7 @@ const CI_KFOR = Int[1,2,2,3,2,2]
 
 "ci/habtyp.f numeric path: habitat code KODTYP → (ICINDX 1..130, ITYPE 1..30). Bracket search ICITYP."
 function ci_habtyp(kodtyp::Integer)
-    (kodtyp < 10 || kodtyp > 999) && return (1, 1)      # ERRGRO(14) → I=1 path
+    (kodtyp < 10 || kodtyp > 999) && return (21, 4)     # ERRGRO(14): ICINDX/ITYPE keep the grinit.f:202-203 defaults
     ii = findfirst(i -> kodtyp < CI_ICITYP[i], 1:130)
     i = ii === nothing ? 131 : ii
     i == 1 && return (1, 1)
@@ -134,8 +134,9 @@ function ci_site_index_setup!(s::StandState)
     p = s.plot
     ifor = ci_forkod!(p)
     kodtyp = Int(p.habitat_code)
-    icindx, itype = kodtyp > 0 ? ci_habtyp(kodtyp) : (max(Int(p.habitat_input), 1), max(Int(p.habitat_input), 1))
-    (icindx < 1 || icindx > 130) && (icindx = 1)
+    # no / unresolved habitat ⇒ ci/grinit.f:202-203 ICINDX=21, ITYPE=4 (habitat 260 — "HABITAT TYPE MAPPED TO 260").
+    icindx, itype = ci_habtyp(kodtyp)
+    (icindx < 1 || icindx > 130) && (icindx = 21)
     p.habitat_input = Int32(icindx)                       # DG reads ICHBCL(ICINDX) ← stash ICINDX here
     ci_sitset!(s, icindx, ifor)
     ci_cratet_site_adjust!(s)                             # CRATET 50-yr-base site adjust (WB/LM/PY)

@@ -335,7 +335,7 @@ function point_density!(s::StandState)
         elseif s.variant isa CentralCalifornia
             ccft = ca_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # ca/ccfcal.f MODE=1 (R5CRWD = OC's)
         elseif s.variant isa SouthCentralOregon
-            ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
+            ccft = so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]; ifor = Int(s.plot.forest_idx)) * t.tpa[i]  # so/ccfcal.f MODE=1 — was the generic
                                                                                        # national crown-width path ⇒ PCCF ~100× low (DUBSCR TPCCF 1.4 vs live 153)
         elseif s.variant isa WestSierra
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
@@ -483,10 +483,19 @@ function stand_ccf(s::StandState)
         end
         return ccf
     elseif s.variant isa BlueMountains
-        # BM CCF is the same direct per-species polynomial (bm/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
-        @inbounds for i in 1:t.n
-            ccf += bm_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # BM CCF is the same direct per-species polynomial (bm/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN, which
+        # dense.f:95-140 (the IE/EM file) accumulates SPECIES-MAJOR in IND1 order into RELDSP(ISPC), then RELDT=RELDT+
+        # RELDSP(ISPC). MEASURED FVSbm_g16 22960873010497 2017 REGENT CCF 42FAF772 vs the flat record-order 42FAF775.
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += bm_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa Klamath
         # NC CCF = the direct per-species ccfcal polynomial (nc/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.
@@ -561,7 +570,7 @@ function stand_ccf(s::StandState)
         # SO CCF = so/ccfcal.f MODE=1 (RD polynomial + WC-hardwood + SH/WO r6crwd crown-width²);
         # stand CCF = Σ CCFT·P = RELDEN, read by dgf! CONSPP and regent PCTRED.
         @inbounds for i in 1:t.n
-            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]) * t.tpa[i]
+            ccf += so_tree_ccf(Int(t.species[i]), t.dbh[i], t.height[i]; ifor = Int(s.plot.forest_idx)) * t.tpa[i]
         end
         return ccf
     elseif s.variant isa WestSierra

@@ -290,7 +290,7 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     # BM (bm/fmcfmd.f) — DF/PP-fraction weighted between a size-class-distribution path (BMSTAGE canopy
     # stratification + BMSZCLS Monte-Carlo size classes) and a PERCOV-band path.
     if s.variant isa BlueMountains
-        return bm_select_fuel_models(s, mois, sm, lg)
+        return bm_select_fuel_models(s, mois, sm, lg; fire_basis = fire_basis)
     end
 
     # NC (nc/fmcfmd.f + cwhr.f) — California CWHR size×density structural-stage classification.
@@ -739,7 +739,9 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
     qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
     stndba = sum(ctba)
-    # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343)
+    # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343); with no trees /
+    # no BA the PREVIOUS call's ICT (OLDICT — fmvinit.f initialises it to 6, lodgepole). jl used MCCT on bare stands
+    # (MEASURED FVStt_g16 3333677010690 1992: live ICT 6 ⇒ FMD 2, jl ICT 7 ⇒ FMD 8; flame 12.7 / 1.97).
     ict = 7
     if t.n > 0 && stndba > 0.001f0
         for i in 1:8
@@ -747,7 +749,10 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
                 ict = i; break
             end
         end
+    else
+        ict = fs.covtyp_ict > 0 ? Int(fs.covtyp_ict) : 6          # OLDICT (cr|tt|ut/fmvinit.f OLDICT = 6)
     end
+    fs.covtyp_ict = Int32(ict)                                      # fmcfmd.f label 10: OLDICT = ICT
     # LPPDOM: is ponderosa the single highest-BA species? (fmcfmd.f:811-822; CR J=13, UT/TT J=10)
     pp_sp = _fm_ppct_sp(s.variant)
     lppdom = true
@@ -1137,7 +1142,7 @@ the largest height gap (>= max(10ft, 30% of the taller tree), ladder trees < 2 T
 upper/lower stratum canopy cover (COVA/COVB, %) via COVOLP and a per-tree upper-layer membership flag LA.
 CRWDTH is the western forest-grown crown width (bm_cwcalc: cwcalc.f BMMAP + R6 BF).
 """
-function bm_stage(s::StandState)
+function bm_stage(s::StandState; prob::AbstractVector{Float32} = s.trees.tpa)
     t = s.trees; n = t.n
     cccoef = Float32(s.control.cc_coef)
     la = falses(n)
@@ -1148,8 +1153,8 @@ function bm_stage(s::StandState)
     cwof(i) = bm_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _ba, _el, _hi; kodfor = _kf)
     idx = Int[]; sprob = 0f0
     @inbounds for i in 1:n
-        sprob += t.tpa[i]
-        t.tpa[i] > 0.00001f0 && push!(idx, i)
+        sprob += prob[i]
+        prob[i] > 0.00001f0 && push!(idx, i)
     end
     ntrees = length(idx)
     ntrees == 0 && return (0f0, 0f0, la)
@@ -1158,13 +1163,13 @@ function bm_stage(s::StandState)
     is1i1 = 1; is1i2 = ntrees; is2i1 = 0; is2i2 = ntrees
     if ntrees <= 1
         i = idx[1]; w = cwof(i)
-        crs1 = w * w * t.tpa[i] * 0.785398f0 / 43560f0
+        crs1 = w * w * prob[i] * 0.785398f0 / 43560f0
         is1i1 = 1; is1i2 = 1
     else
         rdpsrt!(ntrees, ht, idx, false)                     # HT descending; idx[1] = tallest
         @inbounds for ii in 1:ntrees
             i = idx[ii]; w = cwof(i)
-            wk6[i] = w * w * t.tpa[i] * 0.785398f0          # crown area (sqft/ac)
+            wk6[i] = w * w * prob[i] * 0.785398f0          # crown area (sqft/ac)
         end
         diff1 = -1f20; id1i1 = 0; id1i2 = 0
         iilg = 1; ilarge = idx[iilg]; sumprb = 0f0
@@ -1172,8 +1177,8 @@ function bm_stage(s::StandState)
             ismall = idx[ii]
             x = max(10f0, ht[ilarge] * 30f0 * 0.01f0)
             if ht[ismall] < ht[ilarge] - x
-                if t.tpa[ismall] + sumprb < 2f0
-                    sumprb += t.tpa[ismall]
+                if prob[ismall] + sumprb < 2f0
+                    sumprb += prob[ismall]
                 else
                     dff = ht[ilarge] - ht[ismall]
                     if dff > diff1
@@ -1182,8 +1187,8 @@ function bm_stage(s::StandState)
                     ilarge = ismall; iilg = ii; sumprb = 0f0
                 end
             else
-                if t.tpa[ismall] + sumprb < 2f0
-                    sumprb += t.tpa[ismall]
+                if prob[ismall] + sumprb < 2f0
+                    sumprb += prob[ismall]
                 else
                     ilarge = ismall; iilg = ii; sumprb = 0f0
                 end
@@ -1272,14 +1277,20 @@ BA fraction) over ALGSLP([0.40,0.60]). WT1(1) (neither dominates) drives a size-
 (BMSTAGE + BMSZCLS) weighting models 5/8/10 by size class x PERCOV x stratum cover; WT1(2) (DF/PP dominant)
 drives a PERCOV-band path (models 1/2/9/10 + a PRPP/(PRPP+PRDF) split). Natural fuels {10,12,13} always
 ASSIGNED last (overwriting any 10 accumulation). Activity fuels (11/14) deferred (AFWT=0)."""
-function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32)
+function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm::Float32, lg::Float32;
+                               fire_basis::Bool = false)
     t = s.trees; fs = s.fire
     percov = fs.percov
+    # After this year's burn (fire_basis: FMMAIN's post-FMBURN FMCFMD3→FMCFMD, fmmain.f:189) FMTBA is still FMCBA's
+    # year-start sum and BMSTAGE reads PROB, which keeps the pre-fire density until FMKILL; only BMSZCLS reads the
+    # post-kill FMPROB. MEASURED FVSbm_g16 12827438010497 simfire 2015 PotFire fuel models 5/2 at 56/42 (= the
+    # no-fire run); jl's post-kill density gave 79/17.
+    pre = (fire_basis && length(fs.prob_prefire) == t.n) ? fs.prob_prefire : t.tpa
     fmtba = zeros(Float32, 18); stndba = 0f0
     @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
+        pre[i] > 0f0 || continue
         sp = Int(t.species[i]); (1 <= sp <= 18) || continue
-        x = t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+        x = pre[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
         fmtba[sp] += x; stndba += x
     end
     prdf = stndba > 0.01f0 ? fmtba[3] / stndba : 0f0
@@ -1289,7 +1300,7 @@ function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     wt1a = 1f0 - wt1b                                               # WT1(1)
 
     if wt1a > 0f0                                                   # CASE 1: neither DF nor PP dominates
-        cova, covb, la = bm_stage(s)
+        cova, covb, la = bm_stage(s; prob = pre)
         wd = bm_szcls(s, la)
         @inbounds for k in 1:13
             wd[k] > 0f0 || continue

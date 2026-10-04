@@ -951,6 +951,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
                                       s.variant isa Teton || s.variant isa Utah ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
+                                      s.variant isa BlueMountains ||   # bm/estab.f:508-516 (bm/essubh.f DELAY→INT(+.5), TRAGE=TIME−DELAY)
                                       s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
                                       s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
                                       s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same

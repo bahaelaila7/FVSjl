@@ -130,6 +130,11 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     expinf::Matrix{Float32}   # EXPINF(ITOTRR,2): (1)=new-infected / (2)=new TPA by area expansion (rdinf.f); zeroed each report
     wk1_nold::Int             # driver size before the end-of-cycle RDESTB sizing (−1 = none): the next WK1 snapshot keeps
                               # the records established since at WK1=0 (estab.f zeroes WK1 of a booked record)
+    prinf::Vector{Float32}    # PRINF(1:ITOTRR) — weighted-average proportion of infected roots per disease type, as last
+                              # set by RDSETP (:2200-2500) or RDCNTL DO 800 (after RDMORT); RDPR/RDDOUT report this value
+    prinf_sp::Vector{Float32} # PRINF(KSP+ITOTRR) — the same per host species
+    oldtpa::Float32           # OLDTPA / ORMSQD as GRINCR saves them at the cycle start (grincr.f:281/285: DENSE's TPROB and
+    ormsqd::Float32           # RMSQD = SQRT(ΣD·(D·P)/TPROB), species-major IND1); RDROOT's SDI effect reads them. −1 = unset
 
     RootDiseaseState() = rd_init_defaults!(new())
 end
@@ -142,6 +147,8 @@ reduced center-init mortality path reads). Values verified against the live FVSk
 oracle's RDIN option echo.
 """
 function rd_init_defaults!(rd::RootDiseaseState)
+    rd.prinf = zeros(Float32, RD_ITOTRR); rd.prinf_sp = Float32[]
+    rd.oldtpa = -1f0; rd.ormsqd = -1f0
     rd.iroot  = Int32(0)
     rd.rrman  = false
     rd.rrtinv = false
@@ -277,7 +284,7 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
     m = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
     conv(x, f) = m ? x * f : x
     div_(x, f) = m ? x / f : x
-    prinf_idi, _ = rd_prinf(rd, s)                           # rdcntl.f DO-800 stand-total PRINF(IDI)
+    prinf_idi = 1 <= idi <= length(rd.prinf) ? rd.prinf[idi] : 0f0   # PRINF(IRRSP) as RDSETP/RDCNTL left it
     # New-infection proportions (rdpr.f:220-227): CORE = corridor (inside-patch) new-inf fraction,
     # EXPAND = area-expansion new-inf fraction, TOTINF = combined. Zeroed after the report (rdpr.f:316-319).
     cor1 = rd.corinf[idi, 1]; cor2 = rd.corinf[idi, 2]
@@ -329,6 +336,51 @@ function rd_prinf(rd::RootDiseaseState, s::StandState)
     prinf_sp = num_sp ./ (den_sp .+ 1.0f-6)
     prinf_idi = num_idi / (den_idi + 1.0f-6)
     return prinf_idi, prinf_sp
+end
+
+"""
+    rd_prinf_store!(rd, s, probi, propi, nit, nip)
+
+PRINF as RDCNTL DO 800 (rdcntl.f:487-526, after RDMORT) or RDSETP DO 2400 (rdsetp.f:488-535, `nit=nip=1`) forms it:
+species 1..MAXSP in IND1 order, IDI = IDITYP(IRTSPC(KSP)) when MAXRR<3 (MAXRR otherwise) and a non-host (IDI≤0) skipped,
+PRINF(KSP+ITOTRR) = ΣPROBI·PROPI (PROPI>0) / (ΣPROBI+1E-6) per species, PRINF(IDI) summed over its host species and divided
+once. Stored in `rd.prinf`/`rd.prinf_sp`; the reports read the stored value (RDPR TPRINF = PRINF(IRRSP)·100), not one
+recomputed on the end-of-cycle PROBI/PROPI after RDEND/RDGROW.
+"""
+function rd_prinf_store!(rd::RootDiseaseState, s::StandState, probi, propi, nit::Int, nip::Int)
+    t = s.trees
+    nsp = length(s.coef.code_alpha)
+    maxrr = Int(rd.maxrr); minrr = Int(rd.minrr)
+    num = zeros(Float32, RD_ITOTRR); den = zeros(Float32, RD_ITOTRR)
+    psp = zeros(Float32, nsp)
+    ord = _ind1_order(s)
+    k = 1; nord = length(ord)
+    @inbounds while k <= nord
+        ksp = Int(t.species[ord[k]]); kend = k
+        while kend < nord && Int(t.species[ord[kend + 1]]) == ksp; kend += 1; end
+        idi = maxrr < 3 ? Int(RD_IDITYP[Int(rd.irtspc[ksp])]) : maxrr
+        if idi > 0
+            ns = 0f0; ds = 0f0
+            for kk in k:kend
+                i = Int(ord[kk])
+                i <= size(probi, 1) || continue
+                for it in 1:nit, ip in 1:nip
+                    pb = probi[i, it, ip]; pp = propi[i, it, ip]
+                    if pp > 0f0
+                        ns = ns + pb * pp; num[idi] = num[idi] + pb * pp
+                    end
+                    ds = ds + pb; den[idi] = den[idi] + pb
+                end
+            end
+            1 <= ksp <= nsp && (psp[ksp] = ns / (ds + 1f-6))
+        end
+        k = kend + 1
+    end
+    for idi in minrr:maxrr
+        rd.prinf[idi] = num[idi] / (den[idi] + 1f-6)
+    end
+    rd.prinf_sp = psp
+    return rd
 end
 
 # -----------------------------------------------------------------------------
@@ -418,7 +470,7 @@ function rd_det_report(rd::RootDiseaseState, s::StandState, year::Integer)
     idi = Int(rd.minrr)
     parea = rd.parea[idi]; pdiv = parea + 1.0f-9
     rdtype = 1 <= idi <= 4 ? _RD_TYPE_CHAR[idi] : "A"
-    _, prinf_sp = rd_prinf(rd, s)
+    prinf_sp = length(rd.prinf_sp) >= length(s.coef.code_alpha) ? rd.prinf_sp : rd_prinf(rd, s)[2]
     nsp = length(s.coef.code_alpha)
     metric = (s.variant isa BritishColumbia) || (s.variant isa Ontario)
     intocm = 2.54f0
@@ -522,13 +574,13 @@ end
 # rd.rd_cdf, memoized on OLDPRP. Returns (INTNUM, LREV).
 function _rd_ranp_setup!(rd::RootDiseaseState, prop::Real)
     propin = Float32(prop)
-    intnum = round(Int, 5.0f0 / propin)                  # NINT(5/PROPIN)
+    intnum = round(Int, 5.0f0 / propin, RoundNearestTiesAway)   # NINT(5/PROPIN) (ties away from zero)
     intnum > 100 && (intnum = 100)
     intnum < 10  && (intnum = 10)
 
     L = 0                                                # rdranp.f label 100
     while true
-        exprop = propin / (1.0f0 - (1.0f0 - propin)^intnum)
+        exprop = propin / (1.0f0 - fpowi(1.0f0 - propin, intnum))   # REAL**INTEGER ⇒ __powisf2
         if abs(propin - exprop) > (1.0f0 / Float32(intnum)) && L < 10
             propin = propin - (0.5f0 * (propin - exprop))
             L += 1
@@ -547,7 +599,7 @@ function _rd_ranp_setup!(rd::RootDiseaseState, prop::Real)
         rd.rd_oldprp = propin
         length(rd.rd_cdf) < intnum + 1 && (rd.rd_cdf = zeros(Float32, max(intnum + 1, 1001)))
         cdf = rd.rd_cdf
-        pdf = (1.0f0 - propin)^intnum
+        pdf = fpowi(1.0f0 - propin, intnum)
         cdf[1] = pdf
         @inbounds for k in 1:intnum
             pdf = pdf > 1.0f-15 ?
@@ -896,14 +948,14 @@ path; g16 bit-exact, incl. the `^1.605` / exp / log rounding).
 function rd_root(dbh::Float32, ht::Float32, proot::Float32, rslop::Float32,
                  sdislp::Float32, yincpt::Float32, oldtpa::Float32,
                  grospc::Float32, ormsqd::Float32, ba::Float32)::Float32
-    sdinew = (oldtpa / grospc) * (ormsqd / 10.0f0)^1.605f0
+    sdinew = (oldtpa / grospc) * fpow(ormsqd / 10.0f0, 1.605f0)   # rdroot.f:54 REAL**REAL ⇒ powf
     effect = sdinew > 0.0f0 ? sdislp * sdinew + yincpt : 1.0f0
     effect = min(effect, 1.5f0)
     effect = max(effect, 0.5f0)
     if dbh < 3.5f0
         ans = 0.01f0
         if ht != 0.0f0 && ba != 0.0f0
-            ans = exp(0.61157f0 * log(ht) + 0.04032f0 * log(ba) - 0.80815f0)
+            ans = fexp(0.61157f0 * flog(ht) + 0.04032f0 * flog(ba) - 0.80815f0)   # rdroot.f:77 EXP/ALOG ⇒ expf/logf
             ans = ans * effect
         end
         return ans
@@ -1116,6 +1168,7 @@ function rd_setp!(rd::RootDiseaseState, s::StandState)
     end
 
     rd_inoc!(rd, s, true)                           # rd/rdinoc.f (.TRUE.) — inert (no stumps)
+    rd_prinf_store!(rd, s, reshape(rd.probi, :, 1, 1), reshape(rd.propi, :, 1, 1), 1, 1)   # rdsetp.f DO 2400 PROBI/PROPI(I,1,1)
     return rd
 end
 
@@ -1776,7 +1829,7 @@ function rd_sprd!(rd::RootDiseaseState, idi::Int;
                         # baseline infection test
                         if sick[in_] == 0 && yrrs[in_] <= trurad[in_]
                             r = rd_rann!(rd)
-                            pnin = irstep == 1 ? pnsp : 1.0f0 - (1.0f0 - pnsp)^(nrf/rpint)
+                            pnin = irstep == 1 ? pnsp : 1.0f0 - fpow(1.0f0 - pnsp, nrf/rpint)   # rdsprd.f:425 powf
                             if r <= pnin
                                 sick[in_] = 1; radnew[in_] = -yrrs[in_]; sine[in_] = 1.0f0
                             end
@@ -1788,7 +1841,7 @@ function rd_sprd!(rd::RootDiseaseState, idi::Int;
                                 if radnow[it] > 0.0f0
                                     if radnew[in_] < -(distnc[it,in_] - radnow[it])
                                         r = rd_rann!(rd)
-                                        pnin = 1.0f0 - (1.0f0 - pnsp)^(nrf/fintf)
+                                        pnin = 1.0f0 - fpow(1.0f0 - pnsp, nrf/fintf)   # rdsprd.f:460 powf
                                         if r <= pnin
                                             sick[in_] = 1
                                             radnew[in_] = -(distnc[it,in_] - radnow[it])
@@ -1951,7 +2004,7 @@ fraction `PNSP *= SPPROP·SPTRAN + (1-SPPROP)`. `base = irtspc(ksp)`. Float32.
 function rd_inf_pnsp(rd::RootDiseaseState, ksp::Integer, idi::Int, fint::Real, pint::Real;
                      spprop::Float32 = RD_SPPROP0, sptran::Float32 = 0.5f0)
     base = Int(rd.irtspc[ksp])
-    pnsp = 1.0f0 - (1.0f0 - RD_PNINF[base, idi])^(Float32(fint)/Float32(pint))
+    pnsp = 1.0f0 - fpow(1.0f0 - RD_PNINF[base, idi], Float32(fint)/Float32(pint))   # rdinf.f:73 powf
     return pnsp * (spprop * sptran + (1.0f0 - spprop))
 end
 
@@ -2661,6 +2714,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     end
     oldtpa = tpa_sum
     ormsqd = tpa_sum > 0.0f0 ? sqrt(dsq_sum / tpa_sum) : 0.0f0
+    rd.ormsqd >= 0f0 && (oldtpa = rd.oldtpa; ormsqd = rd.ormsqd)   # GRINCR's cycle-start OLDTPA/ORMSQD (root_disease_mn2!)
     grospc = p.gross_space; ba = p.basal_area
     @inbounds for i in 1:n
         ksp = Int(t.species[i]); ksp == 0 && (d.rootl[i] = 0.0f0; continue)
@@ -2691,7 +2745,9 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     rd_inup!(rd, d, idi)
     if rd.parea[idi] != 0.0f0 && m > 0
         smbi = 0.0f0; smiu = 0.0f0
-        @inbounds for i in order; smbi += d.probit[i]; smiu += d.probiu[i]; end
+        # rdinsd.f DO 443 I=1,ITRN: RECORD order (not IND1) over the active-type hosts — the Float32 sums feed RRIDIM
+        # (MEASURED FVSbm_g16 177426703020004 rootdis cycle 2 RRIDIM 111.155777 live, 111.155792 in IND1 order)
+        @inbounds for i in sort(order); smbi += d.probit[i]; smiu += d.probiu[i]; end
         dennew = (smiu + smbi) / rd.parea[idi]
         @inbounds for i in 1:2, j in 1:5
             dennew += d.probd[idi, i, j] / (rd.parea[idi] + 1.0f-9)
@@ -2717,8 +2773,11 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
             @inbounds for (kk, i) in enumerate(order)
                 rd.corinf[idi, 2] += d.probiu[i]            # rdinsd.f:398 CORINF(IDI,2) += PROBIU (before infection, ALL records)
                 rrninf[kk] <= 1.0f-4 && continue
-                nk = rrninf[kk]                              # /NINSIM (=1)
-                pl = polp[kk]
+                # rdinsd.f:404-405 RRNINF/(REAL(NINSIM)+1E-6), POLP/(REAL(NINSIM)+1E-6): NINSIM=1, but 1.0+1E-6 is
+                # 1.00000095 in REAL, so the division moves both by ~1E-6 (MEASURED FVSbm_g16 177426703020004 rootdis
+                # cycle 1 PROBI(9,2,1) 0.821117043 live, 0.821117818 undivided)
+                nk = rrninf[kk] / (1.0f0 + 1.0f-6)
+                pl = polp[kk] / (1.0f0 + 1.0f-6)
                 d.probiu[i] -= nk; d.probiu[i] < 0.0f0 && (d.probiu[i] = 0.0f0)
                 d.probi[i, istep, 1] += nk
                 d.propi[i, istep, 1] = -pl
@@ -2799,6 +2858,7 @@ function rd_control!(rd::RootDiseaseState, s::StandState, fint::Real)
     @inbounds for i in 1:n
         d.rdkill[i] > 0.0f0 && rd_stp!(rd, d, isp_rec[i], dbh_rec[i], d.rootl[i], d.rdkill[i])
     end
+    rd_prinf_store!(rd, s, d.probi, d.propi, istep, 2)          # RDCNTL DO 800 (rdcntl.f:487-526), right after RDMORT
     rd_sum!(d.probit, d.probi, istep)
     return
 end
@@ -2890,7 +2950,8 @@ function root_disease_setup!(s::StandState)
     # RDSUM: the inventory (1990/icyc=0) FVS_RD_Sum row — RDPR#1 at fvs.f:347, before the cycle
     # loop (pre-projection: rdkill/probda/rrrate=0 ⇒ Mort/Stumps/Spread=0, Inf/UnInf/BA from the
     # initial infection). Populate PROBIT (=Σ PROBI) first, as RDPR would.
-    if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+    # rdpr.f:79 IF (ITRN .EQ. 0) RETURN — no tree records ⇒ no RDPR report row (a bare stand writes no FVS_RD_Sum).
+    if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0
         d = rd.driver::RDDriver
         rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))
         yr = Int(s.control.cycle_year[1]); iage = Int(s.plot.stand_age)
@@ -2914,6 +2975,15 @@ function root_disease_mn2!(s::StandState, fint::Real)
     d === nothing && return nothing
     s.trees.n == 0 && return nothing
     rd.icyc += Int32(1)
+    # grincr.f:281/285 OLDTPA=TPROB, ORMSQD=RMSQD from the cycle-start DENSE (just run by compute_density!) — before CUTS,
+    # REGENT's small-tree DBH and the tripling; rd_control!'s RDROOT reads these, not a sum over its (grown) records.
+    let t = s.trees, tp = 0f0, sd2 = 0f0, ind1 = _dense_ind1(s.variant)
+        @inbounds for i in _dense_order(s)
+            p = t.tpa[i]; dd = t.dbh[i]
+            tp += p; sd2 += ind1 ? dd * (dd * p) : p * dd^2
+        end
+        rd.oldtpa = tp; rd.ormsqd = tp > 0f0 ? sqrt(sd2 / tp) : 0f0
+    end
     # rebuild the driver if the record count changed (COMCUP dropped PROB≤1e-5 records)
     d.n == s.trees.n || (d = rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s))
     rd_mn2_advance!(rd, d.rrkill, d.probit, d.probi, fint)
@@ -3021,7 +3091,12 @@ function rd_cycle_start!(s::StandState)
     # increment, 0 at HT≤4.5, else the DGF dub — which EM/IE carry in dg_prev (em_cycle0_wk1!/ie_cycle0_wk1!, already
     # applied here); afterwards dg_prev == diam_growth. The raw input DG left every unmeasured tree at 0 (MEASURED
     # FVSem_g16 3087467010690 rootdis 1998: Live_Merch_CuFt = ΣTCLAS·WK1 live 472.71, jl 0).
-    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev : t.diam_growth
+    # BM: bm/dgdriv.f:161 WK1(I)=DG(I) reads the same DO-220 array (:746-769), which bm_cycle0_dg rebuilds from the
+    # calibration stash — a MEASURED increment (DG>0, HT>4.5; inside-bark after the IDG=1/3 DO-105 BRATIO) is KEPT,
+    # only the unmeasured records get the DGF dub. (The old dub-only overwrite in diameter_growth! replaced measured
+    # DG too: FVSbm_g16 177426703020004 rootdis 2022 Live_Merch_CuFt live 14.767031, jl 7.051225 ⇒ 14.767029.)
+    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev :
+           (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) : t.diam_growth
     rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
     return
 end

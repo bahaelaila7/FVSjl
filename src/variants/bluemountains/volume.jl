@@ -287,17 +287,36 @@ cylinder guard or `bm_r6vol3` zone 1. Used for input snags (FMSADD) and mortalit
 through the R8-Clark path (0 for NVEL codes) ⇒ input snags booked the Jenkins whole-tree (~5× over) and
 mortality snags the cone floor (~40× under).
 """
+# NATCRS (TCF, MCF) of a BM tree at (d, h) with NO top-kill — compute_volumes_bm!'s FW2 / 616BEHW kernels minus the
+# r4_topkill trim, on the current-DBH bark BRATIO(ISPC,D,H) that FMSVOL/FMSVL2 pass (fmsvol.f). The western FFE layer
+# (`ffe_west_nocut`, fmsvol.f non-eastern) volumes BM snags and live stems with it.
+function bm_nocut_cuft(s::StandState, sp::Int, d::Float32, h::Float32)
+    (d < 1f0 || h <= 0f0 || sp < 1) && return (0f0, 0f0)
+    eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+    bark = bm_bratio(s.coef.species, sp, d); dbhmin = sp == 7 ? 6.0f0 : 7.0f0
+    if mdl == "FW2"
+        v = cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6, board_cor = 'N',
+                       merch_opt = 23, sf_hs = true)
+        return (max(v[1], 0f0), d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0)
+    end
+    iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
+    fclass = bm_formcl(sp, iforst, d)
+    dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
+    h <= 17.3f0 && return (max(0.00272708f0 * (dbhib * dbhib) * h, 0f0), 0f0)
+    tcf = bm_r6vol3(d, dbtbh, fclass, h, 1)
+    vol4 = 0f0
+    mtopp = 4.5f0 * bark
+    if d >= dbhmin && dbhib >= mtopp
+        xlogs, ld1, _ = bm_r6dibs(d, fclass, mtopp, h)
+        _, lv4 = bm_r6vol1(d, fclass, xlogs, ld1)
+        nlog = Int(floor(xlogs)); nacc = (xlogs - nlog) > 0f0 ? nlog + 1 : nlog
+        for k in 1:nacc; vol4 += bm_anint(lv4[k] * 10f0) / 10f0; end
+    end
+    return (max(tcf, 0f0), d >= dbhmin ? max(vol4, 0f0) : 0f0)
+end
+
+"FMSVOL VOL2HT = MAX(0.005454154·H, TCF) of an intact BM stem (fmsvol.f:150)."
 function bm_snag_bole_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
     (d < 1f0 || h <= 0f0 || sp < 1) && return 0f0
-    x = 0.005454154f0 * h
-    eq = s.species.vol_eq[sp]; se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
-    bark = bm_bratio(s.coef.species, sp, d)
-    tcf = if mdl == "FW2"
-        max(cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 6, board_cor = 'N', merch_opt = 23)[1], 0f0)
-    else
-        iforst = bm_kodfor_remap(Int(s.plot.user_forest_code)) % 100
-        dbtbh = d * (1f0 - bark); dbhib = d - dbtbh
-        h <= 17.3f0 ? 0.00272708f0 * (dbhib * dbhib) * h : bm_r6vol3(d, dbtbh, bm_formcl(sp, iforst, d), h, 1)
-    end
-    return max(x, tcf)
+    return max(0.005454154f0 * h, bm_nocut_cuft(s, sp, d, h)[1])
 end

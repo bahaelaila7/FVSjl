@@ -56,9 +56,8 @@ end
             jl = _ht_rows(outdb)
             @test Set(keys(jl)) == Set(keys(live))             # same rows written (gating + ids)
             @test count(v -> v[3] != 0, values(live)) > 0      # the stands really exercise merch-sized trees
-            # HT2TD is a pure function of the tree's (DBH, HT, species, bark): assert it bit-exact on every row whose
-            # per-tree DBH and HT equal live. Rows whose DBH/HT themselves differ by ~1 ULP carry the known upstream
-            # per-tree growth drift (hidden at .sum precision; BM none-residual campaign) — tracked, not asserted here.
+            # HT2TD is a pure function of the tree's (DBH, HT, species, bark): assert it bit-exact on every row, and
+            # every row's per-tree DBH and HT equal live (the BM none-residual campaign removed the per-tree drift).
             ngeomdiff = 0
             for (k, l) in live
                 j = get(jl, k, nothing); j === nothing && continue
@@ -68,7 +67,7 @@ end
                     ngeomdiff += 1
                 end
             end
-            @test_broken ngeomdiff == 0                          # upstream per-tree DBH/HT ULP drift (open)
+            @test ngeomdiff == 0
         end
     end
 end

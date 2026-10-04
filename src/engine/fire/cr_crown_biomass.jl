@@ -79,6 +79,29 @@ const _CI_ISPMAP = Int[
 # CI species that use the Jenkins FMCROWE (ci/fmcrow.f CASE(13,15,17,19)).
 @inline _ci_uses_fmcrowe(spiw::Integer) = spiw == 13 || spiw == 15 || spiw == 17 || spiw == 19
 
+# TT (Teton) crown-biomass group map — tt/fmcrow.f DATA ISPMAP (TT species 1..18 → SPIE). tt/fmcroww.f and
+# tt/fmcrowe.f are BYTE-IDENTICAL to CR's; tt/fmcrow.f dispatches SELECT CASE(ISP(I)): CASE(6,15,16,18) → FMCROWE
+# (Jenkins: aspen, narrowleaf cottonwood, curlleaf mtn-mahogany, other hardwoods), CASE DEFAULT → FMCROWW(SPIE).
+# jl had no TT route, so every TT species took the eastern FMCROWE with the `ls_spi` group — the conifer crowns
+# (whitebark/limber/lodgepole/spruce/fir) came out as Jenkins hardwood-shaped weights ⇒ FVS_Carbon live and
+# FVS_PotFire canopy density/height off at the INVENTORY year on every treed TT stand.
+const _TT_ISPMAP = Int[
+    14, 11, 3, 12, 18, 41, 11, 18, 1, 13,
+    16, 16, 5, 5, 17, 41, 14, 17,
+]
+@inline _tt_uses_fmcrowe(spiw::Integer) = spiw == 6 || spiw == 15 || spiw == 16 || spiw == 18
+
+# UT (Utah) crown-biomass group map — ut/fmcrow.f DATA ISPMAP (UT species 1..24 → SPIE). ut/fmcroww.f and
+# ut/fmcrowe.f are BYTE-IDENTICAL to CR's; ut/fmcrow.f dispatches SELECT CASE(SPIW): CASE(6,18:20,22) → FMCROWE
+# (aspen, narrowleaf/Fremont cottonwood, curlleaf mtn-mahogany, box elder), CASE DEFAULT → FMCROWW(SPIE). Same gap
+# as TT (no UT route ⇒ eastern FMCROWE for every species).
+const _UT_ISPMAP = Int[
+    14, 11, 3, 4, 18, 41, 11, 18, 1, 13,
+    12, 16, 22, 12, 16, 16, 9, 17, 17, 41,
+    5, 50, 14, 22,
+]
+@inline _ut_uses_fmcrowe(spiw::Integer) = spiw == 6 || (18 <= spiw <= 20) || spiw == 22
+
 # NC (Klamath) crown-biomass group map — nc/fmcrow.f ISPMAP (NC species 1..12 → the crown-equation group
 # passed to FMCROWW). NC's fmcroww.f is byte-identical to CR's and dispatches directly on this SPI (no
 # internal remap), and nc/fmcrow.f calls FMCROWW for ALL species (none use the eastern FMCROWE). So NC

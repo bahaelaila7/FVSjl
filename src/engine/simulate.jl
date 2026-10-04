@@ -1561,7 +1561,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 rd.driver = _rd_resize_driver!(rd, d, s.trees.n, s)
             end
         end
-        if s.control.dbs_rd_sum || s.control.dbs_rd_detail
+        if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0     # rdpr.f:79 ITRN=0 ⇒ RETURN
             yr = cycle_year_at(s.control, Int(s.control.cycle) + 1)
             iage = Int(s.plot.stand_age) + (yr - Int(s.control.cycle_year[1]))
             s.control.dbs_rd_sum    && push!(s.root_disease.sum_rows, (yr, rd_sum_report(s.root_disease, s, yr, iage)))
@@ -1577,7 +1577,9 @@ end
 
 Full multi-stand run: project EVERY stand in `keypath` (the FVS `main.f` stand loop)
 and return the concatenated `.sum` text — one `-999` header + per-cycle rows per
-stand. Each stand is set up (`notre!`/`setup_growth!`/`compute_volumes!`) and projected
+stand, nothing else (FVS's .sum). `output = :out` instead returns the report text FVS writes to the `.out`
+(JOSTND) that jl renders — the FFE Stand Carbon Report (fmcrbout.f, CARBREPT) and the COVER canopy statistics
+(cvout.f) — from the same single simulation; `output = :csv` the named-column summary. Each stand is set up (`notre!`/`setup_growth!`/`compute_volumes!`) and projected
 by `write_sum_file`, which runs the per-cycle loop including scheduled management
 (CUTS/ESTAB/fire). Stands are independent (`each_stand` gives each a fresh state with
 the tree format carried across), so this is also the unit of thread-parallelism.
@@ -1597,6 +1599,7 @@ function run_keyfile(keypath::AbstractString;
     isempty(date) && (date = Base.Libc.strftime("%m-%d-%Y", Base.time()))
     isempty(time) && (time = Base.Libc.strftime("%H:%M:%S", Base.time()))
     out = IOBuffer()
+    rep = IOBuffer()          # .out report text (FFE carbon report, COVER statistics) — never in the .sum
     csv_stands = outfmt === :csv ? Tuple[] : nothing   # (stand_id, mgmt_id, SummaryRows) per stand
     case = 0
     kt_ierrck = Int32(0)                          # kt/cratet.f IERRCK: a -fno-automatic static carried stand to stand
@@ -1667,12 +1670,13 @@ function run_keyfile(keypath::AbstractString;
                        hrvcarbon_collect = hc_rows, climate_collect = clim_rows,
                        dm_collect = dm_rows, dm_top4 = dm_top4,
                        canprof_collect = cprof_rows, strclass_collect = strcl_rows)
+        # FMCRBOUT's Stand Carbon Report (fmcrbout.f FORMATs 700-800) and COVER's CVOUT "CANOPY COVER STATISTICS" go to
+        # JOSTND, the .out — FVS's .sum holds only the -999 header + summary rows (MEASURED every FVS*_g16 tiered .live.sum:
+        # no report lines). They are rendered into `rep`, returned by output = :out.
         carb_rows === nothing ||
-            write_carbon_report_block(out, carb_rows; stand_id = String(sid), mgmt_id = mid)
-        # COVER report (CVOUT): "CANOPY COVER STATISTICS" table, appended after the .sum
-        # rows (report-only; never touches .sum/tree). Gated on the COVER activity 900.
+            write_carbon_report_block(rep, carb_rows; stand_id = String(sid), mgmt_id = mid)
         (s.cover !== nothing && s.cover.active) &&
-            cover_report(s.cover, out, String(sid), mid, strip(s.control.title))
+            cover_report(s.cover, rep, String(sid), mid, strip(s.control.title))
         csv_stands === nothing || push!(csv_stands, (String(sid), mid, strip(s.control.title), rows))
         if has_db
             case += 1
@@ -1796,6 +1800,7 @@ function run_keyfile(keypath::AbstractString;
     if outfmt === :csv
         cio = IOBuffer(); write_sum_csv(cio, csv_stands); return String(take!(cio))
     end
+    outfmt === :out && return String(take!(rep))
     return String(take!(out))
 end
 
