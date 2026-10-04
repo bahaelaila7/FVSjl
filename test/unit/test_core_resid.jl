@@ -203,3 +203,15 @@ end
         end
     end
 end
+
+@testset "EM 196378260020004 rootdis RD_Sum Live_Merch_CuFt: WK1=DG for last cycle's regeneration too (dgdriv.f:144)" begin
+    # RDPR CFVPA sums TCLAS·WK1(I); DGDRIV sets WK1(I)=DG(I) for every record, and a regenerated record's DG is its
+    # birth DK (regent.f:941). jl zeroed those (record 393: 0 vs 0.5952508 ⇒ 2042 130.13326 vs 131.93132).
+    db = _cr_run("em", "196378260020004", "rootdis")
+    gold, jl = _cr_table("em", "196378260020004", "rootdis", db, "FVS_RD_Sum")
+    jd = Dict(string(r["Year"]) => r for r in jl)
+    for g in gold
+        g["Year"] in ("2022", "2032", "2042") || continue
+        @test _cr_f32(jd[g["Year"]]["Live_Merch_CuFt"]) == _cr_f32(g["Live_Merch_CuFt"])
+    end
+end
