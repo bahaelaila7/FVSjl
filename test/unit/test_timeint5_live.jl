@@ -89,3 +89,11 @@ end
     @test length(jl) == length(lv)
     @test count(i -> jl[i] == lv[i], eachindex(lv)) >= 46
 end
+
+# AK keeps DG on the YR=10 basis through GRINCR and GRADD rescales it to FINT (gradd.f:79-90), like the other YR=10
+# variants, once its DGF/REGENT read YR: akt01 with TIMEINT 5, every row equals live FVSak_g16 (54 of 56 off before).
+@testset "TIMEINT 5, AK .sum rows == live (gradd.f:79-90, ak/dgf.f:521)" begin
+    jl = _t5_rows("akt01_t5", _T5.SoutheastAlaska()); lv = _t5_live("akt01_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i]) == (i, lv[i]); end
+end
