@@ -71,3 +71,12 @@ const _T5_RATCHET = [("ktt01_t5", _T5.Kootenai(),           29, 46),
         @test (stem, count(i -> jl[i][1:8] == lv[i][1:8], eachindex(lv)) >= nhead) == (stem, true)
     end
 end
+
+# tt/htgf.f:309-315 + :728: the PP case (CASE 10, the CI equation) falls into the common label-201 tail like every other
+# case, HTG·SCALE·XHMULT·EXP(HTCON) with SCALE=FINT/YR. jl returned the 10-year HTG for PP, so under 5-year cycles a PP
+# stand doubled its height growth (S248112 PP, TIMEINT 5: 1995 TopHt 67 live; live FVStt_g16 rows).
+@testset "TIMEINT 5, TT ponderosa HTG scaled by FINT/YR (tt/htgf.f:728)" begin
+    jl = _t5_rows("ttpp_t5", _T5.Teton()); lv = _t5_live("ttpp_t5")
+    @test length(jl) == length(lv)
+    for i in eachindex(lv); @test (i, jl[i][7]) == (i, lv[i][7]); end     # TopHt
+end
