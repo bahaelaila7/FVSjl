@@ -441,7 +441,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # FVS_DM_* dwarf-mistletoe summary (misprt.f MISPRT): the START-OF-CYCLE stand state; the DM
         # mortality columns project the cycle's mortality (MISMRT) over this cycle's length. NAGE advances
         # with the report year (IAGE + year − inventory year). Collected only on DM-infected stands.
-        if dm_collect !== nothing && _dm_report_active(s; cyc0 = c == 0)
+        if dm_collect !== nothing && _dm_report_active(s)
             compute_density!(s)
             nage = Int(s.plot.stand_age) + (Int(r.year) - Int(s.control.cycle_year[1]))
             # MISMRT projects the cycle's mortality; the final report row (per==0) reuses the

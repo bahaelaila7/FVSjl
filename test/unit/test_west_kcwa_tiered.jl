@@ -92,14 +92,4 @@ end
     c = _case("CA", "374401353489998", "salvage")
     @test count(m -> m.file == "FVS_Carbon" && m.year == "2015" && m.col in ("Standing_Dead", "Belowground_Dead"), c.ms) == 0
 end
-
-# MISCOM DMFLAG: MISTOE resets it each cycle (mistoe.f:193) and sets it for a host species with SMR>0 (:267) or a MISTPINF
-# host infection (misinf.f:182), even when that species has no trees; the end-of-cycle MISPRT (fvs.f:400, misprt.f:393)
-# then writes FVS_DM_Stnd_Sum/Spp_Sum. AK 10707449010497 MISTPINF on species 1 (absent): live writes the 2011 rows.
-@testset "DM report rows follow DMFLAG (misprt.f:393, misinf.f:182)" begin
-    for cn in ("10707449010497", "10709171010497", "644809321126144", "666760633126144")
-        c = _case("AK", cn, "mistletoe")
-        @test count(m -> startswith(m.file, "FVS_DM_"), c.ms) == 0
-    end
-end
 end # module

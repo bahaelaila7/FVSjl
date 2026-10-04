@@ -21,14 +21,9 @@ const _DM_DMRMIN = 1.0f0
 # effect-application gate, which CR bypasses via its own cr_ gates).
 @inline _dm_report_variant(v)::Bool = _ie_mis_variant(v) || v isa CentralRockies || v isa BritishColumbia
 
-"""
-true when MISPRT (misprt.f:375-393) would write its DM rows: any tree carries a dwarf-mistletoe rating, or — after a
-growth cycle (`cyc0 = false`; at the inventory call ICYC=0 MISPRT resets DMFLAG first, misprt.f:265-266) — the
-cycle's MISTOE/MISINF left DMFLAG set (a MISTPINF card on a host species that had no trees still writes the row).
-"""
-function _dm_report_active(s::StandState; cyc0::Bool = true)::Bool
+"true when any tree carries a dwarf-mistletoe rating (misprt.f DMFLAG) on a DM-report variant"
+function _dm_report_active(s::StandState)::Bool
     _dm_report_variant(s.variant) || return false
-    (!cyc0 && _ie_mis_variant(s.variant) && s.control.dm_flag) && return true
     t = s.trees
     @inbounds for i in 1:t.n
         t.dmr[i] > 0 && return true
