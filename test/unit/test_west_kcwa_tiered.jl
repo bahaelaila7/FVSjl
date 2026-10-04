@@ -80,4 +80,16 @@ end
         @test isempty(c.ms)
     end
 end
+
+# ca|ws/fmmain.f run FMSDIT and the annual FMSNAG/FMCWD/FMCADD loop like every western FFE build, and ca|ws/fmsvol.f are
+# byte-identical to so's (FMSVOL VOL2HT = MAX(0.005454154·H, TCF) on the variant's NATCRS cubic). CA/WS were off both the
+# FFE-dynamics gate and the western volume layer: no inventory snags (WS 7689156010901 2006 Standing_Dead 10.61 live / 0
+# jl, Belowground_Dead 3.37 / 0), then the eastern R8-Clark bole (0.03).
+@testset "CA/WS FFE snags + down wood (ca|ws/fmmain.f, fmsvol.f) vs live at the inventory year" begin
+    c = _case("WS", "7689156010901", "simfire")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_Carbon" && m.year == "2006", c.ms) == 0
+    c = _case("CA", "374401353489998", "salvage")
+    @test count(m -> m.file == "FVS_Carbon" && m.year == "2015" && m.col in ("Standing_Dead", "Belowground_Dead"), c.ms) == 0
+end
 end # module
