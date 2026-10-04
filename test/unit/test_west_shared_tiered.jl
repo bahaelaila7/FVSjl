@@ -251,4 +251,39 @@ end
     @test !c.crashed
     @test _cells(c) == 0
 end
+
+# f_other.f BRK_OT: Float32-literal BK, REAL DR/DBT roundings (R2 aspen 200FW2W746 Ht2TD via SF_HS/BRK_UP).
+@testset "BRK_OT REAL roundings (f_other.f) - CR aspen Ht2TD vs FVScr_clean" begin
+    c = _case("CR", "3026069010690", "none")
+    @test _cells(c) == 0
+end
+
+# NC FFE: FMPOCR LSW white fir (nc/fmvinit.f CASE(4,9)), FMCFMD CWHR reads CRWDTH (R5CRWD, cwcalc.f:382), snag HTX/HTR1
+# (nc/fmvinit.f:122,278-283) and the NC TFALL table — the fire stand's PotFire/carbon/snags all within 1e-5 of live.
+@testset "NC FFE: LSW, CWHR CRWDTH, snag HTX, TFALL (nc/fmvinit.f, fmcfmd.f) vs FVSnc_g16" begin
+    c = _case("NC", "23660512010900", "simfire")
+    @test isempty(_material(c.ms))
+end
+
+# CR/CI/TT/UT TFALL tables (fmvinit.f, dumped from FMVINIT) for the snag-crown fall.
+@testset "CR/CI/TT/UT TFALL (fmvinit.f) snag-crown fall vs live" begin
+    c = _case("CI", "3369538010690", "simfire")
+    @test isempty(_material(c.ms))
+end
+
+# SO: so/fmcons.f (1-3in unburned on the natural path), so/fmcba.f forest-dependent snag/decay parameters + TFALL,
+# FMCBA PERCOV from _forest_crwdth, FMCFMD DSTLG from HARVYR/BURNYR.
+@testset "SO FFE: fmcons, forest snag/decay params, PERCOV CRWDTH, DSTLG (so/fmcons.f, fmcba.f, fmcfmd.f) vs FVSso_g16" begin
+    for (cn, r) in (("15364795010497", "salvage"), ("7690240010901", "salvage"), ("15184869010497", "simfire"),
+                    ("850566877290487", "simfire"))
+        c = _case("SO", cn, r)
+        @test isempty(_material(c.ms))
+    end
+end
+
+# CR SSTAGE/FMCBA read CRWDTH clamped to [0.5,99.9] (cwcalc.f:2391-2392): seedling stratum species order.
+@testset "CR CRWDTH clamp in SSTAGE (sstage.f:276, cwcalc.f:2391) vs FVScr_clean" begin
+    c = _case("CR", "46279527020004", "none")
+    @test _cells(c) == 0
+end
 end # module
