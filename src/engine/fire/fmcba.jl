@@ -122,6 +122,11 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     _cr_el = _west_cw ? s.plot.elevation : 0f0
     _cr_hi = _west_cw ? _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation) : 0f0
     _bm_kf = _bm_fm ? bm_kodfor_remap(Int(s.plot.user_forest_code)) : 0   # BM CRWDTH forest BF key (post-FORKOD)
+    # CWIDTH=CRWDTH(I) (ie/fmcba.f:244, em/fmcba.f:253): the value CWIDTH last stored (`stored_crwdth`, cwidth.f at load and
+    # gradd.f:254), carried by TRIPLE — not one recomputed from a SIMFIRE seam's grown small trees or a thin's residual BA
+    # (MEASURED FVSie_g16 11855985010690 2016 burn: records 12/116 CRWDTH 1.0721917 both, jl from the seam DBH 1.0777394 ⇒
+    # TOTCRA 30163.06 vs 30151.213 ⇒ PERCOV/WMULT ⇒ Midflame_Wind 1.66760 vs 1.66796, fire kill).
+    _old_cw = _stored_crwdth(s.variant)
     # nc/so/ca fmcba.f read CWIDTH = CRWDTH(I), and cwcalc.f routes their Region-5 forests to R5CRWD (a function of
     # sp/D/H only): NC IFOR ≤ 3 or 5 (cwcalc.f:382), SO IFOR 4-9 (:376), CA IFOR ≤ 5 (:385) — the same CRWDTH FVS_TreeList
     # reports (_forest_crwdth). jl ran the R6 Crookston kernels on every forest (MEASURED FVSnc_g16 23660512010900,
@@ -133,7 +138,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         d > fs.bigdbh && (fs.bigdbh = d)
-        cw = _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
+        cw = _old_cw ? stored_crwdth(s, i) :
+             _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
              _cr_fm ? cr_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:

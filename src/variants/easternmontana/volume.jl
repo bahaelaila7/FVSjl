@@ -64,7 +64,9 @@ end
 end
 
 # R1KEMP gross cubic (r1kemp.f:345-384, ISPEC≠14,15; KLASS=1 default). D2H100=DBH²·HT/100.
-@inline function _em_r1kemp_cubic(fia::AbstractString, d::Float32, h::Float32)::Float32
+# `live`: r1kemp.f:252-262 KLASS — the base VOLS call passes LIVEDEAD='D' for IMC≥6 (em/vols.f:136-140) ⇒ KLASS=1
+# (cubic minimum 1.6) instead of PROD='02' KLASS=3 (2.4); FMSVOL/FMSVL2 pass LVD=' ' (fmsvol.f:73,96) ⇒ live.
+@inline function _em_r1kemp_cubic(fia::AbstractString, d::Float32, h::Float32, live::Bool = true)::Float32
     cb = get(_EM_R1KEMP_CB, fia, nothing); cb === nothing && return 0f0
     d2h100 = d * d * h / 100f0
     cbgrs = if d < 5f0
@@ -79,9 +81,11 @@ end
     else
         cb[7] * d2h100 + cb[8]
     end
-    # FVS cubic call passes PROD='02' (fvsvol.f:184) ⇒ KLASS=3 ⇒ gross cubic minimum 2.4
-    # (r1kemp.f:380-381), NOT the KLASS≤2 min of 1.6. Applies to all R1KEMP '02' species.
-    cbgrs < 2.4f0 && (cbgrs = 2.4f0)
+    # FVS cubic call passes PROD='02' (fvsvol.f:184) ⇒ KLASS=3 ⇒ gross cubic minimum 2.4 (r1kemp.f:380-381); a dead
+    # record is KLASS=1 ⇒ minimum 1.6 (r1kemp.f:378-379; the dead-LP KLASS=2 branch is ISPEC 8 = 108, an FW2 species
+    # in EM). MEASURED FVSem_g16 684750664126144 cycle-0 dead AS D6.1 H35: VMAX 2.2993605 (raw Kemp), not 2.4.
+    floor = live ? 2.4f0 : 1.6f0
+    cbgrs < floor && (cbgrs = floor)
     return cbgrs
 end
 
@@ -138,7 +142,7 @@ function compute_volumes_em!(s::StandState)
             else
                 r1kemp  = eq[1] == '1' && eq[2:3] == "02"
                 r1allen = eq[1] == '1' && eq[2:3] == "01"
-                tcf = r1kemp  ? _em_r1kemp_cubic(fia, d, h)  :
+                tcf = r1kemp  ? _em_r1kemp_cubic(fia, d, h, i <= t.n)  :
                       r1allen ? _em_r1allen_cubic(fia, d, h) : 0f0
                 t.cuft_vol[i] = max(tcf, 0f0)
                 # R1KEMP/R1ALLEN VOL(4)=VOL(1) per-tree, but .sum MCuFt gates on DBHMIN=7 (em/grinit.f:102).
@@ -146,6 +150,16 @@ function compute_volumes_em!(s::StandState)
                 t.saw_cuft_vol[i] = 0f0
                 # R1KEMP board (VOL(3)=BFNET, BFMIND=7); R1ALLEN returns 0 board for 375/740 (r1allen.f:369).
                 t.bdft_vol[i] = (r1kemp && d >= 7f0) ? _dvest_anint(_em_r1kemp_board(fia, d, h)) : 0f0
+            end
+            # em/vols.f:194-196,390-391: NATCRS ends with CTKFLG=BTKFLG=.TRUE. (fvsvol.f:531-532) for every equation,
+            # DVE included ⇒ a top-killed (TKILL) woodland tree takes the CFTOPK/BFTOPK trim on its NORMHT volumes too
+            # (MEASURED EM 684750664126144 cycle-0 dead AS D6.1 TruncHt 26: live TCuFt 2.2533, untrimmed jl 2.4).
+            tcf = t.cuft_vol[i]
+            if t.trunc[i] > 0 && tcf > 0f0 && h >= 4.5f0
+                bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : em_bratio(sp, d)
+                t.cuft_vol[i], t.merch_cuft_vol[i] = cr_cftopk(tcf, t.merch_cuft_vol[i], d, h, tcf, bark,
+                                                               Int(t.trunc[i]), stump, topd)
+                t.bdft_vol[i] = cr_bftopk(t.bdft_vol[i], d, h, tcf, bark, Int(t.trunc[i]), stump, bftopd)
             end
         else
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0
@@ -168,7 +182,10 @@ function em_nocut_cuft(s::StandState, sp::Int, d::Float32, h::Float32)::NTuple{2
     eq = s.species.vol_eq[sp]
     (sp == 10 && Int(s.plot.forest_idx) == 2) && (eq = "203FW2W122")
     if startswith(eq, "I") || eq[4:6] == "FW2"
-        v = cr_fw2_vol(eq, d, h; bark = em_bratio(sp, d), topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)
+        # the same NATCRS as VOLS: the merch top from the SF_HS Newton (MEASURED FVSem_g16 3087467010690 2008 FMCRBOUT, PP
+        # D9.2199 H39.4966 MCF 5.5 live; the bisection merch top gave 5.8 ⇒ Aboveground_Merch_Live 11.94876 vs 11.94416).
+        v = cr_fw2_vol(eq, d, h; bark = em_bratio(sp, d), topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1,
+                       sf_hs = true)
         dbhmin = sp == 7 ? 6f0 : 7f0
         return (max(v[1], 0f0), d >= dbhmin ? max(v[4] + v[7], 0f0) : 0f0)
     elseif length(eq) >= 6 && eq[4:6] == "DVE"
@@ -205,14 +222,14 @@ end
 
 EM FMSVOL(II, XHT=HTIH) (em/fmsvol.f): the snag's death-form tree (DBHS, HTDEAD) through NATCRS, then CFTOPK at
 IHT = INT(XHT·100) — the fat lower bole below the broken top, NOT a short (d, htcur) tree — and
-VOL2HT = MAX(0.005454154·HTDEAD, TCF). FW2 conifers only take the CFTOPK trim (same as `compute_volumes_em!`).
+VOL2HT = MAX(0.005454154·HTDEAD, TCF). Every equation takes the CFTOPK trim (fmsvol.f:139-140 `CTKFLG .AND. LTKIL`;
+NATCRS returns CTKFLG=.TRUE. for DVE too, fvsvol.f:531), not only the FW2 conifers.
 """
 function em_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, htcur::Float32)::Float32
     htd <= 0f0 && return 0f0                     # D<1 ⇒ NATCRS TCF=0 ⇒ VOL2HT = the cone X (not 0)
     x = 0.005454154f0 * htd
     tcf, mcf = em_nocut_cuft(s, sp, d, htd)
-    eq = s.species.vol_eq[sp]
-    if htcur < htd && tcf > 0f0 && (startswith(eq, "I") || eq[4:6] == "FW2")
+    if htcur < htd && tcf > 0f0
         tcf, _ = cr_cftopk(tcf, mcf, d, htd, tcf, em_bratio(sp, d), unsafe_trunc(Int, htcur * 100f0), 1f0, 4.5f0)
     end
     return max(x, tcf)

@@ -219,8 +219,13 @@ and both."""
 function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 = 10.0f0,
                             lestb::Bool = false, itrnin::Int = 1,
                             atba::Float32 = -1f0, atccf::Float32 = -1f0, atavh::Float32 = -1f0,
-                            ba_now::Float32 = -1f0, relden_now::Float32 = -1f0)
+                            ba_now::Float32 = -1f0, relden_now::Float32 = -1f0,
+                            pccf_now::Vector{Float32} = Float32[])
     p, t, c, dens = s.plot, s.trees, s.calib, s.density
+    # PCCF in ESTAB mode = the gradd.f:192 DENSE's (post-growth, PRE-ESNUTR) — the caller's snapshot; jl's density was
+    # re-DENSEd with the AUTOES cohort (MEASURED FVSie_g16 3285544010690 thinbba 2012: point-1 PCCF 0.0 live vs 0.18561,
+    # point 2 177.69788 vs 178.16805 ⇒ the seedling crown dub CR 0.8950068 → ICR 90 live, 0.8949852 → 89 jl).
+    pcv = (lestb && !isempty(pccf_now)) ? pccf_now : dens.point_ccf
     sd = s.coef.species                                 # blkdat HT-DBH :ht1/:ht2 for the aspen log-DK
     t.n == 0 && return s
     n = t.n
@@ -291,7 +296,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     if lestb                                            # regent.f:301-319 DO 13: crown for each new record, STORAGE order
         @inbounds for i in itrnin:n
             ipc = Int(t.plot_id[i])
-            pcc = (1 <= ipc <= length(dens.point_ccf)) ? dens.point_ccf[ipc] : 0f0
+            pcc = (1 <= ipc <= length(pcv)) ? pcv[ipc] : 0f0
             crn = 0.89722f0 - 0.0000461f0 * pcc
             ran = 0f0
             while true
@@ -370,7 +375,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     # the tripling-carried diameter (:746 D=DBH(I), :750 TT D=max(D,DIAM), :1003 D=DBH(K)).
     bark_c = 0f0
     dadj_c = 0f0
-    pccf_of(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(dens.point_ccf)) ? dens.point_ccf[pt] : 0f0)
+    pccf_of(i) = (pt = Int(t.plot_id[i]); (1 <= pt <= length(pcv)) ? pcv[pt] : 0f0)
     # ---- subcycle loop (regent.f:343-679): DO 17 J / DO 16 ISPC / DO 15 I3=I1,I2 (species-major IND1) ----
     ky = 0
     @inbounds for j in 1:nper
@@ -709,7 +714,7 @@ const IE_MAI_ISPNUM = Int[119, 73, 202, 17, 263, 242, 108, 93, 19, 122, 264,
 # ie/esgent.f (CALL REGENT(.TRUE.,ITRNIN)) — grow the JUST-ESTABLISHED regen IN its birth cycle (#186).
 function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                     atavh::Float32 = -1.0f0, atba::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
-                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0)
+                    relden_pre::Float32 = -1.0f0, ba_pre::Float32 = -1.0f0, pccf_pre::Vector{Float32} = Float32[])
     t = s.trees
     nstart >= t.n && return s
     # ie/esgent.f (== em/esgent.f): SPESRT, then REGENT(.TRUE.,ITRNIN) — the same Fortran-shaped REGENT as the growth
@@ -720,7 +725,8 @@ function ie_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
     # DBH 1.14 vs live 0.78). BA/RELDEN are the gradd.f:192 DENSE's (post-growth, PRE-ESNUTR: ba_pre/relden_pre).
     species_sort!(s)                                   # esgent.f CALL SPESRT
     small_tree_growth!(s, nothing, s.variant; fint = fint, lestb = true, itrnin = nstart + 1,
-                       atba = atba, atccf = atrelden, atavh = atavh, ba_now = ba_pre, relden_now = relden_pre)
+                       atba = atba, atccf = atrelden, atavh = atavh, ba_now = ba_pre, relden_now = relden_pre,
+                       pccf_now = pccf_pre)
     @inbounds for i in (nstart+1):t.n
         sp = Int(t.species[i])
         htemp = t.height[i] + t.ht_growth[i]
