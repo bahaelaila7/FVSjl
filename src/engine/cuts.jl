@@ -275,7 +275,7 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # scheduler reads. Captured here (before any thinning method mutates trees.tpa), stashed at the return.
     autoes_pre_tpa = 0f0
     autoes_pre_cuft = 0f0
-    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai   # shared estb/esnutr.f LAUTAL (see the stash below)
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska   # estb/ak esnutr.f LAUTAL (see the stash below)
         @inbounds for i in 1:s.trees.n
             autoes_pre_tpa  += s.trees.tpa[i]
             autoes_pre_cuft += s.trees.tpa[i] * s.trees.cuft_vol[i]   # ONCUR: OCVCUR(7) total cubic vol
@@ -379,7 +379,11 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # EM compiles the identical estb/esnutr.f (FVSem_buildDir == FVSie_buildDir), so its thins trip the LAUTAL tally too:
     # MEASURED FVSem_g16 196378260020004 thinbba @2022 "XTPA XCUF= 0.950 0.456" ⇒ NTALLY=1, IDSDAT=2022 — jl (IE-gated)
     # ran the post-thin tally as ingrowth (NTALLY 99, TIME=SHORTY) ⇒ 127 vs live 182 TPA at 2032.
-    if (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) && rem.tpa > 0f0 && autoes_pre_tpa > 0f0
+    # AK: ak/esnutr.f:282-290 forms the same XTPA/XCUF (LONE .OR. XTPA.GE.THRES2 .OR. XCUF.GE.THRES2 — equivalent to XTES);
+    # without it a thinned AK stand never tripped LAUTAL and ran the INGRO tally (ITPP capped at MAXING=3 instead of
+    # MAXTPP=21): MEASURED FVSak_g16 10709344010497 thinbba 2016 regen 76.5 TPA live / 33.3 jl.
+    if (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska) &&
+       rem.tpa > 0f0 && autoes_pre_tpa > 0f0
         xtpa = rem.tpa / autoes_pre_tpa
         xcuf = autoes_pre_cuft > 0f0 ? rem.cuft / autoes_pre_cuft : 0f0
         s.estab.last_xtes = max(xtpa, xcuf)

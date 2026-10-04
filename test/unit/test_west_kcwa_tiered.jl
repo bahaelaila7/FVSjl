@@ -92,4 +92,13 @@ end
     c = _case("CA", "374401353489998", "salvage")
     @test count(m -> m.file == "FVS_Carbon" && m.year == "2015" && m.col in ("Standing_Dead", "Belowground_Dead"), c.ms) == 0
 end
+# ak/esnutr.f:282-290: after a removal the LAUTAL automatic tally fires on XTES=MAX(ONTREM/ONTCUR, OCVREM/OCVCUR) — AK's own
+# esnutr.f forms the same ratio as estb/esnutr.f. jl only stashed it for IE/EM/KT, so a thinned AK stand ran the ingrowth
+# tally (ITPP capped at MAXING=3, not MAXTPP=21): FVSak_g16 10709344010497 thinbba 2016 regen 76.5 TPA live / 33.3 jl.
+@testset "AK post-removal LAUTAL tally (ak/esnutr.f:282-290)" begin
+    c = _case("AK", "10709344010497", "thinbba")
+    @test !c.crashed
+    @test count(m -> m.file == "sum", c.ms) == 0
+end
+
 end # module
