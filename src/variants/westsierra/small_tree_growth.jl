@@ -42,27 +42,29 @@ const WS_RG_CASURR  = Set([4,9,10,12,14,15,16,17,19,20,23,25,26,27])
     tembal = bal < 5f0 ? 5f0 : bal
     factor = 0.80f0 + 0.004f0 * (si - 50f0)
     htgr = 0f0
+    # EXP/ALOG/** of REAL*4 are glibc expf/logf/powf in the gfortran build (fexp/flog/fpow); the pine factor is
+    # applied as written (smhtgf.f: HTGR = HTGR*1.75*(.80+0.004*(SI-50.)), left to right).
     if nspc in WS_SM_PINE
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si)
-        htgr *= (nspc in WS_SM_PINE175 ? 1.75f0 : 1.50f0) * factor
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si)
+        htgr = htgr * (nspc in WS_SM_PINE175 ? 1.75f0 : 1.50f0) * factor
     elseif nspc in WS_SM_FIR
-        htgr = exp(-0.2495f0 - 0.00111f0*bal + 0.0100f0*cr*cr)
+        htgr = fexp(-0.2495f0 - 0.00111f0*bal + 0.0100f0*cr*cr)
         htgr = (nspc == 2 || nspc == 22 ? (htgr + 1f0)*2.5f0 : (htgr + 0.75f0)*2.0f0) * factor
     elseif nspc in WS_SM_OAK
-        htgr = exp(3.817f0 - 0.7829f0*log(tembal))
+        htgr = fexp(3.817f0 - 0.7829f0*flog(tembal))
     elseif nspc in WS_SM_TANOAK
-        htgr = exp(3.385f0 - 0.5898f0*log(tembal))
+        htgr = fexp(3.385f0 - 0.5898f0*flog(tembal))
     elseif nspc in WS_SM_CASURR
-        htgr = exp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
+        htgr = fexp(0.7452f0 - 0.003271f0*bal - 0.1632f0*cr + 0.0217f0*cr*cr + 0.00536f0*si) * factor * 1.75f0
     elseif nspc == 4 || nspc == 23                              # RW/GS Chapman-Richards
         htmax = 2.242202f0 * si
         if htmax - h <= 1f0
             htgr = 0f0
         else
-            age1 = (1f0 / -0.010742f0) * log(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
+            age1 = (1f0 / -0.010742f0) * flog(1f0 - fpow(h/2.242202f0/si, 1f0/0.919076f0))
             age2 = age1 + 5f0
-            h1 = 2.242202f0*si*fpow(1f0 - exp(-0.010742f0*age1), 0.919076f0)
-            h2 = 2.242202f0*si*fpow(1f0 - exp(-0.010742f0*age2), 0.919076f0)
+            h1 = 2.242202f0*si*fpow(1f0 - fexp(-0.010742f0*age1), 0.919076f0)
+            h2 = 2.242202f0*si*fpow(1f0 - fexp(-0.010742f0*age2), 0.919076f0)
             htgr = h2 - h1
         end
     end
@@ -82,8 +84,8 @@ function _ws_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float
     local dk::Float32, dkk::Float32
     if sp in WS_RG_CASURR || sp == 4 || sp == 23
         bx = coef_col(s.coef, :wykoff_ht2)[sp]; ax = s.calib.ht_dbh_aa[sp]
-        dk = (bx / (log(hk - 4.5f0) - ax)) - 1f0
-        dkk = h <= 4.5f0 ? d : (bx / (log(h - 4.5f0) - ax)) - 1f0
+        dk = (bx / (flog(hk - 4.5f0) - ax)) - 1f0
+        dkk = h <= 4.5f0 ? d : (bx / (flog(h - 4.5f0) - ax)) - 1f0
     elseif sp == 41
         dkk = 3.1020f0 + 0.0210f0 * h; dkk < 0f0 && (dkk = d)
         dk = 3.1020f0 + 0.0210f0 * hk; dk < dkk && (dk = dkk + 0.01f0)
@@ -94,8 +96,8 @@ function _ws_regent_dk_dkk(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float
     else
         ihdw = msp == 3 || msp == 4
         ax, bx = msp == 1 ? (-0.6197f0, 0.2626f0) : msp == 2 ? (-0.6096f0, 0.2433f0) : (4.80420f0, -9.92422f0)
-        dk = ihdw ? bx / (log(hk - 4.5f0) - ax) - 1f0 : ax + bx * hk
-        dkk = h <= 4.5f0 ? d : (ihdw ? bx / (log(h - 4.5f0) - ax) - 1f0 : ax + bx * h)
+        dk = ihdw ? bx / (flog(hk - 4.5f0) - ax) - 1f0 : ax + bx * hk
+        dkk = h <= 4.5f0 ? d : (ihdw ? bx / (flog(h - 4.5f0) - ax) - 1f0 : ax + bx * h)
     end
     if (sp in WS_RG_CASURR || sp == 4 || sp == 23 || sp == 41) &&
        (!s.control.ht_drag_sp[sp] || s.calib.ht_dbh_iabflg[sp] == 1)
@@ -157,7 +159,7 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
     sd = s.coef.species
     # AVH = the COMMON AVHT40 of the last DENSE (cycle start: CRATET's IND at cycle 0, gradd.f:186's after)
     avh = p.avg_height; ba = p.basal_area; dgsd = s.control.dg_sd
-    relden = p.relative_density; ifor = Int(p.forest_idx); yr = s.control.year
+    relden = p.relative_density; ifor = Int(p.forest_idx); yr = htg_period(s.variant)
     fnt = fint
     # PCTRED density modifier (ws/regent.f:243-248) — used only by MC(41)/GB(21).
     xden = avh * (relden / 100f0); xden > 300f0 && (xden = 300f0)
@@ -174,7 +176,7 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         icr = Float32(t.crown_pct[i])
         crf = icr / 10f0                                        # CR = ICR/10 passed to smhtgf
         si = p.sp_site_index[sp]
-        con = exp(c.htg_cor_small[sp])                          # RHCON·exp(HCOR); HCOR=0 ⇒ 1
+        con = fexp(c.htg_cor_small[sp])                          # RHCON·fexp(HCOR); HCOR=0 ⇒ 1
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         # ws/regent.f:265-270 — GB(21)/MC(41) equations are 10-yr (UT/SO); every WS-native species' SMHTGF
@@ -186,11 +188,11 @@ function small_tree_growth!(s::StandState, stash, ::WestSierra; fint::Float32 = 
         # --- HTGRR: MC/GB use POTHTG·PCTRED·VIGOR; WS-native use ws_smhtgf DIRECTLY (no PCTRED·VIGOR) ---
         local htgrr::Float32
         if sp == 41                                            # MC
-            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             pothtg = ((1.47043f0 + 0.23317f0*si) / (31.56252f0 - 0.05586f0*si)) * 10f0
             htgrr = pothtg * pctred * vigor
         elseif sp == 21                                        # GB
-            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*exp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+            xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
             vigor = 1f0 - (1f0 - vigor)/3f0
             pothtg = ((si/5f0) * (si*1.5f0 - h)/(si*1.5f0)) * 0.83f0
             htgrr = pothtg * pctred * vigor
@@ -281,7 +283,7 @@ function ws_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
             (d >= 5f0 || h < 0.01f0) && continue
             xv = icr / 100f0
-            vigor = 150f0 * fpow(xv, 3f0) * exp(-6f0*xv) + 0.3f0
+            vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0
             vigor > 1f0 && (vigor = 1f0)
             local edh::Float32
             if sp == 41
@@ -302,7 +304,118 @@ function ws_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
+    end
+    return s
+end
+
+"""
+    ws_esgent!(s, nstart; fint, atavh, atrelden, relden_pre, avh_pre, ba_pre, pccf_pre)
+
+strp/esgent.f → ws/regent.f REGENT(.TRUE.,ITRNIN) for the records ESTAB created this cycle (nstart+1:n), then
+esgent.f's WK4 step (`esgent_finish!`). WS was missing from the esgent dispatch.
+
+REGENT(LESTB): FNT=FINT−5 (LSKIPH when FINT≤5, regent.f:221-228); PCTRED (MC/GB only) from the mid-period
+CCF/AVHT blend with ATCCF/ATAVH (:234-248). Species-major over the new records: the crown draw (:289-297, PCCF of
+the gradd.f:192 DENSE), CR=ICR/10, BAL=BA (new record PCT=0), then unless LSKIPH: HTGRR (MC POTHTG·PCTRED·VIGOR, GB
+the CR/UT form, else SMHTGF), HTGR=HTGRR·CON, the ZZRAN draw, HTGR=(HTGR+0.1·ZZRAN)·XRHGRO·SCALE (GB: 0.2·ZZRAN and
+·WK4(I), which under LESTB is the record's HTIMLT), XWT=0, HTG≥0.1, SIZCAP. DBH below BKPT (:405-568): HK≤4.5 ⇒
+DBH=D+0.001·HK, DG=0; else DBH=DK (MC: DK−DAT45+DIAM when LHTDRG∧IABFLG=0), floored at DIAM when <DIAM or HK<4.5,
++0.001·HK, DG=DBH; then DGBND.
+"""
+function ws_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, atavh::Float32 = 0f0, atrelden::Float32 = 0f0,
+                    relden_pre::Float32 = 0f0, avh_pre::Float32 = 0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    nstart >= t.n && return s
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    ccf = relden_pre; avht = avh_pre
+    if !lskiph && fnt > 0f0
+        ccf = (5f0 / fint) * relden_pre + ((fint - 5f0) / fint) * atrelden
+        avht = (5f0 / fint) * avh_pre + ((fint - 5f0) / fint) * atavh
+    end
+    xden = avht * (ccf / 100f0); xden > 300f0 && (xden = 300f0)
+    pctred = WS_RG_AB[1] + xden*(WS_RG_AB[2] + xden*(WS_RG_AB[3] + xden*(WS_RG_AB[4] +
+             xden*(WS_RG_AB[5] + xden*WS_RG_AB[6]))))
+    pctred > 1f0 && (pctred = 1f0); pctred < 0.01f0 && (pctred = 0.01f0)
+    ifor = Int(p.forest_idx); dgsd = s.control.dg_sd
+    yr_now = current_cycle_year(s)
+    newidx = sort(collect((nstart + 1):t.n); by = i -> (Int(t.species[i]), i))   # esgent.f:49 SPESRT → IND1
+    @inbounds for i in newidx
+        sp = Int(t.species[i]); d = t.dbh[i]
+        d >= WS_RG_XMAX[sp] && continue
+        ip = Int(t.plot_id[i])
+        pccf = (1 <= ip <= length(pccf_pre)) ? pccf_pre[ip] : s.density.point_ccf[ip]
+        ran = 0f0
+        while true
+            ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
+        end
+        cr0 = 0.89722f0 - 0.0000461f0 * pccf
+        cr0 = cr0 + 0.07985f0 * ran
+        cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
+        icr0 = unsafe_trunc(Int32, cr0 * 100f0 + 0.5f0)
+        t.crown_pct[i] = icr0; t.crown_ratio[i] = Float32(icr0)
+        icr = Float32(icr0); crf = icr / 10f0
+        h = t.height[i]
+        si = p.sp_site_index[sp]
+        msp = WS_RG_SMTMAP[sp]
+        regyr = (sp == 21 || sp == 41) ? 10f0 : 5f0
+        scale = fnt / regyr
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            con = fexp(c.htg_cor_small[sp])
+            xrhgro = active_multiplier(s.control, :regh, sp, yr_now)
+            local htgrr::Float32
+            if sp == 41
+                xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                pothtg = ((1.47043f0 + 0.23317f0*si) / (31.56252f0 - 0.05586f0*si)) * 10f0
+                htgrr = pothtg * pctred * vigor
+            elseif sp == 21
+                xv = icr / 100f0; vigor = 150f0*fpow(xv,3f0)*fexp(-6f0*xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                vigor = 1f0 - (1f0 - vigor)/3f0
+                pothtg = ((si/5f0) * (si*1.5f0 - h)/(si*1.5f0)) * 0.83f0
+                htgrr = pothtg * pctred * vigor
+            else
+                htgrr = ws_smhtgf(sp, d, crf, ba_pre, ba_pre, si, h)     # BAL=((100−PCT)/100)·BA, PCT=0
+            end
+            htgr = htgrr * con
+            zzran = 0f0
+            if dgsd >= 1f0
+                while true
+                    zzran = bachlo(s.rng, 0f0, 1f0)
+                    (zzran <= 0.5f0 && zzran >= -2.0f0) && break
+                end
+            end
+            htgr = sp == 21 ? (htgr + zzran*0.2f0) * xrhgro * scale * t.htimlt[i] : (htgr + zzran*0.1f0) * xrhgro * scale
+            htg = htgr; htg < 0.1f0 && (htg = 0.1f0)
+            cap = s.control.sp_size_cap[sp, 4]
+            (cap > 0f0 && h + htg > cap) && (htg = max(cap - h, 0.1f0))
+        end
+        bkpt = sp == 21 ? 99f0 : (sp == 4 || sp == 23) ? 7f0 : 3f0
+        if d < bkpt
+            hk = h + htg
+            local dbhk::Float32, dgk::Float32
+            if hk <= 4.5f0
+                dgk = 0f0; dbhk = d + 0.001f0*hk
+            else
+                dk, _ = _ws_regent_dk_dkk(s, ifor, sp, msp, d, h, hk, si)
+                if sp == 41 && s.control.ht_drag_sp[41] && s.calib.ht_dbh_iabflg[41] == 0
+                    dbhk = dk - (3.1020f0 + 0.0210f0*4.5f0) + WS_RG_DIAM[sp]     # DAT45 > 0 always
+                else
+                    dbhk = dk
+                end
+                (dbhk < WS_RG_DIAM[sp] || hk < 4.5f0) && (dbhk = WS_RG_DIAM[sp])
+                dbhk = dbhk + 0.001f0*hk
+                dgk = dbhk
+                (dbhk + dgk) < WS_RG_DIAM[sp] && (dgk = WS_RG_DIAM[sp] - dbhk)
+            end
+            dgk = ws_dgbnd(sp, dbhk, dgk, s.control.sp_size_cap[sp, 1], s.control.sp_size_cap[sp, 3])
+            t.dbh[i] = dbhk; t.diam_growth[i] = dgk
+        end
+        esgent_finish!(t, i, htg, _WS_ES_HHTMAX[sp])
     end
     return s
 end

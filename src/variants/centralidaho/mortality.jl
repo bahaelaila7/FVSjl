@@ -63,9 +63,7 @@ function mortality!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0f0, book_
     icyc1 = Int(s.control.cycle) == 0
     # grincr.f:60-64 OLDFNT: cycle 1 = FINT as read (the DG measurement period: GROWTH card / FIA DG_MEASURE, else
     # grinit's), later cycles = the previous cycle's length.
-    oldfnt = icyc1 ? ((s.control.growth_dg_set && s.control.growth_fint > 0f0) ? s.control.growth_fint :
-                      Float32(dg_measure_period(s.variant))) :
-                     Float32(max(1, cycle_period_at(s.control, Int(s.control.cycle) - 1)))
+    oldfnt = morts_oldfnt(s)
     sc = s.control.sp_size_cap
     @inbounds for i in 1:n
         sp = Int(t.species[i]); pr = t.tpa[i]; pr <= 0f0 && continue

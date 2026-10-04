@@ -48,9 +48,17 @@ _bx_base(path) = [split(l) for l in eachline(path)
         end
         try
             off = _bx_rows(FVSjl.run_keyfile(offkey; faithful = true))
-            # the capped run holds BA near 150; the uncapped run climbs much higher
+            # the capped run holds BA at or under 150; without BAMAX the stand's own SDImax governs. Live FVSsn_g16 on
+            # the BAMAX-less key (bamax_off.sum.save) peaks at 149 in 2015 by a different path (TPA 292 vs the capped
+            # run's), so assert the uncapped run against live, not a hand-picked threshold. (The old `> 180` encoded a
+            # jl misread of this tree file — 5897 TPA at 1990 vs live 536 — fixed on bc-maxtre.)
             @test maximum(parse(Int, r[4]) for r in jl) <= 160
-            @test maximum(parse(Int, r[4]) for r in off) > 180
+            offlive = _bx_base(joinpath(_BX_DIR, "bamax_off.sum.save"))
+            @test length(off) == length(offlive)
+            for (j, f) in zip(off, offlive), c in (3, 4, 5, 6, 7)       # TPA, BA, SDI, CCF, TopHt
+                @test parse(Int, j[c]) == parse(Int, f[c])
+            end
+            @test [r[3:7] for r in off] != [r[3:7] for r in jl]          # BAMAX changes the trajectory
         finally
             rm(offkey; force = true); rm(joinpath(_BX_DIR, "_bamax_off.tre"); force = true)
         end

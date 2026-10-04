@@ -40,6 +40,7 @@ struct OregonCoast <: AbstractVariant end
 
 variant_code(::OregonCoast) = "OC"
 nspecies(::OregonCoast) = 50
+variant_maxtre(::OregonCoast) = 2000   # oc PRGPRM.F77 PARAMETER (MAXTRE=2000)
 htg_period(::OregonCoast) = 5f0     # /CONTRL/ YR = 5 (oc FINT=5) — ORGANON's native 5-yr step
 
 const OC_DATADIR = normpath(joinpath(@__DIR__, "..", "..", "..", "data", "oregoncoast"))

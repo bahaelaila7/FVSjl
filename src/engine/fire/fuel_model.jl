@@ -37,7 +37,7 @@ the dead moisture of extinction.
         ov = get(fs.defulmod, Int32(model), nothing)
         ov !== nothing && return ov
     end
-    Int(model) > 14 && haskey(_SB_FUEL_MODELS, Int(model)) && return _sb_fuel_model(model)
+    Int(model) > size(s.coef.ffe_fuel_models, 1) && haskey(_SB_FUEL_MODELS, Int(model)) && return _sb_fuel_model(model)
     return standard_fuel_model(s.coef, model)
 end
 
@@ -85,6 +85,12 @@ end
 # load_100, load_lwoody, load_lherb, depth, mext, sav_lherb] — loads lb/ft², SAV 1/ft, depth ft. Defaults
 # (fminit.f:166-181): sav_10hr=109, sav_100hr=30, sav_lwoody=1500, sav_lherb=1500; all loads 0.
 const _SB_FUEL_MODELS = Dict{Int,NTuple{10,Float32}}(
+    # fminit.f's other non-Anderson models (loaded for every variant): 14 = "11A" (a modified 11, fminit.f:317-324)
+    # and Ray Hermit's R5 models 25 (older plantation, shrub understory, low crown bases) and 26 (modified brush
+    # model 4), fminit.f:329-346 — the CA/WS/NC FMCFMD candidates IPTR(14:15) = 25, 26.
+    14 => (1500f0,1500f0,0.126f0,0.426f0,0.506f0,0f0,0f0,1.8f0,0.20f0,1500f0),
+    25 => (2000f0,1500f0,0.069f0,0.069f0,0.092f0,0.207f0,0f0,3.5f0,0.25f0,1500f0),
+    26 => (2000f0,1500f0,0.1242f0,0.1242f0,0.0828f0,0.1656f0,0f0,3.6f0,0.35f0,1500f0),
     101 => (2200f0,1500f0,0.00459f0,0f0,0f0,0f0,0.01377f0,0.4f0,0.15f0,2000f0),
     102 => (2000f0,1500f0,0.00459f0,0f0,0f0,0f0,0.04591f0,1f0,0.15f0,1800f0),
     103 => (1500f0,1500f0,0.00459f0,0.01837f0,0f0,0f0,0.06887f0,2f0,0.3f0,1300f0),
