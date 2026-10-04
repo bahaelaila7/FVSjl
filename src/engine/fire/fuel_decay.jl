@@ -331,6 +331,21 @@ SO habitat-conditioned decay rates (so/fmcba.f:764-836): the SO base DKR scaled 
 (size 9→2) bumps any size class decaying slower than the next-larger class up to the larger's rate. Only
 woody classes 1-9; litter (10)/duff (11) keep the base. Applied once at the first FFE year (no FuelDcay).
 """
+# so/fmcba.f:746-761,833-837: on the California forests (KODFOR 500-599, 701) the SO decay rates are the flat CA set —
+# 0.025/yr for the <3" classes, 0.0125 for 3"+, every decay class, litter 0.5, duff 0.002 — with NO habitat DKRADJ
+# (that adjustment is the Oregon branch only). MEASURED FVSso_g16 15364795010497 (forest 505) FVS_Fuels 2020: surface
+# <3" 7.97 live vs 5.83 jl on the Oregon matrix.
+function so_california_dkr()::Matrix{Float32}
+    dkr = copy(_FM_DKR_SO)
+    @inbounds for i in 1:9, j in 1:4
+        dkr[i, j] = i <= 3 ? 0.025f0 : 0.0125f0
+    end
+    @inbounds for j in 1:4
+        dkr[10, j] = 0.5f0; dkr[11, j] = 0.002f0
+    end
+    return dkr
+end
+
 function so_adjusted_dkr(itype::Integer)::Matrix{Float32}
     dkr = copy(_FM_DKR_SO)
     (itype < 1 || itype > length(_FM_SOHMC)) && return dkr

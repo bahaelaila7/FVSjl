@@ -2449,7 +2449,12 @@ function _defulmod!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
 end
 
 function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
-    s.fire === nothing && (s.fire = FireState())
+    if s.fire === nothing
+        s.fire = FireState()
+        # so/fmvinit.f:240-241 PBSOFT = PBSMAL = -1 ("unset"): so/fmcba.f resolves them per forest at FMCBA
+        # (California 1.0/0.9, Oregon 0/0) unless SNAGPBN set them — see _so_snag_params!.
+        s.variant isa SouthCentralOregon && (s.fire.params.pb_soft = -1f0; s.fire.params.pb_smal = -1f0)
+    end
     fs = s.fire
     fs.active = true
     # FMVINIT: LS + NE snags LOSE HEIGHT over time (SN/CS keep HTX=0 — no loss). LS = per-snag-class HTX
