@@ -278,3 +278,14 @@ end
     x = reinterpret(Float32, 0x401E94E7)          # that record's D·BARK
     @test FVSjl.fpow(x, 2.0f0) != x * x            # the case where the two differ
 end
+
+@testset "SDICLS STAGE SDI (CROWN's SDIAC): DBH**2.0 is powf, the same pass as the reported Reineke SDI (sdical.f:275/327)" begin
+    # sdical.f sums SDSQ=Σ(DBH(I)**2.0)·PROB and SDIC=Σ(A+B·DBH(I)**2.0)·PROB; a REAL exponent compiles to powf, which is not
+    # always D·D. stand_sdi (the .sum Reineke column) and stand_sdi_reineke (SDIAC/SDIBC for CROWN) are that one pass.
+    s = FVSjl.StandState(FVSjl.InlandEmpire()); t = s.trees
+    d = reinterpret(Float32, UInt32(1065604403))         # 1.0299438: powf(d,2.0) ≠ d·d
+    @test FVSjl.fpow(d, 2f0) != d * d
+    t.n = 1; t.dbh[1] = d; t.tpa[1] = 1f0; t.species[1] = 3; t.height[1] = 40f0
+    s.control.zeide_sdi = false
+    @test FVSjl.stand_sdi_reineke(s) == FVSjl.stand_sdi(s) == 0.02603549f0
+end

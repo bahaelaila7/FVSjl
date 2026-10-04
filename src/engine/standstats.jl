@@ -637,8 +637,8 @@ end
     stand_sdi_reineke(s)
 
 SDICLS(0,0.,999.,1,SDIC,…) — the STAGE (Reineke-summation) stand SDI that CROWN reads (SDIAC/SDIBC, grincr.f:241,323;
-fvs.f:196). sdical.f:260-283 first sums SDSQ=Σ(DBH**2)·PROB and SPROB=ΣPROB over the DBH≥DBHSTAGE records in IND1
-order to form the STAGE A/B, then DISCARDS the closed form SPROB·A+B·SDSQ and re-sums SDIC=Σ(A+B·DBH**2)·PROB in the
+fvs.f:196). sdical.f:260-283 first sums SDSQ=Σ(DBH**2.0)·PROB and SPROB=ΣPROB over the DBH≥DBHSTAGE records in IND1
+order to form the STAGE A/B, then DISCARDS the closed form SPROB·A+B·SDSQ and re-sums SDIC=Σ(A+B·DBH**2.0)·PROB in the
 same IND1 order (:293-332). Float32 addition is order-dependent, so both passes walk `_ind1_order` (as `stand_sdi`,
 dense.f's BA/PCCF and SDICAL already do) — the index-order closed form sat ~1e-6 relative off live's SDIAC
 (TT S248112 2030 SDIAC 318.5158 vs live 318.5154), enough to flip an INT(CRNEW+0.5) crown.
@@ -649,7 +649,7 @@ function stand_sdi_reineke(s::StandState)
     thr = s.control.dbh_stage; sprob = 0f0; sdsq = 0f0
     @inbounds for i in ord
         d = t.dbh[i]; d < thr && continue
-        sdsq += (d * d) * t.tpa[i]; sprob += t.tpa[i]
+        sdsq += fpow(d, 2f0) * t.tpa[i]; sprob += t.tpa[i]   # sdical.f:275 DBH**2.0 — a REAL exponent ⇒ powf, not D·D
     end
     sprob == 0f0 && return 0f0
     # sdical.f:281-282 `(10.0**(-1.605))*…*((SDSQ/SPROB)**(1.605/2.))` — all FVS `**` = gfortran powf, route via
@@ -659,7 +659,7 @@ function stand_sdi_reineke(s::StandState)
     sdic = 0f0
     @inbounds for i in ord
         d = t.dbh[i]
-        d >= thr && (sdic += (a + b * (d * d)) * t.tpa[i])
+        d >= thr && (sdic += (a + b * fpow(d, 2f0)) * t.tpa[i])   # sdical.f:327 A+B*(DBH(I)**2.0)
     end
     return sdic
 end
