@@ -24,10 +24,10 @@ function so_smhtgf(sp::Int, d::Float32, h::Float32, cr1::Float32, dtime::Float32
     if sp == 1 || sp == 18                                  # WP / RC — Chapman-Richards age inversion
         c1, c2, c3, c4 = sp == 1 ? (0.375045f0, 0.92503f0, -0.020796f0, 2.48811f0) :
                                    (0.752842f0, 1.0f0, -0.0174f0, 1.4711f0)
-        effage = mode == 1 ? log((1f0 - (c1 / S * h)^(1f0 / c4)) / c2) / c3 : 0f0
+        effage = mode == 1 ? flog((1f0 - fpow((c1 / S * h), 1f0 / c4)) / c2) / c3 : 0f0
         agepdt = effage + dtime
-        hht1 = (S / c1) * (1f0 - c2 * exp(c3 * effage))^c4
-        hht2 = (S / c1) * (1f0 - c2 * exp(c3 * agepdt))^c4
+        hht1 = (S / c1) * fpow((1f0 - c2 * fexp(c3 * effage)), c4)
+        hht2 = (S / c1) * fpow((1f0 - c2 * fexp(c3 * agepdt)), c4)
         return hht2 - hht1
     elseif sp == 2 || sp == 10                              # SP / PP
         return ((-1.0f0 + 0.32857f0 * S) / (28.0f0 - 0.042857f0 * S)) * dtime
@@ -49,9 +49,9 @@ function so_smhtgf(sp::Int, d::Float32, h::Float32, cr1::Float32, dtime::Float32
         relht > 1.05f0 && (relht = 1.05f0)
         domhtgr = 5f0 * (2.2227f0 + 0.4314f0 * S) / (29.0f0 - 0.05f0 * S)
         cr = cr1 / 100f0
-        crmod = 1.0f0 - exp(-4.26558f0 * cr)
-        rhmod = exp(2.54119f0 * (relht^0.250537f0 - 1.0f0))
-        return domhtgr * 1.016605f0 * crmod * rhmod
+        crmod = 1.0f0 - fexp(-4.26558f0 * cr)
+        rhmod = fexp(2.54119f0 * (fpow(relht, 0.250537f0) - 1.0f0))
+        return domhtgr * (1.016605f0 * crmod * rhmod)          # smhtgf.f: HHT=DOMHTGR*SMHMOD
     elseif sp == 11                                        # WJ — SI-ratio (SI clamp [SLO+.5, SHI])
         sj = S; sj > 75f0 && (sj = 75f0); sj <= 5f0 && (sj = 5.5f0)
         return (sj / 5.0f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)
@@ -73,7 +73,7 @@ function so_smhtgf(sp::Int, d::Float32, h::Float32, cr1::Float32, dtime::Float32
         bal = ((100.0f0 - pct) / 100.0f0) * ba
         factor = 0.80f0 + 0.004f0 * (S - 50.0f0)
         bal < 5.0f0 && (bal = 5.0f0)
-        return exp(3.817f0 - 0.7829f0 * log(bal)) * factor
+        return fexp(3.817f0 - 0.7829f0 * flog(bal)) * factor
     end
     return 0f0
 end
@@ -134,8 +134,8 @@ function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32
         hlk = hk - 4.5f0
         dk = 0.000231f0*hlk*icr - 0.00005f0*hlk*tpccf + 0.001711f0*icr + 0.17023f0*hlk + 0.3f0
     elseif sp == 24                                    # AS — HT1(24)/HT2(24) ln-form (GOTO 300, no override)
-        dk = (SO_RG_HT2_24/(log(hk - 4.5f0) - SO_RG_HT1_24)) - 1f0
-        dkk = h <= 4.5f0 ? d : (SO_RG_HT2_24/(log(h - 4.5f0) - SO_RG_HT1_24)) - 1f0
+        dk = (SO_RG_HT2_24/(flog(hk - 4.5f0) - SO_RG_HT1_24)) - 1f0
+        dkk = h <= 4.5f0 ? d : (SO_RG_HT2_24/(flog(h - 4.5f0) - SO_RG_HT1_24)) - 1f0
     else                                               # all others: htdbh override (LHTDRG=false)
         dk = so_htdbh_dbh(ifor, sp, hk)
         dkk = h <= 4.5f0 ? d : so_htdbh_dbh(ifor, sp, h)
@@ -147,15 +147,15 @@ function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32
         dg = (dk < 0f0 || dkk < 0f0) ? htg*0.2f0*bark*xrdgro : (dk - dkk)*bark*xrdgro
         dg < 0f0 && (dg = 0.1f0); dg > dgmx && (dg = dgmx)
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
         dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)  # common block (681-688): re-converts
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
     elseif sp == 9 || sp == 27                         # SH/WO — XDWT blend; GO TO 23 skips DGBND
         xdwt = d <= 1.5f0 ? 0f0 : d >= 3f0 ? 1f0 : (d - 1.5f0)/1.5f0
         dgsm = (dk - dkk)*bark*xrdgro; dgsm < 0f0 && (dgsm = 0f0)
         dds = dgsm*(2f0*bark*d + dgsm)*scale2
-        dgsm = sqrt((d*bark)^2 + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
+        dgsm = sqrt(fpow(d*bark, 2f0) + dds) - bark*d; dgsm < 0f0 && (dgsm = 0f0)
         dg = dgsm*(1f0 - xdwt) + dglt*xdwt
         (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
         return (-1f0, dg)
@@ -164,7 +164,7 @@ function _so_regent_dg(s::StandState, sp::Int, ifor::Int, d::Float32, h::Float32
         dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
         (sp == 16 && (d + dg) < SO_RG_DIAM[sp]) && (dg = SO_RG_DIAM[sp] - d)
         dds = dg*(2f0*bark*d + dg)*scale2
-        dg = sqrt((d*bark)^2 + dds) - bark*d
+        dg = sqrt(fpow(d*bark, 2f0) + dds) - bark*d
     end
     (d + dg) < SO_RG_DIAM[sp] && (dg = SO_RG_DIAM[sp] - d)
     return (-1f0, dg_bound(nothing, nothing, sp, d, dg, s.control.sp_size_cap))   # so/dgbnd.f = SIZCAP cap
@@ -194,7 +194,7 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
         slo = SO_SITELO[sp]; shi = SO_SITEHI[sp]
         si_raw = p.sp_site_index[sp]                        # SITEAR (raw; so_smhtgf/WJ use this)
         si_c = si_raw; si_c > shi && (si_c = shi); si_c <= slo && (si_c = slo + 0.5f0)  # regent SI clamp (AS RELSI)
-        con = exp(c.htg_cor_small[sp])                     # RHCON(=1)·exp(HCOR); HCOR=0 (no small-tree calib)
+        con = fexp(c.htg_cor_small[sp])                     # RHCON(=1)·exp(HCOR); HCOR=0 (no small-tree calib)
         xrhgro = active_multiplier(s.control, :regh, sp, yr_now)   # XRHGRO=XRHMLT(ISPC) (REGHMULT)
         xrdgro = active_multiplier(s.control, :regd, sp, yr_now)   # XRDGRO=XRDMLT(ISPC) (REGDMULT)
         regyr = (sp == 9 || sp == 27) ? 5f0 : 10f0
@@ -202,7 +202,7 @@ function small_tree_growth!(s::StandState, stash, ::SouthCentralOregon; fint::Fl
         dgmx = sp == 16 ? fint*0.2f0 : SO_RG_DGMAX[sp]*scale
         # --- VIGOR modifier from crown ratio (regent.f:303-310) ---
         xv = icr / 100f0
-        vigor = 150f0 * fpow(xv, 3f0) * exp(-6f0*xv) + 0.3f0
+        vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0
         vigor > 1f0 && (vigor = 1f0)
         sp == 11 && (vigor = 1f0 - (1f0 - vigor)/3f0)      # WJ: cut knock-down by 2/3
         # --- POTHTG → HTGR ---
@@ -296,7 +296,7 @@ function so_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             (saved_dbh[i] >= 5f0 || h < 0.01f0) && continue
             icr = Float32(t.crown_pct[i])
             xv = icr / 100f0
-            vigor = 150f0 * fpow(xv, 3f0) * exp(-6f0*xv) + 0.3f0
+            vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0*xv) + 0.3f0
             vigor > 1f0 && (vigor = 1f0)
             sp == 11 && (vigor = 1f0 - (1f0 - vigor)/3f0)
             local edh::Float32
@@ -321,7 +321,7 @@ function so_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
         cornew = sny / snx
         cornew <= 0f0 && (cornew = 1f-4)
         (cornew < 0.0821f0 || cornew > 12.1825f0) && (cornew = 1f0)
-        c.htg_cor_init[sp] = log(cornew)
+        c.htg_cor_init[sp] = flog(cornew)
     end
     return s
 end
