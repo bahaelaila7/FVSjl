@@ -244,8 +244,6 @@ end
         @test _cells(c) == 0
     end
 end
-end # module
-
 # gradd.f:96 MISTOE after MORTS+TRIPLE+REASS: spread, MISINF (MISRAN over the 27 TRIPLED records) and MISMRT on the
 # tripled list (cr/mistoe.f:517-522) + cr/mismrt.f REAL rate. Was 254 cells (Mort 2005 16 vs 17, DMR mix off).
 @testset "CR MISTOE post-TRIPLE seam: MISINF/MISRAN + MISMRT on tripled records (cr/mistoe.f, misinf.f) vs FVScr_clean" begin
@@ -253,3 +251,4 @@ end # module
     @test !c.crashed
     @test _cells(c) == 0
 end
+end # module
