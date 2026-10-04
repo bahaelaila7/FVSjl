@@ -181,7 +181,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                 slo = slo_a[sp]; shi = shi_a[sp]
                 si = p.sp_site_index[sp]; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
                 rsimod = 0.5f0 * (1.0f0 + (si - slo) / (shi - slo))
-                sitage = (h * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+                sitage = fpow(h * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0)
                 hite1 = 26.9825f0 * fpow(sitage, 1.1752f0); hite2 = 26.9825f0 * fpow(sitage + 10.0f0, 1.1752f0)
                 htgrl = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
             else                                                      # 14,15,17,19: POTHTG·PCTRED·VIGOR·CON
@@ -306,7 +306,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                             bark = ci_bratio(sd, sp, d)
                             dgK = (dk - dkk) * bark
                             dds = dgK * (2.0f0 * bark * d + dgK) * scale2
-                            dgK = sqrt((d * bark)^2 + dds) - bark * d
+                            dgK = sqrt(fpow(d * bark, 2f0) + dds) - bark * d
                         else
                             dgK = 0.0f0
                         end
@@ -345,7 +345,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralIdaho; fint::Float32 
                         dgK > dgmx && (dgK = dgmx)
                     end
                     dds = dgK * (2.0f0 * barkK * d + dgK) * scale2
-                    dgK = sqrt((d * barkK)^2 + dds) - barkK * d
+                    dgK = sqrt(fpow(d * barkK, 2f0) + dds) - barkK * d
                     (dbhK + dgK) < CI_RG_DIAM[sp] && (dgK = CI_RG_DIAM[sp] - dbhK)
                 end
                 dgK = dg_bound(nothing, nothing, sp, dbhK, dgK, ctl.sp_size_cap)   # DGBND
@@ -414,7 +414,7 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
                 slo = slo_a[sp]; shi = shi_a[sp]
                 si = sitear; si > shi && (si = shi); si <= slo && (si = slo + 0.5f0)
                 relsi = (si - slo) / (shi - slo); rsimod = 0.5f0 * (1.0f0 + relsi)
-                age = (h0 * 2.54f0 * 12.0f0 / 26.9825f0)^(1.0f0 / 1.1752f0)
+                age = fpow(h0 * 2.54f0 * 12.0f0 / 26.9825f0, 1.0f0 / 1.1752f0)
                 hite1 = 26.9825f0 * fpow(age, 1.1752f0); hite2 = 26.9825f0 * fpow(age + 10.0f0, 1.1752f0)
                 htgr = (hite2 - hite1) / (2.54f0 * 12.0f0) * rsimod * con * 0.75f0
             else
@@ -449,7 +449,7 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
                 dg = (dk - dkk) * bark; dg < 0.0f0 && (dg = 0.0f0)
                 dgmx = CI_RG_DGMAX[sp] * bscale; dg > dgmx && (dg = dgmx)
                 dds = dg * (2.0f0 * bark * d0 + dg) * scale2
-                dg = sqrt((d0 * bark)^2 + dds) - bark * d0
+                dg = sqrt(fpow(d0 * bark, 2f0) + dds) - bark * d0
                 (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
                 dg > 0.0f0 && (t.dbh[i] = d0 + dg; t.diam_growth[i] = dg)
             end
@@ -482,13 +482,13 @@ function ci_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, avh_pre:
         t.height[i] = hk; t.ht_growth[i] = htg
         if hk >= 4.5f0
             dhcn = CI_RG_DHCN[sp]; dhht = CI_RG_DHHT[sp]; dhcr = CI_RG_DHCR[sp]
-            dk = exp(dhcn + dhht * log(hk) + dhcr * log(rcr))
-            dkk = h0 < 4.5f0 ? d0 : exp(dhcn + dhht * log(h0) + dhcr * log(rcr))
+            dk = fexp(dhcn + dhht * flog(hk) + dhcr * flog(rcr))
+            dkk = h0 < 4.5f0 ? d0 : fexp(dhcn + dhht * flog(h0) + dhcr * flog(rcr))
             xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
             bark = ci_bratio(sd, sp, d0)
             dg = (dk - dkk) * bark * xrdgro; dg < 0.0f0 && (dg = 0.0f0)
             dds = dg * (2.0f0 * bark * d0 + dg) * scale2
-            dg = sqrt((d0 * bark)^2 + dds) - bark * d0; dg < 0.0f0 && (dg = 0.0f0)
+            dg = sqrt(fpow(d0 * bark, 2f0) + dds) - bark * d0; dg < 0.0f0 && (dg = 0.0f0)
             (d0 + dg) < CI_RG_DIAM[sp] && (dg = CI_RG_DIAM[sp] - d0)
             dg > 0.0f0 && (t.dbh[i] = d0 + dg; t.diam_growth[i] = dg)
         end
@@ -633,11 +633,11 @@ function ci_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
                     sj = p.sp_site_index[sp]
                     pothtg = ((sj / 5f0) * (sj * 1.5f0 - h) / (sj * 1.5f0)) * 0.83f0
                     xv = cri / 100f0
-                    vigor = 150f0 * xv^3 * fexp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
+                    vigor = 150f0 * fpow(xv, 3f0) * fexp(-6f0 * xv) + 0.3f0; vigor > 1f0 && (vigor = 1f0)
                     sp == 14 && (vigor = 1f0 - (1f0 - vigor) / 3f0)
                     if sp == 13
-                        ag1 = (h * 12f0 * 2.54f0 / 26.9825f0)^0.8509f0
-                        h2 = (26.9825f0 * (ag1 + 10f0)^1.1752f0) / (2.54f0 * 12f0)
+                        ag1 = fpow(h * 12f0 * 2.54f0 / 26.9825f0, 0.8509f0)
+                        h2 = (26.9825f0 * fpow(ag1 + 10f0, 1.1752f0)) / (2.54f0 * 12f0)
                         edh = (h2 - h) * rsimod * rhcon[sp] * 0.75f0
                         edh < 0f0 && (edh = 0f0)
                     else

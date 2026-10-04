@@ -19,7 +19,7 @@ const CI_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.725,1.78,1.76,1.736,1.756,1
         if dd >= 1.0f0
             return CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]
         elseif dd > 0.1f0
-            return sp == 15 ? dd * (CI_RD1[sp] + CI_RD2[sp] + CI_RD3[sp]) : CI_RDA[sp] * dd ^ CI_RDB[sp]
+            return sp == 15 ? dd * (CI_RD1[sp] + CI_RD2[sp] + CI_RD3[sp]) : CI_RDA[sp] * fpow(dd, CI_RDB[sp])
         else
             return sp == 15 ? dd * (CI_RD1[sp] + CI_RD2[sp] + CI_RD3[sp]) : 0.001f0
         end
@@ -27,13 +27,13 @@ const CI_RDB = Float32[1.6667,1.8182,1.5571,1.7333,1.725,1.78,1.76,1.736,1.756,1
         if dd >= 10f0
             return CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]
         elseif dd > 0.1f0
-            return CI_RDA[sp] * dd ^ CI_RDB[sp]
+            return CI_RDA[sp] * fpow(dd, CI_RDB[sp])
         else
             return 0.001f0
         end
     else                                                # DEFAULT (1-10,18): poly at D≥10, else RDA·D^RDB
         dd <= 0f0 && return 0f0
-        return dd >= 10f0 ? (CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]) : CI_RDA[sp] * dd ^ CI_RDB[sp]
+        return dd >= 10f0 ? (CI_RD1[sp] + dd * CI_RD2[sp] + dd * dd * CI_RD3[sp]) : CI_RDA[sp] * fpow(dd, CI_RDB[sp])
     end
 end
 
@@ -85,7 +85,7 @@ A BACHLO random error FCR (rejected if |FCR|>SD) perturbs the LOGIT argument bef
         cr = ((cr - 1f0)*10f0 + 1f0) / 100f0
     else
         abs(cr + fcr) >= 86f0 && (cr = 86f0)       # overflow guard (faithful: sets +86 regardless of sign)
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     end
     cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
     return cr
@@ -167,7 +167,7 @@ function crown_ratio_update!(s::StandState, ::CentralIdaho; fint::Float32 = 10.0
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0
         end
         # label 53 (ci/crown.f:325-370): limit the change to 1%/yr of ICR, CRNMULT band, round, CRMAX cap
         if !(lstart || icr == 0)

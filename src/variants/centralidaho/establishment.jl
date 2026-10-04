@@ -55,7 +55,7 @@ species → fixed 0.5 / 5.0 ft. Coefficients verbatim from ci/essubh.f.
 function ci_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::Integer, iphy::Integer,
                    xcos::Real, xsin::Real, slo::Real, elev::Real, disp::Real; bwaf::Real = 0.0, bwb4::Real = 0.0)::Float32
     a = Float32(age); a < 1f0 && (a = 1f0)
-    aln = log(a); baa = Float32(baa); ih = Int(ihtser); ip = Int(iprep); iph = Int(iphy)
+    aln = flog(a); baa = Float32(baa); ih = Int(ihtser); ip = Int(iprep); iph = Int(iphy)
     @inbounds uhab(s) = _CI_ESSUBH_UHAB[ih, s]; @inbounds upre(s) = _CI_ESSUBH_UPRE[ip, s]; @inbounds uphy(s) = _CI_ESSUBH_UPHY[iph, s]
     xcos = Float32(xcos); xsin = Float32(xsin); slo = Float32(slo); elev = Float32(elev); disp = Float32(disp)
     pn = 0f0; sig = 0f0; fixed = -1f0
@@ -92,5 +92,5 @@ function ci_essubh(sp::Integer, age::Real, baa::Real, ihtser::Integer, iprep::In
         fixed = 0.5f0
     end
     fixed >= 0f0 && return fixed
-    return exp(pn + disp*sig)
+    return fexp(pn + disp*sig)
 end
