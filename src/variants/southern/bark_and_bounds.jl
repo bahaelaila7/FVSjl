@@ -117,12 +117,13 @@ end
 # GRINCR (the shared driver skips its FINT scaling) and rescale here — each measured with TIMEINT 5 against its live oracle
 # (tests/FVS<v> key, .sum rows differing: BM 45→10, EM 55→35, CI 55→13, EC 46→1, PN 53→0, WC 52→2, TT 55→39, UT 54→32, IE
 # closer in every column; ON exact; KT 55→27 with its cycle-1 WK1/OLDFNT fixes, kt/htgf.f:114 HTG=EXP(CON+HDGCOF·ln DG)
-# and kt/morts.f:201/:310 reading the 10-year DG). The others still scale inside the DG driver: SN/NC (YR=5) and LS/NE/CS
-# carry their own FINT-basis emulation in REGENT/MORTS (the switch made LS 11→49, NE 13→52, CS 14→52), BC and AK did not
-# improve, OC/OP run ORGANON's driver, and CR/CA/SO/WS were not measured.
+# and kt/morts.f:201/:310 reading the 10-year DG; CR 55→27 with REGENT's SCALE2=YR/FNT, cr/regent.f:171,417-418). The
+# others still scale inside the DG driver: SN/NC (YR=5) and LS/NE/CS carry their own FINT-basis emulation in REGENT/MORTS
+# (the switch made LS 11→49, NE 13→52, CS 14→52), BC and AK did not improve, OC/OP run ORGANON's driver, and CA/SO/WS
+# were not measured.
 _gradd_rescale(v::AbstractVariant) = v isa Ontario || v isa BlueMountains || v isa EasternMontana || v isa CentralIdaho ||
                                     v isa EastCascades || v isa PacificNorthwest || v isa WestCascades || v isa Teton ||
-                                    v isa Utah || v isa InlandEmpire || v isa Kootenai
+                                    v isa Utah || v isa InlandEmpire || v isa Kootenai || v isa CentralRockies
 
 """
     gradd_dg_scale!(s, fint)

@@ -121,7 +121,7 @@ function small_tree_growth!(s::StandState, stash, ::CentralRockies; fint::Float3
     regyr = 10.0f0
     fnt = fint
     scale = fnt / regyr
-    scale2 = s.control.year / fnt                                   # YR / FNT (p.year = CR YR = 10)
+    scale2 = htg_period(s.variant) / fnt                            # SCALE2 = YR/FNT (cr/regent.f:171; YR = 10, cr/blkdat.f:126)
     dgsd = s.control.dg_sd
     # density modifier PCTRED from AVHT * CCF (regent.f:185-190)
     ccf = stand_ccf(s); avht = p.avg_height
@@ -204,7 +204,7 @@ function cr_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0)
     # Birth-cycle regen grows only FINT−GENTIM years (established mid-cycle at GENTIM=FINT−5, estab.f:448), not the
     # full cycle — so the regent SCALE uses the PARTIAL period (else the birth-cycle HTG ~2× over-shoots).
     gentim = max(fint - 5.0f0, 0.0f0)
-    scale = (fint - gentim) / 10.0f0; scale2 = s.control.year / fint; dgsd = s.control.dg_sd
+    scale = (fint - gentim) / 10.0f0; scale2 = htg_period(s.variant) / fint; dgsd = s.control.dg_sd
     ccf = stand_ccf(s); avht = p.avg_height
     x = avht * (ccf / 100.0f0); x > 300.0f0 && (x = 300.0f0)
     pctred = _CR_AB[1] + x*(_CR_AB[2] + x*(_CR_AB[3] + x*(_CR_AB[4] + x*(_CR_AB[5] + x*_CR_AB[6]))))
