@@ -21,9 +21,15 @@ const _DM_DMRMIN = 1.0f0
 # effect-application gate, which CR bypasses via its own cr_ gates).
 @inline _dm_report_variant(v)::Bool = _ie_mis_variant(v) || v isa CentralRockies || v isa BritishColumbia
 
-"true when any tree carries a dwarf-mistletoe rating (misprt.f DMFLAG) on a DM-report variant"
+"""
+true when MISPRT's DMFLAG is set on a DM-report variant: any tree carries a dwarf-mistletoe rating (misprt.f:375), or —
+after a projection cycle (DMFLAG is reset only at ICYC=0, misprt.f:265) — the cycle's MISTOE/MISINF left it set
+(mistoe.f:267, misinf.f:182: a MISTPINF card on a host species with no trees still prints a zero-infection row;
+MEASURED FVSem_g16 231908428020004 MISTPINF: one 2023 FVS_DM_Stnd_Sum row, Inf_TPA 0, and an empty FVS_DM_Spp_Sum).
+"""
 function _dm_report_active(s::StandState)::Bool
     _dm_report_variant(s.variant) || return false
+    (_ie_mis_variant(s.variant) && s.control.cycle > 0 && s.control.dm_flag) && return true
     t = s.trees
     @inbounds for i in 1:t.n
         t.dmr[i] > 0 && return true

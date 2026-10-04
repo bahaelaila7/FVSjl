@@ -3076,7 +3076,11 @@ function rd_cycle_start!(s::StandState)
     d = rd.driver::RDDriver
     m = d.n
     m == n || (rd.driver = _rd_resize_driver!(rd, d, n, s))
-    rd.wk1_nold >= 0 && (m = min(m, rd.wk1_nold)); rd.wk1_nold = -1
+    # dgdriv.f:144 WK1(I)=DG(I) runs over EVERY record, last cycle's regeneration included: EM/IE's REGENT(LESTB) gives a
+    # new record DG(K)=DK (regent.f:941, carried in dg_prev), so it is not 0 here (MEASURED FVSem_g16 196378260020004
+    # rootdis, RD_Sum 2042: record 393 WK1 0.5952508 live vs 0 jl ⇒ Live_Merch_CuFt 131.93132 vs 130.13326).
+    _keep_new = s.variant isa EasternMontana || s.variant isa InlandEmpire
+    (rd.wk1_nold >= 0 && !_keep_new) && (m = min(m, rd.wk1_nold)); rd.wk1_nold = -1
     # WK1 is DGDRIV's start-of-cycle DG (dgdriv.f:144). At cycle 1 that is the calibration's DO-220 value — the measured
     # increment, 0 at HT≤4.5, else the DGF dub — which EM/IE carry in dg_prev (em_cycle0_wk1!/ie_cycle0_wk1!, already
     # applied here); afterwards dg_prev == diam_growth. The raw input DG left every unmeasured tree at 0 (MEASURED
