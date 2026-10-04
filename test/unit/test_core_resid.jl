@@ -230,3 +230,17 @@ end
         @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
     end
 end
+
+@testset "IE 11855985010690 salvage FVS_PotFire 2006 canopy: FMCROWW on glibc expf/logf/powf vs live FVSie_g16" begin
+    # FMPOCR's crown fuel reads CROWNW from FMCROWW (fmcroww.f:384-405 AF, :925-946 ES): EXP/LOG/D**(-x) are glibc
+    # expf/logf/powf; Julia's Float32 exp/log/^ gave ES/AF CROWNW(0) 1-3 ULP off ⇒ Canopy_Density 0.06280630 vs live
+    # 0.06280629, Crown_Index 30.766708 vs 30.766710.
+    db = _cr_run("ie", "11855985010690", "salvage")
+    gold, jl = _cr_table("ie", "11855985010690", "salvage", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    for g in gold, c in ("Canopy_Density", "Crown_Index", "Canopy_Ht")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+    @test FVSjl.cr_crownw(18, 17.8f0, 92f0, 0, 70, 50f0, 0.33f0)[1] ==
+          FVSjl.fexp(1.0404f0 + 1.7096f0 * FVSjl.flog(17.8f0)) * (0.5738f0 * FVSjl.fexp(-0.0325f0 * 17.8f0))
+end
