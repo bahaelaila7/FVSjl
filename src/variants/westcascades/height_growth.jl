@@ -53,7 +53,7 @@ species (6, 38) and any unlisted case return 0.
     if ispc == 1                                             # SF — Hoyer PNW-418
         sm45 = sindx - 4.5f0
         k = 0.0071839f0 + 0.0000571f0 * sm45
-        return (fpow(1f0 - fexp(-k*ag), 1.39005f0) / fpow(1f0 - fexp(-k*100f0), 1.39005f0)) * sm45 + 4.5f0   # htcalc.f HGUESS*SM45+4.5
+        return sm45 * fpow(1f0 - fexp(-k*ag), 1.39005f0) / fpow(1f0 - fexp(-k*100f0), 1.39005f0) + 4.5f0   # wc/htcalc.f:25-29 (SM45*pow)/pow (≠ pn's (pow/pow)*SM45)
     elseif ispc == 2 || ispc == 3                            # WF, GF — Cochran PNW-252
         la = flog(ag)
         x2 = -0.30935f0 + 1.2383f0*la + 0.001762f0*fpowi(la, 4) - 5.4f-6*fpowi(la, 9) +
