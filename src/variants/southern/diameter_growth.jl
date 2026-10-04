@@ -619,8 +619,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         sp = t.species[i]
         bkpt = break_cr === nothing ? gst_min : break_cr[sp]
         (t.dbh[i] < bkpt || t.diam_growth[i] <= 0f0) && continue
-        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = exp(wk2[i]); end
-        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = exp(wk2[i]); end
+        if t.dbh[i] < dn[sp]; dn[sp] = t.dbh[i]; pn[sp] = fexp(wk2[i]); end
+        if t.dbh[i] > dx[sp]; dx[sp] = t.dbh[i]; px[sp] = fexp(wk2[i]); end
     end
 
     # per-species sums; remember each measured tree's residual
@@ -632,16 +632,16 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     @inbounds for i in 1:t.n
         sp = t.species[i]; wk3 = t.dbh[i]; dg = t.diam_growth[i]; p = t.tpa[i]
         (wk3 < dn[sp] || wk3 > dx[sp]) && continue
-        edds = exp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p
+        edds = fexp(wk2[i]); spopn[sp] += p; spopx[sp] += edds * p   # dgdriv.f EDDS=EXP(WK2) (expf)
         dg <= 0f0 && continue
         bark = variant_bratio(s, sp, saved_dbh[i], t.height[i])   # bark at CURRENT dbh (dgdriv.f:435 BRATIO(ISPC,DBH,HT)) — shared variant BRATIO
         term = dg * (2f0 * bark * wk3 + dg) * scale
         term <= 0f0 && continue
-        reslog = log(term) - wk2[i]
+        reslog = flog(term) - wk2[i]
         reslog_t[i] = reslog; measured[i] = true
         fn[sp] += 1f0; dev[sp] += reslog; devsq[sp] += reslog^2
         snp[sp] += p; snx[sp] += p * edds; sny[sp] += p * reslog
-        snxx[sp] += p * edds^2; snxy[sp] += p * reslog * edds
+        snxx[sp] += p * edds * edds; snxy[sp] += p * reslog * edds   # dgdriv.f SNXX+P*EDDS*EDDS = (P·EDDS)·EDDS
     end
 
     # per-species COR / SIGMA / regression line / VARDG
@@ -698,6 +698,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
         i1 = isct[sp, 1]; i1 == 0 && continue
         i2 = isct[sp, 2]
         if calibrated[sp]
+            # dgdriv.f:429 OLDRN(I)=RESLOG and :536-547 (the regression seed) both sit under IF(DGSD.GE.1.0)
+            s.control.dg_stddev_bound >= 1f0 || continue
             rx = bny[sp] + (px[sp] - bnx[sp]) * slop[sp]
             rn = bny[sp] + (pn[sp] - bnx[sp]) * slop[sp]
             for k in i1:i2
@@ -705,7 +707,7 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
                 if measured[i]
                     oldrn[i] = reslog_t[i]
                 else
-                    oldrn[i] = bny[sp] + (exp(wk2[i]) - bnx[sp]) * slop[sp]
+                    oldrn[i] = bny[sp] + (fexp(wk2[i]) - bnx[sp]) * slop[sp]
                     t.dbh[i] < dn[sp] && (oldrn[i] = rn)
                     t.dbh[i] > dx[sp] && (oldrn[i] = rx)
                 end
@@ -1278,7 +1280,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # jl's dg_cor at cycle N = the value FVS USES for cycle N's DG (the pre-update one) —
     # the START clock here is correct; do NOT "fix" it to elapsed+sfint.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
-    cormlt = exp(-0.02773f0 * elapsed)
+    cormlt = fexp(-0.02773f0 * elapsed)               # dgdriv.f:192 CORMLT=EXP(-0.02773*SFINT) (expf)
     # The REGENT small-tree height calibration HCOR rides the SAME WCI attenuation as the
     # diameter COR (dgdriv.f:188-194) but on the elapsed-at-END-of-period clock (cycle+1):
     # HCOR = WCI + cormlt_h·DIFH, DIFH = HCOR_init − WCI (set at ICYC=1). This runs for LDGCAL
@@ -1289,7 +1291,7 @@ function diameter_growth!(s::StandState, ::AbstractVariant; sfint::Float32 = 5f0
     # the WCI·(1−cormlt_h) progression. HCOR is SEPARATE from the large-tree HTGF term HTCON
     # (`htg_cor`, from the HCOR2 keyword, 0 for snt01). HCOR_init is computed by the regent
     # regression in `calibrate_diameter_growth!`.
-    cormlt_h = exp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
+    cormlt_h = fexp(-0.02773f0 * (elapsed + sfint))   # elapsed at END of this period (cumulative)
     @inbounds for sp in 1:MAXSP
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
         c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
