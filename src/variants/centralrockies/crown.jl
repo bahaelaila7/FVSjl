@@ -121,11 +121,13 @@ keyword adjustments not yet wired (defaults inert). Writes `t.crown_pct` (ICR).
 function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10.0f0,
                              lstart::Bool = false, relden_override::Float32 = -1.0f0, kwargs...)
     p, t, sd = s.plot, s.trees, s.coef.species
-    t.n == 0 && return s
+    (t.n == 0 && !lstart) && return s
     imodty = Int(p.model_type)
     ba = p.basal_area
     relden = relden_override >= 0.0f0 ? relden_override : stand_ccf(s)
     bau = _cr_badist_bau(t)
+    # cr/crown.f:72 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the dead crowns.
+    t.n == 0 && @goto dead79
     # cr/crown.f's CRNMULT block (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species; the three
     # literals below were the blkdat DATA defaults (1.0 / 0.0 / 99.0) with nothing ever updating them, so the
     # CRNMULT keyword was silently inert for CR. MEASURED on the blanked CR fixture: with the keyword, live
@@ -150,6 +152,7 @@ function crown_ratio_update!(s::StandState, ::CentralRockies; fint::Float32 = 10
     # cr/crown.f:239-259 DO 79 — cycle-0 dead records get their OWN GEMCR call (HF=H, DF=D) and ICRI=INT(CR*100.)
     # (truncated, unlike the live INT(CRNEW+.5)); bounds [10,95]. Previously folded into the live loop with the
     # live rounding (≤1-pt off). Dead crowns feed the FVS_TreeList PctCr and the cr_cwcalc crown width.
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         icls = trunc(Int, d + 1.0f0); icls > 41 && (icls = 41)

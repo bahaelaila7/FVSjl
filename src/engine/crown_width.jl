@@ -88,8 +88,14 @@ end
 # residual-BA crown widths in jl (FVSak_g16 10709344010497 2006 Removal_Code 1: cover 23 live / 20 jl, top species YC/MH
 # live / RA/YC jl; KT 4718785010690, CA 23742358010900 likewise), and FMCBA's crown biomass the same.
 "Variants whose SSTAGE/FMCBA read the stored CRWDTH(I) that `cwidth!` fills."
+# TT/UT/CI/CR/NC/SO/EC/WC/PN: the same base/cwidth.f CRWDTH(I) array feeds their sstage.f WK6 and fmcba.f CWIDTH (MEASURED
+# FVSpn_g16 504512112126144 THINBBA 2027: the after-thin StrClass cover 21 live from the pre-thin-BA CRWDTH, 22 jl from a
+# recomputed post-thin-BA width; FVScr_clean 46279527020004 SIMFIRE 68 -> 24 cells from FMCBA's PERCOV).
+# IE/EM (core-resid), AK/KT/WS/CA (west-kcwa-2) and the nine above (west-shared-4) all read the stored array.
 _stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa SoutheastAlaska || v isa Kootenai ||
-                    v isa WestSierra || v isa CentralCalifornia ||
+                    v isa WestSierra || v isa CentralCalifornia || v isa PacificNorthwest || v isa WestCascades ||
+                    v isa SouthCentralOregon || v isa CentralRockies || v isa CentralIdaho || v isa EastCascades ||
+                    v isa Utah || v isa Teton || v isa Klamath ||
                     v isa BritishColumbia   # metric/base/cwidth.f, called at the same fvs.f:207 / gradd.f:254 points
 
 """

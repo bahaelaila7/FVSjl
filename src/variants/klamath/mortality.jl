@@ -64,14 +64,17 @@ function mortality!(s::StandState, ::Klamath; fint::Float32 = 10.0f0, book_snags
         sd2sq += pr * (d * d + ciobds); sdq0 += pr * fpow(d, 2f0)
         sumdr10 += pr * fpow(d + g, 1.605f0); sumdr0 += pr * fpow(d, 1.605f0); tt += pr
     end
-    tt < 1f0 && @goto morts45   # morts.f IF(T.LT.1.0) GO TO 45 — still reaches CLMORTS
     # morts.f RESETS of the latched line: RMSQD==0, or a changed trajectory (ICYC>1 and |T-TPAMRT|>1 — thin,
     # ingrowth, fire, user mortality). TPAMRT is set to the post-mortality TPA below.
     let dens = s.density
         stand_qmd(s) == 0f0 && (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)   # RMSQD==0 (dense.f)
-        (Int(s.control.cycle) > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
+        # nc/morts.f:219 `ICYC.GT.1`: jl's control.cycle is 0-based (ICYC = cycle+1), so the test is cycle ≥ 1 — the
+        # old `cycle > 1` skipped the cycle-2 reset (MEASURED FVSut_g16 42642675010690 MISTOE: live resets at ICYC=2,
+        # T 4475.32 vs TPAMRT 4568.13 after the cycle-1 mistletoe kill; jl kept the latched line ⇒ ~20% under-kill).
+        (Int(s.control.cycle) + 1 > 1 && abs(tt - dens.tpa_mort) > 1f0) &&
             (dens.mort_intercept = 0f0; dens.mort_slope = 0f0)
     end
+    tt < 1f0 && @goto morts45   # morts.f IF(T.LT.1.0) GO TO 45 (AFTER the reset test) — still reaches CLMORTS
     if zeide
         dr10 = fpow(sumdr10 / tt, 1f0 / 1.605f0); dia0 = fpow(sumdr0 / tt, 1f0 / 1.605f0)
     else

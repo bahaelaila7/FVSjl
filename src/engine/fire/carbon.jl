@@ -81,11 +81,20 @@ function ffe_fuel_loadings(s::StandState; vtrip::Bool = false)
          stand_total=0f0, total_biomass=0f0, consumed=0f0, removed=0f0)
     (fs === nothing || !fs.active) && return z
     cw = fs.cwd
-    sumc(rng) = sum(@view cw[rng, :, :])
-    litter = sumc(10:10); duff = sumc(11:11)
-    lt3 = sumc(1:3); s3to6 = sumc(4:4); s6to12 = sumc(5:5); ge12 = sumc(6:9); ge3 = s3to6 + s6to12 + ge12
+    # fmdout.f:99-128 in its own REAL*4 order (Base.sum reassociates): CWD(3,J,K,5) = Σ_L CWD(1,J,K,L) left to right
+    # (jl carries no pile dimension; the I=2 piles add 0), SMALL2/LARGE2 accumulate ISZ=1..3 as
+    # S+C(ISZ,1)+C(ISZ,2) and L+C(ISZ+3,1)+C(ISZ+3,2)+C(ISZ+6,1)+C(ISZ+6,2), TOTSUR=FLIVE1+FLIVE2+SMALL2+LARGE2+DUF+LIT.
+    cs(j, k) = (x = 0f0; @inbounds(for l in 1:size(cw, 3); x += cw[j, k, l]; end); x)
+    small2 = 0f0; large2 = 0f0
+    for isz in 1:3
+        small2 = small2 + cs(isz, 1) + cs(isz, 2)
+        large2 = large2 + cs(isz + 3, 1) + cs(isz + 3, 2) + cs(isz + 6, 1) + cs(isz + 6, 2)
+    end
+    ge12 = cs(6, 1) + cs(6, 2) + cs(7, 1) + cs(7, 2) + cs(8, 1) + cs(8, 2) + cs(9, 1) + cs(9, 2)
+    duff = cs(11, 1) + cs(11, 2); litter = cs(10, 1) + cs(10, 2)
+    lt3 = small2; ge3 = large2; s3to6 = cs(4, 1) + cs(4, 2); s6to12 = cs(5, 1) + cs(5, 2)
     herb = fs.flive[1]; shrub = fs.flive[2]
-    surf_total = litter + duff + lt3 + ge3 + herb + shrub
+    surf_total = herb + shrub + small2 + large2 + duff + litter
     # standing snags (TOTSNG(1|2): bole by DBHS + the CWD2B/CWD2B2 crowns) and live trees (TOTFOL, TOTLIV(1|2)) are
     # FMDOUT's accumulators (fmdout.f:132-258), shared with the carbon report — `fmdout_bio`, on FMMAIN's record list
     fb = fmdout_bio(s; vtrip = vtrip)

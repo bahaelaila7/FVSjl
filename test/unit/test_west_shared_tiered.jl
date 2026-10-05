@@ -286,4 +286,141 @@ end
     c = _case("CR", "46279527020004", "none")
     @test _cells(c) == 0
 end
+# ut|tt|nc|on/morts.f `IF(ICYC.GT.1 .AND. ABS(T-TPAMRT).GT.1.)` resets CEPMRT/SLPMRT at ICYC=2 already; jl's 0-based
+# control.cycle made the test `cycle > 1` (ICYC>2) ⇒ the cycle-2 reset after a cycle-1 trajectory change (here the MISTOE
+# kill: live T 4475.32 vs TPAMRT 4568.13) never fired and jl kept the latched line (cycle-2 mortality ~20% low for every
+# species). MEASURED FVSut_g16 42642675010690 MISTOE DEBUG MORTS.
+@testset "MORTS ICYC>1 TPAMRT reset at cycle 2 (ut/morts.f:234) vs FVSut_g16" begin
+    c = _case("UT", "42642675010690", "mistletoe")
+    @test !c.crashed
+    @test _cells(c) == 0
+end
+# gradd.f:96 MISTOE precedes gradd.f:118 FMMAIN; on a non-fire tripling cycle jl runs MISTOE post-TRIPLE (mis_post), so the
+# deferred R6 FFE annual loop (fmmain.f:228 FMSNAG → FMR6HTLS RANN per snag pool) must wait for the spread's draws too.
+# jl drew Y 0.920/0.025 at the pre-TRIPLE seam; live 0.61/0.76 (= 275 spread draws later) ⇒ the 2015 LP snag lost 78% of
+# its height in jl, 0 live (MEASURED FVSso_g16 374286168489998 SALVAGE, DEBUG FMR6HTLS FMSNAG).
+@testset "R6 FFE annual loop after MISTOE spread on tripling cycles (gradd.f:96/:118, fmsnag.f, fmr6htls.f) vs FVSso_g16" begin
+    c = _case("SO", "374286168489998", "salvage")
+    @test !c.crashed
+    @test _cells(c; pred = m -> m.col in ("Standing_Dead", "Total_Stand_Carbon") || (m.file == "FVS_Carbon" && _rel(m) > 1e-5)) == 0
+end
+# CI PLANT cohort (ci/esinit.f STOADJ=0 ⇒ esnutr.f catch-all ESTAB, estab.f no-stocking plot chain): per-plot EMSQR/FIRST(2)
+# ESSUBH heights, ESGENT HTG·WK4 (HTIMLT 5/5.0001), and the next-cycle MORTS WK1 = the ESGENT DG (ci/dgdriv.f:171).
+# MEASURED FVSci_g16 3159852010690 PLANT DF 400 (DEBUG ESTAB/ESGENT/MORTS).
+@testset "CI PLANT cohort: estb catch-all plot chain, ESGENT WK4, WK1 (ci/esinit.f, estab.f, esgent.f, morts.f) vs FVSci_g16" begin
+    for r in ("plant_cal", "plant_cyc")
+        c = _case("CI", "3159852010690", r)
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
+# tt/dbsreference.f (LOCCODE upgrade, only in the TT build) adds `LocationCode int` = KODFOR to FVS_InvReference.
+@testset "TT FVS_InvReference LocationCode = KODFOR (tt/dbsreference.f:36,98-121) vs FVStt_g16" begin
+    for cn in ("2780339010690", "1856089798290487")      # the latter's input forest 404 maps to KODFOR 415
+        c = _case("TT", cn, "none")
+        @test _cells(c; pred = m -> m.file == "FVS_InvReference") == 0
+    end
+end
+# EC PLANT cohort: ec/esgent.f HTG·WK4 (HTIMLT 5/5.0001) and the gradd.f:192 DENSE PCCF for the ec/regent.f:285 LESTB crown
+# (an INT(CR·100+0.5) tie flipped on one 374300286489998 record when jl read the post-ESTAB point CCF).
+@testset "EC PLANT cohort: ESGENT WK4 + pre-ESTAB PCCF crown (ec/esgent.f, ec/regent.f:285) vs FVSec_g16" begin
+    for cn in ("450507010497", "374300286489998")
+        c = _case("EC", cn, "plant_cal")
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
+# fvsvol.f:340 HT2TD(IT,2)=MAX(HT1PRD,HT2PRD) with nsvb.f:417 HT2PRD lifted to the bucked-log top HTsaw (NVB equations).
+@testset "NVB Ht2TDCF = MAX(HT1PRD, HTsaw) (fvsvol.f:340, nsvb.f:368-417) vs FVScr_clean" begin
+    c = _case("CR", "5278473010690", "none")
+    @test _cells(c) == 0
+end
+# r3d2hv.f woodland (INT-391) square terms are (C·D2HA)·D2HA, not C·D2HA² (DVE 060/106/800/999).
+@testset "R3 woodland DVE (C*D2HA)*D2HA association (r3d2hv.f:320-461) vs FVScr_clean" begin
+    for cn in ("742164474290487", "2463020010690")
+        c = _case("CR", cn, "none")
+        @test _cells(c) == 0
+    end
+end
+# crown.f `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the cycle-0 dead crowns, on
+# the ITRN=0 DENSE (BA=PCCF=AVH=0, dead PCT/PTBAL 0).
+@testset "All-dead inventory: DO 79 dead crown dub on a zero DENSE (ci|ut/crown.f, cratet.f) vs live" begin
+    for (v, cn) in (("CI", "3261005010690"), ("UT", "41442932010690"))
+        c = _case(v, cn, "none")
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
+# nc/regent.f:187/:387 CR=ICR(I)/10.0 is a Float32 DIVISION (×0.1 is 1 ULP off for some ICR, e.g. 77).
+@testset "NC REGENT CR=ICR/10.0 division (nc/regent.f:187,387) vs FVSnc_g16" begin
+    c = _case("NC", "30192555010497", "none")
+    @test _cells(c) == 0
+end
+# tt/findag.f CASE(6,14) aspen/MM height-age and CASE(13,16) BI/MC site-curve ABIRTH dub (cratet.f:655-676) — the Climate-FVS
+# DMORT BIRTHYR (clmorts.f:170).
+@testset "TT CRATET FINDAG ABIRTH for AS/MM/BI/MC (tt/findag.f, clmorts.f) vs FVStt_g16" begin
+    c = _case("TT", "2750433010690", "climate")
+    @test _cells(c) == 0
+end
+# cr/esuckr.f:296-307 sprout DBH = HT2/(ln(HT-4.5)-AX)-1 with AX = HT1 only when IABFLG=1, else the CRATET-calibrated AA.
+@testset "CR/TT/UT sprout DBH uses the calibrated AA (cr|strp/esuckr.f:296-307) vs live" begin
+    for (v, cn) in (("CR", "3026069010690"), ("TT", "2750433010690"), ("UT", "42642675010690")), r in ("thinbba", "econ")
+        c = _case(v, cn, r)
+        @test _cells(c) == 0
+    end
+end
+# fmsnag.f:200-219 LASCO half-rate post-burn fall (UT/TT/CR/BC aspen-cottonwood) on the UNCAPPED fmsfall.f DFALLN, cut only
+# by the DZERO rule.
+@testset "FMSNAG LASCO post-burn fall + uncapped DFALLN (fmsnag.f, fmsfall.f) vs live" begin
+    for (v, cn) in (("UT", "42642675010690"), ("CR", "3026069010690"))
+        c = _case(v, cn, "simfire")
+        @test !c.crashed
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
+# clmorts.f:97 ALGSLP(XV,VS*X*2.,SR,2): the algslp.f:36 form (1/(hi-lo))*(v-lo) for presence-calibrated species.
+@testset "Climate SPCALIB survival via ALGSLP association (clmorts.f:97, algslp.f:36) vs live" begin
+    for (v, cn) in (("CI", "5388215010690"), ("SO", "645183862126144"))
+        c = _case(v, cn, "climate")
+        @test _cells(c) == 0
+    end
+end
+# gradd.f:96 MISTOE → mistoe.f:522 MISMRT on a FIRE tripling cycle: after the post-TRIPLE spread (post-spread DMR, tripled
+# full PROB), MAX-combined into WK2 before FMKILL — not inside MORTS on the pre-spread DMR.
+@testset "Fire-cycle MISMRT after the post-TRIPLE spread (mistoe.f:522, mismrt.f:191) vs FVSec_g16" begin
+    c = _case("EC", "1287295274290487", "simfire")
+    @test !c.crashed
+    @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+end
+# nc/fmcblk.f DATA BIOGRP (Jenkins biomass group: FMCBIO root ratio, FMSCUT/FMSALV soft/hard) — 2,4,2,3,8,1,9,8,3,4,8,1.
+@testset "NC Jenkins BIOGRP (nc/fmcblk.f) Belowground_Live vs FVSnc_g16" begin
+    for cn in ("449523860489998", "723056768290487")
+        c = _case("NC", cn, "salvage")
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
+# WRD RDPR CFVPA reads WK1 = DGDRIV's start-of-cycle DG; at cycle 1 that is the DO-220 calibration DG (0 at HT<=4.5), not the
+# input -1 sentinel (tt|ci/dgdriv.f WK1(I)=DG(I)).
+@testset "WRD cycle-1 WK1 = DO-220 DG for TT/CI (rdpr.f CFVPA, dgdriv.f) vs live" begin
+    c = _case("TT", "1856089798290487", "rootdis")
+    @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+end
+# fmpofl.f:125-136 FWIND = SWIND(FMOIS)*WMULT before CALL FMCFMD: the moderate PotFire scenario re-selects the CR/TT/UT dynamic
+# fuel models with ITS wind.
+@testset "PotFire FMCFMD reads the scenario wind (fmpofl.f:125-136) vs FVStt_g16" begin
+    for r in ("salvage", "simfire")
+        c = _case("TT", "1856089798290487", r)
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
+# base/cwidth.f CRWDTH(I) (filled after CRATET and at gradd.f:254) is what sstage.f WK6 and fmcba.f CWIDTH read — an after-thin
+# StrClass row uses the pre-thin-BA widths.
+@testset "Stored CRWDTH for SSTAGE/FMCBA (cwidth.f, sstage.f:238/276, fmcba.f) vs live" begin
+    for (v, cn) in (("PN", "504512112126144"), ("SO", "15184869010497"), ("CI", "5385337010690"))
+        c = _case(v, cn, "thinbba")
+        @test count(m -> m.file == "FVS_StrClass", c.ms) == 0
+    end
+    c = _case("CR", "46279527020004", "simfire")
+    @test count(m -> _rel(m) > 1e-5, c.ms) <= 2
+end
 end # module

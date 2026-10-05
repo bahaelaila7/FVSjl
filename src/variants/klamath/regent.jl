@@ -122,7 +122,7 @@ function nc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::Abstrac
             hg = t.ht_growth[i]; hg < 0.001f0 && continue     # regent.f:379 measured HTG≥0.001
             hb = s.control.growth_ihtg < 2 ? t.height[i] - hg : t.height[i]   # nc/regent.f:384 IF(IHTG.LT.2) H=H-HTG
             hb < 0.01f0 && continue
-            cr = Float32(t.crown_pct[i]) * 0.1f0              # ICR/10
+            cr = Float32(t.crown_pct[i]) / 10f0               # regent.f:387 CR=FLOAT(ICR(I))/10.
             relht = avh > 0f0 ? hb / avh : 1f0; relht > 1.5f0 && (relht = 1.5f0)
             xhtgr = nc_htgr5(sp, ssite, ba, relht, cr, hb)    # predicted; RHCON=1 ⇒ EDH=XHTGR
             term = hg * scale3                                # observed, scaled to 5-yr
@@ -161,7 +161,7 @@ function small_tree_growth!(s::StandState, stash, ::Klamath; fint::Float32 = 10.
         relht = (h > 0f0 && avh > 0f0) ? h / avh : 1f0
         tpccf <= 75.0f0 && (relht = 1.0f0 - ((relht - 1.0f0) / 75.0f0) * tpccf)
         relht > 1.5f0 && (relht = 1.5f0)
-        cr = Float32(t.crown_pct[i]) * 0.1f0                   # regent.f:183 CR=ICR(I)/10.0 (0–10 scale, NOT /100)
+        cr = Float32(t.crown_pct[i]) / 10.0f0                  # regent.f:187 CR=ICR(I)/10.0 (0–10 scale; a DIVISION — ×0.1 rounds 1 ULP off)
         htgr = nc_htgr5(sp, ssite, ba, relht, cr, h) * scale * fexp(hcor[sp])   # ·CON(=fexp(HCOR)); XRHMLT=1
         # height: XWT blend with the large-tree HTG (already in t.ht_growth[i])
         xmn = NC_ST_XMIN[sp]; xmx = NC_ST_XMAX[sp]

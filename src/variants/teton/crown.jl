@@ -148,7 +148,14 @@ end
 function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n
+    # tt/crown.f:97 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74` — an all-dead inventory still dubs the dead crowns
+    # (MEASURED FVStt_g16 1589567497290487 with every record HISTORY 6: dead ICR 88-92 live, 0 jl).
+    if n == 0
+        lstart || return s
+        order = Int[]
+        @goto dead79
+    end
     relden = p.relative_density
     sdiac = crown_sdi
     # ISORT: whole-stand DBH rank via RDPSRT (1=smallest … n=largest). RDPSRT sorts DESCENDING (IND(1)=largest),
@@ -252,6 +259,7 @@ function crown_ratio_update!(s::StandState, ::Teton; fint::Float32 = 10.0f0, lst
     # `TPCCF=PCCF(IITRE)` BEFORE `IITRE=ITRE(I)`, so each record uses the PREVIOUS record's point: the first dead
     # record the last tree of the species-major live loop (crown.f:217 sets IITRE for every tree), then the prior
     # dead record's. Reproduced as FVS runs it.
+    @label dead79
     if lstart && t.ndead > 0
         iitre = isempty(order) ? 0 : Int(t.plot_id[order[end]])
         pccf = s.density.point_ccf

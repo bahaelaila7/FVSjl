@@ -1515,6 +1515,10 @@ mutable struct StandState{V<:AbstractVariant}
     cover::Union{AbstractCoverState,Nothing}           # COVER understory/canopy-cover REPORT extension; nothing until COVER (report-only, INERT for growth/mort)
 end
 
+# ESINIT (esinit.f) per-variant establishment defaults: the Establishment() constructor carries the estb IE/EM/KT values
+# (LAUTAL=LINGRW=.TRUE., STOADJ=1.0); variants whose esinit.f differs add a method (e.g. ci/esinit.f).
+esinit_defaults!(est, ::AbstractVariant) = est
+
 """
     StandState(variant; faithful=true)
 
@@ -1528,7 +1532,7 @@ function StandState(variant::AbstractVariant; faithful::Bool = true)
     ctrl.variant_code = variant_code(variant)
     StandState(
         variant, coefficients(variant), ctrl, TreeList(variant_maxtre(variant)), PlotData(), SpeciesData(), Calibration(),
-        Density(variant_maxtre(variant)), OutputState(), Scratch(variant_maxtre(variant)), FVSRng(), Establishment(),
+        Density(variant_maxtre(variant)), OutputState(), Scratch(variant_maxtre(variant)), FVSRng(), esinit_defaults!(Establishment(), variant),
         DbsState(), nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing,
     )
 end

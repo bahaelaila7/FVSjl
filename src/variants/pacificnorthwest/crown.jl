@@ -46,7 +46,7 @@ end
 function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 10.0f0, lstart::Bool = false,
                              crown_sdi::Float32 = 0f0, kwargs...)
     p, t = s.plot, s.trees
-    n = t.n; n == 0 && return s
+    n = t.n; (n == 0 && !lstart) && return s
     sd = s.coef.species; cimap = sd[:crown_imap]
     relden = p.relative_density; sdiac = crown_sdi; ba = p.basal_area
     # crown.f ISORT: whole-stand descending-DBH rank on the CURRENT DBH (grown at cycling, as-read at
@@ -64,6 +64,8 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
         q = tpaplt > 0f0 ? sqrt((baplt / tpaplt) / 0.005454f0) : 1f0
         q <= 1f0 ? 1f0 : q
     end
+    # pn/crown.f:121 `IF((ITRN.LE.0).AND.(IREC2.LT.MAXTP1)) GO TO 74`: an all-dead inventory still dubs the dead crowns.
+    t.n == 0 && @goto dead79
     # pn/crown.f:150-178 — the CRNMULT keyword (a scheduled activity) overwrites CRNMLT/DLOW/DHI per species.
     cur_year = current_cycle_year(s)
     # crown.f DO 70 ISPC … I=IND1(I3): SPECIES-MAJOR — the DUBSCR/RANN draws follow this order, not storage.
@@ -128,6 +130,7 @@ function crown_ratio_update!(s::StandState, ::PacificNorthwest; fint::Float32 = 
     # main-stream BACHLO per record), iterating IREC2→MAXTRE = the REVERSE of jl's dead storage (same layout
     # as bm/ie crown.f DO 79). QMDPLT/PRD are per inventory point (PTBAA/PTPA; ZRD/XMAXPT). Skipping this left
     # the dead crowns 0 AND consumed none of these draws, so every later DGSCOR draw was shifted.
+    @label dead79
     lstart && dub_dead_crowns!(s) do i
         pt = Int(t.plot_id[i])
         icri_round(_pn_dubscr(s.rng, Int(t.species[i]), t.dbh[i], t.height[i], ba, _prd(pt), _qmdplt(pt)))

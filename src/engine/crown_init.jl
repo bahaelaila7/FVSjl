@@ -69,7 +69,11 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     # scale them here for this pass (24001521010900: 5 HISTORY-8 dead at PROB 12.036/1.998 ⇒ TPCCF 77.788→77.813).
     saved = Tuple{Int,Float32}[]
     saved_tpa = Float32[]
-    if t.ndead > 0
+    # With NO live record the CRATET DENSEs see ITRN=0 (TPROB=BA=RELDEN=0, no PCT/PTBAL for the dead), so the DO 79
+    # dead dub runs on a zero density (MEASURED FVSci_g16 3261005010690 all-dead PP, DEBUG DENSE: every DENSE TPROB 0;
+    # dead ICR 88/87/89/54/67/74, BAPctile/PtBAL 0). Only extend the density over the dead when live records exist.
+    ext_dead = t.ndead > 0 && nlive > 0
+    if ext_dead
         t.n = nlive + Int(t.ndead)
         fintr = s.control.growth_fintm > 0f0 ? s.control.growth_fint / s.control.growth_fintm : 1f0
         @inbounds for i in (nlive + 1):(nlive + Int(t.ndead)); push!(saved_tpa, t.tpa[i]); t.tpa[i] *= fintr; end
@@ -95,7 +99,7 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         ssumn > 0f0 ? avh / ssumn : 0f0
     end
     if lbkden                                 # backdate LIVE WK3 only (after the real-DBH AVH ranking)
-        t.n = nlive; _backdate_dbh!(s); t.n = nlive + Int(t.ndead)
+        t.n = nlive; _backdate_dbh!(s); ext_dead && (t.n = nlive + Int(t.ndead))
     end
     if t.ndead > 0
         @inbounds for i in (nlive + 1):(nlive + Int(t.ndead))
@@ -163,7 +167,9 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
         end
         c.cratet_ptbaa = xb
         c.cratet_live_ptbal = ptb[1:min(nlive, ntot)]
-        if t.ndead > 0
+        if t.ndead > 0 && nlive == 0
+            c.cratet_dead_pct = zeros(Float32, Int(t.ndead)); c.cratet_dead_ptbal = zeros(Float32, Int(t.ndead))
+        elseif t.ndead > 0
             nd = Int(t.ndead)
             c.cratet_dead_pct = t.crown_ratio[(nlive + 1):(nlive + nd)]
             # pctile.f with N=1 sets PERCNT(1) — array ELEMENT 1, an unused slot when the lone record is a dead one filed
