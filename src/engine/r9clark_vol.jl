@@ -183,48 +183,8 @@ end
 
 # r9cuft (r9clark_fvsMod.f:961-1113): cubic foot volume from lowrHt to upprHt
 # along the 3-segment Clark profile.
-function _r9_cuft(st::_R9State, lowrHt::Float32, upprHt::Float32)::Float32
-    upprHt <= 0f0 && return 0f0
-    r = st.r; c = st.c; e = st.e; p = st.p; b = st.b; a = st.a
-    totht = st.totHt; dbhib = st.dbhIb; dib17 = st.dib17
-    G = fpow(1f0 - 4.5f0 / totht, r)                       # Clark real powers via gfortran companion (doctrine #8)
-    W = (c + e / dbhib^3) / (1f0 - G)
-    X = fpow(1f0 - 4.5f0 / totht, p)
-    Y = ((1f0 - 17.3f0 / totht) < 0.005748f0 && p > 14f0) ? 0f0 : fpow(1f0 - 17.3f0 / totht, p)
-    Z = (dbhib^2 - dib17^2) / (X - Y)
-    T = dbhib^2 - Z * X
-    L1 = max(lowrHt, 0f0); U1 = min(upprHt, 4.5f0)
-    L2 = max(lowrHt, 4.5f0); U2 = min(upprHt, 17.3f0)
-    L3 = max(lowrHt, 17.3f0); U3 = min(totht, upprHt)
-    I1 = lowrHt < 4.5f0 ? 1f0 : 0f0
-    I2 = lowrHt < 17.3f0 ? 1f0 : 0f0
-    I3 = upprHt > 4.5f0 ? 1f0 : 0f0
-    I4 = upprHt > 17.3f0 ? 1f0 : 0f0
-    I5 = (L3 - 17.3f0) < a * (totht - 17.3f0) ? 1f0 : 0f0
-    I6 = (U3 - 17.3f0) < a * (totht - 17.3f0) ? 1f0 : 0f0
-    V1 = 0f0; V2 = 0f0; V3 = 0f0
-    if I1 > 0f0
-        V1 = I1 * dbhib^2 * ((1f0 - G * W) * (U1 - L1) +
-             W * (fpow(1f0 - L1 / totht, r) * (totht - L1) -
-                  fpow(1f0 - U1 / totht, r) * (totht - U1)) / (r + 1f0))
-    end
-    if I2 > 0f0 && I3 > 0f0
-        if (1f0 - U2 / totht) < 0.005748f0 && p > 14f0
-            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2)) / (p + 1f0)
-        else
-            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2) -
-                 fpow(1f0 - U2 / totht, p) * (totht - U2)) / (p + 1f0)
-        end
-    end
-    if I4 > 0f0
-        V3 = dib17^2 * (b * (U3 - L3) - b * ((U3 - 17.3f0)^2 - (L3 - 17.3f0)^2) / (totht - 17.3f0) +
-             (b / 3f0) * ((U3 - 17.3f0)^3 - (L3 - 17.3f0)^3) / (totht - 17.3f0)^2 +
-             I5 * (1f0 / 3f0) * ((1f0 - b) / a^2) * (a * (totht - 17.3f0) - (L3 - 17.3f0))^3 / (totht - 17.3f0)^2 -
-             I6 * (1f0 / 3f0) * ((1f0 - b) / a^2) * (a * (totht - 17.3f0) - (U3 - 17.3f0))^3 / (totht - 17.3f0)^2)
-    end
-    cfVol = 0.005454154f0 * (V1 + V2 + V3)
-    return cfVol < 0f0 ? 0f0 : cfVol
-end
+_r9_cuft(st::_R9State, lowrHt::Float32, upprHt::Float32)::Float32 =
+    _r9cuft(st.r, st.c, st.e, st.p, st.b, st.a, st.totHt, st.dbhIb, st.dib17, lowrHt, upprHt)   # r8clark_vol.jl kernel
 
 # r9ht (r9clark_fvsMod.f:1245-1369): height at which inside-bark diameter stmDib occurs.
 function _r9_ht(st::_R9State, stmDib::Float32)::Float32
@@ -651,7 +611,7 @@ function compute_volumes_ne!(s::StandState)
         # back to the break with CFTOPK/BFTOPK (vols.f:193). Without this a top-killed tree's cubic was
         # built on the SHORT broken height (net01 SM d10.4 HTTOPK49: jl TOT 13.8 vs live 15.4).
         tkill = h >= 4.5f0 && t.trunc[i] > 0
-        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)   # vols.f:146 H=NORMHT(I)/100.0 (a divide, not ×0.01)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
         # D35: VOLUME field-7 METHC==5 selects the CS DVEE/Gevorkiantz model ('900DVEE', r9vol.f R9VOL)

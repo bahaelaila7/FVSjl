@@ -81,7 +81,7 @@ function compute_volumes_op!(s::StandState)
         if 1 <= sp <= 39
             d = t.dbh[i]; h = t.height[i]
             tkill = h >= 4.5f0 && t.trunc[i] > 0
-            htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
+            htap = tkill ? Float32(t.norm_ht[i]) / 100f0 : h   # vols.f:165 H=NORMHT(I)/100.0
             # Merch-top bark = BRATIO(D_start) (vols.f:150) — the stashed `vol_bark` (0 at cyc0 ⇒ grown-DBH bark).
             topbark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : op_bratio(sp, d)
             eq = r6_voleq_oc_op(s, sp)

@@ -77,16 +77,17 @@ function ca_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     end
 
     # per-species BA% + the site species' site index (SITEAR(ISISP))
-    bapct = zeros(Float32, 50); stndba = 0f0
+    # FMCBA's FMTBA(KSP) += FMPROB·DBH·DBH·0.0054542 per record (left to right), then FMCFMD's STNDBA = Σ FMTBA over
+    # SPECIES 1..MAXSP and BAPCT(I) = 100·(FMTBA(I)/STNDBA) (ca/fmcba.f:459-460, ca/fmcfmd.f:214-222 (oc byte-identical)) — the per-species association
+    # of the CI/BM/NC fix (was a per-record Σ of PROB·D² and a per-record BAPCT accumulation).
+    bapct = zeros(Float32, 50); stndba = 0f0; fmtba = zeros(Float32, 50)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        stndba += t.tpa[i] * t.dbh[i]^2 * 0.0054542f0
+        sp = Int(t.species[i]); fmtba[sp] += t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
     end
+    @inbounds for sp in 1:50; stndba += fmtba[sp]; end
     if stndba > 0.001f0
-        @inbounds for i in 1:t.n
-            t.tpa[i] > 0f0 || continue
-            bapct[Int(t.species[i])] += 100f0 * (t.tpa[i] * t.dbh[i]^2 * 0.0054542f0) / stndba
-        end
+        @inbounds for sp in 1:50; bapct[sp] = 100f0 * (fmtba[sp] / stndba); end
     end
     isisp = Int(s.plot.site_species)
     sitear = (1 <= isisp <= length(s.plot.sp_site_index)) ? s.plot.sp_site_index[isisp] : 0f0

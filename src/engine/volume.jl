@@ -853,7 +853,32 @@ overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
     return pulpv + scf, scf, bf
 end
 
+"""
+    compute_volumes!(s)
+
+VOLS for every variant. vols.f (all 24 variant builds) skips a record whose PROB ≤ 0 (`P=PROB(I); IF(P.LE.0.0)
+GO TO 200`): its CFV/MCFV/SCFV/BFV keep whatever they held and its HT2TD stays at the 0 that VOLS's entry loop
+stored. The per-variant kernels volume every live record, so the skip is applied here around them — a PROB=0
+record (e.g. a record MSBMRT or a fire killed outright) gets its prior volumes back and zero merch-top heights.
+"""
 function compute_volumes!(s::StandState)
+    t = s.trees
+    k0 = 0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || (k0 += 1)
+    end
+    k0 == 0 && return _compute_volumes_all!(s)
+    idx = Int[i for i in 1:t.n if !(t.tpa[i] > 0f0)]
+    keep = [(t.cuft_vol[i], t.merch_cuft_vol[i], t.saw_cuft_vol[i], t.bdft_vol[i]) for i in idx]
+    _compute_volumes_all!(s)
+    @inbounds for (k, i) in enumerate(idx)
+        t.cuft_vol[i], t.merch_cuft_vol[i], t.saw_cuft_vol[i], t.bdft_vol[i] = keep[k]
+        t.merch_top_cf[i] = 0f0; t.merch_top_bf[i] = 0f0
+    end
+    return s
+end
+
+function _compute_volumes_all!(s::StandState)
     # Eastern variants (NE + CS + LS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
     # differing only in the IFOR merch standards (_ne_merch / _cs_merch / _ls_merch, dispatched inside)
     # and the per-species METHC=5 DVEE/Gevorkiantz opt-in. LS lst01 defaults METHC=6 ⇒ pure Clark.
@@ -935,7 +960,7 @@ function compute_volumes!(s::StandState)
         # Broken-top trees: build the volume profile from the full ("normal")
         # height, then truncate it back to the break with CFTOPK (vols.f:60-120).
         tkill = h >= 4.5f0 && t.trunc[i] > 0
-        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)   # vols.f:146 H=NORMHT(I)/100.0 (a divide, not ×0.01)
         if d >= scfmin[sp]
             prod = "01"; stump = scfstmp[sp]; mtopp = scftop[sp]
         else

@@ -81,7 +81,7 @@ function compute_volumes_oc!(s::StandState)
             # Broken/dead-top trees (ITRUNC>0, H≥4.5): build the profile from the dubbed NORMAL
             # height, then truncate back to the break with CFTOPK/BFTOPK (vols.f:164-165, cftopk.f).
             tkill = h >= 4.5f0 && t.trunc[i] > 0
-            htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
+            htap = tkill ? Float32(t.norm_ht[i]) / 100f0 : h   # vols.f:165 H=NORMHT(I)/100.0
             eq = r6_voleq_oc_op(s, sp)
             if eq === nothing
                 # BLM forests (710/711/712 …): the NVEL BLMVOL Behre-taper path (VEQNNC B0xBEHW…).

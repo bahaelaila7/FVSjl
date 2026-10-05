@@ -176,14 +176,13 @@ function dgf!(s::StandState, ::Southern)
         pbal  = pba * (1f0 - t.crown_ratio[i] / 100f0)
         pbal <= 0f0 && (pbal = bal)
 
-        # NB dgf.f uses ALOG here; PROVEN inert (2026-07-05fff: routing log→flog left snt01 bit-exact + suite
-        # unchanged ⇒ openlibm log == gfortran ALOG for the real dbh/icr ranges). Kept as Julia `log` — this is
-        # the PER-TREE hot loop, so the fpow-companion ccall's ~30% suite cost isn't justified for a zero-diff op
-        # (doctrine #8 caveat: only wire the FFI for ops that ACTUALLY differ). The grown-cycle drift is NOT here.
+        # dgf.f:290-296 ALOG(D) / ALOG(FLOAT(ICR)) are glibc logf (flog). Julia's native Float32 `log` differs from
+        # logf on ~0.26% of inputs (1 ULP): mortmsb.key live FVSsn cycle 14 record 131 D=21.675255 — every DGF input
+        # bit-identical, log 3.0761712 vs logf 3.0761714 ⇒ DDS 3.948637 vs live 3.9486375 ⇒ DBH drift from then on.
         dds = conspp + intercept[sp] +
-              ln_dbh[sp]     * log(d) +
+              ln_dbh[sp]     * flog(d) +
               dbh_sq[sp]     * d * d +
-              ln_crown[sp]   * log(Float32(icr_i)) +
+              ln_crown[sp]   * flog(Float32(icr_i)) +
               rel_ht[sp]     * relht +
               stand_ba_c[sp] * ba_v +
               point_bal[sp]  * pbal +
@@ -200,16 +199,16 @@ function dgf!(s::StandState, ::Southern)
             pctf = Float32(t.crown_ratio[i])              # PCT (BA percentile)
             cr   = Float32(icr_i) / 100f0
             dg5 = sp == 8 ?
-                dib * (-0.4553f0 * (0.09737f0 - exp(-0.2428f0 * d)) + 0.05574f0 * cr -
+                dib * (-0.4553f0 * (0.09737f0 - fexp(-0.2428f0 * d)) + 0.05574f0 * cr -
                        0.0002965f0 * ba_v - 0.00002481f0 * pba -
-                       0.001192f0 * (pctf / 100f0)^(-0.9663f0) +
+                       0.001192f0 * fpow(pctf / 100f0, -0.9663f0) +
                        0.0010110f0 * site - 0.007711f0 * relht) :
-                dib * (-0.3428f0 * (-0.1741f0 - exp(-0.1328f0 * d)) + 0.1145f0 * cr -
+                dib * (-0.3428f0 * (-0.1741f0 - fexp(-0.1328f0 * d)) + 0.1145f0 * cr -
                        0.0001682f0 * ba_v - 0.00003978f0 * pba -
-                       0.159400f0 * (pctf / 100f0)^(-0.1299f0) +
+                       0.159400f0 * fpow(pctf / 100f0, -0.1299f0) +
                        0.0006204f0 * site + 0.02474f0 * relht)
             dg5 < 0.01f0 && (dg5 = 0.01f0)
-            dds = log(dg5 * (2f0 * dib + dg5))
+            dds = flog(dg5 * (2f0 * dib + dg5))          # dgf.f:361 ALOG/EXP/** = glibc logf/expf/powf
         end
 
         dds < -9.21f0 && (dds = -9.21f0)

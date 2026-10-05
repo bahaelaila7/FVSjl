@@ -441,8 +441,9 @@ function setup_volume_equations!(s::StandState)
         elseif s.variant isa Kootenai
             # KT VOLEQDEF (kt/sitset.f): Region-1 Flewelling FW2, geocode "I00", per-species VOLUME FIA code
             # (FIAJSP, NOT code_fia — sp11 OT is 260 not 999). Validated vs live VEQNNC dump for all 11 species.
-            vfia = KT_VOL_FIA[sp]
-            s.species.vol_eq[sp] = "I00FW2W" * lpad(string(vfia), 3, '0')
+            # KT has 11 species; the loop runs to the global MAXSP under @inbounds, so a slot past KT_VOL_FIA gets the
+            # blank equation the other variants give their unused slots (it read past the array before).
+            s.species.vol_eq[sp] = sp <= length(KT_VOL_FIA) ? "I00FW2W" * lpad(string(KT_VOL_FIA[sp]), 3, '0') : "           "
         elseif s.variant isa InlandEmpire
             # IE VOLEQDEF (ie/sitset.f, VAR='IE') is FOREST-KEYED. Region-1 forests (10 of 11) use the forest-118
             # FW2/DVE table; Colville (IFOR==5, forest 621) is IE's only region-6 forest and uses INGY-subregion

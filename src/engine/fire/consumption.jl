@@ -23,12 +23,34 @@ moisture-linear `(83.7 − 0.426·m_duff%)/100`. `mois` is the fuel-moisture mat
 # `so`: so/fmcons.f (SO's own FMCONS) never sets PRBURN(1,3) on the no-activity-fuels path — the 1-3" class is not
 # consumed (the shared base fmcons.f sets 0.65). MEASURED private FVSso_g16 FMCONS trace, 15364795010497 2010 FMPOFL:
 # PRBURN(1,1:11) = .9 .9 0 … — jl's 0.65 put 3.0 t/ac of 1-3" fuel into Pot_Smoke (0.4470 vs live 0.4354).
-function fire_consumption_fractions(mois::AbstractMatrix{Float32}; so::Bool = false)::NTuple{11,Float32}
+# `activity`: (IYR−HARVYR) ≤ 5 — a harvest left slash within 5 years (fmscut.f HARVYR) ⇒ fmcons.f:121-170's ACTIVITY,
+# UNPILED branch: PRBURN(1,3) from the 0.25-1" moisture (1.0 below 13.7%, 0 above 34%, else (167−4.89·M%)/100 clamped
+# [0,1]) and the >3" diameter reduction DIARED = 4.35−0.096·M% (0 when MOIS(1,4)>0.45 or negative). The returned
+# PRBURN(1,1:2) are the BURNZ(1,3)>0 values (0.9, or 1.0 when PRBURN(1,3)>0.9); callers re-apply the BURNZ(1,3)=0 rule.
+# SO's own fmcons.f activity branch (HFCORR …) is a different formula and is not ported (`so` keeps its natural path).
+function fire_consumption_fractions(mois::AbstractMatrix{Float32}; so::Bool = false, activity::Bool = false)::NTuple{11,Float32}
     m100 = mois[1, 4]                                  # 3+" (100-hr+) moisture drives the large classes
-    diared = m100 > 1.25f0 ? 0f0 : max(0f0, 3.38f0 - 0.027f0 * m100 * 100f0)
+    act = activity && !so
+    p3 = so ? 0f0 : 0.65f0
+    if act
+        m2 = mois[1, 2]
+        if m2 < 0.137f0
+            p3 = 1f0
+        elseif m2 > 0.34f0
+            p3 = 0f0                                   # NO BURNING OCCURS (PRBURN stays 0)
+        else
+            cons = (167f0 - 4.89f0 * m2 * 100f0) / 100f0
+            p3 = clamp(cons, 0f0, 1f0)
+        end
+        diared = 4.35f0 - 0.096f0 * m100 * 100f0
+        (m100 > 0.45f0 || diared < 0f0) && (diared = 0f0)
+    else
+        diared = m100 > 1.25f0 ? 0f0 : max(0f0, 3.38f0 - 0.027f0 * m100 * 100f0)
+    end
     big = ntuple(i -> (pd = _FM_PDIA[i]; 1f0 - ((pd - diared) / pd)^2), 6)   # classes 4–9
     prduf = min(1f0, max(0f0, 83.7f0 - 0.426f0 * mois[1, 5] * 100f0) / 100f0)
-    return (0.9f0, 0.9f0, so ? 0f0 : 0.65f0, big[1], big[2], big[3], big[4], big[5], big[6], 1.0f0, prduf)
+    psmall = p3 > 0.9f0 ? 1f0 : 0.9f0                  # fmcons.f:139-147 (with BURNZ(1,3) > 0)
+    return (psmall, psmall, p3, big[1], big[2], big[3], big[4], big[5], big[6], 1.0f0, prduf)
 end
 
 """
@@ -71,12 +93,12 @@ record — `burned` (tons/ac consumed per fuel class 1..11, BURNED(3,·)), `expo
 `burnlv` (live herb/shrub consumed), `smoke` (PM2.5, PM10 tons/ac; SMOKE·P2T as reported by FMFOUT), and the
 carbon `released`. The consumed fractions PRBURN and the live PLVBRN are scaled by PSBURN/100 (fmcons.f:196-200);
 the <1" classes burn 100% when the 1-3" class is empty (fmcons.f:125-137). `burncr` = FMEFF's BCROWN (crown
-material burned, tons/ac) enters the smoke only. Activity fuels (a harvest ≤5 yr before the fire, IYR−HARVYR≤5)
-are not tracked by jl's FFE state, so the natural-fuels path is always taken.
+material burned, tons/ac) enters the smoke only. `activity` = a harvest ≤5 yr before the fire (IYR−HARVYR≤5, fmscut.f
+HARVYR) selects fmcons.f's activity-fuels fractions.
 """
 function fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn::Float32 = 100f0, burncr::Float32 = 0f0,
-                           so::Bool = false)
-    pr0 = fire_consumption_fractions(mois; so = so)
+                           so::Bool = false, activity::Bool = false)
+    pr0 = fire_consumption_fractions(mois; so = so, activity = activity)
     burnz3 = 0f0
     @inbounds for k in 1:2, l in 1:4; burnz3 += fs.cwd[3, k, l]; end
     small = burnz3 > 0f0 ? (pr0[3] > 0.9f0 ? 1f0 : 0.9f0) : 1f0
@@ -106,7 +128,8 @@ function fire_consumption!(fs::FireState, mois::AbstractMatrix{Float32}; psburn:
     smoke = ntuple(2) do ipm
         ts = 0f0
         @inbounds for il in 1:11; ts += burned[il] * _FM_EMMFAC[im, il, ipm]; end
-        ts += burnlv[1] * _FM_EMFACL[ipm] + burnlv[2] * _FM_EMFACL[ipm]
+        ts += burnlv[1] * _FM_EMFACL[ipm]              # fmcons.f:345-347 DO IL=1,2: TSMOKE = TSMOKE + PLVBRN·FLIVE·EMFACL,
+        ts += burnlv[2] * _FM_EMFACL[ipm]              # one term at a time (was ts + (herb + shrub))
         ts += burncr * _FM_EMFACL[ipm]
         ts * _FM_P2T
     end
