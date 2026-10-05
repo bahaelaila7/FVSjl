@@ -213,17 +213,16 @@ function nc_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     end
 
     # per-species BA% (BAPCT)
-    bapct = zeros(Float32, 12); stndba = 0f0
+    # nc/fmcba.f:268 FMTBA(KSP) += FMPROB·DBH·DBH·0.0054542 per species; nc/fmcfmd.f:217-226 STNDBA = Σ FMTBA over
+    # species, BAPCT(I) = 100·(FMTBA(I)/STNDBA) — per species, not a sum of per-record percents.
+    bapct = zeros(Float32, 12); stndba = 0f0; fmtba = zeros(Float32, 12)
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        sp = Int(t.species[i]); stndba += t.tpa[i] * t.dbh[i]^2 * 0.0054542f0
+        sp = Int(t.species[i]); fmtba[sp] += t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
     end
+    @inbounds for sp in 1:12; stndba += fmtba[sp]; end
     if stndba > 0.001f0
-        @inbounds for i in 1:t.n
-            t.tpa[i] > 0f0 || continue
-            sp = Int(t.species[i])
-            bapct[sp] += 100f0 * (t.tpa[i] * t.dbh[i]^2 * 0.0054542f0) / stndba
-        end
+        @inbounds for sp in 1:12; bapct[sp] = 100f0 * (fmtba[sp] / stndba); end
     end
 
     # CWHR structural stage
