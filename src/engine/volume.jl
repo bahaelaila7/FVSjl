@@ -871,8 +871,13 @@ function compute_volumes!(s::StandState)
     idx = Int[i for i in 1:t.n if !(t.tpa[i] > 0f0)]
     keep = [(t.cuft_vol[i], t.merch_cuft_vol[i], t.saw_cuft_vol[i], t.bdft_vol[i]) for i in idx]
     _compute_volumes_all!(s)
+    # ON: merch_cuft_vol is VOLS's WK1, which compute_volumes_on! already set to the stale DGDRIV DG for an emptied record
+    # (ontario/volume.jl, vols.f:125) — keep the kernel's value, not the pre-VOLS volume.
+    wk1 = s.variant isa Ontario
     @inbounds for (k, i) in enumerate(idx)
-        t.cuft_vol[i], t.merch_cuft_vol[i], t.saw_cuft_vol[i], t.bdft_vol[i] = keep[k]
+        cf, mcf, scf, bf = keep[k]
+        t.cuft_vol[i] = cf; t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
+        wk1 || (t.merch_cuft_vol[i] = mcf)
         t.merch_top_cf[i] = 0f0; t.merch_top_bf[i] = 0f0
     end
     return s
