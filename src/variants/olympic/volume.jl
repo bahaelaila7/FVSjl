@@ -84,10 +84,35 @@ function compute_volumes_op!(s::StandState)
             htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
             # Merch-top bark = BRATIO(D_start) (vols.f:150) — the stashed `vol_bark` (0 at cyc0 ⇒ grown-DBH bark).
             topbark = t.vol_bark[i] > 0f0 ? t.vol_bark[i] : op_bratio(sp, d)
-            tcf = op_tree_cuft(sp, d, htap; topd = topd, topbark = topbark)
-            v4, v2 = op_tree_mvol(sp, d, htap; topd = topd, topbark = topbark, ht_out = ht1)
-            d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
-            d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
+            eq = r6_voleq_oc_op(s, sp)
+            if eq === nothing
+                # BLM forests (708/709/712): the NVEL BLMVOL Behre-taper path.
+                tcf = op_tree_cuft(sp, d, htap; topd = topd, topbark = topbark)
+                v4, v2 = op_tree_mvol(sp, d, htap; topd = topd, topbark = topbark, ht_out = ht1)
+                d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
+                d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
+            else
+                # Region-6 national forests (609 Olympic, 612 Siuslaw, …): organon/vols.f → NATCRS on the R6_EQN VEQNNC
+                # (MEASURED live FVSop 609: F03FW2W202 DF, F00FW2W263 WH, F03FW2W263 SS, 616BEHW… — not BLMVOL) — the
+                # same NVEL kernels PN uses, with pn/formcl.f (which OP links, indexed by the OP species number).
+                ifor = Int(s.plot.forest_idx)
+                stp = c.sp_stump_ht[sp]; tpd = c.sp_top_diam[sp]; bftpd = c.sp_bf_topd[sp]
+                htb = zeros(Float32, 2)
+                se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+                if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+                    tcf, v4, v2 = wc_fw2_westside_vol(eq, d, htap, topbark; topd = tpd, bftopd = bftpd, stump = stp, ht2td = htb)
+                elseif mdl == "FW2"
+                    v = cr_fw2_vol(eq, d, htap; bark = topbark, topd = tpd, bftopd = bftpd, stump = stp, iregn = 6,
+                                   board_cor = 'N', merch_opt = 23, sf_hs = true, ht2td = htb)
+                    tcf = max(v[1], 0f0); v4 = max(v[4] + v[7], 0f0); v2 = max(v[2], 0f0)
+                else
+                    tcf, v4, v2 = pn_behre_vol(sp, ifor, d, htap, topbark; topd = tpd)
+                    htb[1] = r6vol_ht1prd(d, pn_formcl(sp, ifor, d), tpd * topbark, htap, d - d * (1f0 - topbark)); htb[2] = htb[1]
+                end
+                tcf = max(tcf, 0f0); v4 = max(v4, 0f0); v2 = max(v2, 0f0)
+                d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = htb[1])
+                d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = htb[2])
+            end
             mcf = d >= c.sp_dbh_min[sp]   ? v4 : 0f0
             bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
             if tkill && tcf > 0f0

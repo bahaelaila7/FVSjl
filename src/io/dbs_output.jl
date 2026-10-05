@@ -1312,8 +1312,8 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp; bar
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
-          s.variant isa OregonCoast       ? oc_cwcalc :
-          s.variant isa Olympic           ? op_cwcalc :
+          s.variant isa OregonCoast       ? ((a...) -> oc_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
+          s.variant isa Olympic           ? ((a...) -> op_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
           s.variant isa EasternMontana    ? em_cwcalc :
           s.variant isa InlandEmpire      ? ie_cwcalc :
           s.variant isa Kootenai          ? kt_cwcalc :
@@ -1527,6 +1527,9 @@ function invref_voleq(s::StandState, sp::Int)::String
         return (ifor == 2 || ifor == 3) ? SO_VOLEQ_FR[sp] : SO_VOLEQ[sp]
     elseif v isa CentralCalifornia
         return ca_voleq(ifor, sp)
+    elseif v isa OregonCoast || v isa Olympic
+        # oc/op sitset.f VOLEQDEF(VAR,IREGN=KODFOR/100,FORST=KODFOR mod 100,DIST='  ',…): region 6 ⇒ R6_EQN westside.
+        r6 = r6_voleq_oc_op(s, sp); r6 === nothing || return r6
     elseif v isa WestSierra
         return WS_VOL_EQ[sp]
     elseif v isa SoutheastAlaska                       # voleqdef.f R10_EQN: FORST '04' (Chugach) CHUEQN, else TONEQN

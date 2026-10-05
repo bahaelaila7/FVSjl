@@ -501,10 +501,66 @@ end
     return (prdht2/prdht1)*ht - ht
 end
 
-# F_HG (Flewelling WH) — NOT in the S248112 stand (no WH); raise so a WH stand flags the gap.
+# --- organon/whphg.f — Flewelling (1994) western-hemlock top-height curves (metric), used by F_HG ---------------------
+# SITECV_F caches the SITEF_C parameters for the last SI (SAVE OLD_SI + COMMON /SITEFPRM/); recomputing them per call is
+# the same Float32 arithmetic on the same SI, so the cache is not reproduced.
+"organon/whphg.f SITEF_SI — approximate productivity index PSI for site index `si` (m, BH age 50)."
+@inline function op_sitef_si(si::Float32)::Float32
+    if si <= 32.25953f0
+        b1, b2, b3, b4, b5, b6 = 0.299720f0, 0.116875f0, 0.074866f0, 0.032348f0, 0.006984f0, 0.000339f0
+    else
+        b1, b2, b3, b4, b5, b6 = 0.290737f0, 0.129665f0, -0.058777f0, -0.000669f0, 0.006003f0, -0.001060f0
+    end
+    x = (si - 32.25953f0) / 10.0f0
+    return 0.75f0 + x*(b1 + x*(b2 + x*(b3 + x*(b4 + x*(b5 + x*b6)))))
+end
+
+"organon/whphg.f SITECV_F (+ SITEF_C) — Flewelling top height (m) at breast-height age `age` for site index `si` (m)."
+@inline function op_sitecv_f(si::Float32, age::Float32)::Float32
+    psi = op_sitef_si(si)
+    xk = 128.326f0*fexp(-2.54871f0*psi)                       # SITEF_C: FP(1)*EXP(FP(2)*PSI)
+    b1 = 0.2f0 + 0.8f0/(1.0f0 + fexp(5.33208f0 + (-9.00622f0)*psi))
+    c = 1.0f0 + 1.2f0*psi
+    alpha = 52.7948f0*psi
+    h1 = 1.3f0 + (b1*psi)/2.0f0
+    yk = h1 + psi*xk*(1.0f0 - (1.0f0 - b1)/(c + 1.0f0))
+    beta = psi/alpha
+    x = age - 1.0f0
+    if x < xk
+        return h1 + psi*x + (1.0f0 - b1)*psi*xk/(c + 1.0f0)*(fpow((xk - x)/xk, c + 1.0f0) - 1.0f0)
+    else
+        return yk + alpha*(1.0f0 - fexp(-(beta*(x - xk))))
+    end
+end
+
+"""
+    op_f_hg(si, ht, gp) -> (geage, phtgro)
+
+organon/htgrowth.f F_HG — western hemlock growth-effective age and `gp`-year potential height growth from the Flewelling
+top-height curves (SITECV_F, metric: SI·0.3048, HT·0.3048, result ×3.2808). GEAGE by the 4-pass decimal search
+(steps 100/10**I = 10, 1, 0.1, 0.01 — `10.**I` is an exact integer power); capped at 500.
+"""
 function op_f_hg(si::Float32, ht::Float32, gp::Float32)
-    error("OP HG_NWO: Flewelling F_HG (western hemlock, group 3) is UNPORTED (no WH in the S248112 " *
-          "reference stand). Port SITECV_F (organon/whphg.f) before running a WH-bearing stand.")
+    sim = si*0.3048f0
+    htm = ht*0.3048f0
+    age = 1.0f0
+    for i in 1:4
+        step = 100.0f0/(10.0f0^i)                              # 100./10.**I (integer power: exact for I≤4)
+        while true
+            age = age + step
+            if age > 500.0f0
+                geage = 500.0f0
+                xh1 = op_sitecv_f(sim, geage)
+                xh2 = op_sitecv_f(sim, geage + gp)
+                return geage, 3.2808f0*(xh2 - xh1)
+            end
+            op_sitecv_f(sim, age) < htm || break               # IF (HTOP .LT. HTM) GO TO 5
+        end
+        age = age - step
+    end
+    geage = age
+    pht = op_sitecv_f(sim, geage + gp)*3.2808f0
+    return geage, pht - ht
 end
 
 """

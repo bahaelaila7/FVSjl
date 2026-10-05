@@ -278,6 +278,89 @@ function _bm_r6_eqn(iforst::Int, idist::Int, fia::Int)::String
     return fia in _BM_R6_FIA ? "616BEHW" * lpad(string(fia), 3, '0') : "616BEHW000"
 end
 
+# NVEL voleqdef.f R6_EQN — the WESTSIDE branch (VAR ∈ PN, WC, NC, CA, OC, OP; voleqdef.f:1037-1200): per-forest INGY
+# (EQNUMI) / westside Flewelling (EQNUMF) / red-alder (EQNUMRD) assignments, else Behre's hyperbola 616BEHW<fia>
+# ('616BEHW000' when the FIA code is not in the FIA(53) list — R6_EQN's binary search is a membership test).
+# `fornum` = KODFOR mod 100 (FORST), `distnum` = DIST (blank ⇒ 0). EQNUMI/EQNUMF are the same tables the BM port uses.
+const _R6_EQNUMRD = ("A16CURW351", "NVBM240351")
+function r6_eqn_westside(fornum::Int, distnum::Int, fia::Int)::String
+    donei = 0; donef = 0; donerd = 0
+    if fornum == 3                                   # Gifford Pinchot
+        if fia == 11; donei = 26
+        elseif fia == 19; donei = 6
+        elseif fia == 263 || fia == 260
+            donef = 3; distnum == 1 && (donef = 21); distnum == 5 && (donef = 15)
+        elseif fia == 202
+            donef = 10; distnum == 1 && (donef = 22); distnum == 5 && (donef = 10)
+        elseif fia == 351; donerd = 1
+        end
+    elseif fornum == 6                               # Mt Hood
+        if fia == 11; donei = 26
+        elseif fia == 17; donei = 38
+        elseif fia == 93; donei = 17
+        elseif fia == 108; donei = 18
+        elseif fia == 122; donei = 32
+        elseif fia == 263 || fia == 260; donei = 23
+        elseif fia == 22; donei = 38
+        elseif fia == 202; donef = 10
+        end
+    elseif fornum == 5                               # Mt Baker-Snoqualmie
+        if fia == 263 || fia == 260; donef = 12
+        elseif fia == 202; donef = 25
+        end
+    elseif fornum == 10 || fornum == 11              # Rogue River / Siskiyou — `(VAR.NE.'NC').OR.(VAR.NE.'nc')` is always true
+        if fia == 15; donei = 5
+        elseif fia == 122; donei = 4
+        elseif fia == 202; donef = 19
+        elseif fia == 263; donef = 21
+        end
+    elseif fornum == 12                              # Siuslaw
+        if fia == 202; donef = 1
+        elseif fia == 263; donef = 12
+        elseif fia == 351; donerd = 2
+        end
+    elseif fornum == 9                               # Olympic
+        if fia == 202; donef = 10
+        elseif fia == 98; donef = 12
+        elseif fia == 263; donef = 3
+        end
+    elseif fornum == 15                              # Umpqua
+        if fia == 15; donei = 2
+        elseif fia == 20; donei = 1
+        elseif fia == 81; donei = 4
+        elseif fia == 93; donei = 5
+        elseif fia == 108; donei = 6
+        elseif fia == 122; donei = 4
+        elseif fia == 202; donef = 1
+        elseif fia == 242 || fia == 21; donei = 1
+        elseif fia == 263; donei = 23
+        elseif fia == 264; donei = 10
+        elseif fia == 11; donei = 76
+        elseif fia == 103; donei = 11
+        end
+    elseif fornum == 18                              # Willamette
+        if fia == 22; donei = 6
+        elseif fia == 202; donef = 16
+        elseif fia == 263; donef = 12
+        elseif fia == 17; donei = 64
+        elseif fia == 81; donei = 68
+        end
+    end
+    donei > 0 && return _BM_R6_EQNUMI[donei]
+    donef > 0 && return _BM_R6_EQNUMF[donef]
+    donerd > 0 && return _R6_EQNUMRD[donerd]
+    return fia in _BM_R6_FIA ? "616BEHW" * lpad(string(fia), 3, '0') : "616BEHW000"
+end
+
+"OC/OP VEQNNC for species `sp` when the stand's KODFOR is a Region-6 forest (oc/op sitset.f → VOLEQDEF → R6_EQN
+westside), else `nothing` (the BLM 7xx forests take a different VOLEQDEF region)."
+function r6_voleq_oc_op(s::StandState, sp::Int)
+    kodfor = Int(s.plot.user_forest_code)
+    600 <= kodfor < 700 || return nothing
+    fia = something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)
+    return r6_eqn_westside(kodfor % 100, 0, fia)
+end
+
 # NVEL voleqdef.f R4_EQN — Region-4 (Intermountain) default volume-equation assignment, keyed on FORNUM
 # (forest number within region) + FIA species code. Faithful transcription incl. the per-species FORNUM
 # branches and the binary-search fallback. Shared by the region-4 western variants (CI/UT/TT) whose forests

@@ -77,37 +77,22 @@ const OC_R6ADJ = Float32[
     0.56,0.76,0.28,0.76,0.56,0.76,0.76,0.76,0.40,0.70,
     0.40,0.76,0.76,0.40,0.76,0.25,0.25,0.25,0.56,1.00]
 
+# oc/sitset.f = ca/sitset.f + its own R5SDI + the ORGANON DF↔PP site conversion (and no CALCSDI→LZEIDE reset): the R6
+# forests (IFOR≥6) ECOCLS the stand's plant association (ca/habtyp.f KODTYP → PCOM; FIA PV_CODE decoded in
+# fia_database.jl like CA) for the site species / SI / SDImax, then the Hann-Scrivani R6ADJ fan and the SDIDEF fan
+# (BAMAX / the site species' RSDI / R5SDI). The previous OC-only port handled just the no-site default ecoclass
+# (CWC221, NSISET==0), so every FIA stand (which carries a SITE_INDEX) kept SDIDEF = 0: FVS_InvReference SDIMax 0
+# (live 720/815/923/955 by stand) and ORGANON's MSDI_1/2/3 = SDIDEF(7/18/4) fell back to SUBMAX's built-in A1.
+const OC_R5SDI = Float32[
+    570, 570, 570, 760, 800, 800, 600, 580, 580, 460,
+    430, 580, 430, 460, 430, 430, 460, 430, 430, 430,
+    330, 580,1052, 570, 430, 550, 550, 550, 550, 550,
+    550, 550, 550, 550, 550, 550, 550, 550, 550, 550,
+    550, 550, 550, 550, 550, 550, 550, 550, 550,1052]
+
 function site_setup!(s::StandState, ::OregonCoast)
-    p = s.plot; si = p.sp_site_index
-    p.forest_idx = Int32(oc_forkod(Int(p.user_forest_code)))   # oc/forkod.f — KODFOR → IFOR (711→9)
-    nsiset = 0
-    @inbounds for v in si; v > 0f0 && (nsiset += 1); end          # NSISET (oc/sitset.f:87)
-    # OC default ecoclass (oc/sitset.f:105-110 ICL5==0 ⇒ PCOM='CWC221'; ecocls.f:294 CWC221 →
-    # DF site species ISEQ=7, RSI=92, RSDI=815). ocmin has no SITECODE/ECOCLASS keyword and its
-    # STDINFO field-2 (452) is the default PA, so this default supplies SITEAR(7)/SDImax/ISISP.
-    # NOTE: only the DEFAULT ecoclass is wired here; the full OC ECOCLS/HABTYP plant-assoc → site
-    # table (non-default ecoclasses) is a follow-up. Applied only when no site was set (NSISET==0).
-    if nsiset == 0 && length(si) >= 18 && si[7] <= 0f0 && si[18] <= 0f0
-        si[7] = 92f0                                              # RSI (DF)
-        p.site_species = Int32(7)                                 # ISISP
-        p.sdi_max = 815f0                                         # RSDI
-        @inbounds for i in 1:length(p.sp_sdi_def); p.sp_sdi_def[i] <= 0f0 && (p.sp_sdi_def[i] = 815f0); end
-    end
-    # ORGANON DF↔PP site conversion (oc/sitset.f:181-186), BEFORE the R6ADJ fan.
-    if length(si) >= 18 && (si[7] > 0f0 || si[18] > 0f0)
-        if si[7] <= 0f0
-            si[7] = 1.062934f0 * si[18]                           # DF from PP
-        elseif si[18] <= 0f0
-            si[18] = 0.940792f0 * si[7]                           # PP from DF
-        end
-    end
-    # HGUESS = SITEAR(ISISP)/R6ADJ(ISISP); fan the remaining species' site indices (oc/sitset.f:169,197).
-    isisp = Int(p.site_species); (isisp < 1 || isisp > 50) && (isisp = 7)
-    if si[isisp] > 0f0
-        hguess = si[isisp] / OC_R6ADJ[isisp]
-        @inbounds for i in 1:min(length(si), 50)
-            si[i] == 0f0 && (si[i] = hguess * OC_R6ADJ[i])
-        end
-    end
+    p = s.plot
+    p.forest_idx = Int32(oc_forkod(Int(p.user_forest_code)))   # oc/forkod.f (= ca/forkod.f) — KODFOR → IFOR (711→9)
+    r6_ca_family_sitset!(s; r5sdi = OC_R5SDI, calcsdi_reset = false, organon_si = true)
     return s
 end

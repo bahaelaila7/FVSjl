@@ -121,7 +121,12 @@ ca_ecocls(pa::AbstractString) = filter(r -> r.pa == pa, CA_ECOCLS)
 # R6ADJ Hann-Scrivani fan. IFOR<6 (Region 5): no ECOCLS — site species default DF(7) at SI 80, the R5ADJ fan
 # (HGUESS = SITEAR(ISISP) itself), and SDIDEF = R5SDI per species. The R5 branch used to be missing, so every
 # R5 stand (505/506/508/511/514/518) took the R6 CWC221 ecoclass defaults and the R6 fan instead.
-function ca_sitset!(s::StandState)
+ca_sitset!(s::StandState) = r6_ca_family_sitset!(s; r5sdi = CA_R5SDI, calcsdi_reset = true, organon_si = false)
+
+# The shared body of ca/sitset.f and oc/sitset.f (OC = CA's sitset with its own R5SDI DATA, no
+# `IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.` line, and the ORGANON DF↔PP site conversion between the R6 HGUESS and the fan —
+# oc/sitset.f:178-186). R5ADJ / R6ADJ / FORMAX and the ECOCLS (ca/ecocls.f) / HABTYP (ca/habtyp.f) tables are shared.
+function r6_ca_family_sitset!(s::StandState; r5sdi::Vector{Float32}, calcsdi_reset::Bool, organon_si::Bool)
     p = s.plot; maxsp = nspecies(s.variant)
     formax = CA_FORMAX
     ifor = Int(p.forest_idx)
@@ -130,7 +135,7 @@ function ca_sitset!(s::StandState)
     isisp = (1 <= Int(p.site_species) <= maxsp) ? Int(p.site_species) : 0
     jsisp = 0
     if r6
-        all(isspace, s.control.sdi_method) && (s.control.zeide_sdi = false)   # IF(CALCSDI.EQ.' ')LZEIDE=.FALSE.
+        calcsdi_reset && all(isspace, s.control.sdi_method) && (s.control.zeide_sdi = false)   # IF(CALCSDI.EQ.' ')LZEIDE=.FALSE. (CA only)
         pcom = ca_habtyp(Int(p.habitat_code))     # ICL5==0 ⇒ CWC221 (ca/sitset.f default, = habtyp's)
         rows = ca_ecocls(pcom)
         isempty(rows) && (rows = ca_ecocls("CWC221"))
@@ -152,6 +157,14 @@ function ca_sitset!(s::StandState)
         hguess = p.sp_site_index[isisp]
         jsisp = isisp
     end
+    # oc/sitset.f:178-186 (ORGANON): SITEAR(7)/(18) from each other — after HGUESS, before the fan.
+    if organon_si && (p.sp_site_index[7] > 0f0 || p.sp_site_index[18] > 0f0)
+        if p.sp_site_index[7] <= 0f0
+            p.sp_site_index[7] = 1.062934f0 * p.sp_site_index[18]
+        elseif p.sp_site_index[18] <= 0f0
+            p.sp_site_index[18] = 0.940792f0 * p.sp_site_index[7]
+        end
+    end
     adj = r6 ? CA_R6ADJ : CA_R5ADJ
     @inbounds for i in 1:maxsp
         p.sp_site_index[i] == 0f0 && (p.sp_site_index[i] = hguess * adj[i])
@@ -169,7 +182,7 @@ function ca_sitset!(s::StandState)
         elseif r6
             v = p.sp_sdi_def[k]; v > formax && (v = formax)
         else
-            v = CA_R5SDI[i]
+            v = r5sdi[i]
         end
         p.sp_sdi_def[i] = v
     end
