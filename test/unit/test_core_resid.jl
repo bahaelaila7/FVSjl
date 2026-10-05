@@ -444,3 +444,14 @@ end
     @test got === (0.1f0 + 3f0) - 2.9f0
     @test got !== 0.1f0 + (3f0 - 2.9f0)
 end
+
+@testset "R8 Clark R9CUFT is REAL*4 (r9clark.f:961-1113): mortmsb 841CLKE531 topwood vs live FVSsn" begin
+    # Instrumented FVSsn (r9clark.f dump at :365) on harness/scenarios/mortmsb.key cycle 21, LP D 38.29248428
+    # H 99.73051453: tcfVol 293.1853027, saw cfVol 290.6353149 ⇒ VOL(7) 2.549987793 → NINT 2.5. The Float64 kernel
+    # gave saw 290.63528 ⇒ topwood 2.5500183 → 2.6.
+    v, ht1, ht2 = FVSjl._R8CLARK_VOL("841CLKE531", 38.29248428f0, 99.73051453f0, 9f0, 4f0, 1f0, "01")
+    @test v[1] == 293.4f0 && v[4] == 290.6f0
+    @test v[7] == 2.5f0
+    @test ht1 == 79.10056305f0
+    @test v[15] == max(v[1] - v[4] - v[7], 0f0)   # r9clark.f:463 tip from the ROUNDED volumes
+end
