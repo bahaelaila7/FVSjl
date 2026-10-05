@@ -36,6 +36,10 @@ function init_blockdata!(s::StandState, v::Ontario)
     s.rng.s0 = Float64(ON_RNG_SEED); s.rng.ss = ON_RNG_SEED
     fill!(s.control.ht_drag_sp, false)  # LHTDRG all .FALSE. (grinit.f:159)
     s.control.dg_sd = 2.0f0             # DGSD (grinit.f:219)
+    # canada/on/grinit.f never assigns CCCOEF/CCCOEF2 (ls/grinit.f:264-265 and bc/grinit.f:275-276 set 1.0), so the
+    # COMMON keeps 0: COVOLP's PCCU = CCCOEF·ΣCRAREA/43560 = 0 ⇒ every FVS_StrClass_Metric cover is 0 (live ON goldens),
+    # and cuts.f:850-851 CCC = 0 for the THINCC CRADIF.
+    s.control.cc_coef = 0f0; s.control.cc_coef2 = 0f0
     return s
 end
 
