@@ -140,4 +140,13 @@ end
     @test _n(_case("OP", "30194263010497", "none").ms; file = "FVS_Error") == 0
 end
 
+# OP FIA PV_CODE (alpha plant-association code) -> KODTYP (op/habtyp.f HBDECD == pn/habtyp.f, op/pvref6.f == pn/pvref6.f
+# byte-identical). The FIA reader decoded PV_CODE only for PN/WC, so OP kept habitat 0 => CHS133 default fan (DF SI 98)
+# where live resolves CHS137 (ECOCLS DF 108): FVS_InvReference SiteIndex, TreeList growth, every .sum column.
+@testset "OP PV_CODE habitat decode (op/habtyp.f HBDECD)" begin
+    c = _case("OP", "12973618010497", "none")
+    @test !c.crashed
+    @test isempty(c.ms)
+end
+
 end # module
