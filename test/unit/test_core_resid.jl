@@ -4,7 +4,7 @@
 using FVSjl, Test, SQLite, DBInterface
 
 const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(),
-                     "bm" => FVSjl.BlueMountains())
+                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai())
 
 "Run tiered fixture `<v>/<cn>_<rg>.key` through run_keyfile; returns the output DB path."
 function _cr_run(v::AbstractString, cn::AbstractString, rg::AbstractString)
@@ -407,4 +407,14 @@ end
     for g in gold, c in ("ViabMort", "Viability", "dClimMort", "GrowthMult")
         @test _cr_f32(jd[k(g)][c]) == _cr_f32(g[c])
     end
+end
+
+@testset "KT 4718785010690 salvage: FMCBA crown cover from the last CWIDTH dims, not the FMMAIN-time list (kt/fmcba.f:193)" begin
+    # CWIDTH=CRWDTH(I): the width CWIDTH stored at load / end of cycle. With the FMMAIN pass at gradd.f:118 the seam's REGENT-
+    # grown small-tree DBH moved the inventory PERCOV (2004 Forest_Shrub_Herb 0.16690 vs live 0.15348).
+    db = _cr_run("kt", "4718785010690", "salvage")
+    gold, jl = _cr_table("kt", "4718785010690", "salvage", db, "FVS_Carbon")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    g = only(x for x in gold if x["Year"] == "2004")
+    @test _cr_f32(jd[2004]["Forest_Shrub_Herb"]) == _cr_f32(g["Forest_Shrub_Herb"])
 end
