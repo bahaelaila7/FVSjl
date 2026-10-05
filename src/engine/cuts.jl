@@ -252,6 +252,9 @@ function cuts!(s::StandState; fint::Float32 = 5f0)
     # (whose CUTS-entry TREDEL runs only after its start-of-cycle DENSE emulation), so a cycle with activities due
     # must compact here; a thin then re-DENSEs the compacted list, as FVS's post-cut density does. Idempotent.
     cuts_entry_tredel!(s)
+    # FMSALV (cuts.f:386): the FFE salvage runs at CUTS entry, BEFORE this cycle's thin — so it never salvages the
+    # standing yarding-loss snags the thin is about to make (FMSCUT's FMSADD at cuts.f:1823).
+    (s.fire !== nothing && s.fire.active) && apply_salvage!(s)
     # PASS 1 — cut MODIFIERS for this year (set state the methods read), before any
     # method runs (cuts.f processes SPECPREF/MINHARV/… then the thin in the cycle).
     cc = s.control

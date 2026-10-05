@@ -52,3 +52,14 @@ end
     end
 end
 
+@testset "FMSALV at CUTS entry, before the thin's yarding-loss snags (cuts.f:386 vs :1823)" begin
+    # SALVAGE + THINBBA + YARDLOSS in one cycle: FVS salvages the snag list BEFORE the cut adds its standing yarding-loss
+    # snags, so they are not salvaged (TONRMS). Before (salvage after the cut): WS 2031 Biomass_Removed 98 vs live 79.
+    # sn_*_thin_yl add FUELMOVE 3-6" → out (TONRMC, fmtret.f:308) and the Jenkins BIOREM(1) path.
+    for (v, name) in (("ws", "ws_yl_sal"), ("sn", "sn_yl_sal"), ("sn", "sn_ffe_thin_yl"), ("sn", "sn_jenk_thin_yl"))
+        db = _wt_run(v, name)
+        @test isempty(_wt_cmp(name, db, "FVS_Carbon", ["Total_Removed_Carbon", "Belowground_Dead"]))
+        @test isempty(_wt_cmp(name, db, "FVS_Fuels", ["Biomass_Removed"]))
+    end
+end
+

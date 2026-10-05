@@ -1246,6 +1246,7 @@ mutable struct FireState
                                        # accumulated until FMCRBOUT reports and zeroes it (fmcrbout.f:198)
     cut_acc::Dict{Int32,NTuple{5,Float32}} # this CUTS call's per-record (WK3, SSNG, DSNG, CTCRWN, TKCRWN) (cuts.f:1381-1391),
                                        # consumed by FMSCUT (cuts.f:1823) before TREDEL
+    salv_year::Int32                   # the year FMSALV last ran (it runs once per CUTS, cuts.f:386, ahead of the thin)
 end
 FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(Float32, 11, 2, 4), false,
                         Int32(0), 20f0, Int32(1), 70f0, Int32(1), 100f0, Int32(1), 1f0, -1f0, SnagList(), 0f0,
@@ -1256,7 +1257,7 @@ FireState() = FireState(false, Int32(0), Int32(0), 0f0, 0f0, (0f0, 0f0), zeros(F
                         Dict{Int32,Tuple{Matrix{Float32},Matrix{Float32},Float32,Float32}}(),
                         NTuple{7,Float32}[], SnagBinScratch(), Int32[], Int32[], 0f0, Float32[], Float32[],
                         zeros(Float32, 4, 6, 60), NTuple{7,Float32}[], 0f0, Float32[], false, (0f0, 1f0, 0f0),
-                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}())
+                        Float32[], Int32(0), 0f0, 0f0, 0f0, Dict{Int32,NTuple{5,Float32}}(), Int32(-1))
 
 """
 One ECON harvest cost or revenue record (HRVVRCST / HRVRVN): `amount` per `unit`,

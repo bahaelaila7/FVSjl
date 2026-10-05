@@ -901,6 +901,9 @@ end
 function apply_salvage!(s::StandState)::Bool
     fs = s.fire
     (fs === nothing || !fs.active || isempty(s.control.schedule)) && return false
+    yr = Int32(current_cycle_year(s))
+    fs.salv_year == yr && return false                      # already run by this cycle's CUTS (cuts.f:386)
+    fs.salv_year = yr
     return _fmsalv!(s)
 end
 
