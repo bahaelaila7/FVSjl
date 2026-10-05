@@ -72,7 +72,7 @@ function dgf!(s::StandState, ::CentralStates)
             d = t.dbh[i]
             d < 5f0 && continue
             pr = t.tpa[i]
-            sdqge5 += pr * (d * d)                     # P*(D)**2. (folded to D*D, then ·P)
+            sdqge5 += pr * fpow(d, 2f0)                # P*(D)**2. (cs/dgf.f:431): the stock -O0 build calls powf
             tt += pr
             bage5 += d * d * pr * 0.005454154f0
         end
@@ -139,7 +139,10 @@ function dgf!(s::StandState, ::CentralStates)
         bark = bark_ratio(ba_a, ba_b, sp, dc)
         diagri = diagro * bark
         db = dc * bark
-        dds = flog((db + diagri)^2 - db * db)            # ALOG → glibc logf; X**2.0 folds to X*X (no powf in dgf.o)
+        # DDS=((DBH*BARK+DIAGRI)**2.0)-(DBH*BARK)**2.0, then ALOG unless <=0 (-9.21): the stock -O0 FVS build calls
+        # powf for both **2.0 (only the 2026-07-18 -O2 recompile of dgf.o folded them to X*X — ORACLE_SOURCE_AUDIT §9).
+        dds = fpow(db + diagri, 2f0) - fpow(db, 2f0)
+        dds = dds <= 0f0 ? -9.21f0 : flog(dds)
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end
