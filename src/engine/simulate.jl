@@ -18,6 +18,9 @@ calibration against the input measured growth (COR). Needs density set first.
 """
 function setup_growth!(s::StandState)
     build_cycle_schedule!(s)             # CYCLEAT/TIMEINT → cycle-boundary year array (IY)
+    # MISTOFF (misin.f:446 MISFLG=.FALSE.) ⇒ MISDAM loads no rating from the damage codes (misdam.f:64; FVS reads the
+    # tree records after the keywords, so a MISTOFF anywhere in the stand's keyword set applies to every record).
+    s.control.misflg || fill!(s.trees.dmr, Int32(0))
     # OC ORGANON: the CRATET ORGANON section (oc/cratet.f:155-401) runs BEFORE the FVS-native
     # missing-value dubbing — it dubs valid-ORGANON trees' missing HT/CR via ORGANON PREPARE
     # (PRDHT/PRDCR) and computes ACALIB. A blank-height ORGANON tree gets its ORGANON dub here;
@@ -378,7 +381,10 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # growth over-prediction (PN WRD fixture S248112: BA +59 by 2090). Engine consumers (LPMPB, COVER, DFTM,
     # establishment) likewise read 0 for any non-whitelisted variant. Set at whatever t.n is current: the backdated
     # calibration pass runs dead-inclusive (RELDM1), the growth-cycle pass live-only — FVS's DENSE→DGF/CROWN flow.
-    s.plot.relative_density = s.variant isa BritishColumbia ? bc_stand_ccf(s) : stand_ccf(s)
+    # BC included: canada/bc links base dense.f (species-major RELDSP over IND1); its flat record-order bc_stand_ccf put
+    # RELDEN 1-2 ULP off (MEASURED FVSbc_dbfix SkyRanch-Control cycle-2 REGENT RELDEN 4135C00A live / 4135C073 jl ⇒ every
+    # small-tree HTGRL 1-3 ULP low).
+    s.plot.relative_density = stand_ccf(s)
     return s
 end
 
@@ -798,8 +804,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing,
                      fmmain_hook::Union{Nothing,Function} = nothing)
+    s.control.cycle == Int32(0) && rd_mn1_compress!(s)   # rd/rdmn1.f RDMN1(2) (fvs.f:346): RD's >IRRTRE compression + RDSETP
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
+    _rd_nodense = s.root_disease isa RootDiseaseState && s.root_disease.skip_dense   # rd_mn1_compress! (no DENSE)
+    _rd_nodense ? (s.root_disease.skip_dense = false) :
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
                                       s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
@@ -847,7 +856,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # KT: kt/cratet.f:578 OLDPCT=PCT right before the LSTART CROWN — the PCT of the backdating DENSE, which the shared
     # crown_init_lstart_dead_inclusive! snapshots as cratet_pct — and cycle-1 OBA/RDM1 = inventory density (kt/crown.f
     # is IE's crown model; same seeds as IE above).
-    if s.variant isa Kootenai && s.control.cycle == Int32(0)
+    # BC: canada/bc/cratet.f:531 the same OLDPCT=PCT before the LSTART CROWN, and the same dense.f:239-240/274 OLDBA/RELDM1
+    # that canada/bc/crown.f:344-349 backdates against (V3 BAL=(1-OLDPCT/100)*OLDBA). jl left OLDPCT 0 (⇒ PCT) and OLDBA
+    # unthreaded (MEASURED FVSbc_dbfix Fir.20 cycle-1 CROWN: OLDPCT 84.65 / BAL 8.50 live, jl PCT / current BA ⇒ ICR ±1-4).
+    if (s.variant isa Kootenai || s.variant isa BritishColumbia) && s.control.cycle == Int32(0)
         length(s.calib.cratet_pct) == s.trees.n && copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
@@ -922,6 +934,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # the tripled live block (3·nlive) plus the dead block must fit MAXTRE: nlive ≤ (MAXTRE−ndead)/3. Reduces to
     # FVS's MAXTRE/3 when ndead=0 (the common case); tighter only when inventory dead records are present.
     trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && max(nlive, itrn_grincr) <= (variant_maxtre(s.variant) - Int(t.ndead)) ÷ 3   # (ON MAXTRE=6000) NOTRIP (prior-cycle COMPRESS) suppresses tripling
+    # rd/rdtrp.f (grincr.f:220 CALL RDTRP(LTRIP)): with root disease active (RDATV LGO) LTRIP is REPLACED by
+    # ICYC.LE.ICL4 .AND. ITRN.LE.IRRTRE/3 .AND. .NOT.NOTRIP — RD's PROBI/PROPI arrays hold IRRTRE=1500 records, so a
+    # stand of >500 records is not tripled. ITRN is the post-CUTS count at :220. MEASURED FVSbc_instr SkyRanch-Control
+    # rootdis (≈1100 records): live RDMORT walks the untripled records (PROBI 1.109), jl the tripled ones (0.6×).
+    (s.root_disease isa RootDiseaseState && rd_active(s.root_disease)) &&
+        (trip = !notrip_start && Int(s.control.cycle) < Int(s.control.icl4) && nlive <= RD_IRRTRE ÷ 3)
     crown_sdi = stand_sdi_reineke(s)   # pre-growth Reineke SDI for CROWN's RELSDI (SDIBC, grincr.f:241)
     # grincr.f:240/322 SDICAL(0,…) sets the common BAMAX = XMAX·0.5454154·PMSDIU every cycle (sdical.f:203-204, unless the
     # user BAMAX); MORTS's SDICAL overwrites it later, but a stand with no records at MORTS (bare-ground PLANT, cycle 1)
@@ -945,6 +963,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # skips P≤0 (vols.f:125), so its FVS_TreeList MCuM (WK1·FT3toM3) is this DG (compute_volumes_on!).
     (s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa Ontario) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # BC: canada/bc dgdriv.f DO 5 WK1(I)=DG(I) — at cycle 1 the DO-220 calibration DG (dgdriv.f:741-781), read by the V2 MORTS
+    # vigor term (morts.f:558-568). After an RDMN1 compression the record set changed and DG already holds that DG, merged.
+    (s.variant isa BritishColumbia && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = do220_dg(s, i, t.dbh[i], bc_bratio(Int(t.species[i]))); end)
     (s.variant isa Ontario && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = on_do220_dg(s, i); end)   # cycle 1's WK1 = the LSTART DO-220 DG
     (s.variant isa EasternMontana && Int(s.control.cycle) == 0) && em_cycle0_wk1!(s)   # dgdriv.f DO 220 precedence
@@ -1081,7 +1103,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     fmm_late || fmmain_hook === nothing || fmmain_hook(s, stash)
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
-    # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
+    # NEWSPRED keyword (NEWSI = NEWMOD, canada/newmist/mistoe.f:168); inert otherwise. lastyr = cycle length (yr).
     s.variant isa BritishColumbia && dm_tregro!(s, round(Int, fint))
     # WRD RDTREG seam ORDERING. FVS runs the ENTIRE root-disease chain (RDCNTL: RDINSD/RDSPRD/RDINF/RDMORT/
     # RDSTP, then RDEND, then RDGROW) in GRADD (gradd.f:131) AFTER GRINCR's TRIPLE (grincr.f:543). MORTS only
@@ -1504,7 +1526,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # SO/WS/CA/NC (strp esgent): REGENT(LESTB) reads that same gradd.f:192 DENSE for RELDEN/BA/AVH too (post-growth,
     # before ESUCKR's sprouts and the new regen — ESGENT runs inside ESTAB, before gradd.f:244's post-regen DENSE).
     _strp_esg = s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                s.variant isa Klamath || s.variant isa Kootenai   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
+                s.variant isa Klamath || s.variant isa Kootenai ||   # KT: kt_esgent! (estb/esgent.f → kt/regent.f)
+                s.variant isa BritishColumbia                        # BC: bc_esgent! (strp/esgent.f → canada/bc/regent.f)
     es_st_relden_pre, es_st_ba_pre, es_st_avh_pre = _strp_esg ? (stand_ccf(s), stand_ba(s), stand_top_height(s)) :
                                                     (0f0, 0f0, 0f0)
     esuckr!(s; fint = fint)                 # ESNUTR — stump/root sprouts (LSPRUT; before ESTAB)
@@ -1570,6 +1593,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         pccf_pre = es_pccf_pre)                                                                                  # ca/esgent.f (strp)
     s.variant isa Klamath && nc_esgent!(s, es_nstart; fint = fint, avh_pre = es_st_avh_pre, ba_pre = es_st_ba_pre,
         pccf_pre = es_pccf_pre)                                                                                  # nc/esgent.f (strp)
+    s.variant isa BritishColumbia && bc_esgent!(s, es_nstart; fint = fint, atba = es_at_ba, atccf = es_at_relden,
+        atavh = es_at_avh, ba_pre = es_st_ba_pre, relden_pre = es_st_relden_pre, pccf_pre = es_pccf_pre)   # strp/esgent.f → bc/regent.f LESTB
     s.variant isa CentralIdaho && ci_esgent!(s, es_nstart; fint = fint, atavh = es_at_avh, atba = es_at_ba,
         atccf = es_at_relden, relden_pre = es_wc_relden, ba_pre = es_wc_ba, avh_pre = es_wc_avh,
         pccf_pre = es_wc_pccf, ptba_pre = es_wc_ptba)   # CI: ci/esgent.f → REGENT(LESTB) (_ci_regent!)
@@ -1627,7 +1652,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # RDM1[N]=RELDEN[N-1]). Previously never assigned ⇒ OBA==BA, RDM1==RELDEN ⇒ DCRCON==XCRCON ⇒ EDCR too low
     # ⇒ CHG (=EXPPCR−EXPDCR) too high ⇒ ICR +1..3 too high every cycle. Verified vs FVSie_g16 on 3307603010690:
     # per-tree ICR at CROWN goes from 33/39 one-directional +diffs to ~5 mixed ±1 (residual = a small stand-BA gap).
-    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai   # EM/KT: same crown.f OBA/RDM1
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||   # EM/KT: same crown.f OBA/RDM1
+       s.variant isa BritishColumbia                                                             # BC: canada/bc/crown.f:344
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
     end
@@ -1703,6 +1729,7 @@ function run_keyfile(keypath::AbstractString;
         setup_growth!(s)
         kt_ierrck = s.control.kt_cratet_ierrck
         compute_volumes!(s)
+        rd_refresh_inventory_report!(s)   # BC RDPR (fvs.f:347) reads the inventory VOLS merch WK1 (fvs.f:211)
         # SVSTART seam (fvs.f:333, gated JSVOUT≠0): emit the cycle-0 inventory SVS picture at the
         # inventory state (post-setup, pre-growth). Only stands with an SVS keyword (svs_on) write files.
         if s.control.svs_on
@@ -1779,7 +1806,8 @@ function run_keyfile(keypath::AbstractString;
                              mgmt_id = mid, variant = variant_code(s.variant),
                              keyword_file = kwfile, sampling_wt = s.plot.sample_weight,
                              run_datetime = strip(string(date, " ", time)))
-            write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
+            # FVS_InvReference (dbsreference.f) is not linked in the metric builds (BC/ON source lists: no dbsreference.f).
+            _metric_variant(s.variant) || write_dbs_invref!(s.control.dbs_out_file, caseid, String(sid), s)
             write_dbs_error!(s.control.dbs_out_file, caseid, String(sid), s.control.error_msgs)   # DBSERROR rows
             # BC/ON link metric/dbsqlite: DBSSUMRY/DBSTRLS write the *_Metric tables (East naming for ON) instead.
             met = _metric_variant(s.variant); east = s.variant isa Ontario
@@ -1798,16 +1826,16 @@ function run_keyfile(keypath::AbstractString;
             (al_on && any(c -> !isempty(c[3]), al_cycles)) &&
                 write_dbs_atrtlist!(s.control.dbs_out_file, caseid, String(sid), al_cycles; metric = met, east = east)
             clim_rows === nothing ||
-                write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef)
+                write_dbs_climate!(s.control.dbs_out_file, caseid, String(sid), clim_rows, s.coef; metric = met)
             cprof_rows === nothing ||
                 write_dbs_canprofile!(s.control.dbs_out_file, caseid, String(sid), cprof_rows)
             (strcl_rows === nothing || isempty(strcl_rows)) ||   # DBSSTRCLASS creates the table on its first row
-                write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef)
+                write_dbs_strclass!(s.control.dbs_out_file, caseid, String(sid), strcl_rows, s.coef; metric = met)
             if dm_rows !== nothing && !isempty(dm_rows)
                 # FVS_DM_Stnd_Sum + FVS_DM_Spp_Sum (DBSMIS2/DBSMIS1); the by-DBH-class FVS_DM_Sz_Sum
                 # (DBSMIS3) additionally needs the MISTPRT report keyword (PRTMIS).
-                write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
-                write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef)
+                write_dbs_dm_stndsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows; metric = met)
+                write_dbs_dm_sppsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows, s.coef; metric = met)
                 s.control.mistprt_on &&
                     write_dbs_dm_szsum!(s.control.dbs_out_file, caseid, String(sid), dm_rows)
             end
@@ -1825,7 +1853,7 @@ function run_keyfile(keypath::AbstractString;
             end
             # FVS_RD_Sum (WRD root-disease summary): rows accumulated per cycle after rd_end_apply!.
             if s.root_disease !== nothing && s.control.dbs_rd_sum && !isempty(s.root_disease.sum_rows)
-                write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows)
+                write_dbs_rd_sum!(s.control.dbs_out_file, caseid, String(sid), s.root_disease.sum_rows; metric = met)
             end
             # FVS_RD_Det (WRD per-species patch detail): rows accumulated per cycle (dbs/dbsrd.f DBSRD2).
             if s.root_disease !== nothing && s.control.dbs_rd_detail && !isempty(s.root_disease.det_rows)
@@ -1838,7 +1866,7 @@ function run_keyfile(keypath::AbstractString;
             if carb_rows !== nothing
                 ctl1 = s.control
                 ctl1.dbs_carbrept &&                                     # dbsfmcrpt.f ICMRPT (CARBREDB)
-                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
+                    write_dbs_carbon!(ctl1.dbs_out_file, caseid, String(sid), carb_rows; metric = met)
                 (ctl1.dbs_snagsum && ctl1.ffe_snagsum) &&                # fmssum.f ISNGSM≠−1 + dbsfmssnag.f ISSUM
                     write_dbs_snagsum!(ctl1.dbs_out_file, caseid, String(sid), carb_rows)
                 (ctl1.dbs_snagdet && ctl1.ffe_snagout) &&                # fmsout.f window + dbsfmdsnag.f ISDET
@@ -1853,16 +1881,20 @@ function run_keyfile(keypath::AbstractString;
                 br = s.fire.burn_reports
                 # fmfout.f: each table needs its FMIN report window AND its DATABASE toggle (dbsfmburn/-mort/-fuel)
                 ctl = s.control
-                (ctl.ffe_burnrept && ctl.dbs_burnrept) &&
+                # metric/fire/vbase/fmfout.f:96 writes the burn report only when IFMBRB < 0, but metric fmin.f:228 BURNREPT
+                # sets IFMBRB = IY(1) ⇒ BC/ON never write FVS_BurnReport(_Metric) (MORTREPT/FUELREPT set −1 ⇒ they do).
+                (ctl.ffe_burnrept && ctl.dbs_burnrept && !met) &&
                     write_dbs_burnreport!(ctl.dbs_out_file, caseid, String(sid), br)
                 (ctl.ffe_mortrept && ctl.dbs_mortrept) &&
-                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br)
+                    write_dbs_mortality!(ctl.dbs_out_file, caseid, String(sid), br; metric = met)
                 (ctl.ffe_fuelrept && ctl.dbs_fuelcons) &&
                     write_dbs_consumption!(ctl.dbs_out_file, caseid, String(sid), br)
             end
             # DBSFMPF/DBSFMPFC need POTFIRDB (IPOTFIRE/IPOTFIREC, dbsin.f:379-380); the conditions rows come from the
             # ICYC=1 FMPOFL call (fmpofl.f:279), the report rows from every FMPOFL year.
-            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows)
+            # metric/fire/vbase/fmpofl.f:295-296 `IF (IPFLMB .GT. 0) RETURN` before the report + DBSFMPF/DBSFMPFC calls, and
+            # metric fmin.f:456 POTFIRE sets IPFLMB = IY(1) > 0 ⇒ BC/ON write no FVS_PotFire / FVS_PotFire_Cond.
+            if pf_rows !== nothing && s.control.dbs_potfire && !isempty(pf_rows) && !met
                 write_dbs_potfire!(s.control.dbs_out_file, caseid, String(sid), pf_rows; east = _pofl_east(s.variant))
                 pf_rows[1][3] && write_dbs_potfire_cond!(s.control.dbs_out_file, caseid, String(sid), pf_rows[1][2].cond)
             end

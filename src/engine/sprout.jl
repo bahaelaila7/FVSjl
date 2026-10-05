@@ -752,6 +752,8 @@ const _SPR_HT2_EC = Float32[-10.674, -8.247, -9.003, -10.482, -8.391, -10.482, -
         issp in (23, 29) && return prem * 0.70f0
         issp in (20, 21, 24, 25, 27, 28, 30) && return prem * 0.90f0
         return prem * 1f0
+    elseif v === :bc                                                     # vstrp/essprt.f: no CASE('BC') ⇒ DEFAULT
+        return prem * 1f0
     else # :ak (estb/essprt.f:40-68)
         (issp == 14 || issp == 15) && return _spr_lin(prem, d, 25.9f0, 99.9999f0, 3.8462f0)
         if issp == 16 || issp == 17
@@ -787,6 +789,8 @@ end
         (issp == 25 || issp == 28) && return two(d)
         issp == 26 && return 2
         return 1
+    elseif v === :bc                                                     # vstrp/essprt.f NSPREC: no CASE('BC') ⇒ DEFAULT 2
+        return 2
     else # :ak — estb/essprt.f:171-185 (the middle band is DSTMP.LT.10.0)
         (issp == 18 || issp == 20) && return d < 5f0 ? 1 : (d < 10f0 ? nint(-1f0 + 0.4f0 * d) : 3)
         issp == 19 && return 2
@@ -805,11 +809,17 @@ end
         (issp == 23 || (28 <= issp <= 40)) && return (0.1f0 + si / 50f0) * a
     elseif v === :ak
         (14 <= issp <= 22) && return (0.1f0 + si / 100f0) * a
-    end                                                                  # EC: CASE(99999) only ⇒ default
+    end                                                                  # BC: no CASE('BC') ⇒ default                                                                  # EC: CASE(99999) only ⇒ default
     return 0.5f0 + 0.5f0 * a
 end
 @inline function west_sprout_dbh(s::StandState, v::Symbol, issp::Integer, ht::Float32)::Float32
     ht > 4.5f0 || return 0.1f0
+    # BC: COMMON HT1/HT2 as canada/bc becset.f leaves them (BEC-zone Wykoff), the same arrays cratet.f's dub reads.
+    v === :bc && return let (h1, h2) = bc_ht_coefs(s)
+        ax = s.calib.ht_dbh_iabflg[issp] == 1 ? h1[issp] : s.calib.ht_dbh_aa[issp]
+        d = (h2[issp] / (flog(ht - 4.5f0) - ax)) - 1f0
+        d < 0.1f0 ? 0.1f0 : d
+    end
     h1, h2 = v === :wcpn ? (s.variant isa PacificNorthwest ? (_SPR_HT1_PN, _SPR_HT2_PN) : (_SPR_HT1_WC, _SPR_HT2_WC)) :
              v === :op ? (_SPR_HT1_OP, _SPR_HT2_OP) : v === :caoc ? (_SPR_HT1_CA, _SPR_HT2_CA) :
              v === :ws ? (_SPR_HT1_WS, _SPR_HT2_WS) : v === :ec ? (_SPR_HT1_EC, _SPR_HT2_EC) : (_SPR_HT1_AK, _SPR_HT2_AK)
@@ -820,7 +830,8 @@ end
 end
 _west_sprout_kind(v) = (v isa WestCascades || v isa PacificNorthwest) ? :wcpn : v isa Olympic ? :op :
                        (v isa CentralCalifornia || v isa OregonCoast) ? :caoc : v isa WestSierra ? :ws :
-                       v isa EastCascades ? :ec : v isa SoutheastAlaska ? :ak : :none
+                       v isa EastCascades ? :ec : v isa SoutheastAlaska ? :ak :
+                       v isa BritishColumbia ? :bc : :none   # BC: metric/strp/esuckr.f + vstrp/essprt.f (blkdat ISPSPE 11,12,13,15)
 
 """
     esuckr!(s; fint) -> Bool
@@ -868,7 +879,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
     # NE/CS aspen suckering (ASSPTN, essprt.f:1228): each aspen sprout's TPA depends on the TOTAL cut-aspen
     # BA/TPA (estump.f:110-111, summed over ALL cut aspen records). Accumulate up front (ESASID=49 NE / 76 CS).
     asp_idx = ne ? 49 : cs ? 76 : ls ? 41 : cr ? 20 : (tt || ut) ? 6 : so ? 24 : ie ? 18 : em ? 12 : bm ? 15 :
-              (wv === :wcpn || wv === :op || wv === :ec) ? 26 : wv === :caoc ? 44 : wv === :ws ? 36 : wv === :ak ? 19 : -1 # ESASID(VAR) aspen species index
+              (wv === :wcpn || wv === :op || wv === :ec) ? 26 : wv === :caoc ? 44 : wv === :ws ? 36 : wv === :ak ? 19 : wv === :bc ? 12 : -1 # ESASID(VAR) aspen species index
     asbar = 0f0; astpar = 0f0
     if ne || cs || ls || cr || tt || ut || so || ie || em || bm || west
         @inbounds for rec in s.control.cut_log

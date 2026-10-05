@@ -50,6 +50,7 @@ fm_mois_table(::Utah) = _FM_MOIS_CR             # ut/fmmois.f == cr (verified by
 # IE-family western moisture (ie/fmmois.f), shared across the N-Rockies cluster (verified diff 0 vs kt/em/bm/ci).
 fm_mois_table(::InlandEmpire) = _FM_MOIS_IE
 fm_mois_table(::Kootenai) = _FM_MOIS_IE
+fm_mois_table(::BritishColumbia) = _FM_MOIS_IE   # BC links fire/ie/fmmois.f
 fm_mois_table(::EasternMontana) = _FM_MOIS_IE
 fm_mois_table(::BlueMountains) = _FM_MOIS_IE
 fm_mois_table(::CentralIdaho) = _FM_MOIS_IE

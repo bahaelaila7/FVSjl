@@ -35,23 +35,13 @@ D in inches, P = trees/acre. NI equations for sp 1-10/14 (:175-183), PN equation
     if ic < 1
         haskey(BC_CCF_PN, Int(sp)) || return 0f0
         r1, r2, r3 = BC_CCF_PN[Int(sp)]
-        ccf = D >= 1f0 ? r1 + r2 * D + r3 * D * D : D * (r1 + r2 + r3)
+        ccf = D >= 1f0 ? r1 + r2 * D + r3 * fpow(D, 2.0f0) : D * (r1 + r2 + r3)   # ccfcal.f:215 pnRD3*D**2.0 (powf)
     else
         ccf = D >= 10f0 ? BC_CCF_RD1[ic] + D*BC_CCF_RD2[ic] + D*D*BC_CCF_RD3[ic] :
-                          BC_CCF_RDA[ic] * (D ^ BC_CCF_RDB[ic])
+                          BC_CCF_RDA[ic] * fpow(D, BC_CCF_RDB[ic])          # ccfcal.f:179 RDA*(D**RDB) (powf)
     end
     ccf < 0.001f0 && (ccf = 0.001f0)
     return ccf * Float32(p)
-end
-
-"""Stand CCF = Σ per-tree CCF over live trees (RELDEN); mirrors FVS ccfcal accumulation."""
-function bc_stand_ccf(s::StandState)
-    t = s.trees; acc = 0f0
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]; (d <= 0f0 || t.tpa[i] <= 0f0) && continue
-        acc += bc_tree_ccf(Int(t.species[i]), d, t.tpa[i])
-    end
-    return acc
 end
 
 # --- crown-RATIO update (canada/bc/crown.f, V3/CRNMD) — chunk 5b. Coeffs in crown_coefficients.jl. ---
@@ -74,10 +64,12 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
     ba = p.basal_area; relden = p.relative_density
     reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end
-    lnrd = log(max(0.01f0, relden))
+    lnrd = flog(max(0.01f0, relden))
     ba_a = c.bark_a; ba_b = c.bark_b
     bc_lmhtdub = nothing
-    @inbounds for i in 1:t.n
+    dgsd = s.control.dg_sd
+    # crown.f DO 70 ISPC / DO 60 I3 / I=IND1(I3): species-major IND1 — the order of the LSTART BACHLO draws below.
+    @inbounds for i in (lstart ? species_major_order(s) : (1:t.n))
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue
@@ -97,7 +89,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             t.crown_pct[i] = Int32(icrd)
             continue
         end
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = bc_bratio(sp)                                   # crown.f:422 BRATIO(ISPC,D,H) = canada/bc/bratio.f BARK1
         (!lstart && (d - t.diam_growth[i]/bark) < 3f0) && continue   # backdated D<3in: keep regent crown (GOTO 60)
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
         balf = (1f0 - pp/100f0) * ba
@@ -111,7 +103,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             pb = t.old_crown_pct[i]
             (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
-            balb = (1f0 - pb/100f0) * oba
+            balb = (1f0 - pb/100f0) * p.old_ba               # crown.f:472 BAL uses OLDBA itself, not the RDM1<100 OBA fallback
             # V3 backdated CR reuses XCRCON (crown.f:486) — DCRCON is the V2-only branch; density term not re-backdated.
             expdcr = bc_crnmd(xcrcon, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], db, hb, balb)
         end
@@ -122,12 +114,47 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
         end
         icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)     # CRNMLT=1, DLOW/DHI defaults
+        # canada/bc/crown.f:510-512: at LSTART (with DGSD ≥ 1) the dubbed ratio gets a random error,
+        # ICRI = INT(BACHLO(XCR=ICRI, CRSD(ISPC), RANN)). MEASURED FVSbc_dbfix SkyRanch-Control: CRATET draws 207 RANN
+        # numbers before the calibration DGDRIV (61 ≥2-cm records with no CrRatio); jl drew none ⇒ every later draw shifted.
+        (lstart && dgsd >= 1f0) && (icri = trunc(Int, bachlo(s.rng, Float32(icri), crsd[sp])))
         # canada/bc/crown.f:564 statement 55 — top-killed inventory records re-expressed on the normal
         # height. The sub-2cm records `continue` above, so only this (PCR) path reaches the bounds.
         lstart && (icri = topkill_icri(t, i, icri))
         icri > 95 && (icri = 95)
         icri < 5 && (icri = 5)                                       # CRNMLT==1 lower bound
         t.crown_pct[i] = Int32(icri)
+    end
+    lstart && bc_dead_crown_dub!(s, crcon, crhtdbh, crht, crdbh2, crbal, crlnccf)
+    return s
+end
+
+# canada/bc/crown.f:606-628 `DO 79 I=IREC2,MAXTRE`: cycle-0 dead records with no crown. P = the record's PCT from cratet's
+# backdating DENSE (dense.f:244), BAL = (1-P/100)*OLDBA and XCRCON = CRCON + CRLNCCF*LOG(MAX(0.01,RELDM1)) with the
+# OLDBA/RELDM1 that DENSE leaves (dense.f:259-264, the FINTH/FINT interpolation), then V3 DUBSCR = CRNMD(..., YSD=0)
+# (bc/dubscr.f:60) bounded [0.05,0.95], ICRI = INT(CR*100+.5), the top-kill restatement and [10,95] (dub_dead_crowns!).
+function bc_dead_crown_dub!(s::StandState, crcon, crhtdbh, crht, crdbh2, crbal, crlnccf)
+    t = s.trees; c = s.calib
+    t.ndead > 0 || return s
+    lbk = c.cratet_oldba > 0f0
+    oldba = lbk ? c.cratet_oldba : s.plot.old_ba
+    reldm1 = lbk ? c.cratet_reldm1 : s.plot.relative_density_prev
+    lnr = flog(max(0.01f0, reldm1))
+    lmd = nothing
+    dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        k = i - t.n
+        pp = k <= length(c.cratet_dead_pct) ? c.cratet_dead_pct[k] : t.crown_ratio[i]
+        bal = (1f0 - (pp / 100f0)) * oldba
+        xc = crcon[sp] + crlnccf[sp] * lnr
+        cr = if d * BC_INtoCM < 2f0
+            lmd === nothing && (lmd = bc_ht_coefs(s)[3])
+            bc_crnmd_sub2cm(xc, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], c.ht_dbh_aa[sp], lmd[sp], bal)
+        else
+            bc_crnmd(xc, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], d, h, bal)
+        end
+        cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+        icri_round(cr)
     end
     return s
 end
@@ -184,8 +211,8 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
     ba = p.basal_area; relden = p.relative_density
     reldm1 = p.relative_density_prev; oba = p.old_ba; rdm1 = reldm1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end          # crown.f:344-348 (no density impact if RDM1<100)
-    lnba = log(ba); lnrd = log(relden)
-    x1 = oba > 0f0 ? log(oba) : 0f0; x2 = rdm1 > 0f0 ? log(rdm1) : 0f0
+    lnba = flog(ba); lnrd = flog(relden)
+    x1 = oba > 0f0 ? flog(oba) : 0f0; x2 = rdm1 > 0f0 ? flog(rdm1) : 0f0
     ba_a = s.calib.bark_a; ba_b = s.calib.bark_b
     it = BC_V2_ITYPE
     @inbounds for i in 1:t.n
@@ -196,16 +223,16 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         d <= 0f0 && continue
         d < 3f0 && continue                                   # V2 small-tree bypass (crown.f:432)
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = bc_bratio(sp)                                   # crown.f:422 BRATIO(ISPC,D,H) = canada/bc/bratio.f BARK1
         (!lstart && (d - t.diam_growth[i]/bark) < 3f0) && continue   # backdated D<3in → keep (crown.f:440)
         prm = BC_CR_PARM[sp]
         crcon = BC_CR_CRHAB[sp][BC_CR_ICRHAB[sp]]            # crown's own MAPHAB (ITYPE=4), NOT dgf's
         xcrcon = crcon + prm[1]*ba + prm[2]*ba*ba + prm[3]*lnba +
                  prm[4]*relden + prm[5]*relden*relden + prm[6]*lnrd
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
-        pcr = xcrcon + prm[7]*d + prm[8]*d*d + prm[9]*log(d) + prm[10]*h + prm[11]*h*h +
-              prm[12]*log(h) + prm[13]*pp + prm[14]*log(pp)
-        exppcr = exp(pcr)
+        pcr = xcrcon + prm[7]*d + prm[8]*d*d + prm[9]*flog(d) + prm[10]*h + prm[11]*h*h +
+              prm[12]*flog(h) + prm[13]*pp + prm[14]*flog(pp)
+        exppcr = fexp(pcr)
         expdcr = 0f0
         if !lstart
             dcrcon = crcon + prm[1]*oba + prm[2]*oba*oba + prm[3]*x1 +
@@ -215,9 +242,9 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
             pb = t.old_crown_pct[i]                                          # crown.f:469-470 (see above)
             (pb <= 0f0 || (pb > t.crown_ratio[i] && s.control.total_removal > 0f0)) && (pb = t.crown_ratio[i])
             pb < 0.01f0 && (pb = 0.01f0)
-            dcr = dcrcon + prm[7]*db + prm[8]*db*db + prm[9]*log(db) + prm[10]*hb + prm[11]*hb*hb +
-                  prm[12]*log(hb) + prm[13]*pb + prm[14]*log(pb)
-            expdcr = exp(dcr)
+            dcr = dcrcon + prm[7]*db + prm[8]*db*db + prm[9]*flog(db) + prm[10]*hb + prm[11]*hb*hb +
+                  prm[12]*flog(hb) + prm[13]*pb + prm[14]*flog(pb)
+            expdcr = fexp(dcr)
         end
         chg = exppcr - expdcr
         if !lstart || icr > 0

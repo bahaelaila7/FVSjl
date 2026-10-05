@@ -1465,7 +1465,10 @@ TREEDATA
         col(rows, c) = [parse(Int, rows[k][c]) for k in 1:11]
         ct, cb, rt, rb = col(bc, 3), col(bc, 4), col(br, 3), col(br, 4)
         LCT = [2087, 2036, 1959, 1882, 1813, 1746, 1682, 1623, 1566, 1509, 1457]
-        LCB = [8, 165, 161, 156, 153, 148, 145, 142, 139, 136, 133]
+        # 2026-10-05 (bc-port): 2030 BA 153 -> 152 — re-measured on the private FVSbc_dbfix oracle (the BC campaign oracle,
+        # ORACLE_SOURCE_AUDIT §7), which prints 152 for this control key and matches jl in all 11 rows; the old pin came
+        # from an earlier BC oracle build. The row moved with a2cbb7fa (BC crown OLDPCT/OLDBA threading).
+        LCB = [8, 165, 161, 156, 152, 148, 145, 142, 139, 136, 133]
         LRT = [2087, 1947, 1875, 1801, 1737, 1672, 1611, 1554, 1502, 1448, 1398]
         LRB = [8, 154, 150, 146, 143, 139, 136, 133, 131, 128, 126]
         @test (ct, cb) == (LCT, LCB)             # control

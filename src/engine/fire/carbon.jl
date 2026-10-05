@@ -169,7 +169,7 @@ function ffe_live_carbon(s::StandState)
             # height, no CFTOPK. jl used the merch cubic for both (EM Aboveground_Total_Live 11.67 vs live 14.70;
             # IE 12.04 vs 15.57 on S248112 1990).
             tcf, mcf, _, _ = ffe_west_nocut(s, sp, d, h)
-            above += t.tpa[i] * (crown + max(0.005454154f0 * h, tcf) * v2t[sp]) * _FM_P2T
+            above += t.tpa[i] * (crown + max(_ffe_xfloor(s.variant, h), tcf) * v2t[sp]) * _FM_P2T   # BC: VN, no floor
             merch += t.tpa[i] * (mcf * v2t[sp]) * _FM_P2T
             continue
         end
@@ -413,7 +413,7 @@ function fmdout_bio(s::StandState; vtrip::Bool = false)
         end
         # FMSVL2('L', LMERCH=.FALSE., no top-kill): MAX(X,MCF) for CS/LS/NE/SN, MAX(X,TCF) for the western variants
         vt = snfam ? max(0.005454154f0 * h, _ffe_stem_mcf(s, i, sp, d, h)) :
-             _ffe_west_vol(s.variant) ? max(0.005454154f0 * h, ffe_west_nocut(s, sp, d, h)[1]) :
+             _ffe_west_vol(s.variant) ? max(_ffe_xfloor(s.variant, h), ffe_west_nocut(s, sp, d, h)[1]) :   # BC: VN, no floor
                      max(0.005454154f0 * h, t.cuft_vol[i])
         v2tp = v2t[sp] / 2000f0
         d <= 3f0 ? (tl1 += pr * vt * v2tp) : (tl2 += pr * vt * v2tp)

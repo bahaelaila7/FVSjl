@@ -414,6 +414,9 @@ mutable struct Control
     # initre.f:330-331 takes the counted IPTKNT / NSTKNT, kept in lstknt / nstknt by the tree reader).
     iptinv_set::Bool
     nonstk_set::Bool
+    # MISFLG (mistoe/misin0.f:83 .TRUE.; the MISTOFF keyword, misin.f:446, clears it): when .FALSE. MISDAM (misdam.f:64)
+    # loads no dwarf-mistletoe rating from the damage codes and BC's NEWSI (canada/newmist/mistoe.f:203) stays off.
+    misflg::Bool
 end
 
 function Control()
@@ -498,6 +501,7 @@ function Control()
         String[], false, false, false,                           # error_msgs, ext_stub_strict, dm_block_open, habtyp_done
         Int32(0), Int32(-1),                                     # itrn_grincr, itrn_grincr_cycle
         false, false,                                            # iptinv_set, nonstk_set
+        true,                                                    # misflg (misin0.f:83)
     )
 end
 
@@ -723,6 +727,9 @@ mutable struct Calibration
     # RMSQD from that DENSE's second (current-DBH) pass (dense.f:249-252 SQRT(TSUMD2/TPROB)): live + every dead record at
     # its DBH with the FINT/FINTM-inflated PROB. The calibration DGF/DGFASP (dgdriv.f:391/:759) reads it. 0 = unset.
     cratet_rmsqd::Float32
+    # OLDBA that DENSE leaves (dense.f:260 TEMP2 = (BA_cur−BA_bk)·FINTH/FINT + BA_bk; current pass dead-inclusive at the
+    # read DBH) — the BAL base of the LSTART dead-record crown dub (canada/bc/crown.f:616). 0 = unset (no backdating).
+    cratet_oldba::Float32
     # Input sequence number of every loaded record (live 1:n, dead n+1:n+ndead), in intree read order. FVS keeps the
     # dead INTERLEAVED at their input positions until cratet.f:199-215 deletes them, so SETUP's IND1 (fvs.f:158) —
     # the seed of cratet.f:163-166 `RDPSRT(ITRN,DBH,IND,.FALSE.)` — is species-major over ALL records in this order.
@@ -760,6 +767,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     0f0,                                                             # cratet_relden (BM CRATET DENSE RELDEN)
     0f0, 0f0, 0f0, Float32[], Float32[],                             # cratet_ba/avh/reldm1/pccf/pct (EM REGCAL)
     0f0,                                                             # cratet_rmsqd (IE calibration DGFASP)
+    0f0,                                                             # cratet_oldba (BC dead-record crown dub)
     Int32[],                                                         # input_seq (record read order, cycle-0 only)
     Float32[], Float32[],                                            # cratet_dead_pct/ptbal (cycle-0 dead TreeList rows)
     Float32[],                                                       # cratet_ptbaa (CRATET PTBAL point BA)

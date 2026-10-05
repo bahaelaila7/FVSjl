@@ -74,7 +74,10 @@ function mistletoe_report(s::StandState; fint::Float32, top4::Vector{Int}, nage:
     STVOL = 0f0; STVOLI = 0f0; STVOLM = 0f0; STTPAM = 0f0
     DCTPA = zeros(Float32, 20); DCTPAX = zeros(Float32, 20); DCINF = zeros(Float32, 20)
     DCMRT = zeros(Float32, 20); DCSUM = zeros(Float32, 20)
-    dmrmin = _DM_DMRMIN
+    # DMRMIN (MISCOM): base mistoe/misin0.f:79 sets 1.0; canada/newmist/misin0.f (BC) never initialises it, so the BC
+    # statistics count every tree unless MISTPRT field 1 sets it. MEASURED FVSbc_dbfix SkyRanch-0.3m mistletoe 2019
+    # Mean_DMR 0.0728 live / 2.0 jl (jl counted only DBH ≥ 1in).
+    dmrmin = s.variant isa BritishColumbia ? (s.mistletoe isa MistletoeState ? s.mistletoe.dmrmin : 0f0) : _DM_DMRMIN
     ind1 = _ind1_order(s)
     # DMMTPA(I) (MISMRT(.FALSE.), mismrt.f:141-195): WKI=PTPA·DMMORT, 0 when PROB≤0 or IDMR=0
     dmm = zeros(Float32, t.n)

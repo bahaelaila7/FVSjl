@@ -738,6 +738,11 @@ const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "FIXCW"    => [4 => _on_cm, 5 => _on_cm],
     "PRUNE"    => [3 => _on_m, 6 => _on_cm, 7 => _on_cm],
     "BAMAX"    => [1 => _on_m2],
+    # metric/estb/esin.f:204-205 / :252-253 / :503 (the ESTAB block; BC and ON both link it): PLANT/NATURAL trees per
+    # ha ÷ HAtoACR and height m × MtoFT, HTADJ height m × MtoFT.
+    "PLANT"    => [3 => _on_ha, 6 => _on_m],
+    "NATURAL"  => [3 => _on_ha, 6 => _on_m],
+    "HTADJ"    => [3 => _on_m],
     "SDIMAX"   => [2 => _on_ha],
     "SITECODE" => [2 => _on_m],
     "SDICALC"  => [1 => _on_cm, 2 => _on_cm],
@@ -1816,6 +1821,7 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        _metric_variant(s.variant) && _on_metric_decode!(r)    # metric/estb/esin.f field conversions
         if k == "END"
             break
         elseif k == "PLANT" || k == "NATURAL"
@@ -2454,6 +2460,8 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         # so/fmvinit.f:240-241 PBSOFT = PBSMAL = -1 ("unset"): so/fmcba.f resolves them per forest at FMCBA
         # (California 1.0/0.9, Oregon 0/0) unless SNAGPBN set them — see _so_snag_params!.
         s.variant isa SouthCentralOregon && (s.fire.params.pb_soft = -1f0; s.fire.params.pb_smal = -1f0)
+        # fminit.f:910-915: ICMETRC = 1 (metric t/ha carbon) for the Canadian builds ON/BC, 0 elsewhere.
+        _metric_variant(s.variant) && (s.control.carbon_units = Int32(1))
     end
     fs = s.fire
     fs.active = true
@@ -2527,14 +2535,17 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # FVS IDT cycle numbers are 1-based; jl `cycle_year_at` is 0-based ⇒ cycle IDT → index IDT-1.
             fyear = (1 <= idt <= MAXCYC) ? Int(cycle_year_at(s.control, idt - 1)) : idt
             # Resolve each condition with the FVS default (fmin.f:325-330 PRMS preset), overridden when present.
-            swind    = r.present[2] ? Float32(v[2]) : 20f0                          # SWIND  = PRMS(1)
+            # metric builds (BC/ON link metric/fire/base/fmin.f:334-336): the wind field is km/h (PRMS(1)=ARRAY(2)·KMtoMI)
+            # and the temperature °C (PRMS(3)=ARRAY(4)·CtoF1+CtoF2); the blank-field presets stay 20 mi/h / 70 °F.
+            met = _metric_variant(s.variant)
+            swind    = r.present[2] ? (met ? Float32(v[2]) * 0.6214f0 : Float32(v[2])) : 20f0   # SWIND  = PRMS(1)
             # FMOIS = INT(PRMS(2)). FVS's FMMOIS only sets the moisture for codes 1..4; for any
             # other code (0, or out-of-range like the 9 in fire_fuel9) it is a NO-OP, leaving the
             # moisture at its last value — which, after the per-cycle PotFire MODERATE pass (FMOIS=3,
             # fmvinit.f:63-66), is dryness model 3. So an invalid code resolves to model 3, NOT a
             # clamp to the very-wet model 4. (Codes 1..4 use the matching FMMOIS table directly.)
             fmois    = r.present[3] ? (local fc = Int32(nint(v[3])); (Int32(1) <= fc <= Int32(4)) ? fc : Int32(3)) : Int32(1)
-            atemp    = r.present[4] ? Float32(trunc(v[4])) : 70f0                   # ATEMP  = INT(PRMS(3))
+            atemp    = r.present[4] ? Float32(trunc(met ? Float32(v[4]) * 1.8f0 + 32f0 : Float32(v[4]))) : 70f0   # ATEMP = INT(PRMS(3))
             mortcode = r.present[5] ? clamp(Int32(nint(v[5])), Int32(0), Int32(1)) : Int32(1)   # MKODE = PRMS(4)
             psburn   = r.present[6] ? clamp(Float32(v[6]), 0f0, 100f0) : 100f0      # PSBURN = PRMS(5)
             burnseas = r.present[7] ? clamp(Int32(nint(v[7])), Int32(1), Int32(4)) : Int32(1)   # BURNSEAS = PRMS(6)
@@ -2592,8 +2603,10 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             # (fraction removed) / PROPLV (proportion left → down-wood). Defaults match fmin.f:1023-1028.
             v = r.values
             date  = r.present[1] ? nint(v[1]) : Int32(1)
-            mindb = r.present[2] ? Float32(v[2]) : 0f0
-            maxdb = r.present[3] ? Float32(v[3]) : 999f0
+            # metric fmin.f:1032-1033: the DBH limits are cm (PRMS(1:2)=ARRAY(2:3)·CMtoIN); the blank presets 0/999 stay.
+            _cm = _metric_variant(s.variant) ? 0.3937f0 : 1f0
+            mindb = r.present[2] ? Float32(v[2]) * _cm : 0f0
+            maxdb = r.present[3] ? Float32(v[3]) * _cm : 999f0
             maxag = r.present[4] ? Float32(v[4]) : 5f0
             oksft = r.present[5] ? Float32(v[5]) : 1f0
             prop  = r.present[6] ? Float32(v[6]) : 0.9f0
@@ -2977,7 +2990,9 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif s.control.ext_stub_strict && !(kw in FVS_BASE_KEYWORDS)
             errgro!(s, 1; irecnt = kr.record_count); continue
         end
-        s.variant isa Ontario && _on_metric_decode!(rec)   # canada/on/initre.f metric ARRAY conversions
+        # canada/on/initre.f and canada/bc/initre.f carry the same in-place metric ARRAY conversions (diffed statement by
+        # statement: BC's set equals ON's, THINQFA included) — e.g. BC THINBBA ARRAY(2)·M2pHAtoFT2pACR (bc initre.f:3602).
+        _metric_variant(s.variant) && _on_metric_decode!(rec)
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)
@@ -3098,6 +3113,7 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif kw == "MISTPRT";  kw_mistprt!(s, rec)       #   DM report request (misin.f opt 6)
         elseif kw == "MISTMULT"; kw_mistmult!(s, rec)      #   DM spread-probability multipliers (misin.f opt 1: YPLMLT/YNGMLT)
         elseif kw == "MISTPINF"; kw_mistpinf!(s, rec)      #   forced initial DM infection (misin.f opt 10 → misinf.f MISINF)
+        elseif kw == "MISTOFF";  s.control.misflg = false  #   misin.f opt 8 (:446): MISFLG=.FALSE. ⇒ no damage-code DMR (misdam.f:64), no BC NEWSI
         elseif kw == "PROCESS";  return finish(:process)
         elseif kw in KNOWN_NOOP || kw in variant_noop_keywords(s.variant)
             # recognized no-op — variant-agnostic, or inert for this variant

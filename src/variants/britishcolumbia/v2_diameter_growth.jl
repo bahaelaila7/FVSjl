@@ -23,11 +23,11 @@ CR·(DGCR + CR·DGCRSQ) + DGDSQ·D² + DGDBAL·BAL/ln(D+1)`; then `max(-9.21, lo
 (bc_v2_dgcons!, task #133 — not yet ported). VALIDATED bit-exact (99.1%, ≤1 ULP) on all_BC_essf.
 """
 @inline function bc_v2_dds(sp::Integer, d_in::Real, bal::Real, cr::Real, conspp::Real, dgdsq::Real)
-    d = Float32(d_in); ald = log(d)
+    d = Float32(d_in); ald = flog(d)
     dds = Float32(conspp) + BC_V2_DGLD[sp]*ald + BC_V2_DGBAL[sp]*Float32(bal) +
           Float32(cr)*(BC_V2_DGCR[sp] + Float32(cr)*BC_V2_DGCRSQ[sp]) +
-          Float32(dgdsq)*d*d + BC_V2_DGDBAL[sp]*Float32(bal)/log(d + 1f0)
-    return max(-9.21f0, log(max(0.001f0, dds)))
+          Float32(dgdsq)*d*d + BC_V2_DGDBAL[sp]*Float32(bal)/flog(d + 1f0)
+    return max(-9.21f0, flog(max(0.001f0, dds)))
 end
 
 # -----------------------------------------------------------------------------
@@ -75,9 +75,9 @@ function bc_v2_dgcons!(s::StandState)
         ispfor = BC_V2_MAPLOC[sp][ifr]
         dgcon = BC_V2_DGHAB[sp][isphab] + BC_V2_DGFOR[sp][ispfor] +
                 BC_V2_DGEL[sp]*elev + BC_V2_DGEL2[sp]*elev*elev +
-                (BC_V2_DGSASP[sp]*sin(asp) + BC_V2_DGCASP[sp]*cos(asp) + BC_V2_DGSLOP[sp])*slope +
+                (BC_V2_DGSASP[sp]*fsin(asp) + BC_V2_DGCASP[sp]*fcos(asp) + BC_V2_DGSLOP[sp])*slope +
                 BC_V2_DGSLSQ[sp]*slope*slope
-        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += log(ctl.dg_cor2[sp]))
+        (ctl.dg_cor2_on && ctl.dg_cor2[sp] > 0f0) && (dgcon += flog(ctl.dg_cor2[sp]))
         c.dg_const[sp] = dgcon
         c.atten[sp]    = BC_V2_OBSERV[sp][isphab]      # ATTEN = OBSERV(ISPHAB, ISPC) (dgf.f:2074)
     end

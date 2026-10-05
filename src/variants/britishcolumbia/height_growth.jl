@@ -59,7 +59,7 @@ function bc_v2_height_growth!(s::StandState; scale::Float32 = 1.0f0)
     htcon = zeros(Float32, nsp)
     @inbounds for sp in 1:nsp
         htcon[sp] = hghch + BC_HGSC[sp]
-        ctl.htg_cor2[sp] > 0f0 && (htcon[sp] += log(ctl.htg_cor2[sp]))   # LHCOR2 calib (htgf.f:1800)
+        ctl.htg_cor2[sp] > 0f0 && (htcon[sp] += flog(ctl.htg_cor2[sp]))   # LHCOR2 calib (htgf.f:1800)
     end
     @inbounds for i in 1:t.n
         t.ht_growth[i] = 0f0
@@ -67,8 +67,8 @@ function bc_v2_height_growth!(s::StandState; scale::Float32 = 1.0f0)
         sp = Int(t.species[i]); d = t.dbh[i]; hti = t.height[i]
         (d <= 0f0 || hti <= 0f0) && continue
         dg = t.diam_growth[i]
-        con = htcon[sp] + h2cof*hti*hti + BC_HGLD[sp]*log(d) + BC_HTG_HGLH*log(hti)
-        hexp = dg > 0f0 ? exp(con + hdgcof*log(dg)) : 0f0     # DG>0 (ln); DG≤0 ⇒ exp term 0 (ln→-Inf)
+        con = htcon[sp] + h2cof*hti*hti + BC_HGLD[sp]*flog(d) + BC_HTG_HGLH*flog(hti)
+        hexp = dg > 0f0 ? fexp(con + hdgcof*flog(dg)) : 0f0     # DG>0 (ln); DG≤0 ⇒ exp term 0 (ln→-Inf)
         xht = active_multiplier(ctl, :htg, sp, cur_year)      # XHMULT
         y = scale * xht; y = y * mis_hg_mult(s, i)            # htgf.f:1612-1617 Y=SCALE*XHT; Y=Y*MISHGF(I,ISPC)
         t.ht_growth[i] = (hexp + BC_HTG_BIAS) * y             # htgf.f:1622 HTG(I)=(EXP(...)+BIAS)*Y

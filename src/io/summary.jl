@@ -168,16 +168,19 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     # ON: canada/on vols.f never loads MCFV/SCFV — its merch volume lives only in the WK1 scratch (the metric
     # FVS_TreeList MCuM binds WK1·FT3toM3, dbstrls.f:346), which the gradd.f/fvs.f PROB round trip does not touch;
     # jl's merch_cuft_vol carries that WK1. A PROB=0 record keeps CFV·0 = BFV·0 = 0 (the divide-back is PROB>0-only).
+    # BC likewise: canada/bc vols.f:167 loads only WK1(I)=VM (no MCFV), so the BC merch volume is not round-tripped
+    # (MEASURED FVSbc_dbfix YSM029-250 FVS_TreeList_Metric MCuM: jl 1 ULP off on 57 live rows from 2028).
     # A record whose PROB is 0 (killed outright this cycle): the multiply leaves V·0 = 0 and gradd.f:347-351 divides
     # back only `IF (PROB(I).GT.0.0)`, so CFV/BFV/MCFV/SCFV (and, under LFIANVB, the biomass/carbon arrays) are 0 for
     # every variant — the FVS_TreeList reports 0 volume for such rows (MEASURED live FVScs 66519757010661 2022: TPA 0 /
     # MortPA 0.71 PO record, TCuFt 0 live, 4.2 jl), and vols.f `IF(P.LE.0.0) GO TO 200` never refills them.
     _on = s.variant isa Ontario
+    _wk1 = _on || s.variant isa BritishColumbia
     @inbounds for i in 1:t.n
         p = t.tpa[i]
         if !(p > 0f0)
             t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0
-            _on || (t.merch_cuft_vol[i] = 0f0)
+            _wk1 || (t.merch_cuft_vol[i] = 0f0)
             if bio
                 t.abvgrd_bio[i] = 0f0; t.merch_bio[i] = 0f0; t.cubsaw_bio[i] = 0f0; t.foliage_bio[i] = 0f0
                 t.abvgrd_carb[i] = 0f0; t.merch_carb[i] = 0f0; t.cubsaw_carb[i] = 0f0; t.foliage_carb[i] = 0f0
@@ -185,7 +188,7 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
             continue
         end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
-        _on || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
+        _wk1 || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
         t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
         if bio
             t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)
@@ -399,7 +402,9 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 fl = merge(fl, (removed = st.fire.tonrms,)); st.fire.tonrms = 0f0
             end
             push!(carbon_collect, (r.year, stand_carbon_report(st; vtrip = vtrip), fl,
-                                   snag_summary(st), ffe_down_wood(st), rel * uf, snag_detail(st)))
+                                   snag_summary(st), ffe_down_wood(st),
+                                   # fmcrbout.f:166-171 V(11)*TItoTM/ACRtoHA, evaluated left to right (not ×(TItoTM/ACRtoHA))
+                                   st.control.carbon_units == 1 ? (rel * 0.90718f0) / 0.4046945f0 : rel * uf, snag_detail(st)))
         end
         # A SIMFIRE cycle: the fire (inside grow_cycle!'s mortality_and_fire!) must consume + snag the
         # START-of-cycle fuels, so this cycle's pre-grow ffe_fuel_update! is WITHHELD and its period handed
@@ -457,6 +462,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # MISMRT projects the cycle's mortality; the final report row (per==0) reuses the
             # previous cycle's length (matching FVS's non-zero final-row DM mortality).
             perdm = last ? cycle_period_at(s.control, max(c - 1, 0)) : per
+            # The inventory MISPRT (fvs.f:338, before any GRINCR) scales MISMRT by the FINT then in COMMON: the GROWTH /
+            # DG_MEASURE measurement period (dbsstandin.f:701), else grinit's default — as cover_fint above. BC only for now:
+            # its growth_fint carries grinit's FINT=10; most other western variants' growth_fint still defaults to 5.
+            # MEASURED FVSbc_dbfix YSM029-250 (DG_Measure 6) mistletoe 2018 Mort_TPH 7 live / 12 jl with the 10-yr cycle.
+            (c == 0 && s.variant isa BritishColumbia) && (perdm = s.control.growth_fint)
             push!(dm_collect, (Int(r.year),
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end

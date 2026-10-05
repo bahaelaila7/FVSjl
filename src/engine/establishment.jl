@@ -1140,7 +1140,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                          s.variant isa SouthCentralOregon ||   # SO/WS/CA: regent.f LESTB crown inside the species loop;
                          s.variant isa WestSierra || s.variant isa CentralCalifornia ||   # NC: regent.f DO 13, storage order
                          s.variant isa Klamath ||               # (so_/ws_/ca_/nc_esgent!)
-                         s.variant isa CentralIdaho             # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
+                         s.variant isa CentralIdaho ||          # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
+                         s.variant isa BritishColumbia          # BC: canada/bc/regent.f DO 13 in bc_esgent!
         @inbounds for i in newidx
             _ie_own_esgent && continue
             ran_cr = 0f0
