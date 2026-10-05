@@ -1456,6 +1456,8 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             dbal = 0f0
             if snap
                 dbal = s.calib.cratet_dead_ptbal[kd]
+            elseif _r9_variant(s.variant)
+                dbal = 0f0                               # ptbal.f:60-66 CASE('CS','LS','NE','ON'): PTBALT = 0
             else
                 for j in 1:(t.n + t.ndead)
                     j == i && continue
@@ -1534,10 +1536,26 @@ function invref_voleq(s::StandState, sp::Int)::String
         end
         return AK_INVREF_VOLEQ[sp]
     end
-    return String(strip(s.species.vol_eq[sp]))
+    eq = String(strip(s.species.vol_eq[sp]))
+    # Region 9 (NE/CS/LS sitset.f:575-592): a blank VEQNNC with METHC 6/9 (the Clark default) is filled by
+    # VOLEQDEF → R9_EQN (voleqdef.f:2237-2249) as '900CLKE' + the species' FIA code (I3, zero-padded).
+    # (METHC 5 '900DVEE' takes R9_EQN's FIA→table search, voleqdef.f:2250+ — not ported; left blank.)
+    if isempty(eq) && _r9_variant(v) && s.control.sp_methc[sp] in (Int32(6), Int32(9))
+        return _r9_clke(s, sp)
+    end
+    return eq
 end
-_invref_bf_voleq(s::StandState, sp::Int) =
-    (bf = String(strip(s.control.sp_bf_vol_eq[sp])); isempty(bf) ? invref_voleq(s, sp) : bf)
+_r9_variant(v) = v isa Northeast || v isa CentralStates || v isa LakeStates
+_r9_clke(s::StandState, sp::Int) =
+    "900CLKE" * lpad(string(something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)), 3, '0')
+# VEQNNB: the same sitset.f loop with METHB (default 6 — jl has no BFVOLUME METHB override, so the board equation is
+# the Clark one even when VOLUME set METHC=5).
+function _invref_bf_voleq(s::StandState, sp::Int)
+    bf = String(strip(s.control.sp_bf_vol_eq[sp]))
+    isempty(bf) || return bf
+    _r9_variant(s.variant) && isempty(strip(s.species.vol_eq[sp])) && return _r9_clke(s, sp)
+    return invref_voleq(s, sp)
+end
 
 function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)

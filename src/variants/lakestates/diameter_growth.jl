@@ -54,14 +54,22 @@ function dgf!(s::StandState, ::LakeStates)
     ba_a = c.bark_a; ba_b = c.bark_b
 
     # BAGE5 (stand BA in trees ≥5") and QMDGE5 (their QMD) — ls/dgf.f:204-222.
+    # ls/dgf.f DO 20 ISPC / DO 10 I3=ISCT(ISPC,1..2), I=IND1(I3): the sums accumulate in SPECIES-SORTED order
+    # (Float32 addition is order-dependent — raw record order left BAGE5 1 ULP off, MEASURED live FVScs
+    # 66519757010661 cycle 1: 122.954628 live vs 122.954636 ⇒ the DGF ln(DDS) ⇒ large-tree DG 16 ULP).
     sdqge5 = 0f0; tt = 0f0; bage5 = 0f0
-    @inbounds for i in 1:t.n
-        d = t.dbh[i]
-        d < 5f0 && continue
-        pr = t.tpa[i]
-        sdqge5 += pr * d * d
-        tt += pr
-        bage5 += d * d * pr * 0.005454154f0
+    isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
+    @inbounds for spx in 1:MAXSP
+        i1 = isct[spx, 1]; i1 <= 0 && continue
+        for k in i1:isct[spx, 2]
+            i = Int(ind1[k])
+            d = t.dbh[i]
+            d < 5f0 && continue
+            pr = t.tpa[i]
+            sdqge5 += pr * (d * d)                     # P*(D)**2. (folded to D*D, then ·P)
+            tt += pr
+            bage5 += d * d * pr * 0.005454154f0
+        end
     end
     qmdge5 = sdqge5 > 0f0 ? sqrt(sdqge5 / tt) : 0f0
     bage5 <= 0f0 && (bage5 = 10f0)
@@ -99,7 +107,7 @@ function dgf!(s::StandState, ::LakeStates)
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba_v          # PCT = BA percentile
 
         dds = conspp + interc[sp] +
-              vdbh[sp]   * (1f0 / d) +
+              vdbh[sp] * 1f0 / d +                 # dgf.f `VDBHC(ISPC) * 1./D` = (VDBHC·1)/D, NOT VDBHC·(1/D) (1-ULP)
               dbhc[sp]   * d +
               dbh2[sp]   * d * d +
               rdbh[sp]   * reldbh +
@@ -112,11 +120,11 @@ function dgf!(s::StandState, ::LakeStates)
 
         dds < -9.21f0 && (dds = -9.21f0)
         # OB→IB bark conversion (ls/dgf.f:288-291).
-        diagro = sqrt(d * d + exp(dds)) - d
+        diagro = sqrt(d * d + fexp(dds)) - d             # ls/dgf.f EXP → glibc expf (doctrine #4)
         bark = bark_ratio(ba_a, ba_b, sp, d)
         diagri = diagro * bark
         db = d * bark
-        dds = log((db + diagri)^2 - db * db)
+        dds = flog((db + diagri)^2 - db * db)            # ALOG → glibc logf; X**2.0 folds to X*X (no powf in dgf.o)
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end
@@ -154,12 +162,18 @@ BACKDATED-dbh per-acre BA. Identical to `_cs_init_crowns!`.
 function _ls_init_crowns!(s::StandState)
     t = s.trees; n = t.n
     n == 0 && return s
-    any(@views t.crown_pct[1:n] .== 0) || return s
-    saved_dbh = Float32[t.dbh[i] for i in 1:n]
-    _backdate_dbh!(s)
-    bd_ba = 0f0
-    @inbounds for i in 1:n; d = t.dbh[i]; bd_ba += d * d * t.tpa[i] * 0.005454154f0; end
-    @inbounds for i in 1:n; t.dbh[i] = saved_dbh[i]; end
+    # cratet.f:498-520 MISSCR: a missing crown on a live record OR on a cycle-0 dead record (IREC2..MAXTRE) calls CROWN.
+    (any(@views t.crown_pct[1:n] .== 0) || any(@views t.crown_pct[(n + 1):(n + Int(t.ndead))] .<= 0)) || return s
+    bd_ba = eastern_cratet_ba(s)       # COMMON BA of CRATET's backdated, dead-inclusive DENSE (cratet.f:168-170)
     crown_ratio_update!(s, s.variant; ba_override = bd_ba, lstart = true)
+    # crown.f DO 79 (cs/ls crown.f:259-279): the cycle-0 DEAD records with a missing crown get the same TWIGS form against
+    # the same COMMON BA, CR = 10·(BCR1/(1+BCR2·BA) + BCR3·(1−EXP(BCR4·D))), ICRI = INT(CR+.5) (+ top-kill, [10,95]).
+    sd = s.coef.species
+    dub_dead_crowns!(s) do i
+        sp = t.species[i]
+        den = 1f0 + sd[:crown_bcr2][sp] * bd_ba
+        cr = 10f0 * (sd[:crown_bcr1][sp] / den + sd[:crown_bcr3][sp] * (1f0 - fexp(sd[:crown_bcr4][sp] * t.dbh[i])))
+        trunc(Int, cr + 0.5f0)
+    end
     return s
 end

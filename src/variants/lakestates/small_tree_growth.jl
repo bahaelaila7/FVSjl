@@ -39,7 +39,7 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
         dgmx = LS_REGENT_DGMAX * scale
         # CON = RHCON·exp(HCOR) (regent.f:147); RHCON=1 default, =RCOR2 when LRCOR2 on (regent.f:624-626).
         rhcon = (s.control.regh_cor2_on && s.control.regh_cor2[sp] > 0f0) ? s.control.regh_cor2[sp] : 1f0
-        con = rhcon * exp(c.htg_cor_small[sp])
+        con = rhcon * fexp(c.htg_cor_small[sp])          # ls/regent.f:147 CON=RHCON*EXP(HCOR) → expf
         xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
         xrdgro = active_multiplier(s.control, :regd, sp, cur_year)
         for k3 in i1:i2
@@ -81,8 +81,11 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
                 htg = max(htgr + ran * 0.1f0 * htgr, 0.1f0)
                 (h + htg) > sizcap[sp, 4] && (htg = max(sizcap[sp, 4] - h, 0.1f0))
                 hk = h + htg
+                direct = -1f0                            # DBH(K) assigned directly (HK≤4.5), else −1
                 if hk <= 4.5f0
-                    dg = 0.001f0 * hk
+                    # ls/regent.f:292-295: DG(K)=0.0; DBH(K)=D+0.001*HK — REGENT sets the DBH itself, BEFORE MORTS/TRIPLE (grincr.f
+                    # REGENT :449 → MORTS :535), so MORTS' SDQ0/SD2SQ see D+0.001·HK with G=0 (measured CS 66519757010661).
+                    dg = 0f0; direct = d + 0.001f0 * hk
                 else
                     bark = bark_ratio(c.bark_a, c.bark_b, sp, d)
                     dkk = _htdbh_dbh(sd, sp, hk, Int(p.forest_idx); db_floor = true)
@@ -93,7 +96,7 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
                         dgsm = (dkk - dk) * bark * xrdgro
                         dgsm < 0f0 && (dgsm = 0f0)
                         dds = dgsm * (2f0 * bark * d + dgsm) * scale2
-                        dgsm = sqrt((d * bark)^2 + dds) - bark * d
+                        dgsm = sqrt(fpow(d * bark, 2f0) + dds) - bark * d   # ls/regent.f:367 (D*BARK)**2.0 — powf in the LS build (regent.o calls powf)
                         dgsm < 0f0 && (dgsm = 0f0)
                         dggr = dgsm * (1f0 - xwt) + xwt * dgk_l
                         dg = max(dggr, 0.1f0)
@@ -101,7 +104,7 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
                         (d + dg) < regent_diam[sp] && (dg = regent_diam[sp] - d)
                     end
                 end
-                dg = dg_bound(nothing, nothing, sp, d, dg, sizcap)
+                dg = dg_bound(nothing, nothing, sp, (direct >= 0f0 ? direct : d), dg, sizcap)
                 if fint != LS_REGENT_YR && dg > 0f0
                     bk = bark_ratio(c.bark_a, c.bark_b, sp, d); dib = d * bk
                     dds_e = dg * (2f0 * dib + dg) * (fint / LS_REGENT_YR)
@@ -109,10 +112,16 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
+                    if direct >= 0f0
+                        t.dbh[i] = direct
+                        trip && (stash.dbh0[i] = d)      # the copies' DBH(K) stays the pre-REGENT D (dgdriv.f set it)
+                    end
                 elseif l == 1
                     stash.dgU[i] = dg; stash.htgU[i] = htg; stash.is_small[i] = true
+                    direct >= 0f0 && (stash.dbhU[i] = direct)
                 else
                     stash.dgL[i] = dg; stash.htgL[i] = htg
+                    direct >= 0f0 && (stash.dbhL[i] = direct)
                 end
             end
         end

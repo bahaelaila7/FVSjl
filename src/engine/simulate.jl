@@ -70,18 +70,22 @@ function setup_growth!(s::StandState)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa Northeast
         ne_dgcons!(s)                     # bark copy (BKRAT); DGCON/ATTEN = 0
-        calibrate_diameter_growth!(s; scale = dgscale)
         # D39: NE DG uses BAL not crown, so the inventory crown was never dubbed ⇒ the cycle-0 FVS_TreeList
-        # reported PctCr=0 (live's NE CRATET dubs it). Dub it here (backdated-CCF CRATET, shared init_crown_ratios!)
-        # for the report; NE .sum is bit-exact with crown=0, so this must NOT regress it (verified).
+        # reported PctCr=0 (live's NE CRATET dubs it). CRATET (crown dub + its backdated dead-inclusive DENSE) runs
+        # BEFORE the DGDRIV calibration, which rewrites the measured DG the backdating reads — so dub first, as CS/LS do
+        # (MEASURED live FVSne 259381087489998: dubbed after calibration every dead VP crown was 1 point high).
         init_crown_ratios!(s)
+        eastern_cratet_dead_pct!(s)       # cycle-0 dead records' PCT from CRATET's dead-inclusive DENSE (ne/cratet.f, as SN)
+        calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralStates
         cs_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT)
         _cs_init_crowns!(s)               # CRATET: dub missing crowns (backdated-dbh BA) before calibrate — cs/dgf.f reads CR
+        eastern_cratet_dead_pct!(s)       # cycle-0 dead records' PCT from CRATET's dead-inclusive DENSE (cs/cratet.f, as SN)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa LakeStates
         ls_dgcons!(s)                     # DGCON=0, ATTEN=OBSERV, bark copy (BKRAT) — same as CS
         _ls_init_crowns!(s)               # CRATET: dub missing crowns (ls/dgf.f reads CR); no-op when inventory crowns present
+        eastern_cratet_dead_pct!(s)       # cycle-0 dead records' PCT from CRATET's dead-inclusive DENSE (ls/cratet.f, as SN)
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa CentralRockies
         cr_dgcons!(s)                     # DGCON=0, ATTEN, bark inert; enables c.sigma=SIGMAR for DG serial-corr

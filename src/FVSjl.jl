@@ -463,6 +463,7 @@ include("engine/econ_calc.jl")           # C8 — faithful per-cycle ECSTATUS/EC
 include("engine/mistletoe_report.jl")   # dwarf-mistletoe infection/mortality summary (misprt.f) → FVS_DM_* DBS tables
 include("io/summary.jl")
 include("io/errgro.jl")                # ERRGRO messages + FVS_Error (errgro.f/dbserror.f)
+include("variants/lakestates/habtyp_errors.jl")   # ls/habtyp.f ERRGRO branches (LSNPC + PVREF9) — FVS14 default-habitat warning
 include("io/dbs_output.jl")
 include("engine/simulate.jl")
 include("engine/svs.jl")                 # SVS (Stand Visualization System) data path — chunk 0
