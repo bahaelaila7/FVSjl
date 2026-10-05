@@ -349,4 +349,9 @@ end
         @test _cells(c) == 0
     end
 end
+# nc/regent.f:187/:387 CR=ICR(I)/10.0 is a Float32 DIVISION (×0.1 is 1 ULP off for some ICR, e.g. 77).
+@testset "NC REGENT CR=ICR/10.0 division (nc/regent.f:187,387) vs FVSnc_g16" begin
+    c = _case("NC", "30192555010497", "none")
+    @test _cells(c) == 0
+end
 end # module
