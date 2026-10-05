@@ -23361,23 +23361,12 @@ issue = """BC first tiered measurement (west-kcwa-2, 2026-10-05, live /workspace
 variant = "ON"
 regime = "none"
 file = "FVS_TreeList_East_Metric"
-col = "BAPctile"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 2165
-issue = """tiered-east 2026-10-05 measured: ON growth drift on the dense metric-converted LS stands (245908831010661 .sum diverges at cycle 1, TPA 13909 live vs 14035) — small-tree REGENT / mortality path, not dug; FVS_StrClass(_Metric) follows | 2165 cells over 3 stand(s), e.g. 245908831010661 year 2059: live=95.02883911132812 jl=95.1852798461914"""
-
-[[residual]]
-variant = "ON"
-regime = "none"
-file = "FVS_TreeList_East_Metric"
 col = "TCuM"
 stand = "*"
 year = "*"
 status = "OPEN"
-max_cells = 1093
-issue = """tiered-east 2026-10-05 measured: ON growth drift on the dense metric-converted LS stands (245908831010661 .sum diverges at cycle 1, TPA 13909 live vs 14035) — small-tree REGENT / mortality path, not dug; FVS_StrClass(_Metric) follows | 1093 cells over 5 stand(s), e.g. 245908831010661 year 2059: live=0.8913305401802063 jl=0.8671678900718689"""
+max_cells = 2
+issue = """measured 2026-10-05 (/workspace/.postswap/ocopon/r5/on.tsv): ON 21047926010661 TA (sp 10, ZAK) FVS_TreeList_East_Metric TCuM 1987/1997 = 1 Float32 ULP (CFV 1.5166963 jl vs 1.5166965 live ft3, x FT3toM3=0.028317); DBH/Ht/CrWidth/MCuM bit-identical. jl on_zakvol reads term-for-term like canada/on/volont.f ENTRY ZAKVOL; not proven to a primitive (the only ON dump oracle FVSon_voldump SIGSEGVs on the DB path), so OPEN, not a corner | 2 cells over 1 stand(s)"""
 
 [[residual]]
 variant = "OC"
