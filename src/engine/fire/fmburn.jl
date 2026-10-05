@@ -359,7 +359,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     @inbounds for sp in sort!(collect(keys(sp_tot)))
         kil = get(sp_kil, sp, zeros(Float32, 7))
         push!(species_mort, (; fvs = strip(coef.code_alpha[sp]), plants = strip(coef.code_plants[sp]),
-              fia = lpad(strip(coef.code_fia[sp]), 3, '0'), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
+              fia = (local _f = strip(coef.code_fia[sp]); isempty(_f) ? "" : lpad(_f, 3, '0')), clskil = Tuple(kil), totcls = Tuple(sp_tot[sp]),
               bakill = get(sp_bak, sp, 0f0), volkill = get(sp_vol, sp, 0f0)))
     end
     # capture the burn-event record for the FVS_BurnReport / Mortality / Consumption DBS tables
@@ -454,7 +454,7 @@ fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
 # fallback counted CS/LS hardwoods (oaks, hickories, maples, aspen…) as canopy fuel — MEASURED CS 1813567613290487
 # (oaks): live Canopy_Density 0 / Canopy_Ht −1 vs jl 0.0132 / 54.
 fm_canopy_lsw(sp::Integer, ::CentralStates) = sp <= 7
-fm_canopy_lsw(sp::Integer, ::LakeStates) = sp <= 14
+fm_canopy_lsw(sp::Integer, ::Union{LakeStates,Ontario}) = sp <= 14   # ON links fire/ls/fmvinit.f:789-793 (none of 69-72)
 # CR (cr/fmvinit.f:190-425): softwoods = 1:19 + 29:37; HARDWOODS (LSW=FALSE) = aspen/cottonwood/birch
 # 20:22,28,38 + oaks 23:27. Without a CR method the AbstractVariant `sp<=25` fallback wrongly counted aspen
 # (sp20-22)/oak (23-25) crowns into the canopy profile → crown base height floored to ~2 ft → SPURIOUS crown

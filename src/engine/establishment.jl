@@ -526,7 +526,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # which moves the stream the NEXT NTALLY=1 draws its ESDRAW from. MEASURED FVStt_g16 (ESTAB 1992 + ESTAB 2012
     # PLANTs): live ESTAB 2012 runs NTALLY=1 with ESDRAW 73599; jl kept counting (NTALLY=3, the 1992 seed) ⇒ every
     # 2012 seedling height off.
-    strp = s.variant isa Teton || s.variant isa Utah
+    strp = s.variant isa Teton || s.variant isa Utah || s.variant isa Ontario   # ON: metric/strp/estab.f == strp/estab.f
     strp_nt = (strp && s.estab.cyc_ntally_year == yr) ? Int(s.estab.cyc_ntally) : -1
     if isempty(due)
         if strp_nt > 0
@@ -550,7 +550,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
           s.variant isa Klamath || s.variant isa Olympic || s.variant isa WestCascades ||
           s.variant isa PacificNorthwest || s.variant isa Kootenai || s.variant isa SouthCentralOregon ||
           s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa OregonCoast ||
-          s.variant isa BritishColumbia) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
+          s.variant isa BritishColumbia || s.variant isa Ontario) ? nothing :   # western variants use a fixed/XMIN base, not the SN ht-curve
          (sd[:ht_curve_b1], sd[:ht_curve_b2], sd[:ht_curve_b3], sd[:ht_curve_b4], sd[:ht_curve_b5])
     montane = !isempty(s.plot.eco_unit) && s.plot.eco_unit[1] == 'M'
     ifor = Int(s.plot.forest_idx)
@@ -568,7 +568,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
     # heights HIGH (esp. the smallest, whose small-RAN draws live accepts) — the BARE-PLANT over-sizing.
     ran_lo, ran_hi = (s.variant isa Southern || s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Utah || s.variant isa EastCascades || s.variant isa Olympic || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa BlueMountains ||
                       s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
-                      s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC/NC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
+                      s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath ||
+                      s.variant isa Ontario) ? (0f0, 1.5f0) : (-2.5f0, 2.5f0)   # CR/IE/TT/UT/EC/OP/WC/PN/BM/SO/WS/CA/OC/NC = SN window (strp/estab.f:486 RAN∈[0,1.5]; BC canada/bc/estab.f:466)
     # gentim/delay/trage timing (esnutr/estab/essubh): age = FINT − delay − gentim + trage.
     # estab.f:448-449 — GENTIM = FINT−5 (clamped ≥0), depends ONLY on FINT, never IDSDAT/calendar
     # year. (Was `yr − idsdat`, a confirmed bandaid B5; masked today by the es_xmin height floor.)
@@ -837,8 +838,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                            _WS_ESSUBH_HHT[sp]
             elseif s.variant isa CentralCalifornia || s.variant isa OregonCoast
                 _CA_ESSUBH_HHT[sp]        # ca/essubh.f == oc/essubh.f: a fixed per-species base height (GO TO table)
-            elseif s.variant isa BritishColumbia
-                1f0                       # canada/bc essubh.f: HHT=1.0 for every species
+            elseif s.variant isa BritishColumbia || s.variant isa Ontario
+                1f0                       # canada/bc essubh.f and strp/essubh.f (ON): HHT=1.0 for every species
             else
                 htcalc_height(bc, sp, si, age, montane)
             end
@@ -889,7 +890,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 hht < es_xmin[sp] && (hht = es_xmin[sp])           # default/natural floor XMIN (estab.f:1037)
             end
             hht > es_hhtmax[sp] && (hht = es_hhtmax[sp])
-            if s.variant isa Teton || s.variant isa Utah               # strp estab.f:508-512 GENTIM reset (chain)
+            if s.variant isa Teton || s.variant isa Utah || s.variant isa Ontario   # strp estab.f:508-512 GENTIM reset (chain)
                 _pdg = Float32(clamp(delay, -3, per))
                 _gchain = (Float32(per) - _pdg) < 5f0 ? 0f0 : Float32(per) - _pdg - 5f0
             end
@@ -903,6 +904,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             if s.variant isa BlueMountains || s.variant isa Teton || s.variant isa Utah ||
                s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa CentralCalifornia ||
                s.variant isa OregonCoast || s.variant isa BritishColumbia || s.variant isa Klamath ||
+               s.variant isa Ontario ||      # ON: metric/strp/estab.f:620 DBH(ITRN)=0.1
                s.variant isa CentralIdaho ||  # CI: ci/estab.f the same DBH=0.1 (REGENT(LESTB) reads it in ci_esgent!)
                s.variant isa CentralStates || s.variant isa LakeStates || s.variant isa Northeast
                # {cs,ls,ne}/estab.f:630 DBH(ITRN)=0.1 too: REGENT(LESTB)'s BALMOD reads that D (CS trba=D², NE/LS class),
@@ -970,6 +972,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                                       s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
                                       s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same
                                       s.variant isa BritishColumbia || s.variant isa Klamath ||   # nc estab.f = strp's
+                                      s.variant isa Ontario ||      # metric/strp/estab.f:626-631
                                       s.variant isa CentralStates || s.variant isa LakeStates ||   # {cs,ls,ne}/estab.f:508-520 after
                                       s.variant isa Northeast       # {cs,ls,ne}/essubh.f DELAY→INT(+.5)≥−3, TRAGE=TIME−DELAY
                     _pd = Float32(clamp(delay, -3, per))
@@ -1017,7 +1020,8 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # TT/UT (strp estab.f:517,628): ABIRTH = AGEPL = FINT−DELAY+TRAGE with the essubh-rounded DELAY and the
                 # ORIGINAL TRAGE (:438) — read by REGENT(LESTB) as SITAGE for aspen/MM (tt/smhtgf.f:45, tt|ut/regent.f
                 # LESTB). esgent_add_gentim! adds the call's final GENTIM after ESGENT (estab.f:707).
-                if s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies   # cr/estab.f == tt's
+                if s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies ||  # cr/estab.f == tt's
+                   s.variant isa Ontario      # metric/strp/estab.f:622 ABIRTH=AGEPL, :707 +GENTIM
                     _pdi = Float32(clamp(delay, -3, per))
                     t.birth_age[n] = Float32(per) - _pdi + trage
                     s.estab.gentim_post = (Float32(per) - _pdi) < 5f0 ? 0f0 : Float32(per) - _pdi - 5f0
@@ -1152,6 +1156,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                          s.variant isa WestSierra || s.variant isa CentralCalifornia ||   # NC: regent.f DO 13, storage order
                          s.variant isa Klamath ||               # (so_/ws_/ca_/nc_esgent!)
                          s.variant isa CentralIdaho ||          # CI: ci/regent.f DO 13 (storage order) in _ci_regent!(lestb)
+                         s.variant isa Ontario ||               # ON: canada/on/regent.f LESTB crown in the species loop (on_esgent!)
                          s.variant isa BritishColumbia          # BC: canada/bc/regent.f DO 13 in bc_esgent!
         @inbounds for i in newidx
             _ie_own_esgent && continue
@@ -1322,7 +1327,7 @@ this cycle are deleted (esnutr.f:300-310). IDSDAT −9999 ⇒ IY(1)−20 (esnutr
 function estab_prep_esnutr!(s::StandState)
     sched = s.control.schedule
     # TT/UT also take the tally number from here (est.cyc_ntally) to drive the strp ESTAB RNG (establish!).
-    (s.variant isa Teton || s.variant isa Utah ||
+    (s.variant isa Teton || s.variant isa Utah || s.variant isa Ontario ||
      any(a -> a.icflag == Int32(491) || a.icflag == Int32(493), sched)) || return
     est = s.estab
     yr = Int32(current_cycle_year(s))

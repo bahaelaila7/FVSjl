@@ -40,7 +40,7 @@ const OP_FORMCL_BLM708 = Int[
 
 "blmvol.f BLMVOL total-cubic driver for OP (mirror of oc_tree_cuft, MTOPP=TOPD·BARK with TOPD=5.0)."
 function op_tree_cuft(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0)
-    dbh <= 0f0 && return 0f0
+    dbh < 1f0 && return 0f0     # volinit.f:168 DBHOB<1 (.AND. DRCOB<1) ⇒ ERRFLAG 3, no volume
     # MTOPP = TOPD·BARK with BARK = BRATIO at the START-of-cycle DBH (vols.f:150-151, `BARK=BRATIO(D)`
     # BEFORE `D=D+DG/BARK`). Pass the stashed `vol_bark` via `topbark`; fall back to the grown-DBH bark
     # (cyc0 / no stash, where pre-growth==current). The 0.001 pre-vs-grown bark difference flips a Scribner
@@ -53,7 +53,7 @@ end
 function op_tree_mvol(sp::Int, dbh::Float32, ht::Float32; topd::Float32 = 5.0f0, topbark::Float32 = -1f0,
                       ht_out = nothing)
     ht_out === nothing || (ht_out[] = 0f0)
-    dbh <= 0f0 && return (0f0, 0f0)
+    dbh < 1f0 && return (0f0, 0f0)   # volinit.f:168 DBHOB<1 ⇒ no volume
     mtopp = topd * (topbark > 0f0 ? topbark : op_bratio(sp, dbh))   # BRATIO(D_start) top bark (vols.f:150) — see op_tree_cuft
     _, v2, v4 = blm_vol(OP_VOLEQ[sp], mtopp, ht, dbh, op_formcl(sp); bfpflg = true, ht_out = ht_out)
     return (v4, v2)
@@ -80,6 +80,10 @@ function compute_volumes_op!(s::StandState)
         sp = Int(t.species[i])
         if 1 <= sp <= 39
             d = t.dbh[i]; h = t.height[i]
+            if d < 1f0          # volinit.f:168 DBHOB<1 (.AND. DRCOB<1) ⇒ ERRFLAG 3: NVEL returns no volume (BLM and R6 alike)
+                t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0
+                continue
+            end
             tkill = h >= 4.5f0 && t.trunc[i] > 0
             htap = tkill ? Float32(t.norm_ht[i]) / 100f0 : h   # vols.f:165 H=NORMHT(I)/100.0
             # Merch-top bark = BRATIO(D_start) (vols.f:150) — the stashed `vol_bark` (0 at cyc0 ⇒ grown-DBH bark).

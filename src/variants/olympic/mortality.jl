@@ -138,31 +138,32 @@ function _op_rip_mortality!(killed::AbstractVector{Float32}, s::StandState, n::I
         cr  = Float32(t.crown_pct[i]) * 0.01f0             # CR = ICR·0.01
         bal = (1f0 - t.crown_ratio[i] / 100f0) * ba        # BAL = (1−PCT/100)·BA
         ptbal = i <= length(d.point_bal) ? d.point_bal[i] : 0f0
-        cradj = cr <= 0.17f0 ? (1f0 - exp(-(25f0 * cr)^2f0)) : 1f0
+        # op/morts.f:366-476 REAL*4 EXP/ALOG/** are glibc expf/logf/powf (doctrine §4); D**2 is the integer power D·D.
+        cradj = cr <= 0.17f0 ? (1f0 - fexp(-fpow(25f0 * cr, 2f0))) : 1f0
         b0 = OP_BM0[ispc]; b1 = OP_BM1[ispc]; b2 = OP_BM2[ispc]
         b3 = OP_BM3[ispc]; b4 = OP_BM4[ispc]; b5 = OP_BM5[ispc]
         rip = 0f0
         imr = OP_MORTMAP[ispc]
         if imr == 1
-            rip = b0 + b1 * sqrt(dd) + b3 * cr^0.25f0 + b4 * (xsite1 + 4.5f0) + b5 * bal
-            rip = 1f0 / (1f0 + exp(-rip)); rip = (1f0 - rip)^0.2f0; rip = 1f0 - rip * cradj
+            rip = b0 + b1 * fpow(dd, 0.5f0) + b3 * fpow(cr, 0.25f0) + b4 * (xsite1 + 4.5f0) + b5 * bal
+            rip = 1f0 / (1f0 + fexp(-rip)); rip = fpow(1f0 - rip, 0.2f0); rip = 1f0 - rip * cradj
         elseif imr == 2
             rip = b0 + b1 * dd + b4 * (xsite1 + 4.5f0) + b5 * (bal / dd)
-            rip = 1f0 / (1f0 + exp(-rip)); rip = (1f0 - rip)^0.2f0; rip = 1f0 - rip * cradj
+            rip = 1f0 / (1f0 + fexp(-rip)); rip = fpow(1f0 - rip, 0.2f0); rip = 1f0 - rip * cradj
         elseif imr == 3
-            rip = b0 + b1 * dd + b2 * dd * dd + b3 * cr + b4 * (xsite2 + 4.5f0) + b5 * bal
-            rip = 1f0 / (1f0 + exp(-rip)); rip = (1f0 - rip)^0.2f0; rip = 1f0 - rip * cradj
+            rip = b0 + b1 * dd + b2 * (dd * dd) + b3 * cr + b4 * (xsite2 + 4.5f0) + b5 * bal
+            rip = 1f0 / (1f0 + fexp(-rip)); rip = fpow(1f0 - rip, 0.2f0); rip = 1f0 - rip * cradj
         elseif imr == 4
-            rip = b0 + b1 * dd + b2 * dd * dd + b3 * cr + b4 * (xsite1 + 4.5f0) + b5 * bal
-            rip = 1f0 / (1f0 + exp(-rip)); rip = (1f0 - rip)^0.2f0; rip = 1f0 - rip * cradj
+            rip = b0 + b1 * dd + b2 * (dd * dd) + b3 * cr + b4 * (xsite1 + 4.5f0) + b5 * bal
+            rip = 1f0 / (1f0 + fexp(-rip)); rip = fpow(1f0 - rip, 0.2f0); rip = 1f0 - rip * cradj
         elseif imr == 5
             relht = avh > 0f0 ? t.height[i] / avh : 0f0
             relht > 1.5f0 && (relht = 1.5f0)
-            rip = -6.6707f0 + 0.5105f0 * log(5f0 + ba) - 1.3183f0 * relht
-            rip = 1f0 / (1f0 + exp(rip)); rip = 1f0 - rip
+            rip = -6.6707f0 + 0.5105f0 * flog(5f0 + ba) - 1.3183f0 * relht
+            rip = 1f0 / (1f0 + fexp(rip)); rip = 1f0 - rip
         elseif imr == 6
             rip = 2.901447f0 + 0.578694f0 * dd - 0.001793f0 * ptbal
-            rip = 1f0 / (1f0 + exp(rip))
+            rip = 1f0 / (1f0 + fexp(rip))
         end
         # Gould–Harrington small-tree model OVERRIDES the case for D<3", sp≠17 (morts.f:431-448).
         if dd < 3f0 && ispc != 17
@@ -174,13 +175,13 @@ function _op_rip_mortality!(killed::AbstractVector{Float32}, s::StandState, n::I
             rip = ptbal * avalue / sqrt(dbha + 1f0)
             rip = OP_ALPHA[1] + OP_ALPHA[2] * rip
             rip = rip + OP_ALPHA[3] * relht
-            rip = 1f0 / (1f0 + exp(rip)); rip = 1f0 - rip
+            rip = 1f0 / (1f0 + fexp(rip)); rip = 1f0 - rip
         end
         # MORTMULT window X (morts.f:458; XMMULT/XMDIA1/XMDIA2 ⇒ active_mort_mult, 1 outside window).
         x = active_mort_mult(s.control, ispc, year, dd)
         # (Establishment "best-tree" 20-yr immunity, morts.f:464-469, is not modeled — no IESTAT.)
         rip < 0.001f0 && (rip = 0.001f0)                  # morts.f:475 minimum annual RIP
-        wki = pr * (1f0 - (1f0 - rip)^fint) * x
+        wki = pr * (1f0 - fpow(1f0 - rip, fint)) * x
         # SIZCAP up-cap (morts.f:480-488): G on the CURRENT DG and the stale-IS bark; inert at default 999.
         bark = op_bratio(is_stale, dd)
         g = (t.diam_growth[i] / bark) * fscale
@@ -198,8 +199,12 @@ end
 function mortality!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, book_snags::Bool = true)
     t, c = s.trees, s.calib
     n = t.n; n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ morts.f still reaches CLMORTS
-    killed = zeros(Float32, n)
-    if c.op_org_ran && length(c.op_mortexp) == n
+    # WK2 lives in s.scratch.mort_killed so grow_cycle!'s _morts_wk2 reports MORTS's WK2 itself as FVS_TreeList MortPA
+    # (dbstrls.f DP=WK2/GROSPC), not the PROB−(PROB−WK2) round trip (±1-20 ULP).
+    length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    # op/morts.f SMORMT=ΣMORTEXP: the ORGANON rates only when EXECUTE ran AND produced some kill, else the native RIP.
+    if c.op_org_ran && length(c.op_mortexp) == n && sum(view(c.op_mortexp, 1:n)) > 0f0
         # ORGANON MORTEXP for ALL records (op/morts.f:331-336): WKI = MORTEXP·(FINT/5), capped at PROB.
         fscale = fint / 5f0
         @inbounds for i in 1:n

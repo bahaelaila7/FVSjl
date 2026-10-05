@@ -18,7 +18,7 @@
 #      DGGR = DGSM·(1-XWT) + XWT·DG_large; floor 0.1, cap DGMX, DIAM budwidth floor, DGBND.
 #
 # Coefficients auto-extracted from the Fortran DATA into `_regent_data.jl` (onsthg.f OSPMAP+B00..B95,
-# blkdat.f HT1/HT2, htdbh.f IWYKCA/SNDBAL/SNALL, rgntsw.f DIAM). Transcendentals via glibc
+# blkdat.f HT1/HT2, htdbh.f IWYKCA/SNDBAL/SNALL, regent.f DIAM DATA). Transcendentals via glibc
 # logf/expf/powf (on_logf/on_expf/on_powf) for Float32 bit-exactness.
 #
 # VALIDATION (vs instrumented FVSon_g16 on the ont_sm small-tree stand, scratchpad/on/): **ONSTHG is
@@ -103,6 +103,55 @@ end
 end
 
 """
+    on_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
+canada/on/regent.f:419-563 (LSTART, cratet REGENT(.FALSE.,1) after DGDRIV): the small-tree HEIGHT calibration. Per
+species, over records with DBH<5 (current) and H=HT−HTG (IHTG<2) ≥0.01: EDH = max(0.1, HTCALC MODE 9 at the CURRENT
+height/DBH = ONSTHG·YRS(10), BAL=BA·(100−PCT)·0.01, BALMOD GMOD≡1)·RHCON(1); records with measured HTG≥0.001 add
+P·EDH and P·HTG·SCALE3 (REGYR/FINTH); ≥NCALHT(5) records ⇒ HCOR=ALOG(SNY/SNX) (0 outside [0.0821,12.1825]). BA/PCT are
+the cratet LBKDEN DENSE's (crown-init snapshot). RAW into htg_cor_init; the shared dgdriv attenuation turns it into the
+per-cycle HCOR (htg_cor_small) REGENT's CON reads.
+"""
+function on_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector, saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = ON_REG_REGYR / finth
+    ba = c.cratet_ba
+    pctv = length(c.cratet_pct) >= t.n ? c.cratet_pct : t.crown_ratio
+    @inbounds for sp in 1:min(MAXSP, size(isct, 1))
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        si = p.sp_site_index[sp]
+        n = 0; snp = 0f0; snx = 0f0; sny = 0f0
+        for k in i1:i2
+            i = ind1[k]
+            hb = s.control.growth_ihtg < 2 ? t.height[i] - t.ht_growth[i] : t.height[i]
+            (saved_dbh[i] >= 5f0 || hb < 0.01f0) && continue
+            h = t.height[i]
+            bal = ba * (100f0 - pctv[i]) * 0.01f0
+            htgr = _on_onsthg(sp, saved_dbh[i], h, si, bal) * 10f0
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            edh = htgr                                   # ·RHCON(1)
+            edh < 0.1f0 && (edh = 0.1f0)
+            t.ht_growth[i] < 0.001f0 && continue
+            pr = t.tpa[i]
+            term = t.ht_growth[i] * scale3
+            snp += pr; snx += edh * pr; sny += term * pr; n += 1
+        end
+        n < 5 && continue
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        hcor = flog(cornew)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (hcor = 0f0)
+        c.htg_cor_init[sp] = hcor
+    end
+    return s
+end
+
+"""
     small_tree_growth!(s, stash, ::Ontario; fint) — ON REGENT (canada/on/regent.f).
 
 Overrides DGF/HTGF for records with DBH < XMAX (4.72" = 12 cm) with the Penner small-tree height
@@ -137,7 +186,9 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
             if htmax - h <= 1f0
                 htgr_s = 0.1f0
             else
-                htgr_s = _on_onsthg(sp, d, h, si, bal) * 10f0 * scale   # ONSTHG·YRS·(con·HGADJ·xrhgro=1)
+                # regent.f:226 HTGR=HTGR*CON*SCALE*HGADJ*XRHGRO, CON=RHCON*EXP(HCOR) (:128; HCOR = the dgdriv-attenuated
+                # small-tree calibration, htg_cor_small); HGADJ=XRHGRO=1, BALMOD GMOD≡1 (canada/on/balmod.f)
+                htgr_s = ((_on_onsthg(sp, d, h, si, bal) * 10f0) * fexp(s.calib.htg_cor_small[sp])) * scale
                 htgr_s < 0.1f0 && (htgr_s = 0.1f0)
             end
             xwt = d <= ON_REG_XMIN ? 0f0 : (d - ON_REG_XMIN) / (ON_REG_XMAX - ON_REG_XMIN)
@@ -179,8 +230,10 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
                     end
                     dg < 0f0 && (dg = 0.1f0)             # regent.f:382
                     dg > dgmx && (dg = dgmx)             # regent.f:383
-                    (d + dg) < ON_REG_DIAM[sp] && (dg = ON_REG_DIAM[sp] - d)   # DIAM budwidth floor
-                    dg = _on_dgbnd(d, dg)               # DGBND
+                    # regent.f:386-388, inside the HK>4.5 ELSE: IF((DBH(K)+DG(K)).LT.DIAM(ISPC)) DG(K)=DIAM(ISPC)-DBH(K) (DBH(K)=D here).
+                    # DIAM = regent.f's own DATA DIAM (:613-620; == htdbh.f SNDBAL), NOT rgntsw.f's seedling-model DIAM.
+                    (d + dg) < ON_REG_SNDBAL[sp] && (dg = ON_REG_SNDBAL[sp] - d)
+                    dg = _on_dgbnd(d, dg)               # regent.f:395 DGBND(ISPC,DBH(K),DG(K))
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
@@ -198,5 +251,100 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
             end
         end
     end
+    return s
+end
+
+
+"""
+    on_esgent!(s, nstart; fint, ba_pre, pccf_pre)
+
+strp/esgent.f (the ON build) — SPESRT, REGENT(.TRUE.,ITRNIN) over this cycle's new records, then the WK4=HTIMLT tail.
+canada/on/regent.f LESTB (FNT=FINT−5, LSKIPH when FINT≤5; SCALE=FNT/REGYR): species-major new records, each first draws
+its crown CR=0.89722−0.0000461·PCCF(ITRE)+0.07985·RAN (RAN=BACHLO(0,1) in [−1,1], main stream, clamp .20-.90,
+ICR=INT(CR·100+.5)); then HTGR=0.1 when HTMAX−H≤1 else HTCALC MODE 9 = ONSTHG·YRS(10) at BAL=BA·(100−PCT)·0.01 (PCT=0 for a
+new record, BA the gradd.f:192 pre-regen DENSE's), ·CON·SCALE·HGADJ·XRHGRO, GMOD≡1, XWT=0, the ±10% RAN (DGSD≥1), HTG≥0.1,
+SIZCAP(4). HK≤4.5 ⇒ DG=0, DBH=D+0.001·HK; else DBH=HTDBH MODE 1 (LHTDRG .FALSE.), ≥DIAM (also when HK<4.5), +0.001·HK,
+DG=DBH, DGBND. esgent.f then scales HTG by WK4, caps HT at HHTMAX; estab.f:707 adds GENTIM to ABIRTH.
+"""
+function on_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, ba_pre::Float32 = 0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
+    p, t, c = s.plot, s.trees, s.calib
+    n = t.n
+    nstart >= n && return s
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
+    cur_year = current_cycle_year(s)
+    @inbounds for i in (nstart + 1):n; t.diam_growth[i] = 0f0; t.ht_growth[i] = 0f0; end   # estab.f:638-639
+    lskiph = fint <= 5f0
+    fnt = lskiph ? fint : fint - 5f0
+    scale = fnt / ON_REG_REGYR
+    random_on = s.control.dg_sd >= 1f0
+    sizcap = s.control.sp_size_cap
+    order = sort(collect((nstart + 1):n); by = i -> (Int(t.species[i]), i))   # SPESRT order of the new records
+    @inbounds for i in order
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        d >= ON_REG_XMAX && continue
+        pt = Int(t.plot_id[i]); pccf = (1 <= pt <= length(pccfv)) ? pccfv[pt] : 0f0
+        cr = 0.89722f0 - 0.0000461f0 * pccf
+        ran = 0f0
+        while true; ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break; end
+        cr = cr + 0.07985f0 * ran
+        cr > 0.90f0 && (cr = 0.90f0); cr < 0.20f0 && (cr = 0.20f0)
+        icr = trunc(Int32, (cr * 100f0) + 0.5f0)
+        t.crown_pct[i] = icr; t.crown_ratio[i] = 0f0          # PCT(ITRN)=0 (estab.f:640)
+        local htg::Float32
+        if lskiph
+            htg = 0f0
+        else
+            si = p.sp_site_index[sp]
+            local htgr::Float32
+            if _on_htcalc_htmax(sp, si) - h <= 1f0
+                htgr = 0.10f0
+            else
+                bal = ba_pre * (100f0 - 0f0) * 0.01f0
+                xrhgro = active_multiplier(s.control, :regh, sp, cur_year)
+                htgr = (((_on_onsthg(sp, d, h, si, bal) * 10f0) * fexp(c.htg_cor_small[sp])) * scale) * xrhgro
+            end
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            if random_on
+                rh = 0f0
+                while true; rh = bachlo(s.rng, 0f0, 1f0); (-1f0 <= rh <= 1f0) && break; end
+                htgr = htgr + rh * 0.1f0 * htgr
+            end
+            htg = htgr
+            htg < 0.1f0 && (htg = 0.1f0)
+            if (h + htg) > sizcap[sp, 4]
+                htg = sizcap[sp, 4] - h; htg < 0.1f0 && (htg = 0.1f0)
+            end
+        end
+        t.ht_growth[i] = htg
+        hk = h + htg
+        local dbh::Float32, dg::Float32
+        if hk <= 4.5f0
+            dg = 0f0; dbh = d + 0.001f0 * hk
+        else
+            dbh = _on_htdbh_dbh(sp, hk)
+            (dbh < ON_REG_SNDBAL[sp] || hk < 4.5f0) && (dbh = ON_REG_SNDBAL[sp])   # regent.f:342 (regent.f's own DIAM DATA)
+            dbh = dbh + 0.001f0 * hk
+            dg = dbh
+        end
+        dg = _on_dgbnd(dbh, dg)                                # DGBND(ISPC,DBH(K),DG(K))
+        t.dbh[i] = dbh; t.diam_growth[i] = dg
+    end
+    @inbounds for i in (nstart + 1):n                         # esgent.f:51-65
+        sp = Int(t.species[i])
+        htemp = t.height[i] + t.ht_growth[i]
+        t.ht_growth[i] = t.ht_growth[i] * t.htimlt[i]
+        t.height[i] = t.height[i] + t.ht_growth[i]
+        if t.htimlt[i] < 1f0
+            if t.height[i] < 4.5f0
+                t.dbh[i] = 0.1f0 + 0.001f0 * t.height[i]; t.diam_growth[i] = 0f0
+            else
+                t.dbh[i] = t.dbh[i] * (t.height[i] / htemp)
+                t.diam_growth[i] = t.dbh[i] * (t.height[i] / htemp)
+            end
+        end
+        t.height[i] > _ON_ES_HHTMAX[sp] && (t.height[i] = _ON_ES_HHTMAX[sp])
+    end
+    esgent_add_gentim!(s, nstart, fint)                       # estab.f:707 ABIRTH += GENTIM
     return s
 end

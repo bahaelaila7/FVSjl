@@ -112,35 +112,41 @@ end
 #  crown-biomass small-unmerch floor; the crown_biomass.jl OC branch calls it.)
 
 """
-    oc_regent_dbh(sp, d, h, htg, bark, dg_large_out, scale2) -> new_dbh
+    oc_regent_dg(sp, d, h, htg, bark, dg_in, scale2, iorg, sizcap) -> (dg, dbh_direct)
 
-regent.f small-tree DBH-from-height for a tree with DBH < DGMIN(sp). HK = H+HTG. If HK≤4.5 the tree stays
-sub-breast-height (DBH = D + 0.001·HK). Else DBH grows by DGSM: DK=diam(HK), DKK=diam(H) (=D if H≤4.5),
-DGSM=(DK−DKK)·BARK·XRDGRO → DDS=DGSM·(2·BARK·D+DGSM)·SCALE2 → DGSM=√((D·BARK)²+DDS)−D·BARK, then blended
-with the large-tree DG via XDWT (D<1.5 ⇒ pure small-tree). The final DBH increment is added DIRECTLY
-(update.f `DBH += DG`, measured: live 9987 DBH-INC = DGSM, NOT DGSM/bark). `dg_large_out` = the large-tree
-OUTSIDE-bark DBH increment (jl's dg/bark). `scale2` = YR/FINT (=1 for a 5-yr cycle: the √ is then an
-identity). Floored at DIAM(sp). DGSD=0 ⇒ deterministic (regent.f ZZRAN=0).
+oc/regent.f:276-370 — the small-tree DIAMETER step for a record with DBH < DGMIN(sp) (after its REGENT height HTG):
+HK=H+HTG. HK≤4.5 ⇒ DG=0 and DBH(K)=D+0.001·HK set directly (`dbh_direct`). Else DK=HTDBH(HK), DKK=HTDBH(H) (=D when
+H≤4.5) — LHTDRG is .FALSE. for every OC species (oc/grinit.f), so regent.f:306-310 always takes the HTDBH MODE=1
+inventory curve — DGSM=(DK−DKK)·BARK·XRDGRO (≥0), DDS=DGSM·(2·BARK·D+DGSM)·SCALE2, DGSM=√((D·BARK)²+DDS)−BARK·D, and
+the INSIDE-bark DG = DGSM·(1−XDWT) + DG·XDWT where `dg_in` is the DGDRIV DG (XDWT = (D−1.5)/1.5 clamped, GS/RW on
+XMN..DGMIN, 1 for a valid ORGANON record). Floor DBH+DG ≥ DIAM(sp) (regent.f:358, DBH vs the inside DG as in the
+Fortran), then DGBND (SIZCAP). UPDATE then grows DBH by DG/BRATIO (update.f:115). DGSD=0 ⇒ no RNG.
 """
-@inline function oc_regent_dbh(sp::Int, d::Float32, h::Float32, htg::Float32,
-                               bark::Float32, dg_large_out::Float32, scale2::Float32)::Float32
+@inline function oc_regent_dg(sp::Int, d::Float32, h::Float32, htg::Float32, bark::Float32, dg_in::Float32,
+                              scale2::Float32, iorg::Bool, sizcap::AbstractMatrix)
     hk = h + htg
-    hk <= 4.5f0 && return d + 0.001f0*hk
+    hk <= 4.5f0 && return (0f0, d + 0.001f0*hk)
     dk  = oc_hd_diam(sp, hk)
     dkk = h <= 4.5f0 ? d : oc_hd_diam(sp, h)
+    xmn = OC_REG_XMIN[sp]
+    xdwt = if sp == 23 || sp == 50
+        d <= xmn ? 0f0 : (d - xmn)/(OC_REG_DGMIN[sp] - xmn)
+    else
+        d <= 1.5f0 ? 0f0 : (d >= 3.0f0 ? 1.0f0 : (d - 1.5f0)/1.5f0)
+    end
+    iorg && (xdwt = 1.0f0)
     dgsm = (dk - dkk)*bark                        # ·XRDGRO(1)
     dgsm < 0f0 && (dgsm = 0f0)
     dds = dgsm*(2.0f0*bark*d + dgsm)*scale2
-    dgsm = sqrt((d*bark)*(d*bark) + dds) - bark*d
+    dgsm = sqrt(fpow(d*bark, 2.0f0) + dds) - bark*d
     dgsm < 0f0 && (dgsm = 0f0)
-    xmn = OC_REG_XMIN[sp]
-    xdwt = (sp == 23 || sp == 50) ?
-           (d <= xmn ? 0f0 : clamp((d - xmn)/(OC_REG_DGMIN[sp] - xmn), 0f0, 1f0)) :
-           (d <= 1.5f0 ? 0f0 : (d >= 3.0f0 ? 1.0f0 : (d - 1.5f0)/1.5f0))
-    dg = dgsm*(1f0 - xdwt) + dg_large_out*xdwt     # final DBH increment (added directly)
-    newd = d + dg
-    newd < OC_REG_DIAM[sp] && (newd = OC_REG_DIAM[sp])
-    return newd
+    dg = dgsm*(1f0 - xdwt) + dg_in*xdwt
+    (d + dg) < OC_REG_DIAM[sp] && (dg = OC_REG_DIAM[sp] - d)
+    if (d + dg) > sizcap[sp, 1] && sizcap[sp, 3] < 1.5f0     # DGBND (oc/dgbnd.f)
+        dg = sizcap[sp, 1] - d
+        dg < 0.01f0 && (dg = 0.01f0)
+    end
+    return (dg, nothing)
 end
 
 """
@@ -171,4 +177,55 @@ estimate, blended in for 2 < D < XMAX via XWT. Returns the final HTG.
         htgr*(1f0 - xwt) + xwt*htg_large
     end
     return htg < 0.1f0 ? 0.1f0 : htg
+end
+
+
+"""
+    oc_regent_hcor_init!(s, isct, ind1, saved_dbh, avh)
+
+oc/regent.f:407-509 (LSTART, CALL REGENT(.FALSE.,1) at oc/cratet.f:912 after DGDRIV) — the small-tree HEIGHT
+calibration: per species with ≥ NCALHT(5) records of DBH<5 (current DBH), start-of-period height H=HT−HTG (IHTG<2)
+≥0.01 and measured HTG≥0.001, CORNEW = (ΣTERM·P/ΣP)/(ΣEDH·P/ΣP) with TERM=HTG·SCALE3 (SCALE3=REGYR/FINTH) and
+EDH = SMHTGF(D,H,CR=ICR/10,BA,BAL=(100−PCT)/100·BA,SI,RELHT=HT/AVH — the CURRENT height, taken before the IHTG
+back-dating and not capped)·RHCON(1); HCOR = ALOG(CORNEW), trapped to 0 outside [0.0821, 12.1825]. BA/PCT are the
+cratet LBKDEN DENSE's (the crown-init snapshot), AVH the AVHT40 top height. Stored RAW in htg_cor_init; the shared
+ORGANON dgdriv attenuation (_organon_cor_attenuate!) turns it into the per-cycle HCOR.
+"""
+function oc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                     # regent.f:414 IF(IFINTH.EQ.0) GOTO 95
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = 5f0 / finth                                         # REGYR=5
+    ba = c.cratet_ba
+    pctv = length(c.cratet_pct) >= t.n ? c.cratet_pct : t.crown_ratio
+    @inbounds for sp in 1:min(50, size(isct, 1))
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        si = p.sp_site_index[sp]
+        n = 0; snp = 0f0; snx = 0f0; sny = 0f0
+        for k in i1:i2
+            i = ind1[k]
+            d = saved_dbh[i]; h = t.height[i]
+            bal = ((100f0 - pctv[i]) / 100f0) * ba
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = h / avh
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            edh = oc_smhtgf(sp, d, h, cr, ba, bal, si, relht)    # ·RHCON(1)
+            t.ht_growth[i] < 0.001f0 && continue
+            pr = t.tpa[i]
+            term = t.ht_growth[i] * scale3
+            snp += pr; snx += edh * pr; sny += term * pr; n += 1
+        end
+        n < 5 && continue                                        # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        hcor = flog(cornew)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (hcor = 0f0)
+        c.htg_cor_init[sp] = hcor
+    end
+    return s
 end

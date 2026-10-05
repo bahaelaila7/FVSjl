@@ -18,6 +18,11 @@
 # into decay classes). The builds use three forms: bc/cs/em/ie/kt/sn `TBA += BA1·FMPROB`, BA1 = 3.14159·(DBH/24)·(DBH/24);
 # ak/bm/ca/ci/cr/ec/ls/nc/ne/oc/on/op/pn/tt/ut/wc/ws `FMTBA += FMPROB·DBH·DBH·0.0054542`; so `TBA += FMPROB·5.454153E-03·
 # DBH**2` (integer power = DBH·DBH). jl used the first form everywhere but AK (BM 12827438010497: 2005 initial fuel 1 ULP).
+# ON links the Lake States FFE (fire/ls fmcba/fmlsft/fmmois/fmsfall/fmvinit, canada/fire/on fmbrkt/fmcblk/fmcfmd/fmcrow =
+# the LS files + plantation species 69-72; FVSon_sourceList.txt). Where a shared fire/vbase|base routine tests VARACD
+# ('LS' alone — fmsvol.f:148, fmeff.f:560, fmsoilheat.f:223, metric fmpofl.f:157) ON takes the other branch, so
+# those sites keep `isa LakeStates`.
+_ls_ffe(v) = v isa LakeStates || v isa Ontario
 _fmcba_pi_form(v) = v isa Southern || v isa CentralStates || v isa InlandEmpire || v isa EasternMontana ||
                     v isa Kootenai || v isa BritishColumbia
 @inline function _fmcba_tba(v, p::Float32, d::Float32)::Float32
@@ -86,7 +91,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     elseif s.variant isa CentralStates
         # CS uses the flat FULIV table by FFE forest type (cs/fmcba.f:113); no SN FULIV2 override.
         fs.flive = ffe_live_fuel_loading(coef, ffe_forest_type(s))
-    elseif s.variant isa LakeStates
+    elseif _ls_ffe(s.variant)
         # LS uses the FULIV table indexed by (IFFEFT, ISZCL) — ls/fmcba.f:138; no SN FULIV2 override.
         fs.flive = ls_live_fuel_loading(s)
     elseif s.variant isa CentralRockies || s.variant isa InlandEmpire || s.variant isa Kootenai ||
@@ -137,7 +142,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     # FVS_TreeList reports (`tree_crwdth`); they fell to the generic crown_width like EM did.
     _citu_fm = s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah ||
                s.variant isa InlandEmpire || s.variant isa Kootenai ||
-               s.variant isa SoutheastAlaska   # ak/fmcba.f:195 CWIDTH=CRWDTH(I) (ak_cwcalc, the TreeList CrWidth)
+               s.variant isa SoutheastAlaska ||   # ak/fmcba.f:195 CWIDTH=CRWDTH(I) (ak_cwcalc, the TreeList CrWidth)
+               s.variant isa Ontario              # fire/ls/fmcba.f:193 CRWDTH(I) (metric/base/cwidth.f → canada/on/cwcalc.f)
     _ak_fm = s.variant isa SoutheastAlaska
     _west_cw = _cr_fm || _bm_fm || _nc_fm || _ws_fm || _ca_fm || _wc_fm || _pn_fm || _ec_fm || _so_fm || _oc_fm || _op_fm
     _cr_ba = _west_cw ? s.plot.basal_area : 0f0
@@ -267,7 +273,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                  s.variant isa BlueMountains ? Int32(_BM_COVINI[(1 <= s.plot.habitat_code <= 92) ? Int(s.plot.habitat_code) : 79]) :
                  s.variant isa Northeast     ? Int32(1)  :
                  s.variant isa CentralStates ? Int32(48) :
-                 s.variant isa LakeStates    ? Int32(3)  :
+                 _ls_ffe(s.variant)          ? Int32(3)  :
                  # NC bare stand: COVINI5(ITYPE)/COVINI6(ITYPE) by habitat (nc/fmcba.f:337-355); the full
                  # R5/R6 habitat→cover maps are a bare-stand-only path not exercised by nct01 (trees present) —
                  # the fmcba.f "no valid habitat" fallback is Douglas-fir (3), used here until those maps port.
@@ -353,7 +359,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     if load_dead && !fs.fuels_init
         deffuel = s.variant isa Northeast ? ne_dead_fuel_loading(s) :
                   s.variant isa CentralStates ? cs_dead_fuel_loading(coef, Int(s.plot.forest_type)) :
-                  s.variant isa LakeStates ? ls_dead_fuel_loading(s) :
+                  _ls_ffe(s.variant) ? ls_dead_fuel_loading(s) :
                   s.variant isa CentralRockies ? cr_dead_fuel_loading(Int(covtyp), fs.percov) :  # FUINIE/FUINII × PERCOV
                   (s.variant isa InlandEmpire || s.variant isa Kootenai) ? ie_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa BritishColumbia ? bc_dead_fuel_loading(Int(covtyp), fs.percov) :   # bc/fmcba.f:289-294

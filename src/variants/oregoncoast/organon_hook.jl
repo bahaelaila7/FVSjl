@@ -46,6 +46,9 @@ inspection. Deterministic (DGSD=0). Non-ORGANON records are left unchanged (see 
 function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 0,
                                fint::Float32 = 5f0, msdi2::Float32 = msdi, msdi3::Float32 = msdi)
     t = s.trees
+    # oc/dgdriv.f:494-513 COR/HCOR attenuation toward the LSTART calibration goal WCI (shared with OP). DGF below reads
+    # COR (CONSPP=DGCON+COR); REGENT reads HCOR. Inert (0) when no species calibrated.
+    _organon_cor_attenuate!(s, Float32(current_cycle_year(s) - Int(s.control.cycle_year[1])), fint)
     # oc/dgdriv.f: DGF runs for EVERY tree (WK2 = FVS-native ln DDS), on the ORIGINAL DBH, BEFORE any
     # growth is applied. Then the ORGANON EXECUTE overwrites WK2 for the valid ORGANON trees (IORG=1).
     oc_dgcons!(s)                                    # per-species DGCON (site constants)
@@ -57,13 +60,22 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     # ACALIB(1,1..18) from setup PREPARE (oc_organon_prepare!) — HTGRO2's minor-species height
     # calibration (organon/htgrowth.f:235-236). Inert (1.0) on FVS/FIA inventory unless a minor
     # ORGANON species had ≥2 measured-height trees; HTGRO1 (big-6) ignores it (htgrowth.f:56).
-    calib1 = Float32[s.calib.organon_acalib[1, g] for g in 1:18]
+    # execute2.f:231-252 CALIB = the cycle-decayed ACALIB (CALH/CALD on): row 1 → HTGRO2, row 3 → DIAMGRO_RUN.
+    cal = organon_calib_schedule(s.calib.organon_acalib, cyclg)
+    calib1 = Float32[cal[1, g] for g in 1:18]
+    calib3 = Float32[cal[3, g] for g in 1:18]
     # ORGANON growth (only when a big-6 tree exists); else the whole stand is FVS-native.
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
-                       msdi_1=msdi, msdi_2=msdi2, msdi_3=msdi3, cyclg=cyclg, calib1=calib1) : nothing
+                       msdi_1=msdi, msdi_2=msdi2, msdi_3=msdi3, cyclg=cyclg, calib1=calib1, calib3=calib3,
+                       stor=s.calib.organon_stor) : nothing
     fscale = fint/5f0
     # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
     cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
+    _misdg = _dm_effects_on(s)                       # oc/dgdriv.f:562 MISDGF (misintoc.f DGPDMR)
+    _, _mdgp, _, _mmaxsp = _mis_tables(s.variant)
+    sizcap = s.control.sp_size_cap
+    dbh0 = s.calib.oc_dbh0; resize!(dbh0, t.n)
+    @inbounds for i in 1:t.n; dbh0[i] = t.dbh[i]; end
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue
         sp = isp_fvs[i]
@@ -71,56 +83,65 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
         # DIAMETER: DDS from ORGANON (IORG=1) or the FVS-native DGF (IORG=0); both → DG via the shared
         # sqrt path, DBH grows outside-bark by DG/BARK (oc/dgdriv.f:536-557, update.f).
         dds = (iorg && g !== nothing) ? g.dds[i] : wk2[i]
-        dg = oc_organon_dg(sp, d0, dds, cw === nothing ? 1f0 : cw[i])
+        # oc/dgdriv.f:536-570: DDS=EXP(WK2+XDGROW)·WK4 (XDGROW=ALOG(XDMULT), the BAIMULT keyword), DG, ×MISDGF (dwarf
+        # mistletoe, START-of-cycle DMR), then DGBND (oc/dgbnd.f: the SIZCAP cap only, no DGMAX envelope).
+        xdgrow = flog(active_multiplier(s.control, :bai, sp, current_cycle_year(s)))
+        dg = oc_organon_dg(sp, d0, dds + xdgrow, cw === nothing ? 1f0 : cw[i])
+        _misdg && (dg *= ie_dm_dg_mult(_mdgp, _mmaxsp, sp, Int(t.dmr[i])))
+        if (d0 + dg) > sizcap[sp, 1] && sizcap[sp, 3] < 1.5f0
+            dg = sizcap[sp, 1] - d0
+            dg < 0.01f0 && (dg = 0.01f0)
+        end
         bark = oc_bratio(sp, d0)
+        dbh_direct = nothing
         t.vol_bark[i] = bark             # BRATIO(D_start) for CFTOPK/BFTOPK (vols.f:150); the shared
                                          # apply-loop skips OC so this pre-growth value survives.
-        t.diam_growth[i] = dg
-        t.dbh[i] = d0 + dg/bark
-        # HEIGHT + CROWN: ORGANON HGRO/CR2 for IORG=1; FVS-native HTGF for IORG=0 (oc/htgf.f).
+        # HEIGHT (oc/htgf.f): ORGANON HGRO for IORG=1 (htgf.f:93-100 SCALE·XHT·HGRO·EXP(HTCON)); FVS-native HTGF
+        # otherwise; then ×MISHGF for every record (htgf.f:266). CROWN: ANINT(CR2·100) for IORG=1 (oc/crown.f:282).
+        mhg = mis_hg_mult(s, i)
+        h_old = t.height[i]
         if iorg && g !== nothing
-            t.ht_growth[i] = g.hgro[i]
-            t.height[i] += g.hgro[i]
-            t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))   # ANINT (oc/crown.f:282)
+            htg = g.hgro[i] * mhg
+            t.crown_pct[i] = Int32(round(g.cr2[i]*100f0, RoundNearestTiesAway))
         else
             pt = Int(t.plot_id[i])
             pccf = (1 <= pt <= length(s.density.point_ccf)) ? s.density.point_ccf[pt] : 0f0
             si = s.plot.sp_site_index[sp]
-            h_old = t.height[i]
-            htg_large = oc_htgf_native(sp, h_old, t.crown_pct[i], s.plot.avg_height, pccf, si)
-            # REGENT: trees with DBH < XMAX(sp) use the small-tree height-age model (SMHTGF), not the
-            # large-tree HTGF (which drops RELHT suppression when PCCF<100). DGSD=0 ⇒ deterministic.
-            # HCOR (small-tree height calibration) is 0 here; the ratio-estimator calibration is a
-            # follow-on (only affects species with ≥5 measured-height small trees). See small_tree_growth.jl.
-            is_regen = 1 <= sp <= 50 && d0 < OC_REG_XMAX[sp]
-            htg = is_regen ?
-                  oc_regent_htg(sp, d0, h_old, t.crown_pct[i], t.crown_ratio[i],
-                                s.plot.basal_area, s.plot.avg_height, si, 0f0, htg_large) :
-                  htg_large
-            t.ht_growth[i] = htg
-            t.height[i] += htg
-            # REGENT DBH-from-height: trees with DBH < DGMIN(sp) derive DBH growth from the H-D function
-            # (regent.f:305; DGMIN≤D<XMAX keeps the large-tree DBH). DBH += DGSM directly (measured live
-            # 9987 DBH-INC = DGSM); DK/DKK from HTDBH (Curtis/Arney, LHTDRG=.FALSE. default). Large-tree
-            # part of the XWT blend = dg/bark. SCALE2 = YR(5)/FINT (=1 for a 5-yr cycle).
-            if is_regen && d0 < OC_REG_DGMIN[sp]
-                newd = oc_regent_dbh(sp, d0, h_old, htg, bark, dg/bark, 5f0/fint)
-                t.diam_growth[i] = newd - d0
-                t.dbh[i] = newd
+            htg = oc_htgf_native(sp, h_old, t.crown_pct[i], s.plot.avg_height, pccf, si) * mhg
+        end
+        # REGENT (oc/regent.f:157-370) for EVERY record with D < XMAX(sp), valid ORGANON trees included: the small-tree
+        # height (SMHTGF·CON, blended by XWT; XWT=1 for IORG=1 so the ORGANON HTG stands), the 0.1-ft floor and SIZCAP(4);
+        # then, for D < DGMIN(sp), the HTDBH-curve diameter step (oc_regent_dg).
+        if 1 <= sp <= 50 && d0 < OC_REG_XMAX[sp]
+            if !(iorg && g !== nothing)
+                si = s.plot.sp_site_index[sp]
+                htg = oc_regent_htg(sp, d0, h_old, t.crown_pct[i], t.crown_ratio[i],
+                                    s.plot.basal_area, s.plot.avg_height, si, s.calib.htg_cor_small[sp], htg)
+            end
+            htg < 0.1f0 && (htg = 0.1f0)
+            if (h_old + htg) > sizcap[sp, 4]
+                htg = sizcap[sp, 4] - h_old
+                htg < 0.1f0 && (htg = 0.1f0)
+            end
+            if d0 < OC_REG_DGMIN[sp]
+                dg, dbh_direct = oc_regent_dg(sp, d0, h_old, htg, bark, dg, 5f0/fint, iorg && g !== nothing, sizcap)
             end
         end
+        t.ht_growth[i] = htg
+        t.height[i] = h_old + htg
+        t.diam_growth[i] = dg
+        t.dbh[i] = dbh_direct === nothing ? d0 + dg/bark : dbh_direct     # update.f:115 DBH=DBH+DG/BRATIO
         # Broken/dead-top trees: grow the NORMAL (NORMHT) height by the same increment as the standing
         # height (update.f:65-67 `NORMHT=INT(REAL(NORMHT)+(HTG*100.+.5))`; op order matched exactly).
         t.norm_ht[i] > 0 &&
             (t.norm_ht[i] = trunc(Int32, Float32(t.norm_ht[i]) + (t.ht_growth[i]*100f0 + 0.5f0)))
-        # MORTALITY: ORGANON MORTEXP for every record it grew (oc/morts.f:498-504).
-        if g !== nothing
-            dead = g.deadexp[i]*fscale
-            dead > t.tpa[i] && (dead = t.tpa[i])
-            t.mort_pa[i] = dead
-            t.tpa[i] -= dead
-        end
     end
+    # MORTALITY: stash ORGANON's MORTEXP; oc/morts.f:498-504 WK2(I)=MORTEXP(I)*(FINT/5.) for EVERY record when ORGANON
+    # ran (SMORMT>0). mortality!(::OregonCoast) applies it in the MORTS slot (PROB is untouched until UPDATE in FVS).
+    c0 = s.calib
+    length(c0.op_mortexp) != t.n && resize!(c0.op_mortexp, t.n)
+    @inbounds for i in 1:t.n; c0.op_mortexp[i] = g !== nothing ? g.deadexp[i]*fscale : 0f0; end
+    c0.op_org_ran = g !== nothing
     # Stash IORG for the GRADD-CROWN pass (crown_ratio_update!(::OregonCoast)): the FVS-native rank-
     # Weibull crown-change model must run for the IORG=0 trees; the valid-ORGANON (IORG=1) crowns are
     # already set above from CR2. op_iorg is the shared ORGANON per-tree flag (also used by Olympic).
@@ -145,8 +166,9 @@ function diameter_growth!(s::StandState, ::OregonCoast; tripling::Bool = false,
     # inert on ocmin (RD≤RDCC base mortality) but faithful for dense stands; sp_sdi_def from site_setup! (sitset).
     # organon/execute2.f:138-140 MSDI_1/2/3 = RVARS(3/4/5), which oc/sitset.f:327-329 loads with SDIDEF(7) (DF),
     # SDIDEF(4) (WF/GF), SDIDEF(18) (PP) — each its own value (they differ when the ecoclass gives species SDImax).
-    sd = s.plot.sp_sdi_def
-    organon_apply_growth!(s; fint=sfint, msdi=sd[7], msdi2=sd[4], msdi3=sd[18])
+    sd = length(s.calib.organon_msdi) == 3 ? s.calib.organon_msdi : Float32[s.plot.sp_sdi_def[7], s.plot.sp_sdi_def[4], s.plot.sp_sdi_def[18]]
+    # oc/dgdriv.f:177 CYCLG = ICYC-1 = the 0-based jl cycle (EXECUTE's CALIB decay, DG/HG thin + fert clocks).
+    organon_apply_growth!(s; fint=sfint, msdi=sd[1], msdi2=sd[2], msdi3=sd[3], cyclg=Int(s.control.cycle))
     # DBH/HT/NORMHT already grown INLINE in organon_apply_growth!; the shared grow_cycle! apply-loop SKIPS OC
     # (simulate.jl) so it does NOT double-apply. We KEEP diam_growth/ht_growth (the applied increment) so the
     # FVS_TreeList DG/HtG columns are populated for OC (they were 0 on every projected cycle when zeroed here).
@@ -169,20 +191,53 @@ small_tree_growth!(s::StandState, stash, ::OregonCoast; kwargs...) = s
 # FFE is inactive or the SN biomass coeffs are absent, and guards on `dbh>0` so stale `mort_pa` on empty
 # records is skipped. `book_snags=false` on the fire cycle: the fire path owns snag booking there.
 function mortality!(s::StandState, ::OregonCoast; fint::Float32 = 5f0, book_snags::Bool = true, kwargs...)
-    t = s.trees; n = t.n
+    t = s.trees; n = t.n; c = s.calib
     n == 0 && return _clim_mort_empty!(s, fint)   # ITRN=0 ⇒ oc/morts.f still reaches CLMORTS
-    # Climate-FVS mortality (oc/morts.f:801 CALL CLMORTS, after the base kill WK2, before FIXMORT): CLMORTS
-    # MAX-combines each record's climate rate into WK2 against the PRE-mortality PROB. ORGANON already removed its
-    # MORTEXP kill (t.mort_pa) inline, so restore PROB, combine, and re-apply the (possibly larger) kill.
-    if s.climate !== nothing && s.climate.active
-        killed = Float32[t.mort_pa[i] for i in 1:n]
-        @inbounds for i in 1:n; t.tpa[i] += killed[i]; end
-        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
+    # oc/morts.f:463-466 SMORMT=ΣMORTEXP: the ORGANON rates are used only when EXECUTE ran AND produced some kill.
+    smormt = (c.op_org_ran && length(c.op_mortexp) == n) ? sum(view(c.op_mortexp, 1:n)) : 0f0
+    if !(smormt > 0f0)
+        # No big-6 tree ⇒ EXECUTE never ran (SMORMT=0): oc/morts.f takes the FVS-native SDI/background path, which is
+        # ca/morts.f line for line except FINT/5 (YR=5) for FINT/10 — so it runs the shared driver the CA variant
+        # uses (PMSC/PMD via IBGMAP, RI=0.5·RI, VARMRT == ca/varmrt.f, MISMRT/CLMORTS/FIXMORT/snags inside). MORTS
+        # reads the pre-UPDATE DBH; the OC DG driver grew DBH inline, so run it on the stashed start-of-cycle DBH.
+        d0 = c.oc_dbh0
+        dend = length(d0) == n ? Float32[t.dbh[i] for i in 1:n] : Float32[]
+        isempty(dend) || @inbounds(for i in 1:n; t.dbh[i] = d0[i]; end)
+        invoke(mortality!, Tuple{StandState,AbstractVariant}, s, s.variant; fint = fint, book_snags = book_snags)
+        isempty(dend) || @inbounds(for i in 1:n; t.dbh[i] = dend[i]; end)
+        @inbounds for i in 1:n; t.mort_pa[i] = s.scratch.mort_killed[i]; end
+        return s
+    end
+    length(s.scratch.mort_killed) < n && resize!(s.scratch.mort_killed, n)
+    killed = @view s.scratch.mort_killed[1:n]; fill!(killed, 0f0)
+    # oc/morts.f:493-504: ORGANON ran ⇒ WK2(I)=MORTEXP(I)·(FINT/5) for every record (the per-record ORGANON kill
+    # MORTEXP stashed by the DG driver, fscale already applied). [No-big-6 stands take the FVS-native SDI path, :506-546
+    # + VARMRT — not yet ported for OC.]
+    if smormt > 0f0
         @inbounds for i in 1:n
-            killed[i] > t.tpa[i] && (killed[i] = t.tpa[i])
-            t.tpa[i] = max(0f0, t.tpa[i] - killed[i]); t.mort_pa[i] = killed[i]
+            p = t.tpa[i]; p <= 0f0 && continue
+            wki = c.op_mortexp[i]
+            wki > p && (wki = p)
+            killed[i] = wki
         end
     end
-    book_snags && book_mortality_snags!(s, t.mort_pa, n, fint)
+    # Climate-FVS mortality (oc/morts.f:801 CALL CLMORTS, after the base kill WK2, before FIXMORT): CLMORTS
+    # MAX-combines each record's climate rate into WK2 against the PRE-mortality PROB.
+    (s.climate !== nothing && s.climate.active) &&
+        apply_climate_mort!(s, killed, Float32(current_cycle_year(s)) + fint / 2f0, fint)
+    # MISMRT (gradd.f:96 MISTOE → mistoe.f:522 → mismrt.f:185-191, misintoc.f APMC) MAX-combines the dwarf-mistletoe
+    # kill WK2=MAX(WK2,PROB·rate) on the pre-UPDATE DBH (the OC DG driver grew DBH inline; OC never triples, ICL4=0).
+    if _ie_mis_variant(s.variant) && _dm_effects_on(s) && any(i -> t.dmr[i] > 0, 1:n)
+        d0 = c.oc_dbh0
+        dg_end = (length(d0) == n) ? Float32[t.dbh[i] for i in 1:n] : Float32[]
+        isempty(dg_end) || @inbounds(for i in 1:n; t.dbh[i] = d0[i]; end)
+        ie_dm_mortality_combine!(killed, s, fint, n)
+        isempty(dg_end) || @inbounds(for i in 1:n; t.dbh[i] = dg_end[i]; end)
+    end
+    book_snags && book_mortality_snags!(s, killed, n, fint)
+    @inbounds for i in 1:n
+        t.mort_pa[i] = killed[i]
+        t.tpa[i] = max(0f0, t.tpa[i] - killed[i])
+    end
     return s
 end
