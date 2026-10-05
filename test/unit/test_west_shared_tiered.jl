@@ -354,4 +354,10 @@ end
     c = _case("NC", "30192555010497", "none")
     @test _cells(c) == 0
 end
+# tt/findag.f CASE(6,14) aspen/MM height-age and CASE(13,16) BI/MC site-curve ABIRTH dub (cratet.f:655-676) — the Climate-FVS
+# DMORT BIRTHYR (clmorts.f:170).
+@testset "TT CRATET FINDAG ABIRTH for AS/MM/BI/MC (tt/findag.f, clmorts.f) vs FVStt_g16" begin
+    c = _case("TT", "2750433010690", "climate")
+    @test _cells(c) == 0
+end
 end # module
