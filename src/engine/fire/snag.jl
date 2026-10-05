@@ -579,7 +579,9 @@ _snag_htr1(::EasternMontana) = 0.0228f0   # em/fmvinit.f HTR1
 # height LOHT and old height HIHT) goes to down wood, split across the size classes by the same cone taper as the
 # CWD1 fall, DIF = MAX(0,P(LOCUT)−P(HICUT))·TVOLI with R1 widened by LOHT (fmcwd.f:347). Not normalized (FVS adds
 # the raw cone slice). Enabled per variant as each is validated against live (EM first); the others still drop it.
-_ffe_cwd2(v) = _ffe_west_vol(v)   # base fmcwd.f/fmsnag.f — every western-layer variant whose snags lose height
+# LS/NE (default HTX 1.0, ls|ne/fmvinit.f) break their snags every year too — fmsnag.f:254 CALL CWD2 is in every build;
+# MEASURED live FVSls 103337570010661 2015 FMSNAG: hard CWD <0.25"/0.25-1" grew by the broken tops (jl dropped them).
+_ffe_cwd2(v) = _ffe_west_vol(v) || v isa LakeStates || v isa Northeast
 
 """
     ffe_snag_height_loss!(s, nyears) -> nothing

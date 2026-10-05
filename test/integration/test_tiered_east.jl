@@ -85,6 +85,12 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("NE", "17955726010661", "salvage")
         @test isempty(_cells(ms, "FVS_Carbon"; col = "Standing_Dead"))   # inventory snags DENIH 8.693 (was 11.172)
     end
+    @testset "LS 103337570010661 / NE 66746760010538 salvage — FMSCRO TFALL/TSOFT + CWD2 broken-top debris (fmsnag.f:254)" begin
+        ms = _case("LS", "103337570010661", "salvage")
+        @test isempty(ms)                                      # LS TFALL rows 3..6, FMSNGDK 0.65·DECAYX·D, CWD2 tops
+        ms = _case("NE", "66746760010538", "salvage")
+        @test isempty(ms)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
