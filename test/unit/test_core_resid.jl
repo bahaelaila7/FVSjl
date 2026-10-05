@@ -500,3 +500,8 @@ end
     @test _cr_case_mismatches("ie", "3285544010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
     @test _cr_case_mismatches("ie", "3356357010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
 end
+
+@testset "BM 22960873010497 salvage: FMCWD TOSOFT on logf, (1-DKR)**NYRS on powi (fmcwd.f:117)" begin
+    # Julia's log(1-DKR) vs glibc logf: CWD(1,4,1,2) after the first FMCWD 2.55130029 live vs 2.5513005 ⇒ Pot_Smoke / DDW ULPs.
+    @test _cr_case_mismatches("bm", "22960873010497", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+end
