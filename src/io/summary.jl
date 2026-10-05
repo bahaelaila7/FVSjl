@@ -168,7 +168,10 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     # ON: canada/on vols.f never loads MCFV/SCFV — its merch volume lives only in the WK1 scratch (the metric
     # FVS_TreeList MCuM binds WK1·FT3toM3, dbstrls.f:346), which the gradd.f/fvs.f PROB round trip does not touch;
     # jl's merch_cuft_vol carries that WK1. A PROB=0 record keeps CFV·0 = BFV·0 = 0 (the divide-back is PROB>0-only).
+    # BC likewise: canada/bc vols.f:167 loads only WK1(I)=VM (no MCFV), so the BC merch volume is not round-tripped
+    # (MEASURED FVSbc_dbfix YSM029-250 FVS_TreeList_Metric MCuM: jl 1 ULP off on 57 live rows from 2028).
     _on = s.variant isa Ontario
+    _wk1 = _on || s.variant isa BritishColumbia
     @inbounds for i in 1:t.n
         p = t.tpa[i]
         if !(p > 0f0)
@@ -176,7 +179,7 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
             continue
         end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
-        _on || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
+        _wk1 || (t.merch_cuft_vol[i] = rt(t.merch_cuft_vol[i], p))
         t.saw_cuft_vol[i] = rt(t.saw_cuft_vol[i], p)
         if bio
             t.abvgrd_bio[i] = rt(t.abvgrd_bio[i], p);   t.merch_bio[i] = rt(t.merch_bio[i], p)

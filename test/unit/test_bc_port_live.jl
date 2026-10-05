@@ -183,4 +183,11 @@ end
     @test !any(m -> m.year == "2018" && m.col == "PctCr", c.ms)
 end
 
+# canada/bc/vols.f:167 loads only WK1(I)=VM (no MCFV), so BC's merch volume skips the fvs.f/gradd.f PROB round trip (as
+# ON). MEASURED FVSbc_dbfix YSM029-250 FVS_TreeList_Metric MCuM: jl 1 ULP off on 57 live rows from 2028.
+@testset "BC merch volume is WK1, not PROB round-tripped (canada/bc/vols.f:167)" begin
+    c = _case("YSM029-250", "none")
+    @test !any(m -> m.col == "MCuM", c.ms)
+end
+
 end # module
