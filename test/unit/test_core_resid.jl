@@ -432,3 +432,15 @@ end
         end
     end
 end
+
+@testset "MORTMSB TPACLS: TPACLS=TPACLS+PROB(I)-WK2(I) accumulates left to right (sn/morts.f:647, em:832, on:751)" begin
+    # Live FVSsn mortmsb.key cycle 7 (instrumented morts.f): TPACLS 111.83524 / TEMEFF 0.93748903 with identical
+    # PROB/WK2/DG/DBH inputs; the jl form TPACLS+(PROB−WK2) gave 111.83521 / 0.93748927 ⇒ every MSBMRT kill moved
+    # ⇒ 2075 TCuFt 1172 vs live 1173 (test_mortmsb). The kernel on a 3-record list where the association matters:
+    t = FVSjl.TreeList(8); t.n = 3
+    t.dbh[1:3] .= (12f0, 10f0, 30f0); t.diam_growth[1:3] .= 0f0; t.tpa[1:3] .= (0.1f0, 3f0, 5f0)
+    killed = zeros(Float32, 8); killed[2] = 2.9f0
+    got = FVSjl._msb_tpacls(t, killed, 3, 8f0, 20f0, 1f0, i -> 1f0)   # record 3 (30") is outside [8,20)
+    @test got === (0.1f0 + 3f0) - 2.9f0
+    @test got !== 0.1f0 + (3f0 - 2.9f0)
+end
