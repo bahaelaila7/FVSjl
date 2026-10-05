@@ -455,3 +455,16 @@ end
     @test ht1 == 79.10056305f0
     @test v[15] == max(v[1] - v[4] - v[7], 0f0)   # r9clark.f:463 tip from the ROUNDED volumes
 end
+
+@testset "EM 231908428020004 simfire FVS_PotFire: FMCFMD PERCOV weight is ALGSLP's (1/20)·(PERCOV−30) (em/fmcfmd.f, algslp.f)" begin
+    # WT1(2)=ALGSLP(PERCOV,[30,50],[0,1]) = Y(1)+((Y(2)-Y(1))/(X(2)-X(1)))*(XX-X(1)). jl formed (PERCOV−30)/20 ⇒ the
+    # collinear model-2/8 EQWT 0.51203900/0.48796099 vs live 0.51203895/0.48796102 (instrumented fmdyn.f) ⇒ 2013
+    # BYRAM 15023.779 vs 15023.777 ⇒ Surf_Flame_Sev 5.7092805 vs live 5.70928 (and 2033/2043 Tot_Flame/Torch_Index).
+    db = _cr_run("em", "231908428020004", "simfire")
+    gold, jl = _cr_table("em", "231908428020004", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    @test length(jl) == length(gold)
+    for g in gold, c in ("Surf_Flame_Sev", "Surf_Flame_Mod", "Tot_Flame_Sev", "Tot_Flame_Mod", "Torch_Index", "PTorch_Sev")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
