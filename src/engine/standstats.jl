@@ -341,6 +341,10 @@ function point_density!(s::StandState)
             ccft = ws_ccft(Int(t.species[i]), t.dbh[i], t.height[i], t.tpa[i])  # ws/ccfcal.f MODE=1 (same gap as SO)
         elseif s.variant isa CentralRockies
             ccft = cr_tree_ccf(Int(t.species[i]), t.dbh[i], Int(p.model_type)) * t.tpa[i]   # cr/ccfcal.f CCFT·P
+        elseif s.variant isa BritishColumbia
+            # canada/bc/ccfcal.f (CCFT already ×P). Was the generic national crown-width path ⇒ PCCF ~400× low
+            # (MEASURED FVSbc_instr YSM029-250 plant_cyc REGENT(LESTB) PCCF 45.56 live / 0.12 jl).
+            ccft = bc_tree_ccf(Int(t.species[i]), t.dbh[i], t.tpa[i])
         else
             cw  = crown_width(s.coef, s.species.code2[t.species[i]], t.dbh[i], t.height[i], 90, 1,
                               p.latitude, p.longitude, p.elevation)
