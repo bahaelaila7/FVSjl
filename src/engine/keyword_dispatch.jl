@@ -872,6 +872,10 @@ function apply_setsite!(s::StandState)::Bool
     # (SN dgcons! recomputes DGCON from site_coef·site_index; NE/CS zero DGCON and read site in the DDS
     # term, so their hooks avoid the SN-only :dg_prior_obs_count coefficient that crashed CS SETSITE).
     if applied
+        # grincr.f:197 `CALL RCON` → MORCON (morts.f ENTRY MORCON, identical in SN/NE/LS/CS/ON): CEPMRT=SLPMRT=TPAMRT=0.
+        # The latched self-thinning line is re-solved on the next MORTS. Without it jl kept the pre-SETSITE line ⇒ cs_setsite
+        # cycle-2 mortality differed from live (per-record TPA stamp: HT/DBH/HTG bit-equal, PROB differs) and cascaded.
+        s.density.mort_slope = 0f0; s.density.mort_intercept = 0f0; s.density.tpa_mort = 0f0
         if s.variant isa Southern
             dgcons!(s)
         elseif s.variant isa Northeast
