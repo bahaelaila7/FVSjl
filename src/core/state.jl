@@ -833,12 +833,15 @@ mutable struct Scratch
     # callers never nest, so one shared buffer is value-safe; `sdi_baxsp` is SDICAL's per-species BAXSP.
     ind1_buf::Vector{Int32}
     sdi_baxsp::Vector{Float32}
+    # NE /TWIGCOM/ EBAU(50): the BAL-by-DBH-class array BADIST fills inside DGF (ne/dgf.f:109, its only caller) and
+    # that BALMOD reads until the next DGF — so the end-of-cycle REGENT(LESTB) sees THIS cycle's DGF basis.
+    ne_ebau::Vector{Float32}
 end
 Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros(Int32,mt), zeros(Int32,mt),
                     zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
                     zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,mt), zeros(Float32,MAXSP))
+                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,50))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.

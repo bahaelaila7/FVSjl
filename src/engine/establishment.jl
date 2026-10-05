@@ -1091,7 +1091,10 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
         local cb1_e, cb2_e, cb3_e, ba_e
         local lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e, rmsqd_e
         if ne_estab
-            ebau_e = ebau_pre                              # PRE-establishment BAL (snapshot above), not the cohort's
+            # ne/regent.f LESTB BALMOD reads /TWIGCOM/ EBAU, last filled by THIS cycle's DGF (ne/dgf.f:109 BADIST, cycle-
+            # start DBH) — not a post-growth recount. MEASURED (TREELIST A/B) NE 68474457010538 plant: WS HtG 5.605 live vs
+            # 4.894 with the post-growth BAL.
+            ebau_e = s.scratch.ne_ebau
             b3_e = sd[:dg_b3]; avh_e = ov_avh_pre                # post-growth overstory AVH (as CS/LS), not the stale plot.*
             # REGENT LESTB period: FNT = FINT−5 (regent.f:118-124; LSKIPH ⇒ no ht growth when FINT≤5).
             scale_e = per > 5 ? Float32(per - 5) / NE_REGENT_REGYR : 0f0   # CON=HGADJ=XRHGRO=1

@@ -101,6 +101,7 @@ function ne_dgf!(s::StandState)
     wk2 = view(s.scratch.wk, 2, :)
     ba = sd[:bark_intercept]; bb = sd[:bark_slope]
     ebau = zeros(Float32, 50); ne_badist!(ebau, s)
+    copyto!(s.scratch.ne_ebau, ebau)              # /TWIGCOM/ EBAU persists until the next DGF (read by REGENT(LESTB))
     @inbounds for i in 1:t.n
         d = t.dbh[i]; d <= 0f0 && continue
         sp = Int(t.species[i])
