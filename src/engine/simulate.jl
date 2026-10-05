@@ -1058,7 +1058,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
-    # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
+    # NEWSPRED keyword (NEWSI = NEWMOD, canada/newmist/mistoe.f:168); inert otherwise. lastyr = cycle length (yr).
     s.variant isa BritishColumbia && dm_tregro!(s, round(Int, fint))
     # WRD RDTREG seam ORDERING. FVS runs the ENTIRE root-disease chain (RDCNTL: RDINSD/RDSPRD/RDINF/RDMORT/
     # RDSTP, then RDEND, then RDGROW) in GRADD (gradd.f:131) AFTER GRINCR's TRIPLE (grincr.f:543). MORTS only

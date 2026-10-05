@@ -161,6 +161,9 @@ end
         # of disply.f's imperial integers (was a one-stage NINT(x·2.471)); the c0 oracle row above is unchanged.
         # 2026-10-04: 1087/1240 → 1092/1240 — ccfcal.f's PN-derived CCF for EP/AT/AC/OH (bc_tree_ccf returned 0 for them),
         # which feeds RELDEN/CCF in the crown and small-tree models.
-        @test tpa(cN) == 1092 && sdi(cN) == 1240
+        # 2026-10-05: 1092/1240 → 768/936 — DMMTRX→DMCW reads the stored CRWDTH (canada/newmist/dmcw.f:85; the national
+        # cwcalc.f BCMAP width), not canada/bc/r6crwd.f. Live (this key with the MISTOE block's missing END added — as
+        # written FVS stops FVS01 at PROCESS) gives 773/936; every cycle now within ±5 TPA / ±3 SDI of live.
+        @test tpa(cN) == 768 && sdi(cN) == 936
     end
 end

@@ -61,4 +61,16 @@ end
     @test !any(m -> m.col == "PtIndex", c.ms)
 end
 
+# canada/newmist/mistoe.f:168 NEWSI = NEWMOD .AND. MISFLG: the NISI spatial model (DMTREG/DMMDMR) runs only under NEWSPRED;
+# a MISTOE block alone (with MISTPINF) keeps the base mistoe.f spread/MISINF/MISMRT. jl ran DMTREG on ms.active (any MISTOE)
+# and the base spread, then published the DMTREG ratings over it. MEASURED FVSbc_dbfix mistletoe regime: the .sum and
+# FVS_Summary_Metric of YSM029-250/-266 exact (SkyRanch-Control 102 → 22 cells; BC mistletoe regime ~990 → ~260).
+@testset "BC DMTREG only under NEWSPRED (canada/newmist/mistoe.f:168 NEWSI)" begin
+    for cn in ("YSM029-250", "YSM029-266")
+        c = _case(cn, "mistletoe")
+        @test !c.crashed
+        @test isempty(_in(c.ms, ("sum", "FVS_Summary_Metric")))
+    end
+end
+
 end # module

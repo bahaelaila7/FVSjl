@@ -256,33 +256,15 @@ end
 # ⚠ NOTE: after TRIPLING the new records are copies of parents, so their DM pools should mirror the
 # parent's — that per-copy DMINF propagation is a DMNTRD-class refinement (deferred); new records here
 # start uninfected, so a tripled infected stand slightly under-counts DM until DMNTRD lands.
-# --- DMCW (dmmtrx.f:58 CALL DMCW → base dmcw.f = CRWDTH, filled by CWCALC → BC's r6crwd.f). The DM
-# frustum geometry (dm_shap!/dm_rdmx!) needs the tree crown WIDTH in feet, but jl's DATABASE/inline
-# readers leave t.crown_width=0 for BC (FVS fills CRWDTH via CWCALC each cycle). Without it dmrdmx
-# VOLUME≡0 ⇒ NO spread/intensification (the sparse-seed under-propagation). r6crwd.f: INDX=MAPBC[sp];
-# H>4.5 ⇒ BG1·D^BG2 else SM·H (D inches, H feet, CW feet). BC species 1..15 → INDX into 30-elt tables.
-const _DM_R6_MAPBC = Int[22,13,1,4,14, 11,19,24,5,23, 28,29,27,1,28]   # r6crwd.f DATA MAPBC (BC)
-const _DM_R6_BG1 = Float32[4.4215,3.9723,3.8166,4.1870,3.2348,3.1146,3.0614,4.0920,5.3864,3.5341,
-    6.2318,2.1039,2.9571,5.4864,2.9372,4.5859,2.1606,2.1451,2.4132,3.2367,3.0610,3.4447,2.8541,
-    3.6802,4.2857,7.5183,7.0806,5.8980,4.0910,2.4922]
-const _DM_R6_BG2 = Float32[0.5329,0.5177,0.5229,0.5341,0.5179,0.5780,0.6276,0.4912,0.4213,0.5374,
-    0.4259,0.6758,0.6081,0.5144,0.5878,0.4841,0.6897,0.7132,0.6403,0.6247,0.6201,0.5185,0.6400,
-    0.4940,0.5940,0.4461,0.4771,0.4841,0.5907,0.8544]
-const _DM_R6_SM = Float32[0.517,0.473,0.452,0.489,0.385,0.345,0.320,0.412,0.608,0.331,0.698,0.207,
-    0.316,0.533,0.253,0.468,0.255,0.248,0.298,0.406,0.385,0.476,0.407,0.451,0.466,0.815,0.730,
-    0.601,0.351,0.140]
-@inline function dm_crwdth_bc(sp::Int, d::Float32, h::Float32)
-    (sp < 1 || sp > 15) && return 0f0
-    indx = _DM_R6_MAPBC[sp]
-    (indx < 1 || indx > 30) && return 0f0
-    return h > 4.5f0 ? _DM_R6_BG1[indx] * d^_DM_R6_BG2[indx] : _DM_R6_SM[indx] * h
-end
-# Fill the DM crown width each cycle (DMMTRX→DMCW). FVS's CRWDTH is recomputed by CWCALC every cycle;
-# we write it into t.crown_width (0 for BC otherwise) so dm_shap!/dm_rdmx! see it.
+# DMMTRX→DMCW (canada/newmist/dmcw.f:85): DMTRCW(I) = CRWDTH(I) — the base crown width as metric/base/cwidth.f last stored
+# it (fvs.f:207 at load, gradd.f:254 at the end of the previous cycle; TRIPLE copies it to a record's copies). DMTREG runs
+# from GRADD's MISTOE (gradd.f:96), before this cycle's CWIDTH. BC's CRWDTH is the national cwcalc.f BCMAP width
+# (`bc_cwcalc` via `cwidth!`, BC in `_stored_crwdth`), NOT canada/bc/r6crwd.f (jl's former `dm_crwdth_bc`), so
+# t.crown_width already holds DMTRCW; a record CWIDTH never reached falls back to its current-dims CRWDTH.
 function dm_cw!(s::StandState)
     t = s.trees
     @inbounds for i in 1:t.n
-        t.crown_width[i] = dm_crwdth_bc(Int(t.species[i]), t.dbh[i], t.height[i])
+        t.crown_width[i] = stored_crwdth(s, i)
     end
     return s
 end
@@ -321,9 +303,14 @@ function _dm_ensure_capacity!(ms::MistletoeState, n::Int)
     return ms
 end
 
+# NEWSI (canada/newmist/mistoe.f:168): the NISI spatial model (DMTREG/DMMDMR) runs only when NEWMOD (the NEWSPRED keyword,
+# misin.f:599) AND MISFLG (cleared by MISTOFF, misin.f:480). A MISTOE block alone keeps the base mistoe.f spread
+# (`_base_mistoe_on`) — it never enters DMTREG.
+@inline _dm_newsi(ms)::Bool = ms.newmod
+
 function dm_ndmr!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     length(ms.dmr) == n || (ms.dmr = zeros(Int32, n))
     @inbounds for i in 1:n
@@ -705,7 +692,7 @@ const BC_MIS_PMC = reshape(Float32[
 # cycle it is born — MISPUTZ zeros its PBRKPT), exactly as the Fortran GOTO 100 divide-by-zero guard.
 function dm_ntrd!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     n == 0 && return s
     TINY = 1.0f-25
@@ -763,7 +750,7 @@ end
 # the parent's DMR to offspring (MISPUT), pools zeroed (MISPUTZ / DMKLDG=0), remapped next cycle.
 function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     n == 0 && return s
     species = t.species; prob = t.tpa            # PROB = trees/acre expansion factor
@@ -774,8 +761,7 @@ function dm_tregro!(s::StandState, lastyr::Int; slope::Float32 = 0f0)
     _dm_triple_carry!(ms, t, nold)              # tripling/regen offspring inherit parent's DMR (MISPUT)
 
     # --- SETUP (DMTREG:239-298) ---
-    dm_cw!(s)                                    # DMMTRX→DMCW: fill the crown WIDTH (r6crwd.f) — FVS's
-                                                 # CRWDTH; without it dmrdmx VOLUME≡0 ⇒ no spread
+    dm_cw!(s)                                    # DMMTRX→DMCW: DMTRCW = the stored CRWDTH (dmcw.f:85)
     dm_shap!(s)                                  # DMSHAP → ms.idmshp (crown shape; DMMTRX calls it first)
     dm_rdmx!(s)                                  # DMMTRX → ms.dmrdmx (crown frustum radius/volume)
     dm_fbrk!(s)                                  # DMFBRK → ms.brkpnt (crown-third breakpoints)
@@ -1149,7 +1135,7 @@ end
 # Still .sum-INERT — nothing consumes dmr until C6.
 function dm_init!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     ms.dmr = zeros(Int32, n)
     ms.dminf = zeros(Float32, n, DM_CRTHRD, DM_NPOOL)
@@ -1181,7 +1167,7 @@ end
 # recomputed each cycle before spread. Still engine-INERT (nothing consumes brkpnt until C4/C6).
 function dm_fbrk!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     size(ms.brkpnt, 1) == n || (ms.brkpnt = zeros(Float32, n, DM_BPCNT))
     y = 1f0 / (DM_FPM * DM_MESH)                 # feet → MESH
@@ -1202,7 +1188,7 @@ end
 # cycle. Engine-INERT (nothing consumes idmshp until DMRDMX/spread land).
 function dm_shap!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     length(ms.idmshp) == n || (ms.idmshp = zeros(Int32, n))
     tpa = max(s.plot.total_tpa, s.plot.old_tpa)     # PLOT: TPA = MAX(TPROB, OLDTPA)
@@ -1238,7 +1224,7 @@ const _DM_PIE    = 3.14159f0
 const _DM_HLFPIE = 1.57080f0
 function dm_rdmx!(s::StandState)
     ms = s.mistletoe
-    (ms === nothing || !(ms.active || ms.newmod)) && return s
+    (ms === nothing || !_dm_newsi(ms)) && return s
     t = s.trees; n = t.n
     (size(ms.dmrdmx, 1) == n && size(ms.idmshp, 1) == n) || (ms.dmrdmx = zeros(Float32, n, DM_MXHT, 2))
     fill!(ms.dmrdmx, 0f0)
