@@ -45,4 +45,21 @@ load_species_coefficients!(s::StandState, v::Ontario) = init_blockdata!(s, v)
 # ont01 (and every alpha/FIA/PLANTS-coded ON stand) DIRECT-matches the variant's own codes in
 # resolve_species BEFORE the SPCTRN crosswalk, so this column is unused for native-coded input.
 spctrn_column(::Ontario) = 7
-other_species(::Ontario) = Int32(58)   # DF (sp58, "other hardwood"/generic) — placeholder; ON SPCTRN follow-on
+other_species(::Ontario) = Int32(49)   # NC — canada/on/spctrn.f CASE DEFAULT ! non-commercial hardwood
+
+# canada/on/spctrn.f: ON does NOT use the shared 562-row ASPT crosswalk — a code that matched none of the variant's own
+# JSP/FIAJSP/PLNJSP lists (intree.f:240-263) goes to `SELECT CASE (SPCIN(:2))` over the ON alpha codes, and anything
+# else (e.g. FIA 356 serviceberry, not in FIAJSP) to CASE DEFAULT = 49 (NC). The shared crosswalk sent FIA 356 to ML.
+const _ON_SPCTRN = Dict{String,Int32}(
+    "PJ"=>1, "PS"=>2, "RN"=>3, "RP"=>4, "PW"=>5, "SW"=>6, "SN"=>7, "BF"=>8, "SB"=>9, "TA"=>10, "CE"=>11, "HE"=>12,
+    "SO"=>13, "CR"=>14, "AB"=>15, "AR"=>16, "CW"=>17, "MV"=>18, "MR"=>19, "CB"=>20, "EW"=>21, "ES"=>22, "ER"=>23,
+    "BY"=>24, "BD"=>25, "MH"=>26, "MB"=>27, "BE"=>28, "AW"=>29, "OW"=>30, "OP"=>31, "OB"=>32, "OC"=>33, "OR"=>34,
+    "BO"=>35, "PN"=>36, "HB"=>37, "HP"=>38, "HU"=>39, "PG"=>40, "PT"=>41, "PB"=>42, "BW"=>43, "CH"=>44, "BT"=>45,
+    "WB"=>46, "IW"=>47, "LB"=>48, "NC"=>49, "MM"=>50, "MS"=>51, "MT"=>52, "BB"=>53, "CA"=>54, "BH"=>55, "DF"=>56,
+    "HT"=>57, "ML"=>58, "GB"=>59, "SY"=>60, "CP"=>61, "CC"=>62, "PL"=>63, "WI"=>64, "SS"=>67, "AM"=>68, "JP"=>69,
+    "WP"=>70, "SP"=>71, "BP"=>72)
+function translate_species(code::AbstractString, ::Ontario, sp::SpeciesData, coef::SpeciesCoefficients)
+    c = rstrip(code)
+    fmt = (!isempty(c) && all(isdigit, c)) ? Int32(2) : Int32(1)
+    return (get(_ON_SPCTRN, first(c, 2), Int32(49)), fmt)
+end
