@@ -1503,6 +1503,11 @@ CREATE TABLE IF NOT EXISTS FVS_InvReference(
   CFSawMinDBH real, CFSawTopDia real, CFSawStump real, BFVolEq text, BFMinDBH real,
   BFTopDia real, BFStump real);
 """
+# The 2026 "LOCCODE upgrade" of vdbsqlite/dbsreference.f adds LocationCode int (= KODFOR) after StandID. Of the oracle
+# builds only ON's g16 rebuild compiles the upstream vdbsqlite/dbsreference.f (build_g16_on.sh); every other variant
+# links its buildDir's pre-upgrade copy (ORACLE_SOURCE_AUDIT §5 upstream drift), so the column is emitted for ON only.
+const _FVS_INVREF_CREATE_LOC = replace(_FVS_INVREF_CREATE, "StandID text not null," => "StandID text not null, LocationCode int,")
+_invref_loccode(v) = v isa Ontario
 
 """
     write_dbs_invref!(dbpath, caseid, standid, s)
@@ -1571,14 +1576,15 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_INVREF_CREATE)
-        ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", 21), ",") * ")"
+        loc = _invref_loccode(s.variant)
+        _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
+        ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for sp in 1:nsp
             # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
             # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
             _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, sp,
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (Int(p.user_forest_code),) : ())..., sp,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
                 String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)

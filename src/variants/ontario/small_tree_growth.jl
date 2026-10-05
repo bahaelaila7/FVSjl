@@ -172,7 +172,7 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
                         dgsm = (dkk - dk) * bark
                         dgsm < 0f0 && (dgsm = 0f0)
                         dds = dgsm * (2f0 * bark * d + dgsm) * scale2
-                        dgsm = sqrt((d * bark)^2 + dds) - bark * d
+                        dgsm = sqrt(fpow(d * bark, 2f0) + dds) - bark * d   # canada/on/regent.f:368 (D*BARK)**2.0 = powf (regent.o)
                         dgsm < 0f0 && (dgsm = 0f0)
                         dg = dgsm * (1f0 - xwt) + xwt * dg_large   # DGGR blend
                         dg < 0.1f0 && (dg = 0.1f0)
