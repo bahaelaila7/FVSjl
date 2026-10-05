@@ -18,6 +18,50 @@ include(joinpath(@__DIR__, "..", "fia", "extract_sample.jl"))
 #       JFOR table and their FIA stands are assigned VARIANT='IE'.
 const SAMPLE_SOURCE = Dict("KT" => ("IE", "AND s.LOCATION IN (110,113,114)"))
 
+# BC (British Columbia, metric) has no FIA population at all — FIA is US-only. Its stands come from FVS's own BC test
+# databases (tests/FVSbc: FVS-BC.YSM-SkyRanch.db = 15 young-stand-monitoring / SkyRanch spacing-trial stands, IDFdk4;
+# FVS-BC.Stand.Structure.Data.db = 2 Fd plantations, IDFxh), copied into FIA-named tables (FVS_STANDINIT_COND /
+# FVS_TREEINIT_COND; FVS reads the columns by name, the BC column set is the FIA one). The Stand.Structure trees carry
+# the stand id with a ".3200" suffix (its StandStructure.key selects them separately); they are re-keyed to their
+# stand so the one-SQL tiered keyfile reads them. Pool order: (Ecoregion, Stand_ID).
+const LOCAL_POOL = Dict("BC" => ["/workspace/ForestVegetationSimulator/tests/FVSbc/FVS-BC.YSM-SkyRanch.db",
+                                 "/workspace/ForestVegetationSimulator/tests/FVSbc/FVS-BC.Stand.Structure.Data.db"])
+
+function build_local_pool(srcs::Vector{String}, pdb::AbstractString)
+    isfile(pdb) && rm(pdb)
+    h = SQLite.DB(pdb)
+    for (k, src) in enumerate(srcs)
+        DBInterface.execute(h, "ATTACH DATABASE '$src' AS src")
+        if k == 1
+            DBInterface.execute(h, "CREATE TABLE FVS_STANDINIT_COND AS SELECT * FROM src.FVS_StandInit")
+            DBInterface.execute(h, "CREATE TABLE FVS_TREEINIT_COND AS SELECT * FROM src.FVS_TreeInit")
+        else
+            DBInterface.execute(h, "INSERT INTO FVS_STANDINIT_COND SELECT * FROM src.FVS_StandInit")
+            DBInterface.execute(h, "INSERT INTO FVS_TREEINIT_COND SELECT * FROM src.FVS_TreeInit")
+        end
+        DBInterface.execute(h, "DETACH DATABASE src")
+    end
+    for col in ("Stand_CN", "Stand_ID")
+        DBInterface.execute(h, """UPDATE FVS_TREEINIT_COND SET $col = (SELECT s.Stand_ID FROM FVS_STANDINIT_COND s
+            WHERE FVS_TREEINIT_COND.$col LIKE s.Stand_ID || '.%') WHERE $col NOT IN (SELECT Stand_ID FROM FVS_STANDINIT_COND)""")
+    end
+    ids = [string(r[1]) for r in DBInterface.execute(h,
+           "SELECT Stand_ID FROM FVS_STANDINIT_COND ORDER BY Ecoregion, Stand_ID")]
+    SQLite.close(h)
+    ids
+end
+
+function subset_local_db(pdb::AbstractString, cns::Vector{String}, out::AbstractString)
+    isfile(out) && rm(out)
+    h = SQLite.DB(out)
+    DBInterface.execute(h, "ATTACH DATABASE '$pdb' AS p")
+    lst = join(["'" * c * "'" for c in cns], ",")
+    DBInterface.execute(h, "CREATE TABLE FVS_STANDINIT_COND AS SELECT * FROM p.FVS_STANDINIT_COND WHERE Stand_CN IN ($lst)")
+    DBInterface.execute(h, "CREATE TABLE FVS_TREEINIT_COND AS SELECT * FROM p.FVS_TREEINIT_COND WHERE Stand_CN IN ($lst)")
+    DBInterface.execute(h, "DETACH DATABASE p")
+    SQLite.close(h)
+end
+
 # A regime whose extension the oracle build STUBS (ex*.f in FVS<v>_buildDir, e.g. exrd.f in CA/AK, exclim.f in AK)
 # makes FVS print "FVS11 ERROR:  REQUESTED EXTENSION IS NOT PART OF THIS PROGRAM" and ignore the block — the case
 # would test nothing. make_fixtures probes each regime on the first chosen stand and drops such regimes (recorded
@@ -62,10 +106,16 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     tmp = mktempdir()
     # candidate pool: 3K stratified stands; walk the K-sample first, substituting in stride order on failure
     src, wh = get(SAMPLE_SOURCE, uppercase(v), (uppercase(v), ""))
-    pool_path = joinpath(tmp, "pool.txt"); extract(src, 3K, pool_path; where_extra = wh)
-    pool = [split(strip(l), '\t')[1] for l in eachline(pool_path) if !isempty(strip(l))]
+    local_pool = haskey(LOCAL_POOL, uppercase(v))
+    pdb = joinpath(tmp, "pool.db")
+    if local_pool
+        pool = build_local_pool(LOCAL_POOL[uppercase(v)], pdb)
+    else
+        pool_path = joinpath(tmp, "pool.txt"); extract(src, 3K, pool_path; where_extra = wh)
+        pool = [split(strip(l), '\t')[1] for l in eachline(pool_path) if !isempty(strip(l))]
+        build_subdb(pool, pdb)
+    end
     order = vcat(pool[2:3:end], pool[1:3:end], pool[3:3:end])   # K evenly spread first, then the rest
-    pdb = joinpath(tmp, "pool.db"); build_subdb(pool, pdb)
     iy = invyears(pdb)
     chosen = String[]; excluded = String[]
     probe = mktempdir(); cp(pdb, joinpath(probe, "stands.db"))
@@ -73,14 +123,14 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         length(chosen) >= K && break
         write(joinpath(probe, "s.key"), tiered_keytext(cn, "none", get(iy, cn, 0) + 10))
         txt, crashed = run_oracle(bin, probe)
-        if isempty(sum_rows(txt)) || crashed
+        if isempty(sum_rows(txt; metric = metric_sum(v))) || crashed
             push!(excluded, cn); continue
         end
         push!(chosen, cn)
     end
     length(chosen) == K || @warn "$v: only $(length(chosen)) runnable stands (wanted $K)"
     # the committed sub-DB holds exactly the chosen stands
-    sdb = joinpath(fx, "stands.db"); build_subdb(chosen, sdb)
+    sdb = joinpath(fx, "stands.db"); local_pool ? subset_local_db(pdb, chosen, sdb) : build_subdb(chosen, sdb)
     let h = SQLite.DB(sdb); DBInterface.execute(h, "VACUUM"); SQLite.close(h); end
     run_dir = mktempdir(); cp(sdb, joinpath(run_dir, "stands.db"))
     open(joinpath(fx, "stands.txt"), "w") do io; foreach(c -> println(io, c), chosen); end
@@ -104,7 +154,7 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         write(joinpath(fx, stem * ".key"), key)
         write(joinpath(run_dir, "s.key"), key)
         txt, crashed = run_oracle(bin, run_dir)
-        rows = sum_rows(txt)
+        rows = sum_rows(txt; metric = metric_sum(v))
         if crashed || isempty(rows)
             nfail += 1
             write(joinpath(fx, stem * ".live.sum"), "# LIVE_NO_OUTPUT crashed=$crashed\n")
@@ -123,13 +173,15 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     here = normpath(joinpath(@__DIR__, "..", "..", ".."))
     fvs = "/workspace/ForestVegetationSimulator"
     bscript = "/workspace/." * lowercase(v) * "work/build_g16.sh"
+    privb = joinpath(dirname(bin), "build_dbfix.sh")        # BC: private relink of the stock objects (its own script)
+    isfile(privb) && (bscript = privb)
     open(joinpath(fx, "PROVENANCE.toml"), "w") do io
         println(io, "variant = \"$v\"")
         println(io, "k = $K")
         println(io, "oracle = \"$bin\"")
         println(io, "oracle_sha256 = \"$(_sha256(bin))\"")
         println(io, "oracle_build_script = \"$(isfile(bscript) ? bscript : "n/a (prebuilt/relinked)")\"")
-        println(io, "oracle_main_std_legacy = \"$(isfile(bscript) ? (occursin("NOLEGACY_MAIN", read(bscript, String)) ? "no (NOLEGACY_MAIN)" : "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)") : "unknown")\"")
+        println(io, "oracle_main_std_legacy = \"$(bscript == privb ? "no (stock buildDir main.o)" : isfile(bscript) ? (occursin("NOLEGACY_MAIN", read(bscript, String)) ? "no (NOLEGACY_MAIN)" : "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)") : "unknown")\"")
         println(io, "fvs_source_commit = \"$(_git(fvs, "rev-parse", "HEAD"))\"")
         println(io, "fvs_source_dirty = \"$(isempty(_git(fvs, "status", "--porcelain", "--untracked-files=no")) ? "no" : "yes")\"")
         println(io, "generator_commit = \"$(_git(here, "rev-parse", "HEAD"))\"")
@@ -137,7 +189,7 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         println(io, "regimes = [", join(["\"$r\"" for r in regimes], ", "), "]")
         println(io, "skipped_regimes = [", join(["\"$r\"" for r in skipped], ", "), "]   # FVS11: extension stubbed in this oracle build")
         println(io, "probe_fvs_errors = [", join(["\"$e\"" for e in probe_err], ", "), "]   # FVSnn ERROR codes in the stub-probe .out (first stand)")
-        println(io, "sample_source = \"VARIANT=$(src)$(isempty(wh) ? "" : " " * wh)\"")
+        println(io, "sample_source = \"", local_pool ? "LOCAL " * join(basename.(LOCAL_POOL[uppercase(v)]), " + ") : "VARIANT=$(src)$(isempty(wh) ? "" : " " * wh)", "\"")
         println(io, "stands = [", join(["\"$c\"" for c in chosen], ", "), "]")
         println(io, "excluded_no_live_output = [", join(["\"$c\"" for c in excluded], ", "), "]")
         println(io, "live_no_output_cases = $nfail")

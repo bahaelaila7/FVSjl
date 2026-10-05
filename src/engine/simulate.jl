@@ -540,7 +540,10 @@ function _maybe_burn!(s::StandState, fint::Float32)::Float32
     # uses; the existing scheduled-427 path in ie_autoes_establish! then consumes it (idt=fire year sits in
     # [year,next_year) at the fire cycle ⇒ fires exactly once, inert every other cycle). ESB1 uses est.inv_baaold
     # (the ESFLTR-frozen inventory BA) so the post-fire tally calibrates against inventory, not the depleted BA.
-    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai)
+    # AK too: ak/esinit.f also defaults LAUTAL=.TRUE. and links the same fmcons.f:247-258 (FVSak_g16 644809321126144
+    # simfire: the 2026 fire's TALLY ⇒ NTALLY=1, BurnPrep 60.52% ⇒ PBURN 0.6052; jl ran the NTALLY=99 ingrowth tally).
+    if s.estab.lautal && (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
+                          s.variant isa SoutheastAlaska)
         push!(s.control.schedule, ScheduledActivity(Int32(yr), Int32(427),
               (Float32(yr), 0f0, 0f0, 0f0, 0f0, 0f0)))
         # EXPOSR (fmcons.f:186-208): PRDUF(%) = 83.7 − 0.426·m_duff%, floored 0; EXPOSR = (−8.98 + 0.899·PRDUF)·
@@ -1040,7 +1043,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # 5278473010690 MISTPINF 1 0 1.0 3.0 — MISINF's MISRAN visits the 27 TRIPLED records (live MistCD round-robin
     # 1,2,3 over the post-REASS physical index); jl ran it pre-TRIPLE on 9 records and the copies inherited the
     # parent's DMR (2015 DMR1 16.8 vs live 102 TPA, Mort 16 vs 17).
-    mis_defer = (_ie_mis_variant(s.variant) || s.variant isa CentralRockies) && (stash !== nothing)
+    mis_defer = (_base_mistoe_on(s) || s.variant isa CentralRockies) && (stash !== nothing)   # + BC (west-kcwa-2)
     # mis_post: on a NON-fire tripling cycle the WHOLE GRADD MISTOE call (mistoe.f: spread → MISINF :517 →
     # MISMRT :522) runs post-TRIPLE on the tripled records at full pre-UPDATE PROB (the post-triple block
     # below) — not just the spread. MISINF must follow the spread (else the spread intensifies the
@@ -1049,7 +1052,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # Fire cycles triple inside mortality_and_fire! and keep the previous order.
     mis_post = mis_defer && !_fire_due(s)
     if !mis_defer
-        _ie_mis_variant(s.variant) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff
+        _base_mistoe_on(s) && ie_mistoe!(s; fint = fint)   # western MISTOE spread (mistoe.f) — shared across N-Rockies Wykoff + BC
         s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card

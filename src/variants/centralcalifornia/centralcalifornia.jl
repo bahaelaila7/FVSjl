@@ -26,6 +26,7 @@ variant_code(::CentralCalifornia) = "CA"
 nspecies(::CentralCalifornia) = 50
 htg_period(::CentralCalifornia) = 10f0   # /CONTRL/ YR=10 (ca/grinit.f FINT=10), like WC/PN/EC
 mort_ri_scale(::CentralCalifornia) = 0.5f0   # background half-rate (ca/morts.f), like the westside trio
+mort_ri_floor_sp(::CentralCalifornia, sp::Int) = sp == 23 || sp == 50   # ca/morts.f:487-488 GS(23)/RW(50) RI≥0.0001
 
 const CA_RNG_SEED = 55329.0f0            # ca/blkdat.f DATA S0/55329D0/,SS/55329./
 

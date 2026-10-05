@@ -1,0 +1,12 @@
+StandID,Year,Removal_Code,Stratum_1_DBH,Stratum_1_Nom_Ht,Stratum_1_Lg_Ht,Stratum_1_Sm_Ht,Stratum_1_Crown_Base,Stratum_1_Crown_Cover,Stratum_1_SpeciesFVS_1,Stratum_1_SpeciesFVS_2,Stratum_1_SpeciesPLANTS_1,Stratum_1_SpeciesPLANTS_2,Stratum_1_SpeciesFIA_1,Stratum_1_SpeciesFIA_2,Stratum_1_Status_Code,Stratum_2_DBH,Stratum_2_Nom_Ht,Stratum_2_Lg_Ht,Stratum_2_Sm_Ht,Stratum_2_Crown_Base,Stratum_2_Crown_Cover,Stratum_2_SpeciesFVS_1,Stratum_2_SpeciesFVS_2,Stratum_2_SpeciesPLANTS_1,Stratum_2_SpeciesPLANTS_2,Stratum_2_SpeciesFIA_1,Stratum_2_SpeciesFIA_2,Stratum_2_Status_Code,Stratum_3_DBH,Stratum_3_Nom_Ht,Stratum_3_Lg_Ht,Stratum_3_Sm_Ht,Stratum_3_Crown_Base,Stratum_3_Crown_Cover,Stratum_3_SpeciesFVS_1,Stratum_3_SpeciesFVS_2,Stratum_3_SpeciesPLANTS_1,Stratum_3_SpeciesPLANTS_2,Stratum_3_SpeciesFIA_1,Stratum_3_SpeciesFIA_2,Stratum_3_Status_Code,Number_of_Strata,Total_Cover,Structure_Class
+Fir.20,2020,0,9.096647262573242,7,8,4,2,78,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,78,1=SI
+Fir.20,2020,1,9.096647262573242,7,8,4,2,78,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,78,1=SI
+Fir.20,2030,0,13.452218055725098,9,11,5,2,86,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,86,2=SE
+Fir.20,2030,1,13.452218055725098,9,11,5,2,86,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,86,2=SE
+Fir.20,2040,0,16.613033294677734,11,14,6,3,88,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,88,2=SE
+Fir.20,2040,1,16.613033294677734,11,14,6,3,88,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,88,2=SE
+Fir.20,2050,0,19.249698638916016,14,16,7,4,88,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,88,2=SE
+Fir.20,2050,1,19.249698638916016,14,16,7,4,88,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,88,2=SE
+Fir.20,2060,0,21.82524871826172,15,18,7,5,87,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,87,2=SE
+Fir.20,2060,1,21.82524871826172,15,18,7,5,87,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,87,2=SE
+Fir.20,2070,0,24.054885864257812,17,20,8,6,86,FD,--,PSME,--,202,--,2,0.0,0,0,0,0,0,--,--,--,--,--,--,0,0.0,0,0,0,0,0,--,--,--,--,--,--,0,1,86,2=SE

@@ -136,8 +136,10 @@ function dgf!(s::StandState, ::CentralCalifornia)
             dds = conspp + CA_DGLD[jspc] * flog(d) +
                   cr * (CA_DGCR[jspc] + cr * CA_DGCRSQ[jspc]) +
                   CA_DGDS[jspc] * d * d + CA_DGDBAL[jspc] * bal / flog(d + 1f0)
-            dds += CA_DGPCCF[jspc] * pccf + CA_DGHAH[jspc] * relht +
-                   CA_DGLBA[jspc] * flog(ba) + CA_DGBAL[jspc] * bal
+            # ca/dgf.f:386-387 DDS = DDS + DGPCCF·PCCF + DGHAH·RELHT + DGLBA·ALOG(BA) + DGBAL·BAL — left to right from
+            # DDS, not DDS + (Σ terms) (jl `+=` summed the four terms first: 23742358010900 cycle-1 WK2 1 ULP off).
+            dds = dds + CA_DGPCCF[jspc] * pccf + CA_DGHAH[jspc] * relht +
+                  CA_DGLBA[jspc] * flog(ba) + CA_DGBAL[jspc] * bal
         end
         isp == 42 && (dds = flog(fexp(dds) * 2f0))                    # TANOAK: 5-yr → 10-yr basis
         dds < -9.21f0 && (dds = -9.21f0)

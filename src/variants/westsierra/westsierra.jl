@@ -27,6 +27,7 @@ variant_code(::WestSierra) = "WS"
 nspecies(::WestSierra) = 43
 htg_period(::WestSierra) = 10f0   # /CONTRL/ YR=10 (ws/grinit.f FINT=10), like WC/PN/EC/CA/SO
 mort_ri_scale(::WestSierra) = 0.5f0   # background half-rate (ws/morts.f:569 RI = 0.5·RI), like the westside cluster
+mort_ri_floor_sp(::WestSierra, sp::Int) = sp == 4 || sp == 23   # ws/morts.f:561-562 GS(4)/RW(23) RI≥0.0001
 
 const WS_RNG_SEED = 55329.0f0            # ws/blkdat.f DATA S0/55329D0/,SS/55329./ (same as CA/SO)
 

@@ -76,6 +76,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
     if reldm1 < 100f0; oba = ba; rdm1 = relden; end
     lnrd = log(max(0.01f0, relden))
     ba_a = c.bark_a; ba_b = c.bark_b
+    bc_lmhtdub = nothing
     @inbounds for i in 1:t.n
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
@@ -83,7 +84,19 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
         icr < 0 && (t.crown_pct[i] = Int32(-icr); continue)
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         d <= 0f0 && continue
-        d * BC_INtoCM < 2f0 && continue                        # <2cm → dub path; per-cycle keeps crown
+        if d * BC_INtoCM < 2f0                                 # crown.f:434 <2cm (V3) → statement 58
+            lstart || continue                                 # crown.f:579 IF(.NOT.LSTART) GO TO 60
+            # crown.f:580-587: XCRCON; BAL=(1-PCT/100)*BA; DUBSCR(V3) → CRNMD(…,YSD=0); CR∈[0.05,0.95]; ICRI=INT(CR*100+.5)
+            xcd = crcon[sp] + crlnccf[sp] * lnrd
+            bald = (1f0 - (t.crown_ratio[i] / 100f0)) * ba
+            lmd = bc_lmhtdub === nothing ? (bc_lmhtdub = bc_ht_coefs(s)[3]) : bc_lmhtdub
+            crd = bc_crnmd_sub2cm(xcd, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], s.calib.ht_dbh_aa[sp], lmd[sp], bald)
+            crd < 0.05f0 && (crd = 0.05f0); crd > 0.95f0 && (crd = 0.95f0)   # dubscr.f bounds
+            icrd = trunc(Int, crd * 100.0f0 + 0.5f0)
+            icrd > 95 && (icrd = 95); icrd < 5 && (icrd = 5)               # crown.f:596-597 (CRNMLT=1)
+            t.crown_pct[i] = Int32(icrd)
+            continue
+        end
         bark = bark_ratio(ba_a, ba_b, sp, d)
         (!lstart && (d - t.diam_growth[i]/bark) < 3f0) && continue   # backdated D<3in: keep regent crown (GOTO 60)
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)

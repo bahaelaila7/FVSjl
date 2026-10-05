@@ -88,19 +88,32 @@ const SUM_FIELDS = [
     ("ATCCF",100,103), ("ATTopHt",104,107), ("ATQMD",108,112), ("Period",115,120), ("Accr",121,125),
     ("Mort",126,131), ("MAI",134,139), ("ForTyp",141,143), ("SizeCls",145,145), ("StkCls",146,146)]
 
-"True for a FORMAT-9014 summary data row: year in cols 1-4 and the full 146-column layout (the FFE report tables
-that also start with a year are ~110 columns and are NOT summary rows)."
-function is_sum_row(s::AbstractString)
-    length(s) >= 140 || return false
+# METRIC .sum (BC / ON: metric/vbase/sumout.f FORMAT 9014 = 2I4,I6,I4,I5,2I4,F5.1,7I6,I4,I5,2I4,F5.1,2X,I6,I5,I6,2X,F6.1,
+# 1X,I3,1X,2I1 — 134 columns): no SCuFt/RSCuFt; IOSUM(4,5,6)=TCu/MCu/"BdFt" (all m³/ha), IOSUM(7..10)=RTPA/RTCu/RMCu/RBdFt.
+const SUM_FIELDS_METRIC = [
+    ("Year",1,4), ("Age",5,8), ("TPA",9,14), ("BA",15,18), ("SDI",19,23), ("CCF",24,27), ("TopHt",28,31),
+    ("QMD",32,36), ("TCuFt",37,42), ("MCuFt",43,48), ("BdFt",49,54), ("RTPA",55,60), ("RTCuFt",61,66),
+    ("RMCuFt",67,72), ("RBdFt",73,78), ("ATBA",79,82), ("ATSDI",83,87), ("ATCCF",88,91), ("ATTopHt",92,95),
+    ("ATQMD",96,100), ("Period",103,108), ("Accr",109,113), ("Mort",114,119), ("MAI",122,127), ("ForTyp",129,131),
+    ("SizeCls",133,133), ("StkCls",134,134)]
+metric_sum(v::AbstractString) = uppercase(v) in ("BC", "ON")
+sum_fields(v::AbstractString) = metric_sum(v) ? SUM_FIELDS_METRIC : SUM_FIELDS
+sum_width(metric::Bool) = metric ? 134 : 146
+
+"True for a FORMAT-9014 summary data row: year in cols 1-4 and the full 146-column layout (134 metric; the FFE report
+tables that also start with a year are ~110 columns and are NOT summary rows)."
+function is_sum_row(s::AbstractString; metric::Bool = false)
+    length(s) >= sum_width(metric) - 6 || return false
     y = tryparse(Int, strip(s[1:4])); y !== nothing && 1000 <= y <= 3000
 end
 
-"Data rows of a .sum, as full lines (rstripped, padded to 146)."
-sum_rows(text::AbstractString) = [rpad(rstrip(ln), 146) for ln in split(text, '\n') if is_sum_row(rstrip(ln))]
+"Data rows of a .sum, as full lines (rstripped, padded to 146 / 134 metric)."
+sum_rows(text::AbstractString; metric::Bool = false) =
+    [rpad(rstrip(ln), sum_width(metric)) for ln in split(text, '\n') if is_sum_row(rstrip(ln); metric = metric)]
 
 "Lines of a .sum text that are neither -999 headers, summary rows, nor blank (FVS's .sum has none)."
-sum_extra_lines(text::AbstractString) =
-    [ln for ln in split(text, '\n') if !isempty(strip(ln)) && !startswith(ln, "-999") && !is_sum_row(rstrip(ln))]
+sum_extra_lines(text::AbstractString; metric::Bool = false) =
+    [ln for ln in split(text, '\n') if !isempty(strip(ln)) && !startswith(ln, "-999") && !is_sum_row(rstrip(ln); metric = metric)]
 sum_field(row::AbstractString, a::Int, b::Int) = strip(row[a:min(b, length(row))])
 
 # ---------------------------------------------------------------------------------------------------------------

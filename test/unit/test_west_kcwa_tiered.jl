@@ -155,4 +155,124 @@ end
     end
 end
 
+# kt/blkdat.f:113-128 OCURNF(IFO,sp) (= ie/blkdat.f species 1-11; KT row 11 all 0) multiplies every ESPADV/ESPXCS/ESPSUB
+# species probability. KT had no table (1.0 default), so 3021216010690 (IFO 10: OCURNF 1 1 1 1 0 0 1 1 1 0 0) booked PP
+# ingrowth live zeroes, and every later regen record's species/height shifted (17,382 cells from 2009).
+@testset "KT AUTOES OCURNF national-forest occupancy (kt/blkdat.f:113-128, espadv.f)" begin
+    c = _case("KT", "3021216010690", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList" && m.year == "2009" && m.col in ("SpeciesFVS", "Ht", "HtG", "DBH"), c.ms) == 0
+    @test count(m -> m.file == "sum", c.ms) == 0
+end
+
+# kt/morts.f:188 CALL SDICAL(0,SDIMAX) re-derives the common BAMAX = XMAX·0.5454154·PMSDIU (kt/sdical.f:203-204) when no
+# user BAMAX is in effect; kt/sitset.f:39's BAMAXA(ITYPE) seed does not survive the REAL*4 round trip (310 ⇒ 309.99994) and
+# BAMAX divides RIPP (morts.f:286). jl used the raw table value: 3021216010690 cycle 2 RIPP 1 ULP off, and on
+# 196396140020004 the drift surfaced in 2042 (3,847 cells).
+@testset "KT MORTS BAMAX from SDICAL (kt/morts.f:188, kt/sdical.f:203-204)" begin
+    for cn in ("3021216010690", "196396140020004")
+        c = _case("KT", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+end
+
+# ws/morts.f:560-563 (ca/morts.f:486-489): the giant-sequoia / redwood background rate RI=1/(1+EXP(B0+B1·D)) is floored at
+# 0.0001 before RI=0.5·RI. jl never floored it, so the VARMRT background TOKILL (the per-tree WK2 sum) came out short and
+# every record's kill scaled by it: 1123894228290487 cycle 1 TOKILL 11.157074 live; record 33 MortPA 5.0992 live / 5.0978 jl.
+@testset "WS/CA GS-RW background RI floor 0.0001 (ws/morts.f:560-563, ca/morts.f:486-489)" begin
+    c = _case("WS", "1123894228290487", "none")
+    @test !c.crashed
+    @test count(m -> m.col in ("TPA", "MortPA") || m.file == "sum", c.ms) == 0      # 9,818 cells before
+end
+
+# ca/dgf.f:383-387: DDS = CONSPP + … ; DDS = DDS + DGPCCF·PCCF + DGHAH·RELHT + DGLBA·ALOG(BA) + DGBAL·BAL, left to right.
+# jl's `dds += a + b + c + d` summed the four terms before adding DDS: 23742358010900 cycle-1 WK2 3.9585423 jl / 3.95854211
+# live (record 31) ⇒ DDS 52.380917 / 52.3809052 ⇒ the tripled DGs 1 ULP off from 2011.
+@testset "CA DGF second DDS line left-to-right (ca/dgf.f:386-387)" begin
+    for cn in ("23676707010900", "374203872489998", "374401353489998")
+        c = _case("CA", cn, "none")
+        @test !c.crashed
+        @test isempty(c.ms)
+    end
+    c = _case("CA", "23742358010900", "none")
+    @test count(m -> m.col in ("DG", "DBH", "Ht", "HtG", "TPA"), c.ms) == 0             # 4,066 cells before
+end
+
+# fmcons.f:247-258: after a fire, IF(LAUTAL) FMCONS OPADDs a BurnPrep (491, PRMS(1)=EXPOSR) and a TALLY (427) at the fire
+# year. ak/esinit.f defaults LAUTAL=.TRUE. like IE/EM/KT, but jl scheduled them only for those three, so AK fell to the
+# NTALLY=99 ingrowth tally (ITPP capped at MAXING=3): FVSak_g16 644809321126144 simfire 2036 TPA 459 live / 198 jl. ak/esetpr.f
+# reads the BurnPrep percent from PRMS(1) — jl's (year, %) layout keeps it in params[2]; AK read the year.
+@testset "AK post-fire TALLY + BurnPrep (fmcons.f:247-258, ak/esetpr.f:85)" begin
+    c = _case("AK", "644809321126144", "simfire")
+    @test !c.crashed
+    @test count(m -> m.file == "sum", c.ms) == 0                                         # 72 .sum cells before
+end
+
+# base cwidth.f: CRWDTH(I) is filled at load (fvs.f:207) and at cycle end (gradd.f:254) only; SSTAGE (sstage.f:238/276) and
+# FMCBA read that stored value — its dims and the stand BA of that call — not the post-thin residual BA. AK/KT/WS/CA
+# recomputed it at the residual BA: FVSak_g16 10709344010497 thinbba 2006 post-thin StrClass cover 23 live / 20 jl.
+@testset "Stored CRWDTH for AK/KT/WS/CA SSTAGE + FMCBA (cwidth.f, fvs.f:207, gradd.f:254)" begin
+    for (v, cn) in (("AK", "10709344010497"), ("AK", "10706662010497"), ("KT", "4718785010690"), ("CA", "23742358010900"))
+        c = _case(v, cn, "thinbba")
+        @test !c.crashed
+        @test count(m -> m.file == "FVS_StrClass", c.ms) == 0
+    end
+end
+
+# BC dwarf mistletoe without a MISTOE/NEWSPRED keyword: misin0.f:86 MISFLG=.TRUE. ⇒ misdam.f:63-79 loads IMIST from damage
+# codes 30-34, and canada/bc's mistoe.f (the base one + a NEWSI branch) runs the spread/MISINF/MISMRT unless NEWSPRED is on.
+# misintbc.f never sets HGPDMR (zero COMMON) ⇒ mishgf.f MISHGF = 0 for every infected record (htgf.f:1617 Y=Y*MISHGF).
+# FVSbc YSM029-265 none: every DM-damaged Pl's 2028 HtG 0 live; jl grew them (Ht 9.23 vs 4.90 for Tree 131).
+@testset "BC base dwarf mistletoe on damage codes: MISHGF 0, spread, MISMRT (misin0.f:86, misdam.f, mishgf.f)" begin
+    c = _case("BC", "YSM029-265", "none")
+    @test !c.crashed
+    relbig(m) = (a = tryparse(Float64, m.gold); b = tryparse(Float64, m.got);
+                 (a === nothing || b === nothing) ? true : abs(a - b) > 1e-5 * max(abs(a), 1.0))
+    # (one undamaged Pl, Tree 141, is 1 ULP off in Ht — 11.2614059 live / 11.2614069 jl — a separate residual)
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2028" && m.col in ("Ht", "HtG", "DBH") && relbig(m), c.ms) == 0
+end
+
+# canada/bc crown.f:434 → 58 (V3, D<2 cm, LSTART): DUBSCR → CRNMD at YD2=2 cm with YH2 from VARCOM AA/BB (CRATET's AA, BB=0)
+# floored at 4.5 ft; CR∈[0.05,0.95]; ICRI=INT(CR*100+.5). jl left those records' missing crowns at 0: FVSbc SkyRanch-0.3m
+# (371 seedlings, DBH 0.1 cm, no CrRatio) 2019 PctCr 95 live / 0 jl for 370 records.
+@testset "BC V3 sub-2cm missing-crown dub (canada/bc crown.f:434,578-597, dubscr.f, CRNMD :751-759)" begin
+    c = _case("BC", "SkyRanch-0.3m", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2019", c.ms) == 0
+end
+
+# canada/bc regent.f:1593-1595: a small tree whose new height HK stays below 4.5 ft gets DBH(K)=0.1+DIAM(ISPC)*.01+HK*0.001
+# with DG(K)=0, set directly (and the :1627 min-diameter floor lives in the ELSE branch). jl took DG=0 then floored DBH to
+# DIAM: SkyRanch-0.3m 2029 seedlings DBH 1.0453 cm jl vs 0.2731 live. The values now follow live's formula; the remaining
+# per-record differences there are a ZZRAN draw-to-record offset (open).
+@testset "BC REGENT sub-4.5 ft DBH(K)=0.1+DIAM*.01+HK*.001 (canada/bc regent.f:1593-1595)" begin
+    c = _case("BC", "SkyRanch-0.3m", "none")
+    @test !c.crashed
+    # the mismatching 2029 DBH cells are a permutation of live's values (the open draw-to-record offset), not jl's old
+    # DIAM-floored 1.0453 cm everywhere: their gold and jl sums agree within 5% (before: jl ≈ 3.9× live)
+    dm = [m for m in c.ms if m.file == "FVS_TreeList_Metric" && m.col == "DBH" && m.year == "2029"]
+    sg = sum(m -> something(tryparse(Float64, m.gold), 0.0), dm; init = 0.0)
+    sj = sum(m -> something(tryparse(Float64, m.got), 0.0), dm; init = 0.0)
+    @test abs(sg - sj) <= 0.05 * max(sg, 1.0)            # measured 294.3 live / 288.3 jl (was 287.0 / 1110.6)
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.col == "DG" && m.year == "2029", c.ms) <= 2
+end
+
+# BC under TIMEINT 5 (tiered BC stands, live FVSbc DB relink): canada/bc's DGDRIV/HTGF/REGENT/MORTS read DG on the YR=10
+# basis (htgf.f:1572 SCALE=FINT/YR, regent.f:1142 SCALE=YR/FINT with DDS=DG*(2*BARK*D+DG)*SCALE :1622-1625, morts.f:663
+# G=(DG/BARK)*(FINT/10)) and gradd.f:79-90 rescales DG to FINT after GRINCR. Before: 1 of 6 rows exact on each key.
+@testset "BC TIMEINT 5: DG on the YR=10 basis, GRADD rescale, REGENT SCALE (gradd.f:79-90, canada/bc regent.f:1142)" begin
+    fx = joinpath(@__DIR__, "..", "fixtures", "timeint5")
+    for (cn, nfull) in (("YSM029-267", 6), ("YSM029-271", 3), ("Fir.20", 2))
+        dir = mktempdir()
+        cp(joinpath(@__DIR__, "..", "fixtures", "tiered", "bc", "stands.db"), joinpath(dir, "stands.db"))
+        cp(joinpath(fx, "bc_$(cn)_t5.key"), joinpath(dir, "t.key"))
+        txt = cd(() -> FVSjl.run_keyfile("t.key"; variant = FVSjl.BritishColumbia()), dir)
+        jl = [split(l) for l in split(txt, '\n') if occursin(r"^\d{4} ", l)]
+        lv = [split(l) for l in readlines(joinpath(fx, "bc_$(cn)_t5_live.rows"))]
+        @test length(jl) == length(lv)
+        @test count(i -> jl[i] == lv[i], eachindex(lv)) >= nfull
+    end
+end
+
 end # module

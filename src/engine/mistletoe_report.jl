@@ -29,7 +29,7 @@ MEASURED FVSem_g16 231908428020004 MISTPINF: one 2023 FVS_DM_Stnd_Sum row, Inf_T
 """
 function _dm_report_active(s::StandState)::Bool
     _dm_report_variant(s.variant) || return false
-    (_ie_mis_variant(s.variant) && s.control.cycle > 0 && s.control.dm_flag) && return true
+    (_base_mistoe_on(s) && s.control.cycle > 0 && s.control.dm_flag) && return true
     t = s.trees
     @inbounds for i in 1:t.n
         t.dmr[i] > 0 && return true

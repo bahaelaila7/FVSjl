@@ -1,0 +1,2 @@
+StandID,Year,Age,Stnd_TPH,Stnd_BA,Stnd_Vol,Inf_TPH,Inf_BA,Inf_Vol,Mort_TPH,Mort_BA,Mort_Vol,Inf_TPH_Pct,Inf_Vol_Pct,Mort_TPH_Pct,Mort_Vol_Pct,Mean_DMR,Mean_DMI
+Fir.20,2030,31,2892,22,73,2892,22,73,66,0,2,100,100,2,2,1.9993607997894287,1.9993607997894287

@@ -93,6 +93,8 @@ function crown_ratio! end                 # crown.f
 function mortality! end                   # morts.f
 "Background-mortality rate scale (morts.f): SN=1, NE halves the rate (`RI=0.5·RI`)."
 mort_ri_scale(::AbstractVariant) = 1f0
+# morts.f "CONSTRAIN RW AND GS MORTALITY": species whose background RI is floored at 0.0001 (before RI=0.5·RI).
+mort_ri_floor_sp(::AbstractVariant, ::Int) = false
 "DBH below which a tree is excluded from the SDI density-mortality sums (morts.f)."
 mort_dbh_threshold(s, ::AbstractVariant) =
     s.control.zeide_sdi ? s.control.dbh_zeide : s.control.dbh_stage   # SN: LZEIDE ? DBHZEIDE : DBHSTAGE

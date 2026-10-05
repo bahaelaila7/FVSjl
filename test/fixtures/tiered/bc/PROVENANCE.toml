@@ -1,0 +1,17 @@
+variant = "BC"
+k = 10
+oracle = "/workspace/.bcwork/dbfix/FVSbc_dbfix"
+oracle_sha256 = "810b295115d4bb89ac1849caaf24ba2b94f5e7c07faa4b7dc49f8d1d277fd31e"
+oracle_build_script = "/workspace/.bcwork/dbfix/build_dbfix.sh"
+oracle_main_std_legacy = "no (stock buildDir main.o)"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "14038252830ae0596dd0615855061b995e84a87c"
+generated = "2026-10-04 23:42:04"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "mistletoe", "rootdis", "climate"]
+skipped_regimes = ["econ", "cover"]   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = ["econ: FVS01 ERROR/FVS11 ERROR", "cover: FVS01 ERROR/FVS11 ERROR"]   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "LOCAL FVS-BC.YSM-SkyRanch.db + FVS-BC.Stand.Structure.Data.db"
+stands = ["SkyRanch-0.3m", "SkyRanch-Control", "YSM029-250", "YSM029-267", "YSM029-265", "Fir.20", "YSM029-271", "SkyRanch-2.0m", "YSM029-246", "YSM029-266"]
+excluded_no_live_output = []
+live_no_output_cases = 0

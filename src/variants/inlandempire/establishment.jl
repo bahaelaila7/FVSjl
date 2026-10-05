@@ -593,6 +593,10 @@ const IE_AUTOES_OCURNF = let m = ones(Float32, 23, 20)   # default 1.0 for added
 end
 @inline autoes_ocurnf(::InlandEmpire, ifo::Integer, sp::Integer)::Float32 =
     (1 <= sp <= 23 && 1 <= ifo <= 20) ? @inbounds(IE_AUTOES_OCURNF[sp, ifo]) : 1.0f0
+# kt/blkdat.f:113-128 — KT's OCURNF DATA is ie/blkdat.f's species 1-11 verbatim (row 11 = 20*0.0). Without it KT fell to
+# the 1.0 default, so PP/WH/RC regenerated on forests that zero them (FVSkt 3021216010690: IFO 10 OCURNF 1 1 1 1 0 0 1 1 1 0 0).
+@inline autoes_ocurnf(::Kootenai, ifo::Integer, sp::Integer)::Float32 =
+    (1 <= ifo <= 20) ? ((1 <= sp <= 10) ? @inbounds(IE_AUTOES_OCURNF[sp, ifo]) : 0f0) : 1.0f0
 
 @inline ie_ocurht(ihab::Integer, sp::Integer)::Float32 =
     (1 <= ihab <= 16 && 1 <= sp <= 23) ? @inbounds(_IE_OCURHT[ihab, sp]) : 0f0

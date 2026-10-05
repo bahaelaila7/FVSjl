@@ -120,6 +120,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
     # so the 3 copies get 3 DIFFERENT random heights AND the RNG stream advances 3×/tree like live FVS. Without
     # it BC drew 1 ZZRAN/tree (27 vs live's 81 on all_BC_essf) ⇒ copies identical + every downstream draw desynced.
     nrec = stash !== nothing ? 3 : 1
+    scale_rg = htg_period(s.variant) / fint                 # regent.f:1142 SCALE=YR/FINT
     order = species_major_order(s)   # IND1: SPESRT lineage order within a species (post-TRIPLE copy1, original, copy2)
     @inbounds for i in order
         sp = Int(t.species[i]); d = t.dbh[i]
@@ -144,7 +145,7 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                         max(0f0, htgr1 + zzran * BC_STCOEF[ip[sp]].SD)
             htg = htgr*(1f0 - xwt) + xwt*htg_large
             (h + htg > cap) && (htg = max(cap - h, 0.1f0))
-            dg = 0f0
+            dg = 0f0; dbhk = -1f0
             if small_d                                            # DBH dub (regent.f:1571-1629)
                 relh = (h - 4.5f0)/(avh - 4.5f0); relh = clamp(relh, 0f0, 1f0)
                 dadj = delmax*relh*relh - 2f0*delmax*relh + 0.65f0
@@ -152,27 +153,37 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                 hk = h + htg
                 xrdgro = active_multiplier(s.control, :regd, sp, current_cycle_year(s))
                 if hk < 4.5f0
-                    dg = 0f0                                       # regent.f:1593-1595
+                    # regent.f:1593-1595 DBH(K)=0.1+DIAM(ISPC)*.01+HK*0.001; DG(K)=0 — set directly, and the
+                    # :1627 min-diameter floor sits in the ELSE branch, so it does not apply here.
+                    dbhk = 0.1f0 + BC_RG_DIAM[sp] * 0.01f0 + hk * 0.001f0
+                    dg = 0f0
                 else
                     dk = BC_RG_HHT1[sp]*(hk - 4.5f0)^BC_RG_HHT2[sp] + dadj   # regent.f:1597
                     dk < BC_RG_DIAM[sp] && (dk = BC_RG_DIAM[sp])   # 1600 DIAM floor on DK
                     dk += hk * 0.001f0                             # 1601
-                    # DGK=(DK−D1)·XRDGRO, then DG=BARK·DGK — the inside-bark DDS round-trip (regent.f:1622-1625)
-                    # reduces to ×BARK for SCALE=YR/FINT=1 (NOT identity: DG=sqrt((D·B)²+DGK·B·(2·B·D+DGK·B))−B·D = B·DGK).
-                    dg = (dk - d1) * xrdgro; dg < 0f0 && (dg = 0f0)
-                    dg *= bc_bratio(sp)
+                    # regent.f:1615-1625: DGK=(DK−D1)·XRDGRO ≥0; BARK=BRATIO; DG=DGK·BARK; DDS=DG·(2·BARK·D+DG)·SCALE;
+                    # DG=SQRT((D·BARK)**2.0+DDS)−BARK·D with SCALE=YR/FINT (regent.f:1142): the small-tree DG on the YR=10
+                    # basis that GRADD rescales (gradd.f:79-90), like the other _gradd_rescale variants.
+                    dgk = (dk - d1) * xrdgro; dgk < 0f0 && (dgk = 0f0)
+                    bark = bc_bratio(sp)
+                    dg = dgk * bark
+                    dds = dg * (2f0 * bark * d + dg) * scale_rg
+                    dg = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d
                 end
-                (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
+                dbhk < 0f0 && (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
             end
             if l == 0
                 t.ht_growth[i] = htg
                 small_d && (t.diam_growth[i] = dg)
+                dbhk >= 0f0 && (t.dbh[i] = dbhk)                   # the record's own DBH(K) (regent.f:1594)
             elseif l == 1
                 stash.htgU[i] = htg; stash.is_small[i] = true
                 small_d && (stash.dgU[i] = dg)                     # D<3in ⇒ regent DBH-dub; else keep driver DDS dgU
+                small_d && (stash.dbhU[i] = dbhk >= 0f0 ? dbhk : d)
             else
                 stash.htgL[i] = htg
                 small_d && (stash.dgL[i] = dg)
+                small_d && (stash.dbhL[i] = dbhk >= 0f0 ? dbhk : d)
             end
         end
     end
