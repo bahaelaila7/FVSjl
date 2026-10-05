@@ -665,10 +665,10 @@ sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md 
 # (MEASURED live FVSoc DEBUG FMEFF 30193600010497 2013: DBH 7.87 / HT 56.8, jl saw 8.65 / 65.5 ⇒ PMORT 0.329 vs 0.588).
 # Swap the cycle-start DBH/HT/ICR in for the FFE pass and restore the grown values after; a record whose crown FMKILL handed
 # back (ICR=-FMICR, crown_bypass) keeps the fire value (crown.f:233-236 bypasses the ORGANON CR2 for it).
-function mortality_and_fire!(s::StandState; kwargs...)
+function _oc_with_pre_dims(f, s::StandState; keep_crown_bypass::Bool = false)
     c = s.calib; t = s.trees
     if !(s.variant isa OregonCoast) || length(c.oc_dbh0) != t.n || length(c.oc_ht0) != t.n
-        return _mortality_and_fire!(s; kwargs...)
+        return f()
     end
     n = t.n
     gd = copy(view(t.dbh, 1:n)); gh = copy(view(t.height, 1:n)); gc = copy(view(t.crown_pct, 1:n))
@@ -676,10 +676,10 @@ function mortality_and_fire!(s::StandState; kwargs...)
         t.dbh[i] = c.oc_dbh0[i]; t.height[i] = reinterpret(Float32, c.oc_ht0[i]); t.crown_pct[i] = c.oc_cr0[i]
     end
     try
-        return _mortality_and_fire!(s; kwargs...)
+        return f()
     finally
         if t.n == n
-            byp = s.fire === nothing ? Int32[] : s.fire.crown_bypass
+            byp = (keep_crown_bypass && s.fire !== nothing) ? s.fire.crown_bypass : Int32[]
             @inbounds for i in 1:n
                 t.dbh[i] = gd[i]; t.height[i] = gh[i]
                 (length(byp) == n && byp[i] != 0) || (t.crown_pct[i] = gc[i])
@@ -687,6 +687,9 @@ function mortality_and_fire!(s::StandState; kwargs...)
         end
     end
 end
+
+mortality_and_fire!(s::StandState; kwargs...) =
+    _oc_with_pre_dims(() -> _mortality_and_fire!(s; kwargs...), s; keep_crown_bypass = true)
 
 function _mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
                              stash = nothing,
@@ -1147,7 +1150,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # so the pass waits for it there (fmm_late): FMSNAG's FMR6HTLS draws follow the spread's (MEASURED FVSso_g16
     # 374286168489998 SALVAGE cycle 0: the seam annual loop ran before the spread ⇒ 2025 Standing_Dead 3.243 vs live 3.783).
     fmm_late = mis_post && fmmain_hook !== nothing
-    fmm_late || fmmain_hook === nothing || fmmain_hook(s, stash)
+    fmm_late || fmmain_hook === nothing || _oc_with_pre_dims(() -> fmmain_hook(s, stash), s)
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED keyword (NEWSI = NEWMOD, canada/newmist/mistoe.f:168); inert otherwise. lastyr = cycle length (yr).
@@ -1331,7 +1334,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             full_prob = Float32[t.tpa[i] for i in 1:n2]
             _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
-            fmm_late && fmmain_hook(s, nothing)  # gradd.f:118 FMMAIN pass after MISTOE, on the tripled full-PROB list
+            fmm_late && _oc_with_pre_dims(() -> fmmain_hook(s, nothing), s)  # gradd.f:118 FMMAIN pass after MISTOE, on the tripled full-PROB list
             pofl_late && pofl_hook(s, nothing)   # gradd.f:118 FMMAIN (FMPOFL) after MISTOE, FMPROB = full PROB
             fuel_late && ffe_fuel_update!(s, fuel_period)   # fmmain.f:228 annual loop (same FMMAIN), tripled full PROB
             @inbounds for i in 1:nlive
@@ -1366,7 +1369,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 _dm_spread!(s; fint = fint)
                 dm_misinf!(s)
             end
-            fmm_late && fmmain_hook(s, nothing)                          # gradd.f:118 FMMAIN pass after MISTOE
+            fmm_late && _oc_with_pre_dims(() -> fmmain_hook(s, nothing), s)  # gradd.f:118 FMMAIN pass after MISTOE
             pofl_late && pofl_hook(s, nothing)                           # gradd.f:118 FMMAIN, before :131 RDTREG
             fuel_late && ffe_fuel_update!(s, fuel_period)                # fmmain.f:228 annual loop (same FMMAIN)
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
