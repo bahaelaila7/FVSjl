@@ -462,15 +462,17 @@ per-report collection of `(year, removal_code, report)` where `report` is a `str
 Absent species/strata are stored as "--" / 0 (matching the Fortran emitter).
 """
 function write_dbs_strclass!(dbpath::AbstractString, caseid::AbstractString,
-                             standid::AbstractString, rows::AbstractVector, coef)
+                             standid::AbstractString, rows::AbstractVector, coef; metric::Bool = false)
     fia3(x)   = lpad(strip(x), 3, '0')                    # FIAJSP as a 3-char zero-padded code (oracle "017")
     fvs(i)    = i > 0 ? String(strip(coef.code_alpha[i]))  : "--"
     plants(i) = i > 0 ? String(strip(coef.code_plants[i])) : "--"
     fia(i)    = i > 0 ? String(fia3(coef.code_fia[i]))     : "--"
     db = SQLite.DB(dbpath)
     try
-        _ensure_table!(db, _FVS_STRCLASS_CREATE)
-        ins = "INSERT INTO FVS_StrClass VALUES (" * join(fill("?", 46), ",") * ")"
+        # metric/dbsqlite/dbsstrclass.f (the BC/ON builds) differs only in the table name, FVS_StrClass_Metric
+        tbl = metric ? "FVS_StrClass_Metric" : "FVS_StrClass"
+        _ensure_table!(db, replace(_FVS_STRCLASS_CREATE, "FVS_StrClass(" => tbl * "("))
+        ins = "INSERT INTO " * tbl * " VALUES (" * join(fill("?", 46), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
         for (yr, cd, rep) in rows
             vals = Any[caseid, standid, Int(yr), Int(cd)]

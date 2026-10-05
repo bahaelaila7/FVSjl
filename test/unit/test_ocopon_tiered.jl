@@ -80,4 +80,29 @@ end
     @test _n(c.ms; file = "FVS_TreeList", before = 2020) == 0
 end
 
+# ON 245908831010661 (FIA LS stand converted to metric; 16 measured DG, 3 inventory-dead, FIA 356 serviceberry):
+# 17,636 cells before this round.
+@testset "ON SPCTRN default NC (canada/on/spctrn.f CASE DEFAULT = 49)" begin
+    c = _case("ON", "245908831010661", "none")
+    @test !c.crashed
+    @test _n(c.ms; col = "SpeciesFVS") == 0 && _n(c.ms; file = "FVS_TreeList_East_Metric", col = "ROWCOUNT") == 0
+end
+
+@testset "ON CRATET crown dub on the backdated dead-inclusive DENSE (canada/on/cratet.f:159-161, :501)" begin
+    c = _case("ON", "245908831010661", "none")
+    @test _n(c.ms; file = "FVS_TreeList_East_Metric", col = "PctCr", year = 2009) == 0     # seedling ICR 37/27 vs 39/30
+    @test _n(c.ms; file = "FVS_TreeList_East_Metric", col = "BAPctile", year = 2009) == 0  # dead PCT on backdated WK5
+end
+
+@testset "ON REGENT small-tree HCOR (canada/on/regent.f:128 CON, :419-563 calibration)" begin
+    c = _case("ON", "245908831010661", "none")
+    @test _n(c.ms; file = "FVS_TreeList_East_Metric", col = "HtG", year = 2019) == 0       # MH seedlings +4.2% before
+    @test _n(c.ms; file = "sum", before = 2029) == 0
+end
+
+@testset "metric FVS_StrClass_Metric table name (metric/dbsqlite/dbsstrclass.f:126-128)" begin
+    c = _case("ON", "245908831010661", "none")
+    @test _n(c.ms; col = "PRESENCE") == 0
+end
+
 end # module
