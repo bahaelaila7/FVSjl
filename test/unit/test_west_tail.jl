@@ -3,7 +3,8 @@
 using FVSjl, Test, SQLite, DBInterface
 
 const _WT_FX = joinpath(@__DIR__, "..", "fixtures", "west_tail")
-const _WT_VAR = Dict("ws" => FVSjl.WestSierra(), "sn" => FVSjl.Southern())
+const _WT_VAR = Dict("ws" => FVSjl.WestSierra(), "sn" => FVSjl.Southern(), "ie" => FVSjl.InlandEmpire(),
+                     "nc" => FVSjl.Klamath(), "so" => FVSjl.SouthCentralOregon())
 
 "Run west_tail/<name>.key for variant `v` (stands.db from the tiered fixture); returns the output DB path."
 function _wt_run(v::AbstractString, name::AbstractString)
@@ -76,3 +77,64 @@ end
         @test isempty(_wt_cmp(name, db, "FVS_Mortality", mcols; extra = ["SpeciesFVS"]))
     end
 end
+
+"Every golden cell of table `t` (all columns but StandID) that jl does not reproduce bit-exactly, as \"Year[/key] Col\"."
+function _wt_offcells(name, db, t; extra = String[])
+    gold, jl = _wt_table(name, db, t)
+    key(r) = join((string(r["Year"]), (string(r[c]) for c in extra)...), "/")
+    jd = Dict(key(r) => r for r in jl)
+    bad = Set{String}()
+    length(jl) == length(gold) || push!(bad, "rows $(length(jl)) vs $(length(gold))")
+    for g in gold, c in keys(g)
+        c in ("StandID", "CaseID", "Year") && continue
+        j = get(jd, key(g), nothing)
+        (j !== nothing && haskey(j, c) && _wt_eq(g[c], j[c])) || push!(bad, "$(key(g)) $c")
+    end
+    return bad
+end
+
+const _WT_TABLES4 = ("FVS_BurnReport", "FVS_PotFire", "FVS_Fuels", "FVS_Summary")
+
+@testset "Post-activity fuel models: FMTRET SLCHNG + fmcfmd.f AFWT/LATFUEL (THINBBA + SIMFIRE same cycle) vs live" begin
+    # fmtret.f:372-400 SLCHNG, {ie,nc}/fmcfmd.f AFWT block: the thin's slash jump (≥10%) opens the ≤5-yr FM11(/14) window.
+    # Before: IE 11855985010690 PotFire 50 / Fuels 32 / Summary 38 cells off, NC 15303130010497 PotFire 50 / Summary 61.
+    # Remaining: ULP-level cells of other mechanisms (listed).
+    known = Dict("ie_11855985010690_thinfire" => Set(["FVS_PotFire 2016 Surf_Flame_Sev", "FVS_PotFire 2016 Tot_Flame_Sev",
+                                                       "FVS_PotFire 2016 PTorch_Sev"]),
+                 "nc_15303130010497_thinfire" => Set(["FVS_Fuels 2015 Surface_ge3", "FVS_Fuels 2015 Surface_3to6",
+                                                       "FVS_Fuels 2015 Surface_Total"]))
+    for (v, name) in (("ie", "ie_11855985010690_thinfire"), ("nc", "nc_15303130010497_thinfire"))
+        db = _wt_run(v, name)
+        off = union((Set("$(t) $(c)" for c in _wt_offcells(name, db, t)) for t in _WT_TABLES4)...)
+        exp = known[name]
+        @test off == exp
+    end
+end
+
+@testset "SO activity-fuel FMCONS (so/fmcons.f:146-225) + SO AFWT models 11/14 vs live FVSso_g16" begin
+    # Before: 15364795010497 PotFire 44 / Fuels 33 off; 15184869010497 PotFire 40 / Fuels 31.
+    for (name, exp) in (("so_15364795010497_thinfire", Set{String}()),
+                        ("so_15184869010497_thinfire", Set(["FVS_BurnReport 2020 Flame_length", "FVS_BurnReport 2020 Scorch_height",
+                                                            "FVS_PotFire 2020 Torch_Index"])))
+        db = _wt_run("so", name)
+        off = union((Set("$(t) $(c)" for c in _wt_offcells(name, db, t)) for t in _WT_TABLES4)...)
+        @test off == exp
+    end
+end
+
+@testset "WS snag height loss (HTX/HTR1), TFALL and DECAYX (ws/fmvinit.f) vs live FVSws_g16" begin
+    # Before: 1123894228290487 Standing_Dead 2031 22.01 jl / 20.87 live; WS tiered salvage+simfire 1,0xx cells.
+    for name in ("ws_1123894228290487_snag", "ws_15353585010497_snag")
+        db = _wt_run("ws", name)
+        for t in ("FVS_SnagSum", "FVS_Fuels", "FVS_Carbon", "FVS_PotFire")
+            @test isempty(_wt_offcells(name, db, t))
+        end
+    end
+    db = _wt_run("ws", "ws_15353585010497_thinfire")
+    for t in _WT_TABLES4
+        @test isempty(_wt_offcells("ws_15353585010497_thinfire", db, t))
+    end
+end
+
+# The WRD cycle-1 WK1 (DO-220 DG) and inventory DM-FINT fixes are pinned by the tiered goldens themselves: their
+# KNOWN_RESIDUALS entries were dropped (rootdis FVS_RD_Sum Live_Merch_CuFt, mistletoe FVS_DM_* inventory rows).
