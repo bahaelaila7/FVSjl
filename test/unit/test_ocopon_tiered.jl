@@ -157,9 +157,20 @@ end
 @testset "OC ORGANON thinning response (dgdriv.f:304-327, diagro.f DG_THIN, htgrowth.f HG_THIN) + stale-IORG CROWN" begin
     c = _case("OC", "645142535126144", "thinbba")
     @test !c.crashed
-    @test _n(c.ms; file = "sum") == 0 || _n(c.ms; file = "sum", before = 2043) == 0
+    @test _n(c.ms; file = "sum") == 0
     @test _n(c.ms; file = "FVS_Summary", before = 2043) == 0
     @test _n(c.ms) <= 4
+end
+
+# OP: same two mechanisms through the NWO engine (op/dgdriv.f:304-327 identical block, op/diagro.f DG_THIN == oc, op/htgrowth.f
+# HG_THIN == oc; op/crown.f:279-286 stale-IORG + CR2=0). 30194263010497 thinbba: TPA 35 live vs 86 jl at 2023 before.
+@testset "OP ORGANON thinning response + stale-IORG CROWN (op/dgdriv.f:304-327, op/crown.f:279)" begin
+    for cn in ("24164991010900", "30194263010497")
+        c = _case("OP", cn, "thinbba")
+        @test !c.crashed
+        @test _n(c.ms; file = "sum") == 0
+        @test _n(c.ms; file = "FVS_Summary") == 0
+    end
 end
 
 end # module
