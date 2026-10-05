@@ -1289,9 +1289,12 @@ function bm_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     @inbounds for i in 1:t.n
         pre[i] > 0f0 || continue
         sp = Int(t.species[i]); (1 <= sp <= 18) || continue
-        x = pre[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
-        fmtba[sp] += x; stndba += x
+        fmtba[sp] += pre[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
     end
+    # bm/fmcfmd.f:128-131 STNDBA = Σ FMTBA(I) over the species (DO I=1,MAXSP), not a running per-record total
+    # (MEASURED FVSbm_g16 12827438010497 2005: the record-order sum moved PRDF/PRPP ⇒ WT1 ⇒ EQWT(2)/(5) 2 ULP ⇒ FMDYN
+    # weights 3 ULP ⇒ Torch_Index 69.88524 vs live 69.88519).
+    @inbounds for sp in 1:18; stndba += fmtba[sp]; end
     prdf = stndba > 0.01f0 ? fmtba[3] / stndba : 0f0
     prpp = stndba > 0.01f0 ? fmtba[10] / stndba : 0f0
     eqwt = zeros(Float32, _FMD_ICLSS)

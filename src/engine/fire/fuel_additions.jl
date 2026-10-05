@@ -174,11 +174,11 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
     @inbounds for i in 1:t.n
         for k in 1:5; ocrw[k, i] = 0f0; end                # reset this record's OLDCRW (recomputed below)
         t.tpa[i] > 0f0 || continue
-        oldht = t.ffe_oldht[i]
-        oldht > 0f0 || continue                            # prev-cycle state not set (1st cycle / regen)
+        # OLDHT/OLDCRL from the last FMMAIN's FMOLDC (ffe_fmoldc!): a record established after it carries its slot's
+        # value (0 for a fresh slot ⇒ OLDCRL ≤ 0.001 ⇒ no lift, fmsdit.f:110)
+        oldht = t.fm_oldht[i]; oldcrl = t.fm_oldcrl[i]
         sp = Int(t.species[i])
         oldcr = t.ffe_oldcr[i]
-        oldcrl = oldht * oldcr / 100f0
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
         x > 0f0 || continue
         # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
@@ -211,6 +211,28 @@ Sizes 1–5 only (foliage size-0 excluded). Returns the per-size addition to the
 @inline function crown_lift_at_death(t::TreeList, i::Integer, cyclen::Real)::NTuple{6,Float32}
     yrs = Float32(cyclen)
     @inbounds ntuple(sz -> sz == 1 ? 0f0 : yrs * t.ffe_oldcrw[sz - 1, i], 6)
+end
+
+"""
+    ffe_fmoldc!(s; fmicr=nothing) -> StandState
+
+FMOLDC (fmoldc.f, the last step of FMMAIN, fmmain.f:268) over FMMAIN's record list: OLDHT(I)=HT(I) and
+OLDCRL(I)=HT(I)*(FLOAT(FMICR(I))/100.0), FMICR = ICR at FMMAIN (after REGENT's DUBSCR; a SIMFIRE's fire-shortened crown
+when `fmicr` is given). Called at the FMMAIN point (post-TRIPLE, pre-UPDATE), so the records ESTAB books later in the
+cycle keep their slot's values, as in FVS. (OLDCRW = CROWNW is read from `ffe_crownw` by compute_crown_lift!.)
+"""
+function ffe_fmoldc!(s::StandState; fmicr = nothing)
+    fs = s.fire
+    (fs === nothing || !fs.active) && return s
+    t = s.trees
+    useicr = fmicr !== nothing && length(fmicr) == t.n
+    @inbounds for i in 1:t.n
+        h = t.height[i]
+        icr = useicr ? Float32(fmicr[i]) : Float32(t.crown_pct[i])
+        t.fm_oldht[i] = h
+        t.fm_oldcrl[i] = h * (icr / 100f0)
+    end
+    return s
 end
 
 """

@@ -169,30 +169,38 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
         t.tpa[i] > 0f0 || continue
         sp = Int(t.species[i]); d = t.dbh[i]
         d > fs.bigdbh && (fs.bigdbh = d)
+        # CWIDTH=CRWDTH(I) in every variant's fmcba.f: the width CWIDTH last stored (load, fvs.f:207; end of cycle,
+        # gradd.f:254), carried by TRIPLE — so the dims of that call, which the post-growth ffe_old* snapshot holds, not the
+        # FMMAIN-time list's REGENT-grown small trees (MEASURED FVSkt_g16 4718785010690 salvage: the seam DBH moved the
+        # inventory PERCOV ⇒ 2004 Forest_Down_Dead_Wood 16.522 vs live 16.611). IE/EM keep the stored CRWDTH itself.
+        _cwold = !_old_cw && !_bm_fm && t.ffe_oldht[i] > 0f0
+        cd = _cwold ? t.ffe_olddbh[i] : d
+        ch = _cwold ? t.ffe_oldht[i] : t.height[i]
+        cc = _cwold ? Int32(round(t.ffe_oldcr[i])) : t.crown_pct[i]
         cw = _old_cw ? stored_crwdth(s, i) :
-             _r5cw ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
-             _cr_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # cr/fmcba.f:378 CWIDTH=CRWDTH(I) (clamped [0.5,99.9])
+             _r5cw ? _forest_crwdth(s, sp, cd, ch, cc) :
+             _cr_fm ? _forest_crwdth(s, sp, cd, ch, cc) :   # cr/fmcba.f:378 CWIDTH=CRWDTH(I) (clamped [0.5,99.9])
              _bm_fm ? (t.ffe_oldht[i] > 0f0 ?
                        # CRWDTH(I) as CWIDTH last set it (gradd.f:254 end of cycle / fvs.f:207 load), carried by TRIPLE:
                        # the dims of the FMOLDC-time snapshot, not REGENT's grown small trees (bm/fmcba.f:196 CRWDTH(I))
                        bm_cwcalc(sp, t.ffe_olddbh[i], t.ffe_oldht[i], t.ffe_oldcr[i], _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf) :
                        bm_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = _bm_kf)) :
-             _nc_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]; barea = _nc_ba) :   # NC R6/BLM forests: NCMAP + Siskiyou BF
-             _ws_fm ? ws_r5crwd(sp, d, t.height[i]) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
-             _ca_fm ? ca_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
-             _wc_fm ? wc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
-             _pn_fm ? pn_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # PN = wc/cwcalc.f (byte-identical) with PN's KODFOR
-             _ec_fm ? ec_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
+             _nc_fm ? _forest_crwdth(s, sp, cd, ch, cc; barea = _nc_ba) :   # NC R6/BLM forests: NCMAP + Siskiyou BF
+             _ws_fm ? ws_r5crwd(sp, cd, ch) :   # WS: R5CRWD (ws/r5crwd.f), function of sp/D/H only
+             _ca_fm ? ca_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi) :  # CA R6 Crookston (ca/cwcalc.f CAMAP)
+             _wc_fm ? wc_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # WC R6 Crookston (wc/cwcalc.f WCMAP)
+             _pn_fm ? pn_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # PN = wc/cwcalc.f (byte-identical) with PN's KODFOR
+             _ec_fm ? ec_cwcalc(sp, cd, ch, Float32(cc), _cr_ba, _cr_el, _cr_hi; kodfor = Int(s.plot.user_forest_code)) :  # EC R6 Crookston (ec/cwcalc.f ECMAP; forest-608 BF)
              # SO: CRWDTH(I) = the FVS_TreeList CrWidth (_forest_crwdth: SOMAP with the KODFOR BF on R6 forests, R5CRWD on
              # IFOR 4-9). MEASURED FVSso_g16 DEBUG FMCBA 15184869010497 (forest 601) 2010: PERCOV 38.904 live = jl with
              # _forest_crwdth; the old so_cwcalc gave 38.550 (2020: 40.491 vs 40.185) ⇒ surface flame/torching off.
-             _so_fm ? _forest_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :
-             _oc_fm ? oc_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
-             _op_fm ? op_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
-             _em_fm ? em_cwcalc(sp, d, t.height[i], Float32(t.crown_pct[i]), s.plot.basal_area, s.plot.elevation,
+             _so_fm ? _forest_crwdth(s, sp, cd, ch, cc) :
+             _oc_fm ? oc_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi) :  # OC R6 Crookston (oc/cwcalc.f OCMAP; forest-711→610 BF)
+             _op_fm ? op_cwcalc(sp, cd, ch, Float32(cc), _nc_ba, _cr_el, _cr_hi) :  # OP R6 Crookston (op/cwcalc.f OPMAP; forest-708→606 BF)
+             _em_fm ? em_cwcalc(sp, cd, ch, Float32(cc), s.plot.basal_area, s.plot.elevation,
                                 _cr_hopkins(s.plot.latitude, s.plot.longitude, s.plot.elevation)) :   # EM (em/cwcalc.f)
-             _citu_fm ? tree_crwdth(s, sp, d, t.height[i], t.crown_pct[i]) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
-             crown_width(coef, s.species.code2[sp], d, t.height[i], Float32(t.crown_pct[i]), 0,
+             _citu_fm ? tree_crwdth(s, sp, cd, ch, cc) :   # CI/TT/UT: CWIDTH=CRWDTH(I) (ci,tt,ut/fmcba.f)
+             crown_width(coef, s.species.code2[sp], cd, ch, Float32(cc), 0,
                          s.plot.latitude, s.plot.longitude, s.plot.elevation)   # forest-grown (CWCALC iwho=0)
         # CRWDTH(I) is CWCALC's output, clamped to [0.5,99.9] (cwcalc.f:2391-2392); the raw NC/WC/PN/EC kernels above are not.
         (_nc_fm || _wc_fm || _pn_fm || _ec_fm) && (cw = clamp(cw, 0.5f0, 99.9f0))

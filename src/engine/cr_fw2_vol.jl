@@ -114,8 +114,8 @@ end
 # because JRSP=JSP-22=0 has no F(:,0) column. Ported so Black Hills ponderosa stands (voleq 203FW2W..122,
 # geosub 03) get volume instead of 0.
 function _fw2_shp_bh(d::Float32, h::Float32)
-    D = Float64(d); H = Float64(h); lnH = log(H)
-    dmedian = 1.6802 * (H - 4.5)^(0.4085 + 0.00169 * H)
+    D = Float64(d); H = Float64(h); lnH = dlog(H)
+    dmedian = 1.6802 * dpow(H - 4.5, 0.4085 + 0.00169 * H)
     dform = D / dmedian - 1.0
     u7 = -1.2726446 - 0.0048259438 * H
     u9 = 0.1821947
@@ -133,11 +133,11 @@ function _fw2_shp_bh(d::Float32, h::Float32)
     u7 = clamp(u7, -7.0, 7.0)
     u8 > 0.99 && (u8 = 0.99)
     u9 = u9 > 0.3 ? 0.3 : (u9 < 0.0 ? 0.0 : u9)
-    r1 = exp(u1) / (1.0 + exp(u1)); r2 = exp(u2) / (1.0 + exp(u2))
-    r3 = exp(u3) / (1.0 + exp(u3)); r4 = exp(u4) / (1.0 + exp(u4))
-    r5 = u5 <= 7.0 ? 0.5 + 0.5 * exp(u5) / (1.0 + exp(u5)) : 1.0
+    r1 = dexp(u1) / (1.0 + dexp(u1)); r2 = dexp(u2) / (1.0 + dexp(u2))
+    r3 = dexp(u3) / (1.0 + dexp(u3)); r4 = dexp(u4) / (1.0 + dexp(u4))
+    r5 = u5 <= 7.0 ? 0.5 + 0.5 * dexp(u5) / (1.0 + dexp(u5)) : 1.0
     a3 = u6
-    rhi1 = exp(u7) / (1.0 + exp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
+    rhi1 = dexp(u7) / (1.0 + dexp(u7)); rhi1 > 0.5 && (rhi1 = 0.5)
     rhlongi = u9; rhi2 = rhi1 + rhlongi; rhc = u8
     rhc < rhi2 + 0.01 && (rhc = min(rhi2 + 0.01, (rhi2 + 1.0) / 2.0))
     rflw = (Float32(r1), Float32(r2), Float32(r3), Float32(r4), Float32(r5), Float32(a3))
@@ -207,7 +207,7 @@ function _fw2_fdbt_c2(jsp::Int, d::Float32, h::Float32)::Float32
     end
     y2 = a00 + a[2] * duse + a[3] * duse * duse + a[4] * H + a[5] * H * duse
     y2 = clamp(y2, -8.0, 8.0)
-    ratio = exp(y2) / (1.0 + exp(y2))
+    ratio = dexp(y2) / (1.0 + dexp(y2))
     return Float32(ratio * D)
 end
 
@@ -252,37 +252,13 @@ function _fw2_sf_taper(rhfw, rflw)
             Float32(b2), Float32(b4), Float32(c1), Float32(c2), Float32(e1), Float32(e2))
 end
 
-"SF_YHAT (sf_yhat.f, JSP≠22): profile dib at relative height rh. Coefs REAL*4, x/y REAL*8, result REAL*4."
-function _fw2_sf_yhat(rh::Float32, tapcoe, rhfw, rflw, f::Float32)::Float32
-    rh > 1.0f0 && return 0.0f0
-    rh < 0.0f0 && return f
-    r3 = rflw[3]; a3 = Float64(rflw[6])
-    rhi1 = rhfw[1]; rhi2 = rhfw[2]; rhc = rhfw[3]; rhlongi = rhfw[4]
-    a0 = Float64(tapcoe[1]); a1 = Float64(tapcoe[2]); a2 = Float64(tapcoe[3]); a4 = Float64(tapcoe[4])
-    b0 = Float64(tapcoe[5]); b1 = Float64(tapcoe[6]); b2 = Float64(tapcoe[7]); b4 = Float64(tapcoe[8])
-    c1 = Float64(tapcoe[9]); c2 = Float64(tapcoe[10])
-    e1 = Float64(tapcoe[11]); e2 = Float64(tapcoe[12])
-    R = Float64(rh)
-    local y::Float64
-    if rh >= rhc                                    # upper segment
-        x = (1.0 - R) / (1.0 - Float64(rhc))
-        y = x * (c2 + x * ((c1 / 2.0) - (c1 / 6.0) * x))
-    elseif rh >= rhi2                               # middle segment
-        x = (R - Float64(rhi2)) / (Float64(rhc) - Float64(rhi2))
-        if x > 0.0
-            sus2 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1)
-            y = b0 + x * (b4 + x * (-b2 / ((b1 + 1.0) * (b1 + 2.0)) * sus2 + b2 / 6.0 * x))
-        else
-            y = b0
-        end
-    elseif rhlongi > 0.0f0 && rh > rhi1             # straight segment
-        y = e1 + e2 * R
-    else                                            # lower segment
-        x = (Float64(rhi1) - R) / Float64(rhi1)
-        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * dlog(1.0 - x / a3)
-    end
-    return Float32(Float64(f) * y)
-end
+"""SF_YHAT (sf_yhat.f, JSP≠22): profile dib at relative height rh — the faithful mixed-precision kernel
+`_fw2_sf_yhat_f`: X and the REAL coefficient sub-terms (C1/6, B2/((B1+1)(B1+2)), A4+A2/A3, A2/(2·A3²), E1+E2·RH)
+are formed in REAL*4, Y in REAL*8, F·Y rounded to REAL. The all-Float64 kernel this replaced put GETDIB's log
+small-end dibs 1 ULP off (MEASURED FVSie_g16 374547584489998 climate 2035 WL 12.05"×107.0': 83.5-ft dib 4.5010004 jl
+vs 4.5009999 live, across GETDIB's 0.501 diameter-class cut ⇒ MCuFt 29.8/BdFt 154 vs live 29.3/148)."""
+_fw2_sf_yhat(rh::Float32, tapcoe, rhfw, rflw, f::Float32)::Float32 =
+    _fw2_sf_yhat_f(rh, tapcoe, rhfw, rflw, f, 1f0, false)[1]
 
 "SF_YHAT with slope (sf_yhat.f, ineedsl=1, JSP≠22): returns (dib::Float32, dDIB/dH::Float32). The diameter is
 identical to _fw2_sf_yhat (validated: max-diff 0 over rh∈[0,1]; slope matches the numerical derivative); the slope
@@ -313,9 +289,9 @@ function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Fl
     elseif rh >= rhi2                               # middle (I_SEG=2)
         x = (R - Float64(rhi2)) / (Float64(rhc) - Float64(rhi2))
         if x > 0.0
-            sus2 = (b1 * log10(x) <= -20.0) ? 0.0 : x^b1
+            sus2 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1)
             y = b0 + x * (b4 + x * (-b2 / ((b1 + 1.0) * (b1 + 2.0)) * sus2 + b2 / 6.0 * x))
-            sus3 = (b1 * log10(x) <= -20.0) ? 0.0 : x^(b1 + 1.0)
+            sus3 = (b1 * dlog10(x) <= -20.0) ? 0.0 : dpow(x, b1 + 1.0)
             dy_dx = b4 - b2 / (b1 + 1.0) * sus3 + b2 / 2.0 * x * x
         else
             y = b0; dy_dx = b4
@@ -326,7 +302,7 @@ function _fw2_sf_yhat_sl(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Fl
         dy_dx = e2; rh_length = 1.0; iseg = 3
     else                                            # lower (I_SEG=4)
         x = (Float64(rhi1) - R) / Float64(rhi1)
-        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * log(1.0 - x / a3)
+        y = a0 + x * ((a4 + a2 / a3) + x * (a2 / (2.0 * a3 * a3) + a1 * x)) + a2 * dlog(1.0 - x / a3)
         dy_dx = a4 + a2 / a3 + a2 / (a3 * a3) * x + 3.0 * a1 * x * x - a2 / (a3 - x)
         rh_length = Float64(rhi1); iseg = 4
     end
@@ -416,8 +392,8 @@ end
 SF_YHAT with sf_yhat.f's own precision (JSP≠22), for the SF_HS solver: X is formed in REAL (single operands)
 before widening to REAL*8; the REAL sub-terms (c1/2, c1/6, b2/((b1+1)(b1+2)), a4+a2/a3, a2/(2·a3²), 3·a1,
 the straight segment e1+e2·rh) stay single; Y is REAL*8; DY_DX and the slope DD_DH are REAL. Returns
-(dib, slope); slope is 0 unless `needsl`. `_fw2_sf_yhat`/`_fw2_sf_yhat_sl` keep their all-Float64 kernels
-(shared by every FW2 variant); this one is used only by `_fw2_sf_hs`.
+(dib, slope); slope is 0 unless `needsl`. `_fw2_sf_yhat` is this kernel (GETDIB, TCUBIC); `_fw2_sf_yhat_sl` keeps an all-Float64 kernel
+(unused); SF_HS (`_fw2_sf_hs`) uses this one with the slope.
 """
 function _fw2_sf_yhat_f(rh::Float32, tapcoe, rhfw, rflw, f::Float32, totalh::Float32, needsl::Bool)
     rh > 1f0 && return (0f0, 0f0)

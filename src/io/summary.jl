@@ -402,23 +402,24 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # cycle's CUTS (grincr.f:292 → cuts.f:1823 FMSCUT slash + YARDLOSS snags), so a thinned cycle reports the POST-
         # cut stand and the one-time dead-fuel load (fmcba.f:457) reads the post-cut FMTBA/PERCOV. Growing cycles run
         # this right after cuts! below; the final (post-projection) row keeps the cycle-top call (no cut happens).
-        carb_v3_pending = nothing   # (carbon_collect index, vtrip) of this cycle's pre-growth FMCRBOUT row
-        _ffe_reports! = function ()
+        # `seam=true`: called from grow_cycle!'s FMMAIN seam (gradd.f:118) on FMMAIN's own tree list — after REGENT's direct
+        # small-tree DBH/ICR and, in a tripling cycle, on the TRIPLEd records — so no virtual tripling and no DENSE (FVS's
+        # BA/plot statistics at FMMAIN are still the post-CUTS DENSE's, grincr.f:311).
+        _ffe_reports! = function (; seam::Bool = false)
         # FMMAIN (and its FMCRBOUT/FMDOUT/FMSSUM reports) runs once per projection CYCLE (fvs.f cycle loop), never
         # for the post-projection final row — live FVS_Carbon/Fuels/SnagSum carry NUMCYCLE rows, no final year.
         if carbon_on && !fire_cycle && !last
-            compute_density!(s)
-            _vt = _fm_will_triple(s)
+            seam || compute_density!(s)
+            _vt = !seam && _fm_will_triple(s)
             fmcba!(s; vtrip = _vt)       # FMCBA's TBA/TOTCRA walk the tripled FMPROB list too (fmcba.f:189-203)
             _carb_push(s; vtrip = _vt)   # FMMAIN runs on the tripled list in a tripling cycle
-            carb_v3_pending = (length(carbon_collect), _vt)   # V(3) re-derived at the FMMAIN seam (grow_cycle!)
         end
         # FVS_PotFire / PotFire_East (FMPOFL, fmmain.f:194): once per FMMAIN year (never the post-projection row), on the
         # year-start FMCBA state. A SIMFIRE cycle reports the POST-fire stand (FMPOFL follows FMBURN) — deferred to the
         # grow_cycle! hook below, like the carbon report.
         if potfire_collect !== nothing && s.fire !== nothing && s.fire.active && !last && !fire_this_cycle
-            compute_density!(s)
-            _vtp = _fm_will_triple(s)     # FMMAIN's FMCBA/FMPOCR run on the TRIPLEd list in a tripling cycle (fmcba.f:189-203)
+            seam || compute_density!(s)
+            _vtp = !seam && _fm_will_triple(s)     # FMMAIN's FMCBA/FMPOCR run on the TRIPLEd list in a tripling cycle (fmcba.f:189-203)
             fmcba!(s; load_dead = (s.variant isa CentralRockies) ? s.fire.fuels_init : true, vtrip = _vtp)
             pfr = fmpofl_report(s, Int(r.year); cyclen = per, seam = false, vtrip = _vtp)   # FMEFF/FMPTRH at the FMMAIN seam below
             pfr === nothing || push!(potfire_collect, (r.year, pfr, c == 0))   # c==0 ⇒ ICYC 1 (DBSFMPFC)
@@ -426,7 +427,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
         # FVS_CanProfile (fmpocr.f mode 2, fmmain.f:188): the PRE-growth (cycle-start inventory) canopy crown-fuel
         # profile — reported alongside FMPOFL, BEFORE this cycle's growth (distinct from the post-growth carbon path).
         if canprof_collect !== nothing && s.fire !== nothing && s.fire.active
-            compute_density!(s)
+            seam || compute_density!(s)
             push!(canprof_collect, (Int(r.year), canopy_crfill(s)))
         end
         end
@@ -502,10 +503,18 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                 prev_increment = 0f0   # this growing cycle had no removal
                 cc_prev = false
             end
-            _ffe_reports!()          # FMMAIN reports on the post-cut stand (see _ffe_reports! above)
+            # FMMAIN (gradd.f:118) runs AFTER GRINCR's growth: REGENT has already given each small tree its direct DBH
+            # (ie/regent.f:881 DBH(K)=0.1+DIAM·.01+HK·.001; the CR/NE/CS/SO/EC/WC/BM families' DBH(K)=D+.001·HK, …) and
+            # DUBSCR crown, and in a tripling cycle TRIPLE (grincr.f:543) has split the records. A non-fire cycle's whole
+            # FMMAIN pass — FMCBA (TBA/COVTYP/PRCL/the one-time dead-fuel load), the FMPOCR/FMPOFL/FMDOUT/FMCRBOUT reports,
+            # SNAGINIT and the annual FMSNAG/FMCWD/FMCADD loop — therefore runs at grow_cycle!'s FMMAIN seam (`ffe_pass`),
+            # on that list. (MEASURED FVSie_g16 11855985010690 2006: sp-9 TBA 21.4268 live from the grown seedlings' DBH vs
+            # 21.4036 from the start-of-cycle DBH ⇒ PRCL ⇒ initial dead fuels 1 ULP, drifting every later fuel/carbon row.)
+            # A SIMFIRE cycle keeps its post-fire hooks (carbon_hook/fuel_period inside mortality_and_fire!).
+            fire_this_cycle && _ffe_reports!()
             # SNAGINIT is processed at the top of FMSNAG (fmsnag.f:88-100), i.e. inside the annual loop that follows the
             # reports, so its snags first surface in the NEXT cycle's report.
-            if snaginit_pending
+            if snaginit_pending && fire_this_cycle
                 ffe_add_snaginit!(s); snaginit_pending = false
             end
             # FVS_Hrv_Carbon: collect AFTER this cycle's cut so year r.year's harvest is booked (KYR=1),
@@ -516,7 +525,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # with FMBURN, so a fire fires on the cycle-start + fire-year's single annual step — NOT the
             # period-end fuel. When a SIMFIRE burns this cycle, split the loop: advance 1 year, stash the
             # (SMALL,LARGE) the fire burns on, then advance the rest. Non-fire cycles run the full loop once.
-            ffe_defer_init = false
+            seam_fuel = false
             r6_defer_fuel = false
             if ffe_on
                 # FMMAIN runs FMBURN (the fire, fmmain.f:170) BEFORE the annual fuel loop (FMSNAG/FMCWD/
@@ -541,10 +550,10 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     # state (live BM 22960873010497 cycle-3 draws showed up in jl's cycle 4). Run the annual loop at the
                     # FMMAIN point inside grow_cycle! (mortality_and_fire!'s post_fire seam), like a fire cycle.
                     r6_defer_fuel = true
-                elseif s.fire.fuels_init || !(s.variant isa CentralRockies)
-                    ffe_fuel_update!(s, per; vtrip = _fm_will_triple(s))   # pre-TRIPLE here; FVS's FMMAIN is post-TRIPLE
                 else
-                    ffe_defer_init = true
+                    # FMMAIN's annual loop (fmmain.f:228), after its reports, at the FMMAIN seam (`ffe_pass` below) — which
+                    # also covers CR's first (dead-fuel-loading) FMCBA after the cut phase.
+                    seam_fuel = true
                 end
             end
             # FMMAIN (fmmain.f:139-206): FMCBA runs once at the year start. The only re-run is sn/fmburn.f:586-589 (the same
@@ -565,19 +574,27 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
                     end) : nothing
             # PotFire tree-list half (FMEFF ICALL=1 + FMPOFL_FMPTRH) at the FMMAIN seam of a non-fire cycle: FVS's FMMAIN
             # RNG state and TRIPLEd record list; the fire behaviour was sampled on the year-start fuels in _ffe_reports!.
-            mhook = (potfire_collect !== nothing && !pf_fire && !isempty(potfire_collect) &&
-                     potfire_collect[end][1] == r.year) ?
+            # (The year's row is pushed by `ffe_pass` at the FMMAIN seam, before this sampler runs.)
+            mhook = (potfire_collect !== nothing && !pf_fire) ?
                     ((st, stash) -> begin
+                        (isempty(potfire_collect) || potfire_collect[end][1] != r.year) && return
                         y, row, c1 = potfire_collect[end]
                         potfire_collect[end] = (y, _pofl_with_fmmain_trees(() -> fmpofl_fmmain(st, row), st, stash), c1)
                     end) : nothing
-            _v3p = carb_v3_pending; carb_v3_pending = nothing
-            fhook = _v3p === nothing ? nothing :
-                    ((st, stash) -> (e = carbon_collect[_v3p[1]];
-                                     carbon_collect[_v3p[1]] = Base.setindex(e, carbon_report_fmmain_v3(e[2], st, stash, _v3p[2]), 2)))
-            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = fhook, pofl_hook = mhook,
+            # The non-fire FMMAIN pass at grow_cycle!'s FMMAIN seam (gradd.f:118, see above): on the TRIPLEd list when the
+            # cycle triples (a scratch copy, as for FMPTRH), else on the stand's own records.
+            ffe_pass = (fire_this_cycle || !(seam_fuel || snaginit_pending || (carbon_on && !fire_cycle) ||
+                                             potfire_collect !== nothing || canprof_collect !== nothing)) ? nothing :
+                ((st, stash) -> _pofl_with_fmmain_trees(st, stash) do
+                    _ffe_reports!(; seam = true)
+                    if snaginit_pending
+                        ffe_add_snaginit!(st); snaginit_pending = false
+                    end
+                    seam_fuel && ffe_fuel_update!(st, per)
+                    nothing
+                end)
+            gr = grow_cycle!(s; fint = Float32(per), carbon_hook = chook, fmmain_hook = ffe_pass, pofl_hook = mhook,
                              fuel_period = (fire_this_cycle || r6_defer_fuel) ? per : nothing,
-                             ffe_init_period = ffe_defer_init ? per : nothing,
                              wwpb_barrier = wwpb_barrier)   # advances cycle (PPE mode-2 LIVE seam)
             r.accretion = _acc_mort(gr.accretion)
             r.mortality = _acc_mort(gr.mortality)
@@ -663,14 +680,15 @@ function summary_row(s::StandState; period::Int = 0, total_removed_merch::Real =
     # every variant stores); metric/vbase/sumout.f converts them to per-ha metric only when printing / calling
     # DBSSUMRY — see `metric_sumout`. QMD and MAI are kept UNROUNDED here (QSDBT / BCYMAI are REALs).
     met  = _metric_variant(s.variant)
-    # BM: FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:682) — a Float32
+    # FVS's .sum TPA and volume totals are PCTILE totals (gradd.f:289-322 / cratet.f:601 / fvs.f:212-236) — a Float32
     # cumulative sum walking IND BACKWARDS (smallest DBH first, pctile.f), over PROB and over CFV·PROB etc.
     # formed in Float32 — not a record-order sum. IND = CRATET's order on the cycle-0 row (bm_cratet_ind!),
-    # gradd.f:186's fresh RDPSRT(.TRUE.) after. Record order flipped knife-edge rows by ±1 (41134819010497:
-    # per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332). BM-gated (the base
-    # gradd.f is shared; other variants not yet re-validated on this order).
+    # the fresh RDPSRT(DBH,IND,.TRUE.) of gradd.f:186 / esnutr.f:142,405 after. Record order flipped knife-edge rows
+    # by ±1 (BM 41134819010497: per-record TPA bit-identical, record-order Σ 1331.49988 → 1331 vs live 1332; IE
+    # 3356357010690 climate 2032: per-tree BdFt identical, Σ 81635.55 → BdFt 81635 vs live 81636). gradd.f, fvs.f
+    # and cratet.f are the base routines in every variant build.
     bm_ind = nothing
-    if s.variant isa BlueMountains && s.trees.n > 0
+    if s.trees.n > 0
         bm_ind = Vector{Int32}(undef, s.trees.n)
         cycle0 ? bm_cratet_ind!(s, bm_ind) : _rdpsrt!(view(s.trees.dbh, 1:s.trees.n), bm_ind)
     end

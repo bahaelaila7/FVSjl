@@ -646,7 +646,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
                     bark_c = ie_bratio(sp, dbhk)                       # regent.f:975 BRATIO(ISPC,DBH(K),HT(K))
                     dg = (niv || ttv) ? dgk * bark_c : dgk
                     dds = dg * (2.0f0 * bark_c * d + dg) * scale2
-                    dg = sqrt((d * bark_c)^2.0f0 + dds) - bark_c * d
+                    dg = sqrt(fpow(d * bark_c, 2.0f0) + dds) - bark_c * d   # (D*BARK)**2.0: REAL exponent ⇒ powf, not x·x
                     (dbhk + dg) < diam && (dg = diam - dbhk)
                     dgk_out = dg
                     end
