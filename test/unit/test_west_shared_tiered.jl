@@ -405,4 +405,12 @@ end
     c = _case("TT", "1856089798290487", "rootdis")
     @test count(m -> _rel(m) > 1e-5, c.ms) == 0
 end
+# fmpofl.f:125-136 FWIND = SWIND(FMOIS)*WMULT before CALL FMCFMD: the moderate PotFire scenario re-selects the CR/TT/UT dynamic
+# fuel models with ITS wind.
+@testset "PotFire FMCFMD reads the scenario wind (fmpofl.f:125-136) vs FVStt_g16" begin
+    for r in ("salvage", "simfire")
+        c = _case("TT", "1856089798290487", r)
+        @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+    end
+end
 end # module

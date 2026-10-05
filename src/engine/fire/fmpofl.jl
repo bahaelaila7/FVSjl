@@ -359,8 +359,15 @@ function fmpofl_report(s::StandState, year::Integer; cyclen::Real = 5, fire_basi
         psburn = pc.pab >= 0f0 ? pc.pab : 100f0
         swind = unsafe_trunc(Int, prewnd)                                             # SWIND = INT(PREWND)
         fwind = Float32(swind) * wmult
+        # fmpofl.f:125-136 sets the common FWIND = SWIND(FMOIS)·WMULT before CALL FMCFMD, so the dynamic fuel-model logic
+        # that reads FWIND (CR/TT/UT LP, PP, MC branches) sees the SCENARIO wind, not the SIMFIRE/default fs.swind
+        # (MEASURED FVStt_g16 1856089798290487 SALVAGE 2033: LP cover, >1000 TPA, FMAVH>10 — severe FMD 5, moderate FMD 8
+        # live; jl took the severe wind for both ⇒ moderate Fuel_Mod1 5).
+        swind_save = fs.swind
+        fs.swind = typeof(fs.swind)(swind)
         models = (_pofl_reselect(s.variant) || base_models === nothing) ?
                  select_fuel_models(s, mois; fire_basis = fire_basis) : base_models
+        fs.swind = swind_save
         base_models === nothing && (base_models = models)
         f = _pofl_fmfint(s, models, mois, fwind, dpmod)
         surf = f.flame; pflam = f.flame
