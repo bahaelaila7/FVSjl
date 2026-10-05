@@ -318,10 +318,12 @@ end
 
 # ALGSLP for 3 breakpoints (algslp.f): flat below x[1] / above x[3], linear between.
 @inline function _cr_algslp3(x::Float32, xv::NTuple{3,Float32}, yv::NTuple{3,Float32})::Float32
-    x <= xv[1] && return yv[1]
+    # algslp.f: XX<X(1) ⇒ Y(1); XX≥X(N) ⇒ Y(N); else the first I with XX<X(I+1): Y(I)+((Y(I+1)-Y(I))/(X(I+1)-X(I)))*(XX-X(I))
+    # — the slope is formed FIRST (was (ΔY·(XX−X))/ΔX, a different REAL*4 rounding, and XX=X(2) took segment 1).
+    x < xv[1] && return yv[1]
     x >= xv[3] && return yv[3]
-    x <= xv[2] && return yv[1] + (yv[2] - yv[1]) * (x - xv[1]) / (xv[2] - xv[1])
-    return yv[2] + (yv[3] - yv[2]) * (x - xv[2]) / (xv[3] - xv[2])
+    x < xv[2] && return yv[1] + ((yv[2] - yv[1]) / (xv[2] - xv[1])) * (x - xv[1])
+    return yv[2] + ((yv[3] - yv[2]) / (xv[3] - xv[2])) * (x - xv[2])
 end
 
 # small-tree TOTWT (fmcroww.f:174-255)

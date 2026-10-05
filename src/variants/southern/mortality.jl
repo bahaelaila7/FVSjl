@@ -433,12 +433,14 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             # SN morts.f:645 = FINT/5, NE/CS morts.f:639 = FINT/10 (YR = htg_period). The old hardcoded FINT/5
             # was right for SN but over-projected DBH 2× for NE/CS ⇒ wrong tpacls ⇒ wrong MSB cancel/efficiency
             # (latent for SN, real for NE mortmsb). `_msbmrt!` separately keeps FINT/10 (base msbmrt.f:72, all variants).
+            # sn/morts.f:647 TPACLS=TPACLS+PROB(I)-WK2(I): (TPACLS+PROB)-WK2 left to right in REAL*4. Inline, not a
+            # closure-taking helper: a lambda capturing `t`/`_mbark` boxes them and makes all of mortality! allocate.
             tpacls = 0f0
             @inbounds for i in 1:n
                 d = t.dbh[i]
                 bark = _mbark(t.species[i], d, t.height[i])
-                dbhend = d + (t.diam_growth[i] / bark) * (fint / yr)
-                (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
+                dbhend = d + (t.diam_growth[i] / bark) * Float32(fint / yr)
+                (dbhend >= dlo && dbhend < dhi) && (tpacls = (tpacls + t.tpa[i]) - killed[i])
             end
             if tmore > tpacls
                 @warn "MORTMSB: additional mortality target ($(round(tmore; digits=1)) TPA) exceeds the TPA in " *

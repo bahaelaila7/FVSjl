@@ -1312,8 +1312,8 @@ function _forest_crwdth(s::StandState, sp::Int, d::Float32, h::Float32, crp; bar
     s.variant isa BlueMountains &&
         return bm_cwcalc(sp, d, h, Float32(crp), p.basal_area, p.elevation, hi; kodfor = bm_kodfor_remap(Int(p.user_forest_code)))
     wcw = s.variant isa CentralRockies    ? cr_cwcalc :
-          s.variant isa OregonCoast       ? oc_cwcalc :
-          s.variant isa Olympic           ? op_cwcalc :
+          s.variant isa OregonCoast       ? ((a...) -> oc_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
+          s.variant isa Olympic           ? ((a...) -> op_cwcalc(a...; kodfor = Int(p.user_forest_code))) :
           s.variant isa EasternMontana    ? em_cwcalc :
           s.variant isa InlandEmpire      ? ie_cwcalc :
           s.variant isa Kootenai          ? kt_cwcalc :
@@ -1456,6 +1456,8 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
             dbal = 0f0
             if snap
                 dbal = s.calib.cratet_dead_ptbal[kd]
+            elseif _r9_variant(s.variant)
+                dbal = 0f0                               # ptbal.f:60-66 CASE('CS','LS','NE','ON'): PTBALT = 0
             else
                 for j in 1:(t.n + t.ndead)
                     j == i && continue
@@ -1501,12 +1503,16 @@ CREATE TABLE IF NOT EXISTS FVS_InvReference(
   CFSawMinDBH real, CFSawTopDia real, CFSawStump real, BFVolEq text, BFMinDBH real,
   BFTopDia real, BFStump real);
 """
+# The 2026 "LOCCODE upgrade" of vdbsqlite/dbsreference.f adds LocationCode int (= KODFOR) after StandID. Of the oracle
+# builds only ON's g16 rebuild (build_g16_on.sh, upstream vdbsqlite/dbsreference.f) and TT's buildDir (tt/dbsreference.f)
+# carry it; every other variant links a pre-upgrade copy (ORACLE_SOURCE_AUDIT §5 upstream drift). ON here, TT below.
+const _FVS_INVREF_CREATE_LOC = replace(_FVS_INVREF_CREATE, "StandID text not null," => "StandID text not null, LocationCode int,")
+_invref_loccode(v) = v isa Ontario
 
 # tt/dbsreference.f (the 2026 LOCCODE upgrade, so far only in the TT build): `LocationCode int` after StandID, bound to
 # KODFOR (dbsreference.f:36,98-121). MEASURED FVStt_g16 2780339010690 FVS_InvReference LocationCode 415.
 # KODFOR as tt/forkod.f:90 leaves it: JFOR(IFOR) — the mapped forest (an unlisted input code falls to the default IFOR)
 _tt_kodfor(p) = TT_JFOR[clamp(Int(p.forest_idx), 1, length(TT_JFOR))]
-const _FVS_INVREF_CREATE_LOC = replace(_FVS_INVREF_CREATE, "StandID text not null, " => "StandID text not null, LocationCode int, ")
 
 """
     write_dbs_invref!(dbpath, caseid, standid, s)
@@ -1531,6 +1537,9 @@ function invref_voleq(s::StandState, sp::Int)::String
         return (ifor == 2 || ifor == 3) ? SO_VOLEQ_FR[sp] : SO_VOLEQ[sp]
     elseif v isa CentralCalifornia
         return ca_voleq(ifor, sp)
+    elseif v isa OregonCoast || v isa Olympic
+        # oc/op sitset.f VOLEQDEF(VAR,IREGN=KODFOR/100,FORST=KODFOR mod 100,DIST='  ',…): region 6 ⇒ R6_EQN westside.
+        r6 = r6_voleq_oc_op(s, sp); r6 === nothing || return r6
     elseif v isa WestSierra
         return WS_VOL_EQ[sp]
     elseif v isa SoutheastAlaska                       # voleqdef.f R10_EQN: FORST '04' (Chugach) CHUEQN, else TONEQN
@@ -1540,10 +1549,26 @@ function invref_voleq(s::StandState, sp::Int)::String
         end
         return AK_INVREF_VOLEQ[sp]
     end
-    return String(strip(s.species.vol_eq[sp]))
+    eq = String(strip(s.species.vol_eq[sp]))
+    # Region 9 (NE/CS/LS sitset.f:575-592): a blank VEQNNC with METHC 6/9 (the Clark default) is filled by
+    # VOLEQDEF → R9_EQN (voleqdef.f:2237-2249) as '900CLKE' + the species' FIA code (I3, zero-padded).
+    # (METHC 5 '900DVEE' takes R9_EQN's FIA→table search, voleqdef.f:2250+ — not ported; left blank.)
+    if isempty(eq) && _r9_variant(v) && s.control.sp_methc[sp] in (Int32(6), Int32(9))
+        return _r9_clke(s, sp)
+    end
+    return eq
 end
-_invref_bf_voleq(s::StandState, sp::Int) =
-    (bf = String(strip(s.control.sp_bf_vol_eq[sp])); isempty(bf) ? invref_voleq(s, sp) : bf)
+_r9_variant(v) = v isa Northeast || v isa CentralStates || v isa LakeStates
+_r9_clke(s::StandState, sp::Int) =
+    "900CLKE" * lpad(string(something(tryparse(Int, strip(s.coef.code_fia[sp])), 0)), 3, '0')
+# VEQNNB: the same sitset.f loop with METHB (default 6 — jl has no BFVOLUME METHB override, so the board equation is
+# the Clark one even when VOLUME set METHC=5).
+function _invref_bf_voleq(s::StandState, sp::Int)
+    bf = String(strip(s.control.sp_bf_vol_eq[sp]))
+    isempty(bf) || return bf
+    _r9_variant(s.variant) && isempty(strip(s.species.vol_eq[sp])) && return _r9_clke(s, sp)
+    return invref_voleq(s, sp)
+end
 
 function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
                            standid::AbstractString, s::StandState)
@@ -1556,7 +1581,9 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
-        loc = s.variant isa Teton
+        loc = s.variant isa Teton || _invref_loccode(s.variant)
+        # LocationCode: TT = the forkod-mapped forest code JFOR(IFOR) (west-shared-4); ON = KODFOR (tiered-east)
+        locv = s.variant isa Teton ? _tt_kodfor(p) : Int(p.user_forest_code)
         _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
@@ -1564,7 +1591,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
             # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
             # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
             _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, (loc ? (_tt_kodfor(p), sp) : (sp,))...,
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (locv,) : ())..., sp,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
                 String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)

@@ -81,11 +81,37 @@ function compute_volumes_oc!(s::StandState)
             # Broken/dead-top trees (ITRUNC>0, H≥4.5): build the profile from the dubbed NORMAL
             # height, then truncate back to the break with CFTOPK/BFTOPK (vols.f:164-165, cftopk.f).
             tkill = h >= 4.5f0 && t.trunc[i] > 0
-            htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
-            tcf = oc_tree_cuft(sp, d, htap)
-            v4, v2 = oc_tree_mvol(sp, d, htap; ht_out = ht1)
-            d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
-            d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
+            htap = tkill ? Float32(t.norm_ht[i]) / 100f0 : h   # vols.f:165 H=NORMHT(I)/100.0
+            eq = r6_voleq_oc_op(s, sp)
+            if eq === nothing
+                # BLM forests (710/711/712 …): the NVEL BLMVOL Behre-taper path (VEQNNC B0xBEHW…).
+                tcf = oc_tree_cuft(sp, d, htap)
+                v4, v2 = oc_tree_mvol(sp, d, htap; ht_out = ht1)
+                d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])
+                d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = ht1[])
+            else
+                # Region-6 national forests (610 Rogue River / 611 Siskiyou): organon/vols.f → NATCRS on the R6_EQN
+                # VEQNNC — westside Flewelling FW2 (F06 DF/WH), INGY FW2 (I00 WF/PP) or Behre 616BEHW (ca/formcl.f form
+                # class, which OC links) — the same NVEL kernels CA uses for these forests (MEASURED live FVSoc 610/611:
+                # VEQNNC 616BEHW… / F06FW2W202 / I00FW2W073; the BLM-only port gave cyc-0 TCuFt 18506 vs live 12329).
+                bark = (i <= t.n && t.vol_bark[i] > 0f0) ? t.vol_bark[i] : oc_bratio(sp, d)
+                htb = zeros(Float32, 2)
+                se = strip(eq); mdl = length(se) >= 7 ? se[4:6] : "   "
+                if mdl == "FW2" && (se[1] == 'F' || se[1] == 'f')
+                    tcf, v4, v2 = wc_fw2_westside_vol(eq, d, htap, bark; ht2td = htb)
+                elseif mdl == "FW2"
+                    v = cr_fw2_vol(eq, d, htap; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
+                                   iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true, ht2td = htb)
+                    tcf = max(v[1], 0f0); v4 = max(v[4] + v[7], 0f0); v2 = max(v[2], 0f0)
+                else
+                    ifor = Int(s.plot.forest_idx)
+                    tcf, v4, v2 = ca_behre_vol(sp, ifor, d, htap, bark)
+                    htb[1] = r6vol_ht1prd(d, ca_formcl(sp, ifor, d), 4.5f0 * bark, htap, d - d * (1f0 - bark)); htb[2] = htb[1]
+                end
+                tcf = max(tcf, 0f0); v4 = max(v4, 0f0); v2 = max(v2, 0f0)
+                d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = htb[1])
+                d >= c.sp_bf_dbhmin[sp] && (t.merch_top_bf[i] = htb[2])
+            end
             mcf = d >= c.sp_dbh_min[sp]  ? v4 : 0f0
             bf  = d >= c.sp_bf_dbhmin[sp] ? v2 : 0f0
             if tkill && tcf > 0f0

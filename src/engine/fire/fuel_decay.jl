@@ -567,31 +567,34 @@ FFE is active.
 function fmcwd!(s::StandState, nyrs::Integer)
     fs = s.fire
     (fs === nothing || !fs.active) && return s
-    cwd = fs.cwd; n = Float32(nyrs)
+    cwd = fs.cwd; n = Float32(nyrs); ni = Int(nyrs)   # (1-DKR)**NYRS is REAL**INTEGER (__powisf2, fpowi)
     # FUELMULT/FUELDCAY override the DKR matrix; DUFFPROD overrides PRDUFF — both fall back to defaults
     # when unset (size 0×0).
     dkr = size(fs.params.dkr, 1) == 11 ? fs.params.dkr : _fm_dkr_default(s.variant)
     has_pd = size(fs.params.prduff, 1) == 11; pdm = fs.params.prduff
     @inbounds for L in 1:4
         # duff (size 11) first, so woody decay can add to it below
-        cwd[11, 1, L] *= (1f0 - dkr[11, L] * 1.1f0)^n
-        cwd[11, 2, L] *= (1f0 - dkr[11, L])^n
+        cwd[11, 1, L] *= fpowi(1f0 - dkr[11, L] * 1.1f0, ni)
+        cwd[11, 2, L] *= fpowi(1f0 - dkr[11, L], ni)
         cwd[11, 1, L] < 0f0 && (cwd[11, 1, L] = 0f0)
         cwd[11, 2, L] < 0f0 && (cwd[11, 2, L] = 0f0)
         for J in 1:10
             dk = dkr[J, L]
             pd = has_pd ? pdm[J, L] : _FM_PRDUFF       # DUFFPROD-overridable proportion-to-duff
             # amount decayed this cycle → a PRDUFF fraction becomes duff (added to the hard duff pool)
-            amt = cwd[J, 1, L] - cwd[J, 1, L] * (1f0 - dk * 1.1f0)^n
+            amt = cwd[J, 1, L] - cwd[J, 1, L] * fpowi(1f0 - dk * 1.1f0, ni)
             amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * pd
-            amt = cwd[J, 2, L] - cwd[J, 2, L] * (1f0 - dk)^n
+            amt = cwd[J, 2, L] - cwd[J, 2, L] * fpowi(1f0 - dk, ni)
             amt < 1f-9 && (amt = 0f0); cwd[11, 2, L] += amt * pd
             # decrease the pools
-            cwd[J, 1, L] *= (1f0 - dk * 1.1f0)^n; cwd[J, 1, L] < 1f-9 && (cwd[J, 1, L] = 0f0)
-            cwd[J, 2, L] *= (1f0 - dk)^n;        cwd[J, 2, L] < 1f-9 && (cwd[J, 2, L] = 0f0)
+            cwd[J, 1, L] *= fpowi(1f0 - dk * 1.1f0, ni); cwd[J, 1, L] < 1f-9 && (cwd[J, 1, L] = 0f0)
+            cwd[J, 2, L] *= fpowi(1f0 - dk, ni);        cwd[J, 2, L] < 1f-9 && (cwd[J, 2, L] = 0f0)
             # hard → soft transfer (woody classes only)
             if J < 10
-                tosoft = clamp(n * log(1f0 - dk) / log(0.64f0), 0f0, 1f0) * cwd[J, 2, L]
+                # fmcwd.f:117 TOSOFT = NYRS*(LOG(1-DKR(J,L)))/(LOG(0.64)) — REAL LOG = glibc logf (flog); Julia's own
+                # Float32 log differs by an ULP on some DKR (MEASURED FVSbm_g16 22960873010497 salvage 2007: CWD(1,4,1,2)
+                # 2.55130029 live vs 2.5513005 jl after the first FMCWD).
+                tosoft = clamp(n * flog(1f0 - dk) / flog(0.64f0), 0f0, 1f0) * cwd[J, 2, L]
                 cwd[J, 1, L] += tosoft; cwd[J, 2, L] -= tosoft
                 cwd[J, 1, L] < 1f-9 && (cwd[J, 1, L] = 0f0)
                 cwd[J, 2, L] < 1f-9 && (cwd[J, 2, L] = 0f0)

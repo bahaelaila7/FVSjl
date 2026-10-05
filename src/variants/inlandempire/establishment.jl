@@ -2070,7 +2070,13 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
     # chain + EMSQR that the DO 322 keyword trees' ESSUBH heights read (estab.f:957-1075). CI runs this by default
     # (ci/esinit.f LAUTAL=LINGRW=.FALSE., STOADJ=0.0): MEASURED FVSci_g16 3159852010690 PLANT DF — per-plot EMSQR
     # 0.219/0.658/0.348… ⇒ HHT 1.19/1.33/1.32…, jl booked the deterministic mean on every plot.
-    _catchall = est.stoadj < 0.0001f0 && s.variant isa CentralIdaho &&
+    # IE/EM/KT (estb esnutr.f, the same file): NOAUTOES (ESNOAU, esin.f:784-788 LAUTAL=LINGRW=.FALSE., STOADJ=0.0) leaves
+    # only this catch-all — the same no-stocking plot chain as CI's default — and NOAUTALY+NOINGROW with STOADJ>0 the
+    # stocked plot loop (the AUTOES tally machinery below, NTALLY=99); jl fell back to establish!'s replicate chain.
+    # MEASURED IE plant_cal + NOAUTOES (FVSie_g16, 4 stands) and KT (FVSkt_clean, 4 stands): FVS_Summary 0 diffs (was
+    # QMD/TPA drift from 2022). CI's stocked branch (espadv/espsub/…) is not ported, so CI takes it only with STOADJ<1E-4.
+    _catchall = (s.variant isa CentralIdaho ? est.stoadj < 0.0001f0 :
+                 (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai)) &&
         (let icyc0 = Int(s.control.cycle) + 1, y1 = Int(current_cycle_year(s)), y2 = y1 + round(Int, fint)
             any(a -> (a.icflag == Int32(430) || a.icflag == Int32(431)) &&
                      ((y1 <= Int(a.year) < y2) || (0 < Int(a.year) < 1000 && Int(a.year) == icyc0)), s.control.schedule)
@@ -2263,8 +2269,10 @@ function ie_autoes_establish!(s::StandState; fint::Float32)::Bool
         _as0 = isempty(pasp_es) ? Float32(p.aspect_deg) * 0.0174533f0 : Float32(pasp_es[1])
         _ps = _autoes_prep_sumup!(s, est, _ntally, _ntally == 99, kdt, inv_year, icyc, year, next_year, ihab_code,
                                   _baaa0, _sl0, _as0)
-        if _ntally == 99 && s.variant isa CentralIdaho
-            est.es_ipprep = ones(Int32, Int(dupnpt))    # estab.f:222-236 ingrowth: PNONE=1 ⇒ every plot IPREP 1
+        if _ntally == 99
+            # estab.f:241-258 (the one estb file IE/EM/KT/CI share): the ingrowth catch-all sets PNONE=1 ⇒ every plot
+            # IPREP 1 — for every estb variant, not CI only (inert on the measured IE/KT/EM NOAUTOES cases).
+            est.es_ipprep = ones(Int32, Int(dupnpt))
         elseif _ntally == 1
             if _ps === nothing
                 est.es_ipprep = ones(Int32, Int(dupnpt))

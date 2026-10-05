@@ -190,71 +190,52 @@ end
 # Uses inside-bark coefficients: R,C,E,P,B,A,totHt,dbhIb,dib17
 # Returns cubic feet.
 # ---------------------------------------------------------------------------
-function _r9cuft(R::Real, C::Real, E::Real, P::Real, B::Real, A::Real,
-                 totHt::Real, dbhIb::Real, dib17::Real,
-                 lowrHt::Real, upprHt::Real)
-    upprHt <= 0 && return 0.0f0
-    dbhIb <= 0  && return 0.0f0
-    totHt <= 0  && return 0.0f0
-
-    G = (1 - 4.5/totHt)^R
-    W = (C + E/dbhIb^3) / (1 - G)
-    X = (1 - 4.5/totHt)^P
-
-    # Avoid underflow: (1-17.3/totHt)^P when near tip
-    Y = if (1 - 17.3/totHt) < 0.005748 && P > 14
-        0.0f0
-    else
-        (1 - 17.3/totHt)^P
+function _r9cuft(r::Float32, c::Float32, e::Float32, p::Float32, b::Float32, a::Float32,
+                 totht::Float32, dbhib::Float32, dib17::Float32,
+                 lowrHt::Float32, upprHt::Float32)::Float32
+    # R9CUFT (r9clark.f:961-1113) is REAL*4 throughout: Float32 literals, `**r`/`**p` = powf (fpow), integer
+    # powers expanded. The old R8 copy computed in Float64 (Float64 literals promoted every term), which rounds
+    # differently: mortmsb.key live FVSsn cycle 21 841CLKE531 D 38.292484 H 99.730515 saw cuft 290.63528 vs live
+    # 290.63531 ⇒ topwood 293.1853−cfVol = 2.5500183 → NINT 2.6 vs live 2.549988 → 2.5. One kernel for R8 (SN) and
+    # R9 (CS/LS/NE, `_r9_cuft`).
+    upprHt <= 0f0 && return 0f0
+    G = fpow(1f0 - 4.5f0 / totht, r)
+    W = (c + e / dbhib^3) / (1f0 - G)
+    X = fpow(1f0 - 4.5f0 / totht, p)
+    Y = ((1f0 - 17.3f0 / totht) < 0.005748f0 && p > 14f0) ? 0f0 : fpow(1f0 - 17.3f0 / totht, p)
+    Z = (dbhib^2 - dib17^2) / (X - Y)
+    T = dbhib^2 - Z * X
+    L1 = max(lowrHt, 0f0); U1 = min(upprHt, 4.5f0)
+    L2 = max(lowrHt, 4.5f0); U2 = min(upprHt, 17.3f0)
+    L3 = max(lowrHt, 17.3f0); U3 = min(totht, upprHt)
+    I1 = lowrHt < 4.5f0 ? 1f0 : 0f0
+    I2 = lowrHt < 17.3f0 ? 1f0 : 0f0
+    I3 = upprHt > 4.5f0 ? 1f0 : 0f0
+    I4 = upprHt > 17.3f0 ? 1f0 : 0f0
+    I5 = (L3 - 17.3f0) < a * (totht - 17.3f0) ? 1f0 : 0f0
+    I6 = (U3 - 17.3f0) < a * (totht - 17.3f0) ? 1f0 : 0f0
+    V1 = 0f0; V2 = 0f0; V3 = 0f0
+    if I1 > 0f0
+        V1 = I1 * dbhib^2 * ((1f0 - G * W) * (U1 - L1) +
+             W * (fpow(1f0 - L1 / totht, r) * (totht - L1) -
+                  fpow(1f0 - U1 / totht, r) * (totht - U1)) / (r + 1f0))
     end
-
-    Z = (X - Y) > 1e-10 ? (dbhIb^2 - dib17^2) / (X - Y) : 0.0f0
-    T = dbhIb^2 - Z * X
-
-    L1 = max(lowrHt, 0.0); U1 = min(upprHt, 4.5)
-    L2 = max(lowrHt, 4.5); U2 = min(upprHt, 17.3)
-    L3 = max(lowrHt, 17.3); U3 = min(totHt,  upprHt)
-
-    I1 = lowrHt < 4.5
-    I2 = lowrHt < 17.3
-    I3 = upprHt > 4.5
-    I4 = upprHt > 17.3
-    I5 = (L3 - 17.3) < A * (totHt - 17.3)
-    I6 = (U3 - 17.3) < A * (totHt - 17.3)
-
-    V1 = 0.0f0
-    if I1
-        t1 = (1 - L1/totHt)^R * (totHt - L1)
-        t2 = (1 - U1/totHt)^R * (totHt - U1)
-        V1 = dbhIb^2 * ((1 - G*W)*(U1-L1) + W*(t1-t2)/(R+1))
-    end
-
-    V2 = 0.0f0
-    if I2 && I3
-        t1p = (1 - L2/totHt)^P * (totHt - L2)
-        t2p_term = (1 - U2/totHt)
-        if t2p_term < 0.005748 && P > 14
-            V2 = T*(U2-L2) + Z*t1p/(P+1)
+    if I2 > 0f0 && I3 > 0f0
+        if (1f0 - U2 / totht) < 0.005748f0 && p > 14f0
+            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2)) / (p + 1f0)
         else
-            t2p = t2p_term^P * (totHt - U2)
-            V2 = T*(U2-L2) + Z*(t1p - t2p)/(P+1)
+            V2 = T * (U2 - L2) + Z * (fpow(1f0 - L2 / totht, p) * (totht - L2) -
+                 fpow(1f0 - U2 / totht, p) * (totht - U2)) / (p + 1f0)
         end
     end
-
-    V3 = 0.0f0
-    if I4
-        dth = totHt - 17.3
-        V3 = dib17^2 * (
-            B*(U3-L3)
-            - B*((U3-17.3)^2 - (L3-17.3)^2) / dth
-            + (B/3)*((U3-17.3)^3 - (L3-17.3)^3) / dth^2
-            + (I5 ? (1/3)*((1-B)/A^2)*(A*dth - (L3-17.3))^3 / dth^2 : 0.0)
-            - (I6 ? (1/3)*((1-B)/A^2)*(A*dth - (U3-17.3))^3 / dth^2 : 0.0)
-        )
+    if I4 > 0f0
+        V3 = dib17^2 * (b * (U3 - L3) - b * ((U3 - 17.3f0)^2 - (L3 - 17.3f0)^2) / (totht - 17.3f0) +
+             (b / 3f0) * ((U3 - 17.3f0)^3 - (L3 - 17.3f0)^3) / (totht - 17.3f0)^2 +
+             I5 * (1f0 / 3f0) * ((1f0 - b) / a^2) * (a * (totht - 17.3f0) - (L3 - 17.3f0))^3 / (totht - 17.3f0)^2 -
+             I6 * (1f0 / 3f0) * ((1f0 - b) / a^2) * (a * (totht - 17.3f0) - (U3 - 17.3f0))^3 / (totht - 17.3f0)^2)
     end
-
-    cfVol = Float32(0.005454154 * (V1 + V2 + V3))
-    return max(cfVol, 0.0f0)
+    cfVol = 0.005454154f0 * (V1 + V2 + V3)
+    return cfVol < 0f0 ? 0f0 : cfVol
 end
 
 # ---------------------------------------------------------------------------
@@ -464,13 +445,13 @@ function _R8CLARK_VOL(voleq::AbstractString, dbhOb::Float32, htTot::Float32,
 
     # 7. Stump volume (vol[14]) and tip volume (vol[15])
     vol[14] = _r9cuft(R,C,E,P,B,A, totHt,dbhIb,dib17, 0.0f0, stump)
-    vol[15] = max(vol[1] - vol[4] - vol[7], 0.0f0)
 
     # Round to match Fortran NINT() = round-half-AWAY-from-zero (NOT Julia round()'s ties-to-even).
     vol[1]  = Float32(round(vol[1]*10, RoundNearestTiesAway)/10)
     vol[4]  = Float32(round(vol[4]*10, RoundNearestTiesAway)/10)
     vol[7]  = Float32(round(vol[7]*10, RoundNearestTiesAway)/10)
     vol[10] = Float32(round(vol[10], RoundNearestTiesAway))
+    vol[15] = max(vol[1] - vol[4] - vol[7], 0.0f0)   # r9clark.f:463-464 tip = the ROUNDED vol(1)−vol(4)−vol(7)
 
     return vol, rawSawHt, plpHt
 end

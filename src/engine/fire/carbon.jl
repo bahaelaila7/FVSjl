@@ -112,16 +112,24 @@ end
 # height and LTKIL=.FALSE. (no top-kill), giving a different merch cubic. Recompute it there to match FVS.
 # Gated to the Southern R8-Clark path (NE/CS/LS use a separate NVEL routine and are out of scope / already
 # matched); a NON-broken tree is never recomputed, preserving the bit-exact `merch_cuft_vol` for 299/300.
+# SN: FMSVL2 recomputes NATCRS for EVERY live record (fmsvol.f → fvsvol.f NATCRS on the actual height, no CFTOPK, no
+# vols.f defect), so the cached `merch_cuft_vol` is not its value even for an intact tree: VOLS's MCFV went through
+# gradd.f/fvs.f's per-acre round trip (MCFV·PROB/PROB) — MEASURED live FVSsn_g16 156207237010854 SIMFIRE 1984 FMCRBOUT:
+# record 2 VT 15.9 vs jl's cached 15.899999 ⇒ Aboveground_Merch_Live 5.1446075 vs 5.1446066.
 @inline function _ffe_stem_mcf(s::StandState, i::Int, sp::Int, d::Float32, h::Float32)::Float32
-    (s.variant isa Southern && h >= 4.5f0 && s.trees.trunc[i] > 0) || return s.trees.merch_cuft_vol[i]
+    s.variant isa Southern || return s.trees.merch_cuft_vol[i]
+    d < 1f0 && return 0f0                                 # volinit.f:168 DBH<1 ⇒ no volume
     c = s.control
     if d >= c.sp_scf_dbhmin[sp]
         prod = "01"; stump = c.sp_scf_stump[sp]; mtopp = c.sp_scf_topd[sp]
     else
         prod = "02"; stump = c.sp_stump_ht[sp];  mtopp = c.sp_top_diam[sp]
     end
-    v, _, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
-    return d >= c.sp_dbh_min[sp] ? v[4] + v[7] : 0f0     # NATCRS MCF; no CFTOPK (LTKIL=.FALSE. for live)
+    v, ht1prd, _ = _R8CLARK_VOL(s.species.vol_eq[sp], d, h, mtopp, c.sp_top_diam[sp], stump, prod)
+    d >= c.sp_dbh_min[sp] || return 0f0                   # NATCRS MCF; no CFTOPK (LTKIL=.FALSE. for live)
+    # fvsvol.f:337-347 Region-8 "≥10 ft of product": a prod-01 sawlog shorter than 10 ft keeps only the topwood
+    (prod == "01" && ht1prd < 10f0) && return v[7]
+    return v[4] + v[7]
 end
 
 """

@@ -564,8 +564,10 @@ function oc_organon_prepare!(s::StandState)
     si_1 = s.plot.sp_site_index[7]                      # DF site (SI_1); PREPARE's own conversion handles ≤0
     si_2 = s.plot.sp_site_index[18]                     # PP site (SI_2)
     npts = max(1, Int(round(pival)))
+    # PREPARE reads MSDI_1/2/3 = RVARS(3/4/5) (organon/prepare.f:63-65) = SDIDEF(7)/SDIDEF(4)/SDIDEF(18) (oc/sitset.f:327-329).
+    sdd = s.plot.sp_sdi_def
     res = organon_prepare_swo(species, dbh1, ht1or, cr1, expan1, radgro, n, npts, stage, bhage,
-                              si_1, si_2, 0f0, 0f0, 0f0, 0f0, 1)   # IEVEN=1 (OC hardcoded even-aged)
+                              si_1, si_2, sdd[7], sdd[4], sdd[18], 0f0, 1)   # IEVEN=1 (OC hardcoded even-aged)
     # --- write ORGANON-dubbed HT/CR back into the valid-ORGANON records that were MISSING them
     #     (oc/cratet.f:349-365: only IORG=1 trees are reloaded; KNTOHT/KNTOCR count the imputed ones) ---
     @inbounds for i in 1:n

@@ -398,7 +398,8 @@ coarse-woody-debris pools (`fire.cwd`, CWD1): the fallen aboveground biomass (Je
 fallen density) is added to the down-wood class for the stem DBH and the species' decay
 class. Returns the total density (stems/ac) that fell.
 """
-function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,Integer} = nothing)::Float32
+function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,Integer} = nothing,
+                       only::Union{Nothing,Int} = nothing)::Float32
     fs = s.fire; (fs === nothing) && return 0f0
     sn = fs.snags; coef = s.coef
     cur = Int(current_cycle_year(s))            # cycle-start year — for the post-burn PBTIME window
@@ -420,7 +421,7 @@ function update_snags!(s::StandState, nyears::Integer; at_year::Union{Nothing,In
             (br.scorch::Float32) > pbscor && Int(br.year::Int) > byr && (byr = Int(br.year::Int))
         end
     end
-    @inbounds for i in eachindex(sn.sp)
+    @inbounds for i in (only === nothing ? eachindex(sn.sp) : (only:only))
         sp = sn.sp[i]
         # Advance the snag only by the years it has actually STOOD since death (capped at this step's
         # nyears): a snag dead `eff − deathyr` years has stood that long (FMSNAG ages each snag by its own
@@ -601,7 +602,7 @@ default (HTX=0) snags keep full height and the frozen `bolevol` is used (bit-exa
 soft (SFTMULT=HTXSFT, once a snag has passed DKTIME). A snag dropping below 1.5 ft becomes fuel (removed).
 """
 function ffe_snag_height_loss!(s::StandState, nyears::Integer;
-                               at_year::Union{Nothing,Integer} = nothing)
+                               at_year::Union{Nothing,Integer} = nothing, only::Union{Nothing,Int} = nothing)
     fs = s.fire; fs === nothing && return
     # SN/CS keep HTX=0 (sn/fmvinit.f:1089) yet FMSNAG still calls FMSNGHT for every standing pool: HTSNEW = HTCURR, then
     # fmsnght.f:164 `HTSNEW < 1.5 ⇒ 0` — a snag shorter than 1.5 ft is broken to fuel (CWD2) and its density zeroed
@@ -619,11 +620,10 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     # within [0.99,1.01] (the fmvinit default 1.0). FMSNAG brackets the whole snag loop with RANNGET/RANNPUT
     # (fmsnag.f:113-116/290-293), so the year's draws are rolled back: every year of a cycle replays the SAME
     # sequence, and the main stream is untouched.
-    r6 = r6_ffe_code(s.variant)
-    (r6 === :SO && _so_california_ht(Int(s.plot.user_forest_code))) && (r6 = :none)
-    r6 === :AK && (r6 = :none)          # fmsnght.f: 'AK' falls to CASE DEFAULT (HTR1/HTR2·HTX), no FMR6HTLS draw
-    r6save = r6 === :none ? nothing : rannget(s.rng)
-    @inbounds for i in eachindex(sn.sp)
+    r6 = _snag_r6htls(s)
+    # `only` = one record inside the caller's per-record FMSNAG pass; the caller brackets that pass with the RANNGET/RANNPUT.
+    r6save = (r6 === :none || only !== nothing) ? nothing : rannget(s.rng)
+    @inbounds for i in (only === nothing ? eachindex(sn.sp) : (only:only))
         (sn.den_hard[i] + sn.den_soft[i]) > 0f0 || continue
         x2h = 0f0; x2s = 0f0
         if r6 !== :none
@@ -673,6 +673,36 @@ function ffe_snag_height_loss!(s::StandState, nyears::Integer;
     end
     r6save === nothing || rannput!(s.rng, r6save)          # RANNPUT(SAVESO) (fmsnag.f:290-293)
     return
+end
+
+# FMSNGHT's FMR6HTLS family for this stand (fmsnght.f:74-93): the R6 code, :none for SO's California forests and AK.
+function _snag_r6htls(s::StandState)
+    r6 = r6_ffe_code(s.variant)
+    (r6 === :SO && _so_california_ht(Int(s.plot.user_forest_code))) && (r6 = :none)
+    r6 === :AK && (r6 = :none)          # fmsnght.f: 'AK' falls to CASE DEFAULT (HTR1/HTR2·HTX), no FMR6HTLS draw
+    return r6
+end
+
+"""
+    fmsnag_year!(s, iyr)
+
+One FMSNAG year (fmsnag.f:121-287): for each snag record IN ORDER, the fall (FMSFALL → CWD1 into the down-wood pools)
+and then — if the record still stands — the top breakage (FMSNGHT → CWD2). FVS interleaves the two per record, so a
+record's breakage piece is added to CWD before the next record's fallen bole; the pools are REAL*4 sums, so doing every
+fall first and every breakage after re-orders the additions (MEASURED FVSie_g16 3285544010690 salvage 2015, instrumented
+fmcwd.f label 1000: CWD(1,4,2,4) 4.022011757 live vs 4.0220113 jl ⇒ 2022 LARGE ⇒ FMDYN weights ⇒ flame/torching ULPs).
+The R6 FMR6HTLS draws are rolled back around the whole pass (RANNGET/RANNPUT, fmsnag.f:113-116/290-293).
+"""
+function fmsnag_year!(s::StandState, iyr::Integer)
+    fs = s.fire; sn = fs.snags
+    isempty(sn.sp) && return s
+    r6save = _snag_r6htls(s) === :none ? nothing : rannget(s.rng)
+    @inbounds for i in eachindex(sn.sp)
+        update_snags!(s, 1; at_year = iyr, only = i)
+        ffe_snag_height_loss!(s, 1; at_year = iyr, only = i)
+    end
+    r6save === nothing || rannput!(s.rng, r6save)
+    return s
 end
 
 "Total standing snag density (stems/ac) currently in the snag list."

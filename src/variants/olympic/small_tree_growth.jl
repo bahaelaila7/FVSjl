@@ -128,7 +128,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
             dg < 0f0 && (dg = 0.1f0)
             dg > dgmx && (dg = dgmx)
             dds = dg * (2f0 * bark * d + dg) * scale2
-            dg = sqrt((d * bark)^2 + dds) - bark * d
+            dg = sqrt(fpow(d * bark, 2f0) + dds) - bark * d   # op/regent.f:449 (D*BARK)**2.0 = powf (regent.o)
             (d + dg) < OP_REG_DIAM[ispc] && (dg = OP_REG_DIAM[ispc] - d)   # regent.f:452 (DBH(K)=D here)
             t.diam_growth[i] = dg
         end

@@ -1,0 +1,6 @@
+StandID,Year,Period,Pretend_Harvest,Undiscounted_Cost,Undiscounted_Revenue,Discounted_Cost,Discounted_Revenue,PNV,IRR,BC_Ratio,RRR,SEV,Value_of_Forest,Value_of_Trees,Mrch_Cubic_Volume,Mrch_BoardFoot_Volume,Discount_Rate,Given_SEV
+24446507010900,2003,5,NO ,50.0,0.0,50.0,0.0,-50.0,,0.0,,,,,0,0,0.0,
+24446507010900,2008,10,NO ,100.0,0.0,100.0,0.0,-100.0,,0.0,,,,,0,0,0.0,
+24446507010900,2013,15,NO ,150.0,0.0,150.0,0.0,-150.0,,0.0,,,,,0,0,0.0,
+24446507010900,2018,20,NO ,200.0,0.0,200.0,0.0,-200.0,,0.0,,,,,0,0,0.0,
+24446507010900,2023,25,NO ,250.0,0.0,250.0,0.0,-250.0,,0.0,,,,,0,0,0.0,

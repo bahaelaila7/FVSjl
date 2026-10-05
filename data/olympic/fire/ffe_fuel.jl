@@ -52,21 +52,13 @@ const _OP_CWMAP = ("01105","01505","01703","01905","02006","09805","02206","0420
                    "31206","35106","36102","63102","63102","74605","74705","81505","06405","07204",
                    "10105","10305","23104","35106","35106","35106","31206","12205","12205")
 
-"op/cwcalc.f forest-grown crown width for FFE PERCOV. Crookston-R6 model 2 (_cr_r6m2, BF folded into the
-leading coef). 606 Mt Hood BF: WF(015)=1.130, LP(108)=0.944, others not in the 606 table ⇒ BF=1.0.
-Incremental — errors on un-ported CWEQN (the opt01 ref-stand species: WF/ES/LP/SP/PP/DF, all model 05)."
-function op_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32)::Float32
+# op/cwcalc.f = the shared western cwcalc.f library: `_cwcalc_national` with the KODFOR Region-6 BF (cwcalc.f CASE(609,800)
+# Olympic, CASE(606,708) Mt Hood/BLM Salem, …). The former per-equation copy hard-wired the 606 table and errored on the
+# other OPMAP codes (26305 WH, 35106 RA, 24205 RC, 01105 SF — jl CRASH on the tiered OP fixture).
+function op_cwcalc(sp::Int, d::Float32, h::Float32, cr::Float32, barea::Float32, el::Float32, hi::Float32;
+                   kodfor::Int = 708)::Float32
     (1 <= sp <= 39) || return 0f0
     eqn = _OP_CWMAP[sp]
-    cl = cr * h * 0.01f0
-    ba1 = (barea < 1f0 ? 1f0 : barea) + 1f0
-    if     eqn == "20205"; return _cr_r6m2(6.0227f0*1.000f0, 0.54361f0,-0.20669f0,0.20395f0,-0.00644f0,-0.00378f0, d,h,cl,ba1,el,  1f0,75f0,80f0)  # DF (BF 202=1.0)
-    elseif eqn == "01505"; return _cr_r6m2(5.0312f0*1.130f0, 0.53680f0,-0.18957f0,0.16199f0, 0.04385f0,-0.00651f0, d,h,cl,ba1,el,  2f0,75f0,35f0)  # WF (BF 015=1.130)
-    elseif eqn == "10805"; return _cr_r6m2(6.6941f0*0.944f0, 0.81980f0,-0.36992f0,0.17722f0,-0.01202f0,-0.00882f0, d,h,cl,ba1,el,  1f0,79f0,40f0)  # LP (BF 108=0.944)
-    elseif eqn == "11705"; return _cr_r6m2(3.5930f0*1.000f0, 0.63503f0,-0.22766f0,0.17827f0, 0.04267f0,-0.00290f0, d,h,cl,ba1,el,  5f0,75f0,56f0)  # SP (BF 117=1.0)
-    elseif eqn == "12205"; return _cr_r6m2(4.7762f0*1.000f0, 0.74126f0,-0.28734f0,0.17137f0,-0.00602f0,-0.00209f0, d,h,cl,ba1,el, 13f0,75f0,50f0)  # PP (BF 122=1.0)
-    elseif eqn == "09305"; return _cr_r6m2(6.7575f0*1.000f0, 0.55048f0,-0.25204f0,0.19002f0, 0.0f0,    -0.00313f0, d,h,cl,ba1,el,  1f0,85f0,40f0)  # ES (no BAREA term; BF 093=1.0)
-    else
-        error("op_cwcalc: crown-width equation $eqn (species $sp) not yet ported — add its op/cwcalc.f CASE.")
-    end
+    bf = (601 <= kodfor < 1000) ? get(_R6_CWBF, (kodfor, eqn[1:3]), 1f0) : 1f0
+    return _cwcalc_national(eqn, d, h, cr, barea, el, hi; bf = bf)
 end

@@ -171,29 +171,28 @@ function compute_crown_lift!(s::StandState, cyclen::Real)
     cl = fs.crown_lift_annual; fill!(cl, 0f0)
     t = s.trees; coef = s.coef; dkrcls = coef_col(coef, :dkr_cls)
     ocrw = t.ffe_oldcrw
-    @inbounds for i in 1:t.n
-        for k in 1:5; ocrw[k, i] = 0f0; end                # reset this record's OLDCRW (recomputed below)
-        t.tpa[i] > 0f0 || continue
+    @inbounds for i in 1:t.n                               # fmsdit.f:94-119 DO I=1,ITRN (PROB=0 records too)
         # OLDHT/OLDCRL from the last FMMAIN's FMOLDC (ffe_fmoldc!): a record established after it carries its slot's
         # value (0 for a fresh slot ⇒ OLDCRL ≤ 0.001 ⇒ no lift, fmsdit.f:110)
         oldht = t.fm_oldht[i]; oldcrl = t.fm_oldcrl[i]
         sp = Int(t.species[i])
         oldcr = t.ffe_oldcr[i]
         x = crown_lift_rate(oldht, oldcrl, t.height[i], Float32(t.crown_pct[i]), cyclen)
-        x > 0f0 || continue
-        # OLDCRW = the PREVIOUS-cycle woody crown weights (recomputed from the old tree state, = FMOLDC)
-        # FMOLDC (fmoldc.f, one file in every build) saved the record's CROWNW itself (fmsdit.f:106 OLDCRW = X·OLDCRW) —
-        # the array ffe_fmcrow! filled at the last FMSDIT with its PCTILE height percentile (and any fire reduction), not a
-        # recompute from the old dims (only a stand FMCROW never ran on falls back to that).
-        xvold = fs.fmcrow_on ? ntuple(k -> t.ffe_crownw[k, i], 6) :
+        # OLDCRW(I,J) as FMSDIT finds it: FMOLDC's OLDCRW=CROWNW snapshot (ffe_fmoldc! stores it in ffe_oldcrw) — or, for a
+        # slot beyond the ITRN of that FMMAIN (a record ESTAB booked later), whatever the slot still holds: last FMSDIT's
+        # X-scaled OLDCRW, which this FMSDIT scales again (MEASURED FVSem_g16 684750664126144 SIMFIRE cycle 4, records
+        # 143/144 booked after the 2028 fire: OLDCRW(1:2) 1.0077E-2/5.232E-3 = the stale cycle-3 values ⇒ 2048 BIOLIVE).
+        # Only a stand FMCROW never ran on recomputes it from the old dims.
+        xvold = fs.fmcrow_on ? (0f0, t.ffe_oldcrw[1, i], t.ffe_oldcrw[2, i], t.ffe_oldcrw[3, i], t.ffe_oldcrw[4, i],
+                                t.ffe_oldcrw[5, i]) :
                 crown_biomass(s, sp, t.ffe_olddbh[i], oldht, Int(round(oldcr)))
         dkcl = clamp(Int(dkrcls[sp]), 1, 4)
         for sz in 1:5
             ocw = xvold[sz + 1]
-            ocw < 0.0000625f0 && continue                  # FMSDIT raw-OLDCRW threshold
-            lift = x * ocw                                 # OLDCRW after the X scaling
-            ocrw[sz, i] = lift                             # store per-tree OLDCRW (for the at-death FMSCRO term)
-            t.tpa[i] * lift < 0.0000625f0 && continue      # FMCADD FMPROB·OLDCRW threshold (down-wood only)
+            # fmsdit.f:110-118: OLDCRW<0.0000625 ⇒ 0, else X·OLDCRW; no lift (OLDCRL ≤ .001 or the base did not rise) ⇒ 0
+            lift = (x > 0f0 && !(ocw < 0.0000625f0)) ? x * ocw : 0f0
+            ocrw[sz, i] = lift                             # OLDCRW after FMSDIT (the at-death FMSCRO term, FMDOUT, FMCADD)
+            (lift > 0f0 && !(t.tpa[i] * lift < 0.0000625f0)) || continue   # FMCADD FMPROB·OLDCRW threshold (fmcadd.f:95)
             cl[sz, dkcl] += t.tpa[i] * lift * _FM_P2T
         end
     end
@@ -231,6 +230,8 @@ function ffe_fmoldc!(s::StandState; fmicr = nothing)
         icr = useicr ? Float32(fmicr[i]) : Float32(t.crown_pct[i])
         t.fm_oldht[i] = h
         t.fm_oldcrl[i] = h * (icr / 100f0)
+        # fmoldc.f:54-56 OLDCRW(I,J) = CROWNW(I,J) (J=1..5 kept; the foliage J=0 term is never read)
+        fs.fmcrow_on && (for k in 1:5; t.ffe_oldcrw[k, i] = t.ffe_crownw[k + 1, i]; end)
     end
     return s
 end
@@ -269,8 +270,7 @@ function ffe_fuel_update!(s::StandState, nyrs::Integer; vtrip::Bool = false)
         # FMSNAG: snag bole → down wood (this year). Pass the ACTUAL annual year so a fire snag created
         # this cycle (before this loop) ages across the loop and falls in the years after the burn —
         # ordinary-mortality snags are created after the loop, so they're absent this cycle regardless.
-        isempty(fs.snags.sp) || update_snags!(s, 1; at_year = cur0 + (k - 1))
-        ffe_snag_height_loss!(s, 1; at_year = cur0 + (k - 1))   # SNAGBRK bole breakage (no-op unless HTX set)
+        fmsnag_year!(s, cur0 + (k - 1))               # FMSNAG: per record, the fall (CWD1) then the breakage (CWD2)
         fmcwd!(s, 1)                                   # FMCWD: decay (now also decays this year's bole)
         fmcadd!(s; vtrip = vtrip)                      # FMCADD: litterfall, breakage, crown lift, then CWD2B year-1 fall
         fs.cwd2b .+= fs.cwd2b2; fill!(fs.cwd2b2, 0f0)  # fmmain.f:243-257 CWD2B += CWD2B2; CWD2B2 = 0

@@ -44,7 +44,7 @@ set crown `ANINT(CR2·100)`, and reduce TPA by `MORTEXP·(FINT/5)`. Returns the 
 inspection. Deterministic (DGSD=0). Non-ORGANON records are left unchanged (see file header).
 """
 function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 0,
-                               fint::Float32 = 5f0)
+                               fint::Float32 = 5f0, msdi2::Float32 = msdi, msdi3::Float32 = msdi)
     t = s.trees
     # oc/dgdriv.f: DGF runs for EVERY tree (WK2 = FVS-native ln DDS), on the ORIGINAL DBH, BEFORE any
     # growth is applied. Then the ORGANON EXECUTE overwrites WK2 for the valid ORGANON trees (IORG=1).
@@ -60,7 +60,7 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     calib1 = Float32[s.calib.organon_acalib[1, g] for g in 1:18]
     # ORGANON growth (only when a big-6 tree exists); else the whole stand is FVS-native.
     g = buf.runs ? organon_execute_swo(buf, isp_fvs; si_1=si_1, si_2=si_2,
-                       msdi_1=msdi, msdi_2=msdi, msdi_3=msdi, cyclg=cyclg, calib1=calib1) : nothing
+                       msdi_1=msdi, msdi_2=msdi2, msdi_3=msdi3, cyclg=cyclg, calib1=calib1) : nothing
     fscale = fint/5f0
     # oc/dgdriv.f:463 CALL CLGMULT(WK4) ⇒ :536 DDS=EXP(WK2+XDGROW)·WK4 for EVERY tree (ORGANON-folded or native).
     cw = climate_growth_wk4!(s, Float32(current_cycle_year(s)) + fint / 2f0)
@@ -142,10 +142,11 @@ end
 # (no tripling: INDS(5)=0, DGSD=0 on OC).
 function diameter_growth!(s::StandState, ::OregonCoast; tripling::Bool = false,
                           sfint::Float32 = 5f0, kwargs...)
-    # MSDI_1/2/3 = SDIDEF(7/18/4) (oc/sitset.f:340-342); inert on ocmin (RD≤RDCC base mortality)
-    # but faithful for dense stands. Sourced from the ecoclass-filled sp_sdi_def (site_setup!).
-    msdi = (length(s.plot.sp_sdi_def) >= 7 && s.plot.sp_sdi_def[7] > 0f0) ? s.plot.sp_sdi_def[7] : 0f0
-    organon_apply_growth!(s; fint=sfint, msdi=msdi)
+    # inert on ocmin (RD≤RDCC base mortality) but faithful for dense stands; sp_sdi_def from site_setup! (sitset).
+    # organon/execute2.f:138-140 MSDI_1/2/3 = RVARS(3/4/5), which oc/sitset.f:327-329 loads with SDIDEF(7) (DF),
+    # SDIDEF(4) (WF/GF), SDIDEF(18) (PP) — each its own value (they differ when the ecoclass gives species SDImax).
+    sd = s.plot.sp_sdi_def
+    organon_apply_growth!(s; fint=sfint, msdi=sd[7], msdi2=sd[4], msdi3=sd[18])
     # DBH/HT/NORMHT already grown INLINE in organon_apply_growth!; the shared grow_cycle! apply-loop SKIPS OC
     # (simulate.jl) so it does NOT double-apply. We KEEP diam_growth/ht_growth (the applied increment) so the
     # FVS_TreeList DG/HtG columns are populated for OC (they were 0 on every projected cycle when zeroed here).

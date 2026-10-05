@@ -127,6 +127,10 @@ function op_sitset!(s::StandState)
         (isisp <= 0) && (isisp = iseq)                         # IFLAG=1 site species
         (si[iseq] <= 0f0 && nsiset == 0) && (si[iseq] = rsi)
         (sdi[iseq] <= 0f0) && (sdi[iseq] = rsdi)
+        # op/sitset.f:117-119 `IF(ISISP.GT.0 .AND. ISFLAG.EQ.1) THEN IF(SDIDEF(ISISP).LE.0.) SDIDEF(ISISP)=RSDI` — a site
+        # species set from the input (FIA SITE_SPECIES 263 ⇒ WH) that is not the ecoclass species still takes its RSDI;
+        # without it the DO 80 fan copied SDIDEF(ISISP)=0 to every species (FVS_InvReference SDIMax 0 vs live 950).
+        (isisp > 0 && sdi[isisp] <= 0f0) && (sdi[isisp] = rsdi)
     end
     isisp <= 0 && (isisp = 16)                                 # Region-6 global default site sp = DF
     si[isisp] <= 0f0 && (si[isisp] = 100f0)

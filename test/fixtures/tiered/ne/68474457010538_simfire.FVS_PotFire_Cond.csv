@@ -1,0 +1,3 @@
+StandID,Fire_Condition,Wind_Speed,Temperature,One_Hr_Moisture,Ten_Hr_Moisture,Hundred_Hr_Moisture,Thousand_Hr_Moisture,Duff_Moisture,Live_Woody_Moisture,Live_Herb_Moisture
+68474457010538,Moderate,15.0,50,10.0,13.0,17.0,21.0,100.0,135.0,116.0
+68474457010538,Severe,25.0,80,5.0,8.0,12.0,15.000000953674316,40.0,89.0,60.000003814697266

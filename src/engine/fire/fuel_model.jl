@@ -1028,7 +1028,7 @@ function ie_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, _FMD_ICLSS)
     idry = get(_IE_MAPDRY, Int(s.plot.habitat_code), 0)          # FMKOD → IDRY (fmcba.f MAPDRY)
     # Canopy-cover split: ALGSLP(PERCOV, X=[30,50], Y=[0,1]) — high-cover weight → model 9 (fmcfmd.f:61-77).
-    wt9 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0
+    wt9 = _fm_algslp2(percov, 30f0, 50f0, 0f0, 1f0)   # ALGSLP: Y1+((Y2-Y1)/(X2-X1))*(XX-X1) = (1/20)·(PERCOV−30), not /20
     wt_lo = 1f0 - wt9
     if idry == 1                                                 # dry grassy: model 1 (low cover) + 9 (high)
         eqwt[1] = wt_lo; eqwt[9] = wt9
@@ -1054,7 +1054,7 @@ function em_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     # IEMTYP 48 → em_habtyp(48) → 1 ⇒ MD1/MD2 = 8/8 instead of 2/8), dropping live's model-2 candidate.
     iemtyp = Int(s.plot.habitat_code)
     m1, m2 = em_md_models(iemtyp)                               # EMMD: (MD1,MD2)[iemtyp]
-    wt2 = percov <= 30f0 ? 0f0 : percov >= 50f0 ? 1f0 : (percov - 30f0) / 20f0   # ALGSLP(PERCOV,[30,50],[0,1])
+    wt2 = _fm_algslp2(percov, 30f0, 50f0, 0f0, 1f0)   # ALGSLP(PERCOV,[30,50],[0,1]) = (1/20)·(PERCOV−30) (algslp.f), not /20
     eqwt[m1] += 1f0 - wt2                                        # WT1(1) → M1 (low cover)
     eqwt[m2] += wt2                                              # WT1(2) → M2 (high cover)
     eqwt[10] = 1f0; eqwt[12] = 1f0; eqwt[13] = 1f0             # natural fuels ASSIGNED (overwrite M1/M2 if 10/12/13)

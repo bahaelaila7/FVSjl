@@ -152,7 +152,7 @@ function _ss_strata(s::StandState; thresh = s.control.strclass_thresh)
         cw = _stored_crwdth(s.variant) ? stored_crwdth(s, i) :   # WK6=CRWDTH(I) (sstage.f:238/276), the last CWIDTH value
              _cr_ss ? cr_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
              _so_ss ? so_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
-             _oc_ss ? oc_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi) :
+             _oc_ss ? oc_cwcalc(Int(t.species[i]), t.dbh[i], t.height[i], Float32(t.crown_pct[i]), _cr_ba, _cr_el, _cr_hi; kodfor = Int(p.user_forest_code)) :
              _west_ss ? _forest_crwdth(s, Int(t.species[i]), t.dbh[i], t.height[i], t.crown_pct[i]) :  # WK6=CRWDTH (sstage.f:238)
              crown_width(co, strip(co.code_alpha[Int(t.species[i])]), t.dbh[i], t.height[i],
                          Float32(t.crown_pct[i]), 0, p.latitude, p.longitude, p.elevation)

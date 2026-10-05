@@ -250,10 +250,10 @@ function mortality!(s::StandState, ::EasternMontana; fint::Float32 = 10.0f0, boo
         cepmsb = flog(const_ * fpow(qmd, -1.605f0)) - slp * flog(qmd)
         tmmsb = fexp(cepmsb + slp * flog(d10)); tmore = tn - tmmsb * pmsdiu; tmore < 0f0 && (tmore = 0f0)
         dlo = ctl.msb_dlo; dhi = ctl.msb_dhi
-        tpacls = 0f0
+        tpacls = 0f0                                  # em/morts.f:828-834, TPACLS=TPACLS+PROB-WK2 left to right
         @inbounds for i in 1:n
             dbhend = t.dbh[i] + (t.diam_growth[i] / em_bratio(Int(t.species[i]), t.dbh[i])) * fr10
-            (dbhend >= dlo && dbhend < dhi) && (tpacls += t.tpa[i] - killed[i])
+            (dbhend >= dlo && dbhend < dhi) && (tpacls = (tpacls + t.tpa[i]) - killed[i])
         end
         if tmore > tpacls
             @warn "MORTMSB: additional mortality target exceeds the TPA in the DBH class; alternate mortality cancelled."

@@ -36,27 +36,30 @@ end
 "NC-128 height (ft) at `age` for LS species `sp` (htcalc.f MODE 1, IVAR=1 via MAPLS) — the ESSUBH base curve."
 @inline function ls_htcalc_height(sp::Integer, si::Real, age::Real)
     b1, b2, b3, b4, b5, bh = @inbounds LTBHEC[_LS_HTCALC_MAP[sp]]; sif = Float32(si)
-    return bh + b1 * sif^b2 * (1f0 - exp(b3 * Float32(age)))^(b4 * sif^b5)
+    # htcalc.f:404 H= BH + B1*SI**B2*(1.-EXP(B3*AGET))**(B4*SI**B5) — REAL exponents ⇒ glibc powf/expf (doctrine #4)
+    return bh + b1 * fpow(sif, b2) * fpow(1f0 - fexp(b3 * Float32(age)), b4 * fpow(sif, b5))
 end
 
 # sp-based htcalc wrappers (LTBHEC via _LS_HTCALC_MAP) — for the shared establishment REGENT(LESTB) path.
-@inline ls_htcalc_htmax(sp::Integer, si::Real) = (b = @inbounds LTBHEC[_LS_HTCALC_MAP[sp]]; b[1] * Float32(si)^b[2])
+@inline ls_htcalc_htmax(sp::Integer, si::Real) = (b = @inbounds LTBHEC[_LS_HTCALC_MAP[sp]]; b[1] * fpow(Float32(si), b[2]))
 @inline ls_htcalc_age(sp::Integer, si::Real, h::Real)   = _ls_age(@inbounds(LTBHEC[_LS_HTCALC_MAP[sp]]), si, h)
 @inline ls_htcalc_incr(sp::Integer, si::Real, aget::Real) = _ls_incr(@inbounds(LTBHEC[_LS_HTCALC_MAP[sp]]), si, aget)
-@inline _ls_htmax(coef, si) = coef[1] * Float32(si)^coef[2]
+@inline _ls_htmax(coef, si) = coef[1] * fpow(Float32(si), coef[2])   # htcalc.f:386 HTMAX=(B1*SI**B2)
 # Tree age from current height (HTCALC mode 0).
 function _ls_age(coef, si, h)
     b1, b2, b3, b4, b5, bh = coef; sif = Float32(si)
-    base = (Float32(h) - bh) / (b1 * sif^b2)
+    # htcalc.f:394 AGET= 1./B3*(ALOG(1-((H-BH)/B1/SI**B2)**(1./B4/SI**B5))): Fortran `/` is left-associative, so
+    # (H-BH)/B1/SI**B2 = ((H-BH)/B1)/SI**B2 and 1./B4/SI**B5 = (1/B4)/SI**B5 (as cs_htcalc_age) — not a/(b·c).
+    base = (Float32(h) - bh) / b1 / fpow(sif, b2)
     base <= 0f0 && return 0f0
-    return (1f0 / b3) * log(1f0 - base^(1f0 / (b4 * sif^b5)))
+    return (1f0 / b3) * flog(1f0 - fpow(base, 1f0 / b4 / fpow(sif, b5)))
 end
 # 10-yr height increment from starting age `aget` (HTCALC mode 9).
 function _ls_incr(coef, si, aget)
     b1, b2, b3, b4, b5, bh = coef; sif = Float32(si); a = Float32(aget)
-    hmax = b1 * sif^b2; ex = b4 * sif^b5
-    h0 = bh + hmax * (1f0 - exp(b3 * a))^ex
-    hp = bh + hmax * (1f0 - exp(b3 * (a + 10f0)))^ex
+    hmax = b1 * fpow(sif, b2); ex = b4 * fpow(sif, b5)      # htcalc.f:412-413 (powf/expf)
+    h0 = bh + hmax * fpow(1f0 - fexp(b3 * a), ex)
+    hp = bh + hmax * fpow(1f0 - fexp(b3 * (a + 10f0)), ex)
     return hp - h0
 end
 
@@ -73,13 +76,13 @@ LS height-growth competition modifier (ls/balmod.f). `rmsqd` = stand QMD (RMSQD,
     else
         expval = b2[sp] * d / rmsqd
         expval > 86f0 && (expval = 86f0)
-        omega = b1[sp] * (1f0 - exp(-expval))^b3[sp] + b4[sp]
+        omega = b1[sp] * fpow(1f0 - fexp(-expval), b3[sp]) + b4[sp]   # ls/balmod.f:54 (powf/expf)
     end
-    beta = c1[sp] * (rmsqd + 1f0)^c2[sp]
+    beta = c1[sp] * fpow(rmsqd + 1f0, c2[sp])                       # ls/balmod.f:58
     batemp = ba > 1f0 ? ba : 1f0                         # ls/balmod.f:107 IF(BA.LE.1.)BATEMP=1.
     arg = bamax1[sp] / batemp - 1f0
     arg < 0f0 && (arg = 0f0)
-    gm = 1f0 - exp(-omega * beta * sqrt(arg))
+    gm = 1f0 - fexp(-omega * beta * sqrt(arg))                      # ls/balmod.f:66
     gm < 0.2f0 && (gm = 0.2f0)
     return gm
 end
@@ -122,7 +125,7 @@ function height_growth!(s::StandState, ::LakeStates; scale::Float32 = 1f0)
         gmod = (1f0 - (1f0 - gmod) * (1f0 - relht)) * 0.8f0
         htg = htg1 * (1f0 + oldrn[i]) * gmod
         htg < 0.1f0 && (htg = 0.1f0)
-        htg = scale * xht * htg * exp(htcon)
+        htg = scale * xht * htg * fexp(htcon)                       # ls/htgf.f:55 EXP(HTCON) → expf
         sc4 = s.control.sp_size_cap[sp, 4]
         (hti + htg) > sc4 && (htg = max(sc4 - hti, 0.1f0))
         t.ht_growth[i] = htg

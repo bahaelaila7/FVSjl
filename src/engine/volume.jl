@@ -683,32 +683,43 @@ function init_merch_standards!(s::StandState)
         return s
     end
     if s.variant isa Ontario
-        # canada/on grinit.f + sitset.f merch defaults. grinit seeds TOPD=BFTOPD=10cm·CMtoIN,
-        # STMP=BFSTMP=30cm·CMtoFT, DBHMIN=BFMIND=0 (ONMTD is DATA MAXSP*0.0). sitset then fills the
-        # zero DBHMIN/BFMIND (TOPD/BFTOPD stay 10cm since they are >0): softwoods (ISPC≤14 or >68)
-        # DBHMIN=5, BFMIND=9, BFTOPD=7.6; hardwoods key on IFOR (SELECT CASE, DBHMIN 5/6, BFMIND 9/11,
-        # BFTOPD 7.6/9.6) — for ont01 IFOR=9 = CASE DEFAULT → DBHMIN=5, BFMIND=11, BFTOPD=9.6. ON has
-        # NO Scribner-cubic (SCF) merch standard, so mirror the cubic values into the scf_* slots
-        # (unused until the ON volume kernel — htont/varvol/cubrds/nbolt — lands as a later chunk).
+        # canada/on grinit.f:144-152 seeds TOPD=BFTOPD=10cm·CMtoIN, STMP=BFSTMP=30cm·CMtoFT and DBHMIN=BFMIND=ONMTD·CMtoIN
+        # = 0 (DATA ONMTD/MAXSP*0.0/); there is NO Scribner-cubic (SCFMIND/SCFTOPD/SCFSTMP stay 0 — FVS_InvReference
+        # CFSaw* = 0). canada/on/sitset.f then (1) the KODFOR minimum-DBH block (:344-359: 903 softwoods ISPC≤14 or ≥68
+        # DBHMIN 4 / BFMIND 7, else DBHMIN 5 + BFMIND 9 off 40-42; 904/910/913/915/916 ISPC>14 DBHMIN 5; 907 ISPC>14 DBHMIN 5,
+        # 40-42 BFMIND 9) and (2) the defaults for the values still ≤0 (:517-565, by IFOR). TOPD/BFTOPD are >0 from grinit,
+        # so the 4.0 / 7.6 / 9.6 defaults never apply (MEASURED live FVSon FVS_InvReference: BFTopDia 3.937, CFMinDBH 4.0
+        # and BFMinDBH 7.0 for the softwoods on 903 — jl had 7.6/9.6, 5 and 9).
         cmToIn = 0.3937f0; cmToFt = 0.0328084f0
-        topd = 10.0f0 * cmToIn                       # 3.937"  (grinit, sitset leaves >0 untouched)
-        stmp = 30.0f0 * cmToFt                       # 0.984252 ft (cubic == board stump)
-        ifor = Int(s.plot.forest_idx)
+        topd = 10.0f0 * cmToIn
+        stmp = 30.0f0 * cmToFt
+        ifor = Int(s.plot.forest_idx); kodfor = Int(s.plot.user_forest_code)
         @inbounds for j in 1:length(c.sp_dbh_min)
-            sw = (j <= 14 || j > 68)                 # sitset softwood test (ISPC.LE.14 .OR .GT.68)
+            dbhmin = 0f0; bfmind = 0f0; bftopd = topd
+            if kodfor == 903
+                if j <= 14 || j >= 68
+                    bfmind = 7.0f0; dbhmin = 4.0f0
+                else
+                    dbhmin = 5.0f0; (j < 40 || j > 42) && (bfmind = 9.0f0)
+                end
+            elseif kodfor in (904, 910, 913, 915, 916)
+                (j > 14 || j >= 68) && (dbhmin = 5.0f0)
+            elseif kodfor == 907
+                j > 14 && (dbhmin = 5.0f0)
+                (40 <= j <= 42) && (bfmind = 9.0f0)
+            end
+            sw = (j <= 14 || j > 68)
             hw4042 = (40 <= j <= 42)
-            dbhmin = sw ? 5.0f0 :
-                     ifor == 2 ? (hw4042 ? 6.0f0 : 5.0f0) :
-                     ifor == 6 ? 6.0f0 : 5.0f0
-            bfmind = sw ? 9.0f0 :
-                     ifor == 2 ? (hw4042 ? 11.0f0 : 9.0f0) :
-                     ifor == 5 ? (hw4042 ? 9.0f0 : 11.0f0) : 11.0f0
-            bftopd = sw ? 7.6f0 :
-                     ifor == 2 ? (hw4042 ? 9.6f0 : 7.6f0) :
-                     ifor == 5 ? 7.6f0 : 9.6f0
+            if dbhmin <= 0f0
+                dbhmin = sw ? 5.0f0 : ifor == 2 ? (hw4042 ? 6.0f0 : 5.0f0) : ifor == 6 ? 6.0f0 : 5.0f0
+            end
+            if bfmind <= 0f0
+                bfmind = sw ? 9.0f0 : ifor == 2 ? (hw4042 ? 11.0f0 : 9.0f0) :
+                         ifor == 5 ? (hw4042 ? 9.0f0 : 11.0f0) : 11.0f0
+            end
             c.sp_dbh_min[j]    = dbhmin; c.sp_top_diam[j] = topd; c.sp_stump_ht[j] = stmp
             c.sp_bf_dbhmin[j]  = bfmind; c.sp_bf_topd[j]  = bftopd; c.sp_bf_stump[j] = stmp
-            c.sp_scf_dbhmin[j] = dbhmin; c.sp_scf_topd[j] = topd; c.sp_scf_stump[j] = stmp
+            c.sp_scf_dbhmin[j] = 0f0; c.sp_scf_topd[j] = 0f0; c.sp_scf_stump[j] = 0f0
         end
         c.merch_init = true
         return s
@@ -842,7 +853,37 @@ overridable by VOLUME/BFVOLUME). Needs `setup_volume_equations!` to have set
     return pulpv + scf, scf, bf
 end
 
+"""
+    compute_volumes!(s)
+
+VOLS for every variant. vols.f (all 24 variant builds) skips a record whose PROB ≤ 0 (`P=PROB(I); IF(P.LE.0.0)
+GO TO 200`): its CFV/MCFV/SCFV/BFV keep whatever they held and its HT2TD stays at the 0 that VOLS's entry loop
+stored. The per-variant kernels volume every live record, so the skip is applied here around them — a PROB=0
+record (e.g. a record MSBMRT or a fire killed outright) gets its prior volumes back and zero merch-top heights.
+"""
 function compute_volumes!(s::StandState)
+    t = s.trees
+    k0 = 0
+    @inbounds for i in 1:t.n
+        t.tpa[i] > 0f0 || (k0 += 1)
+    end
+    k0 == 0 && return _compute_volumes_all!(s)
+    idx = Int[i for i in 1:t.n if !(t.tpa[i] > 0f0)]
+    keep = [(t.cuft_vol[i], t.merch_cuft_vol[i], t.saw_cuft_vol[i], t.bdft_vol[i]) for i in idx]
+    _compute_volumes_all!(s)
+    # ON: merch_cuft_vol is VOLS's WK1, which compute_volumes_on! already set to the stale DGDRIV DG for an emptied record
+    # (ontario/volume.jl, vols.f:125) — keep the kernel's value, not the pre-VOLS volume.
+    wk1 = s.variant isa Ontario
+    @inbounds for (k, i) in enumerate(idx)
+        cf, mcf, scf, bf = keep[k]
+        t.cuft_vol[i] = cf; t.saw_cuft_vol[i] = scf; t.bdft_vol[i] = bf
+        wk1 || (t.merch_cuft_vol[i] = mcf)
+        t.merch_top_cf[i] = 0f0; t.merch_top_bf[i] = 0f0
+    end
+    return s
+end
+
+function _compute_volumes_all!(s::StandState)
     # Eastern variants (NE + CS + LS) share the NVEL Region-9 Clark cubic + R9LOGS board path,
     # differing only in the IFOR merch standards (_ne_merch / _cs_merch / _ls_merch, dispatched inside)
     # and the per-species METHC=5 DVEE/Gevorkiantz opt-in. LS lst01 defaults METHC=6 ⇒ pure Clark.
@@ -924,7 +965,7 @@ function compute_volumes!(s::StandState)
         # Broken-top trees: build the volume profile from the full ("normal")
         # height, then truncate it back to the break with CFTOPK (vols.f:60-120).
         tkill = h >= 4.5f0 && t.trunc[i] > 0
-        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)   # vols.f:146 H=NORMHT(I)/100.0 (a divide, not ×0.01)
         if d >= scfmin[sp]
             prod = "01"; stump = scfstmp[sp]; mtopp = scftop[sp]
         else

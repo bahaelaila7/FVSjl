@@ -4,7 +4,7 @@
 using FVSjl, Test, SQLite, DBInterface
 
 const _CR_VAR = Dict("ie" => FVSjl.InlandEmpire(), "em" => FVSjl.EasternMontana(), "sn" => FVSjl.Southern(),
-                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai())
+                     "bm" => FVSjl.BlueMountains(), "kt" => FVSjl.Kootenai(), "ca" => FVSjl.CentralCalifornia())
 
 "Run tiered fixture `<v>/<cn>_<rg>.key` through run_keyfile; returns the output DB path."
 function _cr_run(v::AbstractString, cn::AbstractString, rg::AbstractString)
@@ -430,5 +430,167 @@ end
         for g in gold, c in ("Forest_Down_Dead_Wood", "Forest_Floor", "Total_Stand_Carbon")
             @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
         end
+    end
+end
+
+@testset "MORTMSB TPACLS: TPACLS=TPACLS+PROB(I)-WK2(I) accumulates left to right (sn/morts.f:647, em:832, on:751)" begin
+    # Live FVSsn mortmsb.key cycle 7 (instrumented morts.f): TPACLS 111.83524 / TEMEFF 0.93748903 with identical
+    # PROB/WK2/DG/DBH inputs; the jl form TPACLS+(PROB−WK2) gave 111.83521 / 0.93748927 ⇒ every MSBMRT kill moved
+    # ⇒ 2075 TCuFt 1172 vs live 1173 (test_mortmsb). The kernel on a 3-record list where the association matters:
+    # The association itself (the accumulator is inlined at each morts site; test_mortmsb asserts the end-to-end rows):
+    tpacls = 0f0
+    for (p, w) in ((0.1f0, 0f0), (3f0, 2.9f0)); tpacls = (tpacls + p) - w; end
+    @test tpacls === (0.1f0 + 3f0) - 2.9f0
+    @test tpacls !== 0.1f0 + (3f0 - 2.9f0)
+end
+
+@testset "R8 Clark R9CUFT is REAL*4 (r9clark.f:961-1113): mortmsb 841CLKE531 topwood vs live FVSsn" begin
+    # Instrumented FVSsn (r9clark.f dump at :365) on harness/scenarios/mortmsb.key cycle 21, LP D 38.29248428
+    # H 99.73051453: tcfVol 293.1853027, saw cfVol 290.6353149 ⇒ VOL(7) 2.549987793 → NINT 2.5. The Float64 kernel
+    # gave saw 290.63528 ⇒ topwood 2.5500183 → 2.6.
+    v, ht1, ht2 = FVSjl._R8CLARK_VOL("841CLKE531", 38.29248428f0, 99.73051453f0, 9f0, 4f0, 1f0, "01")
+    @test v[1] == 293.4f0 && v[4] == 290.6f0
+    @test v[7] == 2.5f0
+    @test ht1 == 79.10056305f0
+    @test v[15] == max(v[1] - v[4] - v[7], 0f0)   # r9clark.f:463 tip from the ROUNDED volumes
+end
+
+@testset "EM 231908428020004 simfire FVS_PotFire: FMCFMD PERCOV weight is ALGSLP's (1/20)·(PERCOV−30) (em/fmcfmd.f, algslp.f)" begin
+    # WT1(2)=ALGSLP(PERCOV,[30,50],[0,1]) = Y(1)+((Y(2)-Y(1))/(X(2)-X(1)))*(XX-X(1)). jl formed (PERCOV−30)/20 ⇒ the
+    # collinear model-2/8 EQWT 0.51203900/0.48796099 vs live 0.51203895/0.48796102 (instrumented fmdyn.f) ⇒ 2013
+    # BYRAM 15023.779 vs 15023.777 ⇒ Surf_Flame_Sev 5.7092805 vs live 5.70928 (and 2033/2043 Tot_Flame/Torch_Index).
+    db = _cr_run("em", "231908428020004", "simfire")
+    gold, jl = _cr_table("em", "231908428020004", "simfire", db, "FVS_PotFire")
+    jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+    @test length(jl) == length(gold)
+    for g in gold, c in ("Surf_Flame_Sev", "Surf_Flame_Mod", "Tot_Flame_Sev", "Tot_Flame_Mod", "Torch_Index", "PTorch_Sev")
+        @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+    end
+end
+
+# Compare every cell of `tables` for one tiered case against its live golden (Float32 bits); returns the mismatch count.
+function _cr_case_mismatches(v, cn, rg, tables)
+    db = _cr_run(v, cn, rg); nbad = 0
+    for tb in tables
+        gold, jl = _cr_table(v, cn, rg, db, tb)
+        length(gold) == length(jl) || (nbad += 1; continue)
+        key(r) = (string(r["Year"]), string(get(r, "Removal_Code", "")), strip(string(get(r, "SpeciesFVS", ""))))
+        jd = Dict(key(r) => r for r in jl)
+        for g in gold, (c, x) in g
+            r = get(jd, key(g), nothing); r === nothing && (nbad += 1; continue)
+            (c in ("StandID", "CaseID") || !haskey(r, c)) && continue
+            y = r[c]
+            gx = tryparse(Float64, x)
+            (gx === nothing || !(y isa Real)) ? (strip(string(y)) == strip(x) || (nbad += 1)) :
+                                                (_cr_f32(y) == Float32(gx) || (nbad += 1))
+        end
+    end
+    return nbad
+end
+
+@testset "BM 12827438010497 thinbba FVS_StrClass: SSTAGE WK6 = the stored CRWDTH (bm sstage.f:238/276, cwidth.f)" begin
+    # The after-thin SSTGHP crown areas are the last CWIDTH call's (pre-thin BA); a recompute on the residual BA put records
+    # 1/2's WK4 717.31/717.59 in the other order ⇒ the 70th-percentile window ⇒ Stratum_1_DBH 28.502727 vs live 28.502726.
+    @test _cr_case_mismatches("bm", "12827438010497", "thinbba", ("FVS_StrClass",)) == 0
+end
+
+@testset "IE 3285544010690 / 3356357010690 salvage: FMSNAG falls and breaks each record before the next (fmsnag.f:121-287)" begin
+    # CWD1 then CWD2 per snag record; all falls first re-ordered the REAL*4 pool sums (CWD(1,4,2,4) 2015 4.022011757 live vs
+    # 4.0220113) ⇒ 2022 LARGE ⇒ FMDYN weights ⇒ Surf_Flame/Torch_Index/PTorch ULPs, Forest_Down_Dead_Wood.
+    @test _cr_case_mismatches("ie", "3285544010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+    @test _cr_case_mismatches("ie", "3356357010690", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+end
+
+@testset "BM 22960873010497 salvage: FMCWD TOSOFT on logf, (1-DKR)**NYRS on powi (fmcwd.f:117)" begin
+    # Julia's log(1-DKR) vs glibc logf: CWD(1,4,1,2) after the first FMCWD 2.55130029 live vs 2.5513005 ⇒ Pot_Smoke / DDW ULPs.
+    @test _cr_case_mismatches("bm", "22960873010497", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
+end
+
+@testset "EM 684750664126144 simfire: FMSDIT scales the OLDCRW a slot still holds (fmoldc.f, fmsdit.f:103-119)" begin
+    # Records 143/144 were booked after the 2028 fire, beyond that FMMAIN's ITRN: FMOLDC never refreshed their OLDCRW, so
+    # cycle 4's FMSDIT scaled the slot's stale value (1.0077E-2 → 5.7E-7); jl rebuilt it from CROWNW (7.8E-5) ⇒ 2048 BIOLIVE.
+    @test _cr_case_mismatches("em", "684750664126144", "simfire", ("FVS_PotFire", "FVS_Carbon")) == 0
+end
+
+@testset "SN 156207237010854 simfire FVS_Carbon: FMSVL2's fresh NATCRS MCF, not the round-tripped MCFV (fmcrbout.f:127)" begin
+    # record 2 VT 15.9 live; the cached MCFV·PROB/PROB 15.899999 ⇒ 1984 Aboveground_Merch_Live 5.1446066 vs live 5.1446075.
+    @test _cr_case_mismatches("sn", "156207237010854", "simfire", ("FVS_Carbon",)) == 0
+    @test _cr_case_mismatches("sn", "238813815010854", "simfire", ("FVS_Carbon",)) == 0
+end
+
+@testset "IE/KT NOAUTOES + PLANT: the esnutr.f catch-all ESTAB (NTALLY=99) plot chain vs live (esin.f ESNOAU, esnutr.f:345-359)" begin
+    # NOAUTOES ⇒ LAUTAL=LINGRW=.FALSE., STOADJ=0 (esin.f:784-788): a PLANT still reaches estb estab.f through the
+    # catch-all, whose no-stocking plot loop gives the planted trees their per-plot EMSQR heights. jl used establish!'s
+    # replicate chain (QMD from 2022, TPA 723 vs 724 on IE 11855985010690 2056). Goldens: FVSie_g16 / FVSkt_clean, the
+    # tiered plant_cal keys with NOAUTOES added.
+    gl = readlines(joinpath(@__DIR__, "..", "harness", "scenarios", "noautoes_plant.live.csv")); hdr = split(gl[1], ',')
+    rows = [Dict(zip(hdr, split(l, ','))) for l in gl[2:end]]
+    vmap = Dict("ie" => FVSjl.InlandEmpire(), "kt" => FVSjl.Kootenai())
+    for (v, cn) in unique([(r["Variant"], r["Stand"]) for r in rows])
+        fx = joinpath(@__DIR__, "..", "fixtures", "tiered", v)
+        dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+        key = String[]
+        for l in readlines(joinpath(fx, "$(cn)_plant_cal.key"))
+            l == "ESTAB" && push!(key, "NOAUTOES")
+            push!(key, l == "out.db" ? joinpath(dir, "out.db") : l == "stands.db" ? joinpath(dir, "stands.db") : l)
+        end
+        write(joinpath(dir, "s.key"), join(key, '\n'))
+        FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = vmap[v])
+        d = SQLite.DB(joinpath(dir, "out.db"))
+        jl = Dict(Int(r.Year) => Dict(String(c) => r[c] for c in propertynames(r))
+                  for r in DBInterface.execute(d, "SELECT * FROM FVS_Summary"))
+        nbad = 0
+        for g in rows
+            (g["Variant"] == v && g["Stand"] == cn) || continue
+            r = get(jl, parse(Int, g["Year"]), nothing); r === nothing && (nbad += 1; continue)
+            for c in hdr[3:end]
+                Float32(r[String(c)]) == Float32(parse(Float64, g[c])) || (nbad += 1)
+            end
+        end
+        @test nbad == 0
+    end
+end
+
+@testset "KT 4718785010690 rootdis FVS_RD_Sum: cycle-1 WK1 = the DO-220 calibration DG (kt/dgdriv.f:131, 716-742)" begin
+    # kt/dgdriv.f WK1(I)=DG(I) at the top of DGDRIV reads the DO-220 DG at cycle 1 (as TT/CI, 4cfc9e1e), not the input
+    # increment / −1 sentinel; WRD RDPR's CFVPA reads WK1. 4 KT rootdis cases (1 cell each) → 0.
+    @test _cr_case_mismatches("kt", "4718785010690", "rootdis", ("FVS_RD_Sum",)) == 0
+end
+
+@testset "CA 23742358010900 simfire: FMBURN's FMCFIR is fmcfir.f (analytic OINIT1 start, INT(SWIND)) (fmburn.f:510)" begin
+    # The burn path bisected [0,999] from scratch, compared the fire type against the REAL wind and (CA/NE) took RACT from
+    # the selected models at OACT1: 230 cells (FVS_Summary/Mortality/BurnReport/Carbon/PotFire) → 57; the burn tables exact.
+    @test _cr_case_mismatches("ca", "23742358010900", "simfire", ("FVS_BurnReport", "FVS_Mortality", "FVS_Summary")) == 0
+end
+
+@testset "FMCONS activity fuels: (IYR-HARVYR) <= 5 consumption fractions (fmcons.f:121-170) — thin + SIMFIRE in one cycle vs live" begin
+    # A THINBBA leaving slash and a fire/PotFire within 5 years take FMCONS's activity-fuel PRBURN (1-3" from the 0.25-1"
+    # moisture, DIARED 4.35-0.096·M%). Goldens: FVSie_g16 / FVSem_g16 on the tiered stands with THINBBA + SIMFIRE at cycle 2.
+    gl = readlines(joinpath(@__DIR__, "..", "harness", "scenarios", "thin_fire_activity.live.csv")); hdr = split(gl[1], ',')
+    rows = [Dict(zip(hdr, split(l, ','))) for l in gl[2:end]]
+    for (v, cn) in unique([(r["Variant"], r["Stand"]) for r in rows])
+        fx = joinpath(@__DIR__, "..", "fixtures", "tiered", v)
+        dir = mktempdir(); cp(joinpath(fx, "stands.db"), joinpath(dir, "stands.db"))
+        k = read(joinpath(fx, "$(cn)_thinbba.key"), String)
+        k = replace(k[1:findfirst("NUMCYCLE", k).start - 1], "out.db" => joinpath(dir, "out.db"),
+                    "stands.db" => joinpath(dir, "stands.db")) *
+            "NUMCYCLE         5.0\nTHINBBA          2.0      40.0\nFMIn\nSIMFIRE          2.0     10.00         1      50.0\n" *
+            "BURNREPT\nCARBREPT\nPOTFIRE\nEnd\nDATABASE\nSUMMARY\nPOTFIRDB\nBURNREDB\nCARBREDB\nEND\nECHOSUM\nPROCESS\nSTOP\n"
+        write(joinpath(dir, "s.key"), k)
+        FVSjl.run_keyfile(joinpath(dir, "s.key"); variant = _CR_VAR[v])
+        d = SQLite.DB(joinpath(dir, "out.db"))
+        jl = Dict(Int(r.Year) => Dict(String(c) => r[c] for c in propertynames(r))
+                  for r in DBInterface.execute(d, "SELECT * FROM FVS_PotFire"))
+        nbad = 0
+        for g in rows
+            (g["Variant"] == v && g["Stand"] == cn) || continue
+            r = get(jl, parse(Int, g["Year"]), nothing); r === nothing && (nbad += 1; continue)
+            for c in hdr[3:end]
+                x = g[c]; y = r[String(c)]
+                gx = tryparse(Float64, x)
+                gx === nothing ? (string(y) == x || (nbad += 1)) : (Float32(y) == Float32(gx) || (nbad += 1))
+            end
+        end
+        @test nbad == 0
     end
 end

@@ -16,7 +16,14 @@ include(joinpath(@__DIR__, "..", "fia", "extract_sample.jl"))
 #   KT: FVS_STANDINIT_COND.VARIANT is never 'KT' (KT = Kootenai/Kaniksu/Tally Lake, superseded by IE). Its home
 #       forests — 110 Flathead (Tally Lake RD), 113 Idaho Panhandle (Kaniksu), 114 Kootenai — are in KT's forkod.f
 #       JFOR table and their FIA stands are assigned VARIANT='IE'.
-const SAMPLE_SOURCE = Dict("KT" => ("IE", "AND s.LOCATION IN (110,113,114)"))
+#   OC: ORGANON Southwest Oregon overlay on CA (OC links ca/forkod.f; JFOR 505..518, 610/611, 710-712). FIA never
+#       assigns VARIANT='OC'; its stands are the CA-assigned FIA stands of the two Oregon national forests in that
+#       table — 610 Rogue River, 611 Siskiyou (the BLM 710-712 locations have no FIA rows).
+#   OP: ORGANON SMC (western Washington) overlay on PN (OP links pn/forkod.f; JFOR 609,612,800,708,709,712). FIA never
+#       assigns VARIANT='OP'; its stands are the PN-assigned FIA stands of 609 Olympic NF, its namesake forest.
+const SAMPLE_SOURCE = Dict("KT" => ("IE", "AND s.LOCATION IN (110,113,114)"),
+                           "OC" => ("CA", "AND s.LOCATION IN (610,611)"),
+                           "OP" => ("PN", "AND s.LOCATION IN (609)"))
 
 # BC (British Columbia, metric) has no FIA population at all — FIA is US-only. Its stands come from FVS's own BC test
 # databases (tests/FVSbc: FVS-BC.YSM-SkyRanch.db = 15 young-stand-monitoring / SkyRanch spacing-trial stands, IDFdk4;
@@ -26,6 +33,48 @@ const SAMPLE_SOURCE = Dict("KT" => ("IE", "AND s.LOCATION IN (110,113,114)"))
 # stand so the one-SQL tiered keyfile reads them. Pool order: (Ecoregion, Stand_ID).
 const LOCAL_POOL = Dict("BC" => ["/workspace/ForestVegetationSimulator/tests/FVSbc/FVS-BC.YSM-SkyRanch.db",
                                  "/workspace/ForestVegetationSimulator/tests/FVSbc/FVS-BC.Stand.Structure.Data.db"])
+
+# Variants whose K-stand pick is ROUND-ROBIN over the inventory tree-count classes (extract_sample.jl _tree_class:
+# 0 | 1-9 | 10-49 | 50+ records). The plain stride over the strata-ordered pool picks whatever classes the stride lands
+# on (CS came out 0 bare / 5 of 10 with 1-9 trees), so a fixture can miss the establishment path or the dense mature
+# path entirely. Opt-in per variant, so the variants built before this (whose goldens the slow tier regenerates)
+# keep their stand list.
+const CLASS_BALANCED = Set(["CS", "LS", "NE", "OC", "OP", "ON"])
+
+"`order` re-sequenced round-robin over the tree-count classes (each class keeps its relative order)."
+function class_balanced_order(order::Vector, pdb::AbstractString)
+    h = SQLite.DB(pdb); nt = Dict{String,Int}()
+    for r in DBInterface.execute(h, "SELECT STAND_CN, COUNT(*) FROM FVS_TREEINIT_COND GROUP BY STAND_CN")
+        r[1] === missing || (nt[string(r[1])] = Int(r[2]))
+    end
+    SQLite.close(h)
+    byc = [String[] for _ in 1:4]
+    for cn in order; push!(byc[_tree_class(get(nt, String(cn), 0))], String(cn)); end
+    out = String[]
+    while any(!isempty, byc)
+        for c in 1:4; isempty(byc[c]) || push!(out, popfirst!(byc[c])); end
+    end
+    out
+end
+
+# ON (Ontario, metric) has no FIA population and FVS ships ONE Ontario stand (tests/FVSon FVSDataHardwood.db, LD3001).
+# Its stands are drawn from the Lake States FIA population it borders — northern Minnesota, LOCATION 903 Chippewa /
+# 909 Superior (both in ON's forkod.f JFOR table: ON is the LS-derived variant and keeps the LS forest codes), with the
+# FIA fixed 1-acre design (BASAL_AREA_FACTOR 0, INV_PLOT_SIZE 1) — and CONVERTED TO METRIC, because the metric DB
+# reader (metric/dbsqlite) takes DIAMETER/DG in cm, heights in m, SITE_INDEX in m and TREE_COUNT per hectare of the
+# (1/INV_PLOT_SIZE) plot. FIA species codes are read through ON's FIAJSP table (blkdat.f). ELEVFT is left in feet (the
+# reader converts it). Both engines read the identical converted sub-DB, so the instrument is oracle-comparable.
+const METRIC_POOL = Dict("ON" => ("LS", "AND s.BASAL_AREA_FACTOR = 0 AND s.INV_PLOT_SIZE = 1 AND s.STATE = 27 AND s.LOCATION IN (903,909)"))
+const _IN2CM = 2.54; const _FT2M = 0.3048; const _PERAC2PERHA = 2.4710538
+
+function convert_pool_metric!(pdb::AbstractString)
+    h = SQLite.DB(pdb)
+    DBInterface.execute(h, """UPDATE FVS_TREEINIT_COND SET DIAMETER = DIAMETER * $_IN2CM, DG = DG * $_IN2CM,
+        HT = HT * $_FT2M, HTG = HTG * $_FT2M, HTTOPK = HTTOPK * $_FT2M, HTBOLE = HTBOLE * $_FT2M, HTSAW = HTSAW * $_FT2M,
+        HT_TO_CROWN_BASE = HT_TO_CROWN_BASE * $_FT2M, TREE_COUNT = TREE_COUNT * $_PERAC2PERHA""")
+    DBInterface.execute(h, "UPDATE FVS_STANDINIT_COND SET SITE_INDEX = SITE_INDEX * $_FT2M, VARIANT = 'ON'")
+    SQLite.close(h)
+end
 
 function build_local_pool(srcs::Vector{String}, pdb::AbstractString)
     isfile(pdb) && rm(pdb)
@@ -107,6 +156,8 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     # candidate pool: 3K stratified stands; walk the K-sample first, substituting in stride order on failure
     src, wh = get(SAMPLE_SOURCE, uppercase(v), (uppercase(v), ""))
     local_pool = haskey(LOCAL_POOL, uppercase(v))
+    metric_pool = haskey(METRIC_POOL, uppercase(v))
+    metric_pool && ((src, wh) = METRIC_POOL[uppercase(v)])
     pdb = joinpath(tmp, "pool.db")
     if local_pool
         pool = build_local_pool(LOCAL_POOL[uppercase(v)], pdb)
@@ -114,8 +165,10 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         pool_path = joinpath(tmp, "pool.txt"); extract(src, 3K, pool_path; where_extra = wh)
         pool = [split(strip(l), '\t')[1] for l in eachline(pool_path) if !isempty(strip(l))]
         build_subdb(pool, pdb)
+        metric_pool && convert_pool_metric!(pdb)
     end
     order = vcat(pool[2:3:end], pool[1:3:end], pool[3:3:end])   # K evenly spread first, then the rest
+    uppercase(v) in CLASS_BALANCED && (order = class_balanced_order(order, pdb))
     iy = invyears(pdb)
     chosen = String[]; excluded = String[]
     probe = mktempdir(); cp(pdb, joinpath(probe, "stands.db"))
@@ -130,7 +183,7 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     end
     length(chosen) == K || @warn "$v: only $(length(chosen)) runnable stands (wanted $K)"
     # the committed sub-DB holds exactly the chosen stands
-    sdb = joinpath(fx, "stands.db"); local_pool ? subset_local_db(pdb, chosen, sdb) : build_subdb(chosen, sdb)
+    sdb = joinpath(fx, "stands.db"); (local_pool || metric_pool) ? subset_local_db(pdb, chosen, sdb) : build_subdb(chosen, sdb)
     let h = SQLite.DB(sdb); DBInterface.execute(h, "VACUUM"); SQLite.close(h); end
     run_dir = mktempdir(); cp(sdb, joinpath(run_dir, "stands.db"))
     open(joinpath(fx, "stands.txt"), "w") do io; foreach(c -> println(io, c), chosen); end
@@ -173,7 +226,8 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
     here = normpath(joinpath(@__DIR__, "..", "..", ".."))
     fvs = "/workspace/ForestVegetationSimulator"
     bscript = "/workspace/." * lowercase(v) * "work/build_g16.sh"
-    privb = joinpath(dirname(bin), "build_dbfix.sh")        # BC: private relink of the stock objects (its own script)
+    # BC (build_dbfix.sh) / OC, OP, ON (build_tiered.sh): private relinks of the stock objects, each with its own script
+    privb = joinpath(dirname(bin), isfile(joinpath(dirname(bin), "build_dbfix.sh")) ? "build_dbfix.sh" : "build_tiered.sh")
     isfile(privb) && (bscript = privb)
     open(joinpath(fx, "PROVENANCE.toml"), "w") do io
         println(io, "variant = \"$v\"")
@@ -181,7 +235,7 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         println(io, "oracle = \"$bin\"")
         println(io, "oracle_sha256 = \"$(_sha256(bin))\"")
         println(io, "oracle_build_script = \"$(isfile(bscript) ? bscript : "n/a (prebuilt/relinked)")\"")
-        println(io, "oracle_main_std_legacy = \"$(bscript == privb ? "no (stock buildDir main.o)" : isfile(bscript) ? (occursin("NOLEGACY_MAIN", read(bscript, String)) ? "no (NOLEGACY_MAIN)" : "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)") : "unknown")\"")
+        println(io, "oracle_main_std_legacy = \"$(bscript == privb ? (occursin("g16obj", read(privb, String)) ? "yes — ON g16 objects (-std=legacy main kept, ORACLE_SOURCE_AUDIT §3; FIA-DB path unaffected)" : "no (stock buildDir main.o)") : isfile(bscript) ? (occursin("NOLEGACY_MAIN", read(bscript, String)) ? "no (NOLEGACY_MAIN)" : "yes — main.f compiled -std=legacy (TREEFMT back-tab bug; FIA-DB path unaffected)") : "unknown")\"")
         println(io, "fvs_source_commit = \"$(_git(fvs, "rev-parse", "HEAD"))\"")
         println(io, "fvs_source_dirty = \"$(isempty(_git(fvs, "status", "--porcelain", "--untracked-files=no")) ? "no" : "yes")\"")
         println(io, "generator_commit = \"$(_git(here, "rev-parse", "HEAD"))\"")
@@ -189,7 +243,7 @@ function make_fixtures(v::AbstractString, K::Int, outroot::AbstractString)
         println(io, "regimes = [", join(["\"$r\"" for r in regimes], ", "), "]")
         println(io, "skipped_regimes = [", join(["\"$r\"" for r in skipped], ", "), "]   # FVS11: extension stubbed in this oracle build")
         println(io, "probe_fvs_errors = [", join(["\"$e\"" for e in probe_err], ", "), "]   # FVSnn ERROR codes in the stub-probe .out (first stand)")
-        println(io, "sample_source = \"", local_pool ? "LOCAL " * join(basename.(LOCAL_POOL[uppercase(v)]), " + ") : "VARIANT=$(src)$(isempty(wh) ? "" : " " * wh)", "\"")
+        println(io, "sample_source = \"", local_pool ? "LOCAL " * join(basename.(LOCAL_POOL[uppercase(v)]), " + ") : (metric_pool ? "METRIC-CONVERTED " : "") * "VARIANT=$(src)$(isempty(wh) ? "" : " " * wh)", "\"")
         println(io, "stands = [", join(["\"$c\"" for c in chosen], ", "), "]")
         println(io, "excluded_no_live_output = [", join(["\"$c\"" for c in excluded], ", "), "]")
         println(io, "live_no_output_cases = $nfail")

@@ -1,0 +1,17 @@
+variant = "NE"
+k = 10
+oracle = "/workspace/FVSjl/tmp/oracles/FVSne_new"
+oracle_sha256 = "c9bda7a07726bc64c7584ee12de0d7a3784516aec05700ce85c90329a4091f93"
+oracle_build_script = "n/a (prebuilt/relinked)"
+oracle_main_std_legacy = "unknown"
+fvs_source_commit = "cbc3e227eef4934dc1d7564eb268aaa22649a90a"
+fvs_source_dirty = "yes"
+generator_commit = "576469a21ca3bba5100487234d826c387927bb4b"
+generated = "2026-10-05 01:59:52"
+regimes = ["none", "thinbba", "salvage", "plant_cal", "plant_cyc", "simfire", "econ"]
+skipped_regimes = ["mistletoe", "rootdis", "climate", "cover"]   # FVS11: extension stubbed in this oracle build
+probe_fvs_errors = ["mistletoe: FVS01 ERROR/FVS11 ERROR", "rootdis: FVS01 ERROR/FVS11 ERROR", "climate: FVS01 ERROR/FVS11 ERROR", "cover: FVS01 ERROR/FVS11 ERROR"]   # FVSnn ERROR codes in the stub-probe .out (first stand)
+sample_source = "VARIANT=NE"
+stands = ["1536588709290487", "68474457010538", "9740818010661", "17955726010661", "247519448010661", "382453812489998", "259381087489998", "66746760010538", "65480501010538", "198409092020004"]
+excluded_no_live_output = []
+live_no_output_cases = 0

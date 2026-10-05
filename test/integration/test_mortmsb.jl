@@ -78,13 +78,35 @@ _msb_base(path) = [split(l) for l in eachline(path)
     # primitive (WK3/DGSCOR), NOT sum-order and NOT the SN HTGF transcendentals (now fpow/fexp/flog-routed, inert here).
     # 2026-09-26: the ±1 flip was NOT a DGSCOR floor — the calibration DENSE's PCT (pctile.f TOT/PCTIN1 order, WK5=D·(D·P))
     # and read-order IND1 sums now match live, and col9/col10 are bit-exact every cycle.
-    # 2026-10-05: core-resid-2 922244c1 made the .sum totals the PCTILE walk in IND order for every variant (gradd.f/pctile.f
-    # are byte-identical in the SN, BM, CS and IE builds). That made cs_numtrip/cs_serlcorr and IE BdFt cells exact, but moves
-    # ONE cell here: 2075 TCuFt 1172 jl vs 1173 live (A/B: reverting 922244c1 restores it). The record-order sum had landed on
-    # live; under the faithful walk the residual is upstream (jl's IND order / per-record volume on the MSB breakup cycle).
-    # Tracked, owner: CORE campaign.
-    @test all(parse(Float32, g[9]) == parse(Float32, b[9]) for (g, b) in zip(got, base) if g[1] != "2075")  # col9 TCuFt
-    @test_broken all(parse(Float32, g[9]) == parse(Float32, b[9]) for (g, b) in zip(got, base) if g[1] == "2075")
+    # 2026-10-05: core-resid-2 922244c1 made the .sum totals the PCTILE walk in IND order (gradd.f/pctile.f); that moved
+    # 2075 TCuFt to 1172 vs live 1173. The walk was faithful — the upstream was the MSB pre-check's TPACLS association
+    # (morts.f:647, core-resid-3 e226856e), plus the per-record NORMHT/DGF/R9CUFT fixes; every record now matches live.
+    @test all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 TCuFt
     @test all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 MCuFt
     @test fired   # the test must exercise the MSBMRT path, not a degenerate no-fire stand
+
+    # 3. FORTRAN, PER RECORD — FVS_TreeList (TREELIDB) of the same run vs live FVSsn_g16 (mortmsb_treelist.live.csv,
+    # 7 years × every record, Float32 values). Pins the per-record chain the .sum totals hide: MSBMRT kills
+    # (TPACLS association, morts.f:647), the top-killed volume height (vols.f:146 NORMHT/100.0), DGF's logf
+    # (dgf.f:290), R9CUFT in REAL*4 (r9clark.f:961) and the PROB=0 records (vols.f skip + gradd.f:346 divide-back).
+    dir = mktempdir()
+    keytxt = replace(read(key, String), "ECHOSUM\n" => "ECHOSUM\nDATABASE\nDSNOUT\nmsbtl.db\nTREELIDB\nEND\n")
+    write(joinpath(dir, "mortmsb_tl.key"), keytxt)
+    cp(joinpath(_MSB_DIR, "mortmsb.tre"), joinpath(dir, "mortmsb_tl.tre"))
+    cd(() -> FVSjl.run_keyfile("mortmsb_tl.key"), dir)
+    gl = readlines(joinpath(_MSB_DIR, "mortmsb_treelist.live.csv")); hdr = split(gl[1], ',')
+    db = FVSjl.SQLite.DB(joinpath(dir, "msbtl.db"))
+    jl = Dict((Int(r.Year), Int(r.TreeIndex)) => Dict(String(c) => r[c] for c in propertynames(r))
+              for r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_TreeList"))
+    nbad = 0; nrow = 0
+    for l in gl[2:end]
+        f = split(l, ','); k = (parse(Int, f[1]), parse(Int, f[2])); nrow += 1
+        r = get(jl, k, nothing)
+        r === nothing && (nbad += 1; continue)
+        for (j, c) in enumerate(hdr[3:end])
+            Float32(r[String(c)]) == parse(Float32, f[j + 2]) || (nbad += 1)
+        end
+    end
+    @test nrow > 1500
+    @test nbad == 0
 end
