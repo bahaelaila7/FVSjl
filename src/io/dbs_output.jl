@@ -1555,12 +1555,14 @@ CREATE TABLE IF NOT EXISTS FVS_InvReference(
 # builds only ON's g16 rebuild (build_g16_on.sh, upstream vdbsqlite/dbsreference.f) and TT's buildDir (tt/dbsreference.f)
 # carry it; every other variant links a pre-upgrade copy (ORACLE_SOURCE_AUDIT §5 upstream drift). ON here, TT below.
 const _FVS_INVREF_CREATE_LOC = replace(_FVS_INVREF_CREATE, "StandID text not null," => "StandID text not null, LocationCode int,")
-_invref_loccode(v) = v isa Ontario
+_invref_loccode(v) = v isa Ontario || v isa Teton
 
 # tt/dbsreference.f (the 2026 LOCCODE upgrade, so far only in the TT build): `LocationCode int` after StandID, bound to
 # KODFOR (dbsreference.f:36,98-121). MEASURED FVStt_g16 2780339010690 FVS_InvReference LocationCode 415.
 # KODFOR as tt/forkod.f:90 leaves it: JFOR(IFOR) — the mapped forest (an unlisted input code falls to the default IFOR)
 _tt_kodfor(p) = TT_JFOR[clamp(Int(p.forest_idx), 1, length(TT_JFOR))]
+# LocationCode value: TT the forkod-mapped KODFOR, ON the input KODFOR.
+_invref_kodfor(s) = s.variant isa Teton ? _tt_kodfor(s.plot) : Int(s.plot.user_forest_code)
 
 """
     write_dbs_invref!(dbpath, caseid, standid, s)
@@ -1629,9 +1631,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
     sditype = lpad(c.zeide_sdi ? "ZEIDE" : "REINEKE", 7)   # Fortran right-justifies (e.g. "  ZEIDE")
     db = SQLite.DB(dbpath)
     try
-        loc = s.variant isa Teton || _invref_loccode(s.variant)
-        # LocationCode: TT = the forkod-mapped forest code JFOR(IFOR) (west-shared-4); ON = KODFOR (tiered-east)
-        locv = s.variant isa Teton ? _tt_kodfor(p) : Int(p.user_forest_code)
+        loc = _invref_loccode(s.variant)
         _ensure_table!(db, loc ? _FVS_INVREF_CREATE_LOC : _FVS_INVREF_CREATE)
         ins = "INSERT INTO FVS_InvReference VALUES (" * join(fill("?", loc ? 22 : 21), ",") * ")"
         stmt = DBInterface.prepare(db, ins)
@@ -1639,7 +1639,7 @@ function write_dbs_invref!(dbpath::AbstractString, caseid::AbstractString,
             # dbsreference.f:61-62 DO I=1,MAXSP … IF(TRIM(JSP(I)).EQ.'') CYCLE — a blank JSP slot (jl's "__"
             # placeholder, e.g. WC/PN species 6 and 38) is not a species and gets no row.
             _a = strip(co.code_alpha[sp]); (isempty(_a) || _a == "__") && continue
-            DBInterface.execute(stmt, (caseid, standid, (loc ? (locv,) : ())..., sp,
+            DBInterface.execute(stmt, (caseid, standid, (loc ? (_invref_kodfor(s),) : ())..., sp,
                 String(strip(co.code_alpha[sp])), String(strip(co.code_plants[sp])),
                 String(fia3(co.code_fia[sp])), sditype,
                 trunc(Int, p.sp_sdi_def[sp] + 0.5f0), trunc(Int, p.sp_site_index[sp] + 0.5f0),  # FVS NINT (round half up)

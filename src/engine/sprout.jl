@@ -114,11 +114,14 @@ NE's `:htdbh_ht1`/`:htdbh_ht2` columns: `DBH = HT2/(ln(HT−4.5) − HT1) − 1`
 HT≤4.5 ⇒ 0.1. This is the IABFLG=1 path (the default; the IABFLG=0/AA branch needs the LHTDRG
 per-stand HT-DBH re-fit, which a no-measured-height SPROUT stand never triggers — cratet.f:311).
 """
-@inline function ne_sprout_dbh(coef::SpeciesCoefficients, ispc::Integer, ht::Float32)::Float32
+@inline function ne_sprout_dbh(coef::SpeciesCoefficients, ispc::Integer, ht::Float32; ifor::Integer = 0,
+                               isne::Bool = false)::Float32
     ht > 4.5f0 || return 0.1f0
-    ax = coef_col(coef, :htdbh_ht1)[ispc]
-    bx = coef_col(coef, :htdbh_ht2)[ispc]
-    d = bx / (log(ht - 4.5f0) - ax) - 1f0
+    # AX/BX = the /COEFFS/ HT1/HT2 — for NE on IFOR 3 (Allegheny) ne/sitset.f:428-489 overwrites 20 species' values
+    # (the same table _htdbh_wykoff applies); ALOG = logf. MEASURED live FVSne 68474457010538 simfire post-fire
+    # sprouts: RM DBH 1.0904 live vs 0.8845 jl (the base HT1/HT2), RO 2.0393 vs 1.4325.
+    ax, bx = _htdbh_wykoff(coef.species, ispc, ifor, isne)
+    d = bx / (flog(ht - 4.5f0) - ax) - 1f0
     return d < 0.1f0 ? 0.1f0 : d
 end
 
@@ -960,7 +963,7 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
             end
             ht += randev * ht / 5.5f0
             dbh = on ? on_sprout_dbh(issp, ht) :
-                  ne ? ne_sprout_dbh(coef, issp, ht) :
+                  ne ? ne_sprout_dbh(coef, issp, ht; ifor = Int(s.plot.forest_idx), isne = true) :
                   cs ? cs_sprout_dbh(coef, issp, ht) :
                   ls ? ne_sprout_dbh(coef, issp, ht) :
                   cr ? ie_em_sprout_dbh(s, issp, ht) :   # cr/esuckr.f:296-307 AX=HT1 (IABFLG=1) else the cratet AA fit

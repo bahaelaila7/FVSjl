@@ -558,13 +558,8 @@ fire=FIRKIL + regular=WK2−FIRKIL).
 # ffe_seed_input_snags! (snag.jl:476-492), because book_mortality_snags! is shared across variants (simulate.jl:331).
 @inline function _snag_merch_cuft_on(s::StandState, sp::Int, d::Float32, h::Float32)::Float32
     c = s.control; coef = s.coef
-    if s.variant isa Northeast || s.variant isa LakeStates
-        ifor = Int(s.plot.forest_idx)
-        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-        v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
-        return d >= dbhmin ? v[4] + v[7] : 0f0
+    if _r9_east(s.variant)        # CS/LS/NE: NATCRS = R9 Clark merch cubic (CS was on SN's R8 path below ⇒ 0)
+        return r9_natcrs_cuft(s, sp, d, h)[2]
     elseif s.variant isa Klamath
         # NC vol_eq are EMPTY (NVEL WO2W/DVE) ⇒ _R8CLARK_VOL returns 0 ⇒ snag bole collapses to the cone
         # floor ⇒ the >3" down-wood pool shrinks. Use NC's total cubic (FMSVOL TCF), matching compute_volumes_nc!.

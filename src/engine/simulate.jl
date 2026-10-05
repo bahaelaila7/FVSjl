@@ -371,7 +371,7 @@ function compute_density!(s::StandState; cratet_ind::Bool = false)
     # dgf! (ontario/diameter_growth.jl) reads it as `p.qmd*ON_INtoCM`. No other variant reads
     # p.qmd (summary QMD comes from stand_qmd() directly), so this is inert elsewhere; gate to
     # Ontario to keep the shared density path byte-identical for every other variant.
-    s.variant isa Ontario && (s.plot.qmd = stand_qmd(s))
+    (s.variant isa Ontario || s.variant isa LakeStates) && (s.plot.qmd = stand_qmd(s))   # LS BALMOD reads it (htgf/regent)
     point_basal_area!(s; cratet_ind = cratet_ind)
     point_density!(s)                  # PCCF/PTPA per point (regen crown ratio + TCONDMLT weights)
     stand_pct!(s; cratet_ind = cratet_ind)  # PCT = stand BA percentile (for DGF competition)
@@ -1048,6 +1048,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # already fixed. IE-only (only ie_esgent! consumes this trio; every other variant path is unchanged).
     es_at_avh = s.plot.avg_height
     es_at_ba = s.plot.basal_area
+    s.plot.at_avg_ht = es_at_avh; s.plot.at_ba = es_at_ba   # grincr.f:318-319 ATAVH=AVH, ATBA=BA (post-thin, pre-growth)
     es_at_relden = s.plot.relative_density
     height_growth!(s, s.variant; scale = fint / htg_period(s.variant))   # HTG scaled to cycle (YR: SN=5, NE=10)
     # IE htgf.f (317-347) recomputes each TRIPLED large-tree copy's HTG from the copy's spread DG (the

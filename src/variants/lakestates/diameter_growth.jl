@@ -120,10 +120,16 @@ function dgf!(s::StandState, ::LakeStates)
 
         dds < -9.21f0 && (dds = -9.21f0)
         # OB→IB bark conversion (ls/dgf.f:288-291).
-        diagro = sqrt(d * d + fexp(dds)) - d             # ls/dgf.f EXP → glibc expf (doctrine #4)
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        # ls/dgf.f:453-459: the OB→IB conversion reads DBH(I) — the CURRENT dbh — not DIAM(I): during the LSTART calibration
+        # DGDRIV calls DGF(WK3) with the BACKDATED diameters (D above), but DIAGRO/BARK/DDS still use DBH(I). Mathematically
+        # WK2 = DDS+2·ln(BARK) either way, but the Float32 rounding of sqrt/square/subtract differs ⇒ calibration RESLOG/
+        # COR/OLDRN off by ULPs (MEASURED live FVScs 1229648290290487: cycle-1 OLDRN 1-30 ULP off for every calibrated RC/
+        # WO record). calib_dbh holds the current dbh only inside the calibration dgf! call.
+        dc = isempty(c.calib_dbh) ? d : c.calib_dbh[i]
+        diagro = sqrt(dc * dc + fexp(dds)) - dc
+        bark = bark_ratio(ba_a, ba_b, sp, dc)
         diagri = diagro * bark
-        db = d * bark
+        db = dc * bark
         dds = flog((db + diagri)^2 - db * db)            # ALOG → glibc logf; X**2.0 folds to X*X (no powf in dgf.o)
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds

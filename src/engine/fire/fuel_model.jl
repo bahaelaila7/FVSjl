@@ -378,8 +378,11 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
     elseif iffeft == 7                                 # eastern redcedar
         rcht = 0f0; rctpa = 0f0
         t = s.trees
+        # SN counts species 2 (redcedar, sn/fmcfmd.f:88 CASE (2)); CS counts 1 AND 2 (redcedar + juniper,
+        # cs/fmcfmd.f:88 CASE (1,2)) — MEASURED CS 1229648290290487 simfire 2031: live FM4 / flame 11.0 vs jl FM6 / 2.88.
+        rcsp(sp) = s.variant isa CentralStates ? (sp == 1 || sp == 2) : sp == 2
         @inbounds for i in 1:t.n
-            if Int(t.species[i]) == 2                  # redcedar
+            if rcsp(Int(t.species[i]))                 # redcedar
                 rcht += t.height[i]; rctpa += t.tpa[i]
             end
         end
@@ -425,13 +428,10 @@ function ls_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     fwind   = fs.swind * fire_wind_reduction(percov)      # 20-ft → midflame wind
     itype   = Int(s.plot.forest_idx)                      # ITYPE (/PLOT/) — FDc/FDn habitat checks
     ldry    = false                                       # DROUGHT (IDRYB..IDRYE) — none in these stands
-    # ATAVH (arithmetic mean tree height) drives the jack-pine height thresholds
-    hsum = 0f0; hden = 0f0
-    @inbounds for i in 1:t.n
-        t.tpa[i] > 0f0 || continue
-        hsum += t.height[i] * t.tpa[i]; hden += t.tpa[i]
-    end
-    fmavh = hden > 0f0 ? hsum / hden : 0f0
+    # FMAVH = ATAVH (ls/fmcfmd.f:150) — the post-thin top-40 AVH grincr.f:318 saves each cycle, NOT a TPA-weighted
+    # mean of all trees (MEASURED live FVSls 104685266010661 simfire 2016: jack pine PERCOV 40 ⇒ FMAVH>25 ⇒ FM10
+    # live vs FM4 jl, flame 3.29 vs 12.04).
+    fmavh = s.plot.at_avg_ht
 
     # crown area (ft²/ac) helper for a record: forest-grown crown width (CWCALC iwho=0)
     carea(i) = begin
