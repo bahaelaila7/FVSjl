@@ -38,6 +38,14 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("LS", "21073815010661", "none")
         @test isempty(_cells(ms, "FVS_Error"))                 # FVS08, FVS14, FVS54 rows in live order
     end
+    @testset "CS 65514610010661 none — cs/htdbh.f SNALL/SNDBAL full-precision Curtis-Arney (REGENT DKK)" begin
+        ms = _case("CS", "65514610010661", "none")
+        # HK 1462004: DKK = HTDBH(H=7.19) was 3 ULP off with the 7-digit P3/P4 (3.9393329 vs 3.93933286)
+        @test isempty(_cells(ms, "FVS_TreeList"))
+        sd = FVSjl.StandState(FVSjl.CentralStates()).coef.species
+        @test sd[:htdbh_p3][35] == 3.93933286f0 && sd[:htdbh_p4][35] == -0.25998833f0
+        @test sd[:crown_bcr2][1] == 0.0095531519f0 && sd[:crown_bcr4][8] == -0.00032406501f0   # cs/crown.f BCR2/BCR4 DATA
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
