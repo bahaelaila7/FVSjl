@@ -167,7 +167,9 @@ bc_tree_cuft(sp, d, h, itht) = bc_tree_vol(sp, d, h, itht)[1]   # total-only (va
 """Fill `t.cuft_vol` (total) + `t.merch_cuft_vol` (merch) for all trees; BC Kozak taper. Board deferred (0)."""
 function compute_volumes!(s::StandState, ::BritishColumbia)
     t = s.trees
-    @inbounds for i in 1:t.n
+    # bc/vols.f IPASS=2 (ILOW=IREC2..MAXTRE) volumes the cycle-0 input dead records too (their FVS_TreeList TCuM/MCuM);
+    # jl files them after the live records (MEASURED FVSbc_dbfix YSM029-250 2018 dead TCuM 0.0055 live / 0 jl).
+    @inbounds for i in 1:(t.n + t.ndead)
         d = t.dbh[i]; h = t.height[i]
         if d <= 0f0 || h <= 0f0
             t.cuft_vol[i] = 0f0; t.merch_cuft_vol[i] = 0f0

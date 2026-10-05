@@ -190,4 +190,12 @@ end
     @test !any(m -> m.col == "MCuM", c.ms)
 end
 
+# canada/bc/vols.f IPASS=2 volumes the cycle-0 dead records (IREC2..MAXTRE). MEASURED FVSbc_dbfix YSM029-250: 2018 dead
+# TCuM 0.0055/0.0056/0.0299 live, 0 jl.
+@testset "BC cycle-0 dead records are volumed (canada/bc/vols.f IPASS=2)" begin
+    c = _case("YSM029-250", "none")
+    @test !any(m -> m.col == "TCuM", c.ms)
+    @test isempty(c.ms)
+end
+
 end # module
