@@ -230,4 +230,13 @@ end
     @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2028" && m.col in ("Ht", "HtG", "DBH"), c.ms) == 0
 end
 
+# canada/bc crown.f:434 → 58 (V3, D<2 cm, LSTART): DUBSCR → CRNMD at YD2=2 cm with YH2 from VARCOM AA/BB (CRATET's AA, BB=0)
+# floored at 4.5 ft; CR∈[0.05,0.95]; ICRI=INT(CR*100+.5). jl left those records' missing crowns at 0: FVSbc SkyRanch-0.3m
+# (371 seedlings, DBH 0.1 cm, no CrRatio) 2019 PctCr 95 live / 0 jl for 370 records.
+@testset "BC V3 sub-2cm missing-crown dub (canada/bc crown.f:434,578-597, dubscr.f, CRNMD :751-759)" begin
+    c = _case("BC", "SkyRanch-0.3m", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2019", c.ms) == 0
+end
+
 end # module

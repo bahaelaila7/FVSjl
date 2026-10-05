@@ -106,7 +106,27 @@ YCR = con + htdbh·(Hm/Dm) + ht·Hm + dbh2·Dm² + bal·BALm; CR = 1/(1+exp(clam
 @inline function bc_crnmd(con::Float32, htdbh::Float32, ht::Float32, dbh2::Float32, bal::Float32,
                           d_in::Float32, h_ft::Float32, bal_ftac::Float32)
     dm = d_in * BC_INtoCM; hm = h_ft * BC_FTtoM; balm = bal_ftac * BC_FT2pACRtoM2pHA
-    ycr = con + htdbh*(hm/dm) + ht*hm + dbh2*dm*dm + bal*balm
+    ycr = con + htdbh*(hm/dm) + ht*hm + dbh2*(dm*dm) + bal*balm      # crown.f:765-769 CRDBH2*(YD2*YD2)
     ycr = min(9.21f0, max(-9.21f0, ycr))
-    return 1f0 / (1f0 + exp(ycr))
+    return 1f0 / (1f0 + fexp(ycr))                                    # crown.f:777 REAL*4 EXP = glibc expf
+end
+
+"""
+    bc_crnmd_sub2cm(con, htdbh, ht, dbh2, bal, aa, lmhtdub, bal_ftac) -> crown ratio ∈ (0,1)
+
+CRNMD's YDM<2 cm branch (crown.f:751-759), reached only from DUBSCR at LSTART: the tree is evaluated at YD2=2 cm and
+YH2 = the height-dub curve with VARCOM AA(ISPC)/BB(ISPC) — CRATET's calibrated intercept (0 unless ≥3 measured heights,
+cratet.f:296/363) and BB, which canada/bc never sets (0) — floored at 4.5 ft. YSD=0 ⇒ no BACHLO draw.
+"""
+@inline function bc_crnmd_sub2cm(con::Float32, htdbh::Float32, ht::Float32, dbh2::Float32, bal::Float32,
+                                 aa::Float32, lmhtdub::Bool, bal_ftac::Float32)
+    yd2 = 2.0f0; bb = 0f0
+    yh2 = lmhtdub ? (fexp(aa + bb / (yd2 + 1.0f0)) + 1.3f0) * BC_MtoFT :
+                    fexp(aa + bb / ((yd2 * BC_CMtoIN) + 1.0f0)) + 4.5f0
+    yh2 < 4.5f0 && (yh2 = 4.5f0)
+    yh2 = yh2 * BC_FTtoM
+    balm = bal_ftac * BC_FT2pACRtoM2pHA
+    ycr = con + htdbh*(yh2/yd2) + ht*yh2 + dbh2*(yd2*yd2) + bal*balm
+    ycr = min(9.21f0, max(-9.21f0, ycr))
+    return 1f0 / (1f0 + fexp(ycr))
 end
