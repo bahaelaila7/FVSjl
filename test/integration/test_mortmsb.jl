@@ -81,4 +81,29 @@ _msb_base(path) = [split(l) for l in eachline(path)
     @test all(parse(Float32, g[9])  == parse(Float32, b[9])  for (g, b) in zip(got, base))  # col9 TCuFt
     @test all(parse(Float32, g[10]) == parse(Float32, b[10]) for (g, b) in zip(got, base))  # col10 MCuFt
     @test fired   # the test must exercise the MSBMRT path, not a degenerate no-fire stand
+
+    # 3. FORTRAN, PER RECORD — FVS_TreeList (TREELIDB) of the same run vs live FVSsn_g16 (mortmsb_treelist.live.csv,
+    # 7 years × every record, Float32 values). Pins the per-record chain the .sum totals hide: MSBMRT kills
+    # (TPACLS association, morts.f:647), the top-killed volume height (vols.f:146 NORMHT/100.0), DGF's logf
+    # (dgf.f:290), R9CUFT in REAL*4 (r9clark.f:961) and the PROB=0 records (vols.f skip + gradd.f:346 divide-back).
+    dir = mktempdir()
+    keytxt = replace(read(key, String), "ECHOSUM\n" => "ECHOSUM\nDATABASE\nDSNOUT\nmsbtl.db\nTREELIDB\nEND\n")
+    write(joinpath(dir, "mortmsb_tl.key"), keytxt)
+    cp(joinpath(_MSB_DIR, "mortmsb.tre"), joinpath(dir, "mortmsb_tl.tre"))
+    cd(() -> FVSjl.run_keyfile("mortmsb_tl.key"), dir)
+    gl = readlines(joinpath(_MSB_DIR, "mortmsb_treelist.live.csv")); hdr = split(gl[1], ',')
+    db = FVSjl.SQLite.DB(joinpath(dir, "msbtl.db"))
+    jl = Dict((Int(r.Year), Int(r.TreeIndex)) => Dict(String(c) => r[c] for c in propertynames(r))
+              for r in FVSjl.DBInterface.execute(db, "SELECT * FROM FVS_TreeList"))
+    nbad = 0; nrow = 0
+    for l in gl[2:end]
+        f = split(l, ','); k = (parse(Int, f[1]), parse(Int, f[2])); nrow += 1
+        r = get(jl, k, nothing)
+        r === nothing && (nbad += 1; continue)
+        for (j, c) in enumerate(hdr[3:end])
+            Float32(r[String(c)]) == parse(Float32, f[j + 2]) || (nbad += 1)
+        end
+    end
+    @test nrow > 1500
+    @test nbad == 0
 end

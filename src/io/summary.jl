@@ -172,7 +172,15 @@ function _vol_prob_roundtrip!(s::StandState, cycle0::Bool)
     @inbounds for i in 1:t.n
         p = t.tpa[i]
         if !(p > 0f0)
-            _on && (t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0)
+            # gradd.f:288-301 multiplies every record by PROB (0 here) and :346-363 divides back only when PROB>0, so
+            # a PROB=0 record leaves gradd with zero per-tree volumes (FVS_TreeList TCuFt/MCuFt/BdFt = 0). The
+            # inventory pass (fvs.f:267) divides unconditionally and never sees PROB=0 records.
+            if !cycle0 || _on
+                t.cuft_vol[i] = 0f0; t.bdft_vol[i] = 0f0; t.saw_cuft_vol[i] = 0f0
+                _on || (t.merch_cuft_vol[i] = 0f0)
+                t.abvgrd_bio[i] = 0f0; t.merch_bio[i] = 0f0; t.cubsaw_bio[i] = 0f0; t.foliage_bio[i] = 0f0
+                t.abvgrd_carb[i] = 0f0; t.merch_carb[i] = 0f0; t.cubsaw_carb[i] = 0f0; t.foliage_carb[i] = 0f0
+            end
             continue
         end
         t.cuft_vol[i] = rt(t.cuft_vol[i], p);         t.bdft_vol[i] = rt(t.bdft_vol[i], p)
