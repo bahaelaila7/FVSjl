@@ -376,4 +376,11 @@ end
         @test count(m -> _rel(m) > 1e-5, c.ms) == 0
     end
 end
+# clmorts.f:97 ALGSLP(XV,VS*X*2.,SR,2): the algslp.f:36 form (1/(hi-lo))*(v-lo) for presence-calibrated species.
+@testset "Climate SPCALIB survival via ALGSLP association (clmorts.f:97, algslp.f:36) vs live" begin
+    for (v, cn) in (("CI", "5388215010690"), ("SO", "645183862126144"))
+        c = _case(v, cn, "climate")
+        @test _cells(c) == 0
+    end
+end
 end # module
