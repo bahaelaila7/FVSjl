@@ -277,4 +277,10 @@ end
     @test length(c.ms) <= 1                       # 20 cells before
 end
 
+# canada/fire/bc/fmsvol.f FMSVOL (snags) has no D<1in gate either: small snags carry a Kozak volume.
+@testset "BC FFE snag volume below 1in (canada/fire/bc/fmsvol.f FMSVOL)" begin
+    c = _case("SkyRanch-Control", "salvage")
+    @test !any(m -> m.col == "Standing_Dead", c.ms)
+end
+
 end # module

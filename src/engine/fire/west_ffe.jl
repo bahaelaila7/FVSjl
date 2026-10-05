@@ -262,7 +262,8 @@ function ffe_west_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, 
     _ffe_west_vol(s.variant) || return nothing
     htd <= 0f0 && return 0f0
     # BC: every FMSVOL call passes XHT = HTIH/HTIS (> −1) ⇒ the CFVOL-truncated + CFTOPK-trimmed VN, no cone floor.
-    s.variant isa BritishColumbia && return (d < 1f0 ? 0f0 : bc_fmsvol(s, sp, d, htd, htcur)[1])
+    # canada/fire/bc/fmsvol.f FMSVOL has no D<1in gate either (CFVOL for any D>0).
+    s.variant isa BritishColumbia && return (d <= 0f0 ? 0f0 : bc_fmsvol(s, sp, d, htd, htcur)[1])
     w = ffe_west_nocut(s, sp, d, htd)
     tcf, mcf, bark, trim = w
     # `always`: fmsvol.f FMSVOL passes XHT=HTIH (> −1) ⇒ LTKIL ⇒ CFTOPK at INT(XHT·100)/100 on EVERY snag — even an
