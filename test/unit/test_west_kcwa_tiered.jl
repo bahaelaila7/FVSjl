@@ -239,4 +239,17 @@ end
     @test count(m -> m.file == "FVS_TreeList_Metric" && m.year == "2019", c.ms) == 0
 end
 
+# canada/bc regent.f:1593-1595: a small tree whose new height HK stays below 4.5 ft gets DBH(K)=0.1+DIAM(ISPC)*.01+HK*0.001
+# with DG(K)=0, set directly (and the :1627 min-diameter floor lives in the ELSE branch). jl took DG=0 then floored DBH to
+# DIAM: SkyRanch-0.3m 2029 seedlings DBH 1.0453 cm jl vs 0.2731 live. The values now follow live's formula; the remaining
+# per-record differences there are a ZZRAN draw-to-record offset (open).
+@testset "BC REGENT sub-4.5 ft DBH(K)=0.1+DIAM*.01+HK*.001 (canada/bc regent.f:1593-1595)" begin
+    c = _case("BC", "SkyRanch-0.3m", "none")
+    @test !c.crashed
+    @test count(m -> m.file == "FVS_TreeList_Metric" && m.col == "DG" && m.year == "2029", c.ms) == 0
+    big = count(m -> m.file == "FVS_TreeList_Metric" && m.col == "DBH" && m.year == "2029" &&
+                     abs(something(tryparse(Float64, m.gold), 0.0) - something(tryparse(Float64, m.got), 0.0)) > 0.01, c.ms)
+    @test big == 0
+end
+
 end # module
