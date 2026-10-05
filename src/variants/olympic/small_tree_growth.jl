@@ -84,7 +84,7 @@ function small_tree_growth!(s::StandState, stash, ::Olympic; fint::Float32 = 5.0
     n = t.n; n == 0 && return s
     cw = clim_wk4(s, Float32(current_cycle_year(s)) + fint / 2f0)   # CLGMULT WK4; nothing ⇒ 1
     avh = p.avg_height
-    org_ran = length(c.op_iorg) == n
+    org_ran = length(c.op_hgro) == n && length(c.op_iorg) >= n
     scale = fint / OP_REG_REGYR          # SCALE = FNT/REGYR (FNT=FINT on the non-estab path)
     scale2 = htg_period(s.variant) / fint   # SCALE2 = YR/FNT (YR=5)
     dgmx = OP_REG_DGMAX * scale

@@ -186,8 +186,12 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
         t.diam_growth[i] = op_dgbnd(sp, d, dg, sizcap)
     end
     # Stash the ORGANON per-tree outputs for the cooperating hooks (op has no tripling ⇒ index-stable).
-    if length(c.op_iorg) != n
-        resize!(c.op_iorg, n); resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
+    # IORG is a SLOT-indexed COMMON array (op/dgdriv.f:231-256 sets 1..ITRN only): slots beyond this call's ITRN keep their
+    # last value, which CROWN reads for trees ESTAB adds afterwards (op/crown.f:279 with CR2(I)=0, execute2.f:210) ⇒
+    # ICR=1. Grow-only stash; HGRO/CR2/MORTEXP are zeroed beyond NTREES by every EXECUTE, so they track n exactly.
+    length(c.op_iorg) < n && resize!(c.op_iorg, n)
+    if length(c.op_hgro) != n
+        resize!(c.op_hgro, n); resize!(c.op_cr2, n); resize!(c.op_mortexp, n)
     end
     @inbounds for i in 1:n
         c.op_iorg[i] = (g !== nothing) ? buf.iorg[i] : Int32(0)
