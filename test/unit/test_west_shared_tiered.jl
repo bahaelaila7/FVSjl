@@ -304,4 +304,14 @@ end
     @test !c.crashed
     @test _cells(c; pred = m -> m.col in ("Standing_Dead", "Total_Stand_Carbon") || (m.file == "FVS_Carbon" && _rel(m) > 1e-5)) == 0
 end
+# CI PLANT cohort (ci/esinit.f STOADJ=0 ⇒ esnutr.f catch-all ESTAB, estab.f no-stocking plot chain): per-plot EMSQR/FIRST(2)
+# ESSUBH heights, ESGENT HTG·WK4 (HTIMLT 5/5.0001), and the next-cycle MORTS WK1 = the ESGENT DG (ci/dgdriv.f:171).
+# MEASURED FVSci_g16 3159852010690 PLANT DF 400 (DEBUG ESTAB/ESGENT/MORTS).
+@testset "CI PLANT cohort: estb catch-all plot chain, ESGENT WK4, WK1 (ci/esinit.f, estab.f, esgent.f, morts.f) vs FVSci_g16" begin
+    for r in ("plant_cal", "plant_cyc")
+        c = _case("CI", "3159852010690", r)
+        @test !c.crashed
+        @test _cells(c) == 0
+    end
+end
 end # module

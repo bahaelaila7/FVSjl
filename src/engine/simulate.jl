@@ -1539,7 +1539,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # took the morts.f `WK1.EQ.0 ⇒ G=DG/(BARK·10)` vigor branch (e.g. bare PLANT stand: a seedling past 4.5 ft
     # got RIPP 0.00024 vs live 0.0104 ⇒ ~40× under-kill). Copy for the new IE records now.
     # TT morts reads WK1 too (teton/mortality.jl) ⇒ the same copy for its birth-cycle DG (tt_esgent!).
-    if s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Kootenai   # KT: kt/dgdriv.f WK1=DG, kt/morts.f reads it
+    # CI: ci/dgdriv.f:169-172 WK1(I)=DG(I), read by ci/morts.f:315-325 (MEASURED FVSci_g16 3159852010690 PLANT: ESGENT leaves
+    # the 2002 DF records DG 0.68 = WK1 at the 2012 MORTS, 0.509 of 8 TPA dying vs jl's WK1=0 override branch 0.153).
+    if s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Kootenai ||   # KT: kt/dgdriv.f WK1=DG, kt/morts.f reads it
+       s.variant isa CentralIdaho
         @inbounds for i in (es_nstart + 1):s.trees.n
             s.trees.dg_prev[i] = s.trees.diam_growth[i]
         end
