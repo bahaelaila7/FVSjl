@@ -3231,28 +3231,6 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "salvage"
 file = "FVS_Carbon"
-col = "Forest_Floor"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 37
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 38 cells [ulp1=1 ulp2_16=3 ulpbig=34] max|Δ|=0.08353 | e.g. stand 24079993010900 year 2012: live=0.005433019250631332 jl=0.010584154166281223"""
-
-[[residual]]
-variant = "SO"
-regime = "salvage"
-file = "FVS_Carbon"
-col = "Standing_Dead"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 30
-issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 38 cells [material=29 ulpbig=9] max|Δ|=15.55 | e.g. stand 850566877290487 year 2040: live=4.71376371383667 jl=1.5275578498840332"""
-
-[[residual]]
-variant = "SO"
-regime = "salvage"
-file = "FVS_Carbon"
 col = "Total_Stand_Carbon"
 stand = "*"
 year = "*"
@@ -3363,34 +3341,12 @@ issue = """material divergence (model/report) — needs dig; owner: the SO campa
 variant = "SO"
 regime = "simfire"
 file = "FVS_Carbon"
-col = "Carbon_Released_From_Fire"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 9
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 9 cells [ulpbig=9] max|Δ|=0.8212 | e.g. stand 15184869010497 year 2020: live=14.573575973510742 jl=15.030904769897461"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Carbon"
 col = "Forest_Down_Dead_Wood"
 stand = "*"
 year = "*"
 status = "OPEN"
 max_cells = 38
 issue = """material divergence (model/report) — needs dig; owner: the SO campaign (not yet dug) | measured 2026-09-28: 38 cells [material=26 ulp1=1 ulpbig=11] max|Δ|=70.58 | e.g. stand 15184869010497 year 2020: live=3.6263909339904785 jl=2.87406325340271"""
-
-[[residual]]
-variant = "SO"
-regime = "simfire"
-file = "FVS_Carbon"
-col = "Forest_Floor"
-stand = "*"
-year = "*"
-status = "OPEN"
-max_cells = 37
-issue = """per-record Float32 drift below .sum print precision — owner: the SO campaign (not yet dug) | measured 2026-09-28: 38 cells [ulp1=1 ulp2_16=3 ulpbig=34] max|Δ|=0.1912 | e.g. stand 15184869010497 year 2010: live=10.303173065185547 jl=10.30317211151123"""
 
 [[residual]]
 variant = "SO"
