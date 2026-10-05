@@ -99,7 +99,7 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             t.crown_pct[i] = Int32(icrd)
             continue
         end
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = bc_bratio(sp)                                   # crown.f:422 BRATIO(ISPC,D,H) = canada/bc/bratio.f BARK1
         (!lstart && (d - t.diam_growth[i]/bark) < 3f0) && continue   # backdated D<3in: keep regent crown (GOTO 60)
         pp = t.crown_ratio[i]; pp < 0.01f0 && (pp = 0.01f0)
         balf = (1f0 - pp/100f0) * ba
@@ -202,7 +202,7 @@ function bc_v2_crown_ratio_update!(s::StandState; fint::Float32 = 10.0f0, lstart
         sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
         d <= 0f0 && continue
         d < 3f0 && continue                                   # V2 small-tree bypass (crown.f:432)
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        bark = bc_bratio(sp)                                   # crown.f:422 BRATIO(ISPC,D,H) = canada/bc/bratio.f BARK1
         (!lstart && (d - t.diam_growth[i]/bark) < 3f0) && continue   # backdated D<3in → keep (crown.f:440)
         prm = BC_CR_PARM[sp]
         crcon = BC_CR_CRHAB[sp][BC_CR_ICRHAB[sp]]            # crown's own MAPHAB (ITYPE=4), NOT dgf's

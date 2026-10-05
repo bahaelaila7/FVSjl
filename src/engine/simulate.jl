@@ -827,7 +827,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # KT: kt/cratet.f:578 OLDPCT=PCT right before the LSTART CROWN — the PCT of the backdating DENSE, which the shared
     # crown_init_lstart_dead_inclusive! snapshots as cratet_pct — and cycle-1 OBA/RDM1 = inventory density (kt/crown.f
     # is IE's crown model; same seeds as IE above).
-    if s.variant isa Kootenai && s.control.cycle == Int32(0)
+    # BC: canada/bc/cratet.f:531 the same OLDPCT=PCT before the LSTART CROWN, and the same dense.f:239-240/274 OLDBA/RELDM1
+    # that canada/bc/crown.f:344-349 backdates against (V3 BAL=(1-OLDPCT/100)*OLDBA). jl left OLDPCT 0 (⇒ PCT) and OLDBA
+    # unthreaded (MEASURED FVSbc_dbfix Fir.20 cycle-1 CROWN: OLDPCT 84.65 / BAL 8.50 live, jl PCT / current BA ⇒ ICR ±1-4).
+    if (s.variant isa Kootenai || s.variant isa BritishColumbia) && s.control.cycle == Int32(0)
         length(s.calib.cratet_pct) == s.trees.n && copyto!(s.trees.old_crown_pct, 1, s.calib.cratet_pct, 1, s.trees.n)
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
@@ -1588,7 +1591,8 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # RDM1[N]=RELDEN[N-1]). Previously never assigned ⇒ OBA==BA, RDM1==RELDEN ⇒ DCRCON==XCRCON ⇒ EDCR too low
     # ⇒ CHG (=EXPPCR−EXPDCR) too high ⇒ ICR +1..3 too high every cycle. Verified vs FVSie_g16 on 3307603010690:
     # per-tree ICR at CROWN goes from 33/39 one-directional +diffs to ~5 mixed ±1 (residual = a small stand-BA gap).
-    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai   # EM/KT: same crown.f OBA/RDM1
+    if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||   # EM/KT: same crown.f OBA/RDM1
+       s.variant isa BritishColumbia                                                             # BC: canada/bc/crown.f:344
         s.plot.old_ba = s.plot.basal_area
         s.plot.relative_density_prev = s.plot.relative_density
     end

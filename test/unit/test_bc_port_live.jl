@@ -120,4 +120,13 @@ end
     @test !any(m -> m.col in ("RTpa", "RTPA", "RTph"), c.ms)
 end
 
+# canada/bc/crown.f cycling: BARK=BRATIO(ISPC,D,H) (:422, BC's BARK1 constant — jl used the generic linear form, which
+# floors at 0.80) backdates D-DG/BARK, and the backdated BAL reads OLDPCT (cratet.f:531 OLDPCT=PCT before the LSTART
+# CROWN) and OLDBA (dense.f:239-240, crown.f:344). MEASURED FVSbc_dbfix Fir.20 cycle-1 CROWN dump: backdated D 3.9409
+# (= the 2020 DBH) live vs 3.8163 jl, OLDPCT 84.65 vs 0 ⇒ ICR off by 1-4 on 335 records; now none.
+@testset "BC crown backdating bark + OLDPCT/OLDBA (canada/bc/crown.f:422-470, cratet.f:531)" begin
+    c = _case("Fir.20", "none")
+    @test !any(m -> m.year == "2030" && m.col in ("PctCr", "CrWidth", "DBH", "Ht"), c.ms)
+end
+
 end # module
