@@ -831,6 +831,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     s.variant isa Klamath && nc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
     # OC (oc/regent.f:407-509, oc/cratet.f:912 REGENT(.FALSE.,1) after DGDRIV): raw small-tree HCOR → htg_cor_init.
     s.variant isa OregonCoast && oc_regent_hcor_init!(s, isct, ind1, saved_dbh, _cur_avh)
+    # ON (canada/on/regent.f:419-563): the same LSTART small-tree HCOR, ONSTHG-based EDH.
+    s.variant isa Ontario && on_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # AK (ak/regent.f LSTART, cratet.f:629): HTCALC-predicted vs measured small-tree (DBH<3) height increment.
     s.variant isa SoutheastAlaska && ak_regent_hcor_init!(s, isct, ind1, saved_dbh)
     # CA/SO/WS (ca/cratet.f:571, so/cratet.f:681, ws/cratet.f:770 REGENT(.FALSE.,1) label 40): no port until now ⇒

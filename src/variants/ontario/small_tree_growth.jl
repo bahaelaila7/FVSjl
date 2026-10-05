@@ -103,6 +103,55 @@ end
 end
 
 """
+    on_regent_hcor_init!(s, isct, ind1, saved_dbh)
+
+canada/on/regent.f:419-563 (LSTART, cratet REGENT(.FALSE.,1) after DGDRIV): the small-tree HEIGHT calibration. Per
+species, over records with DBH<5 (current) and H=HT−HTG (IHTG<2) ≥0.01: EDH = max(0.1, HTCALC MODE 9 at the CURRENT
+height/DBH = ONSTHG·YRS(10), BAL=BA·(100−PCT)·0.01, BALMOD GMOD≡1)·RHCON(1); records with measured HTG≥0.001 add
+P·EDH and P·HTG·SCALE3 (REGYR/FINTH); ≥NCALHT(5) records ⇒ HCOR=ALOG(SNY/SNX) (0 outside [0.0821,12.1825]). BA/PCT are
+the cratet LBKDEN DENSE's (crown-init snapshot). RAW into htg_cor_init; the shared dgdriv attenuation turns it into the
+per-cycle HCOR (htg_cor_small) REGENT's CON reads.
+"""
+function on_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector, saved_dbh::AbstractVector)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = ON_REG_REGYR / finth
+    ba = c.cratet_ba
+    pctv = length(c.cratet_pct) >= t.n ? c.cratet_pct : t.crown_ratio
+    @inbounds for sp in 1:min(MAXSP, size(isct, 1))
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        si = p.sp_site_index[sp]
+        n = 0; snp = 0f0; snx = 0f0; sny = 0f0
+        for k in i1:i2
+            i = ind1[k]
+            hb = s.control.growth_ihtg < 2 ? t.height[i] - t.ht_growth[i] : t.height[i]
+            (saved_dbh[i] >= 5f0 || hb < 0.01f0) && continue
+            h = t.height[i]
+            bal = ba * (100f0 - pctv[i]) * 0.01f0
+            htgr = _on_onsthg(sp, saved_dbh[i], h, si, bal) * 10f0
+            htgr < 0.1f0 && (htgr = 0.1f0)
+            edh = htgr                                   # ·RHCON(1)
+            edh < 0.1f0 && (edh = 0.1f0)
+            t.ht_growth[i] < 0.001f0 && continue
+            pr = t.tpa[i]
+            term = t.ht_growth[i] * scale3
+            snp += pr; snx += edh * pr; sny += term * pr; n += 1
+        end
+        n < 5 && continue
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        hcor = flog(cornew)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (hcor = 0f0)
+        c.htg_cor_init[sp] = hcor
+    end
+    return s
+end
+
+"""
     small_tree_growth!(s, stash, ::Ontario; fint) — ON REGENT (canada/on/regent.f).
 
 Overrides DGF/HTGF for records with DBH < XMAX (4.72" = 12 cm) with the Penner small-tree height
@@ -137,7 +186,9 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
             if htmax - h <= 1f0
                 htgr_s = 0.1f0
             else
-                htgr_s = _on_onsthg(sp, d, h, si, bal) * 10f0 * scale   # ONSTHG·YRS·(con·HGADJ·xrhgro=1)
+                # regent.f:226 HTGR=HTGR*CON*SCALE*HGADJ*XRHGRO, CON=RHCON*EXP(HCOR) (:128; HCOR = the dgdriv-attenuated
+                # small-tree calibration, htg_cor_small); HGADJ=XRHGRO=1, BALMOD GMOD≡1 (canada/on/balmod.f)
+                htgr_s = ((_on_onsthg(sp, d, h, si, bal) * 10f0) * fexp(s.calib.htg_cor_small[sp])) * scale
                 htgr_s < 0.1f0 && (htgr_s = 0.1f0)
             end
             xwt = d <= ON_REG_XMIN ? 0f0 : (d - ON_REG_XMIN) / (ON_REG_XMAX - ON_REG_XMIN)
