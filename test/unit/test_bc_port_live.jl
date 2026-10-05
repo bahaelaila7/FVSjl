@@ -293,4 +293,13 @@ end
     end
 end
 
+# The inventory MISPRT (fvs.f:338) projects MISMRT over the FINT then in COMMON — the DG_MEASURE period (dbsstandin.f:701),
+# not the first cycle's length. MEASURED FVSbc_dbfix YSM029-250 (DG_Measure 6) 2018 Mort_TPH 7 live / 12 jl.
+@testset "BC inventory DM mortality uses the measurement FINT (fvs.f:338, mismrt.f:183)" begin
+    for cn in ("YSM029-250", "YSM029-246", "YSM029-266")
+        c = _case(cn, "mistletoe")
+        @test isempty(c.ms)
+    end
+end
+
 end # module

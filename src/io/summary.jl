@@ -451,6 +451,11 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # MISMRT projects the cycle's mortality; the final report row (per==0) reuses the
             # previous cycle's length (matching FVS's non-zero final-row DM mortality).
             perdm = last ? cycle_period_at(s.control, max(c - 1, 0)) : per
+            # The inventory MISPRT (fvs.f:338, before any GRINCR) scales MISMRT by the FINT then in COMMON: the GROWTH /
+            # DG_MEASURE measurement period (dbsstandin.f:701), else grinit's default — as cover_fint above. BC only for now:
+            # its growth_fint carries grinit's FINT=10; most other western variants' growth_fint still defaults to 5.
+            # MEASURED FVSbc_dbfix YSM029-250 (DG_Measure 6) mistletoe 2018 Mort_TPH 7 live / 12 jl with the 10-yr cycle.
+            (c == 0 && s.variant isa BritishColumbia) && (perdm = s.control.growth_fint)
             push!(dm_collect, (Int(r.year),
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end
