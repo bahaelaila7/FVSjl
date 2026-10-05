@@ -143,7 +143,7 @@ function _r9_totht(htTot::Float32, dbhIb::Float32, dib17::Float32,
         Qb = -2f0 * b - Im * 2f0 * (1f0 - b) / a
         Qc = b + (1f0 - b) * Im - topDib^2 / dib17^2
         tot = 17.3f0 + (topHt - 17.3f0) * (2f0 * Qa) /
-              (-1f0 * Qb - sqrt(Qb^2 - 4f0 * Qa * Qc))
+              (-1f0 * Qb - fpow(Qb^2 - 4f0 * Qa * Qc, 0.5f0))   # r9clark.f:982 (…)**0.5 = powf, not sqrt
         tot = max(tot, topHt + topDib * 2f0)
         tot = min(tot, topHt + topDib * 8f0)
         return tot
@@ -250,7 +250,7 @@ function _r9_ht(st::_R9State, stmDib::Float32)::Float32
         xxx > 0f0 && (stemHt = totHt * (1f0 - fpow(xxx, 1f0 / p)))
     else
         xxx = Qb^2 - 4f0 * Qa * Qc
-        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0) * ((-Qb - sqrt(xxx)) / (2f0 * Qa)))
+        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0) * ((-Qb - fpow(xxx, 0.5f0)) / (2f0 * Qa)))   # r9clark.f:1395 xxx**0.5 = powf
     end
     return stemHt
 end
@@ -295,7 +295,7 @@ function _r9_dib(st::_R9State, h::Float32)::Float32
              (im ? ((1f0 - b) / a^2) * (a - (h - 17.3f0) / (totHt - 17.3f0))^2 : 0f0))
     end
     s = ds + db + dt
-    return s > 0f0 ? sqrt(s) : 0f0
+    return s > 0f0 ? fpow(s, 0.5f0) : 0f0         # r9clark.f:1265 (Ds+Db+Dt)**0.5 = powf (gfortran keeps **.5 as powf)
 end
 
 # International ¼-inch board feet per log (r9bdft, r9clark.f:1482) — the NE `.sum` BdFt is FVS's

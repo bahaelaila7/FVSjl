@@ -50,8 +50,7 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("CS", "1229648290290487", "none")
         # calibration DGF(WK3): DIAGRO/BARK/DDS read the CURRENT DBH(I) ⇒ RESLOG/COR/OLDRN exact (were 1-30 ULP) and the
         # broken-top PO's volume height H=NORMHT/100.0 (was ·0.01 ⇒ Ht2TDCF 2031 1 ULP)
-        @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])
-        @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: RC 2051 Ht2TDBF 1 ULP (r9clark board height)
+        @test isempty(_cells(ms, "FVS_TreeList"))             # (+ r9clark.f r9ht xxx**0.5 = powf: RC 2051 Ht2TDBF)
     end
     @testset "CS 231708010020004 salvage — FFE stem/snag/FMCROWE-bole volumes on the R9 Clark NATCRS (fmsvol.f FMSVL2)" begin
         ms = _case("CS", "231708010020004", "salvage")
@@ -74,8 +73,7 @@ _cells(ms, file; col = nothing, year = nothing) =
     end
     @testset "NE 9740818010661 none — ne/dgf.f expf/powf(.5)/logf in the 10-step BAL potential iteration" begin
         ms = _case("NE", "9740818010661", "none")
-        @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])   # cycle-2 WK2 was 15 ULP off
-        @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: SM 2043 Ht2TDBF 1 ULP (r9clark board height)
+        @test isempty(_cells(ms, "FVS_TreeList"))             # cycle-2 WK2 was 15 ULP off; SM 2043 Ht2TDBF (r9ht powf)
     end
     @testset "CS 1813567613290487 salvage — cs/ls fmvinit.f LSW softwoods only in the FMPOCR canopy profile" begin
         ms = _case("CS", "1813567613290487", "salvage")
