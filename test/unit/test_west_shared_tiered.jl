@@ -328,4 +328,9 @@ end
         @test _cells(c) == 0
     end
 end
+# fvsvol.f:340 HT2TD(IT,2)=MAX(HT1PRD,HT2PRD) with nsvb.f:417 HT2PRD lifted to the bucked-log top HTsaw (NVB equations).
+@testset "NVB Ht2TDCF = MAX(HT1PRD, HTsaw) (fvsvol.f:340, nsvb.f:368-417) vs FVScr_clean" begin
+    c = _case("CR", "5278473010690", "none")
+    @test _cells(c) == 0
+end
 end # module

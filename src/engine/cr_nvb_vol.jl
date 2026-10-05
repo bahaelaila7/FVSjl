@@ -291,7 +291,11 @@ function _nvb_merch_cuft(d::Float32, h::Float32, vtotib::Float32, stump::Float32
     ht1prd = mtop < d ? _nvb_ht2topd(vtotib, a, b, h, mtop) : 0f0
     (brkht > 0f0 && brkht < ht1prd) && (ht1prd = brkht)     # nsvb.f:331 broken top caps the merch height
     ht1prd < stump && (ht1prd = stump)
-    ht_out === nothing || (ht_out[] = ht1prd)                # nsvb.f returns this HT1PRD (fvsvol.f → HT2TD)
+    # fvsvol.f:340 HT2TD(IT,2) = MAX(HT1PRD, HT2PRD). The CF call passes the same top as MTOPS (fvsvol.f:174,197), so
+    # the raw HT2PRD equals HT1PRD, but nsvb.f:417 `IF(HT2PRD.LT.HTsaw) HT2PRD=HTsaw` lifts it to the top of the bucked
+    # logs, HTsaw = STUMP + Σ(TRIM+LOGLEN) (nsvb.f:368-392), which can exceed HT1PRD. MEASURED FVScr_clean 5278473010690
+    # NVB0000746 aspen 6.1": Ht2TDCF 17.5 (= 1+0.5+16) live vs HT1PRD 17.2988 jl.
+    ht_out === nothing || (ht_out[] = ht1prd)
     lmerch = ht1prd - stump
     lmerch < 0f0 && (lmerch = 0f0)
     lmerch < merchl && return 0f0
@@ -299,6 +303,11 @@ function _nvb_merch_cuft(d::Float32, h::Float32, vtotib::Float32, stump::Float32
     numseg = _nvb_numlog(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM)
     numseg == 0 && return 0f0
     loglen, numseg = _nvb_segmnt(opt, _NVB_R3_EVOD, lmerch, _NVB_R3_MAXLEN, minlen, _NVB_R3_TRIM, numseg)
+    if ht_out !== nothing
+        htsaw = stump
+        @inbounds for i in 1:numseg; htsaw = htsaw + _NVB_R3_TRIM + loglen[i]; end
+        htsaw > ht_out[] && (ht_out[] = htsaw)
+    end
     return _nvb_logvol_cuft(numseg, loglen, dibl, stump, vtotib, _NVB_R3_TRIM, h, a, b)
 end
 
