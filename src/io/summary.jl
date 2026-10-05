@@ -367,7 +367,7 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # GRINCR) FINT is still the GROWTH/DG_MEASURE measurement period (initre.f:831, dbsstandin.f:701;
             # default grinit.f) — not the first cycle length. Later rows: the grown cycle's IY(ICYC+1)-IY(ICYC)
             # (grincr.f:65-66).
-            cover_fint = c == 0 ? s.control.growth_fint : cycle_period_at(s.control, c - 1)
+            cover_fint = c == 0 ? report_inventory_fint(s) : cycle_period_at(s.control, c - 1)
             # Inventory row: CVCBMS reads FVS's post-calibration DG array (dgdriv.f DO 220 dubs every record
             # without a measured increment), not the raw input increments jl keeps in diam_growth.
             if c == 0 && s.variant isa BlueMountains
@@ -474,10 +474,15 @@ function write_sum_file(io::IO, s::StandState; period::Int = 5,
             # previous cycle's length (matching FVS's non-zero final-row DM mortality).
             perdm = last ? cycle_period_at(s.control, max(c - 1, 0)) : per
             # The inventory MISPRT (fvs.f:338, before any GRINCR) scales MISMRT by the FINT then in COMMON: the GROWTH /
-            # DG_MEASURE measurement period (dbsstandin.f:701), else grinit's default — as cover_fint above. BC only for now:
-            # its growth_fint carries grinit's FINT=10; most other western variants' growth_fint still defaults to 5.
+            # DG_MEASURE measurement period (dbsstandin.f:701), else grinit's default (`inventory_fint`), as cover_fint above.
             # MEASURED FVSbc_dbfix YSM029-250 (DG_Measure 6) mistletoe 2018 Mort_TPH 7 live / 12 jl with the 10-yr cycle.
-            (c == 0 && s.variant isa BritishColumbia) && (perdm = s.control.growth_fint)
+            # Applied to the variants re-measured with it (western tiered); SN/IE/EM/BM/TT and CS/LS/NE/ON/OC/OP still use the
+            # first cycle's length here — OPEN until their tiered goldens are re-measured with it.
+            (c == 0 && (s.variant isa WestSierra || s.variant isa CentralCalifornia || s.variant isa SoutheastAlaska ||
+                        s.variant isa CentralIdaho || s.variant isa CentralRockies || s.variant isa Kootenai ||
+                        s.variant isa Utah || s.variant isa SouthCentralOregon || s.variant isa WestCascades ||
+                        s.variant isa EastCascades || s.variant isa Klamath || s.variant isa PacificNorthwest ||
+                        s.variant isa BritishColumbia)) && (perdm = inventory_fint(s))
             push!(dm_collect, (Int(r.year),
                   mistletoe_report(s; fint = Float32(perdm), top4 = dm_top4, nage = nage)))
         end
