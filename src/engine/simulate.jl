@@ -284,11 +284,16 @@ function setup_growth!(s::StandState)
     elseif s.variant isa Ontario
         on_dgcons!(s)                     # canada/on/dgf.f ENTRY DGCONS: DGCON=0, SMCON=0, ATTEN=OBSERV; Penner
                                           # large-tree DG reads its coeffs directly, bark via on_bratio in the driver.
-        compute_density!(s)               # current-stand density (BA) for the crown dub
-        on_cratet_dead_snapshot!(s)       # cycle-0 dead records' BAPctile/PtBAL (cratet.f:128-160 DENSE)
-        crown_ratio_update!(s, s.variant; lstart = true)  # CRATET dub of MISSING (ICR=0) inventory crowns
-                                          # (canada/on/crown.f, shared TWIGS NC-125 kernel with NE/CS/LS): current
-                                          # inventory BA + DBH (no backdating). ON_BCR1..4 from data/ontario CSV.
+        compute_density!(s)               # current-stand density before the CRATET DENSE
+        crown_init_lstart_dead_inclusive!(s)  # canada/on/cratet.f:159-161 `LBKDEN = IDG.LT.2; CALL DENSE` over the live
+                                          # AND cycle-0 dead records (deleted only after it), then :501 `IF(MISSCR) CALL
+                                          # CROWN` — the TWIGS dub (canada/on/crown.f, ON_BCR1..4) reads THAT density's
+                                          # BA: backdated by the measured DG, dead-inclusive. jl dubbed on the current
+                                          # live-only BA (FIA 245908831010661, 16 measured DG + 3 dead: seedling ICR 37/27
+                                          # vs live 39/30) — the bm-core shared helper, as for every western variant.
+        # That DENSE also leaves the cycle-0 dead records' BAPctile (cratet_dead_pct, backdated WK5 in the IND1-seeded
+        # RDPSRT order); their PtBAL stays 0 — ptbal.f CASE('CS','LS','NE','ON') walks the live records only.
+        fill!(s.calib.cratet_dead_ptbal, 0f0)
         calibrate_diameter_growth!(s; scale = dgscale)   # canada/on/cratet.f → DGDRIV (LSTART, after CROWN/AVHT40):
                                           # dgdriv.f DO 155-202 — SIGMA=SIGMAR (on/blkdat.f), COR fit for measured-DG
                                           # species (FN≥FNMIN), else DO 191 OLDRN=BACHLO(0,SIGMA) bounded by DGSD·SIGMA

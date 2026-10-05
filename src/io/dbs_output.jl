@@ -1425,7 +1425,9 @@ function treelist_snapshot(s::StandState, year::Integer, prdlen::Integer; cycle:
     # (measured live BM 41134550010497 2012: TreeIndex 4,1,5,6,2,7,…), NOT ascending record index.
     met = _metric_variant(s.variant)
     # ON inventory list: BAPctile = the CRATET DENSE's PCT (on_cratet_dead_snapshot!), not a later recompute's.
-    pct_swap = cycle == 0 && s.variant isa Ontario && length(s.calib.cratet_pct) == t.n
+    # With inventory dead present, canada/on/cratet.f:235 re-sorts IND identity-seeded after deleting them and the list
+    # reports the later DENSE's live PCT (the current t.crown_ratio); a dead-free stand keeps the CRATET DENSE's.
+    pct_swap = cycle == 0 && s.variant isa Ontario && length(s.calib.cratet_pct) == t.n && t.ndead == 0
     pct_keep = pct_swap ? t.crown_ratio[1:t.n] : Float32[]
     pct_swap && copyto!(t.crown_ratio, 1, s.calib.cratet_pct, 1, t.n)
     @inbounds for i in _ind1_order(s)
