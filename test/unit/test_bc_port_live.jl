@@ -198,4 +198,15 @@ end
     @test isempty(c.ms)
 end
 
+# metric/estb/esin.f:204-205/:252-253/:503 (linked by BC and ON): inside ESTAB, PLANT/NATURAL trees ÷ HAtoACR and height
+# × MtoFT, HTADJ height × MtoFT. jl's metric decode never ran on ESTAB sub-keywords ⇒ PLANT 400/ha planted 400/ac.
+# MEASURED FVSbc_dbfix YSM029-250 plant_cyc 2038 TPH 1062 live / 1650 jl.
+@testset "Metric ESTAB PLANT/NATURAL/HTADJ field conversions (metric/estb/esin.f:204)" begin
+    for r in ("plant_cyc", "plant_cal")
+        c = _case("YSM029-250", r)
+        @test !any(m -> m.year == "2038" && m.col in ("TPA", "Tph"), c.ms)
+        @test length(c.ms) <= 30                  # 52 cells before
+    end
+end
+
 end # module

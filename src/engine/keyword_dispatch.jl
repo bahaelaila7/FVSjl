@@ -738,6 +738,11 @@ const _ON_KW_METRIC = Dict{String,Vector{Pair{Int,Function}}}(
     "FIXCW"    => [4 => _on_cm, 5 => _on_cm],
     "PRUNE"    => [3 => _on_m, 6 => _on_cm, 7 => _on_cm],
     "BAMAX"    => [1 => _on_m2],
+    # metric/estb/esin.f:204-205 / :252-253 / :503 (the ESTAB block; BC and ON both link it): PLANT/NATURAL trees per
+    # ha ÷ HAtoACR and height m × MtoFT, HTADJ height m × MtoFT.
+    "PLANT"    => [3 => _on_ha, 6 => _on_m],
+    "NATURAL"  => [3 => _on_ha, 6 => _on_m],
+    "HTADJ"    => [3 => _on_m],
     "SDIMAX"   => [2 => _on_ha],
     "SITECODE" => [2 => _on_m],
     "SDICALC"  => [1 => _on_cm, 2 => _on_cm],
@@ -1816,6 +1821,7 @@ function kw_estab!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
         (r.status == KW_EOF || r.status == KW_STOP) && break
         k = strip(r.name)
         isempty(k) && continue
+        _metric_variant(s.variant) && _on_metric_decode!(r)    # metric/estb/esin.f field conversions
         if k == "END"
             break
         elseif k == "PLANT" || k == "NATURAL"
