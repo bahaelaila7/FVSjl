@@ -230,25 +230,6 @@ function _varmrt!(killed::AbstractVector{Float32}, efftr::AbstractVector{Float32
 end
 
 """
-    _msb_tpacls(t, killed, n, dlo, dhi, scale, barkf) -> tpacls
-
-MORTMSB pre-check (sn/morts.f:643-649, em/morts.f:828-834, on/morts.f:747-753 — the same block in every variant):
-the TPA left in the kill DBH range [dlo, dhi) after density mortality, DBH projected as `DBH+(DG/BARK)·scale`
-(`barkf(i)` = the variant's BRATIO for record i). The Fortran accumulator is `TPACLS=TPACLS+PROB(I)-WK2(I)`,
-i.e. (TPACLS+PROB)−WK2 left to right in REAL*4 — not TPACLS+(PROB−WK2); the two differ by ULPs, which moved
-TEMEFF=TMORE/TPACLS and every MSBMRT kill (mortmsb 2075 TCuFt 1172 vs live 1173).
-"""
-@inline function _msb_tpacls(t::TreeList, killed::AbstractVector{Float32}, n::Int, dlo::Float32, dhi::Float32,
-                             scale::Float32, barkf::F) where {F}
-    tpacls = 0f0
-    @inbounds for i in 1:n
-        dbhend = t.dbh[i] + (t.diam_growth[i] / barkf(i)) * scale
-        (dbhend >= dlo && dbhend < dhi) && (tpacls = (tpacls + t.tpa[i]) - killed[i])
-    end
-    return tpacls
-end
-
-"""
     _msbmrt!(killed, t, order, n, eff, t2kill, dlo, dhi, mflag, bark_a, bark_b, fint) -> sumkil
 
 MSBMRT (base/msbmrt.f): "mature-stand breakup" — inflict `t2kill` TPA of EXTRA mortality on records whose
@@ -452,7 +433,15 @@ function mortality!(s::StandState, v::AbstractVariant; fint::Float32 = 5f0, book
             # SN morts.f:645 = FINT/5, NE/CS morts.f:639 = FINT/10 (YR = htg_period). The old hardcoded FINT/5
             # was right for SN but over-projected DBH 2× for NE/CS ⇒ wrong tpacls ⇒ wrong MSB cancel/efficiency
             # (latent for SN, real for NE mortmsb). `_msbmrt!` separately keeps FINT/10 (base msbmrt.f:72, all variants).
-            tpacls = _msb_tpacls(t, killed, n, dlo, dhi, Float32(fint / yr), i -> _mbark(t.species[i], t.dbh[i], t.height[i]))
+            # sn/morts.f:647 TPACLS=TPACLS+PROB(I)-WK2(I): (TPACLS+PROB)-WK2 left to right in REAL*4. Inline, not a
+            # closure-taking helper: a lambda capturing `t`/`_mbark` boxes them and makes all of mortality! allocate.
+            tpacls = 0f0
+            @inbounds for i in 1:n
+                d = t.dbh[i]
+                bark = _mbark(t.species[i], d, t.height[i])
+                dbhend = d + (t.diam_growth[i] / bark) * Float32(fint / yr)
+                (dbhend >= dlo && dbhend < dhi) && (tpacls = (tpacls + t.tpa[i]) - killed[i])
+            end
             if tmore > tpacls
                 @warn "MORTMSB: additional mortality target ($(round(tmore; digits=1)) TPA) exceeds the TPA in " *
                       "the DBH class ($(round(tpacls; digits=1))); alternate mortality cancelled this cycle."
