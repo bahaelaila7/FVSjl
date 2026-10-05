@@ -130,9 +130,15 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
         htgr1 = wk3[i] - h; htgr1 < 0f0 && (htgr1 = 0f0)
         htg_large = t.ht_growth[i]      # large-tree HTG (height_growth!) for the XWT blend — read before l=0 overwrites
         cap = s.control.sp_size_cap[sp, 4]
-        xwt = d <= xmn ? 0f0 : (d - xmn)/(xmx - xmn)
-        small_d = d < 3.0f0
+        # regent.f:1508/1638: D starts as DBH(I) and, once a pass takes the D<3in branch, the crown block re-reads
+        # D=DBH(K) — so the NEXT copy's XWT (:1556), its D<3 test (:1576) and its DDS use the previous pass's DBH(K):
+        # the record's own DBH reset to 0.1+DIAM·.01+HK·.001 when HK<4.5 (:1593), else the DBH that DGDRIV wrote into
+        # the copy slot (dgdriv.f:271/278 DBH(ITRIPU/L)=DBH(I)). MEASURED FVSbc_dbfix SkyRanch-Control cycle 1: a 6-cm
+        # PL at 0.65 m (record 923) — copy 2823 gets XWT 0 after the original's reset, HTG 2.846 ft, keeps DBH 6 cm.
+        dcur = d
         for l in 0:(nrec - 1)
+            xwt = dcur <= xmn ? 0f0 : (dcur - xmn)/(xmx - xmn)
+            small_d = dcur < 3.0f0
             zzran = 0f0
             if dgsd >= 1f0
                 while true
@@ -167,10 +173,11 @@ function small_tree_growth!(s::StandState, stash, ::BritishColumbia; fint::Float
                     dgk = (dk - d1) * xrdgro; dgk < 0f0 && (dgk = 0f0)
                     bark = bc_bratio(sp)
                     dg = dgk * bark
-                    dds = dg * (2f0 * bark * d + dg) * scale_rg
-                    dg = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d
+                    dds = dg * (2f0 * bark * dcur + dg) * scale_rg
+                    dg = sqrt(fpow(dcur * bark, 2.0f0) + dds) - bark * dcur
                 end
-                dbhk < 0f0 && (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor (regent.f:1627-1629)
+                dbhk < 0f0 && (d + dg) < BC_RG_DIAM[sp] && (dg = BC_RG_DIAM[sp] - d) # MIN-DIAMETER floor on DBH(K) (regent.f:1627-1629)
+                dcur = dbhk >= 0f0 ? dbhk : d                     # regent.f:1638 D=DBH(K) (K's slot holds DBH(I) unless reset)
             end
             if l == 0
                 t.ht_growth[i] = htg

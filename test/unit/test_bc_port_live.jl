@@ -100,4 +100,13 @@ end
     @test count(m -> m.year == "2029" && m.col == "HtG", c.ms) <= 4
 end
 
+# canada/bc/regent.f:1508/1638 (tripling): D starts as DBH(I) and after a D<3-in pass the crown block re-reads D=DBH(K), so
+# the next copy's XWT, D<3 test and DDS use the previous pass's DBH(K) — the record's own reset DBH (HK<4.5) or the DBH
+# DGDRIV wrote into the copy slot (dgdriv.f:271/278). MEASURED FVSbc_dbfix SkyRanch-Control: the 6-7 cm / <1 m PL records
+# (e.g. 923: copy 2823 XWT 0, keeps DBH 6 cm); 2029 now only one record's DG ULP away.
+@testset "BC REGENT tripled copies inherit the previous pass's D (canada/bc/regent.f:1638)" begin
+    c = _case("SkyRanch-Control", "none")
+    @test count(m -> m.year == "2029" && m.file == "FVS_TreeList_Metric", c.ms) <= 3
+end
+
 end # module
