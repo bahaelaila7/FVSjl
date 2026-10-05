@@ -140,4 +140,13 @@ end
     @test _n(_case("OP", "30194263010497", "none").ms; file = "FVS_Error") == 0
 end
 
+
+# ON 245908831010661 (none): sub-1-inch seedlings (HK>4.5) — regent.f:386-388 floors DG at DIAM(ISPC) = regent.f's OWN
+# `DATA DIAM` (:613-620, == htdbh.f SNDBAL), not rgntsw.f's seedling-model DIAM that the first port transcribed. Was ~6,060
+# tiered cells (cycle-1 DG 0.1000002 vs live exactly 0.1 on the 0.254-cm records).
+@testset "ON REGENT DIAM budwidth floor (regent.f:386-388 + DATA DIAM :613-620)" begin
+    c = _case("ON", "245908831010661", "none")
+    @test !c.crashed
+    @test _n(c.ms) == 0
+end
 end # module

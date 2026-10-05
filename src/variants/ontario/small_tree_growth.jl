@@ -18,7 +18,7 @@
 #      DGGR = DGSM·(1-XWT) + XWT·DG_large; floor 0.1, cap DGMX, DIAM budwidth floor, DGBND.
 #
 # Coefficients auto-extracted from the Fortran DATA into `_regent_data.jl` (onsthg.f OSPMAP+B00..B95,
-# blkdat.f HT1/HT2, htdbh.f IWYKCA/SNDBAL/SNALL, rgntsw.f DIAM). Transcendentals via glibc
+# blkdat.f HT1/HT2, htdbh.f IWYKCA/SNDBAL/SNALL, regent.f DIAM DATA). Transcendentals via glibc
 # logf/expf/powf (on_logf/on_expf/on_powf) for Float32 bit-exactness.
 #
 # VALIDATION (vs instrumented FVSon_g16 on the ont_sm small-tree stand, scratchpad/on/): **ONSTHG is
@@ -230,8 +230,10 @@ function small_tree_growth!(s::StandState, stash, ::Ontario; fint::Float32 = 10.
                     end
                     dg < 0f0 && (dg = 0.1f0)             # regent.f:382
                     dg > dgmx && (dg = dgmx)             # regent.f:383
-                    (d + dg) < ON_REG_DIAM[sp] && (dg = ON_REG_DIAM[sp] - d)   # DIAM budwidth floor
-                    dg = _on_dgbnd(d, dg)               # DGBND
+                    # regent.f:386-388, inside the HK>4.5 ELSE: IF((DBH(K)+DG(K)).LT.DIAM(ISPC)) DG(K)=DIAM(ISPC)-DBH(K) (DBH(K)=D here).
+                    # DIAM = regent.f's own DATA DIAM (:613-620; == htdbh.f SNDBAL), NOT rgntsw.f's seedling-model DIAM.
+                    (d + dg) < ON_REG_SNDBAL[sp] && (dg = ON_REG_SNDBAL[sp] - d)
+                    dg = _on_dgbnd(d, dg)               # regent.f:395 DGBND(ISPC,DBH(K),DG(K))
                 end
                 if l == 0
                     t.diam_growth[i] = dg; t.ht_growth[i] = htg
@@ -321,7 +323,7 @@ function on_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0, ba_pre::
             dg = 0f0; dbh = d + 0.001f0 * hk
         else
             dbh = _on_htdbh_dbh(sp, hk)
-            (dbh < ON_REG_DIAM[sp] || hk < 4.5f0) && (dbh = ON_REG_DIAM[sp])
+            (dbh < ON_REG_SNDBAL[sp] || hk < 4.5f0) && (dbh = ON_REG_SNDBAL[sp])   # regent.f:342 (regent.f's own DIAM DATA)
             dbh = dbh + 0.001f0 * hk
             dg = dbh
         end
