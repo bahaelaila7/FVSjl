@@ -112,7 +112,7 @@ function mortality!(s::StandState, ::BritishColumbia; fint::Float32 = 10.0f0, bo
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         bark = bc_bratio(sp)
         g = t.diam_growth[i] / bark
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr   # morts.f:444-445 D*D+CIOBDS, CIOBDS=(2*D*G+G*G)
         wprob += pr; dsum += d * pr
     end
     tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
@@ -217,7 +217,7 @@ function bc_v2_mortality!(s::StandState; fint::Float32 = 10.0f0, book_snags::Boo
     @inbounds for i in 1:n
         pr = t.tpa[i]; d = t.dbh[i]; sp = Int(t.species[i])
         g = t.diam_growth[i] / bc_bratio(sp)
-        sd2sq += pr * (d * d + 2f0 * d * g + g * g); tt += pr; wprob += pr; dsum += d * pr
+        sd2sq += pr * (d * d + (2f0 * d * g + g * g)); tt += pr; wprob += pr; dsum += d * pr   # morts.f:444-445 D*D+CIOBDS, CIOBDS=(2*D*G+G*G)
     end
     tt < 1f-6 && @goto morts45   # nothing to kill — still reaches CLMORTS
     dq10 = sqrt(sd2sq / tt)

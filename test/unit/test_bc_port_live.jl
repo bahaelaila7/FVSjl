@@ -154,4 +154,15 @@ end
     @test length(c.ms) < 100                      # 74,847 cells before
 end
 
+# canada/bc/sitset.f:260 BAMAX = BAMAX*M2pHAtoFT2pACR uses the METRIC.F77 PARAMETER 4.3560773; jl used 1/FT2pACRtoM2pHA
+# (4.356078, 2 ULP high) ⇒ SDIDEF/XMAX/BAMAX 2 ULP high ⇒ the BAMAX-approach RIPP and every morts.f kill. And morts.f:444-445
+# sums SD2SQ = SD2SQ + P*(D*D + CIOBDS), CIOBDS = (2*D*G + G*G) (jl added the three terms left to right). MEASURED FVSbc_dbfix
+# Fir.20 MORTS dump: BAMAX 4336F48B live / 4336F48D jl ⇒ cycle-2 MortPH 5e-6 relative on 566 records.
+@testset "BC mortality BAMAX constant + SD2SQ order (sitset.f:260, morts.f:444)" begin
+    for (cn, cap) in (("Fir.20", 150), ("YSM029-246", 150), ("SkyRanch-0.3m", 10))
+        c = _case(cn, "none")
+        @test length(c.ms) <= cap
+    end
+end
+
 end # module
