@@ -1269,6 +1269,40 @@ end
 # `params` tuple is already FULL (6 params + aux), so add a slot or a separate methc event; (c)
 # apply_volume_overrides! set sp_methc; (d) compute_volumes_ne! dispatch methc==5 → `r9vol_gevorkiantz`
 # (proven total cubic 0.42π·D²·H/576 + the r9vol.f board/merch polys). See DIVERGENCE_FIX_CAMPAIGN.md D35.
+# initre.f:1962-1999 (VOLUME) / 4640+ (BFVOLUME): a DATED card (IDT>0 ⇒ scheduled, OPNEW) FILLS every blank field from the
+# merch standard CURRENTLY IN FORCE at keyword-read time — species 1 for ISP=0, the first group member for ISP<0, else
+# that species — and the scheduled event later stores ALL of them (volkey.f:9915-9917). At read time SITSET has not run
+# (initre.f:442, after the keyword loop), so "in force" = the GRINIT default (grinit.f: STMP .5, DBHMIN/TOPD/SCFMIND/
+# SCFTOPD/BFMIND/BFTOPD 0, SCFSTMP/BFSTMP 1; identical in SN/NE/LS/CS) as changed by an earlier UNDATED card
+# (initre.f:1780-1850, non-blank fields only). jl used the raw blank (0) — e.g. SCFSTMP 0 for a blank field instead of 1.0
+# ⇒ CFTOPK's SCFSTMP/H stump ratio wrong on every top-killed saw tree (cs/ne/ls_volume SawCuFt ±1).
+# Undated events keep NaN for blank fields (applied non-blank-only, as initre does) so replaying them recovers the
+# card-time state.
+_vol_filled_variant(v) = v isa Union{Southern,Northeast,CentralStates,LakeStates}
+const _VOL_GRINIT = (dbhmin = 0f0, topd = 0f0, stmp = 0.5f0, scfmind = 0f0, scftopd = 0f0, scfstmp = 1f0,
+                     bfmind = 0f0, bftopd = 0f0, bfstmp = 1f0)
+# ev field slots: VOLUME (217) params[2..6] = dbhmin,topd,stmp,scfmind,scftopd, aux = scfstmp;
+#                 BFVOLUME (218) params[2..4] = bfmind,bftopd,bfstmp.
+function _vol_cardtime_default(c, icflag::Integer, slot::Int, sp::Int, grin::Float32)
+    val = grin
+    for ev in c.volume_events
+        (Int(ev.icflag) == icflag && ev.year <= 0) || continue
+        isp = round(Int, ev.params[1])
+        covered = isp == 0 || isp == sp ||
+                  (isp < 0 && -isp <= length(c.sp_groups) && sp in c.sp_groups[-isp])
+        covered || continue
+        x = slot == 7 ? ev.aux : ev.params[slot]
+        isnan(x) || (val = x)
+    end
+    return val
+end
+function _vol_fill_sp(c, isp::Int)
+    isp > 0 && return isp
+    isp == 0 && return 1
+    g = -isp
+    (1 <= g <= length(c.sp_groups) && !isempty(c.sp_groups[g])) ? Int(first(c.sp_groups[g])) : 1
+end
+
 function kw_volume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
@@ -1278,10 +1312,22 @@ function kw_volume!(s::StandState, rec::KeywordRecord)
     if length(rec.present) >= 7 && rec.present[7]
         _set_methc!(s.control, nint(v[2]), round(Int32, v[7]))
     end
+    pres(i) = length(rec.present) >= i && rec.present[i]
+    f = [Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9]), Float32(v[10])]
+    if _vol_filled_variant(s.variant)
+        c = s.control
+        dated = pres(1) && v[1] > 0
+        src = _vol_fill_sp(c, round(Int, isp))
+        gr = (_VOL_GRINIT.dbhmin, _VOL_GRINIT.topd, _VOL_GRINIT.stmp, _VOL_GRINIT.scfmind, _VOL_GRINIT.scftopd, _VOL_GRINIT.scfstmp)
+        slot = (2, 3, 4, 5, 6, 7); fld = (3, 4, 5, 8, 9, 10)
+        for k in 1:6
+            pres(fld[k]) && continue
+            f[k] = dated ? _vol_cardtime_default(c, 217, slot[k], src, gr[k]) : NaN32
+        end
+    end
     push!(s.control.volume_events,
           ScheduledActivity(Int32(nint(v[1])), Int32(217),
-              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), Float32(v[8]), Float32(v[9])),
-              Float32(v[10])))
+              (isp, f[1], f[2], f[3], f[4], f[5]), f[6]))
     return
 end
 
@@ -1307,9 +1353,21 @@ end
 function kw_bfvolume!(s::StandState, rec::KeywordRecord)
     v = rec.values
     isp = Float32(nint(v[2]))
+    pres(i) = length(rec.present) >= i && rec.present[i]
+    f = [Float32(v[3]), Float32(v[4]), Float32(v[5])]
+    if _vol_filled_variant(s.variant)        # same blank-fill as kw_volume! (initre.f BFVOLUME 4640+)
+        c = s.control
+        dated = pres(1) && v[1] > 0
+        src = _vol_fill_sp(c, round(Int, isp))
+        gr = (_VOL_GRINIT.bfmind, _VOL_GRINIT.bftopd, _VOL_GRINIT.bfstmp)
+        for k in 1:3
+            pres(k + 2) && continue
+            f[k] = dated ? _vol_cardtime_default(c, 218, k + 1, src, gr[k]) : NaN32
+        end
+    end
     push!(s.control.volume_events,
           ScheduledActivity(Int32(nint(v[1])), Int32(218),
-              (isp, Float32(v[3]), Float32(v[4]), Float32(v[5]), 0f0, 0f0), 0f0))
+              (isp, f[1], f[2], f[3], 0f0, 0f0), 0f0))
     return
 end
 

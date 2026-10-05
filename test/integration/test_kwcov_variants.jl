@@ -52,11 +52,13 @@ const _KCV_BROKEN = Dict{String,String}(
     # ne_bfvolume: FIXED (task #78) — the BdFt (~1%) divergence was the tkill (broken-top) board top-kill using the
     #   sawtimber scftopd/scfstmp (which a blank-SCFTOPD VOLUME card zeroes) instead of the BOARD's own sp_bf_topd/
     #   sp_bf_stump; bftopk now uses the board top/stump (bf-equal ⇒ inert in the base). Now full-row BIT-EXACT.
-    # VOLUME/MCDEFECT: the BdFt divergence is FIXED by the same bftopk board-top fix; the residual below is now ONLY
+    # {ne,cs,ls}_volume: FIXED (2026-10-05, east-ext) — NOT a ULP corner. The dated `VOLUME 2000 0 1 4 8` card leaves
+    #   SCFMIND/SCFTOPD/SCFSTMP blank; initre.f:1962-1975 FILLS blanks from the standard in force at read time
+    #   (species 1 for ISP=0 — grinit SCFSTMP=1.0) and volkey.f:9917 stores them at the event. jl stored the raw blank
+    #   (SCFSTMP 0) ⇒ CFTOPK's STUMP=1-SCFSTMP/H (cftopk.f:105) was wrong for every TOP-KILLED saw tree (per-tree
+    #   live-vs-jl vols.f stamp: only those records differed, SCFV +0.3%). Now full-row bit-exact. Moved out of broken.
+    # VOLUME/MCDEFECT (history): the BdFt divergence was FIXED by the same bftopk board-top fix; the residual below is now ONLY
     #   the SawCuFt (col 11) off-by-1-2 (0.03-0.05%, ULP-class — present in the base too), NOT the ~1% board gap.
-    "ne_volume"   => "R9 VOLUME override — SawCuFt col off-by-1-2 (ULP-class ~0.04%); BdFt now bit-exact (task #78 bftopk fix)",
-    "cs_volume"   => "R9 VOLUME override — SawCuFt col off-by-1 (ULP-class); BdFt now bit-exact (task #78)",
-    "ls_volume"   => "R9 VOLUME override — SawCuFt col off-by-1 (ULP-class); BdFt now bit-exact (task #78)",
     # cs/ls_mcdefect + cs/ls_bfdefect: FIXED (2026-07-07) — the "off-by-1"/board divergences were the SAME bug:
     #   jl's _set_defect! took the RAW card fields (a blank field → 0), but FVS sdefet.f:60-82 FILLS blank fields
     #   via ALGSLP (clamp/interp of the non-blanks — e.g. a blank 25" field clamps to the last non-blank, not 0).
