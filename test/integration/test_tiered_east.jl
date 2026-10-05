@@ -34,9 +34,117 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "FVS_TreeList"; col = "HtG"))  # htcalc.f:394 ((H-BH)/B1)/SI**B2, powf/expf/logf
         @test length(ms) <= 3
     end
+    @testset "LS 21073815010661 none — ls/sitset.f:262-267 FVS54 (blank site species/index ⇒ RN/60 default)" begin
+        ms = _case("LS", "21073815010661", "none")
+        @test isempty(_cells(ms, "FVS_Error"))                 # FVS08, FVS14, FVS54 rows in live order
+    end
+    @testset "CS 65514610010661 none — cs/htdbh.f SNALL/SNDBAL full-precision Curtis-Arney (REGENT DKK)" begin
+        ms = _case("CS", "65514610010661", "none")
+        # HK 1462004: DKK = HTDBH(H=7.19) was 3 ULP off with the 7-digit P3/P4 (3.9393329 vs 3.93933286)
+        @test isempty(_cells(ms, "FVS_TreeList"))
+        sd = FVSjl.StandState(FVSjl.CentralStates()).coef.species
+        @test sd[:htdbh_p3][35] == 3.93933286f0 && sd[:htdbh_p4][35] == -0.25998833f0
+        @test sd[:crown_bcr2][1] == 0.0095531519f0 && sd[:crown_bcr4][8] == -0.00032406501f0   # cs/crown.f BCR2/BCR4 DATA
+    end
+    @testset "CS 1229648290290487 none — cs/dgf.f bark conversion on DBH(I) in calibration; vols.f:146 NORMHT/100." begin
+        ms = _case("CS", "1229648290290487", "none")
+        # calibration DGF(WK3): DIAGRO/BARK/DDS read the CURRENT DBH(I) ⇒ RESLOG/COR/OLDRN exact (were 1-30 ULP) and the
+        # broken-top PO's volume height H=NORMHT/100.0 (was ·0.01 ⇒ Ht2TDCF 2031 1 ULP)
+        @test isempty(_cells(ms, "FVS_TreeList"))             # (+ r9clark.f r9ht xxx**0.5 = powf: RC 2051 Ht2TDBF)
+    end
+    @testset "CS 231708010020004 salvage — FFE stem/snag/FMCROWE-bole volumes on the R9 Clark NATCRS (fmsvol.f FMSVL2)" begin
+        ms = _case("CS", "231708010020004", "salvage")
+        # FMCROWE's DBHMIN-tree bole VT (fmcrowe.f:268-280) was SN's R8 Clark (0) ⇒ CROWNW 1-3 / Aboveground_Total_Live
+        # 6.21 vs 3.69; CS snag boles likewise ⇒ Standing_Dead / Forest_Down_Dead_Wood
+        @test isempty(_cells(ms, "FVS_Carbon"))
+    end
+    @testset "LS 301218549489998 plant_cal — {ls,cs,ne}/regent.f REGENT(LESTB) + esgent.f WK4=HTIMLT" begin
+        ms = _case("LS", "301218549489998", "plant_cal")
+        # planted RN (2024): LESTB BALMOD on the post-growth overstory BA 131.57 (was the stale 62.4), HTG·WK4 (0.99998),
+        # TreeList HtG/DG = the ESGENT values ⇒ the whole projection matches live
+        @test isempty(_cells(ms, "sum"))
+        @test isempty(_cells(ms, "FVS_Summary"))
+    end
+    @testset "NE 66746760010538/9740818010661 none — GRINIT FINT=10 ⇒ FINT/FINTM dead PROB inflation (notre.f:122-124)" begin
+        ms = _case("NE", "66746760010538", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; year = 2005))   # dubbed crowns 32 (BA 97.836) + dead-record BAPctile
+        ms = _case("NE", "9740818010661", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; year = 1993))   # dead-record BAPctile
+    end
+    @testset "NE 9740818010661 none — ne/dgf.f expf/powf(.5)/logf in the 10-step BAL potential iteration" begin
+        ms = _case("NE", "9740818010661", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"))             # cycle-2 WK2 was 15 ULP off; SM 2043 Ht2TDBF (r9ht powf)
+    end
+    @testset "CS 1813567613290487 salvage — cs/ls fmvinit.f LSW softwoods only in the FMPOCR canopy profile" begin
+        ms = _case("CS", "1813567613290487", "salvage")
+        @test isempty(ms)                                      # oak stand: Canopy_Density 0 / Canopy_Ht −1 like live
+    end
+    @testset "NE 17955726010661 salvage — ne/fmsfall.f ALGSLP snag fall (CS: KSP>2 linear branch)" begin
+        ms = _case("NE", "17955726010661", "salvage")
+        @test isempty(_cells(ms, "FVS_Carbon"; col = "Standing_Dead"))   # inventory snags DENIH 8.693 (was 11.172)
+    end
+    @testset "LS 103337570010661 / NE 66746760010538 salvage — FMSCRO TFALL/TSOFT + CWD2 broken-top debris (fmsnag.f:254)" begin
+        ms = _case("LS", "103337570010661", "salvage")
+        @test isempty(ms)                                      # LS TFALL rows 3..6, FMSNGDK 0.65·DECAYX·D, CWD2 tops
+        ms = _case("NE", "66746760010538", "salvage")
+        @test isempty(ms)
+    end
+    @testset "CS 1229648290290487 simfire — cs/fmcfmd.f redcedar fuel model counts species 1 AND 2" begin
+        ms = _case("CS", "1229648290290487", "simfire")
+        @test isempty(_cells(ms, "FVS_BurnReport"))            # FM4, flame 11.0 (was FM6, 2.88)
+        @test isempty(_cells(ms, "sum"))
+    end
+    @testset "NE 9740818010661 plant_cal — ne/regent.f LESTB RELHTA on the post-growth overstory AVH" begin
+        ms = _case("NE", "9740818010661", "plant_cal")
+        @test isempty(_cells(ms, "FVS_Summary"))
+        @test isempty(_cells(ms, "sum"))
+    end
+    @testset "LS 104685266010661 simfire — ls/fmcfmd.f FMAVH = ATAVH (grincr.f:318 post-thin AVH)" begin
+        ms = _case("LS", "104685266010661", "simfire")
+        @test isempty(ms)                                      # FM10 / flame 3.29 (was FM4 / 12.04)
+    end
+    @testset "NE 68474457010538 plant_cal — REGENT(LESTB) BALMOD on /TWIGCOM/ EBAU from this cycle's DGF" begin
+        ms = _case("NE", "68474457010538", "plant_cal")
+        @test isempty(_cells(ms, "sum"))                       # planted WS HtG 5.605 (was 4.894)
+        @test isempty(_cells(ms, "FVS_Summary"))
+    end
+    @testset "CS 3276147010661 plant_cal — {cs,ls,ne}/estab.f:630 new-record DBH=0.1 (REGENT(LESTB) BALMOD D)" begin
+        ms = _case("CS", "3276147010661", "plant_cal")
+        @test isempty(_cells(ms, "sum"))
+        @test isempty(_cells(ms, "FVS_Summary"))
+    end
+    @testset "LS 1536031362290487 none — BALMOD reads the last DENSE's RMSQD (dense.f:250), not a post-TREDEL recount" begin
+        ms = _case("LS", "1536031362290487", "none")
+        @test isempty(_cells(ms, "FVS_TreeList"; col = "HtG"))   # cycle-4 BF HtG were 1-6 ULP off
+    end
+    @testset "CS salvage — cs/fmvinit.f ALLDWN (redcedar/juniper 100, pines 3-7 50)" begin
+        for cn in ("65514610010661", "1229648290290487")
+            @test isempty(_case("CS", cn, "salvage"))
+        end
+        sd = FVSjl.StandState(FVSjl.CentralStates()).coef
+        @test FVSjl.coef_col(sd, :snag_alldwn)[1] == 100f0 && FVSjl.coef_col(sd, :snag_alldwn)[5] == 50f0
+    end
+    @testset "NE 68474457010538 simfire — esuckr.f sprout DBH on the IFOR-3 /COEFFS/ HT1/HT2 (ne/sitset.f:428-489)" begin
+        ms = _case("NE", "68474457010538", "simfire")
+        @test isempty(_cells(ms, "sum"))                       # post-fire RM/RO sprout DBH (BA 2022 43 → live 47)
+    end
+    @testset "LS 301218549489998 simfire — FMSNAG per-snag CWD1 then CWD2 accumulation order (fmsnag.f)" begin
+        @test isempty(_case("LS", "301218549489998", "simfire"))   # DDW / PotFire ULPs from the pass order
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
+    end
+    @testset "CS/LS DGF — stock -O0 FVS calls powf for X**2.0 / (D)**2. ({cs,ls}/dgf.f DDS conversion, SDQGE5)" begin
+        # were 1-ULP late-cycle DG/DBH/CrWidth/Ht2TD/QMD cells, once mislabelled 'oracle object skew' (ORACLE_SOURCE_AUDIT §9)
+        @test isempty(_case("CS", "1813567613290487", "none"))
+        @test isempty(_case("LS", "1536031362290487", "none"))
+        @test isempty(_cells(_case("LS", "68756497010661", "thinbba"), "sum"))
+        @test isempty(_cells(_case("LS", "1536031362290487", "simfire"), "FVS_Carbon"; year = 2062))
+    end
+    @testset "NE 17955726010661 simfire — FMSVL2 NATCRS MCF for every live record (fmsvol.f:118-153), not VOLS's MCFV" begin
+        # live FMDOUT VT == jl NATCRS on 4020/4020 records, the cached PULPV+SCFV merch on only 3837
+        @test isempty(_cells(_case("NE", "17955726010661", "simfire"), "FVS_Carbon"))
     end
     @testset "OC 645142535126144 none — R6 VEQNNC volumes (R6_EQN westside), ca/sitset.f SDIDEF, national cwcalc" begin
         ms = _case("OC", "645142535126144", "none")

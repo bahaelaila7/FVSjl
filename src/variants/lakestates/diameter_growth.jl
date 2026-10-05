@@ -66,7 +66,7 @@ function dgf!(s::StandState, ::LakeStates)
             d = t.dbh[i]
             d < 5f0 && continue
             pr = t.tpa[i]
-            sdqge5 += pr * (d * d)                     # P*(D)**2. (folded to D*D, then ·P)
+            sdqge5 += pr * fpow(d, 2f0)                # P*(D)**2. (ls/dgf.f:353): the stock -O0 build calls powf
             tt += pr
             bage5 += d * d * pr * 0.005454154f0
         end
@@ -120,11 +120,20 @@ function dgf!(s::StandState, ::LakeStates)
 
         dds < -9.21f0 && (dds = -9.21f0)
         # OB→IB bark conversion (ls/dgf.f:288-291).
-        diagro = sqrt(d * d + fexp(dds)) - d             # ls/dgf.f EXP → glibc expf (doctrine #4)
-        bark = bark_ratio(ba_a, ba_b, sp, d)
+        # ls/dgf.f:453-459: the OB→IB conversion reads DBH(I) — the CURRENT dbh — not DIAM(I): during the LSTART calibration
+        # DGDRIV calls DGF(WK3) with the BACKDATED diameters (D above), but DIAGRO/BARK/DDS still use DBH(I). Mathematically
+        # WK2 = DDS+2·ln(BARK) either way, but the Float32 rounding of sqrt/square/subtract differs ⇒ calibration RESLOG/
+        # COR/OLDRN off by ULPs (MEASURED live FVScs 1229648290290487: cycle-1 OLDRN 1-30 ULP off for every calibrated RC/
+        # WO record). calib_dbh holds the current dbh only inside the calibration dgf! call.
+        dc = isempty(c.calib_dbh) ? d : c.calib_dbh[i]
+        diagro = sqrt(dc * dc + fexp(dds)) - dc
+        bark = bark_ratio(ba_a, ba_b, sp, dc)
         diagri = diagro * bark
-        db = d * bark
-        dds = flog((db + diagri)^2 - db * db)            # ALOG → glibc logf; X**2.0 folds to X*X (no powf in dgf.o)
+        db = dc * bark
+        # DDS=((DBH*BARK+DIAGRI)**2.0)-(DBH*BARK)**2.0, then ALOG unless <=0 (-9.21): the stock -O0 FVS build calls
+        # powf for both **2.0 (only the 2026-07-18 -O2 recompile of dgf.o folded them to X*X — ORACLE_SOURCE_AUDIT §9).
+        dds = fpow(db + diagri, 2f0) - fpow(db, 2f0)
+        dds = dds <= 0f0 ? -9.21f0 : flog(dds)
         dds < -9.21f0 && (dds = -9.21f0)
         wk2[i] = dds
     end

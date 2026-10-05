@@ -547,6 +547,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # backdated dbh — FVS NE calib computes BADIST on the current stand (verified EBAU=52). Stash the current dbh
     # for ne_badist! to read; SN ignores it (point_bal-based, never calls ne_badist!). Cleared right after.
     s.variant isa Northeast && (c.calib_dbh = saved_dbh)
+    # CS/LS dgf.f: the OB→IB bark conversion reads DBH(I) (current), not DIAM(I) (backdated) — see their dgf!.
+    (s.variant isa CentralStates || s.variant isa LakeStates) && (c.calib_dbh = saved_dbh)
     # AK: the DGF's point-Zeide PRD (SDICAL XMAXPT + SDICLS ZRD) reads the UNCHANGED DBH(I) = CURRENT
     # dbh even during calibration (like PTBALT/PTBAA above) — FVS backdates only DIAM(I), not the DBH
     # array SDICAL/SDICLS sum. Stash the current dbh so point_zeide! uses it (else jl computes PRD on
@@ -754,7 +756,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # ON (canada/on/dgdriv.f:694 CALL DGF(WK3) → DO 220): the dub DG is only reported — it is cycle 1's WK1, the MCuM of
     # a record the first MORTS empties (on_do220_dg).
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario
+       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario ||
+       s.variant isa BritishColumbia   # canada/bc dgdriv.f:741 DGF(WK3) → DO 220: cycle-1 WK1 (V2 MORTS) and the DG COMPRS sees
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         s.calib.cur_rmsqd = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height

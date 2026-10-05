@@ -591,7 +591,7 @@ end
 # mistoe.f is the base one plus a NEWSI branch (NEWSI = NEWMOD .AND. MISFLG ⇒ DMTREG/DMMDMR replace the spread, DMFLAG
 # stays .FALSE. ⇒ no MISMRT). So BC without NEWSPRED runs the base spread/MISMRT on the damage-code DMR.
 @inline _base_mistoe_on(s)::Bool = _ie_mis_variant(s.variant) ||
-    (s.variant isa BritishColumbia && !(s.mistletoe !== nothing && s.mistletoe.newmod))
+    (s.variant isa BritishColumbia && !(s.mistletoe !== nothing && s.mistletoe.newmod && s.control.misflg))
 @inline function _dm_effects_on(s)::Bool
     _ie_mis_variant(s.variant) && return true
     return s.variant isa BritishColumbia

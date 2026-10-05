@@ -136,6 +136,9 @@ mutable struct RootDiseaseState <: AbstractRootDiseaseState
     oldtpa::Float32           # OLDTPA / ORMSQD as GRINCR saves them at the cycle start (grincr.f:281/285: DENSE's TPROB and
     ormsqd::Float32           # RMSQD = SQRT(ΣD·(D·P)/TPROB), species-major IND1); RDROOT's SDI effect reads them. −1 = unset
 
+    ircomp::Int32             # IRCOMP — RDMN1(2) compression target (rdinit.f:699 400; RRCOMP keyword, rdin.f option 19)
+    setp_deferred::Bool       # manual init with ITRN>IRRTRE: RDMN1(2) compresses, then RDSETP (fvs.f:346), at cycle start
+    skip_dense::Bool          # RDMN1 compressed without a DENSE: cycle 1's GRINCR (no thin) keeps the inventory DENSE
     RootDiseaseState() = rd_init_defaults!(new())
 end
 
@@ -163,6 +166,9 @@ function rd_init_defaults!(rd::RootDiseaseState)
     rd.dimen = 2087.0f0       # sqrt(100)*208.7
     rd.irhab = Int32(1)
     rd.istep = Int32(1)
+    rd.ircomp = Int32(400)    # rdinit.f:699
+    rd.setp_deferred = false
+    rd.skip_dense = false
 
     n = RD_ITOTRR
     rd.ncents = fill(Int32(20), n)      # rdinit NCENTS=20
@@ -274,7 +280,12 @@ function rd_sum_report(rd::RootDiseaseState, s::StandState, year::Integer, iage:
         cfv_i = p_i > 0.0f0 ? (t.cuft_vol[i] * p_i) / p_i : 0.0f0
         tdvol += d.rdkill[i] * cfv_i / pden
         bapa  += tclas * (3.14159f0 * (t.dbh[i] / 24.0f0)^2) / pden
-        cfvpa += tclas * (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0) / pden   # rdpr.f: TCLAS·WK1(I) (WK1 = start-of-cycle DG)
+        # rdpr.f:213 TCLAS·WK1(I): WK1 = the start-of-cycle DG (dgdriv.f) in the US builds, whose vols.f:198 `WK1(I)=VM` is
+        # commented out; BC's canada/bc/vols.f:167/221 still loads WK1 with the defect-corrected merch cubic, and VOLS runs
+        # after DGDRIV (fvs.f:211 at inventory, GRADD each cycle) ⇒ BC's RDPR sums the merch volume (MEASURED FVSbc_dbfix
+        # YSM029-250 rootdis 2018 Live_Merch_CuM 10.595 live, 0 with the DG snapshot).
+        wk1 = s.variant isa BritishColumbia ? t.merch_cuft_vol[i] : (i <= length(rd.wk1) ? rd.wk1[i] : 0.0f0)
+        cfvpa += tclas * wk1 / pden
     end
     rrrate = idi <= length(d.rrrate) ? d.rrrate[idi] : 0.0f0
     ncent  = idi <= length(rd.ncents) ? Int(rd.ncents[idi]) : 0
@@ -1201,6 +1212,9 @@ function kw_rdin!(s::StandState, rec, kr::KeywordReader)
             rd_in_rrinit!(rd, r; lmtric = _rd_lmtric(s))
         elseif k == "SAREA"                 # rd/rdin.f option 10
             rd_in_sarea!(rd, r; lmtric = _rd_lmtric(s))
+        elseif k == "RRCOMP"                # rd/rdin.f option 19: 0 < target ≤ 400, else 400
+            v1 = r.present[1] ? r.values[1] : 0f0
+            rd.ircomp = (v1 > 400f0 || v1 <= 0f0) ? Int32(400) : Int32(trunc(Int, v1))
         elseif k == "RSEED"                 # rd/rdin.f option 25 — reseed the RD RNG
             # ARRAY(1)==0 ⇒ GETSED clock-seed (non-deterministic; out of scope).
             if r.present[1] && r.values[1] != 0.0f0
@@ -2946,9 +2960,27 @@ end
 fvs.f RDMN1 init seam (called once at stand setup). Inert unless RD is active.
 Chunk 0 will call the ported RDSETP here (center placement + initial infection).
 """
+# BC's RDPR CFVPA sums WK1 = the VOLS merch volume (rd_sum_report); FVS reports the inventory row at fvs.f:347, after the
+# inventory VOLS (fvs.f:211), while jl books it at the RDMN1 setup seam before compute_volumes! — rebuild it once the
+# inventory volumes exist (the RD state is untouched in between: no growth, no RD step).
+function rd_refresh_inventory_report!(s::StandState)
+    rd = s.root_disease
+    (rd_active(rd) && s.variant isa BritishColumbia && s.control.dbs_rd_sum && length(rd.sum_rows) == 1) || return nothing
+    yr, _ = rd.sum_rows[1]
+    rd.sum_rows[1] = (yr, rd_sum_report(rd, s, yr, Int(s.plot.stand_age)))
+    return nothing
+end
+
 function root_disease_setup!(s::StandState)
     rd = s.root_disease
     rd_active(rd) || return nothing
+    # rd/rdmn1.f (fvs.f:346 RDMN1(2)): a MANUAL init (not RRTREIN) with ITRN > IRRTRE first COMPRS(IRCOMP,0.5) — only the
+    # FVS tree variables, the RD arrays cannot hold the list — and runs RDSETP on the compressed list. That happens after the
+    # inventory .sum row and tree list (fvs.f:340 PRTRLS(1)), so jl defers it to the first cycle start (rd_mn1_compress!).
+    if !rd.rrtinv && s.trees.n > RD_IRRTRE && sum(rd.parea) != 0f0
+        rd.setp_deferred = true
+        return nothing
+    end
     # RDSETP → RDCLOC/RDAREA (center placement) + RDIPRP + per-record PROBI/PROBIU/
     # FPROB/PROPI + RDINOC(true) — the initial-infection state (LSTART, ISTEP=1).
     rd_setp!(rd, s)
@@ -2958,6 +2990,43 @@ function root_disease_setup!(s::StandState)
     # loop (pre-projection: rdkill/probda/rrrate=0 ⇒ Mort/Stumps/Spread=0, Inf/UnInf/BA from the
     # initial infection). Populate PROBIT (=Σ PROBI) first, as RDPR would.
     # rdpr.f:79 IF (ITRN .EQ. 0) RETURN — no tree records ⇒ no RDPR report row (a bare stand writes no FVS_RD_Sum).
+    if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0
+        d = rd.driver::RDDriver
+        rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))
+        yr = Int(s.control.cycle_year[1]); iage = Int(s.plot.stand_age)
+        s.control.dbs_rd_sum    && push!(rd.sum_rows, (yr, rd_sum_report(rd, s, yr, iage)))
+        s.control.dbs_rd_detail && push!(rd.det_rows, (yr, rd_det_report(rd, s, yr)))
+    end
+    return nothing
+end
+
+"""
+    rd_mn1_compress!(s)
+
+rd/rdmn1.f:136-162 (INUM=2, manual init, ITRN > IRRTRE): zero WK2, COMPRS(IRCOMP, 0.5), book activity 250 as done
+(OPADD), SPESRT, then RDSETP (statement 222) and the inventory RDPR row (fvs.f:347) on the compressed list. Runs once,
+at the first cycle start (after the inventory outputs); COMPRS here leaves NOTRIP alone (only COMCUP sets it).
+MEASURED FVSbc_dbfix Fir.20 rootdis: 1540 records ⇒ "COMPRESS DONE IN 2020" to 400 (2030 tree list 1200 rows).
+"""
+function rd_mn1_compress!(s::StandState)
+    rd = s.root_disease
+    (rd isa RootDiseaseState && rd.setp_deferred) || return nothing
+    rd.setp_deferred = false
+    # COMPRS classifies on DG(I) (comprs.f:166), which at fvs.f:346 still holds the LSTART dgdriv.f DO 220 DG: the measured
+    # increment, 0 at HT≤4.5, else the calibration-DGF dub (MEASURED FVSbc_instr Fir.20: 0.555/0.980/… live vs jl 0).
+    t = s.trees
+    if s.variant isa BritishColumbia && length(s.calib.dub_wk2) == t.n
+        dg0 = Float32[do220_dg(s, i, t.dbh[i], bc_bratio(Int(t.species[i]))) for i in 1:t.n]
+        copyto!(t.diam_growth, 1, dg0, 1, t.n)
+    end
+    compress!(s, Int(rd.ircomp), 0.5)
+    # No DENSE follows (unlike COMCUP, comcup.f:91), and GRINCR re-DENSEs only after a thin (grincr.f:304): cycle 1's
+    # DGF reads the inventory DENSE's BA/RELDEN/AVH and the PCT COMPRS merged (comprs.f:925). MEASURED FVSbc_instr Fir.20
+    # rootdis cycle-1 DGDRIV WK2 ~1% off on all 400 records when jl re-DENSEd the compressed list.
+    rd.skip_dense = true
+    rd_setp!(rd, s)
+    rd.driver = rd_build_driver!(rd, s.trees.n)
+    rd.icyc = Int32(0)
     if (s.control.dbs_rd_sum || s.control.dbs_rd_detail) && s.trees.n > 0
         d = rd.driver::RDDriver
         rd_sum!(d.probit, d.probi, max(1, Int(rd.istep)))

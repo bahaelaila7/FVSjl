@@ -123,6 +123,11 @@ const _SO_FM_BARK_B1 = Float32[
     0.062, 0.026, 0.024, 0.044, 0.044, 0.062, 0.029, 0.041, 0.045, 0.044,
     0.044, 0.063, 0.044]
 
+# canada/fire/bc/fmbrkt.f — plain DBH·B1[sp]: species 1-10 = the KT/IE values, 11-15 birch/aspen/cottonwood/other
+# conifer (DF)/other hardwood (birch) "from ie variant".
+const _BC_FM_BARK_B1 = Float32[0.035, 0.063, 0.063, 0.046, 0.040, 0.035, 0.028, 0.036, 0.041, 0.063,
+    0.027, 0.044, 0.038, 0.063, 0.027]
+
 # oc/fmbrkt.f (FOFEM v5.0, Reinhardt et al. 2000) — OC/OP share the ORGANON species list (MAXSP=50).
 const _OC_FM_BARK_B1 = Float32[
     0.081, 0.060, 0.035, 0.046, 0.039, 0.039, 0.063, 0.035, 0.040, 0.030,
@@ -158,6 +163,7 @@ const _OP_FM_BARK_B1 = Float32[
     variant isa OregonCoast && return dbh * _OC_FM_BARK_B1[Int(sp)]  # oc/fmbrkt.f
     variant isa Olympic && return dbh * _OP_FM_BARK_B1[Int(sp)]       # op/fmbrkt.f (39 NWO species)
     variant isa SoutheastAlaska && return dbh * _AK_FM_BARK_B1[Int(sp)]   # ak/fmbrkt.f
+    variant isa BritishColumbia && return dbh * _BC_FM_BARK_B1[Int(sp)]   # canada/fire/bc/fmbrkt.f
     # Shortleaf pine uses the Harmon (1984) quadratic INSTEAD of the B1 table — but ONLY in the variants
     # where it is a species: SN sp5 (sn/fmbrkt.f:126) and CS sp3 (cs/fmbrkt.f:133). NE and LS have NO such
     # special case (their fmbrkt.f is a plain DBH·B1[EQNUM] for every species) and sp5 there is NOT shortleaf

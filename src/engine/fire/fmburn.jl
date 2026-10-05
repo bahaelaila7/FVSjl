@@ -142,7 +142,7 @@ function fmburn!(s::StandState; atemp::Float32 = 70f0, wind::Float32 = 20f0, fmo
     # magnitude (fmburn.f:540), NOT the FMCFIR spread. Klamath stays EXCLUDED from the boost until that byram term is
     # pinned (crown-on over-kills TPA 0 vs 58; surface-only 54 vs 58 is cornered). `nc_crown_fire_result` is READY to
     # wire in once the byram HPA/TCLOAD is resolved. ⇒ open: the crown-fire byram intensity term only.
-    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
+    if (s.variant isa CentralRockies || s.variant isa Northeast || s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa CentralIdaho || s.variant isa Teton || s.variant isa Utah || s.variant isa BlueMountains || s.variant isa Klamath || s.variant isa CentralCalifornia || s.variant isa WestCascades || s.variant isa PacificNorthwest || s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa EastCascades || s.variant isa SouthCentralOregon || s.variant isa WestSierra || s.variant isa SoutheastAlaska) && flmult == 1f0 && byram > 0f0
         cf2 = canopy_bulk_density(s)
         if cf2.cbd > 0f0 && cf2.actcbh >= 0
             # FMBURN → FMCFIR(IYR,1,WMULT,INT(SWIND),…) (fmburn.f:510; base fmcfir.f is the same file in every variant)
@@ -450,6 +450,11 @@ const _FM_CANMHT = 6f0
 # 1:25 (ne/fmvinit.f:1151-1156); SN = species 1:17 + 88 (sn/fmvinit.f:1011-1014).
 fm_canopy_lsw(sp::Integer, ::Southern)  = sp <= 17 || sp == 88
 fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
+# CS (cs/fmvinit.f:944-948 CASE(1:7)) and LS (ls/fmvinit.f:789-793 CASE(1:14)): only their softwoods. The `sp<=25`
+# fallback counted CS/LS hardwoods (oaks, hickories, maples, aspen…) as canopy fuel — MEASURED CS 1813567613290487
+# (oaks): live Canopy_Density 0 / Canopy_Ht −1 vs jl 0.0132 / 54.
+fm_canopy_lsw(sp::Integer, ::CentralStates) = sp <= 7
+fm_canopy_lsw(sp::Integer, ::LakeStates) = sp <= 14
 # CR (cr/fmvinit.f:190-425): softwoods = 1:19 + 29:37; HARDWOODS (LSW=FALSE) = aspen/cottonwood/birch
 # 20:22,28,38 + oaks 23:27. Without a CR method the AbstractVariant `sp<=25` fallback wrongly counted aspen
 # (sp20-22)/oak (23-25) crowns into the canopy profile → crown base height floored to ~2 ft → SPURIOUS crown
