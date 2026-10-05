@@ -755,7 +755,8 @@ function calibrate_diameter_growth!(s::StandState; scale::Float32 = 1f0, fnmin::
     # ON (canada/on/dgdriv.f:694 CALL DGF(WK3) → DO 220): the dub DG is only reported — it is cycle 1's WK1, the MCuM of
     # a record the first MORTS empties (on_do220_dg).
     if s.variant isa BlueMountains || s.variant isa EasternMontana || s.variant isa CentralIdaho ||
-       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario
+       s.variant isa Kootenai || s.variant isa Teton || s.variant isa InlandEmpire || s.variant isa Ontario ||
+       s.variant isa BritishColumbia   # canada/bc dgdriv.f:741 DGF(WK3) → DO 220: cycle-1 WK1 (V2 MORTS) and the DG COMPRS sees
         _wk2_keep = s.scratch.wk[2, 1:t.n]
         s.calib.cur_rmsqd = _em_dub_rmsqd   # the :770 dub DGF sees the calibration's current RMSQD (aspen DGFASP reads it)
         _sft = s.plot.forest_type; _savh = s.plot.avg_height

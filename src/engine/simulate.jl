@@ -784,8 +784,11 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                      fuel_period::Union{Nothing,Real} = nothing,
                      wwpb_barrier::Union{Nothing,Function} = nothing,
                      fmmain_hook::Union{Nothing,Function} = nothing)
+    s.control.cycle == Int32(0) && rd_mn1_compress!(s)   # rd/rdmn1.f RDMN1(2) (fvs.f:346): RD's >IRRTRE compression + RDSETP
     # BM: the first grow cycle's DGDRIV reads the PCT that CRATET's DENSE (cratet.f:692) built over CRATET's IND
     # (IND1-seeded RDPSRT, see bm_cratet_ind!), not a fresh gradd.f:186-style sort; a thin re-sorts (cuts.f:302).
+    _rd_nodense = s.root_disease isa RootDiseaseState && s.root_disease.skip_dense   # rd_mn1_compress! (no DENSE)
+    _rd_nodense ? (s.root_disease.skip_dense = false) :
     compute_density!(s; cratet_ind = (_fvs_ind_lifecycle(s.variant) &&
                                       s.control.cycle == Int32(0)))   # CI: ci/cratet.f:230-233/:337 → :732 DENSE, same as BM
     # ECON: ECSETP (fvs.f:148, once before cycling — default STRTECON at IY(1), revenue-class sort) then
@@ -940,6 +943,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # skips P≤0 (vols.f:125), so its FVS_TreeList MCuM (WK1·FT3toM3) is this DG (compute_volumes_on!).
     (s.variant isa BritishColumbia || s.variant isa EasternMontana || s.variant isa Ontario) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = t.diam_growth[i]; end)
+    # BC: canada/bc dgdriv.f DO 5 WK1(I)=DG(I) — at cycle 1 the DO-220 calibration DG (dgdriv.f:741-781), read by the V2 MORTS
+    # vigor term (morts.f:558-568). After an RDMN1 compression the record set changed and DG already holds that DG, merged.
+    (s.variant isa BritishColumbia && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
+        (@inbounds for i in 1:t.n; t.dg_prev[i] = do220_dg(s, i, t.dbh[i], bc_bratio(Int(t.species[i]))); end)
     (s.variant isa Ontario && Int(s.control.cycle) == 0 && length(s.calib.dub_wk2) == t.n) &&
         (@inbounds for i in 1:t.n; t.dg_prev[i] = on_do220_dg(s, i); end)   # cycle 1's WK1 = the LSTART DO-220 DG
     (s.variant isa EasternMontana && Int(s.control.cycle) == 0) && em_cycle0_wk1!(s)   # dgdriv.f DO 220 precedence

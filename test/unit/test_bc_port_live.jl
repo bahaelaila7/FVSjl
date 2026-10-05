@@ -241,4 +241,14 @@ end
     end
 end
 
+# rd/rdmn1.f RDMN1(2) (fvs.f:346): a manual RRINIT on >IRRTRE (1500) records COMPRS(IRCOMP=400, 0.5) the tree list — no
+# DENSE after it (cycle 1 keeps the inventory DENSE and the PCT COMPRS merged) — then RDSETP on the compressed list. COMPRS
+# classifies on DG = the LSTART dgdriv.f DO 220 DG. MEASURED FVSbc_instr Fir.20 rootdis (1540 records): DG and the
+# COMPRS RANN stream bit-exact, 2030 tree list 1200 rows (400 tripled).
+@testset "Root disease RDMN1 compression past IRRTRE records (rd/rdmn1.f, dgdriv.f DO 220)" begin
+    c = _case("Fir.20", "rootdis")
+    @test !any(m -> m.file == "sum", c.ms)
+    @test length(c.ms) <= 10                      # 32 cells before
+end
+
 end # module
