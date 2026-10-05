@@ -418,3 +418,17 @@ end
     g = only(x for x in gold if x["Year"] == "2004")
     @test _cr_f32(jd[2004]["Forest_Shrub_Herb"]) == _cr_f32(g["Forest_Shrub_Herb"])
 end
+
+@testset "BM 177426703020004 / 12827438010497 salvage: the R6-deferred annual fuel loop walks the TRIPLEd list (fmcadd.f)" begin
+    # FMMAIN (gradd.f:118) runs after TRIPLE, so FMCADD's litterfall/breakage/crown-lift sums visit the .60/.25/.15 parts;
+    # BM's annual loop (deferred to the FMMAIN point for FMR6HTLS) summed the untripled records ⇒ Forest_Down_Dead_Wood
+    # 1 ULP from the second tripling cycle (177426703020004 2032 0.35850239 vs live 0.35850218).
+    for cn in ("177426703020004", "12827438010497")
+        db = _cr_run("bm", cn, "salvage")
+        gold, jl = _cr_table("bm", cn, "salvage", db, "FVS_Carbon")
+        jd = Dict(parse(Int, string(r["Year"])) => r for r in jl)
+        for g in gold, c in ("Forest_Down_Dead_Wood", "Forest_Floor", "Total_Stand_Carbon")
+            @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
+        end
+    end
+end

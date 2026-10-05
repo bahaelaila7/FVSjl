@@ -1083,10 +1083,15 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # list (MEASURED FVSem_g16 196378260020004 2012 FMPTRH: RANNGET 2036729867 = jl's state after the spread, jl ran
     # at 431495394 before it ⇒ PTorch_Mod 0.13873 vs live 0.25494).
     pofl_late = mis_post && pofl_hook !== nothing
+    pf_fire_cyc = _fire_due(s)          # (fixed before the burn; the burn itself retires the SIMFIRE)
     pf = (carbon_hook !== nothing || fuel_period !== nothing || pofl_hook !== nothing) ?
          (st -> (pofl_hook === nothing || pofl_late || pofl_hook(st, _fire_due(st) ? nothing : stash);
                  carbon_hook === nothing || carbon_hook(st);
-                 fuel_period === nothing || ffe_fuel_update!(st, fuel_period))) : nothing
+                 fuel_period === nothing ||
+                     # FMMAIN's annual loop walks the TRIPLEd list (FMCADD over ITRN after grincr.f:543): a fire cycle is
+                     # already tripled here; a non-fire (R6-deferred) tripling cycle runs it on the scratch tripled copy.
+                     ((pf_fire_cyc || stash === nothing) ? ffe_fuel_update!(st, fuel_period) :
+                      _pofl_with_fmmain_trees(() -> ffe_fuel_update!(st, fuel_period), st, stash)))) : nothing
     # FIRE cycle (FVS): MORTS on the originals → TRIPLE → fire on the tripled set → FMKILL MAX-combine.
     # mortality_and_fire! does that internally and returns its OMORT + `tripled` so we don't TRIPLE twice;
     # the NON-fire path keeps MORTS-then-TRIPLE here (VARMRT must see the un-tripled ITRN records).
