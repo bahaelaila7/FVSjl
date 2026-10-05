@@ -105,25 +105,19 @@ function ffe_fuel_loadings(s::StandState; vtrip::Bool = false)
             total_biomass = surf_total + stand_total, consumed = 0f0, removed = 0f0)
 end
 
-# FFE live-tree stem merch cubic (NATCRS MCF = v[4]+v[7]) as FMSVL2/FMDOUT compute it (fmsvol.f:130-150).
-# The common path returns the tree's cached `merch_cuft_vol`. The ONLY exception is a broken-top tree on
-# the SN R8-Clark volume path: there the .sum's `merch_cuft_vol` was built from the NORMAL height (norm_ht)
-# + CFTOPK truncation, but FMSVL2 for a LIVE tree calls NATCRS with the ACTUAL (broken) height as the total
-# height and LTKIL=.FALSE. (no top-kill), giving a different merch cubic. Recompute it there to match FVS.
-# Gated to the Southern R8-Clark path (NE/CS/LS use a separate NVEL routine and are out of scope / already
-# matched); a NON-broken tree is never recomputed, preserving the bit-exact `merch_cuft_vol` for 299/300.
+# FFE live-tree stem merch cubic (NATCRS MCF = v[4]+v[7]) as FMSVL2/FMDOUT compute it (fmsvol.f:118-153): FMSVL2
+# calls NATCRS for every live record with the ACTUAL height as total height and LTKIL=.FALSE. (no CFTOPK), so it is
+# never the tree's cached `merch_cuft_vol` (built from NORMHT + CFTOPK truncation for broken tops, and rebuilt by vols.f
+# as PULPV+SCFV for the eastern variants). CS/LS/NE run the R9 Clark NATCRS, SN the R8 Clark.
 # SN: FMSVL2 recomputes NATCRS for EVERY live record (fmsvol.f → fvsvol.f NATCRS on the actual height, no CFTOPK, no
 # vols.f defect), so the cached `merch_cuft_vol` is not its value even for an intact tree: VOLS's MCFV went through
 # gradd.f/fvs.f's per-acre round trip (MCFV·PROB/PROB) — MEASURED live FVSsn_g16 156207237010854 SIMFIRE 1984 FMCRBOUT:
 # record 2 VT 15.9 vs jl's cached 15.899999 ⇒ Aboveground_Merch_Live 5.1446075 vs 5.1446066.
 @inline function _ffe_stem_mcf(s::StandState, i::Int, sp::Int, d::Float32, h::Float32)::Float32
-    # CS/LS/NE (east-resid, measured): FMSVL2 on a live BROKEN-TOP tree runs the R9 Clark NATCRS at the actual height,
-    # LTKIL=.FALSE.; intact trees keep the cached merch (whether CS/LS/NE also need SN's every-record recompute for the
-    # PROB round trip below is unmeasured — open).
-    if _r9_east(s.variant)
-        (h >= 4.5f0 && s.trees.trunc[i] > 0) || return s.trees.merch_cuft_vol[i]
-        return r9_natcrs_cuft(s, sp, d, h)[2]
-    end
+    # CS/LS/NE: FMSVL2 (fire/base/fmsvol.f:118-123) runs the R9 Clark NATCRS for EVERY live record at the actual
+    # height, LTKIL=.FALSE., and returns its MCF directly — never VOLS's MCFV, which vols.f:289/439 rebuilds as
+    # PULPV+SCFV = (MCF−SCF)+SCF (a Float32 round trip, ≠ MCF by an ULP) and truncates for broken tops (CFTOPK).
+    _r9_east(s.variant) && return r9_natcrs_cuft(s, sp, d, h)[2]
     s.variant isa Southern || return s.trees.merch_cuft_vol[i]
     d < 1f0 && return 0f0                                 # volinit.f:168 DBH<1 ⇒ no volume
     c = s.control
