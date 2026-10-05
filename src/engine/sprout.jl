@@ -534,9 +534,12 @@ end
     (issp == 6 || issp == 14) && return (0.1f0 + si / 80f0) * Float32(iag)
     return 0.5f0 + 0.5f0 * Float32(iag)
 end
-@inline function tt_sprout_dbh(coef::SpeciesCoefficients, ispc::Integer, ht::Float32)::Float32  # TT H-D (ht1 AX)
+# TT/UT (strp/esuckr.f:296-307): BX=HT2(ISSP); AX=HT1(ISSP) when IABFLG=1, else the CRATET LHTDRG fit AA (MEASURED
+# FVStt_g16 2750433010690 THINBBA: aspen sprout DBH 0.5540 live / 0.5892 jl with AX=HT1).
+@inline function tt_sprout_dbh(s::StandState, coef::SpeciesCoefficients, ispc::Integer, ht::Float32)::Float32
     ht > 4.5f0 || return 0.1f0
-    ax = coef_col(coef, :ht1)[ispc]; bx = coef_col(coef, :wykoff_ht2)[ispc]
+    ax = s.calib.ht_dbh_iabflg[ispc] == 1 ? coef_col(coef, :ht1)[ispc] : s.calib.ht_dbh_aa[ispc]
+    bx = coef_col(coef, :wykoff_ht2)[ispc]
     bx == 0f0 && return 0.1f0
     d = bx / (log(ht - 4.5f0) - ax) - 1f0
     return d < 0.1f0 ? 0.1f0 : d
@@ -950,8 +953,8 @@ function esuckr!(s::StandState; fint::Float32 = 5f0)::Bool
                   cs ? cs_sprout_dbh(coef, issp, ht) :
                   ls ? ne_sprout_dbh(coef, issp, ht) :
                   cr ? ie_em_sprout_dbh(s, issp, ht) :   # cr/esuckr.f:296-307 AX=HT1 (IABFLG=1) else the cratet AA fit
-                  tt ? tt_sprout_dbh(coef, issp, ht) :
-                  ut ? tt_sprout_dbh(coef, issp, ht) :
+                  tt ? tt_sprout_dbh(s, coef, issp, ht) :
+                  ut ? tt_sprout_dbh(s, coef, issp, ht) :
                   so ? so_sprout_dbh(coef, issp, ht) :
                   nc ? nc_sprout_dbh(coef, issp, ht) :
                   (ie || em || bm) ? ie_em_sprout_dbh(s, issp, ht) :

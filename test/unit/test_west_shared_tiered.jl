@@ -361,9 +361,9 @@ end
     @test _cells(c) == 0
 end
 # cr/esuckr.f:296-307 sprout DBH = HT2/(ln(HT-4.5)-AX)-1 with AX = HT1 only when IABFLG=1, else the CRATET-calibrated AA.
-@testset "CR sprout DBH uses the calibrated AA (cr/esuckr.f:296-307) vs FVScr_clean" begin
-    for r in ("thinbba", "econ")
-        c = _case("CR", "3026069010690", r)
+@testset "CR/TT/UT sprout DBH uses the calibrated AA (cr|strp/esuckr.f:296-307) vs live" begin
+    for (v, cn) in (("CR", "3026069010690"), ("TT", "2750433010690"), ("UT", "42642675010690")), r in ("thinbba", "econ")
+        c = _case(v, cn, r)
         @test _cells(c) == 0
     end
 end
