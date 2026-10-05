@@ -326,16 +326,32 @@ CON_RASI(SITE_1)`; if the tallest red alder (FIA 351) gives a non-positive growt
 is re-derived from RASITE(MAXRAH, 55). `si_1` = SITE_1 − 4.5, so SITE_1 = si_1 + 4.5.
 """
 function oc_ra_site(buf::OrganonBuffer, si_1::Float32)
+    return organon_ra_state(buf, si_1)[1]
+end
+
+"""
+    organon_ra_state(buf, si_1) -> (RASI, RAAGE)
+
+organon/execute2.f:297-320 (VERSION≤3): MAXRAH = the tallest red alder (FIA 351), RASI = CON_RASI(SITE_1); with a red
+alder present RAAGE = RAGEA(MAXRAH, RASI) — non-positive ⇒ RAAGE=55 and RASI = RASITE(MAXRAH, 55) — capped at 55; else 0.
+RAAGE ≥ 55 switches on MORTAL_RUN's RAMORT.
+"""
+function organon_ra_state(buf::OrganonBuffer, si_1::Float32)
     rasi = oc_con_rasi(si_1 + 4.5f0)
     maxrah = 0.0f0
     @inbounds for i in 1:buf.ntrees
         buf.species[i] == 351 && buf.ht1or[i] > maxrah && (maxrah = buf.ht1or[i])
     end
+    raage = 0.0f0
     if maxrah > 0.0f0
         raage = oc_ragea(maxrah, rasi)
-        raage <= 0.0f0 && (rasi = oc_rasite(maxrah, 55.0f0))
+        if raage <= 0.0f0
+            raage = 55.0f0
+            rasi = oc_rasite(maxrah, raage)
+        end
+        raage > 55.0f0 && (raage = 55.0f0)
     end
-    return rasi
+    return rasi, raage
 end
 
 """

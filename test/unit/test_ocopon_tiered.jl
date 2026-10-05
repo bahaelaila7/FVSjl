@@ -123,4 +123,14 @@ end
     @test sa[21] < Float32(FVSjl.OP_SICHG_REFAGE[21])  # was DIFF=0 (21 mis-tagged 'T')
 end
 
+# OP 30194263010497 (2 red alder among ORGANON big-6): RA took the HD_NWO height ratio and never reached RAMORT.
+@testset "ORGANON red alder: HTGRO2 RAH40 increment (htgrowth.f:241-255), RAAGE/RASI (execute2.f:297-320), RAMORT (mortality.f:122-127, :355-410)" begin
+    r = FVSjl.organon_ramort!(Float32[-3f0, -3f0, 0f0], Int32[351, 351, 202], Float32[10f0, 10f0, 5f0], 3, 55f0, 20f0)
+    @test r[1] == r[2] && r[1] > -3f0 && r[3] == 0f0    # alders lifted by one common KR1; DF untouched
+    c = _case("OP", "30194263010497", "none")
+    @test !c.crashed
+    @test _n(c.ms; file = "sum") == 0
+    @test _n(c.ms) == _n(c.ms; file = "FVS_TreeList", col = "HtG")   # only the GF HTGRO1 1-ULP HtG corner remains
+end
+
 end # module

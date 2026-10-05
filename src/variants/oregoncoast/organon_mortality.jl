@@ -79,6 +79,54 @@ end
 end
 
 """
+    organon_ramort!(pmk, species, expan, n, raage, ran)
+
+organon/mortality.f RAMORT (MORTAL_RUN:122-127, VERSION≤3, RAAGE≥55): raise the red-alder (FIA 351) logistic
+predictors by KR1 so the stand's red-alder mortality reaches the yield-table loss RAN·(1−RATPAN2/RATPAN1) (Worthington
+QMD/BA at RAAGE and RAAGE+5); a non-positive table TPA kills every red alder (PMK=1000). `ran` = ΣEXPAN of the alders.
+"""
+function organon_ramort!(pmk::Vector{Float32}, species::AbstractVector{<:Integer}, expan::Vector{Float32}, n::Int,
+                         raage::Float32, ran::Float32)
+    kb = 0.005454154f0
+    ramort1 = 0f0
+    @inbounds for i in 1:n
+        species[i] == 351 || continue
+        pm = 1f0/(1f0 + fexp(-pmk[i])); ramort1 += expan[i]*pm
+    end
+    raqmdn1 = 3.313f0 + 0.18769f0*raage - 0.000198f0*raage*raage
+    raban1 = -26.1467f0 + 5.31482f0*raage - 0.037466f0*raage*raage
+    a5 = raage + 5.0f0
+    raqmdn2 = 3.313f0 + 0.18769f0*a5 - 0.000198f0*(a5*a5)
+    raban2 = -26.1467f0 + 5.31482f0*a5 - 0.037466f0*(a5*a5)
+    ratpan1 = raban1/(kb*raqmdn1*raqmdn1)
+    ratpan2 = raban2/(kb*raqmdn2*raqmdn2)
+    if !(ratpan1 > 0f0 && ratpan2 > 0f0)
+        @inbounds for i in 1:n; species[i] == 351 && (pmk[i] = 1000f0); end
+        return pmk
+    end
+    ramort2 = ran*(1f0 - ratpan2/ratpan1)
+    if ramort1 < ramort2
+        kr1 = 0f0
+        for kk in 1:7
+            nk = 10f0/fpowi(10f0, kk)
+            while true
+                kr1 += nk
+                ramort1 = 0f0
+                @inbounds for i in 1:n
+                    species[i] == 351 || continue
+                    pm = 1f0/(1f0 + fexp(-(kr1 + pmk[i]))); ramort1 += expan[i]*pm
+                end
+                if ramort1 > ramort2
+                    kr1 -= nk; break
+                end
+            end
+        end
+        @inbounds for i in 1:n; species[i] == 351 && (pmk[i] = kr1 + pmk[i]); end
+    end
+    return pmk
+end
+
+"""
     organon_mort_ind!(stor, cyclg, rd, rda, sqmda, stn, qmda, na, a1, a2, a3, rdcc) -> (ind, a1max, no)
 
 organon/mortality.f MORTAL_RUN:80-84 + :150-204 (VERSION≤3) — the stand-density mortality regime: IND=1 ⇒ the
@@ -137,7 +185,8 @@ Runs before the DBH/HT update, so it sees the ORIGINAL DBH/HT/EXPAN + `dgro` for
 """
 function organon_mortal_swo(buf::OrganonBuffer, dgro::Vector{Float32}, hgro::Vector{Float32},
         spgrp::Vector{Int32}, bal1::Vector{Float32}, ball1::Vector{Float32}, a1::Float32,
-        a2::Float32; si_1::Float32, cyclg::Int=0, mort::Bool=true, stor::AbstractVector{Float32}=zeros(Float32, 6))
+        a2::Float32; si_1::Float32, cyclg::Int=0, mort::Bool=true, stor::AbstractVector{Float32}=zeros(Float32, 6),
+        raage::Float32=0f0)
     n = buf.ntrees
     ib = 5
     a3 = 14.39533971f0
@@ -150,11 +199,13 @@ function organon_mortal_swo(buf::OrganonBuffer, dgro::Vector{Float32}, hgro::Vec
     pmk = zeros(Float32, n)
     pow = ones(Float32, n)
 
-    stba = 0.0f0; stn = 0.0f0
+    stba = 0.0f0; stn = 0.0f0; ran = 0.0f0
     @inbounds for i in 1:n
         stba += (dbh0[i]*dbh0[i])*kb*expan[i]
         stn  += expan[i]
+        buf.species[i] == 351 && (ran += expan[i])   # mortality.f:64-66 RAN (VERSION≤3)
     end
+    ran <= 0.0001f0 && (raage = 0f0)
     sqmda = sqrt(stba/(kb*stn))
     rd = stn/fexp(a1/a2 - flog(sqmda)/a2)
 
@@ -172,6 +223,7 @@ function organon_mortal_swo(buf::OrganonBuffer, dgro::Vector{Float32}, hgro::Vec
         pow[i] = p
         pmk[i] = pm + fertadj
     end
+    raage >= 55.0f0 && organon_ramort!(pmk, buf.species, expan, n, raage, ran)   # mortality.f:122-127
 
     # first-pass NA/BAA (post-growth BA uses DBH+DGRO)
     na = 0.0f0; baa = 0.0f0

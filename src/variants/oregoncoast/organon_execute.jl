@@ -128,7 +128,8 @@ function organon_execute_swo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integ
                        stor=stor)
     hgro = organon_hg_swo(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1)
     deadexp = organon_mortal_swo(buf, dgro, hgro, spgrp, bal1, ball1, a1, a2;
-                                 si_1=si_1, cyclg=cyclg, mort=mort, stor=stor)
+                                 si_1=si_1, cyclg=cyclg, mort=mort, stor=stor,
+                                 raage=organon_ra_state(buf, si_1)[2])
     cr2 = organon_cr_swo(buf, dgro, hgro, spgrp, deadexp; si_1=si_1, si_2=si_2, cyclg=cyclg)
     dds = zeros(Float32, n)
     @inbounds for i in 1:n

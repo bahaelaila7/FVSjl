@@ -465,6 +465,7 @@ function op_hg_nwo_pass(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector
         si_1::Float32, si_2::Float32, cyclg::Int=0, calib1::Union{Nothing,Vector{Float32}}=nothing)
     n = buf.ntrees
     cch = op_crnclo(spgrp, buf.dbh1, buf.ht1or, buf.cr1, buf.expan1, n)
+    rasi = organon_ra_state(buf, si_1)[1]                # execute2.f:297-320 red-alder site (VERSION≤3)
     hgro = zeros(Float32, n)
     ib = 3
     @inbounds for i in 1:n
@@ -495,14 +496,21 @@ function op_hg_nwo_pass(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector
             hgro[i] = op_limit(buf.species[i], dbh, ht, dgro[i], hg)
         else
             c1 = calib1 === nothing ? 1.0f0 : calib1[g]
-            hgro[i] = op_htgro2(buf.species[i], g, dbh, dgro[i], ht, c1)
+            hgro[i] = op_htgro2(buf.species[i], g, dbh, dgro[i], ht, c1, rasi)
         end
     end
     return hgro
 end
 
-"organon/htgrowth.f HTGRO2 (VERSION=2, minor species g>3) — HD_NWO height-ratio (no red alder here)."
-@inline function op_htgro2(isp::Int32, g::Int, dbh_start::Float32, dgro::Float32, ht::Float32, calib1::Float32)
+"organon/htgrowth.f HTGRO2 (VERSION=2, minor species g>3) — HD_NWO height ratio; red alder (FIA 351, VERSION≤3:
+htgrowth.f:241-255) takes the H40 increment RAH40(GEARA+5)−RAH40(GEARA), GEARA=RAGEA(HT,RASI) (0 when GEARA≤0)."
+@inline function op_htgro2(isp::Int32, g::Int, dbh_start::Float32, dgro::Float32, ht::Float32, calib1::Float32,
+                           rasi::Float32 = 0f0)
+    if isp == 351
+        geara = oc_ragea(ht, rasi)
+        geara <= 0.0f0 && return 0.0f0
+        return oc_rah40(geara + 5.0f0, rasi) - oc_rah40(geara, rasi)
+    end
     dbh_end = dbh_start + dgro
     prdht1 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_start) - 4.5f0)
     prdht2 = 4.5f0 + calib1*(op_hd_nwo(g, dbh_end) - 4.5f0)
@@ -579,7 +587,8 @@ VERSION≤3 driver structure as SWO (QUAD1, RDCC=0.60, cyc0 init) — only the P
 """
 function op_mortal_nwo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{Int32},
         bal1::Vector{Float32}, ball1::Vector{Float32}, a1::Float32, a2::Float32;
-        si_1::Float32, si_2::Float32, cyclg::Int=0, mort::Bool=true, stor::AbstractVector{Float32}=zeros(Float32, 6))
+        si_1::Float32, si_2::Float32, cyclg::Int=0, mort::Bool=true, stor::AbstractVector{Float32}=zeros(Float32, 6),
+        raage::Float32=0f0)
     n = buf.ntrees
     ib = 3; a3 = 14.39533971f0; rdcc = 0.60f0; kb = 0.005454154f0
     dbh0 = buf.dbh1; ht0 = buf.ht1or; cr0 = buf.cr1
@@ -587,10 +596,12 @@ function op_mortal_nwo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{
     deadexp = zeros(Float32, n)
     pmk = zeros(Float32, n); pow = ones(Float32, n)
 
-    stba = 0.0f0; stn = 0.0f0
+    stba = 0.0f0; stn = 0.0f0; ran = 0.0f0
     @inbounds for i in 1:n
         stba += (dbh0[i]*dbh0[i])*kb*expan[i]; stn += expan[i]
+        buf.species[i] == 351 && (ran += expan[i])   # mortality.f:64-66 RAN (VERSION≤3)
     end
+    ran <= 0.0001f0 && (raage = 0f0)
     sqmda = sqrt(stba/(kb*stn))
     rd = stn/fexp(a1/a2 - flog(sqmda)/a2)
     og1 = oc_oldgro(spgrp, dbh0, ht0, expan, dgro, zeros(Float32,n), deadexp, n, ib, 0.0f0)
@@ -603,6 +614,7 @@ function op_mortal_nwo(buf::OrganonBuffer, dgro::Vector{Float32}, spgrp::Vector{
         pm, p = op_pm_nwo(g, dbh0[i], cr0[i], si_1, si_2, sbal1)
         pow[i] = p; pmk[i] = pm + fertadj
     end
+    raage >= 55.0f0 && organon_ramort!(pmk, buf.species, expan, n, raage, ran)   # mortality.f:122-127
 
     na = 0.0f0; baa = 0.0f0
     @inbounds for i in 1:n
@@ -933,7 +945,8 @@ function op_execute_nwo(buf::OrganonBuffer, isp_fvs::AbstractVector{<:Integer}; 
                                           msdi_1=msdi_1, msdi_2=msdi_2, msdi_3=msdi_3, cyclg=cyclg,
                                           calib3=calib3, stor=stor)
     hgro = op_hg_nwo_pass(buf, dgro, spgrp; si_1=si_1, si_2=si_2, cyclg=cyclg, calib1=calib1)
-    deadexp = op_mortal_nwo(buf, dgro, spgrp, bal1, ball1, a1, a2; si_1=si_1, si_2=si_2, cyclg=cyclg, stor=stor)
+    deadexp = op_mortal_nwo(buf, dgro, spgrp, bal1, ball1, a1, a2; si_1=si_1, si_2=si_2, cyclg=cyclg, stor=stor,
+                            raage=organon_ra_state(buf, si_1)[2])
     cr2 = op_cr_nwo(buf, dgro, hgro, spgrp, deadexp; si_1=si_1, si_2=si_2, calib2=calib2, cyclg=cyclg)
     dds = zeros(Float32, n)
     @inbounds for i in 1:n
