@@ -428,9 +428,19 @@ function stand_ccf(s::StandState)
         # include it — i.e. the backdated calibration density pass (compute_density! at t.n=nlive+ndead);
         # the growth-cycle pass runs with t.n=nlive so dead are (correctly) excluded. RELDEN is stored by
         # compute_density! into p.relative_density and read by dgf!, matching FVS's DENSE→DGF flow.
-        @inbounds for i in 1:t.n
-            ccf += kt_tree_ccf(Int(t.species[i]), t.dbh[i]) * t.tpa[i]
+        # dense.f:168-229 sums CCFT·P species-major in IND1 order into RELDSP(ISPC), then RELDT=RELDT+RELDSP(ISPC)
+        # (as IE below); the flat record-order sum put RELDEN 1 ULP off (MEASURED FVSkt 3021216010690 cycle 2:
+        # DGF CCF2 11904.7773 live / 11904.774 jl ⇒ every tripled copy's DG and HTG off in the 7th digit).
+        sp_cur = 0; relsp = 0f0
+        @inbounds for i in _ind1_order(s)
+            sp = Int(t.species[i])
+            if sp != sp_cur
+                sp_cur == 0 || (ccf += relsp)
+                sp_cur = sp; relsp = 0f0
+            end
+            relsp += kt_tree_ccf(sp, t.dbh[i]) * t.tpa[i]
         end
+        sp_cur == 0 || (ccf += relsp)
         return ccf
     elseif s.variant isa InlandEmpire
         # IE CCF is the same direct per-species polynomial (ie/ccfcal.f MODE=1); stand CCF = Σ CCFT·P = RELDEN.

@@ -35,6 +35,7 @@ function setup_growth!(s::StandState)
     isempty(s.control.sp_bf_vol_eq) && (s.control.sp_bf_vol_eq = copy(s.species.vol_eq)) # VEQNNB = default
     apply_voleqnum_overrides!(s)         # VOLEQNUM — user overrides of those equation ids (cubic only)
     compute_forest_type!(s)              # FORTYP — needed by dgf!'s forest-type term
+    s.plot.inv_forest_type = s.plot.forest_type   # fortyp.f:1166 IF(ICYC.EQ.0) IIFORTP=IFORTP — the inventory forest type
     compute_density!(s)
     snapshot_esb_inputs!(s)              # ESFLTR (fvs.f:201): freeze the AUTOES ESB inventory-calibration inputs
     ak_esfltr!(s)                        # AK ESFLTR (fvs.f:201): inventory per-point overstory BAAINV/TPAAINV

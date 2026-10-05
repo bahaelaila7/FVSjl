@@ -371,6 +371,14 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
             _si = (1 <= _ss <= length(s.plot.sp_site_index)) ? s.plot.sp_site_index[_ss] : 0f0
             fs.params.dkr = nc_adjusted_dkr(_si)
         end
+        # WS / CA first-FFE-year decay rates (ws/fmcba.f:541-581 DCYMLT; ca/fmcba.f:579-745 R5/R6 tables + DCYMLT).
+        if s.variant isa WestSierra && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ws_adjusted_dkr(s.plot.sp_site_index, Int(s.plot.site_species))
+        end
+        if s.variant isa CentralCalifornia && size(fs.params.dkr, 1) != 11
+            fs.params.dkr = ca_adjusted_dkr(Int(s.plot.user_forest_code), Int(s.plot.habitat_code),
+                                            s.plot.sp_site_index, Int(s.plot.site_species))
+        end
         # EC decay-rate habitat adjustment (ec/fmcba.f:457-491): scale the EC base DKR by DKRADJ(TEMP,MOIST,K)
         # at the first FFE year (when the user hasn't set FuelDcay ⇒ params.dkr still empty).
         if s.variant isa EastCascades && size(fs.params.dkr, 1) != 11

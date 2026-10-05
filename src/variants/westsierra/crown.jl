@@ -80,7 +80,7 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
     D = Float32(d)
     if sp == 41                                            # MC (SO surrogate)
         D < 1f0 && return D * (0.0204f0 + 0.0246f0 + 0.0074f0)
-        return 0.0204f0 + 0.0246f0 * D + 0.0074f0 * D * D
+        return 0.0204f0 + 0.0246f0 * D + 0.0074f0 * fpow(D, 2.0f0)       # ws/ccfcal.f:225 D**2.0 = powf
     elseif sp == 21                                        # GB (UT surrogate)
         D >= 10f0 && return 0.01925f0 + 0.01676f0 * D + 0.00365f0 * D * D
         D > 0.1f0 && return 0.009187f0 * fpow(D, 1.7600f0)
@@ -90,7 +90,7 @@ const WS_CROWN_CA_SURR = Set{Int}([9,10,12,14,15,16,17,19,20,25,26,27])
         return cw * cw * 0.001803f0
     end
     # CASE DEFAULT (WS-native, incl SP/DF/WF/RF): crown-width² (RD1+D·RD2)² · 0.001803
-    D >= 1f0 && return ((WS_CCF_RD1[sp] + D * WS_CCF_RD2[sp])^2) * 0.001803f0
+    D >= 1f0 && return fpow(WS_CCF_RD1[sp] + D * WS_CCF_RD2[sp], 2.0f0) * 0.001803f0   # ws/ccfcal.f:243 (..)**2.0 = powf
     D > 0.1f0 && return WS_CCF_RDA[sp] * fpow(D, WS_CCF_RDB[sp])
     return 0.001f0
 end
@@ -134,7 +134,7 @@ function ws_dubscr(rng, sp::Integer, d::Float32, h::Float32, prd::Float32, qmdpl
     local cr::Float32
     if sp == 4 || sp == 23
         hdr = (h * 12f0) / d
-        cr = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+        cr = -1.021064f0 + 0.309296f0 * flog(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
     else
         cr = WS_DUB_BCR0[sp] + WS_DUB_BCR1[sp] * d + WS_DUB_BCR2[sp] * h + WS_DUB_BCR3[sp] * ba +
              WS_DUB_BCR5[sp] * tpccf + WS_DUB_BCR6[sp] * (avh / h) + WS_DUB_BCR8[sp] * avh +
@@ -143,7 +143,7 @@ function ws_dubscr(rng, sp::Integer, d::Float32, h::Float32, prd::Float32, qmdpl
     sd = WS_DUB_CRSD[sp]; fcr = 0f0
     while true; fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break; end
     if sp == 4 || sp == 23
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     elseif sp in (9, 10, 12, 14, 15, 16, 17, 19, 20, 25, 26, 27)
         cr = cr + fcr
         cr = ((cr - 1f0) * 10f0 + 1f0) / 100f0
@@ -151,7 +151,7 @@ function ws_dubscr(rng, sp::Integer, d::Float32, h::Float32, prd::Float32, qmdpl
         cr = ((cr - 1f0) * 10f0 + 1f0) / 100f0
     else
         abs(cr + fcr) >= 86f0 && (cr = 86f0)
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     end
     cr > 0.95f0 && (cr = 0.95f0); cr < 0.05f0 && (cr = 0.05f0)
     return cr
@@ -220,8 +220,8 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
             qmdplt < 1f0 && (qmdplt = 1f0)
             prd = prdf(pt_i)
             hdr = (h * 12f0) / d
-            x = -1.021064f0 + 0.309296f0 * log(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(x))
+            x = -1.021064f0 + 0.309296f0 * flog(hdr) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+            x = 1f0 / (1f0 + fexp(x))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 100f0
         else                                               # CASE DEFAULT — rank-Weibull w/ grouped SCALE
@@ -235,7 +235,7 @@ function crown_ratio_update!(s::StandState, ::WestSierra; fint::Float32 = 10.0f0
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-log(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0
         end
 
         if !(lstart || icr == 0)                           # crown CHANGE, ±1%/yr limit

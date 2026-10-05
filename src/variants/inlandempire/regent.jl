@@ -242,7 +242,7 @@ function small_tree_growth!(s::StandState, stash, ::InlandEmpire; fint::Float32 
     avh = p.avg_height
     dgsd = s.control.dg_sd
     regyr = IE_RG_REGYR
-    yr = s.control.year
+    yr = htg_period(s.variant)                          # /CONTRL/ YR (ie/blkdat.f:57 DATA YR/10.0/), not the TIMEINT cycle length
     ntyr = trunc(Int, fint); iyr = Int(regyr)           # regent.f:198 NTYR=INT(FINT)
     lskiph = false
     if lestb                                            # regent.f:200-201 ESTAB: the rest of the cycle after year 5

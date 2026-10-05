@@ -9,7 +9,7 @@ const KT_RCF1 = Float32[0.620, 1.133, 0.709, 0.592, 0.0, 0.0, 0.688, 0.0, 0.0, 1
 const KT_RCF2 = Float32[3.358, 3.561, 3.475, 3.595, 0.0, 0.0, 3.580, 0.0, 0.0, 3.450, 0.0]
 const KT_RCF3 = Float32[3.137, 3.418, 3.229, 3.329, 0.0, 0.0, 3.405, 0.0, 0.0, 3.290, 0.0]
 kt_ktfctr(sp::Int, dtop::Float32, d::Float32)::Float32 =
-    (sp <= 4 || sp == 7 || sp == 10) ? 1f0 - (KT_RCF1[sp] * dtop^KT_RCF2[sp] / (d^KT_RCF3[sp])) : 0f0
+    (sp <= 4 || sp == 7 || sp == 10) ? 1f0 - (KT_RCF1[sp] * fpow(dtop, KT_RCF2[sp]) / fpow(d, KT_RCF3[sp])) : 0f0
 
 function compute_volumes_kt!(s::StandState)
     s.control.merch_init || init_merch_standards!(s)

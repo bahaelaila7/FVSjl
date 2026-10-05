@@ -126,7 +126,7 @@ function _ws_regent_dg(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float32, 
             dg = (dk < 0f0 || dkk < 0f0) ? htg * 0.2f0 * bark * xrdgro : (dk - dkk) * bark * xrdgro
             dg < 0f0 && (dg = 0f0); dg > dgmx && (dg = dgmx)
             dds = dg * (2f0 * bark * d + dg) * scale2
-            dg = sqrt((d * bark)^2 + dds) - bark * d
+            dg = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d        # ws/regent.f:587 (D*BARK)**2.0 = powf
         elseif sp == 41                                           # SO (orig. WC): no DDS rescale
             h < 4.5f0 && (dkk = d)
             dgmx = 5f0 * scale
@@ -142,7 +142,7 @@ function _ws_regent_dg(s::StandState, ifor::Int, sp::Int, msp::Int, d::Float32, 
             dgsm = (dk - dkk) * bark * xrdgro
             dgsm < 0f0 && (dgsm = 0f0)
             dds = dgsm * (2f0 * bark * d + dgsm) * scale2
-            dgsm = sqrt((d * bark)^2 + dds) - bark * d
+            dgsm = sqrt(fpow(d * bark, 2.0f0) + dds) - bark * d      # ws/regent.f:648 (D*BARK)**2.0 = powf
             dgsm < 0f0 && (dgsm = 0f0)
             dg = dgsm * (1f0 - xdwt) + dglt * xdwt
         end

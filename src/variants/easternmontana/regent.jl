@@ -356,7 +356,7 @@ function small_tree_growth!(s::StandState, stash, ::EasternMontana; fint::Float3
     avh = p.avg_height
     pccfv = isempty(pccf_now) ? dens.point_ccf : pccf_now
     dgsd = s.control.dg_sd; regyr = _EM_RG_REGYR
-    yr = Float32(s.control.year)
+    yr = htg_period(s.variant)                        # /CONTRL/ YR (em/blkdat.f:110 DATA YR/10.0/), not the TIMEINT cycle length
     scale = yr / fint                                 # regent.f:218 SCALE=YR/FINT
     scale2 = fint / yr                                # regent.f:1024 SCALE2=FINT/YR (DUBSCR crown test)
     cur_year = current_cycle_year(s)

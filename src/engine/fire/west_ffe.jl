@@ -19,7 +19,8 @@
 _ffe_west_vol(v) = v isa InlandEmpire || v isa Kootenai || v isa CentralIdaho || v isa Teton || v isa Utah ||
                    v isa EasternMontana || v isa CentralRockies || v isa EastCascades ||
                    v isa WestCascades || v isa PacificNorthwest || v isa SoutheastAlaska ||
-                   v isa SouthCentralOregon || v isa Klamath || v isa BlueMountains
+                   v isa SouthCentralOregon || v isa Klamath || v isa BlueMountains ||
+                   v isa WestSierra || v isa CentralCalifornia
 
 """
     ffe_west_nocut(s, sp, d, h) -> (tcf, mcf, bark, trim) | nothing
@@ -49,7 +50,7 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
         tcf, mcf = cr_nocut_cuft(s, sp, d, h)
         return (tcf, mcf, cr_bratio(s.coef.species, sp, d, Int(s.plot.model_type)), true)
     elseif v isa Kootenai                                      # kt: FW2 only (compute_volumes_kt!)
-        bark = bark_ratio(s.calib.bark_a, s.calib.bark_b, sp, d)
+        bark = KT_BKRAT[sp]                                    # kt/bratio.f BRATIO = BKRAT(IS)
         startswith(eq, "I") || return (0f0, 0f0, bark, false)
         w = cr_fw2_vol(eq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0, iregn = 1)
         return (max(w[1], 0f0), d >= (sp == 7 ? 6f0 : 7f0) ? max(w[4] + w[7], 0f0) : 0f0, bark, true)
@@ -135,6 +136,43 @@ function ffe_west_nocut(s::StandState, sp::Int, d::Float32, h::Float32)
                                                nc_r5harv_vol(eqn, d, h, topib)
         end
         return (max(tcf, 0f0), d >= 9f0 ? max(mcf, 0f0) : 0f0, bark, true)            # nc/grinit.f DBHMIN 9
+    elseif v isa WestSierra                                    # ws: compute_volumes_ws! kernels at (D,H)
+        # ws/fmsvol.f (and fmsnag/fmcwd/fmcbio) are byte-identical to so's — the shared western layer — but WS keeps
+        # its equations in WS_VOL_EQ (species.vol_eq blank), so jl's generic snag path took the eastern R8-Clark branch
+        # ⇒ 0 bole (MEASURED FVSws_g16 7689156010901 2006 inventory Standing_Dead 10.61 live / 0.03 jl).
+        bark = ws_bratio(s.coef.species, sp, d); weq = WS_VOL_EQ[sp]
+        if weq[4:6] == "WO2"
+            s5 = _nc_r5tap_sp(weq[8:10])
+            (s5 == 0 || h < 5f0) && return (0f0, 0f0, bark, true)
+            dibat = ht -> nc_r5tap_dib(s5, d, h, Float32(ht))
+            tcf = _nint(_fw2_tcubic(dibat, h) * 10.0f0) * 1f-1
+            mcf = d >= WS_VOL_DBHMIN ? nc_wo2w_merch(dibat, h; mtopp = WS_VOL_TOPD * bark, stump = 1f0, minlen = 2f0,
+                                                      merchl = 8f0) : 0f0
+        else                                                   # DVE California hardwood (r5harv.f)
+            tcf, mcf, _ = nc_r5harv_vol(weq, d, h, WS_VOL_TOPD * bark)
+        end
+        return (max(tcf, 0f0), d >= WS_VOL_DBHMIN ? max(mcf, 0f0) : 0f0, bark, true)
+    elseif v isa CentralCalifornia                             # ca: compute_volumes_ca! kernels at (D,H)
+        # ca/fmsvol.f = the shared western FMSVOL; CA's equations come from ca_voleq (species.vol_eq blank) ⇒ the same
+        # 0-bole gap as WS (MEASURED FVSca_g16 374401353489998 2015 Standing_Dead 0.77 live / 0 jl).
+        sd = s.coef.species; ifor = Int(s.plot.forest_idx); c = s.control
+        bark = wc_bratio(sd[:bark1][sp], sd[:bark2][sp], Int(sd[:bark_imap][sp]), d)
+        ceq = ca_voleq(ifor, sp); cse = strip(ceq); cm = length(cse) >= 7 ? cse[4:6] : "   "
+        if cse[1] == '5'
+            tcf, mcf, _ = nvel_r5_vol(ceq, d, h, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp])
+        elseif cse[1] == 'B'
+            tcf, mcf, _ = _blm_natcrs(ceq, ca_formcl(sp, ifor, d), d, h, bark, c.sp_top_diam[sp], c.sp_bf_topd[sp],
+                                      c.sp_bf_dbhmin[sp])
+        elseif cm == "FW2" && (cse[1] == 'F' || cse[1] == 'f')
+            tcf, mcf, _ = wc_fw2_westside_vol(ceq, d, h, bark)
+        elseif cm == "FW2"
+            w = cr_fw2_vol(ceq, d, h; bark = bark, topd = 4.5f0, bftopd = 4.5f0, stump = 1f0,
+                           iregn = 6, board_cor = 'N', merch_opt = 23, sf_hs = true)
+            tcf = w[1]; mcf = w[4] + w[7]
+        else
+            tcf, mcf, _ = ca_behre_vol(sp, ifor, d, h, bark)
+        end
+        return (max(tcf, 0f0), d >= (sp == 11 ? 6f0 : 7f0) ? max(mcf, 0f0) : 0f0, bark, true)   # ca/grinit.f DBHMIN
     elseif v isa InlandEmpire                                  # ie: region-6 Behre / FW2 / region-1-2 DVE
         bark = ie_bratio(sp, d); dbhmin = sp == 7 ? 6f0 : 7f0
         if occursin("BEH", eq)
