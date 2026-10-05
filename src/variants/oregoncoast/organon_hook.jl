@@ -46,6 +46,9 @@ inspection. Deterministic (DGSD=0). Non-ORGANON records are left unchanged (see 
 function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 0,
                                fint::Float32 = 5f0, msdi2::Float32 = msdi, msdi3::Float32 = msdi)
     t = s.trees
+    # oc/dgdriv.f:494-513 COR/HCOR attenuation toward the LSTART calibration goal WCI (shared with OP). DGF below reads
+    # COR (CONSPP=DGCON+COR); REGENT reads HCOR. Inert (0) when no species calibrated.
+    _organon_cor_attenuate!(s, Float32(current_cycle_year(s) - Int(s.control.cycle_year[1])), fint)
     # oc/dgdriv.f: DGF runs for EVERY tree (WK2 = FVS-native ln DDS), on the ORIGINAL DBH, BEFORE any
     # growth is applied. Then the ORGANON EXECUTE overwrites WK2 for the valid ORGANON trees (IORG=1).
     oc_dgcons!(s)                                    # per-species DGCON (site constants)

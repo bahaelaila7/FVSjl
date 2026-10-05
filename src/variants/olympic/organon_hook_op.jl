@@ -104,15 +104,22 @@ function op_organon_prepare!(s::StandState)
     return nothing
 end
 
-# op/dgdriv.f:494-513: `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the attenuation, so a species with no records this
-# cycle keeps its previous COR (the shared driver's skip, 08184f5c; the same line in every variant's dgdriv.f).
-function _op_cor_attenuate!(s::StandState, cormlt::Float32)
+# {oc,op}/dgdriv.f:494-513 (identical in both ORGANON variants): `I1=ISCT(ISPC,1); IF(I1.EQ.0) GO TO 50` precedes the
+# attenuation, so a species with no records this cycle keeps its previous COR/HCOR. For LDGCAL species (all, by default)
+# COR=WCI+CORMLT·WCI and HCOR=WCI+CORMLT·DIFH (DIFH=HCOR_init−WCI, set at ICYC=1), CORMLT=EXP(-0.02773·SFINT) (expf).
+# SFINT=IY(ICYC+1)−IY(1) is the END-of-period clock; DGF already baked COR into WK2 before this runs, so the DG of
+# cycle N reads the COR attenuated at the end of cycle N−1 (`elapsed`), while the HCOR REGENT reads later in the same
+# cycle is the one just attenuated (`elapsed+sfint`) — the shared western driver's two clocks.
+function _organon_cor_attenuate!(s::StandState, elapsed::Float32, sfint::Float32)
     c = s.calib
+    cormlt = fexp(-0.02773f0 * elapsed)
+    cormlt_h = fexp(-0.02773f0 * (elapsed + sfint))
     species_sort!(s)
     isct = s.control.sp_count_tab
     @inbounds for sp in 1:MAXSP
         (sp <= size(isct, 1) && isct[sp, 1] == 0) && continue
         c.dg_cor[sp] = c.dg_cor_goal[sp] + cormlt * c.dg_cor_goal[sp]
+        c.htg_cor_small[sp] = c.dg_cor_goal[sp] + cormlt_h * (c.htg_cor_init[sp] - c.dg_cor_goal[sp])
     end
     return s
 end
@@ -132,8 +139,7 @@ function diameter_growth!(s::StandState, ::Olympic; sfint::Float32 = 5f0,
     # COR attenuation toward the calibration goal (dgdriv.f:508-513); dgf! reads c.dg_cor. Elapsed-time
     # clock from the IY schedule (cormlt=1 at the first projection cycle). Inert (COR=0) when no calibration.
     elapsed = Float32(current_cycle_year(s) - Int(s.control.cycle_year[1]))
-    cormlt = exp(-0.02773f0 * elapsed)
-    _op_cor_attenuate!(s, cormlt)
+    _organon_cor_attenuate!(s, elapsed, sfint)
     op_dgcons!(s)                                           # ENTRY DGCONS — per-species site DGCON
     dgf!(s, s.variant)                                      # WK2 = op-native ln(DDS) for IORG=0 trees
     wk2 = view(s.scratch.wk, 2, :)

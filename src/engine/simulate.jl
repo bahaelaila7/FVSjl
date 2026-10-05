@@ -259,6 +259,7 @@ function setup_growth!(s::StandState)
                                           # records (DO 79). RELDEN is set by compute_density! for every variant now.
         calibrate_diameter_growth!(s; scale = dgscale)
     elseif s.variant isa OregonCoast
+        oc_dgcons!(s)                     # oc/cratet.f:461 RCON → oc/dgf.f ENTRY DGCONS (DGCON/DGDSQ, ATTEN=OBSERV)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN before the dub
         crown_init_lstart_dead_inclusive!(s)  # oc/cratet.f:463-499 (== bm core) backdated dead-inclusive DENSE →
                                           # :856 `IF(MISSCR) CALL CROWN`. oc/crown.f LSTART dubs the records whose
@@ -267,6 +268,11 @@ function setup_growth!(s::StandState)
                                           # RW-GS logistic for d>=1, plus the cycle-0 DEAD records (DO 79 :448).
                                           # Was entirely MISSING ⇒ every IORG=0 seedling and every dead record kept
                                           # crown_pct=0, and the DO 79 DUBSCR draws were never consumed.
+        calibrate_diameter_growth!(s; scale = dgscale)   # oc/cratet.f:875 CALL DGDRIV (LSTART): the large-tree DG
+                                          # self-calibration (oc/dgdriv.f:597-1080, == op/dgdriv.f but for the species
+                                          # lists) — DO 105 inside-bark DG, DGF(WK3) on the backdated stand, COR/WCI/
+                                          # SIGMA/VARDG. Was entirely MISSING ⇒ COR=0 for the FVS-native (IORG=0) trees
+                                          # and the measured outside-bark DG kept in the cycle-0 tree list.
     elseif s.variant isa Olympic
         op_dgcons!(s)                     # op/dgf.f ENTRY DGCONS — per-species site DGCON (FVS-native IORG=0 trees)
         compute_density!(s)               # current-stand density (BA/AVH/PCCF/PCT) + RELDEN (op/ccfcal.f CCF)

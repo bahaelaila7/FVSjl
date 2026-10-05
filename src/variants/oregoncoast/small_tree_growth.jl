@@ -172,3 +172,54 @@ estimate, blended in for 2 < D < XMAX via XWT. Returns the final HTG.
     end
     return htg < 0.1f0 ? 0.1f0 : htg
 end
+
+
+"""
+    oc_regent_hcor_init!(s, isct, ind1, saved_dbh, avh)
+
+oc/regent.f:407-509 (LSTART, CALL REGENT(.FALSE.,1) at oc/cratet.f:912 after DGDRIV) — the small-tree HEIGHT
+calibration: per species with ≥ NCALHT(5) records of DBH<5 (current DBH), start-of-period height H=HT−HTG (IHTG<2)
+≥0.01 and measured HTG≥0.001, CORNEW = (ΣTERM·P/ΣP)/(ΣEDH·P/ΣP) with TERM=HTG·SCALE3 (SCALE3=REGYR/FINTH) and
+EDH = SMHTGF(D,H,CR=ICR/10,BA,BAL=(100−PCT)/100·BA,SI,RELHT=HT/AVH — the CURRENT height, taken before the IHTG
+back-dating and not capped)·RHCON(1); HCOR = ALOG(CORNEW), trapped to 0 outside [0.0821, 12.1825]. BA/PCT are the
+cratet LBKDEN DENSE's (the crown-init snapshot), AVH the AVHT40 top height. Stored RAW in htg_cor_init; the shared
+ORGANON dgdriv attenuation (_organon_cor_attenuate!) turns it into the per-cycle HCOR.
+"""
+function oc_regent_hcor_init!(s::StandState, isct::AbstractMatrix, ind1::AbstractVector,
+                              saved_dbh::AbstractVector, avh::Float32)
+    p, t, c = s.plot, s.trees, s.calib
+    t.n == 0 && return s
+    s.control.growth_ifinth == 0 && return s                     # regent.f:414 IF(IFINTH.EQ.0) GOTO 95
+    finth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0
+    scale3 = 5f0 / finth                                         # REGYR=5
+    ba = c.cratet_ba
+    pctv = length(c.cratet_pct) >= t.n ? c.cratet_pct : t.crown_ratio
+    @inbounds for sp in 1:min(50, size(isct, 1))
+        i1 = isct[sp, 1]; i1 == 0 && continue
+        i2 = isct[sp, 2]
+        si = p.sp_site_index[sp]
+        n = 0; snp = 0f0; snx = 0f0; sny = 0f0
+        for k in i1:i2
+            i = ind1[k]
+            d = saved_dbh[i]; h = t.height[i]
+            bal = ((100f0 - pctv[i]) / 100f0) * ba
+            cr = Float32(t.crown_pct[i]) / 10f0
+            relht = h / avh
+            s.control.growth_ihtg < 2 && (h = h - t.ht_growth[i])
+            (d >= 5f0 || h < 0.01f0) && continue
+            edh = oc_smhtgf(sp, d, h, cr, ba, bal, si, relht)    # ·RHCON(1)
+            t.ht_growth[i] < 0.001f0 && continue
+            pr = t.tpa[i]
+            term = t.ht_growth[i] * scale3
+            snp += pr; snx += edh * pr; sny += term * pr; n += 1
+        end
+        n < 5 && continue                                        # NCALHT
+        snx /= snp; sny /= snp
+        cornew = sny / snx
+        cornew <= 0f0 && (cornew = 1f-4)
+        hcor = flog(cornew)
+        (cornew < 0.0821f0 || cornew > 12.1825f0) && (hcor = 0f0)
+        c.htg_cor_init[sp] = hcor
+    end
+    return s
+end
