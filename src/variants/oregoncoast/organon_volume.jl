@@ -81,7 +81,7 @@ function compute_volumes_oc!(s::StandState)
             # Broken/dead-top trees (ITRUNC>0, H≥4.5): build the profile from the dubbed NORMAL
             # height, then truncate back to the break with CFTOPK/BFTOPK (vols.f:164-165, cftopk.f).
             tkill = h >= 4.5f0 && t.trunc[i] > 0
-            htap = tkill ? Float32(t.norm_ht[i]) * 0.01f0 : h
+            htap = tkill ? Float32(t.norm_ht[i]) / 100f0 : h   # vols.f:165 H=NORMHT(I)/100.0
             tcf = oc_tree_cuft(sp, d, htap)
             v4, v2 = oc_tree_mvol(sp, d, htap; ht_out = ht1)
             d >= c.sp_dbh_min[sp]   && (t.merch_top_cf[i] = ht1[])

@@ -924,7 +924,7 @@ function compute_volumes!(s::StandState)
         # Broken-top trees: build the volume profile from the full ("normal")
         # height, then truncate it back to the break with CFTOPK (vols.f:60-120).
         tkill = h >= 4.5f0 && t.trunc[i] > 0
-        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)   # vols.f:146 H=NORMHT(I)/100.0 (a divide, not ×0.01)
         if d >= scfmin[sp]
             prod = "01"; stump = scfstmp[sp]; mtopp = scftop[sp]
         else

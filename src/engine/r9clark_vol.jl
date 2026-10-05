@@ -647,7 +647,7 @@ function compute_volumes_ne!(s::StandState)
         # back to the break with CFTOPK/BFTOPK (vols.f:193). Without this a top-killed tree's cubic was
         # built on the SHORT broken height (net01 SM d10.4 HTTOPK49: jl TOT 13.8 vs live 15.4).
         tkill = h >= 4.5f0 && t.trunc[i] > 0
-        tkill && (h = Float32(t.norm_ht[i]) * 0.01f0)
+        tkill && (h = Float32(t.norm_ht[i]) / 100f0)   # vols.f:146 H=NORMHT(I)/100.0 (a divide, not ×0.01)
         fias = strip(string(co.code_fia[sp]))
         fia = isempty(fias) ? 0 : parse(Int, fias)
         # D35: VOLUME field-7 METHC==5 selects the CS DVEE/Gevorkiantz model ('900DVEE', r9vol.f R9VOL)
