@@ -41,6 +41,13 @@ const _FM_P2T = 0.0005f0           # FMPARM P2T: pounds → tons
 @inline function _fm_cuft(s::StandState, sp::Integer, d::Float32, h::Float32;
                           merch::Bool = false)::Float32
     s.control.merch_init || init_merch_standards!(s)
+    # CS/LS/NE volumes are the R9 Clark ('900CLKE', NATCRS) — the R8 Clark below is SN's (their vol_eq are not R8 codes,
+    # so _R8CLARK_VOL returned 0: MEASURED live FVScs 231708010020004 FMCROWE DBHMIN-tree bole VT 2.7 vs jl 0 ⇒ TTOPW
+    # 67.37 vs 34.63 ⇒ CROWNW 1-3 / Aboveground_Total_Live 6.21 vs 3.69).
+    if _r9_east(s.variant)
+        tcf, mcf = r9_natcrs_cuft(s, sp, d, h)
+        return merch ? mcf : tcf
+    end
     c = s.control
     if d >= c.sp_scf_dbhmin[sp]
         prod = "01"; stump = c.sp_scf_stump[sp]; mtopp = c.sp_scf_topd[sp]

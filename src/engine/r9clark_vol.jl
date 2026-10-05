@@ -733,3 +733,25 @@ function compute_volumes_ne!(s::StandState)
     end
     return s
 end
+
+"""
+    r9_natcrs_cuft(s, sp, d, h) -> (tcf, mcf)
+
+The NATCRS cubic volumes that FFE's FMSVOL/FMSVL2 (fmsvol.f:118-153, METHC 6 = the '900CLKE' R9 Clark default) gets
+for a tree of (`d`, `h`) in the R9-Clark eastern variants CS/LS/NE, with no top-kill (LTKIL=.FALSE.): TCF = the total
+cubic, MCF = the DBH-gated merch cubic (v4+v7, 0 below DBHMIN) — the same merch standards (VOLSTD common, VOLUME/
+BFVOLUME-overridable) and product split as `compute_volumes_ne!`. FMCROWE's DBHMIN-tree bole (fmcrowe.f:268-280), the
+live FMDOUT/FMCRBOUT stem of a broken-top tree and the eastern snag bole all read it. (A `VOLUME …5` DVEE card makes
+FMSVL2 call OCFVOL instead — not reached by the default METHC.)
+"""
+function r9_natcrs_cuft(s::StandState, sp::Integer, d::Float32, h::Float32)
+    s.control.merch_init || init_merch_standards!(s)
+    md = s.control
+    fias = strip(string(s.coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+    scfmind = md.sp_scf_dbhmin[sp]; topd = md.sp_top_diam[sp]
+    prod = d >= scfmind ? "01" : "02"
+    mtopp = d >= scfmind ? md.sp_scf_topd[sp] : topd
+    v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+    return v[1], (d >= md.sp_dbh_min[sp] ? v[4] + v[7] : 0f0)
+end
+_r9_east(v) = v isa CentralStates || v isa LakeStates || v isa Northeast

@@ -261,7 +261,7 @@ _snag_east_vol(v) = v isa Southern || v isa CentralStates || v isa LakeStates ||
     ffe_east_snag_vol_at(s, sp, d, htdead, xht) -> Float32 (cuft)
 
 FMSVOL(I, XHT) for the eastern family (CS/LS/NE/SN, fmsvol.f:98-153): NATCRS on the snag record's (DBHS, HTDEAD) —
-MCF = the DBH-gated merch cubic (LS/NE R9 Clark v4+v7, SN/CS R8 Clark via `_snag_merch_cuft_on`) — then, since
+MCF = the DBH-gated merch cubic (CS/LS/NE R9 Clark v4+v7 via `r9_natcrs_cuft`, SN R8 Clark via `_snag_merch_cuft_on`) — then, since
 XHT > −1 sets LTKIL, CFTOPK at IHT = INT(XHT·100); VOL2HT = MAX(0.005454154·HTDEAD, MCF). FMDOUT/FMSOUT/FMSALV
 call it fresh at every report, so a snag standing below its normal height (inventory ITRUNC/NORMHT, SNAGBRK) is
 measured on the fat lower bole of its death-form tree.
@@ -269,14 +269,8 @@ measured on the fat lower bole of its death-form tree.
 function ffe_east_snag_vol_at(s::StandState, sp::Int, d::Float32, htd::Float32, xht::Float32; topkill::Bool = true)::Float32
     coef = s.coef
     local mcf, vmax
-    if s.variant isa LakeStates || s.variant isa Northeast
-        ifor = Int(s.plot.forest_idx)
-        fias = strip(string(coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
-        dbhmin, topd, scfmind, scftopd, _, _ = s.variant isa LakeStates ? _ls_merch(sp, ifor) : _ne_merch(sp, ifor)
-        prod = d >= scfmind ? "01" : "02"; mtopp = d >= scfmind ? scftopd : topd
-        v = r9clark_cubic(fia, d, htd, prod, mtopp, topd, 0f0)
-        mcf = d >= dbhmin ? v[4] + v[7] : 0f0
-        vmax = v[1]
+    if _r9_east(s.variant)        # CS/LS/NE: NATCRS = R9 Clark (CS was wrongly on SN's R8 path ⇒ cone-floor snag boles)
+        vmax, mcf = r9_natcrs_cuft(s, sp, d, htd)
     else
         mcf = _snag_merch_cuft_on(s, sp, d, htd)
         vmax = _fm_cuft(s, sp, d, htd; merch = false)

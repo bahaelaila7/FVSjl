@@ -53,6 +53,12 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])
         @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: RC 2051 Ht2TDBF 1 ULP (r9clark board height)
     end
+    @testset "CS 231708010020004 salvage — FFE stem/snag/FMCROWE-bole volumes on the R9 Clark NATCRS (fmsvol.f FMSVL2)" begin
+        ms = _case("CS", "231708010020004", "salvage")
+        # FMCROWE's DBHMIN-tree bole VT (fmcrowe.f:268-280) was SN's R8 Clark (0) ⇒ CROWNW 1-3 / Aboveground_Total_Live
+        # 6.21 vs 3.69; CS snag boles likewise ⇒ Standing_Dead / Forest_Down_Dead_Wood
+        @test isempty(_cells(ms, "FVS_Carbon"))
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))

@@ -104,7 +104,10 @@ end
 # Gated to the Southern R8-Clark path (NE/CS/LS use a separate NVEL routine and are out of scope / already
 # matched); a NON-broken tree is never recomputed, preserving the bit-exact `merch_cuft_vol` for 299/300.
 @inline function _ffe_stem_mcf(s::StandState, i::Int, sp::Int, d::Float32, h::Float32)::Float32
-    (s.variant isa Southern && h >= 4.5f0 && s.trees.trunc[i] > 0) || return s.trees.merch_cuft_vol[i]
+    ((s.variant isa Southern || _r9_east(s.variant)) && h >= 4.5f0 && s.trees.trunc[i] > 0) ||
+        return s.trees.merch_cuft_vol[i]
+    # fmsvol.f FMSVL2 on a live broken-top tree: NATCRS at the ACTUAL height, LTKIL=.FALSE. — the R9 Clark for CS/LS/NE
+    _r9_east(s.variant) && return r9_natcrs_cuft(s, sp, d, h)[2]
     c = s.control
     if d >= c.sp_scf_dbhmin[sp]
         prod = "01"; stump = c.sp_scf_stump[sp]; mtopp = c.sp_scf_topd[sp]
