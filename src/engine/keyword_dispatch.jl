@@ -2984,7 +2984,9 @@ function process_keywords!(s::StandState, kr::KeywordReader, base_path::Abstract
         elseif s.control.ext_stub_strict && !(kw in FVS_BASE_KEYWORDS)
             errgro!(s, 1; irecnt = kr.record_count); continue
         end
-        s.variant isa Ontario && _on_metric_decode!(rec)   # canada/on/initre.f metric ARRAY conversions
+        # canada/on/initre.f and canada/bc/initre.f carry the same in-place metric ARRAY conversions (diffed statement by
+        # statement: BC's set equals ON's, THINQFA included) — e.g. BC THINBBA ARRAY(2)·M2pHAtoFT2pACR (bc initre.f:3602).
+        _metric_variant(s.variant) && _on_metric_decode!(rec)
         if     kw == "DESIGN";   kw_design!(s, rec)
         elseif kw == "TFIXAREA"; kw_tfixarea!(s, rec)      # total fixed plot area (notre.f:45)
         elseif kw == "CUTEFF";   kw_cuteff!(s, rec)        # default cut/affect proportion EFF (initre.f:5400)

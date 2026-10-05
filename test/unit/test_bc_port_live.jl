@@ -109,4 +109,15 @@ end
     @test count(m -> m.year == "2029" && m.file == "FVS_TreeList_Metric", c.ms) <= 3
 end
 
+# canada/bc/initre.f converts the metric keyword fields in place before the shared imperial processing — the same
+# statement set as canada/on/initre.f (THINBBA ARRAY(2)·M2pHAtoFT2pACR :3602, DBH limits ·CMtoIN, heights ·MtoFT, …), which
+# jl applied for ON only. MEASURED FVSbc_dbfix tiered thinbba (THINBBA 40 m²/ha): live removes nothing at 2028 on
+# YSM029-265 (jl thinned to 40 ft²/ac, RTPA 103).
+@testset "BC metric keyword fields (canada/bc/initre.f THINBBA etc.)" begin
+    c = _case("YSM029-265", "thinbba")
+    @test !c.crashed
+    @test isempty(_in(c.ms, ("sum", "FVS_CutList_Metric")))
+    @test !any(m -> m.col in ("RTpa", "RTPA", "RTph"), c.ms)
+end
+
 end # module
