@@ -51,4 +51,14 @@ end
     @test isempty(c.ms)
 end
 
+# dbstreesin.f reads every INTEGER tree column with fsql3_colint (dbsqlite/fvsqlite3.c:585): NULL ⇒ the default (PLOT_ID 0, not
+# 1 — dbstreesin.f:53/93; intree.f:322 forces plot 1 only under IPTINV=1), a REAL cell C-truncated (CrRatio 71.523 ⇒ 71, not
+# NINT 72). MEASURED FVSbc_dbfix Fir.20 (NULL Plot_ID, REAL CrRatio): FVS_TreeList_Metric PtIndex 0, inventory PctCr exact.
+@testset "BC DB tree reader fsql3_colint semantics (dbstreesin.f, fvsqlite3.c:585)" begin
+    c = _case("Fir.20", "none")
+    @test !c.crashed
+    @test !any(m -> m.year == "2020", c.ms)                # the whole inventory treelist (PtIndex, PctCr, CrWidth, …)
+    @test !any(m -> m.col == "PtIndex", c.ms)
+end
+
 end # module
