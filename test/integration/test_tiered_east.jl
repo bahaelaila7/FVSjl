@@ -96,6 +96,11 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty(_cells(ms, "FVS_BurnReport"))            # FM4, flame 11.0 (was FM6, 2.88)
         @test isempty(_cells(ms, "sum"))
     end
+    @testset "NE 9740818010661 plant_cal — ne/regent.f LESTB RELHTA on the post-growth overstory AVH" begin
+        ms = _case("NE", "9740818010661", "plant_cal")
+        @test isempty(_cells(ms, "FVS_Summary"))
+        @test isempty(_cells(ms, "sum"))
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
