@@ -164,8 +164,10 @@ end
         # 2026-10-05: live FVSbc_dbfix on this key (with the MISTOE block's missing END added; jl tolerates its absence)
         # prints 2137 TPA 773 / BA 49 / SDI 936. After the west-kcwa-2 BC mistletoe/crown/REGENT fixes jl prints
         # 768 / 49 / 936: SDI and BA now equal live; TPA is 5/ha low (open, BC campaign).
+        # 2026-10-05 (bc-port): 768 → 773 == live — the backdated crown BAL on OLDBA (crown.f:472) and the cycle-0 dead-record
+        # crown dub / volumes / REGENT density fixes; TPA, BA and SDI now all equal live.
         ba(r) = parse(Int, r[4])
         @test sdi(cN) == 936 && ba(cN) == 49          # == live
-        @test tpa(cN) == 768                          # live 773 (open)
+        @test tpa(cN) == 773                          # == live
     end
 end

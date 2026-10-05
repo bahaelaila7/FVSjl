@@ -12,7 +12,7 @@ const BC_HAB_RGN = ("CAR", "KAM", "NEL")
 const BC_HAB_ZN  = ("ESSF", "ICH", "IDF", "MS", "PP", "SBS", "SBPS")   # habtyp INDEX order (first match wins)
 const BC_HAB_SZ  = ("DC","DK","DM","DW","MC","MH","MK","MM","MW","VK","WC","WK","WM","WW","XC","XH","XK","XM")
 
-const BC_M2pHAtoFT2pACR = 1f0 / 0.2295643f0   # inverse of FT2pACRtoM2pHA (sitset.f)
+const BC_M2pHAtoFT2pACR = 4.3560773f0   # METRIC.F77 PARAMETER M2pHAtoFT2pACR (sitset.f:260); NOT 1/FT2pACRtoM2pHA (4.356078, 2 ULP high)
 
 """Parse a raw BEC/STDINFO string → (Zone, SubZone, Series, PrettyName) or `nothing` (habtyp.f). Region required."""
 function bc_habtyp(raw::AbstractString)

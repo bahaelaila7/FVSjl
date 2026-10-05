@@ -95,7 +95,8 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
            s.variant isa Klamath || s.variant isa WestCascades || s.variant isa PacificNorthwest ||
            s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
            s.variant isa OregonCoast || s.variant isa Olympic || s.variant isa SoutheastAlaska ||
-           s.variant isa CentralCalifornia || s.variant isa WestSierra   # CA/WS: ca|ws/fmcba.f top-2 FULIVE/FULIVI below
+           s.variant isa CentralCalifornia || s.variant isa WestSierra ||  # CA/WS: ca|ws/fmcba.f top-2 FULIVE/FULIVI below
+           s.variant isa BritishColumbia                                    # BC: canada/fire/bc/fmcba.f = the IE FMCBA
         # Western (CR/IE/KT/EM/…): live fuel = FULIVE/FULIVI[COVTYP] interpolated by PERCOV — DEFERRED to after
         # the cover-type block below (needs COVTYP + PERCOV). NC additionally needs the top-2 COVCA/COVCAWT.
         # Placeholder here.
@@ -251,7 +252,9 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     if covtyp == 0
         covtyp = fs.covtyp != Int32(0) ? fs.covtyp :
                  # IE/KT: bare stand ⇒ COVINI(ITYPE) seral cover species (ie/fmcba.f:279), NOT a fixed species.
-                 (s.variant isa InlandEmpire || s.variant isa Kootenai) ? Int32(ie_covini_default(Int(s.plot.habitat_input))) :
+                 # BC: the same COVINI(ITYPE) table (canada/fire/bc/fmcba.f:179-181, :244).
+                 (s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia) ?
+                     Int32(ie_covini_default(Int(s.plot.habitat_input))) :
                  s.variant isa EasternMontana ? Int32(3)  :   # EM bare-stand default: DF (em/fmcba.f covtyp=3 path)
                  # CI/TT/UT/WC/PN/EC bare stand: COVINI(ITYPE) (the seral cover of the habitat), else the variant's
                  # "NO VALID HABITAT" default (ci:377-387 ICINDX→DF 3; tt:327-337 / ut:351-361 ITYPE→LP 7;
@@ -327,6 +330,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
     # Western live fuel now that COVTYP + PERCOV are known (fmcba.f:443-449 / ie:283-289)
     s.variant isa CentralRockies && (fs.flive = cr_live_fuel_loading(Int(covtyp), fs.percov))
     (s.variant isa InlandEmpire || s.variant isa Kootenai) && (fs.flive = ie_live_fuel_loading(Int(covtyp), fs.percov))
+    s.variant isa BritishColumbia && (fs.flive = bc_live_fuel_loading(Int(covtyp), fs.percov))   # bc/fmcba.f:265-271
     s.variant isa EasternMontana && (fs.flive = em_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa CentralIdaho && (fs.flive = ci_live_fuel_loading(Int(covtyp), fs.percov))
     s.variant isa Teton && (fs.flive = tt_live_fuel_loading(Int(covtyp), fs.percov))
@@ -352,6 +356,7 @@ function fmcba!(s::StandState; load_dead::Bool = true, vtrip::Bool = false)
                   s.variant isa LakeStates ? ls_dead_fuel_loading(s) :
                   s.variant isa CentralRockies ? cr_dead_fuel_loading(Int(covtyp), fs.percov) :  # FUINIE/FUINII × PERCOV
                   (s.variant isa InlandEmpire || s.variant isa Kootenai) ? ie_dead_fuel_loading(Int(covtyp), fs.percov) :
+                  s.variant isa BritishColumbia ? bc_dead_fuel_loading(Int(covtyp), fs.percov) :   # bc/fmcba.f:289-294
                   s.variant isa EasternMontana ? em_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa CentralIdaho ? ci_dead_fuel_loading(Int(covtyp), fs.percov) :
                   s.variant isa Teton ? tt_dead_fuel_loading(Int(covtyp), fs.percov) :

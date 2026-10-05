@@ -82,7 +82,7 @@ function bc_crcons!(s::StandState)
     z = bc_cr_zone(zone, series)
     elm = Float32(p.elevation) * 100f0 * BC_FTtoM            # ELEV(100ft) → m
     slp = Float32(p.slope); asp = Float32(p.aspect)
-    sa = sin(asp) * slp; ca = cos(asp) * slp
+    sn = fsin(asp); cs = fcos(asp)                           # crown.f:708-709 SIN/COS = sinf/cosf
     nsp = 15
     crcon = zeros(Float32, nsp); crhtdbh = zeros(Float32, nsp); crht = zeros(Float32, nsp)
     crdbh2 = zeros(Float32, nsp); crbal = zeros(Float32, nsp); crlnccf = zeros(Float32, nsp)
@@ -90,7 +90,7 @@ function bc_crcons!(s::StandState)
     @inbounds for i in 1:15
         j = z.seq[i]; (j < 1 || j > nsp) && continue         # unused column
         crcon[j] = z.con[i] + z.el[i]*elm + z.el2[i]*elm*elm +
-                   z.slp[i]*slp + z.slp2[i]*slp*slp + z.sasp[i]*sa + z.casp[i]*ca
+                   z.slp[i]*slp + z.slp2[i]*slp*slp + z.sasp[i]*sn*slp + z.casp[i]*cs*slp   # (SASP*SIN)*SLOPE
         crhtdbh[j] = z.htdbh[i]; crht[j] = z.ht[i]; crdbh2[j] = z.dbh2[i]
         crbal[j] = z.bal[i]; crlnccf[j] = z.lnccf[i]; crsd[j] = sqrt(z.see[i])
     end

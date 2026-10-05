@@ -148,6 +148,13 @@ _fm_dkr_default(::InlandEmpire) = _FM_DKR_NR     # ie/fmvinit.f:77-88 — DKR(I,
 _fm_dkr_default(::Kootenai) = _FM_DKR_NR         # kt/fmvinit.f:73-83 — NO ×0.45
 _fm_dkr_default(::EasternMontana) = _FM_DKR_NR   # em/fmvinit.f:87-96 — NO ×0.45
 _fm_dkr_default(::CentralIdaho) = _FM_DKR_NR     # ci/fmvinit.f:118-128 — NO ×0.45
+# canada/fire/bc/fmvinit.f:66-93: DKR(1:3,1) 0.12/0.12/0.09, the 3"+ woody classes 0.03 (Klenner 2021, vs the N-Rockies
+# 0.015), DKR(I,J)=DKR(I,1); litter DKR(10,J)=0.355 and duff DKR(11,J)=0.0033 (Kurz et al. 2009) — no ×0.45.
+const _FM_DKR_BC = let m = copy(_FM_DKR_NR)
+    m[4:9, :] .= 0.03f0; m[10, :] .= 0.355f0; m[11, :] .= 0.0033f0
+    m
+end
+_fm_dkr_default(::BritishColumbia) = _FM_DKR_BC
 # TT (tt/fmvinit.f:72-92): DKR(I,J) = DKR(I,1)·0.45 for the woody classes I = 1..9 only, THEN litter/duff DKR(10,J) = 0.5,
 # DKR(11,J) = 0.002 for every decay class — unlike CR/UT, whose ×0.45 loop runs to MXFLCL after the litter/duff set
 # (cr|ut/fmvinit.f), giving 0.225/0.0009. jl gave TT the CR table ⇒ litter decayed at 0.225 not 0.5 (MEASURED FVStt_g16

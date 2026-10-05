@@ -72,6 +72,13 @@ const _EM_ISPMAP = Int[
 # SimFire under-killed. Same latent gap as the IE/EM 6e5719dc fix; KT routes through `cr_crownw` with this map.
 const _KT_ISPMAP = Int[15, 8, 3, 4, 6, 7, 11, 18, 1, 13, 24]
 
+# BC (BritishColumbia) crown-biomass group map — canada/fire/bc/fmcrow.f ISPMAP (15 species). bc/fmcroww.f is fire/base's
+# (its one change, the aspen group-2 NATCRS→CFVOL, is unreachable: no BC species maps to 2) and fmcrowe.f is vbase's;
+# bc/fmcrow.f dispatches SELECT CASE(SPIW): CASE(11,12,13,15) → FMCROWE(SPIE,…) (paper birch, aspen, cottonwood,
+# other hardwoods), CASE DEFAULT → FMCROWW(SPIE=ISPMAP) — species 1-10 the KT map, 14 (other conifer) → DF 3.
+const _BC_ISPMAP = Int[15, 8, 3, 4, 6, 7, 11, 18, 1, 13, 43, 41, 17, 3, 41]
+@inline _bc_uses_fmcrowe(spiw::Integer) = (11 <= spiw <= 13) || spiw == 15
+
 # CI (CentralIdaho) crown-biomass group map — ci/fmcrow.f ISPMAP (19 species). ci/fmcroww.f + fmcrowe.f are
 # BYTE-IDENTICAL to CR's; ci/fmcrow.f dispatches SELECT CASE(SPIW): CASE(13,15,17,19) → FMCROWE (Jenkins:
 # quaking aspen, curlleaf mtn-mahogany, black cottonwood, other hardwoods), CASE DEFAULT (conifers) → FMCROWW

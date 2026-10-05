@@ -45,7 +45,7 @@ const BC_RG_XMAX = fill(4.0f0, 15)                     # TODO: instrument all sp
 """small-tree DBH from height (regent.f:1361-1363): power form + DELMAX/DADJ density adj."""
 @inline function bc_st_dbh(sp::Integer, h::Real, dadj::Real)
     h = Float32(h)
-    h > 4.5f0 ? BC_RG_HHT1[sp]*(h - 4.5f0)^BC_RG_HHT2[sp] + Float32(dadj) : BC_RG_DIAM[sp] + Float32(dadj)
+    h > 4.5f0 ? BC_RG_HHT1[sp]*fpow(h - 4.5f0, BC_RG_HHT2[sp]) + Float32(dadj) : BC_RG_DIAM[sp] + Float32(dadj)   # AA*(H-4.5)**BB = powf
 end
 
 """Resolve the ST_COEF block for `sp` (regent.f 2-pass PrettyName match, fallback `zone*"/all "`)."""
@@ -65,7 +65,8 @@ end
 function bc_stcon(ip::Integer, aspect::Real, slope::Real)
     ip < 1 && return 0f0
     b = BC_STCOEF[ip]; asp = Float32(aspect); slp = Float32(slope)
-    return b.CON + b.CASP*cos(asp)*slp + b.SASP*sin(asp)*slp + b.SLP*slp
+    # regent.f:2094-2096 STG%CON = CON + (SLP + CASP*COS(ASPECT) + SASP*SIN(ASPECT))*SLOPE (glibc cosf/sinf)
+    return b.CON + (b.SLP + b.CASP*fcos(asp) + b.SASP*fsin(asp))*slp
 end
 
 """
@@ -81,7 +82,8 @@ function bc_v3_sthg(sp::Integer, ip::Integer, h1_ft::Real, bal::Real, rdj::Real,
     b = BC_STCOEF[ip]
     htm = max(2f0, Float32(h1_ft) * BC_FTtoM)
     con = bc_stcon(ip, aspect, slope)
-    pre = con + Float32(rhcon) + b.LNHT*log(htm) + b.HT*htm +
-          b.BAL*(Float32(bal) * BC_FT2pACRtoM2pHA * 0.01f0) + b.CCF*Float32(rdj)
-    return exp(max(-88f0, pre)) * 3.28084f0                 # MtoFT
+    # regent.f:1396-1401: ALOG/EXP = logf/expf; STG%BAL(ISPC)*BAL*FT2pACRtoM2pHA*0.01 left to right
+    pre = con + Float32(rhcon) + b.LNHT*flog(htm) + b.HT*htm +
+          ((b.BAL*Float32(bal)) * BC_FT2pACRtoM2pHA) * 0.01f0 + b.CCF*Float32(rdj)
+    return fexp(max(-88f0, pre)) * 3.28084f0                # MtoFT
 end

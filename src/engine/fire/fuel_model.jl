@@ -182,6 +182,7 @@ fmd_xpts(::CentralRockies) = _FMD_XPTS_CR
 # selection via NIFMHAB/IDRY differs per variant — ported with each variant's fmcfmd).
 fmd_xpts(::InlandEmpire) = _FMD_XPTS_IE
 fmd_xpts(::Kootenai) = _FMD_XPTS_IE
+fmd_xpts(::BritishColumbia) = _FMD_XPTS_IE   # BC links fire/ie/fmcfmd.f (byte-identical to KT's)
 fmd_xpts(::EasternMontana) = _FMD_XPTS_IE   # em/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::CentralIdaho) = _FMD_XPTS_IE     # ci/fmcfmd.f XPTS verified identical to ie
 fmd_xpts(::BlueMountains) = _FMD_XPTS_IE     # bm/fmcfmd.f ICLSS=14, XPTS identical to ie
@@ -272,7 +273,8 @@ function select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}; fire_b
 
     # IE-family (ie/fmcfmd.f) — the simplest western selection: MAPDRY habitat→dryness → base model +
     # natural fuels {10,12,13}. KT shares IE's fmcfmd + MAPDRY (verified identical).
-    if s.variant isa InlandEmpire || s.variant isa Kootenai
+    # BC links fire/ie/fmcfmd.f too; its NIFMHAB is canada/fire/bc/fmcba.f's MAPDRY (= IE's) on FMKOD = KODTYP = IBEC.
+    if s.variant isa InlandEmpire || s.variant isa Kootenai || s.variant isa BritishColumbia
         return ie_select_fuel_models(s, mois, sm, lg)
     end
 

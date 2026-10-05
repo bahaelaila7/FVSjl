@@ -41,6 +41,20 @@ _fia_num(x) = x isa AbstractString ? tryparse(Float64, strip(x)) : Float64(x)
 _fia_f32(d, k, dv) = (_fia_present(d, k) && (v = _fia_num(d[k])) !== nothing) ? Float32(v) : dv
 _fia_int(d, k, dv) = (_fia_present(d, k) && (v = _fia_num(d[k])) !== nothing) ? round(Int, v) : dv
 _fia_str(d, k, dv) = _fia_present(d, k) ? strip(string(d[k])) : dv
+# fsql3_colint (dbsqlite/fvsqlite3.c:585-610), the reader of every INTEGER column of dbstreesin.f: an INTEGER cell as is, a
+# FLOAT cell C-truncated `(int) sqlite3_column_double`, a TEXT cell `sscanf("%d")` (its leading integer), NULL ⇒ the
+# default. Not NINT: MEASURED FVSbc_dbfix Fir.20 (CrRatio stored REAL 71.523) ⇒ ICR 71 (FVS_TreeList_Metric PctCr).
+function _fia_colint(d, k, dv)
+    _fia_present(d, k) || return dv
+    x = d[k]
+    x isa Integer && return Int(x)
+    x isa AbstractFloat && return isfinite(x) ? unsafe_trunc(Int32, x) % Int : dv
+    if x isa AbstractString
+        m = match(r"^\s*([+-]?\d+)", x)
+        return m === nothing ? dv : something(tryparse(Int32, m.captures[1]), dv) % Int
+    end
+    return dv
+end
 
 # FIA numeric species codes arrive un-padded from the DB (e.g. "71"), but the FVS species
 # tables key on the 3-digit FIA code ("071"). Zero-pad a purely-numeric 1–2 char code to 3
@@ -165,7 +179,9 @@ function apply_fia_stand!(s::StandState, d::Dict{String,Any})
     end
     # dbsstandin.f:607-610 NVB_REGION_CHECK: an ECOREGION that does not reduce to an NSVB ecodivision ⇒ FVS43 (MEASURED
     # FVScr_clean 2463020010690 ECOREGION 321Aj → 320: FVS43 row).
-    _fia_present(d, "ECOREGION") && !nvb_region_valid(_fia_str(d, "ECOREGION", "")) && errgro!(s, 43)
+    # The metric builds (BC/ON) read stands through metric/vdbsqlite/dbsstandin.f, which has no NVB_REGION_CHECK (no FVS43).
+    !_metric_variant(s.variant) && _fia_present(d, "ECOREGION") && !nvb_region_valid(_fia_str(d, "ECOREGION", "")) &&
+        errgro!(s, 43)
     # CPVREF (dbsstandin.f:568-574): PV_REF_CODE > 0 ⇒ WRITE(CPVREF,'(I10)') (PVREF1/6 compare it ADJUSTL'd), ≤0 ⇒ blank.
     if _fia_present(d, "PV_REF_CODE")
         r = _fia_f32(d, "PV_REF_CODE", 0f0)
@@ -619,28 +635,32 @@ TREE_COUNT is stored raw as `tpa` (PROB); `notre!` later expands it to trees/acr
 """
 function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     recs = TreeRecord[]
+    # dbstreesin.f:53/93: IPLOT=0, then PLOT_ID read with fsql3_colint(…,0) — a missing column or NULL value gives plot 0
+    # (not 1); intree.f:322 then puts every tree on plot 1 only when IPTINV=1. (MEASURED FVSbc_dbfix Fir.20, NULL
+    # Plot_ID, no NUM_PLOTS: FVS_TreeList_Metric PtIndex 0 on every record.)
+    _plot(d) = (s.control.iptinv_set && Int(s.plot.points_inv) == 1) ? 1 : _fia_colint(d, "PLOT_ID", 0)
     for d in rows
         dbh = _fia_present(d, "DIAMETER") ? _fia_f32(d, "DIAMETER", 0f0) : _fia_f32(d, "DBH", 0f0)
-        dmg = (Int32(_fia_int(d, "DAMAGE1", 0)), Int32(_fia_int(d, "SEVERITY1", 0)),
-               Int32(_fia_int(d, "DAMAGE2", 0)), Int32(_fia_int(d, "SEVERITY2", 0)),
-               Int32(_fia_int(d, "DAMAGE3", 0)), Int32(_fia_int(d, "SEVERITY3", 0)))
+        dmg = (Int32(_fia_colint(d, "DAMAGE1", 0)), Int32(_fia_colint(d, "SEVERITY1", 0)),
+               Int32(_fia_colint(d, "DAMAGE2", 0)), Int32(_fia_colint(d, "SEVERITY2", 0)),
+               Int32(_fia_colint(d, "DAMAGE3", 0)), Int32(_fia_colint(d, "SEVERITY3", 0)))
         rec = TreeRecord(
-            Int32(_fia_int(d, "PLOT_ID", 1)),           # plot (ITREI) → subplot/IPVEC
-            Int32(_fia_int(d, "TREE_ID", 0)),           # id (IDTREE)
+            Int32(_plot(d)),                            # plot (ITREI) → subplot/IPVEC
+            Int32(_fia_colint(d, "TREE_ID", 0)),        # id (IDTREE)
             _fia_f32(d, "TREE_COUNT", 1f0),             # tpa (raw PROB; notre! expands)
-            Int32(_fia_int(d, "HISTORY", 1)),           # history (ITH; 1 = live default)
+            Int32(_fia_colint(d, "HISTORY", 1)),        # history (ITH; 1 = live default)
             _fia_spcode(_fia_str(d, "SPECIES", "OT")),  # species_code (FIA 3-digit / alpha / PLANTS)
             dbh,                                         # dbh
             _fia_f32(d, "DG", 0f0),                     # diam_growth (PAST dbh when IDG=1)
             _fia_f32(d, "HT", 0f0),                     # height
             _fia_f32(d, "HTTOPK", 0f0),                 # top_height (broken/dead)
             _fia_f32(d, "HTG", 0f0),                    # ht_growth
-            Int32(_fia_int(d, "CRRATIO", 0)),           # crown_pct (ICR)
+            Int32(_fia_colint(d, "CRRATIO", 0)),        # crown_pct (ICR)
             dmg,
-            Int32(_fia_int(d, "TREEVALUE", 0)),         # mort_code (IMC1)
-            Int32(_fia_int(d, "PRESCRIPTION", 0)),      # cut_code (KUTKOD)
+            Int32(_fia_colint(d, "TREEVALUE", 0)),      # mort_code (IMC1)
+            Int32(_fia_colint(d, "PRESCRIPTION", 0)),   # cut_code (KUTKOD)
             (Int32(0), Int32(0), Int32(0), Int32(0), Int32(0)),  # pest_vars
-            _fia_f32(d, "AGE", 0f0),                    # birth_age (ABIRTH)
+            Float32(_fia_colint(d, "AGE", 0)),          # birth_age (ABIRTH = fsql3_colint)
         )
         push!(recs, rec)
     end
@@ -651,10 +671,10 @@ function apply_fia_trees!(s::StandState, rows::Vector{Dict{String,Any}})
     # — the #143 slope-dependent under-establishment root (jl formerly used the uniform stand slope for all points).
     raw_slo = Dict{Int,Float32}(); raw_asp = Dict{Int,Float32}()
     for d in rows
-        pid = _fia_int(d, "PLOT_ID", 1)
+        pid = _plot(d)
         haskey(raw_slo, pid) && continue
-        raw_slo[pid] = _fia_present(d, "SLOPE")  ? _fia_f32(d, "SLOPE", 0f0) * 0.01f0     : 0f0
-        raw_asp[pid] = _fia_present(d, "ASPECT") ? _fia_f32(d, "ASPECT", 0f0) * 0.0174533f0 : 0f0
+        raw_slo[pid] = _fia_present(d, "SLOPE")  ? Float32(_fia_colint(d, "SLOPE", 0)) * 0.01f0      : 0f0
+        raw_asp[pid] = _fia_present(d, "ASPECT") ? Float32(_fia_colint(d, "ASPECT", 0)) * 0.0174533f0 : 0f0
     end
     # Metric-variant DATABASE input (BC + ON): the FVS_TreeInit DB is METRIC (cm DBH, m HT, trees/ha).
     # Convert cm→in / m→ft on ingest exactly as the inline/.tre path (treeinput.jl:82); the trees/ha→

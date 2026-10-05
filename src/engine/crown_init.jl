@@ -182,15 +182,22 @@ function crown_init_lstart_dead_inclusive!(s::StandState)
     end
     @inbounds for (i, d) in saved; t.dbh[i] = d; end
     # dense.f:249-252 second pass: RMSQD = SQRT(TSUMD2/TPROB), TSUMD2 += D·(D·P), over IND1 species-major, current DBH
-    let bk = lbkden ? t.dbh[1:nlive] : Float32[], tsumd2 = 0f0, tprob = 0f0, iseq = c.input_seq
+    let bk = lbkden ? t.dbh[1:nlive] : Float32[], tsumd2 = 0f0, tprob = 0f0, bat = 0f0, iseq = c.input_seq
         lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = saved_live[i]; end)
         ord = length(iseq) == t.n ? sortperm(collect(1:t.n); by = j -> (Int(t.species[j]), iseq[j])) :
               sortperm(collect(1:t.n); by = j -> (Int(t.species[j]), j))
         @inbounds for j in ord
             pj = t.tpa[j]; dj = t.dbh[j]
-            tprob += pj; tsumd2 += dj * (dj * pj)
+            wk5 = dj * (dj * pj)
+            tprob += pj; tsumd2 += wk5
+            bat += 0.005454154f0 * wk5                 # dense.f BATREE = 0.005454154*WK5(I); BAT = BAT + BATREE
         end
         c.cratet_rmsqd = tprob > 0f0 ? sqrt(tsumd2 / tprob) : 0f0
+        # dense.f:260 OLDBA = TEMP2 = (BA−OLDBA)·RAT + OLDBA: BA = this pass's BAT, OLDBA = the backdated pass's BAT.
+        c.cratet_oldba = lbkden ? let fth = s.control.growth_finth > 0f0 ? s.control.growth_finth : 5f0,
+                                      fit = s.control.growth_fint > 0f0 ? s.control.growth_fint : 10f0
+            (bat - c.cratet_ba) * (fth / fit) + c.cratet_ba
+        end : 0f0
         lbkden && @inbounds(for i in 1:nlive; t.dbh[i] = bk[i]; end)
     end
     c.cratet_reldm1 = c.cratet_relden

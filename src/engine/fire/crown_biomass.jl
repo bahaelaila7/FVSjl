@@ -82,6 +82,9 @@ set (AK carries them in `ak_merch`), else the species table's `:dbh_min` (a stan
 """
 _fm_dbhmin(s::StandState, sp::Int)::Float32 =
     s.variant isa SoutheastAlaska ? ak_merch_dbhmin(s, sp) :
+    # canada/bc/grinit.f:101,142 DBHMIN = 17.5 (PL 12.5) * CMtoIN — inches; jl's merch table holds BC's in cm (17.5).
+    # MEASURED FVSbc_instr YSM029-265 simfire 2038 FMDOUT: 10in aspen FMCROWE took the D≤DBHMIN whole-bole branch in jl.
+    s.variant isa BritishColumbia ? bc_vol_dbhmin(sp) * BC_CMtoIN :
     (s.control.merch_init && sp <= length(s.control.sp_dbh_min)) ? s.control.sp_dbh_min[sp] :
     Float32(coef_col(s.coef, :dbh_min)[sp])
 
@@ -117,9 +120,10 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
         s.variant isa PacificNorthwest || s.variant isa EastCascades || s.variant isa SouthCentralOregon ||
         s.variant isa OregonCoast || s.variant isa InlandEmpire || s.variant isa EasternMontana ||
         s.variant isa Kootenai || s.variant isa CentralIdaho || s.variant isa SoutheastAlaska ||
-        s.variant isa Teton || s.variant isa Utah) &&
+        s.variant isa Teton || s.variant isa Utah || s.variant isa BritishColumbia) &&
        ((s.variant isa Klamath || s.variant isa Kootenai) ? true :
         !(s.variant isa CentralRockies ? _cr_uses_fmcrowe(sp) :
+          s.variant isa BritishColumbia ? _bc_uses_fmcrowe(sp) :
           s.variant isa InlandEmpire ? _ie_uses_fmcrowe(sp) :
           s.variant isa EasternMontana ? _em_uses_fmcrowe(sp) :
           s.variant isa CentralIdaho ? _ci_uses_fmcrowe(sp) :
@@ -137,6 +141,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
                s.variant isa InlandEmpire ? _IE_ISPMAP[sp] :
                s.variant isa EasternMontana ? _EM_ISPMAP[sp] :
                s.variant isa Kootenai ? _KT_ISPMAP[sp] :
+               s.variant isa BritishColumbia ? _BC_ISPMAP[sp] :
                s.variant isa CentralIdaho ? _CI_ISPMAP[sp] :
                s.variant isa Teton ? _TT_ISPMAP[sp] :
                s.variant isa Utah ? _UT_ISPMAP[sp] :
@@ -175,6 +180,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
             s.variant isa SouthCentralOregon ? Int(SO_ISPMAP[sp]) :
             s.variant isa OregonCoast ? Int(OC_FFE_ISPMAP[sp]) :
             s.variant isa Olympic ? Int(OP_FFE_ISPMAP[sp]) :       # OP FFE 39-sp NWO
+            s.variant isa BritishColumbia ? Int(_BC_ISPMAP[sp]) :   # bc/fmcrow.f FMCROWE arg = SPIE = ISPMAP(SPIW)
             Int(coef_col(coef, :ls_spi)[sp])
     sg    = coef_col(coef, :v2t)[sp] / 2000f0   # V2T is rescaled /2000 after init (fmvinit.f:1094);
                                                  # the CSV holds the raw V2T, so apply the /2000 here
@@ -278,6 +284,7 @@ function crown_biomass(s::StandState, sp::Integer, d::Float32, h::Float32, ic::I
              s.variant isa EasternMontana ? em_bratio(Int(sp), d) :                  # em/bratio.f
              s.variant isa SoutheastAlaska ? ak_bratio(Int(sp), d) :                 # ak/bratio.f
              s.variant isa Kootenai ? KT_BKRAT[Int(sp)] :                            # kt/bratio.f BKRAT(IS)
+             s.variant isa BritishColumbia ? bc_bratio(Int(sp)) :                    # canada/bc/bratio.f (IMAP 2: BARK1)
              (s.variant isa Teton || s.variant isa Utah) ?
                  bark_ratio(s.calib.bark_a, s.calib.bark_b, Int(sp), d) :  # KT/EM/TT/UT calib bark
                                              bark_ratio(coef, sp, d)
