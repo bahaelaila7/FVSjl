@@ -383,4 +383,11 @@ end
         @test _cells(c) == 0
     end
 end
+# gradd.f:96 MISTOE → mistoe.f:522 MISMRT on a FIRE tripling cycle: after the post-TRIPLE spread (post-spread DMR, tripled
+# full PROB), MAX-combined into WK2 before FMKILL — not inside MORTS on the pre-spread DMR.
+@testset "Fire-cycle MISMRT after the post-TRIPLE spread (mistoe.f:522, mismrt.f:191) vs FVSec_g16" begin
+    c = _case("EC", "1287295274290487", "simfire")
+    @test !c.crashed
+    @test count(m -> _rel(m) > 1e-5, c.ms) == 0
+end
 end # module

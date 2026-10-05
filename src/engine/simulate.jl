@@ -649,7 +649,14 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # .15) → FMBURN (GRADD fire draws an independent XRAN per TRIPLED record) → FMKILL WK2=MAX(MORTS,FIRKIL).
     nrec = t.n
     pre  = Float32[t.tpa[i] for i in 1:nrec]
+    # gradd.f:96 MISTOE's MISMRT (mistoe.f:522) runs after the post-TRIPLE spread, on the tripled full-PROB records and
+    # the POST-spread DMR — not inside MORTS. On a fire tripling cycle (mis_fire) keep MORTS from applying the DM kill
+    # and MAX-combine it into WK2 after the spread below (MEASURED FVSec_g16 1287295274290487 SIMFIRE 2032: WL DMR 4→5,
+    # live kill 13.7% = rate(DMR 5), jl 8.0% = rate(DMR 4) from the pre-spread combine inside MORTS).
+    dm_prev = s.control.dm_mrt_defer
+    mis_fire && (s.control.dm_mrt_defer = true)
     mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
+    s.control.dm_mrt_defer = dm_prev
     mk   = _morts_wk2(s, pre, nrec)                            # per-ORIGINAL density+bkgd+cap kill (MORTS WK2 itself)
     @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
     tripled = stash !== nothing
@@ -669,6 +676,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     if mis_fire
         _dm_spread!(s; fint = fint)
         dm_misinf!(s)
+        # mistoe.f:522 MISMRT → mismrt.f:191 WK2 = MAX(WK2, PROB·rate(post-spread DMR)) on the tripled full-PROB list
+        if _dm_effects_on(s) || s.variant isa CentralRockies
+            @inbounds for c in 1:min(t.n, length(mk))
+                dmr = Int(t.dmr[c]); dmr == 0 && continue
+                pr = t.tpa[c]; pr <= 0f0 && continue
+                wki = pr * _dm_mortality_rate(s, Int(t.species[c]), dmr, t.dbh[c], fint)
+                mk[c] < wki && (mk[c] = wki)
+            end
+        end
     end
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
