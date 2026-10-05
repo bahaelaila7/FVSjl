@@ -77,7 +77,9 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
     lnrd = log(max(0.01f0, relden))
     ba_a = c.bark_a; ba_b = c.bark_b
     bc_lmhtdub = nothing
-    @inbounds for i in 1:t.n
+    dgsd = s.control.dg_sd
+    # crown.f DO 70 ISPC / DO 60 I3 / I=IND1(I3): species-major IND1 — the order of the LSTART BACHLO draws below.
+    @inbounds for i in (lstart ? species_major_order(s) : (1:t.n))
         t.tpa[i] <= 0f0 && continue
         icr = Int(t.crown_pct[i])
         (lstart && icr > 0) && continue
@@ -122,6 +124,10 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
             pdifpy < -0.01f0 && (chg = Float32(icr) * (-0.01f0) * fint / 100f0)
         end
         icri = trunc(Int, Float32(icr) + chg*100f0 + 0.50005f0)     # CRNMLT=1, DLOW/DHI defaults
+        # canada/bc/crown.f:510-512: at LSTART (with DGSD ≥ 1) the dubbed ratio gets a random error,
+        # ICRI = INT(BACHLO(XCR=ICRI, CRSD(ISPC), RANN)). MEASURED FVSbc_dbfix SkyRanch-Control: CRATET draws 207 RANN
+        # numbers before the calibration DGDRIV (61 ≥2-cm records with no CrRatio); jl drew none ⇒ every later draw shifted.
+        (lstart && dgsd >= 1f0) && (icri = trunc(Int, bachlo(s.rng, Float32(icri), crsd[sp])))
         # canada/bc/crown.f:564 statement 55 — top-killed inventory records re-expressed on the normal
         # height. The sub-2cm records `continue` above, so only this (PCR) path reaches the bounds.
         lstart && (icri = topkill_icri(t, i, icri))

@@ -90,4 +90,14 @@ end
     @test !any(m -> m.col == "PRESENCE" || m.col == "ROWCOUNT" || m.file in ("sum", "FVS_Summary_Metric"), c.ms)
 end
 
+# canada/bc/crown.f:510-512 (V3) LSTART dub: a ≥2-cm record with no crown ratio gets ICRI=INT(BACHLO(ICRI,CRSD(ISPC),RANN))
+# when DGSD ≥ 1, in the species-major IND1 order of DO 70/DO 60. jl drew nothing, so every later RANN draw (calibration
+# DGDRIV, the cycle REGENT ZZRANs) landed on other records. MEASURED FVSbc_dbfix SkyRanch-Control: 207 CRATET draws before
+# the calibration DGDRIV (61 records), the REGENT seed at every cycle now equals live's; 2029 HtG 2919 cells → 4.
+@testset "BC LSTART crown dub random error (canada/bc/crown.f:510-512)" begin
+    c = _case("SkyRanch-Control", "none")
+    @test !c.crashed
+    @test count(m -> m.year == "2029" && m.col == "HtG", c.ms) <= 4
+end
+
 end # module
