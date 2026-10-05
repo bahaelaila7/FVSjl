@@ -959,6 +959,7 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                 # TRAGE=TIME−DELAY): HTIMLT = min(TRAGE,GENTIM)/(GENTIM+1e-4) = 0.99998 for a start-of-cycle PLANT.
                 t.htimlt[n]      = if s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai ||
                                       s.variant isa CentralIdaho ||    # ci/estab.f == estb estab.f; ci/essubh.f the same DELAY/TRAGE rewrite
+                                      s.variant isa EastCascades ||    # ec/estab.f:510-516 (ec/essubh.f:52-58 DELAY→INT(+.5), TRAGE=TIME−DELAY)
                                       s.variant isa Teton || s.variant isa Utah || s.variant isa CentralRockies ||
                                       s.variant isa WestCascades || s.variant isa PacificNorthwest ||   # wc/pn estab.f:508-516
                                       s.variant isa BlueMountains ||   # bm/estab.f:508-516 (bm/essubh.f DELAY→INT(+.5), TRAGE=TIME−DELAY)

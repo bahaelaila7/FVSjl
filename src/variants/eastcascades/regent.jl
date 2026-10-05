@@ -362,10 +362,10 @@ function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 t.dbh[i] = dbh; t.diam_growth[i] = dbh
             end
         end
-        # esgent.f: HT = HT + HTG (WK4 = 1 without CLIMATE), capped at HHTMAX
-        t.ht_growth[i] = htg
-        hn = h + htg; hn > EC_HHTMAX[sp] && (hn = EC_HHTMAX[sp])
-        t.height[i] = hn
+        # ec/esgent.f:51-65: HTG·WK4 (WK4 = HTIMLT, ec/estab.f:510-516,652 — 5/5.0001 for a start-of-cycle PLANT after
+        # ec/essubh.f:52-58 rewrote DELAY/TRAGE), the WK4<1 DBH/DG rescale (DG from the NEW DBH, as written), HHTMAX cap.
+        # MEASURED: every EC plant_cal/plant_cyc case had a QMD 1e-6-rel high (the WK4=1 increment).
+        esgent_finish!(t, i, htg, EC_HHTMAX[sp])
     end
     return s
 end
