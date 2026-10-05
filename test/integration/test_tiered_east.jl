@@ -77,6 +77,10 @@ _cells(ms, file; col = nothing, year = nothing) =
         @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])   # cycle-2 WK2 was 15 ULP off
         @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: SM 2043 Ht2TDBF 1 ULP (r9clark board height)
     end
+    @testset "CS 1813567613290487 salvage — cs/ls fmvinit.f LSW softwoods only in the FMPOCR canopy profile" begin
+        ms = _case("CS", "1813567613290487", "salvage")
+        @test isempty(ms)                                      # oak stand: Canopy_Density 0 / Canopy_Ht −1 like live
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))

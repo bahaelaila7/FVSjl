@@ -452,6 +452,11 @@ const _FM_CANMHT = 6f0
 # 1:25 (ne/fmvinit.f:1151-1156); SN = species 1:17 + 88 (sn/fmvinit.f:1011-1014).
 fm_canopy_lsw(sp::Integer, ::Southern)  = sp <= 17 || sp == 88
 fm_canopy_lsw(sp::Integer, ::Northeast) = sp <= 25
+# CS (cs/fmvinit.f:944-948 CASE(1:7)) and LS (ls/fmvinit.f:789-793 CASE(1:14)): only their softwoods. The `sp<=25`
+# fallback counted CS/LS hardwoods (oaks, hickories, maples, aspen…) as canopy fuel — MEASURED CS 1813567613290487
+# (oaks): live Canopy_Density 0 / Canopy_Ht −1 vs jl 0.0132 / 54.
+fm_canopy_lsw(sp::Integer, ::CentralStates) = sp <= 7
+fm_canopy_lsw(sp::Integer, ::LakeStates) = sp <= 14
 # CR (cr/fmvinit.f:190-425): softwoods = 1:19 + 29:37; HARDWOODS (LSW=FALSE) = aspen/cottonwood/birch
 # 20:22,28,38 + oaks 23:27. Without a CR method the AbstractVariant `sp<=25` fallback wrongly counted aspen
 # (sp20-22)/oak (23-25) crowns into the canopy profile → crown base height floored to ~2 ft → SPURIOUS crown
