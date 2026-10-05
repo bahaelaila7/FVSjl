@@ -656,7 +656,14 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     # .15) → FMBURN (GRADD fire draws an independent XRAN per TRIPLED record) → FMKILL WK2=MAX(MORTS,FIRKIL).
     nrec = t.n
     pre  = Float32[t.tpa[i] for i in 1:nrec]
+    # gradd.f:96 MISTOE's MISMRT (mistoe.f:522) runs after the post-TRIPLE spread, on the tripled full-PROB records and
+    # the POST-spread DMR — not inside MORTS. On a fire tripling cycle (mis_fire) keep MORTS from applying the DM kill
+    # and MAX-combine it into WK2 after the spread below (MEASURED FVSec_g16 1287295274290487 SIMFIRE 2032: WL DMR 4→5,
+    # live kill 13.7% = rate(DMR 5), jl 8.0% = rate(DMR 4) from the pre-spread combine inside MORTS).
+    dm_prev = s.control.dm_mrt_defer
+    mis_fire && (s.control.dm_mrt_defer = true)
     mortality!(s, s.variant; fint = fint, book_snags = false)  # MORTS on the un-tripled stand
+    s.control.dm_mrt_defer = dm_prev
     mk   = _morts_wk2(s, pre, nrec)                            # per-ORIGINAL density+bkgd+cap kill (MORTS WK2 itself)
     @inbounds for i in 1:nrec; t.tpa[i] = pre[i]; end          # restore PROB for the fire pass
     tripled = stash !== nothing
@@ -676,6 +683,15 @@ function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
     if mis_fire
         _dm_spread!(s; fint = fint)
         dm_misinf!(s)
+        # mistoe.f:522 MISMRT → mismrt.f:191 WK2 = MAX(WK2, PROB·rate(post-spread DMR)) on the tripled full-PROB list
+        if _dm_effects_on(s) || s.variant isa CentralRockies
+            @inbounds for c in 1:min(t.n, length(mk))
+                dmr = Int(t.dmr[c]); dmr == 0 && continue
+                pr = t.tpa[c]; pr <= 0f0 && continue
+                wki = pr * _dm_mortality_rate(s, Int(t.species[c]), dmr, t.dbh[c], fint)
+                mk[c] < wki && (mk[c] = wki)
+            end
+        end
     end
     n   = t.n
     pre = Float32[t.tpa[i] for i in 1:n]                       # cycle-start TPA on the (now tripled) set
@@ -1024,10 +1040,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
-    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH/ICR and GRINCR's
-    # TRIPLE, before UPDATE): a non-fire cycle's whole FMMAIN pass (FMCBA, the FFE reports, the annual fuel loop), run on
-    # the TRIPLEd list (`stash`) when the cycle triples.
-    fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
@@ -1061,6 +1073,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH/ICR, GRINCR's
+    # TRIPLE and gradd.f:96 MISTOE, before UPDATE): a non-fire cycle's whole FMMAIN pass (FMCBA, the FFE reports, the annual
+    # fuel loop), run on the TRIPLEd list (`stash`) when the cycle triples. On a mis_post cycle the spread runs post-TRIPLE,
+    # so the pass waits for it there (fmm_late): FMSNAG's FMR6HTLS draws follow the spread's (MEASURED FVSso_g16
+    # 374286168489998 SALVAGE cycle 0: the seam annual loop ran before the spread ⇒ 2025 Standing_Dead 3.243 vs live 3.783).
+    fmm_late = mis_post && fmmain_hook !== nothing
+    fmm_late || fmmain_hook === nothing || fmmain_hook(s, stash)
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
@@ -1097,11 +1116,18 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # list (MEASURED FVSem_g16 196378260020004 2012 FMPTRH: RANNGET 2036729867 = jl's state after the spread, jl ran
     # at 431495394 before it ⇒ PTorch_Mod 0.13873 vs live 0.25494).
     pofl_late = mis_post && pofl_hook !== nothing
+    # The deferred FFE annual loop (fuel_period: FMSNAG/FMCWD/FMCADD, fmmain.f:228) is part of the same gradd.f:118
+    # FMMAIN, so on a mis_post cycle it too waits for MISTOE's spread draws and runs on the tripled full-PROB list:
+    # FMSNAG's FMR6HTLS draws start from the main-stream state AFTER the spread (MEASURED FVSso_g16 374286168489998
+    # SALVAGE cycle 1: live Y 0.61/0.76 = jl's stream 275 spread draws past the pre-TRIPLE seam where jl drew 0.920/0.025).
+    # On a mis_post cycle the post-TRIPLE block runs it (fuel_late); any other non-fire tripling cycle runs it here on the
+    # scratch tripled copy (core-resid-2 8986b2eb).
     pf_fire_cyc = _fire_due(s)          # (fixed before the burn; the burn itself retires the SIMFIRE)
+    fuel_late = mis_post && fuel_period !== nothing
     pf = (carbon_hook !== nothing || fuel_period !== nothing || pofl_hook !== nothing) ?
          (st -> (pofl_hook === nothing || pofl_late || pofl_hook(st, _fire_due(st) ? nothing : stash);
                  carbon_hook === nothing || carbon_hook(st);
-                 fuel_period === nothing ||
+                 fuel_period === nothing || fuel_late ||
                      # FMMAIN's annual loop walks the TRIPLEd list (FMCADD over ITRN after grincr.f:543): a fire cycle is
                      # already tripled here; a non-fire (R6-deferred) tripling cycle runs it on the scratch tripled copy.
                      ((pf_fire_cyc || stash === nothing) ? ffe_fuel_update!(st, fuel_period) :
@@ -1237,7 +1263,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             full_prob = Float32[t.tpa[i] for i in 1:n2]
             _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
+            fmm_late && fmmain_hook(s, nothing)  # gradd.f:118 FMMAIN pass after MISTOE, on the tripled full-PROB list
             pofl_late && pofl_hook(s, nothing)   # gradd.f:118 FMMAIN (FMPOFL) after MISTOE, FMPROB = full PROB
+            fuel_late && ffe_fuel_update!(s, fuel_period)   # fmmain.f:228 annual loop (same FMMAIN), tripled full PROB
             @inbounds for i in 1:nlive
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
                 t.tpa[nlive+2i-1] = full_prob[nlive+2i-1] - wk2_u[i] * 0.25f0
@@ -1270,7 +1298,9 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 _dm_spread!(s; fint = fint)
                 dm_misinf!(s)
             end
+            fmm_late && fmmain_hook(s, nothing)                          # gradd.f:118 FMMAIN pass after MISTOE
             pofl_late && pofl_hook(s, nothing)                           # gradd.f:118 FMMAIN, before :131 RDTREG
+            fuel_late && ffe_fuel_update!(s, fuel_period)                # fmmain.f:228 annual loop (same FMMAIN)
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
             @inbounds for i in 1:nlive                                   # survivors = PROB − WK2 (triple.f WEIGHT split)
                 t.tpa[i]          = full_prob[i]          - wk2_u[i] * 0.60f0
@@ -1500,10 +1530,12 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # For a NON-plant cycle establish! finds no due activity and returns early (engine/establishment.jl:340) with no
     # side effects or RNG draws, so this reordering is INERT outside the plant/natural regime — the certified `none`
     # floor and the ie_autoes RNG stream are unchanged.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai) && ie_autoes_establish!(s; fint = fint)   # KT: the same estb estab/esnutr (kt es* = ie first 11 species)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa CentralIdaho) &&
+        ie_autoes_establish!(s; fint = fint)   # KT: the same estb estab/esnutr (kt es* = ie first 11 species); CI: estb estab.f/esnutr.f (no-stocking default)
     # ESTAB site-prep status for the non-AUTOES variants' PLANT/NATURAL catch-all ESTAB call (esnutr.f) — bookkeeping
     # only (ECON MECHCST/BURNCST); IE/EM record it inside ie_autoes_establish!.
-    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska) || estab_prep_esnutr!(s)
+    (s.variant isa InlandEmpire || s.variant isa EasternMontana || s.variant isa Kootenai || s.variant isa SoutheastAlaska ||
+     s.variant isa CentralIdaho) || estab_prep_esnutr!(s)
     # BM REGENT(LESTB) reads RELDEN/AVH from the GRADD DENSE that precedes ESNUTR (gradd.f UPDATE→DENSE→ESNUTR):
     # post-growth, PRE-regen. establish! recomputes density WITH the new seedlings, so snapshot it here.
     es_bm_relden_pre, es_bm_avh_pre = (s.variant isa BlueMountains || s.variant isa EastCascades) ?
@@ -1524,7 +1556,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         avh_pre = es_wc_avh, ptba_pre = es_wc_ptba, pccf_pre = es_wc_pccf)   # WC: wc/esgent.f → REGENT(LESTB)
     s.variant isa EastCascades && ec_esgent!(s, es_nstart; fint = fint,
         atavh = es_at_avh, atrelden = es_at_relden,
-        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
+        relden_pre = es_bm_relden_pre, avh_pre = es_bm_avh_pre, pccf_pre = es_pccf_pre)   # EC western: grow birth-cycle regen (ec/esgent.f)
     s.variant isa EasternMontana && em_esgent!(s, es_nstart; fint = fint,
         atba = es_at_ba, atccf = es_at_relden, atavh = es_at_avh,
         relden_pre = es_em_relden_pre, ba_pre = es_em_ba_pre, pccf_pre = es_em_pccf_pre)   # EM: em/esgent.f -> REGENT(LESTB) (#137)
@@ -1556,7 +1588,10 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     # took the morts.f `WK1.EQ.0 ⇒ G=DG/(BARK·10)` vigor branch (e.g. bare PLANT stand: a seedling past 4.5 ft
     # got RIPP 0.00024 vs live 0.0104 ⇒ ~40× under-kill). Copy for the new IE records now.
     # TT morts reads WK1 too (teton/mortality.jl) ⇒ the same copy for its birth-cycle DG (tt_esgent!).
-    if s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Kootenai   # KT: kt/dgdriv.f WK1=DG, kt/morts.f reads it
+    # CI: ci/dgdriv.f:169-172 WK1(I)=DG(I), read by ci/morts.f:315-325 (MEASURED FVSci_g16 3159852010690 PLANT: ESGENT leaves
+    # the 2002 DF records DG 0.68 = WK1 at the 2012 MORTS, 0.509 of 8 TPA dying vs jl's WK1=0 override branch 0.153).
+    if s.variant isa InlandEmpire || s.variant isa Teton || s.variant isa Kootenai ||   # KT: kt/dgdriv.f WK1=DG, kt/morts.f reads it
+       s.variant isa CentralIdaho
         @inbounds for i in (es_nstart + 1):s.trees.n
             s.trees.dg_prev[i] = s.trees.diam_growth[i]
         end

@@ -288,9 +288,14 @@ stand: 2002 BA 0 vs live 22).
 """
 function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                     atavh::Float32 = -1.0f0, atrelden::Float32 = -1.0f0,
-                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0)
+                    relden_pre::Float32 = -1.0f0, avh_pre::Float32 = -1.0f0,
+                    pccf_pre::Vector{Float32} = Float32[])
     p, t, c = s.plot, s.trees, s.calib
     nstart >= t.n && return s
+    # ec/regent.f:285 PCCF(IPCCF) is the gradd.f:192 DENSE point CCF (post-UPDATE, before ESTAB adds the new records);
+    # establish! has since recomputed s.density.point_ccf WITH the seedlings. A crown at an INT(CR·100+0.5) tie then
+    # flips (MEASURED FVSec_g16 374300286489998 PLANT 2025: one DF record ICR 86 live / 85 jl ⇒ VIGOR ⇒ HtG 1.681/1.709).
+    pccfv = isempty(pccf_pre) ? s.density.point_ccf : pccf_pre
     sd = s.coef.species
     relden = relden_pre >= 0f0 ? relden_pre : p.relative_density
     avh = avh_pre >= 0f0 ? avh_pre : p.avg_height
@@ -316,7 +321,7 @@ function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
         while true
             ran = bachlo(s.rng, 0f0, 1f0); (-1f0 <= ran <= 1f0) && break
         end
-        pccf = s.density.point_ccf[Int(t.plot_id[i])]
+        pccf = pccfv[Int(t.plot_id[i])]
         cr0 = 0.89722f0 - 0.0000461f0 * pccf + 0.07985f0 * ran
         cr0 > 0.90f0 && (cr0 = 0.90f0); cr0 < 0.20f0 && (cr0 = 0.20f0)
         icr0 = trunc(Int32, cr0 * 100f0 + 0.5f0)
@@ -362,10 +367,10 @@ function ec_esgent!(s::StandState, nstart::Int; fint::Float32 = 10.0f0,
                 t.dbh[i] = dbh; t.diam_growth[i] = dbh
             end
         end
-        # esgent.f: HT = HT + HTG (WK4 = 1 without CLIMATE), capped at HHTMAX
-        t.ht_growth[i] = htg
-        hn = h + htg; hn > EC_HHTMAX[sp] && (hn = EC_HHTMAX[sp])
-        t.height[i] = hn
+        # ec/esgent.f:51-65: HTG·WK4 (WK4 = HTIMLT, ec/estab.f:510-516,652 — 5/5.0001 for a start-of-cycle PLANT after
+        # ec/essubh.f:52-58 rewrote DELAY/TRAGE), the WK4<1 DBH/DG rescale (DG from the NEW DBH, as written), HHTMAX cap.
+        # MEASURED: every EC plant_cal/plant_cyc case had a QMD 1e-6-rel high (the WK4=1 increment).
+        esgent_finish!(t, i, htg, EC_HHTMAX[sp])
     end
     return s
 end

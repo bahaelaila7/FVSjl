@@ -3106,7 +3106,12 @@ function rd_cycle_start!(s::StandState)
     # calibration stash — a MEASURED increment (DG>0, HT>4.5; inside-bark after the IDG=1/3 DO-105 BRATIO) is KEPT,
     # only the unmeasured records get the DGF dub. (The old dub-only overwrite in diameter_growth! replaced measured
     # DG too: FVSbm_g16 177426703020004 rootdis 2022 Live_Merch_CuFt live 14.767031, jl 7.051225 ⇒ 14.767029.)
-    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire) ? t.dg_prev :
+    # TT/CI: cycle 1's WK1 is likewise the DO-220 DG the calibration left (tt|ci/dgdriv.f WK1(I)=DG(I); 0 at HT<=4.5), which
+    # simulate.jl loads into dg_prev (tt_do220_dg/ci_do220_dg) just before this; t.diam_growth still holds the input DG, -1 for
+    # a missing increment (MEASURED FVStt_g16 1856089798290487 rootdis: a 1.01-ft LP seedling at 1349 TPA carried WK1=-1 ⇒
+    # Live_Merch_CuFt -1109.86 jl vs 10.205 live).
+    _do220_c0 = (s.variant isa Teton || s.variant isa CentralIdaho) && Int(s.control.cycle) == 0 && length(t.dg_prev) >= n
+    wsrc = (s.variant isa EasternMontana || s.variant isa InlandEmpire || _do220_c0) ? t.dg_prev :
            (s.variant isa BlueMountains && Int(s.control.cycle) == 0) ? bm_cycle0_dg(s) : t.diam_growth
     rd.wk1 = Float32[(i <= m ? wsrc[i] : 0.0f0) for i in 1:n]
     return

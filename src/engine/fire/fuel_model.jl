@@ -738,7 +738,7 @@ function cr_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     lcundr = (usba[3] + usba[4] + usba[5] + usba[6] + usba[7]) > 1f0
     avgdbh = sumtpa > 1f-6 ? sumd / sumtpa : 0f0
     qmd = sumtpa > 1f-6 ? sqrt(sumd2 / sumtpa) : 0f0
-    stndba = sum(ctba)
+    stndba = 0f0; @inbounds for k in eachindex(ctba); stndba += ctba[k]; end   # fmcfmd.f:327-330 left-to-right (Base.sum reassociates)
     # dominant cover-type metagroup: first > 50% BA, else mixed conifer (MCCT=7) (fmcfmd.f:331-343); with no trees /
     # no BA the PREVIOUS call's ICT (OLDICT — fmvinit.f initialises it to 6, lodgepole). jl used MCCT on bare stands
     # (MEASURED FVStt_g16 3333677010690 1992: live ICT 6 ⇒ FMD 2, jl ICT 7 ⇒ FMD 8; flame 12.7 / 1.97).
@@ -1069,11 +1069,18 @@ function ci_select_fuel_models(s::StandState, mois::AbstractMatrix{Float32}, sm:
     eqwt = zeros(Float32, _FMD_ICLSS)
     icindx = Int(s.plot.habitat_input); ict = ci_pvg(icindx)
     # PRLONG: BA-fraction in sp {1,10} (long-needle pines). FMTBA = per-species BA (ci/fmcba.f uses 0.0054542·D²·TPA).
-    prlong = 0f0; stndba = 0f0
+    # ci/fmcba.f:332 FMTBA(KSP) += FMPROB·DBH·DBH·0.0054542 per record, then ci/fmcfmd.f:124-132 STNDBA/PRLONG sum
+    # FMTBA over SPECIES 1..MAXSP (not per record) — the Float32 association of the BM fix (bm/fmcfmd.f:130).
+    fmtba = zeros(Float32, nspecies(s.variant))
     @inbounds for i in 1:t.n
         t.tpa[i] > 0f0 || continue
-        x = t.tpa[i] * t.dbh[i]^2 * 0.0054542f0; stndba += x
-        (t.species[i] == 1 || t.species[i] == 10) && (prlong += x)
+        sp = Int(t.species[i]); (1 <= sp <= length(fmtba)) || continue
+        fmtba[sp] += t.tpa[i] * t.dbh[i] * t.dbh[i] * 0.0054542f0
+    end
+    prlong = 0f0; stndba = 0f0
+    @inbounds for sp in 1:length(fmtba)
+        stndba += fmtba[sp]
+        (sp == 1 || sp == 10) && (prlong += fmtba[sp])
     end
     prlong = (prlong > 0.01f0 && stndba > 0.01f0) ? prlong / stndba : 0f0
     alg(v, x1, x2) = _cr_algslp2(Float32(v), Float32(x1), Float32(x2), 0f0, 1f0)   # ALGSLP(v,[x1,x2],[0,1])

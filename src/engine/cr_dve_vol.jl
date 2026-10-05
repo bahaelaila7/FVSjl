@@ -100,26 +100,28 @@ function cr_dve_vol(voleq::AbstractString, d::Float32, h::Float32; unt::Int = 1,
         gcuft4 = entire - um4; twvol = um6 - um4
         scbdft *= 0.932f0
     elseif spc == "060" || spc == "106" || spc == "800" || spc == "999"   # WOODLAND (VOLEQU(2:3)="00" ⇒ INT-391)
+        # r3d2hv.f:320-328/365/428-435/455-461 write the square term as (C*D2HA*D2HA) = (C·D2HA)·D2HA — not C·D2HA²
+        # (MEASURED FVScr_clean 742164474290487 300DVEW060 OJ TCuFt 1-ULP, mixed sign, 40 cells).
         if d > 3.0f0 || drc > 3.0f0
             drc > 0f0 && (d2h = drc * drc * h)
             d2ha = d2h / 1000.0f0
             if spc == "060"
                 bp = 6.0f0
                 gcuft4 = fclass != 1 ?
-                    (d2ha <= bp ? -0.129f0 + 2.0255f0 * d2ha + 0.1011f0 * d2ha^2 : 10.786f0 + 2.0255f0 * d2ha - 43.663f0 / d2ha) :
-                    (d2ha <= bp ? -0.032f0 + 2.1076f0 * d2ha + 0.1454f0 * d2ha^2 : 15.675f0 + 2.1076f0 * d2ha - 62.827f0 / d2ha)
+                    (d2ha <= bp ? -0.129f0 + 2.0255f0 * d2ha + (0.1011f0 * d2ha) * d2ha : 10.786f0 + 2.0255f0 * d2ha - 43.663f0 / d2ha) :
+                    (d2ha <= bp ? -0.032f0 + 2.1076f0 * d2ha + (0.1454f0 * d2ha) * d2ha : 15.675f0 + 2.1076f0 * d2ha - 62.827f0 / d2ha)
             elseif spc == "106"                                # no FCLASS branch, bp=3
-                gcuft4 = d2ha <= 3.0f0 ? -0.060f0 + 2.5139f0 * d2ha + 0.1466f0 * d2ha^2 :
+                gcuft4 = d2ha <= 3.0f0 ? -0.060f0 + 2.5139f0 * d2ha + (0.1466f0 * d2ha) * d2ha :
                                           3.898f0 + 2.5139f0 * d2ha - 7.917f0 / d2ha
             elseif spc == "800"
                 bp = 4.0f0
                 gcuft4 = fclass != 1 ?
-                    (d2ha <= bp ? -0.028f0 + 1.9545f0 * d2ha + 0.1400f0 * d2ha^2 : 6.691f0 + 1.9545f0 * d2ha - 17.918f0 / d2ha) :
-                    (d2ha <= bp ? -0.068f0 + 2.4048f0 * d2ha + 0.1383f0 * d2ha^2 : 6.571f0 + 2.4048f0 * d2ha - 17.704f0 / d2ha)
+                    (d2ha <= bp ? -0.028f0 + 1.9545f0 * d2ha + (0.1400f0 * d2ha) * d2ha : 6.691f0 + 1.9545f0 * d2ha - 17.918f0 / d2ha) :
+                    (d2ha <= bp ? -0.068f0 + 2.4048f0 * d2ha + (0.1383f0 * d2ha) * d2ha : 6.571f0 + 2.4048f0 * d2ha - 17.704f0 / d2ha)
             else                                               # 999 (mesquite/default), bp=2
                 gcuft4 = fclass != 1 ?
-                    (d2ha <= 2.0f0 ? 0.020f0 + 1.8972f0 * d2ha + 0.5756f0 * d2ha^2 : 6.927f0 + 1.8972f0 * d2ha - 9.210f0 / d2ha) :
-                    (d2ha <= 2.0f0 ? -0.043f0 + 2.3378f0 * d2ha + 0.8024f0 * d2ha^2 : 9.586f0 + 2.3378f0 * d2ha - 12.839f0 / d2ha)
+                    (d2ha <= 2.0f0 ? 0.020f0 + 1.8972f0 * d2ha + (0.5756f0 * d2ha) * d2ha : 6.927f0 + 1.8972f0 * d2ha - 9.210f0 / d2ha) :
+                    (d2ha <= 2.0f0 ? -0.043f0 + 2.3378f0 * d2ha + (0.8024f0 * d2ha) * d2ha : 9.586f0 + 2.3378f0 * d2ha - 12.839f0 / d2ha)
             end
         else
             gcuft4 = spc == "800" ? 0.1f0 : 0.0f0              # 800 floors to 0.1 (FIA match), others 0
