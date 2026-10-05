@@ -95,7 +95,7 @@ end
 _stored_crwdth(v) = v isa InlandEmpire || v isa EasternMontana || v isa SoutheastAlaska || v isa Kootenai ||
                     v isa WestSierra || v isa CentralCalifornia || v isa PacificNorthwest || v isa WestCascades ||
                     v isa SouthCentralOregon || v isa CentralRockies || v isa CentralIdaho || v isa EastCascades ||
-                    v isa Utah || v isa Teton || v isa Klamath
+                    v isa Utah || v isa Teton || v isa Klamath || v isa BlueMountains
 
 """
     cwidth!(s) -> s

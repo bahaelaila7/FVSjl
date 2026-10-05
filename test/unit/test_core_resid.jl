@@ -468,3 +468,28 @@ end
         @test _cr_f32(jd[parse(Int, g["Year"])][c]) == _cr_f32(g[c])
     end
 end
+
+# Compare every cell of `tables` for one tiered case against its live golden (Float32 bits); returns the mismatch count.
+function _cr_case_mismatches(v, cn, rg, tables)
+    db = _cr_run(v, cn, rg); nbad = 0
+    for tb in tables
+        gold, jl = _cr_table(v, cn, rg, db, tb)
+        length(gold) == length(jl) || (nbad += 1; continue)
+        key(r) = (string(r["Year"]), string(get(r, "Removal_Code", "")))
+        jd = Dict(key(r) => r for r in jl)
+        for g in gold, (c, x) in g
+            r = get(jd, key(g), nothing); r === nothing && (nbad += 1; continue)
+            (c in ("StandID", "CaseID") || !haskey(r, c)) && continue
+            y = r[c]
+            gx = tryparse(Float64, x)
+            gx === nothing ? (string(y) == x || (nbad += 1)) : (_cr_f32(y) == Float32(gx) || (nbad += 1))
+        end
+    end
+    return nbad
+end
+
+@testset "BM 12827438010497 thinbba FVS_StrClass: SSTAGE WK6 = the stored CRWDTH (bm sstage.f:238/276, cwidth.f)" begin
+    # The after-thin SSTGHP crown areas are the last CWIDTH call's (pre-thin BA); a recompute on the residual BA put records
+    # 1/2's WK4 717.31/717.59 in the other order ⇒ the 70th-percentile window ⇒ Stratum_1_DBH 28.502727 vs live 28.502726.
+    @test _cr_case_mismatches("bm", "12827438010497", "thinbba", ("FVS_StrClass",)) == 0
+end
