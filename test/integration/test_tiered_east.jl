@@ -59,6 +59,13 @@ _cells(ms, file; col = nothing, year = nothing) =
         # 6.21 vs 3.69; CS snag boles likewise ⇒ Standing_Dead / Forest_Down_Dead_Wood
         @test isempty(_cells(ms, "FVS_Carbon"))
     end
+    @testset "LS 301218549489998 plant_cal — {ls,cs,ne}/regent.f REGENT(LESTB) + esgent.f WK4=HTIMLT" begin
+        ms = _case("LS", "301218549489998", "plant_cal")
+        # planted RN (2024): LESTB BALMOD on the post-growth overstory BA 131.57 (was the stale 62.4), HTG·WK4 (0.99998),
+        # TreeList HtG/DG = the ESGENT values ⇒ the whole projection matches live
+        @test isempty(_cells(ms, "sum"))
+        @test isempty(_cells(ms, "FVS_Summary"))
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))

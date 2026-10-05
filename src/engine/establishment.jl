@@ -956,7 +956,9 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
                                       s.variant isa Olympic ||  # op/estab.f == wc's (0.99998 for a PLANT); inert until OP ESGENT exists
                                       s.variant isa SouthCentralOregon || s.variant isa WestSierra ||   # so/ws/ca/oc estab.f == wc's
                                       s.variant isa CentralCalifornia || s.variant isa OregonCoast ||   # (:516); bc/estab.f:526 the same
-                                      s.variant isa BritishColumbia || s.variant isa Klamath   # nc estab.f = strp's
+                                      s.variant isa BritishColumbia || s.variant isa Klamath ||   # nc estab.f = strp's
+                                      s.variant isa CentralStates || s.variant isa LakeStates ||   # {cs,ls,ne}/estab.f:508-520 after
+                                      s.variant isa Northeast       # {cs,ls,ne}/essubh.f DELAY→INT(+.5)≥−3, TRAGE=TIME−DELAY
                     _pd = Float32(clamp(delay, -3, per))
                     _pgen = (Float32(per) - _pd) < 5f0 ? 0f0 : Float32(per) - _pd - 5f0
                     min(Float32(per) - _pd, _pgen) / (_pgen + 0.0001f0)
@@ -1108,7 +1110,10 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             # RMSQD≈0 ⇒ ls_balmod omega=b4/gm≈1 and AVH=0 ⇒ no competition suppression (live FVSls GMOD=1).
             lcheck_e = sd[:balmod_check]; lb1_e = sd[:balmod_b1]; lb2_e = sd[:balmod_b2]; lb3_e = sd[:balmod_b3]
             lb4_e = sd[:balmod_b4]; lc1_e = sd[:balmod_c1]; lc2_e = sd[:balmod_c2]; lbamax_e = sd[:balmod_bamax1]
-            avh_e = s.plot.avg_height; ba_e = s.plot.basal_area; rmsqd_e = rmsqd_pre  # pre-establishment RMSQD (DENSE)
+            # ls/regent.f LESTB BALMOD(ISPC,D,BA,RMSQD,…) + RELHTA=HT/AVH read the POST-growth overstory BA/AVH (the same
+            # snapshot as CS, not the stale cycle-start plot.*): MEASURED live FVSls 301218549489998 plant 2024 RN:
+            # REGENT(LESTB) BA=131.574 (jl plot.basal_area 62.375 ⇒ GMOD 0.639 vs 0.505 ⇒ planted HT 12.59 vs 11.30).
+            avh_e = ov_avh_pre; ba_e = ov_ba_pre; rmsqd_e = rmsqd_pre  # pre-establishment RMSQD (DENSE)
             scale_e = per > 5 ? Float32(per - 5) / 10f0 : 0f0   # FNT/REGYR, REGYR=10 (CON=HGADJ=XRHGRO=1)
             rdiam_e = sd[:htdbh_db]
             rnd_e = s.control.dg_stddev_bound >= 1f0
@@ -1143,101 +1148,58 @@ function establish!(s::StandState; fint::Float32 = 5f0, pccf_pre::Union{Nothing,
             icr0 = floor(Int32, cr * 100f0 + 0.5f0)
             t.crown_pct[i]   = icr0
             t.crown_ratio[i] = Float32(icr0)
-            if ne_estab                                        # REGENT(LESTB) height growth + new DBH
+            if ne_estab || cs_estab || ls_estab                # REGENT(LESTB) (+ ESGENT) for the new record
+                # {ne,cs,ls}/regent.f LESTB: CR dub (above), HTG over FNT=FINT−5 (LSKIPH ⇒ HTG=0 when FINT≤5, no draw),
+                # SIZCAP(·,4) cap, HK=H+HTG; HK≤4.5 ⇒ DG=0, DBH=D+0.001·HK (:291-294), else DBH=HTDBH⁻¹(HK) floored to DIAM,
+                # +0.001·HK, DG=DBH (:337-341); DGBND (:390). Then ESGENT (esgent.f:50-66): HTG·=WK4(=HTIMLT), HT+=HTG,
+                # WK4<1 rescales DBH/DG, HT capped at HHTMAX. MEASURED live FVSls 301218549489998 (plant 2024): WK4=0.99998
+                # ⇒ HtG 3.735136 = REGENT HTGR 3.735211·WK4; TreeList DG=DBH.
                 sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
-                # XRHGRO = REGHMULT (regent.f HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO); the LESTB path must apply
-                # it too (was hardcoded 1 ⇒ REGHMULT ignored for the establishment cohort, mult_reghmult diverged).
-                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))
-                if ne_htcalc_htmax(sp, si) - h <= 1f0
-                    htgr = 0.1f0
+                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))   # REGHMULT (regent.f HTGR·XRHGRO)
+                if per <= 5                                    # LSKIPH: HTG(K)=0 and GO TO 4 (no BALMOD, no RAN draw)
+                    htgr = 0f0
                 else
-                    # regent.f:224 HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO — the LESTB path must apply CON =
-                    # exp(htg_cor_small) (= RHCON·exp(HCOR)) too, as NE small_tree_growth.jl:48 does. It was OMITTED
-                    # here ⇒ planted seedlings over-grew (WP: CON=0.914, live rawHTGR 7.98 vs jl 8.73; live-stamped).
-                    htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) *
-                           fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
-                end
-                gmod = ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
-                relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
-                htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
-                if rnd_e
-                    rh = 0f0
-                    while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
-                    htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
+                    htmax_e = ne_estab ? ne_htcalc_htmax(sp, si) : cs_estab ? cs_htcalc_htmax(sp, si) : ls_htcalc_htmax(sp, si)
+                    if htmax_e - h <= 1f0                      # HTMAX−H ≤ 1 ⇒ HTGR=0.1
+                        htgr = 0.1f0
+                    elseif ne_estab
+                        # regent.f:224 HTGR = HTCALC·CON·SCALE·HGADJ·XRHGRO, CON = exp(htg_cor_small) (= RHCON·exp(HCOR))
+                        htgr = ne_htcalc_incr(sp, si, ne_htcalc_age(sp, si, h)) *
+                               fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
+                    elseif cs_estab
+                        htgr = cs_htcalc_incr(sp, si, cs_htcalc_age(sp, si, h)) * scale_e * xrhgro
+                    else
+                        htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) *
+                               fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
+                    end
+                    gmod = if ne_estab
+                        ne_balmod(b3_e[sp], ebau_e, t.dbh[i])
+                    elseif cs_estab
+                        # regent.f:156 BAL=(1-PCT/100)·BA; a new seedling (D=0.1) is the smallest ⇒ PCT≈0 ⇒ BAL≈BA
+                        cs_balmod(cb1_e[sp], cb2_e[sp], cb3_e[sp], ba_e, ba_e, t.dbh[i])
+                    else
+                        ls_balmod(sp, t.dbh[i], ba_e, rmsqd_e, lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e)
+                    end
+                    relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
+                    htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
+                    if rnd_e
+                        rh = 0f0
+                        while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
+                        htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
+                    end
+                    (h + htgr) > s.control.sp_size_cap[sp, 4] && (htgr = max(s.control.sp_size_cap[sp, 4] - h, 0.1f0))
                 end
                 hk = h + htgr
-                # DBH is derived from the UNCAPPED grown height (the HHTMAX clamp below only bounds the
-                # REPORTED height, not the diameter — live YB: dbh from the grown ~23.5 ⇒ 1.8, height clamped
-                # to HHTMAX 22). Computing dbh from the clamped height under-sized it (SDI/CCF dropped).
-                if hk <= 4.5f0                       # regent.f:290-293: DG=0, DBH=D+0.001·HK (no Wykoff inverse)
-                    t.dbh[i] = t.dbh[i] + 0.001f0 * hk
-                else
-                    dnew = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast); dnew < 0.1f0 && (dnew = 0.1f0)
-                    dnew < rdiam_e[sp] && (dnew = rdiam_e[sp])
-                    t.dbh[i] = dnew + 0.001f0 * hk
-                end
-                hk > _NE_ES_HHTMAX[sp] && (hk = _NE_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
-                t.height[i] = hk
-            elseif cs_estab                                    # CS REGENT(LESTB) height growth + new DBH
-                sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
-                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))   # REGHMULT (was hardcoded 1)
-                if cs_htcalc_htmax(sp, si) - h <= 1f0          # HTMAX−H ≤ 1 ⇒ HTG=0.1 (cs/regent.f:206)
-                    htgr = 0.1f0
-                else
-                    htgr = cs_htcalc_incr(sp, si, cs_htcalc_age(sp, si, h)) * scale_e * xrhgro
-                end
-                # regent.f:156 BAL=(1-PCT/100)·BA, PCT=BA-percentile. A new seedling (D=0.1) is the smallest ⇒
-                # PCT≈0 ⇒ BAL≈full overstory BA (live BAL=134.1=BA). crown_ratio was a wrong proxy (gave ~0.5·BA).
-                bal = ba_e
-                gmod = cs_balmod(cb1_e[sp], cb2_e[sp], cb3_e[sp], bal, ba_e, t.dbh[i])
-                relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
-                htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
-                if rnd_e
-                    rh = 0f0
-                    while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
-                    htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
-                end
-                hk = h + htgr
-                # CS LESTB dbh (cs/regent.f:338-341): DBH = htdbh⁻¹(hk), floored to DIAM (or DIAM if hk<4.5),
-                # THEN + 0.001·hk. (The htdbh inverse needs hk>4.5; for hk<4.5 the DIAM floor applies first.)
-                if hk < 4.5f0
-                    dbhk = rdiam_e[sp]
+                if hk <= 4.5f0
+                    dgk = 0f0; dbhk = t.dbh[i] + 0.001f0 * hk
                 else
                     dbhk = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast)
                     dbhk < rdiam_e[sp] && (dbhk = rdiam_e[sp])
+                    dbhk += 0.001f0 * hk; dgk = dbhk
                 end
-                t.dbh[i] = dbhk + 0.001f0 * hk
-                hk > _CS_ES_HHTMAX[sp] && (hk = _CS_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
-                t.height[i] = hk
-            elseif ls_estab                                    # LS REGENT(LESTB) height growth + new DBH
-                sp = Int(t.species[i]); h = t.height[i]; si = s.plot.sp_site_index[sp]
-                xrhgro = active_multiplier(s.control, :regh, sp, Int(yr))
-                if ls_htcalc_htmax(sp, si) - h <= 1f0
-                    htgr = 0.1f0
-                else
-                    # regent.f:224 CON = exp(htg_cor_small) (= RHCON·exp(HCOR)), as LS small_tree_growth.jl:40 applies.
-                    # Was omitted here (inert for JP where CON≈1, but a latent bug for CON≠1 species — cf. the NE fix).
-                    htgr = ls_htcalc_incr(sp, si, ls_htcalc_age(sp, si, h)) *
-                           fexp(s.calib.htg_cor_small[sp]) * scale_e * xrhgro
-                end
-                gmod = ls_balmod(sp, t.dbh[i], ba_e, rmsqd_e, lcheck_e, lb1_e, lb2_e, lb3_e, lb4_e, lc1_e, lc2_e, lbamax_e)
-                relht = avh_e > 0f0 ? min(h / avh_e, 1f0) : 0f0
-                htgr = max(htgr * (1f0 - (1f0 - gmod) * (1f0 - relht)), 0.1f0)
-                if rnd_e
-                    rh = 0f0
-                    while true; rh = bachlo(s.rng, 0f0, 1f0); -1f0 <= rh <= 1f0 && break; end
-                    htgr = max(htgr + rh * 0.1f0 * htgr, 0.1f0)
-                end
-                hk = h + htgr
-                if hk < 4.5f0                       # ls/regent.f LESTB dbh: DIAM floor (or htdbh⁻¹), + 0.001·hk
-                    dbhk = rdiam_e[sp]
-                else
-                    dbhk = _htdbh_dbh(sd, sp, hk, ifor; isne = s.variant isa Northeast)
-                    dbhk < rdiam_e[sp] && (dbhk = rdiam_e[sp])
-                end
-                t.dbh[i] = dbhk + 0.001f0 * hk
-                hk > _LS_ES_HHTMAX[sp] && (hk = _LS_ES_HHTMAX[sp])   # HARD HHTMAX clamp on the REPORTED height
-                t.height[i] = hk
+                t.dbh[i] = dbhk
+                t.diam_growth[i] = dg_bound(nothing, nothing, sp, dbhk, dgk, s.control.sp_size_cap)
+                esgent_finish!(t, i, htgr, ne_estab ? _NE_ES_HHTMAX[sp] : cs_estab ? _CS_ES_HHTMAX[sp] : _LS_ES_HHTMAX[sp])
             end
         end
         # ESGENT calls SPESRT to RE-ESTABLISH the species-order sort after adding
