@@ -187,4 +187,15 @@ end
     end
 end
 
+# OC FFE runs on the PRE-growth stand: organon_apply_growth! grows DBH/HT/CR inline, but FVS's FMMAIN (FMBURN/FMEFF/FMCBA) runs in
+# GRADD before UPDATE (live DEBUG FMEFF 30193600010497 2013: DBH 7.87 / HT 56.8 vs jl 8.65 / 65.5 ⇒ PMORT 0.588 vs 0.329), and its
+# crown cover reads the stored CRWDTH (PERCOV 14.603 live). Before: .sum Mort 2013 44 vs 76, 239 mismatches; after: only FVS_Carbon.
+@testset "OC FFE sees the cycle-start stand + stored CRWDTH (simfire)" begin
+    c = _case("OC", "30193600010497", "simfire")
+    @test !c.crashed
+    for f in ("sum", "FVS_Summary", "FVS_Mortality", "FVS_BurnReport", "FVS_PotFire")
+        @test _n(c.ms; file = f) == 0
+    end
+end
+
 end # module

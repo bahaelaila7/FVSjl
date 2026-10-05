@@ -660,7 +660,35 @@ not both summed (fmkill.f:86); the EXCESS density kill over the fire kill is boo
 Factored out of `grow_cycle!` so the fire half can also be driven from the report path at the FVS
 sample phase (FMBURN before FMCRBOUT/annual loop) — see docs/audit/BACKLOG.md item 8 (#28).
 """
-function mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
+# OC's ORGANON hook (organon_apply_growth!) applies DBH/HT/CR growth INLINE, so by the time FFE runs the stand is already
+# post-growth; in FVS, FMMAIN (FMBURN/FMEFF, FMCBA, the annual fuel loop) runs inside GRADD BEFORE UPDATE grows the trees
+# (MEASURED live FVSoc DEBUG FMEFF 30193600010497 2013: DBH 7.87 / HT 56.8, jl saw 8.65 / 65.5 ⇒ PMORT 0.329 vs 0.588).
+# Swap the cycle-start DBH/HT/ICR in for the FFE pass and restore the grown values after; a record whose crown FMKILL handed
+# back (ICR=-FMICR, crown_bypass) keeps the fire value (crown.f:233-236 bypasses the ORGANON CR2 for it).
+function mortality_and_fire!(s::StandState; kwargs...)
+    c = s.calib; t = s.trees
+    if !(s.variant isa OregonCoast) || length(c.oc_dbh0) != t.n || length(c.oc_ht0) != t.n
+        return _mortality_and_fire!(s; kwargs...)
+    end
+    n = t.n
+    gd = copy(view(t.dbh, 1:n)); gh = copy(view(t.height, 1:n)); gc = copy(view(t.crown_pct, 1:n))
+    @inbounds for i in 1:n
+        t.dbh[i] = c.oc_dbh0[i]; t.height[i] = reinterpret(Float32, c.oc_ht0[i]); t.crown_pct[i] = c.oc_cr0[i]
+    end
+    try
+        return _mortality_and_fire!(s; kwargs...)
+    finally
+        if t.n == n
+            byp = s.fire === nothing ? Int32[] : s.fire.crown_bypass
+            @inbounds for i in 1:n
+                t.dbh[i] = gd[i]; t.height[i] = gh[i]
+                (length(byp) == n && byp[i] != 0) || (t.crown_pct[i] = gc[i])
+            end
+        end
+    end
+end
+
+function _mortality_and_fire!(s::StandState; fint::Float32 = 5f0,
                              stash = nothing,
                              post_fire::Union{Nothing,Function} = nothing,
                              book_snags::Bool = true,

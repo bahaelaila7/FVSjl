@@ -701,6 +701,8 @@ mutable struct Calibration
                                      # grincr.f:283 OLDBA (pre-CUTS stand BA)=[12], last cycle managed by dgdriv.f:304-327=[13], cycle OLDBA latched=[14])
     organon_msdi::Vector{Float32}    # RVARS(3:5) = the ORGANON max-SDI inputs MSDI_1/2/3, loaded ONCE by {oc,op}/sitset.f
                                      # (`IF(RVARS(k).EQ.0.)`) from SDIDEF BEFORE cratet's SDICHK can raise SDIDEF; empty ⇒ unset
+    oc_ht0::Vector{Int32}            # OC: each record's START-of-cycle HT bits / ICR for the FFE pass (FMMAIN reads PRE-growth dims):
+    oc_cr0::Vector{Int32}            #     [ht0 as Float32 bits via reinterpret, crown_pct at cycle start]
     oc_dbh0::Vector{Float32}         # OC: each record's START-of-cycle DBH (organon_apply_growth! grows DBH inline in the
                                      # DG driver; GRADD's MISTOE/MISMRT reads the pre-UPDATE DBH)
     # FVS_CalibStats (dgdriv.f, DBSCALIB): the LARGE-tree DG-calibration sample stats, captured during the DGSCOR
@@ -771,6 +773,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     zeros(Float32, 6),                                               # organon_stor (ORGANON STOR)
     zeros(Float32, 14),                                              # organon_thin (YST/BART/BABT/OLDBA/last cycle)
     Float32[],                                                       # organon_msdi (RVARS 3-5)
+    Int32[], Int32[],                                                # oc_ht0 (HT bits), oc_cr0 (ICR) at cycle start
     Float32[],                                                       # oc_dbh0 (OC start-of-cycle DBH)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
     zeros(Float32,MAXSP),                                            # cal_cortem (CalibStats ScaleFactor)

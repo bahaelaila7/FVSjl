@@ -96,6 +96,8 @@ function organon_apply_growth!(s::StandState; msdi::Float32 = 0f0, cyclg::Int = 
     _, _mdgp, _, _mmaxsp = _mis_tables(s.variant)
     sizcap = s.control.sp_size_cap
     dbh0 = s.calib.oc_dbh0; resize!(dbh0, t.n)
+    ht0 = s.calib.oc_ht0; cr0 = s.calib.oc_cr0; resize!(ht0, t.n); resize!(cr0, t.n)
+    @inbounds for i in 1:t.n; ht0[i] = reinterpret(Int32, t.height[i]); cr0[i] = t.crown_pct[i]; end   # FFE reads PRE-growth HT/ICR
     @inbounds for i in 1:t.n; dbh0[i] = t.dbh[i]; end
     @inbounds for i in 1:t.n
         d0 = t.dbh[i]; d0 <= 0f0 && continue
