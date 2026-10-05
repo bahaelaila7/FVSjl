@@ -197,6 +197,15 @@ end
 cuts_entry_tredel!(s::StandState) = tredel_compact!(s.trees; thresh = 1f-10, onmove = _record_move_hook(s))
 
 function cuts!(s::StandState; fint::Float32 = 5f0)
+    # grincr.f:283 OLDBA=BA — the stand BA BEFORE CUTS, latched once per cycle (th[14]; cuts! may be re-entered post-thin
+    # by the .sum/structure drivers). ORGANON's dgdriv.f:304-327 compares it with the post-thin BA to detect a thinning
+    # (YST/BART/BABT → DG_THIN/HG_THIN). OC/OP only (the only consumers).
+    if s.variant isa OregonCoast || s.variant isa Olympic
+        th = s.calib.organon_thin
+        if th[14] != Float32(s.control.cycle) + 1f0
+            th[12] = s.plot.basal_area; th[14] = Float32(s.control.cycle) + 1f0
+        end
+    end
     s.control.lsprut && (s.plot.cycle_length = fint)  # IFINT (FINT) — sprout age for ESTUMP/SPRTHT
     sched = s.control.schedule
     conds = s.control.conditionals

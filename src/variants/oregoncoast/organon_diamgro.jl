@@ -419,7 +419,8 @@ copy-back seam (FVS-native shared engine), not this chunk.
 """
 function organon_dg_swo(buf::OrganonBuffer; si_1::Float32, msdi_1::Float32=0.0f0,
         msdi_2::Float32=0.0f0, msdi_3::Float32=0.0f0, cyclg::Int=0,
-        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6))
+        calib3::Union{Nothing,AbstractVector{Float32}}=nothing, stor::AbstractVector{Float32}=zeros(Float32, 6),
+        babt::Float32=0f0, bart::Vector{Float32}=zeros(Float32,5), yt::Vector{Float32}=zeros(Float32,5))
     n = buf.ntrees
     spgrp = Vector{Int32}(undef, n)
     @inbounds for i in 1:n
@@ -441,7 +442,7 @@ function organon_dg_swo(buf::OrganonBuffer; si_1::Float32, msdi_1::Float32=0.0f0
         g = Int(spgrp[i])
         sbal1 = oc_get_bal(buf.dbh1[i], ball1, bal1)
         dgro[i] = oc_diamgro_run(buf.species[i], g, buf.dbh1[i], buf.cr1[i], si_1,
-                                 sbal1, sba1, c3[g]; cyclg=cyclg)
+                                 sbal1, sba1, c3[g]; cyclg=cyclg, babt=babt, bart=bart, yt=yt)
     end
     return dgro, spgrp, sba1, bal1, ball1, a1, a2
 end

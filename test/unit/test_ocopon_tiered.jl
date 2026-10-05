@@ -149,4 +149,17 @@ end
     @test isempty(c.ms)
 end
 
+# OC 645142535126144 thinbba (THINBBA cycle 2 leaves one DF; ESTAB adds 8 ES records afterwards). Two ORGANON mechanisms:
+# (1) oc/dgdriv.f:304-327 "MANAGE THE THINNING VARIABLES" — OLDBA(pre-CUTS, grincr.f:283) > BA ⇒ YST(1)=(CYCLG-1)*5,
+#     BART(1)=OLDBA-ATBA, BABT=OLDBA, fed to DG_THIN/HG_THIN (diagro.f:578, htgrowth.f:957): the surviving DF grew 11% slow;
+# (2) oc/crown.f:281-288 stale slot IORG=1 with CR2=0 for the ES records ⇒ ICR=1 ⇒ ~95% suppression mortality.
+# Before: 228 mismatches (.sum TPA 9 vs 132 from 2033); after: only StrClass cover rounding + 1 QMD ULP-class cell.
+@testset "OC ORGANON thinning response (dgdriv.f:304-327, diagro.f DG_THIN, htgrowth.f HG_THIN) + stale-IORG CROWN" begin
+    c = _case("OC", "645142535126144", "thinbba")
+    @test !c.crashed
+    @test _n(c.ms; file = "sum") == 0 || _n(c.ms; file = "sum", before = 2043) == 0
+    @test _n(c.ms; file = "FVS_Summary", before = 2043) == 0
+    @test _n(c.ms) <= 4
+end
+
 end # module

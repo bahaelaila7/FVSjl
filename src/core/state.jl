@@ -697,6 +697,8 @@ mutable struct Calibration
     op_org_ran::Bool                 # true ⇒ ORGANON EXECUTE ran this cycle (SMORMT>0 ⇒ MORTEXP-for-all in mortality!)
     organon_stor::Vector{Float32}    # /ORGANON/ STOR(1:6) carried across cycles (execute2.f:147-152 load, :442-447 store):
                                      # NO, RD0, A1, A2, A1MAX, PA1MAX — zeroed at {oc,op}/grinit.f:422-427
+    organon_thin::Vector{Float32}    # ORGANON thinning state carried across cycles (/ORGANON/ YST(1:5)=[1:5], BART(1:5)=[6:10], BABT=[11],
+                                     # grincr.f:283 OLDBA (pre-CUTS stand BA)=[12], last cycle managed by dgdriv.f:304-327=[13], cycle OLDBA latched=[14])
     organon_msdi::Vector{Float32}    # RVARS(3:5) = the ORGANON max-SDI inputs MSDI_1/2/3, loaded ONCE by {oc,op}/sitset.f
                                      # (`IF(RVARS(k).EQ.0.)`) from SDIDEF BEFORE cratet's SDICHK can raise SDIDEF; empty ⇒ unset
     oc_dbh0::Vector{Float32}         # OC: each record's START-of-cycle DBH (organon_apply_growth! grows DBH inline in the
@@ -767,6 +769,7 @@ Calibration() = Calibration(ones(Float32,MAXSP), ones(Float32,MAXSP),
     ones(Float32, 3, 18),                                            # organon_acalib (OC) — default all-1.0
     Int32[], Float32[], Float32[], Float32[], false,                 # OP ORGANON per-tree stash (empty until diameter_growth!)
     zeros(Float32, 6),                                               # organon_stor (ORGANON STOR)
+    zeros(Float32, 14),                                              # organon_thin (YST/BART/BABT/OLDBA/last cycle)
     Float32[],                                                       # organon_msdi (RVARS 3-5)
     Float32[],                                                       # oc_dbh0 (OC start-of-cycle DBH)
     zeros(Int32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP),  # cal_ntree, cal_stdrat, cal_wci (CalibStats)
