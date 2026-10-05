@@ -22,7 +22,7 @@ function small_tree_growth!(s::StandState, stash, ::LakeStates; fint::Float32 = 
     sizcap = s.control.sp_size_cap
     isct = s.control.sp_count_tab; ind1 = s.scratch.idx1
     ba = p.basal_area
-    avh = p.avg_height; rmsqd = stand_qmd(s)        # RMSQD (dense.f:250) — p.qmd is never stored
+    avh = p.avg_height; rmsqd = p.qmd                # RMSQD of the last DENSE (dense.f:250) — see LS height_growth!
     species_sort!(s)
     trip = stash !== nothing
     nrec = trip ? 3 : 1

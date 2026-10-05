@@ -117,6 +117,13 @@ end
 # gradd.f/fvs.f's per-acre round trip (MCFV·PROB/PROB) — MEASURED live FVSsn_g16 156207237010854 SIMFIRE 1984 FMCRBOUT:
 # record 2 VT 15.9 vs jl's cached 15.899999 ⇒ Aboveground_Merch_Live 5.1446075 vs 5.1446066.
 @inline function _ffe_stem_mcf(s::StandState, i::Int, sp::Int, d::Float32, h::Float32)::Float32
+    # CS/LS/NE (east-resid, measured): FMSVL2 on a live BROKEN-TOP tree runs the R9 Clark NATCRS at the actual height,
+    # LTKIL=.FALSE.; intact trees keep the cached merch (whether CS/LS/NE also need SN's every-record recompute for the
+    # PROB round trip below is unmeasured — open).
+    if _r9_east(s.variant)
+        (h >= 4.5f0 && s.trees.trunc[i] > 0) || return s.trees.merch_cuft_vol[i]
+        return r9_natcrs_cuft(s, sp, d, h)[2]
+    end
     s.variant isa Southern || return s.trees.merch_cuft_vol[i]
     d < 1f0 && return 0f0                                 # volinit.f:168 DBH<1 ⇒ no volume
     c = s.control

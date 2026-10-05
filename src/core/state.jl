@@ -854,12 +854,15 @@ mutable struct Scratch
     # compute_volumes_on! that immediately follows it — a top-killed record's VOLS diameter is D + DG/BRATIO(D, NORMHT),
     # not the DBH UPDATE grew with BRATIO(D, HT). 0 = no update this call (LSTART, or any other VOLS call).
     vol_dstart::Vector{Float32}
+    # NE /TWIGCOM/ EBAU(50): the BAL-by-DBH-class array BADIST fills inside DGF (ne/dgf.f:109, its only caller) and
+    # that BALMOD reads until the next DGF — so the end-of-cycle REGENT(LESTB) sees THIS cycle's DGF basis.
+    ne_ebau::Vector{Float32}
 end
 Scratch(mt::Int = MAXTRE) = Scratch(zeros(Float32,15,mt), zeros(Int32,mt), zeros(Int32,mt), zeros(Int32,mt),
                     zeros(Float32,mt), zeros(Float32,mt), zeros(Float32,mt),
                     zeros(Float32,MAXSP), zeros(Float32,MAXSP), zeros(Float32,MAXSP), falses(MAXSP),
                     zeros(Int32,mt), zeros(Float32,210), zeros(Float32,15), zeros(Float32,40),
-                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,mt))
+                    zeros(Int32,mt), zeros(Float32,MAXSP), zeros(Float32,mt), zeros(Float32,50))
 
 # ---------------------------------------------------------------------------
 # Extension states — allocated lazily only when the extension is active.

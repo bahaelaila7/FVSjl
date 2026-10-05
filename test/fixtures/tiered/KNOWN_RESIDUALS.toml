@@ -46149,3 +46149,234 @@ status = "OPEN"
 max_cells = 3
 issue = """bc-port 2026-10-05: BC residual after the bc-port campaign (467,601 -> 57 cells). FVS_Carbon_Metric Forest_Down_Dead_Wood/Forest_Floor/Total_Stand_Carbon after SIMFIRE/SALVAGE: down-wood pool drift, standing dead and live carbon exact; MEASURED FVSbc_dbfix SkyRanch-2.0m simfire DDW 2039 0.979 live / 1.379 jl (+40%) ten years after the fire; metric FMDOUT writes no fuels table (IFLALB gate), CWD-pool instrumentation needed. plant_cal/plant_cyc SkyRanch-0.3m FVS_Summary_Metric QMD 1 ULP (2059/2069). | 3 cells, e.g. year 2049: live=4.7461419105529785 jl=4.74644660949707"""
 
+[[residual]]
+variant = "CS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DBH"
+stand = "1813567613290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2074: live=10.723050117492676 jl=10.723051071166992"""
+
+[[residual]]
+variant = "CS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DG"
+stand = "1813567613290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2074: live=0.6161956787109375 jl=0.6161966323852539"""
+
+[[residual]]
+variant = "CS"
+regime = "none"
+file = "FVS_TreeList"
+col = "Ht2TDBF"
+stand = "1813567613290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2074: live=28.498775482177734 jl=28.498783111572266"""
+
+[[residual]]
+variant = "LS"
+regime = "econ"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=5.0133209228515625 jl=5.013319969177246"""
+
+[[residual]]
+variant = "LS"
+regime = "econ"
+file = "FVS_Summary"
+col = "QMD"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=5.0133209228515625 jl=5.013319969177246"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "CrWidth"
+stand = "1536031362290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2072: live=25.26687240600586 jl=25.266870498657227"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "CrWidth"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=12.629697799682617 jl=12.629698753356934"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DBH"
+stand = "1536031362290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2072: live=13.340910911560059 jl=13.340909957885742"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DBH"
+stand = "301218549489998"
+year = "*"
+status = "CORNER"
+max_cells = 2
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 2 cells, e.g. year 2064: live=13.21426773071289 jl=13.214268684387207"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DBH"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=6.901971340179443 jl=6.901971817016602"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DG"
+stand = "1536031362290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2072: live=0.3901834487915039 jl=0.3901824951171875"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DG"
+stand = "301218549489998"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2054: live=0.8754062652587891 jl=0.8754072189331055"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "DG"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=1.1769623756408691 jl=1.1769628524780273"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "Ht2TDBF"
+stand = "1536031362290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2072: live=47.087005615234375 jl=47.086997985839844"""
+
+[[residual]]
+variant = "LS"
+regime = "none"
+file = "FVS_TreeList"
+col = "Ht2TDCF"
+stand = "1536031362290487"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2072: live=73.6736068725586 jl=73.67359924316406"""
+
+[[residual]]
+variant = "LS"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Aboveground_Total_Live"
+stand = "1536031362290487"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """east-resid 2026-10-05 measured: LS FFE ULP residual (FVS_Carbon/PotFire/Summary 1-ULP; differs from the current-object relink too, not dug) | 1 cells, e.g. year 2062: live=55.95655822753906 jl=55.9565544128418"""
+
+[[residual]]
+variant = "LS"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Total_Stand_Carbon"
+stand = "1536031362290487"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """east-resid 2026-10-05 measured: LS FFE ULP residual (FVS_Carbon/PotFire/Summary 1-ULP; differs from the current-object relink too, not dug) | 1 cells, e.g. year 2062: live=90.00702667236328 jl=90.00701904296875"""
+
+[[residual]]
+variant = "LS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "ATQMD"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=5.0133209228515625 jl=5.013319969177246"""
+
+[[residual]]
+variant = "LS"
+regime = "thinbba"
+file = "FVS_Summary"
+col = "QMD"
+stand = "68756497010661"
+year = "*"
+status = "CORNER"
+max_cells = 1
+proof = """golden-binary object skew: the tiered goldens come from tmp/oracles/FVS{cs,ls}_new (linked 2026-07-11/07-18), whose htdbh_/varmrt_/dgf_ objects predate the current FVS{cs,ls}_buildDir objects (same .f sources; htdbh_ 0xaa4 vs 0x77f bytes, 4 vs 3 powf calls). A private relink of the CURRENT buildDir objects reproduces jl BIT-EXACT on this stand (whole FVS_TreeList with TREELIST added, east-resid 2026-10-05: CS 1813567613290487 1850/1850 rows, LS 68756497010661 2126/2126, 301218549489998 761/761, 1536031362290487 2242/2242; LS thinbba/econ FVS_Summary QMD identical) — the 1-ULP late-cycle DG/DBH/HtG/QMD cells are the old objects' rounding, not a jl defect | 1 cells, e.g. year 2053: live=5.0133209228515625 jl=5.013319969177246"""
+
+[[residual]]
+variant = "NE"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Aboveground_Total_Live"
+stand = "17955726010661"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """east-resid 2026-10-05 measured: NE FFE ULP residual (FVS_Carbon/PotFire/Summary 1-ULP; differs from the current-object relink too, not dug) | 1 cells, e.g. year 2005: live=19.909578323364258 jl=19.90958023071289"""
+
+[[residual]]
+variant = "NE"
+regime = "simfire"
+file = "FVS_Carbon"
+col = "Total_Stand_Carbon"
+stand = "17955726010661"
+year = "*"
+status = "OPEN"
+max_cells = 1
+issue = """east-resid 2026-10-05 measured: NE FFE ULP residual (FVS_Carbon/PotFire/Summary 1-ULP; differs from the current-object relink too, not dug) | 1 cells, e.g. year 2005: live=48.59028625488281 jl=48.59029006958008"""
+

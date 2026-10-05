@@ -139,7 +139,7 @@ _ffe_west_fallform(v) = _ffe_west_vol(v) || v isa Klamath || v isa WestSierra ||
     _snag_dktime(s, sp, d, dcx) -> Float32
 
 FMSNGDK (fmsnag.f:279-285) years-since-death for a snag to turn soft. PN/WC/BM/EC/OP (and SO's Oregon forests
-601/602/620/799): DKTIME = JYRSOFT·DECAYX from FMR6SDCY. Everything else: (1.24·DECAYX·D) + (13.82·DECAYX), in that
+601/602/620/799): DKTIME = JYRSOFT·DECAYX from FMR6SDCY. LS/ON: 0.65·DECAYX·D. Everything else: (1.24·DECAYX·D) + (13.82·DECAYX), in that
 exact Float32 order (fmsngdk.f:80 CASE DEFAULT; XMOD = 1).
 """
 function _snag_dktime(s::StandState, sp::Int, d::Float32, dcx::Float32)::Float32
@@ -149,7 +149,8 @@ function _snag_dktime(s::StandState, sp::Int, d::Float32, dcx::Float32)::Float32
         yrsoft, _, _ = r6_sdcy(r6, sp, d, _r6_itype(s))
         return Float32(yrsoft) * dcx
     end
-    # fmsngdk.f:64-66 CASE('LS','ON'): DKTIME = 0.65·DECAYX·D (·XMOD=1). (LS: on the east-resid branch.)
-    s.variant isa Ontario && return 0.65f0 * dcx * d
+    # fmsngdk.f:64-66 CASE('LS','ON'): DKTIME = 0.65·DECAYX·D (·XMOD=1) — LS snags soften far sooner than the SN form
+    # (MEASURED live FVSls 103337570010661 FMSCRO sp16 TSOFT 8.6775 vs jl 37.284). ON links the same fmsngdk.f CASE.
+    _ls_ffe(s.variant) && return 0.65f0 * dcx * d
     return (1.24f0 * dcx * d) + (13.82f0 * dcx)
 end

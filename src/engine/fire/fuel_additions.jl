@@ -53,8 +53,22 @@ const _FM_TFALL3 = (10f0, 6f0, 5f0, 4f0, 3f0, 2f0)
 const _FM_TFALL4 = (25f0, 12f0, 10f0, 8f0, 6f0, 4f0)
 # `sp` is the SN species index; fmvinit.f:1017 `IF(I.EQ.2)` gives eastern redcedar a 3-yr foliage fall vs 1 for
 # all others. (SN-scoped, like the _FM_TFALL tables themselves — a variant porting NE would re-source these.)
-@inline function _fm_tfall(cls::Int, sz::Int, sp::Integer)::Float32
-    sz == 0 && return sp == 2 ? 3f0 : 1f0          # foliage (redcedar = 3, fmvinit.f:1018)
+@inline function _fm_tfall(cls::Int, sz::Int, sp::Integer, v = nothing)::Float32
+    if _ls_ffe(v)    # ON links fire/ls/fmvinit.f
+        # ls/fmvinit.f:796-821: only FOUR TFALLCLS groups = the SN rows 3..6 (hickory/oak/cedar 2/5/10, red oak 1/4/8,
+        # ash/maple 1/3/6, pine/aspen 1/2/4), and TFALL(I,0)=1.0 for every species (no cedar foliage exception).
+        # `cls` is the RAW TFALLCLS here: the ON plantation species 69-72 have no CASE arm (TFALLCLS 0) ⇒ TFALL(I,1:5)
+        # is never set = 0 ⇒ FMSCRO's ILIFE floor of 1.
+        sz == 0 && return 1f0
+        (1 <= cls <= 4) || return 0f0
+        cls += 2
+    elseif sz == 0
+        # foliage: SN redcedar (sn/fmvinit.f:1017 I=2), CS redcedar+juniper (cs/fmvinit.f:964 I<=2), NE the cedars
+        # 12-15 (ne/fmvinit.f:1158) get 3 years, everything else 1.
+        v isa CentralStates && return sp <= 2 ? 3f0 : 1f0
+        v isa Northeast && return (12 <= sp <= 15) ? 3f0 : 1f0
+        return sp == 2 ? 3f0 : 1f0
+    end
     (sz == 1 || sz == 2) && return _FM_TFALL1[cls]
     sz == 3 && return _FM_TFALL3[cls]
     return _FM_TFALL4[cls]
@@ -77,16 +91,6 @@ end
     t2 > t3 && (t2 = t3)
     return sz == 0 ? t0 : sz == 1 ? t1 : sz == 2 ? t2 : t3
 end
-# fire/ls/fmvinit.f:796-821 (linked by ON): four TFALLCLS groups — TFALL(I,1)=2/1/1/1, (I,3)=5/4/3/2, (I,4)=10/8/6/4 —
-# TFALL(I,0)=1, TFALL(I,2)=TFALL(I,1), TFALL(I,5)=TFALL(I,4). The ON plantation species 69-72 have no SELECT CASE arm
-# (TFALLCLS=0 ⇒ TFALL(I,1:5) never set = 0 ⇒ FMSCRO's ILIFE floor of 1).
-@inline function _fm_tfall_lsfmv(cls::Integer, sz::Int)::Float32
-    sz == 0 && return 1f0
-    (1 <= cls <= 4) || return 0f0
-    sz <= 2 && return (2f0, 1f0, 1f0, 1f0)[cls]
-    sz == 3 && return (5f0, 4f0, 3f0, 2f0)[cls]
-    return (10f0, 8f0, 6f0, 4f0)[cls]
-end
 _fm_tfall_iestyle(v) = v isa InlandEmpire || v isa EasternMontana || v isa Kootenai ||
                        v isa BritishColumbia   # canada/fire/bc/fmvinit.f:384-395, the same TFALL block
 @inline function _fm_tfall_ie(coef, sp::Integer, sz::Int)::Float32
@@ -107,11 +111,10 @@ to the down-wood pool as it falls. `xv` is the `crown_biomass` tuple (foliage, w
 """
 function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32, dkcl::Integer; icall::Int = 1)
     fs = s.fire; coef = s.coef
-    cls = clamp(Int(coef_col(coef, :tfall_cls)[sp]), 1, 6)
+    craw = Int(coef_col(coef, :tfall_cls)[sp]); cls = clamp(craw, 1, 6)
     dcx = get(fs.params.snag_decayx_ovr, Int32(sp), coef_col(coef, :snag_decayx)[sp])  # SNAGDCAY override
     # FMSNGDK (fmscro.f:99): the R6 variants' JYRSOFT·DECAYX (_snag_dktime); others the (1.24·D+13.82)·DECAYX form.
-    tsoft = (r6_ffe_code(s.variant) === :none && !(s.variant isa Ontario)) ? (1.24f0 * dbh + 13.82f0) * dcx :
-            _snag_dktime(s, Int(sp), dbh, dcx)   # ON: fmsngdk.f CASE('LS','ON') 0.65·DECAYX·D
+    tsoft = _snag_dktime(s, Int(sp), dbh, dcx)   # FMSNGDK (fmscro.f:99): fmsngdk.f's exact per-variant form/association
     @inbounds for sz in 0:5
         amt = xv[sz + 1] * density
         amt > 0f0 || continue
@@ -121,8 +124,7 @@ function fmscro!(s::StandState, sp::Integer, dbh::Float32, xv, density::Float32,
         tft = _fm_tfall_table(s.variant)
         tf = tft !== nothing ? tft[sp, sz + 1] : _fm_tfall_iestyle(s.variant) ? _fm_tfall_ie(coef, sp, sz) :
              s.variant isa SouthCentralOregon ? _fm_tfall_so(coef, Int(sp), sz, Int(s.plot.user_forest_code)) :
-             s.variant isa Ontario ? _fm_tfall_lsfmv(Int(coef_col(coef, :tfall_cls)[sp]), sz) :   # (LS: east-resid)
-             _fm_tfall(cls, sz, sp)
+             _fm_tfall(_ls_ffe(s.variant) ? craw : cls, sz, sp, s.variant)
         ilife = clamp(ceil(Int, min(tsoft, tf)), 1, 60)
         annual = amt / ilife
         # fmscro.f:160-170: mortality reconciliation (ICALL=4, FMKILL after the annual loop) books straight into CWD2B;

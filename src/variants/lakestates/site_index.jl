@@ -41,10 +41,16 @@ function ls_site_index_setup!(s::StandState)
     C1, C2 = _LS_SICOEF
     sea = p.sp_site_index
     isisp = Int(p.site_species)
+    iflag = false
     if isisp <= 0                                   # ls/sitset.f:215 default site species = 3 (RN)
+        iflag = true
         isisp = 3; p.site_species = Int32(3)
     end
-    sea[isisp] <= 0f0 && (sea[isisp] = 60f0)        # :219 default SI = 60
+    if sea[isisp] <= 0f0                            # :219 default SI = 60
+        iflag = true
+        sea[isisp] = 60f0
+    end
+    iflag && errgro!(s, 54)                         # ls/sitset.f:262-267 IFLAG=1 ⇒ ERRGRO(.TRUE.,54)
     sisp = sea[isisp]
     @inbounds for i in 1:nspecies(v)                # DO 5 (:229-231)
         sea[i] <= 0.0001f0 && (sea[i] = C1[isisp, i] + C2[isisp, i] * sisp)

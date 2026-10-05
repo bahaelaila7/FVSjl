@@ -170,6 +170,11 @@ function initialize!(s::StandState, kr::KeywordReader, base_path::AbstractString
     # processing so TIMEINT/NUMCYCLE-period still overrides. `control.year` is the per-cycle
     # length build_cycle_schedule!/grow drive on; SN keeps its 5 default (bit-exact).
     (s.variant isa Northeast || s.variant isa CentralStates) && (s.control.year = 10f0)
+    # NE/CS/LS GRINIT FINT=10 (ne/grinit.f:172, cs|ls/grinit.f:169), FINTM=5: the FINT/FINTM=2 dead-record PROB inflation
+    # (notre.f:122-124) of the backdated CRATET/calibration DENSE. jl left the generic 5 ⇒ the cycle-0 dead records entered
+    # the crown-dub BA at half weight (MEASURED live FVSne 66746760010538 dense.f: dead P 12.036 vs jl 6.018 ⇒ BA 97.836
+    # vs 96.983 ⇒ 7 dubbed crowns 32 vs 33). The DG calibration SCALE stays native (gated on growth_dg_set).
+    (s.variant isa Northeast || s.variant isa CentralStates || s.variant isa LakeStates) && (s.control.growth_fint = 10f0)
     # NC GRINIT DG-measurement period default (nc/grinit.f:169-171 FINT=10, FINTH=5, FINTM=5). Only FINT differs
     # from the generic 5 default. Set before keyword/DB processing so a GROWTH keyword or DG_MEASURE column still
     # overrides. Drives the FINT/FINTM=2 dead-record PROB inflation for the backdated calibration/crown-init DENSE

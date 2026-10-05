@@ -99,7 +99,10 @@ function height_growth!(s::StandState, ::LakeStates; scale::Float32 = 1f0)
     mapls = sd[:htcalc_mapls]
     check = sd[:balmod_check]; b1 = sd[:balmod_b1]; b2 = sd[:balmod_b2]; b3 = sd[:balmod_b3]
     b4 = sd[:balmod_b4]; c1 = sd[:balmod_c1]; c2 = sd[:balmod_c2]; bamax1 = sd[:balmod_bamax1]
-    avh = p.avg_height; ba = p.basal_area; rmsqd = stand_qmd(s)   # RMSQD (dense.f:250) — p.qmd is never stored
+    # RMSQD = the /PLOT/ value of the LAST DENSE (dense.f:250), summed in that call's IND1 (TRIPLE lineage) order over every
+    # record incl. PROB=0 ones a later TREDEL drops — NOT a recount at HTGF time in the post-TREDEL physical order (MEASURED
+    # live FVSls 1536031362290487 cycle 4: RMSQD 4109F4FF vs the recount 4109F4FB ⇒ BALMOD GMOD 1-6 ULP).
+    avh = p.avg_height; ba = p.basal_area; rmsqd = p.qmd
     oldrn = t.old_random
     cur_year = current_cycle_year(s)
     @inbounds for i in 1:t.n

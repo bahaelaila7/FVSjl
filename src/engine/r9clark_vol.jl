@@ -143,7 +143,7 @@ function _r9_totht(htTot::Float32, dbhIb::Float32, dib17::Float32,
         Qb = -2f0 * b - Im * 2f0 * (1f0 - b) / a
         Qc = b + (1f0 - b) * Im - topDib^2 / dib17^2
         tot = 17.3f0 + (topHt - 17.3f0) * (2f0 * Qa) /
-              (-1f0 * Qb - sqrt(Qb^2 - 4f0 * Qa * Qc))
+              (-1f0 * Qb - fpow(Qb^2 - 4f0 * Qa * Qc, 0.5f0))   # r9clark.f:982 (…)**0.5 = powf, not sqrt
         tot = max(tot, topHt + topDib * 2f0)
         tot = min(tot, topHt + topDib * 8f0)
         return tot
@@ -210,7 +210,7 @@ function _r9_ht(st::_R9State, stmDib::Float32)::Float32
         xxx > 0f0 && (stemHt = totHt * (1f0 - fpow(xxx, 1f0 / p)))
     else
         xxx = Qb^2 - 4f0 * Qa * Qc
-        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0) * ((-Qb - sqrt(xxx)) / (2f0 * Qa)))
+        xxx > 0f0 && (stemHt = 17.3f0 + (totHt - 17.3f0) * ((-Qb - fpow(xxx, 0.5f0)) / (2f0 * Qa)))   # r9clark.f:1395 xxx**0.5 = powf
     end
     return stemHt
 end
@@ -255,7 +255,7 @@ function _r9_dib(st::_R9State, h::Float32)::Float32
              (im ? ((1f0 - b) / a^2) * (a - (h - 17.3f0) / (totHt - 17.3f0))^2 : 0f0))
     end
     s = ds + db + dt
-    return s > 0f0 ? sqrt(s) : 0f0
+    return s > 0f0 ? fpow(s, 0.5f0) : 0f0         # r9clark.f:1265 (Ds+Db+Dt)**0.5 = powf (gfortran keeps **.5 as powf)
 end
 
 # International ¼-inch board feet per log (r9bdft, r9clark.f:1482) — the NE `.sum` BdFt is FVS's
@@ -693,3 +693,25 @@ function compute_volumes_ne!(s::StandState)
     end
     return s
 end
+
+"""
+    r9_natcrs_cuft(s, sp, d, h) -> (tcf, mcf)
+
+The NATCRS cubic volumes that FFE's FMSVOL/FMSVL2 (fmsvol.f:118-153, METHC 6 = the '900CLKE' R9 Clark default) gets
+for a tree of (`d`, `h`) in the R9-Clark eastern variants CS/LS/NE, with no top-kill (LTKIL=.FALSE.): TCF = the total
+cubic, MCF = the DBH-gated merch cubic (v4+v7, 0 below DBHMIN) — the same merch standards (VOLSTD common, VOLUME/
+BFVOLUME-overridable) and product split as `compute_volumes_ne!`. FMCROWE's DBHMIN-tree bole (fmcrowe.f:268-280), the
+live FMDOUT/FMCRBOUT stem of a broken-top tree and the eastern snag bole all read it. (A `VOLUME …5` DVEE card makes
+FMSVL2 call OCFVOL instead — not reached by the default METHC.)
+"""
+function r9_natcrs_cuft(s::StandState, sp::Integer, d::Float32, h::Float32)
+    s.control.merch_init || init_merch_standards!(s)
+    md = s.control
+    fias = strip(string(s.coef.code_fia[sp])); fia = isempty(fias) ? 0 : parse(Int, fias)
+    scfmind = md.sp_scf_dbhmin[sp]; topd = md.sp_top_diam[sp]
+    prod = d >= scfmind ? "01" : "02"
+    mtopp = d >= scfmind ? md.sp_scf_topd[sp] : topd
+    v = r9clark_cubic(fia, d, h, prod, mtopp, topd, 0f0)
+    return v[1], (d >= md.sp_dbh_min[sp] ? v[4] + v[7] : 0f0)
+end
+_r9_east(v) = v isa CentralStates || v isa LakeStates || v isa Northeast
