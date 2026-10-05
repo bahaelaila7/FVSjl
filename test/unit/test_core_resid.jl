@@ -505,3 +505,9 @@ end
     # Julia's log(1-DKR) vs glibc logf: CWD(1,4,1,2) after the first FMCWD 2.55130029 live vs 2.5513005 ⇒ Pot_Smoke / DDW ULPs.
     @test _cr_case_mismatches("bm", "22960873010497", "salvage", ("FVS_PotFire", "FVS_Carbon")) == 0
 end
+
+@testset "EM 684750664126144 simfire: FMSDIT scales the OLDCRW a slot still holds (fmoldc.f, fmsdit.f:103-119)" begin
+    # Records 143/144 were booked after the 2028 fire, beyond that FMMAIN's ITRN: FMOLDC never refreshed their OLDCRW, so
+    # cycle 4's FMSDIT scaled the slot's stale value (1.0077E-2 → 5.7E-7); jl rebuilt it from CROWNW (7.8E-5) ⇒ 2048 BIOLIVE.
+    @test _cr_case_mismatches("em", "684750664126144", "simfire", ("FVS_PotFire", "FVS_Carbon")) == 0
+end
