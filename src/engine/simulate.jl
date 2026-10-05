@@ -1035,10 +1035,6 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
     small_tree_growth!(s, stash, s.variant; fint = fint)  # REGENT overrides DG/HTG for small trees (SN <3", NE <5")
     apply_fix_scalers!(s, stash, :fixdg, fint)   # FIXDG/FIXHTG: one-shot DG/HTG scalers,
     apply_fix_scalers!(s, stash, :fixhtg, fint)  # after all growth, before MORTS (grincr.f:451)
-    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH/ICR and GRINCR's
-    # TRIPLE, before UPDATE): a non-fire cycle's whole FMMAIN pass (FMCBA, the FFE reports, the annual fuel loop), run on
-    # the TRIPLEd list (`stash`) when the cycle triples.
-    fmmain_hook === nothing || fmmain_hook(s, stash)
     # CR dwarf mistletoe spread/intensification (mistoe.f MISTOE, gradd.f:96 — after growth+FIXHTG, before
     # UPDATE; uses HTG). Updates per-tree DMR, drawing rann! in ISCT order (RNG-aligned to FVS). No-op for
     # non-CR and for mistletoe-free stands (SMR=0 ⇒ zero draws). The DM mortality it enables is max-combined
@@ -1072,6 +1068,13 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
         s.variant isa CentralRockies && cr_mistoe!(s; fint = fint)   # CR MISTOE spread (cr links the same mistoe.f; 38-sp DATA)
     end
     mis_defer || dm_misinf!(s)   # MISTPINF forced initial DM infection (misinf.f MISINF, mistoe.f:517 — after spread, before DM mortality); inert w/o a card
+    # The report driver's hook onto the FMMAIN point (gradd.f:118 — after REGENT's direct small-tree DBH/ICR, GRINCR's
+    # TRIPLE and gradd.f:96 MISTOE, before UPDATE): a non-fire cycle's whole FMMAIN pass (FMCBA, the FFE reports, the annual
+    # fuel loop), run on the TRIPLEd list (`stash`) when the cycle triples. On a mis_post cycle the spread runs post-TRIPLE,
+    # so the pass waits for it there (fmm_late): FMSNAG's FMR6HTLS draws follow the spread's (MEASURED FVSso_g16
+    # 374286168489998 SALVAGE cycle 0: the seam annual loop ran before the spread ⇒ 2025 Standing_Dead 3.243 vs live 3.783).
+    fmm_late = mis_post && fmmain_hook !== nothing
+    fmm_late || fmmain_hook === nothing || fmmain_hook(s, stash)
     # BC NEWSPRED spatial dwarf-mistletoe spread (canada/newmist DMTREG) — updates per-tree DMR via the
     # spatial model, then publishes ms.dmr→t.dmr for the base misdgf/mismrt effects. Self-guards on the
     # NEWSPRED/MISTOE keyword (ms.active||newmod); inert on non-DM BC stands. lastyr = cycle length (yr).
@@ -1255,6 +1258,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
             full_prob = Float32[t.tpa[i] for i in 1:n2]
             _dm_spread!(s; fint = fint)        # mistoe.f spread (rann! over ITRN×3)
             dm_misinf!(s)                      # mistoe.f:517 MISINF
+            fmm_late && fmmain_hook(s, nothing)  # gradd.f:118 FMMAIN pass after MISTOE, on the tripled full-PROB list
             pofl_late && pofl_hook(s, nothing)   # gradd.f:118 FMMAIN (FMPOFL) after MISTOE, FMPROB = full PROB
             fuel_late && ffe_fuel_update!(s, fuel_period)   # fmmain.f:228 annual loop (same FMMAIN), tripled full PROB
             @inbounds for i in 1:nlive
@@ -1289,6 +1293,7 @@ function grow_cycle!(s::StandState; fint::Float32 = 5f0,
                 _dm_spread!(s; fint = fint)
                 dm_misinf!(s)
             end
+            fmm_late && fmmain_hook(s, nothing)                          # gradd.f:118 FMMAIN pass after MISTOE
             pofl_late && pofl_hook(s, nothing)                           # gradd.f:118 FMMAIN, before :131 RDTREG
             fuel_late && ffe_fuel_update!(s, fuel_period)                # fmmain.f:228 annual loop (same FMMAIN)
             root_disease_treg!(s, fint)                                  # RDCNTL RDINSD/RDMORT/RDSTP on full PROB
