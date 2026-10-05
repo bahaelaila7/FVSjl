@@ -35,14 +35,14 @@ const OP_DUB_CRSD = Float32[1.3167,1.3756,1.9658,2.0426,0.5,0.5]
 @inline function _op_dubscr(rng, sp::Integer, d::Real, h::Real, ba::Real, prd::Real, qmdplt::Real)::Float32
     if sp == 17                                            # RW — logistic (op/dubscr.f:21-24)
         hdr = Float32(h) * 12f0 / Float32(d)
-        cr = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
+        cr = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * Float32(prd) -
              0.116274f0 * (Float32(d) / Float32(qmdplt))
         sd = 0.15f0
         fcr = 0f0
         while true
             fcr = bachlo(rng, 0f0, sd); abs(fcr) > sd && continue; break
         end
-        cr = 1f0 / (1f0 + exp(cr + fcr))
+        cr = 1f0 / (1f0 + fexp(cr + fcr))
     else
         g = Int(OP_DUB_IMAP[sp])
         cr = OP_DUB_BCR0[g] + OP_DUB_BCR1[g] * Float32(h) + OP_DUB_BCR2[g] * Float32(ba)
@@ -99,8 +99,8 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
             chg = crnew - Float32(icr)
         elseif sp == 17                                     # RW logistic (op/crown.f CASE(17))
             hdr = d > 0f0 ? h * 12f0 / d : 1f0
-            xl = -1.021064f0 + 0.309296f0 * log(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(xl))
+            xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd - 0.116274f0 * (d / qmdplt)
+            x = 1f0 / (1f0 + fexp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 10f0                                # CASE(17): CRNEW = X*10
             crnew *= 10f0
@@ -118,7 +118,7 @@ function crown_ratio_update!(s::StandState, ::Olympic; fint::Float32 = 5.0f0, ls
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0) inert here
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = A + B * (-log(1f0 - x))^(1f0 / C)
+            crnew = A + B * fpow(-flog(1f0 - x), 1f0 / C)   # op/crown.f:324 A+B*((-1.0*ALOG(1-X))**(1.0/C)) — logf/powf
             crnew *= 10f0
             if !(lstart || icr == 0)
                 chg = crnew - Float32(icr)

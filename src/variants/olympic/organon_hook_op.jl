@@ -40,7 +40,7 @@ end
 @inline function op_dgbnd(sp::Int, dbh::Float32, ddg::Float32, sizcap::AbstractMatrix)::Float32
     if sp != 17
         temdbh = dbh > 150f0 ? 150f0 : dbh
-        dgmax = 7.92f0 * exp(-0.03f0 * temdbh)
+        dgmax = 7.92f0 * fexp(-0.03f0 * temdbh)          # op/dgbnd.f EXP = expf
         ddg > dgmax && (ddg = dgmax)
         ddg < 0f0 && (ddg = 0f0)
     end

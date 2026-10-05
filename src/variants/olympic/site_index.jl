@@ -156,7 +156,7 @@ function op_sitset!(s::StandState)
         end
         haskey(OP_SITE_REDUX, ispc) && isisp != ispc && (v *= OP_SITE_REDUX[ispc])
         (ispc == 28 && isisp != 28) &&
-            (v = 114.2f0*(1f0 - exp(-0.0266f0*v))^2.26f0)      # WO King-from-DF (op/sitset.f:196)
+            (v = 114.2f0*fpow(1f0 - fexp(-0.0266f0*v), 2.26f0))      # WO King-from-DF (op/sitset.f:196)
         si[ispc] = v
     end
 

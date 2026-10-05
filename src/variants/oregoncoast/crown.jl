@@ -94,7 +94,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
             hdr = d > 0f0 ? h * 12f0 / d : 1f0
             xl = -1.021064f0 + 0.309296f0 * flog(max(hdr, 1f-6)) + 0.869720f0 * prd -
                  0.116274f0 * (d / qmdplt)
-            x = 1f0 / (1f0 + exp(xl))
+            x = 1f0 / (1f0 + fexp(xl))
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
             crnew = x * 10f0 * 10f0                       # CASE(23,50): CRNEW = X*10, then ×10
         else
@@ -105,7 +105,7 @@ function crown_ratio_update!(s::StandState, ::OregonCoast; fint::Float32 = 5.0f0
             scale > 1f0 && (scale = 1f0); scale < 0.30f0 && (scale = 0.30f0)
             x = d > 0f0 ? (Float32(isort[i]) / Float32(n)) * scale : rann!(s.rng) * scale   # RANN path (d=0)
             x < 0.05f0 && (x = 0.05f0); x > 0.95f0 && (x = 0.95f0)
-            crnew = (A + B * (-flog(1f0 - x))^(1f0 / C)) * 10f0
+            crnew = (A + B * fpow(-flog(1f0 - x), 1f0 / C)) * 10f0   # oc/crown.f (-1.0*ALOG(1-X))**(1.0/C): powf
         end
         if !iorg && !(lstart || icr == 0)                 # ±1%/yr limit (crown.f:346-349), CRNMLT=1
             chg = crnew - Float32(icr)
