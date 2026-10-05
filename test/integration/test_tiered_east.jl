@@ -72,6 +72,11 @@ _cells(ms, file; col = nothing, year = nothing) =
         ms = _case("NE", "9740818010661", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 1993))   # dead-record BAPctile
     end
+    @testset "NE 9740818010661 none — ne/dgf.f expf/powf(.5)/logf in the 10-step BAL potential iteration" begin
+        ms = _case("NE", "9740818010661", "none")
+        @test isempty([m for m in _cells(ms, "FVS_TreeList") if m.col != "Ht2TDBF"])   # cycle-2 WK2 was 15 ULP off
+        @test length(_cells(ms, "FVS_TreeList")) <= 1         # OPEN: SM 2043 Ht2TDBF 1 ULP (r9clark board height)
+    end
     @testset "NE 259381087489998 none — crown dub before calibration, dead-inclusive CRATET BA" begin
         ms = _case("NE", "259381087489998", "none")
         @test isempty(_cells(ms, "FVS_TreeList"; year = 2013))
