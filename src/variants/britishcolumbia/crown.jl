@@ -125,6 +125,37 @@ function crown_ratio_update!(s::StandState, ::BritishColumbia; fint::Float32 = 1
         icri < 5 && (icri = 5)                                       # CRNMLT==1 lower bound
         t.crown_pct[i] = Int32(icri)
     end
+    lstart && bc_dead_crown_dub!(s, crcon, crhtdbh, crht, crdbh2, crbal, crlnccf)
+    return s
+end
+
+# canada/bc/crown.f:606-628 `DO 79 I=IREC2,MAXTRE`: cycle-0 dead records with no crown. P = the record's PCT from cratet's
+# backdating DENSE (dense.f:244), BAL = (1-P/100)*OLDBA and XCRCON = CRCON + CRLNCCF*LOG(MAX(0.01,RELDM1)) with the
+# OLDBA/RELDM1 that DENSE leaves (dense.f:259-264, the FINTH/FINT interpolation), then V3 DUBSCR = CRNMD(..., YSD=0)
+# (bc/dubscr.f:60) bounded [0.05,0.95], ICRI = INT(CR*100+.5), the top-kill restatement and [10,95] (dub_dead_crowns!).
+function bc_dead_crown_dub!(s::StandState, crcon, crhtdbh, crht, crdbh2, crbal, crlnccf)
+    t = s.trees; c = s.calib
+    t.ndead > 0 || return s
+    lbk = c.cratet_oldba > 0f0
+    oldba = lbk ? c.cratet_oldba : s.plot.old_ba
+    reldm1 = lbk ? c.cratet_reldm1 : s.plot.relative_density_prev
+    lnr = flog(max(0.01f0, reldm1))
+    lmd = nothing
+    dub_dead_crowns!(s) do i
+        sp = Int(t.species[i]); d = t.dbh[i]; h = t.height[i]
+        k = i - t.n
+        pp = k <= length(c.cratet_dead_pct) ? c.cratet_dead_pct[k] : t.crown_ratio[i]
+        bal = (1f0 - (pp / 100f0)) * oldba
+        xc = crcon[sp] + crlnccf[sp] * lnr
+        cr = if d * BC_INtoCM < 2f0
+            lmd === nothing && (lmd = bc_ht_coefs(s)[3])
+            bc_crnmd_sub2cm(xc, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], c.ht_dbh_aa[sp], lmd[sp], bal)
+        else
+            bc_crnmd(xc, crhtdbh[sp], crht[sp], crdbh2[sp], crbal[sp], d, h, bal)
+        end
+        cr < 0.05f0 && (cr = 0.05f0); cr > 0.95f0 && (cr = 0.95f0)
+        icri_round(cr)
+    end
     return s
 end
 

@@ -174,4 +174,13 @@ end
     @test length(c.ms) < 200                      # 13,304 cells before
 end
 
+# canada/bc/crown.f:606-628 DO 79: cycle-0 dead records with no crown are dubbed — V3 DUBSCR = CRNMD(…,YSD=0) on
+# BAL = (1-PCT/100)*OLDBA, XCRCON from RELDM1, both the dense.f:259-264 FINTH/FINT interpolations of cratet's backdating
+# DENSE. jl never ran it for BC. MEASURED FVSbc_instr YSM029-250 DO 79 dump: P 10.95/6.60/25.17, OLDBA 41FF958F,
+# RELDM1 4216E1D6 ⇒ ICR 95 on all 3 dead records.
+@testset "BC cycle-0 dead-record crown dub (canada/bc/crown.f:606-628)" begin
+    c = _case("YSM029-250", "none")
+    @test !any(m -> m.year == "2018" && m.col == "PctCr", c.ms)
+end
+
 end # module
