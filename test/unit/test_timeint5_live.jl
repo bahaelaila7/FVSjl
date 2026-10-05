@@ -46,7 +46,7 @@ const _T5_CASES = [("pnt01_t5", _T5.PacificNorthwest(), Int[], Int[]),
             nfull += (jl[i] == lv[i])
         end
         # every full row exact except the named one-unit volume knife-edges
-        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 1, "wct01_t5" => 2, "bmt01_t5" => 0, "cit01_t5" => 2)[stem]
+        nknife = Dict("pnt01_t5" => 0, "ect01_t5" => 1, "wct01_t5" => 2, "bmt01_t5" => 0, "cit01_t5" => 0)[stem]
         @test (stem, nfull) == (stem, count(i -> !(st[i] in skip_stands), eachindex(lv)) - nknife)
     end
 end
