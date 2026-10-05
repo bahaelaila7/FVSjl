@@ -149,4 +149,10 @@ end
     @test !c.crashed
     @test _n(c.ms) == 0
 end
+# ON 720549798290487 / 1803293564290487 (none): measured-DG stands (IDG=1 ⇒ LBKDEN). cratet.f:160's backdated PCT is overwritten
+# by cratet.f:582's current-DBH DENSE (dense.f:276-277), so the cycle-0 list's BAPctile is the CURRENT-diameter percentile.
+@testset "ON cycle-0 BAPctile = current-DBH PCT on backdated (measured-DG) stands (canada/on/cratet.f:582, dense.f:276)" begin
+    @test _n(_case("ON", "720549798290487", "none").ms; col = "BAPctile") == 0
+    @test _n(_case("ON", "1803293564290487", "none").ms; col = "BAPctile") == 0
+end
 end # module
