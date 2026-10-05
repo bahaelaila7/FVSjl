@@ -726,9 +726,111 @@ const _FM_TFALL_NC = Float32[
     3f0 10f0 10f0 10f0 10f0 10f0;   # 10 PP (TFALL(3)=10 caps TFALL(2))
     1f0 10f0 15f0 15f0 15f0 15f0;   # 11 OH
     3f0 10f0 15f0 20f0 20f0 20f0]   # 12 RW
-"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM/NC/CR/CI/TT/UT), or `nothing` ⇒ the SN tfall-class rows."
+# ws/fmvinit.f / ca/fmvinit.f TFALL(I,0:5) after the closing rules (TFALL(1)=10, (2)=MIN(15,TFALL(3)), (4)=(5)=TFALL(3),
+# (0)=MIN(TFALL(0),LEAFLF)) — dumped from the live FVSws_g16 / FVSca_g16 objects' FMVINIT. Without them WS/CA fell back to
+# the SN class rows (crown debris fell in 1-6 yr instead of 10-20: Standing_Snag_lt3 low, Surface_lt3 high).
+const _FM_TFALL_WS = Float32[
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 1
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 2
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 3
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 4
+    1f0 10f0 15f0 20f0 20f0 20f0;   # 5
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 6
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 7
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 8
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 9
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 10
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 11
+    2f0 10f0 15f0 15f0 15f0 15f0;   # 12
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 13
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 14
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 15
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 16
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 17
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 18
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 19
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 20
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 21
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 22
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 23
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 24
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 25
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 26
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 27
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 28
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 29
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 30
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 31
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 32
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 33
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 34
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 35
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 36
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 37
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 38
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 39
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 40
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 41
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 42
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 43
+    ]
+const _FM_TFALL_CA = Float32[
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 1
+    1f0 10f0 15f0 20f0 20f0 20f0;   # 2
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 3
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 4
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 5
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 6
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 7
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 8
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 9
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 10
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 11
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 12
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 13
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 14
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 15
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 16
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 17
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 18
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 19
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 20
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 21
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 22
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 23
+    3f0 10f0 15f0 15f0 15f0 15f0;   # 24
+    3f0 10f0 10f0 10f0 10f0 10f0;   # 25
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 26
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 27
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 28
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 29
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 30
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 31
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 32
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 33
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 34
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 35
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 36
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 37
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 38
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 39
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 40
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 41
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 42
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 43
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 44
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 45
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 46
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 47
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 48
+    1f0 10f0 15f0 15f0 15f0 15f0;   # 49
+    3f0 10f0 15f0 20f0 20f0 20f0;   # 50
+    ]
+
+"The variant's own TFALL(sp, 0:5) table (EC/WC/PN/OP/AK/BM/NC/CR/CI/TT/UT/WS/CA), or `nothing` ⇒ the SN tfall-class rows."
 _fm_tfall_table(v) = v isa EastCascades ? _FM_TFALL_EC : v isa WestCascades ? _FM_TFALL_WC :
                      v isa PacificNorthwest ? _FM_TFALL_PN : v isa Olympic ? _FM_TFALL_OP :
                      v isa SoutheastAlaska ? _FM_TFALL_AK : v isa BlueMountains ? _FM_TFALL_BM :
                      v isa Klamath ? _FM_TFALL_NC : v isa CentralRockies ? _FM_TFALL_CR :
-                     v isa CentralIdaho ? _FM_TFALL_CI : v isa Teton ? _FM_TFALL_TT : v isa Utah ? _FM_TFALL_UT : nothing
+                     v isa CentralIdaho ? _FM_TFALL_CI : v isa Teton ? _FM_TFALL_TT : v isa Utah ? _FM_TFALL_UT :
+                     v isa WestSierra ? _FM_TFALL_WS : v isa CentralCalifornia ? _FM_TFALL_CA : nothing

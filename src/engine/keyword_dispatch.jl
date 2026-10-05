@@ -2500,6 +2500,16 @@ function kw_fmin!(s::StandState, rec::KeywordRecord, kr::KeywordReader)
             @inbounds for sp in 1:nspecies(s.variant)
                 fs.params.snag_htx[Int32(sp)] = (1f0, 0f0, 1f0, 0f0)
             end
+        elseif s.variant isa WestSierra || s.variant isa CentralCalifornia
+            # ws/fmvinit.f:221-225, ca/fmvinit.f:483-488: HTX(I,1)=HTX(I,3)=1, HTX(I,2)=HTX(I,4)=0 for every species (HTR1
+            # 0.03406, HTR2 0.01, HTXSFT 10 — FMSNGHT CASE DEFAULT); WS overrides HTX(I,1:4) for singleleaf pinyon 12 (0.0978),
+            # 21 (0.0462) and 41 (1.0) (ws/fmvinit.f:371-373/484-486/598-600). jl seeded none ⇒ WS/CA snags never lost height
+            # (MEASURED FVSws_g16 1123894228290487 2031: SnagSum counts equal, Standing_Snag_ge3 41.28 live / 43.56 jl).
+            ws = s.variant isa WestSierra
+            @inbounds for sp in 1:nspecies(s.variant)
+                h = ws && sp == 12 ? 0.0978f0 : ws && sp == 21 ? 0.0462f0 : ws && sp == 41 ? 1f0 : -1f0
+                fs.params.snag_htx[Int32(sp)] = h >= 0f0 ? (h, h, h, h) : (1f0, 0f0, 1f0, 0f0)
+            end
         elseif r6_ffe_code(s.variant) !== :none && !(s.variant isa SouthCentralOregon)
             # bm/ec/pn/op/wc fmvinit.f: HTX(I,1:4) = 1.0 for every species ⇒ FMSNGHT takes the FMR6HTLS random
             # loss (snag.jl). SO sets its snag parameters per forest in FMCBA (so/fmcba.f:925-990) — not here.
